@@ -1,0 +1,39 @@
+{
+  "_comment": "Fallback dictionary used only when a new 'Eat X' / 'Drink X' habit shows up in a future import that isn't in overrides.json yet. Maps a food keyword to one of the 8 real food categories in categories.ts (Veggies, Fruit, Legumes, Grains, Dairy, 'Meat & Fish', 'Nuts & Seeds', Misc) — the same groupings the source app's own ZHABITTAG data uses, never an invented category. Anything unmatched falls into food/Misc and is flagged for review rather than guessed.",
+  "vegetable": "Veggies", "veggie": "Veggies", "spinach": "Veggies", "kale": "Veggies", "lettuce": "Veggies",
+  "cabbage": "Veggies", "cucumber": "Veggies", "celery": "Veggies", "asparagus": "Veggies", "eggplant": "Veggies",
+  "aubergine": "Veggies", "pumpkin": "Veggies", "squash": "Veggies", "radish": "Veggies", "beet": "Veggies",
+  "beetroot": "Veggies", "artichoke": "Veggies", "sprouts": "Veggies", "peas": "Veggies", "tomato": "Veggies",
+
+  "fruit": "Fruit", "grape": "Fruit", "melon": "Fruit", "watermelon": "Fruit", "pineapple": "Fruit",
+  "cherry": "Fruit", "cherries": "Fruit", "plum": "Fruit", "apricot": "Fruit", "fig": "Fruit",
+  "papaya": "Fruit", "pomegranate": "Fruit", "lemon": "Fruit", "lime": "Fruit", "grapefruit": "Fruit",
+  "raisins": "Fruit", "lychee": "Fruit", "passionfruit": "Fruit", "guava": "Fruit",
+
+  "bean": "Legumes", "lentil": "Legumes", "chickpea": "Legumes", "soybean": "Legumes", "edamame": "Legumes",
+  "tofu": "Legumes", "tempeh": "Legumes",
+
+  "bread": "Grains", "pasta": "Grains", "rice": "Grains", "oat": "Grains",
+  "quinoa": "Grains", "barley": "Grains", "wheat": "Grains", "cereal": "Grains",
+  "cracker": "Grains", "tortilla": "Grains", "noodle": "Grains", "grain": "Grains",
+  "potato": "Grains", "corn": "Grains", "polenta": "Grains",
+
+  "milk": "Dairy", "cheese": "Dairy", "yoghurt": "Dairy", "yogurt": "Dairy", "cream": "Dairy", "butter": "Dairy",
+  "kefir": "Dairy", "egg": "Dairy", "eggs": "Dairy",
+  "oat milk": "Dairy", "almond milk": "Dairy", "soy milk": "Dairy", "coconut milk": "Dairy", "cashew milk": "Dairy",
+
+  "fish": "Meat & Fish", "salmon": "Meat & Fish", "tuna": "Meat & Fish", "shrimp": "Meat & Fish",
+  "prawn": "Meat & Fish", "cod": "Meat & Fish", "sardine": "Meat & Fish", "mackerel": "Meat & Fish",
+  "seafood": "Meat & Fish", "mussel": "Meat & Fish", "crab": "Meat & Fish", "lobster": "Meat & Fish",
+  "chicken": "Meat & Fish", "beef": "Meat & Fish", "pork": "Meat & Fish", "turkey": "Meat & Fish", "lamb": "Meat & Fish",
+  "sausage": "Meat & Fish", "bacon": "Meat & Fish", "ham": "Meat & Fish", "steak": "Meat & Fish", "meat": "Meat & Fish",
+
+  "almond": "Nuts & Seeds", "walnut": "Nuts & Seeds", "cashew": "Nuts & Seeds", "pistachio": "Nuts & Seeds",
+  "hazelnut": "Nuts & Seeds", "peanut": "Nuts & Seeds", "nut": "Nuts & Seeds",
+  "chia": "Nuts & Seeds", "flaxseed": "Nuts & Seeds", "sesame": "Nuts & Seeds", "sunflower seed": "Nuts & Seeds",
+  "pumpkin seed": "Nuts & Seeds", "hemp seed": "Nuts & Seeds", "tahini": "Nuts & Seeds", "seed": "Nuts & Seeds",
+
+  "chocolate": "Misc", "candy": "Misc", "cake": "Misc", "cookie": "Misc",
+  "dessert": "Misc", "ice cream": "Misc", "sugar": "Misc", "honey": "Misc",
+  "syrup": "Misc", "pastry": "Misc", "coffee": "Misc", "espresso": "Misc", "latte": "Misc"
+}
