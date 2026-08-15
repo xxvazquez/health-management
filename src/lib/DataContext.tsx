@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { CanonicalEvent } from "@/lib/types";
 import { buildCanonicalEvents } from "@/lib/canonical/buildCanonicalEvents";
+import { filterArchivedItems } from "@/lib/canonical/filterArchivedItems";
 import {
   clearAllData,
   getAllDiary,
@@ -18,6 +19,7 @@ interface DataContextValue {
   status: DataStatus;
   events: CanonicalEvent[];
   unclassifiedItems: string[];
+  archivedItems: { item: string; lastTrackedDate: string }[];
   error: string | null;
   refresh: () => Promise<void>;
   clearData: () => Promise<void>;
@@ -29,6 +31,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = useState<DataStatus>("loading");
   const [events, setEvents] = useState<CanonicalEvent[]>([]);
   const [unclassifiedItems, setUnclassifiedItems] = useState<string[]>([]);
+  const [archivedItems, setArchivedItems] = useState<{ item: string; lastTrackedDate: string }[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
@@ -38,6 +41,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       if (!hasData) {
         setEvents([]);
         setUnclassifiedItems([]);
+        setArchivedItems([]);
         setStatus("empty");
         return;
       }
@@ -48,8 +52,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       ]);
       const result = buildCanonicalEvents(habits, rawEvents, diary);
       const scoped = result.events.filter((e) => e.date >= ANALYTICS_START_DATE);
-      setEvents(scoped);
+      const active = filterArchivedItems(scoped);
+      setEvents(active.events);
       setUnclassifiedItems(result.unclassifiedItems);
+      setArchivedItems(active.archivedItems);
       setStatus("ready");
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -70,8 +76,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   }, [refresh]);
 
   const value = useMemo(
-    () => ({ status, events, unclassifiedItems, error, refresh, clearData }),
-    [status, events, unclassifiedItems, error, refresh, clearData],
+    () => ({ status, events, unclassifiedItems, archivedItems, error, refresh, clearData }),
+    [status, events, unclassifiedItems, archivedItems, error, refresh, clearData],
   );
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;

@@ -63,7 +63,7 @@ export default function PatternsPage() {
       )}
 
       <Card>
-        <CardTitle subtitle="Same-day through +3-day co-occurrence between foods/supplements and symptoms — each pair shows whichever lag has the strongest signal, since digestive symptoms don't always show up the same day">
+        <CardTitle subtitle="Association only, never cause-and-effect. Each pair shows whichever of 4 lags (same day to +3 days) has the strongest signal — with more comparisons checked, a strong-looking gap is more likely to be noise, especially at small sample sizes.">
           Notable associations
         </CardTitle>
         {topPatterns.length > 0 ? (
@@ -91,10 +91,7 @@ export default function PatternsPage() {
                   withoutTotal={p.withoutTotal}
                 />
                 <p className="mt-3 text-xs" style={{ color: "var(--text-muted)" }}>
-                  Association only — not a cause-and-effect claim. Based on {p.withTotal + p.withoutTotal} days
-                  where {p.outcomeLabel.toLowerCase()} tracking exists. This is the strongest of 4 lags checked
-                  (same day to +3 days) for this pair — with more comparisons checked, a strong-looking gap is
-                  more likely to be noise, especially at small sample sizes.
+                  Based on {p.withTotal + p.withoutTotal} days where {p.outcomeLabel.toLowerCase()} tracking exists.
                 </p>
               </div>
             ))}
