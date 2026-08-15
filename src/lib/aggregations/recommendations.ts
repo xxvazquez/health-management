@@ -1,7 +1,6 @@
 import type { CanonicalEvent } from "@/lib/types";
 import { FOOD_CATEGORIES } from "@/taxonomy/categories";
 import { addDaysToDate, getDatasetSpan, pct } from "./common";
-import { supplementStats } from "./supplements";
 
 export interface Insight {
   title: string;
@@ -18,10 +17,10 @@ const LOW_TRACKING_DAYS_THRESHOLD = 4; // out of RECENT_WINDOW_DAYS
 
 /**
  * "What might be worth adjusting?" — Stage 1 keeps this deliberately
- * conservative: it flags categories with little recent data and
- * supplements whose consistency has dropped, always with the sample size
- * attached. It never makes a nutritional claim ("eat more X") because the
- * dataset has no nutrient-quantity information to support one.
+ * conservative: it flags food categories with little recent tracking data,
+ * always with the sample size attached. It never makes a nutritional claim
+ * ("eat more X") because the dataset has no nutrient-quantity information
+ * to support one.
  */
 export function generateInsights(events: CanonicalEvent[]): Insight[] {
   const span = getDatasetSpan(events);
@@ -53,23 +52,6 @@ export function generateInsights(events: CanonicalEvent[]): Insight[] {
           trackedDays === 0
             ? `If you want reliable pattern analysis for ${category.toLowerCase()}, it needs to be logged more consistently — right now there's close to no recent data to work with.`
             : null,
-      });
-    }
-  }
-
-  // Supplement consistency trend: last window vs. all-time.
-  const allTimeStats = supplementStats(events);
-  const recentStats = supplementStats(recentEvents);
-  for (const stat of allTimeStats) {
-    const recent = recentStats.find((r) => r.item === stat.item);
-    if (!recent || recent.daysTracked < 3) continue;
-    const drop = stat.consistencyPct - recent.consistencyPct;
-    if (drop >= 25) {
-      insights.push({
-        title: `${stat.item}: consistency dropped recently`,
-        observed: `${stat.item} was completed on ${recent.daysCompleted}/${recent.daysTracked} tracked days in the last ${RECENT_WINDOW_DAYS} days (${recent.consistencyPct}%), vs ${stat.consistencyPct}% overall.`,
-        interpretation: "Adherence has fallen off compared to your own historical baseline for this item.",
-        recommendation: null,
       });
     }
   }
