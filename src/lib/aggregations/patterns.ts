@@ -1,6 +1,6 @@
 import type { CanonicalEvent } from "@/lib/types";
 import { addDaysToDate, pct, trackedCalendarDates } from "./common";
-import { rankedFoods, foodCategoryDistribution } from "./food";
+import { rankedFoods } from "./food";
 import { supplementStats } from "./supplements";
 
 export interface ItemMatcher {
@@ -139,13 +139,13 @@ const SCAN_LAGS = [0, 1, 2, 3];
 const EXCLUDED_CAUSE_SUPPLEMENT_CATEGORIES = new Set(["Medication", "Digestive Aid", "Creams"]);
 
 /**
- * Scans a curated set of cause candidates (top-tracked foods, food
- * categories, and non-reactive supplements) against tracked symptom/outcome
- * items (including stool quality flags, excluding the Bristol scale
- * itself), checking same day through +3 days for each pair, and surfaces
- * only the strongest-lag association per pair when it has both an adequate
- * sample size and a non-trivial percentage-point gap. Purely descriptive —
- * never implies causation.
+ * Scans a curated set of cause candidates (specific top-tracked foods and
+ * non-reactive supplements — never a whole food category) against tracked
+ * symptom/outcome items (including stool quality flags, excluding the
+ * Bristol scale itself), checking same day through +3 days for each pair,
+ * and surfaces only the strongest-lag association per pair when it has
+ * both an adequate sample size and a non-trivial percentage-point gap.
+ * Purely descriptive — never implies causation.
  */
 export function generateTopPatterns(events: CanonicalEvent[]): AssociationResult[] {
   const outcomeItems = Array.from(
@@ -157,13 +157,14 @@ export function generateTopPatterns(events: CanonicalEvent[]): AssociationResult
   );
   if (outcomeItems.length === 0) return [];
 
+  // Specific foods only, never a whole category — "bloating after Veggies"
+  // isn't an actionable signal (of course a broad category correlates with
+  // something eaten most days); "bloating after Onion" is. Category-level
+  // breakdowns belong on the Food dashboard, not here.
   const causeCandidates: ItemMatcher[] = [
     ...rankedFoods(events)
       .slice(0, TOP_CANDIDATE_FOODS)
       .map((f) => matchItem(f.item)),
-    ...foodCategoryDistribution(events)
-      .filter((c) => c.count > 0)
-      .map((c) => matchCategory(c.category)),
     ...supplementStats(events)
       .filter((s) => !EXCLUDED_CAUSE_SUPPLEMENT_CATEGORIES.has(s.category))
       .map((s) => matchItem(s.item)),
