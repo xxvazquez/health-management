@@ -16,10 +16,12 @@ import {
   foodCategoryTimeline,
   foodVarietyOverTime,
   foodVarietySummary,
-  newFoodsOverTime,
   rankedFoods,
   type TimelineGranularity,
 } from "@/lib/aggregations/food";
+import { recentNewFoodsWithContext } from "@/lib/aggregations/patterns";
+import { categoryDiversificationGaps, foodsWorthPrioritizing, type PriorityLevel } from "@/lib/aggregations/prioritization";
+import { EVIDENCE_TIER_EXPLANATION, type EvidenceTier } from "@/lib/nutritionEvidence";
 import { TYPE_ACCENT, colorForCategorySlot } from "@/taxonomy/categories";
 import clsx from "clsx";
 
@@ -33,7 +35,9 @@ export default function FoodPage() {
   const varietySeries = useMemo(() => foodVarietyOverTime(filtered), [filtered]);
   const ranked = useMemo(() => rankedFoods(filtered), [filtered]);
   const timeline = useMemo(() => foodCategoryTimeline(filtered, granularity), [filtered, granularity]);
-  const newFoods = useMemo(() => newFoodsOverTime(filtered).slice(-15).reverse(), [filtered]);
+  const newFoods = useMemo(() => recentNewFoodsWithContext(filtered, 15), [filtered]);
+  const priorityFoods = useMemo(() => foodsWorthPrioritizing(filtered), [filtered]);
+  const categoryGaps = useMemo(() => categoryDiversificationGaps(filtered), [filtered]);
 
   if (status === "loading") return <p style={{ color: "var(--text-muted)" }}>Loading…</p>;
   if (status === "empty") return <EmptyState />;
@@ -178,23 +182,41 @@ export default function FoodPage() {
       </Card>
 
       <Card>
-        <CardTitle subtitle="Most recently first-tracked foods">New foods introduced</CardTitle>
+        <CardTitle subtitle="Most recently first-tracked foods — whether they've been eaten again, and a same-day symptom check once there's enough data. Never implies absence of symptoms proves tolerance.">
+          New foods introduced
+        </CardTitle>
         {newFoods.length > 0 ? (
           <ul className="flex flex-col divide-y text-sm" style={{ borderColor: "var(--gridline)" }}>
             {newFoods.map((f) => (
-              <li key={f.item} className="flex items-center justify-between py-2">
-                <span style={{ color: "var(--text-primary)" }}>{f.item}</span>
-                <span className="flex items-center gap-3">
-                  <span
-                    className="rounded-full px-2 py-0.5 text-xs"
-                    style={{ background: "var(--page-plane)", color: "var(--text-secondary)" }}
-                  >
-                    {f.category}
+              <li key={f.item} className="flex flex-col gap-1 py-2.5">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="font-medium" style={{ color: "var(--text-primary)" }}>
+                    {f.item}
                   </span>
-                  <span className="tabular-nums text-xs" style={{ color: "var(--text-muted)" }}>
-                    {f.firstSeenDate}
+                  <span className="flex items-center gap-3">
+                    <span
+                      className="rounded-full px-2 py-0.5 text-xs"
+                      style={{ background: "var(--page-plane)", color: "var(--text-secondary)" }}
+                    >
+                      {f.category}
+                    </span>
+                    <span className="tabular-nums text-xs" style={{ color: "var(--text-muted)" }}>
+                      first logged {f.firstSeenDate}
+                    </span>
                   </span>
-                </span>
+                </div>
+                <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                  {f.timesEatenTotal > 1
+                    ? `Eaten ${f.timesEatenTotal - 1} more time${f.timesEatenTotal - 1 === 1 ? "" : "s"} since`
+                    : "Not eaten again since"}
+                  {" — "}
+                  {f.symptomReadout === "insufficient-data" &&
+                    "not enough same-day data yet to check symptom association"}
+                  {f.symptomReadout === "no-elevated-association" &&
+                    `no elevated same-day symptom association observed so far${f.symptomDetail ? ` (largest diff ${f.symptomDetail})` : ""}`}
+                  {f.symptomReadout === "elevated-association" &&
+                    `possible same-day symptom association observed (${f.symptomDetail}) — worth watching, not proof`}
+                </p>
               </li>
             ))}
           </ul>
@@ -202,6 +224,137 @@ export default function FoodPage() {
           <p className="text-sm" style={{ color: "var(--text-muted)" }}>No data.</p>
         )}
       </Card>
+
+      <FoodsWorthPrioritizing entries={priorityFoods} gaps={categoryGaps} />
     </div>
+  );
+}
+
+const EVIDENCE_TIER_COLOR: Record<EvidenceTier, string> = {
+  Strong: "var(--status-good)",
+  Moderate: "var(--series-1)",
+  Limited: "var(--status-warning)",
+  Unclear: "var(--text-muted)",
+};
+
+const PRIORITY_COLOR: Record<PriorityLevel, string> = {
+  High: "var(--status-good)",
+  Medium: "var(--series-1)",
+  Low: "var(--text-muted)",
+  "Already well represented": "var(--text-muted)",
+};
+
+function FoodsWorthPrioritizing({
+  entries,
+  gaps,
+}: {
+  entries: ReturnType<typeof foodsWorthPrioritizing>;
+  gaps: ReturnType<typeof categoryDiversificationGaps>;
+}) {
+  const actionable = entries.filter((e) => e.priority !== "Already well represented");
+
+  return (
+    <Card>
+      <CardTitle subtitle="Combines your logged intake with a small, sourced table of general dietary research (systematic reviews, meta-analyses, major cohort studies) for food groups with well-established evidence — not an exhaustive nutrition database. Never a personalized medical recommendation.">
+        Foods worth prioritizing
+      </CardTitle>
+
+      {actionable.length === 0 ? (
+        <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+          No under-tracked food groups to flag right now — the groups this app has research evidence for are already reasonably represented in your logged diet.
+        </p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-xs" style={{ color: "var(--text-muted)" }}>
+                <th className="pb-2 font-medium">Food group</th>
+                <th className="pb-2 text-right font-medium">My intake</th>
+                <th className="pb-2 font-medium">Evidence</th>
+                <th className="pb-2 font-medium">Priority</th>
+              </tr>
+            </thead>
+            <tbody>
+              {actionable.map((e) => (
+                <tr key={e.label} className="border-t align-top" style={{ borderColor: "var(--gridline)" }}>
+                  <td className="py-3 pr-3" style={{ color: "var(--text-primary)" }}>
+                    <div className="font-medium">{e.label}</div>
+                    <p className="mt-1 max-w-md text-xs" style={{ color: "var(--text-secondary)" }}>
+                      {e.personalizedNote}
+                    </p>
+                    {e.cautionNote && (
+                      <p className="mt-1.5 max-w-md text-xs" style={{ color: "var(--status-warning)" }}>
+                        {e.cautionNote}
+                      </p>
+                    )}
+                    <details className="mt-1.5">
+                      <summary className="cursor-pointer text-xs" style={{ color: "var(--text-muted)" }}>
+                        Why & sources
+                      </summary>
+                      <p className="mt-1 max-w-md text-xs" style={{ color: "var(--text-secondary)" }}>
+                        {e.summary} <span style={{ color: "var(--text-muted)" }}>{e.mechanismOrFinding}</span>
+                      </p>
+                      <ul className="mt-1 flex flex-col gap-0.5">
+                        {e.sources.map((s) => (
+                          <li key={s.url}>
+                            <a
+                              href={s.url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-xs underline"
+                              style={{ color: "var(--text-muted)" }}
+                            >
+                              {s.citation}
+                            </a>
+                          </li>
+                        ))}
+                      </ul>
+                    </details>
+                  </td>
+                  <td className="whitespace-nowrap py-3 text-right tabular-nums" style={{ color: "var(--text-secondary)" }}>
+                    {e.personalIntakeCount}
+                  </td>
+                  <td className="whitespace-nowrap py-3">
+                    <span
+                      className="rounded-full px-2 py-0.5 text-xs font-medium"
+                      style={{ color: EVIDENCE_TIER_COLOR[e.evidenceTier], background: "var(--page-plane)" }}
+                      title={EVIDENCE_TIER_EXPLANATION[e.evidenceTier]}
+                    >
+                      {e.evidenceTier}
+                    </span>
+                  </td>
+                  <td className="whitespace-nowrap py-3">
+                    <span className="text-xs font-medium" style={{ color: PRIORITY_COLOR[e.priority] }}>
+                      {e.priority}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {gaps.length > 0 && (
+        <div className="mt-6 border-t pt-4" style={{ borderColor: "var(--gridline)" }}>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>
+            Highest-priority categories to diversify
+          </p>
+          <ol className="flex flex-col gap-1.5 text-sm">
+            {gaps.slice(0, 5).map((g, i) => (
+              <li key={g.category} style={{ color: "var(--text-secondary)" }}>
+                <span className="tabular-nums" style={{ color: "var(--text-muted)" }}>
+                  {i + 1}.
+                </span>{" "}
+                <strong style={{ color: "var(--text-primary)" }}>{g.category}</strong> —{" "}
+                {g.personalTrackingLevel} personal tracking ({g.uniqueFoodsInCategory} unique food
+                {g.uniqueFoodsInCategory === 1 ? "" : "s"} logged) + {g.bestEvidenceTier?.toLowerCase()} evidence
+                for at least one food in this category
+              </li>
+            ))}
+          </ol>
+        </div>
+      )}
+    </Card>
   );
 }
