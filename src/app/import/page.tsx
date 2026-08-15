@@ -45,7 +45,7 @@ const STATUS_COLOR: Record<ImportFileReport["status"], string> = {
 };
 
 export default function ImportPage() {
-  const { refresh, clearData, unclassifiedItems } = useData();
+  const { refresh, clearData, unclassifiedItems, archivedItems } = useData();
   const folderInputRef = useRef<HTMLInputElement>(null);
   const zipInputRef = useRef<HTMLInputElement>(null);
 
@@ -254,6 +254,22 @@ export default function ImportPage() {
                 <span style={{ color: "var(--text-muted)" }}>
                   {log.eventsNew} new · {log.eventsUpdated} updated · {log.eventsUnchanged} unchanged
                 </span>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
+
+      {archivedItems.length > 0 && (
+        <Card>
+          <CardTitle subtitle="No explicit archived flag exists in the source data, so this is a proxy: items with no tracked days in the 90 days before the most recent date anywhere in your data are treated as discontinued and left out of every dashboard entirely.">
+            Excluded as no longer current ({archivedItems.length})
+          </CardTitle>
+          <ul className="flex flex-col divide-y text-xs" style={{ borderColor: "var(--gridline)" }}>
+            {archivedItems.map((a) => (
+              <li key={a.item} className="flex items-center justify-between py-1.5">
+                <span style={{ color: "var(--text-primary)" }}>{a.item}</span>
+                <span style={{ color: "var(--text-muted)" }}>last tracked {a.lastTrackedDate}</span>
               </li>
             ))}
           </ul>
