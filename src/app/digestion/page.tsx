@@ -11,12 +11,15 @@ import { ColorStrip, type ColorStripPoint } from "@/components/charts/ColorStrip
 import { MultiLineChart } from "@/components/charts/MultiLineChart";
 import { useDateRangeFilter } from "@/lib/useDateRangeFilter";
 import {
+  bristolBandDistribution,
   bristolDistribution,
+  bristolRollingBands,
   bristolTimeline,
   digestiveSymptomStats,
   otherSymptomStats,
   stoolQualityStats,
   symptomFrequencyOverTime,
+  unclassifiedStoolStats,
 } from "@/lib/aggregations/digestion";
 import { TYPE_ACCENT } from "@/taxonomy/categories";
 
@@ -36,6 +39,9 @@ export default function DigestionPage() {
   const { span, range, setRange, filtered } = useDateRangeFilter(events);
 
   const bristolDist = useMemo(() => bristolDistribution(filtered), [filtered]);
+  const bristolBands = useMemo(() => bristolBandDistribution(filtered), [filtered]);
+  const unclassifiedStool = useMemo(() => unclassifiedStoolStats(filtered), [filtered]);
+  const rollingBands = useMemo(() => bristolRollingBands(filtered), [filtered]);
   const bristolTl = useMemo(() => bristolTimeline(filtered), [filtered]);
   const stoolQuality = useMemo(() => stoolQualityStats(filtered), [filtered]);
   const digestiveSymptoms = useMemo(() => digestiveSymptomStats(filtered), [filtered]);
@@ -46,7 +52,6 @@ export default function DigestionPage() {
   if (status === "empty") return <EmptyState />;
 
   const topBristol = [...bristolDist].sort((a, b) => b.count - a.count)[0];
-  const noBristolShare = bristolDist.find((b) => b.item === "No Bristol")?.sharePct ?? 0;
   const totalDigestiveSymptomDays = new Set(
     filtered.filter((e) => e.category === "Digestive Symptom" && e.completed).map((e) => e.date),
   ).size;
@@ -86,10 +91,14 @@ export default function DigestionPage() {
         <StatTile
           label="Most common Bristol type"
           value={topBristol?.item ?? "—"}
-          detail={topBristol ? `${topBristol.sharePct}% of ${totalStoolDays} logged days` : undefined}
+          detail={topBristol ? `${topBristol.sharePct}% of ${totalStoolDays} classified days` : undefined}
           accent={TYPE_ACCENT.outcome}
         />
-        <StatTile label="No-Bristol days" value={`${noBristolShare}%`} detail="of logged stool days" />
+        <StatTile
+          label="Unclassified stool entries"
+          value={`${unclassifiedStool.unclassifiedSharePct}%`}
+          detail={`${unclassifiedStool.unclassifiedCount} of ${unclassifiedStool.unclassifiedCount + unclassifiedStool.classifiedCount} logged stool entries — checked but not classifiable, not a Bristol type`}
+        />
         <StatTile
           label="Digestive symptom days"
           value={String(totalDigestiveSymptomDays)}
@@ -101,17 +110,19 @@ export default function DigestionPage() {
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card>
-          <CardTitle subtitle="Overall distribution across all logged entries in this range">Bristol distribution</CardTitle>
+          <CardTitle subtitle="Classified entries only (Bristol 1–5). Unclassified 'No Bristol' entries are tracked separately above, not mixed in here.">
+            Bristol type distribution
+          </CardTitle>
           {bristolDist.length > 0 ? (
             <RankedBarChart
               data={bristolDist.map((b) => ({ label: b.item, value: b.count, color: BRISTOL_COLOR[b.item] }))}
             />
           ) : (
-            <p className="text-sm" style={{ color: "var(--text-muted)" }}>No Bristol data in this range.</p>
+            <p className="text-sm" style={{ color: "var(--text-muted)" }}>No classified Bristol data in this range.</p>
           )}
         </Card>
         <Card>
-          <CardTitle subtitle="Each mark is one logged day, colored by Bristol type">Bristol over time</CardTitle>
+          <CardTitle subtitle="Each mark is one logged day, colored by Bristol type — grey marks are unclassified ('No Bristol') entries">Bristol over time</CardTitle>
           {bristolStripPoints.length > 0 ? (
             <>
               <ColorStrip points={bristolStripPoints} />
@@ -123,6 +134,49 @@ export default function DigestionPage() {
                 ))}
               </div>
             </>
+          ) : (
+            <p className="text-sm" style={{ color: "var(--text-muted)" }}>No data.</p>
+          )}
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <Card>
+          <CardTitle subtitle="Bristol 1–2 grouped as looser, 3–4 as normal, 5 as harder — this app's source data only tracks types 1–5, not the full 7-point clinical scale">
+            Stool pattern (grouped)
+          </CardTitle>
+          {bristolBands.length > 0 ? (
+            <RankedBarChart
+              data={bristolBands.map((b) => ({
+                label: b.band,
+                value: b.count,
+                color: b.band === "Normal (3–4)" ? "var(--status-good)" : "var(--series-other)",
+              }))}
+            />
+          ) : (
+            <p className="text-sm" style={{ color: "var(--text-muted)" }}>No classified Bristol data in this range.</p>
+          )}
+        </Card>
+        <Card>
+          <CardTitle subtitle="Rolling 14-day share of classified entries in each band, plus unclassified share — shows whether the pattern is shifting">
+            Stool pattern over time
+          </CardTitle>
+          {rollingBands.length > 0 ? (
+            <MultiLineChart
+              data={rollingBands.map((p) => ({
+                date: p.date,
+                Loose: p.loosePct,
+                Normal: p.normalPct,
+                Hard: p.hardPct,
+                Unclassified: p.unclassifiedPct,
+              }))}
+              series={[
+                { key: "Loose", label: "Loose (1–2)", color: "var(--series-1)" },
+                { key: "Normal", label: "Normal (3–4)", color: "var(--status-good)" },
+                { key: "Hard", label: "Hard (5)", color: "var(--series-8)" },
+                { key: "Unclassified", label: "Unclassified", color: "var(--series-other)" },
+              ]}
+            />
           ) : (
             <p className="text-sm" style={{ color: "var(--text-muted)" }}>No data.</p>
           )}
