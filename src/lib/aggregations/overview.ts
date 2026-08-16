@@ -167,7 +167,7 @@ export function computeOverviewInsight(events: CanonicalEvent[]): OverviewInsigh
   } else if (whatMatters.length > 0) {
     headline += ", and your tracked food groups are looking well covered.";
   } else {
-    headline += ".";
+    headline += ", though there's not a clear standout in your food data yet.";
   }
 
   const tone: InsightTone = !food.insufficientData && needsAttention.length > 0 ? "attention" : coverageGood && !food.insufficientData ? "good" : "neutral";
