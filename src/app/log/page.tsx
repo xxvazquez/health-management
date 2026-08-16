@@ -17,13 +17,16 @@ import {
 } from "@/lib/db/indexedDb";
 import {
   buildLogCandidates,
+  dayTimelineEntries,
   generateManualHabitId,
   loggedCountsForDate,
   type LogCandidate,
 } from "@/lib/logCandidates";
+import { buildCanonicalEvents } from "@/lib/canonical/buildCanonicalEvents";
+import { seasonalPicksForMonth, weeklyCategoryPriority } from "@/lib/aggregations/seasonal";
 import { normalizeName } from "@/taxonomy/normalizeName";
-import { TYPE_ACCENT, type ItemType } from "@/taxonomy/categories";
-import type { OverrideEntry } from "@/taxonomy/classify";
+import { CATEGORIES_BY_TYPE, TYPE_ACCENT, type ItemType } from "@/taxonomy/categories";
+import { lookupFoodCategory, type OverrideEntry } from "@/taxonomy/classify";
 import type { RawEvent, RawHabit } from "@/lib/types";
 
 const TABS: { type: ItemType; label: string; placeholder: string; defaultCategory: string; countable: boolean }[] = [
@@ -32,6 +35,19 @@ const TABS: { type: ItemType; label: string; placeholder: string; defaultCategor
   { type: "supplement", label: "Supplements", placeholder: "Add a supplement…", defaultCategory: "Other", countable: false },
   { type: "habit", label: "Habits", placeholder: "Add a habit…", defaultCategory: "Other", countable: false },
 ];
+
+const MEAL_OPTIONS = ["Breakfast", "Lunch", "Dinner", "Snack"] as const;
+
+/** A sensible starting point for "what meal is this," always overridable
+ * by a click — the point of the selector is that it doesn't have to match
+ * the clock (logging breakfast at night should still say Breakfast). */
+function defaultMealForNow(): (typeof MEAL_OPTIONS)[number] {
+  const hour = new Date().getHours();
+  if (hour < 11) return "Breakfast";
+  if (hour < 16) return "Lunch";
+  if (hour < 21) return "Dinner";
+  return "Snack";
+}
 
 function todayLocalISODate(): string {
   const d = new Date();
@@ -64,7 +80,8 @@ export default function LogPage() {
   const today = useMemo(() => todayLocalISODate(), []);
   const [date, setDate] = useState(today);
   const [tab, setTab] = useState<ItemType>("food");
-  const [query, setQuery] = useState("");
+  const [addingNew, setAddingNew] = useState(false);
+  const [meal, setMeal] = useState<(typeof MEAL_OPTIONS)[number]>(() => defaultMealForNow());
   const [newItemText, setNewItemText] = useState("");
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [pending, setPending] = useState<string | null>(null);
@@ -103,16 +120,58 @@ export default function LogPage() {
   }, [snapshot, date]);
 
   const tabConfig = TABS.find((t) => t.type === tab)!;
-  const tabCandidates = useMemo(() => {
-    const inTab = candidates.filter((c) => c.itemType === tab);
-    const q = normalizeName(query);
-    return q ? inTab.filter((c) => normalizeName(c.item).includes(q)) : inTab;
-  }, [candidates, tab, query]);
+  const tabCandidates = useMemo(() => candidates.filter((c) => c.itemType === tab), [candidates, tab]);
+
+  // Grouped in the taxonomy's fixed category order (not by frequency), so a
+  // category always sits in the same place and the alphabetical list inside
+  // it never reshuffles — the whole point is finding a specific item by eye
+  // without typing.
+  const groupedByCategory = useMemo(() => {
+    const byCategory = new Map<string, LogCandidate[]>();
+    for (const c of tabCandidates) {
+      const list = byCategory.get(c.category) ?? [];
+      list.push(c);
+      byCategory.set(c.category, list);
+    }
+    for (const list of byCategory.values()) list.sort((a, b) => a.item.localeCompare(b.item));
+    return CATEGORIES_BY_TYPE[tab]
+      .map((category) => ({ category, items: byCategory.get(category) ?? [] }))
+      .filter((group) => group.items.length > 0);
+  }, [tabCandidates, tab]);
 
   const loggedTodayCount = useMemo(
     () => candidates.filter((c) => (counts.get(c.key) ?? 0) > 0).length,
     [candidates, counts],
   );
+
+  const dayTimeline = useMemo(() => {
+    if (!snapshot) return [];
+    return dayTimelineEntries(snapshot.habits, snapshot.events, snapshot.userOverrides, date);
+  }, [snapshot, date]);
+
+  // Unfiltered canonical events (no archived-item or date-range filtering,
+  // unlike the dashboards' DataContext) so "weeks since last eaten" stays
+  // accurate even for something that went quiet long enough to be archived
+  // from the regular dashboards.
+  const seasonalCanonical = useMemo(() => {
+    if (!snapshot) return [];
+    return buildCanonicalEvents(snapshot.habits, snapshot.events, [], snapshot.userOverrides).events;
+  }, [snapshot]);
+
+  const currentMonth = useMemo(() => new Date().getMonth() + 1, []);
+  const monthName = useMemo(
+    () => new Date(2000, currentMonth - 1, 1).toLocaleDateString(undefined, { month: "long" }),
+    [currentMonth],
+  );
+  const seasonalPicks = useMemo(
+    () => seasonalPicksForMonth(seasonalCanonical, currentMonth, today).slice(0, 5),
+    [seasonalCanonical, currentMonth, today],
+  );
+  const weeklyPriority = useMemo(
+    () => weeklyCategoryPriority(seasonalCanonical, today),
+    [seasonalCanonical, today],
+  );
+  const leastTrackedCategory = weeklyPriority[0] ?? null;
 
   async function refreshAfterWrite() {
     await loadSnapshot();
@@ -121,7 +180,7 @@ export default function LogPage() {
 
   async function handleIncrement(candidate: LogCandidate) {
     setPending(candidate.key);
-    await incrementDailyLog(candidate.habitIdentity, date);
+    await incrementDailyLog(candidate.habitIdentity, date, tabConfig.countable ? meal : null);
     await refreshAfterWrite();
     setPending(null);
     void syncHabitDay(candidate.habitIdentity, date);
@@ -148,11 +207,16 @@ export default function LogPage() {
     if (!name) return;
     const key = normalizeName(name);
     const identity = generateManualHabitId(key);
+    // For food specifically, guess a real category from the name (so a
+    // typed "Kohlrabi" lands under Veggies, not a catch-all Misc bucket)
+    // before falling back to the tab's generic default.
+    const guessedCategory = tabConfig.type === "food" ? lookupFoodCategory(name) : null;
+    const category = guessedCategory ?? tabConfig.defaultCategory;
     const override: OverrideEntry = {
       canonicalName: name,
       itemType: tabConfig.type,
-      category: tabConfig.defaultCategory,
-      subcategory: tabConfig.defaultCategory,
+      category,
+      subcategory: category,
     };
     setPending("__new__");
     await setUserOverride(key, override);
@@ -166,15 +230,109 @@ export default function LogPage() {
       createdDate: date,
     });
     if (tabConfig.countable) {
-      await incrementDailyLog(identity, date);
+      await incrementDailyLog(identity, date, meal);
     } else {
       await toggleDailyLog(identity, date);
     }
     setNewItemText("");
+    setAddingNew(false);
     await refreshAfterWrite();
     setPending(null);
     void pushUserOverride(key, override);
     void syncHabitDay(identity, date);
+  }
+
+  /** Suggestion chips log directly — matching an existing item just
+   * increments it; a never-tracked seasonal item gets created under a
+   * guessed category and logged in the same tap. */
+  async function handleQuickLogSeasonal(itemName: string) {
+    const norm = normalizeName(itemName);
+    const pendingKey = `seasonal:${norm}`;
+    const existing = candidates.find((c) => c.itemType === "food" && normalizeName(c.item) === norm);
+    if (existing) {
+      await handleIncrement(existing);
+      return;
+    }
+
+    setPending(pendingKey);
+    const identity = generateManualHabitId(norm);
+    const category = lookupFoodCategory(itemName) ?? "Misc";
+    const override: OverrideEntry = { canonicalName: itemName, itemType: "food", category, subcategory: category };
+    await setUserOverride(norm, override);
+    await putHabit({
+      identity,
+      rawName: itemName,
+      unit: null,
+      kind: null,
+      frequency: null,
+      isRemoved: false,
+      createdDate: date,
+    });
+    await incrementDailyLog(identity, date, meal);
+    await refreshAfterWrite();
+    setPending(null);
+    void pushUserOverride(norm, override);
+    void syncHabitDay(identity, date);
+  }
+
+  function renderChip(c: LogCandidate) {
+    const count = counts.get(c.key) ?? 0;
+    const logged = count > 0;
+    const busy = pending === c.key;
+    const accent = TYPE_ACCENT[tab];
+
+    if (tabConfig.countable) {
+      return (
+        <div
+          key={c.key}
+          className="flex items-stretch overflow-hidden rounded-full border text-sm font-medium"
+          style={{
+            borderColor: logged ? accent : "var(--border-hairline)",
+            background: logged ? `color-mix(in oklab, ${accent} 16%, var(--surface-1))` : "var(--surface-1)",
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => handleIncrement(c)}
+            disabled={busy}
+            className="px-3.5 py-1.5 disabled:opacity-60"
+            style={{ color: logged ? "var(--text-primary)" : "var(--text-secondary)" }}
+          >
+            {c.item}
+          </button>
+          {logged && (
+            <button
+              type="button"
+              onClick={() => handleDecrement(c)}
+              disabled={busy}
+              aria-label={`Remove one ${c.item}`}
+              className="border-l px-2.5 py-1.5 font-mono text-xs disabled:opacity-60"
+              style={{ borderColor: accent, color: accent }}
+            >
+              ×{count}
+            </button>
+          )}
+        </div>
+      );
+    }
+
+    return (
+      <button
+        key={c.key}
+        type="button"
+        onClick={() => handleToggle(c)}
+        disabled={busy}
+        className="rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors disabled:opacity-60"
+        style={{
+          borderColor: logged ? accent : "var(--border-hairline)",
+          background: logged ? `color-mix(in oklab, ${accent} 16%, var(--surface-1))` : "var(--surface-1)",
+          color: logged ? "var(--text-primary)" : "var(--text-secondary)",
+        }}
+      >
+        {logged && <span style={{ color: accent }}>✓ </span>}
+        {c.item}
+      </button>
+    );
   }
 
   return (
@@ -253,113 +411,170 @@ export default function LogPage() {
         </span>
       </div>
 
-      <input
-        type="text"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        placeholder={`Filter ${tabConfig.label.toLowerCase()}…`}
-        className="w-full max-w-xs rounded-md border px-3 py-1.5 text-sm outline-none"
-        style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
-      />
+      {tabConfig.countable && (
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+            Eaten at:
+          </span>
+          <div className="flex items-center gap-1 rounded-lg border p-1" style={{ borderColor: "var(--border-hairline)" }}>
+            {MEAL_OPTIONS.map((m) => {
+              const active = m === meal;
+              return (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setMeal(m)}
+                  className="rounded-md px-2.5 py-1 text-xs font-medium transition-colors"
+                  style={{
+                    color: active ? "var(--text-primary)" : "var(--text-secondary)",
+                    background: active ? `color-mix(in oklab, ${TYPE_ACCENT.food} 16%, var(--surface-1))` : "transparent",
+                  }}
+                >
+                  {m}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {tabConfig.countable && snapshot && seasonalPicks.length > 0 && (
+        <div className="flex flex-col gap-2.5 rounded-lg border p-4" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
+          <div>
+            <h2 className="text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
+              {monthName} picks
+            </h2>
+            <p className="mt-0.5 text-xs" style={{ color: "var(--text-muted)" }}>
+              In season now around Poland — ranked by how long it&apos;s been, tap to log.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {seasonalPicks.map((pick) => (
+              <button
+                key={pick.item}
+                type="button"
+                onClick={() => void handleQuickLogSeasonal(pick.item)}
+                disabled={pending === `seasonal:${normalizeName(pick.item)}`}
+                className="rounded-full border px-3 py-1 text-xs font-medium disabled:opacity-60"
+                style={{ borderColor: "var(--border-hairline)", color: "var(--text-secondary)" }}
+              >
+                {pick.item}
+                <span className="ml-1" style={{ color: "var(--text-muted)" }}>
+                  {pick.weeksSinceLastEaten === null
+                    ? "· never"
+                    : pick.weeksSinceLastEaten === 0
+                      ? "· this week"
+                      : `· ${pick.weeksSinceLastEaten}w ago`}
+                </span>
+              </button>
+            ))}
+          </div>
+          {leastTrackedCategory && (
+            <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+              This week&apos;s priority: <strong style={{ color: "var(--text-primary)" }}>{leastTrackedCategory.category}</strong> — logged{" "}
+              {leastTrackedCategory.countThisWeek} time{leastTrackedCategory.countThisWeek === 1 ? "" : "s"} so far.
+            </p>
+          )}
+        </div>
+      )}
 
       {!snapshot ? (
         <p className="text-sm" style={{ color: "var(--text-muted)" }}>
           Loading…
         </p>
       ) : (
-        <div className="flex flex-wrap gap-2">
-          {tabCandidates.map((c) => {
-            const count = counts.get(c.key) ?? 0;
-            const logged = count > 0;
-            const busy = pending === c.key;
-            const accent = TYPE_ACCENT[tab];
+        <div className="flex flex-col gap-5">
+          {groupedByCategory.map((group) => (
+            <div key={group.category} className="flex flex-col gap-2">
+              <h2 className="text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
+                {group.category}
+              </h2>
+              <div className="flex flex-wrap gap-2">{group.items.map(renderChip)}</div>
+            </div>
+          ))}
 
-            if (tabConfig.countable) {
-              return (
-                <div
-                  key={c.key}
-                  className="flex items-stretch overflow-hidden rounded-full border text-sm font-medium"
-                  style={{
-                    borderColor: logged ? accent : "var(--border-hairline)",
-                    background: logged ? `color-mix(in oklab, ${accent} 16%, var(--surface-1))` : "var(--surface-1)",
-                  }}
-                >
-                  <button
-                    type="button"
-                    onClick={() => handleIncrement(c)}
-                    disabled={busy}
-                    className="px-3.5 py-1.5 disabled:opacity-60"
-                    style={{ color: logged ? "var(--text-primary)" : "var(--text-secondary)" }}
-                  >
-                    {c.item}
-                  </button>
-                  {logged && (
-                    <button
-                      type="button"
-                      onClick={() => handleDecrement(c)}
-                      disabled={busy}
-                      aria-label={`Remove one ${c.item}`}
-                      className="border-l px-2.5 py-1.5 font-mono text-xs disabled:opacity-60"
-                      style={{ borderColor: accent, color: accent }}
-                    >
-                      ×{count}
-                    </button>
-                  )}
-                </div>
-              );
-            }
-
-            return (
-              <button
-                key={c.key}
-                type="button"
-                onClick={() => handleToggle(c)}
-                disabled={busy}
-                className="rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors disabled:opacity-60"
-                style={{
-                  borderColor: logged ? accent : "var(--border-hairline)",
-                  background: logged ? `color-mix(in oklab, ${accent} 16%, var(--surface-1))` : "var(--surface-1)",
-                  color: logged ? "var(--text-primary)" : "var(--text-secondary)",
-                }}
-              >
-                {logged && <span style={{ color: accent }}>✓ </span>}
-                {c.item}
-              </button>
-            );
-          })}
-
-          {tabCandidates.length === 0 && (
+          {groupedByCategory.length === 0 && (
             <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-              {query ? "No matches." : `Nothing tracked here yet — add your first ${tabConfig.label.toLowerCase().replace(/s$/, "")} below.`}
+              Nothing tracked here yet — add your first {tabConfig.label.toLowerCase().replace(/s$/, "")} below.
             </p>
+          )}
+
+          {!addingNew ? (
+            <button
+              type="button"
+              onClick={() => setAddingNew(true)}
+              className="self-start rounded-full border border-dashed px-3.5 py-1.5 text-sm"
+              style={{ borderColor: "var(--border-hairline)", color: "var(--text-muted)" }}
+            >
+              + Something not listed
+            </button>
+          ) : (
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                void handleAddNew();
+              }}
+              className="flex items-center gap-2"
+            >
+              <input
+                autoFocus
+                type="text"
+                value={newItemText}
+                onChange={(e) => setNewItemText(e.target.value)}
+                placeholder={tabConfig.placeholder}
+                className="w-full max-w-xs rounded-full border px-3.5 py-1.5 text-sm outline-none"
+                style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
+              />
+              <button
+                type="submit"
+                disabled={!newItemText.trim() || pending === "__new__"}
+                className="rounded-full border px-3.5 py-1.5 text-sm font-medium disabled:opacity-40"
+                style={{ borderColor: "var(--border-hairline)", color: "var(--text-secondary)" }}
+              >
+                + Add &amp; log
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setAddingNew(false);
+                  setNewItemText("");
+                }}
+                className="text-sm underline decoration-dotted"
+                style={{ color: "var(--text-muted)" }}
+              >
+                cancel
+              </button>
+            </form>
+          )}
+
+          {dayTimeline.length > 0 && (
+            <div className="mt-2 flex flex-col gap-2 border-t pt-4" style={{ borderColor: "var(--border-hairline)" }}>
+              <h2 className="text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
+                Timeline — {formatDateLabel(date, today).toLowerCase()}
+              </h2>
+              <ul className="flex flex-col gap-1">
+                {dayTimeline.map((entry) => (
+                  <li key={entry.key} className="flex items-center gap-2 text-sm">
+                    <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: TYPE_ACCENT[entry.itemType] }} />
+                    <span className="w-14 shrink-0 font-mono text-xs" style={{ color: "var(--text-muted)" }}>
+                      {entry.time}
+                    </span>
+                    <span style={{ color: "var(--text-primary)" }}>{entry.item}</span>
+                    {entry.mealTag && (
+                      <span
+                        className="rounded-full px-2 py-0.5 text-xs"
+                        style={{ background: "var(--page-plane)", color: "var(--text-muted)" }}
+                      >
+                        {entry.mealTag}
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
           )}
         </div>
       )}
-
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          void handleAddNew();
-        }}
-        className="flex items-center gap-2"
-      >
-        <input
-          type="text"
-          value={newItemText}
-          onChange={(e) => setNewItemText(e.target.value)}
-          placeholder={tabConfig.placeholder}
-          className="w-full max-w-xs rounded-full border px-3.5 py-1.5 text-sm outline-none"
-          style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
-        />
-        <button
-          type="submit"
-          disabled={!newItemText.trim() || pending === "__new__"}
-          className="rounded-full border px-3.5 py-1.5 text-sm font-medium disabled:opacity-40"
-          style={{ borderColor: "var(--border-hairline)", color: "var(--text-secondary)" }}
-        >
-          + Add &amp; log
-        </button>
-      </form>
     </div>
   );
 }

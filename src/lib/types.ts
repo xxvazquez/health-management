@@ -31,6 +31,11 @@ export interface RawEvent {
   isSkipped: boolean;
   /** Last-update timestamp (Core Data epoch seconds) used to resolve merge conflicts. */
   updatedAt: number | null;
+  /** "Breakfast" | "Lunch" | "Dinner" | "Snack" — set from the Log page's
+   * meal selector, independent of when the tap actually happened, so
+   * logging breakfast at night still files it as breakfast. Null for
+   * imported rows and for anything logged outside the Food tab. */
+  mealTag: string | null;
 }
 
 /** A free-text note tied to a specific habit + day, from ZDIARY. */
@@ -68,6 +73,7 @@ export interface CanonicalEvent {
   note: string | null;
   matchedBy: "override" | "food-keyword" | "fallback";
   updatedAt: number | null;
+  mealTag: string | null;
 }
 
 export interface ImportFileReport {

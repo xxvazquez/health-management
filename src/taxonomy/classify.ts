@@ -27,7 +27,10 @@ const foodKeywordEntries = Object.entries(foodKeywords)
   .filter(([key]) => key !== "_comment")
   .sort((a, b) => b[0].length - a[0].length);
 
-function lookupFoodCategory(remainder: string): string | null {
+/** Exported so the Log page's "add new" flow can guess a food's category
+ * from its plain name (no "Eat"/"Drink" prefix needed) instead of always
+ * defaulting new items to Misc. */
+export function lookupFoodCategory(remainder: string): string | null {
   const norm = normalizeName(remainder);
   for (const [keyword, category] of foodKeywordEntries) {
     if (norm === keyword || norm.includes(keyword)) return category;

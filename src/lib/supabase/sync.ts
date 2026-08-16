@@ -1,7 +1,17 @@
 import { supabase } from "./client";
-import { getEventsForHabitOnDate, getHabit, putEvent, putHabit, setUserOverride } from "@/lib/db/indexedDb";
+import {
+  getAllDiary,
+  getAllEvents,
+  getAllHabits,
+  getEventsForHabitOnDate,
+  getHabit,
+  putDiaryEntry,
+  putEvent,
+  putHabit,
+  setUserOverride,
+} from "@/lib/db/indexedDb";
 import type { OverrideEntry } from "@/taxonomy/classify";
-import type { RawEvent, RawHabit } from "@/lib/types";
+import type { RawDiaryEntry, RawEvent, RawHabit } from "@/lib/types";
 
 /**
  * Pushes everything logged for one habit on one day (from the Log page)
@@ -51,6 +61,7 @@ export async function syncHabitDay(habitIdentity: string, date: string): Promise
         goal_value: e.goalValue,
         is_skipped: e.isSkipped,
         updated_at: e.updatedAt,
+        meal_tag: e.mealTag,
       })),
     );
   }
@@ -81,10 +92,11 @@ export async function pullFromCloud(): Promise<void> {
   } = await supabase.auth.getSession();
   if (!session) return;
 
-  const [habitsRes, eventsRes, overridesRes] = await Promise.all([
+  const [habitsRes, eventsRes, overridesRes, diaryRes] = await Promise.all([
     supabase.from("habits").select("*"),
     supabase.from("events").select("*"),
     supabase.from("user_overrides").select("*"),
+    supabase.from("diary").select("*"),
   ]);
 
   for (const row of habitsRes.data ?? []) {
@@ -109,6 +121,7 @@ export async function pullFromCloud(): Promise<void> {
       goalValue: row.goal_value,
       isSkipped: row.is_skipped,
       updatedAt: row.updated_at,
+      mealTag: row.meal_tag,
     };
     await putEvent(event);
   }
@@ -120,5 +133,108 @@ export async function pullFromCloud(): Promise<void> {
       category: row.category,
       subcategory: row.subcategory,
     });
+  }
+
+  for (const row of diaryRes.data ?? []) {
+    const entry: RawDiaryEntry = {
+      identity: row.identity,
+      habitIdentity: row.habit_identity,
+      date: row.date,
+      content: row.content,
+      title: row.title,
+      updatedAt: row.updated_at,
+    };
+    await putDiaryEntry(entry);
+  }
+}
+
+export interface BulkPushProgress {
+  habitsTotal: number;
+  habitsDone: number;
+  eventsTotal: number;
+  eventsDone: number;
+  diaryTotal: number;
+  diaryDone: number;
+}
+
+const BULK_CHUNK_SIZE = 500;
+
+/**
+ * One-time migration: pushes *everything* currently in IndexedDB —
+ * including the bulk historical import, not just Log-page entries — up to
+ * Supabase. Unlike syncHabitDay (which only ever syncs manual: rows), this
+ * is an explicit, user-triggered action since it uploads the full history.
+ * Chunked because Postgrest has practical limits on a single request's
+ * row count/payload size.
+ */
+export async function pushAllLocalDataToCloud(onProgress?: (p: BulkPushProgress) => void): Promise<void> {
+  if (!supabase) throw new Error("Cloud sync isn't configured.");
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session) throw new Error("Sign in first.");
+  const userId = session.user.id;
+
+  const [habits, events, diary] = await Promise.all([getAllHabits(), getAllEvents(), getAllDiary()]);
+
+  const progress: BulkPushProgress = {
+    habitsTotal: habits.length,
+    habitsDone: 0,
+    eventsTotal: events.length,
+    eventsDone: 0,
+    diaryTotal: diary.length,
+    diaryDone: 0,
+  };
+  onProgress?.({ ...progress });
+
+  for (let i = 0; i < habits.length; i += BULK_CHUNK_SIZE) {
+    const chunk = habits.slice(i, i + BULK_CHUNK_SIZE).map((h) => ({
+      identity: h.identity,
+      user_id: userId,
+      raw_name: h.rawName,
+      unit: h.unit,
+      kind: h.kind,
+      frequency: h.frequency,
+      is_removed: h.isRemoved,
+      created_date: h.createdDate,
+    }));
+    const { error } = await supabase.from("habits").upsert(chunk);
+    if (error) throw error;
+    progress.habitsDone += chunk.length;
+    onProgress?.({ ...progress });
+  }
+
+  for (let i = 0; i < events.length; i += BULK_CHUNK_SIZE) {
+    const chunk = events.slice(i, i + BULK_CHUNK_SIZE).map((e) => ({
+      identity: e.identity,
+      user_id: userId,
+      habit_identity: e.habitIdentity,
+      date: e.date,
+      value: e.value,
+      goal_value: e.goalValue,
+      is_skipped: e.isSkipped,
+      updated_at: e.updatedAt,
+      meal_tag: e.mealTag,
+    }));
+    const { error } = await supabase.from("events").upsert(chunk);
+    if (error) throw error;
+    progress.eventsDone += chunk.length;
+    onProgress?.({ ...progress });
+  }
+
+  for (let i = 0; i < diary.length; i += BULK_CHUNK_SIZE) {
+    const chunk = diary.slice(i, i + BULK_CHUNK_SIZE).map((d) => ({
+      identity: d.identity,
+      user_id: userId,
+      habit_identity: d.habitIdentity,
+      date: d.date,
+      content: d.content,
+      title: d.title,
+      updated_at: d.updatedAt,
+    }));
+    const { error } = await supabase.from("diary").upsert(chunk);
+    if (error) throw error;
+    progress.diaryDone += chunk.length;
+    onProgress?.({ ...progress });
   }
 }

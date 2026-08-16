@@ -86,6 +86,7 @@ export function extractHabitDb(db: Database): ExtractedHabitDb {
     goalValue: toNumber(r.ZGOALVALUE),
     isSkipped: r.ZISSKIPPED === 1,
     updatedAt: r.ZUPDATEDATE != null ? coreDataSecondsToTimestamp(r.ZUPDATEDATE) : null,
+    mealTag: null,
   }));
 
   if (tableExists(db, "ZDELETEDHABIT")) {

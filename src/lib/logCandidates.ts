@@ -6,6 +6,7 @@ export interface LogCandidate {
   key: string; // `${itemType}|${canonicalName}` — stable identity for a chip
   item: string;
   itemType: ItemType;
+  category: string;
   /** Habit identity to write new events against. Existing item -> its real
    * identity; brand-new item -> a freshly generated `manual:` identity. */
   habitIdentity: string;
@@ -13,12 +14,12 @@ export interface LogCandidate {
 }
 
 /**
- * One tappable chip per distinct classified item, ranked by how often it's
- * actually been tracked — so the Log screen surfaces what this person
- * tracks, not a generic list. Deliberately built from *all* known habits
- * (not the dashboard-filtered event set), so an item that went quiet 90+
- * days ago and got archived from the dashboards can still be tapped back
- * into use here.
+ * One tappable chip per distinct classified item. Deliberately built from
+ * *all* known habits (not the dashboard-filtered event set), so an item
+ * that went quiet 90+ days ago and got archived from the dashboards can
+ * still be tapped back into use here. Sorted alphabetically within category
+ * — the Log page groups by category and relies on that order to make a
+ * specific item findable by eye without typing.
  */
 export function buildLogCandidates(
   habits: RawHabit[],
@@ -38,7 +39,14 @@ export function buildLogCandidates(
     const key = `${c.itemType}|${c.canonicalName}`;
     const existing = byKey.get(key);
     if (!existing) {
-      byKey.set(key, { key, item: c.canonicalName, itemType: c.itemType, habitIdentity: h.identity, count });
+      byKey.set(key, {
+        key,
+        item: c.canonicalName,
+        itemType: c.itemType,
+        category: c.category,
+        habitIdentity: h.identity,
+        count,
+      });
     } else {
       existing.count += count;
       // Keep whichever habit identity has logged the most, so new taps land
@@ -49,7 +57,7 @@ export function buildLogCandidates(
     }
   }
 
-  return Array.from(byKey.values()).sort((a, b) => b.count - a.count || a.item.localeCompare(b.item));
+  return Array.from(byKey.values()).sort((a, b) => a.item.localeCompare(b.item));
 }
 
 /** Generates a fresh identity for a brand-new manually-logged item. */
@@ -79,4 +87,46 @@ export function loggedCountsForDate(
     counts.set(key, (counts.get(key) ?? 0) + 1);
   }
   return counts;
+}
+
+export interface TimelineEntry {
+  key: string;
+  item: string;
+  itemType: ItemType;
+  time: string; // local HH:MM, from the event's updatedAt (= the moment it was logged)
+  mealTag: string | null;
+}
+
+/**
+ * Every event logged on `date`, in the order they happened — each one
+ * already carries a timestamp (`updatedAt`, stamped at the moment of the
+ * tap), so this needs no new field, just reading what's already there.
+ * Entries with no timestamp (older imported rows with no ZUPDATEDATE) are
+ * skipped rather than shown with a fabricated time.
+ */
+export function dayTimelineEntries(
+  habits: RawHabit[],
+  events: RawEvent[],
+  userOverrides: Record<string, OverrideEntry>,
+  date: string,
+): TimelineEntry[] {
+  const habitsById = new Map(habits.map((h) => [h.identity, h]));
+  const relevant = events
+    .filter((e) => e.date === date && !e.isSkipped && (e.value ?? 0) > 0 && e.updatedAt != null)
+    .sort((a, b) => (a.updatedAt as number) - (b.updatedAt as number));
+
+  const entries: TimelineEntry[] = [];
+  for (const e of relevant) {
+    const habit = habitsById.get(e.habitIdentity);
+    if (!habit) continue;
+    const c = classifyHabit(habit.rawName, userOverrides);
+    entries.push({
+      key: e.identity,
+      item: c.canonicalName,
+      itemType: c.itemType,
+      time: new Date(e.updatedAt as number).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }),
+      mealTag: e.mealTag,
+    });
+  }
+  return entries;
 }
