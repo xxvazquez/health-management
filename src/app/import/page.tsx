@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useData } from "@/lib/DataContext";
+import { useAuth } from "@/lib/supabase/AuthContext";
+import { pushAllLocalDataToCloud, type BulkPushProgress } from "@/lib/supabase/sync";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { runImportPipeline, type InputFile } from "@/lib/parse/importPipeline";
 import { mergeImportedData, addImportLog, getImportLogs, type StoredImportLog } from "@/lib/db/indexedDb";
@@ -46,6 +48,7 @@ const STATUS_COLOR: Record<ImportFileReport["status"], string> = {
 
 export default function ImportPage() {
   const { refresh, clearData, unclassifiedItems } = useData();
+  const { configured: cloudConfigured, session } = useAuth();
   const folderInputRef = useRef<HTMLInputElement>(null);
   const zipInputRef = useRef<HTMLInputElement>(null);
 
@@ -54,6 +57,9 @@ export default function ImportPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [history, setHistory] = useState<StoredImportLog[]>([]);
   const [confirmingClear, setConfirmingClear] = useState(false);
+  const [bulkPushProgress, setBulkPushProgress] = useState<BulkPushProgress | null>(null);
+  const [bulkPushError, setBulkPushError] = useState<string | null>(null);
+  const [bulkPushDone, setBulkPushDone] = useState(false);
 
   useEffect(() => {
     if (folderInputRef.current) {
@@ -121,6 +127,18 @@ export default function ImportPage() {
   );
 
   const busy = stage === "reading" || stage === "processing" || stage === "merging";
+
+  async function runBulkPush() {
+    setBulkPushError(null);
+    setBulkPushDone(false);
+    setBulkPushProgress({ habitsTotal: 0, habitsDone: 0, eventsTotal: 0, eventsDone: 0, diaryTotal: 0, diaryDone: 0 });
+    try {
+      await pushAllLocalDataToCloud(setBulkPushProgress);
+      setBulkPushDone(true);
+    } catch (err) {
+      setBulkPushError(err instanceof Error ? err.message : String(err));
+    }
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -259,6 +277,55 @@ export default function ImportPage() {
           </ul>
         </Card>
       )}
+
+      <Card>
+        <CardTitle subtitle="Pushes everything currently stored in this browser — including your historical import, not just what you've logged since — up to your Supabase project. One-time; safe to run again later, it just re-syncs.">
+          Push local data to the cloud
+        </CardTitle>
+        {!cloudConfigured ? (
+          <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+            Cloud sync isn&apos;t set up yet — see the Log page for setup.
+          </p>
+        ) : !session ? (
+          <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+            Sign in from the Log page first, then come back here.
+          </p>
+        ) : (
+          <div className="flex flex-col gap-3">
+            <button
+              onClick={() => void runBulkPush()}
+              disabled={bulkPushProgress !== null && !bulkPushDone && !bulkPushError}
+              className="self-start rounded-md px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+              style={{ background: "var(--series-1)" }}
+            >
+              Push all local data to Supabase
+            </button>
+            {bulkPushProgress && (
+              <div className="grid grid-cols-3 gap-4 text-xs" style={{ color: "var(--text-secondary)" }}>
+                <span>
+                  Habits: {bulkPushProgress.habitsDone}/{bulkPushProgress.habitsTotal}
+                </span>
+                <span>
+                  Events: {bulkPushProgress.eventsDone}/{bulkPushProgress.eventsTotal}
+                </span>
+                <span>
+                  Diary: {bulkPushProgress.diaryDone}/{bulkPushProgress.diaryTotal}
+                </span>
+              </div>
+            )}
+            {bulkPushDone && (
+              <p className="text-sm" style={{ color: "var(--status-good)" }}>
+                Done — your full history now lives in Supabase too.
+              </p>
+            )}
+            {bulkPushError && (
+              <p className="text-sm" style={{ color: "var(--status-critical)" }}>
+                {bulkPushError}
+              </p>
+            )}
+          </div>
+        )}
+      </Card>
 
       <Card>
         <CardTitle subtitle="Removes everything from this browser's local storage. Your export files are untouched.">

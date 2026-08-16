@@ -73,6 +73,11 @@ export async function getAllDiary(): Promise<RawDiaryEntry[]> {
   return (await getDb()).getAll("diary");
 }
 
+export async function putDiaryEntry(entry: RawDiaryEntry): Promise<void> {
+  const db = await getDb();
+  await db.put("diary", entry);
+}
+
 export async function getImportLogs(): Promise<StoredImportLog[]> {
   const logs = await (await getDb()).getAll("imports");
   return logs.sort((a, b) => b.importedAt.localeCompare(a.importedAt));
@@ -237,6 +242,7 @@ export async function toggleDailyLog(habitIdentity: string, date: string): Promi
     goalValue: null,
     isSkipped: false,
     updatedAt: Date.now(),
+    mealTag: null,
   };
   await tx.store.put(event);
   await tx.done;
@@ -247,9 +253,11 @@ export async function toggleDailyLog(habitIdentity: string, date: string): Promi
  * Adds one more occurrence of an item on a day (e.g. a second banana),
  * as a new event row — matches how the rest of the app already counts
  * occurrences (one row = one time), so no aggregation code needs to know
- * about a "count" field.
+ * about a "count" field. `mealTag` is set from the Log page's meal
+ * selector, not derived from `updatedAt` — logging breakfast at night
+ * still tags it as breakfast.
  */
-export async function incrementDailyLog(habitIdentity: string, date: string): Promise<void> {
+export async function incrementDailyLog(habitIdentity: string, date: string, mealTag: string | null = null): Promise<void> {
   const db = await getDb();
   const event: RawEvent = {
     identity: `manual:${habitIdentity}:${date}:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`,
@@ -259,6 +267,7 @@ export async function incrementDailyLog(habitIdentity: string, date: string): Pr
     goalValue: null,
     isSkipped: false,
     updatedAt: Date.now(),
+    mealTag,
   };
   await db.put("events", event);
 }

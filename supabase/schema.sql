@@ -1,8 +1,10 @@
 -- Signal Ledger / Log page — cloud sync schema.
 --
 -- Run this once in your Supabase project's SQL Editor (Dashboard -> SQL
--- Editor -> New query -> paste -> Run). Only what you log from the /log
--- page ever reaches these tables — imported historical data stays local.
+-- Editor -> New query -> paste -> Run) for a brand-new project. If you
+-- already ran an earlier version of this file, don't re-run it — use
+-- supabase/migrations/0001_meal_tag_and_diary.sql instead, which only adds
+-- what's new without touching existing tables/data.
 --
 -- Row Level Security means every policy below is scoped to auth.uid(), so
 -- even though the anon key is public (baked into the deployed site's JS,
@@ -31,9 +33,27 @@ create table if not exists events (
   goal_value numeric,
   is_skipped boolean not null default false,
   updated_at bigint,
+  -- "Breakfast" | "Lunch" | "Dinner" | "Snack", set from the Log page's
+  -- meal selector — independent of updated_at, so logging breakfast at
+  -- night still tags it as breakfast. Null for imported/non-food rows.
+  meal_tag text,
   primary key (user_id, identity)
 );
 create index if not exists events_habit_date_idx on events (user_id, habit_identity, date);
+
+-- Free-text notes tied to a specific habit + day (ZDIARY in the original
+-- import) — included so the full historical import, not just new Log-page
+-- entries, has somewhere to live in the new database.
+create table if not exists diary (
+  identity text not null,
+  user_id uuid not null default auth.uid() references auth.users (id) on delete cascade,
+  habit_identity text not null,
+  date date not null,
+  content text,
+  title text,
+  updated_at bigint,
+  primary key (user_id, identity)
+);
 
 create table if not exists user_overrides (
   key text not null,
@@ -48,6 +68,7 @@ create table if not exists user_overrides (
 alter table habits enable row level security;
 alter table events enable row level security;
 alter table user_overrides enable row level security;
+alter table diary enable row level security;
 
 create policy "own habits" on habits for all
   using (auth.uid() = user_id) with check (auth.uid() = user_id);
@@ -56,4 +77,7 @@ create policy "own events" on events for all
   using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 create policy "own user_overrides" on user_overrides for all
+  using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+create policy "own diary" on diary for all
   using (auth.uid() = user_id) with check (auth.uid() = user_id);

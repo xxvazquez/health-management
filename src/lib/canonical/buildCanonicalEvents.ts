@@ -70,6 +70,7 @@ export function buildCanonicalEvents(
       note: notes && notes.length > 0 ? notes.join(" | ") : null,
       matchedBy: classification.matchedBy,
       updatedAt: event.updatedAt,
+      mealTag: event.mealTag,
     });
   }
 
