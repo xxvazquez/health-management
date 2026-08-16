@@ -2,7 +2,7 @@
 
 Personal food, symptom, supplement, and habit tracker, with a dashboard for looking at the data afterwards.
 
-The Log page is tap-to-log — pick a category, tap the item, done, no forms. Food supports multi-tapping (count goes up each time) and a meal tag. Everything you log shows up across the other pages: Overview, Food, Supplements, Habits, Digestion, Patterns. Those are descriptive only — charts and stats, nothing that diagnoses anything.
+The Log page is tap-to-log — pick a category, tap the item, done, no forms. Food supports multi-tapping (count goes up each time) and a meal tag. Everything you log shows up across the other pages: Overview, Food, Supplements, Habits, Digestion, Patterns. Most of those are purely descriptive — charts and stats, nothing that diagnoses anything. Food is the exception: on top of the charts, it reads your logged intake against general dietary-guidance consensus (never individual studies, never shown as reading material) to surface a short list of food groups worth prioritizing, what's going well, and what's missing — still never a diagnosis, and careful to say "not logged" rather than "not eaten".
 
 ## Running it
 
