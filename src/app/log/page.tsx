@@ -7,6 +7,7 @@ import { AuthWidget } from "@/components/auth/AuthWidget";
 import { pullFromCloud, pushUserOverride, syncItemDay } from "@/lib/supabase/sync";
 import {
   decrementDailyLog,
+  deleteLogById,
   getAllItems,
   getAllLogs,
   getAllUserOverrides,
@@ -14,6 +15,7 @@ import {
   putItem,
   setUserOverride,
   toggleDailyLog,
+  updateLogMealTag,
 } from "@/lib/db/indexedDb";
 import {
   buildLogCandidates,
@@ -21,12 +23,13 @@ import {
   generateManualItemId,
   loggedCountsForDate,
   type LogCandidate,
+  type TimelineEntry,
 } from "@/lib/logCandidates";
 import { buildCanonicalEvents } from "@/lib/canonical/buildCanonicalEvents";
 import { seasonalPicksForMonth, weeklyCategoryPriority } from "@/lib/aggregations/seasonal";
 import { buildDemoDataset } from "@/lib/demoData";
 import { normalizeName } from "@/taxonomy/normalizeName";
-import { CATEGORIES_BY_TYPE, TYPE_ACCENT, type ItemType } from "@/taxonomy/categories";
+import { CATEGORIES_BY_TYPE, TYPE_ACCENT, colorForCategorySlot, type ItemType } from "@/taxonomy/categories";
 import { lookupFoodCategory, type OverrideEntry } from "@/taxonomy/classify";
 import type { RawLog, RawItem } from "@/lib/types";
 
@@ -38,6 +41,21 @@ const TABS: { type: ItemType; label: string; placeholder: string; defaultCategor
 ];
 
 const MEAL_OPTIONS = ["Breakfast", "Lunch", "Dinner", "Snack"] as const;
+
+/** Food-category emoji — a lightweight, zero-asset way to make the
+ * highest-frequency tab (tapped many times a day) scannable at a glance.
+ * Only food gets these: it's the tab with both the most categories and the
+ * most repeat taps, per the redesign this was built for. */
+const FOOD_CATEGORY_EMOJI: Record<string, string> = {
+  Veggies: "🥦",
+  Fruit: "🍓",
+  Legumes: "🫘",
+  Grains: "🌾",
+  Dairy: "🥛",
+  "Meat & Fish": "🐟",
+  "Nuts & Seeds": "🥜",
+  Misc: "🍬",
+};
 
 /** A sensible starting point for "what meal is this," always overridable
  * by a click — the point of the selector is that it doesn't have to match
@@ -69,23 +87,6 @@ function formatDateLabel(date: string, today: string): string {
   return new Date(y, m - 1, d).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
 }
 
-/** Buckets an already alphabetically-sorted list by first letter, so a long
- * category reads like an A–Z index instead of one undifferentiated wall of
- * chips — the letter is what makes a specific item findable by eye. */
-function groupByLetter(items: LogCandidate[]): { letter: string; items: LogCandidate[] }[] {
-  const buckets: { letter: string; items: LogCandidate[] }[] = [];
-  for (const item of items) {
-    const letter = (item.item[0] ?? "#").toUpperCase();
-    const last = buckets[buckets.length - 1];
-    if (last && last.letter === letter) {
-      last.items.push(item);
-    } else {
-      buckets.push({ letter, items: [item] });
-    }
-  }
-  return buckets;
-}
-
 interface Snapshot {
   items: RawItem[];
   logs: RawLog[];
@@ -99,6 +100,7 @@ export default function LogPage() {
   const [date, setDate] = useState(today);
   const [tab, setTab] = useState<ItemType>("food");
   const [addingNew, setAddingNew] = useState(false);
+  const [picksOpen, setPicksOpen] = useState(false);
   const [meal, setMeal] = useState<(typeof MEAL_OPTIONS)[number]>(() => defaultMealForNow());
   const [newItemText, setNewItemText] = useState("");
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
@@ -198,7 +200,7 @@ export default function LogPage() {
     [currentMonth],
   );
   const seasonalPicks = useMemo(
-    () => seasonalPicksForMonth(seasonalCanonical, currentMonth, today).slice(0, 5),
+    () => seasonalPicksForMonth(seasonalCanonical, currentMonth, today),
     [seasonalCanonical, currentMonth, today],
   );
   const weeklyPriority = useMemo(
@@ -238,6 +240,28 @@ export default function LogPage() {
     await refreshAfterWrite();
     setPending(null);
     void syncItemDay(candidate.itemIdentity, date);
+  }
+
+  /** Undoes a specific mistaken tap from the day's timeline — deletes that
+   * exact entry, locally and (once synced) in Supabase too. */
+  async function handleDeleteEntry(entry: TimelineEntry) {
+    if (isDemoData) return;
+    setPending(entry.key);
+    await deleteLogById(entry.key);
+    await refreshAfterWrite();
+    setPending(null);
+    void syncItemDay(entry.itemIdentity, date);
+  }
+
+  /** Corrects the meal tag on an already-logged entry, e.g. something typed
+   * as Lunch that was actually Dinner. */
+  async function handleChangeEntryMeal(entry: TimelineEntry, mealTag: string) {
+    if (isDemoData) return;
+    setPending(entry.key);
+    await updateLogMealTag(entry.key, mealTag);
+    await refreshAfterWrite();
+    setPending(null);
+    void syncItemDay(entry.itemIdentity, date);
   }
 
   async function handleAddNew() {
@@ -315,27 +339,26 @@ export default function LogPage() {
     void syncItemDay(identity, date);
   }
 
-  function renderChip(c: LogCandidate) {
+  function renderChip(c: LogCandidate, accent: string) {
     const count = counts.get(c.key) ?? 0;
     const logged = count > 0;
     const busy = pending === c.key;
-    const accent = TYPE_ACCENT[tab];
 
     if (tabConfig.countable) {
       return (
         <div
           key={c.key}
-          className="flex items-stretch overflow-hidden rounded-md border text-sm font-medium"
+          className="flex items-stretch overflow-hidden rounded-xl border text-sm font-medium shadow-sm"
           style={{
             borderColor: logged ? accent : "var(--border-hairline)",
-            background: logged ? `color-mix(in oklab, ${accent} 16%, var(--surface-1))` : "var(--surface-1)",
+            background: logged ? `color-mix(in oklab, ${accent} 18%, var(--surface-1))` : "var(--surface-1)",
           }}
         >
           <button
             type="button"
             onClick={() => handleIncrement(c)}
             disabled={busy}
-            className="px-3.5 py-1.5 disabled:opacity-60"
+            className="px-4 py-2.5 disabled:opacity-60"
             style={{ color: logged ? "var(--text-primary)" : "var(--text-secondary)" }}
           >
             {c.item}
@@ -346,8 +369,8 @@ export default function LogPage() {
               onClick={() => handleDecrement(c)}
               disabled={busy}
               aria-label={`Remove one ${c.item}`}
-              className="border-l px-2.5 py-1.5 font-mono text-xs disabled:opacity-60"
-              style={{ borderColor: accent, color: accent }}
+              className="border-l px-2.5 py-2.5 font-mono text-xs font-semibold disabled:opacity-60"
+              style={{ borderColor: `color-mix(in oklab, ${accent} 40%, transparent)`, color: accent }}
             >
               ×{count}
             </button>
@@ -362,10 +385,10 @@ export default function LogPage() {
         type="button"
         onClick={() => handleToggle(c)}
         disabled={busy}
-        className="rounded-md border px-3.5 py-1.5 text-sm font-medium transition-colors disabled:opacity-60"
+        className="rounded-xl border px-4 py-2.5 text-sm font-medium shadow-sm transition-colors disabled:opacity-60"
         style={{
           borderColor: logged ? accent : "var(--border-hairline)",
-          background: logged ? `color-mix(in oklab, ${accent} 16%, var(--surface-1))` : "var(--surface-1)",
+          background: logged ? `color-mix(in oklab, ${accent} 18%, var(--surface-1))` : "var(--surface-1)",
           color: logged ? "var(--text-primary)" : "var(--text-secondary)",
         }}
       >
@@ -501,40 +524,67 @@ export default function LogPage() {
 
       {tabConfig.countable && dataReady && seasonalPicks.length > 0 && (
         <div className="flex flex-col gap-2.5 rounded-lg border p-4" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
-          <div>
-            <h2 className="text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
-              {monthName} picks
-            </h2>
-            <p className="mt-0.5 text-xs" style={{ color: "var(--text-muted)" }}>
-              In season now around Poland — ranked by how long it&apos;s been, tap to log.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {seasonalPicks.map((pick) => (
-              <button
-                key={pick.item}
-                type="button"
-                onClick={() => void handleQuickLogSeasonal(pick.item)}
-                disabled={pending === `seasonal:${normalizeName(pick.item)}`}
-                className="rounded-full border px-3 py-1 text-xs font-medium disabled:opacity-60"
-                style={{ borderColor: "var(--border-hairline)", color: "var(--text-secondary)" }}
-              >
-                {pick.item}
-                <span className="ml-1" style={{ color: "var(--text-muted)" }}>
-                  {pick.weeksSinceLastEaten === null
-                    ? "· never"
-                    : pick.weeksSinceLastEaten === 0
-                      ? "· this week"
-                      : `· ${pick.weeksSinceLastEaten}w ago`}
+          <button
+            type="button"
+            onClick={() => setPicksOpen((v) => !v)}
+            className="flex items-center justify-between gap-2 text-left"
+          >
+            <div>
+              <h2 className="text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
+                {monthName} picks
+                <span className="ml-1.5 font-normal normal-case" style={{ color: "var(--text-muted)" }}>
+                  · {seasonalPicks.length} in season
                 </span>
-              </button>
-            ))}
-          </div>
-          {leastTrackedCategory && (
-            <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-              This week&apos;s priority: <strong style={{ color: "var(--text-primary)" }}>{leastTrackedCategory.category}</strong> — logged{" "}
-              {leastTrackedCategory.countThisWeek} time{leastTrackedCategory.countThisWeek === 1 ? "" : "s"} so far.
-            </p>
+              </h2>
+              <p className="mt-0.5 text-xs" style={{ color: "var(--text-muted)" }}>
+                In season now around Poland — ranked by how long it&apos;s been, tap to log.
+              </p>
+            </div>
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 20 20"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="shrink-0 transition-transform"
+              style={{ color: "var(--text-muted)", transform: picksOpen ? "rotate(180deg)" : "none" }}
+            >
+              <path d="M5 7.5 10 12.5 15 7.5" />
+            </svg>
+          </button>
+          {picksOpen && (
+            <>
+              <div className="flex flex-wrap gap-2">
+                {seasonalPicks.map((pick) => (
+                  <button
+                    key={pick.item}
+                    type="button"
+                    onClick={() => void handleQuickLogSeasonal(pick.item)}
+                    disabled={pending === `seasonal:${normalizeName(pick.item)}`}
+                    className="rounded-full border px-3 py-1 text-xs font-medium whitespace-nowrap disabled:opacity-60"
+                    style={{ borderColor: "var(--border-hairline)", color: "var(--text-secondary)" }}
+                  >
+                    {pick.item}
+                    <span className="ml-1" style={{ color: "var(--text-muted)" }}>
+                      {pick.weeksSinceLastEaten === null
+                        ? "· never"
+                        : pick.weeksSinceLastEaten === 0
+                          ? "· this week"
+                          : `· ${pick.weeksSinceLastEaten}w ago`}
+                    </span>
+                  </button>
+                ))}
+              </div>
+              {leastTrackedCategory && (
+                <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                  This week&apos;s priority: <strong style={{ color: "var(--text-primary)" }}>{leastTrackedCategory.category}</strong> — logged{" "}
+                  {leastTrackedCategory.countThisWeek} time{leastTrackedCategory.countThisWeek === 1 ? "" : "s"} so far.
+                </p>
+              )}
+            </>
           )}
         </div>
       )}
@@ -545,26 +595,28 @@ export default function LogPage() {
         </p>
       ) : (
         <div className="flex flex-col gap-5">
-          {groupedByCategory.map((group) => (
-            <div key={group.category} className="flex flex-col gap-2.5">
-              <h2 className="text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
-                {group.category}
-              </h2>
-              <div className="flex flex-col gap-2">
-                {groupByLetter(group.items).map((bucket) => (
-                  <div key={bucket.letter} className="flex items-start gap-3">
-                    <span
-                      className="mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-[11px] font-semibold"
-                      style={{ background: "var(--page-plane)", color: "var(--text-muted)" }}
-                    >
-                      {bucket.letter}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {groupedByCategory.map((group) => {
+              const accent = tab === "food" ? colorForCategorySlot(group.category) : TYPE_ACCENT[tab];
+              const emoji = tab === "food" ? FOOD_CATEGORY_EMOJI[group.category] : null;
+              return (
+                <div
+                  key={group.category}
+                  className="flex flex-col gap-2.5 rounded-2xl border p-3.5"
+                  style={{ borderColor: "var(--border-hairline)", background: `color-mix(in oklab, ${accent} 7%, var(--surface-1))` }}
+                >
+                  <h2 className="flex items-center gap-1.5 text-xs font-semibold tracking-wide uppercase" style={{ color: accent }}>
+                    {emoji && <span className="text-sm">{emoji}</span>}
+                    {group.category}
+                    <span className="font-normal normal-case" style={{ color: "var(--text-muted)" }}>
+                      · {group.items.length}
                     </span>
-                    <div className="flex flex-wrap gap-2">{bucket.items.map(renderChip)}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
+                  </h2>
+                  <div className="flex flex-wrap gap-2">{group.items.map((c) => renderChip(c, accent))}</div>
+                </div>
+              );
+            })}
+          </div>
 
           {groupedByCategory.length === 0 && (
             <p className="text-sm" style={{ color: "var(--text-muted)" }}>
@@ -576,7 +628,7 @@ export default function LogPage() {
             <button
               type="button"
               onClick={() => setAddingNew(true)}
-              className="self-start rounded-full border border-dashed px-3.5 py-1.5 text-sm"
+              className="self-start rounded-full border border-dashed px-3.5 py-1.5 text-sm whitespace-nowrap"
               style={{ borderColor: "var(--border-hairline)", color: "var(--text-muted)" }}
             >
               + Something not listed
@@ -601,7 +653,7 @@ export default function LogPage() {
               <button
                 type="submit"
                 disabled={!newItemText.trim() || pending === "__new__"}
-                className="rounded-full border px-3.5 py-1.5 text-sm font-medium disabled:opacity-40"
+                className="rounded-full border px-3.5 py-1.5 text-sm font-medium whitespace-nowrap disabled:opacity-40"
                 style={{ borderColor: "var(--border-hairline)", color: "var(--text-secondary)" }}
               >
                 + Add &amp; log
@@ -621,29 +673,72 @@ export default function LogPage() {
           )}
 
           {dayTimeline.length > 0 && (
-            <div className="mt-2 flex flex-col gap-2 border-t pt-4" style={{ borderColor: "var(--border-hairline)" }}>
+            <div className="mt-2 flex flex-col gap-2.5 border-t pt-4" style={{ borderColor: "var(--border-hairline)" }}>
               <h2 className="text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
                 Timeline — {formatDateLabel(date, today).toLowerCase()}
               </h2>
-              <ul className="flex flex-col gap-1">
-                {dayTimeline.map((entry) => (
-                  <li key={entry.key} className="flex items-center gap-2 text-sm">
-                    <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: TYPE_ACCENT[entry.itemType] }} />
-                    <span className="w-14 shrink-0 font-mono text-xs" style={{ color: "var(--text-muted)" }}>
-                      {entry.time}
-                    </span>
-                    <span style={{ color: "var(--text-primary)" }}>{entry.item}</span>
-                    {entry.mealTag && (
-                      <span
-                        className="rounded-full px-2 py-0.5 text-xs"
-                        style={{ background: "var(--page-plane)", color: "var(--text-muted)" }}
-                      >
-                        {entry.mealTag}
+              <div className="flex gap-2.5 overflow-x-auto pb-2">
+                {dayTimeline.map((entry) => {
+                  const busy = pending === entry.key;
+                  return (
+                    <div
+                      key={entry.key}
+                      className="flex shrink-0 flex-col gap-1.5 rounded-xl border px-3 py-2.5"
+                      style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", opacity: busy ? 0.5 : 1 }}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: TYPE_ACCENT[entry.itemType] }} />
+                        <span className="font-mono text-xs whitespace-nowrap" style={{ color: "var(--text-muted)" }}>
+                          {entry.time}
+                        </span>
+                        {!isDemoData && (
+                          <button
+                            type="button"
+                            onClick={() => void handleDeleteEntry(entry)}
+                            disabled={busy}
+                            aria-label={`Delete ${entry.item} at ${entry.time}`}
+                            className="ml-1 text-xs leading-none disabled:opacity-40"
+                            style={{ color: "var(--text-muted)" }}
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+                      <span className="text-sm font-medium whitespace-nowrap" style={{ color: "var(--text-primary)" }}>
+                        {entry.item}
                       </span>
-                    )}
-                  </li>
-                ))}
-              </ul>
+                      {entry.itemType === "food" &&
+                        (isDemoData ? (
+                          entry.mealTag && (
+                            <span
+                              className="rounded-full px-2 py-0.5 text-xs whitespace-nowrap"
+                              style={{ background: "var(--page-plane)", color: "var(--text-muted)" }}
+                            >
+                              {entry.mealTag}
+                            </span>
+                          )
+                        ) : (
+                          <select
+                            value={entry.mealTag ?? ""}
+                            disabled={busy}
+                            onChange={(e) => void handleChangeEntryMeal(entry, e.target.value)}
+                            className="rounded-full px-2 py-0.5 text-xs whitespace-nowrap outline-none disabled:opacity-40"
+                            style={{ background: "var(--page-plane)", color: "var(--text-secondary)", border: "none" }}
+                          >
+                            <option value="" disabled>
+                              set meal
+                            </option>
+                            {MEAL_OPTIONS.map((m) => (
+                              <option key={m} value={m}>
+                                {m}
+                              </option>
+                            ))}
+                          </select>
+                        ))}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
         </div>

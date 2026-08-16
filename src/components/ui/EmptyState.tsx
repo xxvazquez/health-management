@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 
 export function EmptyState({
@@ -11,9 +12,10 @@ export function EmptyState({
 }) {
   return (
     <div
-      className="flex flex-col items-center justify-center rounded-2xl border border-dashed py-20 text-center"
+      className="flex flex-col items-center justify-center rounded-2xl border border-dashed py-16 text-center"
       style={{ borderColor: "var(--border-hairline)" }}
     >
+      <Image src="/logo-lockup.png" alt="Lauva" width={220} height={200} className="mb-2 h-auto w-40 sm:w-48" priority={false} unoptimized />
       <p className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>
         {title}
       </p>

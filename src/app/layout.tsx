@@ -11,18 +11,20 @@ const bodyFont = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Health Analytics",
+  title: "Lauva",
   description: "A personal food, supplement, and habit analytics dashboard — entirely client-side.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${bodyFont.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col">
+      <body className="min-h-full flex flex-col lg:flex-row">
         <AuthProvider>
           <DataProvider>
             <Nav />
-            <main className="flex-1 mx-auto w-full max-w-6xl px-4 sm:px-6 py-8">{children}</main>
+            <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
+              <div className="mx-auto w-full max-w-5xl">{children}</div>
+            </main>
           </DataProvider>
         </AuthProvider>
       </body>

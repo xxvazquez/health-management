@@ -1,6 +1,7 @@
 import type { CanonicalEvent } from "@/lib/types";
-import { addDaysToDate, isoWeekStart, pct } from "./common";
+import { addDaysToDate, getDatasetSpan, isoWeekStart, pct, trackedCalendarDates } from "./common";
 import { computeItemStatsForFilter, type ItemStats } from "./itemStats";
+import type { Bullet, InsightTone } from "./insights";
 
 /** The five classified Bristol types this app tracks. "No Bristol" is a logged entry meaning
  * "checked, but couldn't classify" — it is deliberately NOT one of these types; see
@@ -194,4 +195,102 @@ export function symptomFrequencyOverTime(events: CanonicalEvent[]): SymptomWeekl
   return Array.from(byWeek.entries())
     .map(([weekStart, counts]) => ({ weekStart, counts }))
     .sort((a, b) => a.weekStart.localeCompare(b.weekStart));
+}
+
+export interface DigestionInsight {
+  insufficientData: boolean;
+  headline: string;
+  detail: string | null;
+  /** Always "neutral" — this page describes what changed, never whether a
+   * pattern is good or bad. Bristol Scale banding has an established
+   * clinical reading, but Lauva doesn't apply it as a verdict on a
+   * person's own data; kept as a field for consistency with other pages'
+   * Insight usage, not because a value judgment is ever made here. */
+  tone: InsightTone;
+  changed: Bullet[];
+}
+
+const RECENT_WINDOW_DAYS = 21;
+const MIN_RECENT_CLASSIFIED = 4;
+const MIN_TRACKED_DAYS_FOR_SYMPTOM_COMPARE = 10;
+const SYMPTOM_RATE_DRIFT_PP = 15;
+
+const BAND_DESCRIPTOR: Record<BristolBand, string> = {
+  "Loose (1–2)": "looser stools (Bristol 1–2)",
+  "Normal (3–4)": "typical, well-formed stools (Bristol 3–4)",
+  "Hard (5)": "harder stools (Bristol 5)",
+};
+
+/**
+ * "Current pattern" — the primary Digestion-page insight. Compares the
+ * last 3 weeks' Bristol band mix and digestive-symptom frequency against
+ * this person's own overall pattern — never against a clinical norm, and
+ * never a diagnosis. Describes what was logged, not what it means
+ * medically (no "constipation", "IBS", etc. — those are conclusions this
+ * data can't support).
+ */
+export function digestionInsight(events: CanonicalEvent[]): DigestionInsight {
+  const span = getDatasetSpan(events);
+  if (!span) {
+    return { insufficientData: true, headline: "Not enough recent data to identify a clear pattern.", detail: null, tone: "neutral", changed: [] };
+  }
+
+  const windowStart = addDaysToDate(span.end, -(RECENT_WINDOW_DAYS - 1));
+  const recentEvents = events.filter((e) => e.date >= windowStart);
+
+  const overallBands = bristolBandDistribution(events);
+  const recentBands = bristolBandDistribution(recentEvents);
+  const recentClassifiedCount = recentBands.reduce((s, b) => s + b.count, 0);
+
+  if (recentClassifiedCount < MIN_RECENT_CLASSIFIED) {
+    return {
+      insufficientData: true,
+      headline: "Not enough recent observations to identify a stable pattern.",
+      detail: overallBands.length > 0 ? "There's older data on this page, but not enough logged in the last 3 weeks to say anything current." : null,
+      tone: "neutral",
+      changed: [],
+    };
+  }
+
+  // Personal-change framing only: whether the recent mix matches this
+  // person's own historical mix. Never "good"/"bad" — Bristol banding has
+  // an established clinical reading, but applying it as a verdict on
+  // someone's own tracked data would be exactly the kind of diagnosis
+  // this page must not make.
+  const recentDominant = [...recentBands].sort((a, b) => b.sharePct - a.sharePct)[0];
+  const overallDominant = [...overallBands].sort((a, b) => b.sharePct - a.sharePct)[0];
+  const shifted = overallDominant && recentDominant.band !== overallDominant.band;
+
+  const headline = shifted
+    ? `Your recent stool pattern differs from your usual pattern — mostly ${BAND_DESCRIPTOR[recentDominant.band]} recently, compared to mostly ${BAND_DESCRIPTOR[overallDominant.band]} historically.`
+    : `Your recent stool pattern is consistent with your usual pattern — mostly ${BAND_DESCRIPTOR[recentDominant.band]}.`;
+  const tone: InsightTone = "neutral";
+
+  const changed: Bullet[] = [];
+
+  const trackedDates = Array.from(trackedCalendarDates(events)).sort();
+  const recentTrackedDates = trackedDates.filter((d) => d >= windowStart);
+  if (trackedDates.length >= MIN_TRACKED_DAYS_FOR_SYMPTOM_COMPARE && recentTrackedDates.length >= 5) {
+    const overallSymptomRate = pct(
+      new Set(events.filter((e) => e.category === "Digestive Symptom" && e.completed).map((e) => e.date)).size,
+      trackedDates.length,
+    );
+    const recentSymptomRate = pct(
+      new Set(recentEvents.filter((e) => e.category === "Digestive Symptom" && e.completed).map((e) => e.date)).size,
+      recentTrackedDates.length,
+    );
+    const diff = recentSymptomRate - overallSymptomRate;
+    if (diff >= SYMPTOM_RATE_DRIFT_PP) {
+      changed.push({ label: "Digestive symptoms", detail: "Logged more often than usual over the last 3 weeks." });
+    } else if (diff <= -SYMPTOM_RATE_DRIFT_PP) {
+      changed.push({ label: "Digestive symptoms", detail: "Logged less often than usual over the last 3 weeks." });
+    }
+  }
+
+  const unclassifiedRecent = recentEvents.filter((e) => e.subcategory === "Bristol Scale" && e.completed).length - recentClassifiedCount;
+  if (recentClassifiedCount + unclassifiedRecent >= 6 && unclassifiedRecent / (recentClassifiedCount + unclassifiedRecent) >= 0.4) {
+    changed.push({ label: "Unclassified entries", detail: "A larger-than-usual share of recent stool logs weren't classifiable into a Bristol type." });
+  }
+
+  return { insufficientData: false, headline, detail: null, tone, changed };
 }

@@ -2,48 +2,66 @@
 
 :root {
   color-scheme: light;
-  /* Chrome & ink — a soft lavender-white foundation, never cream/beige */
-  --surface-1: #fcfbfe;
-  --page-plane: #f7f6fb;
-  --text-primary: #221f2e;
-  --text-secondary: #5c576b;
-  --text-muted: #888395;
-  --gridline: #e3e0eb;
-  --baseline: #c3becf;
-  --border-hairline: rgba(34, 31, 46, 0.1);
 
-  /* Categorical (fixed order — never cycle). Dusty, muted pastels —
-     softened relative to a pure hue rather than pale/candy-toned, so they
-     read as sophisticated and still clear a real-text contrast bar. */
-  --series-1: #456bc4; /* periwinkle blue */
-  --series-2: #c6572f; /* terracotta */
-  --series-3: #308876; /* sage teal */
-  --series-4: #ad791f; /* ochre */
-  --series-5: #b83d76; /* mauve pink */
-  --series-6: #377b50; /* moss green */
-  --series-7: #7c55be; /* lavender */
-  --series-8: #ba3b4a; /* brick rose */
-  --series-other: #767184;
+  /* Brand marks — the exact Lauva palette (leaf/wave/lavender/dot/mint).
+     Used for the logo and a few large-fill accents where the true swatch
+     matters more than text contrast. Everything that renders as text or a
+     chart series instead reads from the deepened tokens below, tuned for
+     legibility rather than swatch-fidelity. */
+  --brand-leaf: #5c8a7a;
+  --brand-wave: #6fa6d8;
+  --brand-lavender: #a7a1d6;
+  --brand-dot: #f4a7b8;
+  --brand-mint: #e6f1f2;
+
+  /* Chrome & ink — soft mint-white foundation, never cream/beige */
+  --surface-1: #fdfeff;
+  --page-plane: var(--brand-mint);
+  /* The page's own backdrop (body, behind background.png) — deliberately
+     more saturated than --page-plane (which stays light for chips/tints
+     *inside* white cards) so white cards read as clearly elevated above
+     it, not blended into it. */
+  --page-backdrop: #dde3f2;
+  --text-primary: #24313a;
+  --text-secondary: #57666d;
+  --text-muted: #85949b;
+  --gridline: #dde8e8;
+  --baseline: #c0d0d0;
+  --border-hairline: rgba(36, 49, 58, 0.1);
+
+  /* Categorical (fixed order — never cycle). Deepened versions of the
+     brand palette plus a couple of warm accents so 8 series stay
+     distinguishable — dusty and muted, not pale/candy-toned, so each one
+     still clears a real-text contrast bar. */
+  --series-1: #4a7a6c; /* deep sage — leaf */
+  --series-2: #3f7fb0; /* deep sky blue — wave */
+  --series-3: #7d6fb8; /* deep lavender */
+  --series-4: #c9527a; /* deep rose — dot */
+  --series-5: #c47a3e; /* terracotta */
+  --series-6: #2f6b57; /* deep teal-green */
+  --series-7: #9c6b3f; /* ochre */
+  --series-8: #8a4f6e; /* plum */
+  --series-other: #7c8a92;
 
   /* Sequential (blue), used for ordinal/magnitude encodings (e.g. Bristol scale) */
-  --seq-100: #d6dff5;
-  --seq-200: #aec0ea;
-  --seq-300: #809bdb;
-  --seq-400: #5176cd;
-  --seq-450: #456bc4;
-  --seq-500: #2e509e;
-  --seq-600: #203b79;
-  --seq-700: #17284f;
+  --seq-100: #dbeaf5;
+  --seq-200: #b9d8ec;
+  --seq-300: #8fc0df;
+  --seq-400: #63a4d0;
+  --seq-450: #3f7fb0;
+  --seq-500: #2c6690;
+  --seq-600: #1f4c6c;
+  --seq-700: #14344b;
 
   /* Status (reserved — never reused as a categorical series) */
-  --status-good: #26734f;
-  --status-warning: #a56a12;
-  --status-serious: #b14f25;
-  --status-critical: #ae2936;
+  --status-good: #2f6b52;
+  --status-warning: #a9781f;
+  --status-serious: #c05a34;
+  --status-critical: #a83552;
 
   /* Elevation — soft, diffused, never harsh */
-  --shadow-card: 0 1px 2px rgba(34, 31, 46, 0.04), 0 10px 28px -14px rgba(34, 31, 46, 0.18);
-  --shadow-card-hover: 0 2px 4px rgba(34, 31, 46, 0.05), 0 16px 36px -14px rgba(34, 31, 46, 0.22);
+  --shadow-card: 0 1px 2px rgba(36, 49, 58, 0.04), 0 10px 28px -14px rgba(36, 49, 58, 0.16);
+  --shadow-card-hover: 0 2px 4px rgba(36, 49, 58, 0.05), 0 16px 36px -14px rgba(36, 49, 58, 0.2);
 
   --background: var(--page-plane);
   --foreground: var(--text-primary);
@@ -68,7 +86,10 @@ body {
 }
 
 body {
-  background: var(--background);
+  /* A flat, deeper tint (not the illustration — that stays contained to the
+     Overview banner card) so white cards read as clearly elevated above
+     the page without competing visual noise behind them. */
+  background-color: var(--page-backdrop);
   color: var(--foreground);
   font-family: var(--font-body), system-ui, -apple-system, "Segoe UI", sans-serif;
 }

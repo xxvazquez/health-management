@@ -1,8 +1,9 @@
 import type { NextConfig } from "next";
 
-// Set NEXT_PUBLIC_BASE_PATH=/repo-name when building for a GitHub Pages
-// *project* page (https://user.github.io/repo-name/). Leave unset for local
-// dev or a *.github.io user/org page served from the domain root.
+// Leave NEXT_PUBLIC_BASE_PATH unset for local dev and for the current
+// deploy target (lauva.pl, a custom domain — see public/CNAME — always
+// served from the root). Only set it to /repo-name if this ever moves back
+// to a plain GitHub Pages *project* page (https://user.github.io/repo-name/).
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 
 const nextConfig: NextConfig = {
