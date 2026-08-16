@@ -9,6 +9,7 @@ import {
   getAllDiary,
   getAllEvents,
   getAllHabits,
+  getAllUserOverrides,
   hasAnyData,
 } from "@/lib/db/indexedDb";
 import { ANALYTICS_START_DATE } from "@/lib/config";
@@ -45,12 +46,13 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         setStatus("empty");
         return;
       }
-      const [habits, rawEvents, diary] = await Promise.all([
+      const [habits, rawEvents, diary, userOverrides] = await Promise.all([
         getAllHabits(),
         getAllEvents(),
         getAllDiary(),
+        getAllUserOverrides(),
       ]);
-      const result = buildCanonicalEvents(habits, rawEvents, diary);
+      const result = buildCanonicalEvents(habits, rawEvents, diary, userOverrides);
       const scoped = result.events.filter((e) => e.date >= ANALYTICS_START_DATE);
       const active = filterArchivedItems(scoped);
       setEvents(active.events);

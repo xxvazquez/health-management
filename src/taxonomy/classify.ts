@@ -12,7 +12,7 @@ export interface Classification {
   matchedBy: "override" | "food-keyword" | "fallback";
 }
 
-type OverrideEntry = {
+export type OverrideEntry = {
   canonicalName: string;
   itemType: ItemType;
   category: string;
@@ -37,18 +37,29 @@ function lookupFoodCategory(remainder: string): string | null {
 
 /**
  * Classify a raw habit name into the analytical taxonomy.
- * 1. Exact override match (the seeded, human-curated taxonomy).
- * 2. Pattern fallback for "Eat X" / "Drink X" against the food keyword dictionary
+ * 1. User override — set from the Log page when someone logs a new item;
+ *    takes precedence so a person can always correct/assign a classification
+ *    without waiting on a code change.
+ * 2. Exact override match (the seeded, human-curated taxonomy).
+ * 3. Pattern fallback for "Eat X" / "Drink X" against the food keyword dictionary
  *    — keeps newly-added foods usable without editing code. Every category this
  *    can return already exists in categories.ts because a real tracked item
  *    uses it — nothing here invents a new category.
- * 3. Generic fallback: an unrecognized "Eat X"/"Drink X" still gets item_type
+ * 4. Generic fallback: an unrecognized "Eat X"/"Drink X" still gets item_type
  *    food (the name says so) filed under the real food/Misc category rather
  *    than a fabricated one; anything else falls to habit/Other. Either way
  *    it's explicitly marked so it's visible as unclassified, never silent.
  */
-export function classifyHabit(rawName: string): Classification {
+export function classifyHabit(
+  rawName: string,
+  userOverrides?: Record<string, OverrideEntry>,
+): Classification {
   const key = normalizeName(rawName);
+
+  const userOverride = userOverrides?.[key];
+  if (userOverride) {
+    return { ...userOverride, matchedBy: "override" };
+  }
 
   const override = overrides[key];
   if (override) {

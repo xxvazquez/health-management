@@ -7,6 +7,7 @@ import { useData } from "@/lib/DataContext";
 
 const LINKS = [
   { href: "/", label: "Overview" },
+  { href: "/log", label: "Log" },
   { href: "/food", label: "Food" },
   { href: "/supplements", label: "Supplements" },
   { href: "/habits", label: "Habits" },

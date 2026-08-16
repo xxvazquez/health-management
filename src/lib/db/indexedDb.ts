@@ -1,5 +1,6 @@
 import { openDB, type DBSchema, type IDBPDatabase } from "idb";
 import type { RawHabit, RawEvent, RawDiaryEntry, ImportFileReport } from "@/lib/types";
+import type { OverrideEntry } from "@/taxonomy/classify";
 
 export interface StoredImportLog {
   id?: number;
@@ -19,10 +20,14 @@ interface HealthDbSchema extends DBSchema {
   diary: { key: string; value: RawDiaryEntry; indexes: { habitIdentity: string } };
   imports: { key: number; value: StoredImportLog };
   meta: { key: string; value: unknown };
+  // Keyed by the same normalized-name key as taxonomy/overrides.json, so an
+  // item logged directly (never seen in an import) still classifies
+  // correctly wherever it's rendered.
+  userOverrides: { key: string; value: OverrideEntry };
 }
 
 const DB_NAME = "health-analytics";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 let dbPromise: Promise<IDBPDatabase<HealthDbSchema>> | null = null;
 
@@ -30,13 +35,26 @@ function getDb(): Promise<IDBPDatabase<HealthDbSchema>> {
   if (!dbPromise) {
     dbPromise = openDB<HealthDbSchema>(DB_NAME, DB_VERSION, {
       upgrade(db) {
-        db.createObjectStore("habits", { keyPath: "identity" });
-        const events = db.createObjectStore("events", { keyPath: "identity" });
-        events.createIndex("habitIdentity", "habitIdentity");
-        const diary = db.createObjectStore("diary", { keyPath: "identity" });
-        diary.createIndex("habitIdentity", "habitIdentity");
-        db.createObjectStore("imports", { keyPath: "id", autoIncrement: true });
-        db.createObjectStore("meta");
+        if (!db.objectStoreNames.contains("habits")) {
+          db.createObjectStore("habits", { keyPath: "identity" });
+        }
+        if (!db.objectStoreNames.contains("events")) {
+          const events = db.createObjectStore("events", { keyPath: "identity" });
+          events.createIndex("habitIdentity", "habitIdentity");
+        }
+        if (!db.objectStoreNames.contains("diary")) {
+          const diary = db.createObjectStore("diary", { keyPath: "identity" });
+          diary.createIndex("habitIdentity", "habitIdentity");
+        }
+        if (!db.objectStoreNames.contains("imports")) {
+          db.createObjectStore("imports", { keyPath: "id", autoIncrement: true });
+        }
+        if (!db.objectStoreNames.contains("meta")) {
+          db.createObjectStore("meta");
+        }
+        if (!db.objectStoreNames.contains("userOverrides")) {
+          db.createObjectStore("userOverrides");
+        }
       },
     });
   }
@@ -149,4 +167,118 @@ export async function mergeImportedData(
 export async function addImportLog(log: StoredImportLog): Promise<void> {
   const db = await getDb();
   await db.add("imports", log);
+}
+
+export async function getAllUserOverrides(): Promise<Record<string, OverrideEntry>> {
+  const db = await getDb();
+  const keys = await db.getAllKeys("userOverrides");
+  const values = await db.getAll("userOverrides");
+  const out: Record<string, OverrideEntry> = {};
+  keys.forEach((key, i) => {
+    out[key] = values[i];
+  });
+  return out;
+}
+
+export async function setUserOverride(key: string, entry: OverrideEntry): Promise<void> {
+  const db = await getDb();
+  await db.put("userOverrides", entry, key);
+}
+
+export async function putHabit(habit: RawHabit): Promise<void> {
+  const db = await getDb();
+  await db.put("habits", habit);
+}
+
+export async function getHabit(identity: string): Promise<RawHabit | undefined> {
+  const db = await getDb();
+  return db.get("habits", identity);
+}
+
+export async function putEvent(event: RawEvent): Promise<void> {
+  const db = await getDb();
+  await db.put("events", event);
+}
+
+export async function getEventsForHabitOnDate(habitIdentity: string, date: string): Promise<RawEvent[]> {
+  const db = await getDb();
+  const all = await db.getAllFromIndex("events", "habitIdentity", habitIdentity);
+  return all.filter((e) => e.date === date);
+}
+
+/**
+ * Logs or unlogs an item for a given day, from the Log page rather than an
+ * import. Treats "logged today" as a single fact regardless of where the
+ * underlying event row came from: if any event already exists for this
+ * habit on this date (imported or previously logged), tapping clears all of
+ * them; otherwise it writes one new event. This keeps a chip's checked
+ * state accurate even for days that were already tracked via the old
+ * habit-tracker import.
+ *
+ * Returns the new logged state (true = now logged).
+ */
+export async function toggleDailyLog(habitIdentity: string, date: string): Promise<boolean> {
+  const db = await getDb();
+  const tx = db.transaction("events", "readwrite");
+  const existing = await tx.store.index("habitIdentity").getAll(habitIdentity);
+  const sameDay = existing.filter((e) => e.date === date);
+
+  if (sameDay.length > 0) {
+    await Promise.all(sameDay.map((e) => tx.store.delete(e.identity)));
+    await tx.done;
+    return false;
+  }
+
+  const event: RawEvent = {
+    identity: `manual:${habitIdentity}:${date}:${Date.now()}`,
+    habitIdentity,
+    date,
+    value: 1,
+    goalValue: null,
+    isSkipped: false,
+    updatedAt: Date.now(),
+  };
+  await tx.store.put(event);
+  await tx.done;
+  return true;
+}
+
+/**
+ * Adds one more occurrence of an item on a day (e.g. a second banana),
+ * as a new event row — matches how the rest of the app already counts
+ * occurrences (one row = one time), so no aggregation code needs to know
+ * about a "count" field.
+ */
+export async function incrementDailyLog(habitIdentity: string, date: string): Promise<void> {
+  const db = await getDb();
+  const event: RawEvent = {
+    identity: `manual:${habitIdentity}:${date}:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`,
+    habitIdentity,
+    date,
+    value: 1,
+    goalValue: null,
+    isSkipped: false,
+    updatedAt: Date.now(),
+  };
+  await db.put("events", event);
+}
+
+/**
+ * Removes one occurrence of an item on a day. Prefers deleting a
+ * manually-logged row over an imported one, so undoing an accidental extra
+ * tap never touches history that came from the old habit-tracker export.
+ * Returns false if there was nothing left to remove.
+ */
+export async function decrementDailyLog(habitIdentity: string, date: string): Promise<boolean> {
+  const db = await getDb();
+  const tx = db.transaction("events", "readwrite");
+  const sameDay = (await tx.store.index("habitIdentity").getAll(habitIdentity)).filter((e) => e.date === date);
+  if (sameDay.length === 0) {
+    await tx.done;
+    return false;
+  }
+  const target = sameDay.find((e) => e.identity.startsWith("manual:")) ?? sameDay[0];
+  await tx.store.delete(target.identity);
+  await tx.done;
+  return true;
 }

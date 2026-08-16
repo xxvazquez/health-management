@@ -1,4 +1,4 @@
-import { classifyHabit } from "@/taxonomy/classify";
+import { classifyHabit, type OverrideEntry } from "@/taxonomy/classify";
 import type { CanonicalEvent, RawDiaryEntry, RawEvent, RawHabit } from "@/lib/types";
 
 function diaryKey(habitIdentity: string, date: string): string {
@@ -22,6 +22,7 @@ export function buildCanonicalEvents(
   habits: RawHabit[],
   events: RawEvent[],
   diary: RawDiaryEntry[],
+  userOverrides?: Record<string, OverrideEntry>,
 ): BuildCanonicalResult {
   const habitsByIdentity = new Map(habits.map((h) => [h.identity, h]));
 
@@ -45,7 +46,7 @@ export function buildCanonicalEvents(
     if (habit?.isRemoved) continue;
 
     const rawName = habit?.rawName ?? `Unknown habit (${event.habitIdentity.slice(0, 8)})`;
-    const classification = classifyHabit(rawName);
+    const classification = classifyHabit(rawName, userOverrides);
     if (classification.matchedBy === "fallback") unclassified.add(rawName);
 
     const notes = notesByKey.get(diaryKey(event.habitIdentity, event.date));
