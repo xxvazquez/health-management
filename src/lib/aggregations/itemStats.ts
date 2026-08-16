@@ -1,5 +1,5 @@
 import type { CanonicalEvent } from "@/lib/types";
-import { computeStreaks, pct, trackedCalendarDates } from "./common";
+import { addDaysToDate, computeStreaks, pct, trackedCalendarDates } from "./common";
 
 export interface ItemStats {
   item: string;
@@ -72,4 +72,57 @@ export function computeItemStatsForFilter(
 ): ItemStats[] {
   const activeDates = Array.from(trackedCalendarDates(events)).sort();
   return computeItemStats(events.filter(predicate), activeDates);
+}
+
+const TREND_WINDOW_DAYS = 14;
+
+export interface ItemTrend {
+  item: string;
+  category: string;
+  /** Consistency since the item was first tracked — its own "usual" baseline. */
+  overallConsistencyPct: number;
+  overallTrackedDays: number;
+  /** Consistency over the last 14 tracked days only. Null when there isn't
+   * enough recent tracked history to judge (item is new, or gap in use). */
+  recentConsistencyPct: number | null;
+  recentTrackedDays: number;
+  currentStreak: number;
+  longestStreak: number;
+}
+
+/**
+ * Same per-item stats as `computeItemStats`, plus a recent-vs-usual split —
+ * the basis for "has this fallen behind its own normal pattern" rather than
+ * judging every item against one fixed bar. An item logged 3x/week that's
+ * still running 3x/week isn't "behind" just because that's a low number.
+ */
+export function computeItemTrends(events: CanonicalEvent[], activeDates: string[]): ItemTrend[] {
+  const overall = computeItemStats(events, activeDates);
+  if (activeDates.length === 0) return overall.map((s) => ({ ...s, overallConsistencyPct: s.consistencyPct, overallTrackedDays: s.daysTracked, recentConsistencyPct: null, recentTrackedDays: 0 }));
+
+  const windowStart = addDaysToDate(activeDates[activeDates.length - 1], -(TREND_WINDOW_DAYS - 1));
+  const byItem = new Map<string, CanonicalEvent[]>();
+  for (const e of events) {
+    const list = byItem.get(e.item) ?? [];
+    list.push(e);
+    byItem.set(e.item, list);
+  }
+
+  return overall.map((stat) => {
+    const itemEvents = byItem.get(stat.item) ?? [];
+    const completedRecentDates = new Set(itemEvents.filter((e) => e.completed && e.date >= windowStart).map((e) => e.date));
+    const recentTrackedDates = activeDates.filter((d) => d >= windowStart && d >= stat.firstTrackedDate);
+    const recentConsistencyPct = recentTrackedDates.length > 0 ? pct(completedRecentDates.size, recentTrackedDates.length) : null;
+
+    return {
+      item: stat.item,
+      category: stat.category,
+      overallConsistencyPct: stat.consistencyPct,
+      overallTrackedDays: stat.daysTracked,
+      recentConsistencyPct,
+      recentTrackedDays: recentTrackedDates.length,
+      currentStreak: stat.currentStreak,
+      longestStreak: stat.longestStreak,
+    };
+  });
 }

@@ -4,9 +4,11 @@ import { listDatesBetween } from "@/lib/aggregations/common";
 
 export type DayState = "completed" | "tracked-not-completed" | "not-tracked";
 
+// Same 3-tier intensity logic as AdherenceStrip: completed is the loudest
+// signal, tracked-but-missed is visible but quieter, not-tracked recedes.
 const STATE_COLOR: Record<DayState, string> = {
-  completed: "var(--seq-450)",
-  "tracked-not-completed": "var(--status-serious)",
+  completed: "var(--series-1)",
+  "tracked-not-completed": "color-mix(in oklab, var(--series-4) 55%, var(--page-plane))",
   "not-tracked": "var(--gridline)",
 };
 

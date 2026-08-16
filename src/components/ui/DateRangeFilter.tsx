@@ -28,7 +28,7 @@ export function DateRangeFilter({ span, value, onChange }: Props) {
           <button
             key={preset.label}
             onClick={() => onChange(presetRange)}
-            className={clsx("rounded-full px-3 py-1 text-xs font-medium transition-colors")}
+            className={clsx("rounded-full px-3 py-1 text-xs font-medium whitespace-nowrap transition-colors")}
             style={{
               background: active ? "var(--series-1)" : "var(--page-plane)",
               color: active ? "#fff" : "var(--text-secondary)",

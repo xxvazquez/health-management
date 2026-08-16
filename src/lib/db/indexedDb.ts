@@ -128,6 +128,30 @@ export async function getLogsForItemOnDate(itemIdentity: string, date: string): 
   return all.filter((l) => l.date === date);
 }
 
+export async function getLogById(identity: string): Promise<RawLog | undefined> {
+  const db = await getDb();
+  return db.get("logs", identity);
+}
+
+/** Deletes one specific log entry by its own identity — used to undo a
+ * specific mistaken tap from the day's timeline, as opposed to
+ * `decrementDailyLog`'s "remove any one occurrence of this item". */
+export async function deleteLogById(identity: string): Promise<void> {
+  const db = await getDb();
+  await db.delete("logs", identity);
+}
+
+/** Corrects the meal tag on an already-logged entry — for fixing a mistake
+ * after the fact, not just at the moment of logging. Leaves `updatedAt`
+ * untouched so the entry keeps its original time and timeline position;
+ * only the tag itself changes. */
+export async function updateLogMealTag(identity: string, mealTag: string | null): Promise<void> {
+  const db = await getDb();
+  const log = await db.get("logs", identity);
+  if (!log) return;
+  await db.put("logs", { ...log, mealTag });
+}
+
 /**
  * Logs or unlogs an item for a given day, from the Log page. Treats
  * "logged today" as a single fact regardless of where the underlying log

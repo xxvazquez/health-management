@@ -6,6 +6,8 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { StatTile } from "@/components/ui/StatTile";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { DateRangeFilter } from "@/components/ui/DateRangeFilter";
+import { BulletList } from "@/components/ui/BulletList";
+import { Methodology } from "@/components/ui/Methodology";
 import { RankedBarChart } from "@/components/charts/RankedBarChart";
 import { MultiLineChart } from "@/components/charts/MultiLineChart";
 import { StackedCategoryChart } from "@/components/charts/StackedCategoryChart";
@@ -21,7 +23,6 @@ import { recentNewFoodsWithContext } from "@/lib/aggregations/patterns";
 import {
   computeNutritionPriorities,
   DIET_BALANCE_LABEL,
-  type Bullet,
   type DietBalanceStatus,
   type GroupStatus,
   type PriorityCandidate,
@@ -49,7 +50,7 @@ function StatusPill({ status, label, color }: { status: string; label: string; c
   return (
     <span
       key={status}
-      className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium"
+      className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium whitespace-nowrap"
       style={{ color, background: color === "var(--text-muted)" ? "var(--page-plane)" : `color-mix(in oklab, ${color} 14%, transparent)` }}
     >
       {label}
@@ -108,9 +109,9 @@ export default function FoodPage() {
           <NextPriorities items={priorities.topPriorities} />
           <CoverageTable rows={priorities.coverageTable} />
 
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <BulletCard title="What you're doing well" tone="var(--status-good)" bullets={priorities.doingWell} emptyText="Nothing clearly stands out yet — keep logging for a clearer picture." />
-            <BulletCard title="What you're missing" tone="var(--status-warning)" bullets={priorities.missing} emptyText="No clear gaps against the tracked food groups right now." />
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+            <BulletList title="Doing well" tone="var(--status-good)" bullets={priorities.doingWell} emptyText="Nothing clearly stands out yet — keep logging for a clearer picture." />
+            <BulletList title="Missing" tone="var(--status-warning)" bullets={priorities.missing} emptyText="No clear gaps against the tracked food groups right now." />
           </div>
 
           <VarietySection variety={priorities.variety} />
@@ -122,19 +123,19 @@ export default function FoodPage() {
       <PersonalObservations newFoods={newFoods} />
 
       <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
-        <h2 className="text-lg font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
+        <p className="text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
           Detailed analytics
-        </h2>
+        </p>
         {span && range && <DateRangeFilter span={span} value={range} onChange={setRange} />}
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <Card>
-          <CardTitle subtitle="Every broad food category, ranked by tracked occurrences">Category distribution</CardTitle>
+        <Card tier="raw">
+          <CardTitle size="sm" subtitle="Every broad food category, ranked by tracked occurrences">Category distribution</CardTitle>
           <RankedBarChart data={distribution.map((d) => ({ label: d.category, value: d.count }))} color={TYPE_ACCENT.food} />
         </Card>
-        <Card>
-          <CardTitle subtitle="Most frequently tracked foods in this range">Top foods</CardTitle>
+        <Card tier="raw">
+          <CardTitle size="sm" subtitle="Most frequently tracked foods in this range">Top foods</CardTitle>
           {topFoods.length > 0 ? (
             <RankedBarChart data={topFoods} color={TYPE_ACCENT.food} />
           ) : (
@@ -143,8 +144,8 @@ export default function FoodPage() {
         </Card>
       </div>
 
-      <Card>
-        <CardTitle subtitle="Rolling 7-day and 30-day unique food counts — descriptive only, not a health verdict">
+      <Card tier="raw">
+        <CardTitle size="sm" subtitle="Rolling 7-day and 30-day unique food counts">
           Food variety over time
         </CardTitle>
         {varietySeries.length > 0 ? (
@@ -160,9 +161,9 @@ export default function FoodPage() {
         )}
       </Card>
 
-      <Card>
+      <Card tier="raw">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <CardTitle subtitle="Category mix across time — see periods where a category rose or dropped">
+          <CardTitle size="sm" subtitle="Category mix across time — see periods where a category rose or dropped">
             Category timeline
           </CardTitle>
           <div className="flex gap-1">
@@ -170,7 +171,7 @@ export default function FoodPage() {
               <button
                 key={g}
                 onClick={() => setGranularity(g)}
-                className={clsx("rounded-full px-3 py-1 text-xs font-medium capitalize")}
+                className={clsx("rounded-full px-3 py-1 text-xs font-medium whitespace-nowrap capitalize")}
                 style={{
                   background: granularity === g ? "var(--series-1)" : "var(--page-plane)",
                   color: granularity === g ? "#fff" : "var(--text-secondary)",
@@ -190,13 +191,21 @@ export default function FoodPage() {
           <p className="text-sm" style={{ color: "var(--text-muted)" }}>No data.</p>
         )}
       </Card>
+
+      <Methodology>
+        Priorities combine your logged intake with general dietary-guidance consensus — never individual studies —
+        weighted by recency, variety, and how well-established the evidence is for that food group. &quot;Not
+        logged&quot; only ever means not logged, never &quot;not eaten&quot;: this data reflects what you chose to
+        track. Personal observations never diagnose anything, and the absence of a symptom association is never
+        proof of tolerance.
+      </Methodology>
     </div>
   );
 }
 
 function NextPriorities({ items }: { items: PriorityCandidate[] }) {
   return (
-    <Card>
+    <Card tier="primary">
       <CardTitle subtitle="Ranked from your logged intake, dietary-guidance importance, variety, and recency — a short list on purpose.">
         Your next priorities
       </CardTitle>
@@ -241,7 +250,7 @@ function CoverageTable({ rows }: { rows: { label: string; days7: number; days30:
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="text-left text-xs" style={{ color: "var(--text-muted)" }}>
+            <tr className="text-left text-xs whitespace-nowrap" style={{ color: "var(--text-muted)" }}>
               <th className="pb-2 font-medium">Food group</th>
               <th className="pb-2 text-right font-medium">7 days</th>
               <th className="pb-2 text-right font-medium">30 days</th>
@@ -250,7 +259,7 @@ function CoverageTable({ rows }: { rows: { label: string; days7: number; days30:
           </thead>
           <tbody>
             {rows.map((r) => (
-              <tr key={r.label} className="border-t" style={{ borderColor: "var(--gridline)" }}>
+              <tr key={r.label} className="border-t whitespace-nowrap" style={{ borderColor: "var(--gridline)" }}>
                 <td className="py-2" style={{ color: "var(--text-primary)" }}>{r.label}</td>
                 <td className="py-2 text-right tabular-nums" style={{ color: "var(--text-secondary)" }}>{r.days7}</td>
                 <td className="py-2 text-right tabular-nums" style={{ color: "var(--text-secondary)" }}>{r.days30}</td>
@@ -266,34 +275,11 @@ function CoverageTable({ rows }: { rows: { label: string; days7: number; days30:
   );
 }
 
-function BulletCard({ title, tone, bullets, emptyText }: { title: string; tone: string; bullets: Bullet[]; emptyText: string }) {
-  return (
-    <Card>
-      <CardTitle>{title}</CardTitle>
-      {bullets.length === 0 ? (
-        <p className="text-sm" style={{ color: "var(--text-muted)" }}>{emptyText}</p>
-      ) : (
-        <ul className="flex flex-col gap-3">
-          {bullets.map((b) => (
-            <li key={b.label} className="flex gap-2.5">
-              <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: tone }} />
-              <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-                <span className="font-medium" style={{ color: "var(--text-primary)" }}>{b.label}</span> — {b.detail}
-              </p>
-            </li>
-          ))}
-        </ul>
-      )}
-    </Card>
-  );
-}
 
 function VarietySection({ variety }: { variety: ReturnType<typeof computeNutritionPriorities>["variety"] }) {
   return (
     <Card>
-      <CardTitle subtitle={`Distinct foods logged in the last ${variety.windowDays} days — descriptive diversity metrics, not a target to hit.`}>
-        Variety
-      </CardTitle>
+      <CardTitle subtitle={`Distinct foods logged in the last ${variety.windowDays} days`}>Variety</CardTitle>
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <StatTile label="Food variety" value={String(variety.totalUniqueFoods)} detail="unique foods" />
         <StatTile label="Plant variety" value={String(variety.uniquePlantFoods)} detail="unique plant foods" accent="var(--status-good)" />
@@ -328,9 +314,7 @@ function PatternSection({ priorities }: { priorities: ReturnType<typeof computeN
 
   return (
     <Card>
-      <CardTitle subtitle="The overall shape of your diet — not a score, and not a diagnosis of any single food.">
-        Your dietary pattern
-      </CardTitle>
+      <CardTitle subtitle="The overall shape of your diet, not a score">Your dietary pattern</CardTitle>
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
         {groups.map((g) => (
           <div key={g.title}>
@@ -363,9 +347,7 @@ function PatternSection({ priorities }: { priorities: ReturnType<typeof computeN
 function TrendSection({ trend }: { trend: ReturnType<typeof computeNutritionPriorities>["trend"] }) {
   return (
     <Card>
-      <CardTitle subtitle="Last 30 days vs. the 30 days before that — descriptive only, never a claim about why it changed.">
-        Over time
-      </CardTitle>
+      <CardTitle subtitle="Last 30 days vs. the 30 days before that">Over time</CardTitle>
       <ul className="flex flex-col divide-y" style={{ borderColor: "var(--gridline)" }}>
         {trend.points.map((p) => {
           const direction = p.current > p.previous ? "up" : p.current < p.previous ? "down" : "flat";
@@ -386,8 +368,8 @@ function TrendSection({ trend }: { trend: ReturnType<typeof computeNutritionPrio
 
 function PersonalObservations({ newFoods }: { newFoods: ReturnType<typeof recentNewFoodsWithContext> }) {
   return (
-    <Card>
-      <CardTitle subtitle="Secondary to the priorities above — a cautious look at recently introduced foods and any same-day symptom association. Never a diagnosis, and absence of a signal is never proof of tolerance.">
+    <Card tier="raw">
+      <CardTitle size="sm" subtitle="Recently introduced foods and any same-day symptom association">
         Personal observations
       </CardTitle>
       {newFoods.length > 0 ? (
@@ -397,7 +379,7 @@ function PersonalObservations({ newFoods }: { newFoods: ReturnType<typeof recent
               <div className="flex items-center justify-between gap-3">
                 <span className="font-medium" style={{ color: "var(--text-primary)" }}>{f.item}</span>
                 <span className="flex items-center gap-3">
-                  <span className="rounded-full px-2 py-0.5 text-xs" style={{ background: "var(--page-plane)", color: "var(--text-secondary)" }}>
+                  <span className="rounded-full px-2 py-0.5 text-xs whitespace-nowrap" style={{ background: "var(--page-plane)", color: "var(--text-secondary)" }}>
                     {f.category}
                   </span>
                   <span className="tabular-nums text-xs" style={{ color: "var(--text-muted)" }}>first logged {f.firstSeenDate}</span>

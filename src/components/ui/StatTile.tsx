@@ -12,7 +12,7 @@ export function StatTile({
   accent?: string;
 }) {
   return (
-    <Card>
+    <Card tier="raw">
       <p className="text-xs font-medium uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>
         {label}
       </p>

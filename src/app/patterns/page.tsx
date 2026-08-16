@@ -5,6 +5,7 @@ import { useData } from "@/lib/DataContext";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { DateRangeFilter } from "@/components/ui/DateRangeFilter";
+import { Methodology } from "@/components/ui/Methodology";
 import { ComparisonBars } from "@/components/charts/ComparisonBars";
 import { useDateRangeFilter } from "@/lib/useDateRangeFilter";
 import {
@@ -31,17 +32,13 @@ const SAMPLE_TIER_COLOR: Record<SampleTier, string> = {
 function SampleTierBadge({ tier }: { tier: SampleTier }) {
   return (
     <span
-      className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide"
+      className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium whitespace-nowrap uppercase tracking-wide"
       style={{ color: SAMPLE_TIER_COLOR[tier], background: "var(--page-plane)" }}
       title={SAMPLE_TIER_EXPLANATION[tier]}
     >
       {SAMPLE_TIER_LABEL[tier]}
     </span>
   );
-}
-
-function lagDayLabel(lagDays: number): string {
-  return lagDays === 1 ? "1 day" : `${lagDays} days`;
 }
 
 /** "the same day as X" / "the day after X" / "2 days after X" */
@@ -63,44 +60,36 @@ export default function PatternsPage() {
   if (status === "empty") return <EmptyState />;
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
             Patterns
           </h1>
-          <p className="mt-1 max-w-2xl text-sm" style={{ color: "var(--text-secondary)" }}>
-            Descriptive statistics only — never causal claims. Every comparison shows its sample size and a
-            confidence tier (exploratory / moderate / stronger); anything below 10 exposed days is hidden
-            rather than shown with false confidence.
+          <p className="mt-1 text-sm" style={{ color: "var(--text-muted)" }}>
+            For when you want to dig deeper — associations and correlations in your own data. Descriptive only,
+            never causal.
           </p>
         </div>
         {span && range && <DateRangeFilter span={span} value={range} onChange={setRange} />}
       </div>
 
       {coverage && (
-        <Card>
-          <CardTitle>Tracking coverage</CardTitle>
-          <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-            {coverage.totalTrackedDays} of {coverage.totalCalendarDays} days in this range have at least
-            one entry ({coverage.coveragePct}%). The {coverage.gapDays} day{coverage.gapDays === 1 ? "" : "s"} with
-            nothing logged are treated as <strong>not tracked</strong>, never as &quot;nothing happened&quot; —
-            they&apos;re excluded from every percentage on this page.
-          </p>
-        </Card>
+        <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+          {coverage.totalTrackedDays} of {coverage.totalCalendarDays} days in this range have at least one entry
+          ({coverage.coveragePct}%). Days with nothing logged are excluded from every percentage on this page,
+          never counted as &quot;nothing happened&quot;.
+        </p>
       )}
 
-      <Card>
-        <CardTitle subtitle="Association only, never cause-and-effect. Each pair shows whichever of 4 lags (same day to +3 days) has the strongest signal.">
+      <Card tier="raw">
+        <CardTitle size="sm" subtitle="Each pair shows whichever of 4 lags (same day to +3 days) has the strongest signal.">
           Notable associations
         </CardTitle>
-        <p className="mb-4 rounded-md border p-3 text-xs" style={{ borderColor: "var(--gridline)", color: "var(--text-secondary)" }}>
-          {MULTIPLE_COMPARISONS_NOTE}
-        </p>
         {topPatterns.length > 0 ? (
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
             {topPatterns.map((p, i) => (
-              <div key={i} className="rounded-lg border p-4" style={{ borderColor: "var(--gridline)" }}>
+              <div key={i} className="rounded-lg border p-3.5" style={{ borderColor: "var(--gridline)" }}>
                 <div className="mb-1 flex items-start justify-between gap-2">
                   <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
                     {p.outcomeLabel}{" "}
@@ -111,10 +100,6 @@ export default function PatternsPage() {
                   </p>
                   <SampleTierBadge tier={p.sampleTier} />
                 </div>
-                <p className="mb-3 text-xs" style={{ color: "var(--text-muted)" }}>
-                  {p.lagDays === 0 ? "Same day as" : `${lagDayLabel(p.lagDays)} after`} {p.causeLabel.toLowerCase()} —
-                  observed association, not evidence that {p.causeLabel.toLowerCase()} caused this.
-                </p>
                 <ComparisonBars
                   withLabel={`With ${p.causeLabel}`}
                   withPct={p.withPct}
@@ -126,7 +111,8 @@ export default function PatternsPage() {
                   withoutTotal={p.withoutTotal}
                 />
                 <p className="mt-3 text-xs" style={{ color: "var(--text-muted)" }}>
-                  Based on {p.withTotal + p.withoutTotal} days where {p.outcomeLabel.toLowerCase()} tracking exists.
+                  Association only, not evidence of cause — based on {p.withTotal + p.withoutTotal} days where{" "}
+                  {p.outcomeLabel.toLowerCase()} tracking exists.
                 </p>
               </div>
             ))}
@@ -137,20 +123,23 @@ export default function PatternsPage() {
             days and 5 unexposed days, at every lag checked).
           </p>
         )}
+        <div className="mt-4">
+          <Methodology label="Why so few results?">{MULTIPLE_COMPARISONS_NOTE}</Methodology>
+        </div>
       </Card>
 
       <LagExplorer events={filtered} />
 
       <ToleratedFoods events={filtered} />
 
-      <Card>
-        <CardTitle subtitle="Observed facts, a cautious reading, and — only when well supported — a suggestion. Never a nutritional prescription.">
+      <Card tier="raw">
+        <CardTitle size="sm" subtitle="Observed facts and a cautious reading — never a nutritional prescription.">
           What might be worth adjusting?
         </CardTitle>
         {insights.length > 0 ? (
-          <ul className="flex flex-col gap-4">
+          <ul className="flex flex-col gap-3">
             {insights.map((insight, i) => (
-              <li key={i} className="rounded-lg border p-4" style={{ borderColor: "var(--gridline)" }}>
+              <li key={i} className="rounded-lg border p-3.5" style={{ borderColor: "var(--gridline)" }}>
                 <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
                   {insight.title}
                 </p>
@@ -220,8 +209,8 @@ function LagExplorer({ events }: { events: CanonicalEvent[] }) {
   if (causeOptions.length === 0 || outcomeOptions.length === 0) return null;
 
   return (
-    <Card>
-      <CardTitle subtitle="Does the association get stronger if the outcome is measured 1–3 days after the cause instead of the same day? Includes exercise/movement habits, so you can check whether activity relates to symptoms too.">
+    <Card tier="raw">
+      <CardTitle size="sm" subtitle="Does the association get stronger 1–3 days after the cause instead of the same day?">
         Time-lag explorer
       </CardTitle>
       <div className="mb-4 flex flex-wrap gap-3">
@@ -289,8 +278,8 @@ function ToleratedFoods({ events }: { events: CanonicalEvent[] }) {
   const foods = useMemo(() => lowSymptomAssociationFoods(events), [events]);
 
   return (
-    <Card>
-      <CardTitle subtitle="Foods eaten on at least 20 tracked days where no tracked digestive symptom shows a meaningfully higher same-day rate than on days without the food. This is not a 'safe foods' list — it only reflects what hasn't shown an elevated association in your data so far, for the symptoms you're tracking.">
+    <Card tier="raw">
+      <CardTitle size="sm" subtitle="Foods eaten on 20+ tracked days with no meaningfully elevated same-day symptom rate. Not a 'safe foods' list.">
         Low observed symptom association
       </CardTitle>
       {foods.length === 0 && (
@@ -301,41 +290,43 @@ function ToleratedFoods({ events }: { events: CanonicalEvent[] }) {
         </p>
       )}
       {foods.length > 0 && (
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="text-left text-xs" style={{ color: "var(--text-muted)" }}>
-              <th className="pb-2 font-medium">Food</th>
-              <th className="pb-2 font-medium">Category</th>
-              <th className="pb-2 text-right font-medium">Days eaten</th>
-              <th className="pb-2 text-right font-medium">Largest symptom diff observed</th>
-            </tr>
-          </thead>
-          <tbody>
-            {foods.map((f) => (
-              <tr key={f.item} className="border-t" style={{ borderColor: "var(--gridline)" }}>
-                <td className="py-2" style={{ color: "var(--text-primary)" }}>
-                  {f.item}
-                </td>
-                <td className="py-2" style={{ color: "var(--text-secondary)" }}>
-                  {f.category}
-                </td>
-                <td className="py-2 text-right tabular-nums" style={{ color: "var(--text-secondary)" }}>
-                  {f.exposureDays}
-                </td>
-                <td className="py-2 text-right tabular-nums" style={{ color: "var(--text-secondary)" }}>
-                  {f.worstSymptomLabel ? (
-                    <>
-                      {f.worstSymptomDiffPct > 0 ? "+" : ""}
-                      {f.worstSymptomDiffPct}pp ({f.worstSymptomLabel})
-                    </>
-                  ) : (
-                    "—"
-                  )}
-                </td>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-xs whitespace-nowrap" style={{ color: "var(--text-muted)" }}>
+                <th className="pb-2 font-medium">Food</th>
+                <th className="pb-2 font-medium">Category</th>
+                <th className="pb-2 text-right font-medium">Days eaten</th>
+                <th className="pb-2 text-right font-medium">Largest symptom diff observed</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {foods.map((f) => (
+                <tr key={f.item} className="border-t whitespace-nowrap" style={{ borderColor: "var(--gridline)" }}>
+                  <td className="py-2" style={{ color: "var(--text-primary)" }}>
+                    {f.item}
+                  </td>
+                  <td className="py-2" style={{ color: "var(--text-secondary)" }}>
+                    {f.category}
+                  </td>
+                  <td className="py-2 text-right tabular-nums" style={{ color: "var(--text-secondary)" }}>
+                    {f.exposureDays}
+                  </td>
+                  <td className="py-2 text-right tabular-nums" style={{ color: "var(--text-secondary)" }}>
+                    {f.worstSymptomLabel ? (
+                      <>
+                        {f.worstSymptomDiffPct > 0 ? "+" : ""}
+                        {f.worstSymptomDiffPct}pp ({f.worstSymptomLabel})
+                      </>
+                    ) : (
+                      "—"
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </Card>
   );

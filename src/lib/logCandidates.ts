@@ -95,6 +95,7 @@ export interface TimelineEntry {
   key: string;
   item: string;
   itemType: ItemType;
+  itemIdentity: string;
   time: string; // local HH:MM, from the log's updatedAt (= the moment it was logged)
   mealTag: string | null;
 }
@@ -126,6 +127,7 @@ export function dayTimelineEntries(
       key: l.identity,
       item: c.canonicalName,
       itemType: c.itemType,
+      itemIdentity: l.itemIdentity,
       time: new Date(l.updatedAt as number).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }),
       mealTag: l.mealTag,
     });
