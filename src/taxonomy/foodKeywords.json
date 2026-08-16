@@ -9,11 +9,14 @@
   "turnip": "Veggies", "jerusalem artichoke": "Veggies", "wild garlic": "Veggies", "nettle": "Veggies",
   "sorrel": "Veggies", "chives": "Veggies", "mushroom": "Veggies", "chanterelle": "Veggies", "leek": "Veggies",
   "celeriac": "Veggies", "broccoli": "Veggies", "cauliflower": "Veggies", "bell pepper": "Veggies", "pepper": "Veggies",
-  "onion": "Veggies", "garlic": "Veggies", "carrot": "Veggies",
+  "onion": "Veggies", "garlic": "Veggies", "carrot": "Veggies", "ginger": "Veggies",
 
   "fruit": "Fruit", "grape": "Fruit", "melon": "Fruit", "watermelon": "Fruit", "pineapple": "Fruit",
   "cherry": "Fruit", "cherries": "Fruit", "plum": "Fruit", "apricot": "Fruit", "fig": "Fruit",
   "papaya": "Fruit", "pomegranate": "Fruit", "lemon": "Fruit", "lime": "Fruit", "grapefruit": "Fruit",
+  "apple": "Fruit", "banana": "Fruit", "orange": "Fruit", "pear": "Fruit", "mandarin": "Fruit",
+  "tangerine": "Fruit", "clementine": "Fruit", "mango": "Fruit", "kiwi": "Fruit", "dates": "Fruit",
+  "avocado": "Fruit",
   "raisins": "Fruit", "lychee": "Fruit", "passionfruit": "Fruit", "guava": "Fruit",
   "rhubarb": "Fruit", "gooseberry": "Fruit", "gooseberries": "Fruit", "currant": "Fruit", "redcurrant": "Fruit",
   "blackcurrant": "Fruit", "cranberry": "Fruit", "cranberries": "Fruit", "aronia": "Fruit", "chokeberry": "Fruit",
@@ -27,10 +30,11 @@
   "bread": "Grains", "pasta": "Grains", "rice": "Grains", "oat": "Grains",
   "quinoa": "Grains", "barley": "Grains", "wheat": "Grains", "cereal": "Grains",
   "cracker": "Grains", "tortilla": "Grains", "noodle": "Grains", "grain": "Grains",
-  "potato": "Grains", "corn": "Grains", "polenta": "Grains",
+  "potato": "Grains", "corn": "Grains", "polenta": "Grains", "bulgur": "Grains",
+  "couscous": "Grains", "millet": "Grains", "spelt": "Grains",
 
   "milk": "Dairy", "cheese": "Dairy", "yoghurt": "Dairy", "yogurt": "Dairy", "cream": "Dairy", "butter": "Dairy",
-  "kefir": "Dairy", "egg": "Dairy", "eggs": "Dairy",
+  "kefir": "Dairy", "egg": "Dairy", "eggs": "Dairy", "feta": "Dairy",
   "oat milk": "Dairy", "almond milk": "Dairy", "soy milk": "Dairy", "coconut milk": "Dairy", "cashew milk": "Dairy",
 
   "fish": "Meat & Fish", "salmon": "Meat & Fish", "tuna": "Meat & Fish", "shrimp": "Meat & Fish",
@@ -38,6 +42,7 @@
   "seafood": "Meat & Fish", "mussel": "Meat & Fish", "crab": "Meat & Fish", "lobster": "Meat & Fish",
   "chicken": "Meat & Fish", "beef": "Meat & Fish", "pork": "Meat & Fish", "turkey": "Meat & Fish", "lamb": "Meat & Fish",
   "sausage": "Meat & Fish", "bacon": "Meat & Fish", "ham": "Meat & Fish", "steak": "Meat & Fish", "meat": "Meat & Fish",
+  "jamón": "Meat & Fish", "jamon": "Meat & Fish", "serrano": "Meat & Fish",
 
   "almond": "Nuts & Seeds", "walnut": "Nuts & Seeds", "cashew": "Nuts & Seeds", "pistachio": "Nuts & Seeds",
   "hazelnut": "Nuts & Seeds", "peanut": "Nuts & Seeds", "nut": "Nuts & Seeds",
@@ -46,5 +51,6 @@
 
   "chocolate": "Misc", "candy": "Misc", "cake": "Misc", "cookie": "Misc",
   "dessert": "Misc", "ice cream": "Misc", "sugar": "Misc", "honey": "Misc",
-  "syrup": "Misc", "pastry": "Misc", "coffee": "Misc", "espresso": "Misc", "latte": "Misc"
+  "syrup": "Misc", "pastry": "Misc", "coffee": "Misc", "espresso": "Misc", "latte": "Misc",
+  "broth": "Misc", "cacao": "Misc", "vanilla": "Misc"
 }

@@ -24,6 +24,7 @@ import {
 } from "@/lib/logCandidates";
 import { buildCanonicalEvents } from "@/lib/canonical/buildCanonicalEvents";
 import { seasonalPicksForMonth, weeklyCategoryPriority } from "@/lib/aggregations/seasonal";
+import { buildDemoDataset } from "@/lib/demoData";
 import { normalizeName } from "@/taxonomy/normalizeName";
 import { CATEGORIES_BY_TYPE, TYPE_ACCENT, type ItemType } from "@/taxonomy/categories";
 import { lookupFoodCategory, type OverrideEntry } from "@/taxonomy/classify";
@@ -68,6 +69,23 @@ function formatDateLabel(date: string, today: string): string {
   return new Date(y, m - 1, d).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
 }
 
+/** Buckets an already alphabetically-sorted list by first letter, so a long
+ * category reads like an A–Z index instead of one undifferentiated wall of
+ * chips — the letter is what makes a specific item findable by eye. */
+function groupByLetter(items: LogCandidate[]): { letter: string; items: LogCandidate[] }[] {
+  const buckets: { letter: string; items: LogCandidate[] }[] = [];
+  for (const item of items) {
+    const letter = (item.item[0] ?? "#").toUpperCase();
+    const last = buckets[buckets.length - 1];
+    if (last && last.letter === letter) {
+      last.items.push(item);
+    } else {
+      buckets.push({ letter, items: [item] });
+    }
+  }
+  return buckets;
+}
+
 interface Snapshot {
   items: RawItem[];
   logs: RawLog[];
@@ -75,7 +93,7 @@ interface Snapshot {
 }
 
 export default function LogPage() {
-  const { refresh } = useData();
+  const { refresh, isDemoData } = useData();
   const { session } = useAuth();
   const today = useMemo(() => todayLocalISODate(), []);
   const [date, setDate] = useState(today);
@@ -110,15 +128,30 @@ export default function LogPage() {
     void pullFromCloud().then(() => loadSnapshot());
   }, [session, loadSnapshot]);
 
-  const candidates = useMemo(() => {
-    if (!snapshot) return [];
-    return buildLogCandidates(snapshot.items, snapshot.logs, snapshot.userOverrides);
-  }, [snapshot]);
+  // Signed out with nothing logged locally yet — show the same static demo
+  // dataset the rest of the app uses (see DataContext), so the Log page
+  // looks and reads exactly like a real day instead of an empty shell.
+  // Every write handler below no-ops while this is true; the only way to
+  // actually log something is to sign in or log something for real first.
+  const demo = useMemo(() => (isDemoData ? buildDemoDataset() : null), [isDemoData]);
+  const dataReady = demo !== null || snapshot !== null;
+  const effective = useMemo<Snapshot>(
+    () =>
+      demo
+        ? { items: demo.items, logs: demo.logs, userOverrides: {} }
+        : (snapshot ?? { items: [], logs: [], userOverrides: {} }),
+    [demo, snapshot],
+  );
 
-  const counts = useMemo(() => {
-    if (!snapshot) return new Map<string, number>();
-    return loggedCountsForDate(snapshot.items, snapshot.logs, snapshot.userOverrides, date);
-  }, [snapshot, date]);
+  const candidates = useMemo(
+    () => buildLogCandidates(effective.items, effective.logs, effective.userOverrides),
+    [effective],
+  );
+
+  const counts = useMemo(
+    () => loggedCountsForDate(effective.items, effective.logs, effective.userOverrides, date),
+    [effective, date],
+  );
 
   const tabConfig = TABS.find((t) => t.type === tab)!;
   const tabCandidates = useMemo(() => candidates.filter((c) => c.itemType === tab), [candidates, tab]);
@@ -145,19 +178,19 @@ export default function LogPage() {
     [candidates, counts],
   );
 
-  const dayTimeline = useMemo(() => {
-    if (!snapshot) return [];
-    return dayTimelineEntries(snapshot.items, snapshot.logs, snapshot.userOverrides, date);
-  }, [snapshot, date]);
+  const dayTimeline = useMemo(
+    () => dayTimelineEntries(effective.items, effective.logs, effective.userOverrides, date),
+    [effective, date],
+  );
 
   // Unfiltered canonical events (no archived-item or date-range filtering,
   // unlike the dashboards' DataContext) so "weeks since last eaten" stays
   // accurate even for something that went quiet long enough to be archived
   // from the regular dashboards.
-  const seasonalCanonical = useMemo(() => {
-    if (!snapshot) return [];
-    return buildCanonicalEvents(snapshot.items, snapshot.logs, [], snapshot.userOverrides).events;
-  }, [snapshot]);
+  const seasonalCanonical = useMemo(
+    () => buildCanonicalEvents(effective.items, effective.logs, [], effective.userOverrides).events,
+    [effective],
+  );
 
   const currentMonth = useMemo(() => new Date().getMonth() + 1, []);
   const monthName = useMemo(
@@ -181,6 +214,7 @@ export default function LogPage() {
   }
 
   async function handleIncrement(candidate: LogCandidate) {
+    if (isDemoData) return;
     setPending(candidate.key);
     await incrementDailyLog(candidate.itemIdentity, date, tabConfig.countable ? meal : null);
     await refreshAfterWrite();
@@ -189,6 +223,7 @@ export default function LogPage() {
   }
 
   async function handleDecrement(candidate: LogCandidate) {
+    if (isDemoData) return;
     setPending(candidate.key);
     await decrementDailyLog(candidate.itemIdentity, date);
     await refreshAfterWrite();
@@ -197,6 +232,7 @@ export default function LogPage() {
   }
 
   async function handleToggle(candidate: LogCandidate) {
+    if (isDemoData) return;
     setPending(candidate.key);
     await toggleDailyLog(candidate.itemIdentity, date);
     await refreshAfterWrite();
@@ -205,6 +241,7 @@ export default function LogPage() {
   }
 
   async function handleAddNew() {
+    if (isDemoData) return;
     const name = newItemText.trim();
     if (!name) return;
     const key = normalizeName(name);
@@ -248,6 +285,7 @@ export default function LogPage() {
    * increments it; a never-tracked seasonal item gets created under a
    * guessed category and logged in the same tap. */
   async function handleQuickLogSeasonal(itemName: string) {
+    if (isDemoData) return;
     const norm = normalizeName(itemName);
     const pendingKey = `seasonal:${norm}`;
     const existing = candidates.find((c) => c.itemType === "food" && normalizeName(c.item) === norm);
@@ -287,7 +325,7 @@ export default function LogPage() {
       return (
         <div
           key={c.key}
-          className="flex items-stretch overflow-hidden rounded-full border text-sm font-medium"
+          className="flex items-stretch overflow-hidden rounded-md border text-sm font-medium"
           style={{
             borderColor: logged ? accent : "var(--border-hairline)",
             background: logged ? `color-mix(in oklab, ${accent} 16%, var(--surface-1))` : "var(--surface-1)",
@@ -324,7 +362,7 @@ export default function LogPage() {
         type="button"
         onClick={() => handleToggle(c)}
         disabled={busy}
-        className="rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors disabled:opacity-60"
+        className="rounded-md border px-3.5 py-1.5 text-sm font-medium transition-colors disabled:opacity-60"
         style={{
           borderColor: logged ? accent : "var(--border-hairline)",
           background: logged ? `color-mix(in oklab, ${accent} 16%, var(--surface-1))` : "var(--surface-1)",
@@ -345,9 +383,11 @@ export default function LogPage() {
             Log
           </h1>
           <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-            {tabConfig.countable
-              ? "Click a food each time you eat it — the count goes up. No forms, nothing to submit."
-              : "Tap what applies. No forms, nothing to submit — every tap saves straight to this device."}
+            {isDemoData
+              ? "Example data — this is what a tracked day looks like. Sign in or log something for real to replace it."
+              : tabConfig.countable
+                ? "Click a food each time you eat it — the count goes up. No forms, nothing to submit."
+                : "Tap what applies. No forms, nothing to submit — every tap saves straight to this device."}
           </p>
           <div className="mt-1.5">
             <AuthWidget />
@@ -459,7 +499,7 @@ export default function LogPage() {
         </div>
       )}
 
-      {tabConfig.countable && snapshot && seasonalPicks.length > 0 && (
+      {tabConfig.countable && dataReady && seasonalPicks.length > 0 && (
         <div className="flex flex-col gap-2.5 rounded-lg border p-4" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
           <div>
             <h2 className="text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
@@ -499,18 +539,30 @@ export default function LogPage() {
         </div>
       )}
 
-      {!snapshot ? (
+      {!dataReady ? (
         <p className="text-sm" style={{ color: "var(--text-muted)" }}>
           Loading…
         </p>
       ) : (
         <div className="flex flex-col gap-5">
           {groupedByCategory.map((group) => (
-            <div key={group.category} className="flex flex-col gap-2">
+            <div key={group.category} className="flex flex-col gap-2.5">
               <h2 className="text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
                 {group.category}
               </h2>
-              <div className="flex flex-wrap gap-2">{group.items.map(renderChip)}</div>
+              <div className="flex flex-col gap-2">
+                {groupByLetter(group.items).map((bucket) => (
+                  <div key={bucket.letter} className="flex items-start gap-3">
+                    <span
+                      className="mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-[11px] font-semibold"
+                      style={{ background: "var(--page-plane)", color: "var(--text-muted)" }}
+                    >
+                      {bucket.letter}
+                    </span>
+                    <div className="flex flex-wrap gap-2">{bucket.items.map(renderChip)}</div>
+                  </div>
+                ))}
+              </div>
             </div>
           ))}
 
@@ -520,7 +572,7 @@ export default function LogPage() {
             </p>
           )}
 
-          {!addingNew ? (
+          {isDemoData ? null : !addingNew ? (
             <button
               type="button"
               onClick={() => setAddingNew(true)}

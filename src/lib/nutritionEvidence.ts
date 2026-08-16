@@ -13,13 +13,6 @@ import type { FoodCategory } from "@/taxonomy/categories";
  */
 export type EvidenceTier = "Strong" | "Moderate" | "Limited" | "Unclear";
 
-export const EVIDENCE_TIER_EXPLANATION: Record<EvidenceTier, string> = {
-  Strong: "Consistent randomized-trial evidence plus supportive meta-analyses/guidelines.",
-  Moderate: "Consistent observational/cohort evidence, often with some supportive trial data on biomarkers — not fully established as causal.",
-  Limited: "Some supportive evidence, but small, mixed, or preliminary.",
-  Unclear: "Evidence is genuinely mixed or insufficient to characterize.",
-};
-
 export interface EvidenceSource {
   citation: string;
   url: string;

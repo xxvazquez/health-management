@@ -2,7 +2,7 @@ import Link from "next/link";
 
 export function EmptyState({
   title = "No data yet",
-  description = "Log something on the Log page, or sign in there to pull down data already in Supabase.",
+  description = "Log something on the Log page, or refresh there to pull down data already in Supabase.",
   showLogLink = true,
 }: {
   title?: string;
@@ -11,7 +11,7 @@ export function EmptyState({
 }) {
   return (
     <div
-      className="flex flex-col items-center justify-center rounded-xl border border-dashed py-20 text-center"
+      className="flex flex-col items-center justify-center rounded-2xl border border-dashed py-20 text-center"
       style={{ borderColor: "var(--border-hairline)" }}
     >
       <p className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>

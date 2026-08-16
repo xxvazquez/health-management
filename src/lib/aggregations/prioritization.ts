@@ -1,5 +1,6 @@
 import type { CanonicalEvent } from "@/lib/types";
-import { FOOD_EVIDENCE, type EvidenceTier, type FoodEvidenceEntry } from "@/lib/nutritionEvidence";
+import type { FoodCategory } from "@/taxonomy/categories";
+import { FOOD_EVIDENCE, type EvidenceTier, type EvidenceSource } from "@/lib/nutritionEvidence";
 import { rankedFoods } from "./food";
 import {
   digestiveSymptomItems,
@@ -8,56 +9,54 @@ import {
   worstSameDaySymptomDiff,
 } from "./patterns";
 
-export type PriorityLevel = "High" | "Medium" | "Low" | "Already well represented";
-
-const LOW_INTAKE_THRESHOLD = 5; // occurrences in range, below which a group reads as "rarely logged"
 const HIGH_INTAKE_THRESHOLD = 15; // above which a group reads as already well represented
+const EXAMPLE_FOODS_SHOWN = 3;
 
-function priorityFor(intakeCount: number, tier: EvidenceTier): PriorityLevel {
-  if (intakeCount > HIGH_INTAKE_THRESHOLD) return "Already well represented";
-  const goodEvidence = tier === "Strong" || tier === "Moderate";
-  if (intakeCount < LOW_INTAKE_THRESHOLD) return goodEvidence ? "High" : "Low";
-  return goodEvidence ? "Medium" : "Low";
-}
+export type PriorityAction = "Increase" | "Maintain" | "Skip";
 
-export interface PriorityEntry extends FoodEvidenceEntry {
+export interface PriorityEntry {
+  label: string;
+  relatedFoodCategory: FoodCategory;
+  evidenceTier: EvidenceTier;
+  summary: string;
+  mechanismOrFinding: string;
+  sources: EvidenceSource[];
   personalIntakeCount: number;
-  personalIntakeBreakdown: { item: string; count: number }[];
-  priority: PriorityLevel;
-  /** Combines the user's own data + the evidence tier into one cautious, personalized sentence. Never a command. */
-  personalizedNote: string;
-  /** Set only when a tracked-often-enough matched food shows an elevated same-day digestive-symptom association — a reason to introduce cautiously, not proof of a problem. */
-  cautionNote: string | null;
+  /** Concrete foods to show instead of just the abstract group name — the
+   * ones actually logged, or the group's typical examples if never logged. */
+  exampleFoods: string[];
+  action: PriorityAction;
+  /** One short sentence — personal-data findings (e.g. a symptom
+   * association) take priority over the generic evidence summary. */
+  why: string;
 }
 
-function intakePhrase(count: number): string {
-  if (count === 0) return "not logged at all";
-  if (count === 1) return "logged only once";
-  if (count < LOW_INTAKE_THRESHOLD) return `rarely logged (${count} times)`;
-  if (count <= HIGH_INTAKE_THRESHOLD) return `logged occasionally (${count} times)`;
-  return `logged regularly (${count} times)`;
+/**
+ * Evidence strength gates whether a group is worth prioritizing at all —
+ * low intake alone never overrides weak evidence. Among groups with
+ * favorable evidence, intake level decides Increase vs. Maintain.
+ */
+function actionFor(intakeCount: number, tier: EvidenceTier): PriorityAction {
+  if (tier === "Limited" || tier === "Unclear") return "Skip";
+  if (intakeCount > HIGH_INTAKE_THRESHOLD) return "Maintain";
+  return "Increase";
 }
 
-function buildPersonalizedNote(entry: FoodEvidenceEntry, intakeCount: number, priority: PriorityLevel): string {
-  const groupLower = entry.label.toLowerCase();
-  if (priority === "Already well represented") {
-    return `${entry.label} are already ${intakePhrase(intakeCount)} in your logged diet — no particular reason to prioritize increasing them further based on this data.`;
-  }
-  if (priority === "High") {
-    return `${entry.label} are ${intakePhrase(intakeCount)} in your logged diet, while ${groupLower} are a food group with generally favorable nutritional evidence (${entry.evidenceTier.toLowerCase()}). They may be a reasonable group to prioritize for dietary variety — this is general dietary reasoning, not a personalized recommendation.`;
-  }
-  if (priority === "Medium") {
-    return `${entry.label} are ${intakePhrase(intakeCount)} in your logged diet. The general evidence for this group is favorable (${entry.evidenceTier.toLowerCase()}), so there may be modest room to include them a bit more often, though you're not starting from zero.`;
-  }
-  return `${entry.label} are ${intakePhrase(intakeCount)} in your logged diet. The general evidence for this specific group is ${entry.evidenceTier.toLowerCase()}, so this isn't flagged as a priority despite the low tracked intake.`;
+function buildWhy(action: PriorityAction, intakeCount: number, tier: EvidenceTier, caution: string | null): string {
+  if (caution) return caution;
+  if (action === "Skip") return `${tier} evidence for this group — not worth prioritizing over what you're already eating.`;
+  if (action === "Maintain") return "Already eaten regularly, and the general evidence is favorable — keep it up.";
+  return intakeCount === 0
+    ? "Not logged yet, and the general evidence is favorable."
+    : "Rarely logged so far, and the general evidence is favorable.";
 }
 
 /**
  * Combines the user's own logged intake with the curated research table in
- * `nutritionEvidence.ts` to answer "what am I under-eating that's generally
- * worth prioritizing?" — never a bare "X is healthy" claim, and never
- * inflates a rarely-tracked food's priority beyond what its own evidence
- * tier supports. See FOOD_EVIDENCE for sourcing.
+ * `nutritionEvidence.ts` to answer, in one glance, "what should I eat more
+ * of, keep doing, or not worry about?" — grouped by action rather than a
+ * long uniform list. Never inflates a rarely-tracked food's priority beyond
+ * what its own evidence tier supports. See FOOD_EVIDENCE for sourcing.
  */
 export function foodsWorthPrioritizing(events: CanonicalEvent[]): PriorityEntry[] {
   const rankedByItem = new Map(rankedFoods(events).map((f) => [f.item, f.count]));
@@ -69,81 +68,38 @@ export function foodsWorthPrioritizing(events: CanonicalEvent[]): PriorityEntry[
       .filter((b) => b.count > 0)
       .sort((a, b) => b.count - a.count);
     const personalIntakeCount = breakdown.reduce((sum, b) => sum + b.count, 0);
-    const priority = priorityFor(personalIntakeCount, entry.evidenceTier);
-    const personalizedNote = buildPersonalizedNote(entry, personalIntakeCount, priority);
+    const action = actionFor(personalIntakeCount, entry.evidenceTier);
 
-    let cautionNote: string | null = null;
+    const exampleFoods = (breakdown.length > 0 ? breakdown.map((b) => b.item) : entry.matchFoodNames).slice(
+      0,
+      EXAMPLE_FOODS_SHOWN,
+    );
+
+    let caution: string | null = null;
     if (symptomItems.length > 0) {
       for (const b of breakdown) {
         const worst = worstSameDaySymptomDiff(events, symptomItems, matchItem(b.item));
         if (worst.anyAdequate && worst.worstDiffPct >= MIN_INTERESTING_DIFF_PCT) {
-          cautionNote = `Your own data shows an observed same-day association between ${b.item} and ${worst.worstLabel} (+${worst.worstDiffPct}pp) — worth introducing more of this group gradually and watching for a repeat, rather than assuming it's automatically well tolerated.`;
+          caution = `Your data shows ${b.item} linked to ${worst.worstLabel} (+${worst.worstDiffPct}pp) — worth introducing gradually.`;
           break;
         }
       }
     }
 
     return {
-      ...entry,
+      label: entry.label,
+      relatedFoodCategory: entry.relatedFoodCategory,
+      evidenceTier: entry.evidenceTier,
+      summary: entry.summary,
+      mechanismOrFinding: entry.mechanismOrFinding,
+      sources: entry.sources,
       personalIntakeCount,
-      personalIntakeBreakdown: breakdown,
-      priority,
-      personalizedNote,
-      cautionNote,
+      exampleFoods,
+      action,
+      why: buildWhy(action, personalIntakeCount, entry.evidenceTier, caution),
     };
   });
 
-  const priorityOrder: Record<PriorityLevel, number> = { High: 0, Medium: 1, Low: 2, "Already well represented": 3 };
-  return entries.sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
-}
-
-export interface CategoryGapEntry {
-  category: string;
-  personalTrackingLevel: "low" | "moderate" | "high";
-  uniqueFoodsInCategory: number;
-  bestEvidenceTier: EvidenceTier | null;
-}
-
-/**
- * Category-level view for "highest-priority areas to diversify": combines
- * how thin each food category is in the user's own data with whether that
- * category has research-backed entries in FOOD_EVIDENCE at all. Only
- * surfaces categories where both personal data and evidence support saying
- * something — never a bare "you don't eat category X" observation.
- */
-export function categoryDiversificationGaps(events: CanonicalEvent[]): CategoryGapEntry[] {
-  const ranked = rankedFoods(events);
-  const byCategory = new Map<string, { count: number; unique: Set<string> }>();
-  for (const f of ranked) {
-    const bucket = byCategory.get(f.category) ?? { count: 0, unique: new Set<string>() };
-    bucket.count += f.count;
-    bucket.unique.add(f.item);
-    byCategory.set(f.category, bucket);
-  }
-
-  const evidenceByCategory = new Map<string, EvidenceTier>();
-  const tierRank: Record<EvidenceTier, number> = { Strong: 3, Moderate: 2, Limited: 1, Unclear: 0 };
-  for (const e of FOOD_EVIDENCE) {
-    const existing = evidenceByCategory.get(e.relatedFoodCategory);
-    if (!existing || tierRank[e.evidenceTier] > tierRank[existing]) {
-      evidenceByCategory.set(e.relatedFoodCategory, e.evidenceTier);
-    }
-  }
-
-  const results: CategoryGapEntry[] = [];
-  for (const [category, tier] of evidenceByCategory) {
-    const bucket = byCategory.get(category);
-    const count = bucket?.count ?? 0;
-    const level: CategoryGapEntry["personalTrackingLevel"] = count < LOW_INTAKE_THRESHOLD ? "low" : count <= HIGH_INTAKE_THRESHOLD ? "moderate" : "high";
-    if (level === "high") continue; // not a gap
-    results.push({
-      category,
-      personalTrackingLevel: level,
-      uniqueFoodsInCategory: bucket?.unique.size ?? 0,
-      bestEvidenceTier: tier,
-    });
-  }
-
-  const levelOrder: Record<CategoryGapEntry["personalTrackingLevel"], number> = { low: 0, moderate: 1, high: 2 };
-  return results.sort((a, b) => levelOrder[a.personalTrackingLevel] - levelOrder[b.personalTrackingLevel]);
+  const actionOrder: Record<PriorityAction, number> = { Increase: 0, Maintain: 1, Skip: 2 };
+  return entries.sort((a, b) => actionOrder[a.action] - actionOrder[b.action]);
 }
