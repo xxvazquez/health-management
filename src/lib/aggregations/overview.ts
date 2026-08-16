@@ -1,5 +1,5 @@
 import type { CanonicalEvent } from "@/lib/types";
-import { getDatasetSpan, listDatesBetween, pct, trackedCalendarDates } from "./common";
+import { getDatasetSpan, listDatesBetween, pct, round1, trackedCalendarDates } from "./common";
 import { foodVarietySummary, rankedFoods } from "./food";
 import { supplementStats } from "./supplements";
 import { habitStats } from "./habits";
@@ -40,9 +40,7 @@ export function computeOverviewStats(events: CanonicalEvent[]): OverviewStats {
   const supplements = supplementStats(events);
   const avgSupplementConsistency =
     supplements.length > 0
-      ? Math.round(
-          (supplements.reduce((sum, s) => sum + s.consistencyPct, 0) / supplements.length) * 10,
-        ) / 10
+      ? round1(supplements.reduce((sum, s) => sum + s.consistencyPct, 0) / supplements.length)
       : 0;
   const mostConsistentSupplement = [...supplements].sort((a, b) => b.consistencyPct - a.consistencyPct)[0];
 
@@ -55,9 +53,7 @@ export function computeOverviewStats(events: CanonicalEvent[]): OverviewStats {
 
   const habits = habitStats(events);
   const avgHabitConsistency =
-    habits.length > 0
-      ? Math.round((habits.reduce((sum, h) => sum + h.consistencyPct, 0) / habits.length) * 10) / 10
-      : 0;
+    habits.length > 0 ? round1(habits.reduce((sum, h) => sum + h.consistencyPct, 0) / habits.length) : 0;
 
   return {
     dateRange: span,

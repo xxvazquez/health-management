@@ -12,8 +12,8 @@ export function Card({
 }) {
   return (
     <div
-      className={clsx("rounded-xl border", padded && "p-5", className)}
-      style={{ background: "var(--surface-1)", borderColor: "var(--border-hairline)" }}
+      className={clsx("rounded-2xl border transition-shadow duration-200", padded && "p-5", className)}
+      style={{ background: "var(--surface-1)", borderColor: "var(--border-hairline)", boxShadow: "var(--shadow-card)" }}
     >
       {children}
     </div>
@@ -23,7 +23,7 @@ export function Card({
 export function CardTitle({ children, subtitle }: { children: ReactNode; subtitle?: ReactNode }) {
   return (
     <div className="mb-4">
-      <h3 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+      <h3 className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>
         {children}
       </h3>
       {subtitle && (

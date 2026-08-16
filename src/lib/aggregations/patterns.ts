@@ -1,5 +1,5 @@
 import type { CanonicalEvent } from "@/lib/types";
-import { addDaysToDate, pct, trackedCalendarDates } from "./common";
+import { addDaysToDate, pct, round1, trackedCalendarDates } from "./common";
 import { foodCategoryDistribution, newFoodsOverTime, rankedFoods } from "./food";
 import { supplementStats } from "./supplements";
 import { habitStats } from "./habits";
@@ -130,7 +130,7 @@ export function computeAssociation(
     withoutCount,
     withoutTotal,
     withoutPct,
-    diffPct: Math.round((withPct - withoutPct) * 10) / 10,
+    diffPct: round1(withPct - withoutPct),
     sampleTier: sampleTier(withTotal, withoutTotal),
     sampleSizeAdequate: sampleTier(withTotal, withoutTotal) !== "insufficient",
   };

@@ -1,5 +1,6 @@
 import { classifyItem, type OverrideEntry } from "@/taxonomy/classify";
 import type { ItemType } from "@/taxonomy/categories";
+import { DELISTED_FROM_LOGGING } from "@/taxonomy/delistedFromLogging";
 import type { RawLog, RawItem } from "@/lib/types";
 
 export interface LogCandidate {
@@ -35,6 +36,7 @@ export function buildLogCandidates(
   for (const it of items) {
     if (it.isRemoved) continue;
     const c = classifyItem(it.rawName, userOverrides);
+    if (DELISTED_FROM_LOGGING.has(c.canonicalName)) continue;
     const count = logCountByItem.get(it.identity) ?? 0;
     const key = `${c.itemType}|${c.canonicalName}`;
     const existing = byKey.get(key);

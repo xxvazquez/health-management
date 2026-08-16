@@ -341,7 +341,7 @@ export default function LogPage() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-lg font-semibold" style={{ color: "var(--text-primary)" }}>
+          <h1 className="text-xl font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
             Log
           </h1>
           <p className="text-sm" style={{ color: "var(--text-muted)" }}>

@@ -37,7 +37,7 @@ export default function HabitsPage() {
     <div className="flex flex-col gap-8">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-xl font-semibold" style={{ color: "var(--text-primary)" }}>
+          <h1 className="text-2xl font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
             Habits
           </h1>
           <p className="mt-1 text-sm" style={{ color: "var(--text-secondary)" }}>

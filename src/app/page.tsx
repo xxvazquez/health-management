@@ -12,7 +12,7 @@ import { foodVarietyOverTime } from "@/lib/aggregations/food";
 import { TYPE_ACCENT } from "@/taxonomy/categories";
 
 export default function OverviewPage() {
-  const { status, events } = useData();
+  const { status, events, unclassifiedItems, archivedItems } = useData();
 
   const stats = useMemo(() => (events.length > 0 ? computeOverviewStats(events) : null), [events]);
   const variety = useMemo(() => foodVarietyOverTime(events), [events]);
@@ -45,7 +45,7 @@ export default function OverviewPage() {
   return (
     <div className="flex flex-col gap-8">
       <div>
-        <h1 className="text-xl font-semibold" style={{ color: "var(--text-primary)" }}>
+        <h1 className="text-2xl font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
           Overview
         </h1>
         <p className="mt-1 text-sm" style={{ color: "var(--text-secondary)" }}>
@@ -119,6 +119,62 @@ export default function OverviewPage() {
           )}
         </Card>
       </div>
+
+      {(unclassifiedItems.length > 0 || archivedItems.length > 0) && (
+        <Card>
+          <CardTitle subtitle="Data-quality notes — nothing here affects your logged history, only how it's grouped and displayed">
+            Needs a closer look
+          </CardTitle>
+          <div className="flex flex-col gap-4">
+            {unclassifiedItems.length > 0 && (
+              <div>
+                <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
+                  {unclassifiedItems.length} item{unclassifiedItems.length === 1 ? "" : "s"} filed under Habits by
+                  default
+                </p>
+                <p className="mt-1 text-xs" style={{ color: "var(--text-muted)" }}>
+                  These raw names didn&apos;t match any known food/supplement/symptom pattern, so they defaulted to
+                  Habits → Other. Add an entry for each to <code>src/taxonomy/overrides.json</code> to reclassify.
+                </p>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {unclassifiedItems.map((name) => (
+                    <span
+                      key={name}
+                      className="rounded-full px-2.5 py-1 text-xs"
+                      style={{ background: "var(--page-plane)", color: "var(--text-secondary)" }}
+                    >
+                      {name}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+            {archivedItems.length > 0 && (
+              <div>
+                <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
+                  {archivedItems.length} item{archivedItems.length === 1 ? "" : "s"} archived from dashboards
+                </p>
+                <p className="mt-1 text-xs" style={{ color: "var(--text-muted)" }}>
+                  Habits/supplements explicitly marked discontinued, or with no activity for 90+ days — excluded
+                  from every dashboard above, still fully in your Supabase history.
+                </p>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {archivedItems.map((a) => (
+                    <span
+                      key={a.item}
+                      className="rounded-full px-2.5 py-1 text-xs"
+                      style={{ background: "var(--page-plane)", color: "var(--text-secondary)" }}
+                      title={`Last tracked ${a.lastTrackedDate}`}
+                    >
+                      {a.item}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </Card>
+      )}
     </div>
   );
 }

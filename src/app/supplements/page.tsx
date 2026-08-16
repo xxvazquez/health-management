@@ -19,8 +19,15 @@ export default function SupplementsPage() {
   const { status, events } = useData();
   const { span, range, setRange, filtered } = useDateRangeFilter(events);
 
-  const groups = useMemo(() => supplementsByCategory(filtered), [filtered]);
-  const all = useMemo(() => supplementStats(filtered), [filtered]);
+  // Fiber is logged here (it's something taken, not an outcome) but tracked
+  // for its digestive relevance — its stats live on the Digestion page
+  // instead of cluttering the general supplement-adherence view here.
+  const supplementEvents = useMemo(
+    () => filtered.filter((e) => !(e.itemType === "supplement" && e.category === "Fiber")),
+    [filtered],
+  );
+  const groups = useMemo(() => supplementsByCategory(supplementEvents), [supplementEvents]);
+  const all = useMemo(() => supplementStats(supplementEvents), [supplementEvents]);
 
   if (status === "loading") return <p style={{ color: "var(--text-muted)" }}>Loading…</p>;
   if (status === "empty") return <EmptyState />;
@@ -37,7 +44,7 @@ export default function SupplementsPage() {
     <div className="flex flex-col gap-8">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-xl font-semibold" style={{ color: "var(--text-primary)" }}>
+          <h1 className="text-2xl font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
             Supplements
           </h1>
           <p className="mt-1 text-sm" style={{ color: "var(--text-secondary)" }}>
