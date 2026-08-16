@@ -9,12 +9,13 @@ export const DEMO_ID_PREFIX = "demo:";
 // classifies correctly without touching the taxonomy at all.
 const FOODS = [
   "Eat Tomato", "Eat Broccoli", "Eat Carrot", "Eat Onion", "Eat Garlic", "Eat Cauliflower",
+  "Eat Spinach", "Eat Kale",
   "Eat Banana", "Eat Apple", "Eat Blueberries", "Eat Orange", "Eat Strawberries",
   "Eat Beans", "Eat Chickpeas", "Eat Lentils",
   "Eat Oats", "Eat Rice", "Eat Bread", "Eat Potatoes",
   "Eat Cheese", "Eat Yoghurt", "Eat Eggs", "Drink Milk",
-  "Eat Chicken", "Eat Salmon", "Eat Tuna",
-  "Eat Almonds", "Eat Walnuts", "Eat Peanut butter",
+  "Eat Chicken", "Eat Salmon", "Eat Tuna", "Eat Cod",
+  "Eat Almonds", "Eat Walnuts", "Eat Peanut butter", "Eat Chia",
   "Drink Coffee", "Eat Chocolate",
 ];
 const DAILY_SUPPLEMENTS = ["Vitamin D", "Magnesium"];
