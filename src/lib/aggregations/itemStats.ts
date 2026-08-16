@@ -1,5 +1,5 @@
 import type { CanonicalEvent } from "@/lib/types";
-import { computeStreaks, pct } from "./common";
+import { computeStreaks, pct, trackedCalendarDates } from "./common";
 
 export interface ItemStats {
   item: string;
@@ -61,4 +61,15 @@ export function computeItemStats(events: CanonicalEvent[], activeDates: string[]
   }
 
   return stats.sort((a, b) => b.daysCompleted - a.daysCompleted);
+}
+
+/** Convenience wrapper for the common case of filtering events to one slice
+ * of the dataset, then computing stats against every date the app was used
+ * at all (rather than a caller-chosen date list). */
+export function computeItemStatsForFilter(
+  events: CanonicalEvent[],
+  predicate: (e: CanonicalEvent) => boolean,
+): ItemStats[] {
+  const activeDates = Array.from(trackedCalendarDates(events)).sort();
+  return computeItemStats(events.filter(predicate), activeDates);
 }

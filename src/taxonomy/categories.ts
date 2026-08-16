@@ -7,20 +7,6 @@
 
 export type ItemType = "food" | "supplement" | "outcome" | "habit";
 
-export interface CategoryDef {
-  id: string;
-  label: string;
-  /** Chart color token (CSS var name defined in globals.css) */
-  color: string;
-}
-
-export const ITEM_TYPE_LABELS: Record<ItemType, string> = {
-  food: "Food",
-  supplement: "Supplement",
-  outcome: "Symptom / Outcome",
-  habit: "Habit",
-};
-
 // Every category below is backed by at least one actually-tracked item in
 // overrides.json. For food specifically, the names and groupings mirror
 // the ZHABITTAG labels already used in the source app (Veggies, Fruit,
@@ -59,14 +45,12 @@ export const SUPPLEMENT_CATEGORIES = [
   "Creams",
   "Other",
 ] as const;
-export type SupplementCategory = (typeof SUPPLEMENT_CATEGORIES)[number];
 
 export const OUTCOME_CATEGORIES = [
   "Stool",
   "Digestive Symptom",
   "Other Symptom",
 ] as const;
-export type OutcomeCategory = (typeof OUTCOME_CATEGORIES)[number];
 
 export const HABIT_CATEGORIES = [
   "Sleep",
@@ -83,7 +67,6 @@ export const HABIT_CATEGORIES = [
   "Social",
   "Other",
 ] as const;
-export type HabitCategory = (typeof HABIT_CATEGORIES)[number];
 
 export const CATEGORIES_BY_TYPE: Record<ItemType, readonly string[]> = {
   food: FOOD_CATEGORIES,

@@ -87,6 +87,21 @@ export function classifyItem(
     };
   }
 
+  // A bare food name with no "Eat"/"Drink" prefix (e.g. an item logged
+  // directly as "Kale" rather than "Eat Kale") — checked against the same
+  // food-keyword dictionary before giving up, so it still lands under Food
+  // instead of silently falling to the generic habit bucket below.
+  const bareFoodCategory = lookupFoodCategory(key);
+  if (bareFoodCategory) {
+    return {
+      canonicalName: titleCaseFallback(rawName),
+      itemType: "food",
+      category: bareFoodCategory,
+      subcategory: bareFoodCategory,
+      matchedBy: "food-keyword",
+    };
+  }
+
   return {
     canonicalName: titleCaseFallback(rawName),
     itemType: "habit",

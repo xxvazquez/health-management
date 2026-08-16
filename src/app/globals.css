@@ -2,43 +2,48 @@
 
 :root {
   color-scheme: light;
-  /* Chrome & ink */
-  --surface-1: #fcfcfb;
-  --page-plane: #f9f9f7;
-  --text-primary: #0b0b0b;
-  --text-secondary: #52514e;
-  --text-muted: #898781;
-  --gridline: #e1e0d9;
-  --baseline: #c3c2b7;
-  --border-hairline: rgba(11, 11, 11, 0.1);
-  --success-text: #006300;
+  /* Chrome & ink — a soft lavender-white foundation, never cream/beige */
+  --surface-1: #fcfbfe;
+  --page-plane: #f7f6fb;
+  --text-primary: #221f2e;
+  --text-secondary: #5c576b;
+  --text-muted: #888395;
+  --gridline: #e3e0eb;
+  --baseline: #c3becf;
+  --border-hairline: rgba(34, 31, 46, 0.1);
 
-  /* Categorical (fixed order — never cycle) */
-  --series-1: #2a78d6; /* blue */
-  --series-2: #eb6834; /* orange */
-  --series-3: #1baf7a; /* aqua */
-  --series-4: #eda100; /* yellow */
-  --series-5: #e87ba4; /* magenta */
-  --series-6: #008300; /* green */
-  --series-7: #4a3aa7; /* violet */
-  --series-8: #e34948; /* red */
-  --series-other: #a6a49c;
+  /* Categorical (fixed order — never cycle). Dusty, muted pastels —
+     softened relative to a pure hue rather than pale/candy-toned, so they
+     read as sophisticated and still clear a real-text contrast bar. */
+  --series-1: #456bc4; /* periwinkle blue */
+  --series-2: #c6572f; /* terracotta */
+  --series-3: #308876; /* sage teal */
+  --series-4: #ad791f; /* ochre */
+  --series-5: #b83d76; /* mauve pink */
+  --series-6: #377b50; /* moss green */
+  --series-7: #7c55be; /* lavender */
+  --series-8: #ba3b4a; /* brick rose */
+  --series-other: #767184;
 
   /* Sequential (blue), used for ordinal/magnitude encodings (e.g. Bristol scale) */
-  --seq-100: #cde2fb;
-  --seq-200: #9ec5f4;
-  --seq-300: #6da7ec;
-  --seq-400: #3987e5;
-  --seq-450: #2a78d6;
-  --seq-500: #256abf;
-  --seq-600: #184f95;
-  --seq-700: #0d366b;
+  --seq-100: #d6dff5;
+  --seq-200: #aec0ea;
+  --seq-300: #809bdb;
+  --seq-400: #5176cd;
+  --seq-450: #456bc4;
+  --seq-500: #2e509e;
+  --seq-600: #203b79;
+  --seq-700: #17284f;
 
   /* Status (reserved — never reused as a categorical series) */
-  --status-good: #0ca30c;
-  --status-warning: #fab219;
-  --status-serious: #ec835a;
-  --status-critical: #d03b3b;
+  --status-good: #26734f;
+  --status-warning: #a56a12;
+  --status-serious: #b14f25;
+  --status-critical: #ae2936;
+
+  /* Elevation — soft, diffused, never harsh */
+  --shadow-card: 0 1px 2px rgba(34, 31, 46, 0.04), 0 10px 28px -14px rgba(34, 31, 46, 0.18);
+  --shadow-card-hover: 0 2px 4px rgba(34, 31, 46, 0.05), 0 16px 36px -14px rgba(34, 31, 46, 0.22);
 
   --background: var(--page-plane);
   --foreground: var(--text-primary);
@@ -47,37 +52,11 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-body);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    color-scheme: dark;
-    --surface-1: #1a1a19;
-    --page-plane: #0d0d0d;
-    --text-primary: #ffffff;
-    --text-secondary: #c3c2b7;
-    --text-muted: #898781;
-    --gridline: #2c2c2a;
-    --baseline: #383835;
-    --border-hairline: rgba(255, 255, 255, 0.1);
-    --success-text: #0ca30c;
-
-    --series-1: #3987e5;
-    --series-2: #d95926;
-    --series-3: #199e70;
-    --series-4: #c98500;
-    --series-5: #d55181;
-    --series-6: #008300;
-    --series-7: #9085e9;
-    --series-8: #e66767;
-    --series-other: #55534c;
-
-    --background: var(--page-plane);
-    --foreground: var(--text-primary);
-  }
-}
+/* Deliberately no dark-mode media query — this app always uses the light
+   pastel palette above, regardless of system color-scheme preference. */
 
 * {
   box-sizing: border-box;
@@ -91,11 +70,7 @@ body {
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family:
-    system-ui,
-    -apple-system,
-    "Segoe UI",
-    sans-serif;
+  font-family: var(--font-body), system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
 ::selection {

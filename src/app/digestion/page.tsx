@@ -9,19 +9,25 @@ import { DateRangeFilter } from "@/components/ui/DateRangeFilter";
 import { RankedBarChart } from "@/components/charts/RankedBarChart";
 import { ColorStrip, type ColorStripPoint } from "@/components/charts/ColorStrip";
 import { MultiLineChart } from "@/components/charts/MultiLineChart";
+import { AdherenceStrip } from "@/components/charts/AdherenceStrip";
 import { useDateRangeFilter } from "@/lib/useDateRangeFilter";
+import { addDaysToDate } from "@/lib/aggregations/common";
+import { buildStateByDate } from "@/lib/aggregations/adherence";
 import {
   bristolBandDistribution,
   bristolDistribution,
   bristolRollingBands,
   bristolTimeline,
   digestiveSymptomStats,
+  fiberStats,
   otherSymptomStats,
   stoolQualityStats,
   symptomFrequencyOverTime,
   unclassifiedStoolStats,
 } from "@/lib/aggregations/digestion";
 import { TYPE_ACCENT } from "@/taxonomy/categories";
+
+const STRIP_WINDOW_DAYS = 90;
 
 const BRISTOL_COLOR: Record<string, string> = {
   "Bristol 1": "var(--seq-100)",
@@ -47,6 +53,7 @@ export default function DigestionPage() {
   const digestiveSymptoms = useMemo(() => digestiveSymptomStats(filtered), [filtered]);
   const otherSymptoms = useMemo(() => otherSymptomStats(filtered), [filtered]);
   const weeklySymptoms = useMemo(() => symptomFrequencyOverTime(filtered), [filtered]);
+  const fiber = useMemo(() => fiberStats(filtered), [filtered]);
 
   if (status === "loading") return <p style={{ color: "var(--text-muted)" }}>Loading…</p>;
   if (status === "empty") return <EmptyState />;
@@ -63,6 +70,10 @@ export default function DigestionPage() {
     title: `${p.date}: ${p.item}`,
   }));
 
+  const stripEnd = range?.end ?? span?.end ?? "";
+  const stripStart = stripEnd ? addDaysToDate(stripEnd, -(STRIP_WINDOW_DAYS - 1)) : "";
+  const clampedStripStart = span && stripStart < span.start ? span.start : stripStart;
+
   const topSymptomKeys = Array.from(
     new Set(digestiveSymptoms.slice(0, 5).map((s) => s.item)),
   );
@@ -76,7 +87,7 @@ export default function DigestionPage() {
     <div className="flex flex-col gap-8">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-xl font-semibold" style={{ color: "var(--text-primary)" }}>
+          <h1 className="text-2xl font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
             Digestion
           </h1>
           <p className="mt-1 max-w-2xl text-sm" style={{ color: "var(--text-secondary)" }}>
@@ -224,6 +235,43 @@ export default function DigestionPage() {
         <Card>
           <CardTitle subtitle="Sticky / smelly stool occurrences, tracked separately from the Bristol type">Stool quality notes</CardTitle>
           <RankedBarChart data={stoolQuality.map((s) => ({ label: s.item, value: s.daysCompleted }))} color={TYPE_ACCENT.outcome} />
+        </Card>
+      )}
+
+      {fiber.length > 0 && (
+        <Card>
+          <CardTitle subtitle="Logged from the Supplements tab, tracked here for its digestive relevance rather than on the Supplements dashboard">
+            Fiber intake
+          </CardTitle>
+          <div className="flex flex-col gap-4">
+            {fiber.map((item) => (
+              <div key={item.item} className="flex flex-col gap-2">
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <span className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
+                    {item.item}
+                  </span>
+                  <span className="flex gap-4 text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>
+                    <span>
+                      <strong style={{ color: "var(--text-primary)" }}>{item.consistencyPct}%</strong> consistency
+                    </span>
+                    <span>
+                      <strong style={{ color: "var(--text-primary)" }}>{item.currentStreak}</strong> current streak
+                    </span>
+                    <span>
+                      {item.daysCompleted}/{item.daysTracked} days
+                    </span>
+                  </span>
+                </div>
+                {clampedStripStart && (
+                  <AdherenceStrip
+                    startDate={clampedStripStart}
+                    endDate={stripEnd}
+                    stateByDate={buildStateByDate(filtered, item.item)}
+                  />
+                )}
+              </div>
+            ))}
+          </div>
         </Card>
       )}
     </div>

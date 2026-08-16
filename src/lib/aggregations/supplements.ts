@@ -1,7 +1,6 @@
 import type { CanonicalEvent } from "@/lib/types";
 import { SUPPLEMENT_CATEGORIES } from "@/taxonomy/categories";
-import { trackedCalendarDates } from "./common";
-import { computeItemStats, type ItemStats } from "./itemStats";
+import { computeItemStatsForFilter, type ItemStats } from "./itemStats";
 
 export interface SupplementGroup {
   category: string;
@@ -9,11 +8,7 @@ export interface SupplementGroup {
 }
 
 export function supplementStats(events: CanonicalEvent[]): ItemStats[] {
-  const activeDates = Array.from(trackedCalendarDates(events)).sort();
-  return computeItemStats(
-    events.filter((e) => e.itemType === "supplement"),
-    activeDates,
-  );
+  return computeItemStatsForFilter(events, (e) => e.itemType === "supplement");
 }
 
 export function supplementsByCategory(events: CanonicalEvent[]): SupplementGroup[] {

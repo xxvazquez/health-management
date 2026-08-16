@@ -39,33 +39,14 @@ export function Nav() {
       className="sticky top-0 z-10 border-b backdrop-blur"
       style={{ borderColor: "var(--border-hairline)", background: "color-mix(in oklab, var(--surface-1) 90%, transparent)" }}
     >
-      <div className="mx-auto max-w-6xl px-4 sm:px-6">
-        <div className="flex h-14 items-center justify-between gap-4">
-          <div className="flex items-center gap-6 overflow-x-auto">
-            <span className="text-sm font-semibold tracking-tight whitespace-nowrap" style={{ color: "var(--text-primary)" }}>
-              Health Analytics
-            </span>
-            <nav className="flex items-center gap-1">
-              {LINKS.map((link) => {
-                const active = pathname === link.href;
-                return (
-                  <Link
-                    key={link.href}
-                    href={link.href}
-                    className={clsx(
-                      "rounded-md px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-colors",
-                    )}
-                    style={{
-                      color: active ? "var(--text-primary)" : "var(--text-secondary)",
-                      background: active ? "var(--page-plane)" : "transparent",
-                    }}
-                  >
-                    {link.label}
-                  </Link>
-                );
-              })}
-            </nav>
-          </div>
+      <div className="mx-auto flex max-w-6xl flex-col gap-2 px-4 py-3 sm:px-6">
+        <div className="flex items-center justify-between gap-4">
+          <span
+            className="text-lg font-semibold tracking-tight whitespace-nowrap"
+            style={{ color: "var(--text-primary)" }}
+          >
+            Health Analytics
+          </span>
           <div className="flex items-center gap-3">
             {status === "ready" && (
               <span
@@ -80,13 +61,31 @@ export function Nav() {
               type="button"
               onClick={() => void handleRefresh()}
               disabled={refreshing}
-              className="rounded-md border px-3 py-1.5 text-sm font-medium whitespace-nowrap disabled:opacity-50"
+              className="rounded-full border px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-colors disabled:opacity-50"
               style={{ borderColor: "var(--border-hairline)", color: "var(--text-secondary)" }}
             >
               {refreshing ? "Refreshing…" : "Refresh"}
             </button>
           </div>
         </div>
+        <nav className="flex flex-wrap items-center gap-1">
+          {LINKS.map((link) => {
+            const active = pathname === link.href;
+            return (
+              <Link
+                key={link.href}
+                href={link.href}
+                className={clsx(
+                  "rounded-full px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-colors hover:bg-[var(--page-plane)]",
+                  active && "bg-[var(--page-plane)]",
+                )}
+                style={{ color: active ? "var(--text-primary)" : "var(--text-secondary)" }}
+              >
+                {link.label}
+              </Link>
+            );
+          })}
+        </nav>
       </div>
     </header>
   );

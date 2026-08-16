@@ -1,6 +1,6 @@
 import type { CanonicalEvent } from "@/lib/types";
 import { FOOD_CATEGORIES } from "@/taxonomy/categories";
-import { addDaysToDate, getDatasetSpan, pct } from "./common";
+import { addDaysToDate, getDatasetSpan, listDatesBetween, pct } from "./common";
 
 export interface Insight {
   title: string;
@@ -70,9 +70,7 @@ export function trackingCoverageSummary(events: CanonicalEvent[]): CoverageSumma
   const span = getDatasetSpan(events);
   if (!span) return null;
   const trackedDates = new Set(events.map((e) => e.date));
-  const start = new Date(`${span.start}T00:00:00Z`);
-  const end = new Date(`${span.end}T00:00:00Z`);
-  const totalCalendarDays = Math.round((end.getTime() - start.getTime()) / 86400000) + 1;
+  const totalCalendarDays = listDatesBetween(span.start, span.end).length;
   return {
     totalTrackedDays: trackedDates.size,
     totalCalendarDays,

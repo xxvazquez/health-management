@@ -1,6 +1,6 @@
 import type { CanonicalEvent } from "@/lib/types";
-import { addDaysToDate, isoWeekStart, pct, trackedCalendarDates } from "./common";
-import { computeItemStats, type ItemStats } from "./itemStats";
+import { addDaysToDate, isoWeekStart, pct } from "./common";
+import { computeItemStatsForFilter, type ItemStats } from "./itemStats";
 
 /** The five classified Bristol types this app tracks. "No Bristol" is a logged entry meaning
  * "checked, but couldn't classify" — it is deliberately NOT one of these types; see
@@ -156,27 +156,22 @@ export function bristolTimeline(events: CanonicalEvent[]): BristolTimelinePoint[
 }
 
 export function stoolQualityStats(events: CanonicalEvent[]): ItemStats[] {
-  const activeDates = Array.from(trackedCalendarDates(events)).sort();
-  return computeItemStats(
-    events.filter((e) => e.subcategory === "Stool Quality"),
-    activeDates,
-  );
+  return computeItemStatsForFilter(events, (e) => e.subcategory === "Stool Quality");
 }
 
 export function digestiveSymptomStats(events: CanonicalEvent[]): ItemStats[] {
-  const activeDates = Array.from(trackedCalendarDates(events)).sort();
-  return computeItemStats(
-    events.filter((e) => e.category === "Digestive Symptom"),
-    activeDates,
-  );
+  return computeItemStatsForFilter(events, (e) => e.category === "Digestive Symptom");
 }
 
 export function otherSymptomStats(events: CanonicalEvent[]): ItemStats[] {
-  const activeDates = Array.from(trackedCalendarDates(events)).sort();
-  return computeItemStats(
-    events.filter((e) => e.category === "Other Symptom"),
-    activeDates,
-  );
+  return computeItemStatsForFilter(events, (e) => e.category === "Other Symptom");
+}
+
+/** Fiber intake (still logged via the Supplements tab, since it's something
+ * taken rather than an outcome) — surfaced here instead of on the
+ * Supplements dashboard, since fiber is tracked for its digestive relevance. */
+export function fiberStats(events: CanonicalEvent[]): ItemStats[] {
+  return computeItemStatsForFilter(events, (e) => e.itemType === "supplement" && e.category === "Fiber");
 }
 
 export interface SymptomWeeklyPoint {

@@ -19,4 +19,5 @@ export const EXPLICITLY_ARCHIVED_ITEMS = new Set<string>([
   "Be present with Andrzej",
   "Thick phlegm (mad)",
   "Thick phlegm (mbe)",
+  "Maintain the apartment",
 ]);

@@ -1,7 +1,6 @@
 import type { CanonicalEvent } from "@/lib/types";
 import { HABIT_CATEGORIES } from "@/taxonomy/categories";
-import { trackedCalendarDates } from "./common";
-import { computeItemStats, type ItemStats } from "./itemStats";
+import { computeItemStatsForFilter, type ItemStats } from "./itemStats";
 
 export interface HabitGroup {
   category: string;
@@ -9,11 +8,7 @@ export interface HabitGroup {
 }
 
 export function habitStats(events: CanonicalEvent[]): ItemStats[] {
-  const activeDates = Array.from(trackedCalendarDates(events)).sort();
-  return computeItemStats(
-    events.filter((e) => e.itemType === "habit"),
-    activeDates,
-  );
+  return computeItemStatsForFilter(events, (e) => e.itemType === "habit");
 }
 
 export function habitsByCategory(events: CanonicalEvent[]): HabitGroup[] {

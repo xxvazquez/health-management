@@ -1,6 +1,6 @@
 import type { CanonicalEvent } from "@/lib/types";
 import { FOOD_CATEGORIES } from "@/taxonomy/categories";
-import { addDaysToDate, isoWeekStart, monthStart, pct, round1 } from "./common";
+import { addDaysToDate, isoWeekStart, monthStart, pct } from "./common";
 
 function foodEvents(events: CanonicalEvent[]): CanonicalEvent[] {
   return events.filter((e) => e.itemType === "food" && e.completed);
@@ -162,8 +162,4 @@ export function newFoodsOverTime(events: CanonicalEvent[]): NewFoodEntry[] {
     }
   }
   return Array.from(firstSeen.values()).sort((a, b) => a.firstSeenDate.localeCompare(b.firstSeenDate));
-}
-
-export function round(n: number): number {
-  return round1(n);
 }
