@@ -32,8 +32,17 @@ jobs:
         # NEXT_PUBLIC_BASE_PATH must match the repo name for a project page
         # (https://<user>.github.io/<repo>/). Leave unset if this repo is
         # deployed as a user/org page at the domain root instead.
+        #
+        # NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY are
+        # public by Supabase's own design (protection comes from Row Level
+        # Security, not from keeping them secret) but still live in repo
+        # secrets here rather than committed, so this file works whether or
+        # not cloud sync has been set up yet — set both under Settings ->
+        # Secrets and variables -> Actions to enable it.
         env:
           NEXT_PUBLIC_BASE_PATH: /${{ github.event.repository.name }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
         run: npm run build
 
       - uses: actions/configure-pages@v5
