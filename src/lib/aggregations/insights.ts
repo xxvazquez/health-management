@@ -71,11 +71,14 @@ export function buildPersonalChangeSummary(trends: ItemTrend[], nounSingular: st
   const headline =
     moved.length === 0
       ? `All ${judgeable.length} tracked ${judgeable.length === 1 ? nounSingular : nounPlural} ${judgeable.length === 1 ? "is" : "are"} running at their usual pace.`
-      : `${moved.length} of ${judgeable.length} tracked ${judgeable.length === 1 ? nounSingular : nounPlural} ${moved.length === 1 ? "is" : "are"} running differently than usual this week.`;
+      : `${moved.length} of ${judgeable.length} tracked ${judgeable.length === 1 ? nounSingular : nounPlural} ${moved.length === 1 ? "is" : "are"} running differently than usual recently.`;
 
+  // Concrete numbers rather than "above/below usual" alone — matches the
+  // "3 days this month vs. 1 day last month" style: a specific, checkable
+  // fact instead of a vague directional claim.
   const changed: Bullet[] = moved.slice(0, 4).map((m) => ({
     label: m.trend.item,
-    detail: m.direction === "increased" ? "Above its usual level recently." : "Below its usual level recently.",
+    detail: `Logged ${Math.round(m.trend.recentConsistencyPct ?? 0)}% of tracked days recently, compared with ${Math.round(m.trend.overallConsistencyPct)}% usually.`,
   }));
 
   return {

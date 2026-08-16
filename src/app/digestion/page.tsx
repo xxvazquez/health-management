@@ -201,7 +201,9 @@ export default function DigestionPage() {
               ]}
             />
             <p className="mt-3 text-xs" style={{ color: "var(--text-muted)" }}>
-              {insight.insufficientData ? "Not enough recent data to say whether this is shifting." : insight.headline}
+              {insight.insufficientData
+                ? "Not enough recent data to say whether this is shifting."
+                : `${insight.headline} ${insight.detail ?? ""}`}
             </p>
           </>
         ) : (

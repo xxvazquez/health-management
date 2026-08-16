@@ -261,9 +261,14 @@ export function digestionInsight(events: CanonicalEvent[]): DigestionInsight {
   const overallDominant = [...overallBands].sort((a, b) => b.sharePct - a.sharePct)[0];
   const shifted = overallDominant && recentDominant.band !== overallDominant.band;
 
+  // Short, glanceable headline; the specific bands move to `detail` rather
+  // than being packed into one long clause-heavy sentence.
   const headline = shifted
-    ? `Your recent stool pattern differs from your usual pattern — mostly ${BAND_DESCRIPTOR[recentDominant.band]} recently, compared to mostly ${BAND_DESCRIPTOR[overallDominant.band]} historically.`
-    : `Your recent stool pattern is consistent with your usual pattern — mostly ${BAND_DESCRIPTOR[recentDominant.band]}.`;
+    ? "Your recent stool pattern differs from your usual pattern."
+    : "Your recent stool pattern is consistent with your usual pattern.";
+  const detail = shifted
+    ? `Mostly ${BAND_DESCRIPTOR[recentDominant.band]} over the last 3 weeks, compared with mostly ${BAND_DESCRIPTOR[overallDominant.band]} historically.`
+    : `Mostly ${BAND_DESCRIPTOR[recentDominant.band]} over the last 3 weeks.`;
   const tone: InsightTone = "neutral";
 
   const changed: Bullet[] = [];
@@ -287,10 +292,13 @@ export function digestionInsight(events: CanonicalEvent[]): DigestionInsight {
     }
   }
 
+  // Absolute threshold, not a personal-baseline comparison — the wording
+  // must not claim "more than usual" since no historical unclassified rate
+  // is computed here to actually compare against.
   const unclassifiedRecent = recentEvents.filter((e) => e.subcategory === "Bristol Scale" && e.completed).length - recentClassifiedCount;
   if (recentClassifiedCount + unclassifiedRecent >= 6 && unclassifiedRecent / (recentClassifiedCount + unclassifiedRecent) >= 0.4) {
-    changed.push({ label: "Unclassified entries", detail: "A larger-than-usual share of recent stool logs weren't classifiable into a Bristol type." });
+    changed.push({ label: "Unclassified entries", detail: "A large share of recent stool logs weren't classifiable into a Bristol type." });
   }
 
-  return { insufficientData: false, headline, detail: null, tone, changed };
+  return { insufficientData: false, headline, detail, tone, changed };
 }
