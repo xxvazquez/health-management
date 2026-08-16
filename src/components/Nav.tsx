@@ -19,7 +19,7 @@ const LINKS = [
 
 export function Nav() {
   const pathname = usePathname();
-  const { status, refresh } = useData();
+  const { status, isDemoData, refresh } = useData();
   const [refreshing, setRefreshing] = useState(false);
 
   async function handleRefresh() {
@@ -48,7 +48,16 @@ export function Nav() {
             Health Analytics
           </span>
           <div className="flex items-center gap-3">
-            {status === "ready" && (
+            {status === "ready" && isDemoData && (
+              <Link
+                href="/log"
+                className="hidden sm:inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium underline decoration-dotted"
+                style={{ color: "var(--status-warning)", background: "color-mix(in oklab, var(--status-warning) 14%, transparent)" }}
+              >
+                Viewing demo data — sign in to see yours
+              </Link>
+            )}
+            {status === "ready" && !isDemoData && (
               <span
                 className="hidden sm:inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium"
                 style={{ color: "var(--status-good)" }}
