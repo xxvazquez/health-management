@@ -20,3 +20,7 @@ Logging works fully offline out of the box — everything's cached in the browse
 Static Next.js site, deployed to GitHub Pages (`.github/workflows/deploy.yml` builds on push to `main`). No server — everything runs in the browser, the only network calls go to Supabase.
 
 An "item" is anything you track (a food, a symptom, a habit). A "log" is one entry of an item on a given day. `src/taxonomy/` classifies raw item names into categories; `src/lib/canonical/buildCanonicalEvents.ts` turns items + logs into the dataset the dashboards read from.
+
+## License
+
+All rights reserved — see [LICENSE](LICENSE). This is up for reference, not for reuse.
