@@ -1,9 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import clsx from "clsx";
 import { useData } from "@/lib/DataContext";
+import { pullFromCloud } from "@/lib/supabase/sync";
 
 const LINKS = [
   { href: "/", label: "Overview" },
@@ -13,12 +15,24 @@ const LINKS = [
   { href: "/habits", label: "Habits" },
   { href: "/digestion", label: "Digestion" },
   { href: "/patterns", label: "Patterns" },
-  { href: "/import", label: "Import" },
 ];
 
 export function Nav() {
   const pathname = usePathname();
-  const { status } = useData();
+  const { status, refresh } = useData();
+  const [refreshing, setRefreshing] = useState(false);
+
+  async function handleRefresh() {
+    setRefreshing(true);
+    try {
+      // No-ops locally if not signed in — refresh() still re-reads
+      // whatever's already in IndexedDB either way.
+      await pullFromCloud();
+      await refresh();
+    } finally {
+      setRefreshing(false);
+    }
+  }
 
   return (
     <header
@@ -52,15 +66,26 @@ export function Nav() {
               })}
             </nav>
           </div>
-          {status === "ready" && (
-            <span
-              className="hidden sm:inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium"
-              style={{ color: "var(--status-good)" }}
+          <div className="flex items-center gap-3">
+            {status === "ready" && (
+              <span
+                className="hidden sm:inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium"
+                style={{ color: "var(--status-good)" }}
+              >
+                <span className="h-1.5 w-1.5 rounded-full" style={{ background: "var(--status-good)" }} />
+                Data loaded locally
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={() => void handleRefresh()}
+              disabled={refreshing}
+              className="rounded-md border px-3 py-1.5 text-sm font-medium whitespace-nowrap disabled:opacity-50"
+              style={{ borderColor: "var(--border-hairline)", color: "var(--text-secondary)" }}
             >
-              <span className="h-1.5 w-1.5 rounded-full" style={{ background: "var(--status-good)" }} />
-              Data loaded locally
-            </span>
-          )}
+              {refreshing ? "Refreshing…" : "Refresh"}
+            </button>
+          </div>
         </div>
       </div>
     </header>

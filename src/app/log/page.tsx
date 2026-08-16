@@ -4,21 +4,21 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useData } from "@/lib/DataContext";
 import { useAuth } from "@/lib/supabase/AuthContext";
 import { AuthWidget } from "@/components/auth/AuthWidget";
-import { pullFromCloud, pushUserOverride, syncHabitDay } from "@/lib/supabase/sync";
+import { pullFromCloud, pushUserOverride, syncItemDay } from "@/lib/supabase/sync";
 import {
   decrementDailyLog,
-  getAllHabits,
-  getAllEvents,
+  getAllItems,
+  getAllLogs,
   getAllUserOverrides,
   incrementDailyLog,
-  putHabit,
+  putItem,
   setUserOverride,
   toggleDailyLog,
 } from "@/lib/db/indexedDb";
 import {
   buildLogCandidates,
   dayTimelineEntries,
-  generateManualHabitId,
+  generateManualItemId,
   loggedCountsForDate,
   type LogCandidate,
 } from "@/lib/logCandidates";
@@ -27,7 +27,7 @@ import { seasonalPicksForMonth, weeklyCategoryPriority } from "@/lib/aggregation
 import { normalizeName } from "@/taxonomy/normalizeName";
 import { CATEGORIES_BY_TYPE, TYPE_ACCENT, type ItemType } from "@/taxonomy/categories";
 import { lookupFoodCategory, type OverrideEntry } from "@/taxonomy/classify";
-import type { RawEvent, RawHabit } from "@/lib/types";
+import type { RawLog, RawItem } from "@/lib/types";
 
 const TABS: { type: ItemType; label: string; placeholder: string; defaultCategory: string; countable: boolean }[] = [
   { type: "food", label: "Food", placeholder: "Add a food or ingredient…", defaultCategory: "Misc", countable: true },
@@ -69,8 +69,8 @@ function formatDateLabel(date: string, today: string): string {
 }
 
 interface Snapshot {
-  habits: RawHabit[];
-  events: RawEvent[];
+  items: RawItem[];
+  logs: RawLog[];
   userOverrides: Record<string, OverrideEntry>;
 }
 
@@ -85,14 +85,15 @@ export default function LogPage() {
   const [newItemText, setNewItemText] = useState("");
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [pending, setPending] = useState<string | null>(null);
+  const [showLocalOnlyNotice, setShowLocalOnlyNotice] = useState(false);
 
   const loadSnapshot = useCallback(async () => {
-    const [habits, events, userOverrides] = await Promise.all([
-      getAllHabits(),
-      getAllEvents(),
+    const [items, logs, userOverrides] = await Promise.all([
+      getAllItems(),
+      getAllLogs(),
       getAllUserOverrides(),
     ]);
-    setSnapshot({ habits, events, userOverrides });
+    setSnapshot({ items, logs, userOverrides });
   }, []);
 
   useEffect(() => {
@@ -111,12 +112,12 @@ export default function LogPage() {
 
   const candidates = useMemo(() => {
     if (!snapshot) return [];
-    return buildLogCandidates(snapshot.habits, snapshot.events, snapshot.userOverrides);
+    return buildLogCandidates(snapshot.items, snapshot.logs, snapshot.userOverrides);
   }, [snapshot]);
 
   const counts = useMemo(() => {
     if (!snapshot) return new Map<string, number>();
-    return loggedCountsForDate(snapshot.habits, snapshot.events, snapshot.userOverrides, date);
+    return loggedCountsForDate(snapshot.items, snapshot.logs, snapshot.userOverrides, date);
   }, [snapshot, date]);
 
   const tabConfig = TABS.find((t) => t.type === tab)!;
@@ -146,7 +147,7 @@ export default function LogPage() {
 
   const dayTimeline = useMemo(() => {
     if (!snapshot) return [];
-    return dayTimelineEntries(snapshot.habits, snapshot.events, snapshot.userOverrides, date);
+    return dayTimelineEntries(snapshot.items, snapshot.logs, snapshot.userOverrides, date);
   }, [snapshot, date]);
 
   // Unfiltered canonical events (no archived-item or date-range filtering,
@@ -155,7 +156,7 @@ export default function LogPage() {
   // from the regular dashboards.
   const seasonalCanonical = useMemo(() => {
     if (!snapshot) return [];
-    return buildCanonicalEvents(snapshot.habits, snapshot.events, [], snapshot.userOverrides).events;
+    return buildCanonicalEvents(snapshot.items, snapshot.logs, [], snapshot.userOverrides).events;
   }, [snapshot]);
 
   const currentMonth = useMemo(() => new Date().getMonth() + 1, []);
@@ -176,37 +177,38 @@ export default function LogPage() {
   async function refreshAfterWrite() {
     await loadSnapshot();
     await refresh();
+    if (!session) setShowLocalOnlyNotice(true);
   }
 
   async function handleIncrement(candidate: LogCandidate) {
     setPending(candidate.key);
-    await incrementDailyLog(candidate.habitIdentity, date, tabConfig.countable ? meal : null);
+    await incrementDailyLog(candidate.itemIdentity, date, tabConfig.countable ? meal : null);
     await refreshAfterWrite();
     setPending(null);
-    void syncHabitDay(candidate.habitIdentity, date);
+    void syncItemDay(candidate.itemIdentity, date);
   }
 
   async function handleDecrement(candidate: LogCandidate) {
     setPending(candidate.key);
-    await decrementDailyLog(candidate.habitIdentity, date);
+    await decrementDailyLog(candidate.itemIdentity, date);
     await refreshAfterWrite();
     setPending(null);
-    void syncHabitDay(candidate.habitIdentity, date);
+    void syncItemDay(candidate.itemIdentity, date);
   }
 
   async function handleToggle(candidate: LogCandidate) {
     setPending(candidate.key);
-    await toggleDailyLog(candidate.habitIdentity, date);
+    await toggleDailyLog(candidate.itemIdentity, date);
     await refreshAfterWrite();
     setPending(null);
-    void syncHabitDay(candidate.habitIdentity, date);
+    void syncItemDay(candidate.itemIdentity, date);
   }
 
   async function handleAddNew() {
     const name = newItemText.trim();
     if (!name) return;
     const key = normalizeName(name);
-    const identity = generateManualHabitId(key);
+    const identity = generateManualItemId(key);
     // For food specifically, guess a real category from the name (so a
     // typed "Kohlrabi" lands under Veggies, not a catch-all Misc bucket)
     // before falling back to the tab's generic default.
@@ -220,7 +222,7 @@ export default function LogPage() {
     };
     setPending("__new__");
     await setUserOverride(key, override);
-    await putHabit({
+    await putItem({
       identity,
       rawName: name,
       unit: null,
@@ -239,7 +241,7 @@ export default function LogPage() {
     await refreshAfterWrite();
     setPending(null);
     void pushUserOverride(key, override);
-    void syncHabitDay(identity, date);
+    void syncItemDay(identity, date);
   }
 
   /** Suggestion chips log directly — matching an existing item just
@@ -255,11 +257,11 @@ export default function LogPage() {
     }
 
     setPending(pendingKey);
-    const identity = generateManualHabitId(norm);
+    const identity = generateManualItemId(norm);
     const category = lookupFoodCategory(itemName) ?? "Misc";
     const override: OverrideEntry = { canonicalName: itemName, itemType: "food", category, subcategory: category };
     await setUserOverride(norm, override);
-    await putHabit({
+    await putItem({
       identity,
       rawName: itemName,
       unit: null,
@@ -272,7 +274,7 @@ export default function LogPage() {
     await refreshAfterWrite();
     setPending(null);
     void pushUserOverride(norm, override);
-    void syncHabitDay(identity, date);
+    void syncItemDay(identity, date);
   }
 
   function renderChip(c: LogCandidate) {
@@ -376,6 +378,25 @@ export default function LogPage() {
           </button>
         </div>
       </div>
+
+      {showLocalOnlyNotice && !session && (
+        <div
+          className="flex items-center justify-between gap-3 rounded-lg border px-4 py-2.5 text-sm"
+          style={{ borderColor: "var(--status-warning)", background: "color-mix(in oklab, var(--status-warning) 14%, var(--surface-1))" }}
+        >
+          <span style={{ color: "var(--text-primary)" }}>
+            Saved on this device only — you&apos;re not signed in, so nothing just synced to the cloud.
+          </span>
+          <button
+            type="button"
+            onClick={() => setShowLocalOnlyNotice(false)}
+            className="shrink-0 text-xs underline decoration-dotted"
+            style={{ color: "var(--text-secondary)" }}
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
 
       <div className="flex items-center justify-between gap-4 border-b" style={{ borderColor: "var(--border-hairline)" }}>
         <nav className="flex items-center gap-1">

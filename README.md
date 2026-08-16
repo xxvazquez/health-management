@@ -1,36 +1,22 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Health Analytics
 
-## Getting Started
+Personal food, symptom, supplement, and habit tracker, with a dashboard for looking at the data afterwards.
 
-First, run the development server:
+The Log page is tap-to-log — pick a category, tap the item, done, no forms. Food supports multi-tapping (count goes up each time) and a meal tag. Everything you log shows up across the other pages: Overview, Food, Supplements, Habits, Digestion, Patterns. Those are descriptive only — charts and stats, nothing that diagnoses anything.
+
+## Running it
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Opens at localhost:3000.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Logging works fully offline out of the box — everything's cached in the browser (IndexedDB). To sync across devices, set up a free Supabase project, copy `.env.local.example` to `.env.local`, fill in the URL and anon key, then sign in from the Log page. The setup SQL for the tables isn't kept in this repo — ask for it directly if you're setting up a new project.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## How it's put together
 
-## Learn More
+Static Next.js site, deployed to GitHub Pages (`.github/workflows/deploy.yml` builds on push to `main`). No server — everything runs in the browser, the only network calls go to Supabase.
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+An "item" is anything you track (a food, a symptom, a habit). A "log" is one entry of an item on a given day. `src/taxonomy/` classifies raw item names into categories; `src/lib/canonical/buildCanonicalEvents.ts` turns items + logs into the dataset the dashboards read from.

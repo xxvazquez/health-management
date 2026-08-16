@@ -7,8 +7,8 @@ import { filterArchivedItems } from "@/lib/canonical/filterArchivedItems";
 import {
   clearAllData,
   getAllDiary,
-  getAllEvents,
-  getAllHabits,
+  getAllLogs,
+  getAllItems,
   getAllUserOverrides,
   hasAnyData,
 } from "@/lib/db/indexedDb";
@@ -46,13 +46,13 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         setStatus("empty");
         return;
       }
-      const [habits, rawEvents, diary, userOverrides] = await Promise.all([
-        getAllHabits(),
-        getAllEvents(),
+      const [items, logs, diary, userOverrides] = await Promise.all([
+        getAllItems(),
+        getAllLogs(),
         getAllDiary(),
         getAllUserOverrides(),
       ]);
-      const result = buildCanonicalEvents(habits, rawEvents, diary, userOverrides);
+      const result = buildCanonicalEvents(items, logs, diary, userOverrides);
       const scoped = result.events.filter((e) => e.date >= ANALYTICS_START_DATE);
       const active = filterArchivedItems(scoped);
       setEvents(active.events);
