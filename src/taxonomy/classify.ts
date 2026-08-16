@@ -39,7 +39,7 @@ export function lookupFoodCategory(remainder: string): string | null {
 }
 
 /**
- * Classify a raw habit name into the analytical taxonomy.
+ * Classify a raw item name into the analytical taxonomy.
  * 1. User override — set from the Log page when someone logs a new item;
  *    takes precedence so a person can always correct/assign a classification
  *    without waiting on a code change.
@@ -50,10 +50,12 @@ export function lookupFoodCategory(remainder: string): string | null {
  *    uses it — nothing here invents a new category.
  * 4. Generic fallback: an unrecognized "Eat X"/"Drink X" still gets item_type
  *    food (the name says so) filed under the real food/Misc category rather
- *    than a fabricated one; anything else falls to habit/Other. Either way
- *    it's explicitly marked so it's visible as unclassified, never silent.
+ *    than a fabricated one; anything else falls to habit/Other (the itemType
+ *    named "habit" here is a real taxonomy category — a behavioral routine
+ *    like "Take a shower" — not a claim that everything tracked is a habit).
+ *    Either way it's explicitly marked so it's visible as unclassified, never silent.
  */
-export function classifyHabit(
+export function classifyItem(
   rawName: string,
   userOverrides?: Record<string, OverrideEntry>,
 ): Classification {
@@ -76,7 +78,7 @@ export function classifyHabit(
     const category = lookupFoodCategory(remainder) ?? "Misc";
     return {
       // Drop the "Eat"/"Drink" verb for display — "Eat X" is how the
-      // source app phrases a habit, but the canonical item is just "X".
+      // source app phrased a tracked item, but the canonical item is just "X".
       canonicalName: titleCaseFallback(remainder),
       itemType: "food",
       category,

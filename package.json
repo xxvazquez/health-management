@@ -3,9 +3,6 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "sync-wasm": "cp node_modules/sql.js/dist/sql-wasm.wasm public/sql-wasm.wasm",
-    "predev": "npm run sync-wasm",
-    "prebuild": "npm run sync-wasm",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
@@ -15,23 +12,19 @@
     "@supabase/supabase-js": "^2.112.3",
     "clsx": "^2.1.1",
     "idb": "^8.0.3",
-    "jszip": "^3.10.1",
     "next": "16.3.1",
     "react": "19.2.8",
     "react-dom": "19.2.8",
-    "recharts": "^3.10.1",
-    "sql.js": "^1.14.2"
+    "recharts": "^3.10.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "@types/sql.js": "^1.4.11",
     "eslint": "^9",
     "eslint-config-next": "16.3.1",
     "tailwindcss": "^4",
-    "tsx": "^4.23.12",
     "typescript": "^5"
   }
 }

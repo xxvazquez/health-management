@@ -1,8 +1,8 @@
-import { classifyHabit, type OverrideEntry } from "@/taxonomy/classify";
-import type { CanonicalEvent, RawDiaryEntry, RawEvent, RawHabit } from "@/lib/types";
+import { classifyItem, type OverrideEntry } from "@/taxonomy/classify";
+import type { CanonicalEvent, RawDiaryEntry, RawLog, RawItem } from "@/lib/types";
 
-function diaryKey(habitIdentity: string, date: string): string {
-  return `${habitIdentity}|${date}`;
+function diaryKey(itemIdentity: string, date: string): string {
+  return `${itemIdentity}|${date}`;
 }
 
 export interface BuildCanonicalResult {
@@ -16,20 +16,20 @@ export interface BuildCanonicalResult {
  * canonical long-format dataset (date, item, item_type, category,
  * subcategory, value, completed, source, ...) that every dashboard and
  * future statistical/ML layer reads from. Never invents values — a
- * missing habit name becomes an explicitly-labeled unknown, not a guess.
+ * missing item name becomes an explicitly-labeled unknown, not a guess.
  */
 export function buildCanonicalEvents(
-  habits: RawHabit[],
-  events: RawEvent[],
+  items: RawItem[],
+  logs: RawLog[],
   diary: RawDiaryEntry[],
   userOverrides?: Record<string, OverrideEntry>,
 ): BuildCanonicalResult {
-  const habitsByIdentity = new Map(habits.map((h) => [h.identity, h]));
+  const itemsByIdentity = new Map(items.map((i) => [i.identity, i]));
 
   const notesByKey = new Map<string, string[]>();
   for (const d of diary) {
     if (!d.content) continue;
-    const key = diaryKey(d.habitIdentity, d.date);
+    const key = diaryKey(d.itemIdentity, d.date);
     const list = notesByKey.get(key) ?? [];
     list.push(d.content);
     notesByKey.set(key, list);
@@ -38,39 +38,39 @@ export function buildCanonicalEvents(
   const unclassified = new Set<string>();
 
   const canonical: CanonicalEvent[] = [];
-  for (const event of events) {
-    const habit = habitsByIdentity.get(event.habitIdentity);
-    // Archived/deleted habits (isRemoved, incl. those recovered only via
+  for (const log of logs) {
+    const item = itemsByIdentity.get(log.itemIdentity);
+    // Archived/deleted items (isRemoved, incl. those recovered only via
     // ZDELETEDHABIT for name resolution) are excluded from the analytical
     // dataset entirely rather than shown under a resolved name.
-    if (habit?.isRemoved) continue;
+    if (item?.isRemoved) continue;
 
-    const rawName = habit?.rawName ?? `Unknown habit (${event.habitIdentity.slice(0, 8)})`;
-    const classification = classifyHabit(rawName, userOverrides);
+    const rawName = item?.rawName ?? `Unknown item (${log.itemIdentity.slice(0, 8)})`;
+    const classification = classifyItem(rawName, userOverrides);
     if (classification.matchedBy === "fallback") unclassified.add(rawName);
 
-    const notes = notesByKey.get(diaryKey(event.habitIdentity, event.date));
+    const notes = notesByKey.get(diaryKey(log.itemIdentity, log.date));
 
     canonical.push({
-      id: event.identity,
-      date: event.date,
+      id: log.identity,
+      date: log.date,
       item: classification.canonicalName,
       rawItem: rawName,
       itemType: classification.itemType,
       category: classification.category,
       subcategory: classification.subcategory,
-      value: event.value,
-      goalValue: event.goalValue,
-      completed: !event.isSkipped && (event.value ?? 0) > 0,
-      isSkipped: event.isSkipped,
-      unit: habit?.unit ?? null,
-      kind: habit?.kind ?? null,
-      source: "habit-daily-completion",
-      habitIdentity: event.habitIdentity,
+      value: log.value,
+      goalValue: log.goalValue,
+      completed: !log.isSkipped && (log.value ?? 0) > 0,
+      isSkipped: log.isSkipped,
+      unit: item?.unit ?? null,
+      kind: item?.kind ?? null,
+      source: "item-log",
+      itemIdentity: log.itemIdentity,
       note: notes && notes.length > 0 ? notes.join(" | ") : null,
       matchedBy: classification.matchedBy,
-      updatedAt: event.updatedAt,
-      mealTag: event.mealTag,
+      updatedAt: log.updatedAt,
+      mealTag: log.mealTag,
     });
   }
 

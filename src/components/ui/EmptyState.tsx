@@ -2,12 +2,12 @@ import Link from "next/link";
 
 export function EmptyState({
   title = "No data yet",
-  description = "Import your habit-tracker export to see your dashboard.",
-  showImportLink = true,
+  description = "Log something on the Log page, or sign in there to pull down data already in Supabase.",
+  showLogLink = true,
 }: {
   title?: string;
   description?: string;
-  showImportLink?: boolean;
+  showLogLink?: boolean;
 }) {
   return (
     <div
@@ -20,13 +20,13 @@ export function EmptyState({
       <p className="mt-2 max-w-sm text-sm" style={{ color: "var(--text-secondary)" }}>
         {description}
       </p>
-      {showImportLink && (
+      {showLogLink && (
         <Link
-          href="/import"
+          href="/log"
           className="mt-5 rounded-md px-4 py-2 text-sm font-medium text-white"
           style={{ background: "var(--series-1)" }}
         >
-          Go to Import
+          Go to Log
         </Link>
       )}
     </div>

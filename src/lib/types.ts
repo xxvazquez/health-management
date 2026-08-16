@@ -1,28 +1,30 @@
 import type { ItemType } from "@/taxonomy/categories";
 
-/** A habit/tracked-item definition, as extracted from ZHABIT (dimension data). */
-export interface RawHabit {
+/** A tracked-item definition (a food, symptom, supplement, or habit), as
+ * extracted from ZHABIT (dimension data) — "habit" there is the source
+ * app's own table name, not a claim that everything tracked is a habit. */
+export interface RawItem {
   /** ZHABIT.ZIDENTITY — stable across exports of the same underlying device DB. */
   identity: string;
   /** Raw, unmodified name from the source (whitespace and all). */
   rawName: string;
   unit: string | null;
-  /** 'normal' | 'bad' — direction the app itself assigned to this habit. */
+  /** 'normal' | 'bad' — direction the app itself assigned to this item. */
   kind: string | null;
   frequency: string | null;
   isRemoved: boolean;
-  /** Epoch-day-derived ISO date the habit was created, if known. */
+  /** Epoch-day-derived ISO date the item was created, if known. */
   createdDate: string | null;
 }
 
 /**
- * One row of tracked history for a habit on a given day, as extracted from
+ * One log entry for an item on a given day, as extracted from
  * ZDAILYCOMPLETION (the authoritative, longest-running completion source).
  */
-export interface RawEvent {
+export interface RawLog {
   /** ZDAILYCOMPLETION.ZIDENTITY — the natural dedupe/merge key. */
   identity: string;
-  habitIdentity: string;
+  itemIdentity: string;
   /** Epoch day number (ZFORDAY), converted to an ISO date (UTC). */
   date: string;
   /** Recorded numeric value (count, minutes, steps, etc.) — may be 0. */
@@ -38,10 +40,10 @@ export interface RawEvent {
   mealTag: string | null;
 }
 
-/** A free-text note tied to a specific habit + day, from ZDIARY. */
+/** A free-text note tied to a specific item + day, from ZDIARY. */
 export interface RawDiaryEntry {
   identity: string;
-  habitIdentity: string;
+  itemIdentity: string;
   date: string;
   content: string | null;
   title: string | null;
@@ -50,10 +52,10 @@ export interface RawDiaryEntry {
 
 /** One row of the canonical, long-format analytical dataset. */
 export interface CanonicalEvent {
-  /** = the source RawEvent identity; primary key for storage/merge. */
+  /** = the source RawLog identity; primary key for storage/merge. */
   id: string;
   date: string; // YYYY-MM-DD
-  /** Canonical, cleaned display name (e.g. "Eat banana" -> "Eat banana"). */
+  /** Canonical, cleaned display name (e.g. "Eat banana" -> "Banana"). */
   item: string;
   /** Original raw name exactly as tracked, preserved for audit/data-quality review. */
   rawItem: string;
@@ -68,31 +70,10 @@ export interface CanonicalEvent {
   unit: string | null;
   /** direction the source app assigned ('normal' | 'bad'), kept as metadata only. */
   kind: string | null;
-  source: "habit-daily-completion";
-  habitIdentity: string;
+  source: "item-log";
+  itemIdentity: string;
   note: string | null;
   matchedBy: "override" | "food-keyword" | "fallback";
   updatedAt: number | null;
   mealTag: string | null;
-}
-
-export interface ImportFileReport {
-  path: string;
-  kind: "sqlite" | "plist" | "log" | "zip" | "unknown";
-  sizeBytes: number;
-  status: "parsed" | "skipped-not-relevant" | "skipped-unrecognized" | "error";
-  detail?: string;
-}
-
-export interface ImportSummary {
-  importedAt: string;
-  files: ImportFileReport[];
-  habitsFound: number;
-  eventsFound: number;
-  eventsNew: number;
-  eventsUpdated: number;
-  eventsUnchanged: number;
-  diaryFound: number;
-  dateRange: { start: string | null; end: string | null };
-  unclassifiedItems: string[];
 }
