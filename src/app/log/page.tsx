@@ -3,9 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import clsx from "clsx";
 import { useData } from "@/lib/DataContext";
-import { useAuth } from "@/lib/supabase/AuthContext";
-import { AuthWidget } from "@/components/auth/AuthWidget";
-import { pullFromCloud, pushUserOverride, syncItemDay } from "@/lib/supabase/sync";
+import { pushUserOverride, syncItemDay } from "@/lib/supabase/sync";
 import {
   decrementDailyLog,
   deleteLogById,
@@ -95,8 +93,7 @@ interface Snapshot {
 }
 
 export default function LogPage() {
-  const { refresh, isDemoData } = useData();
-  const { session } = useAuth();
+  const { refresh, isDemoData, status } = useData();
   const today = useMemo(() => todayLocalISODate(), []);
   const [date, setDate] = useState(today);
   const [tab, setTab] = useState<ItemType>("food");
@@ -106,7 +103,6 @@ export default function LogPage() {
   const [newItemText, setNewItemText] = useState("");
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [pending, setPending] = useState<string | null>(null);
-  const [showLocalOnlyNotice, setShowLocalOnlyNotice] = useState(false);
 
   const loadSnapshot = useCallback(async () => {
     const [items, logs, userOverrides] = await Promise.all([
@@ -118,18 +114,13 @@ export default function LogPage() {
   }, []);
 
   useEffect(() => {
-    // Loading from IndexedDB on mount — an external-system read, not a
-    // React-state sync loop, so the async setState it triggers is fine.
+    // Re-reads local IndexedDB whenever the shared data status changes —
+    // covers both the initial mount and the global sign-in pull-from-cloud
+    // (DataContext) landing, without this page issuing its own Supabase
+    // fetch.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadSnapshot();
-  }, [loadSnapshot]);
-
-  useEffect(() => {
-    if (!session) return;
-    // Pulling this device up to date with the cloud right after signing
-    // in (or on load, if already signed in) — an external-system read.
-    void pullFromCloud().then(() => loadSnapshot());
-  }, [session, loadSnapshot]);
+  }, [status, loadSnapshot]);
 
   // Signed out with nothing logged locally yet — show the same static demo
   // dataset the rest of the app uses (see DataContext), so the Log page
@@ -220,7 +211,6 @@ export default function LogPage() {
   async function refreshAfterWrite() {
     await loadSnapshot();
     await refresh();
-    if (!session) setShowLocalOnlyNotice(true);
   }
 
   async function handleIncrement(candidate: LogCandidate) {
@@ -403,9 +393,6 @@ export default function LogPage() {
                 ? "Tap a food to log it."
                 : "Tap what applies."}
           </p>
-          <div className="mt-1">
-            <AuthWidget />
-          </div>
         </div>
         <div className="flex items-center gap-0.5 rounded-lg border p-1" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
           <button
@@ -438,25 +425,6 @@ export default function LogPage() {
           </button>
         </div>
       </div>
-
-      {showLocalOnlyNotice && !session && (
-        <div
-          className="flex items-center justify-between gap-3 rounded-lg border px-4 py-2.5 text-sm"
-          style={{ borderColor: "var(--status-warning)", background: "color-mix(in oklab, var(--status-warning) 14%, var(--surface-1))" }}
-        >
-          <span style={{ color: "var(--text-primary)" }}>
-            Saved on this device only — you&apos;re not signed in, so nothing just synced to the cloud.
-          </span>
-          <button
-            type="button"
-            onClick={() => setShowLocalOnlyNotice(false)}
-            className="shrink-0 text-xs font-medium underline decoration-dotted"
-            style={{ color: "var(--text-secondary)" }}
-          >
-            Dismiss
-          </button>
-        </div>
-      )}
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <nav className="flex w-fit items-center gap-0.5 rounded-lg p-1" style={{ background: "var(--page-plane)" }}>

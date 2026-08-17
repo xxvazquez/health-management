@@ -35,5 +35,5 @@ export function habitsInsight(events: CanonicalEvent[]): PersonalChangeSummary {
     events.filter((e) => e.itemType === "habit"),
     activeDates,
   );
-  return buildPersonalChangeSummary(trends, "habit", "habits");
+  return buildPersonalChangeSummary(trends, "habit", "habits", "Done");
 }

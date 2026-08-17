@@ -83,51 +83,23 @@ export function gymStatsByExercise(logs: RawGymLog[]): GymExerciseStats[] {
   return out;
 }
 
-export interface GymOverview {
-  exercisesTracked: number;
-  totalRecords: number;
-  /** Count of entries across all history that beat their exercise's prior
-   * best — a plain tally from the data, not a recency-windowed score. */
-  totalPRs: number;
-  mostImproved: { exercise: GymExercise; changePct: number } | null;
-}
-
-/**
- * The "very small" overview summary — four facts, no derived score. "Most
- * improved" reuses the same first→current percentage shown in the
- * per-exercise Progress stat, so the overview number and the detail view
- * never disagree about what "progress" means.
- */
-export function gymOverview(logs: RawGymLog[]): GymOverview {
-  const stats = gymStatsByExercise(logs);
-  const totalPRs = stats.reduce((sum, s) => sum + s.entries.filter((e) => e.isPR).length, 0);
-
-  const eligible = stats.filter((s) => s.recordsCount >= 2 && s.changePct !== null);
-  const mostImproved =
-    eligible.length > 0 ? eligible.reduce((max, s) => (s.changePct! > max.changePct! ? s : max), eligible[0]) : null;
-
-  return {
-    exercisesTracked: stats.length,
-    totalRecords: logs.length,
-    totalPRs,
-    mostImproved: mostImproved ? { exercise: mostImproved.exercise, changePct: mostImproved.changePct! } : null,
-  };
-}
-
 export interface GymInsight {
-  insufficientData: boolean;
   headline: string;
   detail: string | null;
   tone: InsightTone;
 }
 
-/** "What's new" — whatever was logged most recently, and whether it was a
- * genuine new best. No arbitrary recency window: just the last entry. */
-export function gymInsight(logs: RawGymLog[]): GymInsight {
+/**
+ * "What's new" — surfaces only when there's actually something to say: no
+ * data yet (prompt to log a first lift), or a fresh personal best. Merely
+ * knowing something was logged on some date isn't a useful fact by
+ * itself, so every other case returns null and the page shows nothing
+ * here rather than filler.
+ */
+export function gymInsight(logs: RawGymLog[]): GymInsight | null {
   const stats = gymStatsByExercise(logs);
   if (stats.length === 0) {
     return {
-      insufficientData: true,
       headline: "No gym sessions logged yet.",
       detail: "Log a lift below to start tracking progress.",
       tone: "neutral",
@@ -135,22 +107,13 @@ export function gymInsight(logs: RawGymLog[]): GymInsight {
   }
 
   const lastDate = stats.reduce((max, s) => (s.current.date > max ? s.current.date : max), stats[0].current.date);
-  const todaysEntries = stats
-    .filter((s) => s.current.date === lastDate)
-    .map((s) => ({ exercise: s.exercise, weightKg: s.current.weightKg, isPR: s.entries[s.entries.length - 1].isPR }));
-  const prsToday = todaysEntries.filter((e) => e.isPR);
+  const prsToday = stats
+    .filter((s) => s.current.date === lastDate && s.entries[s.entries.length - 1].isPR)
+    .map((s) => ({ exercise: s.exercise, weightKg: s.current.weightKg }));
 
-  if (prsToday.length === 0) {
-    return {
-      insufficientData: false,
-      headline: `Most recently logged ${formatGymDate(lastDate)}.`,
-      detail: todaysEntries.map((e) => `${e.exercise}: ${e.weightKg} kg`).join(", "),
-      tone: "neutral",
-    };
-  }
+  if (prsToday.length === 0) return null;
 
   return {
-    insufficientData: false,
     headline:
       prsToday.length === 1
         ? `New best on ${prsToday[0].exercise}: ${prsToday[0].weightKg} kg.`

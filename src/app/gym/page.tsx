@@ -9,7 +9,15 @@ import { Insight } from "@/components/ui/Insight";
 import { TrendAreaChart } from "@/components/charts/TrendAreaChart";
 import { putGymLog, deleteGymLogById } from "@/lib/db/indexedDb";
 import { pushGymLog, deleteGymLog } from "@/lib/supabase/sync";
-import { gymStatsByExercise, gymOverview, gymInsight, gymTimeline, formatGymDate, formatGymDateTime, type GymTimelineEntry } from "@/lib/aggregations/gym";
+import {
+  gymStatsByExercise,
+  gymInsight,
+  gymTimeline,
+  formatGymDate,
+  formatGymDateTime,
+  type GymExerciseStats,
+  type GymTimelineEntry,
+} from "@/lib/aggregations/gym";
 import { GYM_EXERCISES, type GymExercise, type RawGymLog } from "@/lib/types";
 
 const EXERCISE_COLOR: Record<GymExercise, string> = {
@@ -35,6 +43,81 @@ interface EditState {
 
 function signed(n: number): string {
   return n >= 0 ? `+${n}` : String(n);
+}
+
+/** Sorts exercises with a real trend to the top, most improved first — a
+ * single data point has nothing to rank (no second reading to compare
+ * against yet), so it always sinks to the bottom rather than reading as
+ * "0% change". */
+function trendRank(s: GymExerciseStats): number {
+  return s.recordsCount >= 2 && s.changePct !== null ? s.changePct : -Infinity;
+}
+
+/** The page's main content: every tracked exercise's start→current→best,
+ * ranked by improvement so "which lift has progressed the most" is
+ * answered by the row order, not a separate stat. Clicking a row loads
+ * that exercise into the detail chart below. */
+function StrengthProgressTable({
+  stats,
+  selected,
+  onSelect,
+}: {
+  stats: GymExerciseStats[];
+  selected: GymExercise | null;
+  onSelect: (exercise: GymExercise) => void;
+}) {
+  const sorted = useMemo(() => [...stats].sort((a, b) => trendRank(b) - trendRank(a)), [stats]);
+  return (
+    <Card>
+      <CardTitle subtitle="Ranked by improvement — tap a row for its full progression.">Strength progress</CardTitle>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-left text-xs whitespace-nowrap" style={{ color: "var(--text-muted)" }}>
+              <th className="pb-2 font-medium">Exercise</th>
+              <th className="pb-2 text-right font-medium">Start</th>
+              <th className="pb-2 text-right font-medium">Current</th>
+              <th className="pb-2 text-right font-medium">Best</th>
+              <th className="pb-2 text-right font-medium">Change</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sorted.map((s) => {
+              const hasTrend = s.recordsCount >= 2;
+              const active = s.exercise === selected;
+              return (
+                <tr
+                  key={s.exercise}
+                  onClick={() => onSelect(s.exercise)}
+                  className="cursor-pointer border-t whitespace-nowrap transition-colors"
+                  style={{ borderColor: "var(--gridline)", background: active ? "var(--page-plane)" : "transparent" }}
+                >
+                  <td className="py-2.5 font-medium" style={{ color: EXERCISE_COLOR[s.exercise] }}>
+                    {s.exercise}
+                  </td>
+                  <td className="py-2.5 text-right tabular-nums" style={{ color: "var(--text-secondary)" }}>
+                    {s.started.weightKg} kg
+                  </td>
+                  <td className="py-2.5 text-right font-medium tabular-nums" style={{ color: "var(--text-primary)" }}>
+                    {s.current.weightKg} kg
+                  </td>
+                  <td className="py-2.5 text-right tabular-nums" style={{ color: "var(--text-secondary)" }}>
+                    {s.best.weightKg} kg
+                  </td>
+                  <td
+                    className="py-2.5 text-right font-medium tabular-nums"
+                    style={{ color: !hasTrend ? "var(--text-muted)" : s.changeKg >= 0 ? "var(--status-good)" : "var(--status-warning)" }}
+                  >
+                    {hasTrend ? `${signed(s.changeKg)} kg${s.changePct !== null ? ` · ${signed(s.changePct)}%` : ""}` : "First entry"}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </Card>
+  );
 }
 
 /** Shared chronological list — used by both the Timeline (all exercises)
@@ -164,7 +247,6 @@ export default function GymPage() {
   const [compareExercise, setCompareExercise] = useState<GymExercise | null>(null);
 
   const stats = useMemo(() => gymStatsByExercise(gymLogs), [gymLogs]);
-  const overview = useMemo(() => gymOverview(gymLogs), [gymLogs]);
   const insight = useMemo(() => gymInsight(gymLogs), [gymLogs]);
   const timeline = useMemo(() => gymTimeline(gymLogs), [gymLogs]);
 
@@ -215,20 +297,9 @@ export default function GymPage() {
         Gym
       </h1>
 
-      <Insight label="What's new" headline={insight.headline} detail={insight.detail} tone={insight.tone} />
+      {insight && <Insight label="What's new" headline={insight.headline} detail={insight.detail} tone={insight.tone} />}
 
-      {!insight.insufficientData && (
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <StatTile label="Exercises tracked" value={String(overview.exercisesTracked)} />
-          <StatTile label="Total records" value={String(overview.totalRecords)} />
-          <StatTile label="Personal records set" value={String(overview.totalPRs)} accent="var(--status-good)" />
-          <StatTile
-            label="Most improved"
-            value={overview.mostImproved ? overview.mostImproved.exercise : "—"}
-            detail={overview.mostImproved ? `${signed(overview.mostImproved.changePct)}%` : undefined}
-          />
-        </div>
-      )}
+      {stats.length > 0 && <StrengthProgressTable stats={stats} selected={selectedExercise} onSelect={setCompareExercise} />}
 
       <Card tier="raw">
         <CardTitle size="sm">Log a lift</CardTitle>
@@ -287,8 +358,8 @@ export default function GymPage() {
       {selectedStats && (
         <Card tier="supporting">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <CardTitle size="default" subtitle="The main view — pick a lift to see its full progress.">
-              Exercise comparison
+            <CardTitle size="default" subtitle="Pick a lift to see its full progression.">
+              Progression
             </CardTitle>
             <select
               value={selectedStats.exercise}
@@ -304,18 +375,16 @@ export default function GymPage() {
             </select>
           </div>
 
-          <div className="mb-4 grid grid-cols-2 gap-4 sm:grid-cols-3">
+          <div className="mb-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
+            <StatTile label="Started" value={`${selectedStats.started.weightKg} kg`} detail={formatGymDate(selectedStats.started.date)} />
             <StatTile label="Current" value={`${selectedStats.current.weightKg} kg`} detail={formatGymDate(selectedStats.current.date)} accent={EXERCISE_COLOR[selectedStats.exercise]} />
             <StatTile label="Best" value={`${selectedStats.best.weightKg} kg`} detail={formatGymDate(selectedStats.best.date)} />
-            <StatTile label="Started" value={`${selectedStats.started.weightKg} kg`} detail={formatGymDate(selectedStats.started.date)} />
             <StatTile
-              label="Progress"
+              label="Change"
               value={`${signed(selectedStats.changeKg)} kg`}
               detail={selectedStats.changePct !== null ? `${signed(selectedStats.changePct)}%` : undefined}
               accent={selectedStats.changeKg >= 0 ? "var(--status-good)" : "var(--status-warning)"}
             />
-            <StatTile label="Records" value={String(selectedStats.recordsCount)} />
-            <StatTile label="Last recorded" value={formatGymDate(selectedStats.current.date)} />
           </div>
 
           <TrendAreaChart

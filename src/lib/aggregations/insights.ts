@@ -11,6 +11,11 @@ export type InsightTone = "good" | "neutral" | "attention" | "serious";
 export interface Bullet {
   label: string;
   detail: string;
+  /** Same fact as `detail`, condensed to a short "value · context" form
+   * for dense card display (e.g. "77% recently · 30% usual") instead of a
+   * full sentence. Optional — only set where the underlying numbers are
+   * already at hand; callers should fall back to `detail` when absent. */
+  compact?: string;
 }
 
 const MIN_BASELINE_TRACKED_DAYS = 10;
@@ -49,7 +54,16 @@ export interface PersonalChangeSummary {
  * evidence-informed target per food group, which is why Food gets to make
  * that call and these two don't.)
  */
-export function buildPersonalChangeSummary(trends: ItemTrend[], nounSingular: string, nounPlural: string): PersonalChangeSummary {
+export function buildPersonalChangeSummary(
+  trends: ItemTrend[],
+  nounSingular: string,
+  nounPlural: string,
+  /** Past-tense verb for "logged == it happened" domains like supplements
+   * and habits — there's no separate adherence signal here, a missing log
+   * day means it didn't happen, so the copy should describe the behavior
+   * itself ("taken", "done"), not logging activity. */
+  occurredVerb: string,
+): PersonalChangeSummary {
   const judgeable = trends.filter((t) => driftFor(t) !== "insufficient-data");
 
   if (judgeable.length === 0) {
@@ -76,10 +90,15 @@ export function buildPersonalChangeSummary(trends: ItemTrend[], nounSingular: st
   // Concrete numbers rather than "above/below usual" alone — matches the
   // "3 days this month vs. 1 day last month" style: a specific, checkable
   // fact instead of a vague directional claim.
-  const changed: Bullet[] = moved.slice(0, 4).map((m) => ({
-    label: m.trend.item,
-    detail: `Logged ${Math.round(m.trend.recentConsistencyPct ?? 0)}% of tracked days recently, compared with ${Math.round(m.trend.overallConsistencyPct)}% usually.`,
-  }));
+  const changed: Bullet[] = moved.slice(0, 4).map((m) => {
+    const recent = Math.round(m.trend.recentConsistencyPct ?? 0);
+    const overall = Math.round(m.trend.overallConsistencyPct);
+    return {
+      label: m.trend.item,
+      detail: `${occurredVerb} ${recent}% of tracked days recently, compared with ${overall}% usually.`,
+      compact: `${recent}% recently · ${overall}% usual`,
+    };
+  });
 
   return {
     insufficientData: false,

@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { CanonicalEvent, RawGymLog } from "@/lib/types";
 import { buildCanonicalEvents } from "@/lib/canonical/buildCanonicalEvents";
 import { filterArchivedItems } from "@/lib/canonical/filterArchivedItems";
@@ -13,6 +13,7 @@ import {
   getAllGymLogs,
   hasAnyData,
 } from "@/lib/db/indexedDb";
+import { pullFromCloud } from "@/lib/supabase/sync";
 import { ANALYTICS_START_DATE } from "@/lib/config";
 import { buildDemoDataset } from "@/lib/demoData";
 import { useAuth } from "@/lib/supabase/AuthContext";
@@ -31,6 +32,11 @@ interface DataContextValue {
   isDemoData: boolean;
   error: string | null;
   refresh: () => Promise<void>;
+  /** Pulls the signed-in user's latest rows from Supabase into the local
+   * IndexedDB cache, then re-derives state from it. No-op while signed
+   * out. Exposed so the one manual "Refresh" control in the nav can share
+   * this instead of duplicating the pull+refresh sequence. */
+  syncFromCloud: () => Promise<void>;
   clearData: () => Promise<void>;
 }
 
@@ -83,7 +89,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         setUnclassifiedItems([]);
         setArchivedItems([]);
         setIsDemoData(false);
-        setStatus("empty");
+        // Real gym data alone is still real data — only the food/symptom/
+        // supplement/habit side is empty. Forcing "empty" here regardless
+        // used to hide a gym-only account's own logs behind the shared
+        // EmptyState on the Gym page.
+        setStatus(gymLogsNow.length > 0 ? "ready" : "empty");
         return;
       }
       const [items, logs, diary, userOverrides] = await Promise.all([
@@ -112,6 +122,13 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     await refresh();
   }, [refresh]);
 
+  const syncFromCloud = useCallback(async () => {
+    // Silently a no-op while signed out — every call site can fire this
+    // unconditionally and it just does nothing until there's a session.
+    await pullFromCloud();
+    await refresh();
+  }, [refresh]);
+
   useEffect(() => {
     // Loading from IndexedDB on mount — an external-system read, not a
     // React-state sync loop, so the async setState it triggers is fine.
@@ -119,9 +136,38 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     void refresh();
   }, [refresh]);
 
+  // Pulls Supabase into the local cache once per sign-in — covering both a
+  // page load/reload while already signed in and the moment a fresh
+  // sign-in resolves — rather than only when the Log page happens to be
+  // the one mounted. This provider lives at the root and survives
+  // client-side navigation between pages, so this does not re-run on
+  // every route change, only on an actual session change.
+  const pulledForUserId = useRef<string | null>(null);
+  useEffect(() => {
+    if (authLoading) return;
+    if (!session) {
+      pulledForUserId.current = null;
+      return;
+    }
+    if (pulledForUserId.current === session.user.id) return;
+    pulledForUserId.current = session.user.id;
+    void syncFromCloud();
+  }, [session, authLoading, syncFromCloud]);
+
+  // Revalidate from Supabase when the tab regains focus, so data changed
+  // on another device shows up without a manual refresh.
+  useEffect(() => {
+    if (!session) return;
+    function handleVisibility() {
+      if (document.visibilityState === "visible") void syncFromCloud();
+    }
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
+  }, [session, syncFromCloud]);
+
   const value = useMemo(
-    () => ({ status, events, gymLogs, unclassifiedItems, archivedItems, isDemoData, error, refresh, clearData }),
-    [status, events, gymLogs, unclassifiedItems, archivedItems, isDemoData, error, refresh, clearData],
+    () => ({ status, events, gymLogs, unclassifiedItems, archivedItems, isDemoData, error, refresh, syncFromCloud, clearData }),
+    [status, events, gymLogs, unclassifiedItems, archivedItems, isDemoData, error, refresh, syncFromCloud, clearData],
   );
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
