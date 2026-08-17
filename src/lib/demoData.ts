@@ -1,4 +1,4 @@
-import type { RawItem, RawLog } from "@/lib/types";
+import type { RawItem, RawLog, RawGymLog, GymExercise } from "@/lib/types";
 
 /** Every demo item/log identity starts with this — purely in-memory,
  * never written to IndexedDB or Supabase, so it can never mix with real
@@ -29,6 +29,16 @@ const MEALS = ["Breakfast", "Lunch", "Dinner", "Snack"] as const;
 const DEMO_SEED = 20260101;
 const DEMO_WINDOW_DAYS = 75;
 
+/** A handful of core lifts, each trained roughly weekly with a plausible
+ * upward trend — enough for the Strength Progress table and its charts to
+ * have something real to show (started/current/best all differ) instead
+ * of the Gym page just being the one dashboard demo mode leaves empty. */
+const GYM_PROGRESSIONS: { exercise: GymExercise; startKg: number; incrementKg: number; cadenceDays: number; phase: number }[] = [
+  { exercise: "Squat", startKg: 60, incrementKg: 2.5, cadenceDays: 7, phase: 2 },
+  { exercise: "Deadlift", startKg: 70, incrementKg: 2.5, cadenceDays: 7, phase: 5 },
+  { exercise: "Bench Press", startKg: 40, incrementKg: 1.25, cadenceDays: 7, phase: 0 },
+];
+
 /** Small deterministic PRNG (mulberry32) — same seed always produces the
  * exact same sequence, so the "random-looking" demo dataset is actually
  * fully reproducible: identical every time it's built, on every machine. */
@@ -54,6 +64,7 @@ function demoItemIdentity(rawName: string): string {
 export interface DemoDataset {
   items: RawItem[];
   logs: RawLog[];
+  gymLogs: RawGymLog[];
 }
 
 /**
@@ -131,5 +142,28 @@ export function buildDemoDataset(): DemoDataset {
     if (chance(0.15)) writeLog(ensureItem(pick(SYMPTOMS)), date, null);
   }
 
-  return { items: Array.from(itemsByName.values()), logs };
+  const gymLogs: RawGymLog[] = [];
+  let gymCounter = 0;
+  for (const prog of GYM_PROGRESSIONS) {
+    let weightKg = prog.startKg;
+    for (let dayOffset = DEMO_WINDOW_DAYS; dayOffset >= 0; dayOffset--) {
+      if (dayOffset % prog.cadenceDays !== prog.phase) continue;
+      if (chance(0.1)) continue; // skipped session — training has gaps too
+      if (chance(0.55)) weightKg += prog.incrementKg;
+
+      const d = new Date(today);
+      d.setDate(d.getDate() - dayOffset);
+      const date = isoDate(d);
+      gymCounter++;
+      gymLogs.push({
+        id: `${DEMO_ID_PREFIX}gym:${prog.exercise}:${gymCounter}`,
+        date,
+        exercise: prog.exercise,
+        weightKg,
+        updatedAt: new Date(`${date}T18:00:00`).getTime(),
+      });
+    }
+  }
+
+  return { items: Array.from(itemsByName.values()), logs, gymLogs };
 }

@@ -32,11 +32,6 @@ interface DataContextValue {
   isDemoData: boolean;
   error: string | null;
   refresh: () => Promise<void>;
-  /** Pulls the signed-in user's latest rows from Supabase into the local
-   * IndexedDB cache, then re-derives state from it. No-op while signed
-   * out. Exposed so the one manual "Refresh" control in the nav can share
-   * this instead of duplicating the pull+refresh sequence. */
-  syncFromCloud: () => Promise<void>;
   clearData: () => Promise<void>;
 }
 
@@ -77,7 +72,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           const scoped = result.events.filter((e) => e.date >= ANALYTICS_START_DATE);
           const active = filterArchivedItems(scoped);
           setEvents(active.events);
-          setGymLogs(gymLogsNow);
+          // Real gym logs (if any exist locally already) always win over
+          // the demo ones — only fall back to demo gym data when there's
+          // genuinely nothing real to show yet.
+          setGymLogs(gymLogsNow.length > 0 ? gymLogsNow : demo.gymLogs.filter((g) => g.date >= ANALYTICS_START_DATE));
           setUnclassifiedItems(result.unclassifiedItems);
           setArchivedItems(active.archivedItems);
           setIsDemoData(true);
@@ -174,8 +172,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   }, [session, syncFromCloud]);
 
   const value = useMemo(
-    () => ({ status, events, gymLogs, unclassifiedItems, archivedItems, isDemoData, error, refresh, syncFromCloud, clearData }),
-    [status, events, gymLogs, unclassifiedItems, archivedItems, isDemoData, error, refresh, syncFromCloud, clearData],
+    () => ({ status, events, gymLogs, unclassifiedItems, archivedItems, isDemoData, error, refresh, clearData }),
+    [status, events, gymLogs, unclassifiedItems, archivedItems, isDemoData, error, refresh, clearData],
   );
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
