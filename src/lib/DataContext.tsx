@@ -3,7 +3,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { CanonicalEvent, RawGymLog } from "@/lib/types";
 import { buildCanonicalEvents } from "@/lib/canonical/buildCanonicalEvents";
-import { filterArchivedItems } from "@/lib/canonical/filterArchivedItems";
 import {
   clearAllData,
   getAllDiary,
@@ -25,7 +24,6 @@ interface DataContextValue {
   events: CanonicalEvent[];
   gymLogs: RawGymLog[];
   unclassifiedItems: string[];
-  archivedItems: { item: string; lastTrackedDate: string }[];
   /** True while showing the static, in-memory demo dataset (lib/demoData.ts)
    * instead of anything real — always the case while signed out with no
    * local data logged yet, never once signed in or once something's logged. */
@@ -43,7 +41,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [events, setEvents] = useState<CanonicalEvent[]>([]);
   const [gymLogs, setGymLogs] = useState<RawGymLog[]>([]);
   const [unclassifiedItems, setUnclassifiedItems] = useState<string[]>([]);
-  const [archivedItems, setArchivedItems] = useState<{ item: string; lastTrackedDate: string }[]>([]);
   const [isDemoData, setIsDemoData] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -70,14 +67,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           const demo = buildDemoDataset();
           const result = buildCanonicalEvents(demo.items, demo.logs, []);
           const scoped = result.events.filter((e) => e.date >= ANALYTICS_START_DATE);
-          const active = filterArchivedItems(scoped);
-          setEvents(active.events);
+          setEvents(scoped);
           // Real gym logs (if any exist locally already) always win over
           // the demo ones — only fall back to demo gym data when there's
           // genuinely nothing real to show yet.
           setGymLogs(gymLogsNow.length > 0 ? gymLogsNow : demo.gymLogs.filter((g) => g.date >= ANALYTICS_START_DATE));
           setUnclassifiedItems(result.unclassifiedItems);
-          setArchivedItems(active.archivedItems);
           setIsDemoData(true);
           setStatus("ready");
           return;
@@ -85,7 +80,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         setEvents([]);
         setGymLogs(gymLogsNow);
         setUnclassifiedItems([]);
-        setArchivedItems([]);
         setIsDemoData(false);
         // Real gym data alone is still real data — only the food/symptom/
         // supplement/habit side is empty. Forcing "empty" here regardless
@@ -102,11 +96,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       ]);
       const result = buildCanonicalEvents(items, logs, diary, userOverrides);
       const scoped = result.events.filter((e) => e.date >= ANALYTICS_START_DATE);
-      const active = filterArchivedItems(scoped);
-      setEvents(active.events);
+      setEvents(scoped);
       setGymLogs(gymLogsNow);
       setUnclassifiedItems(result.unclassifiedItems);
-      setArchivedItems(active.archivedItems);
       setIsDemoData(false);
       setStatus("ready");
     } catch (err) {
@@ -172,8 +164,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   }, [session, syncFromCloud]);
 
   const value = useMemo(
-    () => ({ status, events, gymLogs, unclassifiedItems, archivedItems, isDemoData, error, refresh, clearData }),
-    [status, events, gymLogs, unclassifiedItems, archivedItems, isDemoData, error, refresh, clearData],
+    () => ({ status, events, gymLogs, unclassifiedItems, isDemoData, error, refresh, clearData }),
+    [status, events, gymLogs, unclassifiedItems, isDemoData, error, refresh, clearData],
   );
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;

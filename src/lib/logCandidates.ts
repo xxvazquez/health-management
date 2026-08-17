@@ -1,7 +1,7 @@
 import { classifyItem, type OverrideEntry } from "@/taxonomy/classify";
 import type { ItemType } from "@/taxonomy/categories";
 import { DELISTED_FROM_LOGGING } from "@/taxonomy/delistedFromLogging";
-import type { RawLog, RawItem } from "@/lib/types";
+import type { RawLog, RawItem, RawDiaryEntry } from "@/lib/types";
 
 export interface LogCandidate {
   key: string; // `${itemType}|${canonicalName}` — stable identity for a chip
@@ -15,12 +15,14 @@ export interface LogCandidate {
 }
 
 /**
- * One tappable chip per distinct classified item. Deliberately built from
- * *all* known items (not the dashboard-filtered event set), so an item
- * that went quiet 90+ days ago and got archived from the dashboards can
- * still be tapped back into use here. Sorted alphabetically within category
- * — the Log page groups by category and relies on that order to make a
- * specific item findable by eye without typing.
+ * One tappable chip per distinct classified item. Built from all known
+ * *active* items (not the dashboard-filtered event set) — an item stays
+ * tappable regardless of how long it's been quiet, right up until it's
+ * explicitly archived. An archived item's chip disappears here but its
+ * full history stays in every dashboard/analysis; unarchiving (from the
+ * Habits/Supplements page) is what brings the chip back. Sorted
+ * alphabetically within category — the Log page groups by category and
+ * relies on that order to make a specific item findable by eye without typing.
  */
 export function buildLogCandidates(
   items: RawItem[],
@@ -34,7 +36,7 @@ export function buildLogCandidates(
 
   const byKey = new Map<string, LogCandidate>();
   for (const it of items) {
-    if (it.isRemoved) continue;
+    if (it.isRemoved || it.isArchived) continue;
     const c = classifyItem(it.rawName, userOverrides);
     if (DELISTED_FROM_LOGGING.has(c.canonicalName)) continue;
     const count = logCountByItem.get(it.identity) ?? 0;
@@ -98,6 +100,13 @@ export interface TimelineEntry {
   itemIdentity: string;
   time: string; // local HH:MM, from the log's updatedAt (= the moment it was logged)
   mealTag: string | null;
+  /** Raw logged value (e.g. minutes for a duration-kind item) — most
+   * entries are plain occurrence taps and don't need this. */
+  value: number | null;
+  /** Optional note for this item on this day — one per item+day (see
+   * `RawDiaryEntry`), not per individual tap, so a food logged 3x in a day
+   * shares one note across all three entries rather than each having its own. */
+  note: string | null;
 }
 
 /**
@@ -111,9 +120,13 @@ export function dayTimelineEntries(
   items: RawItem[],
   logs: RawLog[],
   userOverrides: Record<string, OverrideEntry>,
+  diary: RawDiaryEntry[],
   date: string,
 ): TimelineEntry[] {
   const itemsById = new Map(items.map((i) => [i.identity, i]));
+  const notesByItemIdentity = new Map(
+    diary.filter((d) => d.date === date && d.content).map((d) => [d.itemIdentity, d.content as string]),
+  );
   const relevant = logs
     .filter((l) => l.date === date && !l.isSkipped && (l.value ?? 0) > 0 && l.updatedAt != null)
     .sort((a, b) => (a.updatedAt as number) - (b.updatedAt as number));
@@ -130,6 +143,8 @@ export function dayTimelineEntries(
       itemIdentity: l.itemIdentity,
       time: new Date(l.updatedAt as number).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }),
       mealTag: l.mealTag,
+      note: notesByItemIdentity.get(l.itemIdentity) ?? null,
+      value: l.value,
     });
   }
   return entries;

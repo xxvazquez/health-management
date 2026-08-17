@@ -1,8 +1,9 @@
-import type { CanonicalEvent } from "@/lib/types";
+import type { CanonicalEvent, RawGymLog } from "@/lib/types";
 import { addDaysToDate, pct, round1, trackedCalendarDates } from "./common";
 import { foodCategoryDistribution, newFoodsOverTime, rankedFoods } from "./food";
 import { supplementStats } from "./supplements";
 import { habitStats } from "./habits";
+import { gymTrainedDates } from "./gym";
 
 export interface ItemMatcher {
   label: string;
@@ -18,6 +19,10 @@ export function matchCategory(category: string): ItemMatcher {
   return { label: category, test: (e) => e.category === category && e.completed };
 }
 
+function dateSetForMatcher(events: CanonicalEvent[], matcher: ItemMatcher): Set<string> {
+  return new Set(events.filter(matcher.test).map((e) => e.date));
+}
+
 /**
  * Which dates count as "we know whether this outcome happened" for a given
  * outcome item. For a consistent logger, absence on a day the app was
@@ -30,7 +35,12 @@ export function matchCategory(category: string): ItemMatcher {
 export function outcomeTrackedDates(events: CanonicalEvent[], item: string): Set<string> {
   const isBristolScale = events.some((e) => e.item === item && e.subcategory === "Bristol Scale");
   if (isBristolScale) {
-    return new Set(events.filter((e) => e.item === item).map((e) => e.date));
+    // "Tracked" is any Bristol reading logged that day — not just this one
+    // type. Using `e.item === item` here (the same predicate that builds
+    // the outcome-occurred set below) would make tracked ≈ occurred by
+    // construction, collapsing every Bristol association toward a 0%
+    // difference regardless of the real signal.
+    return new Set(events.filter((e) => e.subcategory === "Bristol Scale").map((e) => e.date));
   }
   return trackedCalendarDates(events);
 }
@@ -83,31 +93,35 @@ function sampleTier(withTotal: number, withoutTotal: number): SampleTier {
 }
 
 /**
- * Descriptive (non-causal) co-occurrence: of the days we know whether the
- * outcome happened, how often did it happen on days the cause was also
- * tracked+completed, vs days it wasn't? `lagDays` shifts the cause date
+ * The core comparison, working purely on date sets: of the days we know
+ * whether the outcome happened, how often did it happen on days the cause
+ * was also true, vs days it wasn't? `lagDays` shifts the cause date
  * backward relative to the outcome date (lagDays=1 means "cause yesterday
- * -> outcome today").
+ * -> outcome today"). Descriptive (non-causal) only.
+ *
+ * Deliberately takes plain `Set<string>` dates rather than `ItemMatcher`s —
+ * that's what lets every kind of cause/outcome (a specific item, a Bristol
+ * type-group, a gym-trained day, a sleep-duration threshold, an ingredient
+ * pair) share this one statistical implementation instead of each
+ * reimplementing sample-tiering/lag math on its own.
  */
-export function computeAssociation(
-  events: CanonicalEvent[],
-  cause: ItemMatcher,
-  outcomeCompleted: ItemMatcher,
-  outcomeTrackedSet: Set<string>,
-  lagDays = 0,
+export function computeAssociationFromDateSets(
+  causeDates: Set<string>,
+  outcomeOccurredDates: Set<string>,
+  outcomeTrackedDates: Set<string>,
+  lagDays: number,
+  causeLabel: string,
+  outcomeLabel: string,
 ): AssociationResult {
-  const causeDatesCompleted = new Set(events.filter(cause.test).map((e) => e.date));
-  const outcomeCompletedDates = new Set(events.filter(outcomeCompleted.test).map((e) => e.date));
-
   let withCount = 0;
   let withTotal = 0;
   let withoutCount = 0;
   let withoutTotal = 0;
 
-  for (const outcomeDate of outcomeTrackedSet) {
+  for (const outcomeDate of outcomeTrackedDates) {
     const causeDate = addDaysToDate(outcomeDate, -lagDays);
-    const hadCause = causeDatesCompleted.has(causeDate);
-    const occurred = outcomeCompletedDates.has(outcomeDate);
+    const hadCause = causeDates.has(causeDate);
+    const occurred = outcomeOccurredDates.has(outcomeDate);
     if (hadCause) {
       withTotal++;
       if (occurred) withCount++;
@@ -121,8 +135,8 @@ export function computeAssociation(
   const withoutPct = pct(withoutCount, withoutTotal);
 
   return {
-    causeLabel: cause.label,
-    outcomeLabel: outcomeCompleted.label,
+    causeLabel,
+    outcomeLabel,
     lagDays,
     withCount,
     withTotal,
@@ -136,14 +150,53 @@ export function computeAssociation(
   };
 }
 
-export function computeLaggedAssociations(
+/** `ItemMatcher`-based convenience wrapper around `computeAssociationFromDateSets`
+ * for the common case of "a specific item/category occurred". */
+export function computeAssociation(
   events: CanonicalEvent[],
   cause: ItemMatcher,
+  outcomeCompleted: ItemMatcher,
+  outcomeTrackedSet: Set<string>,
+  lagDays = 0,
+): AssociationResult {
+  const causeDatesCompleted = new Set(events.filter(cause.test).map((e) => e.date));
+  const outcomeCompletedDates = new Set(events.filter(outcomeCompleted.test).map((e) => e.date));
+  return computeAssociationFromDateSets(
+    causeDatesCompleted,
+    outcomeCompletedDates,
+    outcomeTrackedSet,
+    lagDays,
+    cause.label,
+    outcomeCompleted.label,
+  );
+}
+
+/**
+ * Date-set builder for a numeric-value threshold on one item (e.g. "sleep
+ * duration >= 7h") — the sibling to `ItemMatcher` for causes that aren't a
+ * simple occurred/didn't-occur tap, needed because `ItemMatcher.test` always
+ * requires `.completed`, which doesn't make sense for a magnitude.
+ */
+export function datesWhereValueMeets(
+  events: CanonicalEvent[],
+  item: string,
+  predicate: (value: number) => boolean,
+): Set<string> {
+  return new Set(
+    events.filter((e) => e.item === item && e.value != null && predicate(e.value)).map((e) => e.date),
+  );
+}
+
+export function computeLaggedAssociations(
+  events: CanonicalEvent[],
+  causeLabel: string,
+  causeDates: Set<string>,
   outcome: ItemMatcher,
   lags: number[] = [0, 1, 2, 3],
 ): AssociationResult[] {
   const trackedSet = outcomeTrackedDates(events, outcome.label);
-  return lags.map((lag) => computeAssociation(events, cause, outcome, trackedSet, lag));
+  const outcomeDates = dateSetForMatcher(events, outcome);
+  return lags.map((lag) => computeAssociationFromDateSets(causeDates, outcomeDates, trackedSet, lag, causeLabel, outcome.label));
 }
 
 export const MIN_INTERESTING_DIFF_PCT = 15;
@@ -170,60 +223,67 @@ const SCAN_LAGS = [0, 1, 2, 3];
  */
 const EXCLUDED_CAUSE_SUPPLEMENT_CATEGORIES = new Set(["Medication", "Digestive Aid", "Creams"]);
 
-/** Habit categories with a plausible physiological route to digestive/other symptoms — kept narrow on purpose. */
-const INCLUDED_CAUSE_HABIT_CATEGORIES = new Set(["Exercise", "Movement"]);
-
+/**
+ * Every habit is an eligible cause candidate — no category allowlist. This
+ * is also what makes a habit someone creates tomorrow automatically usable
+ * by the analytics engine with no special-casing: it's just one more row
+ * `habitStats` returns.
+ */
 function habitCauseCandidates(events: CanonicalEvent[]): ItemMatcher[] {
-  return habitStats(events)
-    .filter((h) => INCLUDED_CAUSE_HABIT_CATEGORIES.has(h.category))
-    .map((h) => matchItem(h.item));
+  return habitStats(events).map((h) => matchItem(h.item));
 }
 
 /**
  * Full cause-candidate pool for the Lag Explorer's dropdown: top-tracked
- * foods and food categories, non-reactive supplements, and exercise/movement
- * habits (so "is exercise related to symptoms at all?" is answerable in the
- * UI, not just in this module).
+ * foods and food categories, non-reactive supplements, every tracked habit,
+ * and (when gym data exists) whether a gym session happened that day — so
+ * "is exercise related to symptoms at all?" is answerable in the UI, not
+ * just in this module.
  */
 export interface CauseOption {
   label: string;
-  matcher: ItemMatcher;
+  dates: Set<string>;
 }
 
-export function allCauseOptions(events: CanonicalEvent[]): CauseOption[] {
-  const foods = rankedFoods(events).map((f) => ({ label: `Food: ${f.item}`, matcher: matchItem(f.item) }));
+export function allCauseOptions(events: CanonicalEvent[], gymLogs: RawGymLog[] = []): CauseOption[] {
+  const foods = rankedFoods(events).map((f) => ({ label: `Food: ${f.item}`, dates: dateSetForMatcher(events, matchItem(f.item)) }));
   const categories = foodCategoryDistribution(events)
     .filter((c) => c.count > 0)
-    .map((c) => ({ label: `Food category: ${c.category}`, matcher: matchCategory(c.category) }));
+    .map((c) => ({ label: `Food category: ${c.category}`, dates: dateSetForMatcher(events, matchCategory(c.category)) }));
   const supplements = supplementStats(events).map((s) => ({
     label: `Supplement: ${s.item}`,
-    matcher: matchItem(s.item),
+    dates: dateSetForMatcher(events, matchItem(s.item)),
   }));
-  const habits = habitCauseCandidates(events).map((m) => ({ label: `Exercise/Movement: ${m.label}`, matcher: m }));
-  return [...foods, ...categories, ...supplements, ...habits];
+  const habits = habitCauseCandidates(events).map((m) => ({ label: `Habit: ${m.label}`, dates: dateSetForMatcher(events, m) }));
+  const gym = gymLogs.length > 0 ? [{ label: "Gym: trained that day", dates: gymTrainedDates(gymLogs) }] : [];
+  return [...foods, ...categories, ...supplements, ...habits, ...gym];
 }
 
 /**
- * Every scan this module runs (12 foods + N supplements + N exercise/movement
- * habits, against every outcome, across 4 lags) is a multiple-comparisons
- * setup: the more pairs checked, the more likely *some* pair clears the
- * diff-pct bar by chance alone, even with an adequate per-pair sample size.
+ * Every scan this module runs (12 foods + N supplements + every tracked
+ * habit + gym, against every outcome, across 4 lags) is a
+ * multiple-comparisons setup: the more pairs checked, the more likely *some*
+ * pair clears the diff-pct bar by chance alone, even with an adequate
+ * per-pair sample size. Dropping the habit-category allowlist widens this
+ * scan meaningfully — treat every entry here as a hypothesis worth
+ * watching, never a conclusion, more so now than before.
  * Surfaced in the UI wherever `generateTopPatterns` results are shown.
  */
 export const MULTIPLE_COMPARISONS_NOTE =
-  "This list is generated by scanning many food/supplement/exercise × symptom × timing combinations and keeping only the strongest gaps. With that many comparisons, some apparently strong associations are expected to appear by chance alone — treat every entry here as a hypothesis worth watching, not a conclusion.";
+  "This list is generated by scanning many food/supplement/habit/exercise × symptom × timing combinations and keeping only the strongest gaps. With that many comparisons, some apparently strong associations are expected to appear by chance alone — treat every entry here as a hypothesis worth watching, not a conclusion.";
 
 /**
- * Scans a curated set of cause candidates (specific top-tracked foods,
- * non-reactive supplements, and exercise/movement habits — never a whole
- * food category) against tracked symptom/outcome items (including stool
- * quality flags, excluding the Bristol scale itself), checking same day
- * through +3 days for each pair, and surfaces only the strongest-lag
- * association per pair when it has both an adequate sample size and a
- * non-trivial percentage-point gap. Purely descriptive — never implies
- * causation. See `MULTIPLE_COMPARISONS_NOTE`.
+ * Scans a curated set of cause candidates (specific top-tracked foods, never
+ * a whole food category; non-reactive supplements; every tracked habit; a
+ * gym-trained day when gym data exists) against tracked symptom/outcome
+ * items (including stool quality flags, excluding the Bristol scale
+ * itself — see `bristolPatterns.ts` for that), checking same day through +3
+ * days for each pair, and surfaces only the strongest-lag association per
+ * pair when it has both an adequate sample size and a non-trivial
+ * percentage-point gap. Purely descriptive — never implies causation. See
+ * `MULTIPLE_COMPARISONS_NOTE`.
  */
-export function generateTopPatterns(events: CanonicalEvent[]): AssociationResult[] {
+export function generateTopPatterns(events: CanonicalEvent[], gymLogs: RawGymLog[] = []): AssociationResult[] {
   const outcomeItems = Array.from(
     new Set(
       events
@@ -237,26 +297,28 @@ export function generateTopPatterns(events: CanonicalEvent[]): AssociationResult
   // isn't an actionable signal (of course a broad category correlates with
   // something eaten most days); "bloating after Onion" is. Category-level
   // breakdowns belong on the Food dashboard, not here.
-  const causeCandidates: ItemMatcher[] = [
+  const causeCandidates: { label: string; dates: Set<string> }[] = [
     ...rankedFoods(events)
       .slice(0, TOP_CANDIDATE_FOODS)
-      .map((f) => matchItem(f.item)),
+      .map((f) => ({ label: f.item, dates: dateSetForMatcher(events, matchItem(f.item)) })),
     ...supplementStats(events)
       .filter((s) => !EXCLUDED_CAUSE_SUPPLEMENT_CATEGORIES.has(s.category))
-      .map((s) => matchItem(s.item)),
-    ...habitCauseCandidates(events),
+      .map((s) => ({ label: s.item, dates: dateSetForMatcher(events, matchItem(s.item)) })),
+    ...habitCauseCandidates(events).map((m) => ({ label: m.label, dates: dateSetForMatcher(events, m) })),
+    ...(gymLogs.length > 0 ? [{ label: "Gym: trained that day", dates: gymTrainedDates(gymLogs) }] : []),
   ];
 
   const results: AssociationResult[] = [];
   for (const outcomeName of outcomeItems) {
     const outcome = matchItem(outcomeName);
     const trackedSet = outcomeTrackedDates(events, outcomeName);
+    const outcomeDates = dateSetForMatcher(events, outcome);
     for (const cause of causeCandidates) {
       if (cause.label === outcome.label) continue;
 
       let best: AssociationResult | null = null;
       for (const lag of SCAN_LAGS) {
-        const assoc = computeAssociation(events, cause, outcome, trackedSet, lag);
+        const assoc = computeAssociationFromDateSets(cause.dates, outcomeDates, trackedSet, lag, cause.label, outcome.label);
         if (assoc.sampleTier === "insufficient") continue;
         if (!best || Math.abs(assoc.diffPct) > Math.abs(best.diffPct)) best = assoc;
       }

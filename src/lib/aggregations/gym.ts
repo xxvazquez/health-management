@@ -2,6 +2,14 @@ import { GYM_EXERCISES, type GymExercise, type RawGymLog } from "@/lib/types";
 import type { InsightTone } from "./insights";
 import { round1 } from "./common";
 
+/** Bridges gym data into the cross-domain association engine (`patterns.ts`,
+ * `bristolPatterns.ts`) as a plain date-set — "did a gym session happen
+ * that day" — without migrating gym_logs into the items/logs table gym
+ * itself doesn't need. */
+export function gymTrainedDates(logs: RawGymLog[]): Set<string> {
+  return new Set(logs.map((l) => l.date));
+}
+
 export function formatGymDate(date: string): string {
   return new Date(`${date}T00:00:00Z`).toLocaleDateString(undefined, {
     day: "numeric",

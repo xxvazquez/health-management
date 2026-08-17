@@ -33,6 +33,11 @@ export interface RawItem {
   kind: string | null;
   frequency: string | null;
   isRemoved: boolean;
+  /** User-controlled, reversible "I don't do this anymore" — unlike
+   * `isRemoved`, an archived item's full history stays in every analysis;
+   * only the Log page's tap-candidate pool hides it. Toggled from the
+   * Habits/Supplements page, never inferred automatically. */
+  isArchived: boolean;
   /** Epoch-day-derived ISO date the item was created, if known. */
   createdDate: string | null;
 }
@@ -86,6 +91,10 @@ export interface CanonicalEvent {
   unit: string | null;
   /** direction the source app assigned ('normal' | 'bad'), kept as metadata only. */
   kind: string | null;
+  /** Whether the source item is currently archived — never affects inclusion
+   * here (archived items keep their full history in every analysis), only
+   * lets a UI group by active/archived. False for events with no matching item. */
+  isArchived: boolean;
   source: "item-log";
   itemIdentity: string;
   note: string | null;

@@ -810,6 +810,12 @@
     "category": "Self-care",
     "subcategory": "Rest"
   },
+  "sleep duration": {
+    "canonicalName": "Sleep duration",
+    "itemType": "habit",
+    "category": "Sleep",
+    "subcategory": "Sleep Duration"
+  },
   "sleep well": {
     "canonicalName": "Sleep well",
     "itemType": "habit",

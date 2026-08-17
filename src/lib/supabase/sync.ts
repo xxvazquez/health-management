@@ -15,6 +15,33 @@ import type { OverrideEntry } from "@/taxonomy/classify";
 import type { RawDiaryEntry, RawLog, RawItem, RawGymLog } from "@/lib/types";
 
 /**
+ * Upserts one item's own metadata (name, archive state, etc.) to Supabase —
+ * shared by `syncItemDay` (after a log write) and any action that only
+ * changes the item itself, like renaming or archiving/unarchiving from the
+ * Habits/Supplements page. No-op if Supabase isn't configured or nobody's
+ * signed in.
+ */
+export async function pushItem(item: RawItem): Promise<void> {
+  if (!supabase) return;
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session) return;
+
+  await supabase.from("items").upsert({
+    identity: item.identity,
+    user_id: session.user.id,
+    raw_name: item.rawName,
+    unit: item.unit,
+    kind: item.kind,
+    frequency: item.frequency,
+    is_removed: item.isRemoved,
+    is_archived: item.isArchived,
+    created_date: item.createdDate,
+  });
+}
+
+/**
  * Pushes everything logged for one item on one day (from the Log page) to
  * Supabase: upserts the item's own metadata, then replaces that
  * item+date's remote rows with whatever's now stored locally. Silently
@@ -34,18 +61,7 @@ export async function syncItemDay(itemIdentity: string, date: string): Promise<v
   const userId = session.user.id;
 
   const item = await getItem(itemIdentity);
-  if (item) {
-    await supabase.from("items").upsert({
-      identity: item.identity,
-      user_id: userId,
-      raw_name: item.rawName,
-      unit: item.unit,
-      kind: item.kind,
-      frequency: item.frequency,
-      is_removed: item.isRemoved,
-      created_date: item.createdDate,
-    });
-  }
+  if (item) await pushItem(item);
 
   const manualLogs = (await getLogsForItemOnDate(itemIdentity, date)).filter((l) => l.identity.startsWith("manual:"));
 
@@ -118,6 +134,25 @@ export async function pushUserOverride(key: string, entry: OverrideEntry): Promi
   });
 }
 
+/** Upserts one item+day note. No-op if Supabase isn't configured or nobody's signed in. */
+export async function pushDiaryEntry(entry: RawDiaryEntry): Promise<void> {
+  if (!supabase) return;
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session) return;
+
+  await supabase.from("diary").upsert({
+    identity: entry.identity,
+    user_id: session.user.id,
+    item_identity: entry.itemIdentity,
+    date: entry.date,
+    content: entry.content,
+    title: entry.title,
+    updated_at: entry.updatedAt,
+  });
+}
+
 interface ItemRow {
   identity: string;
   raw_name: string;
@@ -125,6 +160,7 @@ interface ItemRow {
   kind: string | null;
   frequency: string | null;
   is_removed: boolean;
+  is_archived: boolean | null;
   created_date: string | null;
 }
 
@@ -224,6 +260,9 @@ export async function pullFromCloud(): Promise<void> {
       kind: row.kind,
       frequency: row.frequency,
       isRemoved: row.is_removed,
+      // Defensive fallback: false until the `is_archived` migration has
+      // been run against this Supabase project (see supabase/schema.sql).
+      isArchived: row.is_archived ?? false,
       createdDate: row.created_date,
     };
     await putItem(item);

@@ -20,7 +20,7 @@ import {
   type SampleTier,
 } from "@/lib/aggregations/patterns";
 import { generateInsights, trackingCoverageSummary } from "@/lib/aggregations/recommendations";
-import type { CanonicalEvent } from "@/lib/types";
+import type { CanonicalEvent, RawGymLog } from "@/lib/types";
 
 const SAMPLE_TIER_COLOR: Record<SampleTier, string> = {
   insufficient: "var(--text-muted)",
@@ -49,10 +49,14 @@ function lagPhrase(lagDays: number): string {
 }
 
 export default function PatternsPage() {
-  const { status, events } = useData();
+  const { status, events, gymLogs } = useData();
   const { span, range, setRange, filtered } = useDateRangeFilter(events);
+  const filteredGymLogs = useMemo(
+    () => (range ? gymLogs.filter((g) => g.date >= range.start && g.date <= range.end) : gymLogs),
+    [gymLogs, range],
+  );
 
-  const topPatterns = useMemo(() => generateTopPatterns(filtered), [filtered]);
+  const topPatterns = useMemo(() => generateTopPatterns(filtered, filteredGymLogs), [filtered, filteredGymLogs]);
   const insights = useMemo(() => generateInsights(filtered), [filtered]);
   const coverage = useMemo(() => trackingCoverageSummary(filtered), [filtered]);
 
@@ -128,7 +132,7 @@ export default function PatternsPage() {
         </div>
       </Card>
 
-      <LagExplorer events={filtered} />
+      <LagExplorer events={filtered} gymLogs={filteredGymLogs} />
 
       <ToleratedFoods events={filtered} />
 
@@ -182,8 +186,8 @@ export default function PatternsPage() {
   );
 }
 
-function LagExplorer({ events }: { events: CanonicalEvent[] }) {
-  const causeOptions = useMemo(() => allCauseOptions(events), [events]);
+function LagExplorer({ events, gymLogs }: { events: CanonicalEvent[]; gymLogs: RawGymLog[] }) {
+  const causeOptions = useMemo(() => allCauseOptions(events, gymLogs), [events, gymLogs]);
 
   const outcomeOptions = useMemo(() => {
     const items = Array.from(
@@ -203,7 +207,7 @@ function LagExplorer({ events }: { events: CanonicalEvent[] }) {
     const causeOption = causeOptions.find((o) => o.label === effectiveCause);
     if (!causeOption) return [];
     const outcomeMatcher = matchItem(effectiveOutcome);
-    return computeLaggedAssociations(events, causeOption.matcher, outcomeMatcher, [0, 1, 2, 3]);
+    return computeLaggedAssociations(events, causeOption.label, causeOption.dates, outcomeMatcher, [0, 1, 2, 3]);
   }, [events, causeOptions, effectiveCause, effectiveOutcome]);
 
   if (causeOptions.length === 0 || outcomeOptions.length === 0) return null;

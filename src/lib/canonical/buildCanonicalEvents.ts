@@ -65,6 +65,7 @@ export function buildCanonicalEvents(
       isSkipped: log.isSkipped,
       unit: item?.unit ?? null,
       kind: item?.kind ?? null,
+      isArchived: item?.isArchived ?? false,
       source: "item-log",
       itemIdentity: log.itemIdentity,
       note: notes && notes.length > 0 ? notes.join(" | ") : null,
