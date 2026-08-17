@@ -110,69 +110,30 @@ function NavLinks({ pathname, collapsed, onNavigate }: { pathname: string; colla
   );
 }
 
+/** Pure status indicator — data syncs automatically (on sign-in, on every
+ * page load, on tab focus), so there's nothing left here to trigger
+ * manually. Just says what's currently on screen. */
 function SyncFooter({ collapsed }: { collapsed?: boolean }) {
-  const { status, isDemoData, syncFromCloud } = useData();
-  const [refreshing, setRefreshing] = useState(false);
+  const { status, isDemoData } = useData();
+  if (status !== "ready") return null;
 
-  async function handleRefresh() {
-    setRefreshing(true);
-    try {
-      // No-ops locally if not signed in — syncFromCloud() still re-reads
-      // whatever's already in IndexedDB either way.
-      await syncFromCloud();
-    } finally {
-      setRefreshing(false);
-    }
-  }
+  const label = isDemoData ? "Viewing demo data" : "Data loaded locally";
+  const color = isDemoData ? "var(--status-warning)" : "var(--status-good)";
 
   if (collapsed) {
     return (
-      <div className="flex flex-col items-center gap-2 border-t pt-4" style={{ borderColor: "var(--gridline)" }}>
-        <span
-          title={status === "ready" && isDemoData ? "Viewing demo data" : "Data loaded locally"}
-          className="h-2 w-2 shrink-0 rounded-full"
-          style={{ background: status === "ready" && isDemoData ? "var(--status-warning)" : "var(--status-good)" }}
-        />
-        <button
-          type="button"
-          title="Refresh"
-          onClick={() => void handleRefresh()}
-          disabled={refreshing}
-          className="flex h-8 w-8 items-center justify-center rounded-full border disabled:opacity-50"
-          style={{ borderColor: "var(--border-hairline)", color: "var(--text-secondary)" }}
-        >
-          <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M16.5 10a6.5 6.5 0 1 1-2-4.7" />
-            <path d="M16.5 3.5V8H12" />
-          </svg>
-        </button>
+      <div className="flex flex-col items-center border-t pt-4" style={{ borderColor: "var(--gridline)" }}>
+        <span title={label} className="h-2 w-2 shrink-0 rounded-full" style={{ background: color }} />
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col gap-2 border-t px-1 pt-4" style={{ borderColor: "var(--gridline)" }}>
-      {status === "ready" && isDemoData && (
-        <span className="inline-flex items-center gap-1.5 px-2 text-xs font-medium whitespace-nowrap" style={{ color: "var(--status-warning)" }}>
-          <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: "var(--status-warning)" }} />
-          Viewing demo data
-        </span>
-      )}
-      {status === "ready" && !isDemoData && (
-        <span className="inline-flex items-center gap-1.5 px-2 text-xs font-medium whitespace-nowrap" style={{ color: "var(--status-good)" }}>
-          <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: "var(--status-good)" }} />
-          Data loaded locally
-        </span>
-      )}
-      <button
-        type="button"
-        onClick={() => void handleRefresh()}
-        disabled={refreshing}
-        className="rounded-lg border px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-colors disabled:opacity-50"
-        style={{ borderColor: "var(--border-hairline)", color: "var(--text-secondary)" }}
-      >
-        {refreshing ? "Refreshing…" : "Refresh"}
-      </button>
+    <div className="border-t px-1 pt-4" style={{ borderColor: "var(--gridline)" }}>
+      <span className="inline-flex items-center gap-1.5 px-2 text-xs font-medium whitespace-nowrap" style={{ color }}>
+        <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: color }} />
+        {label}
+      </span>
     </div>
   );
 }
