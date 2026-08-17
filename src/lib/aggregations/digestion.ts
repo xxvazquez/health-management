@@ -285,10 +285,11 @@ export function digestionInsight(events: CanonicalEvent[]): DigestionInsight {
       recentTrackedDates.length,
     );
     const diff = recentSymptomRate - overallSymptomRate;
+    const compact = `${Math.round(recentSymptomRate)}% recently · ${Math.round(overallSymptomRate)}% usual`;
     if (diff >= SYMPTOM_RATE_DRIFT_PP) {
-      changed.push({ label: "Digestive symptoms", detail: "Logged more often than usual over the last 3 weeks." });
+      changed.push({ label: "Digestive symptoms", detail: "Logged more often than usual over the last 3 weeks.", compact });
     } else if (diff <= -SYMPTOM_RATE_DRIFT_PP) {
-      changed.push({ label: "Digestive symptoms", detail: "Logged less often than usual over the last 3 weeks." });
+      changed.push({ label: "Digestive symptoms", detail: "Logged less often than usual over the last 3 weeks.", compact });
     }
   }
 
@@ -297,7 +298,12 @@ export function digestionInsight(events: CanonicalEvent[]): DigestionInsight {
   // is computed here to actually compare against.
   const unclassifiedRecent = recentEvents.filter((e) => e.subcategory === "Bristol Scale" && e.completed).length - recentClassifiedCount;
   if (recentClassifiedCount + unclassifiedRecent >= 6 && unclassifiedRecent / (recentClassifiedCount + unclassifiedRecent) >= 0.4) {
-    changed.push({ label: "Unclassified entries", detail: "A large share of recent stool logs weren't classifiable into a Bristol type." });
+    const unclassifiedSharePct = Math.round((unclassifiedRecent / (recentClassifiedCount + unclassifiedRecent)) * 100);
+    changed.push({
+      label: "Unclassified entries",
+      detail: "A large share of recent stool logs weren't classifiable into a Bristol type.",
+      compact: `${unclassifiedSharePct}% unclassified recently`,
+    });
   }
 
   return { insufficientData: false, headline, detail, tone, changed };

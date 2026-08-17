@@ -5,8 +5,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import clsx from "clsx";
 import { useData } from "@/lib/DataContext";
-import { pullFromCloud } from "@/lib/supabase/sync";
 import { Logo } from "@/components/Logo";
+import { AccountMenuButton } from "@/components/auth/AccountMenuButton";
+import { AccountPanel } from "@/components/auth/AccountPanel";
 
 function IconWrap({ children }: { children: ReactNode }) {
   return (
@@ -110,16 +111,15 @@ function NavLinks({ pathname, collapsed, onNavigate }: { pathname: string; colla
 }
 
 function SyncFooter({ collapsed }: { collapsed?: boolean }) {
-  const { status, isDemoData, refresh } = useData();
+  const { status, isDemoData, syncFromCloud } = useData();
   const [refreshing, setRefreshing] = useState(false);
 
   async function handleRefresh() {
     setRefreshing(true);
     try {
-      // No-ops locally if not signed in — refresh() still re-reads
+      // No-ops locally if not signed in — syncFromCloud() still re-reads
       // whatever's already in IndexedDB either way.
-      await pullFromCloud();
-      await refresh();
+      await syncFromCloud();
     } finally {
       setRefreshing(false);
     }
@@ -153,13 +153,10 @@ function SyncFooter({ collapsed }: { collapsed?: boolean }) {
   return (
     <div className="flex flex-col gap-2 border-t px-1 pt-4" style={{ borderColor: "var(--gridline)" }}>
       {status === "ready" && isDemoData && (
-        <Link
-          href="/log"
-          className="rounded-lg px-2 py-1.5 text-xs font-medium underline decoration-dotted"
-          style={{ color: "var(--status-warning)", background: "color-mix(in oklab, var(--status-warning) 14%, transparent)" }}
-        >
-          Viewing demo data — sign in to see yours
-        </Link>
+        <span className="inline-flex items-center gap-1.5 px-2 text-xs font-medium whitespace-nowrap" style={{ color: "var(--status-warning)" }}>
+          <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: "var(--status-warning)" }} />
+          Viewing demo data
+        </span>
       )}
       {status === "ready" && !isDemoData && (
         <span className="inline-flex items-center gap-1.5 px-2 text-xs font-medium whitespace-nowrap" style={{ color: "var(--status-good)" }}>
@@ -225,7 +222,10 @@ export function Nav() {
             </span>
           )}
         </Link>
-        <div className="mt-8 flex flex-1 flex-col">
+        <div className={clsx("mt-6 flex", collapsed ? "justify-center" : "px-1")}>
+          <AccountMenuButton collapsed={collapsed} />
+        </div>
+        <div className="mt-6 flex flex-1 flex-col">
           <NavLinks pathname={pathname} collapsed={collapsed} />
         </div>
         <SyncFooter collapsed={collapsed} />
@@ -288,11 +288,16 @@ export function Nav() {
             </svg>
           </button>
         </div>
+        <div className="mt-6 px-1">
+          <AccountMenuButton />
+        </div>
         <div className="mt-6 flex flex-1 flex-col">
           <NavLinks pathname={pathname} onNavigate={() => setMobileOpen(false)} />
         </div>
         <SyncFooter />
       </div>
+
+      <AccountPanel />
     </>
   );
 }

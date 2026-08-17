@@ -35,5 +35,5 @@ export function supplementsInsight(events: CanonicalEvent[]): PersonalChangeSumm
     events.filter((e) => e.itemType === "supplement" && e.category !== "Fiber"),
     activeDates,
   );
-  return buildPersonalChangeSummary(trends, "supplement", "supplements");
+  return buildPersonalChangeSummary(trends, "supplement", "supplements", "Taken");
 }

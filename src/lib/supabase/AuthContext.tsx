@@ -12,6 +12,13 @@ interface AuthContextValue {
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
+  /** Whether the single global account panel (sign in/up form, or account
+   * info + sign out once signed in) is open. Shared state so both the main
+   * menu's account button and the logged-out banner open the same panel
+   * instead of each page growing its own login UI. */
+  panelOpen: boolean;
+  openPanel: () => void;
+  closePanel: () => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -20,6 +27,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(supabaseConfigured);
   const [error, setError] = useState<string | null>(null);
+  const [panelOpen, setPanelOpen] = useState(false);
 
   useEffect(() => {
     if (!supabase) return;
@@ -42,14 +50,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!supabase) return;
     setError(null);
     const { error: err } = await supabase.auth.signInWithPassword({ email, password });
-    if (err) setError(err.message);
+    if (err) {
+      setError(err.message);
+    } else {
+      // Signed in — close the panel so the user isn't left staring at a
+      // stale login form after it already worked.
+      setPanelOpen(false);
+    }
   }, []);
 
   const signUp = useCallback(async (email: string, password: string) => {
     if (!supabase) return;
     setError(null);
     const { error: err } = await supabase.auth.signUp({ email, password });
-    if (err) setError(err.message);
+    if (err) {
+      setError(err.message);
+    } else {
+      setPanelOpen(false);
+    }
   }, []);
 
   const signOut = useCallback(async () => {
@@ -57,9 +75,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await supabase.auth.signOut();
   }, []);
 
+  const openPanel = useCallback(() => setPanelOpen(true), []);
+  const closePanel = useCallback(() => setPanelOpen(false), []);
+
   const value = useMemo(
-    () => ({ configured: supabaseConfigured, session, loading, error, signIn, signUp, signOut }),
-    [session, loading, error, signIn, signUp, signOut],
+    () => ({ configured: supabaseConfigured, session, loading, error, signIn, signUp, signOut, panelOpen, openPanel, closePanel }),
+    [session, loading, error, signIn, signUp, signOut, panelOpen, openPanel, closePanel],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -178,20 +178,28 @@ export function computeOverviewInsight(events: CanonicalEvent[]): OverviewInsigh
   const last7 = sortedTracked.filter((d) => d >= addDaysToDate(span.end, -6)).length;
   const prior7 = sortedTracked.filter((d) => d >= addDaysToDate(span.end, -13) && d < addDaysToDate(span.end, -6)).length;
   if (Math.abs(last7 - prior7) >= CHANGE_DAY_THRESHOLD) {
-    whatChanged.push({ label: "Tracking", detail: `Logged on ${last7} of the last 7 days, vs. ${prior7} the week before.` });
+    whatChanged.push({
+      label: "Tracking",
+      detail: `Logged on ${last7} of the last 7 days, vs. ${prior7} the week before.`,
+      compact: `${last7}/7 days recently · ${prior7}/7 before`,
+    });
   }
   if (!habits.insufficientData) {
-    for (const b of habits.changed.slice(0, 2)) whatChanged.push({ label: `Habits: ${b.label}`, detail: b.detail });
+    for (const b of habits.changed.slice(0, 2)) whatChanged.push({ label: b.label, detail: b.detail, compact: b.compact });
   }
   if (!supplements.insufficientData) {
-    for (const b of supplements.changed.slice(0, 2)) whatChanged.push({ label: `Supplements: ${b.label}`, detail: b.detail });
+    for (const b of supplements.changed.slice(0, 2)) whatChanged.push({ label: b.label, detail: b.detail, compact: b.compact });
   }
   const plantTrend = food.trend.available ? food.trend.points.find((p) => p.label.startsWith("Plant diversity")) : null;
   if (plantTrend && Math.abs(plantTrend.current - plantTrend.previous) >= CHANGE_COUNT_THRESHOLD) {
-    whatChanged.push({ label: "Food variety", detail: `Unique plant foods over 30 days: ${plantTrend.previous} → ${plantTrend.current}.` });
+    whatChanged.push({
+      label: "Food variety",
+      detail: `Unique plant foods over 30 days: ${plantTrend.previous} → ${plantTrend.current}.`,
+      compact: `${plantTrend.previous} → ${plantTrend.current} unique plants`,
+    });
   }
   if (!digestion.insufficientData) {
-    for (const b of digestion.changed.slice(0, 1)) whatChanged.push({ label: `Digestion: ${b.label}`, detail: b.detail });
+    for (const b of digestion.changed.slice(0, 1)) whatChanged.push({ label: b.label, detail: b.detail, compact: b.compact });
   }
 
   return {

@@ -4,6 +4,7 @@ import "./globals.css";
 import { DataProvider } from "@/lib/DataContext";
 import { AuthProvider } from "@/lib/supabase/AuthContext";
 import { Nav } from "@/components/Nav";
+import { AuthBanner } from "@/components/auth/AuthBanner";
 
 const bodyFont = Inter({
   variable: "--font-body",
@@ -22,8 +23,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <AuthProvider>
           <DataProvider>
             <Nav />
-            <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
-              <div className="mx-auto w-full max-w-5xl">{children}</div>
+            <main className="flex min-w-0 flex-1 flex-col">
+              <AuthBanner />
+              <div className="px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
+                <div className="mx-auto w-full max-w-5xl">{children}</div>
+              </div>
             </main>
           </DataProvider>
         </AuthProvider>
