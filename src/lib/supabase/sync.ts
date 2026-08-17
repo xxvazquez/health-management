@@ -1,8 +1,17 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "./client";
-import { getLogsForItemOnDate, getItem, putDiaryEntry, putLog, putItem, setUserOverride } from "@/lib/db/indexedDb";
+import {
+  getLogsForItemOnDate,
+  getItem,
+  putDiaryEntry,
+  putLog,
+  putItem,
+  putGymLog,
+  deleteGymLogById,
+  setUserOverride,
+} from "@/lib/db/indexedDb";
 import type { OverrideEntry } from "@/taxonomy/classify";
-import type { RawDiaryEntry, RawLog, RawItem } from "@/lib/types";
+import type { RawDiaryEntry, RawLog, RawItem, RawGymLog } from "@/lib/types";
 
 /**
  * Pushes everything logged for one item on one day (from the Log page) to
@@ -55,6 +64,40 @@ export async function syncItemDay(itemIdentity: string, date: string): Promise<v
       })),
     );
   }
+}
+
+/**
+ * Upserts one gym log to Supabase, keyed by its own id — unlike
+ * syncItemDay's item+date replace strategy, since a gym log has no
+ * separate "item" dimension to key off (the exercise is the value, not an
+ * identity). No-op if Supabase isn't configured or nobody's signed in.
+ */
+export async function pushGymLog(log: RawGymLog): Promise<void> {
+  if (!supabase) return;
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session) return;
+
+  await supabase.from("gym_logs").upsert({
+    id: log.id,
+    user_id: session.user.id,
+    date: log.date,
+    exercise: log.exercise,
+    weight_kg: log.weightKg,
+    updated_at: new Date(log.updatedAt).toISOString(),
+  });
+}
+
+/** Deletes one gym log locally and (if signed in) from Supabase. */
+export async function deleteGymLog(id: string): Promise<void> {
+  await deleteGymLogById(id);
+  if (!supabase) return;
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session) return;
+  await supabase.from("gym_logs").delete().eq("id", id);
 }
 
 export async function pushUserOverride(key: string, entry: OverrideEntry): Promise<void> {
@@ -112,6 +155,14 @@ interface DiaryRow {
   updated_at: number | null;
 }
 
+interface GymLogRow {
+  id: string;
+  date: string;
+  exercise: RawGymLog["exercise"];
+  weight_kg: number;
+  updated_at: string;
+}
+
 const PAGE_SIZE = 1000;
 
 /**
@@ -146,11 +197,12 @@ export async function pullFromCloud(): Promise<void> {
   } = await supabase.auth.getSession();
   if (!session) return;
 
-  const [itemRows, logRows, overrideRows, diaryRows] = await Promise.all([
+  const [itemRows, logRows, overrideRows, diaryRows, gymLogRows] = await Promise.all([
     fetchAllRows<ItemRow>(supabase, "items"),
     fetchAllRows<LogRow>(supabase, "logs"),
     fetchAllRows<OverrideRow>(supabase, "user_overrides"),
     fetchAllRows<DiaryRow>(supabase, "diary"),
+    fetchAllRows<GymLogRow>(supabase, "gym_logs"),
   ]);
 
   for (const row of itemRows) {
@@ -199,5 +251,16 @@ export async function pullFromCloud(): Promise<void> {
       updatedAt: row.updated_at,
     };
     await putDiaryEntry(entry);
+  }
+
+  for (const row of gymLogRows) {
+    const log: RawGymLog = {
+      id: row.id,
+      date: row.date,
+      exercise: row.exercise,
+      weightKg: row.weight_kg,
+      updatedAt: new Date(row.updated_at).getTime(),
+    };
+    await putGymLog(log);
   }
 }
