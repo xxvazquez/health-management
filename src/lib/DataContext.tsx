@@ -146,13 +146,21 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (authLoading) return;
     if (!session) {
-      pulledForUserId.current = null;
+      // Signing out after a real sync happened this session — wipe the
+      // local cache so this device stops showing (or leaking, on a
+      // shared computer) the account that just signed out. Guest-mode
+      // local logging afterward is still fine; this only fires once, at
+      // the sign-out transition itself.
+      if (pulledForUserId.current !== null) {
+        pulledForUserId.current = null;
+        void clearAllData().then(() => refresh());
+      }
       return;
     }
     if (pulledForUserId.current === session.user.id) return;
     pulledForUserId.current = session.user.id;
     void syncFromCloud();
-  }, [session, authLoading, syncFromCloud]);
+  }, [session, authLoading, syncFromCloud, refresh]);
 
   // Revalidate from Supabase when the tab regains focus, so data changed
   // on another device shows up without a manual refresh.
