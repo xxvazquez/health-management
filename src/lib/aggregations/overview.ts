@@ -109,7 +109,6 @@ export interface OverviewInsight {
 }
 
 const MIN_TRACKED_DAYS_FOR_INSIGHT = 10;
-const COVERAGE_GOOD_PCT = 75;
 const CHANGE_DAY_THRESHOLD = 2;
 const CHANGE_COUNT_THRESHOLD = 2;
 
@@ -144,10 +143,6 @@ export function computeOverviewInsight(events: CanonicalEvent[]): OverviewInsigh
     };
   }
 
-  const totalCalendarDays = listDatesBetween(span.start, span.end).length;
-  const coveragePct = pct(trackedDates.size, totalCalendarDays);
-  const coverageGood = coveragePct >= COVERAGE_GOOD_PCT;
-
   const habits = habitsInsight(events);
   const supplements = supplementsInsight(events);
   const food = computeNutritionPriorities(events);
@@ -159,18 +154,23 @@ export function computeOverviewInsight(events: CanonicalEvent[]): OverviewInsigh
     ? []
     : food.topPriorities.slice(0, 3).map((p) => ({ label: p.headline, detail: p.detail }));
 
-  let headline = coverageGood ? "Your tracking is consistent" : "Your tracking has been a bit patchy recently";
+  let headline: string;
   if (food.insufficientData) {
-    headline += ", though there's not yet enough food data logged to say what matters most.";
+    headline = "Not enough food data logged yet to say what matters most.";
   } else if (needsAttention.length > 0) {
-    headline += `, and ${needsAttention[0].label.toLowerCase()} could use more attention.`;
+    headline = `${needsAttention[0].label} could use more attention.`;
   } else if (whatMatters.length > 0) {
-    headline += ", and your tracked food groups are looking well covered.";
+    headline = "Your tracked food groups are looking well covered.";
   } else {
-    headline += ", though there's not a clear standout in your food data yet.";
+    headline = "There's not a clear standout in your food data yet.";
   }
 
-  const tone: InsightTone = !food.insufficientData && needsAttention.length > 0 ? "attention" : coverageGood && !food.insufficientData ? "good" : "neutral";
+  const tone: InsightTone =
+    !food.insufficientData && needsAttention.length > 0
+      ? "attention"
+      : !food.insufficientData && whatMatters.length > 0
+        ? "good"
+        : "neutral";
 
   // --- What changed: every domain's own recent-vs-usual, neutral, capped ---
   const whatChanged: Bullet[] = [];

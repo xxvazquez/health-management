@@ -1,10 +1,30 @@
 import type { ItemType } from "@/taxonomy/categories";
 
-/** A tracked-item definition (a food, symptom, supplement, or habit), as
- * extracted from ZHABIT (dimension data) — "habit" there is the source
- * app's own table name, not a claim that everything tracked is a habit. */
+export const GYM_EXERCISES = [
+  "Squat",
+  "Deadlift",
+  "Overhead Press",
+  "Power Clean",
+  "Bench Press",
+  "Push Ups",
+  "Row Machine",
+] as const;
+export type GymExercise = (typeof GYM_EXERCISES)[number];
+
+/** One logged lift — an exercise + weight on a given day, from the Gym page. */
+export interface RawGymLog {
+  id: string;
+  date: string; // YYYY-MM-DD
+  exercise: GymExercise;
+  weightKg: number;
+  /** Epoch-millisecond timestamp of when this entry was last created or edited. */
+  updatedAt: number;
+}
+
+/** A tracked-item definition (a food, symptom, supplement, or habit) —
+ * Supabase's `items` table. */
 export interface RawItem {
-  /** ZHABIT.ZIDENTITY — stable across exports of the same underlying device DB. */
+  /** Stable identity, unique per user; the row's primary key alongside user_id. */
   identity: string;
   /** Raw, unmodified name from the source (whitespace and all). */
   rawName: string;
@@ -17,21 +37,17 @@ export interface RawItem {
   createdDate: string | null;
 }
 
-/**
- * One log entry for an item on a given day, as extracted from
- * ZDAILYCOMPLETION (the authoritative, longest-running completion source).
- */
+/** One log entry for an item on a given day — Supabase's `logs` table. */
 export interface RawLog {
-  /** ZDAILYCOMPLETION.ZIDENTITY — the natural dedupe/merge key. */
+  /** The natural dedupe/merge key. */
   identity: string;
   itemIdentity: string;
-  /** Epoch day number (ZFORDAY), converted to an ISO date (UTC). */
-  date: string;
+  date: string; // YYYY-MM-DD
   /** Recorded numeric value (count, minutes, steps, etc.) — may be 0. */
   value: number | null;
   goalValue: number | null;
   isSkipped: boolean;
-  /** Last-update timestamp (Core Data epoch seconds) used to resolve merge conflicts. */
+  /** Epoch-millisecond timestamp used to resolve merge conflicts. */
   updatedAt: number | null;
   /** "Breakfast" | "Lunch" | "Dinner" | "Snack" — set from the Log page's
    * meal selector, independent of when the tap actually happened, so
@@ -40,7 +56,7 @@ export interface RawLog {
   mealTag: string | null;
 }
 
-/** A free-text note tied to a specific item + day, from ZDIARY. */
+/** A free-text note tied to a specific item + day — Supabase's `diary` table. */
 export interface RawDiaryEntry {
   identity: string;
   itemIdentity: string;

@@ -1,5 +1,5 @@
 import { openDB, type DBSchema, type IDBPDatabase } from "idb";
-import type { RawItem, RawLog, RawDiaryEntry } from "@/lib/types";
+import type { RawItem, RawLog, RawDiaryEntry, RawGymLog } from "@/lib/types";
 import type { OverrideEntry } from "@/taxonomy/classify";
 
 interface HealthDbSchema extends DBSchema {
@@ -11,10 +11,11 @@ interface HealthDbSchema extends DBSchema {
   // item logged directly (never seen anywhere else) still classifies
   // correctly wherever it's rendered.
   userOverrides: { key: string; value: OverrideEntry };
+  gymLogs: { key: string; value: RawGymLog };
 }
 
 const DB_NAME = "health-analytics";
-const DB_VERSION = 4;
+const DB_VERSION = 5;
 
 let dbPromise: Promise<IDBPDatabase<HealthDbSchema>> | null = null;
 
@@ -39,6 +40,9 @@ function getDb(): Promise<IDBPDatabase<HealthDbSchema>> {
         }
         if (!db.objectStoreNames.contains("userOverrides")) {
           db.createObjectStore("userOverrides");
+        }
+        if (!db.objectStoreNames.contains("gymLogs")) {
+          db.createObjectStore("gymLogs", { keyPath: "id" });
         }
         // Old stores from before this and earlier cleanups — nothing reads
         // these anymore (old browser-import flow + old "habits"/"events"
@@ -81,14 +85,29 @@ export async function hasAnyData(): Promise<boolean> {
 
 export async function clearAllData(): Promise<void> {
   const db = await getDb();
-  const tx = db.transaction(["items", "logs", "diary", "meta"], "readwrite");
+  const tx = db.transaction(["items", "logs", "diary", "meta", "gymLogs"], "readwrite");
   await Promise.all([
     tx.objectStore("items").clear(),
     tx.objectStore("logs").clear(),
     tx.objectStore("diary").clear(),
     tx.objectStore("meta").clear(),
+    tx.objectStore("gymLogs").clear(),
     tx.done,
   ]);
+}
+
+export async function getAllGymLogs(): Promise<RawGymLog[]> {
+  return (await getDb()).getAll("gymLogs");
+}
+
+export async function putGymLog(log: RawGymLog): Promise<void> {
+  const db = await getDb();
+  await db.put("gymLogs", log);
+}
+
+export async function deleteGymLogById(id: string): Promise<void> {
+  const db = await getDb();
+  await db.delete("gymLogs", id);
 }
 
 export async function getAllUserOverrides(): Promise<Record<string, OverrideEntry>> {
