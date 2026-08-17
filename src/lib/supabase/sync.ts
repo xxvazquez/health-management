@@ -9,6 +9,7 @@ import {
   putGymLog,
   deleteGymLogById,
   setUserOverride,
+  clearAllData,
 } from "@/lib/db/indexedDb";
 import type { OverrideEntry } from "@/taxonomy/classify";
 import type { RawDiaryEntry, RawLog, RawItem, RawGymLog } from "@/lib/types";
@@ -189,7 +190,15 @@ async function fetchAllRows<T>(client: SupabaseClient, table: string): Promise<T
   return out;
 }
 
-/** Pulls every cloud row belonging to the signed-in user into IndexedDB. */
+/**
+ * Pulls every cloud row belonging to the signed-in user into IndexedDB —
+ * a full mirror, not a merge. The local cache is wiped first: Supabase is
+ * the only source of truth, so anything in IndexedDB that ISN'T also in
+ * Supabase (leftover local-only taps from before signing in, rows deleted
+ * on another device, stray test data) must not survive a pull. Upserting
+ * on top of whatever was already there would let exactly that kind of
+ * stale data linger and display as if it were real synced data.
+ */
 export async function pullFromCloud(): Promise<void> {
   if (!supabase) return;
   const {
@@ -204,6 +213,8 @@ export async function pullFromCloud(): Promise<void> {
     fetchAllRows<DiaryRow>(supabase, "diary"),
     fetchAllRows<GymLogRow>(supabase, "gym_logs"),
   ]);
+
+  await clearAllData();
 
   for (const row of itemRows) {
     const item: RawItem = {

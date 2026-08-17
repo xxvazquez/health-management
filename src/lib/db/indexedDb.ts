@@ -85,13 +85,14 @@ export async function hasAnyData(): Promise<boolean> {
 
 export async function clearAllData(): Promise<void> {
   const db = await getDb();
-  const tx = db.transaction(["items", "logs", "diary", "meta", "gymLogs"], "readwrite");
+  const tx = db.transaction(["items", "logs", "diary", "meta", "gymLogs", "userOverrides"], "readwrite");
   await Promise.all([
     tx.objectStore("items").clear(),
     tx.objectStore("logs").clear(),
     tx.objectStore("diary").clear(),
     tx.objectStore("meta").clear(),
     tx.objectStore("gymLogs").clear(),
+    tx.objectStore("userOverrides").clear(),
     tx.done,
   ]);
 }
