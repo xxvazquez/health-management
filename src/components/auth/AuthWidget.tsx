@@ -23,12 +23,12 @@ export function AuthWidget() {
 
   if (session) {
     return (
-      <div className="flex items-center gap-2 text-xs" style={{ color: "var(--text-muted)" }}>
+      <div className="flex items-center gap-2 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
         <span className="inline-flex items-center gap-1.5">
           <span className="h-1.5 w-1.5 rounded-full" style={{ background: "var(--status-good)" }} />
           Synced as {session.user.email}
         </span>
-        <button type="button" onClick={() => void signOut()} className="underline decoration-dotted">
+        <button type="button" onClick={() => void signOut()} className="underline decoration-dotted" style={{ color: "var(--text-primary)" }}>
           Sign out
         </button>
       </div>
@@ -40,8 +40,8 @@ export function AuthWidget() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="text-xs underline decoration-dotted"
-        style={{ color: "var(--text-muted)" }}
+        className="text-xs font-medium underline decoration-dotted"
+        style={{ color: "var(--text-secondary)" }}
       >
         Sign in to sync to the cloud
       </button>
@@ -90,8 +90,8 @@ export function AuthWidget() {
       <button
         type="button"
         onClick={() => setMode((m) => (m === "signIn" ? "signUp" : "signIn"))}
-        className="text-xs underline decoration-dotted"
-        style={{ color: "var(--text-muted)" }}
+        className="text-xs font-medium underline decoration-dotted"
+        style={{ color: "var(--text-secondary)" }}
       >
         {mode === "signIn" ? "new here?" : "have an account?"}
       </button>

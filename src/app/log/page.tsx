@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import clsx from "clsx";
 import { useData } from "@/lib/DataContext";
 import { useAuth } from "@/lib/supabase/AuthContext";
 import { AuthWidget } from "@/components/auth/AuthWidget";
@@ -203,6 +204,13 @@ export default function LogPage() {
     () => seasonalPicksForMonth(seasonalCanonical, currentMonth, today),
     [seasonalCanonical, currentMonth, today],
   );
+  // Ranked by neglect for the underlying priority logic, but shown A–Z —
+  // scanning a long chip row is easier alphabetically than by a number
+  // most people won't stop to read anyway.
+  const seasonalPicksSorted = useMemo(
+    () => [...seasonalPicks].sort((a, b) => a.item.localeCompare(b.item)),
+    [seasonalPicks],
+  );
   const weeklyPriority = useMemo(
     () => weeklyCategoryPriority(seasonalCanonical, today),
     [seasonalCanonical, today],
@@ -339,101 +347,90 @@ export default function LogPage() {
     void syncItemDay(identity, date);
   }
 
-  function renderChip(c: LogCandidate, accent: string) {
-    const count = counts.get(c.key) ?? 0;
-    const logged = count > 0;
-    const busy = pending === c.key;
-
+  /** Every chip is a single-tap toggle now — food included. A food can only
+   * be logged once per day; tapping a logged food removes that entry
+   * instead of stacking another one. */
+  function handleChipTap(c: LogCandidate) {
+    const logged = (counts.get(c.key) ?? 0) > 0;
     if (tabConfig.countable) {
-      return (
-        <div
-          key={c.key}
-          className="flex items-stretch overflow-hidden rounded-xl border text-sm font-medium shadow-sm"
-          style={{
-            borderColor: logged ? accent : "var(--border-hairline)",
-            background: logged ? `color-mix(in oklab, ${accent} 18%, var(--surface-1))` : "var(--surface-1)",
-          }}
-        >
-          <button
-            type="button"
-            onClick={() => handleIncrement(c)}
-            disabled={busy}
-            className="px-4 py-2.5 disabled:opacity-60"
-            style={{ color: logged ? "var(--text-primary)" : "var(--text-secondary)" }}
-          >
-            {c.item}
-          </button>
-          {logged && (
-            <button
-              type="button"
-              onClick={() => handleDecrement(c)}
-              disabled={busy}
-              aria-label={`Remove one ${c.item}`}
-              className="border-l px-2.5 py-2.5 font-mono text-xs font-semibold disabled:opacity-60"
-              style={{ borderColor: `color-mix(in oklab, ${accent} 40%, transparent)`, color: accent }}
-            >
-              ×{count}
-            </button>
-          )}
-        </div>
-      );
+      void (logged ? handleDecrement(c) : handleIncrement(c));
+    } else {
+      void handleToggle(c);
     }
+  }
+
+  function renderChip(c: LogCandidate, accent: string) {
+    const logged = (counts.get(c.key) ?? 0) > 0;
+    const busy = pending === c.key;
 
     return (
       <button
         key={c.key}
         type="button"
-        onClick={() => handleToggle(c)}
+        onClick={() => handleChipTap(c)}
         disabled={busy}
-        className="rounded-xl border px-4 py-2.5 text-sm font-medium shadow-sm transition-colors disabled:opacity-60"
+        className={clsx(
+          "rounded-full border px-2.5 py-1.5 text-xs font-medium whitespace-nowrap transition-colors disabled:opacity-50",
+          !logged && "hover:bg-[var(--page-plane)]",
+        )}
         style={{
-          borderColor: logged ? accent : "var(--border-hairline)",
-          background: logged ? `color-mix(in oklab, ${accent} 18%, var(--surface-1))` : "var(--surface-1)",
+          borderColor: logged ? accent : "rgba(36, 49, 58, 0.22)",
+          background: logged ? `color-mix(in oklab, ${accent} 20%, var(--surface-1))` : "var(--surface-1)",
           color: logged ? "var(--text-primary)" : "var(--text-secondary)",
         }}
       >
-        {logged && <span style={{ color: accent }}>✓ </span>}
+        {logged && (
+          <span className="mr-0.5" style={{ color: accent }}>
+            ✓
+          </span>
+        )}
         {c.item}
       </button>
     );
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
             Log
           </h1>
-          <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+          <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
             {isDemoData
               ? "Example data — this is what a tracked day looks like. Sign in or log something for real to replace it."
               : tabConfig.countable
-                ? "Click a food each time you eat it — the count goes up. No forms, nothing to submit."
-                : "Tap what applies. No forms, nothing to submit — every tap saves straight to this device."}
+                ? "Tap a food to log it."
+                : "Tap what applies."}
           </p>
-          <div className="mt-1.5">
+          <div className="mt-1">
             <AuthWidget />
           </div>
         </div>
-        <div className="flex items-center gap-1 rounded-lg border p-1" style={{ borderColor: "var(--border-hairline)" }}>
+        <div className="flex items-center gap-0.5 rounded-lg border p-1" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
           <button
             type="button"
             onClick={() => setDate((d) => addDaysLocal(d, -1))}
-            className="rounded-md px-2 py-1 text-sm"
+            className="flex h-7 w-7 items-center justify-center rounded-md text-sm font-medium"
             style={{ color: "var(--text-secondary)" }}
             aria-label="Previous day"
           >
             ‹
           </button>
-          <span className="min-w-28 px-1 text-center text-sm font-medium" style={{ color: "var(--text-primary)" }}>
+          <span
+            className="min-w-24 rounded-md px-2 py-1 text-center text-sm font-semibold whitespace-nowrap"
+            style={{
+              color: date === today ? "#fff" : "var(--text-primary)",
+              background: date === today ? "var(--series-1)" : "transparent",
+            }}
+          >
             {formatDateLabel(date, today)}
           </span>
           <button
             type="button"
             onClick={() => setDate((d) => (d < today ? addDaysLocal(d, 1) : d))}
             disabled={date >= today}
-            className="rounded-md px-2 py-1 text-sm disabled:opacity-30"
+            className="flex h-7 w-7 items-center justify-center rounded-md text-sm font-medium disabled:opacity-30"
             style={{ color: "var(--text-secondary)" }}
             aria-label="Next day"
           >
@@ -453,7 +450,7 @@ export default function LogPage() {
           <button
             type="button"
             onClick={() => setShowLocalOnlyNotice(false)}
-            className="shrink-0 text-xs underline decoration-dotted"
+            className="shrink-0 text-xs font-medium underline decoration-dotted"
             style={{ color: "var(--text-secondary)" }}
           >
             Dismiss
@@ -461,8 +458,8 @@ export default function LogPage() {
         </div>
       )}
 
-      <div className="flex items-center justify-between gap-4 border-b" style={{ borderColor: "var(--border-hairline)" }}>
-        <nav className="flex items-center gap-1">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <nav className="flex w-fit items-center gap-0.5 rounded-lg p-1" style={{ background: "var(--page-plane)" }}>
           {TABS.map((t) => {
             const active = t.type === tab;
             const count = candidates.filter((c) => c.itemType === t.type).length;
@@ -471,36 +468,37 @@ export default function LogPage() {
                 key={t.type}
                 type="button"
                 onClick={() => setTab(t.type)}
-                className="relative px-3 py-2.5 text-sm font-medium transition-colors"
-                style={{ color: active ? "var(--text-primary)" : "var(--text-muted)" }}
+                className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-colors"
+                style={{
+                  background: active ? "var(--surface-1)" : "transparent",
+                  color: active ? TYPE_ACCENT[t.type] : "var(--text-secondary)",
+                  boxShadow: active ? "var(--shadow-card)" : "none",
+                }}
               >
                 {t.label}
                 {count > 0 && (
-                  <span className="ml-1.5 text-xs" style={{ color: "var(--text-muted)" }}>
+                  <span
+                    className="text-xs font-semibold"
+                    style={{ color: active ? TYPE_ACCENT[t.type] : "var(--text-muted)", opacity: active ? 0.75 : 1 }}
+                  >
                     {count}
                   </span>
-                )}
-                {active && (
-                  <span
-                    className="absolute inset-x-2 -bottom-px h-0.5 rounded-full"
-                    style={{ background: TYPE_ACCENT[t.type] }}
-                  />
                 )}
               </button>
             );
           })}
         </nav>
-        <span className="hidden shrink-0 text-xs sm:inline" style={{ color: "var(--text-muted)" }}>
+        <span className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
           {loggedTodayCount} logged {formatDateLabel(date, today).toLowerCase()}
         </span>
       </div>
 
       {tabConfig.countable && (
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
-            Eaten at:
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-secondary)" }}>
+            Eaten at
           </span>
-          <div className="flex items-center gap-1 rounded-lg border p-1" style={{ borderColor: "var(--border-hairline)" }}>
+          <div className="flex items-center gap-0.5 rounded-lg p-1" style={{ background: "var(--page-plane)" }}>
             {MEAL_OPTIONS.map((m) => {
               const active = m === meal;
               return (
@@ -508,10 +506,10 @@ export default function LogPage() {
                   key={m}
                   type="button"
                   onClick={() => setMeal(m)}
-                  className="rounded-md px-2.5 py-1 text-xs font-medium transition-colors"
+                  className="rounded-md px-2.5 py-1 text-xs font-semibold whitespace-nowrap transition-colors"
                   style={{
-                    color: active ? "var(--text-primary)" : "var(--text-secondary)",
-                    background: active ? `color-mix(in oklab, ${TYPE_ACCENT.food} 16%, var(--surface-1))` : "transparent",
+                    color: active ? "#fff" : "var(--text-secondary)",
+                    background: active ? TYPE_ACCENT.food : "transparent",
                   }}
                 >
                   {m}
@@ -523,23 +521,18 @@ export default function LogPage() {
       )}
 
       {tabConfig.countable && dataReady && seasonalPicks.length > 0 && (
-        <div className="flex flex-col gap-2.5 rounded-lg border p-4" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
+        <div className="flex flex-col gap-2 rounded-lg border p-3" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
           <button
             type="button"
             onClick={() => setPicksOpen((v) => !v)}
             className="flex items-center justify-between gap-2 text-left"
           >
-            <div>
-              <h2 className="text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
-                {monthName} picks
-                <span className="ml-1.5 font-normal normal-case" style={{ color: "var(--text-muted)" }}>
-                  · {seasonalPicks.length} in season
-                </span>
-              </h2>
-              <p className="mt-0.5 text-xs" style={{ color: "var(--text-muted)" }}>
-                In season now around Poland — ranked by how long it&apos;s been, tap to log.
-              </p>
-            </div>
+            <span className="text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-primary)" }}>
+              {monthName} picks
+              <span className="ml-1.5 font-normal normal-case" style={{ color: "var(--text-secondary)" }}>
+                · {seasonalPicks.length} in season
+              </span>
+            </span>
             <svg
               width="14"
               height="14"
@@ -550,22 +543,22 @@ export default function LogPage() {
               strokeLinecap="round"
               strokeLinejoin="round"
               className="shrink-0 transition-transform"
-              style={{ color: "var(--text-muted)", transform: picksOpen ? "rotate(180deg)" : "none" }}
+              style={{ color: "var(--text-secondary)", transform: picksOpen ? "rotate(180deg)" : "none" }}
             >
               <path d="M5 7.5 10 12.5 15 7.5" />
             </svg>
           </button>
           {picksOpen && (
             <>
-              <div className="flex flex-wrap gap-2">
-                {seasonalPicks.map((pick) => (
+              <div className="flex flex-wrap gap-1.5">
+                {seasonalPicksSorted.map((pick) => (
                   <button
                     key={pick.item}
                     type="button"
                     onClick={() => void handleQuickLogSeasonal(pick.item)}
                     disabled={pending === `seasonal:${normalizeName(pick.item)}`}
-                    className="rounded-full border px-3 py-1 text-xs font-medium whitespace-nowrap disabled:opacity-60"
-                    style={{ borderColor: "var(--border-hairline)", color: "var(--text-secondary)" }}
+                    className="rounded-full border px-2.5 py-1 text-xs font-medium whitespace-nowrap disabled:opacity-50"
+                    style={{ borderColor: "rgba(36, 49, 58, 0.22)", color: "var(--text-secondary)", background: "var(--surface-1)" }}
                   >
                     {pick.item}
                     <span className="ml-1" style={{ color: "var(--text-muted)" }}>
@@ -579,7 +572,7 @@ export default function LogPage() {
                 ))}
               </div>
               {leastTrackedCategory && (
-                <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
                   This week&apos;s priority: <strong style={{ color: "var(--text-primary)" }}>{leastTrackedCategory.category}</strong> — logged{" "}
                   {leastTrackedCategory.countThisWeek} time{leastTrackedCategory.countThisWeek === 1 ? "" : "s"} so far.
                 </p>
@@ -590,36 +583,36 @@ export default function LogPage() {
       )}
 
       {!dataReady ? (
-        <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+        <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
           Loading…
         </p>
       ) : (
-        <div className="flex flex-col gap-5">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="flex flex-col gap-4">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {groupedByCategory.map((group) => {
               const accent = tab === "food" ? colorForCategorySlot(group.category) : TYPE_ACCENT[tab];
               const emoji = tab === "food" ? FOOD_CATEGORY_EMOJI[group.category] : null;
               return (
                 <div
                   key={group.category}
-                  className="flex flex-col gap-2.5 rounded-2xl border p-3.5"
+                  className="flex flex-col gap-1.5 rounded-xl border p-2.5"
                   style={{ borderColor: "var(--border-hairline)", background: `color-mix(in oklab, ${accent} 7%, var(--surface-1))` }}
                 >
-                  <h2 className="flex items-center gap-1.5 text-xs font-semibold tracking-wide uppercase" style={{ color: accent }}>
+                  <h2 className="flex items-center gap-1.5 text-xs font-bold tracking-wide uppercase" style={{ color: accent }}>
                     {emoji && <span className="text-sm">{emoji}</span>}
                     {group.category}
-                    <span className="font-normal normal-case" style={{ color: "var(--text-muted)" }}>
+                    <span className="font-medium normal-case" style={{ color: "var(--text-secondary)" }}>
                       · {group.items.length}
                     </span>
                   </h2>
-                  <div className="flex flex-wrap gap-2">{group.items.map((c) => renderChip(c, accent))}</div>
+                  <div className="flex flex-wrap gap-1.5">{group.items.map((c) => renderChip(c, accent))}</div>
                 </div>
               );
             })}
           </div>
 
           {groupedByCategory.length === 0 && (
-            <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+            <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
               Nothing tracked here yet — add your first {tabConfig.label.toLowerCase().replace(/s$/, "")} below.
             </p>
           )}
@@ -628,8 +621,8 @@ export default function LogPage() {
             <button
               type="button"
               onClick={() => setAddingNew(true)}
-              className="self-start rounded-full border border-dashed px-3.5 py-1.5 text-sm whitespace-nowrap"
-              style={{ borderColor: "var(--border-hairline)", color: "var(--text-muted)" }}
+              className="self-start rounded-full border border-dashed px-3 py-1.5 text-sm font-medium whitespace-nowrap"
+              style={{ borderColor: "rgba(36, 49, 58, 0.28)", color: "var(--text-secondary)" }}
             >
               + Something not listed
             </button>
@@ -664,8 +657,8 @@ export default function LogPage() {
                   setAddingNew(false);
                   setNewItemText("");
                 }}
-                className="text-sm underline decoration-dotted"
-                style={{ color: "var(--text-muted)" }}
+                className="text-sm font-medium underline decoration-dotted"
+                style={{ color: "var(--text-secondary)" }}
               >
                 cancel
               </button>
@@ -673,22 +666,22 @@ export default function LogPage() {
           )}
 
           {dayTimeline.length > 0 && (
-            <div className="mt-2 flex flex-col gap-2.5 border-t pt-4" style={{ borderColor: "var(--border-hairline)" }}>
-              <h2 className="text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
+            <div className="mt-1 flex flex-col gap-2 border-t pt-3" style={{ borderColor: "var(--border-hairline)" }}>
+              <h2 className="text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-secondary)" }}>
                 Timeline — {formatDateLabel(date, today).toLowerCase()}
               </h2>
-              <div className="flex gap-2.5 overflow-x-auto pb-2">
+              <div className="flex gap-2 overflow-x-auto pb-2">
                 {dayTimeline.map((entry) => {
                   const busy = pending === entry.key;
                   return (
                     <div
                       key={entry.key}
-                      className="flex shrink-0 flex-col gap-1.5 rounded-xl border px-3 py-2.5"
+                      className="flex shrink-0 flex-col gap-1 rounded-lg border px-2.5 py-2"
                       style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", opacity: busy ? 0.5 : 1 }}
                     >
                       <div className="flex items-center gap-2">
                         <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: TYPE_ACCENT[entry.itemType] }} />
-                        <span className="font-mono text-xs whitespace-nowrap" style={{ color: "var(--text-muted)" }}>
+                        <span className="font-mono text-xs whitespace-nowrap" style={{ color: "var(--text-secondary)" }}>
                           {entry.time}
                         </span>
                         {!isDemoData && (
@@ -698,7 +691,7 @@ export default function LogPage() {
                             disabled={busy}
                             aria-label={`Delete ${entry.item} at ${entry.time}`}
                             className="ml-1 text-xs leading-none disabled:opacity-40"
-                            style={{ color: "var(--text-muted)" }}
+                            style={{ color: "var(--text-secondary)" }}
                           >
                             ✕
                           </button>
@@ -711,8 +704,8 @@ export default function LogPage() {
                         (isDemoData ? (
                           entry.mealTag && (
                             <span
-                              className="rounded-full px-2 py-0.5 text-xs whitespace-nowrap"
-                              style={{ background: "var(--page-plane)", color: "var(--text-muted)" }}
+                              className="rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap"
+                              style={{ background: "var(--page-plane)", color: "var(--text-secondary)" }}
                             >
                               {entry.mealTag}
                             </span>
@@ -722,7 +715,7 @@ export default function LogPage() {
                             value={entry.mealTag ?? ""}
                             disabled={busy}
                             onChange={(e) => void handleChangeEntryMeal(entry, e.target.value)}
-                            className="rounded-full px-2 py-0.5 text-xs whitespace-nowrap outline-none disabled:opacity-40"
+                            className="rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap outline-none disabled:opacity-40"
                             style={{ background: "var(--page-plane)", color: "var(--text-secondary)", border: "none" }}
                           >
                             <option value="" disabled>
