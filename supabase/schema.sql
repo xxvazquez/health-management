@@ -19,6 +19,10 @@ create table public.items (
   kind text,
   frequency text,
   is_removed boolean not null default false,
+  -- User-controlled, reversible "I don't do this anymore" — unlike
+  -- is_removed, an archived item's full history stays in every analysis;
+  -- only the Log page's tap-candidate pool hides it.
+  is_archived boolean not null default false,
   created_date date,
   updated_at timestamp with time zone not null default now(),
   constraint items_pkey primary key (user_id, identity),
@@ -95,3 +99,9 @@ create policy "user_overrides_all_own" on public.user_overrides
 
 create policy "gym_logs_all_own" on public.gym_logs
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- Migrations for a project provisioned before a given date — run only the
+-- ones after your project's setup date, each is safe to run once.
+
+-- 2026-08: adds explicit, user-toggleable habit/supplement archiving.
+-- alter table public.items add column if not exists is_archived boolean not null default false;

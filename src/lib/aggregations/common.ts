@@ -102,3 +102,14 @@ export function isoWeekStart(date: string): string {
 export function monthStart(date: string): string {
   return `${date.slice(0, 7)}-01`;
 }
+
+/** "7h 30m" style — for any minutes-valued observation (currently just
+ * sleep duration). Omits the hours/minutes part when it's zero, so a
+ * 45-minute nap reads as "45m", not "0h 45m". */
+export function formatMinutes(totalMinutes: number): string {
+  const h = Math.floor(totalMinutes / 60);
+  const m = Math.round(totalMinutes % 60);
+  if (h === 0) return `${m}m`;
+  if (m === 0) return `${h}h`;
+  return `${h}h ${m}m`;
+}

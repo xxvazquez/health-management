@@ -77,6 +77,25 @@ export async function putDiaryEntry(entry: RawDiaryEntry): Promise<void> {
   await db.put("diary", entry);
 }
 
+/**
+ * Sets (or clears, with `content: null`) the optional note for one item on
+ * one day — one note per item+day, not per individual tap, matching
+ * `RawDiaryEntry`'s own key shape. Same identity convention `buildCanonicalEvents`
+ * already reads notes back by (`itemIdentity|date`), so this is a plain upsert.
+ */
+export async function setDiaryNote(itemIdentity: string, date: string, content: string | null): Promise<RawDiaryEntry> {
+  const entry: RawDiaryEntry = {
+    identity: `${itemIdentity}|${date}`,
+    itemIdentity,
+    date,
+    content,
+    title: null,
+    updatedAt: Date.now(),
+  };
+  await putDiaryEntry(entry);
+  return entry;
+}
+
 export async function hasAnyData(): Promise<boolean> {
   const db = await getDb();
   const count = await db.count("logs");
@@ -228,6 +247,28 @@ export async function incrementDailyLog(itemIdentity: string, date: string, meal
     isSkipped: false,
     updatedAt: Date.now(),
     mealTag,
+  };
+  await db.put("logs", log);
+}
+
+/**
+ * Sets (or overwrites) a duration-kind item's value for a day — a plain
+ * magnitude, not an occurrence count, so this upserts one log per item per
+ * day by a deterministic identity rather than adding a new row each time.
+ * The raw value passed in is exactly what's stored; nothing here reduces
+ * it to a boolean or a bucket.
+ */
+export async function setDailyDuration(itemIdentity: string, date: string, totalMinutes: number): Promise<void> {
+  const db = await getDb();
+  const log: RawLog = {
+    identity: `manual:duration:${itemIdentity}:${date}`,
+    itemIdentity,
+    date,
+    value: totalMinutes,
+    goalValue: null,
+    isSkipped: false,
+    updatedAt: Date.now(),
+    mealTag: null,
   };
   await db.put("logs", log);
 }

@@ -97,6 +97,7 @@ export function buildDemoDataset(): DemoDataset {
         kind: null,
         frequency: null,
         isRemoved: false,
+        isArchived: false,
         createdDate,
       });
     }

@@ -13,6 +13,11 @@ export interface ItemStats {
   longestStreak: number;
   firstTrackedDate: string;
   lastTrackedDate: string;
+  /** Identity of the underlying item as of its most recent log — the one to
+   * act on for rename/archive. In the rare case a canonical name spans
+   * more than one raw item identity, this is the most recently touched one. */
+  itemIdentity: string;
+  isArchived: boolean;
 }
 
 /**
@@ -45,6 +50,7 @@ export function computeItemStats(events: CanonicalEvent[], activeDates: string[]
     const trackedDates = activeDates.filter((d) => d >= firstOccurrence);
     const { currentStreak, longestStreak } = computeStreaks(trackedDates, completedDates);
 
+    const mostRecent = sorted[sorted.length - 1];
     stats.push({
       item,
       category: sorted[0].category,
@@ -57,6 +63,8 @@ export function computeItemStats(events: CanonicalEvent[], activeDates: string[]
       longestStreak,
       firstTrackedDate: firstOccurrence,
       lastTrackedDate: lastOccurrence,
+      itemIdentity: mostRecent.itemIdentity,
+      isArchived: mostRecent.isArchived,
     });
   }
 

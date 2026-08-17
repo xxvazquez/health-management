@@ -3,15 +3,18 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import clsx from "clsx";
 import { useData } from "@/lib/DataContext";
-import { pushUserOverride, syncItemDay } from "@/lib/supabase/sync";
+import { pushDiaryEntry, pushUserOverride, syncItemDay } from "@/lib/supabase/sync";
 import {
   decrementDailyLog,
   deleteLogById,
+  getAllDiary,
   getAllItems,
   getAllLogs,
   getAllUserOverrides,
   incrementDailyLog,
   putItem,
+  setDailyDuration,
+  setDiaryNote,
   setUserOverride,
   toggleDailyLog,
   updateLogMealTag,
@@ -26,11 +29,14 @@ import {
 } from "@/lib/logCandidates";
 import { buildCanonicalEvents } from "@/lib/canonical/buildCanonicalEvents";
 import { seasonalPicksForMonth, weeklyCategoryPriority } from "@/lib/aggregations/seasonal";
+import { formatMinutes } from "@/lib/aggregations/common";
 import { buildDemoDataset } from "@/lib/demoData";
 import { normalizeName } from "@/taxonomy/normalizeName";
 import { CATEGORIES_BY_TYPE, TYPE_ACCENT, colorForCategorySlot, type ItemType } from "@/taxonomy/categories";
-import { lookupFoodCategory, type OverrideEntry } from "@/taxonomy/classify";
-import type { RawLog, RawItem } from "@/lib/types";
+import { classifyItem, lookupFoodCategory, type OverrideEntry } from "@/taxonomy/classify";
+import { DURATION_DEFAULT_MINUTES, INPUT_KIND } from "@/taxonomy/inputKinds";
+import { DurationStepper } from "@/components/ui/DurationStepper";
+import type { RawLog, RawItem, RawDiaryEntry } from "@/lib/types";
 
 const TABS: { type: ItemType; label: string; placeholder: string; defaultCategory: string; countable: boolean }[] = [
   { type: "food", label: "Food", placeholder: "Add a food or ingredient…", defaultCategory: "Misc", countable: true },
@@ -86,10 +92,83 @@ function formatDateLabel(date: string, today: string): string {
   return new Date(y, m - 1, d).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
 }
 
+/** Optional note for one timeline entry's item+day — collapsed to a small
+ * "+ note" affordance when empty, never a required field or a diary form. */
+function TimelineNote({
+  note,
+  busy,
+  hidden,
+  onSave,
+}: {
+  note: string | null;
+  busy: boolean;
+  hidden: boolean;
+  onSave: (content: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [text, setText] = useState(note ?? "");
+
+  if (hidden) {
+    return note ? (
+      <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
+        {note}
+      </p>
+    ) : null;
+  }
+
+  if (editing) {
+    return (
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          setEditing(false);
+          onSave(text);
+        }}
+        className="flex items-center gap-1"
+      >
+        <input
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          autoFocus
+          placeholder="Add a note…"
+          className="w-32 rounded-md border px-1.5 py-0.5 text-xs outline-none"
+          style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
+        />
+        <button type="submit" className="text-xs font-medium" style={{ color: "var(--status-good)" }}>
+          Save
+        </button>
+      </form>
+    );
+  }
+
+  return note ? (
+    <button
+      type="button"
+      onClick={() => setEditing(true)}
+      disabled={busy}
+      className="text-left text-xs disabled:opacity-40"
+      style={{ color: "var(--text-secondary)" }}
+    >
+      {note}
+    </button>
+  ) : (
+    <button
+      type="button"
+      onClick={() => setEditing(true)}
+      disabled={busy}
+      className="self-start text-xs underline decoration-dotted disabled:opacity-40"
+      style={{ color: "var(--text-muted)" }}
+    >
+      + note
+    </button>
+  );
+}
+
 interface Snapshot {
   items: RawItem[];
   logs: RawLog[];
   userOverrides: Record<string, OverrideEntry>;
+  diary: RawDiaryEntry[];
 }
 
 export default function LogPage() {
@@ -105,12 +184,13 @@ export default function LogPage() {
   const [pending, setPending] = useState<string | null>(null);
 
   const loadSnapshot = useCallback(async () => {
-    const [items, logs, userOverrides] = await Promise.all([
+    const [items, logs, userOverrides, diary] = await Promise.all([
       getAllItems(),
       getAllLogs(),
       getAllUserOverrides(),
+      getAllDiary(),
     ]);
-    setSnapshot({ items, logs, userOverrides });
+    setSnapshot({ items, logs, userOverrides, diary });
   }, []);
 
   useEffect(() => {
@@ -132,8 +212,8 @@ export default function LogPage() {
   const effective = useMemo<Snapshot>(
     () =>
       demo
-        ? { items: demo.items, logs: demo.logs, userOverrides: {} }
-        : (snapshot ?? { items: [], logs: [], userOverrides: {} }),
+        ? { items: demo.items, logs: demo.logs, userOverrides: {}, diary: [] }
+        : (snapshot ?? { items: [], logs: [], userOverrides: {}, diary: [] }),
     [demo, snapshot],
   );
 
@@ -146,6 +226,18 @@ export default function LogPage() {
     () => loggedCountsForDate(effective.items, effective.logs, effective.userOverrides, date),
     [effective, date],
   );
+
+  // For duration-kind items (currently just Sleep duration): the actual
+  // logged value for the day, keyed by item identity — a plain tap count
+  // doesn't mean anything for these, only the value does.
+  const durationValueForDate = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const l of effective.logs) {
+      if (l.date !== date || l.isSkipped || l.value == null) continue;
+      map.set(l.itemIdentity, l.value);
+    }
+    return map;
+  }, [effective, date]);
 
   const tabConfig = TABS.find((t) => t.type === tab)!;
   const tabCandidates = useMemo(() => candidates.filter((c) => c.itemType === tab), [candidates, tab]);
@@ -173,7 +265,7 @@ export default function LogPage() {
   );
 
   const dayTimeline = useMemo(
-    () => dayTimelineEntries(effective.items, effective.logs, effective.userOverrides, date),
+    () => dayTimelineEntries(effective.items, effective.logs, effective.userOverrides, effective.diary, date),
     [effective, date],
   );
 
@@ -240,6 +332,20 @@ export default function LogPage() {
     void syncItemDay(candidate.itemIdentity, date);
   }
 
+  /** Sets (or overwrites) a duration-kind item's value for the day — one
+   * log per item per day, upserted by a deterministic identity, unlike the
+   * increment/toggle flows above which add or remove whole rows. The raw
+   * minutes are always what's stored; nothing here ever reduces it to a
+   * boolean or a bucket — that only happens later, read-only, in analysis. */
+  async function handleSetDuration(candidate: LogCandidate, totalMinutes: number) {
+    if (isDemoData) return;
+    setPending(candidate.key);
+    await setDailyDuration(candidate.itemIdentity, date, totalMinutes);
+    await refreshAfterWrite();
+    setPending(null);
+    void syncItemDay(candidate.itemIdentity, date);
+  }
+
   /** Undoes a specific mistaken tap from the day's timeline — deletes that
    * exact entry, locally and (once synced) in Supabase too. */
   async function handleDeleteEntry(entry: TimelineEntry) {
@@ -262,25 +368,61 @@ export default function LogPage() {
     void syncItemDay(entry.itemIdentity, date);
   }
 
+  /** Optional context for one item on one day — structured data first, this
+   * is just a short note attached to it, never a required field. */
+  async function handleSaveNote(entry: TimelineEntry, content: string) {
+    if (isDemoData) return;
+    setPending(`note:${entry.itemIdentity}`);
+    const saved = await setDiaryNote(entry.itemIdentity, date, content.trim() || null);
+    await refreshAfterWrite();
+    setPending(null);
+    void pushDiaryEntry(saved);
+  }
+
   async function handleAddNew() {
     if (isDemoData) return;
     const name = newItemText.trim();
     if (!name) return;
     const key = normalizeName(name);
+
+    // Reuse an existing candidate under the same canonical name instead of
+    // creating a duplicate item — matches how the seasonal quick-log
+    // suggestions already behave.
+    const existingCandidate = candidates.find((c) => c.itemType === tabConfig.type && normalizeName(c.item) === key);
+    if (existingCandidate) {
+      setNewItemText("");
+      setAddingNew(false);
+      if (tabConfig.countable) {
+        await handleIncrement(existingCandidate);
+      } else {
+        await handleToggle(existingCandidate);
+      }
+      return;
+    }
+
     const identity = generateManualItemId(key);
-    // For food specifically, guess a real category from the name (so a
-    // typed "Kohlrabi" lands under Veggies, not a catch-all Misc bucket)
-    // before falling back to the tab's generic default.
+    // The bundled taxonomy may already know this exact name (e.g. "Sleep
+    // duration") — use that classification as-is rather than shadowing it
+    // with a fresh user override defaulted to this tab's generic category.
+    // Otherwise, for food specifically, guess a real category from the name
+    // (so a typed "Kohlrabi" lands under Veggies, not a catch-all Misc
+    // bucket) before falling back to the tab's generic default.
+    const bundled = classifyItem(name, {});
+    const needsOverride = bundled.matchedBy === "fallback";
     const guessedCategory = tabConfig.type === "food" ? lookupFoodCategory(name) : null;
-    const category = guessedCategory ?? tabConfig.defaultCategory;
-    const override: OverrideEntry = {
-      canonicalName: name,
-      itemType: tabConfig.type,
-      category,
-      subcategory: category,
-    };
+    const category = needsOverride ? (guessedCategory ?? tabConfig.defaultCategory) : bundled.category;
+
     setPending("__new__");
-    await setUserOverride(key, override);
+    if (needsOverride) {
+      const override: OverrideEntry = {
+        canonicalName: name,
+        itemType: tabConfig.type,
+        category,
+        subcategory: category,
+      };
+      await setUserOverride(key, override);
+      void pushUserOverride(key, override);
+    }
     await putItem({
       identity,
       rawName: name,
@@ -288,6 +430,7 @@ export default function LogPage() {
       kind: null,
       frequency: null,
       isRemoved: false,
+      isArchived: false,
       createdDate: date,
     });
     if (tabConfig.countable) {
@@ -299,7 +442,6 @@ export default function LogPage() {
     setAddingNew(false);
     await refreshAfterWrite();
     setPending(null);
-    void pushUserOverride(key, override);
     void syncItemDay(identity, date);
   }
 
@@ -328,6 +470,7 @@ export default function LogPage() {
       kind: null,
       frequency: null,
       isRemoved: false,
+      isArchived: false,
       createdDate: date,
     });
     await incrementDailyLog(identity, date, meal);
@@ -376,6 +519,36 @@ export default function LogPage() {
         )}
         {c.item}
       </button>
+    );
+  }
+
+  /** Duration-kind items (Sleep duration) render an hours+minutes picker
+   * instead of a tap chip — a magnitude, not an occurrence. */
+  function renderDurationControl(c: LogCandidate, accent: string) {
+    const loggedMinutes = durationValueForDate.get(c.itemIdentity);
+    const logged = loggedMinutes != null;
+    // Not logged yet today — start the picker from a sensible anchor
+    // (e.g. 7h for sleep) instead of 0h 0m, so most days need only a small
+    // nudge. Purely a display default: nothing is saved until the picker
+    // is actually touched.
+    const minutes = loggedMinutes ?? DURATION_DEFAULT_MINUTES[c.item] ?? 0;
+    const busy = pending === c.key;
+
+    return (
+      <div
+        key={c.key}
+        className="flex items-center gap-2 rounded-full border px-2.5 py-1"
+        style={{
+          borderColor: logged ? accent : "rgba(36, 49, 58, 0.22)",
+          background: logged ? `color-mix(in oklab, ${accent} 20%, var(--surface-1))` : "var(--surface-1)",
+          opacity: busy ? 0.6 : 1,
+        }}
+      >
+        <span className="text-xs font-medium whitespace-nowrap" style={{ color: logged ? "var(--text-primary)" : "var(--text-secondary)" }}>
+          {c.item}
+        </span>
+        <DurationStepper totalMinutes={minutes} onChange={(m) => void handleSetDuration(c, m)} />
+      </div>
     );
   }
 
@@ -573,7 +746,9 @@ export default function LogPage() {
                       · {group.items.length}
                     </span>
                   </h2>
-                  <div className="flex flex-wrap gap-1.5">{group.items.map((c) => renderChip(c, accent))}</div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {group.items.map((c) => (INPUT_KIND[c.item] === "duration" ? renderDurationControl(c, accent) : renderChip(c, accent)))}
+                  </div>
                 </div>
               );
             })}
@@ -667,6 +842,11 @@ export default function LogPage() {
                       </div>
                       <span className="text-sm font-medium whitespace-nowrap" style={{ color: "var(--text-primary)" }}>
                         {entry.item}
+                        {INPUT_KIND[entry.item] === "duration" && entry.value != null && (
+                          <span className="ml-1.5 font-normal" style={{ color: "var(--text-secondary)" }}>
+                            {formatMinutes(entry.value)}
+                          </span>
+                        )}
                       </span>
                       {entry.itemType === "food" &&
                         (isDemoData ? (
@@ -696,6 +876,12 @@ export default function LogPage() {
                             ))}
                           </select>
                         ))}
+                      <TimelineNote
+                        note={entry.note}
+                        busy={pending === `note:${entry.itemIdentity}`}
+                        hidden={isDemoData}
+                        onSave={(content) => void handleSaveNote(entry, content)}
+                      />
                     </div>
                   );
                 })}
