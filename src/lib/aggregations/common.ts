@@ -5,12 +5,15 @@ export interface DateRange {
   end: string; // YYYY-MM-DD, inclusive
 }
 
-export function filterByDateRange(events: CanonicalEvent[], range?: DateRange): CanonicalEvent[] {
+/** Generic over anything date-stamped (CanonicalEvent, RawGymLog, …) so the
+ * same date-range filter panel works on every analytics page, not just
+ * ones built on CanonicalEvent. */
+export function filterByDateRange<T extends { date: string }>(events: T[], range?: DateRange): T[] {
   if (!range) return events;
   return events.filter((e) => e.date >= range.start && e.date <= range.end);
 }
 
-export function getDatasetSpan(events: CanonicalEvent[]): DateRange | null {
+export function getDatasetSpan<T extends { date: string }>(events: T[]): DateRange | null {
   if (events.length === 0) return null;
   let start = events[0].date;
   let end = events[0].date;

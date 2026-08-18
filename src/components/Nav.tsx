@@ -67,6 +67,12 @@ const ICONS: Record<string, ReactNode> = {
       <rect x="5.4" y="8.2" width="9.2" height="3.6" rx="0.8" />
     </IconWrap>
   ),
+  "Manage items": (
+    <IconWrap>
+      <path d="M6 5.5h8M6 10h8M6 14.5h5" />
+      <circle cx="15.2" cy="14.5" r="1.4" />
+    </IconWrap>
+  ),
 };
 
 /** The two purposes the whole app is organized around — fast logging vs.
@@ -83,6 +89,7 @@ const ANALYTICS_LINKS = [
   { href: "/patterns", label: "Patterns" },
   { href: "/gym", label: "Gym" },
 ];
+const MANAGE_LINKS = [{ href: "/manage", label: "Manage items" }];
 
 function NavSectionLabel({ children, collapsed }: { children: ReactNode; collapsed?: boolean }) {
   if (collapsed) return <div className="my-1.5 h-px" style={{ background: "var(--gridline)" }} />;
@@ -140,6 +147,8 @@ function NavLinks({ pathname, collapsed, onNavigate }: { pathname: string; colla
       <NavLinkList links={LOG_LINKS} pathname={pathname} collapsed={collapsed} onNavigate={onNavigate} />
       <NavSectionLabel collapsed={collapsed}>Analytics</NavSectionLabel>
       <NavLinkList links={ANALYTICS_LINKS} pathname={pathname} collapsed={collapsed} onNavigate={onNavigate} />
+      <NavSectionLabel collapsed={collapsed}>Manage</NavSectionLabel>
+      <NavLinkList links={MANAGE_LINKS} pathname={pathname} collapsed={collapsed} onNavigate={onNavigate} />
     </nav>
   );
 }

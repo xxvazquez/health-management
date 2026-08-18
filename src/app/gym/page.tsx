@@ -6,8 +6,10 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { Insight } from "@/components/ui/Insight";
 import { BulletList } from "@/components/ui/BulletList";
+import { DateRangeFilter } from "@/components/ui/DateRangeFilter";
 import { TrendAreaChart } from "@/components/charts/TrendAreaChart";
 import { RankedBarChart } from "@/components/charts/RankedBarChart";
+import { useDateRangeFilter } from "@/lib/useDateRangeFilter";
 import { putGymLog, deleteGymLogById } from "@/lib/db/indexedDb";
 import { pushGymLog, deleteGymLog } from "@/lib/supabase/sync";
 import {
@@ -113,7 +115,9 @@ function StrengthProgressTable({
   );
   return (
     <Card tier="supporting">
-      <CardTitle subtitle="Ranked by improvement — tap a row for its full progression.">Strength progress</CardTitle>
+      <CardTitle subtitle="Ranked by improvement, full history — tap a row for its full progression. Not affected by the range filter above.">
+        Strength progress
+      </CardTitle>
       <div className="flex flex-col">
         {sorted.map((s) => {
           const hasTrend = s.recordsCount >= 2;
@@ -312,11 +316,18 @@ export default function GymPage() {
   const [compareExercise, setCompareExercise] = useState<GymExercise | null>(null);
   const [weightPrefillSignal, setWeightPrefillSignal] = useState<string | null>(null);
 
+  const { span, range, setRange, filtered: filteredGymLogs } = useDateRangeFilter(gymLogs);
+
+  // Strength progress and Progression track a lift since its very first
+  // recorded weight — filtering those to the range picker below would make
+  // "Started" and "Best" wrong (they'd only reflect whatever's inside the
+  // window), so they always read the full history. Only the frequency-style
+  // cards (how often you trained, which lifts) are scoped to the range.
   const stats = useMemo(() => gymStatsByExercise(gymLogs), [gymLogs]);
   const insight = useMemo(() => gymInsight(gymLogs, today), [gymLogs, today]);
   const consistency = useMemo(() => gymConsistencySummary(gymLogs, today), [gymLogs, today]);
-  const monthlySessions = useMemo(() => gymMonthlySessions(gymLogs), [gymLogs]);
-  const exerciseFrequency = useMemo(() => gymExerciseFrequency(gymLogs), [gymLogs]);
+  const monthlySessions = useMemo(() => gymMonthlySessions(filteredGymLogs), [filteredGymLogs]);
+  const exerciseFrequency = useMemo(() => gymExerciseFrequency(filteredGymLogs), [filteredGymLogs]);
   const timeline = useMemo(() => gymTimeline(gymLogs), [gymLogs]);
 
   const selectedExercise = compareExercise && stats.some((s) => s.exercise === compareExercise) ? compareExercise : (stats[0]?.exercise ?? null);
@@ -472,14 +483,31 @@ export default function GymPage() {
       </Card>
 
       {(insight || consistencyBullets.length > 0) && (
-        <div className="flex flex-col gap-5">
+        <div className="flex flex-col gap-5 lg:col-span-2">
           {insight && <Insight label="What's happening" headline={insight.headline} detail={insight.detail} tone={insight.tone} />}
           {consistencyBullets.length > 0 && <BulletList title="What changed" tone="var(--text-muted)" bullets={consistencyBullets} />}
         </div>
       )}
 
+      {span && range && (
+        <div
+          className="flex flex-wrap items-end justify-between gap-3 border-t pt-4 lg:col-span-2"
+          style={{ borderColor: "var(--gridline)" }}
+        >
+          <div>
+            <p className="text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
+              Evidence
+            </p>
+            <p className="mt-0.5 text-xs" style={{ color: "var(--text-muted)" }}>
+              {range.start} – {range.end}
+            </p>
+          </div>
+          <DateRangeFilter span={span} value={range} onChange={setRange} />
+        </div>
+      )}
+
       <Card tier="raw">
-        <CardTitle size="sm" subtitle="Any day at least one lift was logged, by month">Training frequency</CardTitle>
+        <CardTitle size="sm" subtitle="Any day at least one lift was logged, by month, in this range">Training frequency</CardTitle>
         {monthlySessions.length > 1 ? (
           <TrendAreaChart
             data={monthlySessions.map((m) => ({ date: m.monthStart, value: m.sessions }))}
@@ -513,7 +541,7 @@ export default function GymPage() {
       {selectedStats && (
         <Card tier="supporting" className="lg:col-span-2">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <CardTitle size="default" subtitle="Pick a lift to see its full progression.">
+            <CardTitle size="default" subtitle="Pick a lift to see its full progression — full history, not affected by the range filter above.">
               Progression
             </CardTitle>
             <select
