@@ -6,7 +6,7 @@ import type { Bullet, InsightTone } from "./insights";
 /** The five classified Bristol types this app tracks. "No Bristol" is a logged entry meaning
  * "checked, but couldn't classify" — it is deliberately NOT one of these types; see
  * `unclassifiedStoolStats` below, which reports it as its own, separate quantity. */
-const BRISTOL_TYPES = ["Bristol 1", "Bristol 2", "Bristol 3", "Bristol 4", "Bristol 5"];
+export const BRISTOL_TYPES = ["Bristol 1", "Bristol 2", "Bristol 3", "Bristol 4", "Bristol 5"];
 const NO_BRISTOL_ITEM = "No Bristol";
 
 export interface BristolDistributionEntry {
@@ -17,6 +17,31 @@ export interface BristolDistributionEntry {
 
 function bristolEvents(events: CanonicalEvent[]): CanonicalEvent[] {
   return events.filter((e) => e.subcategory === "Bristol Scale" && e.completed);
+}
+
+/**
+ * Dates any Bristol reading (classified or not) was logged — "we know the
+ * outcome that day" for cross-domain Bristol comparisons. Deliberately
+ * every reading, not just a specific type's own dates: using a single
+ * type's occurred-dates as its own tracked-set would make tracked ≈
+ * occurred by construction and collapse the comparison toward 0 regardless
+ * of the real signal.
+ */
+export function bristolAssessedDates(events: CanonicalEvent[]): Set<string> {
+  return new Set(bristolEvents(events).map((e) => e.date));
+}
+
+/**
+ * Dates where the logged Bristol reading was one of the given types (e.g.
+ * `["Bristol 3", "Bristol 4"]`) — the building block for any Bristol
+ * comparison. Individual types are read fresh from `events` every call;
+ * nothing here collapses or stores a merged category, so a later
+ * comparison distinguishing e.g. Bristol 1–2 from Bristol 5 is just a
+ * different `types` argument, not a data-model change.
+ */
+export function bristolTypeDates(events: CanonicalEvent[], types: readonly string[]): Set<string> {
+  const wanted = new Set(types);
+  return new Set(bristolEvents(events).filter((e) => wanted.has(e.item)).map((e) => e.date));
 }
 
 /**

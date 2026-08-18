@@ -163,3 +163,90 @@ export function newFoodsOverTime(events: CanonicalEvent[]): NewFoodEntry[] {
   }
   return Array.from(firstSeen.values()).sort((a, b) => a.firstSeenDate.localeCompare(b.firstSeenDate));
 }
+
+export interface MealInstance {
+  date: string;
+  mealTag: string;
+  items: string[];
+}
+
+/**
+ * Groups food events into "meal instances" — one per (date, mealTag) — the
+ * unit every combination/pattern function below operates on. Only events
+ * with an explicit meal tag count: most historical (pre-migration) data
+ * predates that field, so a meal instance simply doesn't exist for it
+ * rather than being guessed at. This means combinations will read sparse
+ * on older history and grow more useful as new logs (which always carry a
+ * meal tag) accumulate.
+ */
+export function mealInstances(events: CanonicalEvent[]): MealInstance[] {
+  const byKey = new Map<string, { date: string; mealTag: string; items: Set<string> }>();
+  for (const e of foodEvents(events)) {
+    if (!e.mealTag) continue;
+    const key = `${e.date}|${e.mealTag}`;
+    const entry = byKey.get(key) ?? { date: e.date, mealTag: e.mealTag, items: new Set<string>() };
+    entry.items.add(e.item);
+    byKey.set(key, entry);
+  }
+  return Array.from(byKey.values()).map((e) => ({ date: e.date, mealTag: e.mealTag, items: Array.from(e.items) }));
+}
+
+export interface IngredientPairEntry {
+  itemA: string;
+  itemB: string;
+  count: number;
+}
+
+const MIN_PAIR_COUNT = 3;
+
+/**
+ * Ingredient pairs that co-occurred within the same meal instance at least
+ * `minCount` times — a plain description of what's actually eaten
+ * together ("recurring combinations"), not a comparison against a
+ * baseline (that's what `patterns.ts`'s association engine is for).
+ */
+export function topIngredientPairs(events: CanonicalEvent[], minCount = MIN_PAIR_COUNT): IngredientPairEntry[] {
+  const counts = new Map<string, IngredientPairEntry>();
+  for (const instance of mealInstances(events)) {
+    const items = [...instance.items].sort((a, b) => a.localeCompare(b));
+    for (let i = 0; i < items.length; i++) {
+      for (let j = i + 1; j < items.length; j++) {
+        const key = `${items[i]}|${items[j]}`;
+        const entry = counts.get(key) ?? { itemA: items[i], itemB: items[j], count: 0 };
+        entry.count++;
+        counts.set(key, entry);
+      }
+    }
+  }
+  return Array.from(counts.values())
+    .filter((e) => e.count >= minCount)
+    .sort((a, b) => b.count - a.count);
+}
+
+export interface MealSlotIngredientEntry {
+  mealTag: string;
+  item: string;
+  count: number;
+}
+
+/**
+ * Top individual ingredients per meal slot (breakfast/lunch/dinner/snack)
+ * — "what does a typical breakfast look like" — ranked by how many meal
+ * instances of that slot included it.
+ */
+export function topIngredientsBySlot(events: CanonicalEvent[], limitPerSlot = 5): MealSlotIngredientEntry[] {
+  const bySlot = new Map<string, Map<string, number>>();
+  for (const instance of mealInstances(events)) {
+    const counts = bySlot.get(instance.mealTag) ?? new Map<string, number>();
+    for (const item of instance.items) counts.set(item, (counts.get(item) ?? 0) + 1);
+    bySlot.set(instance.mealTag, counts);
+  }
+  const out: MealSlotIngredientEntry[] = [];
+  for (const [mealTag, counts] of bySlot) {
+    const top = Array.from(counts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, limitPerSlot);
+    for (const [item, count] of top) out.push({ mealTag, item, count });
+  }
+  return out;
+}

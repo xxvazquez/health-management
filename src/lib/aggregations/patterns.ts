@@ -4,6 +4,7 @@ import { foodCategoryDistribution, newFoodsOverTime, rankedFoods } from "./food"
 import { supplementStats } from "./supplements";
 import { habitStats } from "./habits";
 import { gymTrainedDates } from "./gym";
+import { bristolAssessedDates } from "./digestion";
 
 export interface ItemMatcher {
   label: string;
@@ -36,11 +37,8 @@ export function outcomeTrackedDates(events: CanonicalEvent[], item: string): Set
   const isBristolScale = events.some((e) => e.item === item && e.subcategory === "Bristol Scale");
   if (isBristolScale) {
     // "Tracked" is any Bristol reading logged that day — not just this one
-    // type. Using `e.item === item` here (the same predicate that builds
-    // the outcome-occurred set below) would make tracked ≈ occurred by
-    // construction, collapsing every Bristol association toward a 0%
-    // difference regardless of the real signal.
-    return new Set(events.filter((e) => e.subcategory === "Bristol Scale").map((e) => e.date));
+    // type (see `bristolAssessedDates`'s own doc for why).
+    return bristolAssessedDates(events);
   }
   return trackedCalendarDates(events);
 }
@@ -207,9 +205,10 @@ const TOP_CANDIDATE_FOODS = 12;
  * motility a symptom can lag the food/supplement that (maybe) relates to
  * it by a day or more. So each cause/outcome pair is scanned across these
  * lags and the strongest signal is what surfaces, rather than only ever
- * checking same-day.
+ * checking same-day. Exported so other cross-domain scans (e.g.
+ * `bristolPatterns.ts`) use the same lag window rather than picking their own.
  */
-const SCAN_LAGS = [0, 1, 2, 3];
+export const SCAN_LAGS = [0, 1, 2, 3];
 
 /**
  * Supplement categories excluded from the cause-candidate pool:
@@ -260,6 +259,31 @@ export function allCauseOptions(events: CanonicalEvent[], gymLogs: RawGymLog[] =
 }
 
 /**
+ * The scan candidate pool shared by every auto-generated cross-domain scan
+ * (`generateTopPatterns` here, and `generateBristolPatterns` in
+ * `bristolPatterns.ts`) — specific top-tracked foods (never a whole
+ * category — "bloating after Veggies" isn't actionable, "bloating after
+ * Onion" is), non-reactive supplements, every tracked habit, and a
+ * gym-trained day when gym data exists. One definition so both scans stay
+ * in sync rather than drifting apart.
+ */
+export function crossDomainCauseCandidates(
+  events: CanonicalEvent[],
+  gymLogs: RawGymLog[] = [],
+): { label: string; dates: Set<string> }[] {
+  return [
+    ...rankedFoods(events)
+      .slice(0, TOP_CANDIDATE_FOODS)
+      .map((f) => ({ label: f.item, dates: dateSetForMatcher(events, matchItem(f.item)) })),
+    ...supplementStats(events)
+      .filter((s) => !EXCLUDED_CAUSE_SUPPLEMENT_CATEGORIES.has(s.category))
+      .map((s) => ({ label: s.item, dates: dateSetForMatcher(events, matchItem(s.item)) })),
+    ...habitCauseCandidates(events).map((m) => ({ label: m.label, dates: dateSetForMatcher(events, m) })),
+    ...(gymLogs.length > 0 ? [{ label: "Gym: trained that day", dates: gymTrainedDates(gymLogs) }] : []),
+  ];
+}
+
+/**
  * Every scan this module runs (12 foods + N supplements + every tracked
  * habit + gym, against every outcome, across 4 lags) is a
  * multiple-comparisons setup: the more pairs checked, the more likely *some*
@@ -293,20 +317,7 @@ export function generateTopPatterns(events: CanonicalEvent[], gymLogs: RawGymLog
   );
   if (outcomeItems.length === 0) return [];
 
-  // Specific foods only, never a whole category — "bloating after Veggies"
-  // isn't an actionable signal (of course a broad category correlates with
-  // something eaten most days); "bloating after Onion" is. Category-level
-  // breakdowns belong on the Food dashboard, not here.
-  const causeCandidates: { label: string; dates: Set<string> }[] = [
-    ...rankedFoods(events)
-      .slice(0, TOP_CANDIDATE_FOODS)
-      .map((f) => ({ label: f.item, dates: dateSetForMatcher(events, matchItem(f.item)) })),
-    ...supplementStats(events)
-      .filter((s) => !EXCLUDED_CAUSE_SUPPLEMENT_CATEGORIES.has(s.category))
-      .map((s) => ({ label: s.item, dates: dateSetForMatcher(events, matchItem(s.item)) })),
-    ...habitCauseCandidates(events).map((m) => ({ label: m.label, dates: dateSetForMatcher(events, m) })),
-    ...(gymLogs.length > 0 ? [{ label: "Gym: trained that day", dates: gymTrainedDates(gymLogs) }] : []),
-  ];
+  const causeCandidates = crossDomainCauseCandidates(events, gymLogs);
 
   const results: AssociationResult[] = [];
   for (const outcomeName of outcomeItems) {
