@@ -73,17 +73,22 @@ export function generateManualItemId(key: string): string {
  * Occurrence count per item (`${itemType}|${canonicalName}`) on `date` —
  * one log row counts as one occurrence, matching how every other
  * aggregation in the app already counts rows rather than reading `value`.
+ * Pass `meal` to further restrict to rows tagged with that meal — the Log
+ * page uses this so the same food can be logged separately at breakfast,
+ * lunch, and dinner without one meal's tap marking the others as done too.
  */
 export function loggedCountsForDate(
   items: RawItem[],
   logs: RawLog[],
   userOverrides: Record<string, OverrideEntry>,
   date: string,
+  meal?: string | null,
 ): Map<string, number> {
   const itemsById = new Map(items.map((i) => [i.identity, i]));
   const counts = new Map<string, number>();
   for (const l of logs) {
     if (l.date !== date || l.isSkipped || (l.value ?? 0) <= 0) continue;
+    if (meal != null && l.mealTag !== meal) continue;
     const it = itemsById.get(l.itemIdentity);
     if (!it) continue;
     const c = classifyItem(it.rawName, userOverrides);

@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/supabase/AuthContext";
 import { pushDiaryEntry, pushUserOverride, syncItemDay } from "@/lib/supabase/sync";
 import {
   decrementDailyLog,
+  decrementDailyLogForMeal,
   deleteLogById,
   getAllDiary,
   getAllItems,
@@ -318,6 +319,18 @@ export default function LogPage() {
     [effective, date],
   );
 
+  const tabConfig = TABS.find((t) => t.type === tab)!;
+
+  // For the Food tab specifically, a chip's checkmark reflects whether it
+  // was logged for the *currently selected meal*, not the whole day — so
+  // switching from Breakfast to Lunch shows everything unticked again and
+  // milk can be logged separately for breakfast, lunch, and dinner instead
+  // of one tap toggling a single day-wide entry.
+  const mealCounts = useMemo(
+    () => (tabConfig.countable ? loggedCountsForDate(effective.items, effective.logs, effective.userOverrides, date, meal) : counts),
+    [effective, date, meal, tabConfig.countable, counts],
+  );
+
   // For duration-kind items (currently just Sleep duration): the actual
   // logged value for the day, keyed by item identity — a plain tap count
   // doesn't mean anything for these, only the value does.
@@ -330,7 +343,6 @@ export default function LogPage() {
     return map;
   }, [effective, date]);
 
-  const tabConfig = TABS.find((t) => t.type === tab)!;
   const tabCandidates = useMemo(() => candidates.filter((c) => c.itemType === tab), [candidates, tab]);
 
   // True once a typed "add new" name doesn't match any known keyword and
@@ -440,7 +452,11 @@ export default function LogPage() {
   async function handleDecrement(candidate: LogCandidate) {
     if (isDemoData) return;
     setPending(candidate.key);
-    await decrementDailyLog(candidate.itemIdentity, date);
+    if (tabConfig.countable) {
+      await decrementDailyLogForMeal(candidate.itemIdentity, date, meal);
+    } else {
+      await decrementDailyLog(candidate.itemIdentity, date);
+    }
     await refreshAfterWrite();
     setPending(null);
     void syncItemDay(candidate.itemIdentity, date);
@@ -645,17 +661,19 @@ export default function LogPage() {
     return createAndLogNewFood(c.item, c.key, c.category);
   }
 
-  /** Every chip is a single-tap toggle now — food included. A food can only
-   * be logged once per day; tapping a logged food removes that entry
-   * instead of stacking another one. A catalog-only chip (itemIdentity ""
-   * sentinel — see groupedByCategory) has nothing to increment/toggle yet,
-   * so its first tap creates the item instead. */
+  /** Every chip is a single-tap toggle. For Food specifically, that toggle
+   * is per meal, not per day — a food can be logged once per meal, so the
+   * same item can be tapped again under Breakfast, Lunch, and Dinner as
+   * three separate entries; tapping a food already logged for the
+   * currently-selected meal removes just that meal's entry. A catalog-only
+   * chip (itemIdentity "" sentinel — see groupedByCategory) has nothing to
+   * increment/toggle yet, so its first tap creates the item instead. */
   function handleChipTap(c: LogCandidate) {
     if (c.itemIdentity === "") {
       void handleQuickLogCatalog(c);
       return;
     }
-    const logged = (counts.get(c.key) ?? 0) > 0;
+    const logged = (mealCounts.get(c.key) ?? 0) > 0;
     if (tabConfig.countable) {
       void (logged ? handleDecrement(c) : handleIncrement(c));
     } else {
@@ -693,7 +711,7 @@ export default function LogPage() {
    * checkmark, which reads as "the strongest state on the row" without
    * needing a heavy rounded shape to do it. */
   function renderChip(c: LogCandidate, accent: string) {
-    const logged = (counts.get(c.key) ?? 0) > 0;
+    const logged = (mealCounts.get(c.key) ?? 0) > 0;
     const busy = pending === c.key;
 
     return (
@@ -928,7 +946,8 @@ export default function LogPage() {
         <div className="flex flex-col gap-4">
           {groupedByCategory.length > 0 && (
             <p className="flex items-center gap-1 text-xs" style={{ color: "var(--text-muted)" }}>
-              <span style={{ color: TYPE_ACCENT[tab] }}>✓</span> logged {formatDateLabel(date, today).toLowerCase()} — tap again to remove
+              <span style={{ color: TYPE_ACCENT[tab] }}>✓</span> logged{" "}
+              {tabConfig.countable ? `for ${meal.toLowerCase()}` : formatDateLabel(date, today).toLowerCase()} — tap again to remove
             </p>
           )}
 
