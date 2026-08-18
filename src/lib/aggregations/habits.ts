@@ -2,7 +2,7 @@ import type { CanonicalEvent } from "@/lib/types";
 import { HABIT_CATEGORIES } from "@/taxonomy/categories";
 import { computeItemStatsForFilter, computeItemTrends, type ItemStats } from "./itemStats";
 import { trackedCalendarDates } from "./common";
-import { buildPersonalChangeSummary, type PersonalChangeSummary } from "./insights";
+import { buildPersonalChangeSummary, summarizeDrift, type DriftSummary, type PersonalChangeSummary } from "./insights";
 
 export interface HabitGroup {
   category: string;
@@ -30,10 +30,19 @@ export function habitsByCategory(events: CanonicalEvent[]): HabitGroup[] {
  * isn't "behind" for staying occasional.
  */
 export function habitsInsight(events: CanonicalEvent[]): PersonalChangeSummary {
+  return buildPersonalChangeSummary(habitTrends(events), "habit", "habits", "Done");
+}
+
+/** "At a glance" numbers for the Habits page header — same trend data as
+ * `habitsInsight`, summarized as plain counts instead of a sentence. */
+export function habitsAtAGlance(events: CanonicalEvent[]): DriftSummary {
+  return summarizeDrift(habitTrends(events));
+}
+
+function habitTrends(events: CanonicalEvent[]) {
   const activeDates = Array.from(trackedCalendarDates(events)).sort();
-  const trends = computeItemTrends(
+  return computeItemTrends(
     events.filter((e) => e.itemType === "habit"),
     activeDates,
   );
-  return buildPersonalChangeSummary(trends, "habit", "habits", "Done");
 }

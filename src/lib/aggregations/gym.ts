@@ -156,16 +156,6 @@ export function formatGymDate(date: string): string {
   });
 }
 
-export function formatGymDateTime(epochMs: number): string {
-  return new Date(epochMs).toLocaleString(undefined, {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
-
 export interface GymEntry {
   id: string;
   date: string;

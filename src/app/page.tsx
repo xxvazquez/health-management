@@ -3,13 +3,11 @@
 import { useMemo, type ReactNode } from "react";
 import { useData } from "@/lib/DataContext";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { StatTile } from "@/components/ui/StatTile";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { SampleTierBadge } from "@/components/ui/SampleTierBadge";
-import { computeOverviewStats, computeOverviewInsight, topCrossDomainFindings } from "@/lib/aggregations/overview";
+import { computeOverviewInsight, topCrossDomainFindings } from "@/lib/aggregations/overview";
 import type { Bullet } from "@/lib/aggregations/insights";
 import type { AssociationResult } from "@/lib/aggregations/patterns";
-import { TYPE_ACCENT } from "@/taxonomy/categories";
 
 /** "the same day as X" / "the day after X" / "2 days after X" */
 function lagPhrase(lagDays: number): string {
@@ -114,20 +112,19 @@ function ChangeTile({ label, value }: { label: string; value: string }) {
 export default function OverviewPage() {
   const { status, events, gymLogs, unclassifiedItems } = useData();
 
-  const stats = useMemo(() => (events.length > 0 ? computeOverviewStats(events) : null), [events]);
   const insight = useMemo(() => computeOverviewInsight(events), [events]);
   const crossDomainFindings = useMemo(() => topCrossDomainFindings(events, gymLogs), [events, gymLogs]);
 
   if (status === "loading") {
     return <p style={{ color: "var(--text-secondary)" }}>Loading your data…</p>;
   }
-  if (status === "empty" || !stats) {
+  if (status === "empty" || events.length === 0) {
     return <EmptyState />;
   }
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-2xl font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
+      <h1 className="text-xl font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
         Overview
       </h1>
 
@@ -161,54 +158,6 @@ export default function OverviewPage() {
 
       {crossDomainFindings.length > 0 && <CrossDomainFindings findings={crossDomainFindings} />}
 
-      <div>
-        <SectionLabel>At a glance</SectionLabel>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <StatTile
-            label="Most tracked food"
-            value={stats.food.topFood?.item ?? "—"}
-            detail={stats.food.topFood ? `${stats.food.topFood.count} days` : undefined}
-            accent={TYPE_ACCENT.food}
-          />
-          <StatTile
-            label="Least tracked food"
-            value={stats.food.leastTrackedFood?.item ?? "—"}
-            detail={stats.food.leastTrackedFood ? `${stats.food.leastTrackedFood.count} day${stats.food.leastTrackedFood.count === 1 ? "" : "s"}` : undefined}
-            accent={TYPE_ACCENT.food}
-          />
-          <StatTile
-            label="Supplement consistency"
-            value={`${stats.supplements.averageConsistencyPct}%`}
-            detail={`avg across ${stats.supplements.count} tracked`}
-            accent={TYPE_ACCENT.supplement}
-          />
-          <StatTile
-            label="Most consistent supplement"
-            value={stats.supplements.mostConsistent?.item ?? "—"}
-            detail={stats.supplements.mostConsistent ? `${stats.supplements.mostConsistent.consistencyPct}% consistency` : undefined}
-            accent={TYPE_ACCENT.supplement}
-          />
-          <StatTile
-            label="Habit consistency"
-            value={`${stats.habits.averageConsistencyPct}%`}
-            detail={`avg across ${stats.habits.count} tracked`}
-            accent={TYPE_ACCENT.habit}
-          />
-          <StatTile
-            label="Most common Bristol type"
-            value={stats.digestion.mostCommonBristol?.item ?? "—"}
-            detail={stats.digestion.mostCommonBristol ? `${stats.digestion.mostCommonBristol.sharePct}% of logged days` : undefined}
-            accent={TYPE_ACCENT.outcome}
-          />
-          <StatTile
-            label="Digestive symptom frequency"
-            value={`${stats.digestion.digestiveSymptomDaysPct}%`}
-            detail="of tracked days"
-            accent={TYPE_ACCENT.outcome}
-          />
-        </div>
-      </div>
-
       {unclassifiedItems.length > 0 && (
         <Card tier="raw">
           <CardTitle size="sm" subtitle="Data-quality notes — nothing here affects your logged history, only how it's grouped and displayed">
@@ -227,7 +176,7 @@ export default function OverviewPage() {
               {unclassifiedItems.map((name) => (
                 <span
                   key={name}
-                  className="rounded-full px-2.5 py-1 text-xs whitespace-nowrap"
+                  className="rounded-md px-2.5 py-1 text-xs whitespace-nowrap"
                   style={{ background: "var(--page-plane)", color: "var(--text-secondary)" }}
                 >
                   {name}

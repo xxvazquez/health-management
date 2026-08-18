@@ -13,7 +13,7 @@ const SAMPLE_TIER_COLOR: Record<SampleTier, string> = {
 export function SampleTierBadge({ tier }: { tier: SampleTier }) {
   return (
     <span
-      className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium whitespace-nowrap uppercase tracking-wide"
+      className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-medium whitespace-nowrap uppercase tracking-wide"
       style={{ color: SAMPLE_TIER_COLOR[tier], background: "var(--page-plane)" }}
       title={SAMPLE_TIER_EXPLANATION[tier]}
     >

@@ -220,6 +220,11 @@ const GROUP_KEYWORDS: Record<string, NutritionGroupId[]> = {
   yoghurt: ["fermented_dairy"], yogurt: ["fermented_dairy"], kefir: ["fermented_dairy"],
   cheese: ["fermented_dairy"], feta: ["fermented_dairy"],
   milk: ["dairy_other"], cream: ["dairy_other"], "cream (dairy)": ["dairy_other"], butter: ["dairy_other"],
+  // Plant milks are not dairy — these longer, more specific keys are checked
+  // before the bare "milk" above (KEYWORD_ENTRIES sorts longest-first), so
+  // they shadow it instead of falling through to dairy_other.
+  "oat milk": [], "almond milk": [], "soy milk": [], "coconut milk": [], "cashew milk": [],
+  "rice milk": [], "millet milk": [],
 
   // Fats
   "olive oil": ["olive_oil"], "extra virgin olive oil": ["olive_oil"], "extra-virgin olive oil": ["olive_oil"],

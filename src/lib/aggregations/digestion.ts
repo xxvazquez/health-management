@@ -3,10 +3,9 @@ import { addDaysToDate, getDatasetSpan, isoWeekStart, monthStart, pct, round1, t
 import { computeItemStatsForFilter, type ItemStats } from "./itemStats";
 import type { Bullet, InsightTone } from "./insights";
 
-/** The five classified Bristol types this app tracks. "No Bristol" is a logged entry meaning
- * "checked, but couldn't classify" — it is deliberately NOT one of these types; see
- * `unclassifiedStoolStats` below, which reports it as its own, separate quantity. */
-export const BRISTOL_TYPES = ["Bristol 1", "Bristol 2", "Bristol 3", "Bristol 4", "Bristol 5"];
+/** "No Bristol" is a logged entry meaning "checked, but couldn't classify" —
+ * excluded from every classified-type stat, reported separately via
+ * `unclassifiedStoolStats`. */
 const NO_BRISTOL_ITEM = "No Bristol";
 
 /** Numeric score behind each classified Bristol type — 1–5, matching what this
@@ -21,12 +20,6 @@ export const BRISTOL_SCORE: Record<string, number> = {
   "Bristol 4": 4,
   "Bristol 5": 5,
 };
-
-export interface BristolDistributionEntry {
-  item: string;
-  count: number;
-  sharePct: number;
-}
 
 function bristolEvents(events: CanonicalEvent[]): CanonicalEvent[] {
   return events.filter((e) => e.subcategory === "Bristol Scale" && e.completed);
@@ -55,24 +48,6 @@ export function bristolAssessedDates(events: CanonicalEvent[]): Set<string> {
 export function bristolTypeDates(events: CanonicalEvent[], types: readonly string[]): Set<string> {
   const wanted = new Set(types);
   return new Set(bristolEvents(events).filter((e) => wanted.has(e.item)).map((e) => e.date));
-}
-
-/**
- * Bristol type distribution among CLASSIFIED entries only (Bristol 1–5).
- * "No Bristol" entries are excluded here — they aren't a type of stool, they're
- * an explicit "unclassified" log — and are surfaced separately via
- * `unclassifiedStoolStats`.
- */
-export function bristolDistribution(events: CanonicalEvent[]): BristolDistributionEntry[] {
-  const bristol = bristolEvents(events).filter((e) => e.item !== NO_BRISTOL_ITEM);
-  const total = bristol.length;
-  const counts = new Map<string, number>();
-  for (const e of bristol) counts.set(e.item, (counts.get(e.item) ?? 0) + 1);
-  return BRISTOL_TYPES.filter((item) => counts.has(item)).map((item) => ({
-    item,
-    count: counts.get(item) ?? 0,
-    sharePct: pct(counts.get(item) ?? 0, total),
-  }));
 }
 
 export interface UnclassifiedStoolStats {

@@ -26,14 +26,18 @@ import { formatMonthYear } from "@/lib/aggregations/common";
 import type { Bullet } from "@/lib/aggregations/insights";
 import { GYM_EXERCISES, type GymExercise, type RawGymLog } from "@/lib/types";
 
+// Only hues on the Lauva brand's own leaf→wave→lavender→dot arc — the
+// broader categorical palette's warm accents (series-5/7, added purely to
+// stretch an 8-way chart palette) don't belong on a page with no such
+// constraint to work around.
 const EXERCISE_COLOR: Record<GymExercise, string> = {
-  Squat: "var(--series-1)",
-  Deadlift: "var(--series-2)",
-  "Overhead Press": "var(--series-3)",
-  "Power Clean": "var(--series-4)",
-  "Bench Press": "var(--series-5)",
-  "Push Ups": "var(--series-6)",
-  "Row Machine": "var(--series-7)",
+  Squat: "var(--series-6)",
+  Deadlift: "var(--series-1)",
+  "Overhead Press": "var(--series-2)",
+  "Power Clean": "var(--series-indigo)",
+  "Bench Press": "var(--series-3)",
+  "Push Ups": "var(--series-magenta)",
+  "Row Machine": "var(--series-4)",
 };
 
 function todayLocalISODate(): string {
@@ -270,7 +274,7 @@ function EntryList({
               </span>
               {entry.isPR && (
                 <span
-                  className="rounded-full px-1.5 py-0.5 text-[10px] font-medium tracking-wide uppercase"
+                  className="rounded-md px-1.5 py-0.5 text-[10px] font-medium tracking-wide uppercase"
                   style={{ background: "color-mix(in oklab, var(--status-good) 16%, transparent)", color: "var(--status-good)" }}
                 >
                   PR
@@ -304,6 +308,7 @@ export default function GymPage() {
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [editing, setEditing] = useState<EditState | null>(null);
   const [timelineFilter, setTimelineFilter] = useState<GymExercise | "all">("all");
+  const [timelineOpen, setTimelineOpen] = useState(false);
   const [compareExercise, setCompareExercise] = useState<GymExercise | null>(null);
   const [weightPrefillSignal, setWeightPrefillSignal] = useState<string | null>(null);
 
@@ -404,8 +409,8 @@ export default function GymPage() {
   }
 
   return (
-    <div className="flex flex-col gap-8">
-      <h1 className="text-2xl font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
+    <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-2">
+      <h1 className="text-xl font-semibold tracking-tight lg:col-span-2" style={{ color: "var(--text-primary)" }}>
         Gym
       </h1>
 
@@ -466,9 +471,12 @@ export default function GymPage() {
         </form>
       </Card>
 
-      {insight && <Insight label="What's happening" headline={insight.headline} detail={insight.detail} tone={insight.tone} />}
-
-      {consistencyBullets.length > 0 && <BulletList title="What changed" tone="var(--text-muted)" bullets={consistencyBullets} />}
+      {(insight || consistencyBullets.length > 0) && (
+        <div className="flex flex-col gap-5">
+          {insight && <Insight label="What's happening" headline={insight.headline} detail={insight.detail} tone={insight.tone} />}
+          {consistencyBullets.length > 0 && <BulletList title="What changed" tone="var(--text-muted)" bullets={consistencyBullets} />}
+        </div>
+      )}
 
       <Card tier="raw">
         <CardTitle size="sm" subtitle="Any day at least one lift was logged, by month">Training frequency</CardTitle>
@@ -496,10 +504,14 @@ export default function GymPage() {
         </Card>
       )}
 
-      {stats.length > 0 && <StrengthProgressTable stats={stats} selected={selectedExercise} onSelect={setCompareExercise} />}
+      {stats.length > 0 && (
+        <div className="lg:col-span-2">
+          <StrengthProgressTable stats={stats} selected={selectedExercise} onSelect={setCompareExercise} />
+        </div>
+      )}
 
       {selectedStats && (
-        <Card tier="supporting">
+        <Card tier="supporting" className="lg:col-span-2">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <CardTitle size="default" subtitle="Pick a lift to see its full progression.">
               Progression
@@ -550,34 +562,53 @@ export default function GymPage() {
         </Card>
       )}
 
-      <Card tier="supporting">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <CardTitle size="default" subtitle="Every session logged, most recent first.">
-            Timeline
-          </CardTitle>
-          <select
-            value={timelineFilter}
-            onChange={(e) => setTimelineFilter(e.target.value as GymExercise | "all")}
-            className="rounded-md border px-2.5 py-1.5 text-sm"
-            style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
-          >
-            <option value="all">All exercises</option>
-            {stats.map((s) => (
-              <option key={s.exercise} value={s.exercise}>
-                {s.exercise}
-              </option>
-            ))}
-          </select>
-        </div>
-        <EntryList
-          entries={filteredTimeline}
-          editing={editing}
-          setEditing={setEditing}
-          pendingId={pendingId}
-          onSave={(entry) => void handleSaveEdit(entry)}
-          onDelete={(id) => void handleDelete(id)}
-          today={today}
-        />
+      <Card tier="supporting" className="lg:col-span-2">
+        <button
+          type="button"
+          onClick={() => setTimelineOpen((v) => !v)}
+          className="flex w-full items-center justify-between gap-3 text-left"
+        >
+          <div>
+            <h3 className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>
+              Timeline
+            </h3>
+            <p className="mt-0.5 text-xs" style={{ color: "var(--text-muted)" }}>
+              {timeline.length} session{timeline.length === 1 ? "" : "s"} logged — the progression above already
+              summarizes it; open this to edit or delete a specific entry.
+            </p>
+          </div>
+          <span className="shrink-0 text-xs font-medium underline decoration-dotted" style={{ color: "var(--text-secondary)" }}>
+            {timelineOpen ? "Hide" : "Show"}
+          </span>
+        </button>
+        {timelineOpen && (
+          <div className="mt-4">
+            <div className="mb-3 flex justify-end">
+              <select
+                value={timelineFilter}
+                onChange={(e) => setTimelineFilter(e.target.value as GymExercise | "all")}
+                className="rounded-md border px-2.5 py-1.5 text-sm"
+                style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
+              >
+                <option value="all">All exercises</option>
+                {stats.map((s) => (
+                  <option key={s.exercise} value={s.exercise}>
+                    {s.exercise}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <EntryList
+              entries={filteredTimeline}
+              editing={editing}
+              setEditing={setEditing}
+              pendingId={pendingId}
+              onSave={(entry) => void handleSaveEdit(entry)}
+              onDelete={(id) => void handleDelete(id)}
+              today={today}
+            />
+          </div>
+        )}
       </Card>
     </div>
   );

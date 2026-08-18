@@ -1,5 +1,5 @@
 import type { CanonicalEvent } from "@/lib/types";
-import type { DayState } from "@/components/charts/CalendarHeatmap";
+import type { DayState } from "@/components/charts/AdherenceStrip";
 import { trackedCalendarDates } from "./common";
 
 /**

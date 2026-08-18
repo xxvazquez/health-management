@@ -49,42 +49,20 @@ export function trackedCalendarDates(events: CanonicalEvent[]): Set<string> {
   return new Set(events.map((e) => e.date));
 }
 
-export interface StreakResult {
-  currentStreak: number;
-  longestStreak: number;
-}
-
 /**
- * Streaks over an item's *tracked* days only — gaps where the item wasn't
- * tracked at all don't count as breaks. This avoids penalizing a supplement
- * for days it simply wasn't logged, per the not-tracked vs did-not-happen
- * distinction the whole app is built around.
+ * Current streak over an item's *tracked* days only — gaps where the item
+ * wasn't tracked at all don't count as breaks. This avoids penalizing a
+ * supplement for days it simply wasn't logged, per the not-tracked vs
+ * did-not-happen distinction the whole app is built around. Walks back from
+ * the most recently tracked day until the first miss.
  */
-export function computeStreaks(trackedDatesAscending: string[], completedDates: Set<string>): StreakResult {
-  let longest = 0;
-  let running = 0;
+export function computeCurrentStreak(trackedDatesAscending: string[], completedDates: Set<string>): number {
   let current = 0;
-
-  for (let i = 0; i < trackedDatesAscending.length; i++) {
-    const date = trackedDatesAscending[i];
-    if (completedDates.has(date)) {
-      running++;
-      longest = Math.max(longest, running);
-    } else {
-      running = 0;
-    }
-  }
-
-  // Current streak: walk back from the most recently tracked day.
   for (let i = trackedDatesAscending.length - 1; i >= 0; i--) {
-    if (completedDates.has(trackedDatesAscending[i])) {
-      current++;
-    } else {
-      break;
-    }
+    if (!completedDates.has(trackedDatesAscending[i])) break;
+    current++;
   }
-
-  return { currentStreak: current, longestStreak: longest };
+  return current;
 }
 
 export function round1(n: number): number {

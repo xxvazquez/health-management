@@ -112,8 +112,8 @@ export default function DigestionPage() {
   const topSymptomOverall = [...digestiveSymptoms].sort((a, b) => b.daysCompleted - a.daysCompleted)[0];
 
   return (
-    <div className="flex flex-col gap-8">
-      <h1 className="text-2xl font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
+    <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-2">
+      <h1 className="text-xl font-semibold tracking-tight lg:col-span-2" style={{ color: "var(--text-primary)" }}>
         Digestion
       </h1>
 
@@ -123,9 +123,13 @@ export default function DigestionPage() {
         <BulletList title="What changed" tone="var(--text-muted)" bullets={insight.changed} />
       )}
 
-      {span && range && <DateRangeFilter span={span} value={range} onChange={setRange} />}
+      {span && range && (
+        <div className="lg:col-span-2">
+          <DateRangeFilter span={span} value={range} onChange={setRange} />
+        </div>
+      )}
 
-      <Card tier="raw">
+      <Card tier="raw" className="lg:col-span-2">
         <CardTitle
           size="sm"
           subtitle={
@@ -187,7 +191,7 @@ export default function DigestionPage() {
         )}
       </Card>
 
-      <Card tier="raw">
+      <Card tier="raw" className="lg:col-span-2">
         <CardTitle
           size="sm"
           subtitle="Each pair shows whichever of 4 lags (same day to +3 days) has the strongest signal. Single factors only, not combinations."
@@ -236,11 +240,11 @@ export default function DigestionPage() {
         </div>
       </Card>
 
-      <p className="text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
+      <p className="text-xs font-semibold tracking-wide uppercase lg:col-span-2" style={{ color: "var(--text-muted)" }}>
         Detailed exploration
       </p>
 
-      <Card tier="raw">
+      <Card tier="raw" className="lg:col-span-2">
         <CardTitle size="sm" subtitle="Weekly counts for the most frequent digestive symptoms">Digestive symptom trends</CardTitle>
         {symptomLineData.length > 0 && topSymptomKeys.length > 0 ? (
           <>
@@ -260,24 +264,22 @@ export default function DigestionPage() {
         )}
       </Card>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <Card tier="raw">
-          <CardTitle size="sm" subtitle="Occurrences in this date range">Digestive symptoms</CardTitle>
-          {digestiveSymptoms.length > 0 ? (
-            <RankedBarChart data={digestiveSymptoms.map((s) => ({ label: s.item, value: s.daysCompleted }))} color={TYPE_ACCENT.outcome} />
-          ) : (
-            <p className="text-sm" style={{ color: "var(--text-muted)" }}>No data.</p>
-          )}
-        </Card>
-        <Card tier="raw">
-          <CardTitle size="sm" subtitle="Non-digestive symptoms also being tracked">Other symptoms</CardTitle>
-          {otherSymptoms.length > 0 ? (
-            <RankedBarChart data={otherSymptoms.map((s) => ({ label: s.item, value: s.daysCompleted }))} color={TYPE_ACCENT.outcome} />
-          ) : (
-            <p className="text-sm" style={{ color: "var(--text-muted)" }}>No data.</p>
-          )}
-        </Card>
-      </div>
+      <Card tier="raw">
+        <CardTitle size="sm" subtitle="Occurrences in this date range">Digestive symptoms</CardTitle>
+        {digestiveSymptoms.length > 0 ? (
+          <RankedBarChart data={digestiveSymptoms.map((s) => ({ label: s.item, value: s.daysCompleted }))} color={TYPE_ACCENT.outcome} />
+        ) : (
+          <p className="text-sm" style={{ color: "var(--text-muted)" }}>No data.</p>
+        )}
+      </Card>
+      <Card tier="raw">
+        <CardTitle size="sm" subtitle="Non-digestive symptoms also being tracked">Other symptoms</CardTitle>
+        {otherSymptoms.length > 0 ? (
+          <RankedBarChart data={otherSymptoms.map((s) => ({ label: s.item, value: s.daysCompleted }))} color={TYPE_ACCENT.outcome} />
+        ) : (
+          <p className="text-sm" style={{ color: "var(--text-muted)" }}>No data.</p>
+        )}
+      </Card>
 
       {stoolQuality.length > 0 && (
         <Card tier="raw">
@@ -319,7 +321,7 @@ export default function DigestionPage() {
         </Card>
       )}
 
-      <Methodology>
+      <Methodology className="lg:col-span-2">
         This page never diagnoses anything — it only describes what&apos;s in your own tracked data. The Bristol
         score line plots each classified reading (Bristol 1–5) chronologically; this app doesn&apos;t distinguish
         clinical types 5/6/7 from each other, so the scale tops out at 5. &quot;Current pattern&quot; and &quot;At a

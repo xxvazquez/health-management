@@ -1,5 +1,5 @@
 import type { CanonicalEvent } from "@/lib/types";
-import { addDaysToDate, computeStreaks, pct, trackedCalendarDates } from "./common";
+import { addDaysToDate, computeCurrentStreak, pct, trackedCalendarDates } from "./common";
 
 export interface ItemStats {
   item: string;
@@ -10,7 +10,6 @@ export interface ItemStats {
   daysCompleted: number;
   consistencyPct: number; // of days tracked, % completed
   currentStreak: number;
-  longestStreak: number;
   firstTrackedDate: string;
   lastTrackedDate: string;
   /** Identity of the underlying item as of its most recent log — the one to
@@ -48,7 +47,7 @@ export function computeItemStats(events: CanonicalEvent[], activeDates: string[]
     const lastOccurrence = sorted[sorted.length - 1].date;
     const completedDates = new Set(sorted.filter((e) => e.completed).map((e) => e.date));
     const trackedDates = activeDates.filter((d) => d >= firstOccurrence);
-    const { currentStreak, longestStreak } = computeStreaks(trackedDates, completedDates);
+    const currentStreak = computeCurrentStreak(trackedDates, completedDates);
 
     const mostRecent = sorted[sorted.length - 1];
     stats.push({
@@ -60,7 +59,6 @@ export function computeItemStats(events: CanonicalEvent[], activeDates: string[]
       daysCompleted: completedDates.size,
       consistencyPct: pct(completedDates.size, trackedDates.length),
       currentStreak,
-      longestStreak,
       firstTrackedDate: firstOccurrence,
       lastTrackedDate: lastOccurrence,
       itemIdentity: mostRecent.itemIdentity,
@@ -94,8 +92,6 @@ export interface ItemTrend {
    * enough recent tracked history to judge (item is new, or gap in use). */
   recentConsistencyPct: number | null;
   recentTrackedDays: number;
-  currentStreak: number;
-  longestStreak: number;
 }
 
 /**
@@ -106,7 +102,16 @@ export interface ItemTrend {
  */
 export function computeItemTrends(events: CanonicalEvent[], activeDates: string[]): ItemTrend[] {
   const overall = computeItemStats(events, activeDates);
-  if (activeDates.length === 0) return overall.map((s) => ({ ...s, overallConsistencyPct: s.consistencyPct, overallTrackedDays: s.daysTracked, recentConsistencyPct: null, recentTrackedDays: 0 }));
+  if (activeDates.length === 0) {
+    return overall.map((s) => ({
+      item: s.item,
+      category: s.category,
+      overallConsistencyPct: s.consistencyPct,
+      overallTrackedDays: s.daysTracked,
+      recentConsistencyPct: null,
+      recentTrackedDays: 0,
+    }));
+  }
 
   const windowStart = addDaysToDate(activeDates[activeDates.length - 1], -(TREND_WINDOW_DAYS - 1));
   const byItem = new Map<string, CanonicalEvent[]>();
@@ -129,8 +134,6 @@ export function computeItemTrends(events: CanonicalEvent[], activeDates: string[
       overallTrackedDays: stat.daysTracked,
       recentConsistencyPct,
       recentTrackedDays: recentTrackedDates.length,
-      currentStreak: stat.currentStreak,
-      longestStreak: stat.longestStreak,
     };
   });
 }

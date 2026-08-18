@@ -55,7 +55,7 @@ function StatusPill({ status, label, color }: { status: string; label: string; c
   return (
     <span
       key={status}
-      className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium whitespace-nowrap"
+      className="inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium whitespace-nowrap"
       style={{ color, background: color === "var(--text-muted)" ? "var(--page-plane)" : `color-mix(in oklab, ${color} 14%, transparent)` }}
     >
       {label}
@@ -90,9 +90,9 @@ export default function FoodPage() {
   const topFoods = ranked.slice(0, 10).map((f) => ({ label: f.item, value: f.count }));
 
   return (
-    <div className="flex flex-col gap-8">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
+    <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-2">
+      <div className="lg:col-span-2">
+        <h1 className="text-xl font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
           Food
         </h1>
         <p className="mt-1 text-sm" style={{ color: "var(--text-secondary)" }}>
@@ -102,7 +102,7 @@ export default function FoodPage() {
       </div>
 
       {priorities.insufficientData ? (
-        <Card>
+        <Card className="lg:col-span-2">
           <CardTitle subtitle="This page needs a bit more logged history before its recommendations are trustworthy.">
             Not enough data yet
           </CardTitle>
@@ -117,44 +117,42 @@ export default function FoodPage() {
           <NextPriorities items={priorities.topPriorities} />
           <CoverageTable rows={priorities.coverageTable} />
 
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:col-span-2">
             <BulletList title="Doing well" tone="var(--status-good)" bullets={priorities.doingWell} emptyText="Nothing clearly stands out yet — keep logging for a clearer picture." />
             <BulletList title="Missing" tone="var(--status-warning)" bullets={priorities.missing} emptyText="No clear gaps against the tracked food groups right now." />
           </div>
 
           <VarietySection variety={priorities.variety} />
           <PatternSection priorities={priorities} />
-          {priorities.trend.available && <TrendSection trend={priorities.trend} />}
         </>
       )}
 
+      {!priorities.insufficientData && priorities.trend.available && <TrendSection trend={priorities.trend} />}
       <PersonalObservations newFoods={newFoods} />
 
       <RecurringCombinations pairs={ingredientPairs} bySlot={slotIngredients} mealInstanceCount={mealInstanceCount} />
 
-      <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+      <div className="flex flex-wrap items-center justify-between gap-3 pt-2 lg:col-span-2">
         <p className="text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
           Detailed analytics
         </p>
         {span && range && <DateRangeFilter span={span} value={range} onChange={setRange} />}
       </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <Card tier="raw">
-          <CardTitle size="sm" subtitle="Every broad food category, ranked by tracked occurrences">Category distribution</CardTitle>
-          <RankedBarChart data={distribution.map((d) => ({ label: d.category, value: d.count }))} color={TYPE_ACCENT.food} />
-        </Card>
-        <Card tier="raw">
-          <CardTitle size="sm" subtitle="Most frequently tracked foods in this range">Top foods</CardTitle>
-          {topFoods.length > 0 ? (
-            <RankedBarChart data={topFoods} color={TYPE_ACCENT.food} />
-          ) : (
-            <p className="text-sm" style={{ color: "var(--text-muted)" }}>No data.</p>
-          )}
-        </Card>
-      </div>
-
       <Card tier="raw">
+        <CardTitle size="sm" subtitle="Every broad food category, ranked by tracked occurrences">Category distribution</CardTitle>
+        <RankedBarChart data={distribution.map((d) => ({ label: d.category, value: d.count }))} color={TYPE_ACCENT.food} />
+      </Card>
+      <Card tier="raw">
+        <CardTitle size="sm" subtitle="Most frequently tracked foods in this range">Top foods</CardTitle>
+        {topFoods.length > 0 ? (
+          <RankedBarChart data={topFoods} color={TYPE_ACCENT.food} />
+        ) : (
+          <p className="text-sm" style={{ color: "var(--text-muted)" }}>No data.</p>
+        )}
+      </Card>
+
+      <Card tier="raw" className="lg:col-span-2">
         <CardTitle size="sm" subtitle="Rolling 7-day and 30-day unique food counts">
           Food variety over time
         </CardTitle>
@@ -171,7 +169,7 @@ export default function FoodPage() {
         )}
       </Card>
 
-      <Card tier="raw">
+      <Card tier="raw" className="lg:col-span-2">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <CardTitle size="sm" subtitle="Category mix across time — see periods where a category rose or dropped">
             Category timeline
@@ -181,7 +179,7 @@ export default function FoodPage() {
               <button
                 key={g}
                 onClick={() => setGranularity(g)}
-                className={clsx("rounded-full px-3 py-1 text-xs font-medium whitespace-nowrap capitalize")}
+                className={clsx("rounded-md px-3 py-1 text-xs font-medium whitespace-nowrap capitalize")}
                 style={{
                   background: granularity === g ? "var(--series-1)" : "var(--page-plane)",
                   color: granularity === g ? "#fff" : "var(--text-secondary)",
@@ -215,7 +213,7 @@ export default function FoodPage() {
 
 function NextPriorities({ items }: { items: PriorityCandidate[] }) {
   return (
-    <Card tier="primary">
+    <Card tier="primary" className="lg:col-span-2">
       <CardTitle subtitle="Ranked from your logged intake, dietary-guidance importance, variety, and recency — a short list on purpose.">
         Your next priorities
       </CardTitle>
@@ -253,26 +251,26 @@ function NextPriorities({ items }: { items: PriorityCandidate[] }) {
 
 function CoverageTable({ rows }: { rows: { label: string; days7: number; days30: number; status: GroupStatus; statusLabel: string }[] }) {
   return (
-    <Card>
+    <Card className="lg:col-span-2">
       <CardTitle subtitle="How often each tracked food group has actually been logged — counts are logged days, not servings or grams.">
         Nutrition coverage
       </CardTitle>
       <div className="overflow-x-auto">
-        <table className="w-full text-sm">
+        <table className="text-sm">
           <thead>
             <tr className="text-left text-xs whitespace-nowrap" style={{ color: "var(--text-muted)" }}>
-              <th className="pb-2 font-medium">Food group</th>
-              <th className="pb-2 text-right font-medium">7 days</th>
-              <th className="pb-2 text-right font-medium">30 days</th>
+              <th className="pb-2 pr-10 font-medium">Food group</th>
+              <th className="pb-2 pr-6 text-right font-medium">7 days</th>
+              <th className="pb-2 pr-6 text-right font-medium">30 days</th>
               <th className="pb-2 text-right font-medium">Status</th>
             </tr>
           </thead>
           <tbody>
             {rows.map((r) => (
               <tr key={r.label} className="border-t whitespace-nowrap" style={{ borderColor: "var(--gridline)" }}>
-                <td className="py-2" style={{ color: "var(--text-primary)" }}>{r.label}</td>
-                <td className="py-2 text-right tabular-nums" style={{ color: "var(--text-secondary)" }}>{r.days7}</td>
-                <td className="py-2 text-right tabular-nums" style={{ color: "var(--text-secondary)" }}>{r.days30}</td>
+                <td className="py-2 pr-10" style={{ color: "var(--text-primary)" }}>{r.label}</td>
+                <td className="py-2 pr-6 text-right tabular-nums" style={{ color: "var(--text-secondary)" }}>{r.days7}</td>
+                <td className="py-2 pr-6 text-right tabular-nums" style={{ color: "var(--text-secondary)" }}>{r.days30}</td>
                 <td className="py-2 text-right">
                   <StatusPill status={r.status} label={r.statusLabel} color={STATUS_COLOR[r.status]} />
                 </td>
@@ -389,7 +387,7 @@ function PersonalObservations({ newFoods }: { newFoods: ReturnType<typeof recent
               <div className="flex items-center justify-between gap-3">
                 <span className="font-medium" style={{ color: "var(--text-primary)" }}>{f.item}</span>
                 <span className="flex items-center gap-3">
-                  <span className="rounded-full px-2 py-0.5 text-xs whitespace-nowrap" style={{ background: "var(--page-plane)", color: "var(--text-secondary)" }}>
+                  <span className="rounded-md px-2 py-0.5 text-xs whitespace-nowrap" style={{ background: "var(--page-plane)", color: "var(--text-secondary)" }}>
                     {f.category}
                   </span>
                   <span className="tabular-nums text-xs" style={{ color: "var(--text-muted)" }}>first logged {f.firstSeenDate}</span>
@@ -430,7 +428,7 @@ function RecurringCombinations({
   const slots = Array.from(new Set(bySlot.map((e) => e.mealTag)));
 
   return (
-    <Card tier="raw">
+    <Card tier="raw" className="lg:col-span-2">
       <CardTitle
         size="sm"
         subtitle="What tends to appear together in the same meal, and what a typical meal slot looks like — plain counts, not a comparison against a baseline."
@@ -462,7 +460,7 @@ function RecurringCombinations({
                         .map((e) => (
                           <span
                             key={e.item}
-                            className="rounded-full px-2.5 py-1 text-xs whitespace-nowrap"
+                            className="rounded-md px-2.5 py-1 text-xs whitespace-nowrap"
                             style={{ background: "var(--page-plane)", color: "var(--text-secondary)" }}
                           >
                             {e.item} <span style={{ color: "var(--text-muted)" }}>· {e.count}</span>

@@ -1,87 +1,12 @@
 import type { CanonicalEvent, RawGymLog } from "@/lib/types";
-import { addDaysToDate, getDatasetSpan, pct, round1, trackedCalendarDates } from "./common";
-import { foodVarietySummary, rankedFoods } from "./food";
-import { supplementStats, supplementsInsight } from "./supplements";
-import { habitStats, habitsInsight } from "./habits";
-import { bristolDistribution, digestionInsight } from "./digestion";
+import { addDaysToDate, getDatasetSpan, trackedCalendarDates } from "./common";
+import { supplementsInsight } from "./supplements";
+import { habitsInsight } from "./habits";
+import { digestionInsight } from "./digestion";
 import { computeNutritionPriorities } from "./nutritionPriorities";
 import { generateTopPatterns, type AssociationResult } from "./patterns";
 import { generateBristolPatterns } from "./bristolPatterns";
 import type { Bullet, InsightTone } from "./insights";
-
-export interface OverviewStats {
-  dateRange: { start: string; end: string } | null;
-  food: {
-    uniqueFoods: number;
-    topFood: { item: string; count: number } | null;
-    /** Least-logged tracked food — only set when at least 2 distinct foods have been logged, so it's never just repeating `topFood`. */
-    leastTrackedFood: { item: string; count: number } | null;
-  };
-  supplements: {
-    count: number;
-    averageConsistencyPct: number;
-    mostConsistent: { item: string; consistencyPct: number } | null;
-  };
-  digestion: {
-    mostCommonBristol: { item: string; sharePct: number } | null;
-    digestiveSymptomDaysPct: number;
-  };
-  habits: {
-    count: number;
-    averageConsistencyPct: number;
-  };
-}
-
-export function computeOverviewStats(events: CanonicalEvent[]): OverviewStats {
-  const span = getDatasetSpan(events);
-  const trackedDates = trackedCalendarDates(events);
-
-  const foodVariety = foodVarietySummary(events);
-  const topFoods = rankedFoods(events);
-
-  const supplements = supplementStats(events);
-  const avgSupplementConsistency =
-    supplements.length > 0
-      ? round1(supplements.reduce((sum, s) => sum + s.consistencyPct, 0) / supplements.length)
-      : 0;
-  const mostConsistentSupplement = [...supplements].sort((a, b) => b.consistencyPct - a.consistencyPct)[0];
-
-  const bristol = bristolDistribution(events);
-  const topBristol = [...bristol].sort((a, b) => b.count - a.count)[0];
-
-  const digestiveSymptomDays = new Set(
-    events.filter((e) => e.category === "Digestive Symptom" && e.completed).map((e) => e.date),
-  ).size;
-
-  const habits = habitStats(events);
-  const avgHabitConsistency =
-    habits.length > 0 ? round1(habits.reduce((sum, h) => sum + h.consistencyPct, 0) / habits.length) : 0;
-
-  return {
-    dateRange: span,
-    food: {
-      uniqueFoods: foodVariety.uniqueFoods,
-      topFood: topFoods[0] ? { item: topFoods[0].item, count: topFoods[0].count } : null,
-      leastTrackedFood:
-        topFoods.length > 1 ? { item: topFoods[topFoods.length - 1].item, count: topFoods[topFoods.length - 1].count } : null,
-    },
-    supplements: {
-      count: supplements.length,
-      averageConsistencyPct: avgSupplementConsistency,
-      mostConsistent: mostConsistentSupplement
-        ? { item: mostConsistentSupplement.item, consistencyPct: mostConsistentSupplement.consistencyPct }
-        : null,
-    },
-    digestion: {
-      mostCommonBristol: topBristol ? { item: topBristol.item, sharePct: topBristol.sharePct } : null,
-      digestiveSymptomDaysPct: pct(digestiveSymptomDays, trackedDates.size),
-    },
-    habits: {
-      count: habits.length,
-      averageConsistencyPct: avgHabitConsistency,
-    },
-  };
-}
 
 export interface OverviewInsight {
   insufficientData: boolean;
