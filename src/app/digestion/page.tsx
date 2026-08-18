@@ -9,9 +9,11 @@ import { DateRangeFilter } from "@/components/ui/DateRangeFilter";
 import { Insight } from "@/components/ui/Insight";
 import { BulletList } from "@/components/ui/BulletList";
 import { Methodology } from "@/components/ui/Methodology";
+import { SampleTierBadge } from "@/components/ui/SampleTierBadge";
 import { RankedBarChart } from "@/components/charts/RankedBarChart";
 import { ColorStrip, type ColorStripPoint } from "@/components/charts/ColorStrip";
 import { MultiLineChart } from "@/components/charts/MultiLineChart";
+import { ComparisonBars } from "@/components/charts/ComparisonBars";
 import { AdherenceStrip } from "@/components/charts/AdherenceStrip";
 import { useDateRangeFilter } from "@/lib/useDateRangeFilter";
 import { addDaysToDate } from "@/lib/aggregations/common";
@@ -29,7 +31,16 @@ import {
   symptomFrequencyOverTime,
   unclassifiedStoolStats,
 } from "@/lib/aggregations/digestion";
+import { generateBristolPatterns } from "@/lib/aggregations/bristolPatterns";
+import { MULTIPLE_COMPARISONS_NOTE } from "@/lib/aggregations/patterns";
 import { TYPE_ACCENT } from "@/taxonomy/categories";
+
+/** "the same day as X" / "the day after X" / "2 days after X" */
+function lagPhrase(lagDays: number): string {
+  if (lagDays === 0) return "the same day as";
+  if (lagDays === 1) return "the day after";
+  return `${lagDays} days after`;
+}
 
 const STRIP_WINDOW_DAYS = 90;
 
@@ -45,12 +56,17 @@ const BRISTOL_COLOR: Record<string, string> = {
 const SYMPTOM_LINE_COLORS = ["var(--series-1)", "var(--series-2)", "var(--series-3)", "var(--series-4)", "var(--series-5)"];
 
 export default function DigestionPage() {
-  const { status, events } = useData();
+  const { status, events, gymLogs } = useData();
   const { span, range, setRange, filtered } = useDateRangeFilter(events);
+  const filteredGymLogs = useMemo(
+    () => (range ? gymLogs.filter((g) => g.date >= range.start && g.date <= range.end) : gymLogs),
+    [gymLogs, range],
+  );
 
   // The insight always reads the full history — recent-vs-usual needs a
   // stable baseline independent of the detail charts' date filter.
   const insight = useMemo(() => digestionInsight(events), [events]);
+  const bristolPatterns = useMemo(() => generateBristolPatterns(filtered, filteredGymLogs), [filtered, filteredGymLogs]);
 
   const bristolDist = useMemo(() => bristolDistribution(filtered), [filtered]);
   const bristolBands = useMemo(() => bristolBandDistribution(filtered), [filtered]);
@@ -132,6 +148,55 @@ export default function DigestionPage() {
           <StatTile label="Symptom types tracked" value={String(digestiveSymptoms.length + otherSymptoms.length)} />
         </div>
       </div>
+
+      <Card tier="raw">
+        <CardTitle
+          size="sm"
+          subtitle="Each pair shows whichever of 4 lags (same day to +3 days) has the strongest signal. Single factors only, not combinations."
+        >
+          Associated with Bristol 3–4
+        </CardTitle>
+        {bristolPatterns.length > 0 ? (
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+            {bristolPatterns.map((p, i) => (
+              <div key={i} className="rounded-lg border p-3.5" style={{ borderColor: "var(--gridline)" }}>
+                <div className="mb-1 flex items-start justify-between gap-2">
+                  <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
+                    {p.outcomeLabel}{" "}
+                    <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>
+                      {p.diffPct > 0 ? "occurred more often" : "occurred less often"}
+                    </span>{" "}
+                    {lagPhrase(p.lagDays)} {p.causeLabel}
+                  </p>
+                  <SampleTierBadge tier={p.sampleTier} />
+                </div>
+                <ComparisonBars
+                  withLabel={`With ${p.causeLabel}`}
+                  withPct={p.withPct}
+                  withCount={p.withCount}
+                  withTotal={p.withTotal}
+                  withoutLabel={`Without ${p.causeLabel}`}
+                  withoutPct={p.withoutPct}
+                  withoutCount={p.withoutCount}
+                  withoutTotal={p.withoutTotal}
+                />
+                <p className="mt-3 text-xs" style={{ color: "var(--text-muted)" }}>
+                  Association only, not evidence of cause — based on {p.withTotal + p.withoutTotal} days with a Bristol
+                  reading logged.
+                </p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+            Not enough data yet to surface a reliable association (each comparison needs at least 10 exposed days and
+            5 unexposed days, at every lag checked).
+          </p>
+        )}
+        <div className="mt-4">
+          <Methodology label="Why so few results?">{MULTIPLE_COMPARISONS_NOTE}</Methodology>
+        </div>
+      </Card>
 
       <div className="flex items-center justify-between gap-3">
         <p className="text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>

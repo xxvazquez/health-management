@@ -6,6 +6,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { DateRangeFilter } from "@/components/ui/DateRangeFilter";
 import { Methodology } from "@/components/ui/Methodology";
+import { SampleTierBadge } from "@/components/ui/SampleTierBadge";
 import { ComparisonBars } from "@/components/charts/ComparisonBars";
 import { useDateRangeFilter } from "@/lib/useDateRangeFilter";
 import {
@@ -15,31 +16,9 @@ import {
   lowSymptomAssociationFoods,
   matchItem,
   MULTIPLE_COMPARISONS_NOTE,
-  SAMPLE_TIER_EXPLANATION,
-  SAMPLE_TIER_LABEL,
-  type SampleTier,
 } from "@/lib/aggregations/patterns";
 import { generateInsights, trackingCoverageSummary } from "@/lib/aggregations/recommendations";
 import type { CanonicalEvent, RawGymLog } from "@/lib/types";
-
-const SAMPLE_TIER_COLOR: Record<SampleTier, string> = {
-  insufficient: "var(--text-muted)",
-  exploratory: "var(--status-warning)",
-  moderate: "var(--series-1)",
-  strong: "var(--status-good)",
-};
-
-function SampleTierBadge({ tier }: { tier: SampleTier }) {
-  return (
-    <span
-      className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium whitespace-nowrap uppercase tracking-wide"
-      style={{ color: SAMPLE_TIER_COLOR[tier], background: "var(--page-plane)" }}
-      title={SAMPLE_TIER_EXPLANATION[tier]}
-    >
-      {SAMPLE_TIER_LABEL[tier]}
-    </span>
-  );
-}
 
 /** "the same day as X" / "the day after X" / "2 days after X" */
 function lagPhrase(lagDays: number): string {

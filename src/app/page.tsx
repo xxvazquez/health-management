@@ -6,9 +6,49 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { StatTile } from "@/components/ui/StatTile";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { Insight } from "@/components/ui/Insight";
-import { computeOverviewStats, computeOverviewInsight } from "@/lib/aggregations/overview";
+import { SampleTierBadge } from "@/components/ui/SampleTierBadge";
+import { computeOverviewStats, computeOverviewInsight, topCrossDomainFindings } from "@/lib/aggregations/overview";
 import type { Bullet } from "@/lib/aggregations/insights";
+import type { AssociationResult } from "@/lib/aggregations/patterns";
 import { TYPE_ACCENT } from "@/taxonomy/categories";
+
+/** "the same day as X" / "the day after X" / "2 days after X" */
+function lagPhrase(lagDays: number): string {
+  if (lagDays === 0) return "the same day as";
+  if (lagDays === 1) return "the day after";
+  return `${lagDays} days after`;
+}
+
+/** The strongest cross-domain findings, app-wide — a pointer at what's
+ * worth a closer look on Digestion/Patterns, not the full picture (no
+ * bars, no underlying counts here; that detail lives on those pages). */
+function CrossDomainFindings({ findings }: { findings: AssociationResult[] }) {
+  return (
+    <Card tier="raw">
+      <p className="mb-2.5 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-secondary)" }}>
+        What stands out
+      </p>
+      <ul className="flex flex-col">
+        {findings.map((f, i) => (
+          <li
+            key={`${f.causeLabel}-${f.outcomeLabel}`}
+            className="flex flex-wrap items-center justify-between gap-2 py-2"
+            style={{ borderTop: i > 0 ? "1px solid var(--gridline)" : "none" }}
+          >
+            <p className="text-sm" style={{ color: "var(--text-primary)" }}>
+              <span className="font-semibold">{f.outcomeLabel}</span>{" "}
+              <span style={{ color: "var(--text-secondary)" }}>
+                {f.diffPct > 0 ? "occurred more often" : "occurred less often"} {lagPhrase(f.lagDays)}
+              </span>{" "}
+              <span className="font-semibold">{f.causeLabel}</span>
+            </p>
+            <SampleTierBadge tier={f.sampleTier} />
+          </li>
+        ))}
+      </ul>
+    </Card>
+  );
+}
 
 function SectionLabel({ children }: { children: ReactNode }) {
   return (
@@ -73,10 +113,11 @@ function ChangeTile({ label, value }: { label: string; value: string }) {
 }
 
 export default function OverviewPage() {
-  const { status, events, unclassifiedItems } = useData();
+  const { status, events, gymLogs, unclassifiedItems } = useData();
 
   const stats = useMemo(() => (events.length > 0 ? computeOverviewStats(events) : null), [events]);
   const insight = useMemo(() => computeOverviewInsight(events), [events]);
+  const crossDomainFindings = useMemo(() => topCrossDomainFindings(events, gymLogs), [events, gymLogs]);
 
   if (status === "loading") {
     return <p style={{ color: "var(--text-secondary)" }}>Loading your data…</p>;
@@ -120,6 +161,8 @@ export default function OverviewPage() {
           </div>
         </div>
       )}
+
+      {crossDomainFindings.length > 0 && <CrossDomainFindings findings={crossDomainFindings} />}
 
       <div>
         <SectionLabel>At a glance</SectionLabel>

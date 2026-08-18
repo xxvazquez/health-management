@@ -1,10 +1,12 @@
-import type { CanonicalEvent } from "@/lib/types";
+import type { CanonicalEvent, RawGymLog } from "@/lib/types";
 import { addDaysToDate, getDatasetSpan, listDatesBetween, pct, round1, trackedCalendarDates } from "./common";
 import { foodVarietySummary, rankedFoods } from "./food";
 import { supplementStats, supplementsInsight } from "./supplements";
 import { habitStats, habitsInsight } from "./habits";
 import { bristolDistribution, digestionInsight } from "./digestion";
 import { computeNutritionPriorities } from "./nutritionPriorities";
+import { generateTopPatterns, type AssociationResult } from "./patterns";
+import { generateBristolPatterns } from "./bristolPatterns";
 import type { Bullet, InsightTone } from "./insights";
 
 export interface OverviewStats {
@@ -211,4 +213,31 @@ export function computeOverviewInsight(events: CanonicalEvent[]): OverviewInsigh
     needsAttention,
     whatChanged: whatChanged.slice(0, 6),
   };
+}
+
+const MAX_OVERVIEW_FINDINGS = 4;
+
+/**
+ * The strongest cross-domain findings across the whole app — Bristol
+ * comparisons plus the general food/supplement/habit/gym-vs-symptom scan —
+ * ranked by magnitude and deduped by cause+outcome pair, for a short
+ * "what stands out" list on Overview. Reuses `generateBristolPatterns` and
+ * `generateTopPatterns` directly rather than re-scanning anything; this is
+ * a ranked slice of their combined output, not a separate analysis.
+ */
+export function topCrossDomainFindings(events: CanonicalEvent[], gymLogs: RawGymLog[] = []): AssociationResult[] {
+  const combined = [...generateBristolPatterns(events, gymLogs), ...generateTopPatterns(events, gymLogs)].sort(
+    (a, b) => Math.abs(b.diffPct) - Math.abs(a.diffPct),
+  );
+
+  const seen = new Set<string>();
+  const deduped: AssociationResult[] = [];
+  for (const r of combined) {
+    const key = `${r.causeLabel}|${r.outcomeLabel}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    deduped.push(r);
+    if (deduped.length >= MAX_OVERVIEW_FINDINGS) break;
+  }
+  return deduped;
 }

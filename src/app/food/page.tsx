@@ -16,8 +16,13 @@ import {
   foodCategoryDistribution,
   foodCategoryTimeline,
   foodVarietyOverTime,
+  mealInstances,
   rankedFoods,
+  topIngredientPairs,
+  topIngredientsBySlot,
   type TimelineGranularity,
+  type IngredientPairEntry,
+  type MealSlotIngredientEntry,
 } from "@/lib/aggregations/food";
 import { recentNewFoodsWithContext } from "@/lib/aggregations/patterns";
 import {
@@ -73,6 +78,9 @@ export default function FoodPage() {
   const ranked = useMemo(() => rankedFoods(filtered), [filtered]);
   const timeline = useMemo(() => foodCategoryTimeline(filtered, granularity), [filtered, granularity]);
   const newFoods = useMemo(() => recentNewFoodsWithContext(filtered, 15), [filtered]);
+  const mealInstanceCount = useMemo(() => mealInstances(filtered).length, [filtered]);
+  const ingredientPairs = useMemo(() => topIngredientPairs(filtered), [filtered]);
+  const slotIngredients = useMemo(() => topIngredientsBySlot(filtered), [filtered]);
 
   if (status === "loading") return <p style={{ color: "var(--text-muted)" }}>Loading…</p>;
   if (status === "empty") return <EmptyState />;
@@ -121,6 +129,8 @@ export default function FoodPage() {
       )}
 
       <PersonalObservations newFoods={newFoods} />
+
+      <RecurringCombinations pairs={ingredientPairs} bySlot={slotIngredients} mealInstanceCount={mealInstanceCount} />
 
       <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
         <p className="text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
@@ -401,6 +411,94 @@ function PersonalObservations({ newFoods }: { newFoods: ReturnType<typeof recent
         </ul>
       ) : (
         <p className="text-sm" style={{ color: "var(--text-muted)" }}>No data.</p>
+      )}
+    </Card>
+  );
+}
+
+const MIN_MEAL_INSTANCES_FOR_COMBINATIONS = 5;
+
+function RecurringCombinations({
+  pairs,
+  bySlot,
+  mealInstanceCount,
+}: {
+  pairs: IngredientPairEntry[];
+  bySlot: MealSlotIngredientEntry[];
+  mealInstanceCount: number;
+}) {
+  const slots = Array.from(new Set(bySlot.map((e) => e.mealTag)));
+
+  return (
+    <Card tier="raw">
+      <CardTitle
+        size="sm"
+        subtitle="What tends to appear together in the same meal, and what a typical meal slot looks like — plain counts, not a comparison against a baseline."
+      >
+        Recurring combinations
+      </CardTitle>
+      {mealInstanceCount < MIN_MEAL_INSTANCES_FOR_COMBINATIONS ? (
+        <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+          Not enough meals tagged yet ({mealInstanceCount} logged with a meal tag) — this fills in as you log food
+          from the Log page, which always tags a meal. Older imported history mostly predates this field, so this
+          section will read sparse for a while on that data.
+        </p>
+      ) : (
+        <div className="flex flex-col gap-5">
+          {slots.length > 0 && (
+            <div>
+              <p className="mb-2 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
+                Typical by meal
+              </p>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                {slots.map((slot) => (
+                  <div key={slot}>
+                    <p className="mb-1.5 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
+                      {slot}
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {bySlot
+                        .filter((e) => e.mealTag === slot)
+                        .map((e) => (
+                          <span
+                            key={e.item}
+                            className="rounded-full px-2.5 py-1 text-xs whitespace-nowrap"
+                            style={{ background: "var(--page-plane)", color: "var(--text-secondary)" }}
+                          >
+                            {e.item} <span style={{ color: "var(--text-muted)" }}>· {e.count}</span>
+                          </span>
+                        ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div>
+            <p className="mb-2 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
+              Most common pairs
+            </p>
+            {pairs.length > 0 ? (
+              <ul className="flex flex-col divide-y text-sm" style={{ borderColor: "var(--gridline)" }}>
+                {pairs.slice(0, 10).map((p) => (
+                  <li key={`${p.itemA}|${p.itemB}`} className="flex items-center justify-between gap-3 py-2">
+                    <span style={{ color: "var(--text-primary)" }}>
+                      {p.itemA} + {p.itemB}
+                    </span>
+                    <span className="tabular-nums text-xs whitespace-nowrap" style={{ color: "var(--text-muted)" }}>
+                      {p.count} meals
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+                No ingredient pair has repeated together often enough yet.
+              </p>
+            )}
+          </div>
+        </div>
       )}
     </Card>
   );
