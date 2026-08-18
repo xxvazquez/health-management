@@ -69,9 +69,13 @@ const ICONS: Record<string, ReactNode> = {
   ),
 };
 
-const LINKS = [
+/** The two purposes the whole app is organized around — fast logging vs.
+ * everything that reads the logged data back. Log gets its own section
+ * because it's the only page in the "tracking" half; every other page is
+ * an analytics dashboard for one domain. */
+const LOG_LINKS = [{ href: "/log", label: "Log" }];
+const ANALYTICS_LINKS = [
   { href: "/", label: "Overview" },
-  { href: "/log", label: "Log" },
   { href: "/food", label: "Food" },
   { href: "/supplements", label: "Supplements" },
   { href: "/habits", label: "Habits" },
@@ -80,10 +84,29 @@ const LINKS = [
   { href: "/gym", label: "Gym" },
 ];
 
-function NavLinks({ pathname, collapsed, onNavigate }: { pathname: string; collapsed?: boolean; onNavigate?: () => void }) {
+function NavSectionLabel({ children, collapsed }: { children: ReactNode; collapsed?: boolean }) {
+  if (collapsed) return <div className="my-1.5 h-px" style={{ background: "var(--gridline)" }} />;
   return (
-    <nav className="flex flex-1 flex-col gap-1">
-      {LINKS.map((link) => {
+    <p className="mt-4 mb-1 px-3 text-[11px] font-semibold tracking-wide uppercase first:mt-0" style={{ color: "var(--text-muted)" }}>
+      {children}
+    </p>
+  );
+}
+
+function NavLinkList({
+  links,
+  pathname,
+  collapsed,
+  onNavigate,
+}: {
+  links: { href: string; label: string }[];
+  pathname: string;
+  collapsed?: boolean;
+  onNavigate?: () => void;
+}) {
+  return (
+    <>
+      {links.map((link) => {
         const active = pathname === link.href;
         return (
           <Link
@@ -106,6 +129,17 @@ function NavLinks({ pathname, collapsed, onNavigate }: { pathname: string; colla
           </Link>
         );
       })}
+    </>
+  );
+}
+
+function NavLinks({ pathname, collapsed, onNavigate }: { pathname: string; collapsed?: boolean; onNavigate?: () => void }) {
+  return (
+    <nav className="flex flex-1 flex-col gap-1">
+      <NavSectionLabel collapsed={collapsed}>Log</NavSectionLabel>
+      <NavLinkList links={LOG_LINKS} pathname={pathname} collapsed={collapsed} onNavigate={onNavigate} />
+      <NavSectionLabel collapsed={collapsed}>Analytics</NavSectionLabel>
+      <NavLinkList links={ANALYTICS_LINKS} pathname={pathname} collapsed={collapsed} onNavigate={onNavigate} />
     </nav>
   );
 }

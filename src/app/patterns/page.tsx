@@ -46,7 +46,7 @@ export default function PatternsPage() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
+          <h1 className="text-xl font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
             Patterns
           </h1>
           <p className="mt-1 text-sm" style={{ color: "var(--text-muted)" }}>
@@ -274,25 +274,25 @@ function ToleratedFoods({ events }: { events: CanonicalEvent[] }) {
       )}
       {foods.length > 0 && (
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="text-sm">
             <thead>
               <tr className="text-left text-xs whitespace-nowrap" style={{ color: "var(--text-muted)" }}>
-                <th className="pb-2 font-medium">Food</th>
-                <th className="pb-2 font-medium">Category</th>
-                <th className="pb-2 text-right font-medium">Days eaten</th>
+                <th className="pb-2 pr-8 font-medium">Food</th>
+                <th className="pb-2 pr-8 font-medium">Category</th>
+                <th className="pb-2 pr-6 text-right font-medium">Days eaten</th>
                 <th className="pb-2 text-right font-medium">Largest symptom diff observed</th>
               </tr>
             </thead>
             <tbody>
               {foods.map((f) => (
                 <tr key={f.item} className="border-t whitespace-nowrap" style={{ borderColor: "var(--gridline)" }}>
-                  <td className="py-2" style={{ color: "var(--text-primary)" }}>
+                  <td className="py-2 pr-8" style={{ color: "var(--text-primary)" }}>
                     {f.item}
                   </td>
-                  <td className="py-2" style={{ color: "var(--text-secondary)" }}>
+                  <td className="py-2 pr-8" style={{ color: "var(--text-secondary)" }}>
                     {f.category}
                   </td>
-                  <td className="py-2 text-right tabular-nums" style={{ color: "var(--text-secondary)" }}>
+                  <td className="py-2 pr-6 text-right tabular-nums" style={{ color: "var(--text-secondary)" }}>
                     {f.exposureDays}
                   </td>
                   <td className="py-2 text-right tabular-nums" style={{ color: "var(--text-secondary)" }}>

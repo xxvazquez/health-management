@@ -43,7 +43,7 @@ export function DateRangeFilter({ span, value, onChange }: Props) {
               setActiveLabel(preset.label);
               onChange(presetRange);
             }}
-            className={clsx("rounded-full px-3 py-1 text-xs font-medium whitespace-nowrap transition-colors")}
+            className={clsx("rounded-md px-3 py-1 text-xs font-medium whitespace-nowrap transition-colors")}
             style={{
               background: active ? "var(--series-1)" : "var(--page-plane)",
               color: active ? "#fff" : "var(--text-secondary)",

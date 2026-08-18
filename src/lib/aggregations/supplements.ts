@@ -2,7 +2,7 @@ import type { CanonicalEvent } from "@/lib/types";
 import { SUPPLEMENT_CATEGORIES } from "@/taxonomy/categories";
 import { computeItemStatsForFilter, computeItemTrends, type ItemStats } from "./itemStats";
 import { trackedCalendarDates } from "./common";
-import { buildPersonalChangeSummary, type PersonalChangeSummary } from "./insights";
+import { buildPersonalChangeSummary, summarizeDrift, type DriftSummary, type PersonalChangeSummary } from "./insights";
 
 export interface SupplementGroup {
   category: string;
@@ -30,10 +30,19 @@ export function supplementsByCategory(events: CanonicalEvent[]): SupplementGroup
  * ranked against a different supplement's consistency.
  */
 export function supplementsInsight(events: CanonicalEvent[]): PersonalChangeSummary {
+  return buildPersonalChangeSummary(supplementTrends(events), "supplement", "supplements", "Taken");
+}
+
+/** "At a glance" numbers for the Supplements page header — same trend data
+ * as `supplementsInsight`, summarized as plain counts instead of a sentence. */
+export function supplementsAtAGlance(events: CanonicalEvent[]): DriftSummary {
+  return summarizeDrift(supplementTrends(events));
+}
+
+function supplementTrends(events: CanonicalEvent[]) {
   const activeDates = Array.from(trackedCalendarDates(events)).sort();
-  const trends = computeItemTrends(
+  return computeItemTrends(
     events.filter((e) => e.itemType === "supplement" && e.category !== "Fiber"),
     activeDates,
   );
-  return buildPersonalChangeSummary(trends, "supplement", "supplements", "Taken");
 }

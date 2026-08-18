@@ -13,9 +13,12 @@ export function AuthBanner() {
   return (
     <div
       className="flex items-center justify-between gap-3 border-b px-4 py-2 text-xs font-medium sm:px-6 lg:px-8"
-      style={{ borderColor: "var(--status-warning)", background: "color-mix(in oklab, var(--status-warning) 20%, var(--surface-1))" }}
+      style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}
     >
-      <span style={{ color: "var(--text-primary)" }}>You&apos;re not logged in — log in to sync and save your data.</span>
+      <span className="flex items-center gap-2" style={{ color: "var(--text-secondary)" }}>
+        <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: "var(--status-warning)" }} />
+        You&apos;re not logged in — log in to sync and save your data.
+      </span>
       <button type="button" onClick={openPanel} className="shrink-0 underline decoration-dotted" style={{ color: "var(--text-primary)" }}>
         Log in
       </button>

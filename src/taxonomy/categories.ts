@@ -8,21 +8,24 @@
 export type ItemType = "food" | "supplement" | "outcome" | "habit";
 
 // Every category below is backed by at least one actually-tracked item in
-// overrides.json. For food specifically, the names and groupings mirror
-// the ZHABITTAG labels already used in the source app (Veggies, Fruit,
-// Grains, Dairy, "Meat & Fish", "Nuts & Seeds", Legumes, Misc) rather than
-// a generic nutrition taxonomy — e.g. nuts and seeds are one category here
-// because the app's own tagging already treats them as one, not two.
-// Don't add a category here speculatively; add it when a real tracked item
-// needs it.
+// overrides.json. For food specifically, the names and groupings started
+// from the ZHABITTAG labels the source app used (Veggies, Fruit, Grains,
+// Dairy, "Meat & Fish", "Nuts & Seeds", Legumes, Misc) and have since been
+// split further where a single bucket was hiding a real distinction: Meat
+// and Fish are nutritionally different enough to track separately, plant
+// milks aren't dairy, and fats (butter, oils) aren't "misc". Don't add a
+// category here speculatively; add it when a real tracked item needs it.
 export const FOOD_CATEGORIES = [
   "Veggies",
   "Fruit",
   "Legumes",
   "Grains",
   "Dairy",
-  "Meat & Fish",
+  "Dairy Alternatives",
+  "Meat",
+  "Fish",
   "Nuts & Seeds",
+  "Fats",
   "Misc",
 ] as const;
 export type FoodCategory = (typeof FOOD_CATEGORIES)[number];
@@ -93,21 +96,24 @@ export const TYPE_ACCENT: Record<ItemType, string> = {
 /**
  * Fixed category -> categorical slot assignment, used only where several
  * categories must share one chart at once (e.g. the food category
- * timeline). There are exactly 8 food categories and 8 validated slots, so
- * every category gets its own stable color; a future 9th category would
- * fold into "Other" rather than cycling a new hue. Keyed by category
- * identity so a category always gets the same color regardless of which
- * categories happen to be in view.
+ * timeline). 10 of the 11 food categories get their own stable color; Misc
+ * deliberately falls through to CATEGORY_SLOT_OTHER (gray) rather than
+ * claiming an 11th hue — fitting for the catch-all category, and charts
+ * stop being colorblind-safe well before 11 series anyway. Keyed by
+ * category identity so a category always gets the same color regardless of
+ * which categories happen to be in view.
  */
 export const CATEGORY_SLOT: Record<string, string> = {
-  Veggies: "var(--series-1)",
-  Fruit: "var(--series-2)",
-  Grains: "var(--series-3)",
-  Dairy: "var(--series-4)",
-  "Meat & Fish": "var(--series-5)",
-  "Nuts & Seeds": "var(--series-6)",
-  Legumes: "var(--series-7)",
-  Misc: "var(--series-8)",
+  Fruit: "var(--series-1)", // green
+  Dairy: "var(--series-2)", // blue
+  Meat: "var(--series-3)", // purple
+  Veggies: "var(--series-6)", // green, distinct from Fruit
+  Fish: "var(--series-indigo)", // blue, distinct from Dairy
+  Grains: "var(--series-chestnut)", // brown
+  "Nuts & Seeds": "var(--series-caramel)", // brown, distinct from Grains
+  Fats: "var(--series-mustard)", // mustard
+  Legumes: "var(--series-orange)", // orange
+  "Dairy Alternatives": "var(--series-slate)", // grey
 };
 export const CATEGORY_SLOT_OTHER = "var(--series-other)";
 

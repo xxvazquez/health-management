@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { useData } from "@/lib/DataContext";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Card, CardTitle } from "@/components/ui/Card";
+import { StatTile } from "@/components/ui/StatTile";
 import { DateRangeFilter } from "@/components/ui/DateRangeFilter";
 import { Insight } from "@/components/ui/Insight";
 import { BulletList } from "@/components/ui/BulletList";
@@ -12,7 +13,8 @@ import { AdherenceStrip } from "@/components/charts/AdherenceStrip";
 import { useDateRangeFilter } from "@/lib/useDateRangeFilter";
 import { addDaysToDate } from "@/lib/aggregations/common";
 import { buildStateByDate } from "@/lib/aggregations/adherence";
-import { supplementsByCategory, supplementsInsight } from "@/lib/aggregations/supplements";
+import { supplementsAtAGlance, supplementsByCategory, supplementsInsight } from "@/lib/aggregations/supplements";
+import { TYPE_ACCENT } from "@/taxonomy/categories";
 
 const STRIP_WINDOW_DAYS = 90;
 
@@ -28,6 +30,7 @@ export default function SupplementsPage() {
     [filtered],
   );
   const insight = useMemo(() => supplementsInsight(events), [events]);
+  const glance = useMemo(() => supplementsAtAGlance(events), [events]);
   const groups = useMemo(() => supplementsByCategory(filteredNoFiber), [filteredNoFiber]);
 
   if (status === "loading") return <p style={{ color: "var(--text-muted)" }}>Loading…</p>;
@@ -38,10 +41,24 @@ export default function SupplementsPage() {
   const clampedStripStart = span && stripStart < span.start ? span.start : stripStart;
 
   return (
-    <div className="flex flex-col gap-8">
-      <h1 className="text-2xl font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
+    <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-2">
+      <h1 className="text-xl font-semibold tracking-tight lg:col-span-2" style={{ color: "var(--text-primary)" }}>
         Supplements
       </h1>
+
+      {glance.trackedCount > 0 && (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:col-span-2">
+          <StatTile
+            label="Average consistency"
+            value={glance.avgConsistencyPct !== null ? `${Math.round(glance.avgConsistencyPct)}%` : "—"}
+            detail={`across ${glance.trackedCount} tracked`}
+            accent={TYPE_ACCENT.supplement}
+          />
+          <StatTile label="Tracked" value={String(glance.trackedCount)} detail={glance.trackedCount === 1 ? "supplement" : "supplements"} />
+          <StatTile label="Running above usual" value={String(glance.increasedCount)} detail="last 14 tracked days" />
+          <StatTile label="Running below usual" value={String(glance.decreasedCount)} detail="last 14 tracked days" />
+        </div>
+      )}
 
       <Insight label="What changed" headline={insight.headline} detail={insight.detail} tone="neutral" />
 
@@ -49,7 +66,7 @@ export default function SupplementsPage() {
         <BulletList title="Running differently than usual" tone="var(--text-muted)" bullets={insight.changed} />
       )}
 
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex items-center justify-between gap-3 lg:col-span-2">
         <p className="text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
           Details
         </p>
@@ -76,10 +93,7 @@ export default function SupplementsPage() {
                       <strong style={{ color: "var(--text-primary)" }}>{item.currentStreak}</strong> current streak
                     </span>
                     <span>
-                      <strong style={{ color: "var(--text-primary)" }}>{item.longestStreak}</strong> longest streak
-                    </span>
-                    <span>
-                      {item.daysCompleted}/{item.daysTracked} days
+                      {item.daysCompleted}/{item.daysTracked} days tracked
                     </span>
                   </span>
                 </div>
@@ -96,7 +110,7 @@ export default function SupplementsPage() {
         </Card>
       ))}
 
-      <Methodology>
+      <Methodology className="lg:col-span-2">
         This compares each supplement&apos;s consistency over the last 14 tracked days against its own overall
         consistency since it was first logged — never a fixed target, never a recommendation to take more or less
         of anything, and never ranked against a different supplement&apos;s consistency. A supplement needs at

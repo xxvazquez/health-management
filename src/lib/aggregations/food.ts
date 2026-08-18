@@ -52,25 +52,6 @@ export function rankedFoods(events: CanonicalEvent[]): FoodRankEntry[] {
   return Array.from(byItem.values()).sort((a, b) => b.count - a.count);
 }
 
-export interface FoodVarietySummary {
-  uniqueFoods: number;
-  categoriesRepresented: number;
-  totalFoodCategories: number;
-  daysWithAnyFoodTracked: number;
-}
-
-export function foodVarietySummary(events: CanonicalEvent[]): FoodVarietySummary {
-  const foods = foodEvents(events);
-  const uniqueFoods = new Set(foods.map((e) => e.item)).size;
-  const categoriesRepresented = new Set(foods.map((e) => e.category)).size;
-  const daysWithAnyFoodTracked = new Set(foods.map((e) => e.date)).size;
-  return {
-    uniqueFoods,
-    categoriesRepresented,
-    totalFoodCategories: FOOD_CATEGORIES.length,
-    daysWithAnyFoodTracked,
-  };
-}
 
 export interface DailyVarietyPoint {
   date: string;

@@ -9,10 +9,18 @@ import { useState, type ReactNode } from "react";
  * page: the distinction still matters and stays available, it just isn't
  * part of the page's default visual rhythm anymore.
  */
-export function Methodology({ children, label = "How this is calculated" }: { children: ReactNode; label?: string }) {
+export function Methodology({
+  children,
+  label = "How this is calculated",
+  className,
+}: {
+  children: ReactNode;
+  label?: string;
+  className?: string;
+}) {
   const [open, setOpen] = useState(false);
   return (
-    <div>
+    <div className={className}>
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}

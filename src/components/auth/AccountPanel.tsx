@@ -45,7 +45,7 @@ export function AccountPanel() {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
       <div className="absolute inset-0 bg-black/30" onClick={closePanel} />
       <div
-        className="relative flex w-full max-w-sm flex-col gap-4 rounded-2xl border p-5 shadow-xl"
+        className="relative flex w-full max-w-sm flex-col gap-4 rounded-xl border p-5 shadow-xl"
         style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}
       >
         <div className="flex items-center justify-between">

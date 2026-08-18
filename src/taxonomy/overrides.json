@@ -141,8 +141,8 @@
   "drink almond milk": {
     "canonicalName": "Almond milk",
     "itemType": "food",
-    "category": "Dairy",
-    "subcategory": "Dairy"
+    "category": "Dairy Alternatives",
+    "subcategory": "Dairy Alternatives"
   },
   "drink coffee": {
     "canonicalName": "Coffee",
@@ -165,14 +165,14 @@
   "drink oat milk": {
     "canonicalName": "Oat milk",
     "itemType": "food",
-    "category": "Dairy",
-    "subcategory": "Dairy"
+    "category": "Dairy Alternatives",
+    "subcategory": "Dairy Alternatives"
   },
   "drink soy milk": {
     "canonicalName": "Soy milk",
     "itemType": "food",
-    "category": "Dairy",
-    "subcategory": "Dairy"
+    "category": "Dairy Alternatives",
+    "subcategory": "Dairy Alternatives"
   },
   "drink water first thing in the morning": {
     "canonicalName": "Drink water first thing in the morning",
@@ -267,8 +267,8 @@
   "eat butter": {
     "canonicalName": "Butter",
     "itemType": "food",
-    "category": "Dairy",
-    "subcategory": "Dairy"
+    "category": "Fats",
+    "subcategory": "Fats"
   },
   "eat cacao": {
     "canonicalName": "Cacao",
@@ -303,8 +303,8 @@
   "eat chicken": {
     "canonicalName": "Chicken",
     "itemType": "food",
-    "category": "Meat & Fish",
-    "subcategory": "Meat & Fish"
+    "category": "Meat",
+    "subcategory": "Meat"
   },
   "eat chickpeas": {
     "canonicalName": "Chickpeas",
@@ -321,8 +321,8 @@
   "eat coconut milk": {
     "canonicalName": "Coconut milk",
     "itemType": "food",
-    "category": "Misc",
-    "subcategory": "Misc"
+    "category": "Dairy Alternatives",
+    "subcategory": "Dairy Alternatives"
   },
   "eat corn": {
     "canonicalName": "Corn",
@@ -369,8 +369,8 @@
   "eat fish": {
     "canonicalName": "Fish",
     "itemType": "food",
-    "category": "Meat & Fish",
-    "subcategory": "Meat & Fish"
+    "category": "Fish",
+    "subcategory": "Fish"
   },
   "eat flaxseeds": {
     "canonicalName": "Flaxseeds",
@@ -411,8 +411,8 @@
   "eat jamón serrano": {
     "canonicalName": "Jamón serrano",
     "itemType": "food",
-    "category": "Meat & Fish",
-    "subcategory": "Meat & Fish"
+    "category": "Meat",
+    "subcategory": "Meat"
   },
   "eat kiwi": {
     "canonicalName": "Kiwi",
@@ -507,14 +507,14 @@
   "eat pork": {
     "canonicalName": "Pork",
     "itemType": "food",
-    "category": "Meat & Fish",
-    "subcategory": "Meat & Fish"
+    "category": "Meat",
+    "subcategory": "Meat"
   },
   "eat potatoes": {
     "canonicalName": "Potatoes",
     "itemType": "food",
-    "category": "Grains",
-    "subcategory": "Grains"
+    "category": "Veggies",
+    "subcategory": "Veggies"
   },
   "eat raspberries": {
     "canonicalName": "Raspberries",
@@ -531,8 +531,8 @@
   "eat salmon": {
     "canonicalName": "Salmon",
     "itemType": "food",
-    "category": "Meat & Fish",
-    "subcategory": "Meat & Fish"
+    "category": "Fish",
+    "subcategory": "Fish"
   },
   "eat sesame seeds": {
     "canonicalName": "Sesame seeds",
@@ -573,8 +573,8 @@
   "eat tuna": {
     "canonicalName": "Tuna",
     "itemType": "food",
-    "category": "Meat & Fish",
-    "subcategory": "Meat & Fish"
+    "category": "Fish",
+    "subcategory": "Fish"
   },
   "eat vanilla": {
     "canonicalName": "Vanilla",

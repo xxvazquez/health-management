@@ -17,13 +17,13 @@ export function StatTile({
         {label}
       </p>
       <p
-        className="mt-2 text-2xl font-semibold tabular-nums"
+        className="mt-1.5 text-xl font-semibold tabular-nums"
         style={{ color: accent ?? "var(--text-primary)" }}
       >
         {value}
       </p>
       {detail && (
-        <p className="mt-1 text-xs" style={{ color: "var(--text-secondary)" }}>
+        <p className="mt-0.5 text-xs" style={{ color: "var(--text-secondary)" }}>
           {detail}
         </p>
       )}

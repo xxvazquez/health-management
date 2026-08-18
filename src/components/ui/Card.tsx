@@ -4,17 +4,17 @@ import clsx from "clsx";
 export type CardTier = "primary" | "supporting" | "raw";
 
 const TIER_STYLE: Record<CardTier, { border: string; shadow: string; padding: string; radius: string }> = {
-  // The one thing per page that should visually win — generous padding,
-  // the only tier with a shadow. Used at most once or twice per page (the
-  // Insight component, and Food's ranked priorities list).
-  primary: { border: "var(--border-hairline)", shadow: "var(--shadow-card)", padding: "p-5", radius: "rounded-2xl" },
+  // The one thing per page that should visually win — the only tier with
+  // a shadow. Used at most once or twice per page (the Insight component,
+  // and Food's ranked priorities list).
+  primary: { border: "var(--border-hairline)", shadow: "var(--shadow-card)", padding: "p-4", radius: "rounded-xl" },
   // Default — a standalone section that's more than a footnote but not
   // the page's primary decision. White surface, light border, no shadow.
-  supporting: { border: "var(--border-hairline)", shadow: "none", padding: "p-5", radius: "rounded-2xl" },
+  supporting: { border: "var(--border-hairline)", shadow: "none", padding: "p-4", radius: "rounded-xl" },
   // Deliberately quieter: smaller padding, lighter border, no shadow — for
   // charts/detail sections nested under a "Details" heading that a user
   // opens deliberately rather than scans by default.
-  raw: { border: "var(--gridline)", shadow: "none", padding: "p-4", radius: "rounded-xl" },
+  raw: { border: "var(--gridline)", shadow: "none", padding: "p-3.5", radius: "rounded-lg" },
 };
 
 export function Card({
@@ -31,7 +31,7 @@ export function Card({
   const style = TIER_STYLE[tier];
   return (
     <div
-      className={clsx("rounded-2xl border transition-shadow duration-200", style.radius, padded && style.padding, className)}
+      className={clsx("border transition-shadow duration-200", style.radius, padded && style.padding, className)}
       style={{ background: "var(--surface-1)", borderColor: style.border, boxShadow: style.shadow }}
     >
       {children}
@@ -49,7 +49,7 @@ export function CardTitle({
   size?: "default" | "sm";
 }) {
   return (
-    <div className="mb-4">
+    <div className="mb-3">
       <h3
         className={size === "sm" ? "text-sm font-medium" : "text-base font-semibold"}
         style={{ color: size === "sm" ? "var(--text-secondary)" : "var(--text-primary)" }}

@@ -1,4 +1,5 @@
 import type { ItemTrend } from "./itemStats";
+import { round1 } from "./common";
 
 /** Shared vocabulary for every page-level synthesized insight. `tone`
  * drives which status color (if any) the Insight component uses for its
@@ -108,5 +109,34 @@ export function buildPersonalChangeSummary(
         ? `${trends.length - judgeable.length} more tracked ${trends.length - judgeable.length === 1 ? nounSingular : nounPlural} without enough history yet to judge.`
         : null,
     changed,
+  };
+}
+
+export interface DriftSummary {
+  trackedCount: number;
+  /** Mean of each item's own overall consistency — null with nothing tracked yet. */
+  avgConsistencyPct: number | null;
+  /** Counts among items with enough history to judge (see driftFor); purely
+   * descriptive, never "good"/"needs attention" — see buildPersonalChangeSummary. */
+  increasedCount: number;
+  decreasedCount: number;
+}
+
+/** The "at a glance" numbers behind a Habits/Supplements-style page —
+ * same neutral vocabulary as buildPersonalChangeSummary, just as plain
+ * stat tiles instead of a sentence. */
+export function summarizeDrift(trends: ItemTrend[]): DriftSummary {
+  let increasedCount = 0;
+  let decreasedCount = 0;
+  for (const t of trends) {
+    const direction = driftFor(t);
+    if (direction === "increased") increasedCount++;
+    else if (direction === "decreased") decreasedCount++;
+  }
+  return {
+    trackedCount: trends.length,
+    avgConsistencyPct: trends.length > 0 ? round1(trends.reduce((sum, t) => sum + t.overallConsistencyPct, 0) / trends.length) : null,
+    increasedCount,
+    decreasedCount,
   };
 }

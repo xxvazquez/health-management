@@ -1,7 +1,8 @@
 "use client";
 
 import { listDatesBetween } from "@/lib/aggregations/common";
-import type { DayState } from "./CalendarHeatmap";
+
+export type DayState = "completed" | "tracked-not-completed" | "not-tracked";
 
 // Deliberately 3 distinct intensities, not 2 competing hues: a tracked day
 // that happened is the strongest signal, a tracked-but-missed day is
