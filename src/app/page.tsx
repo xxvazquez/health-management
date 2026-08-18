@@ -5,7 +5,6 @@ import { useData } from "@/lib/DataContext";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { StatTile } from "@/components/ui/StatTile";
 import { Card, CardTitle } from "@/components/ui/Card";
-import { Insight } from "@/components/ui/Insight";
 import { SampleTierBadge } from "@/components/ui/SampleTierBadge";
 import { computeOverviewStats, computeOverviewInsight, topCrossDomainFindings } from "@/lib/aggregations/overview";
 import type { Bullet } from "@/lib/aggregations/insights";
@@ -132,8 +131,6 @@ export default function OverviewPage() {
         Overview
       </h1>
 
-      <Insight label="Overall" headline={insight.headline} detail={insight.detail} tone={insight.tone} />
-
       {!insight.insufficientData && (insight.whatMatters.length > 0 || insight.needsAttention.length > 0) && (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <FindingsPanel
@@ -168,15 +165,27 @@ export default function OverviewPage() {
         <SectionLabel>At a glance</SectionLabel>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <StatTile
-            label="Food categories tracked"
-            value={`${stats.food.categoriesTracked} / ${stats.food.totalFoodCategories}`}
+            label="Most tracked food"
+            value={stats.food.topFood?.item ?? "—"}
+            detail={stats.food.topFood ? `${stats.food.topFood.count} days` : undefined}
             accent={TYPE_ACCENT.food}
           />
-          <StatTile label="Unique foods" value={String(stats.food.uniqueFoods)} accent={TYPE_ACCENT.food} />
+          <StatTile
+            label="Least tracked food"
+            value={stats.food.leastTrackedFood?.item ?? "—"}
+            detail={stats.food.leastTrackedFood ? `${stats.food.leastTrackedFood.count} day${stats.food.leastTrackedFood.count === 1 ? "" : "s"}` : undefined}
+            accent={TYPE_ACCENT.food}
+          />
           <StatTile
             label="Supplement consistency"
             value={`${stats.supplements.averageConsistencyPct}%`}
             detail={`avg across ${stats.supplements.count} tracked`}
+            accent={TYPE_ACCENT.supplement}
+          />
+          <StatTile
+            label="Most consistent supplement"
+            value={stats.supplements.mostConsistent?.item ?? "—"}
+            detail={stats.supplements.mostConsistent ? `${stats.supplements.mostConsistent.consistencyPct}% consistency` : undefined}
             accent={TYPE_ACCENT.supplement}
           />
           <StatTile
@@ -196,17 +205,6 @@ export default function OverviewPage() {
             value={`${stats.digestion.digestiveSymptomDaysPct}%`}
             detail="of tracked days"
             accent={TYPE_ACCENT.outcome}
-          />
-          <StatTile
-            label="Tracking coverage"
-            value={`${stats.trackingCoverage.coveragePct}%`}
-            detail={`${stats.trackingCoverage.trackedDays} of ${stats.trackingCoverage.totalCalendarDays} days`}
-          />
-          <StatTile
-            label="Most tracked food"
-            value={stats.food.topFood?.item ?? "—"}
-            detail={stats.food.topFood ? `${stats.food.topFood.count} days` : undefined}
-            accent={TYPE_ACCENT.food}
           />
         </div>
       </div>

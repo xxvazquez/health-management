@@ -3,21 +3,27 @@
 import { useMemo, useState } from "react";
 import { useData } from "@/lib/DataContext";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { StatTile } from "@/components/ui/StatTile";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { Insight } from "@/components/ui/Insight";
+import { BulletList } from "@/components/ui/BulletList";
 import { TrendAreaChart } from "@/components/charts/TrendAreaChart";
+import { RankedBarChart } from "@/components/charts/RankedBarChart";
 import { putGymLog, deleteGymLogById } from "@/lib/db/indexedDb";
 import { pushGymLog, deleteGymLog } from "@/lib/supabase/sync";
 import {
-  gymStatsByExercise,
+  describeProgression,
+  gymConsistencySummary,
+  gymExerciseFrequency,
   gymInsight,
+  gymMonthlySessions,
+  gymStatsByExercise,
   gymTimeline,
   formatGymDate,
-  formatGymDateTime,
   type GymExerciseStats,
   type GymTimelineEntry,
 } from "@/lib/aggregations/gym";
+import { formatMonthYear } from "@/lib/aggregations/common";
+import type { Bullet } from "@/lib/aggregations/insights";
 import { GYM_EXERCISES, type GymExercise, type RawGymLog } from "@/lib/types";
 
 const EXERCISE_COLOR: Record<GymExercise, string> = {
@@ -53,10 +59,40 @@ function trendRank(s: GymExerciseStats): number {
   return s.recordsCount >= 2 && s.changePct !== null ? s.changePct : -Infinity;
 }
 
-/** The page's main content: every tracked exercise's start→current→best,
- * ranked by improvement so "which lift has progressed the most" is
- * answered by the row order, not a separate stat. Clicking a row loads
- * that exercise into the detail chart below. */
+/** Compact label/value block for the Progression card's Started/Current/
+ * Best/Change figures — deliberately small (not the app's big hero StatTile
+ * treatment), since these are supporting detail for the chart above them,
+ * not the page's main point. */
+function ProgressionStat({ label, value, detail, accent }: { label: string; value: string; detail?: string; accent?: string }) {
+  return (
+    <div className="rounded-lg border px-3 py-2" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
+      <p className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+        {label}
+      </p>
+      <p className="mt-0.5 text-base font-semibold tabular-nums" style={{ color: accent ?? "var(--text-primary)" }}>
+        {value}
+      </p>
+      {detail && (
+        <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
+          {detail}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/** "SQ", "BP", "OP" — a plain two-letter monogram, not an emoji or icon
+ * asset, to keep the row marker calm and data-oriented rather than decorative. */
+function monogram(exercise: GymExercise): string {
+  const words = exercise.split(" ");
+  return words.length >= 2 ? (words[0][0] + words[1][0]).toUpperCase() : exercise.slice(0, 2).toUpperCase();
+}
+
+/** Ranked start→current→best→change per exercise — answers "which lift has
+ * progressed the most" via row order and a proportional bar, not just a
+ * table of numbers. Each row is colored by its own exercise (icon, name,
+ * bar, change figure) so rows are distinguishable at a glance. Clicking a
+ * row loads that exercise into the detail chart below. */
 function StrengthProgressTable({
   stats,
   selected,
@@ -67,64 +103,81 @@ function StrengthProgressTable({
   onSelect: (exercise: GymExercise) => void;
 }) {
   const sorted = useMemo(() => [...stats].sort((a, b) => trendRank(b) - trendRank(a)), [stats]);
+  const maxAbsChangeKg = useMemo(
+    () => Math.max(1, ...sorted.filter((s) => s.recordsCount >= 2).map((s) => Math.abs(s.changeKg))),
+    [sorted],
+  );
   return (
-    <Card>
+    <Card tier="supporting">
       <CardTitle subtitle="Ranked by improvement — tap a row for its full progression.">Strength progress</CardTitle>
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="text-left text-xs whitespace-nowrap" style={{ color: "var(--text-muted)" }}>
-              <th className="pb-2 font-medium">Exercise</th>
-              <th className="pb-2 text-right font-medium">Start</th>
-              <th className="pb-2 text-right font-medium">Current</th>
-              <th className="pb-2 text-right font-medium">Best</th>
-              <th className="pb-2 text-right font-medium">Change</th>
-            </tr>
-          </thead>
-          <tbody>
-            {sorted.map((s) => {
-              const hasTrend = s.recordsCount >= 2;
-              const active = s.exercise === selected;
-              return (
-                <tr
-                  key={s.exercise}
-                  onClick={() => onSelect(s.exercise)}
-                  className="cursor-pointer border-t whitespace-nowrap transition-colors"
-                  style={{ borderColor: "var(--gridline)", background: active ? "var(--page-plane)" : "transparent" }}
-                >
-                  <td className="py-2.5 font-medium" style={{ color: EXERCISE_COLOR[s.exercise] }}>
-                    {s.exercise}
-                  </td>
-                  <td className="py-2.5 text-right tabular-nums" style={{ color: "var(--text-secondary)" }}>
-                    {s.started.weightKg} kg
-                  </td>
-                  <td className="py-2.5 text-right font-medium tabular-nums" style={{ color: "var(--text-primary)" }}>
-                    {s.current.weightKg} kg
-                  </td>
-                  <td className="py-2.5 text-right tabular-nums" style={{ color: "var(--text-secondary)" }}>
-                    {s.best.weightKg} kg
-                  </td>
-                  <td
-                    className="py-2.5 text-right font-medium tabular-nums"
-                    style={{ color: !hasTrend ? "var(--text-muted)" : s.changeKg >= 0 ? "var(--status-good)" : "var(--status-warning)" }}
-                  >
-                    {hasTrend ? `${signed(s.changeKg)} kg${s.changePct !== null ? ` · ${signed(s.changePct)}%` : ""}` : "First entry"}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+      <div className="flex flex-col">
+        {sorted.map((s) => {
+          const hasTrend = s.recordsCount >= 2;
+          const active = s.exercise === selected;
+          const color = EXERCISE_COLOR[s.exercise];
+          const barPct = hasTrend ? Math.max(4, Math.round((Math.abs(s.changeKg) / maxAbsChangeKg) * 100)) : 0;
+          return (
+            <button
+              key={s.exercise}
+              type="button"
+              onClick={() => onSelect(s.exercise)}
+              className="flex w-full items-center gap-4 border-t py-3.5 pr-3 pl-3 text-left transition-colors first:border-t-0"
+              style={{ borderColor: "var(--gridline)", background: active ? "var(--page-plane)" : "transparent", borderLeft: `3px solid ${color}` }}
+            >
+              <div
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-xs font-semibold"
+                style={{ background: `color-mix(in oklab, ${color} 14%, var(--surface-1))`, color }}
+              >
+                {monogram(s.exercise)}
+              </div>
+
+              <div className="w-28 shrink-0 sm:w-36">
+                <p className="text-sm font-semibold" style={{ color }}>
+                  {s.exercise}
+                </p>
+                <p className="text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>
+                  {s.started.weightKg} → {s.current.weightKg} kg
+                </p>
+              </div>
+
+              <div className="hidden flex-1 sm:block">
+                <div className="h-1.5 w-full rounded-full" style={{ background: "var(--gridline)" }}>
+                  {hasTrend && <div className="h-1.5 rounded-full" style={{ width: `${barPct}%`, background: color }} />}
+                </div>
+              </div>
+
+              <div className="ml-auto shrink-0 text-right">
+                {hasTrend ? (
+                  <p className="text-sm font-semibold tabular-nums" style={{ color }}>
+                    {s.changeKg >= 0 ? "↑" : "↓"} {signed(s.changeKg)} kg
+                    {s.changePct !== null && <span className="font-normal"> · {signed(s.changePct)}%</span>}
+                  </p>
+                ) : (
+                  <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+                    First entry
+                  </p>
+                )}
+                <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                  Best {s.best.weightKg} kg
+                </p>
+              </div>
+            </button>
+          );
+        })}
       </div>
+      <p className="mt-4 text-xs" style={{ color: "var(--text-muted)" }}>
+        Start = first recorded weight · Current = most recent · Best = personal record
+      </p>
     </Card>
   );
 }
 
-/** Shared chronological list — used by both the Timeline (all exercises)
- * and the single-exercise comparison view's "Historical records". */
+/** The Timeline's entry cards — same visual language as /log's daily
+ * timeline strip (small rounded-lg card, colored accent dot, monospaced
+ * date, inline delete), adapted to a vertical scrolling list since this
+ * spans months of history rather than one day's few entries. */
 function EntryList({
   entries,
-  showExercise,
   editing,
   setEditing,
   pendingId,
@@ -133,7 +186,6 @@ function EntryList({
   today,
 }: {
   entries: GymTimelineEntry[];
-  showExercise: boolean;
   editing: EditState | null;
   setEditing: (e: EditState | null) => void;
   pendingId: string | null;
@@ -149,12 +201,17 @@ function EntryList({
     );
   }
   return (
-    <ul className="flex max-h-96 flex-col gap-1.5 overflow-y-auto pr-1">
+    <div className="flex max-h-[32rem] flex-col gap-2 overflow-y-auto pr-1">
       {entries.map((entry) => {
         const busy = pendingId === entry.id;
+        const color = EXERCISE_COLOR[entry.exercise];
         if (editing?.id === entry.id) {
           return (
-            <li key={entry.id} className="flex flex-wrap items-center gap-2 rounded-md px-1.5 py-1 text-xs" style={{ background: "var(--page-plane)" }}>
+            <div
+              key={entry.id}
+              className="flex flex-wrap items-center gap-2 rounded-lg border px-2.5 py-2 text-xs"
+              style={{ borderColor: "var(--border-hairline)", background: "var(--page-plane)" }}
+            >
               <input
                 type="date"
                 value={editing.date}
@@ -179,23 +236,38 @@ function EntryList({
               <button type="button" onClick={() => setEditing(null)} disabled={busy} className="disabled:opacity-40" style={{ color: "var(--text-muted)" }}>
                 Cancel
               </button>
-            </li>
+            </div>
           );
         }
         return (
-          <li
+          <div
             key={entry.id}
-            className="flex items-center justify-between gap-2 rounded-md px-1.5 py-1 text-xs"
-            style={{ color: "var(--text-secondary)", opacity: busy ? 0.5 : 1 }}
+            className="flex flex-col gap-1 rounded-lg border px-2.5 py-2"
+            style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", opacity: busy ? 0.5 : 1 }}
           >
-            <span className="flex items-center gap-1.5" title={`Last updated ${formatGymDateTime(entry.updatedAt)}`}>
-              <span style={{ color: "var(--text-muted)" }}>{formatGymDate(entry.date)}</span>
-              {showExercise && (
-                <span className="font-medium" style={{ color: EXERCISE_COLOR[entry.exercise] }}>
-                  {entry.exercise}
-                </span>
-              )}
-              <span style={{ color: "var(--text-primary)" }}>{entry.weightKg} kg</span>
+            <div className="flex items-center gap-2">
+              <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: color }} />
+              <span className="font-mono text-xs whitespace-nowrap" style={{ color: "var(--text-secondary)" }}>
+                {formatGymDate(entry.date)}
+              </span>
+              <button
+                type="button"
+                onClick={() => onDelete(entry.id)}
+                disabled={busy}
+                aria-label={`Delete ${entry.exercise} entry on ${entry.date}`}
+                className="ml-auto text-xs leading-none disabled:opacity-40"
+                style={{ color: "var(--text-secondary)" }}
+              >
+                ✕
+              </button>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium whitespace-nowrap" style={{ color }}>
+                {entry.exercise}
+              </span>
+              <span className="text-sm whitespace-nowrap" style={{ color: "var(--text-primary)" }}>
+                {entry.weightKg} kg
+              </span>
               {entry.isPR && (
                 <span
                   className="rounded-full px-1.5 py-0.5 text-[10px] font-medium tracking-wide uppercase"
@@ -204,33 +276,21 @@ function EntryList({
                   PR
                 </span>
               )}
-            </span>
-            <span className="flex shrink-0 gap-3">
               <button
                 type="button"
                 onClick={() => setEditing({ id: entry.id, date: entry.date, weight: String(entry.weightKg) })}
                 disabled={busy}
                 aria-label={`Edit ${entry.exercise} entry on ${entry.date}`}
-                className="underline decoration-dotted disabled:opacity-40"
+                className="ml-auto text-xs underline decoration-dotted disabled:opacity-40"
                 style={{ color: "var(--text-muted)" }}
               >
                 Edit
               </button>
-              <button
-                type="button"
-                onClick={() => onDelete(entry.id)}
-                disabled={busy}
-                aria-label={`Delete ${entry.exercise} entry on ${entry.date}`}
-                className="disabled:opacity-40"
-                style={{ color: "var(--text-muted)" }}
-              >
-                ✕
-              </button>
-            </span>
-          </li>
+            </div>
+          </div>
         );
       })}
-    </ul>
+    </div>
   );
 }
 
@@ -245,17 +305,69 @@ export default function GymPage() {
   const [editing, setEditing] = useState<EditState | null>(null);
   const [timelineFilter, setTimelineFilter] = useState<GymExercise | "all">("all");
   const [compareExercise, setCompareExercise] = useState<GymExercise | null>(null);
+  const [weightPrefillSignal, setWeightPrefillSignal] = useState<string | null>(null);
 
   const stats = useMemo(() => gymStatsByExercise(gymLogs), [gymLogs]);
-  const insight = useMemo(() => gymInsight(gymLogs), [gymLogs]);
+  const insight = useMemo(() => gymInsight(gymLogs, today), [gymLogs, today]);
+  const consistency = useMemo(() => gymConsistencySummary(gymLogs, today), [gymLogs, today]);
+  const monthlySessions = useMemo(() => gymMonthlySessions(gymLogs), [gymLogs]);
+  const exerciseFrequency = useMemo(() => gymExerciseFrequency(gymLogs), [gymLogs]);
   const timeline = useMemo(() => gymTimeline(gymLogs), [gymLogs]);
 
   const selectedExercise = compareExercise && stats.some((s) => s.exercise === compareExercise) ? compareExercise : (stats[0]?.exercise ?? null);
   const selectedStats = stats.find((s) => s.exercise === selectedExercise) ?? null;
   const filteredTimeline = timelineFilter === "all" ? timeline : timeline.filter((e) => e.exercise === timelineFilter);
 
+  // Prefills the weight field with that exercise's last logged weight, so
+  // repeat entries (the common case) don't need retyping from scratch. Keyed
+  // on exercise + that exercise's last weight, so it fires once per actual
+  // change (exercise switch, or a new log arriving) and never fights the
+  // user clearing the field to type something else.
+  const lastWeightForExercise = stats.find((s) => s.exercise === exercise)?.current.weightKg;
+  const prefillSignal = `${exercise}:${lastWeightForExercise ?? ""}`;
+  if (weightPrefillSignal !== prefillSignal) {
+    setWeightPrefillSignal(prefillSignal);
+    if (weight === "" && lastWeightForExercise !== undefined) {
+      setWeight(String(lastWeightForExercise));
+    }
+  }
+
   if (status === "loading") return <p style={{ color: "var(--text-muted)" }}>Loading…</p>;
   if (status === "empty") return <EmptyState />;
+
+  // Skip whatever the hero Insight already said outright, so the bullets
+  // add context rather than repeating the headline in smaller text.
+  const heroCoversFrequencyChange = insight?.headline.startsWith("Training frequency") ?? false;
+  const heroCoversCurrentGap = insight?.headline.startsWith("It's been") ?? false;
+
+  const consistencyBullets: Bullet[] = [];
+  if (!consistency.insufficientData && consistency.recentAvgPerMonth !== null) {
+    if (
+      !heroCoversFrequencyChange &&
+      consistency.priorAvgPerMonth !== null &&
+      consistency.recentAvgPerMonth !== consistency.priorAvgPerMonth
+    ) {
+      consistencyBullets.push({
+        label: "Training frequency",
+        detail: `${consistency.recentAvgPerMonth} sessions/month over the last 3 months, compared with ${consistency.priorAvgPerMonth} the 3 months before.`,
+        compact: `${consistency.recentAvgPerMonth}/mo recently · ${consistency.priorAvgPerMonth}/mo before`,
+      });
+    }
+    if (consistency.longestGapDays !== null && consistency.longestGapDays >= 10) {
+      consistencyBullets.push({
+        label: "Longest gap",
+        detail: `${consistency.longestGapDays} days without a session, ${formatGymDate(consistency.longestGapStart!)}–${formatGymDate(consistency.longestGapEnd!)}.`,
+        compact: `${consistency.longestGapDays} days`,
+      });
+    }
+    if (!heroCoversCurrentGap && consistency.currentGapDays !== null && consistency.currentGapDays >= 10) {
+      consistencyBullets.push({
+        label: "Current gap",
+        detail: `${consistency.currentGapDays} days since the last logged session.`,
+        compact: `${consistency.currentGapDays} days so far`,
+      });
+    }
+  }
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
@@ -297,10 +409,6 @@ export default function GymPage() {
         Gym
       </h1>
 
-      {insight && <Insight label="What's new" headline={insight.headline} detail={insight.detail} tone={insight.tone} />}
-
-      {stats.length > 0 && <StrengthProgressTable stats={stats} selected={selectedExercise} onSelect={setCompareExercise} />}
-
       <Card tier="raw">
         <CardTitle size="sm">Log a lift</CardTitle>
         <form onSubmit={(e) => void handleAdd(e)} className="flex flex-wrap items-end gap-3">
@@ -319,7 +427,10 @@ export default function GymPage() {
             Exercise
             <select
               value={exercise}
-              onChange={(e) => setExercise(e.target.value as GymExercise)}
+              onChange={(e) => {
+                setExercise(e.target.value as GymExercise);
+                setWeight("");
+              }}
               className="rounded-md border px-2.5 py-1.5 text-sm"
               style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
             >
@@ -355,6 +466,38 @@ export default function GymPage() {
         </form>
       </Card>
 
+      {insight && <Insight label="What's happening" headline={insight.headline} detail={insight.detail} tone={insight.tone} />}
+
+      {consistencyBullets.length > 0 && <BulletList title="What changed" tone="var(--text-muted)" bullets={consistencyBullets} />}
+
+      <Card tier="raw">
+        <CardTitle size="sm" subtitle="Any day at least one lift was logged, by month">Training frequency</CardTitle>
+        {monthlySessions.length > 1 ? (
+          <TrendAreaChart
+            data={monthlySessions.map((m) => ({ date: m.monthStart, value: m.sessions }))}
+            color="var(--series-1)"
+            valueLabel="Sessions"
+            xTickFormatter={formatMonthYear}
+            showEveryTick
+          />
+        ) : (
+          <p className="text-sm" style={{ color: "var(--text-muted)" }}>Not enough data yet to show a monthly trend.</p>
+        )}
+      </Card>
+
+      {exerciseFrequency.length > 0 && (
+        <Card tier="raw">
+          <CardTitle size="sm" subtitle="Sessions each exercise appeared in — logging frequency, not training volume or load">
+            Which lifts you train most
+          </CardTitle>
+          <RankedBarChart
+            data={exerciseFrequency.map((e) => ({ label: e.exercise, value: e.sessionCount, color: EXERCISE_COLOR[e.exercise] }))}
+          />
+        </Card>
+      )}
+
+      {stats.length > 0 && <StrengthProgressTable stats={stats} selected={selectedExercise} onSelect={setCompareExercise} />}
+
       {selectedStats && (
         <Card tier="supporting">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -375,11 +518,16 @@ export default function GymPage() {
             </select>
           </div>
 
-          <div className="mb-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
-            <StatTile label="Started" value={`${selectedStats.started.weightKg} kg`} detail={formatGymDate(selectedStats.started.date)} />
-            <StatTile label="Current" value={`${selectedStats.current.weightKg} kg`} detail={formatGymDate(selectedStats.current.date)} accent={EXERCISE_COLOR[selectedStats.exercise]} />
-            <StatTile label="Best" value={`${selectedStats.best.weightKg} kg`} detail={formatGymDate(selectedStats.best.date)} />
-            <StatTile
+          <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <ProgressionStat label="Started" value={`${selectedStats.started.weightKg} kg`} detail={formatGymDate(selectedStats.started.date)} />
+            <ProgressionStat
+              label="Current"
+              value={`${selectedStats.current.weightKg} kg`}
+              detail={formatGymDate(selectedStats.current.date)}
+              accent={EXERCISE_COLOR[selectedStats.exercise]}
+            />
+            <ProgressionStat label="Best" value={`${selectedStats.best.weightKg} kg`} detail={formatGymDate(selectedStats.best.date)} />
+            <ProgressionStat
               label="Change"
               value={`${signed(selectedStats.changeKg)} kg`}
               detail={selectedStats.changePct !== null ? `${signed(selectedStats.changePct)}%` : undefined}
@@ -387,25 +535,17 @@ export default function GymPage() {
             />
           </div>
 
+          <p className="mb-3 text-sm" style={{ color: "var(--text-secondary)" }}>
+            {describeProgression(selectedStats)}
+          </p>
+
           <TrendAreaChart
             data={selectedStats.entries.map((e) => ({ date: e.date, value: e.weightKg }))}
             color={EXERCISE_COLOR[selectedStats.exercise]}
             valueLabel={`${selectedStats.exercise} (kg)`}
             height={200}
-          />
-
-          <p className="mt-4 mb-2 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
-            Historical records
-          </p>
-          <EntryList
-            entries={[...selectedStats.entries].reverse().map((e) => ({ id: e.id, date: e.date, exercise: selectedStats.exercise, weightKg: e.weightKg, updatedAt: e.updatedAt, isPR: e.isPR }))}
-            showExercise={false}
-            editing={editing}
-            setEditing={setEditing}
-            pendingId={pendingId}
-            onSave={(entry) => void handleSaveEdit(entry)}
-            onDelete={(id) => void handleDelete(id)}
-            today={today}
+            xTickFormatter={formatMonthYear}
+            yTickFormatter={(v) => `${v} kg`}
           />
         </Card>
       )}
@@ -431,7 +571,6 @@ export default function GymPage() {
         </div>
         <EntryList
           entries={filteredTimeline}
-          showExercise
           editing={editing}
           setEditing={setEditing}
           pendingId={pendingId}
