@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import type { ReactNode } from "react";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { DataProvider } from "@/lib/DataContext";
@@ -13,10 +14,15 @@ const bodyFont = Inter({
 
 export const metadata: Metadata = {
   title: "Lauva",
-  description: "A personal food, supplement, and habit analytics dashboard — entirely client-side.",
+  description:
+    "A personal food, supplement, and habit analytics dashboard — entirely client-side.",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: ReactNode;
+}>) {
   return (
     <html lang="en" className={`${bodyFont.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col lg:flex-row">
@@ -29,8 +35,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
                 <div className="mx-auto w-full max-w-4xl">{children}</div>
               </div>
               <footer className="px-4 pb-6 sm:px-6 lg:px-8">
-                <p className="mx-auto w-full max-w-4xl text-center text-xs" style={{ color: "var(--text-muted)" }}>
-                  Lauva provides personal data insights only. It is not medical advice and does not diagnose or treat medical conditions.
+                <p
+                  className="mx-auto w-full max-w-4xl text-center text-xs"
+                  style={{ color: "var(--text-muted)" }}
+                >
+                  Lauva provides personal data insights only. It is not medical
+                  advice and does not diagnose or treat medical conditions.
                 </p>
               </footer>
             </main>
