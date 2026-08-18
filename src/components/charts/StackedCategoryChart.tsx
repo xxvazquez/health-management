@@ -19,16 +19,20 @@ export function StackedCategoryChart({
 }) {
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <BarChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: -20 }}>
+      <BarChart data={data} margin={{ top: 8, right: 20, bottom: 28, left: 0 }}>
         <CartesianGrid vertical={false} stroke="var(--gridline)" />
         <XAxis
           dataKey="bucketStart"
           tickLine={false}
           axisLine={{ stroke: "var(--baseline)" }}
           tick={{ fill: "var(--text-muted)", fontSize: 11 }}
-          minTickGap={24}
+          tickFormatter={(d: string) => d.slice(2)}
+          angle={-90}
+          textAnchor="end"
+          height={56}
+          minTickGap={12}
         />
-        <YAxis tickLine={false} axisLine={false} tick={{ fill: "var(--text-muted)", fontSize: 11 }} width={28} />
+        <YAxis tickLine={false} axisLine={false} tick={{ fill: "var(--text-muted)", fontSize: 11 }} width={32} />
         <Tooltip
           contentStyle={{
             background: "var(--surface-1)",

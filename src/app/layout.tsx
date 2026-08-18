@@ -28,6 +28,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               <div className="px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
                 <div className="mx-auto w-full max-w-5xl">{children}</div>
               </div>
+              <footer className="px-4 pb-6 sm:px-6 lg:px-8">
+                <p className="mx-auto w-full max-w-5xl text-center text-xs" style={{ color: "var(--text-muted)" }}>
+                  Lauva provides personal data insights only. It is not medical advice and does not diagnose or treat medical conditions.
+                </p>
+              </footer>
             </main>
           </DataProvider>
         </AuthProvider>

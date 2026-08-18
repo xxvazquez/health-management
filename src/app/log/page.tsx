@@ -492,6 +492,10 @@ export default function LogPage() {
     }
   }
 
+  /** A plain list row, not a pill — available items are just text; a
+   * tracked one gets a tinted background, a colored left edge, and a
+   * checkmark, which reads as "the strongest state on the row" without
+   * needing a heavy rounded shape to do it. */
   function renderChip(c: LogCandidate, accent: string) {
     const logged = (counts.get(c.key) ?? 0) > 0;
     const busy = pending === c.key;
@@ -503,27 +507,29 @@ export default function LogPage() {
         onClick={() => handleChipTap(c)}
         disabled={busy}
         className={clsx(
-          "rounded-full border px-2.5 py-1.5 text-xs font-medium whitespace-nowrap transition-colors disabled:opacity-50",
+          "flex items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-sm transition-colors disabled:opacity-50",
           !logged && "hover:bg-[var(--page-plane)]",
         )}
         style={{
-          borderColor: logged ? accent : "rgba(36, 49, 58, 0.22)",
-          background: logged ? `color-mix(in oklab, ${accent} 20%, var(--surface-1))` : "var(--surface-1)",
+          background: logged ? `color-mix(in oklab, ${accent} 14%, var(--surface-1))` : "transparent",
+          borderLeft: `2px solid ${logged ? accent : "transparent"}`,
           color: logged ? "var(--text-primary)" : "var(--text-secondary)",
+          fontWeight: logged ? 600 : 400,
         }}
       >
         {logged && (
-          <span className="mr-0.5" style={{ color: accent }}>
+          <span className="shrink-0" style={{ color: accent }}>
             ✓
           </span>
         )}
-        {c.item}
+        <span className="truncate">{c.item}</span>
       </button>
     );
   }
 
   /** Duration-kind items (Sleep duration) render an hours+minutes picker
-   * instead of a tap chip — a magnitude, not an occurrence. */
+   * instead of a tap chip — a magnitude, not an occurrence. Spans the full
+   * row width since the stepper needs more room than a plain item cell. */
   function renderDurationControl(c: LogCandidate, accent: string) {
     const loggedMinutes = durationValueForDate.get(c.itemIdentity);
     const logged = loggedMinutes != null;
@@ -537,14 +543,14 @@ export default function LogPage() {
     return (
       <div
         key={c.key}
-        className="flex items-center gap-2 rounded-full border px-2.5 py-1"
+        className="col-span-full flex items-center gap-2 rounded-md px-2 py-1.5"
         style={{
-          borderColor: logged ? accent : "rgba(36, 49, 58, 0.22)",
-          background: logged ? `color-mix(in oklab, ${accent} 20%, var(--surface-1))` : "var(--surface-1)",
+          background: logged ? `color-mix(in oklab, ${accent} 14%, var(--surface-1))` : "transparent",
+          borderLeft: `2px solid ${logged ? accent : "transparent"}`,
           opacity: busy ? 0.6 : 1,
         }}
       >
-        <span className="text-xs font-medium whitespace-nowrap" style={{ color: logged ? "var(--text-primary)" : "var(--text-secondary)" }}>
+        <span className="text-sm whitespace-nowrap" style={{ color: logged ? "var(--text-primary)" : "var(--text-secondary)", fontWeight: logged ? 600 : 400 }}>
           {c.item}
         </span>
         <DurationStepper totalMinutes={minutes} onChange={(m) => void handleSetDuration(c, m)} />
@@ -600,7 +606,7 @@ export default function LogPage() {
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <nav className="flex w-fit items-center gap-0.5 rounded-lg p-1" style={{ background: "var(--page-plane)" }}>
+        <nav className="flex w-fit items-center gap-4 border-b" style={{ borderColor: "var(--border-hairline)" }}>
           {TABS.map((t) => {
             const active = t.type === tab;
             const count = candidates.filter((c) => c.itemType === t.type).length;
@@ -609,19 +615,16 @@ export default function LogPage() {
                 key={t.type}
                 type="button"
                 onClick={() => setTab(t.type)}
-                className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-colors"
+                className="flex items-center gap-1.5 pb-2 text-sm font-medium whitespace-nowrap transition-colors"
                 style={{
-                  background: active ? "var(--surface-1)" : "transparent",
                   color: active ? TYPE_ACCENT[t.type] : "var(--text-secondary)",
-                  boxShadow: active ? "var(--shadow-card)" : "none",
+                  borderBottom: `2px solid ${active ? TYPE_ACCENT[t.type] : "transparent"}`,
+                  marginBottom: "-1px",
                 }}
               >
                 {t.label}
                 {count > 0 && (
-                  <span
-                    className="text-xs font-semibold"
-                    style={{ color: active ? TYPE_ACCENT[t.type] : "var(--text-muted)", opacity: active ? 0.75 : 1 }}
-                  >
+                  <span className="text-xs font-semibold" style={{ color: active ? TYPE_ACCENT[t.type] : "var(--text-muted)" }}>
                     {count}
                   </span>
                 )}
@@ -635,11 +638,11 @@ export default function LogPage() {
       </div>
 
       {tabConfig.countable && (
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-3">
           <span className="text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-secondary)" }}>
             Eaten at
           </span>
-          <div className="flex items-center gap-0.5 rounded-lg p-1" style={{ background: "var(--page-plane)" }}>
+          <div className="flex items-center gap-3">
             {MEAL_OPTIONS.map((m) => {
               const active = m === meal;
               return (
@@ -647,10 +650,10 @@ export default function LogPage() {
                   key={m}
                   type="button"
                   onClick={() => setMeal(m)}
-                  className="rounded-md px-2.5 py-1 text-xs font-semibold whitespace-nowrap transition-colors"
+                  className="pb-0.5 text-xs font-semibold whitespace-nowrap transition-colors"
                   style={{
-                    color: active ? "#fff" : "var(--text-secondary)",
-                    background: active ? TYPE_ACCENT.food : "transparent",
+                    color: active ? TYPE_ACCENT.food : "var(--text-secondary)",
+                    borderBottom: `2px solid ${active ? TYPE_ACCENT.food : "transparent"}`,
                   }}
                 >
                   {m}
@@ -698,8 +701,8 @@ export default function LogPage() {
                     type="button"
                     onClick={() => void handleQuickLogSeasonal(pick.item)}
                     disabled={pending === `seasonal:${normalizeName(pick.item)}`}
-                    className="rounded-full border px-2.5 py-1 text-xs font-medium whitespace-nowrap disabled:opacity-50"
-                    style={{ borderColor: "rgba(36, 49, 58, 0.22)", color: "var(--text-secondary)", background: "var(--surface-1)" }}
+                    className="rounded-md border px-2.5 py-1 text-xs font-medium whitespace-nowrap disabled:opacity-50"
+                    style={{ borderColor: "var(--border-hairline)", color: "var(--text-secondary)", background: "var(--surface-1)" }}
                   >
                     {pick.item}
                     <span className="ml-1" style={{ color: "var(--text-muted)" }}>
@@ -729,24 +732,28 @@ export default function LogPage() {
         </p>
       ) : (
         <div className="flex flex-col gap-4">
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          {groupedByCategory.length > 0 && (
+            <p className="flex items-center gap-1 text-xs" style={{ color: "var(--text-muted)" }}>
+              <span style={{ color: TYPE_ACCENT[tab] }}>✓</span> logged {formatDateLabel(date, today).toLowerCase()} — tap again to remove
+            </p>
+          )}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {groupedByCategory.map((group) => {
               const accent = tab === "food" ? colorForCategorySlot(group.category) : TYPE_ACCENT[tab];
               const emoji = tab === "food" ? FOOD_CATEGORY_EMOJI[group.category] : null;
               return (
-                <div
-                  key={group.category}
-                  className="flex flex-col gap-1.5 rounded-xl border p-2.5"
-                  style={{ borderColor: "var(--border-hairline)", background: `color-mix(in oklab, ${accent} 7%, var(--surface-1))` }}
-                >
-                  <h2 className="flex items-center gap-1.5 text-xs font-bold tracking-wide uppercase" style={{ color: accent }}>
+                <div key={group.category} className="flex flex-col gap-2 rounded-xl border p-3" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
+                  <h2
+                    className="flex items-center gap-1.5 border-b pb-2 text-xs font-bold tracking-wide uppercase"
+                    style={{ color: accent, borderColor: "var(--border-hairline)" }}
+                  >
                     {emoji && <span className="text-sm">{emoji}</span>}
                     {group.category}
-                    <span className="font-medium normal-case" style={{ color: "var(--text-secondary)" }}>
-                      · {group.items.length}
+                    <span className="ml-auto font-medium normal-case" style={{ color: "var(--text-secondary)" }}>
+                      {group.items.length}
                     </span>
                   </h2>
-                  <div className="flex flex-wrap gap-1.5">
+                  <div className="grid grid-cols-2 gap-x-2 gap-y-0.5">
                     {group.items.map((c) => (INPUT_KIND[c.item] === "duration" ? renderDurationControl(c, accent) : renderChip(c, accent)))}
                   </div>
                 </div>
@@ -764,8 +771,8 @@ export default function LogPage() {
             <button
               type="button"
               onClick={() => setAddingNew(true)}
-              className="self-start rounded-full border border-dashed px-3 py-1.5 text-sm font-medium whitespace-nowrap"
-              style={{ borderColor: "rgba(36, 49, 58, 0.28)", color: "var(--text-secondary)" }}
+              className="self-start rounded-md border border-dashed px-3 py-1.5 text-sm font-medium whitespace-nowrap"
+              style={{ borderColor: "var(--border-hairline)", color: "var(--text-secondary)" }}
             >
               + Something not listed
             </button>
@@ -783,13 +790,13 @@ export default function LogPage() {
                 value={newItemText}
                 onChange={(e) => setNewItemText(e.target.value)}
                 placeholder={tabConfig.placeholder}
-                className="w-full max-w-xs rounded-full border px-3.5 py-1.5 text-sm outline-none"
+                className="w-full max-w-xs rounded-md border px-3.5 py-1.5 text-sm outline-none"
                 style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
               />
               <button
                 type="submit"
                 disabled={!newItemText.trim() || pending === "__new__"}
-                className="rounded-full border px-3.5 py-1.5 text-sm font-medium whitespace-nowrap disabled:opacity-40"
+                className="rounded-md border px-3.5 py-1.5 text-sm font-medium whitespace-nowrap disabled:opacity-40"
                 style={{ borderColor: "var(--border-hairline)", color: "var(--text-secondary)" }}
               >
                 + Add &amp; log
@@ -819,10 +826,10 @@ export default function LogPage() {
                   return (
                     <div
                       key={entry.key}
-                      className="flex shrink-0 flex-col gap-1 rounded-lg border px-2.5 py-2"
+                      className="flex shrink-0 flex-col gap-0.5 rounded-md border px-2 py-1.5"
                       style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", opacity: busy ? 0.5 : 1 }}
                     >
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5">
                         <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: TYPE_ACCENT[entry.itemType] }} />
                         <span className="font-mono text-xs whitespace-nowrap" style={{ color: "var(--text-secondary)" }}>
                           {entry.time}
@@ -840,7 +847,7 @@ export default function LogPage() {
                           </button>
                         )}
                       </div>
-                      <span className="text-sm font-medium whitespace-nowrap" style={{ color: "var(--text-primary)" }}>
+                      <span className="text-xs font-medium whitespace-nowrap" style={{ color: "var(--text-primary)" }}>
                         {entry.item}
                         {INPUT_KIND[entry.item] === "duration" && entry.value != null && (
                           <span className="ml-1.5 font-normal" style={{ color: "var(--text-secondary)" }}>
@@ -852,7 +859,7 @@ export default function LogPage() {
                         (isDemoData ? (
                           entry.mealTag && (
                             <span
-                              className="rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap"
+                              className="rounded px-1.5 py-0.5 text-xs font-medium whitespace-nowrap"
                               style={{ background: "var(--page-plane)", color: "var(--text-secondary)" }}
                             >
                               {entry.mealTag}
@@ -863,7 +870,7 @@ export default function LogPage() {
                             value={entry.mealTag ?? ""}
                             disabled={busy}
                             onChange={(e) => void handleChangeEntryMeal(entry, e.target.value)}
-                            className="rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap outline-none disabled:opacity-40"
+                            className="rounded px-1.5 py-0.5 text-xs font-medium whitespace-nowrap outline-none disabled:opacity-40"
                             style={{ background: "var(--page-plane)", color: "var(--text-secondary)", border: "none" }}
                           >
                             <option value="" disabled>

@@ -39,6 +39,11 @@ export function addDaysToDate(date: string, days: number): string {
   return d.toISOString().slice(0, 10);
 }
 
+export function daysBetween(a: string, b: string): number {
+  const ms = new Date(`${b}T00:00:00Z`).getTime() - new Date(`${a}T00:00:00Z`).getTime();
+  return Math.round(ms / 86_400_000);
+}
+
 /** Dates (across the whole dataset, any item) on which anything was tracked at all. */
 export function trackedCalendarDates(events: CanonicalEvent[]): Set<string> {
   return new Set(events.map((e) => e.date));
@@ -101,6 +106,16 @@ export function isoWeekStart(date: string): string {
 
 export function monthStart(date: string): string {
   return `${date.slice(0, 7)}-01`;
+}
+
+/** "Aug 26" — for chart axis ticks once a range is long enough that
+ * per-day labels would be unreadable. Works on any date, not just a
+ * month-start one, since only the month/year are read. */
+export function formatMonthYear(date: string): string {
+  const d = new Date(`${date}T00:00:00Z`);
+  const month = d.toLocaleDateString(undefined, { month: "short", timeZone: "UTC" });
+  const year = String(d.getUTCFullYear()).slice(-2);
+  return `${month} ${year}`;
 }
 
 /** "7h 30m" style — for any minutes-valued observation (currently just

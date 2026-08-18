@@ -11,19 +11,21 @@ import { BulletList } from "@/components/ui/BulletList";
 import { Methodology } from "@/components/ui/Methodology";
 import { SampleTierBadge } from "@/components/ui/SampleTierBadge";
 import { RankedBarChart } from "@/components/charts/RankedBarChart";
-import { ColorStrip, type ColorStripPoint } from "@/components/charts/ColorStrip";
+import { BristolScoreChart } from "@/components/charts/BristolScoreChart";
+import { TrendAreaChart } from "@/components/charts/TrendAreaChart";
 import { MultiLineChart } from "@/components/charts/MultiLineChart";
 import { ComparisonBars } from "@/components/charts/ComparisonBars";
 import { AdherenceStrip } from "@/components/charts/AdherenceStrip";
 import { useDateRangeFilter } from "@/lib/useDateRangeFilter";
-import { addDaysToDate } from "@/lib/aggregations/common";
+import { addDaysToDate, daysBetween, formatMonthYear } from "@/lib/aggregations/common";
 import { buildStateByDate } from "@/lib/aggregations/adherence";
 import {
   bristolBandDistribution,
-  bristolDistribution,
-  bristolRollingBands,
-  bristolTimeline,
+  bristolMonthlyScoreAverage,
+  bristolScoreSeries,
+  bristolTargetRangeChange,
   digestionInsight,
+  digestiveSymptomRateChange,
   digestiveSymptomStats,
   fiberStats,
   otherSymptomStats,
@@ -43,17 +45,28 @@ function lagPhrase(lagDays: number): string {
 }
 
 const STRIP_WINDOW_DAYS = 90;
+/** Past this many days in the selected range, "Bristol score over time"
+ * switches from one point per observation to a monthly average — beyond
+ * roughly 4 months, per-observation points overlap into an unreadable wall
+ * of dots anyway. */
+const SCORE_CHART_MONTHLY_THRESHOLD_DAYS = 120;
 
-const BRISTOL_COLOR: Record<string, string> = {
-  "Bristol 1": "var(--seq-100)",
-  "Bristol 2": "var(--seq-200)",
-  "Bristol 3": "var(--seq-300)",
-  "Bristol 4": "var(--seq-450)",
-  "Bristol 5": "var(--seq-600)",
-  "No Bristol": "var(--series-other)",
+const BAND_COLOR: Record<string, string> = {
+  "Loose (1–2)": "var(--series-1)",
+  "Normal (3–4)": "var(--status-good)",
+  "Hard (5)": "var(--series-8)",
 };
 
 const SYMPTOM_LINE_COLORS = ["var(--series-1)", "var(--series-2)", "var(--series-3)", "var(--series-4)", "var(--series-5)"];
+
+function deltaDetail(recentPct: number | null, priorPct: number | null): string | undefined {
+  if (recentPct === null) return undefined;
+  if (priorPct === null) return "not enough prior data to compare";
+  const priorRounded = Math.round(priorPct);
+  const diff = Math.round(recentPct) - priorRounded;
+  if (diff === 0) return `${priorRounded}% previous 30 days`;
+  return `${diff > 0 ? "+" : ""}${diff}pp vs ${priorRounded}% previous 30 days`;
+}
 
 export default function DigestionPage() {
   const { status, events, gymLogs } = useData();
@@ -63,16 +76,20 @@ export default function DigestionPage() {
     [gymLogs, range],
   );
 
-  // The insight always reads the full history — recent-vs-usual needs a
-  // stable baseline independent of the detail charts' date filter.
+  // The hero insight and "at a glance" tiles always read the full history —
+  // recent-vs-usual needs a stable baseline independent of the detail
+  // charts' date filter.
   const insight = useMemo(() => digestionInsight(events), [events]);
+  const rangeChange = useMemo(() => bristolTargetRangeChange(events), [events]);
+  const symptomRateChange = useMemo(() => digestiveSymptomRateChange(events), [events]);
   const bristolPatterns = useMemo(() => generateBristolPatterns(filtered, filteredGymLogs), [filtered, filteredGymLogs]);
 
-  const bristolDist = useMemo(() => bristolDistribution(filtered), [filtered]);
+  const scoreSeries = useMemo(() => bristolScoreSeries(filtered), [filtered]);
+  const monthlyScoreAverage = useMemo(() => bristolMonthlyScoreAverage(filtered), [filtered]);
+  const rangeSpanDays = range ? daysBetween(range.start, range.end) : 0;
+  const showMonthlyScoreView = rangeSpanDays > SCORE_CHART_MONTHLY_THRESHOLD_DAYS;
   const bristolBands = useMemo(() => bristolBandDistribution(filtered), [filtered]);
   const unclassifiedStool = useMemo(() => unclassifiedStoolStats(filtered), [filtered]);
-  const rollingBands = useMemo(() => bristolRollingBands(filtered), [filtered]);
-  const bristolTl = useMemo(() => bristolTimeline(filtered), [filtered]);
   const stoolQuality = useMemo(() => stoolQualityStats(filtered), [filtered]);
   const digestiveSymptoms = useMemo(() => digestiveSymptomStats(filtered), [filtered]);
   const otherSymptoms = useMemo(() => otherSymptomStats(filtered), [filtered]);
@@ -81,18 +98,6 @@ export default function DigestionPage() {
 
   if (status === "loading") return <p style={{ color: "var(--text-muted)" }}>Loading…</p>;
   if (status === "empty") return <EmptyState />;
-
-  const topBristol = [...bristolDist].sort((a, b) => b.count - a.count)[0];
-  const totalDigestiveSymptomDays = new Set(
-    filtered.filter((e) => e.category === "Digestive Symptom" && e.completed).map((e) => e.date),
-  ).size;
-  const totalStoolDays = new Set(filtered.filter((e) => e.subcategory === "Bristol Scale" && e.completed).map((e) => e.date)).size;
-
-  const bristolStripPoints: ColorStripPoint[] = bristolTl.map((p) => ({
-    date: p.date,
-    color: BRISTOL_COLOR[p.item] ?? "var(--series-other)",
-    title: `${p.date}: ${p.item}`,
-  }));
 
   const stripEnd = range?.end ?? span?.end ?? "";
   const stripStart = stripEnd ? addDaysToDate(stripEnd, -(STRIP_WINDOW_DAYS - 1)) : "";
@@ -106,11 +111,6 @@ export default function DigestionPage() {
   });
   const topSymptomOverall = [...digestiveSymptoms].sort((a, b) => b.daysCompleted - a.daysCompleted)[0];
 
-  const bandsCaption =
-    bristolBands.length > 0
-      ? bristolBands.map((b) => `${b.band.replace(/\s*\(.+\)/, "")} ${b.sharePct}%`).join(" · ")
-      : null;
-
   return (
     <div className="flex flex-col gap-8">
       <h1 className="text-2xl font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
@@ -123,31 +123,69 @@ export default function DigestionPage() {
         <BulletList title="What changed" tone="var(--text-muted)" bullets={insight.changed} />
       )}
 
+      {span && range && <DateRangeFilter span={span} value={range} onChange={setRange} />}
+
+      <Card tier="raw">
+        <CardTitle
+          size="sm"
+          subtitle={
+            showMonthlyScoreView
+              ? "Target range: 3–4. Monthly average — too wide a range to show every observation legibly."
+              : `Target range: 3–4. Each point is one recorded observation${
+                  unclassifiedStool.unclassifiedCount > 0 ? " — unclassified ('No Bristol') entries have no numeric value and are excluded" : ""
+                }.`
+          }
+        >
+          Bristol score over time
+        </CardTitle>
+        {showMonthlyScoreView ? (
+          monthlyScoreAverage.length > 0 ? (
+            <TrendAreaChart
+              data={monthlyScoreAverage.map((m) => ({ date: m.monthStart, value: m.avgScore }))}
+              color="var(--series-1)"
+              valueLabel="Avg Bristol score"
+              xTickFormatter={formatMonthYear}
+              showEveryTick
+            />
+          ) : (
+            <p className="text-sm" style={{ color: "var(--text-muted)" }}>No classified Bristol data in this range.</p>
+          )
+        ) : scoreSeries.length > 0 ? (
+          <BristolScoreChart data={scoreSeries} />
+        ) : (
+          <p className="text-sm" style={{ color: "var(--text-muted)" }}>No classified Bristol data in this range.</p>
+        )}
+      </Card>
+
       <div>
         <p className="mb-3 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
-          At a glance
+          At a glance — last 30 days
         </p>
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <StatTile
-            label="Most common Bristol type"
-            value={topBristol?.item ?? "—"}
-            detail={topBristol ? `${topBristol.sharePct}% of ${totalStoolDays} classified days` : undefined}
+            label="In target range (3–4)"
+            value={rangeChange.recentPct !== null ? `${Math.round(rangeChange.recentPct)}%` : "—"}
+            detail={deltaDetail(rangeChange.recentPct, rangeChange.priorPct)}
             accent={TYPE_ACCENT.outcome}
           />
           <StatTile
-            label="Unclassified stool entries"
-            value={`${unclassifiedStool.unclassifiedSharePct}%`}
-            detail="checked but not classifiable"
+            label="Digestive symptom rate"
+            value={symptomRateChange.recentPct !== null ? `${Math.round(symptomRateChange.recentPct)}%` : "—"}
+            detail={deltaDetail(symptomRateChange.recentPct, symptomRateChange.priorPct)}
           />
-          <StatTile
-            label="Digestive symptom days"
-            value={String(totalDigestiveSymptomDays)}
-            detail="days with a symptom logged"
-            accent={TYPE_ACCENT.outcome}
-          />
-          <StatTile label="Symptom types tracked" value={String(digestiveSymptoms.length + otherSymptoms.length)} />
         </div>
       </div>
+
+      <Card tier="raw">
+        <CardTitle size="sm" subtitle="Classified entries only, grouped into three bands for a quicker read than five separate types">
+          Stool consistency distribution
+        </CardTitle>
+        {bristolBands.length > 0 ? (
+          <RankedBarChart data={bristolBands.map((b) => ({ label: b.band, value: b.count, color: BAND_COLOR[b.band] }))} />
+        ) : (
+          <p className="text-sm" style={{ color: "var(--text-muted)" }}>No classified Bristol data in this range.</p>
+        )}
+      </Card>
 
       <Card tier="raw">
         <CardTitle
@@ -198,83 +236,9 @@ export default function DigestionPage() {
         </div>
       </Card>
 
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
-          Details
-        </p>
-        {span && range && <DateRangeFilter span={span} value={range} onChange={setRange} />}
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <Card tier="raw">
-          <CardTitle size="sm" subtitle="Classified entries only (Bristol 1–5). Unclassified 'No Bristol' entries are tracked separately above.">
-            Bristol type distribution
-          </CardTitle>
-          {bristolDist.length > 0 ? (
-            <>
-              <RankedBarChart data={bristolDist.map((b) => ({ label: b.item, value: b.count, color: BRISTOL_COLOR[b.item] }))} />
-              {bandsCaption && (
-                <p className="mt-3 text-xs" style={{ color: "var(--text-muted)" }}>
-                  By band: {bandsCaption}
-                </p>
-              )}
-            </>
-          ) : (
-            <p className="text-sm" style={{ color: "var(--text-muted)" }}>No classified Bristol data in this range.</p>
-          )}
-        </Card>
-        <Card tier="raw">
-          <CardTitle size="sm" subtitle="Each mark is one logged day, colored by Bristol type — grey marks are unclassified ('No Bristol') entries">
-            Bristol over time
-          </CardTitle>
-          {bristolStripPoints.length > 0 ? (
-            <>
-              <ColorStrip points={bristolStripPoints} />
-              <div className="mt-3 flex flex-wrap gap-3 text-[11px]" style={{ color: "var(--text-muted)" }}>
-                {Object.entries(BRISTOL_COLOR).map(([label, color]) => (
-                  <span key={label} className="flex items-center gap-1">
-                    <span className="h-2.5 w-2.5 rounded-full" style={{ background: color }} /> {label}
-                  </span>
-                ))}
-              </div>
-            </>
-          ) : (
-            <p className="text-sm" style={{ color: "var(--text-muted)" }}>No data.</p>
-          )}
-        </Card>
-      </div>
-
-      <Card tier="raw">
-        <CardTitle size="sm" subtitle="Rolling 14-day share of classified entries in each band, plus unclassified share">
-          Stool pattern over time
-        </CardTitle>
-        {rollingBands.length > 0 ? (
-          <>
-            <MultiLineChart
-              data={rollingBands.map((p) => ({
-                date: p.date,
-                Loose: p.loosePct,
-                Normal: p.normalPct,
-                Hard: p.hardPct,
-                Unclassified: p.unclassifiedPct,
-              }))}
-              series={[
-                { key: "Loose", label: "Loose (1–2)", color: "var(--series-1)" },
-                { key: "Normal", label: "Normal (3–4)", color: "var(--status-good)" },
-                { key: "Hard", label: "Hard (5)", color: "var(--series-8)" },
-                { key: "Unclassified", label: "Unclassified", color: "var(--series-other)" },
-              ]}
-            />
-            <p className="mt-3 text-xs" style={{ color: "var(--text-muted)" }}>
-              {insight.insufficientData
-                ? "Not enough recent data to say whether this is shifting."
-                : `${insight.headline} ${insight.detail ?? ""}`}
-            </p>
-          </>
-        ) : (
-          <p className="text-sm" style={{ color: "var(--text-muted)" }}>No data.</p>
-        )}
-      </Card>
+      <p className="text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
+        Detailed exploration
+      </p>
 
       <Card tier="raw">
         <CardTitle size="sm" subtitle="Weekly counts for the most frequent digestive symptoms">Digestive symptom trends</CardTitle>
@@ -356,11 +320,12 @@ export default function DigestionPage() {
       )}
 
       <Methodology>
-        This page never diagnoses anything — it only describes what&apos;s in your own tracked data. &quot;Current
-        pattern&quot; compares the last 3 weeks&apos; Bristol-type mix and symptom frequency against your own
-        overall pattern, not a clinical norm; it needs at least 4 classified entries in that window to say
-        anything. Bristol banding groups this app&apos;s 5 tracked types (1–5) into Loose/Normal/Hard for a
-        quicker read.
+        This page never diagnoses anything — it only describes what&apos;s in your own tracked data. The Bristol
+        score line plots each classified reading (Bristol 1–5) chronologically; this app doesn&apos;t distinguish
+        clinical types 5/6/7 from each other, so the scale tops out at 5. &quot;Current pattern&quot; and &quot;At a
+        glance&quot; compare the last 30 days&apos; share of readings in the 3–4 target range against the 30 days
+        before that, and need at least 4 classified entries in the most recent window to say anything. Bristol
+        banding groups this app&apos;s 5 tracked types into Loose/Normal/Hard for a quicker read.
       </Methodology>
     </div>
   );

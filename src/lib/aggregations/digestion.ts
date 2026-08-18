@@ -1,5 +1,5 @@
 import type { CanonicalEvent } from "@/lib/types";
-import { addDaysToDate, getDatasetSpan, isoWeekStart, pct, trackedCalendarDates } from "./common";
+import { addDaysToDate, getDatasetSpan, isoWeekStart, monthStart, pct, round1, trackedCalendarDates } from "./common";
 import { computeItemStatsForFilter, type ItemStats } from "./itemStats";
 import type { Bullet, InsightTone } from "./insights";
 
@@ -8,6 +8,19 @@ import type { Bullet, InsightTone } from "./insights";
  * `unclassifiedStoolStats` below, which reports it as its own, separate quantity. */
 export const BRISTOL_TYPES = ["Bristol 1", "Bristol 2", "Bristol 3", "Bristol 4", "Bristol 5"];
 const NO_BRISTOL_ITEM = "No Bristol";
+
+/** Numeric score behind each classified Bristol type — 1–5, matching what this
+ * app actually tracks (never 6/7: this app's own "Bristol 5" is its loosest
+ * bucket, it doesn't distinguish clinical types 5/6/7 from each other). This
+ * is what makes a single chronological line chart possible instead of one
+ * series per type. */
+export const BRISTOL_SCORE: Record<string, number> = {
+  "Bristol 1": 1,
+  "Bristol 2": 2,
+  "Bristol 3": 3,
+  "Bristol 4": 4,
+  "Bristol 5": 5,
+};
 
 export interface BristolDistributionEntry {
   item: string;
@@ -123,62 +136,150 @@ export function bristolBandDistribution(events: CanonicalEvent[]): BristolBandEn
     .map((band) => ({ band, count: counts.get(band) ?? 0, sharePct: pct(counts.get(band) ?? 0, total) }));
 }
 
-export interface BristolRollingPoint {
-  date: string;
-  /** Share of the trailing 14-day window's *classified* entries in each band, plus unclassified share of all entries. */
-  loosePct: number;
-  normalPct: number;
-  hardPct: number;
-  unclassifiedPct: number;
+const TARGET_RANGE_WINDOW_DAYS = 30;
+const MIN_WINDOW_ENTRIES = 4;
+
+export interface BristolTargetRangeChange {
+  /** True only when even the most recent window lacks enough data to say anything. */
+  insufficientData: boolean;
+  recentPct: number | null;
+  recentTotal: number;
+  /** Null when the prior window doesn't have enough data — no comparison offered, but recentPct still stands alone. */
+  priorPct: number | null;
+  priorTotal: number;
 }
 
-const ROLLING_WINDOW_DAYS = 14;
-
-/** Rolling 14-day band proportions over time — how the stool pattern has been shifting recently. */
-export function bristolRollingBands(events: CanonicalEvent[]): BristolRollingPoint[] {
+/**
+ * Last-30-days vs previous-30-days share of stool entries in the 3–4
+ * target band — the quantified "how often am I actually in my desired
+ * range, and is that changing" comparison the hero insight and the target-
+ * range stat tile are built from.
+ */
+export function bristolTargetRangeChange(events: CanonicalEvent[]): BristolTargetRangeChange {
   const bristol = bristolEvents(events);
-  if (bristol.length === 0) return [];
-  const byDate = new Map<string, string>(); // date -> item (one stool entry per day expected)
-  for (const e of bristol) byDate.set(e.date, e.item);
-  const dates = Array.from(byDate.keys()).sort();
-
-  const points: BristolRollingPoint[] = [];
-  for (const date of dates) {
-    const windowStart = addDaysToDate(date, -(ROLLING_WINDOW_DAYS - 1));
-    let loose = 0;
-    let normal = 0;
-    let hard = 0;
-    let unclassified = 0;
-    let total = 0;
-    for (const d of dates) {
-      if (d < windowStart || d > date) continue;
-      total++;
-      const item = byDate.get(d)!;
-      if (item === NO_BRISTOL_ITEM) unclassified++;
-      else if (BRISTOL_BAND_BY_TYPE[item] === "Loose (1–2)") loose++;
-      else if (BRISTOL_BAND_BY_TYPE[item] === "Normal (3–4)") normal++;
-      else if (BRISTOL_BAND_BY_TYPE[item] === "Hard (5)") hard++;
-    }
-    points.push({
-      date,
-      loosePct: pct(loose, total),
-      normalPct: pct(normal, total),
-      hardPct: pct(hard, total),
-      unclassifiedPct: pct(unclassified, total),
-    });
+  if (bristol.length === 0) {
+    return { insufficientData: true, recentPct: null, recentTotal: 0, priorPct: null, priorTotal: 0 };
   }
-  return points;
+  const lastDate = bristol.reduce((max, e) => (e.date > max ? e.date : max), bristol[0].date);
+  const recentStart = addDaysToDate(lastDate, -(TARGET_RANGE_WINDOW_DAYS - 1));
+  const priorEnd = addDaysToDate(recentStart, -1);
+  const priorStart = addDaysToDate(priorEnd, -(TARGET_RANGE_WINDOW_DAYS - 1));
+
+  const recent = bristol.filter((e) => e.date >= recentStart && e.date <= lastDate);
+  const prior = bristol.filter((e) => e.date >= priorStart && e.date <= priorEnd);
+
+  if (recent.length < MIN_WINDOW_ENTRIES) {
+    return { insufficientData: true, recentPct: null, recentTotal: recent.length, priorPct: null, priorTotal: prior.length };
+  }
+
+  const shareInTarget = (list: CanonicalEvent[]) => pct(list.filter((e) => BRISTOL_BAND_BY_TYPE[e.item] === "Normal (3–4)").length, list.length);
+
+  return {
+    insufficientData: false,
+    recentPct: shareInTarget(recent),
+    recentTotal: recent.length,
+    priorPct: prior.length >= MIN_WINDOW_ENTRIES ? shareInTarget(prior) : null,
+    priorTotal: prior.length,
+  };
 }
 
-export interface BristolTimelinePoint {
+export interface BristolScorePoint {
+  id: string;
   date: string;
-  item: string;
+  value: number;
 }
 
-export function bristolTimeline(events: CanonicalEvent[]): BristolTimelinePoint[] {
+/**
+ * Every classified Bristol reading, chronological, as one numeric 1–5
+ * series — the single-line "Bristol over time" chart. Unclassified ("No
+ * Bristol") entries are excluded since they have no numeric value to plot
+ * (see `unclassifiedStoolStats`). Multiple same-day readings are never
+ * merged or averaged into an invented value — each stays its own point,
+ * ordered by `updatedAt` (falling back to `id`) as the only stable
+ * same-day tiebreaker available, since logs don't carry a time of day.
+ */
+export function bristolScoreSeries(events: CanonicalEvent[]): BristolScorePoint[] {
   return bristolEvents(events)
-    .map((e) => ({ date: e.date, item: e.item }))
-    .sort((a, b) => a.date.localeCompare(b.date));
+    .filter((e) => e.item !== NO_BRISTOL_ITEM)
+    .map((e) => ({ id: e.id, date: e.date, value: BRISTOL_SCORE[e.item], updatedAt: e.updatedAt ?? 0 }))
+    .sort((a, b) => {
+      if (a.date !== b.date) return a.date < b.date ? -1 : 1;
+      if (a.updatedAt !== b.updatedAt) return a.updatedAt - b.updatedAt;
+      return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+    })
+    .map(({ id, date, value }) => ({ id, date, value }));
+}
+
+export interface BristolMonthlyAveragePoint {
+  monthStart: string;
+  avgScore: number;
+  count: number;
+}
+
+/**
+ * Monthly average Bristol score — used in place of `bristolScoreSeries`
+ * only once a selected range is long enough (roughly 4+ months) that
+ * plotting every individual observation would be an unreadable wall of
+ * points. A monthly average necessarily hides day-to-day fluctuation, so
+ * it's deliberately not the default view — it only takes over at zoom
+ * levels where the per-observation line stops being readable anyway.
+ */
+export function bristolMonthlyScoreAverage(events: CanonicalEvent[]): BristolMonthlyAveragePoint[] {
+  const scored = bristolEvents(events)
+    .filter((e) => e.item !== NO_BRISTOL_ITEM)
+    .map((e) => ({ month: monthStart(e.date), value: BRISTOL_SCORE[e.item] }));
+
+  const byMonth = new Map<string, { sum: number; count: number }>();
+  for (const e of scored) {
+    const bucket = byMonth.get(e.month) ?? { sum: 0, count: 0 };
+    bucket.sum += e.value;
+    bucket.count += 1;
+    byMonth.set(e.month, bucket);
+  }
+
+  return Array.from(byMonth.entries())
+    .map(([month, { sum, count }]) => ({ monthStart: month, avgScore: round1(sum / count), count }))
+    .sort((a, b) => a.monthStart.localeCompare(b.monthStart));
+}
+
+const SYMPTOM_RATE_WINDOW_DAYS = 30;
+const MIN_SYMPTOM_WINDOW_TRACKED_DAYS = 5;
+
+export interface DigestiveSymptomRateChange {
+  insufficientData: boolean;
+  recentPct: number | null;
+  priorPct: number | null;
+}
+
+/**
+ * Last-30-days vs previous-30-days share of tracked days with a digestive
+ * symptom logged — the "at a glance" companion to `bristolTargetRangeChange`.
+ * Uses every tracked (not just Bristol-assessed) day as the denominator,
+ * since a symptom day is meaningful whether or not a stool was also logged.
+ */
+export function digestiveSymptomRateChange(events: CanonicalEvent[]): DigestiveSymptomRateChange {
+  const trackedDates = Array.from(trackedCalendarDates(events)).sort();
+  if (trackedDates.length === 0) return { insufficientData: true, recentPct: null, priorPct: null };
+  const lastDate = trackedDates[trackedDates.length - 1];
+  const recentStart = addDaysToDate(lastDate, -(SYMPTOM_RATE_WINDOW_DAYS - 1));
+  const priorEnd = addDaysToDate(recentStart, -1);
+  const priorStart = addDaysToDate(priorEnd, -(SYMPTOM_RATE_WINDOW_DAYS - 1));
+
+  const symptomDates = new Set(events.filter((e) => e.category === "Digestive Symptom" && e.completed).map((e) => e.date));
+  const recentTracked = trackedDates.filter((d) => d >= recentStart && d <= lastDate);
+  const priorTracked = trackedDates.filter((d) => d >= priorStart && d <= priorEnd);
+
+  if (recentTracked.length < MIN_SYMPTOM_WINDOW_TRACKED_DAYS) {
+    return { insufficientData: true, recentPct: null, priorPct: null };
+  }
+  return {
+    insufficientData: false,
+    recentPct: pct(recentTracked.filter((d) => symptomDates.has(d)).length, recentTracked.length),
+    priorPct:
+      priorTracked.length >= MIN_SYMPTOM_WINDOW_TRACKED_DAYS
+        ? pct(priorTracked.filter((d) => symptomDates.has(d)).length, priorTracked.length)
+        : null,
+  };
 }
 
 export function stoolQualityStats(events: CanonicalEvent[]): ItemStats[] {
@@ -236,67 +337,52 @@ export interface DigestionInsight {
 }
 
 const RECENT_WINDOW_DAYS = 21;
-const MIN_RECENT_CLASSIFIED = 4;
 const MIN_TRACKED_DAYS_FOR_SYMPTOM_COMPARE = 10;
 const SYMPTOM_RATE_DRIFT_PP = 15;
-
-const BAND_DESCRIPTOR: Record<BristolBand, string> = {
-  "Loose (1–2)": "looser stools (Bristol 1–2)",
-  "Normal (3–4)": "typical, well-formed stools (Bristol 3–4)",
-  "Hard (5)": "harder stools (Bristol 5)",
-};
+/** Minimum percentage-point gap between the two 30-day windows worth calling out in `detail` — below this, the two windows read as "about the same" rather than manufacturing a direction out of noise. */
+const TARGET_RANGE_NOTABLE_DIFF_PP = 10;
 
 /**
- * "Current pattern" — the primary Digestion-page insight. Compares the
- * last 3 weeks' Bristol band mix and digestive-symptom frequency against
- * this person's own overall pattern — never against a clinical norm, and
- * never a diagnosis. Describes what was logged, not what it means
- * medically (no "constipation", "IBS", etc. — those are conclusions this
- * data can't support).
+ * "Current pattern" — the primary Digestion-page insight. Leads with the
+ * quantified last-30-days-vs-previous-30-days share of stool entries in
+ * the 3–4 target range (the actual question this page exists to answer —
+ * "how often am I in my desired range, and is that changing"), then adds
+ * digestive-symptom-frequency and unclassified-entry drift as supporting
+ * bullets. Never a diagnosis — describes what was logged, not what it
+ * means medically (no "constipation", "IBS", etc.).
  */
 export function digestionInsight(events: CanonicalEvent[]): DigestionInsight {
-  const span = getDatasetSpan(events);
-  if (!span) {
-    return { insufficientData: true, headline: "Not enough recent data to identify a clear pattern.", detail: null, tone: "neutral", changed: [] };
-  }
-
-  const windowStart = addDaysToDate(span.end, -(RECENT_WINDOW_DAYS - 1));
-  const recentEvents = events.filter((e) => e.date >= windowStart);
-
-  const overallBands = bristolBandDistribution(events);
-  const recentBands = bristolBandDistribution(recentEvents);
-  const recentClassifiedCount = recentBands.reduce((s, b) => s + b.count, 0);
-
-  if (recentClassifiedCount < MIN_RECENT_CLASSIFIED) {
+  const rangeChange = bristolTargetRangeChange(events);
+  if (rangeChange.insufficientData) {
     return {
       insufficientData: true,
       headline: "Not enough recent observations to identify a stable pattern.",
-      detail: overallBands.length > 0 ? "There's older data on this page, but not enough logged in the last 3 weeks to say anything current." : null,
+      detail: bristolEvents(events).length > 0 ? "There's older data on this page, but not enough logged in the last 30 days to say anything current." : null,
       tone: "neutral",
       changed: [],
     };
   }
 
-  // Personal-change framing only: whether the recent mix matches this
-  // person's own historical mix. Never "good"/"bad" — Bristol banding has
-  // an established clinical reading, but applying it as a verdict on
-  // someone's own tracked data would be exactly the kind of diagnosis
-  // this page must not make.
-  const recentDominant = [...recentBands].sort((a, b) => b.sharePct - a.sharePct)[0];
-  const overallDominant = [...overallBands].sort((a, b) => b.sharePct - a.sharePct)[0];
-  const shifted = overallDominant && recentDominant.band !== overallDominant.band;
-
-  // Short, glanceable headline; the specific bands move to `detail` rather
-  // than being packed into one long clause-heavy sentence.
-  const headline = shifted
-    ? "Your recent stool pattern differs from your usual pattern."
-    : "Your recent stool pattern is consistent with your usual pattern.";
-  const detail = shifted
-    ? `Mostly ${BAND_DESCRIPTOR[recentDominant.band]} over the last 3 weeks, compared with mostly ${BAND_DESCRIPTOR[overallDominant.band]} historically.`
-    : `Mostly ${BAND_DESCRIPTOR[recentDominant.band]} over the last 3 weeks.`;
+  const recentRounded = Math.round(rangeChange.recentPct!);
+  const priorRounded = rangeChange.priorPct !== null ? Math.round(rangeChange.priorPct) : null;
+  const headline =
+    priorRounded !== null
+      ? `Bristol 3–4 made up ${recentRounded}% of recorded stools in the last 30 days, compared with ${priorRounded}% in the previous 30 days.`
+      : `Bristol 3–4 made up ${recentRounded}% of recorded stools in the last 30 days.`;
+  const detail =
+    priorRounded !== null && Math.abs(recentRounded - priorRounded) >= TARGET_RANGE_NOTABLE_DIFF_PP
+      ? `That's a ${recentRounded > priorRounded ? "higher" : "lower"} share of your stools in the target range than the previous 30 days.`
+      : null;
   const tone: InsightTone = "neutral";
 
   const changed: Bullet[] = [];
+
+  const span = getDatasetSpan(events);
+  if (!span) return { insufficientData: false, headline, detail, tone, changed };
+
+  const windowStart = addDaysToDate(span.end, -(RECENT_WINDOW_DAYS - 1));
+  const recentEvents = events.filter((e) => e.date >= windowStart);
+  const recentClassifiedCount = bristolBandDistribution(recentEvents).reduce((s, b) => s + b.count, 0);
 
   const trackedDates = Array.from(trackedCalendarDates(events)).sort();
   const recentTrackedDates = trackedDates.filter((d) => d >= windowStart);

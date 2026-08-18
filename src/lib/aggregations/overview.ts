@@ -1,5 +1,5 @@
 import type { CanonicalEvent, RawGymLog } from "@/lib/types";
-import { addDaysToDate, getDatasetSpan, listDatesBetween, pct, round1, trackedCalendarDates } from "./common";
+import { addDaysToDate, getDatasetSpan, pct, round1, trackedCalendarDates } from "./common";
 import { foodVarietySummary, rankedFoods } from "./food";
 import { supplementStats, supplementsInsight } from "./supplements";
 import { habitStats, habitsInsight } from "./habits";
@@ -11,12 +11,11 @@ import type { Bullet, InsightTone } from "./insights";
 
 export interface OverviewStats {
   dateRange: { start: string; end: string } | null;
-  trackingCoverage: { trackedDays: number; totalCalendarDays: number; coveragePct: number };
   food: {
-    categoriesTracked: number;
-    totalFoodCategories: number;
     uniqueFoods: number;
     topFood: { item: string; count: number } | null;
+    /** Least-logged tracked food — only set when at least 2 distinct foods have been logged, so it's never just repeating `topFood`. */
+    leastTrackedFood: { item: string; count: number } | null;
   };
   supplements: {
     count: number;
@@ -36,7 +35,6 @@ export interface OverviewStats {
 export function computeOverviewStats(events: CanonicalEvent[]): OverviewStats {
   const span = getDatasetSpan(events);
   const trackedDates = trackedCalendarDates(events);
-  const totalCalendarDays = span ? listDatesBetween(span.start, span.end).length : 0;
 
   const foodVariety = foodVarietySummary(events);
   const topFoods = rankedFoods(events);
@@ -61,16 +59,11 @@ export function computeOverviewStats(events: CanonicalEvent[]): OverviewStats {
 
   return {
     dateRange: span,
-    trackingCoverage: {
-      trackedDays: trackedDates.size,
-      totalCalendarDays,
-      coveragePct: pct(trackedDates.size, totalCalendarDays),
-    },
     food: {
-      categoriesTracked: foodVariety.categoriesRepresented,
-      totalFoodCategories: foodVariety.totalFoodCategories,
       uniqueFoods: foodVariety.uniqueFoods,
       topFood: topFoods[0] ? { item: topFoods[0].item, count: topFoods[0].count } : null,
+      leastTrackedFood:
+        topFoods.length > 1 ? { item: topFoods[topFoods.length - 1].item, count: topFoods[topFoods.length - 1].count } : null,
     },
     supplements: {
       count: supplements.length,

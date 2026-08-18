@@ -30,11 +30,11 @@ export function Insight({
       <p className="text-xs font-semibold tracking-wide uppercase" style={{ color: TONE_COLOR[tone] }}>
         {label}
       </p>
-      <p className="mt-2 text-xl leading-snug font-semibold" style={{ color: "var(--text-primary)" }}>
+      <p className="mt-1.5 text-base leading-snug font-semibold" style={{ color: "var(--text-primary)" }}>
         {headline}
       </p>
       {detail && (
-        <p className="mt-2 text-sm" style={{ color: "var(--text-secondary)" }}>
+        <p className="mt-1.5 text-sm" style={{ color: "var(--text-secondary)" }}>
           {detail}
         </p>
       )}

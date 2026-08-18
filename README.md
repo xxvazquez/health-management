@@ -14,6 +14,8 @@ Gym doesn't fit that shape — a lift is an exercise + a weight, with no separat
 
 Dashboards: Overview, Food, Supplements, Habits, Digestion, Patterns, Gym. Most are purely descriptive — charts and stats, nothing that diagnoses anything. Food is the exception: on top of the charts, it reads your logged intake against general dietary-guidance consensus (never individual studies, never shown as reading material) to surface a short list of food groups worth prioritizing, what's going well, and what's missing — still never a diagnosis, and careful to say "not logged" rather than "not eaten."
 
+Digestion and Gym are built around one question each rather than a wall of charts: Digestion's Bristol score is a single chronological line with the 3–4 target range shaded in, plus how much of the time you're actually in it; Gym leads with training consistency (sessions/month, gaps) and per-lift progression rather than a raw log table. Every page carries a small disclaimer in the footer — this is personal data description, not medical advice.
+
 ## Running it locally
 
 ```bash
