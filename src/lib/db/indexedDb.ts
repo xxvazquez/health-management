@@ -292,3 +292,25 @@ export async function decrementDailyLog(itemIdentity: string, date: string): Pro
   await tx.done;
   return true;
 }
+
+/**
+ * Same as decrementDailyLog, but only removes a row tagged with the given
+ * meal — so un-tapping "Milk" while viewing Lunch removes today's lunch
+ * milk, not the breakfast one, when the same food was logged at more than
+ * one meal.
+ */
+export async function decrementDailyLogForMeal(itemIdentity: string, date: string, mealTag: string | null): Promise<boolean> {
+  const db = await getDb();
+  const tx = db.transaction("logs", "readwrite");
+  const sameMeal = (await tx.store.index("itemIdentity").getAll(itemIdentity)).filter(
+    (l) => l.date === date && l.mealTag === mealTag,
+  );
+  if (sameMeal.length === 0) {
+    await tx.done;
+    return false;
+  }
+  const target = sameMeal.find((l) => l.identity.startsWith("manual:")) ?? sameMeal[0];
+  await tx.store.delete(target.identity);
+  await tx.done;
+  return true;
+}

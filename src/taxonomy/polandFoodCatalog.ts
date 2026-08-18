@@ -16,15 +16,15 @@ import type { FoodCategory } from "./categories";
  */
 export const POLAND_FOOD_CATALOG: Record<FoodCategory, string[]> = {
   Veggies: [
-    "Carrot", "Onion", "Garlic", "Potato", "Sweet potato", "Cabbage", "Red cabbage",
+    "Carrot", "Onion", "Garlic", "Potatoes", "Sweet potato", "Cabbage", "Red cabbage",
     "Cauliflower", "Broccoli", "Brussels sprouts", "Kohlrabi", "Beetroot", "Celeriac",
     "Parsnip", "Turnip", "Leek", "Cucumber", "Tomato", "Bell pepper", "Zucchini",
-    "Eggplant", "Pumpkin", "Radish", "Spinach", "Kale", "Lettuce", "Mushroom",
+    "Eggplant", "Pumpkin", "Radish", "Spinach", "Kale", "Lettuce", "Mushrooms",
     "Asparagus", "Fennel", "Chives", "Ginger", "Jerusalem artichoke",
   ],
   Fruit: [
     "Apple", "Pear", "Banana", "Orange", "Mandarin", "Lemon", "Lime", "Grapefruit",
-    "Kiwi", "Grapes", "Strawberry", "Raspberry", "Blueberry", "Blackberry",
+    "Kiwi", "Grapes", "Strawberries", "Raspberries", "Blueberries", "Blackberry",
     "Cranberry", "Gooseberry", "Redcurrant", "Blackcurrant", "Cherry", "Plum",
     "Apricot", "Peach", "Nectarine", "Watermelon", "Melon", "Pineapple", "Mango",
     "Avocado", "Rhubarb", "Quince", "Pomegranate",
