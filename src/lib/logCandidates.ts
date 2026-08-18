@@ -115,11 +115,11 @@ export interface TimelineEntry {
 }
 
 /**
- * Every log entry on `date`, in the order they happened — each one already
- * carries a timestamp (`updatedAt`, stamped at the moment of the tap), so
- * this needs no new field, just reading what's already there. Entries with
- * no timestamp (older imported rows with no ZUPDATEDATE) are skipped
- * rather than shown with a fabricated time.
+ * Every log entry on `date`, newest first — each one already carries a
+ * timestamp (`updatedAt`, stamped at the moment of the tap), so this needs
+ * no new field, just reading what's already there. Entries with no
+ * timestamp (older imported rows with no ZUPDATEDATE) are skipped rather
+ * than shown with a fabricated time.
  */
 export function dayTimelineEntries(
   items: RawItem[],
@@ -134,7 +134,7 @@ export function dayTimelineEntries(
   );
   const relevant = logs
     .filter((l) => l.date === date && !l.isSkipped && (l.value ?? 0) > 0 && l.updatedAt != null)
-    .sort((a, b) => (a.updatedAt as number) - (b.updatedAt as number));
+    .sort((a, b) => (b.updatedAt as number) - (a.updatedAt as number));
 
   const entries: TimelineEntry[] = [];
   for (const l of relevant) {

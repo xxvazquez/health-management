@@ -138,17 +138,6 @@ const FOOD_CATEGORY_ICON: Record<string, ReactNode> = {
   ),
 };
 
-/** A sensible starting point for "what meal is this," always overridable
- * by a click — the point of the selector is that it doesn't have to match
- * the clock (logging breakfast at night should still say Breakfast). */
-function defaultMealForNow(): (typeof MEAL_OPTIONS)[number] {
-  const hour = new Date().getHours();
-  if (hour < 11) return "Breakfast";
-  if (hour < 16) return "Lunch";
-  if (hour < 21) return "Dinner";
-  return "Snack";
-}
-
 function todayLocalISODate(): string {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -256,7 +245,7 @@ export default function LogPage() {
   const [addingNew, setAddingNew] = useState(false);
   const [newItemCategory, setNewItemCategory] = useState("");
   const [picksOpen, setPicksOpen] = useState(false);
-  const [meal, setMeal] = useState<(typeof MEAL_OPTIONS)[number]>(() => defaultMealForNow());
+  const [meal, setMeal] = useState<(typeof MEAL_OPTIONS)[number]>("Breakfast");
   const [newItemText, setNewItemText] = useState("");
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [pending, setPending] = useState<string | null>(null);
@@ -1146,43 +1135,42 @@ export default function LogPage() {
                             </button>
                           )}
                         </div>
-                        {(hasMealTag || hasNote) && (
-                          <div className="flex items-center gap-1.5">
-                            {entry.itemType === "food" &&
-                              (isDemoData ? (
-                                entry.mealTag && (
-                                  <span
-                                    className="rounded px-1.5 py-0.5 text-[11px] font-medium whitespace-nowrap"
-                                    style={{ background: "var(--page-plane)", color: "var(--text-secondary)" }}
-                                  >
-                                    {entry.mealTag}
-                                  </span>
-                                )
-                              ) : (
-                                <select
-                                  value={entry.mealTag ?? ""}
-                                  disabled={busy}
-                                  onChange={(e) => void handleChangeEntryMeal(entry, e.target.value)}
-                                  className="rounded px-1.5 py-0.5 text-[11px] font-medium whitespace-nowrap outline-none disabled:opacity-40"
-                                  style={{ background: "var(--page-plane)", color: "var(--text-secondary)", border: "none" }}
+                        {hasMealTag &&
+                          (entry.itemType === "food" &&
+                            (isDemoData ? (
+                              entry.mealTag && (
+                                <span
+                                  className="rounded px-1.5 py-0.5 text-[11px] font-medium whitespace-nowrap"
+                                  style={{ background: "var(--page-plane)", color: "var(--text-secondary)" }}
                                 >
-                                  <option value="" disabled>
-                                    set meal
+                                  {entry.mealTag}
+                                </span>
+                              )
+                            ) : (
+                              <select
+                                value={entry.mealTag ?? ""}
+                                disabled={busy}
+                                onChange={(e) => void handleChangeEntryMeal(entry, e.target.value)}
+                                className="rounded px-1.5 py-0.5 text-[11px] font-medium whitespace-nowrap outline-none disabled:opacity-40"
+                                style={{ background: "var(--page-plane)", color: "var(--text-secondary)", border: "none" }}
+                              >
+                                <option value="" disabled>
+                                  set meal
+                                </option>
+                                {MEAL_OPTIONS.map((m) => (
+                                  <option key={m} value={m}>
+                                    {m}
                                   </option>
-                                  {MEAL_OPTIONS.map((m) => (
-                                    <option key={m} value={m}>
-                                      {m}
-                                    </option>
-                                  ))}
-                                </select>
-                              ))}
-                            <TimelineNote
-                              note={entry.note}
-                              busy={pending === `note:${entry.itemIdentity}`}
-                              hidden={isDemoData}
-                              onSave={(content) => void handleSaveNote(entry, content)}
-                            />
-                          </div>
+                                ))}
+                              </select>
+                            )))}
+                        {hasNote && (
+                          <TimelineNote
+                            note={entry.note}
+                            busy={pending === `note:${entry.itemIdentity}`}
+                            hidden={isDemoData}
+                            onSave={(content) => void handleSaveNote(entry, content)}
+                          />
                         )}
                       </div>
                     );
