@@ -12,17 +12,18 @@ interface Props {
 }
 
 const PRESETS: { label: string; days: number | "all" }[] = [
+  { label: "Last 7 days", days: 7 },
   { label: "Last 30 days", days: 30 },
   { label: "Last 90 days", days: 90 },
-  { label: "Last 365 days", days: 365 },
-  { label: "Last 2 years", days: 730 },
+  { label: "Last 6 months", days: 182 },
+  { label: "Last year", days: 365 },
   { label: "All time", days: "all" },
 ];
 
 /**
  * Which preset reads as "active" is tracked by which button was actually
  * clicked, not by comparing ranges — with a short dataset, several presets
- * (90 days, 365 days, 2 years, All time) all clamp to the same underlying
+ * (90 days, 6 months, 1 year, All time) all clamp to the same underlying
  * span, so a range-equality check would light up several buttons at once
  * instead of just the one the user picked. Editing a date manually clears
  * it back to "no preset selected".

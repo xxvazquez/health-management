@@ -13,12 +13,24 @@ export function supplementStats(events: CanonicalEvent[]): ItemStats[] {
   return computeItemStatsForFilter(events, (e) => e.itemType === "supplement");
 }
 
+/**
+ * Grouped by whatever categories actually appear in the data, not just the
+ * built-in list — a supplement filed under a category a user added
+ * themselves (never known to this file) still needs its own group here
+ * rather than being silently dropped. Known categories keep their curated
+ * order; anything else is appended alphabetically after.
+ */
 export function supplementsByCategory(events: CanonicalEvent[]): SupplementGroup[] {
   const stats = supplementStats(events);
-  return SUPPLEMENT_CATEGORIES.map((category) => ({
+  const present = new Set(stats.map((s) => s.category));
+  const known = SUPPLEMENT_CATEGORIES.filter((c) => present.has(c));
+  const extra = Array.from(present)
+    .filter((c) => !(SUPPLEMENT_CATEGORIES as readonly string[]).includes(c))
+    .sort((a, b) => a.localeCompare(b));
+  return [...known, ...extra].map((category) => ({
     category,
     items: stats.filter((s) => s.category === category),
-  })).filter((g) => g.items.length > 0);
+  }));
 }
 
 /**
