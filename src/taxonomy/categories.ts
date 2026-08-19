@@ -79,6 +79,23 @@ export const CATEGORIES_BY_TYPE: Record<ItemType, readonly string[]> = {
 };
 
 /**
+ * The category list actually offered for one item type, taking a user's
+ * own customizations (Manage page, Supabase's `user_categories` table)
+ * into account. Food is excluded on purpose — its categories are
+ * load-bearing for the nutrition-guidance engine (`nutritionGroups.ts`),
+ * so they're never user-editable and this always returns the fixed
+ * `FOOD_CATEGORIES` list for it regardless of `customNames`.
+ *
+ * A type with no custom rows yet just falls back to its built-in default
+ * list — customizing only ever happens by explicit action from the Manage
+ * page, never implicitly.
+ */
+export function effectiveCategoryList(itemType: ItemType, customNames: readonly string[]): readonly string[] {
+  if (itemType === "food") return FOOD_CATEGORIES;
+  return customNames.length > 0 ? customNames : CATEGORIES_BY_TYPE[itemType];
+}
+
+/**
  * Section accent colors: one fixed hue per top-level item type, used
  * anywhere a whole section/chart needs a single consistent identity color
  * (ranked bars, hero stats) rather than per-category color-coding. Picking

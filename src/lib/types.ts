@@ -61,6 +61,20 @@ export interface RawLog {
   mealTag: string | null;
 }
 
+/**
+ * A user-defined category for one item type — Supabase's `user_categories`
+ * table. Food's category list is fixed (it's load-bearing for the
+ * nutrition-guidance engine), so this only ever holds `supplement`,
+ * `outcome`, or `habit` rows in practice. A type with no rows here just
+ * falls back to that type's built-in default list (`CATEGORIES_BY_TYPE` in
+ * `src/taxonomy/categories.ts`) — rows only exist once someone has actually
+ * customized that type's categories from the Manage page.
+ */
+export interface RawUserCategory {
+  itemType: ItemType;
+  name: string;
+}
+
 /** A free-text note tied to a specific item + day — Supabase's `diary` table. */
 export interface RawDiaryEntry {
   identity: string;

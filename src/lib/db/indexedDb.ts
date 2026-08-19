@@ -1,5 +1,5 @@
 import { openDB, type DBSchema, type IDBPDatabase } from "idb";
-import type { RawItem, RawLog, RawDiaryEntry, RawGymLog } from "@/lib/types";
+import type { RawItem, RawLog, RawDiaryEntry, RawGymLog, RawUserCategory } from "@/lib/types";
 import type { OverrideEntry } from "@/taxonomy/classify";
 
 interface HealthDbSchema extends DBSchema {
@@ -12,10 +12,12 @@ interface HealthDbSchema extends DBSchema {
   // correctly wherever it's rendered.
   userOverrides: { key: string; value: OverrideEntry };
   gymLogs: { key: string; value: RawGymLog };
+  // Keyed by `${itemType}|${name}` — see RawUserCategory's doc comment.
+  userCategories: { key: string; value: RawUserCategory };
 }
 
 const DB_NAME = "health-analytics";
-const DB_VERSION = 5;
+const DB_VERSION = 6;
 
 let dbPromise: Promise<IDBPDatabase<HealthDbSchema>> | null = null;
 
@@ -43,6 +45,9 @@ function getDb(): Promise<IDBPDatabase<HealthDbSchema>> {
         }
         if (!db.objectStoreNames.contains("gymLogs")) {
           db.createObjectStore("gymLogs", { keyPath: "id" });
+        }
+        if (!db.objectStoreNames.contains("userCategories")) {
+          db.createObjectStore("userCategories");
         }
         // Old stores from before this and earlier cleanups — nothing reads
         // these anymore (old browser-import flow + old "habits"/"events"
@@ -104,7 +109,7 @@ export async function hasAnyData(): Promise<boolean> {
 
 export async function clearAllData(): Promise<void> {
   const db = await getDb();
-  const tx = db.transaction(["items", "logs", "diary", "meta", "gymLogs", "userOverrides"], "readwrite");
+  const tx = db.transaction(["items", "logs", "diary", "meta", "gymLogs", "userOverrides", "userCategories"], "readwrite");
   await Promise.all([
     tx.objectStore("items").clear(),
     tx.objectStore("logs").clear(),
@@ -112,6 +117,7 @@ export async function clearAllData(): Promise<void> {
     tx.objectStore("meta").clear(),
     tx.objectStore("gymLogs").clear(),
     tx.objectStore("userOverrides").clear(),
+    tx.objectStore("userCategories").clear(),
     tx.done,
   ]);
 }
@@ -144,6 +150,20 @@ export async function getAllUserOverrides(): Promise<Record<string, OverrideEntr
 export async function setUserOverride(key: string, entry: OverrideEntry): Promise<void> {
   const db = await getDb();
   await db.put("userOverrides", entry, key);
+}
+
+export async function getAllUserCategories(): Promise<RawUserCategory[]> {
+  return (await getDb()).getAll("userCategories");
+}
+
+export async function putUserCategory(entry: RawUserCategory): Promise<void> {
+  const db = await getDb();
+  await db.put("userCategories", entry, `${entry.itemType}|${entry.name}`);
+}
+
+export async function deleteUserCategoryLocal(itemType: string, name: string): Promise<void> {
+  const db = await getDb();
+  await db.delete("userCategories", `${itemType}|${name}`);
 }
 
 export async function putItem(item: RawItem): Promise<void> {

@@ -71,5 +71,29 @@ export function useItemActions(refresh: () => Promise<void>) {
     setBusyIdentity(null);
   }
 
-  return { busyIdentity, toggleArchive, rename };
+  /** Moves an item into a different category without touching its display
+   * name. Keyed off the item's actual current `rawName` (fetched fresh,
+   * not `item.item` — the canonical *display* name can already differ from
+   * the raw name it was logged under if it went through a prior override,
+   * and the override key has to match what `classifyItem` will actually
+   * look up for this item, or the change silently does nothing). */
+  async function changeCategory(item: ManageableItem, itemType: ItemType, newCategory: string) {
+    if (!newCategory || newCategory === item.category) return;
+    setBusyIdentity(item.itemIdentity);
+    const existing = await getItem(item.itemIdentity);
+    const rawName = existing?.rawName ?? item.item;
+    const key = normalizeName(rawName);
+    const override: OverrideEntry = {
+      canonicalName: item.item,
+      itemType,
+      category: newCategory,
+      subcategory: newCategory,
+    };
+    await setUserOverride(key, override);
+    void pushUserOverride(key, override);
+    await refresh();
+    setBusyIdentity(null);
+  }
+
+  return { busyIdentity, toggleArchive, rename, changeCategory };
 }
