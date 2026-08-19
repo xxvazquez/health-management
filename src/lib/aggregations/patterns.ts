@@ -254,7 +254,7 @@ export function allCauseOptions(events: CanonicalEvent[], gymLogs: RawGymLog[] =
     dates: dateSetForMatcher(events, matchItem(s.item)),
   }));
   const habits = habitCauseCandidates(events).map((m) => ({ label: `Habit: ${m.label}`, dates: dateSetForMatcher(events, m) }));
-  const gym = gymLogs.length > 0 ? [{ label: "Gym: trained that day", dates: gymTrainedDates(gymLogs) }] : [];
+  const gym = gymLogs.length > 0 ? [{ label: "Workout: trained that day", dates: gymTrainedDates(gymLogs) }] : [];
   return [...foods, ...categories, ...supplements, ...habits, ...gym];
 }
 
@@ -279,7 +279,7 @@ export function crossDomainCauseCandidates(
       .filter((s) => !EXCLUDED_CAUSE_SUPPLEMENT_CATEGORIES.has(s.category))
       .map((s) => ({ label: s.item, dates: dateSetForMatcher(events, matchItem(s.item)) })),
     ...habitCauseCandidates(events).map((m) => ({ label: m.label, dates: dateSetForMatcher(events, m) })),
-    ...(gymLogs.length > 0 ? [{ label: "Gym: trained that day", dates: gymTrainedDates(gymLogs) }] : []),
+    ...(gymLogs.length > 0 ? [{ label: "Workout: trained that day", dates: gymTrainedDates(gymLogs) }] : []),
   ];
 }
 
