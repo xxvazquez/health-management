@@ -6,6 +6,8 @@ A personal food, symptom, supplement, habit, and gym tracker, with a dashboard f
 
 Static Next.js site — no server, everything runs in the browser. Supabase is the only source of truth; IndexedDB is just a synced local cache, repopulated from Supabase on sign-in and revalidated whenever a page loads or the tab regains focus — no page fetches its own copy or needs a manual refresh to stay current.
 
+It's also an installable PWA — `public/manifest.webmanifest` and a small service worker (`public/sw.js`, registered from `src/components/RegisterServiceWorker.tsx`) let a browser add it to the home screen and reload the app shell without a network connection. That's on top of, not instead of, the IndexedDB caching above: the service worker caches the shell (HTML/JS/CSS), IndexedDB caches the data.
+
 Signing in is handled globally, not per page: one account menu in the nav (`src/components/auth/`), one "you're not synced" banner shown app-wide while signed out. No page grows its own login form.
 
 Logging is tap-to-log — pick a category, tap the item, done, no forms. Food supports multi-tapping (count goes up each time, once per meal) and a meal tag. An "item" is anything you track (a food, a symptom, a habit, a supplement); a "log" is one entry of an item on a given day. `src/taxonomy/` classifies raw item names into categories, and `src/lib/canonical/buildCanonicalEvents.ts` turns items + logs into the dataset most dashboard pages read from.
@@ -40,7 +42,7 @@ Push to `main` and `.github/workflows/deploy.yml` builds the site and publishes 
 
 ## Look & feel
 
-Colors and the leaf/wave/dot mark live as CSS variables in `src/app/globals.css` (`--brand-*` for the true palette, everything else deepened for legibility) and `public/logo-mark.svg` / `src/components/Logo.tsx`. Light theme only, one typeface (Inter), no serif or display font — change a token there and it's consistent everywhere.
+Colors and the leaf/wave/dot mark live as CSS variables in `src/app/globals.css` (`--brand-*` for the true palette, everything else deepened for legibility) and `public/logo-mark.svg` / `src/components/Logo.tsx`. Light theme only, one typeface (Inter), no serif or display font — change a token there and it's consistent everywhere. `public/icons/` holds PNG renders of the same mark for the home-screen icon (plain and maskable, at the sizes `manifest.webmanifest` asks for) — regenerate them from the SVG rather than editing the PNGs directly if the mark ever changes.
 
 ## On disk, not in git
 
