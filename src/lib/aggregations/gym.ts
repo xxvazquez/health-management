@@ -156,6 +156,17 @@ export function formatGymDate(date: string): string {
   });
 }
 
+/** "17 Aug" — same as `formatGymDate` without the year, for compact spots
+ * (e.g. the Timeline's collapsed summary) where the date is always recent
+ * enough that the year adds nothing. */
+export function formatGymDateShort(date: string): string {
+  return new Date(`${date}T00:00:00Z`).toLocaleDateString(undefined, {
+    day: "numeric",
+    month: "short",
+    timeZone: "UTC",
+  });
+}
+
 export interface GymEntry {
   id: string;
   date: string;
@@ -257,7 +268,7 @@ export function gymInsight(logs: RawGymLog[], asOfDate: string): GymInsight | nu
   const stats = gymStatsByExercise(logs);
   if (stats.length === 0) {
     return {
-      headline: "No gym sessions logged yet.",
+      headline: "No workout sessions logged yet.",
       detail: "Log a lift below to start tracking progress.",
       tone: "neutral",
     };

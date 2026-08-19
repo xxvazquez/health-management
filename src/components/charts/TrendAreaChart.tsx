@@ -15,6 +15,8 @@ export function TrendAreaChart({
   xTickFormatter,
   yTickFormatter,
   showEveryTick = false,
+  linear = false,
+  showDots = false,
 }: {
   data: TrendPoint[];
   color?: string;
@@ -26,6 +28,15 @@ export function TrendAreaChart({
   yTickFormatter?: (value: number) => string;
   /** Force every data point to get its own x-axis tick, instead of Recharts thinning them for space — for charts with few, already-meaningful points (e.g. one per month) where dropping any would hide real data from view. */
   showEveryTick?: boolean;
+  /** Straight segment-to-segment lines instead of a smoothed curve — for
+   * charts where the curve's job is to show exactly what was logged (e.g.
+   * one point per real session), not an aggregate trend where a smoothed
+   * shape reads more naturally. */
+  linear?: boolean;
+  /** Mark each data point — for sparse, individually meaningful series
+   * (e.g. one dot per logged session) where the reader should be able to
+   * tell "how many observations" from the line itself. */
+  showDots?: boolean;
 }) {
   // Must be a valid SVG id with no characters that could break a url(#id)
   // reference (parens, slashes, etc. from a label like "Unique foods (7d)").
@@ -70,7 +81,15 @@ export function TrendAreaChart({
           labelStyle={{ color: "var(--text-secondary)" }}
           formatter={(v) => [Number(v), valueLabel]}
         />
-        <Area type="monotone" dataKey="value" stroke={color} strokeWidth={2} fill={`url(#${gradientId})`} />
+        <Area
+          type={linear ? "linear" : "monotone"}
+          dataKey="value"
+          stroke={color}
+          strokeWidth={2}
+          fill={`url(#${gradientId})`}
+          dot={showDots ? { r: 3, fill: color, stroke: "var(--surface-1)", strokeWidth: 1 } : false}
+          activeDot={{ r: 4 }}
+        />
       </AreaChart>
     </ResponsiveContainer>
   );
