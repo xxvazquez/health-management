@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import { Inter } from "next/font/google";
 import "./globals.css";
@@ -6,6 +6,7 @@ import { DataProvider } from "@/lib/DataContext";
 import { AuthProvider } from "@/lib/supabase/AuthContext";
 import { Nav } from "@/components/Nav";
 import { AuthBanner } from "@/components/auth/AuthBanner";
+import { RegisterServiceWorker } from "@/components/RegisterServiceWorker";
 
 const bodyFont = Inter({
   variable: "--font-body",
@@ -16,6 +17,20 @@ export const metadata: Metadata = {
   title: "Lauva",
   description:
     "A personal food, supplement, and habit analytics dashboard — entirely client-side.",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Lauva",
+  },
+  icons: {
+    icon: "/icon.svg",
+    apple: "/apple-touch-icon.png",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#e6f1f2",
 };
 
 export default function RootLayout({
@@ -26,6 +41,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${bodyFont.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col lg:flex-row">
+        <RegisterServiceWorker />
         <AuthProvider>
           <DataProvider>
             <Nav />
