@@ -8,6 +8,7 @@ import { useData } from "@/lib/DataContext";
 import { Logo } from "@/components/Logo";
 import { AccountMenuButton } from "@/components/auth/AccountMenuButton";
 import { AccountPanel } from "@/components/auth/AccountPanel";
+import { SignOutButton } from "@/components/auth/SignOutButton";
 
 function IconWrap({ children }: { children: ReactNode }) {
   return (
@@ -226,8 +227,9 @@ export function Nav() {
             </span>
           )}
         </Link>
-        <div className={clsx("mt-6 flex", collapsed ? "justify-center" : "px-1")}>
+        <div className={clsx("mt-6 flex items-center gap-2", collapsed ? "flex-col justify-center" : "px-1")}>
           <AccountMenuButton collapsed={collapsed} />
+          <SignOutButton />
         </div>
         <div className="mt-6 flex flex-1 flex-col">
           <NavLinks pathname={pathname} collapsed={collapsed} />
@@ -292,8 +294,9 @@ export function Nav() {
             </svg>
           </button>
         </div>
-        <div className="mt-6 px-1">
+        <div className="mt-6 flex items-center gap-2 px-1">
           <AccountMenuButton />
+          <SignOutButton />
         </div>
         <div className="mt-6 flex flex-1 flex-col">
           <NavLinks pathname={pathname} onNavigate={() => setMobileOpen(false)} />
