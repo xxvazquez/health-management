@@ -24,7 +24,7 @@ import {
   type GymExerciseStats,
   type GymTimelineEntry,
 } from "@/lib/aggregations/gym";
-import { formatMonthYear } from "@/lib/aggregations/common";
+import { formatMonthYear, todayLocalISODate } from "@/lib/aggregations/common";
 import type { Bullet } from "@/lib/aggregations/insights";
 import { GYM_EXERCISES, type GymExercise, type RawGymLog } from "@/lib/types";
 
@@ -41,11 +41,6 @@ const EXERCISE_COLOR: Record<GymExercise, string> = {
   "Push Ups": "var(--series-magenta)",
   "Row Machine": "var(--series-4)",
 };
-
-function todayLocalISODate(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
 
 interface EditState {
   id: string;

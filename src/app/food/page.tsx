@@ -103,8 +103,9 @@ export default function FoodPage() {
   const varietySeries = useMemo(() => foodVarietyOverTime(filtered), [filtered]);
   const ranked = useMemo(() => rankedFoods(filtered), [filtered]);
   const newFoods = useMemo(() => recentNewFoodsWithContext(filtered, 15), [filtered]);
-  const mealInstanceCount = useMemo(() => mealInstances(filtered).length, [filtered]);
-  const combos = useMemo(() => favoriteCombosByMeal(filtered), [filtered]);
+  const mealInstancesList = useMemo(() => mealInstances(filtered), [filtered]);
+  const mealInstanceCount = mealInstancesList.length;
+  const combos = useMemo(() => favoriteCombosByMeal(mealInstancesList), [mealInstancesList]);
 
   if (status === "loading") return <p style={{ color: "var(--text-muted)" }}>Loading…</p>;
   if (status === "empty") return <EmptyState />;

@@ -12,12 +12,8 @@ import { generateManualItemId } from "@/lib/logCandidates";
 import { classifyItem, lookupFoodCategory, type OverrideEntry } from "@/taxonomy/classify";
 import { normalizeName } from "@/taxonomy/normalizeName";
 import { CATEGORIES_BY_TYPE, type ItemType } from "@/taxonomy/categories";
+import { todayLocalISODate } from "@/lib/aggregations/common";
 import type { RawItem } from "@/lib/types";
-
-function todayLocalISODate(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
 
 const TYPE_SECTIONS: { type: ItemType; label: string; placeholder: string }[] = [
   { type: "food", label: "Food", placeholder: "e.g. Kohlrabi" },
@@ -29,10 +25,12 @@ const TYPE_SECTIONS: { type: ItemType; label: string; placeholder: string }[] = 
 function AddItemForm({
   itemType,
   placeholder,
+  overrides,
   onAdd,
 }: {
   itemType: ItemType;
   placeholder: string;
+  overrides: Record<string, OverrideEntry>;
   onAdd: (name: string, category: string) => Promise<void>;
 }) {
   const [name, setName] = useState("");
@@ -41,11 +39,11 @@ function AddItemForm({
   const trimmed = name.trim();
   const needsCategory = useMemo(() => {
     if (!trimmed) return false;
-    const bundled = classifyItem(trimmed, {});
+    const bundled = classifyItem(trimmed, overrides);
     if (bundled.matchedBy !== "fallback") return false;
     if (itemType === "food" && lookupFoodCategory(trimmed)) return false;
     return true;
-  }, [trimmed, itemType]);
+  }, [trimmed, itemType, overrides]);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -118,6 +116,7 @@ function ItemSection({
   label,
   placeholder,
   items,
+  overrides,
   busyIdentity,
   onToggleArchive,
   onRename,
@@ -127,6 +126,7 @@ function ItemSection({
   label: string;
   placeholder: string;
   items: ManageableItem[];
+  overrides: Record<string, OverrideEntry>;
   busyIdentity: string | null;
   onToggleArchive: (item: ManageableItem) => void;
   onRename: (item: ManageableItem, name: string) => void;
@@ -142,7 +142,7 @@ function ItemSection({
         {label}
       </CardTitle>
       <div className="mb-4">
-        <AddItemForm itemType={type} placeholder={placeholder} onAdd={onAdd} />
+        <AddItemForm itemType={type} placeholder={placeholder} overrides={overrides} onAdd={onAdd} />
       </div>
       {active.length === 0 ? (
         <p className="text-sm" style={{ color: "var(--text-muted)" }}>
@@ -195,22 +195,33 @@ export default function ManagePage() {
   const [rawItems, setRawItems] = useState<RawItem[] | null>(null);
   const [overrides, setOverrides] = useState<Record<string, OverrideEntry>>({});
 
-  const refresh = useCallback(async () => {
+  // Status-neutral: reads whatever's currently in IndexedDB without
+  // touching the shared data status, so the effect below can call this on
+  // every status change without looping (see next comment).
+  const loadLocalSnapshot = useCallback(async () => {
     const [items, userOverrides] = await Promise.all([getAllItems(), getAllUserOverrides()]);
     setRawItems(items.filter((i) => !i.isRemoved));
     setOverrides(userOverrides);
-    await refreshShared();
-  }, [refreshShared]);
+  }, []);
 
   useEffect(() => {
     if (status === "loading") return;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- loads an external system (IndexedDB) on status change, not a React-state sync loop
-    void refresh();
-    // Only re-load when the shared data status changes (sign-in pull,
-    // initial mount) — this page manages its own snapshot afterward via
-    // the `refresh` it passes to useItemActions and its own add-item flow.
+    void loadLocalSnapshot();
+    // Re-loads whenever the shared data status changes (sign-in pull,
+    // initial mount). Deliberately calls the status-neutral snapshot
+    // loader here, not the mutation-triggering `refresh` below — `refresh`
+    // itself calls `refreshShared`, which cycles `status` through
+    // "loading" → a terminal state; if this effect called `refresh` (or
+    // anything that touches `refreshShared`) it would re-trigger itself on
+    // every one of those transitions and loop forever.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status]);
+
+  const refresh = useCallback(async () => {
+    await loadLocalSnapshot();
+    await refreshShared();
+  }, [loadLocalSnapshot, refreshShared]);
 
   const { busyIdentity, toggleArchive, rename } = useItemActions(refresh);
 
@@ -235,7 +246,7 @@ export default function ManagePage() {
     if (!trimmed) return;
     const key = normalizeName(trimmed);
     const identity = generateManualItemId(key);
-    const bundled = classifyItem(trimmed, {});
+    const bundled = classifyItem(trimmed, overrides);
     const needsOverride = bundled.matchedBy === "fallback";
     const guessedCategory = itemType === "food" ? lookupFoodCategory(trimmed) : null;
     const category = needsOverride ? (guessedCategory ?? (categoryOverride || CATEGORIES_BY_TYPE[itemType][0])) : bundled.category;
@@ -289,6 +300,7 @@ export default function ManagePage() {
             label={section.label}
             placeholder={section.placeholder}
             items={itemsByType[section.type]}
+            overrides={overrides}
             busyIdentity={busyIdentity}
             onToggleArchive={(item) => void toggleArchive(item)}
             onRename={(item, name) => void rename(item, section.type, name)}

@@ -31,7 +31,7 @@ import {
 } from "@/lib/logCandidates";
 import { buildCanonicalEvents } from "@/lib/canonical/buildCanonicalEvents";
 import { seasonalPicksForMonth, weeklyCategoryPriority } from "@/lib/aggregations/seasonal";
-import { formatMinutes } from "@/lib/aggregations/common";
+import { formatMinutes, todayLocalISODate } from "@/lib/aggregations/common";
 import { buildDemoDataset } from "@/lib/demoData";
 import { normalizeName } from "@/taxonomy/normalizeName";
 import { CATEGORIES_BY_TYPE, TYPE_ACCENT, colorForCategorySlot, type ItemType } from "@/taxonomy/categories";
@@ -137,11 +137,6 @@ const FOOD_CATEGORY_ICON: Record<string, ReactNode> = {
     </CategoryIconWrap>
   ),
 };
-
-function todayLocalISODate(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
 
 function addDaysLocal(date: string, days: number): string {
   const [y, m, d] = date.split("-").map(Number);
@@ -354,11 +349,11 @@ export default function LogPage() {
   const trimmedNewItemText = newItemText.trim();
   const newItemNeedsCategory = useMemo(() => {
     if (!trimmedNewItemText) return false;
-    const bundled = classifyItem(trimmedNewItemText, {});
+    const bundled = classifyItem(trimmedNewItemText, snapshot?.userOverrides ?? {});
     if (bundled.matchedBy !== "fallback") return false;
     if (tabConfig.type === "food" && lookupFoodCategory(trimmedNewItemText)) return false;
     return true;
-  }, [trimmedNewItemText, tabConfig.type]);
+  }, [trimmedNewItemText, tabConfig.type, snapshot?.userOverrides]);
 
   // Grouped in the taxonomy's fixed category order (not by frequency), so a
   // category always sits in the same place and the alphabetical list inside
@@ -551,7 +546,7 @@ export default function LogPage() {
     // category picker is showing — same fallback-to-first-option expression
     // the <select> itself renders, so this always matches what's on screen
     // even if the user never touched the dropdown.
-    const bundled = classifyItem(name, {});
+    const bundled = classifyItem(name, snapshot?.userOverrides ?? {});
     const needsOverride = bundled.matchedBy === "fallback";
     const guessedCategory = tabConfig.type === "food" ? lookupFoodCategory(name) : null;
     const category = needsOverride ? (guessedCategory ?? (newItemCategory || CATEGORIES_BY_TYPE[tabConfig.type][0])) : bundled.category;
