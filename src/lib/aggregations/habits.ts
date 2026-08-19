@@ -13,12 +13,24 @@ export function habitStats(events: CanonicalEvent[]): ItemStats[] {
   return computeItemStatsForFilter(events, (e) => e.itemType === "habit");
 }
 
+/**
+ * Grouped by whatever categories actually appear in the data, not just the
+ * built-in list — a habit filed under a category a user added themselves
+ * (never known to this file) still needs its own group here rather than
+ * being silently dropped. Known categories keep their curated order;
+ * anything else is appended alphabetically after.
+ */
 export function habitsByCategory(events: CanonicalEvent[]): HabitGroup[] {
   const stats = habitStats(events);
-  return HABIT_CATEGORIES.map((category) => ({
+  const present = new Set(stats.map((s) => s.category));
+  const known = HABIT_CATEGORIES.filter((c) => present.has(c));
+  const extra = Array.from(present)
+    .filter((c) => !(HABIT_CATEGORIES as readonly string[]).includes(c))
+    .sort((a, b) => a.localeCompare(b));
+  return [...known, ...extra].map((category) => ({
     category,
     items: stats.filter((s) => s.category === category),
-  })).filter((g) => g.items.length > 0);
+  }));
 }
 
 /**

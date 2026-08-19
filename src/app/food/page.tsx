@@ -6,34 +6,27 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { StatTile } from "@/components/ui/StatTile";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { DateRangeFilter } from "@/components/ui/DateRangeFilter";
-import { BulletList } from "@/components/ui/BulletList";
 import { Methodology } from "@/components/ui/Methodology";
 import { RankedBarChart } from "@/components/charts/RankedBarChart";
 import { MultiLineChart } from "@/components/charts/MultiLineChart";
-import { StackedCategoryChart } from "@/components/charts/StackedCategoryChart";
 import { useDateRangeFilter } from "@/lib/useDateRangeFilter";
 import {
+  favoriteCombosByMeal,
   foodCategoryDistribution,
-  foodCategoryTimeline,
   foodVarietyOverTime,
   mealInstances,
   rankedFoods,
-  topIngredientPairs,
-  topIngredientsBySlot,
-  type TimelineGranularity,
-  type IngredientPairEntry,
-  type MealSlotIngredientEntry,
+  type MealComboEntry,
 } from "@/lib/aggregations/food";
 import { recentNewFoodsWithContext } from "@/lib/aggregations/patterns";
 import {
   computeNutritionPriorities,
   DIET_BALANCE_LABEL,
+  type CoverageRow,
   type DietBalanceStatus,
   type GroupStatus,
-  type PriorityCandidate,
 } from "@/lib/aggregations/nutritionPriorities";
 import { TYPE_ACCENT } from "@/taxonomy/categories";
-import clsx from "clsx";
 
 const STATUS_COLOR: Record<GroupStatus, string> = {
   "not-enough-data": "var(--text-muted)",
@@ -63,31 +56,62 @@ function StatusPill({ status, label, color }: { status: string; label: string; c
   );
 }
 
+/** The scope note repeated wherever a card intentionally ignores the page's
+ * date-range filter and instead reads the full logged history through its
+ * own fixed rolling windows — so that never happens silently. */
+function AllTimeScopeNote({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+      <span className="font-medium" style={{ color: "var(--text-secondary)" }}>
+        Full history, not the range filter —
+      </span>{" "}
+      {children}
+    </p>
+  );
+}
+
+type InvestigationTab = "ingredients" | "categories" | "trends";
+const INVESTIGATION_TABS: { key: InvestigationTab; label: string }[] = [
+  { key: "ingredients", label: "Ingredients" },
+  { key: "categories", label: "Categories" },
+  { key: "trends", label: "Trends" },
+];
+
+const MIN_MEAL_INSTANCES_FOR_COMBINATIONS = 5;
+/** Display order only — the combinations themselves are computed entirely
+ * from logged meal tags, never assumed. Any meal tag outside this list
+ * (there shouldn't be one, since the Log page only offers these four)
+ * still renders, just after the known ones. */
+const MEAL_ORDER = ["Breakfast", "Lunch", "Dinner", "Snack"];
+
 export default function FoodPage() {
   const { status, events } = useData();
   const { span, range, setRange, filtered } = useDateRangeFilter(events);
-  const [granularity, setGranularity] = useState<TimelineGranularity>("week");
+  const [tab, setTab] = useState<InvestigationTab>("ingredients");
 
-  // The decision-oriented sections always look at the full dataset — "what
-  // should I prioritize now" shouldn't change because the chart filter
-  // below happens to be narrowed to last month.
+  // The dietary-pattern synthesis (priorities, coverage, doing-well/
+  // missing, pattern, trend, variety) always reads the full history
+  // through its own fixed 7/30/90-day windows — "what should I prioritize
+  // now" shouldn't change because the range filter below happens to be
+  // narrowed to last month, and a 30-day rolling window can't be computed
+  // correctly from a narrower slice anyway. Labeled explicitly wherever it
+  // appears (see AllTimeScopeNote) rather than left as a silent mismatch
+  // with the range-filtered charts underneath.
   const priorities = useMemo(() => computeNutritionPriorities(events), [events]);
 
   const distribution = useMemo(() => foodCategoryDistribution(filtered), [filtered]);
   const varietySeries = useMemo(() => foodVarietyOverTime(filtered), [filtered]);
   const ranked = useMemo(() => rankedFoods(filtered), [filtered]);
-  const timeline = useMemo(() => foodCategoryTimeline(filtered, granularity), [filtered, granularity]);
   const newFoods = useMemo(() => recentNewFoodsWithContext(filtered, 15), [filtered]);
-  const mealInstanceCount = useMemo(() => mealInstances(filtered).length, [filtered]);
-  const ingredientPairs = useMemo(() => topIngredientPairs(filtered), [filtered]);
-  const slotIngredients = useMemo(() => topIngredientsBySlot(filtered), [filtered]);
+  const mealInstancesList = useMemo(() => mealInstances(filtered), [filtered]);
+  const mealInstanceCount = mealInstancesList.length;
+  const combos = useMemo(() => favoriteCombosByMeal(mealInstancesList), [mealInstancesList]);
 
   if (status === "loading") return <p style={{ color: "var(--text-muted)" }}>Loading…</p>;
   if (status === "empty") return <EmptyState />;
 
-  const categoriesWithData = distribution.filter((d) => d.count > 0);
-  const timelineCategories = categoriesWithData.map((d) => d.category);
   const topFoods = ranked.slice(0, 10).map((f) => ({ label: f.item, value: f.count }));
+  const allFoods = ranked.map((f) => ({ label: f.item, value: f.count }));
 
   return (
     <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-2">
@@ -101,50 +125,63 @@ export default function FoodPage() {
         </p>
       </div>
 
-      {priorities.insufficientData ? (
-        <Card className="lg:col-span-2">
-          <CardTitle subtitle="This page needs a bit more logged history before its recommendations are trustworthy.">
-            Not enough data yet
-          </CardTitle>
-          <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-            Only {priorities.daysWithFoodTracked} day{priorities.daysWithFoodTracked === 1 ? "" : "s"} with food
-            logged so far. Keep logging on the Log page — priorities, coverage, and pattern analysis will appear
-            here once there&apos;s enough to say something reliable.
-          </p>
-        </Card>
-      ) : (
-        <>
-          <NextPriorities items={priorities.topPriorities} />
-          <CoverageTable rows={priorities.coverageTable} />
+      {/* ---------------------------------------------------------------- *
+       * WHAT'S HAPPENING
+       * ---------------------------------------------------------------- */}
+      <p className="text-xs font-semibold tracking-wide uppercase lg:col-span-2" style={{ color: "var(--text-muted)" }}>
+        What&apos;s happening
+      </p>
 
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:col-span-2">
-            <BulletList title="Doing well" tone="var(--status-good)" bullets={priorities.doingWell} emptyText="Nothing clearly stands out yet — keep logging for a clearer picture." />
-            <BulletList title="Missing" tone="var(--status-warning)" bullets={priorities.missing} emptyText="No clear gaps against the tracked food groups right now." />
-          </div>
-
-          <VarietySection variety={priorities.variety} />
+      <div className="lg:col-span-2">
+        {priorities.insufficientData ? (
+          <Card tier="primary">
+            <CardTitle subtitle="This page needs a bit more logged history before its recommendations are trustworthy.">
+              Not enough data yet
+            </CardTitle>
+            <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
+              Only {priorities.daysWithFoodTracked} day{priorities.daysWithFoodTracked === 1 ? "" : "s"} with food
+              logged so far. Keep logging on the Log page — your dietary pattern and the evidence below will fill in
+              once there&apos;s enough to say something reliable.
+            </p>
+          </Card>
+        ) : (
           <PatternSection priorities={priorities} />
-        </>
+        )}
+      </div>
+
+      {!priorities.insufficientData && (
+        <div className="lg:col-span-2">
+          <AllTimeScopeNote>
+            your dietary pattern is evaluated from your full logged history in fixed 7/30/90-day windows ending on
+            your most recent tracked day, independent of the date range you pick below.
+          </AllTimeScopeNote>
+        </div>
       )}
 
-      {!priorities.insufficientData && priorities.trend.available && <TrendSection trend={priorities.trend} />}
-      <PersonalObservations newFoods={newFoods} />
-
-      <RecurringCombinations pairs={ingredientPairs} bySlot={slotIngredients} mealInstanceCount={mealInstanceCount} />
-
-      <div className="flex flex-wrap items-center justify-between gap-3 pt-2 lg:col-span-2">
-        <p className="text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
-          Detailed analytics
-        </p>
+      {/* ---------------------------------------------------------------- *
+       * SHOW ME THE EVIDENCE
+       * ---------------------------------------------------------------- */}
+      <div
+        className="flex flex-wrap items-end justify-between gap-3 border-t pt-4 lg:col-span-2"
+        style={{ borderColor: "var(--gridline)" }}
+      >
+        <div>
+          <p className="text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
+            Evidence
+          </p>
+          {span && range && (
+            <p className="mt-0.5 text-xs" style={{ color: "var(--text-muted)" }}>
+              {range.start} – {range.end}
+            </p>
+          )}
+        </div>
         {span && range && <DateRangeFilter span={span} value={range} onChange={setRange} />}
       </div>
 
       <Card tier="raw">
-        <CardTitle size="sm" subtitle="Every broad food category, ranked by tracked occurrences">Category distribution</CardTitle>
-        <RankedBarChart data={distribution.map((d) => ({ label: d.category, value: d.count }))} color={TYPE_ACCENT.food} />
-      </Card>
-      <Card tier="raw">
-        <CardTitle size="sm" subtitle="Most frequently tracked foods in this range">Top foods</CardTitle>
+        <CardTitle size="sm" subtitle="Most frequently tracked foods in this range">
+          Top ingredients
+        </CardTitle>
         {topFoods.length > 0 ? (
           <RankedBarChart data={topFoods} color={TYPE_ACCENT.food} />
         ) : (
@@ -152,9 +189,23 @@ export default function FoodPage() {
         )}
       </Card>
 
+      <Card tier="raw">
+        <CardTitle size="sm" subtitle="How often each tracked food group has actually been logged — counts are logged days, not servings or grams.">
+          Food-group coverage
+        </CardTitle>
+        {priorities.coverageTable.length > 0 ? (
+          <CoverageTableRows rows={priorities.coverageTable} />
+        ) : (
+          <p className="text-sm" style={{ color: "var(--text-muted)" }}>Not enough data yet.</p>
+        )}
+        <div className="mt-3">
+          <AllTimeScopeNote>fixed 7-day and 30-day windows ending today, independent of the range filter above.</AllTimeScopeNote>
+        </div>
+      </Card>
+
       <Card tier="raw" className="lg:col-span-2">
         <CardTitle size="sm" subtitle="Rolling 7-day and 30-day unique food counts">
-          Food variety over time
+          Ingredient variety over time
         </CardTitle>
         {varietySeries.length > 0 ? (
           <MultiLineChart
@@ -169,38 +220,83 @@ export default function FoodPage() {
         )}
       </Card>
 
-      <Card tier="raw" className="lg:col-span-2">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <CardTitle size="sm" subtitle="Category mix across time — see periods where a category rose or dropped">
-            Category timeline
-          </CardTitle>
-          <div className="flex gap-1">
-            {(["day", "week", "month"] as TimelineGranularity[]).map((g) => (
+      <FavoriteCombosByMeal combos={combos} mealInstanceCount={mealInstanceCount} />
+
+      {/* ---------------------------------------------------------------- *
+       * LET ME INVESTIGATE
+       * ---------------------------------------------------------------- */}
+      <div className="border-t pt-4 lg:col-span-2" style={{ borderColor: "var(--gridline)" }}>
+        <p className="mb-3 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
+          Investigate
+        </p>
+        <nav className="flex w-fit flex-wrap items-center gap-5 border-b" style={{ borderColor: "var(--border-hairline)" }}>
+          {INVESTIGATION_TABS.map((t) => {
+            const active = t.key === tab;
+            return (
               <button
-                key={g}
-                onClick={() => setGranularity(g)}
-                className={clsx("rounded-md px-3 py-1 text-xs font-medium whitespace-nowrap capitalize")}
+                key={t.key}
+                type="button"
+                onClick={() => setTab(t.key)}
+                className="flex items-center gap-1.5 pb-2.5 text-sm whitespace-nowrap transition-colors"
                 style={{
-                  background: granularity === g ? "var(--series-1)" : "var(--page-plane)",
-                  color: granularity === g ? "#fff" : "var(--text-secondary)",
+                  color: active ? TYPE_ACCENT.food : "var(--text-secondary)",
+                  fontWeight: active ? 700 : 500,
+                  borderBottom: `2px solid ${active ? TYPE_ACCENT.food : "transparent"}`,
+                  marginBottom: "-1px",
                 }}
               >
-                {g}
+                {t.label}
               </button>
-            ))}
-          </div>
-        </div>
-        {timeline.length > 0 ? (
-          <StackedCategoryChart
-            data={timeline.map((t) => ({ bucketStart: t.bucketStart, ...t.categoryCounts }))}
-            categories={timelineCategories}
-          />
-        ) : (
-          <p className="text-sm" style={{ color: "var(--text-muted)" }}>No data.</p>
-        )}
-      </Card>
+            );
+          })}
+        </nav>
+      </div>
 
-      <Methodology>
+      <div className="flex flex-col gap-5 lg:col-span-2">
+        {tab === "ingredients" && (
+          <>
+            <Card tier="raw">
+              <CardTitle size="sm" subtitle="Every tracked food in this range, ranked by occurrences">
+                All ingredients
+              </CardTitle>
+              {allFoods.length > 0 ? (
+                <RankedBarChart data={allFoods} color={TYPE_ACCENT.food} />
+              ) : (
+                <p className="text-sm" style={{ color: "var(--text-muted)" }}>No data.</p>
+              )}
+            </Card>
+            <PersonalObservations newFoods={newFoods} />
+          </>
+        )}
+
+        {tab === "categories" && (
+          <Card tier="raw">
+            <CardTitle size="sm" subtitle="Every broad food category, ranked by tracked occurrences in this range">
+              Category distribution
+            </CardTitle>
+            <RankedBarChart data={distribution.map((d) => ({ label: d.category, value: d.count }))} color={TYPE_ACCENT.food} />
+          </Card>
+        )}
+
+        {tab === "trends" && (
+          <>
+            <AllTimeScopeNote>
+              the trend comparison and variety metrics below always read your full logged history in fixed windows,
+              independent of the range filter above.
+            </AllTimeScopeNote>
+            {priorities.insufficientData ? (
+              <p className="text-sm" style={{ color: "var(--text-muted)" }}>Not enough data yet.</p>
+            ) : (
+              <>
+                {priorities.trend.available && <TrendSection trend={priorities.trend} />}
+                <VarietySection variety={priorities.variety} />
+              </>
+            )}
+          </>
+        )}
+      </div>
+
+      <Methodology className="lg:col-span-2">
         Priorities combine your logged intake with general dietary-guidance consensus — never individual studies —
         weighted by recency, variety, and how well-established the evidence is for that food group. &quot;Not
         logged&quot; only ever means not logged, never &quot;not eaten&quot;: this data reflects what you chose to
@@ -211,104 +307,32 @@ export default function FoodPage() {
   );
 }
 
-function NextPriorities({ items }: { items: PriorityCandidate[] }) {
+function CoverageTableRows({ rows }: { rows: CoverageRow[] }) {
   return (
-    <Card tier="primary" className="lg:col-span-2">
-      <CardTitle subtitle="Ranked from your logged intake, dietary-guidance importance, variety, and recency — a short list on purpose.">
-        Your next priorities
-      </CardTitle>
-      {items.length === 0 ? (
-        <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-          No standout gaps right now — your tracked food groups look reasonably well covered. See what&apos;s
-          below for the fuller picture.
-        </p>
-      ) : (
-        <ol className="flex flex-col gap-4">
-          {items.map((item, i) => (
-            <li key={item.headline} className="flex gap-3">
-              <span
-                className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold"
-                style={{ background: "var(--page-plane)", color: "var(--text-secondary)" }}
-              >
-                {i + 1}
-              </span>
-              <div>
-                <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
-                  {item.action}
-                  {item.exampleFoods.length > 0 && (
-                    <span className="font-normal" style={{ color: "var(--text-muted)" }}> — {item.exampleFoods.join(", ")}</span>
-                  )}
-                </p>
-                <p className="mt-0.5 text-xs" style={{ color: "var(--text-secondary)" }}>{item.detail}</p>
-              </div>
-            </li>
-          ))}
-        </ol>
-      )}
-    </Card>
-  );
-}
-
-function CoverageTable({ rows }: { rows: { label: string; days7: number; days30: number; status: GroupStatus; statusLabel: string }[] }) {
-  return (
-    <Card className="lg:col-span-2">
-      <CardTitle subtitle="How often each tracked food group has actually been logged — counts are logged days, not servings or grams.">
-        Nutrition coverage
-      </CardTitle>
-      <div className="overflow-x-auto">
-        <table className="text-sm">
-          <thead>
-            <tr className="text-left text-xs whitespace-nowrap" style={{ color: "var(--text-muted)" }}>
-              <th className="pb-2 pr-10 font-medium">Food group</th>
-              <th className="pb-2 pr-6 text-right font-medium">7 days</th>
-              <th className="pb-2 pr-6 text-right font-medium">30 days</th>
-              <th className="pb-2 text-right font-medium">Status</th>
+    <div className="overflow-x-auto">
+      <table className="text-sm">
+        <thead>
+          <tr className="text-left text-xs whitespace-nowrap" style={{ color: "var(--text-muted)" }}>
+            <th className="pb-2 pr-8 font-medium">Food group</th>
+            <th className="pb-2 pr-5 text-right font-medium">7 days</th>
+            <th className="pb-2 pr-5 text-right font-medium">30 days</th>
+            <th className="pb-2 text-right font-medium">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr key={r.label} className="border-t whitespace-nowrap" style={{ borderColor: "var(--gridline)" }}>
+              <td className="py-2 pr-8" style={{ color: "var(--text-primary)" }}>{r.label}</td>
+              <td className="py-2 pr-5 text-right tabular-nums" style={{ color: "var(--text-secondary)" }}>{r.days7}</td>
+              <td className="py-2 pr-5 text-right tabular-nums" style={{ color: "var(--text-secondary)" }}>{r.days30}</td>
+              <td className="py-2 text-right">
+                <StatusPill status={r.status} label={r.statusLabel} color={STATUS_COLOR[r.status]} />
+              </td>
             </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr key={r.label} className="border-t whitespace-nowrap" style={{ borderColor: "var(--gridline)" }}>
-                <td className="py-2 pr-10" style={{ color: "var(--text-primary)" }}>{r.label}</td>
-                <td className="py-2 pr-6 text-right tabular-nums" style={{ color: "var(--text-secondary)" }}>{r.days7}</td>
-                <td className="py-2 pr-6 text-right tabular-nums" style={{ color: "var(--text-secondary)" }}>{r.days30}</td>
-                <td className="py-2 text-right">
-                  <StatusPill status={r.status} label={r.statusLabel} color={STATUS_COLOR[r.status]} />
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </Card>
-  );
-}
-
-
-function VarietySection({ variety }: { variety: ReturnType<typeof computeNutritionPriorities>["variety"] }) {
-  return (
-    <Card>
-      <CardTitle subtitle={`Distinct foods logged in the last ${variety.windowDays} days`}>Variety</CardTitle>
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <StatTile label="Food variety" value={String(variety.totalUniqueFoods)} detail="unique foods" />
-        <StatTile label="Plant variety" value={String(variety.uniquePlantFoods)} detail="unique plant foods" accent="var(--status-good)" />
-        <StatTile
-          label="Plant-group variety"
-          value={`${variety.plantGroupsRepresented} / ${variety.totalPlantGroups}`}
-          detail="plant food groups represented"
-        />
-        <StatTile label="Vegetable variety" value={String(variety.uniqueVegetables)} detail="unique vegetables" />
-        <StatTile label="Fruit variety" value={String(variety.uniqueFruit)} detail="unique fruits" />
-        <StatTile label="Legume variety" value={String(variety.uniqueLegumes)} detail="unique legumes" />
-        <StatTile label="Nut/seed variety" value={String(variety.uniqueNutsSeeds)} detail="unique nuts & seeds" />
-        {variety.plantFamiliesRepresented > 0 && (
-          <StatTile
-            label="Plant families"
-            value={String(variety.plantFamiliesRepresented)}
-            detail="best-effort, not exhaustive"
-          />
-        )}
-      </div>
-    </Card>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
@@ -321,7 +345,7 @@ function PatternSection({ priorities }: { priorities: ReturnType<typeof computeN
   ];
 
   return (
-    <Card>
+    <Card tier="primary">
       <CardTitle subtitle="The overall shape of your diet, not a score">Your dietary pattern</CardTitle>
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
         {groups.map((g) => (
@@ -352,10 +376,42 @@ function PatternSection({ priorities }: { priorities: ReturnType<typeof computeN
   );
 }
 
+function VarietySection({ variety }: { variety: ReturnType<typeof computeNutritionPriorities>["variety"] }) {
+  return (
+    <Card tier="raw">
+      <CardTitle size="sm" subtitle={`Distinct foods logged in the last ${variety.windowDays} days`}>
+        Variety
+      </CardTitle>
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <StatTile label="Food variety" value={String(variety.totalUniqueFoods)} detail="unique foods" />
+        <StatTile label="Plant variety" value={String(variety.uniquePlantFoods)} detail="unique plant foods" accent="var(--status-good)" />
+        <StatTile
+          label="Plant-group variety"
+          value={`${variety.plantGroupsRepresented} / ${variety.totalPlantGroups}`}
+          detail="plant food groups represented"
+        />
+        <StatTile label="Vegetable variety" value={String(variety.uniqueVegetables)} detail="unique vegetables" />
+        <StatTile label="Fruit variety" value={String(variety.uniqueFruit)} detail="unique fruits" />
+        <StatTile label="Legume variety" value={String(variety.uniqueLegumes)} detail="unique legumes" />
+        <StatTile label="Nut/seed variety" value={String(variety.uniqueNutsSeeds)} detail="unique nuts & seeds" />
+        {variety.plantFamiliesRepresented > 0 && (
+          <StatTile
+            label="Plant families"
+            value={String(variety.plantFamiliesRepresented)}
+            detail="best-effort, not exhaustive"
+          />
+        )}
+      </div>
+    </Card>
+  );
+}
+
 function TrendSection({ trend }: { trend: ReturnType<typeof computeNutritionPriorities>["trend"] }) {
   return (
-    <Card>
-      <CardTitle subtitle="Last 30 days vs. the 30 days before that">Over time</CardTitle>
+    <Card tier="raw">
+      <CardTitle size="sm" subtitle="Last 30 days vs. the 30 days before that">
+        Over time
+      </CardTitle>
       <ul className="flex flex-col divide-y" style={{ borderColor: "var(--gridline)" }}>
         {trend.points.map((p) => {
           const direction = p.current > p.previous ? "up" : p.current < p.previous ? "down" : "flat";
@@ -414,26 +470,26 @@ function PersonalObservations({ newFoods }: { newFoods: ReturnType<typeof recent
   );
 }
 
-const MIN_MEAL_INSTANCES_FOR_COMBINATIONS = 5;
-
-function RecurringCombinations({
-  pairs,
-  bySlot,
-  mealInstanceCount,
-}: {
-  pairs: IngredientPairEntry[];
-  bySlot: MealSlotIngredientEntry[];
-  mealInstanceCount: number;
-}) {
-  const slots = Array.from(new Set(bySlot.map((e) => e.mealTag)));
+/**
+ * "What do I most commonly eat together for breakfast/lunch/dinner/snack" —
+ * the exact multi-ingredient sets that recur within the same meal instance,
+ * grouped by meal and ranked by how often that exact set repeated. Not a
+ * ranking of individual foods, and not just pairs.
+ */
+function FavoriteCombosByMeal({ combos, mealInstanceCount }: { combos: MealComboEntry[]; mealInstanceCount: number }) {
+  const seenTags = Array.from(new Set(combos.map((c) => c.mealTag)));
+  const orderedTags = [
+    ...MEAL_ORDER.filter((m) => seenTags.includes(m)),
+    ...seenTags.filter((m) => !MEAL_ORDER.includes(m)),
+  ];
 
   return (
     <Card tier="raw" className="lg:col-span-2">
       <CardTitle
         size="sm"
-        subtitle="What tends to appear together in the same meal, and what a typical meal slot looks like — plain counts, not a comparison against a baseline."
+        subtitle="The exact sets of ingredients logged together most often in the same meal — what you actually eat together, ranked by how often that exact combination repeated."
       >
-        Recurring combinations
+        Favorite combinations by meal
       </CardTitle>
       {mealInstanceCount < MIN_MEAL_INSTANCES_FOR_COMBINATIONS ? (
         <p className="text-sm" style={{ color: "var(--text-muted)" }}>
@@ -441,61 +497,47 @@ function RecurringCombinations({
           from the Log page, which always tags a meal. Older imported history mostly predates this field, so this
           section will read sparse for a while on that data.
         </p>
+      ) : orderedTags.length === 0 ? (
+        <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+          No combination of 2 or more ingredients has repeated together often enough yet in any meal.
+        </p>
       ) : (
-        <div className="flex flex-col gap-5">
-          {slots.length > 0 && (
-            <div>
-              <p className="mb-2 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
-                Typical by meal
-              </p>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                {slots.map((slot) => (
-                  <div key={slot}>
-                    <p className="mb-1.5 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
-                      {slot}
-                    </p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {bySlot
-                        .filter((e) => e.mealTag === slot)
-                        .map((e) => (
-                          <span
-                            key={e.item}
-                            className="rounded-md px-2.5 py-1 text-xs whitespace-nowrap"
-                            style={{ background: "var(--page-plane)", color: "var(--text-secondary)" }}
-                          >
-                            {e.item} <span style={{ color: "var(--text-muted)" }}>· {e.count}</span>
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+          {orderedTags.map((mealTag) => {
+            const mealCombos = combos.filter((c) => c.mealTag === mealTag).slice(0, 5);
+            const maxCount = Math.max(...mealCombos.map((c) => c.count), 1);
+            return (
+              <div key={mealTag}>
+                <p className="mb-2.5 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
+                  {mealTag}
+                </p>
+                {mealCombos.length === 0 ? (
+                  <p className="text-xs" style={{ color: "var(--text-muted)" }}>No repeated combination yet.</p>
+                ) : (
+                  <ul className="flex flex-col gap-3">
+                    {mealCombos.map((c) => (
+                      <li key={c.items.join("+")}>
+                        <div className="flex items-baseline justify-between gap-2">
+                          <span className="text-sm" style={{ color: "var(--text-primary)" }}>
+                            {c.items.join(" + ")}
                           </span>
-                        ))}
-                    </div>
-                  </div>
-                ))}
+                          <span className="shrink-0 tabular-nums text-xs whitespace-nowrap" style={{ color: "var(--text-muted)" }}>
+                            {c.count}×
+                          </span>
+                        </div>
+                        <div className="mt-1.5 h-1.5 w-full rounded-full" style={{ background: "var(--gridline)" }}>
+                          <div
+                            className="h-1.5 rounded-full"
+                            style={{ width: `${Math.max(6, Math.round((c.count / maxCount) * 100))}%`, background: TYPE_ACCENT.food }}
+                          />
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
-            </div>
-          )}
-
-          <div>
-            <p className="mb-2 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
-              Most common pairs
-            </p>
-            {pairs.length > 0 ? (
-              <ul className="flex flex-col divide-y text-sm" style={{ borderColor: "var(--gridline)" }}>
-                {pairs.slice(0, 10).map((p) => (
-                  <li key={`${p.itemA}|${p.itemB}`} className="flex items-center justify-between gap-3 py-2">
-                    <span style={{ color: "var(--text-primary)" }}>
-                      {p.itemA} + {p.itemB}
-                    </span>
-                    <span className="tabular-nums text-xs whitespace-nowrap" style={{ color: "var(--text-muted)" }}>
-                      {p.count} meals
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-                No ingredient pair has repeated together often enough yet.
-              </p>
-            )}
-          </div>
+            );
+          })}
         </div>
       )}
     </Card>
