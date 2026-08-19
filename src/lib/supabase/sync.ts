@@ -9,10 +9,12 @@ import {
   putGymLog,
   deleteGymLogById,
   setUserOverride,
+  putUserCategory,
+  deleteUserCategoryLocal,
   clearAllData,
 } from "@/lib/db/indexedDb";
 import type { OverrideEntry } from "@/taxonomy/classify";
-import type { RawDiaryEntry, RawLog, RawItem, RawGymLog } from "@/lib/types";
+import type { RawDiaryEntry, RawLog, RawItem, RawGymLog, RawUserCategory } from "@/lib/types";
 
 /**
  * Upserts one item's own metadata (name, archive state, etc.) to Supabase —
@@ -134,6 +136,32 @@ export async function pushUserOverride(key: string, entry: OverrideEntry): Promi
   });
 }
 
+/** Upserts one user-defined category. No-op if Supabase isn't configured or nobody's signed in. */
+export async function pushUserCategory(entry: RawUserCategory): Promise<void> {
+  if (!supabase) return;
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session) return;
+
+  await supabase.from("user_categories").upsert({
+    user_id: session.user.id,
+    item_type: entry.itemType,
+    name: entry.name,
+  });
+}
+
+/** Deletes one user-defined category, locally and (if signed in) from Supabase. */
+export async function deleteUserCategory(itemType: string, name: string): Promise<void> {
+  await deleteUserCategoryLocal(itemType, name);
+  if (!supabase) return;
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session) return;
+  await supabase.from("user_categories").delete().eq("item_type", itemType).eq("name", name);
+}
+
 /** Upserts one item+day note. No-op if Supabase isn't configured or nobody's signed in. */
 export async function pushDiaryEntry(entry: RawDiaryEntry): Promise<void> {
   if (!supabase) return;
@@ -200,6 +228,11 @@ interface GymLogRow {
   updated_at: string;
 }
 
+interface UserCategoryRow {
+  item_type: RawUserCategory["itemType"];
+  name: string;
+}
+
 const PAGE_SIZE = 1000;
 
 /**
@@ -242,12 +275,17 @@ export async function pullFromCloud(): Promise<void> {
   } = await supabase.auth.getSession();
   if (!session) return;
 
-  const [itemRows, logRows, overrideRows, diaryRows, gymLogRows] = await Promise.all([
+  const [itemRows, logRows, overrideRows, diaryRows, gymLogRows, userCategoryRows] = await Promise.all([
     fetchAllRows<ItemRow>(supabase, "items"),
     fetchAllRows<LogRow>(supabase, "logs"),
     fetchAllRows<OverrideRow>(supabase, "user_overrides"),
     fetchAllRows<DiaryRow>(supabase, "diary"),
     fetchAllRows<GymLogRow>(supabase, "gym_logs"),
+    // Table only exists once someone's run the 2026-08 migration (see
+    // schema.sql) — falls back to "no custom categories yet" rather than
+    // failing the whole pull (and with it every other table) for anyone
+    // who hasn't run it.
+    fetchAllRows<UserCategoryRow>(supabase, "user_categories").catch(() => [] as UserCategoryRow[]),
   ]);
 
   await clearAllData();
@@ -312,5 +350,9 @@ export async function pullFromCloud(): Promise<void> {
       updatedAt: new Date(row.updated_at).getTime(),
     };
     await putGymLog(log);
+  }
+
+  for (const row of userCategoryRows) {
+    await putUserCategory({ itemType: row.item_type, name: row.name });
   }
 }

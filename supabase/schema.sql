@@ -77,6 +77,20 @@ create table public.gym_logs (
   constraint gym_logs_user_id_fkey foreign key (user_id) references auth.users(id)
 );
 
+-- A user-defined category name for one item type, managed from the Manage
+-- page. Food's categories are fixed in code (they're load-bearing for the
+-- nutrition-guidance engine), so this only ever holds supplement/outcome/
+-- habit rows in practice. A type with no rows here just falls back to that
+-- type's built-in default list — rows only exist once someone has actually
+-- customized that type's categories.
+create table public.user_categories (
+  user_id uuid not null default auth.uid(),
+  item_type text not null,
+  name text not null,
+  constraint user_categories_pkey primary key (user_id, item_type, name),
+  constraint user_categories_user_id_fkey foreign key (user_id) references auth.users(id)
+);
+
 -- Row-level security: every table, same shape — a user can only read or
 -- write rows where user_id matches their own auth.uid().
 alter table public.items enable row level security;
@@ -84,6 +98,7 @@ alter table public.logs enable row level security;
 alter table public.diary enable row level security;
 alter table public.user_overrides enable row level security;
 alter table public.gym_logs enable row level security;
+alter table public.user_categories enable row level security;
 
 create policy "items_all_own" on public.items
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
@@ -100,8 +115,23 @@ create policy "user_overrides_all_own" on public.user_overrides
 create policy "gym_logs_all_own" on public.gym_logs
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
+create policy "user_categories_all_own" on public.user_categories
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
 -- Migrations for a project provisioned before a given date — run only the
 -- ones after your project's setup date, each is safe to run once.
 
 -- 2026-08: adds explicit, user-toggleable habit/supplement archiving.
 -- alter table public.items add column if not exists is_archived boolean not null default false;
+
+-- 2026-08: adds user-managed categories for supplements/symptoms/habits (Manage page).
+-- create table public.user_categories (
+--   user_id uuid not null default auth.uid(),
+--   item_type text not null,
+--   name text not null,
+--   constraint user_categories_pkey primary key (user_id, item_type, name),
+--   constraint user_categories_user_id_fkey foreign key (user_id) references auth.users(id)
+-- );
+-- alter table public.user_categories enable row level security;
+-- create policy "user_categories_all_own" on public.user_categories
+--   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
