@@ -60,7 +60,7 @@ const ICONS: Record<string, ReactNode> = {
       <path d="M12.6 6.2h4.2v4.2" />
     </IconWrap>
   ),
-  Gym: (
+  Workout: (
     <IconWrap>
       <path d="M3 10h2.4M14.6 10H17" />
       <path d="M5.4 7v6M14.6 7v6" />
@@ -87,7 +87,7 @@ const ANALYTICS_LINKS = [
   { href: "/habits", label: "Habits" },
   { href: "/digestion", label: "Digestion" },
   { href: "/patterns", label: "Patterns" },
-  { href: "/gym", label: "Gym" },
+  { href: "/workout", label: "Workout" },
 ];
 const MANAGE_LINKS = [{ href: "/manage", label: "Manage items" }];
 
