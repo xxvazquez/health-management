@@ -162,13 +162,24 @@ const MIN_COMBO_COUNT = 2;
  * when they share the exact same set of items; a combination needs at
  * least 2 ingredients, and to have recurred at least `minCount` times, to
  * count as a favorite rather than a one-off.
+ *
+ * Takes already-computed `MealInstance[]` rather than raw events so a
+ * caller that also needs the instance count/list (the Food page does, for
+ * its "not enough meals tagged yet" gate) can compute `mealInstances` once
+ * and share it, instead of this function silently re-deriving it internally.
+ *
+ * Keys each combo by mealTag + JSON-stringified item list rather than a
+ * plain `items.join("+")` — item names are free text (any user can rename
+ * an item to anything via the Manage page), so a joined string can collide:
+ * items `["A+B", "C"]` and `["A", "B+C"]` would otherwise both serialize to
+ * "A+B+C" and get merged into one miscounted entry.
  */
-export function favoriteCombosByMeal(events: CanonicalEvent[], minCount = MIN_COMBO_COUNT): MealComboEntry[] {
+export function favoriteCombosByMeal(instances: MealInstance[], minCount = MIN_COMBO_COUNT): MealComboEntry[] {
   const counts = new Map<string, MealComboEntry>();
-  for (const instance of mealInstances(events)) {
+  for (const instance of instances) {
     if (instance.items.length < 2) continue;
     const items = [...instance.items].sort((a, b) => a.localeCompare(b));
-    const key = `${instance.mealTag}|${items.join("+")}`;
+    const key = `${instance.mealTag}|${JSON.stringify(items)}`;
     const entry = counts.get(key) ?? { mealTag: instance.mealTag, items, count: 0 };
     entry.count++;
     counts.set(key, entry);

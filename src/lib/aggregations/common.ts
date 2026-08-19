@@ -36,6 +36,16 @@ export function listDatesBetween(start: string, end: string): string[] {
   return dates;
 }
 
+/** Today's date as YYYY-MM-DD in the browser's local timezone (not UTC —
+ * `addDaysToDate` and friends work in UTC since they only ever shift an
+ * already-known date, but "today" itself must reflect the user's own
+ * clock, or a log made late at night could land on the wrong calendar
+ * day). Shared by every page that needs "today" as a default/max date. */
+export function todayLocalISODate(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 export function addDaysToDate(date: string, days: number): string {
   const d = new Date(`${date}T00:00:00Z`);
   d.setUTCDate(d.getUTCDate() + days);
