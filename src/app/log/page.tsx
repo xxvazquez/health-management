@@ -31,7 +31,7 @@ import {
 } from "@/lib/logCandidates";
 import { buildCanonicalEvents } from "@/lib/canonical/buildCanonicalEvents";
 import { seasonalPicksForMonth, weeklyCategoryPriority } from "@/lib/aggregations/seasonal";
-import { formatMinutes } from "@/lib/aggregations/common";
+import { formatMinutes, todayLocalISODate } from "@/lib/aggregations/common";
 import { buildDemoDataset } from "@/lib/demoData";
 import { normalizeName } from "@/taxonomy/normalizeName";
 import { CATEGORIES_BY_TYPE, TYPE_ACCENT, colorForCategorySlot, type ItemType } from "@/taxonomy/categories";
@@ -138,11 +138,6 @@ const FOOD_CATEGORY_ICON: Record<string, ReactNode> = {
   ),
 };
 
-function todayLocalISODate(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-
 function addDaysLocal(date: string, days: number): string {
   const [y, m, d] = date.split("-").map(Number);
   const dt = new Date(y, m - 1, d);
@@ -238,7 +233,7 @@ interface Snapshot {
 
 export default function LogPage() {
   const { refresh, isDemoData, status } = useData();
-  const { openPanel } = useAuth();
+  const { openPanel, session } = useAuth();
   const today = useMemo(() => todayLocalISODate(), []);
   const [date, setDate] = useState(today);
   const [tab, setTab] = useState<ItemType>("food");
@@ -252,17 +247,30 @@ export default function LogPage() {
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
   // View-only declutter for the Food tab's now-large catalog — hiding an
   // ingredient here never touches tracked data, just this device's tap
-  // grid, so it's plain localStorage rather than anything synced.
-  const [hiddenFoodItems, setHiddenFoodItems] = useState<Set<string>>(() => {
-    if (typeof window === "undefined") return new Set();
-    try {
-      const raw = window.localStorage.getItem(HIDDEN_FOOD_ITEMS_KEY);
-      return raw ? new Set(JSON.parse(raw) as string[]) : new Set();
-    } catch {
-      return new Set();
-    }
-  });
+  // grid, so it's plain localStorage rather than anything synced. Scoped by
+  // user id (see the effect below) so signing out and into a different
+  // account never leaks one person's hidden-ingredient list into another's.
+  const [hiddenFoodItems, setHiddenFoodItems] = useState<Set<string>>(new Set());
   const [manageVisibility, setManageVisibility] = useState(false);
+  const hiddenFoodItemsKey = `${HIDDEN_FOOD_ITEMS_KEY}:${session?.user.id ?? "guest"}`;
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    // Reading an external system (localStorage) on user change, not a
+    // React-state sync loop — same pattern as DataContext's own refresh.
+    try {
+      const raw = window.localStorage.getItem(hiddenFoodItemsKey);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setHiddenFoodItems(raw ? new Set(JSON.parse(raw) as string[]) : new Set());
+    } catch {
+      setHiddenFoodItems(new Set());
+    }
+    // Re-reads whenever the signed-in user changes (including sign-out,
+    // where session becomes null and this falls back to the shared
+    // "guest" bucket) — deliberately not reactive to hiddenFoodItemsKey
+    // itself, which would refire this on every write below.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.user.id]);
 
   const loadSnapshot = useCallback(async () => {
     const [items, logs, userOverrides, diary] = await Promise.all([
@@ -341,11 +349,11 @@ export default function LogPage() {
   const trimmedNewItemText = newItemText.trim();
   const newItemNeedsCategory = useMemo(() => {
     if (!trimmedNewItemText) return false;
-    const bundled = classifyItem(trimmedNewItemText, {});
+    const bundled = classifyItem(trimmedNewItemText, snapshot?.userOverrides ?? {});
     if (bundled.matchedBy !== "fallback") return false;
     if (tabConfig.type === "food" && lookupFoodCategory(trimmedNewItemText)) return false;
     return true;
-  }, [trimmedNewItemText, tabConfig.type]);
+  }, [trimmedNewItemText, tabConfig.type, snapshot?.userOverrides]);
 
   // Grouped in the taxonomy's fixed category order (not by frequency), so a
   // category always sits in the same place and the alphabetical list inside
@@ -538,7 +546,7 @@ export default function LogPage() {
     // category picker is showing — same fallback-to-first-option expression
     // the <select> itself renders, so this always matches what's on screen
     // even if the user never touched the dropdown.
-    const bundled = classifyItem(name, {});
+    const bundled = classifyItem(name, snapshot?.userOverrides ?? {});
     const needsOverride = bundled.matchedBy === "fallback";
     const guessedCategory = tabConfig.type === "food" ? lookupFoodCategory(name) : null;
     const category = needsOverride ? (guessedCategory ?? (newItemCategory || CATEGORIES_BY_TYPE[tabConfig.type][0])) : bundled.category;
@@ -631,7 +639,7 @@ export default function LogPage() {
       if (hidden) next.add(norm);
       else next.delete(norm);
       try {
-        window.localStorage.setItem(HIDDEN_FOOD_ITEMS_KEY, JSON.stringify(Array.from(next)));
+        window.localStorage.setItem(hiddenFoodItemsKey, JSON.stringify(Array.from(next)));
       } catch {
         // localStorage unavailable (private browsing etc.) — toggle still works for this session
       }

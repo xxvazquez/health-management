@@ -5,12 +5,15 @@ export interface DateRange {
   end: string; // YYYY-MM-DD, inclusive
 }
 
-export function filterByDateRange(events: CanonicalEvent[], range?: DateRange): CanonicalEvent[] {
+/** Generic over anything date-stamped (CanonicalEvent, RawGymLog, …) so the
+ * same date-range filter panel works on every analytics page, not just
+ * ones built on CanonicalEvent. */
+export function filterByDateRange<T extends { date: string }>(events: T[], range?: DateRange): T[] {
   if (!range) return events;
   return events.filter((e) => e.date >= range.start && e.date <= range.end);
 }
 
-export function getDatasetSpan(events: CanonicalEvent[]): DateRange | null {
+export function getDatasetSpan<T extends { date: string }>(events: T[]): DateRange | null {
   if (events.length === 0) return null;
   let start = events[0].date;
   let end = events[0].date;
@@ -31,6 +34,16 @@ export function listDatesBetween(start: string, end: string): string[] {
     cur.setUTCDate(cur.getUTCDate() + 1);
   }
   return dates;
+}
+
+/** Today's date as YYYY-MM-DD in the browser's local timezone (not UTC —
+ * `addDaysToDate` and friends work in UTC since they only ever shift an
+ * already-known date, but "today" itself must reflect the user's own
+ * clock, or a log made late at night could land on the wrong calendar
+ * day). Shared by every page that needs "today" as a default/max date. */
+export function todayLocalISODate(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 export function addDaysToDate(date: string, days: number): string {
