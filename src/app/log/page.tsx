@@ -1210,7 +1210,7 @@ export default function LogPage() {
                 const hasMealTag = entry.itemType === "food" && (entry.mealTag || !isDemoData);
                 const hasNote = entry.itemType !== "stool" && (!isDemoData || entry.note);
                 return (
-                  <div key={entry.key} className="flex shrink-0 flex-col items-start gap-1" style={{ opacity: busy ? 0.5 : 1 }}>
+                  <div key={entry.key} className="flex w-28 shrink-0 flex-col items-start gap-1" style={{ opacity: busy ? 0.5 : 1 }}>
                     <span
                       className="relative z-10 h-2.5 w-2.5 shrink-0 rounded-full border-2"
                       style={{ borderColor: entry.itemType === "stool" ? STOOL_ACCENT : TYPE_ACCENT[entry.itemType], background: "var(--surface-1)" }}
@@ -1230,8 +1230,8 @@ export default function LogPage() {
                         style={{ background: "transparent", color: "var(--text-muted)", border: "none" }}
                       />
                     )}
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-xs font-semibold whitespace-nowrap" style={{ color: "var(--text-primary)" }}>
+                    <div className="flex w-full items-start justify-between gap-1">
+                      <span className="min-w-0 text-xs font-semibold" style={{ color: "var(--text-primary)" }}>
                         {entry.item}
                         {INPUT_KIND[entry.item] === "duration" && entry.value != null && (
                           <span className="ml-1 font-normal" style={{ color: "var(--text-secondary)" }}>
@@ -1245,7 +1245,7 @@ export default function LogPage() {
                           onClick={() => void handleDeleteEntry(entry)}
                           disabled={busy}
                           aria-label={`Delete ${entry.item} at ${entry.time}`}
-                          className="text-xs leading-none disabled:opacity-40"
+                          className="shrink-0 text-xs leading-none disabled:opacity-40"
                           style={{ color: "var(--text-secondary)" }}
                         >
                           ✕
