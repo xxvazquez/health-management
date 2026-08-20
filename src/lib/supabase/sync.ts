@@ -1,14 +1,15 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "./client";
 import {
-  putItem,
-  putLog,
-  putDiaryEntry,
-  putCategory,
-  putStoolLog,
-  putGymLog,
+  putItemInternal,
+  putLogInternal,
+  putDiaryEntryInternal,
+  putCategoryInternal,
+  putStoolLogInternal,
+  putGymLogInternal,
   deleteGymLogById,
-  clearAllData,
+  clearAllDataInternal,
+  withDataLock,
 } from "@/lib/db/indexedDb";
 import type { RawDiaryEntry, RawLog, RawItem, RawGymLog, RawCategory, RawStoolLog, StoolColor, StoolFloatation, PaperCleanliness } from "@/lib/types";
 import type { ItemType } from "@/taxonomy/categories";
@@ -295,91 +296,105 @@ export async function pullFromCloud(): Promise<void> {
     fetchAllRows<GymLogRow>(supabase, "gym_logs"),
   ]);
 
-  await clearAllData();
+  // Wiping and repopulating IndexedDB is one atomic unit against
+  // withDataLock — see indexedDb.ts. A local write started while this is
+  // running waits for it to finish (and vice versa), so a write can never
+  // land in the gap between the clear and the repopulation that follows
+  // it, and a read right after this resolves (e.g. DataContext's
+  // refresh()) can never observe a half-repopulated cache. Every write
+  // below uses the *Internal (unlocked) variant, since this callback
+  // already holds the lock — calling the locked public versions here
+  // would deadlock.
+  await withDataLock(async () => {
+    await clearAllDataInternal();
 
-  for (const entry of categoryRows) {
-    await putCategory({ id: entry.id, itemType: dbTypeToItemType(entry.item_type), name: entry.name });
-  }
-
-  ITEM_TYPES.forEach((itemType, i) => {
-    for (const row of itemsByType[i]) {
-      const item: RawItem = {
-        identity: row.id,
-        itemType,
-        rawName: row.name,
-        category: categoryNameById.get(row.category_id ?? "") ?? "Other",
-        categoryId: row.category_id,
-        isArchived: row.is_archived ?? false,
-        createdDate: row.created_date,
-      };
-      void putItem(item);
+    for (const entry of categoryRows) {
+      await putCategoryInternal({ id: entry.id, itemType: dbTypeToItemType(entry.item_type), name: entry.name });
     }
-  });
 
-  ITEM_TYPES.forEach((itemType, i) => {
-    for (const row of logsByType[i]) {
-      const log: RawLog = {
-        identity: row.id,
-        itemIdentity: row.item_id,
-        itemType,
+    for (let i = 0; i < ITEM_TYPES.length; i++) {
+      const itemType = ITEM_TYPES[i];
+      for (const row of itemsByType[i]) {
+        const item: RawItem = {
+          identity: row.id,
+          itemType,
+          rawName: row.name,
+          category: categoryNameById.get(row.category_id ?? "") ?? "Other",
+          categoryId: row.category_id,
+          isArchived: row.is_archived ?? false,
+          createdDate: row.created_date,
+        };
+        await putItemInternal(item);
+      }
+    }
+
+    for (let i = 0; i < ITEM_TYPES.length; i++) {
+      const itemType = ITEM_TYPES[i];
+      for (const row of logsByType[i]) {
+        const log: RawLog = {
+          identity: row.id,
+          itemIdentity: row.item_id,
+          itemType,
+          date: row.date,
+          value: row.value,
+          updatedAt: row.updated_at,
+          mealTag: itemType === "food" ? (row.meal_tag ?? null) : null,
+        };
+        await putLogInternal(log);
+      }
+    }
+
+    for (let i = 0; i < ITEM_TYPES.length; i++) {
+      const itemType = ITEM_TYPES[i];
+      for (const row of diaryByType[i]) {
+        const entry: RawDiaryEntry = {
+          identity: row.id,
+          itemIdentity: row.item_id,
+          itemType,
+          date: row.date,
+          content: row.content,
+          title: row.title,
+          updatedAt: row.updated_at,
+        };
+        await putDiaryEntryInternal(entry);
+      }
+    }
+
+    for (const row of stoolLogRows) {
+      const log: RawStoolLog = {
+        id: row.id,
         date: row.date,
-        value: row.value,
+        loggedAt: row.logged_at,
+        bristolScores: row.bristol_scores ?? [],
+        noBristol: row.no_bristol,
+        color: (row.color as StoolColor | null) ?? null,
+        floatation: (row.floatation as StoolFloatation | null) ?? null,
+        isSticky: row.is_sticky,
+        isSmelly: row.is_smelly,
+        isStraining: row.is_straining,
+        hasMucus: row.has_mucus,
+        hasUrgency: row.has_urgency,
+        hasVisibleFoodParticles: row.has_visible_food_particles,
+        hasIncompleteEvacuation: row.has_incomplete_evacuation,
+        paperCleanliness: (row.paper_cleanliness as PaperCleanliness | null) ?? null,
+        timeOnToiletMinutes: row.time_on_toilet_minutes,
+        note: row.note,
         updatedAt: row.updated_at,
-        mealTag: itemType === "food" ? (row.meal_tag ?? null) : null,
       };
-      void putLog(log);
+      await putStoolLogInternal(log);
     }
-  });
 
-  ITEM_TYPES.forEach((itemType, i) => {
-    for (const row of diaryByType[i]) {
-      const entry: RawDiaryEntry = {
-        identity: row.id,
-        itemIdentity: row.item_id,
-        itemType,
+    for (const row of gymLogRows) {
+      const log: RawGymLog = {
+        id: row.id,
         date: row.date,
-        content: row.content,
-        title: row.title,
-        updatedAt: row.updated_at,
+        exercise: row.exercise,
+        weightKg: row.weight_kg,
+        updatedAt: new Date(row.updated_at).getTime(),
       };
-      void putDiaryEntry(entry);
+      await putGymLogInternal(log);
     }
   });
-
-  for (const row of stoolLogRows) {
-    const log: RawStoolLog = {
-      id: row.id,
-      date: row.date,
-      loggedAt: row.logged_at,
-      bristolScores: row.bristol_scores ?? [],
-      noBristol: row.no_bristol,
-      color: (row.color as StoolColor | null) ?? null,
-      floatation: (row.floatation as StoolFloatation | null) ?? null,
-      isSticky: row.is_sticky,
-      isSmelly: row.is_smelly,
-      isStraining: row.is_straining,
-      hasMucus: row.has_mucus,
-      hasUrgency: row.has_urgency,
-      hasVisibleFoodParticles: row.has_visible_food_particles,
-      hasIncompleteEvacuation: row.has_incomplete_evacuation,
-      paperCleanliness: (row.paper_cleanliness as PaperCleanliness | null) ?? null,
-      timeOnToiletMinutes: row.time_on_toilet_minutes,
-      note: row.note,
-      updatedAt: row.updated_at,
-    };
-    await putStoolLog(log);
-  }
-
-  for (const row of gymLogRows) {
-    const log: RawGymLog = {
-      id: row.id,
-      date: row.date,
-      exercise: row.exercise,
-      weightKg: row.weight_kg,
-      updatedAt: new Date(row.updated_at).getTime(),
-    };
-    await putGymLog(log);
-  }
 }
 
 function dbTypeToItemType(dbType: string): ItemType {
