@@ -107,6 +107,13 @@ describe("getEligibleOutboxEntries", () => {
     const { userId, dedupeKey } = unique("eligible");
     await enqueueOutbox({ userId, dedupeKey, table: "food_items", op: "upsert", payload: { id: "ready" } });
     const [readyEntry] = (await getAllOutboxEntries()).filter((e) => e.dedupeKey === dedupeKey);
+    // enqueueOutbox stamps nextAttemptAt with its own Date.now() call, which
+    // runs strictly after `now` was captured above — on a slow tick this
+    // entry's nextAttemptAt could land after `now`, making it look not-yet-
+    // eligible and flaking the assertion below. Pin it explicitly instead
+    // of relying on two separate Date.now() calls landing in the same
+    // millisecond.
+    await updateOutboxEntry(readyEntry.id, { nextAttemptAt: now - 1 });
 
     const notYet = unique("eligible-future");
     await enqueueOutbox({ userId: notYet.userId, dedupeKey: notYet.dedupeKey, table: "food_items", op: "upsert", payload: { id: "later" } });
