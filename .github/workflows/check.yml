@@ -13,10 +13,48 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version-file: .nvmrc
           cache: npm
 
       - run: npm ci
       - run: npm run lint
       - run: npm run typecheck
+      - run: npm run test
       - run: npm run build
+
+  rls:
+    runs-on: ubuntu-latest
+    # `supabase/postgres` (not a plain `postgres` image) — it ships with
+    # the `auth` schema, `auth.uid()`, and the anon/authenticated/
+    # service_role roles already set up, the same foundation a real
+    # Supabase project runs on. Nothing here ever touches a real project;
+    # this container is thrown away when the job ends.
+    services:
+      postgres:
+        # Pinned to `latest` rather than a specific build tag deliberately —
+        # this only ever runs in CI against a throwaway container, so
+        # tracking Supabase's current published image matters more here
+        # than version pinning would.
+        image: supabase/postgres:latest
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Apply schema
+        env:
+          PGPASSWORD: postgres
+        run: psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 -f supabase/schema.sql
+
+      - name: Run RLS tests
+        env:
+          PGPASSWORD: postgres
+        run: psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 -f supabase/tests/rls.test.sql
