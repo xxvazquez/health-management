@@ -14,6 +14,127 @@ Logging is tap-to-log — pick a category, tap the item, done, no forms. Food su
 
 Adding, renaming, or archiving an item — and adding/removing the categories themselves — never means opening Supabase by hand. The Manage page (`src/app/manage/`) does all of it, backed by a table per type (`food_items`, `supplement_items`, `habit_items`, `symptom_items`) plus a shared `categories` table, and synced the same way as everything else. Sections are collapsed by default, alphabetized, and searchable across all four types at once. Archiving hides an item from the Log page's tap grid and its own section's active list; its full logged history still counts in every dashboard. Category lists work identically for all four types, Food included: a type with no categories yet in `categories` gets seeded from the built-in defaults in `src/taxonomy/categories.ts` the first time it's touched, and from then on the database is the only source of truth — those defaults are never reintroduced or merged back in, so removing one sticks. Deliberately the only place to hide something — the Log page just links to it rather than growing a second, competing hide mechanism.
 
+The full shape, one table per tracked type plus the two that don't fit it (Stool has no item to classify, one row is one bowel movement; Workout has no item either, one row is one lift):
+
+```mermaid
+erDiagram
+    CATEGORIES ||--o{ FOOD_ITEMS : "(user_id, category_id, item_type)"
+    CATEGORIES ||--o{ SUPPLEMENT_ITEMS : "(user_id, category_id, item_type)"
+    CATEGORIES ||--o{ HABIT_ITEMS : "(user_id, category_id, item_type)"
+    CATEGORIES ||--o{ SYMPTOM_ITEMS : "(user_id, category_id, item_type)"
+
+    FOOD_ITEMS ||--o{ FOOD_LOGS : "(user_id, item_id)"
+    FOOD_ITEMS ||--o{ FOOD_DIARY : "(user_id, item_id)"
+    SUPPLEMENT_ITEMS ||--o{ SUPPLEMENT_LOGS : "(user_id, item_id)"
+    SUPPLEMENT_ITEMS ||--o{ SUPPLEMENT_DIARY : "(user_id, item_id)"
+    HABIT_ITEMS ||--o{ HABIT_LOGS : "(user_id, item_id)"
+    HABIT_ITEMS ||--o{ HABIT_DIARY : "(user_id, item_id)"
+    SYMPTOM_ITEMS ||--o{ SYMPTOM_LOGS : "(user_id, item_id)"
+    SYMPTOM_ITEMS ||--o{ SYMPTOM_DIARY : "(user_id, item_id)"
+
+    CATEGORIES {
+        uuid id PK
+        uuid user_id
+        text item_type
+        text name
+    }
+    FOOD_ITEMS {
+        uuid id PK
+        uuid user_id
+        text name
+        uuid category_id FK
+        boolean is_archived
+    }
+    SUPPLEMENT_ITEMS {
+        uuid id PK
+        uuid user_id
+        text name
+        uuid category_id FK
+        boolean is_archived
+    }
+    HABIT_ITEMS {
+        uuid id PK
+        uuid user_id
+        text name
+        uuid category_id FK
+        boolean is_archived
+    }
+    SYMPTOM_ITEMS {
+        uuid id PK
+        uuid user_id
+        text name
+        uuid category_id FK
+        boolean is_archived
+    }
+    FOOD_LOGS {
+        uuid id PK
+        uuid item_id FK
+        date date
+        numeric value
+        text meal_tag
+    }
+    SUPPLEMENT_LOGS {
+        uuid id PK
+        uuid item_id FK
+        date date
+        numeric value
+    }
+    HABIT_LOGS {
+        uuid id PK
+        uuid item_id FK
+        date date
+        numeric value
+    }
+    SYMPTOM_LOGS {
+        uuid id PK
+        uuid item_id FK
+        date date
+        numeric value
+    }
+    FOOD_DIARY {
+        uuid id PK
+        uuid item_id FK
+        date date
+        text content
+    }
+    SUPPLEMENT_DIARY {
+        uuid id PK
+        uuid item_id FK
+        date date
+        text content
+    }
+    HABIT_DIARY {
+        uuid id PK
+        uuid item_id FK
+        date date
+        text content
+    }
+    SYMPTOM_DIARY {
+        uuid id PK
+        uuid item_id FK
+        date date
+        text content
+    }
+    STOOL_LOGS {
+        uuid id PK
+        uuid user_id
+        date date
+        smallint bristol_score
+        text color
+        text paper_cleanliness
+        smallint time_on_toilet_minutes
+    }
+    GYM_LOGS {
+        uuid id PK
+        uuid user_id
+        date date
+        text exercise
+        numeric weight_kg
+    }
+```
+
+`STOOL_LOGS` and `GYM_LOGS` have no relationships drawn — deliberately: neither has an item to classify, so neither references `CATEGORIES` or anything else. Every relationship above is a composite foreign key, not a plain one — `(user_id, category_id, item_type)` means a supplement item structurally can't reference a habit category, and `(user_id, item_id)` means no row can ever reference another user's data, regardless of RLS. Every item is `on delete restrict` — one with any history can be archived but never deleted, so a log can't outlive the thing it's about. See [`supabase/schema.sql`](supabase/schema.sql) for the actual DDL.
+
 Workout doesn't fit that shape — a lift is an exercise + a weight, with no separate "item" to classify — so it has its own table (`gym_logs`) and its own aggregation module (`src/lib/aggregations/gym.ts`), and it's the one page with an actual entry form instead of tap-to-log chips.
 
 Dashboards: Overview, Food, Supplements, Habits, Digestion, Patterns, Workout. Most are purely descriptive — charts and stats, nothing that diagnoses anything. Food is the exception: on top of the charts, it reads your logged intake against general dietary-guidance consensus (never individual studies, never shown as reading material) to surface your overall dietary pattern — what's strong, what needs more variety, what's underrepresented — still never a diagnosis, and careful to say "not logged" rather than "not eaten." Every dashboard (Workout included) shares the same date-range filter panel — 7/30/90 days, 6 months, 1 year, or all time — placed right where it actually takes effect; a section that intentionally reads your full history regardless of that filter (Food's dietary pattern, Workout's lifetime progression) says so in its own subtitle rather than leaving it ambiguous.
