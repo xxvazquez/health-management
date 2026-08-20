@@ -792,14 +792,14 @@ export default function LogPage() {
         onClick={() => handleChipTap(c)}
         disabled={busy}
         className={clsx(
-          "flex items-start gap-1.5 rounded-md px-2 py-1.5 text-left text-sm transition-colors disabled:opacity-50",
+          "flex items-start gap-1.5 rounded-md px-2 py-1.5 text-left text-xs transition-colors disabled:opacity-50",
           !logged && "hover:bg-[var(--page-plane)]",
         )}
         style={{
           background: logged ? `color-mix(in oklab, ${accent} 14%, var(--surface-1))` : "transparent",
           borderLeft: `2px solid ${logged ? accent : "transparent"}`,
           color: logged ? "var(--text-primary)" : "var(--text-secondary)",
-          fontWeight: logged ? 600 : 400,
+          fontWeight: 400,
         }}
       >
         {logged && (
