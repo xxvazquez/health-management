@@ -170,7 +170,19 @@ export function StoolTab({
                 </button>
               );
             })}
-            <Chip label="No Bristol" active={draft.noBristol} onClick={pickNoBristol} accent={accent} />
+            <button
+              type="button"
+              onClick={pickNoBristol}
+              aria-label="No Bristol"
+              className="flex flex-col items-center justify-center gap-0.5 rounded-md border px-2 py-1.5 transition-colors"
+              style={{
+                borderColor: draft.noBristol ? accent : "var(--border-hairline)",
+                background: draft.noBristol ? `color-mix(in oklab, ${accent} 14%, var(--surface-1))` : "transparent",
+                color: draft.noBristol ? accent : "var(--text-secondary)",
+              }}
+            >
+              <span className="text-[11px] font-semibold whitespace-nowrap">No Bristol</span>
+            </button>
           </div>
         </div>
 
