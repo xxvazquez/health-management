@@ -31,11 +31,11 @@ jobs:
     # this container is thrown away when the job ends.
     services:
       postgres:
-        # Pinned to `latest` rather than a specific build tag deliberately —
-        # this only ever runs in CI against a throwaway container, so
-        # tracking Supabase's current published image matters more here
-        # than version pinning would.
-        image: supabase/postgres:latest
+        # `supabase/postgres` doesn't publish a `latest` tag at all (Docker
+        # Hub returns "manifest unknown" for it) — pin to a real, current
+        # tag instead. Bump this if it starts failing to pull; check
+        # https://hub.docker.com/r/supabase/postgres/tags for a current one.
+        image: supabase/postgres:17.6.1.165
         env:
           POSTGRES_PASSWORD: postgres
         ports:
