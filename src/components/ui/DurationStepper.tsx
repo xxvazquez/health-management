@@ -64,20 +64,3 @@ export function DurationStepper({
     </div>
   );
 }
-
-/** Plain minutes-only stepper (1–60, 1-minute steps) — for durations too
- * short/precise to need the hours+minutes split above, e.g. time spent on
- * the toilet. */
-export function MinuteStepper({
-  minutes,
-  onChange,
-  min = 1,
-  max = 60,
-}: {
-  minutes: number;
-  onChange: (minutes: number) => void;
-  min?: number;
-  max?: number;
-}) {
-  return <StepButtons value={minutes} unit="m" step={1} min={min} max={max} onChange={onChange} />;
-}

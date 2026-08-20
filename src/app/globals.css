@@ -113,6 +113,14 @@ body {
   font-family: var(--font-body), system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
+/* Tailwind's preflight resets button cursor to `default`, overriding the
+   browser's native pointer-on-hover — restored here so every clickable
+   control still looks clickable. */
+button:not(:disabled),
+[role="button"]:not(:disabled) {
+  cursor: pointer;
+}
+
 ::selection {
   background: color-mix(in oklab, var(--series-1) 30%, transparent);
 }

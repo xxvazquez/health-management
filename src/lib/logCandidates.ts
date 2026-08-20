@@ -56,9 +56,16 @@ export function loggedCountsForDate(logs: RawLog[], date: string, meal?: string 
 export interface TimelineEntry {
   key: string;
   item: string;
-  itemType: ItemType;
+  /** "stool" alongside the four item types — Stool has no item/category of
+   * its own, but still shows up in the same day timeline as everything
+   * else, so this widens just for that display purpose. */
+  itemType: ItemType | "stool";
   itemIdentity: string;
   time: string; // local HH:MM, from the log's updatedAt (= the moment it was logged)
+  /** Same instant as `time`, unformatted — for merge-sorting against
+   * another source (Stool) and for prefilling an editable time input,
+   * which needs 24-hour "HH:MM" rather than a locale-formatted string. */
+  updatedAt: string;
   mealTag: string | null;
   /** Raw logged value (e.g. minutes for a duration-kind item) — most
    * entries are plain occurrence taps and don't need this. */
@@ -98,6 +105,7 @@ export function dayTimelineEntries(
       itemType: it.itemType,
       itemIdentity: l.itemIdentity,
       time: new Date(l.updatedAt as string).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }),
+      updatedAt: l.updatedAt as string,
       mealTag: l.mealTag,
       note: notesByItemIdentity.get(l.itemIdentity) ?? null,
       value: l.value,
