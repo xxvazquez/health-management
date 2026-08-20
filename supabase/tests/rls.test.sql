@@ -176,6 +176,15 @@ select public.test_assert_raises(
   'food_items: user_id cannot be spoofed on INSERT'
 );
 
+select public.test_switch_user('11111111-1111-1111-1111-111111111111');
+select public.test_assert_raises(
+  $sql$update public.food_items set user_id = '22222222-2222-2222-2222-222222222222'
+       where id = 'f0000000-0000-0000-0000-00000000000f'$sql$,
+  'food_items: user_id cannot be reassigned to another user on UPDATE (owner giving away their own row)'
+);
+
+select public.test_switch_user('22222222-2222-2222-2222-222222222222');
+
 -- Cross-user composite FK: user B, inserting as themself, points a new
 -- item at user A's category id. There's no (B, A''s-category-id, 'food')
 -- row in categories, so this must fail as a foreign key violation.
@@ -236,6 +245,11 @@ select public.test_switch_user('11111111-1111-1111-1111-111111111111');
 select public.test_assert(
   (select value from public.food_logs where id = 'l1000000-0000-0000-0000-000000000001') = 1,
   'food_logs: user A''s log survives user B''s UPDATE and DELETE attempts, untouched'
+);
+select public.test_assert_raises(
+  $sql$update public.food_logs set user_id = '22222222-2222-2222-2222-222222222222'
+       where id = 'l1000000-0000-0000-0000-000000000001'$sql$,
+  'food_logs: user_id cannot be reassigned to another user on UPDATE (owner giving away their own row)'
 );
 
 -- Cross-user item_id FK: user B has no food_items row at all yet, so
