@@ -3,7 +3,7 @@
 import { useMemo, type ReactNode } from "react";
 import { useData } from "@/lib/DataContext";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { Card, CardTitle } from "@/components/ui/Card";
+import { Card } from "@/components/ui/Card";
 import { SampleTierBadge } from "@/components/ui/SampleTierBadge";
 import { computeOverviewInsight, topCrossDomainFindings } from "@/lib/aggregations/overview";
 import type { Bullet } from "@/lib/aggregations/insights";
@@ -110,10 +110,10 @@ function ChangeTile({ label, value }: { label: string; value: string }) {
 }
 
 export default function OverviewPage() {
-  const { status, events, gymLogs, unclassifiedItems } = useData();
+  const { status, events, gymLogs, stoolLogs } = useData();
 
-  const insight = useMemo(() => computeOverviewInsight(events), [events]);
-  const crossDomainFindings = useMemo(() => topCrossDomainFindings(events, gymLogs), [events, gymLogs]);
+  const insight = useMemo(() => computeOverviewInsight(events, stoolLogs), [events, stoolLogs]);
+  const crossDomainFindings = useMemo(() => topCrossDomainFindings(events, stoolLogs, gymLogs), [events, stoolLogs, gymLogs]);
 
   if (status === "loading") {
     return <p style={{ color: "var(--text-secondary)" }}>Loading your data…</p>;
@@ -157,35 +157,6 @@ export default function OverviewPage() {
       )}
 
       {crossDomainFindings.length > 0 && <CrossDomainFindings findings={crossDomainFindings} />}
-
-      {unclassifiedItems.length > 0 && (
-        <Card tier="raw">
-          <CardTitle size="sm" subtitle="Data-quality notes — nothing here affects your logged history, only how it's grouped and displayed">
-            Needs a closer look
-          </CardTitle>
-          <div>
-            <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
-              {unclassifiedItems.length} item{unclassifiedItems.length === 1 ? "" : "s"} filed under Habits by
-              default
-            </p>
-            <p className="mt-1 text-xs" style={{ color: "var(--text-secondary)" }}>
-              These raw names didn&apos;t match any known food/supplement/symptom pattern, so they defaulted to
-              Habits → Other. Add an entry for each to <code>src/taxonomy/overrides.json</code> to reclassify.
-            </p>
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              {unclassifiedItems.map((name) => (
-                <span
-                  key={name}
-                  className="rounded-md px-2.5 py-1 text-xs whitespace-nowrap"
-                  style={{ background: "var(--page-plane)", color: "var(--text-secondary)" }}
-                >
-                  {name}
-                </span>
-              ))}
-            </div>
-          </div>
-        </Card>
-      )}
     </div>
   );
 }

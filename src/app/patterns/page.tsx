@@ -178,8 +178,14 @@ function LagExplorer({ events, gymLogs }: { events: CanonicalEvent[]; gymLogs: R
   const [cause, setCause] = useState(causeOptions[0]?.label ?? "");
   const [outcome, setOutcome] = useState(outcomeOptions[0]?.value ?? "");
 
-  const effectiveCause = cause || causeOptions[0]?.label || "";
-  const effectiveOutcome = outcome || outcomeOptions[0]?.value || "";
+  // Falls back to the first available option not just when nothing's been
+  // picked yet, but also when the previously-picked one no longer exists in
+  // the current options — e.g. narrowing the date range filter above until
+  // the selected cause has zero occurrences left. Without this, the select
+  // would sit on a value with no matching option and the results grid would
+  // just go silently blank.
+  const effectiveCause = causeOptions.some((o) => o.label === cause) ? cause : (causeOptions[0]?.label ?? "");
+  const effectiveOutcome = outcomeOptions.some((o) => o.value === outcome) ? outcome : (outcomeOptions[0]?.value ?? "");
 
   const results = useMemo(() => {
     if (!effectiveCause || !effectiveOutcome) return [];

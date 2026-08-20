@@ -45,3 +45,4 @@ next-env.d.ts
 # locally. The actual data lives in Supabase; nothing in this repo reads
 # from this folder.
 /data/
+/supabase/migration-output/

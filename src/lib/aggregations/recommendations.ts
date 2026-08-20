@@ -1,5 +1,4 @@
 import type { CanonicalEvent } from "@/lib/types";
-import { FOOD_CATEGORIES } from "@/taxonomy/categories";
 import { addDaysToDate, getDatasetSpan, listDatesBetween, pct } from "./common";
 
 export interface Insight {
@@ -31,16 +30,16 @@ export function generateInsights(events: CanonicalEvent[]): Insight[] {
 
   const insights: Insight[] = [];
 
-  // Food-category tracking coverage in the recent window.
-  for (const category of FOOD_CATEGORIES) {
+  // Food-category tracking coverage in the recent window, for whatever
+  // categories this person actually has (a fixed list would miss anything
+  // they've added or renamed via Manage).
+  const trackedCategories = new Set(events.filter((e) => e.itemType === "food").map((e) => e.category));
+  for (const category of trackedCategories) {
     const trackedDays = new Set(
       recentEvents
         .filter((e) => e.itemType === "food" && e.category === category && e.completed)
         .map((e) => e.date),
     ).size;
-
-    const everTracked = events.some((e) => e.itemType === "food" && e.category === category);
-    if (!everTracked) continue; // never part of this person's tracked vocabulary — nothing to say
 
     if (trackedDays <= LOW_TRACKING_DAYS_THRESHOLD) {
       insights.push({

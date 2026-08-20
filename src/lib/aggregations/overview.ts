@@ -1,4 +1,4 @@
-import type { CanonicalEvent, RawGymLog } from "@/lib/types";
+import type { CanonicalEvent, RawGymLog, RawStoolLog } from "@/lib/types";
 import { addDaysToDate, getDatasetSpan, trackedCalendarDates } from "./common";
 import { supplementsInsight } from "./supplements";
 import { habitsInsight } from "./habits";
@@ -47,7 +47,7 @@ const CHANGE_COUNT_THRESHOLD = 2;
  *    unimportant must never outrank a smaller but meaningful food-group
  *    gap, so drift never feeds the headline or the tone.
  */
-export function computeOverviewInsight(events: CanonicalEvent[]): OverviewInsight {
+export function computeOverviewInsight(events: CanonicalEvent[], stoolLogs: RawStoolLog[]): OverviewInsight {
   const span = getDatasetSpan(events);
   const trackedDates = trackedCalendarDates(events);
 
@@ -66,7 +66,7 @@ export function computeOverviewInsight(events: CanonicalEvent[]): OverviewInsigh
   const habits = habitsInsight(events);
   const supplements = supplementsInsight(events);
   const food = computeNutritionPriorities(events);
-  const digestion = digestionInsight(events);
+  const digestion = digestionInsight(events, stoolLogs);
 
   // --- What matters / needs attention: Food only, evidence-grounded ---
   const whatMatters: Bullet[] = food.insufficientData ? [] : food.doingWell.slice(0, 3);
@@ -143,8 +143,8 @@ const MAX_OVERVIEW_FINDINGS = 4;
  * `generateTopPatterns` directly rather than re-scanning anything; this is
  * a ranked slice of their combined output, not a separate analysis.
  */
-export function topCrossDomainFindings(events: CanonicalEvent[], gymLogs: RawGymLog[] = []): AssociationResult[] {
-  const combined = [...generateBristolPatterns(events, gymLogs), ...generateTopPatterns(events, gymLogs)].sort(
+export function topCrossDomainFindings(events: CanonicalEvent[], stoolLogs: RawStoolLog[], gymLogs: RawGymLog[] = []): AssociationResult[] {
+  const combined = [...generateBristolPatterns(events, stoolLogs, gymLogs), ...generateTopPatterns(events, gymLogs)].sort(
     (a, b) => Math.abs(b.diffPct) - Math.abs(a.diffPct),
   );
 

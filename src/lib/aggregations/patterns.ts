@@ -4,7 +4,6 @@ import { foodCategoryDistribution, newFoodsOverTime, rankedFoods } from "./food"
 import { supplementStats } from "./supplements";
 import { habitStats } from "./habits";
 import { gymTrainedDates } from "./gym";
-import { bristolAssessedDates } from "./digestion";
 
 export interface ItemMatcher {
   label: string;
@@ -27,19 +26,14 @@ function dateSetForMatcher(events: CanonicalEvent[], matcher: ItemMatcher): Set<
 /**
  * Which dates count as "we know whether this outcome happened" for a given
  * outcome item. For a consistent logger, absence on a day the app was
- * otherwise in use means the outcome didn't happen — so this defaults to
- * every globally-active date. The one exception is the Bristol scale: it's
- * a mutually-exclusive multi-pick (Bristol 1–5 / No Bristol), so a missing
- * entry can't be resolved to any single one of those six values and is
- * left as genuinely unknown, using only the dates that item was logged.
+ * otherwise in use means the outcome didn't happen — so this is every
+ * globally-active date. Stool/Bristol used to need a carve-out here (a
+ * mutually-exclusive multi-pick with no single "absent" value to attribute
+ * a missing day to) — it's since moved into its own `stool_logs` table
+ * (see `bristolPatterns.ts`), so every remaining outcome item is a plain
+ * boolean occurrence and this carve-out no longer applies to anything.
  */
-export function outcomeTrackedDates(events: CanonicalEvent[], item: string): Set<string> {
-  const isBristolScale = events.some((e) => e.item === item && e.subcategory === "Bristol Scale");
-  if (isBristolScale) {
-    // "Tracked" is any Bristol reading logged that day — not just this one
-    // type (see `bristolAssessedDates`'s own doc for why).
-    return bristolAssessedDates(events);
-  }
+export function outcomeTrackedDates(events: CanonicalEvent[]): Set<string> {
   return trackedCalendarDates(events);
 }
 
@@ -192,7 +186,7 @@ export function computeLaggedAssociations(
   outcome: ItemMatcher,
   lags: number[] = [0, 1, 2, 3],
 ): AssociationResult[] {
-  const trackedSet = outcomeTrackedDates(events, outcome.label);
+  const trackedSet = outcomeTrackedDates(events);
   const outcomeDates = dateSetForMatcher(events, outcome);
   return lags.map((lag) => computeAssociationFromDateSets(causeDates, outcomeDates, trackedSet, lag, causeLabel, outcome.label));
 }
@@ -300,29 +294,22 @@ export const MULTIPLE_COMPARISONS_NOTE =
  * Scans a curated set of cause candidates (specific top-tracked foods, never
  * a whole food category; non-reactive supplements; every tracked habit; a
  * gym-trained day when gym data exists) against tracked symptom/outcome
- * items (including stool quality flags, excluding the Bristol scale
- * itself — see `bristolPatterns.ts` for that), checking same day through +3
- * days for each pair, and surfaces only the strongest-lag association per
- * pair when it has both an adequate sample size and a non-trivial
- * percentage-point gap. Purely descriptive — never implies causation. See
- * `MULTIPLE_COMPARISONS_NOTE`.
+ * items — Stool/Bristol is its own separate scan, see `bristolPatterns.ts`
+ * — checking same day through +3 days for each pair, and surfaces only the
+ * strongest-lag association per pair when it has both an adequate sample
+ * size and a non-trivial percentage-point gap. Purely descriptive — never
+ * implies causation. See `MULTIPLE_COMPARISONS_NOTE`.
  */
 export function generateTopPatterns(events: CanonicalEvent[], gymLogs: RawGymLog[] = []): AssociationResult[] {
-  const outcomeItems = Array.from(
-    new Set(
-      events
-        .filter((e) => e.itemType === "outcome" && e.subcategory !== "Bristol Scale")
-        .map((e) => e.item),
-    ),
-  );
+  const outcomeItems = Array.from(new Set(events.filter((e) => e.itemType === "outcome").map((e) => e.item)));
   if (outcomeItems.length === 0) return [];
 
   const causeCandidates = crossDomainCauseCandidates(events, gymLogs);
+  const trackedSet = outcomeTrackedDates(events);
 
   const results: AssociationResult[] = [];
   for (const outcomeName of outcomeItems) {
     const outcome = matchItem(outcomeName);
-    const trackedSet = outcomeTrackedDates(events, outcomeName);
     const outcomeDates = dateSetForMatcher(events, outcome);
     for (const cause of causeCandidates) {
       if (cause.label === outcome.label) continue;
@@ -393,7 +380,7 @@ export function worstSameDaySymptomDiff(
 
   for (const symptomName of symptomItems) {
     const outcome = matchItem(symptomName);
-    const trackedSet = outcomeTrackedDates(events, symptomName);
+    const trackedSet = outcomeTrackedDates(events);
     const assoc = computeAssociation(events, cause, outcome, trackedSet, 0);
     if (assoc.sampleTier === "insufficient" || assoc.withTotal < minExposureDays) continue;
     anyAdequate = true;

@@ -1,5 +1,4 @@
 import type { CanonicalEvent } from "@/lib/types";
-import { FOOD_CATEGORIES } from "@/taxonomy/categories";
 import { addDaysToDate, pct } from "./common";
 
 function foodEvents(events: CanonicalEvent[]): CanonicalEvent[] {
@@ -23,15 +22,16 @@ export function foodCategoryDistribution(events: CanonicalEvent[]): CategoryDist
     bucket.items.add(e.item);
     byCategory.set(e.category, bucket);
   }
-  const known = FOOD_CATEGORIES.map((category) => {
-    const bucket = byCategory.get(category);
-    return {
-      category,
-      count: bucket?.count ?? 0,
-      uniqueFoods: bucket?.items.size ?? 0,
-      sharePct: pct(bucket?.count ?? 0, total),
-    };
-  });
+  // Categories are user-editable now (Manage page), so this reads whatever
+  // actually shows up in the data rather than a fixed list — a category
+  // with zero logged history just doesn't produce a row, same as every
+  // other type's category distribution already behaves.
+  const known = Array.from(byCategory.entries()).map(([category, bucket]) => ({
+    category,
+    count: bucket.count,
+    uniqueFoods: bucket.items.size,
+    sharePct: pct(bucket.count, total),
+  }));
   return known.sort((a, b) => b.count - a.count);
 }
 

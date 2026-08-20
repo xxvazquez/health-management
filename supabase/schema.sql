@@ -6,64 +6,200 @@
 -- user only ever sees their own rows, and `user_id` defaults to `auth.uid()`
 -- so the app never has to pass it explicitly on insert.
 --
--- items/logs/diary/user_overrides back every page except Gym. gym_logs is
--- separate: it has no "item" dimension (an exercise + weight is the whole
--- record), so it doesn't share the items/logs shape the rest of the app
--- uses.
+-- One item table, one log table, and one diary table per tracked type
+-- (food/supplement/habit/symptom), plus a shared `categories` table each
+-- item type's rows point into. Every foreign key between user-owned tables
+-- is a composite key on (user_id, id) — not just id — so a row can never
+-- reference a parent row belonging to a different user regardless of RLS;
+-- the category foreign keys additionally carry item_type, so e.g. a
+-- supplement item can't reference a habit category. Stool is its own
+-- `stool_logs` table (one row per bowel movement) rather than a symptom.
+-- Gym has no "item" dimension (an exercise + weight is the whole record),
+-- so it doesn't share that shape and gets its own `gym_logs` table.
 
-create table public.items (
-  identity text not null,
-  user_id uuid not null default auth.uid(),
-  raw_name text not null,
-  unit text,
-  kind text,
-  frequency text,
-  is_removed boolean not null default false,
-  -- User-controlled, reversible "I don't do this anymore" — unlike
-  -- is_removed, an archived item's full history stays in every analysis;
-  -- only the Log page's tap-candidate pool hides it.
+create table public.categories (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id),
+  item_type text not null check (item_type in ('food', 'supplement', 'habit', 'symptom')),
+  name text not null,
+  name_key text generated always as (lower(trim(name))) stored,
+  unique (user_id, item_type, name_key),
+  unique (user_id, id, item_type)
+);
+
+create table public.food_items (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id),
+  name text not null,
+  name_key text generated always as (lower(trim(name))) stored,
+  item_type text not null default 'food' check (item_type = 'food'),
+  category_id uuid not null,
   is_archived boolean not null default false,
   created_date date,
-  updated_at timestamp with time zone not null default now(),
-  constraint items_pkey primary key (user_id, identity),
-  constraint items_user_id_fkey foreign key (user_id) references auth.users(id)
+  updated_at timestamptz not null default now(),
+  unique (user_id, name_key),
+  unique (user_id, id),
+  foreign key (user_id, category_id, item_type) references public.categories (user_id, id, item_type) on delete restrict
 );
 
-create table public.logs (
-  identity text not null,
-  user_id uuid not null default auth.uid(),
-  item_identity text not null,
+create table public.supplement_items (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id),
+  name text not null,
+  name_key text generated always as (lower(trim(name))) stored,
+  item_type text not null default 'supplement' check (item_type = 'supplement'),
+  category_id uuid not null,
+  is_archived boolean not null default false,
+  created_date date,
+  updated_at timestamptz not null default now(),
+  unique (user_id, name_key),
+  unique (user_id, id),
+  foreign key (user_id, category_id, item_type) references public.categories (user_id, id, item_type) on delete restrict
+);
+
+create table public.habit_items (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id),
+  name text not null,
+  name_key text generated always as (lower(trim(name))) stored,
+  item_type text not null default 'habit' check (item_type = 'habit'),
+  category_id uuid not null,
+  is_archived boolean not null default false,
+  created_date date,
+  updated_at timestamptz not null default now(),
+  unique (user_id, name_key),
+  unique (user_id, id),
+  foreign key (user_id, category_id, item_type) references public.categories (user_id, id, item_type) on delete restrict
+);
+
+create table public.symptom_items (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id),
+  name text not null,
+  name_key text generated always as (lower(trim(name))) stored,
+  item_type text not null default 'symptom' check (item_type = 'symptom'),
+  category_id uuid not null,
+  is_archived boolean not null default false,
+  created_date date,
+  updated_at timestamptz not null default now(),
+  unique (user_id, name_key),
+  unique (user_id, id),
+  foreign key (user_id, category_id, item_type) references public.categories (user_id, id, item_type) on delete restrict
+);
+
+create table public.food_logs (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id),
+  item_id uuid not null,
   date date not null,
   value numeric,
-  goal_value numeric,
-  is_skipped boolean not null default false,
-  updated_at bigint,
   meal_tag text,
-  constraint logs_pkey primary key (user_id, identity),
-  constraint logs_user_id_fkey foreign key (user_id) references auth.users(id)
+  updated_at timestamptz not null default now(),
+  foreign key (user_id, item_id) references public.food_items (user_id, id) on delete restrict
 );
 
-create table public.diary (
-  identity text not null,
-  user_id uuid not null default auth.uid(),
-  item_identity text not null,
+create table public.supplement_logs (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id),
+  item_id uuid not null,
+  date date not null,
+  value numeric,
+  updated_at timestamptz not null default now(),
+  foreign key (user_id, item_id) references public.supplement_items (user_id, id) on delete restrict
+);
+
+create table public.habit_logs (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id),
+  item_id uuid not null,
+  date date not null,
+  value numeric,
+  updated_at timestamptz not null default now(),
+  foreign key (user_id, item_id) references public.habit_items (user_id, id) on delete restrict
+);
+
+create table public.symptom_logs (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id),
+  item_id uuid not null,
+  date date not null,
+  value numeric,
+  updated_at timestamptz not null default now(),
+  foreign key (user_id, item_id) references public.symptom_items (user_id, id) on delete restrict
+);
+
+create table public.food_diary (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id),
+  item_id uuid not null,
   date date not null,
   content text,
   title text,
-  updated_at bigint,
-  constraint diary_pkey primary key (user_id, identity),
-  constraint diary_user_id_fkey foreign key (user_id) references auth.users(id)
+  updated_at timestamptz not null default now(),
+  unique (user_id, item_id, date),
+  foreign key (user_id, item_id) references public.food_items (user_id, id) on delete restrict
 );
 
-create table public.user_overrides (
-  key text not null,
-  user_id uuid not null default auth.uid(),
-  canonical_name text not null,
-  item_type text not null,
-  category text not null,
-  subcategory text not null,
-  constraint user_overrides_pkey primary key (user_id, key),
-  constraint user_overrides_user_id_fkey foreign key (user_id) references auth.users(id)
+create table public.supplement_diary (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id),
+  item_id uuid not null,
+  date date not null,
+  content text,
+  title text,
+  updated_at timestamptz not null default now(),
+  unique (user_id, item_id, date),
+  foreign key (user_id, item_id) references public.supplement_items (user_id, id) on delete restrict
+);
+
+create table public.habit_diary (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id),
+  item_id uuid not null,
+  date date not null,
+  content text,
+  title text,
+  updated_at timestamptz not null default now(),
+  unique (user_id, item_id, date),
+  foreign key (user_id, item_id) references public.habit_items (user_id, id) on delete restrict
+);
+
+create table public.symptom_diary (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id),
+  item_id uuid not null,
+  date date not null,
+  content text,
+  title text,
+  updated_at timestamptz not null default now(),
+  unique (user_id, item_id, date),
+  foreign key (user_id, item_id) references public.symptom_items (user_id, id) on delete restrict
+);
+
+create table public.stool_logs (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id),
+  date date not null,
+  logged_at timestamptz not null default now(),
+  bristol_score smallint check (bristol_score between 1 and 7),
+  no_bristol boolean not null default false,
+  color text check (color in ('Brown', 'Dark Brown', 'Light Brown', 'Green', 'Yellow')),
+  is_sticky boolean not null default false,
+  is_smelly boolean not null default false,
+  is_straining boolean not null default false,
+  has_mucus boolean not null default false,
+  has_urgency boolean not null default false,
+  has_visible_food_particles boolean not null default false,
+  has_incomplete_evacuation boolean not null default false,
+  paper_cleanliness text check (paper_cleanliness in ('Clean', 'Slightly Dirty', 'Dirty', 'Very Dirty')),
+  time_on_toilet_minutes smallint check (time_on_toilet_minutes between 1 and 60),
+  note text,
+  updated_at timestamptz not null default now(),
+  check (
+    (bristol_score is not null and not no_bristol)
+    or
+    (bristol_score is null and no_bristol)
+  )
 );
 
 create table public.gym_logs (
@@ -77,19 +213,11 @@ create table public.gym_logs (
   constraint gym_logs_user_id_fkey foreign key (user_id) references auth.users(id)
 );
 
--- A user-defined category name for one item type, managed from the Manage
--- page. Food's categories are fixed in code (they're load-bearing for the
--- nutrition-guidance engine), so this only ever holds supplement/outcome/
--- habit rows in practice. A type with no rows here just falls back to that
--- type's built-in default list — rows only exist once someone has actually
--- customized that type's categories.
-create table public.user_categories (
-  user_id uuid not null default auth.uid(),
-  item_type text not null,
-  name text not null,
-  constraint user_categories_pkey primary key (user_id, item_type, name),
-  constraint user_categories_user_id_fkey foreign key (user_id) references auth.users(id)
-);
+create index food_logs_item_date_idx on public.food_logs (item_id, date);
+create index supplement_logs_item_date_idx on public.supplement_logs (item_id, date);
+create index habit_logs_item_date_idx on public.habit_logs (item_id, date);
+create index symptom_logs_item_date_idx on public.symptom_logs (item_id, date);
+create index stool_logs_user_date_idx on public.stool_logs (user_id, date);
 
 -- One row per user: the breakfast-reminder push subscription for whichever
 -- device they last enabled it on (enabling on a second device overwrites
@@ -118,34 +246,39 @@ create table public.push_subscriptions (
 
 -- Row-level security: every table, same shape — a user can only read or
 -- write rows where user_id matches their own auth.uid().
-alter table public.items enable row level security;
-alter table public.logs enable row level security;
-alter table public.diary enable row level security;
-alter table public.user_overrides enable row level security;
+alter table public.categories enable row level security;
+alter table public.food_items enable row level security;
+alter table public.supplement_items enable row level security;
+alter table public.habit_items enable row level security;
+alter table public.symptom_items enable row level security;
+alter table public.food_logs enable row level security;
+alter table public.supplement_logs enable row level security;
+alter table public.habit_logs enable row level security;
+alter table public.symptom_logs enable row level security;
+alter table public.food_diary enable row level security;
+alter table public.supplement_diary enable row level security;
+alter table public.habit_diary enable row level security;
+alter table public.symptom_diary enable row level security;
+alter table public.stool_logs enable row level security;
 alter table public.gym_logs enable row level security;
-alter table public.user_categories enable row level security;
 alter table public.push_subscriptions enable row level security;
 
-create policy "items_all_own" on public.items
-  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
-
-create policy "logs_all_own" on public.logs
-  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
-
-create policy "diary_all_own" on public.diary
-  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
-
-create policy "user_overrides_all_own" on public.user_overrides
-  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
-
-create policy "gym_logs_all_own" on public.gym_logs
-  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
-
-create policy "user_categories_all_own" on public.user_categories
-  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
-
-create policy "push_subscriptions_all_own" on public.push_subscriptions
-  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "categories_all_own" on public.categories for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "food_items_all_own" on public.food_items for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "supplement_items_all_own" on public.supplement_items for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "habit_items_all_own" on public.habit_items for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "symptom_items_all_own" on public.symptom_items for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "food_logs_all_own" on public.food_logs for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "supplement_logs_all_own" on public.supplement_logs for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "habit_logs_all_own" on public.habit_logs for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "symptom_logs_all_own" on public.symptom_logs for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "food_diary_all_own" on public.food_diary for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "supplement_diary_all_own" on public.supplement_diary for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "habit_diary_all_own" on public.habit_diary for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "symptom_diary_all_own" on public.symptom_diary for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "stool_logs_all_own" on public.stool_logs for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "gym_logs_all_own" on public.gym_logs for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "push_subscriptions_all_own" on public.push_subscriptions for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 -- Breakfast reminder: schedule the Edge Function that sends it. Run this
 -- once, filling in your own project ref and anon key (Dashboard -> Project
@@ -168,39 +301,3 @@ create policy "push_subscriptions_all_own" on public.push_subscriptions
 --   );
 --   $$
 -- );
-
--- Migrations for a project provisioned before a given date — run only the
--- ones after your project's setup date, each is safe to run once.
-
--- 2026-08: adds explicit, user-toggleable habit/supplement archiving.
--- alter table public.items add column if not exists is_archived boolean not null default false;
-
--- 2026-08: adds user-managed categories for supplements/symptoms/habits (Manage page).
--- create table public.user_categories (
---   user_id uuid not null default auth.uid(),
---   item_type text not null,
---   name text not null,
---   constraint user_categories_pkey primary key (user_id, item_type, name),
---   constraint user_categories_user_id_fkey foreign key (user_id) references auth.users(id)
--- );
--- alter table public.user_categories enable row level security;
--- create policy "user_categories_all_own" on public.user_categories
---   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
-
--- 2026-08: adds the breakfast reminder (push_subscriptions table + its
--- scheduled Edge Function trigger). See the "Breakfast reminder" section
--- above for the matching cron.schedule() call — run both together.
--- create table public.push_subscriptions (
---   user_id uuid not null default auth.uid(),
---   endpoint text not null,
---   p256dh text not null,
---   auth_key text not null,
---   timezone text not null,
---   last_reminded_date date,
---   updated_at timestamp with time zone not null default now(),
---   constraint push_subscriptions_pkey primary key (user_id),
---   constraint push_subscriptions_user_id_fkey foreign key (user_id) references auth.users(id)
--- );
--- alter table public.push_subscriptions enable row level security;
--- create policy "push_subscriptions_all_own" on public.push_subscriptions
---   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);

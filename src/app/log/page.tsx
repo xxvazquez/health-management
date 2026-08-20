@@ -1,10 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import Link from "next/link";
 import clsx from "clsx";
 import { useData } from "@/lib/DataContext";
 import { useAuth } from "@/lib/supabase/AuthContext";
-import { pushDiaryEntry, pushUserOverride, syncItemDay } from "@/lib/supabase/sync";
+import { pushDiaryEntry, pushLog, deleteLog, pushItem, pushStoolLog, deleteStoolLog } from "@/lib/supabase/sync";
 import {
   decrementDailyLog,
   decrementDailyLogForMeal,
@@ -12,35 +13,39 @@ import {
   getAllDiary,
   getAllItems,
   getAllLogs,
-  getAllUserOverrides,
+  getAllCategories,
+  getAllStoolLogs,
   incrementDailyLog,
   putItem,
+  putStoolLog,
+  deleteStoolLogById,
   setDailyDuration,
   setDiaryNote,
-  setUserOverride,
   toggleDailyLog,
   updateLogMealTag,
 } from "@/lib/db/indexedDb";
 import {
   buildLogCandidates,
   dayTimelineEntries,
-  generateManualItemId,
   loggedCountsForDate,
   type LogCandidate,
   type TimelineEntry,
 } from "@/lib/logCandidates";
 import { buildCanonicalEvents } from "@/lib/canonical/buildCanonicalEvents";
+import { ensureCategoryId } from "@/lib/categoryResolution";
 import { seasonalPicksForMonth, weeklyCategoryPriority } from "@/lib/aggregations/seasonal";
 import { formatMinutes, todayLocalISODate } from "@/lib/aggregations/common";
 import { buildDemoDataset } from "@/lib/demoData";
-import { normalizeName } from "@/taxonomy/normalizeName";
-import { CATEGORIES_BY_TYPE, TYPE_ACCENT, colorForCategorySlot, type ItemType } from "@/taxonomy/categories";
-import { classifyItem, lookupFoodCategory, type OverrideEntry } from "@/taxonomy/classify";
+import { normalizeName, titleCaseFallback } from "@/taxonomy/normalizeName";
+import { TYPE_ACCENT, colorForCategorySlot, effectiveCategoryList, type ItemType } from "@/taxonomy/categories";
+import { lookupFoodCategory } from "@/taxonomy/classify";
 import { POLAND_FOOD_CATALOG } from "@/taxonomy/polandFoodCatalog";
 import { DURATION_DEFAULT_MINUTES, INPUT_KIND } from "@/taxonomy/inputKinds";
 import { DurationStepper } from "@/components/ui/DurationStepper";
 import { BreakfastReminderToggle } from "@/components/BreakfastReminderToggle";
-import type { RawLog, RawItem, RawDiaryEntry } from "@/lib/types";
+import { StoolTab, type NewStoolEntry } from "@/components/log/StoolTab";
+import { DuplicateItemDialog } from "@/components/ui/DuplicateItemDialog";
+import type { RawLog, RawItem, RawDiaryEntry, RawCategory, RawStoolLog } from "@/lib/types";
 
 const TABS: { type: ItemType; label: string; placeholder: string; defaultCategory: string; countable: boolean }[] = [
   { type: "food", label: "Food", placeholder: "Add a food or ingredient…", defaultCategory: "Misc", countable: true },
@@ -49,9 +54,10 @@ const TABS: { type: ItemType; label: string; placeholder: string; defaultCategor
   { type: "habit", label: "Habits", placeholder: "Add a habit…", defaultCategory: "Other", countable: false },
 ];
 
-const MEAL_OPTIONS = ["Breakfast", "Lunch", "Dinner", "Snack"] as const;
+type LogTab = ItemType | "stool";
+const STOOL_ACCENT = "var(--series-chestnut)";
 
-const HIDDEN_FOOD_ITEMS_KEY = "lauva:hiddenFoodItems";
+const MEAL_OPTIONS = ["Breakfast", "Lunch", "Dinner", "Snack"] as const;
 
 function CategoryIconWrap({ children }: { children: ReactNode }) {
   return (
@@ -228,59 +234,36 @@ function TimelineNote({
 interface Snapshot {
   items: RawItem[];
   logs: RawLog[];
-  userOverrides: Record<string, OverrideEntry>;
   diary: RawDiaryEntry[];
+  categories: RawCategory[];
+  stoolLogs: RawStoolLog[];
 }
 
 export default function LogPage() {
   const { refresh, isDemoData, status } = useData();
-  const { openPanel, session } = useAuth();
+  const { openPanel } = useAuth();
   const today = useMemo(() => todayLocalISODate(), []);
   const [date, setDate] = useState(today);
-  const [tab, setTab] = useState<ItemType>("food");
+  const [tab, setTab] = useState<LogTab>("food");
   const [addingNew, setAddingNew] = useState(false);
   const [newItemCategory, setNewItemCategory] = useState("");
+  const [duplicateConflict, setDuplicateConflict] = useState<RawItem | null>(null);
   const [picksOpen, setPicksOpen] = useState(false);
   const [meal, setMeal] = useState<(typeof MEAL_OPTIONS)[number]>("Breakfast");
   const [newItemText, setNewItemText] = useState("");
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [pending, setPending] = useState<string | null>(null);
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
-  // View-only declutter for the Food tab's now-large catalog — hiding an
-  // ingredient here never touches tracked data, just this device's tap
-  // grid, so it's plain localStorage rather than anything synced. Scoped by
-  // user id (see the effect below) so signing out and into a different
-  // account never leaks one person's hidden-ingredient list into another's.
-  const [hiddenFoodItems, setHiddenFoodItems] = useState<Set<string>>(new Set());
-  const [manageVisibility, setManageVisibility] = useState(false);
-  const hiddenFoodItemsKey = `${HIDDEN_FOOD_ITEMS_KEY}:${session?.user.id ?? "guest"}`;
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    // Reading an external system (localStorage) on user change, not a
-    // React-state sync loop — same pattern as DataContext's own refresh.
-    try {
-      const raw = window.localStorage.getItem(hiddenFoodItemsKey);
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setHiddenFoodItems(raw ? new Set(JSON.parse(raw) as string[]) : new Set());
-    } catch {
-      setHiddenFoodItems(new Set());
-    }
-    // Re-reads whenever the signed-in user changes (including sign-out,
-    // where session becomes null and this falls back to the shared
-    // "guest" bucket) — deliberately not reactive to hiddenFoodItemsKey
-    // itself, which would refire this on every write below.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session?.user.id]);
 
   const loadSnapshot = useCallback(async () => {
-    const [items, logs, userOverrides, diary] = await Promise.all([
+    const [items, logs, diary, categories, stoolLogs] = await Promise.all([
       getAllItems(),
       getAllLogs(),
-      getAllUserOverrides(),
       getAllDiary(),
+      getAllCategories(),
+      getAllStoolLogs(),
     ]);
-    setSnapshot({ items, logs, userOverrides, diary });
+    setSnapshot({ items, logs, diary, categories, stoolLogs });
   }, []);
 
   useEffect(() => {
@@ -302,22 +285,16 @@ export default function LogPage() {
   const effective = useMemo<Snapshot>(
     () =>
       demo
-        ? { items: demo.items, logs: demo.logs, userOverrides: {}, diary: [] }
-        : (snapshot ?? { items: [], logs: [], userOverrides: {}, diary: [] }),
+        ? { items: demo.items, logs: demo.logs, diary: [], categories: [], stoolLogs: demo.stoolLogs }
+        : (snapshot ?? { items: [], logs: [], diary: [], categories: [], stoolLogs: [] }),
     [demo, snapshot],
   );
 
-  const candidates = useMemo(
-    () => buildLogCandidates(effective.items, effective.logs, effective.userOverrides),
-    [effective],
-  );
+  const candidates = useMemo(() => buildLogCandidates(effective.items, effective.logs), [effective]);
 
-  const counts = useMemo(
-    () => loggedCountsForDate(effective.items, effective.logs, effective.userOverrides, date),
-    [effective, date],
-  );
+  const counts = useMemo(() => loggedCountsForDate(effective.logs, date), [effective, date]);
 
-  const tabConfig = TABS.find((t) => t.type === tab)!;
+  const tabConfig = TABS.find((t) => t.type === tab);
 
   // For the Food tab specifically, a chip's checkmark reflects whether it
   // was logged for the *currently selected meal*, not the whole day — so
@@ -325,8 +302,8 @@ export default function LogPage() {
   // milk can be logged separately for breakfast, lunch, and dinner instead
   // of one tap toggling a single day-wide entry.
   const mealCounts = useMemo(
-    () => (tabConfig.countable ? loggedCountsForDate(effective.items, effective.logs, effective.userOverrides, date, meal) : counts),
-    [effective, date, meal, tabConfig.countable, counts],
+    () => (tabConfig?.countable ? loggedCountsForDate(effective.logs, date, meal) : counts),
+    [effective, date, meal, tabConfig?.countable, counts],
   );
 
   // For duration-kind items (currently just Sleep duration): the actual
@@ -335,7 +312,7 @@ export default function LogPage() {
   const durationValueForDate = useMemo(() => {
     const map = new Map<string, number>();
     for (const l of effective.logs) {
-      if (l.date !== date || l.isSkipped || l.value == null) continue;
+      if (l.date !== date || l.value == null) continue;
       map.set(l.itemIdentity, l.value);
     }
     return map;
@@ -343,18 +320,15 @@ export default function LogPage() {
 
   const tabCandidates = useMemo(() => candidates.filter((c) => c.itemType === tab), [candidates, tab]);
 
-  // True once a typed "add new" name doesn't match any known keyword and
-  // (for food specifically) can't be guessed from the name either — the
-  // point where silently filing it under Misc/Other would be a guess, not a
-  // classification. Lets the form ask instead of guessing wrong.
+  const stoolEntriesForDate = useMemo(
+    () =>
+      effective.stoolLogs
+        .filter((s) => s.date === date)
+        .sort((a, b) => b.loggedAt.localeCompare(a.loggedAt)),
+    [effective, date],
+  );
+
   const trimmedNewItemText = newItemText.trim();
-  const newItemNeedsCategory = useMemo(() => {
-    if (!trimmedNewItemText) return false;
-    const bundled = classifyItem(trimmedNewItemText, snapshot?.userOverrides ?? {});
-    if (bundled.matchedBy !== "fallback") return false;
-    if (tabConfig.type === "food" && lookupFoodCategory(trimmedNewItemText)) return false;
-    return true;
-  }, [trimmedNewItemText, tabConfig.type, snapshot?.userOverrides]);
 
   // Grouped in the taxonomy's fixed category order (not by frequency), so a
   // category always sits in the same place and the alphabetical list inside
@@ -365,7 +339,34 @@ export default function LogPage() {
   // sentinel: nothing exists in the db for it yet, so tapping it creates the
   // item first (see handleChipTap / handleQuickLogCatalog) rather than
   // incrementing a real log row.
+  // The real, user-editable category list for this tab — from the
+  // `categories` table, falling back to the built-in defaults only as a
+  // bootstrap seed (see `effectiveCategoryList`'s own doc comment). Never
+  // re-merges those defaults once real rows exist.
+  const categoryNamesForTab = useMemo(() => {
+    if (!tabConfig) return [];
+    const custom = effective.categories.filter((c) => c.itemType === tabConfig.type).map((c) => c.name);
+    return effectiveCategoryList(tabConfig.type, custom);
+  }, [effective.categories, tabConfig]);
+
+  // Same as categoryNamesForTab, but always food's list regardless of the
+  // active tab — the seasonal-picks and Poland-catalog quick-log flows are
+  // food-only surfaces that stay visible even when a different tab is open.
+  const foodCategoryNames = useMemo(() => {
+    const custom = effective.categories.filter((c) => c.itemType === "food").map((c) => c.name);
+    return effectiveCategoryList("food", custom);
+  }, [effective.categories]);
+
+  // Food can often guess its own category from the name; every other type
+  // has no classifier to guess from, so it always asks.
+  const newItemNeedsCategory = useMemo(() => {
+    if (!trimmedNewItemText || !tabConfig) return false;
+    if (tabConfig.type === "food") return !lookupFoodCategory(trimmedNewItemText, categoryNamesForTab);
+    return true;
+  }, [trimmedNewItemText, tabConfig, categoryNamesForTab]);
+
   const groupedByCategory = useMemo(() => {
+    if (!tabConfig) return [];
     const byCategory = new Map<string, LogCandidate[]>();
     for (const c of tabCandidates) {
       const list = byCategory.get(c.category) ?? [];
@@ -386,11 +387,15 @@ export default function LogPage() {
       }
     }
     for (const list of byCategory.values()) list.sort((a, b) => a.item.localeCompare(b.item));
-    return CATEGORIES_BY_TYPE[tab]
+    // The real category list, unioned with whatever category names actually
+    // showed up on a candidate/catalog entry — never drops a real item's
+    // category just because it isn't in the "official" list.
+    const allCategoryNames = new Set([...categoryNamesForTab, ...byCategory.keys()]);
+    return Array.from(allCategoryNames)
       .map((category) => ({ category, items: byCategory.get(category) ?? [] }))
       .filter((group) => group.items.length > 0)
       .sort((a, b) => a.category.localeCompare(b.category));
-  }, [tabCandidates, tab]);
+  }, [tabCandidates, tab, tabConfig, categoryNamesForTab]);
 
   const loggedTodayCount = useMemo(
     () => candidates.filter((c) => (counts.get(c.key) ?? 0) > 0).length,
@@ -398,7 +403,7 @@ export default function LogPage() {
   );
 
   const dayTimeline = useMemo(
-    () => dayTimelineEntries(effective.items, effective.logs, effective.userOverrides, effective.diary, date),
+    () => dayTimelineEntries(effective.items, effective.logs, effective.diary, date),
     [effective, date],
   );
 
@@ -406,10 +411,7 @@ export default function LogPage() {
   // unlike the dashboards' DataContext) so "weeks since last eaten" stays
   // accurate even for something that went quiet long enough to be archived
   // from the regular dashboards.
-  const seasonalCanonical = useMemo(
-    () => buildCanonicalEvents(effective.items, effective.logs, [], effective.userOverrides).events,
-    [effective],
-  );
+  const seasonalCanonical = useMemo(() => buildCanonicalEvents(effective.items, effective.logs, []), [effective]);
 
   const currentMonth = useMemo(() => new Date().getMonth() + 1, []);
   const monthName = useMemo(
@@ -441,46 +443,46 @@ export default function LogPage() {
   async function handleIncrement(candidate: LogCandidate) {
     if (isDemoData) return;
     setPending(candidate.key);
-    await incrementDailyLog(candidate.itemIdentity, date, tabConfig.countable ? meal : null);
+    const log = await incrementDailyLog(candidate.itemIdentity, candidate.itemType, date, tabConfig?.countable ? meal : null);
     await refreshAfterWrite();
     setPending(null);
-    void syncItemDay(candidate.itemIdentity, date);
+    void pushLog(log);
   }
 
   async function handleDecrement(candidate: LogCandidate) {
     if (isDemoData) return;
     setPending(candidate.key);
-    if (tabConfig.countable) {
-      await decrementDailyLogForMeal(candidate.itemIdentity, date, meal);
-    } else {
-      await decrementDailyLog(candidate.itemIdentity, date);
-    }
+    const removed = tabConfig?.countable
+      ? await decrementDailyLogForMeal(candidate.itemIdentity, date, meal)
+      : await decrementDailyLog(candidate.itemIdentity, date);
     await refreshAfterWrite();
     setPending(null);
-    void syncItemDay(candidate.itemIdentity, date);
+    if (removed) void deleteLog(removed.identity, removed.itemType);
   }
 
   async function handleToggle(candidate: LogCandidate) {
     if (isDemoData) return;
     setPending(candidate.key);
-    await toggleDailyLog(candidate.itemIdentity, date);
+    const { added, removed } = await toggleDailyLog(candidate.itemIdentity, candidate.itemType, date);
     await refreshAfterWrite();
     setPending(null);
-    void syncItemDay(candidate.itemIdentity, date);
+    if (added) void pushLog(added);
+    for (const r of removed) void deleteLog(r.identity, r.itemType);
   }
 
   /** Sets (or overwrites) a duration-kind item's value for the day — one
-   * log per item per day, upserted by a deterministic identity, unlike the
-   * increment/toggle flows above which add or remove whole rows. The raw
-   * minutes are always what's stored; nothing here ever reduces it to a
-   * boolean or a bucket — that only happens later, read-only, in analysis. */
+   * log per item per day, upserted by reusing whatever row already exists,
+   * unlike the increment/toggle flows above which add or remove whole rows.
+   * The raw minutes are always what's stored; nothing here ever reduces it
+   * to a boolean or a bucket — that only happens later, read-only, in
+   * analysis. */
   async function handleSetDuration(candidate: LogCandidate, totalMinutes: number) {
     if (isDemoData) return;
     setPending(candidate.key);
-    await setDailyDuration(candidate.itemIdentity, date, totalMinutes);
+    const log = await setDailyDuration(candidate.itemIdentity, candidate.itemType, date, totalMinutes);
     await refreshAfterWrite();
     setPending(null);
-    void syncItemDay(candidate.itemIdentity, date);
+    void pushLog(log);
   }
 
   /** Undoes a specific mistaken tap from the day's timeline — deletes that
@@ -491,7 +493,7 @@ export default function LogPage() {
     await deleteLogById(entry.key);
     await refreshAfterWrite();
     setPending(null);
-    void syncItemDay(entry.itemIdentity, date);
+    void deleteLog(entry.key, entry.itemType);
   }
 
   /** Corrects the meal tag on an already-logged entry, e.g. something typed
@@ -499,10 +501,10 @@ export default function LogPage() {
   async function handleChangeEntryMeal(entry: TimelineEntry, mealTag: string) {
     if (isDemoData) return;
     setPending(entry.key);
-    await updateLogMealTag(entry.key, mealTag);
+    const updated = await updateLogMealTag(entry.key, mealTag);
     await refreshAfterWrite();
     setPending(null);
-    void syncItemDay(entry.itemIdentity, date);
+    if (updated) void pushLog(updated);
   }
 
   /** Optional context for one item on one day — structured data first, this
@@ -510,15 +512,15 @@ export default function LogPage() {
   async function handleSaveNote(entry: TimelineEntry, content: string) {
     if (isDemoData) return;
     setPending(`note:${entry.itemIdentity}`);
-    const saved = await setDiaryNote(entry.itemIdentity, date, content.trim() || null);
+    const saved = await setDiaryNote(entry.itemIdentity, entry.itemType, date, content.trim() || null);
     await refreshAfterWrite();
     setPending(null);
     void pushDiaryEntry(saved);
   }
 
   async function handleAddNew() {
-    if (isDemoData) return;
-    const name = newItemText.trim();
+    if (isDemoData || !tabConfig) return;
+    const name = titleCaseFallback(newItemText);
     if (!name) return;
     const key = normalizeName(name);
 
@@ -537,60 +539,60 @@ export default function LogPage() {
       return;
     }
 
-    const identity = generateManualItemId(key);
-    // The bundled taxonomy may already know this exact name (e.g. "Sleep
-    // duration") — use that classification as-is rather than shadowing it
-    // with a fresh user override defaulted to this tab's generic category.
-    // Otherwise, for food specifically, guess a real category from the name
-    // (so a typed "Kohlrabi" lands under Veggies, not a catch-all Misc
-    // bucket); if that guess also comes up empty, use whatever the form's
-    // category picker is showing — same fallback-to-first-option expression
-    // the <select> itself renders, so this always matches what's on screen
-    // even if the user never touched the dropdown.
-    const bundled = classifyItem(name, snapshot?.userOverrides ?? {});
-    const needsOverride = bundled.matchedBy === "fallback";
-    const guessedCategory = tabConfig.type === "food" ? lookupFoodCategory(name) : null;
-    const category = needsOverride ? (guessedCategory ?? (newItemCategory || CATEGORIES_BY_TYPE[tabConfig.type][0])) : bundled.category;
+    // Archived items aren't in `candidates` above, so check separately —
+    // otherwise this would try to create a second item under the same
+    // name, which the DB's per-user unique-name constraint rejects.
+    const archivedMatch = effective.items.find(
+      (i) => i.itemType === tabConfig.type && i.isArchived && normalizeName(i.rawName) === key,
+    );
+    if (archivedMatch) {
+      setDuplicateConflict(archivedMatch);
+      return;
+    }
+
+    const guessed = tabConfig.type === "food" ? lookupFoodCategory(name, categoryNamesForTab) : null;
+    const category = guessed ?? (newItemCategory || categoryNamesForTab[0]);
 
     setPending("__new__");
-    if (needsOverride) {
-      const override: OverrideEntry = {
-        canonicalName: name,
-        itemType: tabConfig.type,
-        category,
-        subcategory: category,
-      };
-      await setUserOverride(key, override);
-      void pushUserOverride(key, override);
-    }
-    await putItem({
-      identity,
+    const categoryId = await ensureCategoryId(tabConfig.type, category, effective.categories);
+    const item: RawItem = {
+      identity: crypto.randomUUID(),
+      itemType: tabConfig.type,
       rawName: name,
-      unit: null,
-      kind: null,
-      frequency: null,
-      isRemoved: false,
+      category,
+      categoryId,
       isArchived: false,
       createdDate: date,
-    });
-    if (tabConfig.countable) {
-      await incrementDailyLog(identity, date, meal);
-    } else {
-      await toggleDailyLog(identity, date);
-    }
+    };
+    await putItem(item);
+    void pushItem(item);
+    const log = tabConfig.countable
+      ? await incrementDailyLog(item.identity, item.itemType, date, meal)
+      : (await toggleDailyLog(item.identity, item.itemType, date)).added;
     setNewItemText("");
     setNewItemCategory("");
     setAddingNew(false);
     await refreshAfterWrite();
     setPending(null);
-    void syncItemDay(identity, date);
+    if (log) void pushLog(log);
+  }
+
+  async function handleUnarchiveDuplicate() {
+    if (!duplicateConflict) return;
+    setPending("__unarchive-duplicate__");
+    const item = { ...duplicateConflict, isArchived: false };
+    await putItem(item);
+    void pushItem(item);
+    setDuplicateConflict(null);
+    await refreshAfterWrite();
+    setPending(null);
   }
 
   /** Shared by the seasonal-picks and Poland-catalog quick-log flows:
    * matching an existing item just increments it; a never-tracked food gets
-   * created under the given (or best-guessed) category and logged in the
-   * same tap. `pendingKey` is caller-supplied so each surface's own busy
-   * check (keyed differently — see handleQuickLogSeasonal/Catalog) lines up. */
+   * created under the given category and logged in the same tap.
+   * `pendingKey` is caller-supplied so each surface's own busy check (keyed
+   * differently — see handleQuickLogSeasonal/Catalog) lines up. */
   async function createAndLogNewFood(itemName: string, pendingKey: string, category: string) {
     if (isDemoData) return;
     const norm = normalizeName(itemName);
@@ -601,24 +603,22 @@ export default function LogPage() {
     }
 
     setPending(pendingKey);
-    const identity = generateManualItemId(norm);
-    const override: OverrideEntry = { canonicalName: itemName, itemType: "food", category, subcategory: category };
-    await setUserOverride(norm, override);
-    await putItem({
-      identity,
+    const categoryId = await ensureCategoryId("food", category, effective.categories);
+    const item: RawItem = {
+      identity: crypto.randomUUID(),
+      itemType: "food",
       rawName: itemName,
-      unit: null,
-      kind: null,
-      frequency: null,
-      isRemoved: false,
+      category,
+      categoryId,
       isArchived: false,
       createdDate: date,
-    });
-    await incrementDailyLog(identity, date, meal);
+    };
+    await putItem(item);
+    void pushItem(item);
+    const log = await incrementDailyLog(item.identity, "food", date, meal);
     await refreshAfterWrite();
     setPending(null);
-    void pushUserOverride(norm, override);
-    void syncItemDay(identity, date);
+    void pushLog(log);
   }
 
   function toggleCategoryCollapsed(category: string) {
@@ -630,26 +630,9 @@ export default function LogPage() {
     });
   }
 
-  /** Hides (or restores) one food from the tap grid — a display-only
-   * preference local to this device, never touching tracked history or the
-   * item's classification. */
-  function setFoodItemHidden(item: string, hidden: boolean) {
-    const norm = normalizeName(item);
-    setHiddenFoodItems((prev) => {
-      const next = new Set(prev);
-      if (hidden) next.add(norm);
-      else next.delete(norm);
-      try {
-        window.localStorage.setItem(hiddenFoodItemsKey, JSON.stringify(Array.from(next)));
-      } catch {
-        // localStorage unavailable (private browsing etc.) — toggle still works for this session
-      }
-      return next;
-    });
-  }
-
   function handleQuickLogSeasonal(itemName: string) {
-    return createAndLogNewFood(itemName, `seasonal:${normalizeName(itemName)}`, lookupFoodCategory(itemName) ?? "Misc");
+    const category = lookupFoodCategory(itemName, foodCategoryNames) ?? foodCategoryNames[0];
+    return createAndLogNewFood(itemName, `seasonal:${normalizeName(itemName)}`, category);
   }
 
   /** Poland-catalog chips already know their own category (see
@@ -672,36 +655,46 @@ export default function LogPage() {
       return;
     }
     const logged = (mealCounts.get(c.key) ?? 0) > 0;
-    if (tabConfig.countable) {
+    if (tabConfig?.countable) {
       void (logged ? handleDecrement(c) : handleIncrement(c));
     } else {
       void handleToggle(c);
     }
   }
 
-  /** Food tab's "manage visibility" mode swaps every chip for this row —
-   * name plus a plain Hide/Show toggle, no logging affordance — so hiding a
-   * few unwanted ingredients can't be confused with tapping to log one. */
-  function renderManageRow(c: LogCandidate, accent: string) {
-    const hidden = hiddenFoodItems.has(normalizeName(c.item));
-    return (
-      <div key={c.key} className="col-span-1 flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm">
-        <span
-          className="min-w-0 flex-1"
-          style={{ color: hidden ? "var(--text-muted)" : "var(--text-secondary)", textDecoration: hidden ? "line-through" : "none" }}
-        >
-          {c.item}
-        </span>
-        <button
-          type="button"
-          onClick={() => setFoodItemHidden(c.item, !hidden)}
-          className="shrink-0 text-xs font-medium underline decoration-dotted"
-          style={{ color: hidden ? accent : "var(--text-muted)" }}
-        >
-          {hidden ? "Show" : "Hide"}
-        </button>
-      </div>
-    );
+  async function handleSaveStoolEntry(entry: NewStoolEntry) {
+    if (isDemoData) return;
+    const log: RawStoolLog = {
+      id: crypto.randomUUID(),
+      date,
+      loggedAt: new Date().toISOString(),
+      bristolScore: entry.bristolScore,
+      noBristol: entry.noBristol,
+      color: entry.color,
+      isSticky: entry.isSticky,
+      isSmelly: entry.isSmelly,
+      isStraining: entry.isStraining,
+      hasMucus: entry.hasMucus,
+      hasUrgency: entry.hasUrgency,
+      hasVisibleFoodParticles: entry.hasVisibleFoodParticles,
+      hasIncompleteEvacuation: entry.hasIncompleteEvacuation,
+      paperCleanliness: entry.paperCleanliness,
+      timeOnToiletMinutes: entry.timeOnToiletMinutes,
+      note: null,
+      updatedAt: new Date().toISOString(),
+    };
+    await putStoolLog(log);
+    await refreshAfterWrite();
+    void pushStoolLog(log);
+  }
+
+  async function handleDeleteStoolEntry(id: string) {
+    if (isDemoData) return;
+    setPending(id);
+    await deleteStoolLogById(id);
+    await refreshAfterWrite();
+    setPending(null);
+    void deleteStoolLog(id);
   }
 
   /** A plain list row, not a pill — available items are just text; a
@@ -780,9 +773,11 @@ export default function LogPage() {
           <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
             {isDemoData
               ? "Example data — this is what a tracked day looks like. Sign in or log something for real to replace it."
-              : tabConfig.countable
-                ? "Tap a food to log it."
-                : "Tap what applies."}
+              : tab === "stool"
+                ? "Log a bowel movement."
+                : tabConfig?.countable
+                  ? "Tap a food to log it."
+                  : "Tap what applies."}
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
@@ -848,350 +843,375 @@ export default function LogPage() {
               </button>
             );
           })}
+          <button
+            type="button"
+            onClick={() => setTab("stool")}
+            className="flex items-center gap-1.5 pb-2.5 text-sm whitespace-nowrap transition-colors"
+            style={{
+              color: tab === "stool" ? STOOL_ACCENT : "var(--text-secondary)",
+              fontWeight: tab === "stool" ? 700 : 500,
+              borderBottom: `2px solid ${tab === "stool" ? STOOL_ACCENT : "transparent"}`,
+              marginBottom: "-1px",
+            }}
+          >
+            Stool
+            {stoolEntriesForDate.length > 0 && (
+              <span className="text-xs" style={{ color: tab === "stool" ? STOOL_ACCENT : "var(--text-muted)" }}>
+                {stoolEntriesForDate.length}
+              </span>
+            )}
+          </button>
         </nav>
         <span className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
           {loggedTodayCount} logged {formatDateLabel(date, today).toLowerCase()}
         </span>
       </div>
 
-      {tabConfig.countable && dataReady && seasonalPicks.length > 0 && (
-        <div className="flex flex-col gap-2 rounded-lg border p-3" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
-          <button
-            type="button"
-            onClick={() => setPicksOpen((v) => !v)}
-            className="flex items-center justify-between gap-2 text-left"
-          >
-            <span className="text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-primary)" }}>
-              {monthName} picks
-              <span className="ml-1.5 font-normal normal-case" style={{ color: "var(--text-secondary)" }}>
-                · {seasonalPicks.length} in season
-              </span>
-            </span>
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 20 20"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="shrink-0 transition-transform"
-              style={{ color: "var(--text-secondary)", transform: picksOpen ? "rotate(180deg)" : "none" }}
-            >
-              <path d="M5 7.5 10 12.5 15 7.5" />
-            </svg>
-          </button>
-          {picksOpen && (
-            <>
-              <div className="flex flex-wrap gap-1.5">
-                {seasonalPicksSorted.map((pick) => (
+      {tab === "stool" ? (
+        !dataReady ? (
+          <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
+            Loading…
+          </p>
+        ) : (
+          <StoolTab
+            entries={stoolEntriesForDate}
+            isDemoData={isDemoData}
+            pending={pending}
+            accent={STOOL_ACCENT}
+            onSave={handleSaveStoolEntry}
+            onDelete={handleDeleteStoolEntry}
+          />
+        )
+      ) : (
+        <>
+          {tabConfig?.countable && dataReady && seasonalPicks.length > 0 && (
+            <div className="flex flex-col gap-2 rounded-lg border p-3" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
+              <button
+                type="button"
+                onClick={() => setPicksOpen((v) => !v)}
+                className="flex items-center justify-between gap-2 text-left"
+              >
+                <span className="text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-primary)" }}>
+                  {monthName} picks
+                  <span className="ml-1.5 font-normal normal-case" style={{ color: "var(--text-secondary)" }}>
+                    · {seasonalPicks.length} in season
+                  </span>
+                </span>
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 20 20"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="shrink-0 transition-transform"
+                  style={{ color: "var(--text-secondary)", transform: picksOpen ? "rotate(180deg)" : "none" }}
+                >
+                  <path d="M5 7.5 10 12.5 15 7.5" />
+                </svg>
+              </button>
+              {picksOpen && (
+                <>
+                  <div className="flex flex-wrap gap-1.5">
+                    {seasonalPicksSorted.map((pick) => (
+                      <button
+                        key={pick.item}
+                        type="button"
+                        onClick={() => void handleQuickLogSeasonal(pick.item)}
+                        disabled={pending === `seasonal:${normalizeName(pick.item)}`}
+                        className="rounded-md border px-2.5 py-1 text-xs font-medium whitespace-nowrap disabled:opacity-50"
+                        style={{ borderColor: "var(--border-hairline)", color: "var(--text-secondary)", background: "var(--surface-1)" }}
+                      >
+                        {pick.item}
+                        <span className="ml-1" style={{ color: "var(--text-muted)" }}>
+                          {pick.weeksSinceLastEaten === null
+                            ? "· never"
+                            : pick.weeksSinceLastEaten === 0
+                              ? "· this week"
+                              : `· ${pick.weeksSinceLastEaten}w ago`}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                  {leastTrackedCategory && (
+                    <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
+                      This week&apos;s priority: <strong style={{ color: "var(--text-primary)" }}>{leastTrackedCategory.category}</strong> — logged{" "}
+                      {leastTrackedCategory.countThisWeek} time{leastTrackedCategory.countThisWeek === 1 ? "" : "s"} so far.
+                    </p>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+
+          {tabConfig?.countable && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              {MEAL_OPTIONS.map((m) => {
+                const active = m === meal;
+                return (
                   <button
-                    key={pick.item}
+                    key={m}
                     type="button"
-                    onClick={() => void handleQuickLogSeasonal(pick.item)}
-                    disabled={pending === `seasonal:${normalizeName(pick.item)}`}
-                    className="rounded-md border px-2.5 py-1 text-xs font-medium whitespace-nowrap disabled:opacity-50"
-                    style={{ borderColor: "var(--border-hairline)", color: "var(--text-secondary)", background: "var(--surface-1)" }}
+                    onClick={() => setMeal(m)}
+                    className="rounded-md px-2.5 py-1 text-xs whitespace-nowrap transition-colors"
+                    style={{
+                      background: active ? TYPE_ACCENT.food : "var(--page-plane)",
+                      color: active ? "#fff" : "var(--text-secondary)",
+                      fontWeight: active ? 700 : 500,
+                    }}
                   >
-                    {pick.item}
-                    <span className="ml-1" style={{ color: "var(--text-muted)" }}>
-                      {pick.weeksSinceLastEaten === null
-                        ? "· never"
-                        : pick.weeksSinceLastEaten === 0
-                          ? "· this week"
-                          : `· ${pick.weeksSinceLastEaten}w ago`}
-                    </span>
+                    {m}
                   </button>
-                ))}
-              </div>
-              {leastTrackedCategory && (
-                <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
-                  This week&apos;s priority: <strong style={{ color: "var(--text-primary)" }}>{leastTrackedCategory.category}</strong> — logged{" "}
-                  {leastTrackedCategory.countThisWeek} time{leastTrackedCategory.countThisWeek === 1 ? "" : "s"} so far.
+                );
+              })}
+            </div>
+          )}
+
+          {!dataReady || !tabConfig ? (
+            <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
+              Loading…
+            </p>
+          ) : (
+            <div className="flex flex-col gap-4">
+              {groupedByCategory.length > 0 && (
+                <p className="flex items-center gap-1 text-xs" style={{ color: "var(--text-muted)" }}>
+                  <span style={{ color: TYPE_ACCENT[tabConfig.type] }}>✓</span> logged{" "}
+                  {tabConfig.countable ? `for ${meal.toLowerCase()}` : formatDateLabel(date, today).toLowerCase()} — tap again to remove
                 </p>
               )}
-            </>
-          )}
-        </div>
-      )}
 
-      {tabConfig.countable && (
-        <div className="flex flex-wrap items-center gap-1.5">
-          {MEAL_OPTIONS.map((m) => {
-            const active = m === meal;
-            return (
-              <button
-                key={m}
-                type="button"
-                onClick={() => setMeal(m)}
-                className="rounded-md px-2.5 py-1 text-xs whitespace-nowrap transition-colors"
-                style={{
-                  background: active ? TYPE_ACCENT.food : "var(--page-plane)",
-                  color: active ? "#fff" : "var(--text-secondary)",
-                  fontWeight: active ? 700 : 500,
-                }}
-              >
-                {m}
-              </button>
-            );
-          })}
-        </div>
-      )}
-
-      {!dataReady ? (
-        <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-          Loading…
-        </p>
-      ) : (
-        <div className="flex flex-col gap-4">
-          {groupedByCategory.length > 0 && (
-            <p className="flex items-center gap-1 text-xs" style={{ color: "var(--text-muted)" }}>
-              <span style={{ color: TYPE_ACCENT[tab] }}>✓</span> logged{" "}
-              {tabConfig.countable ? `for ${meal.toLowerCase()}` : formatDateLabel(date, today).toLowerCase()} — tap again to remove
-            </p>
-          )}
-
-          {!addingNew ? (
-            <button
-              type="button"
-              onClick={() => (isDemoData ? openPanel() : setAddingNew(true))}
-              className="self-start rounded-md border border-dashed px-3 py-1.5 text-sm font-medium whitespace-nowrap"
-              style={{ borderColor: "var(--border-hairline)", color: "var(--text-secondary)" }}
-            >
-              {isDemoData ? "+ Can't find it? Sign in to add it" : "+ Can't find it? Add it"}
-            </button>
-          ) : (
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                void handleAddNew();
-              }}
-              className="flex flex-col gap-2 rounded-lg border p-3"
-              style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}
-            >
-              <div className="flex flex-wrap items-center gap-2">
-                <input
-                  autoFocus
-                  type="text"
-                  value={newItemText}
-                  onChange={(e) => setNewItemText(e.target.value)}
-                  placeholder={tabConfig.placeholder}
-                  className="w-full max-w-xs rounded-md border px-3.5 py-1.5 text-sm outline-none"
-                  style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
-                />
-                <button
-                  type="submit"
-                  disabled={!newItemText.trim() || pending === "__new__"}
-                  className="rounded-md border px-3.5 py-1.5 text-sm font-medium whitespace-nowrap disabled:opacity-40"
-                  style={{ borderColor: "var(--border-hairline)", color: "var(--text-secondary)" }}
-                >
-                  + Add &amp; log
-                </button>
+              {!addingNew ? (
                 <button
                   type="button"
-                  onClick={() => {
-                    setAddingNew(false);
-                    setNewItemText("");
-                    setNewItemCategory("");
-                  }}
-                  className="text-sm font-medium underline decoration-dotted"
-                  style={{ color: "var(--text-secondary)" }}
+                  onClick={() => (isDemoData ? openPanel() : setAddingNew(true))}
+                  className="self-start rounded-md border border-dashed px-3 py-1.5 text-sm font-medium whitespace-nowrap"
+                  style={{ borderColor: "var(--border-hairline)", color: "var(--text-secondary)" }}
                 >
-                  cancel
+                  {isDemoData ? "+ Can't find it? Sign in to add it" : "+ Can't find it? Add it"}
                 </button>
-              </div>
-              {newItemNeedsCategory ? (
-                <label className="flex flex-wrap items-center gap-2 text-xs" style={{ color: "var(--text-secondary)" }}>
-                  Not sure where this belongs — pick a category:
-                  <select
-                    value={newItemCategory || CATEGORIES_BY_TYPE[tabConfig.type][0]}
-                    onChange={(e) => setNewItemCategory(e.target.value)}
-                    className="rounded-md border px-2 py-1 text-xs"
-                    style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
-                  >
-                    {CATEGORIES_BY_TYPE[tabConfig.type].map((c) => (
-                      <option key={c} value={c}>
-                        {c}
-                      </option>
-                    ))}
-                  </select>
-                </label>
               ) : (
-                newItemText.trim() && (
-                  <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-                    Already recognized — will file under its usual category automatically.
-                  </p>
-                )
-              )}
-            </form>
-          )}
-
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {groupedByCategory.map((group) => {
-              const accent = tab === "food" ? colorForCategorySlot(group.category) : TYPE_ACCENT[tab];
-              const icon = tab === "food" ? FOOD_CATEGORY_ICON[group.category] : null;
-              const items =
-                tab === "food" && !manageVisibility
-                  ? group.items.filter((c) => !hiddenFoodItems.has(normalizeName(c.item)))
-                  : group.items;
-              if (items.length === 0) return null;
-              const collapsed = collapsedCategories.has(group.category);
-              return (
-                <div key={group.category} className="flex flex-col gap-2 rounded-lg border p-3" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
-                  <button
-                    type="button"
-                    onClick={() => toggleCategoryCollapsed(group.category)}
-                    className="flex items-center gap-1.5 border-b pb-2 text-left text-xs font-bold tracking-wide uppercase"
-                    style={{ color: accent, borderColor: "var(--border-hairline)" }}
-                  >
-                    {icon}
-                    {group.category}
-                    <span className="ml-auto flex items-center gap-1 font-medium normal-case" style={{ color: "var(--text-secondary)" }}>
-                      {items.length}
-                      <svg
-                        width="12"
-                        height="12"
-                        viewBox="0 0 20 20"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.8"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        style={{ transform: collapsed ? "rotate(-90deg)" : "none", transition: "transform 150ms" }}
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    void handleAddNew();
+                  }}
+                  className="flex flex-col gap-2 rounded-lg border p-3"
+                  style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    <input
+                      autoFocus
+                      type="text"
+                      value={newItemText}
+                      onChange={(e) => setNewItemText(e.target.value)}
+                      placeholder={tabConfig.placeholder}
+                      className="w-full max-w-xs rounded-md border px-3.5 py-1.5 text-sm outline-none"
+                      style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
+                    />
+                    <button
+                      type="submit"
+                      disabled={!newItemText.trim() || pending === "__new__"}
+                      className="rounded-md border px-3.5 py-1.5 text-sm font-medium whitespace-nowrap disabled:opacity-40"
+                      style={{ borderColor: "var(--border-hairline)", color: "var(--text-secondary)" }}
+                    >
+                      + Add &amp; log
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAddingNew(false);
+                        setNewItemText("");
+                        setNewItemCategory("");
+                      }}
+                      className="text-sm font-medium underline decoration-dotted"
+                      style={{ color: "var(--text-secondary)" }}
+                    >
+                      cancel
+                    </button>
+                  </div>
+                  {newItemNeedsCategory ? (
+                    <label className="flex flex-wrap items-center gap-2 text-xs" style={{ color: "var(--text-secondary)" }}>
+                      Not sure where this belongs — pick a category:
+                      <select
+                        value={newItemCategory || categoryNamesForTab[0]}
+                        onChange={(e) => setNewItemCategory(e.target.value)}
+                        className="rounded-md border px-2 py-1 text-xs"
+                        style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
                       >
-                        <path d="M5 7.5 10 12.5 15 7.5" />
-                      </svg>
-                    </span>
-                  </button>
-                  {!collapsed && (
-                    <div className="grid grid-cols-[repeat(auto-fill,minmax(110px,1fr))] gap-x-2 gap-y-0.5">
-                      {items.map((c) =>
-                        tab === "food" && manageVisibility
-                          ? renderManageRow(c, accent)
-                          : INPUT_KIND[c.item] === "duration"
-                            ? renderDurationControl(c, accent)
-                            : renderChip(c, accent),
-                      )}
-                    </div>
+                        {categoryNamesForTab.map((c) => (
+                          <option key={c} value={c}>
+                            {c}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  ) : (
+                    newItemText.trim() && (
+                      <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                        Already recognized — will file under its usual category automatically.
+                      </p>
+                    )
                   )}
-                </div>
-              );
-            })}
-          </div>
-
-          {groupedByCategory.length === 0 && (
-            <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-              Nothing tracked here yet — add your first {tabConfig.label.toLowerCase().replace(/s$/, "")} below.
-            </p>
-          )}
-
-          {tab === "food" && (groupedByCategory.length > 0 || hiddenFoodItems.size > 0) && (
-            <div className="flex flex-wrap items-center gap-3 text-xs">
-              <button
-                type="button"
-                onClick={() => setManageVisibility((v) => !v)}
-                className="font-medium underline decoration-dotted"
-                style={{ color: "var(--text-secondary)" }}
-              >
-                {manageVisibility ? "Done" : "Hide ingredients you don't use"}
-              </button>
-              {hiddenFoodItems.size > 0 && !manageVisibility && (
-                <span style={{ color: "var(--text-muted)" }}>
-                  {hiddenFoodItems.size} hidden
-                </span>
+                </form>
               )}
-            </div>
-          )}
 
-          {dayTimeline.length > 0 && (
-            <div className="mt-1 flex flex-col gap-2 border-t pt-3" style={{ borderColor: "var(--border-hairline)" }}>
-              <h2 className="text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-secondary)" }}>
-                Timeline — {formatDateLabel(date, today).toLowerCase()}
-              </h2>
-              <div className="overflow-x-auto pb-2">
-                <div className="relative flex min-w-max items-start gap-4">
-                  <div className="absolute top-[5px] right-0 left-0 h-px" style={{ background: "var(--border-hairline)" }} />
-                  {dayTimeline.map((entry) => {
-                    const busy = pending === entry.key;
-                    const hasMealTag = entry.itemType === "food" && (entry.mealTag || !isDemoData);
-                    const hasNote = !isDemoData || entry.note;
-                    return (
-                      <div key={entry.key} className="flex shrink-0 flex-col items-start gap-1" style={{ opacity: busy ? 0.5 : 1 }}>
-                        <span
-                          className="relative z-10 h-2.5 w-2.5 shrink-0 rounded-full border-2"
-                          style={{ borderColor: TYPE_ACCENT[entry.itemType], background: "var(--surface-1)" }}
-                        />
-                        <span className="font-mono text-[11px] whitespace-nowrap" style={{ color: "var(--text-muted)" }}>
-                          {entry.time}
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {groupedByCategory.map((group) => {
+                  const accent = tab === "food" ? colorForCategorySlot(group.category) : TYPE_ACCENT[tabConfig.type];
+                  const icon = tab === "food" ? FOOD_CATEGORY_ICON[group.category] : null;
+                  const items = group.items;
+                  if (items.length === 0) return null;
+                  const collapsed = collapsedCategories.has(group.category);
+                  return (
+                    <div key={group.category} className="flex flex-col gap-2 rounded-lg border p-3" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
+                      <button
+                        type="button"
+                        onClick={() => toggleCategoryCollapsed(group.category)}
+                        className="flex items-center gap-1.5 border-b pb-2 text-left text-xs font-bold tracking-wide uppercase"
+                        style={{ color: accent, borderColor: "var(--border-hairline)" }}
+                      >
+                        {icon}
+                        {group.category}
+                        <span className="ml-auto flex items-center gap-1 font-medium normal-case" style={{ color: "var(--text-secondary)" }}>
+                          {items.length}
+                          <svg
+                            width="12"
+                            height="12"
+                            viewBox="0 0 20 20"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.8"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            style={{ transform: collapsed ? "rotate(-90deg)" : "none", transition: "transform 150ms" }}
+                          >
+                            <path d="M5 7.5 10 12.5 15 7.5" />
+                          </svg>
                         </span>
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-xs font-semibold whitespace-nowrap" style={{ color: "var(--text-primary)" }}>
-                            {entry.item}
-                            {INPUT_KIND[entry.item] === "duration" && entry.value != null && (
-                              <span className="ml-1 font-normal" style={{ color: "var(--text-secondary)" }}>
-                                {formatMinutes(entry.value)}
-                              </span>
-                            )}
-                          </span>
-                          {!isDemoData && (
-                            <button
-                              type="button"
-                              onClick={() => void handleDeleteEntry(entry)}
-                              disabled={busy}
-                              aria-label={`Delete ${entry.item} at ${entry.time}`}
-                              className="text-xs leading-none disabled:opacity-40"
-                              style={{ color: "var(--text-secondary)" }}
-                            >
-                              ✕
-                            </button>
+                      </button>
+                      {!collapsed && (
+                        <div className="grid grid-cols-[repeat(auto-fill,minmax(110px,1fr))] gap-x-2 gap-y-0.5">
+                          {items.map((c) =>
+                            INPUT_KIND[c.item] === "duration" ? renderDurationControl(c, accent) : renderChip(c, accent),
                           )}
                         </div>
-                        {hasMealTag &&
-                          (entry.itemType === "food" &&
-                            (isDemoData ? (
-                              entry.mealTag && (
-                                <span
-                                  className="rounded px-1.5 py-0.5 text-[11px] font-medium whitespace-nowrap"
-                                  style={{ background: "var(--page-plane)", color: "var(--text-secondary)" }}
-                                >
-                                  {entry.mealTag}
-                                </span>
-                              )
-                            ) : (
-                              <select
-                                value={entry.mealTag ?? ""}
-                                disabled={busy}
-                                onChange={(e) => void handleChangeEntryMeal(entry, e.target.value)}
-                                className="rounded px-1.5 py-0.5 text-[11px] font-medium whitespace-nowrap outline-none disabled:opacity-40"
-                                style={{ background: "var(--page-plane)", color: "var(--text-secondary)", border: "none" }}
-                              >
-                                <option value="" disabled>
-                                  set meal
-                                </option>
-                                {MEAL_OPTIONS.map((m) => (
-                                  <option key={m} value={m}>
-                                    {m}
-                                  </option>
-                                ))}
-                              </select>
-                            )))}
-                        {hasNote && (
-                          <TimelineNote
-                            note={entry.note}
-                            busy={pending === `note:${entry.itemIdentity}`}
-                            hidden={isDemoData}
-                            onSave={(content) => void handleSaveNote(entry, content)}
-                          />
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
+
+              {groupedByCategory.length === 0 && (
+                <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
+                  Nothing tracked here yet — add your first {tabConfig.label.toLowerCase().replace(/s$/, "")} below.
+                </p>
+              )}
+
+              <Link href="/manage/" className="self-start text-xs font-medium underline decoration-dotted" style={{ color: "var(--text-secondary)" }}>
+                Don&apos;t see what you&apos;re looking for? Archive or add items on the Manage page
+              </Link>
+
+              {dayTimeline.length > 0 && (
+                <div className="mt-1 flex flex-col gap-2 border-t pt-3" style={{ borderColor: "var(--border-hairline)" }}>
+                  <h2 className="text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-secondary)" }}>
+                    Timeline — {formatDateLabel(date, today).toLowerCase()}
+                  </h2>
+                  <div className="overflow-x-auto pb-2">
+                    <div className="relative flex min-w-max items-start gap-4">
+                      <div className="absolute top-[5px] right-0 left-0 h-px" style={{ background: "var(--border-hairline)" }} />
+                      {dayTimeline.map((entry) => {
+                        const busy = pending === entry.key;
+                        const hasMealTag = entry.itemType === "food" && (entry.mealTag || !isDemoData);
+                        const hasNote = !isDemoData || entry.note;
+                        return (
+                          <div key={entry.key} className="flex shrink-0 flex-col items-start gap-1" style={{ opacity: busy ? 0.5 : 1 }}>
+                            <span
+                              className="relative z-10 h-2.5 w-2.5 shrink-0 rounded-full border-2"
+                              style={{ borderColor: TYPE_ACCENT[entry.itemType], background: "var(--surface-1)" }}
+                            />
+                            <span className="font-mono text-[11px] whitespace-nowrap" style={{ color: "var(--text-muted)" }}>
+                              {entry.time}
+                            </span>
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-xs font-semibold whitespace-nowrap" style={{ color: "var(--text-primary)" }}>
+                                {entry.item}
+                                {INPUT_KIND[entry.item] === "duration" && entry.value != null && (
+                                  <span className="ml-1 font-normal" style={{ color: "var(--text-secondary)" }}>
+                                    {formatMinutes(entry.value)}
+                                  </span>
+                                )}
+                              </span>
+                              {!isDemoData && (
+                                <button
+                                  type="button"
+                                  onClick={() => void handleDeleteEntry(entry)}
+                                  disabled={busy}
+                                  aria-label={`Delete ${entry.item} at ${entry.time}`}
+                                  className="text-xs leading-none disabled:opacity-40"
+                                  style={{ color: "var(--text-secondary)" }}
+                                >
+                                  ✕
+                                </button>
+                              )}
+                            </div>
+                            {hasMealTag &&
+                              (entry.itemType === "food" &&
+                                (isDemoData ? (
+                                  entry.mealTag && (
+                                    <span
+                                      className="rounded px-1.5 py-0.5 text-[11px] font-medium whitespace-nowrap"
+                                      style={{ background: "var(--page-plane)", color: "var(--text-secondary)" }}
+                                    >
+                                      {entry.mealTag}
+                                    </span>
+                                  )
+                                ) : (
+                                  <select
+                                    value={entry.mealTag ?? ""}
+                                    disabled={busy}
+                                    onChange={(e) => void handleChangeEntryMeal(entry, e.target.value)}
+                                    className="rounded px-1.5 py-0.5 text-[11px] font-medium whitespace-nowrap outline-none disabled:opacity-40"
+                                    style={{ background: "var(--page-plane)", color: "var(--text-secondary)", border: "none" }}
+                                  >
+                                    <option value="" disabled>
+                                      set meal
+                                    </option>
+                                    {MEAL_OPTIONS.map((m) => (
+                                      <option key={m} value={m}>
+                                        {m}
+                                      </option>
+                                    ))}
+                                  </select>
+                                )))}
+                            {hasNote && (
+                              <TimelineNote
+                                note={entry.note}
+                                busy={pending === `note:${entry.itemIdentity}`}
+                                hidden={isDemoData}
+                                onSave={(content) => void handleSaveNote(entry, content)}
+                              />
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
-        </div>
+        </>
+      )}
+      {duplicateConflict && (
+        <DuplicateItemDialog
+          name={duplicateConflict.rawName}
+          isArchived={duplicateConflict.isArchived}
+          busy={pending === "__unarchive-duplicate__"}
+          onClose={() => setDuplicateConflict(null)}
+          onUnarchive={() => void handleUnarchiveDuplicate()}
+        />
       )}
     </div>
   );

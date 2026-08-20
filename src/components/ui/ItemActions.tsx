@@ -3,58 +3,90 @@
 import { useState, type FormEvent } from "react";
 import type { ManageableItem } from "@/lib/useItemActions";
 
-/** Inline rename + archive/unarchive controls for one tracked item —
- * shared by the Habits page and the Manage page so there's one place this
- * row UI lives, backed by the same `useItemActions` hook everywhere. */
-export function ItemActions({
-  item,
-  busy,
-  onArchiveToggle,
-  onRename,
-}: {
-  item: ManageableItem;
-  busy: boolean;
-  onArchiveToggle: () => void;
-  onRename: (newName: string) => void;
-}) {
+/** Shared rename state backing the two pieces below — lets a row put the
+ * name on one side and the Edit/Archive (or Save/Cancel, while renaming)
+ * buttons on the other, without duplicating the rename logic. */
+export function useInlineRename(item: ManageableItem, onRename: (newName: string) => void) {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(item.item);
 
-  if (editing) {
+  return {
+    editing,
+    name,
+    setName,
+    formId: `rename-${item.itemIdentity}`,
+    start() {
+      setName(item.item);
+      setEditing(true);
+    },
+    cancel() {
+      setEditing(false);
+    },
+    submit(e: FormEvent) {
+      e.preventDefault();
+      setEditing(false);
+      onRename(name);
+    },
+  };
+}
+
+type InlineRenameState = ReturnType<typeof useInlineRename>;
+
+/** Item name, or its rename input when editing. */
+export function ItemNameField({ item, state }: { item: ManageableItem; state: InlineRenameState }) {
+  if (state.editing) {
     return (
-      <form
-        onSubmit={(e: FormEvent) => {
-          e.preventDefault();
-          setEditing(false);
-          onRename(name);
-        }}
-        className="flex items-center gap-1.5"
-      >
+      <form id={state.formId} onSubmit={state.submit}>
         <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
+          value={state.name}
+          onChange={(e) => state.setName(e.target.value)}
           autoFocus
           className="rounded-md border px-2 py-1 text-sm"
           style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
         />
-        <button type="submit" className="text-xs font-medium" style={{ color: "var(--status-good)" }}>
+      </form>
+    );
+  }
+  return (
+    <span className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
+      {item.item}
+    </span>
+  );
+}
+
+/** Edit/Archive buttons (Save/Cancel while renaming) — placeable anywhere
+ * relative to `ItemNameField`, so a row can keep them pinned next to
+ * whatever fixed-width control sits beside it (a category select, stats)
+ * instead of drifting with the item name's length. */
+export function ItemActionButtons({
+  item,
+  busy,
+  state,
+  onArchiveToggle,
+}: {
+  item: ManageableItem;
+  busy: boolean;
+  state: InlineRenameState;
+  onArchiveToggle: () => void;
+}) {
+  if (state.editing) {
+    return (
+      <span className="flex items-center gap-1.5">
+        <button type="submit" form={state.formId} className="text-xs font-medium" style={{ color: "var(--status-good)" }}>
           Save
         </button>
-        <button type="button" onClick={() => setEditing(false)} className="text-xs" style={{ color: "var(--text-muted)" }}>
+        <button type="button" onClick={state.cancel} className="text-xs" style={{ color: "var(--text-muted)" }}>
           Cancel
         </button>
-      </form>
+      </span>
     );
   }
 
   return (
-    <span className="flex flex-wrap items-center gap-2">
-      <span className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
-        {item.item}
-      </span>
+    <span className="flex items-center gap-2">
       <button
         type="button"
-        onClick={() => setEditing(true)}
+        onClick={state.start}
         disabled={busy}
         className="text-xs font-medium underline decoration-dotted disabled:opacity-40"
         style={{ color: "var(--text-muted)" }}
@@ -70,6 +102,28 @@ export function ItemActions({
       >
         {item.isArchived ? "Unarchive" : "Archive"}
       </button>
+    </span>
+  );
+}
+
+/** Name + Edit/Archive together, inline — for rows with nothing fixed-width
+ * to align against (e.g. the Habits page's stat row). */
+export function ItemActions({
+  item,
+  busy,
+  onArchiveToggle,
+  onRename,
+}: {
+  item: ManageableItem;
+  busy: boolean;
+  onArchiveToggle: () => void;
+  onRename: (newName: string) => void;
+}) {
+  const state = useInlineRename(item, onRename);
+  return (
+    <span className="flex flex-wrap items-center gap-2">
+      <ItemNameField item={item} state={state} />
+      <ItemActionButtons item={item} busy={busy} state={state} onArchiveToggle={onArchiveToggle} />
     </span>
   );
 }

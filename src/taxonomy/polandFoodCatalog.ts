@@ -1,5 +1,3 @@
-import type { FoodCategory } from "./categories";
-
 /**
  * Foods realistically available in a Polish supermarket or greengrocer,
  * grouped by the same categories the rest of the app uses. Backs the Log
@@ -14,7 +12,7 @@ import type { FoodCategory } from "./categories";
  * rapeseed oil) alongside the common year-round imported produce every
  * supermarket here carries.
  */
-export const POLAND_FOOD_CATALOG: Record<FoodCategory, string[]> = {
+export const POLAND_FOOD_CATALOG: Record<string, string[]> = {
   Veggies: [
     "Carrot", "Onion", "Garlic", "Potatoes", "Sweet potato", "Cabbage", "Red cabbage",
     "Cauliflower", "Broccoli", "Brussels sprouts", "Kohlrabi", "Beetroot", "Celeriac",
