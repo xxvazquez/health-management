@@ -24,6 +24,7 @@ import { getAllDiary, getAllItems, getAllLogs, getAllCategories, getAllStoolLogs
 import {
   buildLogCandidates,
   dayTimelineEntries,
+  decideChipTapAction,
   loggedCountsForDate,
   type LogCandidate,
   type TimelineEntry,
@@ -710,15 +711,20 @@ export default function LogPage() {
    * chip (itemIdentity "" sentinel — see groupedByCategory) has nothing to
    * increment/toggle yet, so its first tap creates the item instead. */
   function handleChipTap(c: LogCandidate) {
-    if (c.itemIdentity === "") {
-      void handleQuickLogCatalog(c);
-      return;
-    }
-    const logged = (mealCounts.get(c.key) ?? 0) > 0;
-    if (tabConfig?.countable) {
-      void (logged ? handleDecrement(c) : handleIncrement(c));
-    } else {
-      void handleToggle(c);
+    const action = decideChipTapAction(c, mealCounts.get(c.key) ?? 0, Boolean(tabConfig?.countable));
+    switch (action) {
+      case "create":
+        void handleQuickLogCatalog(c);
+        break;
+      case "increment":
+        void handleIncrement(c);
+        break;
+      case "decrement":
+        void handleDecrement(c);
+        break;
+      case "toggle":
+        void handleToggle(c);
+        break;
     }
   }
 

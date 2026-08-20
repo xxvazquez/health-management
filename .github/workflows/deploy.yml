@@ -28,6 +28,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Version the service worker cache
+        # public/sw.js ships __BUILD_ID__ literally — substituting the
+        # commit SHA here is what makes the file's bytes (and therefore its
+        # cache name) actually change on every deploy, which is what lets
+        # the service worker's own update-and-cleanup logic run at all. See
+        # the comment above CACHE_NAME in sw.js for the full why.
+        run: sed -i "s/__BUILD_ID__/${GITHUB_SHA}/" public/sw.js
+
       - name: Build static export
         # Served from lauva.pl (custom domain, see public/CNAME) — a custom
         # domain always serves from the root, so NEXT_PUBLIC_BASE_PATH must

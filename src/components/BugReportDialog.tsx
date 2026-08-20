@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { usePathname } from "next/navigation";
 import { BUG_TYPES, bugReportingConfigured, submitBugReport, type BugType } from "@/lib/supabase/reportBug";
+import { useDialogA11y } from "@/components/ui/useDialogA11y";
 
 const PAGE_LABELS: Record<string, string> = {
   "/": "Overview",
@@ -59,6 +60,8 @@ export function BugReportDialog({ open, onClose }: { open: boolean; onClose: () 
     }
   }
 
+  const containerRef = useDialogA11y(open, onClose);
+
   if (!open) return null;
 
   async function handleSubmit(e: FormEvent) {
@@ -76,7 +79,7 @@ export function BugReportDialog({ open, onClose }: { open: boolean; onClose: () 
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
+    <div ref={containerRef} className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
       <div className="absolute inset-0 bg-black/30" onClick={onClose} />
       <div
         className="relative flex w-full max-w-sm flex-col gap-4 rounded-xl border p-5 shadow-xl"
