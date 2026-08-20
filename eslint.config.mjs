@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Deno runtime, not Node/browser — its own environment, not this config's.
+    "supabase/functions/**",
   ]),
 ]);
 
