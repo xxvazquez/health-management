@@ -39,6 +39,7 @@ import { classifyItem, lookupFoodCategory, type OverrideEntry } from "@/taxonomy
 import { POLAND_FOOD_CATALOG } from "@/taxonomy/polandFoodCatalog";
 import { DURATION_DEFAULT_MINUTES, INPUT_KIND } from "@/taxonomy/inputKinds";
 import { DurationStepper } from "@/components/ui/DurationStepper";
+import { BreakfastReminderToggle } from "@/components/BreakfastReminderToggle";
 import type { RawLog, RawItem, RawDiaryEntry } from "@/lib/types";
 
 const TABS: { type: ItemType; label: string; placeholder: string; defaultCategory: string; countable: boolean }[] = [
@@ -784,32 +785,35 @@ export default function LogPage() {
                 : "Tap what applies."}
           </p>
         </div>
-        <div className="flex shrink-0 items-center gap-0.5 rounded-lg border p-1" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
-          <button
-            type="button"
-            onClick={() => setDate((d) => addDaysLocal(d, -1))}
-            className="flex h-7 w-7 items-center justify-center rounded-md text-sm font-medium"
-            style={{ color: "var(--text-secondary)" }}
-            aria-label="Previous day"
-          >
-            ‹
-          </button>
-          <span
-            className="min-w-24 rounded-md px-2 py-1 text-center text-sm font-semibold whitespace-nowrap"
-            style={{ color: "var(--text-primary)", background: "var(--surface-1)" }}
-          >
-            {formatDateLabel(date, today)}
-          </span>
-          <button
-            type="button"
-            onClick={() => setDate((d) => (d < today ? addDaysLocal(d, 1) : d))}
-            disabled={date >= today}
-            className="flex h-7 w-7 items-center justify-center rounded-md text-sm font-medium disabled:opacity-30"
-            style={{ color: "var(--text-secondary)" }}
-            aria-label="Next day"
-          >
-            ›
-          </button>
+        <div className="flex shrink-0 items-center gap-2">
+          <BreakfastReminderToggle />
+          <div className="flex items-center gap-0.5 rounded-lg border p-1" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
+            <button
+              type="button"
+              onClick={() => setDate((d) => addDaysLocal(d, -1))}
+              className="flex h-7 w-7 items-center justify-center rounded-md text-sm font-medium"
+              style={{ color: "var(--text-secondary)" }}
+              aria-label="Previous day"
+            >
+              ‹
+            </button>
+            <span
+              className="min-w-24 rounded-md px-2 py-1 text-center text-sm font-semibold whitespace-nowrap"
+              style={{ color: "var(--text-primary)", background: "var(--surface-1)" }}
+            >
+              {formatDateLabel(date, today)}
+            </span>
+            <button
+              type="button"
+              onClick={() => setDate((d) => (d < today ? addDaysLocal(d, 1) : d))}
+              disabled={date >= today}
+              className="flex h-7 w-7 items-center justify-center rounded-md text-sm font-medium disabled:opacity-30"
+              style={{ color: "var(--text-secondary)" }}
+              aria-label="Next day"
+            >
+              ›
+            </button>
+          </div>
         </div>
       </div>
 
