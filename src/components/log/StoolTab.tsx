@@ -116,11 +116,12 @@ function Chip({
     <button
       type="button"
       onClick={onClick}
-      className="rounded-md px-2.5 py-1 text-xs font-medium whitespace-nowrap transition-colors"
+      aria-pressed={active}
+      className="rounded-md border px-2.5 py-1 text-xs font-normal whitespace-nowrap transition-colors"
       style={{
-        background: active ? accent : "var(--page-plane)",
-        color: active ? "#fff" : "var(--text-secondary)",
-        fontWeight: active ? 700 : 500,
+        borderColor: active ? accent : "var(--border-hairline)",
+        background: active ? `color-mix(in oklab, ${accent} 14%, var(--surface-1))` : "transparent",
+        color: active ? accent : "var(--text-secondary)",
       }}
     >
       {label}
@@ -258,7 +259,7 @@ export function StoolTab({
 
       <div className="flex items-center gap-3">
         <p className="text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
-          Logged at
+          Time
         </p>
         <input
           type="time"

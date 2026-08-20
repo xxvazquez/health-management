@@ -71,7 +71,11 @@ export function BugReportDialog({ open, onClose }: { open: boolean; onClose: () 
     try {
       await submitBugReport({ bugType, location: location.trim(), comment: comment.trim() });
       setSubmitted(true);
-    } catch {
+    } catch (err) {
+      // The banner stays generic on purpose (no raw error text shown to
+      // the user), but logging the real reason means a failure is
+      // actually diagnosable from devtools instead of a dead end.
+      console.error("report-bug: submit failed", err);
       setError("Couldn't send the report — try again in a moment.");
     } finally {
       setSubmitting(false);
