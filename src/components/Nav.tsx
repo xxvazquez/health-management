@@ -146,7 +146,8 @@ function NavLinkList({
 function NavLinks({ pathname, collapsed, onNavigate }: { pathname: string; collapsed?: boolean; onNavigate?: () => void }) {
   return (
     <nav className="flex flex-1 flex-col gap-1">
-      <NavSectionLabel collapsed={collapsed}>Log</NavSectionLabel>
+      {/* No section label above Log — it's both the destination and the
+       * only item in its section, so a heading would just repeat itself. */}
       <NavLinkList links={LOG_LINKS} pathname={pathname} collapsed={collapsed} onNavigate={onNavigate} />
       <NavSectionLabel collapsed={collapsed}>Analytics</NavSectionLabel>
       <NavLinkList links={ANALYTICS_LINKS} pathname={pathname} collapsed={collapsed} onNavigate={onNavigate} />
