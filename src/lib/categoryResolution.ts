@@ -1,5 +1,4 @@
-import { putCategory } from "@/lib/db/indexedDb";
-import { pushCategory } from "@/lib/supabase/sync";
+import { putCategoryAndSync } from "@/lib/supabase/sync";
 import { CATEGORIES_BY_TYPE, type ItemType } from "@/taxonomy/categories";
 import type { RawCategory } from "@/lib/types";
 
@@ -34,8 +33,7 @@ export async function ensureCategoryId(itemType: ItemType, name: string, existin
     const id = crypto.randomUUID();
     if (seedName === name) resultId = id;
     const entry: RawCategory = { id, itemType, name: seedName };
-    await putCategory(entry);
-    void pushCategory(entry);
+    await putCategoryAndSync(entry);
   }
   return resultId;
 }

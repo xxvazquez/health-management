@@ -7,8 +7,8 @@ import { Card } from "@/components/ui/Card";
 import { ItemNameField, ItemActionButtons, useInlineRename } from "@/components/ui/ItemActions";
 import { DuplicateItemDialog } from "@/components/ui/DuplicateItemDialog";
 import { useItemActions, type ManageableItem } from "@/lib/useItemActions";
-import { getAllItems, getAllCategories, putItem, deleteCategoryLocal } from "@/lib/db/indexedDb";
-import { pushItem, deleteCategory } from "@/lib/supabase/sync";
+import { getAllItems, getAllCategories } from "@/lib/db/indexedDb";
+import { putItemAndSync, deleteCategoryAndSync } from "@/lib/supabase/sync";
 import { ensureCategoryId, categoryRowsToSeedForDemo } from "@/lib/categoryResolution";
 import { lookupFoodCategory } from "@/taxonomy/classify";
 import { POLAND_FOOD_CATALOG } from "@/taxonomy/polandFoodCatalog";
@@ -559,8 +559,7 @@ export default function ManagePage() {
       isArchived: false,
       createdDate: todayLocalISODate(),
     };
-    await putItem(item);
-    void pushItem(item);
+    await putItemAndSync(item);
     await refresh();
     return true;
   }
@@ -579,8 +578,7 @@ export default function ManagePage() {
       isArchived: true,
       createdDate: todayLocalISODate(),
     };
-    await putItem(item);
-    void pushItem(item);
+    await putItemAndSync(item);
     await refresh();
   }
 
@@ -605,8 +603,7 @@ export default function ManagePage() {
     // first-ever use) before removing exactly this one, so the removal
     // actually persists instead of the default just reappearing next render.
     const id = await ensureCategoryId(itemType, name, categoryRows);
-    await deleteCategoryLocal(id);
-    void deleteCategory(id);
+    await deleteCategoryAndSync(id);
     await refresh();
   }
 

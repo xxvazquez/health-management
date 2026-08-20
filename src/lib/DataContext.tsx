@@ -5,11 +5,21 @@ import type { CanonicalEvent, RawGymLog, RawStoolLog } from "@/lib/types";
 import { buildCanonicalEvents } from "@/lib/canonical/buildCanonicalEvents";
 import { clearAllData, getAllDiary, getAllLogs, getAllItems, getAllStoolLogs, getAllGymLogs, hasAnyData } from "@/lib/db/indexedDb";
 import { pullFromCloud } from "@/lib/supabase/sync";
+import { drainOutbox, getOutboxSyncState } from "@/lib/supabase/outbox";
 import { ANALYTICS_START_DATE } from "@/lib/config";
 import { buildDemoDataset } from "@/lib/demoData";
 import { useAuth } from "@/lib/supabase/AuthContext";
 
 export type DataStatus = "loading" | "empty" | "ready" | "error";
+
+/** How many local mutations are waiting to reach Supabase (`pending`) or
+ * have permanently failed and won't be retried (`deadLetter`) — sourced
+ * from the outbox (see lib/supabase/outbox.ts). Not a general error/status
+ * system, just enough to make sync failures visible instead of silent. */
+export interface SyncState {
+  pending: number;
+  deadLetter: number;
+}
 
 interface DataContextValue {
   status: DataStatus;
@@ -21,6 +31,7 @@ interface DataContextValue {
    * local data logged yet, never once signed in or once something's logged. */
   isDemoData: boolean;
   error: string | null;
+  syncState: SyncState;
   refresh: () => Promise<void>;
   clearData: () => Promise<void>;
 }
@@ -35,6 +46,19 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [stoolLogs, setStoolLogs] = useState<RawStoolLog[]>([]);
   const [isDemoData, setIsDemoData] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [syncState, setSyncState] = useState<SyncState>({ pending: 0, deadLetter: 0 });
+
+  const refreshSyncState = useCallback(async () => {
+    setSyncState(await getOutboxSyncState());
+  }, []);
+
+  /** Triggers a drain then refreshes the pending/dead-letter counts. Safe
+   * to call from multiple triggers (below) — drainOutbox itself already
+   * guards against running twice concurrently in this tab. */
+  const runDrain = useCallback(async () => {
+    await drainOutbox();
+    await refreshSyncState();
+  }, [refreshSyncState]);
 
   const refresh = useCallback(async () => {
     // Wait for the session check to resolve before deciding what to show —
@@ -100,9 +124,13 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const syncFromCloud = useCallback(async () => {
     // Silently a no-op while signed out — every call site can fire this
     // unconditionally and it just does nothing until there's a session.
+    // pullFromCloud() already attempts a best-effort outbox drain of its
+    // own before its destructive clear (see sync.ts) — this just refreshes
+    // the counts shown in the UI afterward.
     await pullFromCloud();
     await refresh();
-  }, [refresh]);
+    await refreshSyncState();
+  }, [refresh, refreshSyncState]);
 
   useEffect(() => {
     // Loading from IndexedDB on mount — an external-system read, not a
@@ -148,9 +176,40 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     return () => document.removeEventListener("visibilitychange", handleVisibility);
   }, [session, syncFromCloud]);
 
+  // Drain the outbox the moment connectivity returns — the fastest of the
+  // triggers, since `online` fires immediately on reconnect rather than
+  // waiting for the next tab-focus or the periodic timer below.
+  useEffect(() => {
+    if (!session) return;
+    function handleOnline() {
+      void runDrain();
+    }
+    window.addEventListener("online", handleOnline);
+    return () => window.removeEventListener("online", handleOnline);
+  }, [session, runDrain]);
+
+  // A modest periodic fallback so a tab left open (visible, online, never
+  // backgrounded) still retries a backed-off entry eventually, without
+  // waiting on the user to trigger one of the other paths.
+  useEffect(() => {
+    if (!session) return;
+    const intervalId = window.setInterval(() => void runDrain(), 5 * 60_000);
+    return () => window.clearInterval(intervalId);
+  }, [session, runDrain]);
+
+  // Once at startup too, independent of sign-in state changing — e.g. a
+  // page reload while already signed in with something left in the
+  // outbox from a previous session.
+  useEffect(() => {
+    // Reading from IndexedDB on mount — an external-system read, not a
+    // React-state sync loop, same as the refresh() mount effect above.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void refreshSyncState();
+  }, [refreshSyncState]);
+
   const value = useMemo(
-    () => ({ status, events, gymLogs, stoolLogs, isDemoData, error, refresh, clearData }),
-    [status, events, gymLogs, stoolLogs, isDemoData, error, refresh, clearData],
+    () => ({ status, events, gymLogs, stoolLogs, isDemoData, error, syncState, refresh, clearData }),
+    [status, events, gymLogs, stoolLogs, isDemoData, error, syncState, refresh, clearData],
   );
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;

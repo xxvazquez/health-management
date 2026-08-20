@@ -9,8 +9,7 @@ import { DateRangeFilter } from "@/components/ui/DateRangeFilter";
 import { TrendAreaChart } from "@/components/charts/TrendAreaChart";
 import { RankedBarChart } from "@/components/charts/RankedBarChart";
 import { useDateRangeFilter } from "@/lib/useDateRangeFilter";
-import { putGymLog, deleteGymLogById } from "@/lib/db/indexedDb";
-import { pushGymLog, deleteGymLog } from "@/lib/supabase/sync";
+import { putGymLogAndSync, deleteGymLogAndSync } from "@/lib/supabase/sync";
 import {
   describeProgression,
   gymConsistencySummary,
@@ -392,19 +391,17 @@ export default function WorkoutPage() {
     if (!Number.isFinite(weightKg) || weightKg <= 0) return;
     setSubmitting(true);
     const log: RawGymLog = { id: crypto.randomUUID(), date, exercise, weightKg, updatedAt: Date.now() };
-    await putGymLog(log);
+    await putGymLogAndSync(log);
     await refresh();
     setSubmitting(false);
     setWeight("");
-    void pushGymLog(log);
   }
 
   async function handleDelete(id: string) {
     setPendingId(id);
-    await deleteGymLogById(id);
+    await deleteGymLogAndSync(id);
     await refresh();
     setPendingId(null);
-    void deleteGymLog(id);
   }
 
   async function handleSaveEdit(entry: GymTimelineEntry) {
@@ -413,11 +410,10 @@ export default function WorkoutPage() {
     if (!Number.isFinite(weightKg) || weightKg <= 0 || !editing.date) return;
     setPendingId(entry.id);
     const updated: RawGymLog = { id: entry.id, exercise: entry.exercise, date: editing.date, weightKg, updatedAt: Date.now() };
-    await putGymLog(updated);
+    await putGymLogAndSync(updated);
     await refresh();
     setPendingId(null);
     setEditing(null);
-    void pushGymLog(updated);
   }
 
   return (

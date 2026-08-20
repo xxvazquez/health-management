@@ -6,6 +6,7 @@ import { DataProvider } from "@/lib/DataContext";
 import { AuthProvider } from "@/lib/supabase/AuthContext";
 import { Nav } from "@/components/Nav";
 import { AuthBanner } from "@/components/auth/AuthBanner";
+import { SyncStatusBanner } from "@/components/SyncStatusBanner";
 import { RegisterServiceWorker } from "@/components/RegisterServiceWorker";
 
 const bodyFont = Inter({
@@ -47,6 +48,7 @@ export default function RootLayout({
             <Nav />
             <main className="flex min-w-0 flex-1 flex-col">
               <AuthBanner />
+              <SyncStatusBanner />
               <div className="px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
                 <div className="mx-auto w-full max-w-4xl">{children}</div>
               </div>

@@ -4,7 +4,9 @@ A personal food, symptom, supplement, habit, and workout tracker, with a dashboa
 
 ## How it works
 
-Static Next.js site — no server, everything runs in the browser. Supabase is the only source of truth; IndexedDB is just a synced local cache, repopulated from Supabase on sign-in and revalidated whenever a page loads or the tab regains focus — no page fetches its own copy or needs a manual refresh to stay current.
+Static Next.js site — no server, everything runs in the browser. Supabase is the only source of truth; IndexedDB is a synced local cache, repopulated from Supabase on sign-in and revalidated whenever a page loads or the tab regains focus — no page fetches its own copy or needs a manual refresh to stay current.
+
+Every tap writes to IndexedDB first, so the UI never waits on the network, and queues itself in a small outbox alongside the write. A background drain sends queued writes to Supabase with retry and backoff, runs on reconnect and periodically, and survives closing the tab or losing connection entirely — nothing typed offline gets lost, it just sends once you're back. A write that fails permanently (not a network blip, an actual rejection) stops retrying and shows up as a small banner instead of failing silently. That same drain also runs right before a cloud sync wipes and rebuilds the local cache, and the two are coordinated through one lock so a sync can never run in the middle of a write or erase one that hasn't made it to Supabase yet.
 
 It's also an installable PWA — `public/manifest.webmanifest` and a small service worker (`public/sw.js`, registered from `src/components/RegisterServiceWorker.tsx`) let a browser add it to the home screen and reload the app shell without a network connection. That's on top of, not instead of, the IndexedDB caching above: the service worker caches the shell (HTML/JS/CSS), IndexedDB caches the data.
 
@@ -14,7 +16,7 @@ Logging is tap-to-log — pick a category, tap the item, done, no forms. Food su
 
 Adding, renaming, or archiving an item — and adding/removing the categories themselves — never means opening Supabase by hand. The Manage page (`src/app/manage/`) does all of it, backed by a table per type (`food_items`, `supplement_items`, `habit_items`, `symptom_items`) plus a shared `categories` table, and synced the same way as everything else. Sections are collapsed by default, alphabetized, and searchable across all four types at once. Archiving hides an item from the Log page's tap grid and its own section's active list; its full logged history still counts in every dashboard. Category lists work identically for all four types, Food included: a type with no categories yet in `categories` gets seeded from the built-in defaults in `src/taxonomy/categories.ts` the first time it's touched, and from then on the database is the only source of truth — those defaults are never reintroduced or merged back in, so removing one sticks. Deliberately the only place to hide something — the Log page just links to it rather than growing a second, competing hide mechanism.
 
-The full shape, one table per tracked type plus the two that don't fit it (Stool has no item to classify, one row is one bowel movement; Workout has no item either, one row is one lift):
+The full shape, one table per tracked type plus the ones that don't fit it (Stool has no item to classify, one row is one bowel movement; Workout has no item either, one row is one lift; a push subscription is one row per user, not per anything trackable):
 
 ```mermaid
 erDiagram
@@ -119,21 +121,28 @@ erDiagram
         uuid id PK
         uuid user_id
         date date
-        smallint bristol_score
+        smallint_array bristol_scores
+        text floatation
         text color
         text paper_cleanliness
         smallint time_on_toilet_minutes
     }
     GYM_LOGS {
+        uuid user_id PK
         uuid id PK
-        uuid user_id
         date date
         text exercise
         numeric weight_kg
     }
+    PUSH_SUBSCRIPTIONS {
+        uuid user_id PK
+        text endpoint
+        text timezone
+        date last_reminded_date
+    }
 ```
 
-`STOOL_LOGS` and `GYM_LOGS` have no relationships drawn — deliberately: neither has an item to classify, so neither references `CATEGORIES` or anything else. Every relationship above is a composite foreign key, not a plain one — `(user_id, category_id, item_type)` means a supplement item structurally can't reference a habit category, and `(user_id, item_id)` means no row can ever reference another user's data, regardless of RLS. Every item is `on delete restrict` — one with any history can be archived but never deleted, so a log can't outlive the thing it's about. See [`supabase/schema.sql`](supabase/schema.sql) for the actual DDL.
+`STOOL_LOGS`, `GYM_LOGS`, and `PUSH_SUBSCRIPTIONS` have no relationships drawn — deliberately: none of them has an item to classify, so none references `CATEGORIES` or anything else. Every relationship above is a composite foreign key, not a plain one — `(user_id, category_id, item_type)` means a supplement item structurally can't reference a habit category, and `(user_id, item_id)` means no row can ever reference another user's data, regardless of RLS. Every item is `on delete restrict` — one with any history can be archived but never deleted, so a log can't outlive the thing it's about. See [`supabase/schema.sql`](supabase/schema.sql) for the actual DDL.
 
 Workout doesn't fit that shape — a lift is an exercise + a weight, with no separate "item" to classify — so it has its own table (`gym_logs`) and its own aggregation module (`src/lib/aggregations/gym.ts`), and it's the one page with an actual entry form instead of tap-to-log chips.
 
@@ -143,6 +152,8 @@ Digestion and Workout are built around one question each rather than a wall of c
 
 ## Running it locally
 
+Needs Node 24 (see `.nvmrc`).
+
 ```bash
 npm install
 npm run dev
@@ -150,7 +161,7 @@ npm run dev
 
 Logging works fully offline out of the box — everything's cached in the browser (IndexedDB). To sync across devices, set up a free Supabase project, run [`supabase/schema.sql`](supabase/schema.sql) in its SQL editor to create the tables and row-level security policies, copy `.env.local.example` to `.env.local`, fill in the URL and anon key, then sign in from the account menu in the nav.
 
-`npm run lint`, `npm run typecheck`, and `npm run build` are what `.github/workflows/check.yml` runs on every push and PR — worth running locally before pushing so CI isn't the first place a type error or lint failure shows up.
+`npm run lint`, `npm run typecheck`, `npm run test`, and `npm run build` are what `.github/workflows/check.yml` runs on every push and PR — worth running locally before pushing so CI isn't the first place a type error, lint failure, or broken test shows up. A separate `rls` job in that same workflow applies the schema to a throwaway Postgres container and runs [`supabase/tests/rls.test.sql`](supabase/tests/rls.test.sql) against it — a security test suite checking that row-level security actually stops one user from reading, writing, or referencing another's data, for every table.
 
 ## Going live
 
@@ -158,7 +169,7 @@ Push to `main` and `.github/workflows/deploy.yml` builds the site and publishes 
 
 The "Report a bug" button in the nav emails a report through a Supabase Edge Function (`supabase/functions/report-bug`) rather than a Next.js API route, since the site itself is static with no server. `.github/workflows/deploy-functions.yml` deploys every function under `supabase/functions/` and syncs their secrets whenever that folder changes, using `SUPABASE_ACCESS_TOKEN` and `SUPABASE_PROJECT_REF` to authenticate the Supabase CLI, plus whatever secrets each function needs (see below). Those secrets stay server-side — they're pushed into Supabase's own Edge Function secret store, never into the site build, so the client never sees them.
 
-The breakfast reminder (a toggle on the Log page) works the same way, for the same reason: nothing can run in the background on a static site, so `supabase/functions/breakfast-reminder-cron` does the actual work, and Supabase's `pg_cron` + `pg_net` extensions call it every 15 minutes (setup SQL is in `supabase/schema.sql`, right after the table definitions — a self-hoster runs it once, filling in their own project ref and anon key). For each signed-in user with the reminder on, it checks whether their local time just entered the reminder window (10:30–10:45, so a bit before the 11:00 cutoff) and whether they've already logged breakfast that day, and sends a Web Push notification through the browser's own push service if not — which is also why it can show up even when Lauva isn't open. Enabling it stores the browser's push subscription plus IANA timezone in a new `push_subscriptions` table (one row per user; enabling on a second device just overwrites it — good enough for a personal tracker, not meant to fan out to a whole household). `RESEND_API_KEY` and `BUG_EMAIL` are for the bug-report function, not this one — the reminder needs its own two secrets: `NEXT_PUBLIC_VAPID_PUBLIC_KEY` (build-time, public by design — it's the *public* half of a [Web Push](https://developer.mozilla.org/en-US/docs/Web/API/Push_API) VAPID keypair) and `VAPID_PRIVATE_KEY` (Supabase secret only, never built into the site). Generate a keypair with `npx web-push generate-vapid-keys`.
+The breakfast reminder (a toggle on the Log page) works the same way, for the same reason: nothing can run in the background on a static site, so `supabase/functions/breakfast-reminder-cron` does the actual work, and Supabase's `pg_cron` + `pg_net` extensions call it every 15 minutes (setup SQL is in `supabase/schema.sql`, right after the table definitions — a self-hoster runs it once, filling in their own project ref and anon key). For each signed-in user with the reminder on, it checks whether their local time just entered the reminder window (10:30–10:45, so a bit before the 11:00 cutoff) and whether they've already logged breakfast that day, and sends a Web Push notification through the browser's own push service if not — which is also why it can show up even when Lauva isn't open. Enabling it stores the browser's push subscription plus IANA timezone in `push_subscriptions` (one row per user; enabling on a second device just overwrites it — good enough for a personal tracker, not meant to fan out to a whole household). `RESEND_API_KEY` and `BUG_EMAIL` are for the bug-report function, not this one — the reminder needs its own two secrets: `NEXT_PUBLIC_VAPID_PUBLIC_KEY` (build-time, public by design — it's the *public* half of a [Web Push](https://developer.mozilla.org/en-US/docs/Web/API/Push_API) VAPID keypair) and `VAPID_PRIVATE_KEY` (Supabase secret only, never built into the site). Generate a keypair with `npx web-push generate-vapid-keys`.
 
 ## Look & feel
 
