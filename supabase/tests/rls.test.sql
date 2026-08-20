@@ -99,9 +99,13 @@ select public.test_assert(
 -- categories
 -- ============================================================================
 
+-- user_id is passed explicitly on every "own row" insert below, matching
+-- how the app itself always writes (see src/lib/supabase/sync.ts's *AndSync
+-- functions) — never relying on the column's `default auth.uid()` to fill
+-- it in.
 select public.test_switch_user('11111111-1111-1111-1111-111111111111');
-insert into public.categories (id, item_type, name) values ('a0000000-0000-0000-0000-00000000000a', 'food', 'A''s Category');
-insert into public.categories (id, item_type, name) values ('c0000000-0000-0000-0000-00000000000c', 'food', 'A''s Second Category');
+insert into public.categories (id, user_id, item_type, name) values ('a0000000-0000-0000-0000-00000000000a', '11111111-1111-1111-1111-111111111111', 'food', 'A''s Category');
+insert into public.categories (id, user_id, item_type, name) values ('c0000000-0000-0000-0000-00000000000c', '11111111-1111-1111-1111-111111111111', 'food', 'A''s Second Category');
 
 select public.test_switch_user('22222222-2222-2222-2222-222222222222');
 select public.test_assert(
@@ -139,19 +143,19 @@ select public.test_assert_raises(
 -- each type below, used for the item_type-mismatch check.
 
 select public.test_switch_user('11111111-1111-1111-1111-111111111111');
-insert into public.food_items (id, name, category_id) values ('f0000000-0000-0000-0000-00000000000f', 'A''s Apple', 'a0000000-0000-0000-0000-00000000000a');
-insert into public.categories (id, item_type, name) values ('10000000-0000-0000-0000-000000000001', 'supplement', 'A''s Supp Category');
-insert into public.supplement_items (id, name, category_id) values ('20000000-0000-0000-0000-000000000002', 'A''s Vitamin D', '10000000-0000-0000-0000-000000000001');
-insert into public.categories (id, item_type, name) values ('30000000-0000-0000-0000-000000000003', 'habit', 'A''s Habit Category');
-insert into public.habit_items (id, name, category_id) values ('40000000-0000-0000-0000-000000000004', 'A''s Walk', '30000000-0000-0000-0000-000000000003');
-insert into public.categories (id, item_type, name) values ('50000000-0000-0000-0000-000000000005', 'symptom', 'A''s Symptom Category');
-insert into public.symptom_items (id, name, category_id) values ('60000000-0000-0000-0000-000000000006', 'A''s Headache', '50000000-0000-0000-0000-000000000005');
+insert into public.food_items (id, user_id, name, category_id) values ('f0000000-0000-0000-0000-00000000000f', '11111111-1111-1111-1111-111111111111', 'A''s Apple', 'a0000000-0000-0000-0000-00000000000a');
+insert into public.categories (id, user_id, item_type, name) values ('10000000-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111111', 'supplement', 'A''s Supp Category');
+insert into public.supplement_items (id, user_id, name, category_id) values ('20000000-0000-0000-0000-000000000002', '11111111-1111-1111-1111-111111111111', 'A''s Vitamin D', '10000000-0000-0000-0000-000000000001');
+insert into public.categories (id, user_id, item_type, name) values ('30000000-0000-0000-0000-000000000003', '11111111-1111-1111-1111-111111111111', 'habit', 'A''s Habit Category');
+insert into public.habit_items (id, user_id, name, category_id) values ('40000000-0000-0000-0000-000000000004', '11111111-1111-1111-1111-111111111111', 'A''s Walk', '30000000-0000-0000-0000-000000000003');
+insert into public.categories (id, user_id, item_type, name) values ('50000000-0000-0000-0000-000000000005', '11111111-1111-1111-1111-111111111111', 'symptom', 'A''s Symptom Category');
+insert into public.symptom_items (id, user_id, name, category_id) values ('60000000-0000-0000-0000-000000000006', '11111111-1111-1111-1111-111111111111', 'A''s Headache', '50000000-0000-0000-0000-000000000005');
 
 select public.test_switch_user('22222222-2222-2222-2222-222222222222');
-insert into public.categories (id, item_type, name) values ('e0000000-0000-0000-0000-00000000000e', 'food', 'B''s Food Category');
-insert into public.categories (id, item_type, name) values ('70000000-0000-0000-0000-000000000007', 'supplement', 'B''s Supp Category');
-insert into public.categories (id, item_type, name) values ('80000000-0000-0000-0000-000000000008', 'habit', 'B''s Habit Category');
-insert into public.categories (id, item_type, name) values ('90000000-0000-0000-0000-000000000009', 'symptom', 'B''s Symptom Category');
+insert into public.categories (id, user_id, item_type, name) values ('e0000000-0000-0000-0000-00000000000e', '22222222-2222-2222-2222-222222222222', 'food', 'B''s Food Category');
+insert into public.categories (id, user_id, item_type, name) values ('70000000-0000-0000-0000-000000000007', '22222222-2222-2222-2222-222222222222', 'supplement', 'B''s Supp Category');
+insert into public.categories (id, user_id, item_type, name) values ('80000000-0000-0000-0000-000000000008', '22222222-2222-2222-2222-222222222222', 'habit', 'B''s Habit Category');
+insert into public.categories (id, user_id, item_type, name) values ('90000000-0000-0000-0000-000000000009', '22222222-2222-2222-2222-222222222222', 'symptom', 'B''s Symptom Category');
 
 select public.test_assert(
   (select count(*) from public.food_items where id = 'f0000000-0000-0000-0000-00000000000f') = 0,
@@ -188,14 +192,19 @@ select public.test_switch_user('22222222-2222-2222-2222-222222222222');
 -- Cross-user composite FK: user B, inserting as themself, points a new
 -- item at user A's category id. There's no (B, A''s-category-id, 'food')
 -- row in categories, so this must fail as a foreign key violation.
+-- user_id is explicit here too (B's own id, correctly passing RLS) so each
+-- of these fails for exactly the reason claimed — a composite FK violation
+-- — rather than accidentally getting masked by an unrelated RLS rejection
+-- (test_assert_raises accepts either as "correctly rejected", which would
+-- silently hide the FK check not being exercised at all).
 select public.test_assert_raises(
-  $sql$insert into public.food_items (id, name, category_id)
-       values ('11100000-0000-0000-0000-000000000111', 'Cross-user category', 'a0000000-0000-0000-0000-00000000000a')$sql$,
+  $sql$insert into public.food_items (id, user_id, name, category_id)
+       values ('11100000-0000-0000-0000-000000000111', '22222222-2222-2222-2222-222222222222', 'Cross-user category', 'a0000000-0000-0000-0000-00000000000a')$sql$,
   'food_items: a category_id belonging to another user is rejected by the composite FK'
 );
 select public.test_assert_raises(
-  $sql$insert into public.supplement_items (id, name, category_id)
-       values ('22200000-0000-0000-0000-000000000222', 'Cross-user category', '10000000-0000-0000-0000-000000000001')$sql$,
+  $sql$insert into public.supplement_items (id, user_id, name, category_id)
+       values ('22200000-0000-0000-0000-000000000222', '22222222-2222-2222-2222-222222222222', 'Cross-user category', '10000000-0000-0000-0000-000000000001')$sql$,
   'supplement_items: a category_id belonging to another user is rejected by the composite FK'
 );
 
@@ -204,8 +213,8 @@ select public.test_assert_raises(
 -- specifically so a supplement item structurally can't reference a habit
 -- category, independent of RLS.
 select public.test_assert_raises(
-  $sql$insert into public.food_items (id, name, category_id)
-       values ('33300000-0000-0000-0000-000000000333', 'Wrong type', '80000000-0000-0000-0000-000000000008')$sql$,
+  $sql$insert into public.food_items (id, user_id, name, category_id)
+       values ('33300000-0000-0000-0000-000000000333', '22222222-2222-2222-2222-222222222222', 'Wrong type', '80000000-0000-0000-0000-000000000008')$sql$,
   'food_items: a same-user category of the wrong item_type (habit, not food) is rejected'
 );
 
@@ -215,11 +224,11 @@ select public.test_assert_raises(
 -- Same shape, one composite FK into the matching items table each.
 
 select public.test_switch_user('11111111-1111-1111-1111-111111111111');
-insert into public.food_logs (id, item_id, date, value) values ('l1000000-0000-0000-0000-000000000001', 'f0000000-0000-0000-0000-00000000000f', '2026-01-01', 1);
-insert into public.supplement_logs (id, item_id, date, value) values ('l2000000-0000-0000-0000-000000000002', '20000000-0000-0000-0000-000000000002', '2026-01-01', 1);
-insert into public.habit_logs (id, item_id, date, value) values ('l3000000-0000-0000-0000-000000000003', '40000000-0000-0000-0000-000000000004', '2026-01-01', 1);
-insert into public.symptom_logs (id, item_id, date, value) values ('l4000000-0000-0000-0000-000000000004', '60000000-0000-0000-0000-000000000006', '2026-01-01', 1);
-insert into public.food_items (id, name, category_id) values ('aa000000-0000-0000-0000-0000000000aa', 'A''s second item', 'a0000000-0000-0000-0000-00000000000a');
+insert into public.food_logs (id, user_id, item_id, date, value) values ('l1000000-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111111', 'f0000000-0000-0000-0000-00000000000f', '2026-01-01', 1);
+insert into public.supplement_logs (id, user_id, item_id, date, value) values ('l2000000-0000-0000-0000-000000000002', '11111111-1111-1111-1111-111111111111', '20000000-0000-0000-0000-000000000002', '2026-01-01', 1);
+insert into public.habit_logs (id, user_id, item_id, date, value) values ('l3000000-0000-0000-0000-000000000003', '11111111-1111-1111-1111-111111111111', '40000000-0000-0000-0000-000000000004', '2026-01-01', 1);
+insert into public.symptom_logs (id, user_id, item_id, date, value) values ('l4000000-0000-0000-0000-000000000004', '11111111-1111-1111-1111-111111111111', '60000000-0000-0000-0000-000000000006', '2026-01-01', 1);
+insert into public.food_items (id, user_id, name, category_id) values ('aa000000-0000-0000-0000-0000000000aa', '11111111-1111-1111-1111-111111111111', 'A''s second item', 'a0000000-0000-0000-0000-00000000000a');
 
 select public.test_switch_user('22222222-2222-2222-2222-222222222222');
 select public.test_assert(
@@ -257,8 +266,8 @@ select public.test_assert_raises(
 -- itself) must fail — there's no (B, A''s-item-id) row in food_items.
 select public.test_switch_user('22222222-2222-2222-2222-222222222222');
 select public.test_assert_raises(
-  $sql$insert into public.food_logs (id, item_id, date, value)
-       values ('bb000000-0000-0000-0000-0000000000bb', 'f0000000-0000-0000-0000-00000000000f', '2026-01-01', 1)$sql$,
+  $sql$insert into public.food_logs (id, user_id, item_id, date, value)
+       values ('bb000000-0000-0000-0000-0000000000bb', '22222222-2222-2222-2222-222222222222', 'f0000000-0000-0000-0000-00000000000f', '2026-01-01', 1)$sql$,
   'food_logs: an item_id belonging to another user is rejected by the composite FK'
 );
 select public.test_assert_raises(
@@ -272,7 +281,7 @@ select public.test_assert_raises(
 -- ============================================================================
 
 select public.test_switch_user('11111111-1111-1111-1111-111111111111');
-insert into public.food_diary (id, item_id, date, content) values ('dd000000-0000-0000-0000-0000000000dd', 'f0000000-0000-0000-0000-00000000000f', '2026-01-01', 'A''s private note');
+insert into public.food_diary (id, user_id, item_id, date, content) values ('dd000000-0000-0000-0000-0000000000dd', '11111111-1111-1111-1111-111111111111', 'f0000000-0000-0000-0000-00000000000f', '2026-01-01', 'A''s private note');
 
 select public.test_switch_user('22222222-2222-2222-2222-222222222222');
 select public.test_assert(
@@ -280,8 +289,8 @@ select public.test_assert(
   'food_diary: user B cannot SELECT user A''s diary entry'
 );
 select public.test_assert_raises(
-  $sql$insert into public.food_diary (id, item_id, date, content)
-       values ('ee000000-0000-0000-0000-0000000000ee', 'f0000000-0000-0000-0000-00000000000f', '2026-01-01', 'peeking')$sql$,
+  $sql$insert into public.food_diary (id, user_id, item_id, date, content)
+       values ('ee000000-0000-0000-0000-0000000000ee', '22222222-2222-2222-2222-222222222222', 'f0000000-0000-0000-0000-00000000000f', '2026-01-01', 'peeking')$sql$,
   'food_diary: an item_id belonging to another user is rejected by the composite FK'
 );
 
@@ -290,7 +299,7 @@ select public.test_assert_raises(
 -- ============================================================================
 
 select public.test_switch_user('11111111-1111-1111-1111-111111111111');
-insert into public.stool_logs (id, date, bristol_scores) values ('55500000-0000-0000-0000-000000000555', '2026-01-01', array[4]::smallint[]);
+insert into public.stool_logs (id, user_id, date, bristol_scores) values ('55500000-0000-0000-0000-000000000555', '11111111-1111-1111-1111-111111111111', '2026-01-01', array[4]::smallint[]);
 
 select public.test_switch_user('22222222-2222-2222-2222-222222222222');
 select public.test_assert(
@@ -308,7 +317,7 @@ select public.test_assert_raises(
 -- ============================================================================
 
 select public.test_switch_user('11111111-1111-1111-1111-111111111111');
-insert into public.gym_logs (id, date, exercise, weight_kg) values ('77700000-0000-0000-0000-000000000777', '2026-01-01', 'Squat', 60);
+insert into public.gym_logs (id, user_id, date, exercise, weight_kg) values ('77700000-0000-0000-0000-000000000777', '11111111-1111-1111-1111-111111111111', '2026-01-01', 'Squat', 60);
 
 select public.test_switch_user('22222222-2222-2222-2222-222222222222');
 select public.test_assert(

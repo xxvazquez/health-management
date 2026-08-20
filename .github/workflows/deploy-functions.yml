@@ -7,6 +7,13 @@ on:
       - "supabase/functions/**"
   workflow_dispatch: {}
 
+# Changing a secret's value in GitHub does NOT re-run this workflow —
+# there's no such trigger event. If you add/rotate BUG_EMAIL,
+# RESEND_API_KEY, or any of the VAPID secrets without also touching a file
+# under supabase/functions/, the live Edge Functions keep running with
+# whatever they last had (or nothing, if this has never run) until you
+# manually run this workflow from the Actions tab.
+
 jobs:
   deploy:
     runs-on: ubuntu-latest

@@ -199,7 +199,7 @@ function TimelineNote({
 
   if (hidden) {
     return note ? (
-      <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
+      <p className="line-clamp-2 w-full text-xs" style={{ color: "var(--text-secondary)" }}>
         {note}
       </p>
     ) : null;
@@ -213,14 +213,14 @@ function TimelineNote({
           setEditing(false);
           onSave(text);
         }}
-        className="flex items-center gap-1"
+        className="flex w-full flex-col items-start gap-1"
       >
         <input
           value={text}
           onChange={(e) => setText(e.target.value)}
           autoFocus
           placeholder="Add a note…"
-          className="w-32 rounded-md border px-1.5 py-0.5 text-xs outline-none"
+          className="w-full min-w-0 rounded-md border px-1.5 py-0.5 text-xs outline-none"
           style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
         />
         <button type="submit" className="text-xs font-medium" style={{ color: "var(--status-good)" }}>
@@ -235,7 +235,7 @@ function TimelineNote({
       type="button"
       onClick={() => setEditing(true)}
       disabled={busy}
-      className="text-left text-xs disabled:opacity-40"
+      className="line-clamp-2 w-full text-left text-xs disabled:opacity-40"
       style={{ color: "var(--text-secondary)" }}
     >
       {note}
@@ -245,7 +245,7 @@ function TimelineNote({
       type="button"
       onClick={() => setEditing(true)}
       disabled={busy}
-      className="self-start text-xs underline decoration-dotted disabled:opacity-40"
+      className="self-start text-xs whitespace-nowrap underline decoration-dotted disabled:opacity-40"
       style={{ color: "var(--text-muted)" }}
     >
       + note
@@ -272,6 +272,13 @@ export default function LogPage() {
   const [duplicateConflict, setDuplicateConflict] = useState<RawItem | null>(null);
   const [picksOpen, setPicksOpen] = useState(false);
   const [meal, setMeal] = useState<(typeof MEAL_OPTIONS)[number]>(defaultMealForTime);
+  // What time a tap logs something as — lets you log at 9pm something you
+  // actually did at 10am, same idea as Stool's own time field. Stays as
+  // set (doesn't reset after each tap) so logging several things at the
+  // same earlier time doesn't mean re-picking it every time; doesn't reset
+  // on date navigation either, since the time-of-day is independent of
+  // which day it's applied to.
+  const [logTime, setLogTime] = useState(() => toTimeInputValue(new Date().toISOString()));
   const [newItemText, setNewItemText] = useState("");
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [pending, setPending] = useState<string | null>(null);
@@ -484,10 +491,24 @@ export default function LogPage() {
     await refresh();
   }
 
+  /** Applies the currently-selected Time (see `logTime` state) to a
+   * just-created/updated log, so a tap actually gets timestamped as
+   * whatever time was picked rather than always "right now" — same idea
+   * as Stool's own time field, just applied after the fact since tap-to-
+   * log has no separate "commit" step to attach a time to up front. A
+   * no-op when there's nothing to correct (a decrement/removal, or the
+   * picked time already matches). */
+  async function applyLogTime(log: RawLog | null) {
+    if (!log) return;
+    const iso = combineDateAndTime(date, logTime);
+    if (log.updatedAt !== iso) await updateLogTimeAndSync(log.identity, iso);
+  }
+
   async function handleIncrement(candidate: LogCandidate) {
     if (isDemoData) return;
     setPending(candidate.key);
-    await incrementDailyLogAndSync(candidate.itemIdentity, candidate.itemType, date, tabConfig?.countable ? meal : null);
+    const log = await incrementDailyLogAndSync(candidate.itemIdentity, candidate.itemType, date, tabConfig?.countable ? meal : null);
+    await applyLogTime(log);
     await refreshAfterWrite();
     setPending(null);
   }
@@ -507,7 +528,8 @@ export default function LogPage() {
   async function handleToggle(candidate: LogCandidate) {
     if (isDemoData) return;
     setPending(candidate.key);
-    await toggleDailyLogAndSync(candidate.itemIdentity, candidate.itemType, date);
+    const { added } = await toggleDailyLogAndSync(candidate.itemIdentity, candidate.itemType, date);
+    await applyLogTime(added);
     await refreshAfterWrite();
     setPending(null);
   }
@@ -521,7 +543,8 @@ export default function LogPage() {
   async function handleSetDuration(candidate: LogCandidate, totalMinutes: number) {
     if (isDemoData) return;
     setPending(candidate.key);
-    await setDailyDurationAndSync(candidate.itemIdentity, candidate.itemType, date, totalMinutes);
+    const log = await setDailyDurationAndSync(candidate.itemIdentity, candidate.itemType, date, totalMinutes);
+    await applyLogTime(log);
     await refreshAfterWrite();
     setPending(null);
   }
@@ -630,9 +653,10 @@ export default function LogPage() {
     };
     await putItemAndSync(item);
     if (tabConfig.countable) {
-      await incrementDailyLogAndSync(item.identity, item.itemType, date, meal);
+      await applyLogTime(await incrementDailyLogAndSync(item.identity, item.itemType, date, meal));
     } else {
-      await toggleDailyLogAndSync(item.identity, item.itemType, date);
+      const { added } = await toggleDailyLogAndSync(item.identity, item.itemType, date);
+      await applyLogTime(added);
     }
     setNewItemText("");
     setNewItemCategory("");
@@ -677,7 +701,7 @@ export default function LogPage() {
       createdDate: date,
     };
     await putItemAndSync(item);
-    await incrementDailyLogAndSync(item.identity, "food", date, meal);
+    await applyLogTime(await incrementDailyLogAndSync(item.identity, "food", date, meal));
     await refreshAfterWrite();
     setPending(null);
   }
@@ -1027,26 +1051,42 @@ export default function LogPage() {
             </div>
           )}
 
-          {tabConfig?.countable && (
-            <div className="flex flex-wrap items-center gap-1.5">
-              {MEAL_OPTIONS.map((m) => {
-                const active = m === meal;
-                return (
-                  <button
-                    key={m}
-                    type="button"
-                    onClick={() => setMeal(m)}
-                    className="rounded-md px-2.5 py-1 text-xs whitespace-nowrap transition-colors"
-                    style={{
-                      background: active ? TYPE_ACCENT.food : "var(--page-plane)",
-                      color: active ? "#fff" : "var(--text-secondary)",
-                      fontWeight: active ? 700 : 500,
-                    }}
-                  >
-                    {m}
-                  </button>
-                );
-              })}
+          {tabConfig && (
+            <div className="flex flex-wrap items-center gap-3">
+              <label className="flex items-center gap-1.5" style={{ color: "var(--text-secondary)" }}>
+                <span className="text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
+                  Time
+                </span>
+                <input
+                  type="time"
+                  value={logTime}
+                  onChange={(e) => setLogTime(e.target.value)}
+                  className="rounded-md border px-2 py-1 text-xs font-medium tabular-nums outline-none"
+                  style={{ borderColor: "var(--border-hairline)", background: "var(--page-plane)", color: "var(--text-primary)" }}
+                />
+              </label>
+              {tabConfig?.countable && (
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {MEAL_OPTIONS.map((m) => {
+                    const active = m === meal;
+                    return (
+                      <button
+                        key={m}
+                        type="button"
+                        onClick={() => setMeal(m)}
+                        className="rounded-md border px-2.5 py-1 text-xs font-normal whitespace-nowrap transition-colors"
+                        style={{
+                          borderColor: active ? "var(--brand-wave)" : "var(--border-hairline)",
+                          background: active ? "color-mix(in oklab, var(--brand-wave) 16%, var(--surface-1))" : "transparent",
+                          color: active ? "var(--brand-wave)" : "var(--text-secondary)",
+                        }}
+                      >
+                        {m}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
 
@@ -1094,8 +1134,8 @@ export default function LogPage() {
                     <button
                       type="submit"
                       disabled={!newItemText.trim() || pending === "__new__"}
-                      className="rounded-md border px-3.5 py-1.5 text-sm font-medium whitespace-nowrap disabled:opacity-40"
-                      style={{ borderColor: "var(--border-hairline)", color: "var(--text-secondary)" }}
+                      className="rounded-md px-3.5 py-1.5 text-sm font-medium whitespace-nowrap text-white disabled:opacity-40"
+                      style={{ background: TYPE_ACCENT[tabConfig.type] }}
                     >
                       + Add &amp; log
                     </button>
@@ -1203,42 +1243,50 @@ export default function LogPage() {
             Timeline — {formatDateLabel(date, today).toLowerCase()}
           </h2>
           <div className="overflow-x-auto pb-2">
-            <div className="relative flex min-w-max items-start gap-4">
-              <div className="absolute top-[5px] right-0 left-0 h-px" style={{ background: "var(--border-hairline)" }} />
+            {/* Every card shares one fixed width and height, so time, name,
+             * action, selector, and note all land in the exact same slot
+             * from card to card — that's what makes this scannable rather
+             * than each entry just being however wide its own name needs.
+             * The connecting line sits behind the row at each card's own
+             * top edge: since every card now has a solid background, the
+             * line only actually shows in the gaps between cards, which is
+             * what keeps it a quiet "this is a sequence" cue instead of a
+             * dominant line cutting across every entry's content. */}
+            <div className="relative flex min-w-max items-start gap-3">
+              <div className="absolute top-3 right-0 left-0 h-px" style={{ background: "var(--border-hairline)" }} />
               {combinedTimeline.map((entry) => {
                 const busy = pending === entry.key;
                 const hasMealTag = entry.itemType === "food" && (entry.mealTag || !isDemoData);
                 const hasNote = entry.itemType !== "stool" && (!isDemoData || entry.note);
+                const accent = entry.itemType === "stool" ? STOOL_ACCENT : TYPE_ACCENT[entry.itemType];
                 return (
-                  <div key={entry.key} className="flex w-28 shrink-0 flex-col items-start gap-1" style={{ opacity: busy ? 0.5 : 1 }}>
+                  <div
+                    key={entry.key}
+                    className="relative flex h-40 w-32 shrink-0 flex-col gap-1 rounded-lg border p-2"
+                    style={{ opacity: busy ? 0.5 : 1, borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}
+                  >
                     <span
-                      className="relative z-10 h-2.5 w-2.5 shrink-0 rounded-full border-2"
-                      style={{ borderColor: entry.itemType === "stool" ? STOOL_ACCENT : TYPE_ACCENT[entry.itemType], background: "var(--surface-1)" }}
+                      className="absolute top-[10px] left-2 z-10 h-2.5 w-2.5 shrink-0 rounded-full border-2"
+                      style={{ borderColor: accent, background: "var(--surface-1)" }}
                     />
-                    {isDemoData ? (
-                      <span className="font-mono text-[11px] whitespace-nowrap" style={{ color: "var(--text-muted)" }}>
-                        {entry.time}
-                      </span>
-                    ) : (
-                      <input
-                        type="time"
-                        value={toTimeInputValue(entry.updatedAt)}
-                        disabled={busy}
-                        onChange={(e) => void handleChangeEntryTime(entry, e.target.value)}
-                        aria-label={`Change time for ${entry.item}`}
-                        className="w-[68px] rounded px-1 py-0.5 font-mono text-[11px] whitespace-nowrap outline-none disabled:opacity-40"
-                        style={{ background: "transparent", color: "var(--text-muted)", border: "none" }}
-                      />
-                    )}
-                    <div className="flex w-full items-start justify-between gap-1">
-                      <span className="min-w-0 text-xs font-semibold" style={{ color: "var(--text-primary)" }}>
-                        {entry.item}
-                        {INPUT_KIND[entry.item] === "duration" && entry.value != null && (
-                          <span className="ml-1 font-normal" style={{ color: "var(--text-secondary)" }}>
-                            {formatMinutes(entry.value)}
-                          </span>
-                        )}
-                      </span>
+                    {/* Top row, same position on every card: time on the
+                     * left (indented past the dot), delete at top-right. */}
+                    <div className="flex w-full items-start justify-between gap-1 pl-3">
+                      {isDemoData ? (
+                        <span className="font-mono text-[11px] whitespace-nowrap" style={{ color: "var(--text-muted)" }}>
+                          {entry.time}
+                        </span>
+                      ) : (
+                        <input
+                          type="time"
+                          value={toTimeInputValue(entry.updatedAt)}
+                          disabled={busy}
+                          onChange={(e) => void handleChangeEntryTime(entry, e.target.value)}
+                          aria-label={`Change time for ${entry.item}`}
+                          className="w-[68px] min-w-0 rounded px-1 py-0.5 font-mono text-[11px] whitespace-nowrap outline-none disabled:opacity-40"
+                          style={{ background: "transparent", color: "var(--text-muted)", border: "none" }}
+                        />
+                      )}
                       {!isDemoData && (
                         <button
                           type="button"
@@ -1252,42 +1300,62 @@ export default function LogPage() {
                         </button>
                       )}
                     </div>
+
+                    {/* Item name, directly below time — same position on
+                     * every card, capped at two lines so a long name can't
+                     * push the rest of the card's layout around. */}
+                    <span className="line-clamp-2 text-xs font-semibold" style={{ color: "var(--text-primary)" }}>
+                      {entry.item}
+                      {INPUT_KIND[entry.item] === "duration" && entry.value != null && (
+                        <span className="ml-1 font-normal" style={{ color: "var(--text-secondary)" }}>
+                          {formatMinutes(entry.value)}
+                        </span>
+                      )}
+                    </span>
+
+                    {/* Meal selector, directly below the name when it
+                     * applies — absent for anything that isn't food. */}
                     {hasMealTag &&
-                      (entry.itemType === "food" &&
-                        (isDemoData ? (
-                          entry.mealTag && (
-                            <span
-                              className="rounded px-1.5 py-0.5 text-[11px] font-medium whitespace-nowrap"
-                              style={{ background: "var(--page-plane)", color: "var(--text-secondary)" }}
-                            >
-                              {entry.mealTag}
-                            </span>
-                          )
-                        ) : (
-                          <select
-                            value={entry.mealTag ?? ""}
-                            disabled={busy}
-                            onChange={(e) => void handleChangeEntryMeal(entry, e.target.value)}
-                            className="rounded px-1.5 py-0.5 text-[11px] font-medium whitespace-nowrap outline-none disabled:opacity-40"
-                            style={{ background: "var(--page-plane)", color: "var(--text-secondary)", border: "none" }}
+                      (isDemoData ? (
+                        entry.mealTag && (
+                          <span
+                            className="self-start rounded px-1.5 py-0.5 text-[11px] font-medium whitespace-nowrap"
+                            style={{ background: "color-mix(in oklab, var(--brand-wave) 16%, var(--surface-1))", color: "var(--brand-wave)" }}
                           >
-                            <option value="" disabled>
-                              set meal
+                            {entry.mealTag}
+                          </span>
+                        )
+                      ) : (
+                        <select
+                          value={entry.mealTag ?? ""}
+                          disabled={busy}
+                          onChange={(e) => void handleChangeEntryMeal(entry, e.target.value)}
+                          className="w-full rounded px-1.5 py-0.5 text-[11px] font-medium whitespace-nowrap outline-none disabled:opacity-40"
+                          style={{ background: "color-mix(in oklab, var(--brand-wave) 16%, var(--surface-1))", color: "var(--brand-wave)", border: "none" }}
+                        >
+                          <option value="" disabled>
+                            set meal
+                          </option>
+                          {MEAL_OPTIONS.map((m) => (
+                            <option key={m} value={m}>
+                              {m}
                             </option>
-                            {MEAL_OPTIONS.map((m) => (
-                              <option key={m} value={m}>
-                                {m}
-                              </option>
-                            ))}
-                          </select>
-                        )))}
+                          ))}
+                        </select>
+                      ))}
+
+                    {/* Note, pinned to the bottom of every card via
+                     * mt-auto — same position whether or not a meal
+                     * selector rendered above it. */}
                     {hasNote && (
-                      <TimelineNote
-                        note={entry.note}
-                        busy={pending === `note:${entry.itemIdentity}`}
-                        hidden={isDemoData}
-                        onSave={(content) => void handleSaveNote(entry, content)}
-                      />
+                      <div className="mt-auto">
+                        <TimelineNote
+                          note={entry.note}
+                          busy={pending === `note:${entry.itemIdentity}`}
+                          hidden={isDemoData}
+                          onSave={(content) => void handleSaveNote(entry, content)}
+                        />
+                      </div>
                     )}
                   </div>
                 );
