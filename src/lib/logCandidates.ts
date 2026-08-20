@@ -53,6 +53,24 @@ export function loggedCountsForDate(logs: RawLog[], date: string, meal?: string 
   return counts;
 }
 
+export type ChipTapAction = "create" | "increment" | "decrement" | "toggle";
+
+/**
+ * Decides which action a tap on a Log-page chip should trigger. Pure
+ * decision logic, no side effects — separated from the page's actual
+ * handlers (which read/write IndexedDB and Supabase) so it's testable on
+ * its own. Mirrors handleChipTap's exact prior inline logic: a catalog-only
+ * chip (no real item yet) always creates first, regardless of the other
+ * two inputs; otherwise a countable type (Food) increments or decrements
+ * depending on whether it's already logged, and anything else is a plain
+ * toggle.
+ */
+export function decideChipTapAction(candidate: LogCandidate, loggedCount: number, countable: boolean): ChipTapAction {
+  if (candidate.itemIdentity === "") return "create";
+  if (countable) return loggedCount > 0 ? "decrement" : "increment";
+  return "toggle";
+}
+
 export interface TimelineEntry {
   key: string;
   item: string;

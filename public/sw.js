@@ -1,4 +1,14 @@
-const CACHE_NAME = "lauva-shell-v1";
+// __BUILD_ID__ is substituted with the deploy's git SHA by
+// .github/workflows/deploy.yml right before the build — this is what
+// actually differs between deploys and is what triggers the cleanup below.
+// The browser detects a new service worker by diffing this file's bytes,
+// and self.skipWaiting() + clients.claim() (below) make it take over
+// immediately; without this substitution the string here — and therefore
+// this whole file — never changes between deploys, so the browser never
+// notices a new version shipped, and every hashed /_next/static/ asset
+// this cache-first strategy stores just accumulates forever (the `activate`
+// cleanup below only ever runs when CACHE_NAME itself changes).
+const CACHE_NAME = "lauva-shell-__BUILD_ID__";
 
 self.addEventListener("install", (event) => {
   self.skipWaiting();

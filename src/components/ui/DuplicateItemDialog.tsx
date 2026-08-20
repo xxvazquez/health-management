@@ -1,5 +1,7 @@
 "use client";
 
+import { useDialogA11y } from "./useDialogA11y";
+
 /** Shown instead of silently creating a duplicate when adding an item
  * matches an existing one's name (case/whitespace-insensitive) — an active
  * match just can't be re-added under the same name, an archived one offers
@@ -19,8 +21,12 @@ export function DuplicateItemDialog({
   onUnarchive: () => void;
   onClose: () => void;
 }) {
+  // Always active while mounted — the parent conditionally renders this
+  // component at all, rather than passing it its own `open` prop.
+  const containerRef = useDialogA11y(true, onClose);
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
+    <div ref={containerRef} className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
       <div className="absolute inset-0 bg-black/30" onClick={onClose} />
       <div
         className="relative flex w-full max-w-sm flex-col gap-3 rounded-xl border p-5 shadow-xl"

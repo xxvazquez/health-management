@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useAuth } from "@/lib/supabase/AuthContext";
+import { useDialogA11y } from "@/components/ui/useDialogA11y";
 
 /** Derived from the email local-part — sign-in is email/password only, no
  * profile/name field exists to pull a real display name from. */
@@ -20,6 +21,7 @@ export function AccountPanel() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const containerRef = useDialogA11y(panelOpen, closePanel);
 
   if (!panelOpen) return null;
 
@@ -42,7 +44,7 @@ export function AccountPanel() {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
+    <div ref={containerRef} className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
       <div className="absolute inset-0 bg-black/30" onClick={closePanel} />
       <div
         className="relative flex w-full max-w-sm flex-col gap-4 rounded-xl border p-5 shadow-xl"
