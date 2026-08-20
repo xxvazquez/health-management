@@ -179,13 +179,15 @@ export function buildDemoDataset(): DemoDataset {
     if (chance(0.7)) {
       stoolCounter++;
       const noBristol = chance(0.08);
+      const bristolScores = noBristol ? [] : chance(0.12) ? [pick(BRISTOL_POOL), pick(BRISTOL_POOL)] : [pick(BRISTOL_POOL)];
       stoolLogs.push({
         id: `${DEMO_ID_PREFIX}stool:${stoolCounter}`,
         date,
         loggedAt: new Date(`${date}T09:00:00`).toISOString(),
-        bristolScore: noBristol ? null : pick(BRISTOL_POOL),
+        bristolScores,
         noBristol,
         color: noBristol ? null : "Brown",
+        floatation: !noBristol && chance(0.1) ? (chance(0.5) ? "Floats" : "Partially Floats") : null,
         isSticky: !noBristol && chance(0.1),
         isSmelly: !noBristol && chance(0.08),
         isStraining: !noBristol && chance(0.05),

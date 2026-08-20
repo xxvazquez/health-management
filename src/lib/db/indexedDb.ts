@@ -114,6 +114,18 @@ export async function updateLogMealTag(identity: string, mealTag: string | null)
   return updated;
 }
 
+/** Corrects when an entry actually happened — unlike `updateLogMealTag`,
+ * this deliberately rewrites `updatedAt` itself, since that field doubles
+ * as "the moment it was logged" everywhere the timeline reads it. */
+export async function updateLogTime(identity: string, updatedAt: string): Promise<RawLog | null> {
+  const db = await getDb();
+  const log = await db.get("logs", identity);
+  if (!log) return null;
+  const updated = { ...log, updatedAt };
+  await db.put("logs", updated);
+  return updated;
+}
+
 /**
  * Logs or unlogs an item for a given day, from the Log page. Treats
  * "logged today" as a single fact regardless of how many rows exist: if any
@@ -316,6 +328,18 @@ export async function putStoolLog(log: RawStoolLog): Promise<void> {
 export async function deleteStoolLogById(id: string): Promise<void> {
   const db = await getDb();
   await db.delete("stoolLogs", id);
+}
+
+/** Corrects when a bowel movement actually happened — same rationale as
+ * `updateLogTime`, `loggedAt` is the field the Stool tab and timeline both
+ * read for display and ordering. */
+export async function updateStoolLogTime(id: string, loggedAt: string): Promise<RawStoolLog | null> {
+  const db = await getDb();
+  const log = await db.get("stoolLogs", id);
+  if (!log) return null;
+  const updated = { ...log, loggedAt };
+  await db.put("stoolLogs", updated);
+  return updated;
 }
 
 export async function getAllGymLogs(): Promise<RawGymLog[]> {

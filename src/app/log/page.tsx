@@ -23,6 +23,8 @@ import {
   setDiaryNote,
   toggleDailyLog,
   updateLogMealTag,
+  updateLogTime,
+  updateStoolLogTime,
 } from "@/lib/db/indexedDb";
 import {
   buildLogCandidates,
@@ -58,6 +60,30 @@ type LogTab = ItemType | "stool";
 const STOOL_ACCENT = "var(--series-chestnut)";
 
 const MEAL_OPTIONS = ["Breakfast", "Lunch", "Dinner", "Snack"] as const;
+
+/** Guesses which meal is being logged from the current time of day, so the
+ * selector starts on something plausible instead of always "Breakfast" —
+ * still just a starting point, never locked in. */
+function defaultMealForTime(now: Date = new Date()): (typeof MEAL_OPTIONS)[number] {
+  const minutes = now.getHours() * 60 + now.getMinutes();
+  if (minutes >= 6 * 60 && minutes < 12 * 60) return "Breakfast";
+  if (minutes >= 12 * 60 && minutes < 15 * 60) return "Lunch";
+  if (minutes >= 15 * 60 && minutes < 23 * 60 + 30) return "Dinner";
+  return "Snack";
+}
+
+/** Combines the currently-viewed day with a local "HH:MM" into a full ISO
+ * timestamp — the shape every log's `updatedAt`/`loggedAt` is stored as. */
+function combineDateAndTime(date: string, time: string): string {
+  const [y, m, d] = date.split("-").map(Number);
+  const [h, min] = time.split(":").map(Number);
+  return new Date(y, m - 1, d, h, min).toISOString();
+}
+
+function toTimeInputValue(iso: string): string {
+  const d = new Date(iso);
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
 
 function CategoryIconWrap({ children }: { children: ReactNode }) {
   return (
@@ -249,11 +275,11 @@ export default function LogPage() {
   const [newItemCategory, setNewItemCategory] = useState("");
   const [duplicateConflict, setDuplicateConflict] = useState<RawItem | null>(null);
   const [picksOpen, setPicksOpen] = useState(false);
-  const [meal, setMeal] = useState<(typeof MEAL_OPTIONS)[number]>("Breakfast");
+  const [meal, setMeal] = useState<(typeof MEAL_OPTIONS)[number]>(defaultMealForTime);
   const [newItemText, setNewItemText] = useState("");
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [pending, setPending] = useState<string | null>(null);
-  const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
+  const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set(["Meat"]));
 
   const loadSnapshot = useCallback(async () => {
     const [items, logs, diary, categories, stoolLogs] = await Promise.all([
@@ -374,7 +400,10 @@ export default function LogPage() {
       byCategory.set(c.category, list);
     }
     if (tab === "food") {
-      const known = new Set(tabCandidates.map((c) => normalizeName(c.item)));
+      // Every food item, active or archived — an archived item (including
+      // one archived straight from a catalog suggestion, never tapped
+      // before) must not have its name resurrected as a catalog chip.
+      const known = new Set(effective.items.filter((i) => i.itemType === "food").map((i) => normalizeName(i.rawName)));
       for (const [category, names] of Object.entries(POLAND_FOOD_CATALOG)) {
         for (const name of names) {
           const norm = normalizeName(name);
@@ -395,7 +424,7 @@ export default function LogPage() {
       .map((category) => ({ category, items: byCategory.get(category) ?? [] }))
       .filter((group) => group.items.length > 0)
       .sort((a, b) => a.category.localeCompare(b.category));
-  }, [tabCandidates, tab, tabConfig, categoryNamesForTab]);
+  }, [tabCandidates, tab, tabConfig, categoryNamesForTab, effective.items]);
 
   const loggedTodayCount = useMemo(
     () => candidates.filter((c) => (counts.get(c.key) ?? 0) > 0).length,
@@ -406,6 +435,25 @@ export default function LogPage() {
     () => dayTimelineEntries(effective.items, effective.logs, effective.diary, date),
     [effective, date],
   );
+
+  // Stool has no item/category of its own, but still belongs in the same
+  // day timeline as food/supplements/habits/symptoms — mapped into the
+  // same shape and merged in, sorted back together by the instant each one
+  // actually happened rather than kept as a second, separate list.
+  const combinedTimeline = useMemo(() => {
+    const stoolAsTimeline: TimelineEntry[] = stoolEntriesForDate.map((s) => ({
+      key: s.id,
+      item: s.bristolScores.length > 0 ? `Bristol ${s.bristolScores.join(", ")}` : "No Bristol",
+      itemType: "stool",
+      itemIdentity: s.id,
+      time: new Date(s.loggedAt).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }),
+      updatedAt: s.loggedAt,
+      mealTag: null,
+      value: null,
+      note: null,
+    }));
+    return [...dayTimeline, ...stoolAsTimeline].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  }, [dayTimeline, stoolEntriesForDate]);
 
   // Unfiltered canonical events (no archived-item or date-range filtering,
   // unlike the dashboards' DataContext) so "weeks since last eaten" stays
@@ -486,10 +534,19 @@ export default function LogPage() {
   }
 
   /** Undoes a specific mistaken tap from the day's timeline — deletes that
-   * exact entry, locally and (once synced) in Supabase too. */
+   * exact entry, locally and (once synced) in Supabase too. Stool entries
+   * share this same timeline but live in their own table, so this branches
+   * on `itemType` rather than assuming every entry is a `RawLog` row. */
   async function handleDeleteEntry(entry: TimelineEntry) {
     if (isDemoData) return;
     setPending(entry.key);
+    if (entry.itemType === "stool") {
+      await deleteStoolLogById(entry.key);
+      await refreshAfterWrite();
+      setPending(null);
+      void deleteStoolLog(entry.key);
+      return;
+    }
     await deleteLogById(entry.key);
     await refreshAfterWrite();
     setPending(null);
@@ -497,11 +554,31 @@ export default function LogPage() {
   }
 
   /** Corrects the meal tag on an already-logged entry, e.g. something typed
-   * as Lunch that was actually Dinner. */
+   * as Lunch that was actually Dinner. Food only — the timeline only ever
+   * offers this control for food entries. */
   async function handleChangeEntryMeal(entry: TimelineEntry, mealTag: string) {
-    if (isDemoData) return;
+    if (isDemoData || entry.itemType === "stool") return;
     setPending(entry.key);
     const updated = await updateLogMealTag(entry.key, mealTag);
+    await refreshAfterWrite();
+    setPending(null);
+    if (updated) void pushLog(updated);
+  }
+
+  /** Corrects when an entry actually happened — available everywhere in the
+   * timeline, food/supplement/habit/symptom and Stool alike. */
+  async function handleChangeEntryTime(entry: TimelineEntry, time: string) {
+    if (isDemoData) return;
+    const iso = combineDateAndTime(date, time);
+    setPending(entry.key);
+    if (entry.itemType === "stool") {
+      const updated = await updateStoolLogTime(entry.key, iso);
+      await refreshAfterWrite();
+      setPending(null);
+      if (updated) void pushStoolLog(updated);
+      return;
+    }
+    const updated = await updateLogTime(entry.key, iso);
     await refreshAfterWrite();
     setPending(null);
     if (updated) void pushLog(updated);
@@ -510,7 +587,7 @@ export default function LogPage() {
   /** Optional context for one item on one day — structured data first, this
    * is just a short note attached to it, never a required field. */
   async function handleSaveNote(entry: TimelineEntry, content: string) {
-    if (isDemoData) return;
+    if (isDemoData || entry.itemType === "stool") return;
     setPending(`note:${entry.itemIdentity}`);
     const saved = await setDiaryNote(entry.itemIdentity, entry.itemType, date, content.trim() || null);
     await refreshAfterWrite();
@@ -662,15 +739,15 @@ export default function LogPage() {
     }
   }
 
-  async function handleSaveStoolEntry(entry: NewStoolEntry) {
-    if (isDemoData) return;
-    const log: RawStoolLog = {
-      id: crypto.randomUUID(),
+  function stoolLogFromDraft(id: string, entry: NewStoolEntry): RawStoolLog {
+    return {
+      id,
       date,
-      loggedAt: new Date().toISOString(),
-      bristolScore: entry.bristolScore,
+      loggedAt: combineDateAndTime(date, entry.loggedAtTime),
+      bristolScores: entry.bristolScores,
       noBristol: entry.noBristol,
       color: entry.color,
+      floatation: entry.floatation,
       isSticky: entry.isSticky,
       isSmelly: entry.isSmelly,
       isStraining: entry.isStraining,
@@ -683,8 +760,25 @@ export default function LogPage() {
       note: null,
       updatedAt: new Date().toISOString(),
     };
+  }
+
+  async function handleSaveStoolEntry(entry: NewStoolEntry) {
+    if (isDemoData) return;
+    const log = stoolLogFromDraft(crypto.randomUUID(), entry);
     await putStoolLog(log);
     await refreshAfterWrite();
+    void pushStoolLog(log);
+  }
+
+  /** Corrects an already-saved entry in place — same id, so this is an
+   * update rather than a second entry alongside the mistaken one. */
+  async function handleUpdateStoolEntry(id: string, entry: NewStoolEntry) {
+    if (isDemoData) return;
+    setPending(id);
+    const log = stoolLogFromDraft(id, entry);
+    await putStoolLog(log);
+    await refreshAfterWrite();
+    setPending(null);
     void pushStoolLog(log);
   }
 
@@ -879,6 +973,7 @@ export default function LogPage() {
             pending={pending}
             accent={STOOL_ACCENT}
             onSave={handleSaveStoolEntry}
+            onUpdate={handleUpdateStoolEntry}
             onDelete={handleDeleteStoolEntry}
           />
         )
@@ -1112,97 +1207,108 @@ export default function LogPage() {
               <Link href="/manage/" className="self-start text-xs font-medium underline decoration-dotted" style={{ color: "var(--text-secondary)" }}>
                 Don&apos;t see what you&apos;re looking for? Archive or add items on the Manage page
               </Link>
-
-              {dayTimeline.length > 0 && (
-                <div className="mt-1 flex flex-col gap-2 border-t pt-3" style={{ borderColor: "var(--border-hairline)" }}>
-                  <h2 className="text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-secondary)" }}>
-                    Timeline — {formatDateLabel(date, today).toLowerCase()}
-                  </h2>
-                  <div className="overflow-x-auto pb-2">
-                    <div className="relative flex min-w-max items-start gap-4">
-                      <div className="absolute top-[5px] right-0 left-0 h-px" style={{ background: "var(--border-hairline)" }} />
-                      {dayTimeline.map((entry) => {
-                        const busy = pending === entry.key;
-                        const hasMealTag = entry.itemType === "food" && (entry.mealTag || !isDemoData);
-                        const hasNote = !isDemoData || entry.note;
-                        return (
-                          <div key={entry.key} className="flex shrink-0 flex-col items-start gap-1" style={{ opacity: busy ? 0.5 : 1 }}>
-                            <span
-                              className="relative z-10 h-2.5 w-2.5 shrink-0 rounded-full border-2"
-                              style={{ borderColor: TYPE_ACCENT[entry.itemType], background: "var(--surface-1)" }}
-                            />
-                            <span className="font-mono text-[11px] whitespace-nowrap" style={{ color: "var(--text-muted)" }}>
-                              {entry.time}
-                            </span>
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-xs font-semibold whitespace-nowrap" style={{ color: "var(--text-primary)" }}>
-                                {entry.item}
-                                {INPUT_KIND[entry.item] === "duration" && entry.value != null && (
-                                  <span className="ml-1 font-normal" style={{ color: "var(--text-secondary)" }}>
-                                    {formatMinutes(entry.value)}
-                                  </span>
-                                )}
-                              </span>
-                              {!isDemoData && (
-                                <button
-                                  type="button"
-                                  onClick={() => void handleDeleteEntry(entry)}
-                                  disabled={busy}
-                                  aria-label={`Delete ${entry.item} at ${entry.time}`}
-                                  className="text-xs leading-none disabled:opacity-40"
-                                  style={{ color: "var(--text-secondary)" }}
-                                >
-                                  ✕
-                                </button>
-                              )}
-                            </div>
-                            {hasMealTag &&
-                              (entry.itemType === "food" &&
-                                (isDemoData ? (
-                                  entry.mealTag && (
-                                    <span
-                                      className="rounded px-1.5 py-0.5 text-[11px] font-medium whitespace-nowrap"
-                                      style={{ background: "var(--page-plane)", color: "var(--text-secondary)" }}
-                                    >
-                                      {entry.mealTag}
-                                    </span>
-                                  )
-                                ) : (
-                                  <select
-                                    value={entry.mealTag ?? ""}
-                                    disabled={busy}
-                                    onChange={(e) => void handleChangeEntryMeal(entry, e.target.value)}
-                                    className="rounded px-1.5 py-0.5 text-[11px] font-medium whitespace-nowrap outline-none disabled:opacity-40"
-                                    style={{ background: "var(--page-plane)", color: "var(--text-secondary)", border: "none" }}
-                                  >
-                                    <option value="" disabled>
-                                      set meal
-                                    </option>
-                                    {MEAL_OPTIONS.map((m) => (
-                                      <option key={m} value={m}>
-                                        {m}
-                                      </option>
-                                    ))}
-                                  </select>
-                                )))}
-                            {hasNote && (
-                              <TimelineNote
-                                note={entry.note}
-                                busy={pending === `note:${entry.itemIdentity}`}
-                                hidden={isDemoData}
-                                onSave={(content) => void handleSaveNote(entry, content)}
-                              />
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
           )}
         </>
+      )}
+      {combinedTimeline.length > 0 && (
+        <div className="mt-1 flex flex-col gap-2 border-t pt-3" style={{ borderColor: "var(--border-hairline)" }}>
+          <h2 className="text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-secondary)" }}>
+            Timeline — {formatDateLabel(date, today).toLowerCase()}
+          </h2>
+          <div className="overflow-x-auto pb-2">
+            <div className="relative flex min-w-max items-start gap-4">
+              <div className="absolute top-[5px] right-0 left-0 h-px" style={{ background: "var(--border-hairline)" }} />
+              {combinedTimeline.map((entry) => {
+                const busy = pending === entry.key;
+                const hasMealTag = entry.itemType === "food" && (entry.mealTag || !isDemoData);
+                const hasNote = entry.itemType !== "stool" && (!isDemoData || entry.note);
+                return (
+                  <div key={entry.key} className="flex shrink-0 flex-col items-start gap-1" style={{ opacity: busy ? 0.5 : 1 }}>
+                    <span
+                      className="relative z-10 h-2.5 w-2.5 shrink-0 rounded-full border-2"
+                      style={{ borderColor: entry.itemType === "stool" ? STOOL_ACCENT : TYPE_ACCENT[entry.itemType], background: "var(--surface-1)" }}
+                    />
+                    {isDemoData ? (
+                      <span className="font-mono text-[11px] whitespace-nowrap" style={{ color: "var(--text-muted)" }}>
+                        {entry.time}
+                      </span>
+                    ) : (
+                      <input
+                        type="time"
+                        value={toTimeInputValue(entry.updatedAt)}
+                        disabled={busy}
+                        onChange={(e) => void handleChangeEntryTime(entry, e.target.value)}
+                        aria-label={`Change time for ${entry.item}`}
+                        className="w-[68px] rounded px-1 py-0.5 font-mono text-[11px] whitespace-nowrap outline-none disabled:opacity-40"
+                        style={{ background: "transparent", color: "var(--text-muted)", border: "none" }}
+                      />
+                    )}
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-semibold whitespace-nowrap" style={{ color: "var(--text-primary)" }}>
+                        {entry.item}
+                        {INPUT_KIND[entry.item] === "duration" && entry.value != null && (
+                          <span className="ml-1 font-normal" style={{ color: "var(--text-secondary)" }}>
+                            {formatMinutes(entry.value)}
+                          </span>
+                        )}
+                      </span>
+                      {!isDemoData && (
+                        <button
+                          type="button"
+                          onClick={() => void handleDeleteEntry(entry)}
+                          disabled={busy}
+                          aria-label={`Delete ${entry.item} at ${entry.time}`}
+                          className="text-xs leading-none disabled:opacity-40"
+                          style={{ color: "var(--text-secondary)" }}
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                    {hasMealTag &&
+                      (entry.itemType === "food" &&
+                        (isDemoData ? (
+                          entry.mealTag && (
+                            <span
+                              className="rounded px-1.5 py-0.5 text-[11px] font-medium whitespace-nowrap"
+                              style={{ background: "var(--page-plane)", color: "var(--text-secondary)" }}
+                            >
+                              {entry.mealTag}
+                            </span>
+                          )
+                        ) : (
+                          <select
+                            value={entry.mealTag ?? ""}
+                            disabled={busy}
+                            onChange={(e) => void handleChangeEntryMeal(entry, e.target.value)}
+                            className="rounded px-1.5 py-0.5 text-[11px] font-medium whitespace-nowrap outline-none disabled:opacity-40"
+                            style={{ background: "var(--page-plane)", color: "var(--text-secondary)", border: "none" }}
+                          >
+                            <option value="" disabled>
+                              set meal
+                            </option>
+                            {MEAL_OPTIONS.map((m) => (
+                              <option key={m} value={m}>
+                                {m}
+                              </option>
+                            ))}
+                          </select>
+                        )))}
+                    {hasNote && (
+                      <TimelineNote
+                        note={entry.note}
+                        busy={pending === `note:${entry.itemIdentity}`}
+                        hidden={isDemoData}
+                        onSave={(content) => void handleSaveNote(entry, content)}
+                      />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
       )}
       {duplicateConflict && (
         <DuplicateItemDialog

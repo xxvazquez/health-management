@@ -86,11 +86,14 @@ export interface RawDiaryEntry {
   updatedAt: string | null;
 }
 
-export const STOOL_COLORS = ["Brown", "Dark Brown", "Light Brown", "Green", "Yellow"] as const;
+export const STOOL_COLORS = ["Brown", "Dark Brown", "Green", "Light Brown", "Yellow"] as const;
 export type StoolColor = (typeof STOOL_COLORS)[number];
 
 export const PAPER_CLEANLINESS_OPTIONS = ["Clean", "Slightly Dirty", "Dirty", "Very Dirty"] as const;
 export type PaperCleanliness = (typeof PAPER_CLEANLINESS_OPTIONS)[number];
+
+export const STOOL_FLOATATION_OPTIONS = ["Floats", "Partially Floats"] as const;
+export type StoolFloatation = (typeof STOOL_FLOATATION_OPTIONS)[number];
 
 /**
  * One bowel movement — Supabase's `stool_logs` table. Its own first-class
@@ -102,12 +105,17 @@ export interface RawStoolLog {
   id: string;
   date: string;
   loggedAt: string;
-  /** 1–7, or null when `noBristol` is true — exactly one of the two is set. */
-  bristolScore: number | null;
+  /** One or more of 1–7 — a single bowel movement can include more than one
+   * consistency (e.g. both a Type 1 and a Type 3 piece), so this is never
+   * collapsed to a single value. Empty exactly when `noBristol` is true. */
+  bristolScores: number[];
   /** A bowel movement happened but the type wasn't observed/classifiable —
    * still counts as "assessed that day", just excluded from numeric charts. */
   noBristol: boolean;
   color: StoolColor | null;
+  /** Unset (null) means neither observed — a normal sinking stool isn't
+   * itself trackable, only the two notable states are. */
+  floatation: StoolFloatation | null;
   isSticky: boolean;
   isSmelly: boolean;
   isStraining: boolean;

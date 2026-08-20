@@ -17,11 +17,21 @@ export function bristolAssessedDates(stoolLogs: RawStoolLog[]): Set<string> {
 
 /**
  * Dates where a logged Bristol reading was one of the given scores (e.g.
- * `[3, 4]`) — the building block for any Bristol comparison.
+ * `[3, 4]`) — the building block for any Bristol comparison. An entry with
+ * more than one score counts if any of them matches.
  */
 export function bristolTypeDates(stoolLogs: RawStoolLog[], scores: readonly number[]): Set<string> {
   const wanted = new Set(scores);
-  return new Set(stoolLogs.filter((s) => s.bristolScore != null && wanted.has(s.bristolScore)).map((s) => s.date));
+  return new Set(stoolLogs.filter((s) => s.bristolScores.some((sc) => wanted.has(sc))).map((s) => s.date));
+}
+
+/** Every individual Bristol reading, flattened out of its parent entry —
+ * the unit every numeric Bristol stat (band distribution, target-range
+ * share, the score chart) operates on, since one entry can carry more than
+ * one score and each stays its own data point rather than being merged or
+ * averaged away. */
+function flattenedBristolScores(stoolLogs: RawStoolLog[]): { id: string; date: string; loggedAt: string; score: number }[] {
+  return stoolLogs.flatMap((s) => s.bristolScores.map((score) => ({ id: s.id, date: s.date, loggedAt: s.loggedAt, score })));
 }
 
 export interface UnclassifiedStoolStats {
@@ -65,13 +75,16 @@ export interface BristolBandEntry {
   sharePct: number;
 }
 
-/** Coarser 3-band grouping of classified Bristol entries, for a quicker read than 7 separate types. */
+/** Coarser 3-band grouping of classified Bristol readings, for a quicker
+ * read than 7 separate types — counts individual readings, not entries, so
+ * a bowel movement logged as both Bristol 1 and 3 contributes to both
+ * bands rather than being forced into one or the other. */
 export function bristolBandDistribution(stoolLogs: RawStoolLog[]): BristolBandEntry[] {
-  const classified = stoolLogs.filter((s) => s.bristolScore != null);
-  const total = classified.length;
+  const scores = flattenedBristolScores(stoolLogs);
+  const total = scores.length;
   const counts = new Map<BristolBand, number>();
-  for (const s of classified) {
-    const band = bandForScore(s.bristolScore as number);
+  for (const s of scores) {
+    const band = bandForScore(s.score);
     if (!band) continue;
     counts.set(band, (counts.get(band) ?? 0) + 1);
   }
@@ -116,8 +129,13 @@ export function bristolTargetRangeChange(stoolLogs: RawStoolLog[]): BristolTarge
     return { insufficientData: true, recentPct: null, recentTotal: recent.length, priorPct: null, priorTotal: prior.length };
   }
 
+  // Denominator is every logged entry, unclassified included — an
+  // unclassified stretch should dilute this share, not be excluded from
+  // it (matches the headline's "share of recorded stools" framing). An
+  // entry with more than one score counts toward the numerator if any one
+  // of them lands in the target band.
   const shareInTarget = (list: RawStoolLog[]) =>
-    pct(list.filter((s) => s.bristolScore != null && bandForScore(s.bristolScore) === "Normal (3–4)").length, list.length);
+    pct(list.filter((s) => s.bristolScores.some((sc) => bandForScore(sc) === "Normal (3–4)")).length, list.length);
 
   return {
     insufficientData: false,
@@ -143,14 +161,12 @@ export interface BristolScorePoint {
  * ordered by `loggedAt`.
  */
 export function bristolScoreSeries(stoolLogs: RawStoolLog[]): BristolScorePoint[] {
-  return stoolLogs
-    .filter((s) => s.bristolScore != null)
-    .map((s) => ({ id: s.id, date: s.date, value: s.bristolScore as number, loggedAt: s.loggedAt }))
+  return flattenedBristolScores(stoolLogs)
     .sort((a, b) => {
       if (a.date !== b.date) return a.date < b.date ? -1 : 1;
       return a.loggedAt.localeCompare(b.loggedAt);
     })
-    .map(({ id, date, value }) => ({ id, date, value }));
+    .map(({ id, date, score }, i) => ({ id: `${id}:${i}`, date, value: score }));
 }
 
 export interface BristolMonthlyAveragePoint {
@@ -166,9 +182,7 @@ export interface BristolMonthlyAveragePoint {
  * points.
  */
 export function bristolMonthlyScoreAverage(stoolLogs: RawStoolLog[]): BristolMonthlyAveragePoint[] {
-  const scored = stoolLogs
-    .filter((s) => s.bristolScore != null)
-    .map((s) => ({ month: monthStart(s.date), value: s.bristolScore as number }));
+  const scored = flattenedBristolScores(stoolLogs).map((s) => ({ month: monthStart(s.date), value: s.score }));
 
   const byMonth = new Map<string, { sum: number; count: number }>();
   for (const e of scored) {

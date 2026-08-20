@@ -181,9 +181,16 @@ create table public.stool_logs (
   user_id uuid not null default auth.uid() references auth.users(id),
   date date not null,
   logged_at timestamptz not null default now(),
-  bristol_score smallint check (bristol_score between 1 and 7),
+  -- One bowel movement can include more than one consistency (e.g. both a
+  -- Type 1 and a Type 3 piece), so this is an array, not a single value.
+  -- Empty exactly when no_bristol is true (enforced by the check below).
+  bristol_scores smallint[] not null default '{}'::smallint[]
+    check (bristol_scores <@ array[1,2,3,4,5,6,7]::smallint[]),
   no_bristol boolean not null default false,
   color text check (color in ('Brown', 'Dark Brown', 'Light Brown', 'Green', 'Yellow')),
+  -- Null means neither observed — a normal sinking stool isn't itself
+  -- trackable, only the two notable states are.
+  floatation text check (floatation in ('Partially Floats', 'Floats')),
   is_sticky boolean not null default false,
   is_smelly boolean not null default false,
   is_straining boolean not null default false,
@@ -196,9 +203,9 @@ create table public.stool_logs (
   note text,
   updated_at timestamptz not null default now(),
   check (
-    (bristol_score is not null and not no_bristol)
+    (cardinality(bristol_scores) > 0 and not no_bristol)
     or
-    (bristol_score is null and no_bristol)
+    (cardinality(bristol_scores) = 0 and no_bristol)
   )
 );
 

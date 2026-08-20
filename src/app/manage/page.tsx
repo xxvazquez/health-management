@@ -11,6 +11,7 @@ import { getAllItems, getAllCategories, putItem, deleteCategoryLocal } from "@/l
 import { pushItem, deleteCategory } from "@/lib/supabase/sync";
 import { ensureCategoryId, categoryRowsToSeedForDemo } from "@/lib/categoryResolution";
 import { lookupFoodCategory } from "@/taxonomy/classify";
+import { POLAND_FOOD_CATALOG } from "@/taxonomy/polandFoodCatalog";
 import { normalizeName, titleCaseFallback } from "@/taxonomy/normalizeName";
 import { CATEGORIES_BY_TYPE, type ItemType } from "@/taxonomy/categories";
 import { todayLocalISODate } from "@/lib/aggregations/common";
@@ -215,6 +216,36 @@ function CategoryManager({
   );
 }
 
+/** A catalog suggestion (src/taxonomy/polandFoodCatalog.ts) with no real
+ * `food_items` row yet — `item.itemIdentity` is the empty-string sentinel
+ * the Log page already uses for the same case. Nothing to rename, archive,
+ * or recategorize (there's no row to touch), so this is just a name + a
+ * one-click way to stop being offered it — clicking Hide materializes it
+ * (creates the row) and archives it in the same step. */
+function CatalogFoodRow({ item, busy, onHide }: { item: ManageableItem; busy: boolean; onHide: () => void }) {
+  return (
+    <li className="flex flex-wrap items-center justify-between gap-2 py-2">
+      <span className="flex items-center gap-2">
+        <span className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>
+          {item.item}
+        </span>
+        <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+          not yet tracked · {item.category}
+        </span>
+      </span>
+      <button
+        type="button"
+        onClick={onHide}
+        disabled={busy}
+        className="text-xs font-medium underline decoration-dotted disabled:opacity-40"
+        style={{ color: "var(--text-muted)" }}
+      >
+        Hide
+      </button>
+    </li>
+  );
+}
+
 function ItemRow({
   item,
   categories,
@@ -222,6 +253,7 @@ function ItemRow({
   onArchiveToggle,
   onRename,
   onChangeCategory,
+  onHideCatalog,
 }: {
   item: ManageableItem;
   categories: readonly string[] | null;
@@ -229,8 +261,12 @@ function ItemRow({
   onArchiveToggle: () => void;
   onRename: (newName: string) => void;
   onChangeCategory?: (newCategory: string) => void;
+  onHideCatalog?: () => void;
 }) {
   const renameState = useInlineRename(item, onRename);
+  if (item.itemIdentity === "" && onHideCatalog) {
+    return <CatalogFoodRow item={item} busy={busy} onHide={onHideCatalog} />;
+  }
   return (
     <li className="flex flex-wrap items-center justify-between gap-2 py-2">
       <ItemNameField item={item} state={renameState} />
@@ -277,6 +313,7 @@ function ItemSection({
   onAdd,
   onAddCategory,
   onRemoveCategory,
+  onHideCatalogFood,
 }: {
   itemType: ItemType;
   label: string;
@@ -293,6 +330,9 @@ function ItemSection({
   onAdd: (name: string, category: string) => Promise<boolean>;
   onAddCategory: (name: string) => Promise<void>;
   onRemoveCategory: (name: string) => Promise<void>;
+  /** Food only — materializes a catalog-only suggestion as a real,
+   * archived item so it stops being offered on the Log page. */
+  onHideCatalogFood?: (name: string, category: string) => Promise<void>;
 }) {
   const [archivedOpen, setArchivedOpen] = useState(false);
   const query = searchQuery.trim().toLowerCase();
@@ -345,13 +385,14 @@ function ItemSection({
             <ul className="flex flex-col divide-y" style={{ borderColor: "var(--gridline)" }}>
               {active.map((item) => (
                 <ItemRow
-                  key={item.itemIdentity}
+                  key={item.itemIdentity || `catalog:${item.item}`}
                   item={item}
                   categories={categories}
-                  busy={busyIdentity === item.itemIdentity}
+                  busy={item.itemIdentity !== "" && busyIdentity === item.itemIdentity}
                   onArchiveToggle={() => onToggleArchive(item)}
                   onRename={(name) => onRename(item, name)}
                   onChangeCategory={(category) => onChangeCategory(item, category)}
+                  onHideCatalog={onHideCatalogFood ? () => void onHideCatalogFood(item.item, item.category) : undefined}
                 />
               ))}
             </ul>
@@ -455,6 +496,25 @@ export default function ManagePage() {
     const source = isDemoData ? demoItems : rawItems;
     if (!source) return map;
     for (const it of source) map[it.itemType].push(toManageable(it));
+
+    // The Poland food catalog (src/taxonomy/polandFoodCatalog.ts) backs the
+    // Log page's "browse foods you haven't logged yet" grid — a name in
+    // there has no real `food_items` row until it's either tapped once (Log
+    // page) or explicitly hidden (here), so it can't show up any other way
+    // in this list. Folded in as itemIdentity "" pseudo-rows — same
+    // sentinel the Log page already uses for catalog-only entries — so
+    // Hide can materialize + archive it on click, the same
+    // materialize-then-act pattern used for removing a never-used default
+    // category.
+    const knownFoodNames = new Set(map.food.map((i) => normalizeName(i.item)));
+    for (const [category, names] of Object.entries(POLAND_FOOD_CATALOG)) {
+      for (const name of names) {
+        const norm = normalizeName(name);
+        if (knownFoodNames.has(norm)) continue;
+        knownFoodNames.add(norm);
+        map.food.push({ itemIdentity: "", item: name, category, isArchived: false });
+      }
+    }
     return map;
   }, [isDemoData, demoItems, rawItems]);
 
@@ -478,7 +538,7 @@ export default function ManagePage() {
   async function handleAdd(itemType: ItemType, name: string, categoryChoice: string): Promise<boolean> {
     const trimmed = titleCaseFallback(name);
     if (!trimmed) return false;
-    const existing = itemsByType[itemType].find((i) => normalizeName(i.item) === normalizeName(trimmed));
+    const existing = itemsByType[itemType].find((i) => i.itemIdentity !== "" && normalizeName(i.item) === normalizeName(trimmed));
     if (existing) {
       setDuplicateConflict({ itemType, item: existing });
       return false;
@@ -505,6 +565,25 @@ export default function ManagePage() {
     return true;
   }
 
+  /** Stops offering a catalog suggestion on the Log page — since there's no
+   * real row for it yet, "hide" means creating one and archiving it in the
+   * same step, not toggling a flag on something that already exists. */
+  async function handleHideCatalogFood(name: string, category: string) {
+    const categoryId = await ensureCategoryId("food", category, categoryRows);
+    const item: RawItem = {
+      identity: crypto.randomUUID(),
+      itemType: "food",
+      rawName: name,
+      category,
+      categoryId,
+      isArchived: true,
+      createdDate: todayLocalISODate(),
+    };
+    await putItem(item);
+    void pushItem(item);
+    await refresh();
+  }
+
   async function handleAddCategory(itemType: ItemType, name: string) {
     const trimmed = name.trim();
     if (!trimmed) return;
@@ -514,7 +593,9 @@ export default function ManagePage() {
 
   async function handleRemoveCategory(itemType: ItemType, name: string) {
     setRemoveCategoryError(null);
-    const inUse = itemsByType[itemType].some((i) => i.category === name);
+    // Catalog-only rows (itemIdentity "") aren't real items yet, so they
+    // never block a category removal the way an actually-tracked item does.
+    const inUse = itemsByType[itemType].some((i) => i.itemIdentity !== "" && i.category === name);
     if (inUse) {
       setRemoveCategoryError(`"${name}" is still used by at least one ${itemType} item — recategorize those first.`);
       return;
@@ -571,7 +652,7 @@ export default function ManagePage() {
   function demoHandleAdd(itemType: ItemType, name: string, categoryChoice: string): Promise<boolean> {
     const trimmed = titleCaseFallback(name);
     if (!trimmed) return Promise.resolve(false);
-    const existing = itemsByType[itemType].find((i) => normalizeName(i.item) === normalizeName(trimmed));
+    const existing = itemsByType[itemType].find((i) => i.itemIdentity !== "" && normalizeName(i.item) === normalizeName(trimmed));
     if (existing) {
       setDuplicateConflict({ itemType, item: existing });
       return Promise.resolve(false);
@@ -594,6 +675,23 @@ export default function ManagePage() {
     return Promise.resolve(true);
   }
 
+  function demoHideCatalogFood(name: string, category: string): Promise<void> {
+    const categoryId = demoEnsureCategoryId("food", category);
+    setDemoItems((prev) => [
+      ...prev,
+      {
+        identity: crypto.randomUUID(),
+        itemType: "food",
+        rawName: name,
+        category,
+        categoryId,
+        isArchived: true,
+        createdDate: todayLocalISODate(),
+      },
+    ]);
+    return Promise.resolve();
+  }
+
   function demoAddCategory(itemType: ItemType, name: string): Promise<void> {
     const trimmed = name.trim();
     if (!trimmed) return Promise.resolve();
@@ -603,7 +701,7 @@ export default function ManagePage() {
 
   function demoRemoveCategory(itemType: ItemType, name: string): Promise<void> {
     setRemoveCategoryError(null);
-    if (itemsByType[itemType].some((i) => i.category === name)) {
+    if (itemsByType[itemType].some((i) => i.itemIdentity !== "" && i.category === name)) {
       setRemoveCategoryError(`"${name}" is still used by at least one ${itemType} item — recategorize those first.`);
       return Promise.resolve();
     }
@@ -676,6 +774,9 @@ export default function ManagePage() {
           onAdd={(name, category) => (isDemoData ? demoHandleAdd(section.type, name, category) : handleAdd(section.type, name, category))}
           onAddCategory={(name) => (isDemoData ? demoAddCategory(section.type, name) : handleAddCategory(section.type, name))}
           onRemoveCategory={(name) => (isDemoData ? demoRemoveCategory(section.type, name) : handleRemoveCategory(section.type, name))}
+          onHideCatalogFood={
+            section.type === "food" ? (name, category) => (isDemoData ? demoHideCatalogFood(name, category) : handleHideCatalogFood(name, category)) : undefined
+          }
         />
       ))}
 

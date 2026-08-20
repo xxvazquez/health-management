@@ -10,7 +10,7 @@ import {
   deleteGymLogById,
   clearAllData,
 } from "@/lib/db/indexedDb";
-import type { RawDiaryEntry, RawLog, RawItem, RawGymLog, RawCategory, RawStoolLog, StoolColor, PaperCleanliness } from "@/lib/types";
+import type { RawDiaryEntry, RawLog, RawItem, RawGymLog, RawCategory, RawStoolLog, StoolColor, StoolFloatation, PaperCleanliness } from "@/lib/types";
 import type { ItemType } from "@/taxonomy/categories";
 
 /** App-internal `ItemType` -> the table-name/db `item_type` value. Only
@@ -138,9 +138,10 @@ export async function pushStoolLog(log: RawStoolLog): Promise<void> {
     user_id: userId,
     date: log.date,
     logged_at: log.loggedAt,
-    bristol_score: log.bristolScore,
+    bristol_scores: log.bristolScores,
     no_bristol: log.noBristol,
     color: log.color,
+    floatation: log.floatation,
     is_sticky: log.isSticky,
     is_smelly: log.isSmelly,
     is_straining: log.isStraining,
@@ -218,9 +219,10 @@ interface StoolLogRow {
   id: string;
   date: string;
   logged_at: string;
-  bristol_score: number | null;
+  bristol_scores: number[] | null;
   no_bristol: boolean;
   color: string | null;
+  floatation: string | null;
   is_sticky: boolean;
   is_smelly: boolean;
   is_straining: boolean;
@@ -349,9 +351,10 @@ export async function pullFromCloud(): Promise<void> {
       id: row.id,
       date: row.date,
       loggedAt: row.logged_at,
-      bristolScore: row.bristol_score,
+      bristolScores: row.bristol_scores ?? [],
       noBristol: row.no_bristol,
       color: (row.color as StoolColor | null) ?? null,
+      floatation: (row.floatation as StoolFloatation | null) ?? null,
       isSticky: row.is_sticky,
       isSmelly: row.is_smelly,
       isStraining: row.is_straining,
