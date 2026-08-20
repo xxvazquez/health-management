@@ -49,8 +49,10 @@ export const SUPPLEMENT_CATEGORIES = [
   "Other",
 ] as const;
 
+// Stool used to live here as a category with a "Bristol Scale"/"Stool
+// Quality" subcategory hack — it's now its own first-class log type
+// (`stool_logs`, `src/lib/types.ts`), not an outcome/symptom at all.
 export const OUTCOME_CATEGORIES = [
-  "Stool",
   "Digestive Symptom",
   "Other Symptom",
 ] as const;
@@ -80,18 +82,16 @@ export const CATEGORIES_BY_TYPE: Record<ItemType, readonly string[]> = {
 
 /**
  * The category list actually offered for one item type, taking a user's
- * own customizations (Manage page, Supabase's `user_categories` table)
- * into account. Food is excluded on purpose — its categories are
- * load-bearing for the nutrition-guidance engine (`nutritionGroups.ts`),
- * so they're never user-editable and this always returns the fixed
- * `FOOD_CATEGORIES` list for it regardless of `customNames`.
- *
- * A type with no custom rows yet just falls back to its built-in default
- * list — customizing only ever happens by explicit action from the Manage
- * page, never implicitly.
+ * own customizations (Manage page, Supabase's `categories` table) into
+ * account. Every type — food included — works the same way: a type with no
+ * rows yet falls back to its built-in default list (`FOOD_CATEGORIES` etc.)
+ * purely as a bootstrap seed; the moment any real row exists for that type,
+ * the database is the only source of truth and this never falls back to or
+ * re-merges the built-in list again. `nutritionGroups.ts` (the actual
+ * nutrition-guidance engine) classifies by item name, not by category, so
+ * there's nothing here that depends on food's category names staying fixed.
  */
 export function effectiveCategoryList(itemType: ItemType, customNames: readonly string[]): readonly string[] {
-  if (itemType === "food") return FOOD_CATEGORIES;
   return customNames.length > 0 ? customNames : CATEGORIES_BY_TYPE[itemType];
 }
 

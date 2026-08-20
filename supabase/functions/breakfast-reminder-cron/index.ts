@@ -67,12 +67,11 @@ Deno.serve(async (req) => {
     if (sub.last_reminded_date === local.date) continue;
 
     const { data: breakfastLogs } = await supabase
-      .from("logs")
-      .select("identity")
+      .from("food_logs")
+      .select("id")
       .eq("user_id", sub.user_id)
       .eq("date", local.date)
       .eq("meal_tag", "Breakfast")
-      .eq("is_skipped", false)
       .limit(1);
 
     if (breakfastLogs && breakfastLogs.length > 0) {

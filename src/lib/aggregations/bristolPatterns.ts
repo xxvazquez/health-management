@@ -1,4 +1,4 @@
-import type { CanonicalEvent, RawGymLog } from "@/lib/types";
+import type { CanonicalEvent, RawGymLog, RawStoolLog } from "@/lib/types";
 import { bristolAssessedDates, bristolTypeDates } from "./digestion";
 import {
   computeAssociationFromDateSets,
@@ -16,13 +16,13 @@ const MAX_BRISTOL_PATTERNS = 12;
 /**
  * The initial comparison split — Bristol 3–4 vs. everything else logged.
  * A parameter to the comparison call, not a stored category: individual
- * Bristol types are read fresh from `events` on every call via
+ * Bristol types are read fresh from `stoolLogs` on every call via
  * `bristolTypeDates`, so a later comparison distinguishing e.g. Bristol
- * 1–2 from Bristol 5 is just a different type list here, never a
+ * 1–2 from Bristol 5–7 is just a different type list here, never a
  * data-model change. Neutral label on purpose — never "normal"/"better"/
  * "worse"/"good"/"bad".
  */
-const BRISTOL_COMPARISON_TYPES = ["Bristol 3", "Bristol 4"];
+const BRISTOL_COMPARISON_TYPES = [3, 4];
 export const BRISTOL_COMPARISON_LABEL = "Bristol 3–4";
 
 /**
@@ -34,13 +34,15 @@ export const BRISTOL_COMPARISON_LABEL = "Bristol 3–4";
  * candidate pool exactly (same sample gate, lag scan, non-causal
  * phrasing) — this is that same engine pointed at Bristol specifically,
  * not a separate implementation. Deliberately no combinations: every
- * result here is one cause vs. one outcome.
+ * result here is one cause vs. one outcome. Bristol data comes from
+ * `stoolLogs` (its own table), everything else from `events` — the two
+ * datasets are joined here only by shared calendar dates.
  */
-export function generateBristolPatterns(events: CanonicalEvent[], gymLogs: RawGymLog[] = []): AssociationResult[] {
-  const trackedSet = bristolAssessedDates(events);
+export function generateBristolPatterns(events: CanonicalEvent[], stoolLogs: RawStoolLog[], gymLogs: RawGymLog[] = []): AssociationResult[] {
+  const trackedSet = bristolAssessedDates(stoolLogs);
   if (trackedSet.size === 0) return [];
 
-  const outcomeDates = bristolTypeDates(events, BRISTOL_COMPARISON_TYPES);
+  const outcomeDates = bristolTypeDates(stoolLogs, BRISTOL_COMPARISON_TYPES);
 
   const hasSleepDuration = events.some((e) => e.item === SLEEP_DURATION_ITEM);
   const causeCandidates = [

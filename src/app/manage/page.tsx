@@ -4,28 +4,18 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react
 import { useData } from "@/lib/DataContext";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Card } from "@/components/ui/Card";
-import { ItemActions } from "@/components/ui/ItemActions";
+import { ItemNameField, ItemActionButtons, useInlineRename } from "@/components/ui/ItemActions";
+import { DuplicateItemDialog } from "@/components/ui/DuplicateItemDialog";
 import { useItemActions, type ManageableItem } from "@/lib/useItemActions";
-import { getAllItems, getAllUserOverrides, getAllUserCategories, putItem, setUserOverride, putUserCategory } from "@/lib/db/indexedDb";
-import { pushItem, pushUserOverride, pushUserCategory, deleteUserCategory } from "@/lib/supabase/sync";
-import { generateManualItemId } from "@/lib/logCandidates";
-import { classifyItem, lookupFoodCategory, type OverrideEntry } from "@/taxonomy/classify";
-import { normalizeName } from "@/taxonomy/normalizeName";
-import { CATEGORIES_BY_TYPE, effectiveCategoryList, type ItemType } from "@/taxonomy/categories";
+import { getAllItems, getAllCategories, putItem, deleteCategoryLocal } from "@/lib/db/indexedDb";
+import { pushItem, deleteCategory } from "@/lib/supabase/sync";
+import { ensureCategoryId, categoryRowsToSeedForDemo } from "@/lib/categoryResolution";
+import { lookupFoodCategory } from "@/taxonomy/classify";
+import { normalizeName, titleCaseFallback } from "@/taxonomy/normalizeName";
+import { CATEGORIES_BY_TYPE, type ItemType } from "@/taxonomy/categories";
 import { todayLocalISODate } from "@/lib/aggregations/common";
 import { buildDemoDataset } from "@/lib/demoData";
-import type { RawItem, RawUserCategory } from "@/lib/types";
-
-/** The category list a type should have after one add/remove — materializes
- * the built-in defaults on the first-ever customization (so "remove one
- * default" doesn't just delete a row that was never written), a no-op list
- * change is left untouched. Pure, shared by the real (IndexedDB/Supabase)
- * and demo (in-memory) category-edit paths below. */
-function nextCategoryNames(itemType: ItemType, current: string[], op: { kind: "add" | "remove"; name: string }): string[] {
-  const base = current.length > 0 ? current : [...CATEGORIES_BY_TYPE[itemType]];
-  if (op.kind === "add") return base.includes(op.name) ? base : [...base, op.name];
-  return base.filter((c) => c !== op.name);
-}
+import type { RawItem, RawCategory } from "@/lib/types";
 
 const TYPE_SECTIONS: { type: ItemType; label: string; placeholder: string }[] = [
   { type: "food", label: "Food", placeholder: "e.g. Kohlrabi" },
@@ -33,6 +23,21 @@ const TYPE_SECTIONS: { type: ItemType; label: string; placeholder: string }[] = 
   { type: "supplement", label: "Supplements", placeholder: "e.g. Vitamin B12" },
   { type: "outcome", label: "Symptoms", placeholder: "e.g. Joint pain" },
 ];
+
+/** Display list for a type's category picker — same rule for all four
+ * types, food included. Once this type has any real `categories` rows,
+ * those rows ARE the list — full stop, so removing a default sticks
+ * instead of reappearing. A type with no rows yet (nothing's ever
+ * referenced one of its categories) falls back to the built-in defaults;
+ * the first time anything actually uses one (`ensureCategoryId`), the
+ * whole default set gets materialized into real rows at once, so this
+ * flips from "showing defaults" to "showing rows" without ever narrowing
+ * down to just the one category that happened to trigger it. */
+function displayCategoryNames(itemType: ItemType, rows: RawCategory[]): string[] {
+  const used = rows.filter((r) => r.itemType === itemType).map((r) => r.name);
+  if (used.length > 0) return used.sort((a, b) => a.localeCompare(b));
+  return [...CATEGORIES_BY_TYPE[itemType]];
+}
 
 function SearchIcon() {
   return (
@@ -74,35 +79,35 @@ function SearchBar({ value, onChange }: { value: string; onChange: (v: string) =
 function AddItemForm({
   itemType,
   placeholder,
-  overrides,
   categories,
   onAdd,
 }: {
   itemType: ItemType;
   placeholder: string;
-  overrides: Record<string, OverrideEntry>;
   categories: readonly string[];
-  onAdd: (name: string, category: string) => Promise<void>;
+  onAdd: (name: string, category: string) => Promise<boolean>;
 }) {
   const [name, setName] = useState("");
   const [category, setCategory] = useState("");
   const [busy, setBusy] = useState(false);
   const trimmed = name.trim();
+  // Food can often guess its own category from the name; every other type
+  // has no classifier to guess from, so it always asks.
   const needsCategory = useMemo(() => {
     if (!trimmed) return false;
-    const bundled = classifyItem(trimmed, overrides);
-    if (bundled.matchedBy !== "fallback") return false;
-    if (itemType === "food" && lookupFoodCategory(trimmed)) return false;
+    if (itemType === "food") return !lookupFoodCategory(trimmed, categories);
     return true;
-  }, [trimmed, itemType, overrides]);
+  }, [trimmed, itemType, categories]);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (!trimmed || busy) return;
     setBusy(true);
-    await onAdd(trimmed, category);
-    setName("");
-    setCategory("");
+    const added = await onAdd(trimmed, category);
+    if (added) {
+      setName("");
+      setCategory("");
+    }
     setBusy(false);
   }
 
@@ -141,8 +146,7 @@ function AddItemForm({
   );
 }
 
-/** Add/remove which categories a type offers — food is never passed here
- * (its categories are fixed, see effectiveCategoryList's doc comment). */
+/** Add/remove which categories a type offers. */
 function CategoryManager({
   categories,
   onAddCategory,
@@ -226,29 +230,33 @@ function ItemRow({
   onRename: (newName: string) => void;
   onChangeCategory?: (newCategory: string) => void;
 }) {
+  const renameState = useInlineRename(item, onRename);
   return (
     <li className="flex flex-wrap items-center justify-between gap-2 py-2">
-      <ItemActions item={item} busy={busy} onArchiveToggle={onArchiveToggle} onRename={onRename} />
-      {categories && onChangeCategory ? (
-        <select
-          value={item.category}
-          disabled={busy}
-          onChange={(e) => onChangeCategory(e.target.value)}
-          className="rounded-md border px-2 py-1 text-xs disabled:opacity-40"
-          style={{ borderColor: "var(--border-hairline)", background: "var(--page-plane)", color: "var(--text-secondary)" }}
-        >
-          {!categories.includes(item.category) && <option value={item.category}>{item.category}</option>}
-          {categories.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
-        </select>
-      ) : (
-        <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-          {item.category}
-        </span>
-      )}
+      <ItemNameField item={item} state={renameState} />
+      <span className="flex items-center gap-3">
+        <ItemActionButtons item={item} busy={busy} state={renameState} onArchiveToggle={onArchiveToggle} />
+        {categories && onChangeCategory ? (
+          <select
+            value={item.category}
+            disabled={busy}
+            onChange={(e) => onChangeCategory(e.target.value)}
+            className="rounded-md border px-2 py-1 text-xs disabled:opacity-40"
+            style={{ borderColor: "var(--border-hairline)", background: "var(--page-plane)", color: "var(--text-secondary)" }}
+          >
+            {!categories.includes(item.category) && <option value={item.category}>{item.category}</option>}
+            {categories.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+            {item.category}
+          </span>
+        )}
+      </span>
     </li>
   );
 }
@@ -258,9 +266,7 @@ function ItemSection({
   label,
   placeholder,
   items,
-  overrides,
   categories,
-  canEditCategories,
   searchQuery,
   open,
   onToggleOpen,
@@ -276,9 +282,7 @@ function ItemSection({
   label: string;
   placeholder: string;
   items: ManageableItem[];
-  overrides: Record<string, OverrideEntry>;
   categories: readonly string[];
-  canEditCategories: boolean;
   searchQuery: string;
   open: boolean;
   onToggleOpen: () => void;
@@ -286,7 +290,7 @@ function ItemSection({
   onToggleArchive: (item: ManageableItem) => void;
   onRename: (item: ManageableItem, name: string) => void;
   onChangeCategory: (item: ManageableItem, category: string) => void;
-  onAdd: (name: string, category: string) => Promise<void>;
+  onAdd: (name: string, category: string) => Promise<boolean>;
   onAddCategory: (name: string) => Promise<void>;
   onRemoveCategory: (name: string) => Promise<void>;
 }) {
@@ -327,10 +331,10 @@ function ItemSection({
 
       {sectionOpen && (
         <div className="mt-4">
-          {canEditCategories && <CategoryManager categories={categories} onAddCategory={onAddCategory} onRemoveCategory={onRemoveCategory} />}
+          <CategoryManager categories={categories} onAddCategory={onAddCategory} onRemoveCategory={onRemoveCategory} />
 
           <div className="mb-4">
-            <AddItemForm itemType={itemType} placeholder={placeholder} overrides={overrides} categories={categories} onAdd={onAdd} />
+            <AddItemForm itemType={itemType} placeholder={placeholder} categories={categories} onAdd={onAdd} />
           </div>
 
           {active.length === 0 ? (
@@ -343,11 +347,11 @@ function ItemSection({
                 <ItemRow
                   key={item.itemIdentity}
                   item={item}
-                  categories={canEditCategories ? categories : null}
+                  categories={categories}
                   busy={busyIdentity === item.itemIdentity}
                   onArchiveToggle={() => onToggleArchive(item)}
                   onRename={(name) => onRename(item, name)}
-                  onChangeCategory={canEditCategories ? (category) => onChangeCategory(item, category) : undefined}
+                  onChangeCategory={(category) => onChangeCategory(item, category)}
                 />
               ))}
             </ul>
@@ -370,11 +374,11 @@ function ItemSection({
                     <ItemRow
                       key={item.itemIdentity}
                       item={item}
-                      categories={canEditCategories ? categories : null}
+                      categories={categories}
                       busy={busyIdentity === item.itemIdentity}
                       onArchiveToggle={() => onToggleArchive(item)}
                       onRename={(name) => onRename(item, name)}
-                      onChangeCategory={canEditCategories ? (category) => onChangeCategory(item, category) : undefined}
+                      onChangeCategory={(category) => onChangeCategory(item, category)}
                     />
                   ))}
                 </ul>
@@ -387,13 +391,22 @@ function ItemSection({
   );
 }
 
+function toManageable(item: RawItem): ManageableItem {
+  return { itemIdentity: item.identity, item: item.rawName, category: item.category, isArchived: item.isArchived };
+}
+
 export default function ManagePage() {
   const { status, isDemoData, refresh: refreshShared } = useData();
   const [rawItems, setRawItems] = useState<RawItem[] | null>(null);
-  const [overrides, setOverrides] = useState<Record<string, OverrideEntry>>({});
-  const [userCategoryRows, setUserCategoryRows] = useState<RawUserCategory[]>([]);
+  const [categoryRows, setCategoryRows] = useState<RawCategory[]>([]);
   const [openSections, setOpenSections] = useState<Set<ItemType>>(new Set());
   const [searchQuery, setSearchQuery] = useState("");
+  const [removeCategoryError, setRemoveCategoryError] = useState<string | null>(null);
+  // Set when Add matches an existing item's name (active or archived) —
+  // surfaced as a dialog instead of silently either creating a duplicate
+  // or (for an archived match) failing to sync against the DB's
+  // per-user unique-name constraint.
+  const [duplicateConflict, setDuplicateConflict] = useState<{ itemType: ItemType; item: ManageableItem } | null>(null);
 
   // Demo-mode state — purely in-memory, exactly like buildDemoDataset()
   // itself (see its own doc comment): never written to IndexedDB or
@@ -403,18 +416,16 @@ export default function ManagePage() {
   // there's something real-looking to add/rename/archive/recategorize
   // interactively without an account.
   const [demoItems, setDemoItems] = useState<RawItem[]>(() => buildDemoDataset().items);
-  const [demoOverrides, setDemoOverrides] = useState<Record<string, OverrideEntry>>({});
-  const [demoUserCategoryRows, setDemoUserCategoryRows] = useState<RawUserCategory[]>([]);
+  const [demoCategoryRows, setDemoCategoryRows] = useState<RawCategory[]>([]);
   const [demoBusyIdentity, setDemoBusyIdentity] = useState<string | null>(null);
 
   // Status-neutral: reads whatever's currently in IndexedDB without
   // touching the shared data status, so the effect below can call this on
   // every status change without looping (see next comment).
   const loadLocalSnapshot = useCallback(async () => {
-    const [items, userOverrides, categories] = await Promise.all([getAllItems(), getAllUserOverrides(), getAllUserCategories()]);
-    setRawItems(items.filter((i) => !i.isRemoved));
-    setOverrides(userOverrides);
-    setUserCategoryRows(categories);
+    const [items, categories] = await Promise.all([getAllItems(), getAllCategories()]);
+    setRawItems(items);
+    setCategoryRows(categories);
   }, []);
 
   useEffect(() => {
@@ -442,34 +453,18 @@ export default function ManagePage() {
   const itemsByType = useMemo(() => {
     const map: Record<ItemType, ManageableItem[]> = { food: [], supplement: [], outcome: [], habit: [] };
     const source = isDemoData ? demoItems : rawItems;
-    const sourceOverrides = isDemoData ? demoOverrides : overrides;
     if (!source) return map;
-    for (const it of source) {
-      const c = classifyItem(it.rawName, sourceOverrides);
-      map[c.itemType].push({
-        itemIdentity: it.identity,
-        item: c.canonicalName,
-        category: c.category,
-        subcategory: c.subcategory,
-        isArchived: it.isArchived,
-      });
-    }
+    for (const it of source) map[it.itemType].push(toManageable(it));
     return map;
-  }, [isDemoData, demoItems, demoOverrides, rawItems, overrides]);
+  }, [isDemoData, demoItems, rawItems]);
 
-  const customCategoryNamesByType = useMemo(() => {
-    const map: Record<ItemType, string[]> = { food: [], supplement: [], outcome: [], habit: [] };
-    for (const row of isDemoData ? demoUserCategoryRows : userCategoryRows) map[row.itemType].push(row.name);
-    return map;
-  }, [isDemoData, demoUserCategoryRows, userCategoryRows]);
+  const activeCategoryRows = isDemoData ? demoCategoryRows : categoryRows;
 
-  const categoriesByType = useMemo(() => {
-    const map = {} as Record<ItemType, readonly string[]>;
-    for (const section of TYPE_SECTIONS) {
-      map[section.type] = effectiveCategoryList(section.type, customCategoryNamesByType[section.type]);
-    }
+  const categoryNamesByType = useMemo(() => {
+    const map = {} as Record<ItemType, string[]>;
+    for (const section of TYPE_SECTIONS) map[section.type] = displayCategoryNames(section.type, activeCategoryRows);
     return map;
-  }, [customCategoryNamesByType]);
+  }, [activeCategoryRows]);
 
   function toggleSection(type: ItemType) {
     setOpenSections((prev) => {
@@ -480,64 +475,57 @@ export default function ManagePage() {
     });
   }
 
-  async function handleAdd(itemType: ItemType, name: string, categoryOverride: string) {
-    const trimmed = name.trim();
-    if (!trimmed) return;
-    const key = normalizeName(trimmed);
-    const bundled = classifyItem(trimmed, overrides);
-    const needsOverride = bundled.matchedBy === "fallback";
-    const guessedCategory = itemType === "food" ? lookupFoodCategory(trimmed) : null;
-    const category = needsOverride ? (guessedCategory ?? (categoryOverride || CATEGORIES_BY_TYPE[itemType][0])) : bundled.category;
-
-    if (needsOverride) {
-      const override: OverrideEntry = { canonicalName: trimmed, itemType, category, subcategory: category };
-      await setUserOverride(key, override);
-      void pushUserOverride(key, override);
+  async function handleAdd(itemType: ItemType, name: string, categoryChoice: string): Promise<boolean> {
+    const trimmed = titleCaseFallback(name);
+    if (!trimmed) return false;
+    const existing = itemsByType[itemType].find((i) => normalizeName(i.item) === normalizeName(trimmed));
+    if (existing) {
+      setDuplicateConflict({ itemType, item: existing });
+      return false;
     }
+    // Food still gets a name-based guess as a convenience; every type falls
+    // back to whatever the category picker is showing (its first option by
+    // default) if nothing more specific applies.
+    const guessed = itemType === "food" ? lookupFoodCategory(trimmed, categoryNamesByType.food) : null;
+    const category = guessed ?? (categoryChoice || categoryNamesByType[itemType][0]);
+    const categoryId = await ensureCategoryId(itemType, category, categoryRows);
+
     const item: RawItem = {
-      identity: generateManualItemId(key),
+      identity: crypto.randomUUID(),
+      itemType,
       rawName: trimmed,
-      unit: null,
-      kind: null,
-      frequency: null,
-      isRemoved: false,
+      category,
+      categoryId,
       isArchived: false,
       createdDate: todayLocalISODate(),
     };
     await putItem(item);
     void pushItem(item);
     await refresh();
+    return true;
   }
 
   async function handleAddCategory(itemType: ItemType, name: string) {
     const trimmed = name.trim();
     if (!trimmed) return;
-    const current = customCategoryNamesByType[itemType];
-    const next = nextCategoryNames(itemType, current, { kind: "add", name: trimmed });
-    if (next === current) return;
-    // First customization for this type: materialize the built-in defaults
-    // as real rows too, since from here on this type's category list comes
-    // entirely from stored rows (see effectiveCategoryList).
-    const namesToWrite = current.length > 0 ? [trimmed] : next;
-    for (const categoryName of namesToWrite) {
-      const entry: RawUserCategory = { itemType, name: categoryName };
-      await putUserCategory(entry);
-      void pushUserCategory(entry);
-    }
+    await ensureCategoryId(itemType, trimmed, categoryRows);
     await refresh();
   }
 
   async function handleRemoveCategory(itemType: ItemType, name: string) {
-    const current = customCategoryNamesByType[itemType];
-    if (current.length === 0) {
-      for (const categoryName of nextCategoryNames(itemType, current, { kind: "remove", name })) {
-        const entry: RawUserCategory = { itemType, name: categoryName };
-        await putUserCategory(entry);
-        void pushUserCategory(entry);
-      }
-    } else {
-      await deleteUserCategory(itemType, name);
+    setRemoveCategoryError(null);
+    const inUse = itemsByType[itemType].some((i) => i.category === name);
+    if (inUse) {
+      setRemoveCategoryError(`"${name}" is still used by at least one ${itemType} item — recategorize those first.`);
+      return;
     }
+    // A never-used built-in default has no row yet to delete — materialize
+    // it (and the rest of that type's defaults, same as any other
+    // first-ever use) before removing exactly this one, so the removal
+    // actually persists instead of the default just reappearing next render.
+    const id = await ensureCategoryId(itemType, name, categoryRows);
+    await deleteCategoryLocal(id);
+    void deleteCategory(id);
     await refresh();
   }
 
@@ -551,78 +539,79 @@ export default function ManagePage() {
     setDemoBusyIdentity(null);
   }
 
-  function demoRename(item: ManageableItem, itemType: ItemType, newName: string) {
-    const trimmed = newName.trim();
+  function demoRename(item: ManageableItem, newName: string) {
+    const trimmed = titleCaseFallback(newName);
     if (!trimmed || trimmed === item.item) return;
     setDemoBusyIdentity(item.itemIdentity);
     setDemoItems((prev) => prev.map((it) => (it.identity === item.itemIdentity ? { ...it, rawName: trimmed } : it)));
-    const key = normalizeName(trimmed);
-    setDemoOverrides((prev) => ({
-      ...prev,
-      [key]: { canonicalName: trimmed, itemType, category: item.category, subcategory: item.subcategory },
-    }));
     setDemoBusyIdentity(null);
+  }
+
+  /** Resolves (materializing whatever's missing, demo-state version of
+   * `ensureCategoryId`) a category id, folding the seeded rows into
+   * `demoCategoryRows` in the same update. */
+  function demoEnsureCategoryId(itemType: ItemType, name: string): string {
+    const existing = demoCategoryRows.find((c) => c.itemType === itemType && c.name === name);
+    if (existing) return existing.id;
+    const seeded = categoryRowsToSeedForDemo(itemType, name, demoCategoryRows);
+    setDemoCategoryRows((prev) => [...prev, ...seeded]);
+    return seeded.find((c) => c.name === name)?.id ?? seeded[0].id;
   }
 
   function demoChangeCategory(item: ManageableItem, itemType: ItemType, newCategory: string) {
     if (!newCategory || newCategory === item.category) return;
     setDemoBusyIdentity(item.itemIdentity);
-    const existing = demoItems.find((it) => it.identity === item.itemIdentity);
-    const key = normalizeName(existing?.rawName ?? item.item);
-    setDemoOverrides((prev) => ({
-      ...prev,
-      [key]: { canonicalName: item.item, itemType, category: newCategory, subcategory: newCategory },
-    }));
+    const categoryId = demoEnsureCategoryId(itemType, newCategory);
+    setDemoItems((prev) =>
+      prev.map((it) => (it.identity === item.itemIdentity ? { ...it, category: newCategory, categoryId } : it)),
+    );
     setDemoBusyIdentity(null);
   }
 
-  function demoHandleAdd(itemType: ItemType, name: string, categoryOverride: string): Promise<void> {
-    const trimmed = name.trim();
-    if (!trimmed) return Promise.resolve();
-    const key = normalizeName(trimmed);
-    const bundled = classifyItem(trimmed, demoOverrides);
-    const needsOverride = bundled.matchedBy === "fallback";
-    const guessedCategory = itemType === "food" ? lookupFoodCategory(trimmed) : null;
-    const category = needsOverride ? (guessedCategory ?? (categoryOverride || CATEGORIES_BY_TYPE[itemType][0])) : bundled.category;
-    if (needsOverride) {
-      setDemoOverrides((prev) => ({ ...prev, [key]: { canonicalName: trimmed, itemType, category, subcategory: category } }));
+  function demoHandleAdd(itemType: ItemType, name: string, categoryChoice: string): Promise<boolean> {
+    const trimmed = titleCaseFallback(name);
+    if (!trimmed) return Promise.resolve(false);
+    const existing = itemsByType[itemType].find((i) => normalizeName(i.item) === normalizeName(trimmed));
+    if (existing) {
+      setDuplicateConflict({ itemType, item: existing });
+      return Promise.resolve(false);
     }
+    const guessed = itemType === "food" ? lookupFoodCategory(trimmed, categoryNamesByType.food) : null;
+    const category = guessed ?? (categoryChoice || categoryNamesByType[itemType][0]);
+    const categoryId = demoEnsureCategoryId(itemType, category);
     setDemoItems((prev) => [
       ...prev,
       {
-        identity: generateManualItemId(key),
+        identity: crypto.randomUUID(),
+        itemType,
         rawName: trimmed,
-        unit: null,
-        kind: null,
-        frequency: null,
-        isRemoved: false,
+        category,
+        categoryId,
         isArchived: false,
         createdDate: todayLocalISODate(),
       },
     ]);
-    return Promise.resolve();
+    return Promise.resolve(true);
   }
 
   function demoAddCategory(itemType: ItemType, name: string): Promise<void> {
     const trimmed = name.trim();
     if (!trimmed) return Promise.resolve();
-    setDemoUserCategoryRows((prev) => {
-      const current = customCategoryNamesByType[itemType];
-      const next = nextCategoryNames(itemType, current, { kind: "add", name: trimmed });
-      if (next === current) return prev;
-      const others = prev.filter((r) => r.itemType !== itemType);
-      return [...others, ...next.map((n) => ({ itemType, name: n }))];
-    });
+    demoEnsureCategoryId(itemType, trimmed);
     return Promise.resolve();
   }
 
   function demoRemoveCategory(itemType: ItemType, name: string): Promise<void> {
-    setDemoUserCategoryRows((prev) => {
-      const current = customCategoryNamesByType[itemType];
-      const next = nextCategoryNames(itemType, current, { kind: "remove", name });
-      const others = prev.filter((r) => r.itemType !== itemType);
-      return [...others, ...next.map((n) => ({ itemType, name: n }))];
-    });
+    setRemoveCategoryError(null);
+    if (itemsByType[itemType].some((i) => i.category === name)) {
+      setRemoveCategoryError(`"${name}" is still used by at least one ${itemType} item — recategorize those first.`);
+      return Promise.resolve();
+    }
+    // Same materialize-then-remove as the real handler — a never-used
+    // default has no row yet, so it has to be seeded before it can be
+    // removed, or the removal wouldn't persist.
+    const id = demoEnsureCategoryId(itemType, name);
+    setDemoCategoryRows((prev) => prev.filter((c) => c.id !== id));
     return Promise.resolve();
   }
 
@@ -644,16 +633,20 @@ export default function ManagePage() {
           Manage items
         </h1>
         <p className="mt-1 text-sm" style={{ color: "var(--text-secondary)" }}>
-          Add, rename, archive, or unarchive anything you track, and manage the category list for Supplements,
-          Habits, and Symptoms. Everything here is synced straight to your account — the same tables every page
-          reads from, so there&apos;s nowhere else to edit this by hand. Archiving hides an item from the Log
-          page and this list&apos;s active section; its full logged history stays in every dashboard. Food&apos;s
-          categories are fixed — they drive the nutrition-guidance engine on the Food page.
+          Add, rename, archive, or unarchive anything you track, and manage the category list for Food,
+          Supplements, Habits, and Symptoms. Everything here is synced straight to your account — the same tables
+          every page reads from, so there&apos;s nowhere else to edit this by hand. Archiving hides an item from
+          the Log page and this list&apos;s active section; its full logged history stays in every dashboard.
         </p>
         {isDemoData && (
           <p className="mt-2 text-sm" style={{ color: "var(--status-warning)" }}>
             Example data — try adding, renaming, archiving, and managing categories freely below. None of this is
             saved anywhere; sign in to manage your real items instead.
+          </p>
+        )}
+        {removeCategoryError && (
+          <p className="mt-2 text-sm" style={{ color: "var(--status-warning)" }}>
+            {removeCategoryError}
           </p>
         )}
       </div>
@@ -666,23 +659,40 @@ export default function ManagePage() {
           label={section.label}
           placeholder={section.placeholder}
           items={itemsByType[section.type]}
-          overrides={isDemoData ? demoOverrides : overrides}
-          categories={categoriesByType[section.type]}
-          canEditCategories={section.type !== "food"}
+          categories={categoryNamesByType[section.type]}
           searchQuery={searchQuery}
           open={openSections.has(section.type)}
           onToggleOpen={() => toggleSection(section.type)}
           busyIdentity={busyIdentity}
           onToggleArchive={(item) => (isDemoData ? demoToggleArchive(item) : void realToggleArchive(item))}
-          onRename={(item, name) => (isDemoData ? demoRename(item, section.type, name) : void realRename(item, section.type, name))}
-          onChangeCategory={(item, category) =>
-            isDemoData ? demoChangeCategory(item, section.type, category) : void realChangeCategory(item, section.type, category)
-          }
+          onRename={(item, name) => (isDemoData ? demoRename(item, name) : void realRename(item, name))}
+          onChangeCategory={(item, category) => {
+            if (isDemoData) {
+              demoChangeCategory(item, section.type, category);
+              return;
+            }
+            void ensureCategoryId(section.type, category, categoryRows).then((id) => realChangeCategory(item, category, id));
+          }}
           onAdd={(name, category) => (isDemoData ? demoHandleAdd(section.type, name, category) : handleAdd(section.type, name, category))}
           onAddCategory={(name) => (isDemoData ? demoAddCategory(section.type, name) : handleAddCategory(section.type, name))}
           onRemoveCategory={(name) => (isDemoData ? demoRemoveCategory(section.type, name) : handleRemoveCategory(section.type, name))}
         />
       ))}
+
+      {duplicateConflict && (
+        <DuplicateItemDialog
+          name={duplicateConflict.item.item}
+          isArchived={duplicateConflict.item.isArchived}
+          busy={busyIdentity === duplicateConflict.item.itemIdentity}
+          onClose={() => setDuplicateConflict(null)}
+          onUnarchive={() => {
+            const { item } = duplicateConflict;
+            if (isDemoData) demoToggleArchive(item);
+            else void realToggleArchive(item);
+            setDuplicateConflict(null);
+          }}
+        />
+      )}
     </div>
   );
 }

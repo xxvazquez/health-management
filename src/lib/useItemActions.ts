@@ -1,11 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import type { ItemType } from "@/taxonomy/categories";
-import type { OverrideEntry } from "@/taxonomy/classify";
-import { getItem, putItem, setUserOverride } from "@/lib/db/indexedDb";
-import { pushItem, pushUserOverride } from "@/lib/supabase/sync";
-import { normalizeName } from "@/taxonomy/normalizeName";
+import { getItem, putItem } from "@/lib/db/indexedDb";
+import { pushItem } from "@/lib/supabase/sync";
+import { titleCaseFallback } from "@/taxonomy/normalizeName";
 
 /** The minimal shape rename/archive need — deliberately narrower than
  * `ItemStats` (which has this plus a pile of computed adherence stats) so
@@ -17,21 +15,20 @@ export interface ManageableItem {
   itemIdentity: string;
   item: string;
   category: string;
-  subcategory: string;
   isArchived: boolean;
 }
 
 /**
- * Rename + archive/unarchive for a tracked item — the one dynamic,
- * Supabase-backed way to manage an item's display name and Log-page
- * visibility, for any item type (food, supplement, outcome, habit).
- * Shared by the Manage page and the Habits page rather than duplicated,
- * so there's exactly one place this logic lives.
+ * Rename + archive/unarchive + change-category for a tracked item — the
+ * dynamic, Supabase-backed way to manage an item, for any item type (food,
+ * supplement, outcome, habit). Shared by the Manage page and the Habits
+ * page rather than duplicated, so there's exactly one place this logic
+ * lives.
  *
+ * Every action here is a plain column update on the item's own row — name,
+ * category, or archive state — never a separate classification record.
  * Archiving only ever touches the item's own record (never its logs), so
- * history stays intact; renaming keeps the same identity and copies the
- * item's existing classification onto the new name via a user override, so
- * a rename can't accidentally reclassify it.
+ * history stays intact.
  */
 export function useItemActions(refresh: () => Promise<void>) {
   const [busyIdentity, setBusyIdentity] = useState<string | null>(null);
@@ -48,8 +45,8 @@ export function useItemActions(refresh: () => Promise<void>) {
     setBusyIdentity(null);
   }
 
-  async function rename(item: ManageableItem, itemType: ItemType, newName: string) {
-    const trimmed = newName.trim();
+  async function rename(item: ManageableItem, newName: string) {
+    const trimmed = titleCaseFallback(newName);
     if (!trimmed || trimmed === item.item) return;
     setBusyIdentity(item.itemIdentity);
     const existing = await getItem(item.itemIdentity);
@@ -58,39 +55,22 @@ export function useItemActions(refresh: () => Promise<void>) {
       await putItem(updated);
       void pushItem(updated);
     }
-    const key = normalizeName(trimmed);
-    const override: OverrideEntry = {
-      canonicalName: trimmed,
-      itemType,
-      category: item.category,
-      subcategory: item.subcategory,
-    };
-    await setUserOverride(key, override);
-    void pushUserOverride(key, override);
     await refresh();
     setBusyIdentity(null);
   }
 
   /** Moves an item into a different category without touching its display
-   * name. Keyed off the item's actual current `rawName` (fetched fresh,
-   * not `item.item` — the canonical *display* name can already differ from
-   * the raw name it was logged under if it went through a prior override,
-   * and the override key has to match what `classifyItem` will actually
-   * look up for this item, or the change silently does nothing). */
-  async function changeCategory(item: ManageableItem, itemType: ItemType, newCategory: string) {
-    if (!newCategory || newCategory === item.category) return;
+   * name. `newCategoryId` is the target `categories` row's id, resolved by
+   * the caller (via `ensureCategoryId`) before this runs. */
+  async function changeCategory(item: ManageableItem, newCategoryName: string, newCategoryId: string | null) {
+    if (!newCategoryName || newCategoryName === item.category) return;
     setBusyIdentity(item.itemIdentity);
     const existing = await getItem(item.itemIdentity);
-    const rawName = existing?.rawName ?? item.item;
-    const key = normalizeName(rawName);
-    const override: OverrideEntry = {
-      canonicalName: item.item,
-      itemType,
-      category: newCategory,
-      subcategory: newCategory,
-    };
-    await setUserOverride(key, override);
-    void pushUserOverride(key, override);
+    if (existing) {
+      const updated = { ...existing, category: newCategoryName, categoryId: newCategoryId };
+      await putItem(updated);
+      void pushItem(updated);
+    }
     await refresh();
     setBusyIdentity(null);
   }

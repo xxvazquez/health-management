@@ -1,179 +1,104 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "./client";
 import {
-  getLogsForItemOnDate,
-  getItem,
-  putDiaryEntry,
-  putLog,
   putItem,
+  putLog,
+  putDiaryEntry,
+  putCategory,
+  putStoolLog,
   putGymLog,
   deleteGymLogById,
-  setUserOverride,
-  putUserCategory,
-  deleteUserCategoryLocal,
   clearAllData,
 } from "@/lib/db/indexedDb";
-import type { OverrideEntry } from "@/taxonomy/classify";
-import type { RawDiaryEntry, RawLog, RawItem, RawGymLog, RawUserCategory } from "@/lib/types";
+import type { RawDiaryEntry, RawLog, RawItem, RawGymLog, RawCategory, RawStoolLog, StoolColor, PaperCleanliness } from "@/lib/types";
+import type { ItemType } from "@/taxonomy/categories";
 
-/**
- * Upserts one item's own metadata (name, archive state, etc.) to Supabase —
- * shared by `syncItemDay` (after a log write) and any action that only
- * changes the item itself, like renaming or archiving/unarchiving from the
- * Habits/Supplements page. No-op if Supabase isn't configured or nobody's
- * signed in.
- */
-export async function pushItem(item: RawItem): Promise<void> {
-  if (!supabase) return;
+/** App-internal `ItemType` -> the table-name/db `item_type` value. Only
+ * "outcome" differs (tables/rows say "symptom", matching the Log page's
+ * own label) — everything else is spelled the same both places. */
+const DB_TYPE: Record<ItemType, string> = { food: "food", supplement: "supplement", outcome: "symptom", habit: "habit" };
+const ITEM_TABLE: Record<ItemType, string> = {
+  food: "food_items",
+  supplement: "supplement_items",
+  outcome: "symptom_items",
+  habit: "habit_items",
+};
+const LOG_TABLE: Record<ItemType, string> = {
+  food: "food_logs",
+  supplement: "supplement_logs",
+  outcome: "symptom_logs",
+  habit: "habit_logs",
+};
+const DIARY_TABLE: Record<ItemType, string> = {
+  food: "food_diary",
+  supplement: "supplement_diary",
+  outcome: "symptom_diary",
+  habit: "habit_diary",
+};
+
+async function currentUserId(): Promise<string | null> {
+  if (!supabase) return null;
   const {
     data: { session },
   } = await supabase.auth.getSession();
-  if (!session) return;
+  return session?.user.id ?? null;
+}
 
-  await supabase.from("items").upsert({
-    identity: item.identity,
-    user_id: session.user.id,
-    raw_name: item.rawName,
-    unit: item.unit,
-    kind: item.kind,
-    frequency: item.frequency,
-    is_removed: item.isRemoved,
+/** Upserts one item's own metadata (name, category, archive state) to
+ * Supabase — shared by every write that touches an item's row, and by
+ * rename/archive/change-category from Manage. No-op if Supabase isn't
+ * configured or nobody's signed in. */
+export async function pushItem(item: RawItem): Promise<void> {
+  const userId = await currentUserId();
+  if (!supabase || !userId) return;
+
+  await supabase.from(ITEM_TABLE[item.itemType]).upsert({
+    id: item.identity,
+    user_id: userId,
+    name: item.rawName,
+    category_id: item.categoryId,
+    item_type: DB_TYPE[item.itemType],
     is_archived: item.isArchived,
     created_date: item.createdDate,
   });
 }
 
-/**
- * Pushes everything logged for one item on one day (from the Log page) to
- * Supabase: upserts the item's own metadata, then replaces that
- * item+date's remote rows with whatever's now stored locally. Silently
- * skips historical-origin logs — this only syncs what was actually typed
- * or tapped through the Log page, not the bulk historical migration
- * (that goes through the CSV import instead).
- *
- * No-op if Supabase isn't configured or nobody's signed in, so local
- * logging always works regardless of cloud state.
- */
-export async function syncItemDay(itemIdentity: string, date: string): Promise<void> {
-  if (!supabase) return;
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  if (!session) return;
-  const userId = session.user.id;
+/** Upserts one log row to Supabase — a single-row upsert, not a
+ * delete-and-replace: every log has its own stable id both locally and
+ * remotely, so pushing one tap never touches any other row. No-op if
+ * Supabase isn't configured or nobody's signed in. */
+export async function pushLog(log: RawLog): Promise<void> {
+  const userId = await currentUserId();
+  if (!supabase || !userId) return;
 
-  const item = await getItem(itemIdentity);
-  if (item) await pushItem(item);
-
-  const manualLogs = (await getLogsForItemOnDate(itemIdentity, date)).filter((l) => l.identity.startsWith("manual:"));
-
-  await supabase.from("logs").delete().eq("item_identity", itemIdentity).eq("date", date);
-  if (manualLogs.length > 0) {
-    await supabase.from("logs").insert(
-      manualLogs.map((l) => ({
-        identity: l.identity,
-        user_id: userId,
-        item_identity: l.itemIdentity,
-        date: l.date,
-        value: l.value,
-        goal_value: l.goalValue,
-        is_skipped: l.isSkipped,
-        updated_at: l.updatedAt,
-        meal_tag: l.mealTag,
-      })),
-    );
-  }
-}
-
-/**
- * Upserts one gym log to Supabase, keyed by its own id — unlike
- * syncItemDay's item+date replace strategy, since a gym log has no
- * separate "item" dimension to key off (the exercise is the value, not an
- * identity). No-op if Supabase isn't configured or nobody's signed in.
- */
-export async function pushGymLog(log: RawGymLog): Promise<void> {
-  if (!supabase) return;
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  if (!session) return;
-
-  await supabase.from("gym_logs").upsert({
-    id: log.id,
-    user_id: session.user.id,
+  const row: Record<string, unknown> = {
+    id: log.identity,
+    user_id: userId,
+    item_id: log.itemIdentity,
     date: log.date,
-    exercise: log.exercise,
-    weight_kg: log.weightKg,
-    updated_at: new Date(log.updatedAt).toISOString(),
-  });
+    value: log.value,
+    updated_at: log.updatedAt,
+  };
+  if (log.itemType === "food") row.meal_tag = log.mealTag;
+  await supabase.from(LOG_TABLE[log.itemType]).upsert(row);
 }
 
-/** Deletes one gym log locally and (if signed in) from Supabase. */
-export async function deleteGymLog(id: string): Promise<void> {
-  await deleteGymLogById(id);
+/** Deletes one log row, locally already gone by the time this is called —
+ * just needs to know which table it lived in. */
+export async function deleteLog(identity: string, itemType: ItemType): Promise<void> {
   if (!supabase) return;
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  if (!session) return;
-  await supabase.from("gym_logs").delete().eq("id", id);
-}
-
-export async function pushUserOverride(key: string, entry: OverrideEntry): Promise<void> {
-  if (!supabase) return;
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  if (!session) return;
-
-  await supabase.from("user_overrides").upsert({
-    key,
-    user_id: session.user.id,
-    canonical_name: entry.canonicalName,
-    item_type: entry.itemType,
-    category: entry.category,
-    subcategory: entry.subcategory,
-  });
-}
-
-/** Upserts one user-defined category. No-op if Supabase isn't configured or nobody's signed in. */
-export async function pushUserCategory(entry: RawUserCategory): Promise<void> {
-  if (!supabase) return;
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  if (!session) return;
-
-  await supabase.from("user_categories").upsert({
-    user_id: session.user.id,
-    item_type: entry.itemType,
-    name: entry.name,
-  });
-}
-
-/** Deletes one user-defined category, locally and (if signed in) from Supabase. */
-export async function deleteUserCategory(itemType: string, name: string): Promise<void> {
-  await deleteUserCategoryLocal(itemType, name);
-  if (!supabase) return;
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  if (!session) return;
-  await supabase.from("user_categories").delete().eq("item_type", itemType).eq("name", name);
+  await supabase.from(LOG_TABLE[itemType]).delete().eq("id", identity);
 }
 
 /** Upserts one item+day note. No-op if Supabase isn't configured or nobody's signed in. */
 export async function pushDiaryEntry(entry: RawDiaryEntry): Promise<void> {
-  if (!supabase) return;
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  if (!session) return;
+  const userId = await currentUserId();
+  if (!supabase || !userId) return;
 
-  await supabase.from("diary").upsert({
-    identity: entry.identity,
-    user_id: session.user.id,
-    item_identity: entry.itemIdentity,
+  await supabase.from(DIARY_TABLE[entry.itemType]).upsert({
+    id: entry.identity,
+    user_id: userId,
+    item_id: entry.itemIdentity,
     date: entry.date,
     content: entry.content,
     title: entry.title,
@@ -181,43 +106,132 @@ export async function pushDiaryEntry(entry: RawDiaryEntry): Promise<void> {
   });
 }
 
+/** Upserts one user-defined category (supplement/habit/outcome only — food's
+ * list is fixed in code). No-op if Supabase isn't configured or nobody's signed in. */
+export async function pushCategory(entry: RawCategory): Promise<void> {
+  const userId = await currentUserId();
+  if (!supabase || !userId) return;
+
+  await supabase.from("categories").upsert({
+    id: entry.id,
+    user_id: userId,
+    item_type: DB_TYPE[entry.itemType],
+    name: entry.name,
+  });
+}
+
+/** Deletes one category. The DB rejects this with a foreign-key error if
+ * any item still references it (`on delete restrict`) — callers should
+ * reassign or archive those items first rather than catching that error. */
+export async function deleteCategory(id: string): Promise<void> {
+  if (!supabase) return;
+  await supabase.from("categories").delete().eq("id", id);
+}
+
+/** Upserts one bowel-movement entry. No-op if Supabase isn't configured or nobody's signed in. */
+export async function pushStoolLog(log: RawStoolLog): Promise<void> {
+  const userId = await currentUserId();
+  if (!supabase || !userId) return;
+
+  await supabase.from("stool_logs").upsert({
+    id: log.id,
+    user_id: userId,
+    date: log.date,
+    logged_at: log.loggedAt,
+    bristol_score: log.bristolScore,
+    no_bristol: log.noBristol,
+    color: log.color,
+    is_sticky: log.isSticky,
+    is_smelly: log.isSmelly,
+    is_straining: log.isStraining,
+    has_mucus: log.hasMucus,
+    has_urgency: log.hasUrgency,
+    has_visible_food_particles: log.hasVisibleFoodParticles,
+    has_incomplete_evacuation: log.hasIncompleteEvacuation,
+    paper_cleanliness: log.paperCleanliness,
+    time_on_toilet_minutes: log.timeOnToiletMinutes,
+    note: log.note,
+    updated_at: log.updatedAt,
+  });
+}
+
+export async function deleteStoolLog(id: string): Promise<void> {
+  if (!supabase) return;
+  await supabase.from("stool_logs").delete().eq("id", id);
+}
+
+/** Upserts one gym log. Unchanged by the data-model redesign — `gym_logs`
+ * never had an "item" dimension to split up. */
+export async function pushGymLog(log: RawGymLog): Promise<void> {
+  const userId = await currentUserId();
+  if (!supabase || !userId) return;
+
+  await supabase.from("gym_logs").upsert({
+    id: log.id,
+    user_id: userId,
+    date: log.date,
+    exercise: log.exercise,
+    weight_kg: log.weightKg,
+    updated_at: new Date(log.updatedAt).toISOString(),
+  });
+}
+
+export async function deleteGymLog(id: string): Promise<void> {
+  await deleteGymLogById(id);
+  if (!supabase) return;
+  await supabase.from("gym_logs").delete().eq("id", id);
+}
+
 interface ItemRow {
-  identity: string;
-  raw_name: string;
-  unit: string | null;
-  kind: string | null;
-  frequency: string | null;
-  is_removed: boolean;
+  id: string;
+  name: string;
+  category_id: string | null;
   is_archived: boolean | null;
   created_date: string | null;
 }
 
 interface LogRow {
-  identity: string;
-  item_identity: string;
+  id: string;
+  item_id: string;
   date: string;
   value: number | null;
-  goal_value: number | null;
-  is_skipped: boolean;
-  updated_at: number | null;
-  meal_tag: string | null;
-}
-
-interface OverrideRow {
-  key: string;
-  canonical_name: string;
-  item_type: OverrideEntry["itemType"];
-  category: string;
-  subcategory: string;
+  meal_tag?: string | null;
+  updated_at: string | null;
 }
 
 interface DiaryRow {
-  identity: string;
-  item_identity: string;
+  id: string;
+  item_id: string;
   date: string;
   content: string | null;
   title: string | null;
-  updated_at: number | null;
+  updated_at: string | null;
+}
+
+interface CategoryRow {
+  id: string;
+  item_type: string;
+  name: string;
+}
+
+interface StoolLogRow {
+  id: string;
+  date: string;
+  logged_at: string;
+  bristol_score: number | null;
+  no_bristol: boolean;
+  color: string | null;
+  is_sticky: boolean;
+  is_smelly: boolean;
+  is_straining: boolean;
+  has_mucus: boolean;
+  has_urgency: boolean;
+  has_visible_food_particles: boolean;
+  has_incomplete_evacuation: boolean;
+  paper_cleanliness: string | null;
+  time_on_toilet_minutes: number | null;
+  note: string | null;
+  updated_at: string | null;
 }
 
 interface GymLogRow {
@@ -228,20 +242,12 @@ interface GymLogRow {
   updated_at: string;
 }
 
-interface UserCategoryRow {
-  item_type: RawUserCategory["itemType"];
-  name: string;
-}
-
 const PAGE_SIZE = 1000;
 
-/**
- * Reads an entire table for the signed-in user, paginated. A plain
+/** Reads an entire table for the signed-in user, paginated — a plain
  * `.select("*")` silently truncates at Postgrest's default max-rows (1000
- * on most projects) — for a table with more history than that, the rest
- * would just go missing with no error. Paging with `.range()` until a page
- * comes back short is what actually gets everything.
- */
+ * on most projects); paging with `.range()` until a page comes back short
+ * is what actually gets everything. */
 async function fetchAllRows<T>(client: SupabaseClient, table: string): Promise<T[]> {
   const out: T[] = [];
   let from = 0;
@@ -259,14 +265,13 @@ async function fetchAllRows<T>(client: SupabaseClient, table: string): Promise<T
   return out;
 }
 
+const ITEM_TYPES: ItemType[] = ["food", "supplement", "outcome", "habit"];
+
 /**
- * Pulls every cloud row belonging to the signed-in user into IndexedDB —
- * a full mirror, not a merge. The local cache is wiped first: Supabase is
- * the only source of truth, so anything in IndexedDB that ISN'T also in
- * Supabase (leftover local-only taps from before signing in, rows deleted
- * on another device, stray test data) must not survive a pull. Upserting
- * on top of whatever was already there would let exactly that kind of
- * stale data linger and display as if it were real synced data.
+ * Pulls every cloud row belonging to the signed-in user into IndexedDB — a
+ * full mirror, not a merge. The local cache is wiped first: Supabase is the
+ * only source of truth, so anything in IndexedDB that ISN'T also in
+ * Supabase must not survive a pull.
  */
 export async function pullFromCloud(): Promise<void> {
   if (!supabase) return;
@@ -275,70 +280,91 @@ export async function pullFromCloud(): Promise<void> {
   } = await supabase.auth.getSession();
   if (!session) return;
 
-  const [itemRows, logRows, overrideRows, diaryRows, gymLogRows, userCategoryRows] = await Promise.all([
-    fetchAllRows<ItemRow>(supabase, "items"),
-    fetchAllRows<LogRow>(supabase, "logs"),
-    fetchAllRows<OverrideRow>(supabase, "user_overrides"),
-    fetchAllRows<DiaryRow>(supabase, "diary"),
+  const categoryRows = await fetchAllRows<CategoryRow>(supabase, "categories");
+  const categoryNameById = new Map(categoryRows.map((c) => [c.id, c.name]));
+
+  const [itemsByType, logsByType, diaryByType] = await Promise.all([
+    Promise.all(ITEM_TYPES.map((t) => fetchAllRows<ItemRow>(supabase!, ITEM_TABLE[t]))),
+    Promise.all(ITEM_TYPES.map((t) => fetchAllRows<LogRow>(supabase!, LOG_TABLE[t]))),
+    Promise.all(ITEM_TYPES.map((t) => fetchAllRows<DiaryRow>(supabase!, DIARY_TABLE[t]))),
+  ]);
+  const [stoolLogRows, gymLogRows] = await Promise.all([
+    fetchAllRows<StoolLogRow>(supabase, "stool_logs"),
     fetchAllRows<GymLogRow>(supabase, "gym_logs"),
-    // Table only exists once someone's run the 2026-08 migration (see
-    // schema.sql) — falls back to "no custom categories yet" rather than
-    // failing the whole pull (and with it every other table) for anyone
-    // who hasn't run it.
-    fetchAllRows<UserCategoryRow>(supabase, "user_categories").catch(() => [] as UserCategoryRow[]),
   ]);
 
   await clearAllData();
 
-  for (const row of itemRows) {
-    const item: RawItem = {
-      identity: row.identity,
-      rawName: row.raw_name,
-      unit: row.unit,
-      kind: row.kind,
-      frequency: row.frequency,
-      isRemoved: row.is_removed,
-      // Defensive fallback: false until the `is_archived` migration has
-      // been run against this Supabase project (see supabase/schema.sql).
-      isArchived: row.is_archived ?? false,
-      createdDate: row.created_date,
-    };
-    await putItem(item);
+  for (const entry of categoryRows) {
+    await putCategory({ id: entry.id, itemType: dbTypeToItemType(entry.item_type), name: entry.name });
   }
 
-  for (const row of logRows) {
-    const log: RawLog = {
-      identity: row.identity,
-      itemIdentity: row.item_identity,
+  ITEM_TYPES.forEach((itemType, i) => {
+    for (const row of itemsByType[i]) {
+      const item: RawItem = {
+        identity: row.id,
+        itemType,
+        rawName: row.name,
+        category: categoryNameById.get(row.category_id ?? "") ?? "Other",
+        categoryId: row.category_id,
+        isArchived: row.is_archived ?? false,
+        createdDate: row.created_date,
+      };
+      void putItem(item);
+    }
+  });
+
+  ITEM_TYPES.forEach((itemType, i) => {
+    for (const row of logsByType[i]) {
+      const log: RawLog = {
+        identity: row.id,
+        itemIdentity: row.item_id,
+        itemType,
+        date: row.date,
+        value: row.value,
+        updatedAt: row.updated_at,
+        mealTag: itemType === "food" ? (row.meal_tag ?? null) : null,
+      };
+      void putLog(log);
+    }
+  });
+
+  ITEM_TYPES.forEach((itemType, i) => {
+    for (const row of diaryByType[i]) {
+      const entry: RawDiaryEntry = {
+        identity: row.id,
+        itemIdentity: row.item_id,
+        itemType,
+        date: row.date,
+        content: row.content,
+        title: row.title,
+        updatedAt: row.updated_at,
+      };
+      void putDiaryEntry(entry);
+    }
+  });
+
+  for (const row of stoolLogRows) {
+    const log: RawStoolLog = {
+      id: row.id,
       date: row.date,
-      value: row.value,
-      goalValue: row.goal_value,
-      isSkipped: row.is_skipped,
-      updatedAt: row.updated_at,
-      mealTag: row.meal_tag,
-    };
-    await putLog(log);
-  }
-
-  for (const row of overrideRows) {
-    await setUserOverride(row.key, {
-      canonicalName: row.canonical_name,
-      itemType: row.item_type,
-      category: row.category,
-      subcategory: row.subcategory,
-    });
-  }
-
-  for (const row of diaryRows) {
-    const entry: RawDiaryEntry = {
-      identity: row.identity,
-      itemIdentity: row.item_identity,
-      date: row.date,
-      content: row.content,
-      title: row.title,
+      loggedAt: row.logged_at,
+      bristolScore: row.bristol_score,
+      noBristol: row.no_bristol,
+      color: (row.color as StoolColor | null) ?? null,
+      isSticky: row.is_sticky,
+      isSmelly: row.is_smelly,
+      isStraining: row.is_straining,
+      hasMucus: row.has_mucus,
+      hasUrgency: row.has_urgency,
+      hasVisibleFoodParticles: row.has_visible_food_particles,
+      hasIncompleteEvacuation: row.has_incomplete_evacuation,
+      paperCleanliness: (row.paper_cleanliness as PaperCleanliness | null) ?? null,
+      timeOnToiletMinutes: row.time_on_toilet_minutes,
+      note: row.note,
       updatedAt: row.updated_at,
     };
-    await putDiaryEntry(entry);
+    await putStoolLog(log);
   }
 
   for (const row of gymLogRows) {
@@ -351,8 +377,8 @@ export async function pullFromCloud(): Promise<void> {
     };
     await putGymLog(log);
   }
+}
 
-  for (const row of userCategoryRows) {
-    await putUserCategory({ itemType: row.item_type, name: row.name });
-  }
+function dbTypeToItemType(dbType: string): ItemType {
+  return dbType === "symptom" ? "outcome" : (dbType as ItemType);
 }

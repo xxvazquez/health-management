@@ -4,8 +4,6 @@ import { addDaysToDate, computeCurrentStreak, pct, trackedCalendarDates } from "
 export interface ItemStats {
   item: string;
   category: string;
-  subcategory: string;
-  unit: string | null;
   daysTracked: number;
   daysCompleted: number;
   consistencyPct: number; // of days tracked, % completed
@@ -53,8 +51,6 @@ export function computeItemStats(events: CanonicalEvent[], activeDates: string[]
     stats.push({
       item,
       category: sorted[0].category,
-      subcategory: sorted[0].subcategory,
-      unit: sorted[0].unit,
       daysTracked: trackedDates.length,
       daysCompleted: completedDates.size,
       consistencyPct: pct(completedDates.size, trackedDates.length),

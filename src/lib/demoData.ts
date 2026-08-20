@@ -1,29 +1,48 @@
-import type { RawItem, RawLog, RawGymLog, GymExercise } from "@/lib/types";
+import type { RawItem, RawLog, RawGymLog, RawStoolLog, GymExercise } from "@/lib/types";
+import type { ItemType } from "@/taxonomy/categories";
 
 /** Every demo item/log identity starts with this — purely in-memory,
  * never written to IndexedDB or Supabase, so it can never mix with real
  * data or leak into a signed-in sync. */
 export const DEMO_ID_PREFIX = "demo:";
 
-// Raw names reused verbatim from taxonomy/overrides.json, so every entry
-// classifies correctly without touching the taxonomy at all.
-const FOODS = [
-  "Eat Tomato", "Eat Broccoli", "Eat Carrot", "Eat Onion", "Eat Garlic", "Eat Cauliflower",
-  "Eat Spinach", "Eat Kale",
-  "Eat Banana", "Eat Apple", "Eat Blueberries", "Eat Orange", "Eat Strawberries",
-  "Eat Beans", "Eat Chickpeas", "Eat Lentils",
-  "Eat Oats", "Eat Rice", "Eat Bread", "Eat Potatoes",
-  "Eat Cheese", "Eat Yoghurt", "Eat Eggs", "Drink Milk",
-  "Eat Chicken", "Eat Salmon", "Eat Tuna", "Eat Cod",
-  "Eat Almonds", "Eat Walnuts", "Eat Peanut butter", "Eat Chia",
-  "Drink Coffee", "Eat Chocolate",
+// [name, category] tuples — explicit now that there's no more name-matched
+// classification to infer a category from. Category is a real column on
+// every item; the demo dataset sets it directly, same as a real user would
+// when adding an item.
+const FOODS: [string, string][] = [
+  ["Tomato", "Veggies"], ["Broccoli", "Veggies"], ["Carrot", "Veggies"], ["Onion", "Veggies"],
+  ["Garlic", "Veggies"], ["Cauliflower", "Veggies"], ["Spinach", "Veggies"], ["Kale", "Veggies"],
+  ["Banana", "Fruit"], ["Apple", "Fruit"], ["Blueberries", "Fruit"], ["Orange", "Fruit"], ["Strawberries", "Fruit"],
+  ["Beans", "Legumes"], ["Chickpeas", "Legumes"], ["Lentils", "Legumes"],
+  ["Oats", "Grains"], ["Rice", "Grains"], ["Bread", "Grains"], ["Potatoes", "Veggies"],
+  ["Cheese", "Dairy"], ["Yoghurt", "Dairy"], ["Eggs", "Dairy"], ["Milk", "Dairy"],
+  ["Chicken", "Meat"], ["Salmon", "Fish"], ["Tuna", "Fish"], ["Cod", "Fish"],
+  ["Almonds", "Nuts & Seeds"], ["Walnuts", "Nuts & Seeds"], ["Peanut butter", "Nuts & Seeds"], ["Chia", "Nuts & Seeds"],
+  ["Coffee", "Misc"], ["Chocolate", "Misc"],
 ];
-const DAILY_SUPPLEMENTS = ["Vitamin D", "Magnesium"];
-const OCCASIONAL_SUPPLEMENTS = ["Vitamin C", "Omega-3", "Iron", "Folate"];
-const DAILY_HABIT = "Sleep well";
-const OCCASIONAL_HABITS = ["Walk", "Workout", "Take a shower", "Rest 30'"];
-const BRISTOL_POOL = ["Bristol 3", "Bristol 4", "Bristol 3", "Bristol 4", "Bristol 2", "Bristol 5"];
-const SYMPTOMS = ["Bloating", "Flatulence", "Headache"];
+const DAILY_SUPPLEMENTS: [string, string][] = [
+  ["Vitamin D", "Vitamins"],
+  ["Magnesium", "Minerals"],
+];
+const OCCASIONAL_SUPPLEMENTS: [string, string][] = [
+  ["Vitamin C", "Vitamins"],
+  ["Omega-3", "Omega-3"],
+  ["Iron", "Minerals"],
+  ["Folate", "Vitamins"],
+];
+const DAILY_HABIT: [string, string] = ["Sleep well", "Sleep"];
+const OCCASIONAL_HABITS: [string, string][] = [
+  ["Walk", "Movement"],
+  ["Workout", "Exercise"],
+  ["Take a shower", "Self-care"],
+  ["Rest 30'", "Self-care"],
+];
+const SYMPTOMS: [string, string][] = [
+  ["Bloating", "Digestive Symptom"],
+  ["Flatulence", "Digestive Symptom"],
+  ["Headache", "Other Symptom"],
+];
 const MEALS = ["Breakfast", "Lunch", "Dinner", "Snack"] as const;
 
 const DEMO_SEED = 20260101;
@@ -65,6 +84,7 @@ export interface DemoDataset {
   items: RawItem[];
   logs: RawLog[];
   gymLogs: RawGymLog[];
+  stoolLogs: RawStoolLog[];
 }
 
 /**
@@ -87,16 +107,15 @@ export function buildDemoDataset(): DemoDataset {
   const logs: RawLog[] = [];
   let logCounter = 0;
 
-  function ensureItem(rawName: string): string {
+  function ensureItem(itemType: ItemType, rawName: string, category: string): string {
     const identity = demoItemIdentity(rawName);
     if (!itemsByName.has(rawName)) {
       itemsByName.set(rawName, {
         identity,
+        itemType,
         rawName,
-        unit: null,
-        kind: null,
-        frequency: null,
-        isRemoved: false,
+        category,
+        categoryId: null,
         isArchived: false,
         createdDate,
       });
@@ -104,19 +123,25 @@ export function buildDemoDataset(): DemoDataset {
     return identity;
   }
 
-  function writeLog(itemIdentity: string, date: string, mealTag: string | null): void {
+  function writeLog(itemIdentity: string, itemType: ItemType, date: string, mealTag: string | null): void {
     logCounter++;
     logs.push({
       identity: `${DEMO_ID_PREFIX}log:${itemIdentity}:${date}:${logCounter}`,
       itemIdentity,
+      itemType,
       date,
       value: 1,
-      goalValue: null,
-      isSkipped: false,
-      updatedAt: new Date(`${date}T12:00:00`).getTime(),
+      updatedAt: new Date(`${date}T12:00:00`).toISOString(),
       mealTag,
     });
   }
+
+  const stoolLogs: RawStoolLog[] = [];
+  let stoolCounter = 0;
+  // Weighted toward the 3–4 target range, with occasional wider readings
+  // and unclassified checks — same shape a real, mostly-in-range logger's
+  // history looks like.
+  const BRISTOL_POOL = [3, 4, 3, 4, 2, 5, 3, 4, 6];
 
   for (let dayOffset = DEMO_WINDOW_DAYS; dayOffset >= 0; dayOffset--) {
     const d = new Date(today);
@@ -128,19 +153,52 @@ export function buildDemoDataset(): DemoDataset {
 
     const foodCount = 2 + Math.floor(rand() * 3);
     for (let i = 0; i < foodCount; i++) {
-      writeLog(ensureItem(pick(FOODS)), date, pick(MEALS));
+      const [name, category] = pick(FOODS);
+      writeLog(ensureItem("food", name, category), "food", date, pick(MEALS));
     }
 
-    for (const rawName of DAILY_SUPPLEMENTS) {
-      if (chance(0.85)) writeLog(ensureItem(rawName), date, null);
+    for (const [name, category] of DAILY_SUPPLEMENTS) {
+      if (chance(0.85)) writeLog(ensureItem("supplement", name, category), "supplement", date, null);
     }
-    if (chance(0.3)) writeLog(ensureItem(pick(OCCASIONAL_SUPPLEMENTS)), date, null);
+    if (chance(0.3)) {
+      const [name, category] = pick(OCCASIONAL_SUPPLEMENTS);
+      writeLog(ensureItem("supplement", name, category), "supplement", date, null);
+    }
 
-    if (chance(0.75)) writeLog(ensureItem(DAILY_HABIT), date, null);
-    if (chance(0.5)) writeLog(ensureItem(pick(OCCASIONAL_HABITS)), date, null);
+    if (chance(0.75)) writeLog(ensureItem("habit", DAILY_HABIT[0], DAILY_HABIT[1]), "habit", date, null);
+    if (chance(0.5)) {
+      const [name, category] = pick(OCCASIONAL_HABITS);
+      writeLog(ensureItem("habit", name, category), "habit", date, null);
+    }
 
-    if (chance(0.7)) writeLog(ensureItem(pick(BRISTOL_POOL)), date, null);
-    if (chance(0.15)) writeLog(ensureItem(pick(SYMPTOMS)), date, null);
+    if (chance(0.15)) {
+      const [name, category] = pick(SYMPTOMS);
+      writeLog(ensureItem("outcome", name, category), "outcome", date, null);
+    }
+
+    if (chance(0.7)) {
+      stoolCounter++;
+      const noBristol = chance(0.08);
+      stoolLogs.push({
+        id: `${DEMO_ID_PREFIX}stool:${stoolCounter}`,
+        date,
+        loggedAt: new Date(`${date}T09:00:00`).toISOString(),
+        bristolScore: noBristol ? null : pick(BRISTOL_POOL),
+        noBristol,
+        color: noBristol ? null : "Brown",
+        isSticky: !noBristol && chance(0.1),
+        isSmelly: !noBristol && chance(0.08),
+        isStraining: !noBristol && chance(0.05),
+        hasMucus: false,
+        hasUrgency: !noBristol && chance(0.05),
+        hasVisibleFoodParticles: false,
+        hasIncompleteEvacuation: !noBristol && chance(0.08),
+        paperCleanliness: noBristol ? null : (chance(0.6) ? "Clean" : "Slightly Dirty"),
+        timeOnToiletMinutes: noBristol ? null : 3 + Math.floor(rand() * 8),
+        note: null,
+        updatedAt: new Date(`${date}T09:00:00`).toISOString(),
+      });
+    }
   }
 
   const gymLogs: RawGymLog[] = [];
@@ -166,5 +224,5 @@ export function buildDemoDataset(): DemoDataset {
     }
   }
 
-  return { items: Array.from(itemsByName.values()), logs, gymLogs };
+  return { items: Array.from(itemsByName.values()), logs, gymLogs, stoolLogs };
 }

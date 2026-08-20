@@ -1,5 +1,4 @@
 import type { CanonicalEvent } from "@/lib/types";
-import { FOOD_CATEGORIES } from "@/taxonomy/categories";
 import { normalizeName } from "@/taxonomy/normalizeName";
 import { POLAND_SEASONAL_PRODUCE } from "@/lib/seasonalProduce";
 import { addDaysToDate } from "./common";
@@ -53,9 +52,13 @@ export interface WeeklyCategoryStat {
  */
 export function weeklyCategoryPriority(events: CanonicalEvent[], referenceDate: string): WeeklyCategoryStat[] {
   const weekStart = addDaysToDate(referenceDate, -6);
-  const byCategory = new Map<string, number>(FOOD_CATEGORIES.map((c) => [c, 0]));
+  // Zero-fill against every category the person has ever logged food under
+  // (not just this week's), so a category they use but skipped this week
+  // still surfaces as "least tracked" instead of disappearing entirely.
+  const byCategory = new Map<string, number>();
   for (const e of events) {
     if (e.itemType !== "food" || !e.completed) continue;
+    if (!byCategory.has(e.category)) byCategory.set(e.category, 0);
     if (e.date < weekStart || e.date > referenceDate) continue;
     byCategory.set(e.category, (byCategory.get(e.category) ?? 0) + 1);
   }

@@ -98,7 +98,7 @@ export default function HabitsPage() {
                     item={item}
                     busy={busyIdentity === item.itemIdentity}
                     onArchiveToggle={() => void toggleArchive(item)}
-                    onRename={(newName) => void rename(item, "habit", newName)}
+                    onRename={(newName) => void rename(item, newName)}
                   />
                   <span className="flex gap-4 text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>
                     <span>
