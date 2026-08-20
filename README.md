@@ -40,6 +40,8 @@ Logging works fully offline out of the box — everything's cached in the browse
 
 Push to `main` and `.github/workflows/deploy.yml` builds the site and publishes it to GitHub Pages, which serves it at the custom domain in `public/CNAME` (currently lauva.pl). No separate deploy step — a merge to `main` *is* the deploy.
 
+The "Report a bug" button in the nav emails a report through a Supabase Edge Function (`supabase/functions/report-bug`) rather than a Next.js API route, since the site itself is static with no server. `.github/workflows/deploy-functions.yml` deploys that function and syncs its secrets whenever `supabase/functions/**` changes, using four more repo secrets: `SUPABASE_ACCESS_TOKEN` and `SUPABASE_PROJECT_REF` to authenticate the Supabase CLI, `RESEND_API_KEY` to actually send the email through [Resend](https://resend.com), and `BUG_EMAIL` for the recipient. All four stay server-side — they're pushed into Supabase's own Edge Function secret store, never into the site build, so the client never sees them.
+
 ## Look & feel
 
 Colors and the leaf/wave/dot mark live as CSS variables in `src/app/globals.css` (`--brand-*` for the true palette, everything else deepened for legibility) and `public/logo-mark.svg` / `src/components/Logo.tsx`. Light theme only, one typeface (Inter), no serif or display font — change a token there and it's consistent everywhere. `public/icons/` holds PNG renders of the same mark for the home-screen icon (plain and maskable, at the sizes `manifest.webmanifest` asks for) — regenerate them from the SVG rather than editing the PNGs directly if the mark ever changes.
