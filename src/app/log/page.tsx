@@ -5,27 +5,22 @@ import Link from "next/link";
 import clsx from "clsx";
 import { useData } from "@/lib/DataContext";
 import { useAuth } from "@/lib/supabase/AuthContext";
-import { pushDiaryEntry, pushLog, deleteLog, pushItem, pushStoolLog, deleteStoolLog } from "@/lib/supabase/sync";
 import {
-  decrementDailyLog,
-  decrementDailyLogForMeal,
-  deleteLogById,
-  getAllDiary,
-  getAllItems,
-  getAllLogs,
-  getAllCategories,
-  getAllStoolLogs,
-  incrementDailyLog,
-  putItem,
-  putStoolLog,
-  deleteStoolLogById,
-  setDailyDuration,
-  setDiaryNote,
-  toggleDailyLog,
-  updateLogMealTag,
-  updateLogTime,
-  updateStoolLogTime,
-} from "@/lib/db/indexedDb";
+  setDiaryNoteAndSync,
+  incrementDailyLogAndSync,
+  deleteLogByIdAndSync,
+  putItemAndSync,
+  putStoolLogAndSync,
+  deleteStoolLogByIdAndSync,
+  setDailyDurationAndSync,
+  toggleDailyLogAndSync,
+  updateLogMealTagAndSync,
+  updateLogTimeAndSync,
+  updateStoolLogTimeAndSync,
+  decrementDailyLogAndSync,
+  decrementDailyLogForMealAndSync,
+} from "@/lib/supabase/sync";
+import { getAllDiary, getAllItems, getAllLogs, getAllCategories, getAllStoolLogs } from "@/lib/db/indexedDb";
 import {
   buildLogCandidates,
   dayTimelineEntries,
@@ -491,31 +486,29 @@ export default function LogPage() {
   async function handleIncrement(candidate: LogCandidate) {
     if (isDemoData) return;
     setPending(candidate.key);
-    const log = await incrementDailyLog(candidate.itemIdentity, candidate.itemType, date, tabConfig?.countable ? meal : null);
+    await incrementDailyLogAndSync(candidate.itemIdentity, candidate.itemType, date, tabConfig?.countable ? meal : null);
     await refreshAfterWrite();
     setPending(null);
-    void pushLog(log);
   }
 
   async function handleDecrement(candidate: LogCandidate) {
     if (isDemoData) return;
     setPending(candidate.key);
-    const removed = tabConfig?.countable
-      ? await decrementDailyLogForMeal(candidate.itemIdentity, date, meal)
-      : await decrementDailyLog(candidate.itemIdentity, date);
+    if (tabConfig?.countable) {
+      await decrementDailyLogForMealAndSync(candidate.itemIdentity, date, meal);
+    } else {
+      await decrementDailyLogAndSync(candidate.itemIdentity, date);
+    }
     await refreshAfterWrite();
     setPending(null);
-    if (removed) void deleteLog(removed.identity, removed.itemType);
   }
 
   async function handleToggle(candidate: LogCandidate) {
     if (isDemoData) return;
     setPending(candidate.key);
-    const { added, removed } = await toggleDailyLog(candidate.itemIdentity, candidate.itemType, date);
+    await toggleDailyLogAndSync(candidate.itemIdentity, candidate.itemType, date);
     await refreshAfterWrite();
     setPending(null);
-    if (added) void pushLog(added);
-    for (const r of removed) void deleteLog(r.identity, r.itemType);
   }
 
   /** Sets (or overwrites) a duration-kind item's value for the day — one
@@ -527,10 +520,9 @@ export default function LogPage() {
   async function handleSetDuration(candidate: LogCandidate, totalMinutes: number) {
     if (isDemoData) return;
     setPending(candidate.key);
-    const log = await setDailyDuration(candidate.itemIdentity, candidate.itemType, date, totalMinutes);
+    await setDailyDurationAndSync(candidate.itemIdentity, candidate.itemType, date, totalMinutes);
     await refreshAfterWrite();
     setPending(null);
-    void pushLog(log);
   }
 
   /** Undoes a specific mistaken tap from the day's timeline — deletes that
@@ -541,16 +533,14 @@ export default function LogPage() {
     if (isDemoData) return;
     setPending(entry.key);
     if (entry.itemType === "stool") {
-      await deleteStoolLogById(entry.key);
+      await deleteStoolLogByIdAndSync(entry.key);
       await refreshAfterWrite();
       setPending(null);
-      void deleteStoolLog(entry.key);
       return;
     }
-    await deleteLogById(entry.key);
+    await deleteLogByIdAndSync(entry.key, entry.itemType);
     await refreshAfterWrite();
     setPending(null);
-    void deleteLog(entry.key, entry.itemType);
   }
 
   /** Corrects the meal tag on an already-logged entry, e.g. something typed
@@ -559,10 +549,9 @@ export default function LogPage() {
   async function handleChangeEntryMeal(entry: TimelineEntry, mealTag: string) {
     if (isDemoData || entry.itemType === "stool") return;
     setPending(entry.key);
-    const updated = await updateLogMealTag(entry.key, mealTag);
+    await updateLogMealTagAndSync(entry.key, mealTag);
     await refreshAfterWrite();
     setPending(null);
-    if (updated) void pushLog(updated);
   }
 
   /** Corrects when an entry actually happened — available everywhere in the
@@ -572,16 +561,14 @@ export default function LogPage() {
     const iso = combineDateAndTime(date, time);
     setPending(entry.key);
     if (entry.itemType === "stool") {
-      const updated = await updateStoolLogTime(entry.key, iso);
+      await updateStoolLogTimeAndSync(entry.key, iso);
       await refreshAfterWrite();
       setPending(null);
-      if (updated) void pushStoolLog(updated);
       return;
     }
-    const updated = await updateLogTime(entry.key, iso);
+    await updateLogTimeAndSync(entry.key, iso);
     await refreshAfterWrite();
     setPending(null);
-    if (updated) void pushLog(updated);
   }
 
   /** Optional context for one item on one day — structured data first, this
@@ -589,10 +576,9 @@ export default function LogPage() {
   async function handleSaveNote(entry: TimelineEntry, content: string) {
     if (isDemoData || entry.itemType === "stool") return;
     setPending(`note:${entry.itemIdentity}`);
-    const saved = await setDiaryNote(entry.itemIdentity, entry.itemType, date, content.trim() || null);
+    await setDiaryNoteAndSync(entry.itemIdentity, entry.itemType, date, content.trim() || null);
     await refreshAfterWrite();
     setPending(null);
-    void pushDiaryEntry(saved);
   }
 
   async function handleAddNew() {
@@ -641,25 +627,24 @@ export default function LogPage() {
       isArchived: false,
       createdDate: date,
     };
-    await putItem(item);
-    void pushItem(item);
-    const log = tabConfig.countable
-      ? await incrementDailyLog(item.identity, item.itemType, date, meal)
-      : (await toggleDailyLog(item.identity, item.itemType, date)).added;
+    await putItemAndSync(item);
+    if (tabConfig.countable) {
+      await incrementDailyLogAndSync(item.identity, item.itemType, date, meal);
+    } else {
+      await toggleDailyLogAndSync(item.identity, item.itemType, date);
+    }
     setNewItemText("");
     setNewItemCategory("");
     setAddingNew(false);
     await refreshAfterWrite();
     setPending(null);
-    if (log) void pushLog(log);
   }
 
   async function handleUnarchiveDuplicate() {
     if (!duplicateConflict) return;
     setPending("__unarchive-duplicate__");
     const item = { ...duplicateConflict, isArchived: false };
-    await putItem(item);
-    void pushItem(item);
+    await putItemAndSync(item);
     setDuplicateConflict(null);
     await refreshAfterWrite();
     setPending(null);
@@ -690,12 +675,10 @@ export default function LogPage() {
       isArchived: false,
       createdDate: date,
     };
-    await putItem(item);
-    void pushItem(item);
-    const log = await incrementDailyLog(item.identity, "food", date, meal);
+    await putItemAndSync(item);
+    await incrementDailyLogAndSync(item.identity, "food", date, meal);
     await refreshAfterWrite();
     setPending(null);
-    void pushLog(log);
   }
 
   function toggleCategoryCollapsed(category: string) {
@@ -765,9 +748,8 @@ export default function LogPage() {
   async function handleSaveStoolEntry(entry: NewStoolEntry) {
     if (isDemoData) return;
     const log = stoolLogFromDraft(crypto.randomUUID(), entry);
-    await putStoolLog(log);
+    await putStoolLogAndSync(log);
     await refreshAfterWrite();
-    void pushStoolLog(log);
   }
 
   /** Corrects an already-saved entry in place — same id, so this is an
@@ -776,19 +758,17 @@ export default function LogPage() {
     if (isDemoData) return;
     setPending(id);
     const log = stoolLogFromDraft(id, entry);
-    await putStoolLog(log);
+    await putStoolLogAndSync(log);
     await refreshAfterWrite();
     setPending(null);
-    void pushStoolLog(log);
   }
 
   async function handleDeleteStoolEntry(id: string) {
     if (isDemoData) return;
     setPending(id);
-    await deleteStoolLogById(id);
+    await deleteStoolLogByIdAndSync(id);
     await refreshAfterWrite();
     setPending(null);
-    void deleteStoolLog(id);
   }
 
   /** A plain list row, not a pill — available items are just text; a

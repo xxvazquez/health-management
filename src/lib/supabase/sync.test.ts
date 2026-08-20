@@ -4,6 +4,15 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+// pullFromCloud now attempts a best-effort outbox drain before its
+// destructive clear (see sync.ts and Step 2's design) — stubbed out here
+// since these tests are specifically about pullFromCloud's own
+// completeness/race behavior, not the outbox. outbox.test.ts covers
+// drainOutbox itself.
+vi.mock("./outbox", () => ({
+  drainOutbox: vi.fn(async () => {}),
+}));
+
 // Shared, hoisted so both the vi.mock factories and the tests below can see
 // the same instances. Each mocked *Internal writer:
 //  - records into `calls` synchronously, so ordering is exact and doesn't
@@ -76,6 +85,15 @@ vi.mock("@/lib/db/indexedDb", async (importOriginal) => {
     putCategoryInternal: mockPutCategoryInternal,
     putStoolLogInternal: mockPutStoolLogInternal,
     putGymLogInternal: mockPutGymLogInternal,
+    // Records into the SAME `calls` timeline as the put mocks above
+    // (synchronously, before delegating to the real enqueue), so a
+    // *AndSync function's mutation and its outbox enqueue can be checked
+    // for adjacency — proving nothing (e.g. a pull) could land between
+    // them — not just that both eventually happened somewhere.
+    enqueueOutboxInternal: vi.fn(async (entry: Parameters<typeof actual.enqueueOutboxInternal>[0]) => {
+      calls.push(`enqueue:${entry.dedupeKey}`);
+      return actual.enqueueOutboxInternal(entry);
+    }),
   };
 });
 
@@ -282,5 +300,42 @@ describe("pullFromCloud", () => {
     // (start *and* end) has released — proving the pull couldn't begin
     // clearing while that write was still in progress.
     expect(calls.slice(0, 3)).toEqual(["write:start", "write:end", "clear"]);
+  });
+});
+
+describe("putItemAndSync — mutation and outbox enqueue are one atomic operation", () => {
+  it("enqueues a real outbox entry for the write", async () => {
+    const { putItemAndSync } = await import("./sync");
+    const { getAllOutboxEntries } = await import("@/lib/db/indexedDb");
+
+    const item = { identity: "atomic-item-1", itemType: "food" as const, rawName: "Pear", category: "Fruit", categoryId: null, isArchived: false, createdDate: "2026-01-01" };
+    await putItemAndSync(item);
+
+    const entries = (await getAllOutboxEntries()).filter((e) => e.dedupeKey === "food_items:atomic-item-1");
+    expect(entries).toHaveLength(1);
+    expect(entries[0]).toMatchObject({ table: "food_items", op: "upsert", status: "pending" });
+  });
+
+  it("its mutation and its outbox enqueue are adjacent in the timeline — nothing, including a pull, can land between them", async () => {
+    const { putItemAndSync, pullFromCloud } = await import("./sync");
+
+    // Fire a SECOND pull once putItemAndSync's own write has landed but
+    // (in a buggy, non-atomic implementation) before its enqueue would
+    // have happened — if the mutation and the enqueue were two separate
+    // lock acquisitions instead of one, this pull could slip into that
+    // gap. With a real single-lock implementation there is no gap to
+    // land in, so this second pull can only ever end up fully before or
+    // fully after the whole putItemAndSync call.
+    const item = { identity: "atomic-item-2", itemType: "food" as const, rawName: "Plum", category: "Fruit", categoryId: null, isArchived: false, createdDate: "2026-01-01" };
+    const writePromise = putItemAndSync(item);
+    await sleep(1);
+    const pullPromise = pullFromCloud();
+
+    await Promise.all([writePromise, pullPromise]);
+
+    const itemIndex = calls.indexOf("item");
+    const enqueueIndex = calls.indexOf("enqueue:food_items:atomic-item-2");
+    expect(itemIndex).toBeGreaterThanOrEqual(0);
+    expect(enqueueIndex).toBe(itemIndex + 1);
   });
 });

@@ -3,14 +3,30 @@ import { supabase } from "./client";
 import {
   putItemInternal,
   putLogInternal,
+  deleteLogByIdInternal,
+  updateLogMealTagInternal,
+  updateLogTimeInternal,
+  toggleDailyLogInternal,
+  incrementDailyLogInternal,
+  setDailyDurationInternal,
+  decrementDailyLogInternal,
+  decrementDailyLogForMealInternal,
   putDiaryEntryInternal,
+  setDiaryNoteInternal,
   putCategoryInternal,
+  deleteCategoryLocalInternal,
   putStoolLogInternal,
+  deleteStoolLogByIdInternal,
+  updateStoolLogTimeInternal,
   putGymLogInternal,
-  deleteGymLogById,
+  deleteGymLogByIdInternal,
   clearAllDataInternal,
+  enqueueOutboxInternal,
   withDataLock,
+  type NewOutboxEntry,
+  type OutboxOperation,
 } from "@/lib/db/indexedDb";
+import { drainOutbox } from "./outbox";
 import type { RawDiaryEntry, RawLog, RawItem, RawGymLog, RawCategory, RawStoolLog, StoolColor, StoolFloatation, PaperCleanliness } from "@/lib/types";
 import type { ItemType } from "@/taxonomy/categories";
 
@@ -45,15 +61,14 @@ async function currentUserId(): Promise<string | null> {
   return session?.user.id ?? null;
 }
 
-/** Upserts one item's own metadata (name, category, archive state) to
- * Supabase — shared by every write that touches an item's row, and by
- * rename/archive/change-category from Manage. No-op if Supabase isn't
- * configured or nobody's signed in. */
-export async function pushItem(item: RawItem): Promise<void> {
-  const userId = await currentUserId();
-  if (!supabase || !userId) return;
+// ---------------------------------------------------------------------------
+// Supabase row shaping — unchanged from the pre-outbox pushX functions,
+// just extracted so both the enqueue side (below) and any other caller can
+// build the exact same payload shape.
+// ---------------------------------------------------------------------------
 
-  await supabase.from(ITEM_TABLE[item.itemType]).upsert({
+function buildItemRow(item: RawItem, userId: string): Record<string, unknown> {
+  return {
     id: item.identity,
     user_id: userId,
     name: item.rawName,
@@ -61,17 +76,10 @@ export async function pushItem(item: RawItem): Promise<void> {
     item_type: DB_TYPE[item.itemType],
     is_archived: item.isArchived,
     created_date: item.createdDate,
-  });
+  };
 }
 
-/** Upserts one log row to Supabase — a single-row upsert, not a
- * delete-and-replace: every log has its own stable id both locally and
- * remotely, so pushing one tap never touches any other row. No-op if
- * Supabase isn't configured or nobody's signed in. */
-export async function pushLog(log: RawLog): Promise<void> {
-  const userId = await currentUserId();
-  if (!supabase || !userId) return;
-
+function buildLogRow(log: RawLog, userId: string): Record<string, unknown> {
   const row: Record<string, unknown> = {
     id: log.identity,
     user_id: userId,
@@ -81,22 +89,11 @@ export async function pushLog(log: RawLog): Promise<void> {
     updated_at: log.updatedAt,
   };
   if (log.itemType === "food") row.meal_tag = log.mealTag;
-  await supabase.from(LOG_TABLE[log.itemType]).upsert(row);
+  return row;
 }
 
-/** Deletes one log row, locally already gone by the time this is called —
- * just needs to know which table it lived in. */
-export async function deleteLog(identity: string, itemType: ItemType): Promise<void> {
-  if (!supabase) return;
-  await supabase.from(LOG_TABLE[itemType]).delete().eq("id", identity);
-}
-
-/** Upserts one item+day note. No-op if Supabase isn't configured or nobody's signed in. */
-export async function pushDiaryEntry(entry: RawDiaryEntry): Promise<void> {
-  const userId = await currentUserId();
-  if (!supabase || !userId) return;
-
-  await supabase.from(DIARY_TABLE[entry.itemType]).upsert({
+function buildDiaryRow(entry: RawDiaryEntry, userId: string): Record<string, unknown> {
+  return {
     id: entry.identity,
     user_id: userId,
     item_id: entry.itemIdentity,
@@ -104,37 +101,15 @@ export async function pushDiaryEntry(entry: RawDiaryEntry): Promise<void> {
     content: entry.content,
     title: entry.title,
     updated_at: entry.updatedAt,
-  });
+  };
 }
 
-/** Upserts one user-defined category (supplement/habit/outcome only — food's
- * list is fixed in code). No-op if Supabase isn't configured or nobody's signed in. */
-export async function pushCategory(entry: RawCategory): Promise<void> {
-  const userId = await currentUserId();
-  if (!supabase || !userId) return;
-
-  await supabase.from("categories").upsert({
-    id: entry.id,
-    user_id: userId,
-    item_type: DB_TYPE[entry.itemType],
-    name: entry.name,
-  });
+function buildCategoryRow(entry: RawCategory, userId: string): Record<string, unknown> {
+  return { id: entry.id, user_id: userId, item_type: DB_TYPE[entry.itemType], name: entry.name };
 }
 
-/** Deletes one category. The DB rejects this with a foreign-key error if
- * any item still references it (`on delete restrict`) — callers should
- * reassign or archive those items first rather than catching that error. */
-export async function deleteCategory(id: string): Promise<void> {
-  if (!supabase) return;
-  await supabase.from("categories").delete().eq("id", id);
-}
-
-/** Upserts one bowel-movement entry. No-op if Supabase isn't configured or nobody's signed in. */
-export async function pushStoolLog(log: RawStoolLog): Promise<void> {
-  const userId = await currentUserId();
-  if (!supabase || !userId) return;
-
-  await supabase.from("stool_logs").upsert({
+function buildStoolLogRow(log: RawStoolLog, userId: string): Record<string, unknown> {
+  return {
     id: log.id,
     user_id: userId,
     date: log.date,
@@ -154,34 +129,218 @@ export async function pushStoolLog(log: RawStoolLog): Promise<void> {
     time_on_toilet_minutes: log.timeOnToiletMinutes,
     note: log.note,
     updated_at: log.updatedAt,
-  });
+  };
 }
 
-export async function deleteStoolLog(id: string): Promise<void> {
-  if (!supabase) return;
-  await supabase.from("stool_logs").delete().eq("id", id);
-}
-
-/** Upserts one gym log. Unchanged by the data-model redesign — `gym_logs`
- * never had an "item" dimension to split up. */
-export async function pushGymLog(log: RawGymLog): Promise<void> {
-  const userId = await currentUserId();
-  if (!supabase || !userId) return;
-
-  await supabase.from("gym_logs").upsert({
+function buildGymLogRow(log: RawGymLog, userId: string): Record<string, unknown> {
+  return {
     id: log.id,
     user_id: userId,
     date: log.date,
     exercise: log.exercise,
     weight_kg: log.weightKg,
     updated_at: new Date(log.updatedAt).toISOString(),
+  };
+}
+
+function logEnqueue(log: RawLog, userId: string, op: OutboxOperation): NewOutboxEntry {
+  const table = LOG_TABLE[log.itemType];
+  return {
+    userId,
+    table,
+    op,
+    payload: op === "upsert" ? buildLogRow(log, userId) : { id: log.identity },
+    dedupeKey: `${table}:${log.identity}`,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Mutation + outbox enqueue — each of these is ONE atomic operation under
+// withDataLock: the local IndexedDB write and the outbox entry that
+// represents it to Supabase either both happen, or (if the lock is
+// currently held by a destructive cloud pull) both wait for that pull to
+// finish first. This is what keeps "the record exists locally" and "the
+// record is queued to sync" from ever being separated by a pull — see
+// indexedDb.ts's withDataLock doc comment and pullFromCloud below.
+//
+// No-ops the enqueue (but still performs the local write) when signed out
+// or Supabase isn't configured — same as the old pushX functions' guard.
+// ---------------------------------------------------------------------------
+
+export function putItemAndSync(item: RawItem): Promise<void> {
+  return withDataLock(async () => {
+    await putItemInternal(item);
+    const userId = await currentUserId();
+    if (!userId) return;
+    const table = ITEM_TABLE[item.itemType];
+    await enqueueOutboxInternal({ userId, table, op: "upsert", payload: buildItemRow(item, userId), dedupeKey: `${table}:${item.identity}` });
   });
 }
 
-export async function deleteGymLog(id: string): Promise<void> {
-  await deleteGymLogById(id);
-  if (!supabase) return;
-  await supabase.from("gym_logs").delete().eq("id", id);
+export function incrementDailyLogAndSync(itemIdentity: string, itemType: ItemType, date: string, mealTag: string | null = null): Promise<RawLog> {
+  return withDataLock(async () => {
+    const log = await incrementDailyLogInternal(itemIdentity, itemType, date, mealTag);
+    const userId = await currentUserId();
+    if (userId) await enqueueOutboxInternal(logEnqueue(log, userId, "upsert"));
+    return log;
+  });
+}
+
+export function toggleDailyLogAndSync(
+  itemIdentity: string,
+  itemType: ItemType,
+  date: string,
+): Promise<{ logged: boolean; added: RawLog | null; removed: RawLog[] }> {
+  return withDataLock(async () => {
+    const result = await toggleDailyLogInternal(itemIdentity, itemType, date);
+    const userId = await currentUserId();
+    if (userId) {
+      if (result.added) await enqueueOutboxInternal(logEnqueue(result.added, userId, "upsert"));
+      for (const removed of result.removed) await enqueueOutboxInternal(logEnqueue(removed, userId, "delete"));
+    }
+    return result;
+  });
+}
+
+export function setDailyDurationAndSync(itemIdentity: string, itemType: ItemType, date: string, totalMinutes: number): Promise<RawLog> {
+  return withDataLock(async () => {
+    const log = await setDailyDurationInternal(itemIdentity, itemType, date, totalMinutes);
+    const userId = await currentUserId();
+    if (userId) await enqueueOutboxInternal(logEnqueue(log, userId, "upsert"));
+    return log;
+  });
+}
+
+export function decrementDailyLogAndSync(itemIdentity: string, date: string): Promise<RawLog | null> {
+  return withDataLock(async () => {
+    const removed = await decrementDailyLogInternal(itemIdentity, date);
+    if (removed) {
+      const userId = await currentUserId();
+      if (userId) await enqueueOutboxInternal(logEnqueue(removed, userId, "delete"));
+    }
+    return removed;
+  });
+}
+
+export function decrementDailyLogForMealAndSync(itemIdentity: string, date: string, mealTag: string | null): Promise<RawLog | null> {
+  return withDataLock(async () => {
+    const removed = await decrementDailyLogForMealInternal(itemIdentity, date, mealTag);
+    if (removed) {
+      const userId = await currentUserId();
+      if (userId) await enqueueOutboxInternal(logEnqueue(removed, userId, "delete"));
+    }
+    return removed;
+  });
+}
+
+/** Deletes one specific log entry by its own identity. `itemType` is
+ * needed (not derivable from the id alone once the row is already gone
+ * locally) to know which Supabase table the delete belongs to. */
+export function deleteLogByIdAndSync(identity: string, itemType: ItemType): Promise<void> {
+  return withDataLock(async () => {
+    await deleteLogByIdInternal(identity);
+    const userId = await currentUserId();
+    if (!userId) return;
+    const table = LOG_TABLE[itemType];
+    await enqueueOutboxInternal({ userId, table, op: "delete", payload: { id: identity }, dedupeKey: `${table}:${identity}` });
+  });
+}
+
+export function updateLogMealTagAndSync(identity: string, mealTag: string | null): Promise<RawLog | null> {
+  return withDataLock(async () => {
+    const updated = await updateLogMealTagInternal(identity, mealTag);
+    if (updated) {
+      const userId = await currentUserId();
+      if (userId) await enqueueOutboxInternal(logEnqueue(updated, userId, "upsert"));
+    }
+    return updated;
+  });
+}
+
+export function updateLogTimeAndSync(identity: string, updatedAt: string): Promise<RawLog | null> {
+  return withDataLock(async () => {
+    const updated = await updateLogTimeInternal(identity, updatedAt);
+    if (updated) {
+      const userId = await currentUserId();
+      if (userId) await enqueueOutboxInternal(logEnqueue(updated, userId, "upsert"));
+    }
+    return updated;
+  });
+}
+
+export function setDiaryNoteAndSync(itemIdentity: string, itemType: ItemType, date: string, content: string | null): Promise<RawDiaryEntry> {
+  return withDataLock(async () => {
+    const entry = await setDiaryNoteInternal(itemIdentity, itemType, date, content);
+    const userId = await currentUserId();
+    if (userId) {
+      const table = DIARY_TABLE[itemType];
+      await enqueueOutboxInternal({ userId, table, op: "upsert", payload: buildDiaryRow(entry, userId), dedupeKey: `${table}:${entry.identity}` });
+    }
+    return entry;
+  });
+}
+
+export function putCategoryAndSync(entry: RawCategory): Promise<void> {
+  return withDataLock(async () => {
+    await putCategoryInternal(entry);
+    const userId = await currentUserId();
+    if (userId) await enqueueOutboxInternal({ userId, table: "categories", op: "upsert", payload: buildCategoryRow(entry, userId), dedupeKey: `categories:${entry.id}` });
+  });
+}
+
+export function deleteCategoryAndSync(id: string): Promise<void> {
+  return withDataLock(async () => {
+    await deleteCategoryLocalInternal(id);
+    const userId = await currentUserId();
+    if (userId) await enqueueOutboxInternal({ userId, table: "categories", op: "delete", payload: { id }, dedupeKey: `categories:${id}` });
+  });
+}
+
+export function putStoolLogAndSync(log: RawStoolLog): Promise<void> {
+  return withDataLock(async () => {
+    await putStoolLogInternal(log);
+    const userId = await currentUserId();
+    if (userId) await enqueueOutboxInternal({ userId, table: "stool_logs", op: "upsert", payload: buildStoolLogRow(log, userId), dedupeKey: `stool_logs:${log.id}` });
+  });
+}
+
+export function deleteStoolLogByIdAndSync(id: string): Promise<void> {
+  return withDataLock(async () => {
+    await deleteStoolLogByIdInternal(id);
+    const userId = await currentUserId();
+    if (userId) await enqueueOutboxInternal({ userId, table: "stool_logs", op: "delete", payload: { id }, dedupeKey: `stool_logs:${id}` });
+  });
+}
+
+export function updateStoolLogTimeAndSync(id: string, loggedAt: string): Promise<RawStoolLog | null> {
+  return withDataLock(async () => {
+    const updated = await updateStoolLogTimeInternal(id, loggedAt);
+    if (updated) {
+      const userId = await currentUserId();
+      if (userId) await enqueueOutboxInternal({ userId, table: "stool_logs", op: "upsert", payload: buildStoolLogRow(updated, userId), dedupeKey: `stool_logs:${id}` });
+    }
+    return updated;
+  });
+}
+
+export function putGymLogAndSync(log: RawGymLog): Promise<void> {
+  return withDataLock(async () => {
+    await putGymLogInternal(log);
+    const userId = await currentUserId();
+    if (userId) await enqueueOutboxInternal({ userId, table: "gym_logs", op: "upsert", payload: buildGymLogRow(log, userId), dedupeKey: `gym_logs:${log.id}` });
+  });
+}
+
+/** Also fixes a pre-outbox redundancy: the old `deleteGymLog` called
+ * `deleteGymLogById` a second time on top of the page already having
+ * called it directly — this is now the single call site for both the
+ * local delete and the sync side. */
+export function deleteGymLogAndSync(id: string): Promise<void> {
+  return withDataLock(async () => {
+    await deleteGymLogByIdInternal(id);
+    const userId = await currentUserId();
+    if (userId) await enqueueOutboxInternal({ userId, table: "gym_logs", op: "delete", payload: { id }, dedupeKey: `gym_logs:${id}` });
+  });
 }
 
 interface ItemRow {
@@ -283,6 +442,16 @@ export async function pullFromCloud(): Promise<void> {
   } = await supabase.auth.getSession();
   if (!session) return;
 
+  // Best-effort: give any not-yet-synced local writes a chance to reach
+  // Supabase BEFORE the destructive clear below, so the snapshot this pull
+  // fetches is as fresh as possible. This does not need to succeed or
+  // finish quickly for the pull to stay safe — the outbox itself is never
+  // cleared by clearAllData (see below), so a write that hasn't synced yet
+  // survives this pull either way, just possibly invisible in the local
+  // cache until the *next* successful pull after it drains. See the
+  // *AndSync functions above and outbox.ts.
+  await drainOutbox();
+
   const categoryRows = await fetchAllRows<CategoryRow>(supabase, "categories");
   const categoryNameById = new Map(categoryRows.map((c) => [c.id, c.name]));
 
@@ -304,7 +473,8 @@ export async function pullFromCloud(): Promise<void> {
   // refresh()) can never observe a half-repopulated cache. Every write
   // below uses the *Internal (unlocked) variant, since this callback
   // already holds the lock — calling the locked public versions here
-  // would deadlock.
+  // would deadlock. Note clearAllDataInternal does NOT touch the outbox
+  // store — a pending sync operation is never erased by a pull.
   await withDataLock(async () => {
     await clearAllDataInternal();
 

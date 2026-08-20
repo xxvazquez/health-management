@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { getItem, putItem } from "@/lib/db/indexedDb";
-import { pushItem } from "@/lib/supabase/sync";
+import { getItem } from "@/lib/db/indexedDb";
+import { putItemAndSync } from "@/lib/supabase/sync";
 import { titleCaseFallback } from "@/taxonomy/normalizeName";
 
 /** The minimal shape rename/archive need — deliberately narrower than
@@ -38,8 +38,7 @@ export function useItemActions(refresh: () => Promise<void>) {
     const existing = await getItem(item.itemIdentity);
     if (existing) {
       const updated = { ...existing, isArchived: !existing.isArchived };
-      await putItem(updated);
-      void pushItem(updated);
+      await putItemAndSync(updated);
     }
     await refresh();
     setBusyIdentity(null);
@@ -52,8 +51,7 @@ export function useItemActions(refresh: () => Promise<void>) {
     const existing = await getItem(item.itemIdentity);
     if (existing) {
       const updated = { ...existing, rawName: trimmed };
-      await putItem(updated);
-      void pushItem(updated);
+      await putItemAndSync(updated);
     }
     await refresh();
     setBusyIdentity(null);
@@ -68,8 +66,7 @@ export function useItemActions(refresh: () => Promise<void>) {
     const existing = await getItem(item.itemIdentity);
     if (existing) {
       const updated = { ...existing, category: newCategoryName, categoryId: newCategoryId };
-      await putItem(updated);
-      void pushItem(updated);
+      await putItemAndSync(updated);
     }
     await refresh();
     setBusyIdentity(null);
