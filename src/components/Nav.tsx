@@ -9,6 +9,8 @@ import { Logo } from "@/components/Logo";
 import { AccountMenuButton } from "@/components/auth/AccountMenuButton";
 import { AccountPanel } from "@/components/auth/AccountPanel";
 import { SignOutButton } from "@/components/auth/SignOutButton";
+import { BugReportButton } from "@/components/BugReportButton";
+import { BugReportDialog } from "@/components/BugReportDialog";
 
 function IconWrap({ children }: { children: ReactNode }) {
   return (
@@ -197,6 +199,7 @@ export function Nav() {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+  const [bugReportOpen, setBugReportOpen] = useState(false);
 
   return (
     <>
@@ -234,6 +237,7 @@ export function Nav() {
         <div className="mt-6 flex flex-1 flex-col">
           <NavLinks pathname={pathname} collapsed={collapsed} />
         </div>
+        <BugReportButton collapsed={collapsed} onClick={() => setBugReportOpen(true)} />
         <SyncFooter collapsed={collapsed} />
       </aside>
 
@@ -301,10 +305,12 @@ export function Nav() {
         <div className="mt-6 flex flex-1 flex-col">
           <NavLinks pathname={pathname} onNavigate={() => setMobileOpen(false)} />
         </div>
+        <BugReportButton onClick={() => setBugReportOpen(true)} />
         <SyncFooter />
       </div>
 
       <AccountPanel />
+      <BugReportDialog open={bugReportOpen} onClose={() => setBugReportOpen(false)} />
     </>
   );
 }

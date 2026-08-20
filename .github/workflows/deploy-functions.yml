@@ -1,0 +1,33 @@
+name: Deploy Supabase functions
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "supabase/functions/**"
+  workflow_dispatch: {}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Deploy report-bug function
+        run: supabase functions deploy report-bug --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}"
+
+      # BUG_EMAIL / RESEND_API_KEY are pushed into Supabase's own Edge
+      # Function secret store here, straight from GitHub Actions secrets —
+      # they never flow through `npm run build`, so they never reach the
+      # static bundle deploy.yml publishes to GitHub Pages.
+      - name: Sync function secrets
+        run: |
+          supabase secrets set --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}" \
+            BUG_EMAIL="${{ secrets.BUG_EMAIL }}" \
+            RESEND_API_KEY="${{ secrets.RESEND_API_KEY }}"
