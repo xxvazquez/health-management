@@ -41,9 +41,15 @@ jobs:
         # secrets here rather than committed, so this file works whether or
         # not cloud sync has been set up yet — set both under Settings ->
         # Secrets and variables -> Actions to enable it.
+        #
+        # NEXT_PUBLIC_VAPID_PUBLIC_KEY is the same story — a Web Push
+        # VAPID *public* key is meant to be handed to the browser, unlike
+        # its private counterpart (which only ever lives server-side, as a
+        # Supabase secret — see deploy-functions.yml).
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          NEXT_PUBLIC_VAPID_PUBLIC_KEY: ${{ secrets.NEXT_PUBLIC_VAPID_PUBLIC_KEY }}
         run: npm run build
 
       - uses: actions/configure-pages@v5
