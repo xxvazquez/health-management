@@ -158,11 +158,6 @@ export async function getLogsForItemOnDate(itemIdentity: string, date: string): 
   return all.filter((l) => l.date === date);
 }
 
-export async function getLogById(identity: string): Promise<RawLog | undefined> {
-  const db = await getDb();
-  return db.get("logs", identity);
-}
-
 /** Raw, unlocked write — see `putItemInternal`. */
 export async function putLogInternal(log: RawLog): Promise<void> {
   const db = await getDb();
@@ -472,10 +467,6 @@ export function putCategory(entry: RawCategory): Promise<void> {
 export async function deleteCategoryLocalInternal(id: string): Promise<void> {
   const db = await getDb();
   await db.delete("categories", id);
-}
-
-export function deleteCategoryLocal(id: string): Promise<void> {
-  return withDataLock(() => deleteCategoryLocalInternal(id));
 }
 
 export async function getAllStoolLogs(): Promise<RawStoolLog[]> {

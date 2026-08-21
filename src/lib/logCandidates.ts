@@ -53,6 +53,19 @@ export function loggedCountsForDate(logs: RawLog[], date: string, meal?: string 
   return counts;
 }
 
+/** Combines the currently-viewed day with a local "HH:MM" into a full ISO
+ * timestamp — the shape every log's `updatedAt`/`loggedAt` is stored as. */
+export function combineDateAndTime(date: string, time: string): string {
+  const [y, m, d] = date.split("-").map(Number);
+  const [h, min] = time.split(":").map(Number);
+  return new Date(y, m - 1, d, h, min).toISOString();
+}
+
+export function toTimeInputValue(iso: string): string {
+  const d = new Date(iso);
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
 export type ChipTapAction = "create" | "increment" | "decrement" | "toggle";
 
 /**

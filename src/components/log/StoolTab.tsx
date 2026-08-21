@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { BristolIcon, NoBristolIcon } from "@/components/icons/BristolIcons";
+import { toTimeInputValue } from "@/lib/logCandidates";
 import {
   STOOL_COLORS,
   PAPER_CLEANLINESS_OPTIONS,
@@ -53,16 +54,6 @@ export interface NewStoolEntry {
   loggedAtTime: string;
 }
 
-function currentTimeValue(): string {
-  const now = new Date();
-  return `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
-}
-
-function entryTimeValue(loggedAt: string): string {
-  const d = new Date(loggedAt);
-  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-}
-
 function blankEntry(): NewStoolEntry {
   return {
     bristolScores: [],
@@ -78,7 +69,7 @@ function blankEntry(): NewStoolEntry {
     hasIncompleteEvacuation: false,
     paperCleanliness: null,
     timeOnToiletMinutes: null,
-    loggedAtTime: currentTimeValue(),
+    loggedAtTime: toTimeInputValue(new Date().toISOString()),
   };
 }
 
@@ -97,7 +88,7 @@ function entryToDraft(entry: RawStoolLog): NewStoolEntry {
     hasIncompleteEvacuation: entry.hasIncompleteEvacuation,
     paperCleanliness: entry.paperCleanliness,
     timeOnToiletMinutes: entry.timeOnToiletMinutes,
-    loggedAtTime: entryTimeValue(entry.loggedAt),
+    loggedAtTime: toTimeInputValue(entry.loggedAt),
   };
 }
 
@@ -265,8 +256,13 @@ export function StoolTab({
           type="time"
           value={draft.loggedAtTime}
           onChange={(e) => setDraft((d) => ({ ...d, loggedAtTime: e.target.value }))}
-          className="rounded-md border px-2 py-1 text-xs font-medium tabular-nums"
-          style={{ borderColor: "var(--border-hairline)", background: "var(--page-plane)", color: "var(--text-primary)" }}
+          onClick={(e) => e.currentTarget.showPicker?.()}
+          className="h-7 rounded-md border px-2.5 text-xs font-medium tabular-nums"
+          style={{
+            borderColor: "var(--series-2)",
+            background: "color-mix(in oklab, var(--series-2) 14%, var(--surface-1))",
+            color: "var(--text-primary)",
+          }}
         />
       </div>
 
