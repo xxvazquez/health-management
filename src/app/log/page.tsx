@@ -42,7 +42,7 @@ import { lookupFoodCategory } from "@/taxonomy/classify";
 import { POLAND_FOOD_CATALOG } from "@/taxonomy/polandFoodCatalog";
 import { DURATION_DEFAULT_MINUTES, INPUT_KIND } from "@/taxonomy/inputKinds";
 import { DurationStepper } from "@/components/ui/DurationStepper";
-import { StoolTab, type NewStoolEntry } from "@/components/log/StoolTab";
+import { StoolTab, type NewStoolEntry, characteristicLabels } from "@/components/log/StoolTab";
 import { DuplicateItemDialog } from "@/components/ui/DuplicateItemDialog";
 import type { RawLog, RawItem, RawDiaryEntry, RawCategory, RawStoolLog } from "@/lib/types";
 
@@ -271,6 +271,10 @@ export default function LogPage() {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [pending, setPending] = useState<string | null>(null);
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set(["Meat"]));
+  // Which stool timeline cards have their extra details (color, floatation,
+  // characteristics, paper cleanliness, time on toilet) expanded — collapsed
+  // by default since a 144px-wide card has no room to show them all at once.
+  const [expandedStoolIds, setExpandedStoolIds] = useState<Set<string>>(new Set());
 
   const loadSnapshot = useCallback(async () => {
     const [items, logs, diary, categories, stoolLogs] = await Promise.all([
@@ -441,7 +445,7 @@ export default function LogPage() {
       updatedAt: s.loggedAt,
       mealTag: null,
       value: null,
-      note: null,
+      note: s.note,
     }));
     return [...dayTimeline, ...stoolAsTimeline].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   }, [dayTimeline, stoolEntriesForDate]);
@@ -473,6 +477,15 @@ export default function LogPage() {
     [seasonalCanonical, today],
   );
   const leastTrackedCategory = weeklyPriority[0] ?? null;
+
+  function toggleStoolDetails(id: string) {
+    setExpandedStoolIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
 
   async function refreshAfterWrite() {
     await loadSnapshot();
@@ -584,11 +597,19 @@ export default function LogPage() {
   }
 
   /** Optional context for one item on one day — structured data first, this
-   * is just a short note attached to it, never a required field. */
+   * is just a short note attached to it, never a required field. Stool has
+   * no diary row of its own (no item/category to key one by); its note
+   * lives directly on the stool_logs row, so this branches into a plain
+   * upsert of that row instead of the shared diary table. */
   async function handleSaveNote(entry: TimelineEntry, content: string) {
-    if (isDemoData || entry.itemType === "stool") return;
+    if (isDemoData) return;
     setPending(`note:${entry.itemIdentity}`);
-    await setDiaryNoteAndSync(entry.itemIdentity, entry.itemType, date, content.trim() || null);
+    if (entry.itemType === "stool") {
+      const existing = effective.stoolLogs.find((s) => s.id === entry.itemIdentity);
+      if (existing) await putStoolLogAndSync({ ...existing, note: content.trim() || null, updatedAt: new Date().toISOString() });
+    } else {
+      await setDiaryNoteAndSync(entry.itemIdentity, entry.itemType, date, content.trim() || null);
+    }
     await refreshAfterWrite();
     setPending(null);
   }
@@ -760,7 +781,7 @@ export default function LogPage() {
       hasIncompleteEvacuation: entry.hasIncompleteEvacuation,
       paperCleanliness: entry.paperCleanliness,
       timeOnToiletMinutes: entry.timeOnToiletMinutes,
-      note: null,
+      note: entry.note,
       updatedAt: new Date().toISOString(),
     };
   }
@@ -1247,7 +1268,7 @@ export default function LogPage() {
               {combinedTimeline.map((entry, i) => {
                 const busy = pending === entry.key;
                 const hasMealTag = entry.itemType === "food" && (entry.mealTag || !isDemoData);
-                const hasNote = entry.itemType !== "stool" && (!isDemoData || entry.note);
+                const hasNote = !isDemoData || entry.note;
                 const accent = entry.itemType === "stool" ? STOOL_ACCENT : TYPE_ACCENT[entry.itemType];
                 return (
                   <div
@@ -1337,6 +1358,38 @@ export default function LogPage() {
                           ))}
                         </select>
                       ))}
+
+                    {entry.itemType === "stool" &&
+                      (() => {
+                        const full = effective.stoolLogs.find((s) => s.id === entry.itemIdentity);
+                        if (!full) return null;
+                        const labels = characteristicLabels(full);
+                        const hasDetails =
+                          full.color || full.floatation || full.paperCleanliness || full.timeOnToiletMinutes != null || labels.length > 0;
+                        if (!hasDetails) return null;
+                        const expanded = expandedStoolIds.has(full.id);
+                        return (
+                          <div className="flex flex-col gap-1">
+                            <button
+                              type="button"
+                              onClick={() => toggleStoolDetails(full.id)}
+                              className="self-start text-[11px] font-medium underline decoration-dotted"
+                              style={{ color: "var(--text-muted)" }}
+                            >
+                              {expanded ? "Hide details" : "More details"}
+                            </button>
+                            {expanded && (
+                              <div className="flex flex-col gap-0.5 text-[11px]" style={{ color: "var(--text-secondary)" }}>
+                                {full.color && <span>Color: {full.color}</span>}
+                                {full.floatation && <span>{full.floatation}</span>}
+                                {labels.length > 0 && <span>{labels.join(", ")}</span>}
+                                {full.paperCleanliness && <span>Paper: {full.paperCleanliness}</span>}
+                                {full.timeOnToiletMinutes != null && <span>{full.timeOnToiletMinutes}m on toilet</span>}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
 
                     {hasNote && (
                       <TimelineNote
