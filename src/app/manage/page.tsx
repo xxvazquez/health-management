@@ -6,6 +6,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { Card } from "@/components/ui/Card";
 import { ItemNameField, ItemActionButtons, useInlineRename } from "@/components/ui/ItemActions";
 import { DuplicateItemDialog } from "@/components/ui/DuplicateItemDialog";
+import { PushNotificationsToggle } from "@/components/PushNotificationsToggle";
 import { useItemActions, type ManageableItem } from "@/lib/useItemActions";
 import { getAllItems, getAllCategories } from "@/lib/db/indexedDb";
 import { putItemAndSync, deleteCategoryAndSync } from "@/lib/supabase/sync";
@@ -248,30 +249,60 @@ function CatalogFoodRow({ item, busy, onHide }: { item: ManageableItem; busy: bo
 
 function ItemRow({
   item,
+  itemType,
   categories,
   busy,
   onArchiveToggle,
   onRename,
   onChangeCategory,
   onHideCatalog,
+  onSetReminderTime,
 }: {
   item: ManageableItem;
+  itemType: ItemType;
   categories: readonly string[] | null;
   busy: boolean;
   onArchiveToggle: () => void;
   onRename: (newName: string) => void;
   onChangeCategory?: (newCategory: string) => void;
   onHideCatalog?: () => void;
+  onSetReminderTime?: (time: string | null) => void;
 }) {
   const renameState = useInlineRename(item, onRename);
   if (item.itemIdentity === "" && onHideCatalog) {
     return <CatalogFoodRow item={item} busy={busy} onHide={onHideCatalog} />;
   }
+  const canRemind = onSetReminderTime && (itemType === "supplement" || itemType === "habit");
   return (
     <li className="flex flex-wrap items-center justify-between gap-2 py-2">
       <ItemNameField item={item} state={renameState} />
       <span className="flex items-center gap-3">
         <ItemActionButtons item={item} busy={busy} state={renameState} onArchiveToggle={onArchiveToggle} />
+        {canRemind && (
+          <span className="flex items-center gap-1">
+            <input
+              type="time"
+              value={item.reminderTime ?? ""}
+              disabled={busy}
+              onChange={(e) => onSetReminderTime(e.target.value || null)}
+              aria-label={`Reminder time for ${item.item}`}
+              className="rounded-md border px-1.5 py-1 text-xs outline-none disabled:opacity-40"
+              style={{ borderColor: "var(--border-hairline)", background: "var(--page-plane)", color: "var(--text-secondary)" }}
+            />
+            {item.reminderTime && (
+              <button
+                type="button"
+                onClick={() => onSetReminderTime(null)}
+                disabled={busy}
+                aria-label={`Clear reminder for ${item.item}`}
+                className="text-xs leading-none disabled:opacity-40"
+                style={{ color: "var(--text-muted)" }}
+              >
+                ✕
+              </button>
+            )}
+          </span>
+        )}
         {categories && onChangeCategory ? (
           <select
             value={item.category}
@@ -314,6 +345,7 @@ function ItemSection({
   onAddCategory,
   onRemoveCategory,
   onHideCatalogFood,
+  onSetReminderTime,
 }: {
   itemType: ItemType;
   label: string;
@@ -333,6 +365,9 @@ function ItemSection({
   /** Food only — materializes a catalog-only suggestion as a real,
    * archived item so it stops being offered on the Log page. */
   onHideCatalogFood?: (name: string, category: string) => Promise<void>;
+  /** Supplement/habit only — set from the Manage page, absent everywhere
+   * else, gated inside ItemRow. */
+  onSetReminderTime?: (item: ManageableItem, time: string | null) => void;
 }) {
   const [archivedOpen, setArchivedOpen] = useState(false);
   const query = searchQuery.trim().toLowerCase();
@@ -387,12 +422,14 @@ function ItemSection({
                 <ItemRow
                   key={item.itemIdentity || `catalog:${item.item}`}
                   item={item}
+                  itemType={itemType}
                   categories={categories}
                   busy={item.itemIdentity !== "" && busyIdentity === item.itemIdentity}
                   onArchiveToggle={() => onToggleArchive(item)}
                   onRename={(name) => onRename(item, name)}
                   onChangeCategory={(category) => onChangeCategory(item, category)}
                   onHideCatalog={onHideCatalogFood ? () => void onHideCatalogFood(item.item, item.category) : undefined}
+                  onSetReminderTime={onSetReminderTime ? (time) => onSetReminderTime(item, time) : undefined}
                 />
               ))}
             </ul>
@@ -415,11 +452,13 @@ function ItemSection({
                     <ItemRow
                       key={item.itemIdentity}
                       item={item}
+                      itemType={itemType}
                       categories={categories}
                       busy={busyIdentity === item.itemIdentity}
                       onArchiveToggle={() => onToggleArchive(item)}
                       onRename={(name) => onRename(item, name)}
                       onChangeCategory={(category) => onChangeCategory(item, category)}
+                      onSetReminderTime={onSetReminderTime ? (time) => onSetReminderTime(item, time) : undefined}
                     />
                   ))}
                 </ul>
@@ -433,7 +472,7 @@ function ItemSection({
 }
 
 function toManageable(item: RawItem): ManageableItem {
-  return { itemIdentity: item.identity, item: item.rawName, category: item.category, isArchived: item.isArchived };
+  return { itemIdentity: item.identity, item: item.rawName, category: item.category, isArchived: item.isArchived, reminderTime: item.reminderTime };
 }
 
 export default function ManagePage() {
@@ -488,8 +527,13 @@ export default function ManagePage() {
     await refreshShared();
   }, [loadLocalSnapshot, refreshShared]);
 
-  const { busyIdentity: realBusyIdentity, toggleArchive: realToggleArchive, rename: realRename, changeCategory: realChangeCategory } =
-    useItemActions(refresh);
+  const {
+    busyIdentity: realBusyIdentity,
+    toggleArchive: realToggleArchive,
+    rename: realRename,
+    changeCategory: realChangeCategory,
+    setReminderTime: realSetReminderTime,
+  } = useItemActions(refresh);
 
   const itemsByType = useMemo(() => {
     const map: Record<ItemType, ManageableItem[]> = { food: [], supplement: [], outcome: [], habit: [] };
@@ -558,6 +602,7 @@ export default function ManagePage() {
       categoryId,
       isArchived: false,
       createdDate: todayLocalISODate(),
+      reminderTime: null,
     };
     await putItemAndSync(item);
     await refresh();
@@ -577,6 +622,7 @@ export default function ManagePage() {
       categoryId,
       isArchived: true,
       createdDate: todayLocalISODate(),
+      reminderTime: null,
     };
     await putItemAndSync(item);
     await refresh();
@@ -667,6 +713,7 @@ export default function ManagePage() {
         categoryId,
         isArchived: false,
         createdDate: todayLocalISODate(),
+        reminderTime: null,
       },
     ]);
     return Promise.resolve(true);
@@ -684,6 +731,7 @@ export default function ManagePage() {
         categoryId,
         isArchived: true,
         createdDate: todayLocalISODate(),
+        reminderTime: null,
       },
     ]);
     return Promise.resolve();
@@ -724,14 +772,18 @@ export default function ManagePage() {
   return (
     <div className="flex flex-col gap-5">
       <div>
-        <h1 className="text-xl font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
-          Manage items
-        </h1>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <h1 className="text-xl font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
+            Manage items
+          </h1>
+          {!isDemoData && <PushNotificationsToggle />}
+        </div>
         <p className="mt-1 text-sm" style={{ color: "var(--text-secondary)" }}>
           Add, rename, archive, or unarchive anything you track, and manage the category list for Food,
           Supplements, Habits, and Symptoms. Everything here is synced straight to your account — the same tables
           every page reads from, so there&apos;s nowhere else to edit this by hand. Archiving hides an item from
           the Log page and this list&apos;s active section; its full logged history stays in every dashboard.
+          Turn on notifications above, then set a time on any supplement or habit below to get reminded.
         </p>
         {isDemoData && (
           <p className="mt-2 text-sm" style={{ color: "var(--status-warning)" }}>
@@ -774,6 +826,10 @@ export default function ManagePage() {
           onHideCatalogFood={
             section.type === "food" ? (name, category) => (isDemoData ? demoHideCatalogFood(name, category) : handleHideCatalogFood(name, category)) : undefined
           }
+          // Demo/signed-out visitors can't receive push at all, so the
+          // control doesn't render rather than offering a setting that can
+          // never do anything — see PushNotificationsToggle above.
+          onSetReminderTime={isDemoData ? undefined : (item, time) => void realSetReminderTime(item, time)}
         />
       ))}
 

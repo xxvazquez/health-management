@@ -7,7 +7,7 @@ const BUG_TYPES = new Set(["Wrong data", "Sync issue", "Display / layout", "Cras
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, apikey, content-type, x-client-info",
 };
 
 function json(body: unknown, status = 200): Response {

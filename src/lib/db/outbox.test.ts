@@ -191,7 +191,7 @@ describe("clearAllData and the outbox", () => {
     // A real record too, so this also confirms clearAllData still does its
     // actual job on every OTHER store — this isn't "clearAllData is broken",
     // just "the outbox specifically is exempt".
-    await putItem({ identity: "item-1", itemType: "food", rawName: "Apple", category: "Fruit", categoryId: null, isArchived: false, createdDate: "2026-01-01" });
+    await putItem({ identity: "item-1", itemType: "food", rawName: "Apple", category: "Fruit", categoryId: null, isArchived: false, createdDate: "2026-01-01", reminderTime: null });
 
     await clearAllData();
 

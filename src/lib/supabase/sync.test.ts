@@ -308,7 +308,7 @@ describe("putItemAndSync — mutation and outbox enqueue are one atomic operatio
     const { putItemAndSync } = await import("./sync");
     const { getAllOutboxEntries } = await import("@/lib/db/indexedDb");
 
-    const item = { identity: "atomic-item-1", itemType: "food" as const, rawName: "Pear", category: "Fruit", categoryId: null, isArchived: false, createdDate: "2026-01-01" };
+    const item = { identity: "atomic-item-1", itemType: "food" as const, rawName: "Pear", category: "Fruit", categoryId: null, isArchived: false, createdDate: "2026-01-01", reminderTime: null };
     await putItemAndSync(item);
 
     const entries = (await getAllOutboxEntries()).filter((e) => e.dedupeKey === "food_items:atomic-item-1");
@@ -326,7 +326,7 @@ describe("putItemAndSync — mutation and outbox enqueue are one atomic operatio
     // gap. With a real single-lock implementation there is no gap to
     // land in, so this second pull can only ever end up fully before or
     // fully after the whole putItemAndSync call.
-    const item = { identity: "atomic-item-2", itemType: "food" as const, rawName: "Plum", category: "Fruit", categoryId: null, isArchived: false, createdDate: "2026-01-01" };
+    const item = { identity: "atomic-item-2", itemType: "food" as const, rawName: "Plum", category: "Fruit", categoryId: null, isArchived: false, createdDate: "2026-01-01", reminderTime: null };
     const writePromise = putItemAndSync(item);
     await sleep(1);
     const pullPromise = pullFromCloud();
@@ -337,5 +337,67 @@ describe("putItemAndSync — mutation and outbox enqueue are one atomic operatio
     const enqueueIndex = calls.indexOf("enqueue:food_items:atomic-item-2");
     expect(itemIndex).toBeGreaterThanOrEqual(0);
     expect(enqueueIndex).toBe(itemIndex + 1);
+  });
+});
+
+describe("setItemReminderTimeAndSync — reminder reset can't be coalesced away by an unrelated edit", () => {
+  it("uses a dedupeKey distinct from the item's own, so a following rename can't erase the pending reminder_last_sent_date reset", async () => {
+    const { putItemAndSync, setItemReminderTimeAndSync } = await import("./sync");
+    const { getAllOutboxEntries } = await import("@/lib/db/indexedDb");
+
+    const item = {
+      identity: "reminder-item-1",
+      itemType: "supplement" as const,
+      rawName: "Magnesium",
+      category: "Minerals",
+      categoryId: null,
+      isArchived: false,
+      createdDate: "2026-01-01",
+      reminderTime: null,
+    };
+
+    // Changing the reminder time first (queues the reset), then an
+    // unrelated edit to the same item before either would have drained —
+    // exactly the sequence that, with a shared dedupeKey, would coalesce
+    // the second payload over the first and silently drop the reset.
+    await setItemReminderTimeAndSync(item, "09:00");
+    await putItemAndSync({ ...item, reminderTime: "09:00", rawName: "Magnesium Glycinate" });
+
+    const entries = await getAllOutboxEntries();
+    const reminderEntry = entries.find((e) => e.dedupeKey === "supplement_items:reminder-item-1:reminder");
+    const itemEntry = entries.find((e) => e.dedupeKey === "supplement_items:reminder-item-1");
+
+    // Both entries survived as separate rows — if they'd shared a
+    // dedupeKey, the second enqueue would have coalesced into (replaced)
+    // the first, and reminderEntry would either be undefined or would no
+    // longer carry the reset.
+    expect(reminderEntry).toBeDefined();
+    expect(itemEntry).toBeDefined();
+    expect(reminderEntry?.payload).toMatchObject({ reminder_last_sent_date: null, name: "Magnesium" });
+    expect(itemEntry?.payload).not.toHaveProperty("reminder_last_sent_date");
+    expect(itemEntry?.payload).toMatchObject({ name: "Magnesium Glycinate" });
+  });
+
+  it("two reminder-time changes in a row still coalesce to just the latest", async () => {
+    const { setItemReminderTimeAndSync } = await import("./sync");
+    const { getAllOutboxEntries } = await import("@/lib/db/indexedDb");
+
+    const item = {
+      identity: "reminder-item-2",
+      itemType: "habit" as const,
+      rawName: "Stretching",
+      category: "Movement",
+      categoryId: null,
+      isArchived: false,
+      createdDate: "2026-01-01",
+      reminderTime: null,
+    };
+
+    await setItemReminderTimeAndSync(item, "07:00");
+    await setItemReminderTimeAndSync(item, "07:30");
+
+    const entries = (await getAllOutboxEntries()).filter((e) => e.dedupeKey === "habit_items:reminder-item-2:reminder");
+    expect(entries).toHaveLength(1);
+    expect(entries[0].payload).toMatchObject({ reminder_time: "07:30", reminder_last_sent_date: null });
   });
 });
