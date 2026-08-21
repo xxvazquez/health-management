@@ -57,7 +57,7 @@ export function MultiLineChart({
           }}
         />
         <Legend
-          wrapperStyle={{ fontSize: 12, cursor: "pointer" }}
+          wrapperStyle={{ fontSize: 12, cursor: "pointer", paddingTop: 14 }}
           onClick={(entry) => {
             const key = entry?.dataKey;
             if (key !== undefined) toggle(String(key));

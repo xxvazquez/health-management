@@ -39,19 +39,23 @@ export interface GroupEvidence {
   targetPerWeek: number;
   /** Generic, widely available examples — used for suggestion copy, never for matching. */
   exampleFoods: string[];
+  /** Points into src/lib/nutritionEvidenceRecords.ts — the actual cited
+   * research, shown only behind the Food page's "Why this is suggested"
+   * link, never inline here or in the main analytics UI. */
+  evidenceId: string;
 }
 
 export const GROUP_EVIDENCE: Partial<Record<NutritionGroupId, GroupEvidence>> = {
-  leafy_greens: { tier: "Strong", weight: 1.0, targetPerWeek: 4, exampleFoods: ["spinach", "kale", "lettuce"] },
-  cruciferous: { tier: "Strong", weight: 1.0, targetPerWeek: 3, exampleFoods: ["broccoli", "cauliflower", "cabbage"] },
-  other_vegetables: { tier: "Strong", weight: 1.0, targetPerWeek: 7, exampleFoods: ["carrot", "tomato", "onion"] },
-  berries: { tier: "Moderate", weight: 0.85, targetPerWeek: 3, exampleFoods: ["blueberries", "raspberries", "strawberries"] },
-  other_fruit: { tier: "Strong", weight: 1.0, targetPerWeek: 7, exampleFoods: ["apple", "orange", "banana"] },
-  legumes: { tier: "Strong", weight: 1.0, targetPerWeek: 3, exampleFoods: ["lentils", "chickpeas", "beans"] },
-  whole_grains: { tier: "Strong", weight: 1.0, targetPerWeek: 7, exampleFoods: ["oats", "quinoa", "buckwheat"] },
-  nuts: { tier: "Strong", weight: 1.0, targetPerWeek: 5, exampleFoods: ["almonds", "walnuts", "peanut butter"] },
-  seeds: { tier: "Moderate", weight: 0.85, targetPerWeek: 5, exampleFoods: ["chia", "flaxseed", "sesame seeds"] },
-  fatty_fish: { tier: "Strong", weight: 1.0, targetPerWeek: 2, exampleFoods: ["salmon", "mackerel", "sardines"] },
+  leafy_greens: { tier: "Strong", weight: 1.0, targetPerWeek: 4, exampleFoods: ["spinach", "kale", "lettuce"], evidenceId: "leafy_greens_evidence" },
+  cruciferous: { tier: "Strong", weight: 1.0, targetPerWeek: 3, exampleFoods: ["broccoli", "cauliflower", "cabbage"], evidenceId: "cruciferous_evidence" },
+  other_vegetables: { tier: "Strong", weight: 1.0, targetPerWeek: 7, exampleFoods: ["carrot", "tomato", "onion"], evidenceId: "other_vegetables_evidence" },
+  berries: { tier: "Moderate", weight: 0.85, targetPerWeek: 3, exampleFoods: ["blueberries", "raspberries", "strawberries"], evidenceId: "berries_evidence" },
+  other_fruit: { tier: "Strong", weight: 1.0, targetPerWeek: 7, exampleFoods: ["apple", "orange", "banana"], evidenceId: "other_fruit_evidence" },
+  legumes: { tier: "Strong", weight: 1.0, targetPerWeek: 3, exampleFoods: ["lentils", "chickpeas", "beans"], evidenceId: "legumes_evidence" },
+  whole_grains: { tier: "Strong", weight: 1.0, targetPerWeek: 7, exampleFoods: ["oats", "quinoa", "buckwheat"], evidenceId: "whole_grains_evidence" },
+  nuts: { tier: "Strong", weight: 1.0, targetPerWeek: 5, exampleFoods: ["almonds", "walnuts", "peanut butter"], evidenceId: "nuts_evidence" },
+  seeds: { tier: "Moderate", weight: 0.85, targetPerWeek: 5, exampleFoods: ["chia", "flaxseed", "sesame seeds"], evidenceId: "seeds_evidence" },
+  fatty_fish: { tier: "Strong", weight: 1.0, targetPerWeek: 2, exampleFoods: ["salmon", "mackerel", "sardines"], evidenceId: "fatty_fish_evidence" },
 };
 
 export function evidenceForGroup(group: NutritionGroupId): GroupEvidence | null {

@@ -45,6 +45,20 @@ const SYMPTOMS: [string, string][] = [
 ];
 const MEALS = ["Breakfast", "Lunch", "Dinner", "Snack"] as const;
 
+/** A handful of realistic recurring combos, logged on top of the random
+ * daily foods above — without this, exact-set repeats across independently
+ * random days are vanishingly rare, so "Favorite combinations by meal"
+ * would have nothing to show in the demo. Purely additive to the existing
+ * generator (same deterministic PRNG stream), not a second algorithm —
+ * favoriteCombosByMeal itself is untouched and just finds these like it
+ * would find any real recurring meal. */
+const SIGNATURE_MEALS: { meal: (typeof MEALS)[number]; items: [string, string][]; chance: number }[] = [
+  { meal: "Breakfast", items: [["Oats", "Grains"], ["Blueberries", "Fruit"], ["Almonds", "Nuts & Seeds"]], chance: 0.4 },
+  { meal: "Lunch", items: [["Chicken", "Meat"], ["Rice", "Grains"], ["Broccoli", "Veggies"]], chance: 0.35 },
+  { meal: "Dinner", items: [["Salmon", "Fish"], ["Potatoes", "Veggies"], ["Spinach", "Veggies"]], chance: 0.35 },
+  { meal: "Snack", items: [["Peanut butter", "Nuts & Seeds"], ["Apple", "Fruit"]], chance: 0.3 },
+];
+
 const DEMO_SEED = 20260101;
 const DEMO_WINDOW_DAYS = 75;
 
@@ -156,6 +170,13 @@ export function buildDemoDataset(): DemoDataset {
     for (let i = 0; i < foodCount; i++) {
       const [name, category] = pick(FOODS);
       writeLog(ensureItem("food", name, category), "food", date, pick(MEALS));
+    }
+
+    for (const signature of SIGNATURE_MEALS) {
+      if (!chance(signature.chance)) continue;
+      for (const [name, category] of signature.items) {
+        writeLog(ensureItem("food", name, category), "food", date, signature.meal);
+      }
     }
 
     for (const [name, category] of DAILY_SUPPLEMENTS) {
