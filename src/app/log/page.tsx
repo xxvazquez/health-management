@@ -188,7 +188,7 @@ function TimelineNote({
 
   if (hidden) {
     return note ? (
-      <p className="line-clamp-2 w-full text-xs" style={{ color: "var(--text-secondary)" }}>
+      <p className="w-full text-xs break-words whitespace-pre-wrap" style={{ color: "var(--text-secondary)" }}>
         {note}
       </p>
     ) : null;
@@ -224,7 +224,7 @@ function TimelineNote({
       type="button"
       onClick={() => setEditing(true)}
       disabled={busy}
-      className="line-clamp-2 w-full text-left text-xs disabled:opacity-40"
+      className="w-full text-left text-xs break-words whitespace-pre-wrap disabled:opacity-40"
       style={{ color: "var(--text-secondary)" }}
     >
       {note}
@@ -1237,18 +1237,14 @@ export default function LogPage() {
             Timeline — {formatDateLabel(date, today).toLowerCase()}
           </h2>
           <div className="overflow-x-auto pb-2">
-            {/* Every card shares one fixed width and height, so time, name,
-             * action, selector, and note all land in the exact same slot
-             * from card to card — that's what makes this scannable rather
-             * than each entry just being however wide its own name needs.
-             * The connecting line sits behind the row at each card's own
-             * top edge: since every card now has a solid background, the
-             * line only actually shows in the gaps between cards, which is
-             * what keeps it a quiet "this is a sequence" cue instead of a
-             * dominant line cutting across every entry's content. */}
-            <div className="relative flex min-w-max items-start gap-3">
-              <div className="absolute top-3 right-0 left-0 h-px" style={{ background: "var(--border-hairline)" }} />
-              {combinedTimeline.map((entry) => {
+            {/* Every card shares one fixed width, but height follows its own
+             * content — a short entry stays short instead of leaving a
+             * stretch of empty space to fill a row-wide fixed height. Each
+             * card (but the last) draws its own short connector into the
+             * gap that follows it, at the dot's own height — the line never
+             * crosses a card's face, so it can't render behind one. */}
+            <div className="flex min-w-max items-start gap-3">
+              {combinedTimeline.map((entry, i) => {
                 const busy = pending === entry.key;
                 const hasMealTag = entry.itemType === "food" && (entry.mealTag || !isDemoData);
                 const hasNote = entry.itemType !== "stool" && (!isDemoData || entry.note);
@@ -1256,13 +1252,16 @@ export default function LogPage() {
                 return (
                   <div
                     key={entry.key}
-                    className="relative flex h-40 w-32 shrink-0 flex-col gap-1 rounded-lg border p-2"
+                    className="relative flex w-36 shrink-0 flex-col gap-1 rounded-lg border p-2"
                     style={{ opacity: busy ? 0.5 : 1, borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}
                   >
                     <span
                       className="absolute top-[10px] left-2 z-10 h-2.5 w-2.5 shrink-0 rounded-full border-2"
                       style={{ borderColor: accent, background: "var(--surface-1)" }}
                     />
+                    {i < combinedTimeline.length - 1 && (
+                      <span className="absolute top-[15px] -right-3 h-px w-3" style={{ background: "var(--border-hairline)" }} />
+                    )}
                     {/* Top row, same position on every card: time on the
                      * left (indented past the dot), delete at top-right. */}
                     <div className="flex w-full items-start justify-between gap-1 pl-3">
@@ -1278,7 +1277,7 @@ export default function LogPage() {
                           onChange={(e) => void handleChangeEntryTime(entry, e.target.value)}
                           onClick={(e) => e.currentTarget.showPicker?.()}
                           aria-label={`Change time for ${entry.item}`}
-                          className="w-[68px] min-w-0 rounded px-1 py-0.5 font-mono text-[11px] whitespace-nowrap outline-none disabled:opacity-40"
+                          className="w-[84px] min-w-0 rounded px-0.5 py-0.5 font-mono text-[11px] whitespace-nowrap outline-none disabled:opacity-40"
                           style={{ background: "transparent", color: "var(--text-muted)", border: "none" }}
                         />
                       )}
@@ -1339,18 +1338,13 @@ export default function LogPage() {
                         </select>
                       ))}
 
-                    {/* Note, pinned to the bottom of every card via
-                     * mt-auto — same position whether or not a meal
-                     * selector rendered above it. */}
                     {hasNote && (
-                      <div className="mt-auto">
-                        <TimelineNote
-                          note={entry.note}
-                          busy={pending === `note:${entry.itemIdentity}`}
-                          hidden={isDemoData}
-                          onSave={(content) => void handleSaveNote(entry, content)}
-                        />
-                      </div>
+                      <TimelineNote
+                        note={entry.note}
+                        busy={pending === `note:${entry.itemIdentity}`}
+                        hidden={isDemoData}
+                        onSave={(content) => void handleSaveNote(entry, content)}
+                      />
                     )}
                   </div>
                 );
