@@ -52,6 +52,15 @@ create table public.supplement_items (
   is_archived boolean not null default false,
   created_date date,
   updated_at timestamptz not null default now(),
+  -- Local wall-clock time-of-day; null means no reminder is set. Read by
+  -- breakfast-reminder-cron, written by the app whenever this changes.
+  reminder_time time,
+  -- Local date this item's reminder last sent or resolved (already logged)
+  -- — the per-item dedupe guard, reset to null whenever reminder_time
+  -- itself changes so a same-day retime isn't suppressed by an earlier
+  -- send. Never touched by a plain rename/archive/category-change upsert;
+  -- see src/lib/supabase/sync.ts's setItemReminderTimeAndSync.
+  reminder_last_sent_date date,
   unique (user_id, name_key),
   unique (user_id, id),
   foreign key (user_id, category_id, item_type) references public.categories (user_id, id, item_type) on delete restrict
@@ -67,6 +76,8 @@ create table public.habit_items (
   is_archived boolean not null default false,
   created_date date,
   updated_at timestamptz not null default now(),
+  reminder_time time,
+  reminder_last_sent_date date,
   unique (user_id, name_key),
   unique (user_id, id),
   foreign key (user_id, category_id, item_type) references public.categories (user_id, id, item_type) on delete restrict
@@ -226,26 +237,25 @@ create index habit_logs_item_date_idx on public.habit_logs (item_id, date);
 create index symptom_logs_item_date_idx on public.symptom_logs (item_id, date);
 create index stool_logs_user_date_idx on public.stool_logs (user_id, date);
 
--- One row per user: the breakfast-reminder push subscription for whichever
--- device they last enabled it on (enabling on a second device overwrites
--- the first — one reminder per user, not per device, is enough for now).
--- Row presence = enabled; the Manage page deletes it to disable. Read by
--- the breakfast-reminder-cron Edge Function using the service role key,
--- not by the browser client, so RLS below only ever needs to cover the
--- user's own read/write from the app.
+-- One row per user: the push subscription for whichever device they last
+-- enabled notifications on (enabling on a second device overwrites the
+-- first — one subscription per user, not per device, is enough for now).
+-- Row presence = enabled; the Manage page deletes it to disable. This is
+-- purely the delivery mechanism (endpoint/keys/timezone) — the schedule
+-- itself is per-item (see reminder_time/reminder_last_sent_date on
+-- supplement_items/habit_items above). Read by the breakfast-reminder-cron
+-- Edge Function using the service role key, not by the browser client, so
+-- RLS below only ever needs to cover the user's own read/write from the app.
 create table public.push_subscriptions (
   user_id uuid not null default auth.uid(),
   endpoint text not null,
   p256dh text not null,
   auth_key text not null,
   -- IANA name (e.g. "Europe/Warsaw"), captured client-side at subscribe
-  -- time — lets the cron job work out this user's local morning without
-  -- guessing a single fixed UTC time for everyone.
+  -- time and refreshed on every app load if it's drifted — lets the cron
+  -- job work out this user's local time without guessing a single fixed
+  -- UTC time for everyone.
   timezone text not null,
-  -- Local date (in the timezone above) the reminder last actually sent —
-  -- stops the 15-minute cron from sending the same person's reminder
-  -- more than once in their reminder window.
-  last_reminded_date date,
   updated_at timestamp with time zone not null default now(),
   constraint push_subscriptions_pkey primary key (user_id),
   constraint push_subscriptions_user_id_fkey foreign key (user_id) references auth.users(id)
@@ -287,12 +297,16 @@ create policy "stool_logs_all_own" on public.stool_logs for all using (auth.uid(
 create policy "gym_logs_all_own" on public.gym_logs for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "push_subscriptions_all_own" on public.push_subscriptions for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
--- Breakfast reminder: schedule the Edge Function that sends it. Run this
--- once, filling in your own project ref and anon key (Dashboard -> Project
--- Settings -> API) — the anon key is public by design (see the note in
--- .github/workflows/deploy.yml), so it's fine inline here. Needs the
--- pg_cron and pg_net extensions, enabled below (Database -> Extensions in
--- the dashboard works too, if you'd rather click than paste SQL).
+-- Reminders: schedule the Edge Function that checks and sends them (still
+-- named breakfast-reminder-cron — it now walks every supplement/habit
+-- item's own reminder_time rather than one fixed breakfast check, but the
+-- function's deployed name is a live URL a running pg_cron job already
+-- calls, so renaming it would need this schedule re-pointed by hand too).
+-- Run this once, filling in your own project ref and anon key (Dashboard ->
+-- Project Settings -> API) — the anon key is public by design (see the
+-- note in .github/workflows/deploy.yml), so it's fine inline here. Needs
+-- the pg_cron and pg_net extensions, enabled below (Database -> Extensions
+-- in the dashboard works too, if you'd rather click than paste SQL).
 --
 -- create extension if not exists pg_cron with schema extensions;
 -- create extension if not exists pg_net with schema extensions;
@@ -308,3 +322,13 @@ create policy "push_subscriptions_all_own" on public.push_subscriptions for all 
 --   );
 --   $$
 -- );
+
+-- Migration for a project that already ran the create table statements
+-- above before per-item reminders existed: run once by hand in the SQL
+-- editor (already applied to the live lauva.pl project as of this change).
+--
+-- alter table public.supplement_items add column if not exists reminder_time time;
+-- alter table public.supplement_items add column if not exists reminder_last_sent_date date;
+-- alter table public.habit_items add column if not exists reminder_time time;
+-- alter table public.habit_items add column if not exists reminder_last_sent_date date;
+-- alter table public.push_subscriptions drop column if exists last_reminded_date;

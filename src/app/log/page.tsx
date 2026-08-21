@@ -42,7 +42,6 @@ import { lookupFoodCategory } from "@/taxonomy/classify";
 import { POLAND_FOOD_CATALOG } from "@/taxonomy/polandFoodCatalog";
 import { DURATION_DEFAULT_MINUTES, INPUT_KIND } from "@/taxonomy/inputKinds";
 import { DurationStepper } from "@/components/ui/DurationStepper";
-import { BreakfastReminderToggle } from "@/components/BreakfastReminderToggle";
 import { StoolTab, type NewStoolEntry } from "@/components/log/StoolTab";
 import { DuplicateItemDialog } from "@/components/ui/DuplicateItemDialog";
 import type { RawLog, RawItem, RawDiaryEntry, RawCategory, RawStoolLog } from "@/lib/types";
@@ -639,6 +638,7 @@ export default function LogPage() {
       categoryId,
       isArchived: false,
       createdDate: date,
+      reminderTime: null,
     };
     await putItemAndSync(item);
     if (tabConfig.countable) {
@@ -688,6 +688,7 @@ export default function LogPage() {
       categoryId,
       isArchived: false,
       createdDate: date,
+      reminderTime: null,
     };
     await putItemAndSync(item);
     await applyLogTime(await incrementDailyLogAndSync(item.identity, "food", date, meal));
@@ -874,7 +875,6 @@ export default function LogPage() {
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <BreakfastReminderToggle />
           <div className="flex items-center gap-0.5 rounded-lg border p-1" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
             <button
               type="button"
