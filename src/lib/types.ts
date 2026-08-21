@@ -48,6 +48,12 @@ export interface RawItem {
   isArchived: boolean;
   /** ISO date the item was created, if known. */
   createdDate: string | null;
+  /** Local wall-clock "HH:MM" for a daily reminder push, supplement/habit
+   * items only; null means no reminder. Set from the Manage page. The
+   * server also tracks a `reminder_last_sent_date` dedupe stamp, but that's
+   * cron-only bookkeeping this type deliberately never carries — see
+   * setItemReminderTimeAndSync in lib/supabase/sync.ts for why. */
+  reminderTime: string | null;
 }
 
 /** One log entry for an item on a given day — Supabase's `<type>_logs` tables. */

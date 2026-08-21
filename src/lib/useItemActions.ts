@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { getItem } from "@/lib/db/indexedDb";
-import { putItemAndSync } from "@/lib/supabase/sync";
+import { putItemAndSync, setItemReminderTimeAndSync } from "@/lib/supabase/sync";
 import { titleCaseFallback } from "@/taxonomy/normalizeName";
 
 /** The minimal shape rename/archive need — deliberately narrower than
@@ -16,6 +16,14 @@ export interface ManageableItem {
   item: string;
   category: string;
   isArchived: boolean;
+  /** Local "HH:MM", supplement/habit items only; null/undefined means no
+   * reminder. Optional (unlike the rest of this interface) because
+   * `ItemStats` (`lib/aggregations/itemStats.ts`) also structurally
+   * satisfies `ManageableItem` and has no natural way to compute this —
+   * it's derived from logged events, not raw item rows, and reminders
+   * don't affect adherence stats. Only the Manage page's own
+   * `toManageable` ever actually sets this. */
+  reminderTime?: string | null;
 }
 
 /**
@@ -72,5 +80,17 @@ export function useItemActions(refresh: () => Promise<void>) {
     setBusyIdentity(null);
   }
 
-  return { busyIdentity, toggleArchive, rename, changeCategory };
+  /** Supplement/habit only, wired from the Manage page's per-row time
+   * input. Goes through setItemReminderTimeAndSync, not putItemAndSync —
+   * see that function's own doc comment for why the reminder dedupe stamp
+   * needs different sync handling than every other field here. */
+  async function setReminderTime(item: ManageableItem, time: string | null) {
+    setBusyIdentity(item.itemIdentity);
+    const existing = await getItem(item.itemIdentity);
+    if (existing) await setItemReminderTimeAndSync(existing, time);
+    await refresh();
+    setBusyIdentity(null);
+  }
+
+  return { busyIdentity, toggleArchive, rename, changeCategory, setReminderTime };
 }

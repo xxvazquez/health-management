@@ -20,6 +20,7 @@ export function makeItem(overrides: Partial<RawItem> = {}): RawItem {
     categoryId: nextId("cat"),
     isArchived: false,
     createdDate: "2026-01-01",
+    reminderTime: null,
     ...overrides,
   };
 }

@@ -67,6 +67,12 @@ async function currentUserId(): Promise<string | null> {
 // build the exact same payload shape.
 // ---------------------------------------------------------------------------
 
+// Deliberately never includes reminder_last_sent_date — that column is
+// cron-only bookkeeping, and if a generic edit (rename/archive/category)
+// echoed it back from a possibly-stale local cache, it could revert a
+// fresher stamp the cron already wrote server-side. Only
+// setItemReminderTimeAndSync below ever touches that column, and it does
+// so deliberately, not by echoing a cached value. See its own doc comment.
 function buildItemRow(item: RawItem, userId: string): Record<string, unknown> {
   return {
     id: item.identity,
@@ -76,6 +82,7 @@ function buildItemRow(item: RawItem, userId: string): Record<string, unknown> {
     item_type: DB_TYPE[item.itemType],
     is_archived: item.isArchived,
     created_date: item.createdDate,
+    reminder_time: item.reminderTime,
   };
 }
 
@@ -174,6 +181,29 @@ export function putItemAndSync(item: RawItem): Promise<void> {
     if (!userId) return;
     const table = ITEM_TABLE[item.itemType];
     await enqueueOutboxInternal({ userId, table, op: "upsert", payload: buildItemRow(item, userId), dedupeKey: `${table}:${item.identity}` });
+  });
+}
+
+/** The one place reminder_time changes — also resets the server's
+ * reminder_last_sent_date dedupe stamp, since a new (or cleared) schedule
+ * invalidates whatever the cron already resolved under the old one. Uses
+ * its own dedupeKey (`${table}:${id}:reminder`), distinct from the item's
+ * own `${table}:${id}` — sharing the item's key would let a later unrelated
+ * edit (rename, etc.) coalesce into and silently drop this reset before it
+ * ever reached the server; see the doc comment on buildItemRow and the
+ * plan this shipped with for the full reasoning. Ordering across the two
+ * keys is still guaranteed by the outbox's global createdAt sort
+ * (indexedDb.ts's getEligibleOutboxEntries), so nothing here can be
+ * reverted out of order by that split. */
+export function setItemReminderTimeAndSync(item: RawItem, time: string | null): Promise<void> {
+  return withDataLock(async () => {
+    const updated = { ...item, reminderTime: time };
+    await putItemInternal(updated);
+    const userId = await currentUserId();
+    if (!userId) return;
+    const table = ITEM_TABLE[item.itemType];
+    const payload = { ...buildItemRow(updated, userId), reminder_last_sent_date: null };
+    await enqueueOutboxInternal({ userId, table, op: "upsert", payload, dedupeKey: `${table}:${item.identity}:reminder` });
   });
 }
 
@@ -349,6 +379,7 @@ interface ItemRow {
   category_id: string | null;
   is_archived: boolean | null;
   created_date: string | null;
+  reminder_time: string | null;
 }
 
 interface LogRow {
@@ -493,6 +524,7 @@ export async function pullFromCloud(): Promise<void> {
           categoryId: row.category_id,
           isArchived: row.is_archived ?? false,
           createdDate: row.created_date,
+          reminderTime: row.reminder_time ? row.reminder_time.slice(0, 5) : null,
         };
         await putItemInternal(item);
       }
