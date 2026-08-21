@@ -223,10 +223,23 @@ function TimelineNote({
       type="button"
       onClick={() => setEditing(true)}
       disabled={busy}
-      className="w-full text-left text-xs break-words whitespace-pre-wrap disabled:opacity-40"
+      className="flex w-full items-start gap-1 text-left text-xs disabled:opacity-40"
       style={{ color: "var(--text-secondary)" }}
     >
-      {note}
+      <svg
+        width="11"
+        height="11"
+        viewBox="0 0 20 20"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="mt-0.5 shrink-0 opacity-70"
+      >
+        <path d="M13.5 3.5 16.5 6.5 7 16H4v-3Z" />
+      </svg>
+      <span className="break-words whitespace-pre-wrap">{note}</span>
     </button>
   ) : (
     <button
@@ -270,7 +283,7 @@ export default function LogPage() {
   const [newItemText, setNewItemText] = useState("");
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [pending, setPending] = useState<string | null>(null);
-  const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set(["Meat"]));
+  const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
   // Which stool timeline cards have their extra details (color, floatation,
   // characteristics, paper cleanliness, time on toilet) expanded — collapsed
   // by default since a 144px-wide card has no room to show them all at once.
