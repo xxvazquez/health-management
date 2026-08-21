@@ -30,10 +30,15 @@ begin;
 
 -- ---- Test harness -----------------------------------------------------
 
+-- `if not condition` is a trap here: when condition is NULL (not TRUE,
+-- not FALSE — e.g. auth.uid() itself returning NULL), `not NULL` is NULL,
+-- and PL/pgSQL treats a NULL IF-condition the same as FALSE — skipping the
+-- raise and silently falling through to "ok". `is not true` has no such
+-- gap: it's TRUE for both FALSE and NULL, never NULL itself.
 create or replace function public.test_assert(condition boolean, message text) returns void
 language plpgsql as $$
 begin
-  if not condition then
+  if condition is not true then
     raise exception 'RLS TEST FAILED: %', message;
   end if;
   raise notice 'ok - %', message;
@@ -41,10 +46,16 @@ end;
 $$;
 
 -- Switches the current session's effective identity, the way PostgREST
--- would for a real request carrying that user's JWT.
+-- would for a real request carrying that user's JWT. Sets both the JSON
+-- claims blob and the flat per-claim settings — different Supabase
+-- postgres image builds have read auth.uid() from one or the other, and
+-- setting both is cheap insurance against relying on an implementation
+-- detail this suite can't directly inspect.
 create or replace function public.test_switch_user(target_user_id uuid) returns void
 language sql as $$
   select set_config('request.jwt.claims', json_build_object('sub', target_user_id, 'role', 'authenticated')::text, true);
+  select set_config('request.jwt.claim.sub', target_user_id::text, true);
+  select set_config('request.jwt.claim.role', 'authenticated', true);
 $$;
 
 -- Asserts that a statement is rejected specifically by an RLS policy
