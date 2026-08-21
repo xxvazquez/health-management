@@ -23,9 +23,11 @@ import {
 import { getAllDiary, getAllItems, getAllLogs, getAllCategories, getAllStoolLogs } from "@/lib/db/indexedDb";
 import {
   buildLogCandidates,
+  combineDateAndTime,
   dayTimelineEntries,
   decideChipTapAction,
   loggedCountsForDate,
+  toTimeInputValue,
   type LogCandidate,
   type TimelineEntry,
 } from "@/lib/logCandidates";
@@ -66,19 +68,6 @@ function defaultMealForTime(now: Date = new Date()): (typeof MEAL_OPTIONS)[numbe
   if (minutes >= 12 * 60 && minutes < 15 * 60) return "Lunch";
   if (minutes >= 15 * 60 && minutes < 23 * 60 + 30) return "Dinner";
   return "Snack";
-}
-
-/** Combines the currently-viewed day with a local "HH:MM" into a full ISO
- * timestamp — the shape every log's `updatedAt`/`loggedAt` is stored as. */
-function combineDateAndTime(date: string, time: string): string {
-  const [y, m, d] = date.split("-").map(Number);
-  const [h, min] = time.split(":").map(Number);
-  return new Date(y, m - 1, d, h, min).toISOString();
-}
-
-function toTimeInputValue(iso: string): string {
-  const d = new Date(iso);
-  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
 function CategoryIconWrap({ children }: { children: ReactNode }) {
@@ -1061,8 +1050,13 @@ export default function LogPage() {
                   type="time"
                   value={logTime}
                   onChange={(e) => setLogTime(e.target.value)}
-                  className="rounded-md border px-2 py-1 text-xs font-medium tabular-nums outline-none"
-                  style={{ borderColor: "var(--border-hairline)", background: "var(--page-plane)", color: "var(--text-primary)" }}
+                  onClick={(e) => e.currentTarget.showPicker?.()}
+                  className="h-7 rounded-md border px-2.5 text-xs font-medium tabular-nums outline-none"
+                  style={{
+                    borderColor: "var(--series-2)",
+                    background: "color-mix(in oklab, var(--series-2) 14%, var(--surface-1))",
+                    color: "var(--text-primary)",
+                  }}
                 />
               </label>
               {tabConfig?.countable && (
@@ -1074,11 +1068,11 @@ export default function LogPage() {
                         key={m}
                         type="button"
                         onClick={() => setMeal(m)}
-                        className="rounded-md border px-2.5 py-1 text-xs font-normal whitespace-nowrap transition-colors"
+                        className="flex h-7 items-center rounded-md border px-2.5 text-xs font-medium whitespace-nowrap transition-colors"
                         style={{
-                          borderColor: active ? "var(--brand-wave)" : "var(--border-hairline)",
-                          background: active ? "color-mix(in oklab, var(--brand-wave) 16%, var(--surface-1))" : "transparent",
-                          color: active ? "var(--brand-wave)" : "var(--text-secondary)",
+                          borderColor: active ? "var(--series-2)" : "var(--border-hairline)",
+                          background: active ? "color-mix(in oklab, var(--series-2) 14%, var(--surface-1))" : "transparent",
+                          color: active ? "var(--series-2)" : "var(--text-secondary)",
                         }}
                       >
                         {m}
@@ -1282,6 +1276,7 @@ export default function LogPage() {
                           value={toTimeInputValue(entry.updatedAt)}
                           disabled={busy}
                           onChange={(e) => void handleChangeEntryTime(entry, e.target.value)}
+                          onClick={(e) => e.currentTarget.showPicker?.()}
                           aria-label={`Change time for ${entry.item}`}
                           className="w-[68px] min-w-0 rounded px-1 py-0.5 font-mono text-[11px] whitespace-nowrap outline-none disabled:opacity-40"
                           style={{ background: "transparent", color: "var(--text-muted)", border: "none" }}
@@ -1320,7 +1315,7 @@ export default function LogPage() {
                         entry.mealTag && (
                           <span
                             className="self-start rounded px-1.5 py-0.5 text-[11px] font-medium whitespace-nowrap"
-                            style={{ background: "color-mix(in oklab, var(--brand-wave) 16%, var(--surface-1))", color: "var(--brand-wave)" }}
+                            style={{ background: "color-mix(in oklab, var(--series-2) 14%, var(--surface-1))", color: "var(--series-2)" }}
                           >
                             {entry.mealTag}
                           </span>
@@ -1331,7 +1326,7 @@ export default function LogPage() {
                           disabled={busy}
                           onChange={(e) => void handleChangeEntryMeal(entry, e.target.value)}
                           className="w-full rounded px-1.5 py-0.5 text-[11px] font-medium whitespace-nowrap outline-none disabled:opacity-40"
-                          style={{ background: "color-mix(in oklab, var(--brand-wave) 16%, var(--surface-1))", color: "var(--brand-wave)", border: "none" }}
+                          style={{ background: "color-mix(in oklab, var(--series-2) 14%, var(--surface-1))", color: "var(--series-2)", border: "none" }}
                         >
                           <option value="" disabled>
                             set meal

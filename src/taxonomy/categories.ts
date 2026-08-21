@@ -104,10 +104,10 @@ export function effectiveCategoryList(itemType: ItemType, customNames: readonly 
  * section comes from the axis label, not the color.
  */
 export const TYPE_ACCENT: Record<ItemType, string> = {
-  food: "var(--series-1)", // blue
-  supplement: "var(--series-2)", // orange
-  outcome: "var(--series-8)", // red
-  habit: "var(--series-3)", // aqua
+  food: "var(--series-1)", // sage
+  supplement: "var(--series-2)", // sky blue
+  outcome: "var(--series-8)", // plum
+  habit: "var(--series-3)", // lavender
 };
 
 /**
