@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import Link from "next/link";
 import { useData } from "@/lib/DataContext";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Card } from "@/components/ui/Card";
@@ -785,6 +786,9 @@ export default function ManagePage() {
           the Log page and this list&apos;s active section; its full logged history stays in every dashboard.
           Turn on notifications above, then set a time on any supplement or habit below to get reminded.
         </p>
+        <Link href="/manage/nutrition-evidence" className="mt-2 inline-block text-sm underline decoration-dotted" style={{ color: "var(--series-2)" }}>
+          Nutrition evidence →
+        </Link>
         {isDemoData && (
           <p className="mt-2 text-sm" style={{ color: "var(--status-warning)" }}>
             Example data — try adding, renaming, archiving, and managing categories freely below. None of this is

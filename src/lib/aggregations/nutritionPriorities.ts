@@ -70,6 +70,17 @@ export interface GroupState {
 export interface Bullet {
   label: string;
   detail: string;
+  /** Short suggestion phrase (e.g. "Add a legume") — null for a pillar-wide
+   * statement that spans more than one group, where there's no single
+   * concrete action to name. */
+  action: string | null;
+  /** null for a pillar-wide statement that spans more than one group —
+   * there's no single evidence record that cleanly backs a merged claim. */
+  group: NutritionGroupId | null;
+  /** Points into src/lib/nutritionEvidenceRecords.ts. null whenever `group`
+   * is null, or a group has no evidence record yet — the UI only offers a
+   * "Why this is suggested" link when this is non-null. */
+  evidenceId: string | null;
 }
 
 export interface PriorityCandidate {
@@ -79,6 +90,7 @@ export interface PriorityCandidate {
   detail: string;
   exampleFoods: string[];
   score: number;
+  evidenceId: string | null;
 }
 
 export interface CoverageRow {
@@ -130,6 +142,13 @@ export interface NutritionPriorities {
   insufficientData: boolean;
   daysWithFoodTracked: number;
   topPriorities: PriorityCandidate[];
+  /** Every individual underrepresented group (never a pillar-wide rollup
+   * or a variety candidate), sorted by score — the uncapped source
+   * `topPriorities` itself draws its top 3 from. Kept separate so a UI
+   * that wants "every underrepresented group, one line each" doesn't have
+   * to reconstruct it from `missing`, which deliberately collapses a
+   * fully-gapped pillar into one combined bullet instead. */
+  underrepresentedGroups: PriorityCandidate[];
   doingWell: Bullet[];
   missing: Bullet[];
   coverageTable: CoverageRow[];
@@ -320,6 +339,9 @@ function pillarVarietyCandidate(
         : `Good frequency, but a narrow range of foods so far.`,
     exampleFoods: [],
     score: gapScore,
+    // Spans every subgroup in the pillar rather than one group, so there's
+    // no single evidence record that cleanly backs this specific claim.
+    evidenceId: null,
   };
 }
 
@@ -329,6 +351,9 @@ function pillarSentenceForGoodGroups(pillar: PillarId, states: GroupState[]): Bu
   return {
     label,
     detail: anyStrong ? "Consistently represented in your data." : "Logged regularly.",
+    action: null,
+    group: null,
+    evidenceId: null,
   };
 }
 
@@ -336,6 +361,9 @@ function groupWellSentence(state: GroupState): Bullet {
   return {
     label: state.label,
     detail: state.status === "strong" ? "Consistently represented in your data." : "Logged regularly.",
+    action: null,
+    group: state.group,
+    evidenceId: evidenceForGroup(state.group)?.evidenceId ?? null,
   };
 }
 
@@ -368,6 +396,7 @@ export function computeNutritionPriorities(events: CanonicalEvent[]): NutritionP
       insufficientData: true,
       daysWithFoodTracked: 0,
       topPriorities: [],
+      underrepresentedGroups: [],
       doingWell: [],
       missing: [],
       coverageTable: [],
@@ -398,6 +427,7 @@ export function computeNutritionPriorities(events: CanonicalEvent[]): NutritionP
         detail: groupCandidateDetail(s),
         exampleFoods: evidence?.exampleFoods ?? [],
         score: Math.max(0, 1 - s.rateLast30PerWeek / (s.targetPerWeek ?? 1)) * (evidence?.weight ?? 1),
+        evidenceId: evidence?.evidenceId ?? null,
       };
     });
 
@@ -417,6 +447,7 @@ export function computeNutritionPriorities(events: CanonicalEvent[]): NutritionP
     pillarVarietyCandidate("nuts_seeds", NUTS_SEEDS_VARIETY_THRESHOLD, allGroupStates, foods, today),
   ].filter((c): c is PriorityCandidate => c !== null);
 
+  const sortedGroupCandidates = [...groupCandidates].sort((a, b) => b.score - a.score);
   const topPriorities = insufficientData
     ? []
     : [...groupCandidates, ...varietyCandidates].sort((a, b) => b.score - a.score).slice(0, 3);
@@ -446,19 +477,34 @@ export function computeNutritionPriorities(events: CanonicalEvent[]): NutritionP
         missing.push({
           label: "Fatty fish",
           detail: "You eat fish, but fatty fish specifically isn't regularly represented.",
+          action: ADD_PHRASE.fatty_fish ?? null,
+          group: "fatty_fish",
+          evidenceId: evidenceForGroup("fatty_fish")?.evidenceId ?? null,
         });
       } else if (gapOnes.length === subgroups.length && subgroups.length > 1) {
         missing.push({
           label: PILLAR_LABEL[pillar],
           detail: `Underrepresented overall — ${subgroups.map((s) => s.label.toLowerCase()).join(", ")} are all rarely or never logged.`,
+          // Spans multiple subgroups — no single action/evidence record fits.
+          action: null,
+          group: null,
+          evidenceId: null,
         });
       } else {
-        for (const s of gapOnes) missing.push({ label: s.label, detail: groupCandidateDetail(s) });
+        for (const s of gapOnes) {
+          missing.push({
+            label: s.label,
+            detail: groupCandidateDetail(s),
+            action: ADD_PHRASE[s.group] ?? `Add ${s.label.toLowerCase()}`,
+            group: s.group,
+            evidenceId: evidenceForGroup(s.group)?.evidenceId ?? null,
+          });
+        }
       }
     }
 
     for (const cand of varietyCandidates) {
-      missing.push({ label: `${cand.headline} variety`, detail: cand.detail });
+      missing.push({ label: `${cand.headline} variety`, detail: cand.detail, action: cand.action, group: null, evidenceId: null });
     }
   }
 
@@ -597,6 +643,7 @@ export function computeNutritionPriorities(events: CanonicalEvent[]): NutritionP
     insufficientData,
     daysWithFoodTracked,
     topPriorities,
+    underrepresentedGroups: insufficientData ? [] : sortedGroupCandidates,
     doingWell,
     missing,
     coverageTable,

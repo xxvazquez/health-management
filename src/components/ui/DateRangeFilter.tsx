@@ -5,13 +5,25 @@ import clsx from "clsx";
 import type { DateRange } from "@/lib/aggregations/common";
 import { addDaysToDate } from "@/lib/aggregations/common";
 
+export interface DateRangePreset {
+  label: string;
+  days: number | "all";
+}
+
 interface Props {
   span: DateRange;
   value: DateRange;
   onChange: (range: DateRange) => void;
+  /** Defaults to the original rolling-window presets — pass a different
+   * list to change the wording/granularity for one page without affecting
+   * the other 5 pages that share this component. */
+  presets?: DateRangePreset[];
+  /** Labels the manual date inputs "Custom" — off by default so existing
+   * pages keep their current unlabeled look. */
+  customLabel?: boolean;
 }
 
-const PRESETS: { label: string; days: number | "all" }[] = [
+const DEFAULT_PRESETS: DateRangePreset[] = [
   { label: "Last 7 days", days: 7 },
   { label: "Last 30 days", days: 30 },
   { label: "Last 90 days", days: 90 },
@@ -28,12 +40,12 @@ const PRESETS: { label: string; days: number | "all" }[] = [
  * instead of just the one the user picked. Editing a date manually clears
  * it back to "no preset selected".
  */
-export function DateRangeFilter({ span, value, onChange }: Props) {
+export function DateRangeFilter({ span, value, onChange, presets = DEFAULT_PRESETS, customLabel = false }: Props) {
   const [activeLabel, setActiveLabel] = useState<string | null>("All time");
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      {PRESETS.map((preset) => {
+      {presets.map((preset) => {
         const start = preset.days === "all" ? span.start : addDaysToDate(span.end, -(preset.days - 1));
         const presetRange: DateRange = { start: start < span.start ? span.start : start, end: span.end };
         const active = activeLabel === preset.label;
@@ -55,6 +67,7 @@ export function DateRangeFilter({ span, value, onChange }: Props) {
         );
       })}
       <div className="flex items-center gap-1.5 text-xs" style={{ color: "var(--text-muted)" }}>
+        {customLabel && <span className="font-medium">Custom:</span>}
         <input
           type="date"
           value={value.start}

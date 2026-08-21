@@ -1,5 +1,7 @@
 import type { CanonicalEvent } from "@/lib/types";
-import { addDaysToDate, pct } from "./common";
+import { addDaysToDate, daysBetween, getDatasetSpan, pct, type DateRange } from "./common";
+import { nutritionGroupsForFood } from "@/taxonomy/nutritionGroups";
+import type { GroupState } from "./nutritionPriorities";
 
 function foodEvents(events: CanonicalEvent[]): CanonicalEvent[] {
   return events.filter((e) => e.itemType === "food" && e.completed);
@@ -187,4 +189,153 @@ export function favoriteCombosByMeal(instances: MealInstance[], minCount = MIN_C
   return Array.from(counts.values())
     .filter((e) => e.count >= minCount)
     .sort((a, b) => b.count - a.count);
+}
+
+export interface IngredientDiversity {
+  current: number;
+  /** Unique-food count over the equivalent-length period immediately
+   * preceding the selected range — null (never fabricated) when the
+   * dataset doesn't actually go back that far. */
+  previous: number | null;
+}
+
+/** Unique ingredients logged in the selected range, plus the same
+ * comparison for the prior equivalent-length period when the data covers
+ * it. `allEvents` (unfiltered) is needed because the prior period sits
+ * outside the caller's already-range-filtered event list. */
+export function ingredientDiversity(filtered: CanonicalEvent[], range: DateRange, allEvents: CanonicalEvent[]): IngredientDiversity {
+  const current = new Set(foodEvents(filtered).map((e) => e.item)).size;
+
+  const spanDays = daysBetween(range.start, range.end) + 1;
+  const prevEnd = addDaysToDate(range.start, -1);
+  const prevStart = addDaysToDate(prevEnd, -(spanDays - 1));
+
+  const datasetSpan = getDatasetSpan(allEvents);
+  if (!datasetSpan || prevStart < datasetSpan.start) return { current, previous: null };
+
+  const prevFoods = foodEvents(allEvents).filter((e) => e.date >= prevStart && e.date <= prevEnd);
+  return { current, previous: new Set(prevFoods.map((e) => e.item)).size };
+}
+
+/** Share of total logged occurrences in range that the top N ingredients
+ * account for — "how concentrated is this range around a few foods". */
+export function topConcentrationShare(ranked: FoodRankEntry[], topN = 3): number {
+  const total = ranked.reduce((sum, r) => sum + r.count, 0);
+  const topSum = ranked.slice(0, topN).reduce((sum, r) => sum + r.count, 0);
+  return pct(topSum, total);
+}
+
+export type RepetitionTag = "beneficial" | "worth-noting" | "neutral";
+
+export interface RepetitionEntry {
+  item: string;
+  count: number;
+  shareOfOccurrences: number;
+  mealInstanceCount: number;
+  tag: RepetitionTag;
+}
+
+const DOMINANT_SHARE_THRESHOLD = 15;
+
+/**
+ * Most-repeated ingredients, each tagged by whether the repetition itself
+ * is worth a second look — never by frequency alone. A food is "beneficial"
+ * (repetition is fine, full stop) whenever any of its nutrition groups is
+ * already "good"/"strong" in `groupStates`, regardless of what else is
+ * happening elsewhere in the diet — that's a separate, already-surfaced
+ * concern (Underrepresented foods / Focus next week), not this item's
+ * fault. Only an item with no such backing, that also dominates total
+ * occurrences, gets "worth-noting" — and only when `hasCoreGaps` is true
+ * (some other core-pillar group is actually missing), so a dominant but
+ * otherwise unremarkable food doesn't get flagged just for being common.
+ */
+export function repetitionInsights(
+  ranked: FoodRankEntry[],
+  instances: MealInstance[],
+  groupStates: GroupState[],
+  hasCoreGaps: boolean,
+  topN = 8,
+): RepetitionEntry[] {
+  const totalOccurrences = ranked.reduce((sum, r) => sum + r.count, 0);
+  const statusByGroup = new Map(groupStates.map((s) => [s.group, s.status]));
+
+  return ranked.slice(0, topN).map((r) => {
+    const shareOfOccurrences = pct(r.count, totalOccurrences);
+    const mealInstanceCount = instances.filter((i) => i.items.includes(r.item)).length;
+    const groups = nutritionGroupsForFood(r.item);
+    const beneficial = groups.some((g) => {
+      const status = statusByGroup.get(g);
+      return status === "good" || status === "strong";
+    });
+
+    let tag: RepetitionTag = "neutral";
+    if (beneficial) tag = "beneficial";
+    else if (hasCoreGaps && shareOfOccurrences >= DOMINANT_SHARE_THRESHOLD) tag = "worth-noting";
+
+    return { item: r.item, count: r.count, shareOfOccurrences, mealInstanceCount, tag };
+  });
+}
+
+export type MealTypeClassification = "exclusive" | "cross-meal" | "spread";
+
+export interface MealTypeBreakdownRow {
+  item: string;
+  countsByMeal: Record<string, number>;
+  total: number;
+  classification: MealTypeClassification;
+  exclusiveMeal: string | null;
+}
+
+const MEAL_EXCLUSIVE_THRESHOLD = 0.8;
+
+/** Per top ingredient, how its occurrences split across meal tags — feeds
+ * the compact meal-type table. Reuses the already-computed `mealInstances`
+ * list rather than re-deriving anything from raw events. */
+export function mealTypeIngredientBreakdown(instances: MealInstance[], topItems: string[]): MealTypeBreakdownRow[] {
+  return topItems.map((item) => {
+    const countsByMeal: Record<string, number> = {};
+    let total = 0;
+    for (const instance of instances) {
+      if (!instance.items.includes(item)) continue;
+      countsByMeal[instance.mealTag] = (countsByMeal[instance.mealTag] ?? 0) + 1;
+      total++;
+    }
+
+    let classification: MealTypeClassification = "spread";
+    let exclusiveMeal: string | null = null;
+    if (total > 0) {
+      const [topMeal, topCount] = Object.entries(countsByMeal).sort((a, b) => b[1] - a[1])[0];
+      if (topCount / total >= MEAL_EXCLUSIVE_THRESHOLD) {
+        classification = "exclusive";
+        exclusiveMeal = topMeal;
+      } else if (Object.keys(countsByMeal).length >= 2) {
+        classification = "cross-meal";
+      }
+    }
+
+    return { item, countsByMeal, total, classification, exclusiveMeal };
+  });
+}
+
+export type VarietyTrendDirection = "increasing" | "decreasing" | "stable";
+
+/**
+ * Whether rolling 30-day ingredient variety is trending up, down, or flat —
+ * compares the mean of the most recent points to the mean of the equal-size
+ * window before that, ignoring differences under 5% as noise. Requires at
+ * least `sampleSize * 2` points; anything shorter reports "stable" rather
+ * than reading a trend into too little data.
+ */
+export function varietyTrendDirection(series: DailyVarietyPoint[], sampleSize = 4): VarietyTrendDirection {
+  if (series.length < sampleSize * 2) return "stable";
+  const recent = series.slice(-sampleSize);
+  const prior = series.slice(-sampleSize * 2, -sampleSize);
+  const avg = (pts: DailyVarietyPoint[]) => pts.reduce((sum, p) => sum + p.rolling30dUniqueFoods, 0) / pts.length;
+  const recentAvg = avg(recent);
+  const priorAvg = avg(prior);
+  const diff = recentAvg - priorAvg;
+  const threshold = Math.max(1, priorAvg * 0.05);
+  if (diff > threshold) return "increasing";
+  if (diff < -threshold) return "decreasing";
+  return "stable";
 }
