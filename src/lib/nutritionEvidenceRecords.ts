@@ -27,7 +27,10 @@ export interface EvidenceRecord {
   explanation: string;
   foodGroup: NutritionGroupId | null;
   strength: EvidenceStrength;
-  evidenceType: EvidenceType;
+  /** Usually one value. More than one when a single cited source itself pools
+   * genuinely different study designs (e.g. an RCT arm and a cohort arm) —
+   * not used to double-count a synthesis method against the studies it pooled. */
+  evidenceTypes: EvidenceType[];
   publicationYear: number | null;
   pubmedId: string | null;
   doi: string | null;
@@ -49,7 +52,7 @@ export const EVIDENCE_RECORDS: Record<string, EvidenceRecord> = {
       "Green leafy vegetables are rich in nitrates, lutein, vitamin K, and other compounds that may improve vascular function. Pooled cohort data show a consistent, dose-dependent inverse relationship with cardiovascular and mortality outcomes.",
     foodGroup: "leafy_greens",
     strength: "Moderate",
-    evidenceType: "umbrella-review",
+    evidenceTypes: ["umbrella-review"],
     publicationYear: 2021,
     pubmedId: "34034049",
     doi: "10.1016/j.foodchem.2021.130145",
@@ -62,36 +65,36 @@ export const EVIDENCE_RECORDS: Record<string, EvidenceRecord> = {
     id: "cruciferous_evidence",
     topic: "Cruciferous vegetables",
     claim:
-      "Higher habitual intake of cruciferous vegetables (broccoli, cabbage, kale, cauliflower) is associated with reduced all-cause mortality and reduced risk of several cancers.",
+      "Higher habitual intake of cruciferous vegetables (broccoli, cabbage, kale, cauliflower) shows suggestive associations with lower all-cause mortality and lower risk of gastric, lung, and endometrial cancer specifically; the same review rated its evidence for most other cancers examined as only weak.",
     explanation:
-      "Cruciferous vegetables contain glucosinolates, which break down into isothiocyanates such as sulforaphane — compounds with anti-inflammatory effects in lab and human studies. An umbrella review pooling 41 systematic reviews across 303 observational studies found consistent inverse associations with mortality and several cancers.",
+      "Cruciferous vegetables contain glucosinolates, which break down into isothiocyanates such as sulforaphane — compounds with anti-inflammatory effects in lab and human studies. An umbrella review pooling 41 systematic reviews and meta-analyses of 303 observational studies (13.4 million participants) graded its own evidence as 'suggestive' for gastric cancer, lung cancer, endometrial cancer, and all-cause mortality, and as 'weak' for the other 16 associations it examined — including total cancer risk, colorectal cancer, and breast, prostate, ovarian, bladder and renal cancers.",
     foodGroup: "cruciferous",
-    strength: "Moderate",
-    evidenceType: "umbrella-review",
+    strength: "Mixed",
+    evidenceTypes: ["umbrella-review"],
     publicationYear: 2022,
     pubmedId: "35352732",
     doi: "10.1039/d1fo03094a",
     url: "https://pubmed.ncbi.nlm.nih.gov/35352732/",
     limitations:
-      "All underlying data are observational; effect sizes vary considerably by cancer type and individual study quality within the umbrella review, so causal attribution to this food group specifically is uncertain.",
+      "All 303 underlying studies are observational. Even the review's best-graded associations reach only 'suggestive' — a below-top-tier grade in umbrella-review certainty schemes, short of 'convincing' — and the review itself states substantial uncertainty remains for many of the outcomes it examined. Causal attribution to cruciferous vegetables specifically can't be established from this evidence, and effect sizes vary considerably by cancer type.",
     reviewedDate: REVIEWED,
   },
   other_vegetables_evidence: {
     id: "other_vegetables_evidence",
     topic: "Vegetables (general)",
     claim:
-      "Each 200 g/day increment in vegetable intake is associated with reduced risk of coronary heart disease, stroke, and all-cause mortality, with benefits continuing up to roughly 800 g/day.",
+      "Each 200 g/day increment in vegetable intake alone is associated with roughly 16% lower coronary heart disease risk, 13% lower stroke risk, and 13% lower all-cause mortality, with benefits continuing up to roughly 800 g/day.",
     explanation:
-      "Drawn from the largest dose-response meta-analysis of prospective studies on fruit and vegetable intake, which analyzed vegetables both combined with fruit and separately. Vegetables are low-calorie, fiber- and micronutrient-dense, and higher intake is consistently linked to lower chronic-disease rates.",
+      "Drawn from a dose-response meta-analysis of 95 prospective cohort studies on fruit and vegetable intake, which analyzed vegetables as their own exposure, separate from fruit. Vegetables are low-calorie, fiber- and micronutrient-dense, and higher intake is consistently linked to lower chronic-disease rates.",
     foodGroup: "other_vegetables",
     strength: "Moderate",
-    evidenceType: "meta-analysis",
+    evidenceTypes: ["meta-analysis"],
     publicationYear: 2017,
     pubmedId: "28338764",
     doi: "10.1093/ije/dyw319",
     url: "https://pubmed.ncbi.nlm.nih.gov/28338764/",
     limitations:
-      "Observational cohort evidence only. This source covers vegetables broadly rather than isolating non-leafy, non-cruciferous vegetables specifically, so the claim is a reasonable proxy for this category rather than a category-specific finding.",
+      "Observational cohort evidence only — residual confounding by overall diet quality or other lifestyle factors can't be excluded, and the relative-risk estimate is a pooled extrapolation rather than a randomized causal estimate. This category (non-leafy, non-cruciferous vegetables) isn't isolated in the source; the estimate is for vegetables broadly.",
     reviewedDate: REVIEWED,
   },
   berries_evidence: {
@@ -100,16 +103,16 @@ export const EVIDENCE_RECORDS: Record<string, EvidenceRecord> = {
     claim:
       "Higher intake of anthocyanin-rich berries is associated with lower cardiovascular disease incidence and roughly 15% lower type 2 diabetes risk (highest vs. lowest intake).",
     explanation:
-      "Berries are a major dietary source of anthocyanins, antioxidant pigment compounds. A combined analysis of 44 randomized trials and 15 prospective cohorts found anthocyanin/berry intake improved blood-lipid markers and was linked to lower cardiovascular risk; a separate cohort meta-analysis found a dose-response reduction in type 2 diabetes risk.",
+      "Berries are a major dietary source of anthocyanins, antioxidant pigment compounds. A 2021 meta-analysis combining 44 randomized trials (blood-lipid markers) and 15 prospective cohort studies (cardiovascular events) found anthocyanin/berry intake improved LDL, triglycerides and HDL in trials, and was linked to lower coronary heart disease and cardiovascular disease incidence in cohorts. A separate 2016 meta-analysis of 8 cohort studies (PMID 27530472) found anthocyanin intake associated with 15% lower type 2 diabetes risk (RR 0.85, 95% CI 0.80-0.91, highest vs. lowest intake), with a significant dose-response relationship.",
     foodGroup: "berries",
     strength: "Moderate",
-    evidenceType: "meta-analysis",
+    evidenceTypes: ["rct", "cohort"],
     publicationYear: 2021,
     pubmedId: "34977111",
     doi: "10.3389/fnut.2021.747884",
     url: "https://pubmed.ncbi.nlm.nih.gov/34977111/",
     limitations:
-      "The trial evidence mostly measures short-term surrogate markers (lipids, blood pressure) rather than hard clinical outcomes; the hard-outcome cohort evidence is observational and subject to confounding.",
+      "The trial evidence measures short-term surrogate markers (lipids) rather than hard clinical outcomes; the hard-outcome cohort evidence for both CVD and diabetes is observational and subject to confounding. The total-CVD-incidence cohort estimate has a wide confidence interval (RR 0.73, 95% CI 0.55-0.97).",
     reviewedDate: REVIEWED,
   },
   other_fruit_evidence: {
@@ -118,16 +121,16 @@ export const EVIDENCE_RECORDS: Record<string, EvidenceRecord> = {
     claim:
       "Each additional 200 g/day of whole fruit is associated with a 13% lower risk of cardiovascular disease and a 15% lower risk of all-cause mortality.",
     explanation:
-      "A dose-response meta-analysis of 95 prospective studies analyzed fruit intake separately from vegetables and found meaningfully lower rates of heart disease, stroke, and all-cause death, with benefits continuing up to roughly 800 g/day. A separate diabetes-focused meta-analysis found a more modest, non-linear relationship.",
+      "A dose-response meta-analysis of 95 prospective cohort studies analyzed fruit intake as its own exposure, separate from vegetables, and found meaningfully lower rates of heart disease, stroke, and all-cause death, with benefits continuing up to roughly 800 g/day.",
     foodGroup: "other_fruit",
     strength: "Strong",
-    evidenceType: "meta-analysis",
+    evidenceTypes: ["meta-analysis"],
     publicationYear: 2017,
     pubmedId: "28338764",
     doi: "10.1093/ije/dyw319",
     url: "https://pubmed.ncbi.nlm.nih.gov/28338764/",
     limitations:
-      "Observational design cannot establish causation. The diabetes-specific finding is a weaker, near-threshold association with a non-linear dose-response — more fruit isn't necessarily better at higher intakes. Fruit juice was explicitly excluded from these whole-fruit analyses.",
+      "Observational design cannot establish causation, and the estimate is a pooled extrapolation rather than a randomized causal effect. Fruit juice was analyzed as a separate category and excluded from these whole-fruit estimates.",
     reviewedDate: REVIEWED,
   },
   legumes_evidence: {
@@ -136,16 +139,16 @@ export const EVIDENCE_RECORDS: Record<string, EvidenceRecord> = {
     claim:
       "Higher legume intake is associated with a modest reduction in cardiovascular and coronary heart disease risk in pooled observational data, but the broader evidence for legumes and type 2 diabetes prevention is limited and mixed.",
     explanation:
-      "A 2022 meta-analysis of 26 observational studies found legume eaters had modestly lower cardiovascular disease rates, plateauing around 400 g/week. A more comprehensive 2023 systematic review found the cohort evidence for legumes and CVD/diabetes prevention specifically too limited for a firm conclusion, though short trials showed legumes improving blood-sugar markers.",
+      "A 2023 meta-analysis of 26 observational studies (21 cohort, 5 case-control) found legume eaters had modestly lower cardiovascular disease rates, plateauing around 400 g/week. A broader 2023 systematic review (Thorisdottir et al., PMID 37288088) pooling 31 cohort studies found the cohort evidence for legumes and CVD/T2D risk was 'suggestive of null associations,' though its 14 short-term RCTs showed legumes improving cholesterol and glycemic markers (fasting glucose, HOMA-IR).",
     foodGroup: "legumes",
     strength: "Mixed",
-    evidenceType: "meta-analysis",
-    publicationYear: 2022,
+    evidenceTypes: ["meta-analysis"],
+    publicationYear: 2023,
     pubmedId: "36411221",
     doi: "10.1016/j.numecd.2022.10.006",
     url: "https://pubmed.ncbi.nlm.nih.gov/36411221/",
     limitations:
-      "The CVD-risk-reduction finding comes from observational data with unresolved confounding. A separate, larger 2020 meta-analysis (PMID 31915830) found total legume intake was not significantly associated with lower type 2 diabetes risk — only soy-specific components showed a significant association — so the diabetes-prevention case for legumes generally is weaker than for CVD.",
+      "The CVD-risk-reduction finding comes from observational data with unresolved confounding, and a separate, larger 2023 systematic review of cohort evidence reached a more skeptical 'null association' conclusion for both CVD and T2D — the two sources genuinely disagree, which is why this is rated Mixed rather than Moderate. A separate 2020 meta-analysis (PMID 31915830) also found total legume intake was not significantly associated with lower type 2 diabetes risk — only soy-specific components showed a significant association.",
     reviewedDate: REVIEWED,
   },
   whole_grains_evidence: {
@@ -157,7 +160,7 @@ export const EVIDENCE_RECORDS: Record<string, EvidenceRecord> = {
       "A large pooled analysis of prospective studies found people eating more whole grains (oats, brown rice, whole wheat) had consistently lower rates of heart disease, cancer death, and death from any cause, with the protective association strengthening up to roughly 210-225 g/day before leveling off.",
     foodGroup: "whole_grains",
     strength: "Strong",
-    evidenceType: "meta-analysis",
+    evidenceTypes: ["meta-analysis"],
     publicationYear: 2016,
     pubmedId: "27301975",
     doi: "10.1136/bmj.i2716",
@@ -170,12 +173,12 @@ export const EVIDENCE_RECORDS: Record<string, EvidenceRecord> = {
     id: "nuts_evidence",
     topic: "Nuts",
     claim:
-      "Each 28 g/day (about a small handful) increase in nut intake is associated with a 21% lower risk of coronary heart disease and a 22% lower risk of all-cause mortality.",
+      "Each 28 g/day (about a small handful) increase in nut intake is associated with a 29% lower risk of coronary heart disease and a 22% lower risk of all-cause mortality.",
     explanation:
       "Pooling 20 prospective cohort studies, higher nut intake (tree nuts and/or peanuts) was consistently linked to lower cardiovascular disease, cancer, and cause-specific mortality, with the protective association strengthening up to roughly a handful a day before leveling off.",
     foodGroup: "nuts",
     strength: "Strong",
-    evidenceType: "meta-analysis",
+    evidenceTypes: ["meta-analysis"],
     publicationYear: 2016,
     pubmedId: "27916000",
     doi: "10.1186/s12916-016-0730-3",
@@ -193,7 +196,7 @@ export const EVIDENCE_RECORDS: Record<string, EvidenceRecord> = {
       "Flaxseed is rich in plant omega-3 (ALA), soluble fiber, and lignans, thought to modestly improve blood-vessel function. This is the seed with by far the strongest trial evidence — a supporting chia-seed trial meta-analysis found a smaller, borderline blood-pressure effect and no significant impact on lipids or blood sugar.",
     foodGroup: "seeds",
     strength: "Moderate",
-    evidenceType: "meta-analysis",
+    evidenceTypes: ["meta-analysis"],
     publicationYear: 2025,
     pubmedId: "40365516",
     doi: "10.34172/jcvtr.025.33280",
@@ -210,14 +213,14 @@ export const EVIDENCE_RECORDS: Record<string, EvidenceRecord> = {
     explanation:
       "Fatty fish (salmon, mackerel, sardines, herring, trout) are rich in long-chain omega-3s (EPA/DHA), thought to reduce inflammation and arrhythmia risk. This analysis found the cardiovascular benefit often attributed to \"eating fish\" is specifically driven by fatty fish — lean fish showed no significant protective association in the same analysis.",
     foodGroup: "fatty_fish",
-    strength: "Strong",
-    evidenceType: "meta-analysis",
+    strength: "Moderate",
+    evidenceTypes: ["meta-analysis"],
     publicationYear: 2022,
     pubmedId: "35108375",
     doi: "10.1093/advances/nmac006",
     url: "https://pubmed.ncbi.nlm.nih.gov/35108375/",
     limitations:
-      "Observational cohort data — confounding by overall diet quality or socioeconomic factors can't be excluded, and self-reported fish intake is subject to measurement error. The total-mortality effect size is modest (3% relative reduction) even though statistically significant.",
+      "Observational cohort data — confounding by overall diet quality or socioeconomic factors can't be excluded, and self-reported fish intake is subject to measurement error. Effect sizes are modest: CHD mortality's confidence interval (0.70-0.98) sits close to the null, and the total-mortality association, while statistically significant, reflects only a 3% relative reduction (RR 0.97, 95% CI 0.94-0.99).",
     reviewedDate: REVIEWED,
   },
   dietary_diversity_evidence: {
@@ -229,7 +232,7 @@ export const EVIDENCE_RECORDS: Record<string, EvidenceRecord> = {
       "Reviewing diet-quality scores that include diversity as a component, the authors concluded diversity is only one part of diet quality alongside adequacy (getting enough of the nutrients that matter), balance (the right proportions across food groups), and moderation (limiting foods linked to worse outcomes). This is why Lauva's suggestions focus on which specific food groups are missing or underrepresented, not on maximizing how many different ingredients you eat.",
     foodGroup: null,
     strength: "Moderate",
-    evidenceType: "systematic-review",
+    evidenceTypes: ["systematic-review"],
     publicationYear: 2026,
     pubmedId: "42047829",
     doi: "10.1007/s00394-026-03907-x",

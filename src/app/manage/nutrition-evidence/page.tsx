@@ -65,7 +65,7 @@ export default function NutritionEvidencePage() {
                 {record.strength} evidence
               </span>
               <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>
-                {EVIDENCE_TYPE_LABEL[record.evidenceType]}
+                {record.evidenceTypes.map((type) => EVIDENCE_TYPE_LABEL[type]).join(" + ")}
                 {record.publicationYear && ` · ${record.publicationYear}`}
               </span>
             </div>
