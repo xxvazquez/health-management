@@ -84,7 +84,7 @@ const ICONS: Record<string, ReactNode> = {
  * an analytics dashboard for one domain. */
 const LOG_LINKS = [{ href: "/log", label: "Log" }];
 const ANALYTICS_LINKS = [
-  { href: "/", label: "Overview" },
+  { href: "/overview", label: "Overview" },
   { href: "/food", label: "Food" },
   { href: "/supplements", label: "Supplements" },
   { href: "/habits", label: "Habits" },
@@ -223,7 +223,7 @@ export function Nav() {
             <path d={collapsed ? "M4 2l4 4-4 4" : "M8 2 4 6l4 4"} />
           </svg>
         </button>
-        <Link href="/" className={clsx("flex items-center", collapsed ? "justify-center px-0" : "px-2")}>
+        <Link href="/log" className={clsx("flex items-center", collapsed ? "justify-center px-0" : "px-2")}>
           <Logo size={26} />
           {!collapsed && (
             <span className="ml-2 text-lg font-semibold tracking-[0.2em] whitespace-nowrap" style={{ color: "var(--text-primary)" }}>
@@ -261,7 +261,7 @@ export function Nav() {
               <path d="M3 14h14" />
             </svg>
           </button>
-          <Link href="/" onClick={() => setMobileOpen(false)}>
+          <Link href="/log" onClick={() => setMobileOpen(false)}>
             <Wordmark />
           </Link>
         </div>
@@ -284,7 +284,7 @@ export function Nav() {
         style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}
       >
         <div className="flex items-center justify-between px-1">
-          <Link href="/" onClick={() => setMobileOpen(false)}>
+          <Link href="/log" onClick={() => setMobileOpen(false)}>
             <Wordmark />
           </Link>
           <button

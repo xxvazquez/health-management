@@ -18,11 +18,11 @@ export default function NotFound() {
         This page doesn&apos;t exist, or moved. Nothing was lost — your data lives on the pages below.
       </p>
       <Link
-        href="/"
+        href="/log"
         className="mt-6 rounded-md px-5 py-2 text-sm font-medium whitespace-nowrap text-white"
         style={{ background: "var(--series-1)" }}
       >
-        Back to Overview
+        Back to Log
       </Link>
     </div>
   );
