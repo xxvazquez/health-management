@@ -118,6 +118,7 @@ export function buildDemoDataset(): DemoDataset {
         categoryId: null,
         isArchived: false,
         createdDate,
+        reminderTime: null,
       });
     }
     return identity;

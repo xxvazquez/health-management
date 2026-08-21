@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/supabase/AuthContext";
-import { breakfastReminderSupported, disableBreakfastReminder, enableBreakfastReminder, isBreakfastReminderEnabled } from "@/lib/push";
+import { pushNotificationsSupported, disablePushNotifications, enablePushNotifications, isPushNotificationsEnabled } from "@/lib/push";
 
 function BellIcon({ on }: { on: boolean }) {
   return (
@@ -13,12 +13,16 @@ function BellIcon({ on }: { on: boolean }) {
   );
 }
 
-/** Enable/disable control for the breakfast logging reminder — hidden
- * entirely when push isn't usable (unsupported browser, Supabase/VAPID not
- * configured) or nobody's signed in, since a push subscription only means
- * anything tied to an account. Lives on the Log page, next to the day
- * navigator — this is the one page the reminder is actually about. */
-export function BreakfastReminderToggle() {
+/** Enable/disable control for push notifications on this device — the
+ * on/off switch reminders are actually delivered through, separate from
+ * *when* one fires (that's the per-item reminder time set on the Manage
+ * page's supplement/habit rows). Hidden entirely when push isn't usable
+ * (unsupported browser, Supabase/VAPID not configured) or nobody's signed
+ * in, since a push subscription only means anything tied to an account.
+ * Shows a text label alongside the bell rather than relying on a
+ * hover-only tooltip — a bare icon button left people unable to tell what
+ * clicking it would even do. */
+export function PushNotificationsToggle() {
   const { session } = useAuth();
   const [enabled, setEnabled] = useState<boolean | null>(null);
   const [busy, setBusy] = useState(false);
@@ -37,7 +41,7 @@ export function BreakfastReminderToggle() {
   useEffect(() => {
     if (!session) return;
     let cancelled = false;
-    isBreakfastReminderEnabled().then((v) => {
+    isPushNotificationsEnabled().then((v) => {
       if (!cancelled) setEnabled(v);
     });
     return () => {
@@ -45,21 +49,21 @@ export function BreakfastReminderToggle() {
     };
   }, [session]);
 
-  if (!breakfastReminderSupported || !session || enabled === null) return null;
+  if (!pushNotificationsSupported || !session || enabled === null) return null;
 
   async function toggle() {
     setBusy(true);
     setError(null);
     try {
       if (enabled) {
-        await disableBreakfastReminder();
+        await disablePushNotifications();
         setEnabled(false);
       } else {
-        await enableBreakfastReminder();
+        await enablePushNotifications();
         setEnabled(true);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't update the reminder.");
+      setError(err instanceof Error ? err.message : "Couldn't update notifications.");
     } finally {
       setBusy(false);
     }
@@ -71,10 +75,8 @@ export function BreakfastReminderToggle() {
         type="button"
         onClick={() => void toggle()}
         disabled={busy}
-        title={enabled ? "Breakfast reminder is on — click to turn off" : "Turn on a breakfast logging reminder"}
-        aria-label={enabled ? "Turn off breakfast reminder" : "Turn on breakfast reminder"}
         aria-pressed={enabled}
-        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border disabled:opacity-50"
+        className="flex items-center gap-1.5 rounded-full border py-1 pr-2.5 pl-1.5 text-xs font-medium disabled:opacity-50"
         style={{
           borderColor: enabled ? "var(--series-1)" : "var(--border-hairline)",
           background: enabled ? "color-mix(in oklab, var(--series-1) 14%, var(--surface-1))" : "var(--surface-1)",
@@ -82,6 +84,7 @@ export function BreakfastReminderToggle() {
         }}
       >
         <BellIcon on={Boolean(enabled)} />
+        {enabled ? "Notifications on" : "Turn on notifications"}
       </button>
       {error && (
         <span className="text-xs" style={{ color: "var(--status-critical)" }}>

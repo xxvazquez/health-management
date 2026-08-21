@@ -53,6 +53,8 @@ erDiagram
         text name
         uuid category_id FK
         boolean is_archived
+        time reminder_time
+        date reminder_last_sent_date
     }
     HABIT_ITEMS {
         uuid id PK
@@ -60,6 +62,8 @@ erDiagram
         text name
         uuid category_id FK
         boolean is_archived
+        time reminder_time
+        date reminder_last_sent_date
     }
     SYMPTOM_ITEMS {
         uuid id PK
@@ -138,7 +142,6 @@ erDiagram
         uuid user_id PK
         text endpoint
         text timezone
-        date last_reminded_date
     }
 ```
 
@@ -169,7 +172,7 @@ Push to `main` and `.github/workflows/deploy.yml` builds the site and publishes 
 
 The "Report a bug" button in the nav emails a report through a Supabase Edge Function (`supabase/functions/report-bug`) rather than a Next.js API route, since the site itself is static with no server. `.github/workflows/deploy-functions.yml` deploys every function under `supabase/functions/` and syncs their secrets whenever that folder changes, using `SUPABASE_ACCESS_TOKEN` and `SUPABASE_PROJECT_REF` to authenticate the Supabase CLI, plus whatever secrets each function needs (see below). Those secrets stay server-side — they're pushed into Supabase's own Edge Function secret store, never into the site build, so the client never sees them. One gotcha: changing a secret's *value* in GitHub doesn't trigger this workflow — there's no event for that — so after adding or rotating one, run it manually from the Actions tab (it already has `workflow_dispatch` enabled) or the function keeps running with whatever it last had.
 
-The breakfast reminder (a toggle on the Log page) works the same way, for the same reason: nothing can run in the background on a static site, so `supabase/functions/breakfast-reminder-cron` does the actual work, and Supabase's `pg_cron` + `pg_net` extensions call it every 15 minutes (setup SQL is in `supabase/schema.sql`, right after the table definitions — a self-hoster runs it once, filling in their own project ref and anon key). For each signed-in user with the reminder on, it checks whether their local time just entered the reminder window (10:30–10:45, so a bit before the 11:00 cutoff) and whether they've already logged breakfast that day, and sends a Web Push notification through the browser's own push service if not — which is also why it can show up even when Lauva isn't open. Enabling it stores the browser's push subscription plus IANA timezone in `push_subscriptions` (one row per user; enabling on a second device just overwrites it — good enough for a personal tracker, not meant to fan out to a whole household). `RESEND_API_KEY` and `BUG_EMAIL` are for the bug-report function, not this one — the reminder needs its own two secrets: `NEXT_PUBLIC_VAPID_PUBLIC_KEY` (build-time, public by design — it's the *public* half of a [Web Push](https://developer.mozilla.org/en-US/docs/Web/API/Push_API) VAPID keypair) and `VAPID_PRIVATE_KEY` (Supabase secret only, never built into the site). Generate a keypair with `npx web-push generate-vapid-keys`.
+Reminders work the same way, for the same reason: nothing can run in the background on a static site, so `supabase/functions/breakfast-reminder-cron` does the actual work, and Supabase's `pg_cron` + `pg_net` extensions call it every 15 minutes (setup SQL is in `supabase/schema.sql`, right after the table definitions — a self-hoster runs it once, filling in their own project ref and anon key). The function's still named after the single fixed breakfast check it started as, but it's now general: any supplement or habit can carry its own `reminder_time` (set from the Manage Items page, next to that item), and each run checks every one of those against the signed-in user's local time, sending a Web Push notification once an item's time has passed for the day and it isn't logged yet — which is also why it can show up even when Lauva isn't open. "Turn on notifications" (also on the Manage page) is the separate on/off switch for whether this device receives anything at all — it stores the browser's push subscription plus IANA timezone in `push_subscriptions` (one row per user; enabling on a second device just overwrites it — good enough for a personal tracker, not meant to fan out to a whole household). `RESEND_API_KEY` and `BUG_EMAIL` are for the bug-report function, not this one — reminders need their own two secrets: `NEXT_PUBLIC_VAPID_PUBLIC_KEY` (build-time, public by design — it's the *public* half of a [Web Push](https://developer.mozilla.org/en-US/docs/Web/API/Push_API) VAPID keypair) and `VAPID_PRIVATE_KEY` (Supabase secret only, never built into the site). Generate a keypair with `npx web-push generate-vapid-keys`.
 
 ## Look & feel
 

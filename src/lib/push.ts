@@ -6,7 +6,7 @@ const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
  * browser lacks the Push API (e.g. Safari outside an installed PWA). The
  * toggle that uses this just doesn't render rather than showing a control
  * that can't work. */
-export const breakfastReminderSupported =
+export const pushNotificationsSupported =
   supabaseConfigured &&
   Boolean(VAPID_PUBLIC_KEY) &&
   typeof window !== "undefined" &&
@@ -23,23 +23,36 @@ function urlBase64ToUint8Array(base64: string): Uint8Array<ArrayBuffer> {
   return output;
 }
 
-/** One row per signed-in user — whether it exists is the enabled state. */
-export async function isBreakfastReminderEnabled(): Promise<boolean> {
+/** One row per signed-in user — whether it exists is the enabled state.
+ * Also opportunistically refreshes the stored IANA timezone if it's
+ * drifted from the browser's current one (e.g. the user travelled), via a
+ * plain UPDATE — not upsert, so it can't fail on the table's other NOT
+ * NULL columns — since this table isn't part of the outbox/RawItem sync
+ * system at all; every call to it, this one included, talks to Supabase
+ * directly. Called every time PushNotificationsToggle mounts, i.e. every
+ * page load while signed in, so drift gets caught the next time the app is
+ * actually open rather than staying stale until the user toggles off/on. */
+export async function isPushNotificationsEnabled(): Promise<boolean> {
   if (!supabase) return false;
   const {
     data: { session },
   } = await supabase.auth.getSession();
   if (!session) return false;
-  const { data } = await supabase.from("push_subscriptions").select("user_id").eq("user_id", session.user.id).maybeSingle();
-  return Boolean(data);
+  const { data } = await supabase.from("push_subscriptions").select("user_id, timezone").eq("user_id", session.user.id).maybeSingle();
+  if (!data) return false;
+  const currentTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  if (data.timezone !== currentTimezone) {
+    await supabase.from("push_subscriptions").update({ timezone: currentTimezone }).eq("user_id", session.user.id);
+  }
+  return true;
 }
 
 /** Requests notification permission (only ever called from an explicit
  * user action — the toggle's "on" click), subscribes to push, and saves
  * the subscription server-side so the breakfast-reminder-cron Edge
  * Function can reach this device. */
-export async function enableBreakfastReminder(): Promise<void> {
-  if (!breakfastReminderSupported || !supabase) throw new Error("Not supported in this browser or deployment.");
+export async function enablePushNotifications(): Promise<void> {
+  if (!pushNotificationsSupported || !supabase) throw new Error("Not supported in this browser or deployment.");
 
   const permission = await Notification.requestPermission();
   if (permission !== "granted") throw new Error("Notification permission was not granted.");
@@ -47,7 +60,7 @@ export async function enableBreakfastReminder(): Promise<void> {
   const {
     data: { session },
   } = await supabase.auth.getSession();
-  if (!session) throw new Error("Sign in first to enable the breakfast reminder.");
+  if (!session) throw new Error("Sign in first to enable notifications.");
 
   const registration = await navigator.serviceWorker.ready;
   const subscription =
@@ -68,7 +81,7 @@ export async function enableBreakfastReminder(): Promise<void> {
   if (error) throw error;
 }
 
-export async function disableBreakfastReminder(): Promise<void> {
+export async function disablePushNotifications(): Promise<void> {
   if (!supabase) return;
   const {
     data: { session },
