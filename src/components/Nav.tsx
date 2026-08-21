@@ -83,15 +83,10 @@ const ICONS: Record<string, ReactNode> = {
  * because it's the only page in the "tracking" half; every other page is
  * an analytics dashboard for one domain. */
 const LOG_LINKS = [{ href: "/log", label: "Log" }];
-const ANALYTICS_LINKS = [
-  { href: "/overview", label: "Overview" },
-  { href: "/food", label: "Food" },
-  { href: "/supplements", label: "Supplements" },
-  { href: "/habits", label: "Habits" },
-  { href: "/digestion", label: "Digestion" },
-  { href: "/patterns", label: "Patterns" },
-  { href: "/workout", label: "Workout" },
-];
+/** Overview, Food, Supplements, Habits, Digestion, and Patterns are hidden
+ * from navigation but their routes and code are still intact — only the
+ * entry points here were removed. */
+const ANALYTICS_LINKS = [{ href: "/workout", label: "Workout" }];
 const MANAGE_LINKS = [{ href: "/manage", label: "Manage items" }];
 
 function NavSectionLabel({ children, collapsed }: { children: ReactNode; collapsed?: boolean }) {
