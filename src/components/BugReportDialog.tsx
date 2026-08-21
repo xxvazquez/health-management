@@ -6,7 +6,7 @@ import { BUG_TYPES, bugReportingConfigured, submitBugReport, type BugType } from
 import { useDialogA11y } from "@/components/ui/useDialogA11y";
 
 const PAGE_LABELS: Record<string, string> = {
-  "/": "Overview",
+  "/overview": "Overview",
   "/log": "Log",
   "/food": "Food",
   "/supplements": "Supplements",

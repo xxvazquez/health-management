@@ -2,7 +2,7 @@
   "name": "Lauva",
   "short_name": "Lauva",
   "description": "A personal food, symptom, supplement, habit, and workout tracker.",
-  "start_url": "/",
+  "start_url": "/log/",
   "scope": "/",
   "display": "standalone",
   "background_color": "#f7faf9",
