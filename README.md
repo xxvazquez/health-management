@@ -178,6 +178,14 @@ Reminders work the same way, for the same reason: nothing can run in the backgro
 
 Colors and the leaf/wave/dot mark live as CSS variables in `src/app/globals.css` (`--brand-*` for the true palette, everything else deepened for legibility) and `public/logo-mark.svg` / `src/components/Logo.tsx`. Light theme only, one typeface (Inter), no serif or display font — change a token there and it's consistent everywhere. `public/icons/` holds PNG renders of the same mark for the home-screen icon (plain and maskable, at the sizes `manifest.webmanifest` asks for) — regenerate them from the SVG rather than editing the PNGs directly if the mark ever changes.
 
+## My Drive
+
+`/my-drive` is a read-only browser for the signed-in Google account's own Google Drive — folders and files, breadcrumb navigation, a search box, nothing else. It's separate from Lauva's own sign-in (`src/lib/supabase/AuthContext.tsx`): connecting Google Drive doesn't touch your Lauva account or Supabase at all.
+
+Since the site is fully static with no server to keep a client secret on, it can't use the normal server-side OAuth code exchange. Instead it uses [Google Identity Services' token client](https://developers.google.com/identity/oauth2/web/guides/use-token-model) (`src/lib/googleDrive/gis.ts`), the flow Google documents for apps with no backend: clicking "Connect Google Drive" gets a short-lived access token straight back to the page, scoped to `drive.metadata.readonly` — file/folder metadata only (name, type, modified date, size, link), never file content, never write/delete/share access. The token lives in memory for the tab only (never localStorage, never a cookie) and Drive API calls (`src/lib/googleDrive/api.ts`) go straight from the browser to `googleapis.com` with that token — no proxy, matching everything else this site does.
+
+To develop against it locally, create an OAuth client in Google Cloud Console (APIs & Services → Credentials → "OAuth client ID" → Web application), add `http://localhost:3000` and `https://lauva.pl` under Authorized JavaScript origins, and set `NEXT_PUBLIC_GOOGLE_CLIENT_ID` in `.env.local` to its client ID. There's no client secret to configure anywhere — the token-client flow doesn't use one. The Drive API also needs enabling on that same Cloud project (APIs & Services → Library → Google Drive API). Without the client ID set, the page just says Drive isn't configured for this deployment.
+
 ## On disk, not in git
 
 `.next/` and `out/` are build output, `data/` is your local raw export, `tsconfig.tsbuildinfo` and `.DS_Store` are tool/OS noise — all gitignored, so `git status` only ever shows real changes.
