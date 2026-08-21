@@ -235,40 +235,40 @@ select public.test_assert_raises(
 -- Same shape, one composite FK into the matching items table each.
 
 select public.test_switch_user('11111111-1111-1111-1111-111111111111');
-insert into public.food_logs (id, user_id, item_id, date, value) values ('l1000000-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111111', 'f0000000-0000-0000-0000-00000000000f', '2026-01-01', 1);
-insert into public.supplement_logs (id, user_id, item_id, date, value) values ('l2000000-0000-0000-0000-000000000002', '11111111-1111-1111-1111-111111111111', '20000000-0000-0000-0000-000000000002', '2026-01-01', 1);
-insert into public.habit_logs (id, user_id, item_id, date, value) values ('l3000000-0000-0000-0000-000000000003', '11111111-1111-1111-1111-111111111111', '40000000-0000-0000-0000-000000000004', '2026-01-01', 1);
-insert into public.symptom_logs (id, user_id, item_id, date, value) values ('l4000000-0000-0000-0000-000000000004', '11111111-1111-1111-1111-111111111111', '60000000-0000-0000-0000-000000000006', '2026-01-01', 1);
+insert into public.food_logs (id, user_id, item_id, date, value) values ('01000000-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111111', 'f0000000-0000-0000-0000-00000000000f', '2026-01-01', 1);
+insert into public.supplement_logs (id, user_id, item_id, date, value) values ('02000000-0000-0000-0000-000000000002', '11111111-1111-1111-1111-111111111111', '20000000-0000-0000-0000-000000000002', '2026-01-01', 1);
+insert into public.habit_logs (id, user_id, item_id, date, value) values ('03000000-0000-0000-0000-000000000003', '11111111-1111-1111-1111-111111111111', '40000000-0000-0000-0000-000000000004', '2026-01-01', 1);
+insert into public.symptom_logs (id, user_id, item_id, date, value) values ('04000000-0000-0000-0000-000000000004', '11111111-1111-1111-1111-111111111111', '60000000-0000-0000-0000-000000000006', '2026-01-01', 1);
 insert into public.food_items (id, user_id, name, category_id) values ('aa000000-0000-0000-0000-0000000000aa', '11111111-1111-1111-1111-111111111111', 'A''s second item', 'a0000000-0000-0000-0000-00000000000a');
 
 select public.test_switch_user('22222222-2222-2222-2222-222222222222');
 select public.test_assert(
-  (select count(*) from public.food_logs where id = 'l1000000-0000-0000-0000-000000000001') = 0,
+  (select count(*) from public.food_logs where id = '01000000-0000-0000-0000-000000000001') = 0,
   'food_logs: user B cannot SELECT user A''s log'
 );
 select public.test_assert(
-  (select count(*) from public.supplement_logs where id = 'l2000000-0000-0000-0000-000000000002') = 0,
+  (select count(*) from public.supplement_logs where id = '02000000-0000-0000-0000-000000000002') = 0,
   'supplement_logs: user B cannot SELECT user A''s log'
 );
 select public.test_assert(
-  (select count(*) from public.habit_logs where id = 'l3000000-0000-0000-0000-000000000003') = 0,
+  (select count(*) from public.habit_logs where id = '03000000-0000-0000-0000-000000000003') = 0,
   'habit_logs: user B cannot SELECT user A''s log'
 );
 select public.test_assert(
-  (select count(*) from public.symptom_logs where id = 'l4000000-0000-0000-0000-000000000004') = 0,
+  (select count(*) from public.symptom_logs where id = '04000000-0000-0000-0000-000000000004') = 0,
   'symptom_logs: user B cannot SELECT user A''s log'
 );
 
-update public.food_logs set value = 999 where id = 'l1000000-0000-0000-0000-000000000001';
-delete from public.food_logs where id = 'l1000000-0000-0000-0000-000000000001';
+update public.food_logs set value = 999 where id = '01000000-0000-0000-0000-000000000001';
+delete from public.food_logs where id = '01000000-0000-0000-0000-000000000001';
 select public.test_switch_user('11111111-1111-1111-1111-111111111111');
 select public.test_assert(
-  (select value from public.food_logs where id = 'l1000000-0000-0000-0000-000000000001') = 1,
+  (select value from public.food_logs where id = '01000000-0000-0000-0000-000000000001') = 1,
   'food_logs: user A''s log survives user B''s UPDATE and DELETE attempts, untouched'
 );
 select public.test_assert_raises(
   $sql$update public.food_logs set user_id = '22222222-2222-2222-2222-222222222222'
-       where id = 'l1000000-0000-0000-0000-000000000001'$sql$,
+       where id = '01000000-0000-0000-0000-000000000001'$sql$,
   'food_logs: user_id cannot be reassigned to another user on UPDATE (owner giving away their own row)'
 );
 
