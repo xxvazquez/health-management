@@ -12,10 +12,9 @@
 -- is a composite key on (user_id, id) — not just id — so a row can never
 -- reference a parent row belonging to a different user regardless of RLS;
 -- the category foreign keys additionally carry item_type, so e.g. a
--- supplement item can't reference a habit category. Stool is its own
--- `stool_logs` table (one row per bowel movement) rather than a symptom.
--- Gym has no "item" dimension (an exercise + weight is the whole record),
--- so it doesn't share that shape and gets its own `gym_logs` table.
+-- supplement item can't reference a habit category. Stool is the one
+-- outlier: its own `stool_logs` table (one row per bowel movement) with
+-- no item/category dimension at all, rather than a symptom.
 
 create table public.categories (
   id uuid primary key default gen_random_uuid(),
@@ -100,10 +99,10 @@ create table public.symptom_items (
 
 -- Which exercises exist, their category, and archive state — the registry
 -- Manage/the Log page's Workout tab read to know what to offer, exactly
--- like every other item type. `gym_logs.item_id` is a real foreign key to
--- this table (see gym_logs below), same pattern as food/supplement/habit/
--- symptom items and their logs — renaming an exercise here relabels its
--- history, same as renaming any other item. No reminder_time/
+-- like every other item type. `workout_logs.item_id` is a real foreign key
+-- to this table (see workout_logs below), same pattern as food/supplement/
+-- habit/symptom items and their logs — renaming an exercise here relabels
+-- its history, same as renaming any other item. No reminder_time/
 -- reminder_last_sent_date — reminders don't apply to workouts.
 create table public.workout_items (
   id uuid primary key default gen_random_uuid(),
@@ -115,7 +114,7 @@ create table public.workout_items (
   is_archived boolean not null default false,
   created_date date,
   updated_at timestamptz not null default now(),
-  -- What a gym_logs.weight_kg value means for this exercise — kg for
+  -- What a workout_logs.weight_kg value means for this exercise — kg for
   -- strength work, minutes for a timed session (yoga, a run), reps for a
   -- bodyweight count, or anything else typed in on Manage. Free text, not
   -- constrained to those three — they're just the built-in starting
@@ -217,8 +216,8 @@ create table public.symptom_diary (
 );
 
 -- One note per exercise per day — item_id is workout_items, not a specific
--- gym_logs row, same "shared across however many entries that day" rule as
--- every other diary table (see food_diary's own comment upstream).
+-- workout_logs row, same "shared across however many entries that day" rule
+-- as every other diary table (see food_diary's own comment upstream).
 create table public.workout_diary (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null default auth.uid() references auth.users(id),
@@ -264,14 +263,14 @@ create table public.stool_logs (
   )
 );
 
-create table public.gym_logs (
+create table public.workout_logs (
   id uuid not null default gen_random_uuid(),
   user_id uuid not null default auth.uid(),
   item_id uuid not null,
   date date not null,
   weight_kg numeric not null,
   updated_at timestamp with time zone not null default now(),
-  constraint gym_logs_pkey primary key (user_id, id),
+  constraint workout_logs_pkey primary key (user_id, id),
   foreign key (user_id, item_id) references public.workout_items (user_id, id) on delete restrict
 );
 
@@ -280,7 +279,7 @@ create index supplement_logs_item_date_idx on public.supplement_logs (item_id, d
 create index habit_logs_item_date_idx on public.habit_logs (item_id, date);
 create index symptom_logs_item_date_idx on public.symptom_logs (item_id, date);
 create index stool_logs_user_date_idx on public.stool_logs (user_id, date);
-create index gym_logs_item_date_idx on public.gym_logs (item_id, date);
+create index workout_logs_item_date_idx on public.workout_logs (item_id, date);
 
 -- One row per user: the push subscription for whichever device they last
 -- enabled notifications on (enabling on a second device overwrites the
@@ -324,7 +323,7 @@ alter table public.habit_diary enable row level security;
 alter table public.symptom_diary enable row level security;
 alter table public.workout_diary enable row level security;
 alter table public.stool_logs enable row level security;
-alter table public.gym_logs enable row level security;
+alter table public.workout_logs enable row level security;
 alter table public.push_subscriptions enable row level security;
 
 create policy "categories_all_own" on public.categories for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
@@ -343,7 +342,7 @@ create policy "habit_diary_all_own" on public.habit_diary for all using (auth.ui
 create policy "symptom_diary_all_own" on public.symptom_diary for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "workout_diary_all_own" on public.workout_diary for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "stool_logs_all_own" on public.stool_logs for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
-create policy "gym_logs_all_own" on public.gym_logs for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "workout_logs_all_own" on public.workout_logs for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "push_subscriptions_all_own" on public.push_subscriptions for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 -- Reminders: schedule the Edge Function that checks and sends them (still
@@ -427,25 +426,26 @@ create policy "push_subscriptions_all_own" on public.push_subscriptions for all 
 
 -- Migration for a project that already ran the gym_logs create table
 -- statement above before it referenced workout_items by a real foreign key
--- (exercise used to be plain text, matched by name at the app layer — see
--- workout_items' own comment upstream, now updated). This one is
--- destructive: it drops and recreates gym_logs, so it's only safe to run if
--- you're fine losing existing gym history (re-log it afterwards). It does
--- NOT touch food/supplement/habit/symptom/stool data or workout_items
--- itself — only gym_logs.
+-- and before it was renamed to workout_logs (exercise used to be plain
+-- text, matched by name at the app layer — see workout_items' own comment
+-- upstream, now updated). This one is destructive: it drops the old
+-- gym_logs table and creates workout_logs in its place, so it's only safe
+-- to run if you're fine losing existing gym history (re-log it
+-- afterwards). It does NOT touch food/supplement/habit/symptom/stool data
+-- or workout_items itself — only gym_logs/workout_logs.
 --
--- drop table public.gym_logs;
+-- drop table if exists public.gym_logs;
 --
--- create table public.gym_logs (
+-- create table public.workout_logs (
 --   id uuid not null default gen_random_uuid(),
 --   user_id uuid not null default auth.uid(),
 --   item_id uuid not null,
 --   date date not null,
 --   weight_kg numeric not null,
 --   updated_at timestamp with time zone not null default now(),
---   constraint gym_logs_pkey primary key (user_id, id),
+--   constraint workout_logs_pkey primary key (user_id, id),
 --   foreign key (user_id, item_id) references public.workout_items (user_id, id) on delete restrict
 -- );
--- create index gym_logs_item_date_idx on public.gym_logs (item_id, date);
--- alter table public.gym_logs enable row level security;
--- create policy "gym_logs_all_own" on public.gym_logs for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+-- create index workout_logs_item_date_idx on public.workout_logs (item_id, date);
+-- alter table public.workout_logs enable row level security;
+-- create policy "workout_logs_all_own" on public.workout_logs for all using (auth.uid() = user_id) with check (auth.uid() = user_id);

@@ -18,7 +18,7 @@ const TABLE_LABEL: Record<string, string> = {
   habit_diary: "habit note",
   categories: "category",
   stool_logs: "stool entry",
-  gym_logs: "workout entry",
+  workout_logs: "workout entry",
 };
 
 function friendlyTable(table: string): string {
