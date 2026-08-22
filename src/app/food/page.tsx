@@ -1,12 +1,14 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { useData } from "@/lib/DataContext";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { StatTile } from "@/components/ui/StatTile";
 import { Card, CardTitle } from "@/components/ui/Card";
+import { BulletList } from "@/components/ui/BulletList";
 import { DateRangeFilter, type DateRangePreset } from "@/components/ui/DateRangeFilter";
 import { Methodology } from "@/components/ui/Methodology";
+import { SectionNav, type SectionNavItem } from "@/components/ui/SectionNav";
 import { RankedBarChart } from "@/components/charts/RankedBarChart";
 import { MultiLineChart } from "@/components/charts/MultiLineChart";
 import { useDateRangeFilter } from "@/lib/useDateRangeFilter";
@@ -23,12 +25,12 @@ import {
   topConcentrationShare,
   varietyTrendDirection,
   type MealComboEntry,
+  type VarietyTrendDirection,
 } from "@/lib/aggregations/food";
 import {
   computeNutritionPriorities,
   type CoverageRow,
   type GroupStatus,
-  type PriorityCandidate,
 } from "@/lib/aggregations/nutritionPriorities";
 import { TYPE_ACCENT } from "@/taxonomy/categories";
 
@@ -66,6 +68,45 @@ function AllTimeScopeNote({ children }: { children: React.ReactNode }) {
   );
 }
 
+/** Uniform heading for each of the page's 6 top-level sections — same small
+ * uppercase-eyebrow treatment this page already used for its old "Evidence"/
+ * "Investigate" dividers, now applied consistently everywhere instead of
+ * only in two spots. A real `<h2>` (not a styled `<p>`) so SectionNav's
+ * targets are proper landmarks, not just visual labels. */
+function SectionHeading({ id, subtitle, children }: { id: string; subtitle?: ReactNode; children: ReactNode }) {
+  return (
+    <div>
+      <h2 id={id} className="text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
+        {children}
+      </h2>
+      {subtitle && (
+        <p className="mt-0.5 text-xs" style={{ color: "var(--text-muted)" }}>
+          {subtitle}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/** Only ever one of these mounted at a time — see `activeSection` in
+ * FoodPage — so there's no divider/spacing logic to coordinate between
+ * sections, just the heading for this one and its content. */
+function PageSection({ id, headingLabel, subtitle, children }: {
+  id: string;
+  headingLabel: ReactNode;
+  subtitle?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <section id={id} aria-labelledby={`${id}-heading`} className="flex flex-col gap-4 pt-5">
+      <SectionHeading id={`${id}-heading`} subtitle={subtitle}>
+        {headingLabel}
+      </SectionHeading>
+      {children}
+    </section>
+  );
+}
+
 /** This week / 2 weeks / 1 month / 6 months / 1 year / All time — Food's
  * own preset wording, distinct from the "Last N days" phrasing every other
  * analytics page still uses (DateRangeFilter's `presets` prop is opt-in
@@ -81,51 +122,6 @@ const FOOD_DATE_PRESETS: DateRangePreset[] = [
   { label: "All time", days: "all" },
 ];
 
-/**
- * Observed → Suggestion — deliberately citation-free. The research behind
- * each suggestion lives at Manage → Nutrition evidence instead; this card
- * only ever states what was logged and what to consider, in plain
- * language, matching the rest of Lauva.
- */
-function RecommendationCard({ headline, detail, action }: { headline: string; detail: string; action: string | null }) {
-  return (
-    <li className="flex flex-col gap-1 py-2.5">
-      <span className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-        {headline}
-      </span>
-      {detail && (
-        <span className="text-xs" style={{ color: "var(--text-secondary)" }}>
-          {detail}
-        </span>
-      )}
-      {action && (
-        <span className="text-xs" style={{ color: "var(--text-secondary)" }}>
-          {action}
-        </span>
-      )}
-    </li>
-  );
-}
-
-/** "oats, quinoa or buckwheat" — no Oxford comma, the given conjunction
- * before the last item, matching how a person would actually say a short
- * list out loud. */
-function formatExampleList(foods: string[], conjunction: "or" | "and" = "or"): string {
-  if (foods.length === 0) return "";
-  if (foods.length === 1) return foods[0];
-  if (foods.length === 2) return `${foods[0]} ${conjunction} ${foods[1]}`;
-  return `${foods.slice(0, -1).join(", ")} ${conjunction} ${foods[foods.length - 1]}`;
-}
-
-/** Focus next week leans on concrete examples when the taxonomy has them —
- * "Good next step: oats, quinoa or buckwheat" is more actionable than
- * "Add whole grains" alone. Falls back to the plain action phrase for
- * variety candidates, which have no single example list. */
-function focusSuggestionText(c: PriorityCandidate): string | null {
-  if (c.exampleFoods.length > 0) return `Good next step: ${formatExampleList(c.exampleFoods)}.`;
-  return c.action ? `${c.action}.` : null;
-}
-
 type InvestigationTab = "ingredients" | "categories" | "trends";
 const INVESTIGATION_TABS: { key: InvestigationTab; label: string }[] = [
   { key: "ingredients", label: "Ingredients" },
@@ -133,7 +129,6 @@ const INVESTIGATION_TABS: { key: InvestigationTab; label: string }[] = [
   { key: "trends", label: "Trends" },
 ];
 
-const UNDERREPRESENTED_DEFAULT_COUNT = 5;
 const REPETITION_DEFAULT_COUNT = 10;
 const INGREDIENTS_DEFAULT_COUNT = 10;
 
@@ -153,6 +148,29 @@ function ShowMoreButton({ hiddenCount, expanded, onClick }: { hiddenCount: numbe
   );
 }
 
+/** Purely descriptive — an arrow and a word, never a value judgment.
+ * Repeating the same foods is fine, so "decreasing" gets no warning color;
+ * all three states share the same neutral treatment. */
+const TREND_DISPLAY: Record<VarietyTrendDirection, { label: string; arrow: string }> = {
+  increasing: { label: "Increasing", arrow: "↑" },
+  decreasing: { label: "Decreasing", arrow: "↓" },
+  stable: { label: "Stable", arrow: "→" },
+};
+
+const SECTION_NAV_ITEMS: SectionNavItem[] = [
+  { id: "overview", label: "Overview" },
+  { id: "variety", label: "Variety" },
+  { id: "repetition", label: "Repetition" },
+  { id: "meal-patterns", label: "Meal patterns" },
+  { id: "combinations", label: "Combinations" },
+  { id: "ingredients", label: "Ingredients" },
+];
+// Same TYPE_ACCENT.food used by this page's charts, bars, and inner tab
+// underline, and by the Log page's own per-type tab bar — one page never
+// mixes an arbitrary "page chrome" color in with its actual per-type
+// accent, even for a different level of navigation.
+const SECTION_NAV_ACCENT = TYPE_ACCENT.food;
+
 const MIN_MEAL_INSTANCES_FOR_COMBINATIONS = 5;
 /** Display order only — the combinations themselves are computed entirely
  * from logged meal tags, never assumed. Any meal tag outside this list
@@ -163,8 +181,8 @@ const MEAL_ORDER = ["Breakfast", "Lunch", "Dinner", "Snack"];
 export default function FoodPage() {
   const { status, events } = useData();
   const { span, range, setRange, filtered } = useDateRangeFilter(events);
+  const [activeSection, setActiveSection] = useState<string>(SECTION_NAV_ITEMS[0].id);
   const [tab, setTab] = useState<InvestigationTab>("ingredients");
-  const [showAllUnderrepresented, setShowAllUnderrepresented] = useState(false);
   const [showAllRepetition, setShowAllRepetition] = useState(false);
   const [showAllIngredients, setShowAllIngredients] = useState(false);
 
@@ -196,14 +214,6 @@ export default function FoodPage() {
     [mealInstancesList, ranked],
   );
   const trendDirection = useMemo(() => varietyTrendDirection(varietySeries), [varietySeries]);
-  // Names the actual highest-priority groups instead of a bare count — a
-  // raw "10 groups underrepresented" reads as a verdict on its own; naming
-  // which ones (already ranked by the same scoring the recommendation
-  // cards use) is the same information without the alarming aggregate.
-  const patternHighlight =
-    priorities.underrepresentedGroups.length > 0
-      ? `${formatExampleList(priorities.underrepresentedGroups.slice(0, 3).map((c) => c.headline.toLowerCase()), "and")} could be more regular`
-      : "well covered right now";
   // Wording only ("this week" vs. the generic phrasing) — any 7-day-long
   // range reads as "this week" regardless of which control produced it
   // (the This-week preset or a manually picked 7-day custom range).
@@ -215,21 +225,20 @@ export default function FoodPage() {
   const topFoods = ranked.slice(0, 10).map((f) => ({ label: f.item, value: f.count }));
 
   return (
-    <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-2">
-      <div className="lg:col-span-2">
+    <div className="flex flex-col">
+      <div>
         <h1 className="text-xl font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
           Food
         </h1>
-        <p className="mt-1 text-sm" style={{ color: "var(--text-secondary)" }}>
-          What&apos;s missing and what to prioritize next — based on what you&apos;ve actually logged.
-        </p>
       </div>
 
-      {/* ---------------------------------------------------------------- *
-       * WHAT'S HAPPENING
-       * ---------------------------------------------------------------- */}
-      {priorities.insufficientData ? (
-        <div className="lg:col-span-2">
+      <div className="mt-5">
+        <SectionNav items={SECTION_NAV_ITEMS} activeId={activeSection} onSelect={setActiveSection} accent={SECTION_NAV_ACCENT} />
+      </div>
+
+      {activeSection === "overview" && (
+      <PageSection id="overview" headingLabel="Overview">
+        {priorities.insufficientData ? (
           <Card tier="supporting">
             <CardTitle subtitle="This page needs a bit more logged history before its recommendations are trustworthy.">
               Not enough data yet
@@ -239,179 +248,147 @@ export default function FoodPage() {
               logged so far. Keep logging on the Log page and this page fills in.
             </p>
           </Card>
-        </div>
-      ) : (
-        <>
-          <div className="lg:col-span-2">
-            <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-              <span className="font-medium" style={{ color: "var(--text-primary)" }}>Food pattern</span> ·{" "}
-              {priorities.variety.totalUniqueFoods} ingredients · {patternHighlight} · variety {trendDirection}
-            </p>
-            <div className="mt-1">
-              <AllTimeScopeNote>
-                full logged history, fixed 7/30/90-day windows — independent of the date range you pick below.
-              </AllTimeScopeNote>
+        ) : (
+          <>
+            <div className="grid grid-cols-2 gap-3 sm:max-w-sm">
+              <StatTile
+                label="Ingredients"
+                value={String(priorities.variety.totalUniqueFoods)}
+                detail="unique, last 90 days"
+                accent={TYPE_ACCENT.food}
+              />
+              <StatTile
+                label="Variety trend"
+                value={`${TREND_DISPLAY[trendDirection].arrow} ${TREND_DISPLAY[trendDirection].label}`}
+                detail="vs. prior 30 days"
+              />
             </div>
-          </div>
 
-          <Card tier="supporting">
-            <CardTitle size="sm" subtitle="Food groups that are rarely or never logged">
-              Underrepresented foods
-            </CardTitle>
-            {priorities.underrepresentedGroups.length > 0 ? (
-              <>
-                <ul className="flex flex-col divide-y" style={{ borderColor: "var(--gridline)" }}>
-                  {(showAllUnderrepresented
-                    ? priorities.underrepresentedGroups
-                    : priorities.underrepresentedGroups.slice(0, UNDERREPRESENTED_DEFAULT_COUNT)
-                  ).map((c) => (
-                    <li key={c.headline} className="flex items-center justify-between gap-3 py-2 text-sm">
-                      <span className="font-medium" style={{ color: "var(--text-primary)" }}>{c.headline}</span>
-                      <span className="text-right text-xs" style={{ color: "var(--text-secondary)" }}>{c.detail}</span>
-                    </li>
-                  ))}
-                </ul>
-                <ShowMoreButton
-                  hiddenCount={priorities.underrepresentedGroups.length - UNDERREPRESENTED_DEFAULT_COUNT}
-                  expanded={showAllUnderrepresented}
-                  onClick={() => setShowAllUnderrepresented((v) => !v)}
-                />
-              </>
-            ) : (
-              <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-                Nothing stands out as underrepresented right now.
-              </p>
-            )}
-          </Card>
-
-          <Card tier="primary">
-            <CardTitle size="sm" subtitle="Where adding or varying something would help most right now">
-              Focus next week
-            </CardTitle>
-            {priorities.topPriorities.length > 0 ? (
-              <ul className="flex flex-col divide-y" style={{ borderColor: "var(--gridline)" }}>
-                {priorities.topPriorities.map((c) => (
-                  <RecommendationCard key={c.headline} headline={c.headline} detail={c.detail} action={focusSuggestionText(c)} />
-                ))}
-              </ul>
-            ) : (
-              <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-                Your logged diet is well covered right now — nothing specific stands out to prioritize.
-              </p>
-            )}
-          </Card>
-        </>
+            <BulletList
+              title="Worth noticing"
+              tone="var(--text-muted)"
+              bullets={priorities.underrepresentedGroups.slice(0, 3).map((c) => ({ label: c.headline, detail: c.detail }))}
+              emptyText="Nothing appears unusually infrequent right now."
+            />
+          </>
+        )}
+      </PageSection>
       )}
 
-      {/* ---------------------------------------------------------------- *
-       * SHOW ME THE EVIDENCE
-       * ---------------------------------------------------------------- */}
-      <div
-        className="flex flex-wrap items-end justify-between gap-3 border-t pt-4 lg:col-span-2"
-        style={{ borderColor: "var(--gridline)" }}
-      >
-        <div>
-          <p className="text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
-            Evidence
-          </p>
-          {span && range && (
-            <p className="mt-0.5 text-xs" style={{ color: "var(--text-muted)" }}>
-              {range.start} – {range.end}
-            </p>
-          )}
-        </div>
+      {activeSection === "variety" && (
+      <PageSection id="variety" headingLabel="Variety" subtitle={span && range ? `${range.start} – ${range.end}` : undefined}>
         {span && range && (
-          <DateRangeFilter span={span} value={range} onChange={setRange} presets={FOOD_DATE_PRESETS} customLabel />
+          <div className="flex justify-end">
+            <DateRangeFilter span={span} value={range} onChange={setRange} presets={FOOD_DATE_PRESETS} customLabel accent={TYPE_ACCENT.food} />
+          </div>
         )}
-      </div>
 
-      <Card tier="raw">
-        <CardTitle size="sm" subtitle="Distinct ingredients logged in this range">
-          Ingredient diversity
-        </CardTitle>
-        <div className="grid grid-cols-2 gap-4">
-          <StatTile label="Unique ingredients" value={String(diversity?.current ?? 0)} />
-          {diversity?.previous != null ? (
-            <StatTile
-              label="Vs. prior period"
-              value={diversity.current === diversity.previous ? "No change" : diversity.current > diversity.previous ? `+${diversity.current - diversity.previous}` : `${diversity.current - diversity.previous}`}
-              detail={`was ${diversity.previous}`}
-              accent={diversity.current >= diversity.previous ? "var(--status-good)" : "var(--status-warning)"}
-            />
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+          <Card tier="raw" className="flex h-full flex-col">
+            <CardTitle size="sm" subtitle="Distinct ingredients logged in this range">
+              Ingredient diversity
+            </CardTitle>
+            {/* Only 2 stat tiles' worth of content next to a full bar chart —
+             * centered in the remaining space (rather than left stranded at
+             * the card's natural height) so the paired cards read as one
+             * balanced row instead of a tall card next to a mostly-empty
+             * short one. */}
+            <div className="flex flex-1 items-center">
+              <div className="grid w-full grid-cols-2 gap-4">
+                <StatTile label="Unique ingredients" value={String(diversity?.current ?? 0)} />
+                {diversity?.previous != null ? (
+                  <StatTile
+                    label="Vs. prior period"
+                    value={diversity.current === diversity.previous ? "No change" : diversity.current > diversity.previous ? `+${diversity.current - diversity.previous}` : `${diversity.current - diversity.previous}`}
+                    detail={`was ${diversity.previous}`}
+                    accent={diversity.current >= diversity.previous ? "var(--status-good)" : "var(--status-warning)"}
+                  />
+                ) : (
+                  <StatTile label="Vs. prior period" value="—" detail="not enough earlier history" />
+                )}
+              </div>
+            </div>
+          </Card>
+
+          <Card tier="raw">
+            <CardTitle
+              size="sm"
+              subtitle={isThisWeek ? "What you ate most this week" : "Most frequently tracked foods in this range"}
+            >
+              Top ingredients
+            </CardTitle>
+            {topFoods.length > 0 ? (
+              <>
+                <RankedBarChart data={topFoods} color={TYPE_ACCENT.food} />
+                <p className="mt-2 text-xs" style={{ color: "var(--text-muted)" }}>
+                  Your top 3 ingredients make up {concentration}% of everything logged in this range.
+                </p>
+              </>
+            ) : (
+              <p className="text-sm" style={{ color: "var(--text-muted)" }}>No data.</p>
+            )}
+          </Card>
+        </div>
+
+        <Card tier="raw">
+          <CardTitle size="sm" subtitle="How often each food group has been logged — counts are logged days, not servings or grams.">
+            Food-group coverage
+          </CardTitle>
+          {priorities.coverageTable.length > 0 ? (
+            <CoverageTableRows rows={priorities.coverageTable} />
           ) : (
-            <StatTile label="Vs. prior period" value="—" detail="not enough earlier history" />
+            <p className="text-sm" style={{ color: "var(--text-muted)" }}>Not enough data yet.</p>
           )}
-        </div>
-      </Card>
+          <div className="mt-3">
+            <AllTimeScopeNote>fixed 7-day and 30-day windows ending today, independent of the range filter above.</AllTimeScopeNote>
+          </div>
+        </Card>
 
-      <Card tier="raw">
-        <CardTitle
-          size="sm"
-          subtitle={isThisWeek ? "What you ate most this week" : "Most frequently tracked foods in this range"}
-        >
-          Top ingredients
-        </CardTitle>
-        {topFoods.length > 0 ? (
-          <>
-            <RankedBarChart data={topFoods} color={TYPE_ACCENT.food} />
-            <p className="mt-2 text-xs" style={{ color: "var(--text-muted)" }}>
-              Your top 3 ingredients make up {concentration}% of everything logged in this range.
-            </p>
-          </>
-        ) : (
-          <p className="text-sm" style={{ color: "var(--text-muted)" }}>No data.</p>
-        )}
-      </Card>
+        <Card tier="raw">
+          <CardTitle size="sm" subtitle="Rolling 7-day and 30-day unique food counts">
+            Ingredient variety over time
+          </CardTitle>
+          {varietySeries.length > 0 ? (
+            <>
+              <MultiLineChart
+                data={varietySeries.map((v) => ({ date: v.date, "7-day": v.rolling7dUniqueFoods, "30-day": v.rolling30dUniqueFoods }))}
+                series={[
+                  { key: "7-day", label: "7-day variety", color: "var(--series-1)" },
+                  { key: "30-day", label: "30-day variety", color: "var(--series-2)" },
+                ]}
+                height={280}
+              />
+              <p className="mt-2 text-xs" style={{ color: "var(--text-muted)" }}>
+                30-day variety is {VARIETY_TREND_LABEL[trendDirection]} compared to the 30 days before that.
+              </p>
+            </>
+          ) : (
+            <p className="text-sm" style={{ color: "var(--text-muted)" }}>No data.</p>
+          )}
+        </Card>
+      </PageSection>
+      )}
 
-      <Card tier="raw">
-        <CardTitle size="sm" subtitle="How often each food group has been logged — counts are logged days, not servings or grams.">
-          Food-group coverage
-        </CardTitle>
-        {priorities.coverageTable.length > 0 ? (
-          <CoverageTableRows rows={priorities.coverageTable} />
-        ) : (
-          <p className="text-sm" style={{ color: "var(--text-muted)" }}>Not enough data yet.</p>
-        )}
-        <div className="mt-3">
-          <AllTimeScopeNote>fixed 7-day and 30-day windows ending today, independent of the range filter above.</AllTimeScopeNote>
-        </div>
-      </Card>
+      {activeSection === "repetition" && (
+      <PageSection id="repetition" headingLabel="Repetition">
+        <RepetitionSection repetition={repetition} expanded={showAllRepetition} onToggle={() => setShowAllRepetition((v) => !v)} />
+      </PageSection>
+      )}
 
-      <Card tier="raw" className="lg:col-span-2">
-        <CardTitle size="sm" subtitle="Rolling 7-day and 30-day unique food counts">
-          Ingredient variety over time
-        </CardTitle>
-        {varietySeries.length > 0 ? (
-          <>
-            <MultiLineChart
-              data={varietySeries.map((v) => ({ date: v.date, "7-day": v.rolling7dUniqueFoods, "30-day": v.rolling30dUniqueFoods }))}
-              series={[
-                { key: "7-day", label: "7-day variety", color: "var(--series-1)" },
-                { key: "30-day", label: "30-day variety", color: "var(--series-2)" },
-              ]}
-            />
-            <p className="mt-2 text-xs" style={{ color: "var(--text-muted)" }}>
-              30-day variety is {VARIETY_TREND_LABEL[trendDirection]} compared to the 30 days before that.
-            </p>
-          </>
-        ) : (
-          <p className="text-sm" style={{ color: "var(--text-muted)" }}>No data.</p>
-        )}
-      </Card>
+      {activeSection === "meal-patterns" && (
+      <PageSection id="meal-patterns" headingLabel="Meal patterns">
+        <MealTypePatternsSection rows={mealBreakdown} mealInstanceCount={mealInstanceCount} />
+      </PageSection>
+      )}
 
-      <RepetitionSection repetition={repetition} expanded={showAllRepetition} onToggle={() => setShowAllRepetition((v) => !v)} />
+      {activeSection === "combinations" && (
+      <PageSection id="combinations" headingLabel="Combinations">
+        <FavoriteCombosByMeal combos={combos} mealInstanceCount={mealInstanceCount} />
+      </PageSection>
+      )}
 
-      <MealTypePatternsSection rows={mealBreakdown} mealInstanceCount={mealInstanceCount} />
-
-      <FavoriteCombosByMeal combos={combos} mealInstanceCount={mealInstanceCount} />
-
-      {/* ---------------------------------------------------------------- *
-       * LET ME INVESTIGATE
-       * ---------------------------------------------------------------- */}
-      <div className="border-t pt-4 lg:col-span-2" style={{ borderColor: "var(--gridline)" }}>
-        <p className="mb-3 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
-          Investigate
-        </p>
+      {activeSection === "ingredients" && (
+      <PageSection id="ingredients" headingLabel="Ingredients">
         <nav className="flex w-fit flex-wrap items-center gap-5 border-b" style={{ borderColor: "var(--border-hairline)" }}>
           {INVESTIGATION_TABS.map((t) => {
             const active = t.key === tab;
@@ -433,9 +410,8 @@ export default function FoodPage() {
             );
           })}
         </nav>
-      </div>
 
-      <div className="flex flex-col gap-5 lg:col-span-2">
+        <div className="flex flex-col gap-5">
         {tab === "ingredients" && (
           <Card tier="raw">
             <CardTitle size="sm" subtitle="Every tracked ingredient in this range, ranked by occurrences">
@@ -484,16 +460,20 @@ export default function FoodPage() {
             )}
           </>
         )}
-      </div>
+        </div>
+      </PageSection>
+      )}
 
-      <Methodology className="lg:col-span-2">
-        Suggestions combine your logged intake with research-informed evidence, weighted by how well-established
-        that evidence is and how well-covered the food group already is in what you&apos;ve logged. Eating an
-        evidence-backed food often is never treated as a problem on its own — only actual gaps, or a food dominating
-        intake while other food groups are missing, get surfaced. The underlying research is at Manage → Nutrition
-        evidence, kept separate from this page. &quot;Not logged&quot; only ever means not logged, never &quot;not
-        eaten&quot; — this reflects logging frequency, not quantity or what you actually ate.
-      </Methodology>
+      <div className="border-t pt-8" style={{ borderColor: "var(--gridline)" }}>
+        <Methodology>
+          Suggestions combine your logged intake with research-informed evidence, weighted by how well-established
+          that evidence is and how well-covered the food group already is in what you&apos;ve logged. Eating an
+          evidence-backed food often is never treated as a problem on its own — only actual gaps, or a food dominating
+          intake while other food groups are missing, get surfaced. The underlying research is at Manage → Nutrition
+          evidence, kept separate from this page. &quot;Not logged&quot; only ever means not logged, never &quot;not
+          eaten&quot; — this reflects logging frequency, not quantity or what you actually ate.
+        </Methodology>
+      </div>
     </div>
   );
 }
@@ -601,7 +581,7 @@ function FavoriteCombosByMeal({ combos, mealInstanceCount }: { combos: MealCombo
   ];
 
   return (
-    <Card tier="raw" className="lg:col-span-2">
+    <Card tier="raw">
       <CardTitle
         size="sm"
         subtitle="The exact sets of ingredients logged together most often in the same meal."
@@ -618,7 +598,7 @@ function FavoriteCombosByMeal({ combos, mealInstanceCount }: { combos: MealCombo
           No combination of 2 or more ingredients has repeated together often enough yet in any meal.
         </p>
       ) : (
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
           {orderedTags.map((mealTag) => {
             const mealCombos = combos.filter((c) => c.mealTag === mealTag).slice(0, 5);
             const maxCount = Math.max(...mealCombos.map((c) => c.count), 1);
@@ -690,7 +670,7 @@ function RepetitionSection({
 }) {
   const visible = expanded ? repetition : repetition.slice(0, REPETITION_DEFAULT_COUNT);
   return (
-    <Card tier="raw" className="lg:col-span-2">
+    <Card tier="raw">
       <CardTitle size="sm" subtitle="Foods that appear regularly in your meals">
         Repetition
       </CardTitle>
@@ -755,7 +735,7 @@ function MealTypePatternsSection({
   const maxCount = Math.max(1, ...taggedRows.map((r) => Math.max(0, ...Object.values(r.countsByMeal))));
 
   return (
-    <Card tier="raw" className="lg:col-span-2">
+    <Card tier="raw">
       <CardTitle size="sm" subtitle="Which ingredients cluster around one meal vs. show up across several">
         Meal-type patterns
       </CardTitle>
@@ -786,10 +766,17 @@ function MealTypePatternsSection({
                       return (
                         <td key={m} className="py-1 pr-3 text-center">
                           <span
-                            className="inline-flex h-6 w-6 items-center justify-center rounded text-[11px] tabular-nums"
+                            className="inline-flex h-6 w-6 items-center justify-center rounded text-[11px] font-medium tabular-nums"
                             style={{
-                              background: count > 0 ? `color-mix(in oklab, ${TYPE_ACCENT.food} ${Math.round(20 + intensity * 55)}%, var(--surface-1))` : "transparent",
-                              color: count > 0 ? "#fff" : "var(--text-muted)",
+                              // Dark ink throughout, not white — this tint
+                              // range (15-55% of series-1 into white) never
+                              // gets dark enough for white text to clear
+                              // WCAG's 4.5:1 (it measured as low as 1.35:1
+                              // at the pale end with the old 20-75%/white
+                              // combo); text-primary stays comfortably
+                              // readable across the whole range instead.
+                              background: count > 0 ? `color-mix(in oklab, ${TYPE_ACCENT.food} ${Math.round(15 + intensity * 40)}%, var(--surface-1))` : "transparent",
+                              color: count > 0 ? "var(--text-primary)" : "var(--text-muted)",
                             }}
                           >
                             {count > 0 ? count : ""}

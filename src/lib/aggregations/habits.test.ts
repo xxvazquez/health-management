@@ -22,21 +22,21 @@ describe("habitsByCategory", () => {
 
   it("keeps a known category's curated position and appends an unknown custom category alphabetically after", () => {
     const events = [
-      makeEvent({ itemType: "habit", item: "Nap", category: "Sleep" }),
+      makeEvent({ itemType: "habit", item: "Nap", category: "Daily" }),
       makeEvent({ itemType: "habit", item: "Journaling", category: "Mindset" }), // not in HABIT_CATEGORIES
     ];
     const groups = habitsByCategory(events);
-    expect(groups.map((g) => g.category)).toEqual(["Sleep", "Mindset"]);
+    expect(groups.map((g) => g.category)).toEqual(["Daily", "Mindset"]);
   });
 
   it("groups items under their own category, not leaking into another", () => {
     const events = [
-      makeEvent({ itemType: "habit", item: "Nap", category: "Sleep" }),
-      makeEvent({ itemType: "habit", item: "Walk", category: "Movement" }),
+      makeEvent({ itemType: "habit", item: "Nap", category: "Daily" }),
+      makeEvent({ itemType: "habit", item: "Walk", category: "Body" }),
     ];
     const groups = habitsByCategory(events);
-    const sleep = groups.find((g) => g.category === "Sleep")!;
-    expect(sleep.items.map((i) => i.item)).toEqual(["Nap"]);
+    const daily = groups.find((g) => g.category === "Daily")!;
+    expect(daily.items.map((i) => i.item)).toEqual(["Nap"]);
   });
 });
 

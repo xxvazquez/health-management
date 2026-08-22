@@ -1,5 +1,12 @@
 import { supabase } from "./client";
-import { deleteOutboxEntryById, getEligibleOutboxEntries, getOutboxCounts, updateOutboxEntry, type OutboxEntry } from "@/lib/db/indexedDb";
+import {
+  deleteOutboxEntryById,
+  getDeadLetterOutboxEntries,
+  getEligibleOutboxEntries,
+  getOutboxCounts,
+  updateOutboxEntry,
+  type OutboxEntry,
+} from "@/lib/db/indexedDb";
 
 export type SendResult =
   | { outcome: "success" }
@@ -116,4 +123,23 @@ export async function getOutboxSyncState(): Promise<{ pending: number; deadLette
   const userId = await currentUserId();
   if (!userId) return { pending: 0, deadLetter: 0 };
   return getOutboxCounts(userId);
+}
+
+/** The dead-letter entries for the signed-in user — the detail behind the
+ * plain count in `getOutboxSyncState`, for SyncStatusBanner to explain what
+ * actually failed. */
+export async function getDeadLetterEntries(): Promise<OutboxEntry[]> {
+  const userId = await currentUserId();
+  if (!userId) return [];
+  return getDeadLetterOutboxEntries(userId);
+}
+
+/** Puts one dead-lettered entry back in the retry queue and immediately
+ * attempts to drain it. The local record was never at risk — this only
+ * retries getting its cloud copy to land, e.g. after the user fixed
+ * whatever made the server reject it (or the server-side issue itself
+ * cleared up). */
+export async function retryOutboxEntry(id: string): Promise<void> {
+  await updateOutboxEntry(id, { status: "pending", nextAttemptAt: Date.now() });
+  await drainOutbox();
 }

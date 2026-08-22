@@ -135,7 +135,7 @@ export default function DigestionPage() {
 
       {span && range && (
         <div className="lg:col-span-2">
-          <DateRangeFilter span={span} value={range} onChange={setRange} />
+          <DateRangeFilter span={span} value={range} onChange={setRange} accent={TYPE_ACCENT.outcome} />
         </div>
       )}
 

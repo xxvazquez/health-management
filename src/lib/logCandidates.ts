@@ -1,5 +1,5 @@
 import type { ItemType } from "@/taxonomy/categories";
-import type { RawLog, RawItem, RawDiaryEntry } from "@/lib/types";
+import type { RawLog, RawItem, RawDiaryEntry, WorkoutUnit } from "@/lib/types";
 
 export interface LogCandidate {
   /** = the item's own identity — stable and already unique, no merge key needed. */
@@ -98,13 +98,21 @@ export interface TimelineEntry {
    * which needs 24-hour "HH:MM" rather than a locale-formatted string. */
   updatedAt: string;
   mealTag: string | null;
-  /** Raw logged value (e.g. minutes for a duration-kind item) — most
-   * entries are plain occurrence taps and don't need this. */
+  /** Raw logged value (e.g. minutes for a duration-kind item, or a
+   * workout's weight/duration/reps) — most entries are plain occurrence
+   * taps and don't need this. */
   value: number | null;
   /** Optional note for this item on this day — one per item+day, not per
    * individual tap, so a food logged 3x in a day shares one note across all
    * three entries rather than each having its own. */
   note: string | null;
+  /** The item's own category — null for Stool, which has none. Shown as a
+   * pill for types that don't already show a more specific grouping label
+   * (Food shows its meal tag instead; see the timeline's own render). */
+  category: string | null;
+  /** Workout entries only — what `value` means (kg/minutes/reps), for
+   * display alongside it. Null for every other type. */
+  unit: WorkoutUnit | null;
 }
 
 /**
@@ -140,6 +148,8 @@ export function dayTimelineEntries(
       mealTag: l.mealTag,
       note: notesByItemIdentity.get(l.itemIdentity) ?? null,
       value: l.value,
+      category: it.category,
+      unit: null,
     });
   }
   return entries;

@@ -63,11 +63,17 @@ export function ItemActionButtons({
   busy,
   state,
   onArchiveToggle,
+  onDelete,
 }: {
   item: ManageableItem;
   busy: boolean;
   state: InlineRenameState;
   onArchiveToggle: () => void;
+  /** Only ever passed when the item has no logged history — see
+   * `ManageableItem.hasHistory`. Omitted entirely (rather than passed
+   * disabled) for an item that can't be deleted, so there's no dead button
+   * inviting a click that would just fail. */
+  onDelete?: () => void;
 }) {
   if (state.editing) {
     return (
@@ -102,6 +108,17 @@ export function ItemActionButtons({
       >
         {item.isArchived ? "Unarchive" : "Archive"}
       </button>
+      {onDelete && (
+        <button
+          type="button"
+          onClick={onDelete}
+          disabled={busy}
+          className="text-xs font-medium underline decoration-dotted disabled:opacity-40"
+          style={{ color: "var(--status-critical)" }}
+        >
+          Delete
+        </button>
+      )}
     </span>
   );
 }
@@ -113,17 +130,19 @@ export function ItemActions({
   busy,
   onArchiveToggle,
   onRename,
+  onDelete,
 }: {
   item: ManageableItem;
   busy: boolean;
   onArchiveToggle: () => void;
   onRename: (newName: string) => void;
+  onDelete?: () => void;
 }) {
   const state = useInlineRename(item, onRename);
   return (
     <span className="flex flex-wrap items-center gap-2">
       <ItemNameField item={item} state={state} />
-      <ItemActionButtons item={item} busy={busy} state={state} onArchiveToggle={onArchiveToggle} />
+      <ItemActionButtons item={item} busy={busy} state={state} onArchiveToggle={onArchiveToggle} onDelete={onDelete} />
     </span>
   );
 }

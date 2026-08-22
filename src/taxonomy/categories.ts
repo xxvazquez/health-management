@@ -5,7 +5,7 @@
  * to reclassify something — nothing else should hard-code category names.
  */
 
-export type ItemType = "food" | "supplement" | "outcome" | "habit";
+export type ItemType = "food" | "supplement" | "outcome" | "habit" | "workout";
 
 // Every category below is backed by at least one actually-tracked item in
 // overrides.json. For food specifically, the names and groupings started
@@ -57,27 +57,27 @@ export const OUTCOME_CATEGORIES = [
   "Other Symptom",
 ] as const;
 
-export const HABIT_CATEGORIES = [
-  "Sleep",
-  "Movement",
-  "Exercise",
-  "Meal Timing",
-  "Fasting",
-  "Nutrition Goal",
-  "Dietary Restriction",
-  "Eating Patterns",
-  "Self-care",
-  "Household",
-  "Learning",
-  "Social",
-  "Other",
-] as const;
+// Deliberately just 3 broad groups (not one category per habit type like
+// the other item types above) — the goal is a habit's category being
+// obvious at a glance, not an exhaustive taxonomy. Food: sugar, fasting,
+// meal timing. Body: workout, walk, physiotherapy. Daily: everything else
+// routine (read, shower, sleep).
+export const HABIT_CATEGORIES = ["Food", "Body", "Daily"] as const;
+
+// Seeded from the 7 fixed lifts this app tracked before exercises became
+// user-editable — all genuinely strength work, so they all start under one
+// category. Cardio/Flexibility & Mind-Body exist as selectable categories
+// from the start (matching examples like running, swimming, yoga, pilates)
+// even though nothing's filed under them yet — same "materialize on first
+// touch" rule as every other type, not a claim that these are exhaustive.
+export const WORKOUT_CATEGORIES = ["Strength Training", "Cardio", "Flexibility & Mind-Body"] as const;
 
 export const CATEGORIES_BY_TYPE: Record<ItemType, readonly string[]> = {
   food: FOOD_CATEGORIES,
   supplement: SUPPLEMENT_CATEGORIES,
   outcome: OUTCOME_CATEGORIES,
   habit: HABIT_CATEGORIES,
+  workout: WORKOUT_CATEGORIES,
 };
 
 /**
@@ -108,6 +108,7 @@ export const TYPE_ACCENT: Record<ItemType, string> = {
   supplement: "var(--series-2)", // sky blue
   outcome: "var(--series-8)", // plum
   habit: "var(--series-3)", // lavender
+  workout: "var(--series-5)", // terracotta
 };
 
 /**

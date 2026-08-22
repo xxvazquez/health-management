@@ -148,6 +148,26 @@ export function putItem(item: RawItem): Promise<void> {
   return withDataLock(() => putItemInternal(item));
 }
 
+/** Every item identity with at least one log or diary entry. Every
+ * `*_logs`/`*_diary` table has an `on delete restrict` FK to its item
+ * table (see supabase/schema.sql) — an item in this set can only ever be
+ * archived, never hard-deleted, since Supabase would reject the delete.
+ * Checked before offering Delete in the UI rather than just surfacing the
+ * server's rejection after the fact. */
+export async function getItemIdentitiesWithHistory(): Promise<Set<string>> {
+  const db = await getDb();
+  const [logs, diary] = await Promise.all([db.getAll("logs"), db.getAll("diary")]);
+  return new Set([...logs.map((l) => l.itemIdentity), ...diary.map((d) => d.itemIdentity)]);
+}
+
+/** Raw, unlocked delete — see `putItemInternal`. Only safe for an item
+ * with no logs/diary history (see `getItemIdentitiesWithHistory`); every
+ * caller must check that first. */
+export async function deleteItemLocalInternal(identity: string): Promise<void> {
+  const db = await getDb();
+  await db.delete("items", identity);
+}
+
 export async function getAllLogs(): Promise<RawLog[]> {
   return (await getDb()).getAll("logs");
 }
@@ -637,6 +657,14 @@ export async function getOutboxCounts(userId: string): Promise<{ pending: number
     pending: all.filter((e) => e.status === "pending").length,
     deadLetter: all.filter((e) => e.status === "dead-letter").length,
   };
+}
+
+/** The actual dead-letter rows for the current user — enough detail
+ * (table, lastErrorCode) to explain to the user what failed, without the
+ * caller needing to scan every outbox entry itself. */
+export async function getDeadLetterOutboxEntries(userId: string): Promise<OutboxEntry[]> {
+  const all = await getAllOutboxEntries();
+  return all.filter((e) => e.userId === userId && e.status === "dead-letter");
 }
 
 export function updateOutboxEntry(id: string, patch: Partial<OutboxEntry>): Promise<void> {

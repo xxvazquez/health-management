@@ -20,7 +20,7 @@
 create table public.categories (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null default auth.uid() references auth.users(id),
-  item_type text not null check (item_type in ('food', 'supplement', 'habit', 'symptom')),
+  item_type text not null check (item_type in ('food', 'supplement', 'habit', 'symptom', 'workout')),
   name text not null,
   name_key text generated always as (lower(trim(name))) stored,
   unique (user_id, item_type, name_key),
@@ -93,6 +93,37 @@ create table public.symptom_items (
   is_archived boolean not null default false,
   created_date date,
   updated_at timestamptz not null default now(),
+  unique (user_id, name_key),
+  unique (user_id, id),
+  foreign key (user_id, category_id, item_type) references public.categories (user_id, id, item_type) on delete restrict
+);
+
+-- Which exercises exist, their category, and archive state — the registry
+-- Manage/the Log page's Workout tab read to know what to offer, exactly
+-- like every other item type. Deliberately NOT what `gym_logs` rows
+-- reference: `gym_logs.exercise` stays a plain name (matched against this
+-- table's `name` at the app layer, not a foreign key) so the existing
+-- weight-tracking table/queries/aggregations don't need touching, and a
+-- rename here doesn't retroactively relabel history the way a real FK
+-- rename would. No reminder_time/reminder_last_sent_date — reminders
+-- don't apply to workouts.
+create table public.workout_items (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id),
+  name text not null,
+  name_key text generated always as (lower(trim(name))) stored,
+  item_type text not null default 'workout' check (item_type = 'workout'),
+  category_id uuid not null,
+  is_archived boolean not null default false,
+  created_date date,
+  updated_at timestamptz not null default now(),
+  -- What a gym_logs.weight_kg value means for this exercise — kg for
+  -- strength work, minutes for a timed session (yoga, a run), reps for a
+  -- bodyweight count, or anything else typed in on Manage. Free text, not
+  -- constrained to those three — they're just the built-in starting
+  -- suggestions. Defaults to 'kg' since every exercise before units
+  -- existed was strength work.
+  unit text not null default 'kg',
   unique (user_id, name_key),
   unique (user_id, id),
   foreign key (user_id, category_id, item_type) references public.categories (user_id, id, item_type) on delete restrict
@@ -187,6 +218,21 @@ create table public.symptom_diary (
   foreign key (user_id, item_id) references public.symptom_items (user_id, id) on delete restrict
 );
 
+-- One note per exercise per day — item_id is workout_items, not a specific
+-- gym_logs row, same "shared across however many entries that day" rule as
+-- every other diary table (see food_diary's own comment upstream).
+create table public.workout_diary (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id),
+  item_id uuid not null,
+  date date not null,
+  content text,
+  title text,
+  updated_at timestamptz not null default now(),
+  unique (user_id, item_id, date),
+  foreign key (user_id, item_id) references public.workout_items (user_id, id) on delete restrict
+);
+
 create table public.stool_logs (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null default auth.uid() references auth.users(id),
@@ -268,6 +314,7 @@ alter table public.food_items enable row level security;
 alter table public.supplement_items enable row level security;
 alter table public.habit_items enable row level security;
 alter table public.symptom_items enable row level security;
+alter table public.workout_items enable row level security;
 alter table public.food_logs enable row level security;
 alter table public.supplement_logs enable row level security;
 alter table public.habit_logs enable row level security;
@@ -276,6 +323,7 @@ alter table public.food_diary enable row level security;
 alter table public.supplement_diary enable row level security;
 alter table public.habit_diary enable row level security;
 alter table public.symptom_diary enable row level security;
+alter table public.workout_diary enable row level security;
 alter table public.stool_logs enable row level security;
 alter table public.gym_logs enable row level security;
 alter table public.push_subscriptions enable row level security;
@@ -285,6 +333,7 @@ create policy "food_items_all_own" on public.food_items for all using (auth.uid(
 create policy "supplement_items_all_own" on public.supplement_items for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "habit_items_all_own" on public.habit_items for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "symptom_items_all_own" on public.symptom_items for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "workout_items_all_own" on public.workout_items for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "food_logs_all_own" on public.food_logs for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "supplement_logs_all_own" on public.supplement_logs for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "habit_logs_all_own" on public.habit_logs for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
@@ -293,6 +342,7 @@ create policy "food_diary_all_own" on public.food_diary for all using (auth.uid(
 create policy "supplement_diary_all_own" on public.supplement_diary for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "habit_diary_all_own" on public.habit_diary for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "symptom_diary_all_own" on public.symptom_diary for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "workout_diary_all_own" on public.workout_diary for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "stool_logs_all_own" on public.stool_logs for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "gym_logs_all_own" on public.gym_logs for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "push_subscriptions_all_own" on public.push_subscriptions for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
@@ -332,3 +382,46 @@ create policy "push_subscriptions_all_own" on public.push_subscriptions for all 
 -- alter table public.habit_items add column if not exists reminder_time time;
 -- alter table public.habit_items add column if not exists reminder_last_sent_date date;
 -- alter table public.push_subscriptions drop column if exists last_reminded_date;
+
+-- Migration for a project that already ran the create table statements
+-- above before workouts had categories/items of their own (exercises were
+-- a fixed hardcoded list): run once by hand in the SQL editor (already
+-- applied to the live lauva.pl project as of this change). gym_logs itself
+-- is untouched — still plain exercise text, matched by name at the app
+-- layer, not migrated to a foreign key (see workout_items' own comment
+-- upstream for why). Backfills one workout_items row, under a seeded
+-- "Strength Training" category, for every exercise name that already
+-- shows up in that user's existing gym_logs.
+--
+-- alter table public.categories drop constraint if exists categories_item_type_check;
+-- alter table public.categories add constraint categories_item_type_check check (item_type in ('food', 'supplement', 'habit', 'symptom', 'workout'));
+--
+-- create table public.workout_items ( ... );  -- see CREATE TABLE public.workout_items above
+-- create table public.workout_diary ( ... );  -- see CREATE TABLE public.workout_diary above
+-- alter table public.workout_items enable row level security;
+-- alter table public.workout_diary enable row level security;
+-- create policy "workout_items_all_own" on public.workout_items for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+-- create policy "workout_diary_all_own" on public.workout_diary for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+--
+-- insert into public.categories (user_id, item_type, name)
+-- select distinct user_id, 'workout', 'Strength Training'
+-- from public.gym_logs
+-- on conflict (user_id, item_type, name_key) do nothing;
+--
+-- insert into public.workout_items (user_id, name, category_id)
+-- select distinct g.user_id, g.exercise, c.id
+-- from public.gym_logs g
+-- join public.categories c
+--   on c.user_id = g.user_id and c.item_type = 'workout' and c.name = 'Strength Training'
+-- on conflict (user_id, name_key) do nothing;
+
+-- Migration for a project that already ran the workout_items create table
+-- statement above before exercises had a unit of their own (every exercise
+-- was implicitly kg): run once by hand in the SQL editor (already applied
+-- to the live lauva.pl project as of this change). Every existing row
+-- defaults to 'kg', matching what it already meant. The constraint-drop
+-- line is a no-op (and safe to run) if you never applied the earlier,
+-- more restrictive version of this migration.
+--
+-- alter table public.workout_items add column if not exists unit text not null default 'kg';
+-- alter table public.workout_items drop constraint if exists workout_items_unit_check;

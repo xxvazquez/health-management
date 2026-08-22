@@ -283,13 +283,13 @@ const ADD_PHRASE: Partial<Record<NutritionGroupId, string>> = {
 function groupCandidateDetail(state: GroupState): string {
   switch (state.consistency) {
     case "never":
-      return "Not represented in your tracked data — a food group worth including regularly.";
+      return "Not appearing in your tracked data.";
     case "not-recent":
       return "Logged before, but not in the last 30 days.";
     case "rare":
-      return `Rarely logged — only ${state.daysLast30} day${state.daysLast30 === 1 ? "" : "s"} in the last 30.`;
+      return `Only appeared on ${state.daysLast30} day${state.daysLast30 === 1 ? "" : "s"} of the last 30.`;
     case "occasional":
-      return `Logged on ${state.daysLast30} days in the last 30 — occasional, worth making more regular.`;
+      return `Logged on ${state.daysLast30} days of the last 30.`;
     default:
       return "";
   }

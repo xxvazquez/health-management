@@ -281,3 +281,51 @@ describe("getOutboxSyncState", () => {
   });
 });
 
+describe("getDeadLetterEntries", () => {
+  it("returns nothing when signed out", async () => {
+    currentSessionUserId = null;
+    const { getDeadLetterEntries } = await import("./outbox");
+    expect(await getDeadLetterEntries()).toEqual([]);
+  });
+
+  it("returns only the current user's dead-letter entries, with the error detail intact", async () => {
+    const { userId, dedupeKey } = unique("deadletter");
+    currentSessionUserId = userId;
+    upsertResult = { error: { code: "23503", message: "foreign key violation" } };
+    await enqueueOutbox({ userId, dedupeKey, table: "food_items", op: "upsert", payload: { id: "a" } });
+    const { drainOutbox, getDeadLetterEntries } = await import("./outbox");
+    await drainOutbox();
+
+    const entries = await getDeadLetterEntries();
+    expect(entries).toHaveLength(1);
+    expect(entries[0]).toMatchObject({ table: "food_items", lastErrorCode: "23503" });
+
+    // A different signed-in user never sees another user's dead-letter rows.
+    currentSessionUserId = "someone-else";
+    expect(await getDeadLetterEntries()).toEqual([]);
+  });
+});
+
+describe("retryOutboxEntry", () => {
+  it("puts a dead-letter entry back to pending and resends it immediately", async () => {
+    const { userId, dedupeKey } = unique("retry-deadletter");
+    currentSessionUserId = userId;
+    upsertResult = { error: { code: "23503", message: "foreign key violation" } };
+    await enqueueOutbox({ userId, dedupeKey, table: "food_items", op: "upsert", payload: { id: "a" } });
+    const { drainOutbox, getDeadLetterEntries, retryOutboxEntry } = await import("./outbox");
+    await drainOutbox();
+    const [deadLetter] = await getDeadLetterEntries();
+    expect(deadLetter.status).toBe("dead-letter");
+
+    // Whatever made the server reject it is fixed now — the retry should
+    // succeed and clear the entry, same as any other successful send.
+    upsertResult = { error: null };
+    sentCalls.length = 0;
+    await retryOutboxEntry(deadLetter.id);
+
+    expect(sentCalls).toEqual([{ table: "food_items", op: "upsert" }]);
+    const remaining = (await getAllOutboxEntries()).filter((e) => e.dedupeKey === dedupeKey);
+    expect(remaining).toHaveLength(0);
+  });
+});
+

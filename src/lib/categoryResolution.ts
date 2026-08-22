@@ -1,6 +1,7 @@
-import { putCategoryAndSync } from "@/lib/supabase/sync";
+import { putCategoryAndSync, putItemAndSync } from "@/lib/supabase/sync";
 import { CATEGORIES_BY_TYPE, type ItemType } from "@/taxonomy/categories";
-import type { RawCategory } from "@/lib/types";
+import { GYM_EXERCISES, type RawCategory, type RawItem } from "@/lib/types";
+import { todayLocalISODate } from "@/lib/aggregations/common";
 
 /**
  * Which names need a real `categories` row before `name` is usable for
@@ -42,4 +43,33 @@ export async function ensureCategoryId(itemType: ItemType, name: string, existin
  * mode's in-memory state instead of writing to IndexedDB/Supabase. */
 export function categoryRowsToSeedForDemo(itemType: ItemType, name: string, existing: RawCategory[]): RawCategory[] {
   return categoryNamesToSeed(itemType, name, existing).map((seedName) => ({ id: crypto.randomUUID(), itemType, name: seedName }));
+}
+
+/**
+ * Materializes the 7 exercises this app used to hardcode (`GYM_EXERCISES`)
+ * as real `workout_items`, all filed under a seeded "Strength Training"
+ * category — but only the first time, for a user with zero workout items
+ * of their own yet. Mirrors `categoryNamesToSeed`'s "whole default list at
+ * once, never again once anything real exists" rule, so the Workout tab
+ * isn't empty for a brand-new signed-in user, while still leaving exercise
+ * names fully user-editable (rename/archive/add via Manage) from then on.
+ */
+export async function ensureDefaultWorkoutItems(existingItems: RawItem[], existingCategories: RawCategory[]): Promise<void> {
+  if (existingItems.some((i) => i.itemType === "workout")) return;
+  const categoryId = await ensureCategoryId("workout", "Strength Training", existingCategories);
+  const today = todayLocalISODate();
+  for (const name of GYM_EXERCISES) {
+    const item: RawItem = {
+      identity: crypto.randomUUID(),
+      itemType: "workout",
+      rawName: name,
+      category: "Strength Training",
+      categoryId,
+      isArchived: false,
+      createdDate: today,
+      reminderTime: null,
+      unit: "kg",
+    };
+    await putItemAndSync(item);
+  }
 }

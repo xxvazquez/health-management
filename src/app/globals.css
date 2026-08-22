@@ -104,6 +104,18 @@
 
 html {
   height: 100%;
+  /* Disables double-tap-to-zoom on top of the viewport meta's
+     maximumScale/userScalable — belt-and-suspenders for the installed PWA
+     feeling like a native app rather than a zoomable web page. */
+  touch-action: manipulation;
+  /* iOS Safari's own text-inflation heuristic ("font boosting") can scale
+     up text — sometimes a whole row, not just the one control that
+     triggered it — when it judges a column too narrow for its font-size.
+     That's a separate mechanism from the page-zoom bug fixed above; this
+     disables it outright so font-size is always exactly what the CSS says,
+     never silently boosted. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 body {
@@ -119,6 +131,24 @@ body {
 button:not(:disabled),
 [role="button"]:not(:disabled) {
   cursor: pointer;
+}
+
+/* iOS Safari auto-zooms the whole page on focus of any text-editable field
+   whose font-size is under 16px — nearly every field in this app uses the
+   14px/12px text-sm/text-xs scale, so tapping a search box or note field
+   triggered a page-wide zoom that often stayed stuck after the field lost
+   focus. Bumping to 16px only on mobile viewports (matches Tailwind's own
+   sm breakpoint) prevents the zoom without changing field size on desktop.
+   Excludes time/date-family inputs: those open a native wheel-sheet picker
+   rather than a zoomable text cursor, so they never had the zoom problem,
+   and several are sized (fixed height/width) for a much smaller font — at
+   16px they overflowed their own box instead. */
+@media (max-width: 639px) {
+  input:not([type="time"]):not([type="date"]):not([type="month"]):not([type="week"]):not([type="datetime-local"]):not([type="color"]):not([type="range"]):not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+  textarea,
+  select {
+    font-size: 16px;
+  }
 }
 
 ::selection {

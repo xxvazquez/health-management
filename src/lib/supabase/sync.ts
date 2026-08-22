@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "./client";
 import {
   putItemInternal,
+  deleteItemLocalInternal,
   putLogInternal,
   deleteLogByIdInternal,
   updateLogMealTagInternal,
@@ -27,30 +28,38 @@ import {
   type OutboxOperation,
 } from "@/lib/db/indexedDb";
 import { drainOutbox } from "./outbox";
-import type { RawDiaryEntry, RawLog, RawItem, RawGymLog, RawCategory, RawStoolLog, StoolColor, StoolFloatation, PaperCleanliness } from "@/lib/types";
+import type { RawDiaryEntry, RawLog, RawItem, RawGymLog, RawCategory, RawStoolLog, StoolColor, StoolFloatation, PaperCleanliness, WorkoutUnit } from "@/lib/types";
 import type { ItemType } from "@/taxonomy/categories";
 
 /** App-internal `ItemType` -> the table-name/db `item_type` value. Only
  * "outcome" differs (tables/rows say "symptom", matching the Log page's
  * own label) — everything else is spelled the same both places. */
-const DB_TYPE: Record<ItemType, string> = { food: "food", supplement: "supplement", outcome: "symptom", habit: "habit" };
+const DB_TYPE: Record<ItemType, string> = { food: "food", supplement: "supplement", outcome: "symptom", habit: "habit", workout: "workout" };
 const ITEM_TABLE: Record<ItemType, string> = {
   food: "food_items",
   supplement: "supplement_items",
   outcome: "symptom_items",
   habit: "habit_items",
+  workout: "workout_items",
 };
+// Workout logging stays on its own gym_logs/RawGymLog path (weight per set,
+// several entries a day) rather than the generic increment/toggle/duration
+// *AndSync functions below — "workout" is only ever looked up here to keep
+// this dict exhaustive over ItemType; nothing actually calls a generic log
+// function with itemType "workout".
 const LOG_TABLE: Record<ItemType, string> = {
   food: "food_logs",
   supplement: "supplement_logs",
   outcome: "symptom_logs",
   habit: "habit_logs",
+  workout: "gym_logs",
 };
 const DIARY_TABLE: Record<ItemType, string> = {
   food: "food_diary",
   supplement: "supplement_diary",
   outcome: "symptom_diary",
   habit: "habit_diary",
+  workout: "workout_diary",
 };
 
 async function currentUserId(): Promise<string | null> {
@@ -67,14 +76,20 @@ async function currentUserId(): Promise<string | null> {
 // build the exact same payload shape.
 // ---------------------------------------------------------------------------
 
-// Deliberately never includes reminder_last_sent_date — that column is
-// cron-only bookkeeping, and if a generic edit (rename/archive/category)
-// echoed it back from a possibly-stale local cache, it could revert a
-// fresher stamp the cron already wrote server-side. Only
-// setItemReminderTimeAndSync below ever touches that column, and it does
-// so deliberately, not by echoing a cached value. See its own doc comment.
+// Only supplement_items and habit_items actually have a reminder_time
+// column (see schema.sql) — food_items/symptom_items/workout_items don't,
+// and sending the key for those would make Supabase reject the whole
+// upsert (unknown column), not just ignore it. Deliberately never includes
+// reminder_last_sent_date either way — that column is cron-only
+// bookkeeping, and if a generic edit (rename/archive/category) echoed it
+// back from a possibly-stale local cache, it could revert a fresher stamp
+// the cron already wrote server-side. Only setItemReminderTimeAndSync
+// below ever touches that column, and it does so deliberately, not by
+// echoing a cached value. See its own doc comment.
+const TYPES_WITH_REMINDERS = new Set<ItemType>(["supplement", "habit"]);
+
 function buildItemRow(item: RawItem, userId: string): Record<string, unknown> {
-  return {
+  const row: Record<string, unknown> = {
     id: item.identity,
     user_id: userId,
     name: item.rawName,
@@ -82,8 +97,10 @@ function buildItemRow(item: RawItem, userId: string): Record<string, unknown> {
     item_type: DB_TYPE[item.itemType],
     is_archived: item.isArchived,
     created_date: item.createdDate,
-    reminder_time: item.reminderTime,
   };
+  if (TYPES_WITH_REMINDERS.has(item.itemType)) row.reminder_time = item.reminderTime;
+  if (item.itemType === "workout") row.unit = item.unit ?? "kg";
+  return row;
 }
 
 function buildLogRow(log: RawLog, userId: string): Record<string, unknown> {
@@ -181,6 +198,21 @@ export function putItemAndSync(item: RawItem): Promise<void> {
     if (!userId) return;
     const table = ITEM_TABLE[item.itemType];
     await enqueueOutboxInternal({ userId, table, op: "upsert", payload: buildItemRow(item, userId), dedupeKey: `${table}:${item.identity}` });
+  });
+}
+
+/** Hard-deletes an item with no logged history — unlike archiving, this
+ * actually removes the row. Only ever safe to call for an item identity
+ * not in `getItemIdentitiesWithHistory()` (checked by the caller): every
+ * `*_logs`/`*_diary` table's FK to its item table is `on delete restrict`,
+ * so deleting an item with any history would be rejected by Supabase. */
+export function deleteItemAndSync(identity: string, itemType: ItemType): Promise<void> {
+  return withDataLock(async () => {
+    await deleteItemLocalInternal(identity);
+    const userId = await currentUserId();
+    if (!userId) return;
+    const table = ITEM_TABLE[itemType];
+    await enqueueOutboxInternal({ userId, table, op: "delete", payload: { id: identity }, dedupeKey: `${table}:${identity}` });
   });
 }
 
@@ -380,6 +412,9 @@ interface ItemRow {
   is_archived: boolean | null;
   created_date: string | null;
   reminder_time: string | null;
+  /** workout_items only — absent (not just null) from the other four
+   * *_items tables, since the column doesn't exist there. */
+  unit?: WorkoutUnit | null;
 }
 
 interface LogRow {
@@ -491,9 +526,17 @@ export async function pullFromCloud(): Promise<void> {
     Promise.all(ITEM_TYPES.map((t) => fetchAllRows<LogRow>(supabase!, LOG_TABLE[t]))),
     Promise.all(ITEM_TYPES.map((t) => fetchAllRows<DiaryRow>(supabase!, DIARY_TABLE[t]))),
   ]);
-  const [stoolLogRows, gymLogRows] = await Promise.all([
+  // Workout items/diary aren't part of the ITEM_TYPES loop above:
+  // LOG_TABLE["workout"] deliberately points at gym_logs (see its own
+  // comment) rather than a real `workout_logs` table, so folding "workout"
+  // into that shared loop would try to pull gym_logs through the
+  // generic LogRow shape (item_id/value) that table doesn't have. gym_logs
+  // itself is already pulled below, exactly like stool_logs.
+  const [stoolLogRows, gymLogRows, workoutItemRows, workoutDiaryRows] = await Promise.all([
     fetchAllRows<StoolLogRow>(supabase, "stool_logs"),
     fetchAllRows<GymLogRow>(supabase, "gym_logs"),
+    fetchAllRows<ItemRow>(supabase, "workout_items"),
+    fetchAllRows<DiaryRow>(supabase, "workout_diary"),
   ]);
 
   // Wiping and repopulating IndexedDB is one atomic unit against
@@ -525,9 +568,25 @@ export async function pullFromCloud(): Promise<void> {
           isArchived: row.is_archived ?? false,
           createdDate: row.created_date,
           reminderTime: row.reminder_time ? row.reminder_time.slice(0, 5) : null,
+          unit: null,
         };
         await putItemInternal(item);
       }
+    }
+
+    for (const row of workoutItemRows) {
+      const item: RawItem = {
+        identity: row.id,
+        itemType: "workout",
+        rawName: row.name,
+        category: categoryNameById.get(row.category_id ?? "") ?? "Other",
+        categoryId: row.category_id,
+        isArchived: row.is_archived ?? false,
+        createdDate: row.created_date,
+        reminderTime: null,
+        unit: row.unit ?? "kg",
+      };
+      await putItemInternal(item);
     }
 
     for (let i = 0; i < ITEM_TYPES.length; i++) {
@@ -560,6 +619,19 @@ export async function pullFromCloud(): Promise<void> {
         };
         await putDiaryEntryInternal(entry);
       }
+    }
+
+    for (const row of workoutDiaryRows) {
+      const entry: RawDiaryEntry = {
+        identity: row.id,
+        itemIdentity: row.item_id,
+        itemType: "workout",
+        date: row.date,
+        content: row.content,
+        title: row.title,
+        updatedAt: row.updated_at,
+      };
+      await putDiaryEntryInternal(entry);
     }
 
     for (const row of stoolLogRows) {

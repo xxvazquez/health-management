@@ -9,7 +9,7 @@ import { ItemNameField, ItemActionButtons, useInlineRename } from "@/components/
 import { DuplicateItemDialog } from "@/components/ui/DuplicateItemDialog";
 import { PushNotificationsToggle } from "@/components/PushNotificationsToggle";
 import { useItemActions, type ManageableItem } from "@/lib/useItemActions";
-import { getAllItems, getAllCategories } from "@/lib/db/indexedDb";
+import { getAllItems, getAllCategories, getItemIdentitiesWithHistory } from "@/lib/db/indexedDb";
 import { putItemAndSync, deleteCategoryAndSync } from "@/lib/supabase/sync";
 import { ensureCategoryId, categoryRowsToSeedForDemo } from "@/lib/categoryResolution";
 import { lookupFoodCategory } from "@/taxonomy/classify";
@@ -18,13 +18,14 @@ import { normalizeName, titleCaseFallback } from "@/taxonomy/normalizeName";
 import { CATEGORIES_BY_TYPE, type ItemType } from "@/taxonomy/categories";
 import { todayLocalISODate } from "@/lib/aggregations/common";
 import { buildDemoDataset } from "@/lib/demoData";
-import type { RawItem, RawCategory } from "@/lib/types";
+import { WORKOUT_UNITS, type RawItem, type RawCategory, type WorkoutUnit } from "@/lib/types";
 
 const TYPE_SECTIONS: { type: ItemType; label: string; placeholder: string }[] = [
   { type: "food", label: "Food", placeholder: "e.g. Kohlrabi" },
   { type: "habit", label: "Habits", placeholder: "e.g. Stretch before bed" },
   { type: "supplement", label: "Supplements", placeholder: "e.g. Vitamin B12" },
   { type: "outcome", label: "Symptoms", placeholder: "e.g. Joint pain" },
+  { type: "workout", label: "Workout", placeholder: "e.g. Running" },
 ];
 
 /** Display list for a type's category picker — same rule for all four
@@ -258,6 +259,8 @@ function ItemRow({
   onChangeCategory,
   onHideCatalog,
   onSetReminderTime,
+  onSetUnit,
+  onDelete,
 }: {
   item: ManageableItem;
   itemType: ItemType;
@@ -268,17 +271,29 @@ function ItemRow({
   onChangeCategory?: (newCategory: string) => void;
   onHideCatalog?: () => void;
   onSetReminderTime?: (time: string | null) => void;
+  onSetUnit?: (unit: WorkoutUnit) => void;
+  onDelete?: () => void;
 }) {
   const renameState = useInlineRename(item, onRename);
   if (item.itemIdentity === "" && onHideCatalog) {
     return <CatalogFoodRow item={item} busy={busy} onHide={onHideCatalog} />;
   }
   const canRemind = onSetReminderTime && (itemType === "supplement" || itemType === "habit");
+  const canSetUnit = onSetUnit && itemType === "workout";
+  // Delete is only ever offered for an item with zero logged history — see
+  // ManageableItem.hasHistory's doc comment for why (an item with any
+  // history can't be hard-deleted, only archived).
   return (
     <li className="flex flex-wrap items-center justify-between gap-2 py-2">
       <ItemNameField item={item} state={renameState} />
       <span className="flex items-center gap-3">
-        <ItemActionButtons item={item} busy={busy} state={renameState} onArchiveToggle={onArchiveToggle} />
+        <ItemActionButtons
+          item={item}
+          busy={busy}
+          state={renameState}
+          onArchiveToggle={onArchiveToggle}
+          onDelete={item.hasHistory === false ? onDelete : undefined}
+        />
         {canRemind && (
           <span className="flex items-center gap-1">
             <input
@@ -303,6 +318,24 @@ function ItemRow({
               </button>
             )}
           </span>
+        )}
+        {canSetUnit && (
+          <input
+            list="workout-unit-suggestions"
+            defaultValue={item.unit ?? "kg"}
+            disabled={busy}
+            onBlur={(e) => {
+              const trimmed = e.target.value.trim();
+              if (trimmed) onSetUnit(trimmed);
+              else e.target.value = item.unit ?? "kg";
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") e.currentTarget.blur();
+            }}
+            aria-label={`Unit for ${item.item}`}
+            className="w-20 rounded-md border px-2 py-1 text-xs disabled:opacity-40"
+            style={{ borderColor: "var(--border-hairline)", background: "var(--page-plane)", color: "var(--text-secondary)" }}
+          />
         )}
         {categories && onChangeCategory ? (
           <select
@@ -347,6 +380,8 @@ function ItemSection({
   onRemoveCategory,
   onHideCatalogFood,
   onSetReminderTime,
+  onSetUnit,
+  onDelete,
 }: {
   itemType: ItemType;
   label: string;
@@ -369,6 +404,10 @@ function ItemSection({
   /** Supplement/habit only — set from the Manage page, absent everywhere
    * else, gated inside ItemRow. */
   onSetReminderTime?: (item: ManageableItem, time: string | null) => void;
+  /** Workout only — set from the Manage page, absent everywhere else,
+   * gated inside ItemRow. */
+  onSetUnit?: (item: ManageableItem, unit: WorkoutUnit) => void;
+  onDelete: (item: ManageableItem) => void;
 }) {
   const [archivedOpen, setArchivedOpen] = useState(false);
   const query = searchQuery.trim().toLowerCase();
@@ -407,6 +446,13 @@ function ItemSection({
 
       {sectionOpen && (
         <div className="mt-4">
+          {itemType === "workout" && (
+            <datalist id="workout-unit-suggestions">
+              {WORKOUT_UNITS.map((u) => (
+                <option key={u} value={u} />
+              ))}
+            </datalist>
+          )}
           <CategoryManager categories={categories} onAddCategory={onAddCategory} onRemoveCategory={onRemoveCategory} />
 
           <div className="mb-4">
@@ -431,6 +477,8 @@ function ItemSection({
                   onChangeCategory={(category) => onChangeCategory(item, category)}
                   onHideCatalog={onHideCatalogFood ? () => void onHideCatalogFood(item.item, item.category) : undefined}
                   onSetReminderTime={onSetReminderTime ? (time) => onSetReminderTime(item, time) : undefined}
+                  onSetUnit={onSetUnit ? (unit) => onSetUnit(item, unit) : undefined}
+                  onDelete={() => onDelete(item)}
                 />
               ))}
             </ul>
@@ -460,6 +508,8 @@ function ItemSection({
                       onRename={(name) => onRename(item, name)}
                       onChangeCategory={(category) => onChangeCategory(item, category)}
                       onSetReminderTime={onSetReminderTime ? (time) => onSetReminderTime(item, time) : undefined}
+                      onSetUnit={onSetUnit ? (unit) => onSetUnit(item, unit) : undefined}
+                      onDelete={() => onDelete(item)}
                     />
                   ))}
                 </ul>
@@ -472,14 +522,28 @@ function ItemSection({
   );
 }
 
-function toManageable(item: RawItem): ManageableItem {
-  return { itemIdentity: item.identity, item: item.rawName, category: item.category, isArchived: item.isArchived, reminderTime: item.reminderTime };
+function toManageable(item: RawItem, itemsWithHistory: Set<string>): ManageableItem {
+  return {
+    itemIdentity: item.identity,
+    item: item.rawName,
+    category: item.category,
+    isArchived: item.isArchived,
+    reminderTime: item.reminderTime,
+    unit: item.unit,
+    hasHistory: itemsWithHistory.has(item.identity),
+  };
 }
 
 export default function ManagePage() {
   const { status, isDemoData, refresh: refreshShared } = useData();
   const [rawItems, setRawItems] = useState<RawItem[] | null>(null);
   const [categoryRows, setCategoryRows] = useState<RawCategory[]>([]);
+  // Item identities with at least one log/diary entry — an item in this
+  // set can only be archived, never hard-deleted (see
+  // getItemIdentitiesWithHistory's doc comment). Empty in demo mode: the
+  // demo dataset's items are all in-memory anyway, so Delete there is
+  // always safe and harmless.
+  const [itemsWithHistory, setItemsWithHistory] = useState<Set<string>>(new Set());
   const [openSections, setOpenSections] = useState<Set<ItemType>>(new Set());
   const [searchQuery, setSearchQuery] = useState("");
   const [removeCategoryError, setRemoveCategoryError] = useState<string | null>(null);
@@ -504,9 +568,10 @@ export default function ManagePage() {
   // touching the shared data status, so the effect below can call this on
   // every status change without looping (see next comment).
   const loadLocalSnapshot = useCallback(async () => {
-    const [items, categories] = await Promise.all([getAllItems(), getAllCategories()]);
+    const [items, categories, withHistory] = await Promise.all([getAllItems(), getAllCategories(), getItemIdentitiesWithHistory()]);
     setRawItems(items);
     setCategoryRows(categories);
+    setItemsWithHistory(withHistory);
   }, []);
 
   useEffect(() => {
@@ -534,13 +599,16 @@ export default function ManagePage() {
     rename: realRename,
     changeCategory: realChangeCategory,
     setReminderTime: realSetReminderTime,
+    setUnit: realSetUnit,
+    deleteItem: realDeleteItem,
   } = useItemActions(refresh);
 
   const itemsByType = useMemo(() => {
-    const map: Record<ItemType, ManageableItem[]> = { food: [], supplement: [], outcome: [], habit: [] };
+    const map: Record<ItemType, ManageableItem[]> = { food: [], supplement: [], outcome: [], habit: [], workout: [] };
     const source = isDemoData ? demoItems : rawItems;
     if (!source) return map;
-    for (const it of source) map[it.itemType].push(toManageable(it));
+    const withHistory = isDemoData ? new Set<string>() : itemsWithHistory;
+    for (const it of source) map[it.itemType].push(toManageable(it, withHistory));
 
     // The Poland food catalog (src/taxonomy/polandFoodCatalog.ts) backs the
     // Log page's "browse foods you haven't logged yet" grid — a name in
@@ -561,7 +629,7 @@ export default function ManagePage() {
       }
     }
     return map;
-  }, [isDemoData, demoItems, rawItems]);
+  }, [isDemoData, demoItems, rawItems, itemsWithHistory]);
 
   const activeCategoryRows = isDemoData ? demoCategoryRows : categoryRows;
 
@@ -604,6 +672,7 @@ export default function ManagePage() {
       isArchived: false,
       createdDate: todayLocalISODate(),
       reminderTime: null,
+      unit: null,
     };
     await putItemAndSync(item);
     await refresh();
@@ -624,6 +693,7 @@ export default function ManagePage() {
       isArchived: true,
       createdDate: todayLocalISODate(),
       reminderTime: null,
+      unit: null,
     };
     await putItemAndSync(item);
     await refresh();
@@ -654,9 +724,30 @@ export default function ManagePage() {
     await refresh();
   }
 
+  /** Permanently removes an item — only ever reachable when it has no
+   * logged history (see ItemRow's `hasHistory === false` gate), so nothing
+   * is lost; still confirmed since it can't be undone. */
+  async function handleDelete(item: ManageableItem) {
+    if (!window.confirm(`Delete "${item.item}"? It's never been logged, so nothing will be lost, but this can't be undone.`)) return;
+    await realDeleteItem(item);
+  }
+
   // --- Demo-mode equivalents of the handlers above — same shapes, but
   // mutating local state instead of IndexedDB/Supabase. See the demo-state
   // declarations up top for why this never touches real storage. ---
+
+  function demoDeleteItem(item: ManageableItem) {
+    if (!window.confirm(`Delete "${item.item}"? It's never been logged, so nothing will be lost, but this can't be undone.`)) return;
+    setDemoBusyIdentity(item.itemIdentity);
+    setDemoItems((prev) => prev.filter((it) => it.identity !== item.itemIdentity));
+    setDemoBusyIdentity(null);
+  }
+
+  function demoSetUnit(item: ManageableItem, unit: WorkoutUnit) {
+    setDemoBusyIdentity(item.itemIdentity);
+    setDemoItems((prev) => prev.map((it) => (it.identity === item.itemIdentity ? { ...it, unit } : it)));
+    setDemoBusyIdentity(null);
+  }
 
   function demoToggleArchive(item: ManageableItem) {
     setDemoBusyIdentity(item.itemIdentity);
@@ -715,6 +806,7 @@ export default function ManagePage() {
         isArchived: false,
         createdDate: todayLocalISODate(),
         reminderTime: null,
+        unit: null,
       },
     ]);
     return Promise.resolve(true);
@@ -733,6 +825,7 @@ export default function ManagePage() {
         isArchived: true,
         createdDate: todayLocalISODate(),
         reminderTime: null,
+        unit: null,
       },
     ]);
     return Promise.resolve();
@@ -834,6 +927,8 @@ export default function ManagePage() {
           // control doesn't render rather than offering a setting that can
           // never do anything — see PushNotificationsToggle above.
           onSetReminderTime={isDemoData ? undefined : (item, time) => void realSetReminderTime(item, time)}
+          onSetUnit={(item, unit) => (isDemoData ? demoSetUnit(item, unit) : void realSetUnit(item, unit))}
+          onDelete={(item) => (isDemoData ? demoDeleteItem(item) : void handleDelete(item))}
         />
       ))}
 

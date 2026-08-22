@@ -21,6 +21,7 @@ export function makeItem(overrides: Partial<RawItem> = {}): RawItem {
     isArchived: false,
     createdDate: "2026-01-01",
     reminderTime: null,
+    unit: null,
     ...overrides,
   };
 }

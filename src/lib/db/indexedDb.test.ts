@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { withDataLock } from "./indexedDb";
+import {
+  withDataLock,
+  putItemInternal,
+  putLogInternal,
+  putDiaryEntryInternal,
+  getItem,
+  getItemIdentitiesWithHistory,
+  deleteItemLocalInternal,
+} from "./indexedDb";
+import type { RawItem } from "@/lib/types";
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -83,5 +92,48 @@ describe("withDataLock", () => {
     });
     await Promise.all([write, pull]);
     expect(order).toEqual(["write:start", "write:end", "pull:clear"]);
+  });
+});
+
+function makeItem(identity: string): RawItem {
+  return {
+    identity,
+    itemType: "habit",
+    rawName: "Stretching",
+    category: "Movement",
+    categoryId: null,
+    isArchived: false,
+    createdDate: "2026-01-01",
+    reminderTime: null,
+    unit: null,
+  };
+}
+
+describe("getItemIdentitiesWithHistory / deleteItemLocalInternal", () => {
+  it("excludes an item with no logs or diary entries", async () => {
+    await putItemInternal(makeItem("habit-no-history"));
+    const withHistory = await getItemIdentitiesWithHistory();
+    expect(withHistory.has("habit-no-history")).toBe(false);
+  });
+
+  it("includes an item with a log entry", async () => {
+    await putItemInternal(makeItem("habit-with-log"));
+    await putLogInternal({ identity: "log-1", itemIdentity: "habit-with-log", itemType: "habit", date: "2026-01-01", value: 1, updatedAt: "2026-01-01T08:00:00.000Z", mealTag: null });
+    const withHistory = await getItemIdentitiesWithHistory();
+    expect(withHistory.has("habit-with-log")).toBe(true);
+  });
+
+  it("includes an item with only a diary entry, no logs", async () => {
+    await putItemInternal(makeItem("habit-with-note"));
+    await putDiaryEntryInternal({ identity: "diary-1", itemIdentity: "habit-with-note", itemType: "habit", date: "2026-01-01", content: "note", title: null, updatedAt: "2026-01-01T08:00:00.000Z" });
+    const withHistory = await getItemIdentitiesWithHistory();
+    expect(withHistory.has("habit-with-note")).toBe(true);
+  });
+
+  it("deleteItemLocalInternal removes the item's own row", async () => {
+    await putItemInternal(makeItem("habit-to-delete"));
+    expect(await getItem("habit-to-delete")).toBeDefined();
+    await deleteItemLocalInternal("habit-to-delete");
+    expect(await getItem("habit-to-delete")).toBeUndefined();
   });
 });

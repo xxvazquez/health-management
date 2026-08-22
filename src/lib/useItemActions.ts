@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { getItem } from "@/lib/db/indexedDb";
-import { putItemAndSync, setItemReminderTimeAndSync } from "@/lib/supabase/sync";
+import { putItemAndSync, setItemReminderTimeAndSync, deleteItemAndSync } from "@/lib/supabase/sync";
 import { titleCaseFallback } from "@/taxonomy/normalizeName";
+import type { WorkoutUnit } from "@/lib/types";
 
 /** The minimal shape rename/archive need — deliberately narrower than
  * `ItemStats` (which has this plus a pile of computed adherence stats) so
@@ -24,6 +25,16 @@ export interface ManageableItem {
    * don't affect adherence stats. Only the Manage page's own
    * `toManageable` ever actually sets this. */
   reminderTime?: string | null;
+  /** True if this item has ever been logged or has a diary note — a hard
+   * delete would be rejected by Supabase for such an item (see
+   * `deleteItemAndSync`'s doc comment), so callers only offer Delete when
+   * this is false. Optional/defaults to "has history" (no delete offered)
+   * for the same structural-compatibility reason as `reminderTime`. */
+  hasHistory?: boolean;
+  /** Workout items only — what a logged value means for this exercise (kg,
+   * minutes, reps). Optional for the same structural-compatibility reason
+   * as `reminderTime`/`hasHistory`. */
+  unit?: WorkoutUnit | null;
 }
 
 /**
@@ -92,5 +103,27 @@ export function useItemActions(refresh: () => Promise<void>) {
     setBusyIdentity(null);
   }
 
-  return { busyIdentity, toggleArchive, rename, changeCategory, setReminderTime };
+  /** Workout items only, wired from the Manage page's per-row unit select. */
+  async function setUnit(item: ManageableItem, unit: WorkoutUnit) {
+    if (unit === item.unit) return;
+    setBusyIdentity(item.itemIdentity);
+    const existing = await getItem(item.itemIdentity);
+    if (existing) await putItemAndSync({ ...existing, unit });
+    await refresh();
+    setBusyIdentity(null);
+  }
+
+  /** Hard-deletes an item, as opposed to archiving it — only ever called
+   * for an item the caller has already confirmed has no logged history
+   * (see `ManageableItem.hasHistory`), since one with any history can't be
+   * deleted (see `deleteItemAndSync`'s doc comment). */
+  async function deleteItem(item: ManageableItem) {
+    setBusyIdentity(item.itemIdentity);
+    const existing = await getItem(item.itemIdentity);
+    if (existing) await deleteItemAndSync(existing.identity, existing.itemType);
+    await refresh();
+    setBusyIdentity(null);
+  }
+
+  return { busyIdentity, toggleArchive, rename, changeCategory, setReminderTime, setUnit, deleteItem };
 }
