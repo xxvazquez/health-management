@@ -216,11 +216,17 @@ export function CycleTab({
   const selectedEntry = useMemo(() => periodLogs.find((l) => l.date === date) ?? null, [periodLogs, date]);
 
   const recordedByDate = useMemo(() => new Map(periodLogs.map((l) => [l.date, l])), [periodLogs]);
+  // Shaded band is the expected period only (expectedStart through its
+  // typical length) — NOT earliest-to-latest-start plus length. That wider
+  // span is real uncertainty info (shown as text under Current Cycle
+  // instead), but painting it on the calendar made one predicted period
+  // look like an 11+ day blob whenever recent cycles varied at all, and
+  // let adjacent predictions visually merge into each other.
   const predictedDates = useMemo(() => {
     const set = new Set<string>();
     for (const p of predictions) {
-      let d = p.earliestStart;
-      const end = addDaysToDate(p.latestStart, p.expectedLength - 1);
+      let d = p.expectedStart;
+      const end = addDaysToDate(p.expectedStart, p.expectedLength - 1);
       while (d <= end) {
         set.add(d);
         d = addDaysToDate(d, 1);
