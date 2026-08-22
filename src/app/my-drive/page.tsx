@@ -162,7 +162,7 @@ function ConnectCard({
   return (
     <div
       className="flex flex-col items-center justify-center rounded-xl border border-dashed py-16 text-center"
-      style={{ borderColor: "var(--border-hairline)" }}
+      style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}
     >
       <p className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>
         My Drive
@@ -296,15 +296,22 @@ export default function MyDrivePage() {
   }
 
   return (
-    <div className="flex flex-col gap-5">
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
-          My Drive
-        </h1>
-        <p className="mt-1 text-sm" style={{ color: "var(--text-secondary)" }}>
-          Browse your Google Drive files and folders — read-only.
-        </p>
-      </div>
+    <div className="relative overflow-hidden rounded-xl border" style={{ borderColor: "var(--border-hairline)" }}>
+      <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: "url(/background.png)" }} />
+      {/* Semi-transparent wash over the artwork so text and controls keep
+          full contrast — the image itself is calibrated for --surface-1's
+          dark text, not guaranteed everywhere (e.g. the leaf/circle
+          accents in its corners). */}
+      <div className="absolute inset-0" style={{ background: "rgba(255,255,255,0.6)" }} />
+      <div className="relative flex flex-col gap-5 p-4 sm:p-6">
+        <div>
+          <h1 className="text-xl font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
+            My Drive
+          </h1>
+          <p className="mt-1 text-sm" style={{ color: "var(--text-secondary)" }}>
+            Browse your Google Drive files and folders — read-only.
+          </p>
+        </div>
 
       {!configured && (
         <Card tier="supporting">
@@ -417,6 +424,7 @@ export default function MyDrivePage() {
           </button>
         </>
       )}
+      </div>
     </div>
   );
 }

@@ -24,12 +24,14 @@ import {
   clearAllDataInternal,
   enqueueOutboxInternal,
   withDataLock,
+  getAllItems,
   type NewOutboxEntry,
   type OutboxOperation,
 } from "@/lib/db/indexedDb";
 import { drainOutbox } from "./outbox";
 import type { RawDiaryEntry, RawLog, RawItem, RawGymLog, RawCategory, RawStoolLog, StoolColor, StoolFloatation, PaperCleanliness, WorkoutUnit } from "@/lib/types";
 import type { ItemType } from "@/taxonomy/categories";
+import { normalizeName } from "@/taxonomy/normalizeName";
 
 /** App-internal `ItemType` -> the table-name/db `item_type` value. Only
  * "outcome" differs (tables/rows say "symptom", matching the Log page's
@@ -156,12 +158,19 @@ function buildStoolLogRow(log: RawStoolLog, userId: string): Record<string, unkn
   };
 }
 
-function buildGymLogRow(log: RawGymLog, userId: string): Record<string, unknown> {
+/** gym_logs stores a real FK to workout_items (item_id), but the rest of the
+ * app still treats a RawGymLog's `exercise` as a plain display name (see the
+ * decision in workoutItemIdByName-style lookups elsewhere) — resolving name
+ * -> id is confined to this push boundary so nothing else has to change. */
+async function buildGymLogRow(log: RawGymLog, userId: string): Promise<Record<string, unknown>> {
+  const items = await getAllItems();
+  const match = items.find((item) => item.itemType === "workout" && normalizeName(item.rawName) === normalizeName(log.exercise));
+  if (!match) throw new Error(`No workout item found for exercise "${log.exercise}" — add it in Manage before logging.`);
   return {
     id: log.id,
     user_id: userId,
     date: log.date,
-    exercise: log.exercise,
+    item_id: match.identity,
     weight_kg: log.weightKg,
     updated_at: new Date(log.updatedAt).toISOString(),
   };
@@ -389,7 +398,7 @@ export function putGymLogAndSync(log: RawGymLog): Promise<void> {
   return withDataLock(async () => {
     await putGymLogInternal(log);
     const userId = await currentUserId();
-    if (userId) await enqueueOutboxInternal({ userId, table: "gym_logs", op: "upsert", payload: buildGymLogRow(log, userId), dedupeKey: `gym_logs:${log.id}` });
+    if (userId) await enqueueOutboxInternal({ userId, table: "gym_logs", op: "upsert", payload: await buildGymLogRow(log, userId), dedupeKey: `gym_logs:${log.id}` });
   });
 }
 
@@ -465,7 +474,7 @@ interface StoolLogRow {
 interface GymLogRow {
   id: string;
   date: string;
-  exercise: RawGymLog["exercise"];
+  item_id: string;
   weight_kg: number;
   updated_at: string;
 }
@@ -538,6 +547,7 @@ export async function pullFromCloud(): Promise<void> {
     fetchAllRows<ItemRow>(supabase, "workout_items"),
     fetchAllRows<DiaryRow>(supabase, "workout_diary"),
   ]);
+  const workoutItemNameById = new Map(workoutItemRows.map((item) => [item.id, item.name]));
 
   // Wiping and repopulating IndexedDB is one atomic unit against
   // withDataLock — see indexedDb.ts. A local write started while this is
@@ -659,10 +669,12 @@ export async function pullFromCloud(): Promise<void> {
     }
 
     for (const row of gymLogRows) {
+      const exercise = workoutItemNameById.get(row.item_id);
+      if (!exercise) continue; // orphaned row (workout item deleted) — shouldn't happen, FK is on delete restrict
       const log: RawGymLog = {
         id: row.id,
         date: row.date,
-        exercise: row.exercise,
+        exercise,
         weightKg: row.weight_kg,
         updatedAt: new Date(row.updated_at).getTime(),
       };
