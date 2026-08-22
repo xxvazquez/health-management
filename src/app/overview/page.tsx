@@ -5,7 +5,9 @@ import { useData } from "@/lib/DataContext";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Card } from "@/components/ui/Card";
 import { SampleTierBadge } from "@/components/ui/SampleTierBadge";
+import { MyDay } from "@/components/MyDay";
 import { computeOverviewInsight, topCrossDomainFindings } from "@/lib/aggregations/overview";
+import { todayLocalISODate } from "@/lib/aggregations/common";
 import type { Bullet } from "@/lib/aggregations/insights";
 import type { AssociationResult } from "@/lib/aggregations/patterns";
 
@@ -111,6 +113,7 @@ function ChangeTile({ label, value }: { label: string; value: string }) {
 
 export default function OverviewPage() {
   const { status, events, workoutLogs, stoolLogs } = useData();
+  const today = useMemo(() => todayLocalISODate(), []);
 
   const insight = useMemo(() => computeOverviewInsight(events, stoolLogs), [events, stoolLogs]);
   const crossDomainFindings = useMemo(() => topCrossDomainFindings(events, stoolLogs, workoutLogs), [events, stoolLogs, workoutLogs]);
@@ -127,6 +130,8 @@ export default function OverviewPage() {
       <h1 className="text-xl font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
         Overview
       </h1>
+
+      <MyDay events={events} workoutLogs={workoutLogs} date={today} />
 
       {!insight.insufficientData && (insight.whatMatters.length > 0 || insight.needsAttention.length > 0) && (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

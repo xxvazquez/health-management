@@ -165,3 +165,39 @@ export function cycleAnalysis(runs: PeriodRun[]): CycleAnalysis {
     periodsAnalyzed: recentPeriodLengths.length,
   };
 }
+
+/** How many days past the expected next period start `today` is — null
+ * while on a period, before any prediction exists, or before the expected
+ * date has actually passed. Read by the Cycle analytics page's delayed-
+ * period banner; deliberately computed from the FULL history (every call
+ * site passes unfiltered runs), never a date-range-limited one, since "is
+ * my period late right now" has only one right answer regardless of what
+ * range a chart happens to be showing. */
+export function periodDelayDays(predictions: PredictedPeriod[], today: string, onPeriod: boolean): number | null {
+  if (onPeriod || predictions.length === 0) return null;
+  const next = predictions[0];
+  if (today <= next.expectedStart) return null;
+  return daysBetween(next.expectedStart, today);
+}
+
+export interface DatedValue {
+  date: string;
+  value: number;
+}
+
+/** One point per completed cycle, dated at the LATER period's start (the
+ * only point in time the cycle's length is actually known) — for the
+ * Cycle analytics page's "cycle length over time" chart. */
+export function cycleLengthTrend(runs: PeriodRun[]): DatedValue[] {
+  const points: DatedValue[] = [];
+  for (let i = 0; i < runs.length - 1; i++) {
+    points.push({ date: runs[i + 1].startDate, value: daysBetween(runs[i].startDate, runs[i + 1].startDate) });
+  }
+  return points;
+}
+
+/** One point per recorded period, dated at its own start — for the Cycle
+ * analytics page's "period length over time" chart. */
+export function periodLengthTrend(runs: PeriodRun[]): DatedValue[] {
+  return runs.map((r) => ({ date: r.startDate, value: daysBetween(r.startDate, r.endDate) + 1 }));
+}

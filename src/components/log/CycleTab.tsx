@@ -3,7 +3,7 @@
 import { useMemo, useState, type ReactNode } from "react";
 import clsx from "clsx";
 import { addDaysToDate, monthStart } from "@/lib/aggregations/common";
-import { groupIntoPeriodRuns, currentCycleStatus, predictUpcomingPeriods, cycleAnalysis } from "@/lib/aggregations/cycle";
+import { groupIntoPeriodRuns, currentCycleStatus, predictUpcomingPeriods } from "@/lib/aggregations/cycle";
 import { PERIOD_INTENSITIES, COLLECTION_METHODS, type RawPeriodLog, type PeriodIntensity, type CollectionMethod } from "@/lib/types";
 
 /** Same thin-stroke icon language as Stool's own chip icons — small enough
@@ -211,7 +211,6 @@ export function CycleTab({
   const runs = useMemo(() => groupIntoPeriodRuns(periodLogs), [periodLogs]);
   const status = useMemo(() => currentCycleStatus(runs, date), [runs, date]);
   const predictions = useMemo(() => predictUpcomingPeriods(runs, 3), [runs]);
-  const analysis = useMemo(() => cycleAnalysis(runs), [runs]);
 
   const selectedEntry = useMemo(() => periodLogs.find((l) => l.date === date) ?? null, [periodLogs, date]);
 
@@ -257,6 +256,7 @@ export function CycleTab({
   }
 
   const secondMonth = useMemo(() => shiftMonth(calendarMonth, 1), [calendarMonth]);
+  const thirdMonth = useMemo(() => shiftMonth(calendarMonth, 2), [calendarMonth]);
 
   return (
     <div className="flex flex-col gap-5">
@@ -350,12 +350,16 @@ export function CycleTab({
           </button>
         </div>
 
-        {/* Two compact months, not one stretched to the card's full width —
+        {/* Compact months, not one stretched to the card's full width —
          * fills the space without either the day cells growing or needing
-         * an extra click to see what's coming. Stacks on narrow screens. */}
+         * an extra click to see what's coming. 2-up down to tablet, 3-up on
+         * desktop where there's still room to spare; stacks on mobile. */}
         <div className="flex flex-col items-center gap-5 sm:flex-row sm:items-start sm:justify-center sm:gap-8">
           <MonthGrid month={calendarMonth} today={today} date={date} accent={accent} recordedByDate={recordedByDate} predictedDates={predictedDates} onNavigateToDate={onNavigateToDate} />
           <MonthGrid month={secondMonth} today={today} date={date} accent={accent} recordedByDate={recordedByDate} predictedDates={predictedDates} onNavigateToDate={onNavigateToDate} />
+          <div className="hidden lg:block">
+            <MonthGrid month={thirdMonth} today={today} date={date} accent={accent} recordedByDate={recordedByDate} predictedDates={predictedDates} onNavigateToDate={onNavigateToDate} />
+          </div>
         </div>
         <div className="flex flex-wrap items-center justify-center gap-3 pt-1 text-xs" style={{ color: "var(--text-secondary)" }}>
           <span className="flex items-center gap-1.5">
@@ -373,55 +377,6 @@ export function CycleTab({
         </div>
       </div>
 
-      {/* ---- 3. Analysis ---- */}
-      <div className="flex flex-col gap-2 rounded-lg border p-3" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
-        <p className="border-b pb-2 text-xs font-bold tracking-wide uppercase" style={{ color: accent, borderColor: "var(--border-hairline)" }}>
-          Analysis
-        </p>
-        {analysis.cyclesAnalyzed === 0 ? (
-          <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
-            Record at least two periods to see cycle statistics.
-          </p>
-        ) : (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <div>
-              <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-                Last cycle
-              </p>
-              <p className="text-lg font-semibold tabular-nums" style={{ color: "var(--text-primary)" }}>
-                {analysis.lastCycleLength} <span className="text-xs font-normal">days</span>
-              </p>
-            </div>
-            <div>
-              <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-                Average cycle
-              </p>
-              <p className="text-lg font-semibold tabular-nums" style={{ color: "var(--text-primary)" }}>
-                {analysis.averageCycleLength} <span className="text-xs font-normal">days</span>
-              </p>
-            </div>
-            <div>
-              <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-                Cycle variation
-              </p>
-              <p className="text-lg font-semibold tabular-nums" style={{ color: "var(--text-primary)" }}>
-                ± {analysis.cycleLengthVariation ?? 0} <span className="text-xs font-normal">days</span>
-              </p>
-            </div>
-            <div>
-              <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-                Average period
-              </p>
-              <p className="text-lg font-semibold tabular-nums" style={{ color: "var(--text-primary)" }}>
-                {analysis.averagePeriodLength} <span className="text-xs font-normal">days</span>
-              </p>
-            </div>
-          </div>
-        )}
-        <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-          Based on your last {analysis.cyclesAnalyzed || 0} recorded cycle{analysis.cyclesAnalyzed === 1 ? "" : "s"} — an estimate, not a guarantee.
-        </p>
-      </div>
     </div>
   );
 }
