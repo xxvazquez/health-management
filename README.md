@@ -6,7 +6,7 @@ A personal food, symptom, supplement, habit, and workout tracker, with a dashboa
 
 Static Next.js site — no server, everything runs in the browser. Supabase is the only source of truth; IndexedDB is a synced local cache, repopulated from Supabase on sign-in and revalidated whenever a page loads or the tab regains focus — no page fetches its own copy or needs a manual refresh to stay current.
 
-Every tap writes to IndexedDB first, so the UI never waits on the network, and queues itself in a small outbox alongside the write. A background drain sends queued writes to Supabase with retry and backoff, runs on reconnect and periodically, and survives closing the tab or losing connection entirely — nothing typed offline gets lost, it just sends once you're back. A write that fails permanently (not a network blip, an actual rejection) stops retrying and shows up as a small banner instead of failing silently. That same drain also runs right before a cloud sync wipes and rebuilds the local cache, and the two are coordinated through one lock so a sync can never run in the middle of a write or erase one that hasn't made it to Supabase yet.
+Every tap writes to IndexedDB first, so the UI never waits on the network, and queues itself in a small outbox alongside the write. A background drain sends queued writes to Supabase with retry and backoff, runs on reconnect and periodically, and survives closing the tab or losing connection entirely — nothing typed offline gets lost, it just sends once you're back. A write that fails permanently (not a network blip, an actual rejection) stops retrying and shows up in a banner (`src/components/SyncStatusBanner.tsx`) that names what failed and why in plain language, with a Retry button per entry — the record itself was already safe in IndexedDB the whole time, only its cloud copy is stuck. That same drain also runs right before a cloud sync wipes and rebuilds the local cache, and the two are coordinated through one lock so a sync can never run in the middle of a write or erase one that hasn't made it to Supabase yet.
 
 It's also an installable PWA — `public/manifest.webmanifest` and a small service worker (`public/sw.js`, registered from `src/components/RegisterServiceWorker.tsx`) let a browser add it to the home screen and reload the app shell without a network connection. That's on top of, not instead of, the IndexedDB caching above: the service worker caches the shell (HTML/JS/CSS), IndexedDB caches the data. The cache name bakes in the deploy's git SHA (substituted by `.github/workflows/deploy.yml` right before the build, from a placeholder in `sw.js`), so every deploy is a genuinely new cache the browser detects and swaps to, instead of silently accumulating every build's assets forever.
 
@@ -14,9 +14,9 @@ Signing in is handled globally, not per page: one account menu in the nav (`src/
 
 Logging is tap-to-log — pick a category, tap the item, done, no forms. Every tab (Food, Supplements, Habits, Symptoms) has a Time field above the grid, defaulting to now — set it before tapping to log something at 9pm that actually happened at 10am, without having to go fix it up afterward. Stool has the same field built into its own form, for the same reason. Food additionally supports multi-tapping (count goes up each time, once per meal) and a meal tag. An "item" is anything you track (a food, a symptom, a habit, a supplement), with a category chosen once at creation and stored on the item itself rather than re-derived later; `src/taxonomy/classify.ts`'s `lookupFoodCategory` just guesses food's category from its typed name as a one-time prefill convenience, gated to categories that actually still exist so it can't resurrect one you removed. `src/lib/canonical/buildCanonicalEvents.ts` turns items + logs into the dataset most dashboard pages read from.
 
-Adding, renaming, or archiving an item — and adding/removing the categories themselves — never means opening Supabase by hand. The Manage page (`src/app/manage/`) does all of it, backed by a table per type (`food_items`, `supplement_items`, `habit_items`, `symptom_items`) plus a shared `categories` table, and synced the same way as everything else. Sections are collapsed by default, alphabetized, and searchable across all four types at once. Archiving hides an item from the Log page's tap grid and its own section's active list; its full logged history still counts in every dashboard. Category lists work identically for all four types, Food included: a type with no categories yet in `categories` gets seeded from the built-in defaults in `src/taxonomy/categories.ts` the first time it's touched, and from then on the database is the only source of truth — those defaults are never reintroduced or merged back in, so removing one sticks. Deliberately the only place to hide something — the Log page just links to it rather than growing a second, competing hide mechanism.
+Adding, renaming, or archiving an item — and adding/removing the categories themselves — never means opening Supabase by hand. The Manage page (`src/app/manage/`) does all of it, backed by a table per type (`food_items`, `supplement_items`, `habit_items`, `symptom_items`, `workout_items`) plus a shared `categories` table, and synced the same way as everything else. Sections are collapsed by default, alphabetized, and searchable across all five types at once. Archiving hides an item from the Log page's tap grid and its own section's active list; its full logged history still counts in every dashboard. An item can also be permanently deleted instead — but only one with zero logged history (`getItemIdentitiesWithHistory` in `src/lib/db/indexedDb.ts`), since every `*_logs`/`*_diary` table's foreign key to its item table is `on delete restrict`; anything with a single logged day can still only be archived. Category lists work identically for all five types, Food included: a type with no categories yet in `categories` gets seeded from the built-in defaults in `src/taxonomy/categories.ts` the first time it's touched, and from then on the database is the only source of truth — those defaults are never reintroduced or merged back in, so removing one sticks. Deliberately the only place to hide something — the Log page just links to it rather than growing a second, competing hide mechanism. Workout items additionally carry a `unit` (kg / minutes / reps, or any other free-text label typed in on Manage) — what a logged number for that exercise actually means; the Workout tab's stepper adapts to it per exercise.
 
-The full shape, one table per tracked type plus the ones that don't fit it (Stool has no item to classify, one row is one bowel movement; Workout has no item either, one row is one lift; a push subscription is one row per user, not per anything trackable):
+The full shape, one table per tracked type plus the ones that don't quite fit it (Stool has no item to classify, one row is one bowel movement; Workout's own logs stay in their pre-existing `gym_logs` table, matched to `workout_items` by name rather than a foreign key — see that table's own comment in `supabase/schema.sql` for why; a push subscription is one row per user, not per anything trackable):
 
 ```mermaid
 erDiagram
@@ -24,6 +24,7 @@ erDiagram
     CATEGORIES ||--o{ SUPPLEMENT_ITEMS : "(user_id, category_id, item_type)"
     CATEGORIES ||--o{ HABIT_ITEMS : "(user_id, category_id, item_type)"
     CATEGORIES ||--o{ SYMPTOM_ITEMS : "(user_id, category_id, item_type)"
+    CATEGORIES ||--o{ WORKOUT_ITEMS : "(user_id, category_id, item_type)"
 
     FOOD_ITEMS ||--o{ FOOD_LOGS : "(user_id, item_id)"
     FOOD_ITEMS ||--o{ FOOD_DIARY : "(user_id, item_id)"
@@ -33,6 +34,7 @@ erDiagram
     HABIT_ITEMS ||--o{ HABIT_DIARY : "(user_id, item_id)"
     SYMPTOM_ITEMS ||--o{ SYMPTOM_LOGS : "(user_id, item_id)"
     SYMPTOM_ITEMS ||--o{ SYMPTOM_DIARY : "(user_id, item_id)"
+    WORKOUT_ITEMS ||--o{ WORKOUT_DIARY : "(user_id, item_id)"
 
     CATEGORIES {
         uuid id PK
@@ -71,6 +73,14 @@ erDiagram
         text name
         uuid category_id FK
         boolean is_archived
+    }
+    WORKOUT_ITEMS {
+        uuid id PK
+        uuid user_id
+        text name
+        uuid category_id FK
+        boolean is_archived
+        text unit
     }
     FOOD_LOGS {
         uuid id PK
@@ -121,6 +131,12 @@ erDiagram
         date date
         text content
     }
+    WORKOUT_DIARY {
+        uuid id PK
+        uuid item_id FK
+        date date
+        text content
+    }
     STOOL_LOGS {
         uuid id PK
         uuid user_id
@@ -138,6 +154,9 @@ erDiagram
         text exercise
         numeric weight_kg
     }
+    %% GYM_LOGS.exercise is a plain name, matched against WORKOUT_ITEMS.name
+    %% at the app layer, not a foreign key — see WORKOUT_ITEMS' own comment
+    %% in supabase/schema.sql. Left undrawn above for that reason.
     PUSH_SUBSCRIPTIONS {
         uuid user_id PK
         text endpoint
@@ -145,11 +164,11 @@ erDiagram
     }
 ```
 
-`STOOL_LOGS`, `GYM_LOGS`, and `PUSH_SUBSCRIPTIONS` have no relationships drawn — deliberately: none of them has an item to classify, so none references `CATEGORIES` or anything else. Every relationship above is a composite foreign key, not a plain one — `(user_id, category_id, item_type)` means a supplement item structurally can't reference a habit category, and `(user_id, item_id)` means no row can ever reference another user's data, regardless of RLS. Every item is `on delete restrict` — one with any history can be archived but never deleted, so a log can't outlive the thing it's about. See [`supabase/schema.sql`](supabase/schema.sql) for the actual DDL.
+`STOOL_LOGS` and `PUSH_SUBSCRIPTIONS` have no relationships drawn — deliberately: neither has an item to classify, so neither references `CATEGORIES` or anything else. `GYM_LOGS` is the one exception to the pattern: `WORKOUT_ITEMS` exists and is fully wired into `CATEGORIES`/`WORKOUT_DIARY` like every other type, but `GYM_LOGS.exercise` stays a plain name rather than a real foreign key to it (see the comment above the diagram). Every relationship that *is* drawn is a composite foreign key, not a plain one — `(user_id, category_id, item_type)` means a supplement item structurally can't reference a habit category, and `(user_id, item_id)` means no row can ever reference another user's data, regardless of RLS. Every item is `on delete restrict` — one with any history can be archived but never deleted, so a log can't outlive the thing it's about. See [`supabase/schema.sql`](supabase/schema.sql) for the actual DDL.
 
-Workout doesn't fit that shape — a lift is an exercise + a weight, with no separate "item" to classify — so it has its own table (`gym_logs`) and its own aggregation module (`src/lib/aggregations/gym.ts`), and it's the one page with an actual entry form instead of tap-to-log chips.
+Workout's logs don't fit the shared shape — a lift is an exercise + a weight/duration/rep count, several a day, which is what `gym_logs` and its own aggregation module (`src/lib/aggregations/gym.ts`) are already built around — so that stayed as-is rather than being rebuilt on the generic `*_logs` tables. What *did* move onto the shared shape is which exercises exist: `workout_items` (name, category, archive state, unit) is a real item type like any other, managed on the Manage page and read by the Log page's Workout tab to render one row per exercise — `gym_logs.exercise` is then just matched against `workout_items.name` when resolving a logged set's category/unit for display. Workout is still the one tab with a tap-a-stepper-and-log flow instead of tap-to-log chips, since a lift needs a value, not just an occurrence.
 
-Dashboards: Overview, Food, Supplements, Habits, Digestion, Patterns, Workout — all still fully working, but only Log, Workout, Food, and Manage items are currently linked in the nav (`src/components/Nav.tsx`) while analytics gets rebuilt one area at a time; the rest are one edit away from being re-added, nothing about them was removed. Most are purely descriptive — charts and stats, nothing that diagnoses anything. Food is the exception: on top of the charts, it reads your logged intake against a research-informed scoring model (`src/lib/aggregations/nutritionPriorities.ts`) to surface what's underrepresented and a "Focus next week" list of concrete suggestions, with a one-line "N ingredients · N groups underrepresented · variety stable/increasing/decreasing" summary rather than a large pattern card. Repetition of a food is never itself treated as a problem — a well-covered, evidence-backed group logged often is explicitly excluded from every recommendation; only an actual gap, or a food dominating intake while other core food groups are missing, gets surfaced. Food Analytics itself stays deliberately citation-free — no PubMed IDs, DOIs, or "why this is suggested" links in the page; the underlying research (systematic reviews, meta-analyses, cohort studies — real PubMed IDs/DOIs, `src/lib/nutritionEvidenceRecords.ts`) lives entirely on its own page at Manage → Nutrition evidence (`src/app/manage/nutrition-evidence/`), reusing the same evidence records rather than a second system. Still never a diagnosis, and careful to say "not logged" rather than "not eaten" — logging frequency, never a stand-in for quantity or what was actually eaten. Every dashboard (Workout included) shares the same date-range filter panel component — Food uses its own preset wording (this week / 2 weeks / 1 month / 6 months / 1 year / all time, plus a custom range) since "this week" reads more naturally there than the "last N days" phrasing every other page keeps — placed right where it actually takes effect; a section that intentionally reads your full history regardless of that filter (Food's underrepresented-foods/Focus-next-week cards, Workout's lifetime progression) says so in its own subtitle rather than leaving it ambiguous.
+Dashboards: Overview, Food, Supplements, Habits, Digestion, Patterns, Workout — all still fully working, but only Log, Workout, Food, and Manage items are currently linked in the nav (`src/components/Nav.tsx`) while analytics gets rebuilt one area at a time; the rest are one edit away from being re-added, nothing about them was removed. Most are purely descriptive — charts and stats, nothing that diagnoses anything. Food is the exception: on top of the charts, its Overview reads your logged intake against a research-informed scoring model (`src/lib/aggregations/nutritionPriorities.ts`) and reduces it to two headline stat tiles — unique ingredients logged and whether variety is increasing, decreasing, or stable — plus a short "Worth noticing" list of food groups that have appeared unusually rarely in the recent history. That list is purely observational, never a target: repeating the same foods is fine, and it's never phrased as a deficiency or an instruction to eat more of anything. Repetition of a food is never itself treated as a problem — a well-covered, evidence-backed group logged often is explicitly excluded from every recommendation; only an actual gap, or a food dominating intake while other core food groups are missing, gets surfaced. Food Analytics itself stays deliberately citation-free — no PubMed IDs, DOIs, or "why this is suggested" links in the page; the underlying research (systematic reviews, meta-analyses, cohort studies — real PubMed IDs/DOIs, `src/lib/nutritionEvidenceRecords.ts`) lives entirely on its own page at Manage → Nutrition evidence (`src/app/manage/nutrition-evidence/`), reusing the same evidence records rather than a second system. Still never a diagnosis, and careful to say "not logged" rather than "not eaten" — logging frequency, never a stand-in for quantity or what was actually eaten. Every dashboard (Workout included) shares the same date-range filter panel component — Food uses its own preset wording (this week / 2 weeks / 1 month / 6 months / 1 year / all time, plus a custom range) since "this week" reads more naturally there than the "last N days" phrasing every other page keeps — placed right where it actually takes effect; a section that intentionally reads your full history regardless of that filter (Food's Overview and coverage sections, Workout's lifetime progression) says so in its own subtitle rather than leaving it ambiguous.
 
 Digestion and Workout are built around one question each rather than a wall of charts: Digestion's Bristol score is a single chronological line with the 3–4 target range shaded in, plus how much of the time you're actually in it; Workout leads with training consistency (sessions/month, gaps) and per-lift progression rather than a raw log table. Every page carries a small disclaimer in the footer — this is personal data description, not medical advice.
 

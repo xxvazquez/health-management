@@ -31,12 +31,18 @@ const OCCASIONAL_SUPPLEMENTS: [string, string][] = [
   ["Iron", "Minerals"],
   ["Folate", "Vitamins"],
 ];
-const DAILY_HABIT: [string, string] = ["Sleep well", "Sleep"];
+const DAILY_HABIT: [string, string] = ["Sleep", "Daily"];
 const OCCASIONAL_HABITS: [string, string][] = [
-  ["Walk", "Movement"],
-  ["Workout", "Exercise"],
-  ["Take a shower", "Self-care"],
-  ["Rest 30'", "Self-care"],
+  ["Workout", "Body"],
+  ["Walk", "Body"],
+  ["Physiotherapy", "Body"],
+  ["Take a shower", "Daily"],
+  ["Read", "Daily"],
+  ["Sugar", "Food"],
+  ["Fasting", "Food"],
+  ["Breakfast timing", "Food"],
+  ["Lunch timing", "Food"],
+  ["Dinner timing", "Food"],
 ];
 const SYMPTOMS: [string, string][] = [
   ["Bloating", "Digestive Symptom"],
@@ -133,6 +139,7 @@ export function buildDemoDataset(): DemoDataset {
         isArchived: false,
         createdDate,
         reminderTime: null,
+        unit: itemType === "workout" ? "kg" : null,
       });
     }
     return identity;
@@ -228,6 +235,10 @@ export function buildDemoDataset(): DemoDataset {
   const gymLogs: RawGymLog[] = [];
   let gymCounter = 0;
   for (const prog of GYM_PROGRESSIONS) {
+    // Same registry every real user gets via ensureDefaultWorkoutItems —
+    // without this, demo mode's row-per-exercise Workout tab would have
+    // nothing to render despite gymLogs below having real history.
+    ensureItem("workout", prog.exercise, "Strength Training");
     let weightKg = prog.startKg;
     for (let dayOffset = DEMO_WINDOW_DAYS; dayOffset >= 0; dayOffset--) {
       if (dayOffset % prog.cadenceDays !== prog.phase) continue;

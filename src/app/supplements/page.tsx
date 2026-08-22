@@ -70,7 +70,7 @@ export default function SupplementsPage() {
         <p className="text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
           Details
         </p>
-        {span && range && <DateRangeFilter span={span} value={range} onChange={setRange} />}
+        {span && range && <DateRangeFilter span={span} value={range} onChange={setRange} accent={TYPE_ACCENT.supplement} />}
       </div>
 
       {groups.map((group) => (

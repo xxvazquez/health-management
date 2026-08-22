@@ -1,5 +1,11 @@
 import type { ItemType } from "@/taxonomy/categories";
 
+/** Seeded as real `workout_items` rows (see categoryResolution.ts's
+ * `ensureDefaultWorkoutItems`) the first time a signed-in user with none
+ * yet opens the Workout tab — preserves the exact 7 exercises this app
+ * used to hardcode, now just as a starting point rather than the whole
+ * list. Exercise names are otherwise fully user-defined from here on
+ * (Running, Swimming, Yoga, ... — see the Workout section of Manage). */
 export const GYM_EXERCISES = [
   "Squat",
   "Deadlift",
@@ -9,9 +15,44 @@ export const GYM_EXERCISES = [
   "Push Ups",
   "Row Machine",
 ] as const;
-export type GymExercise = (typeof GYM_EXERCISES)[number];
+export type GymExercise = string;
 
-/** One logged lift — an exercise + weight on a given day, from the Gym page. */
+/** What a `RawGymLog.weightKg` value actually means for a given exercise —
+ * kg for strength work, but a yoga/cardio session is more naturally tracked
+ * in minutes, and a bodyweight exercise in reps. Configured per exercise on
+ * its `workout_items` row (see `RawItem.unit`), defaulting to "kg" (every
+ * exercise before units existed was strength work). Free text, not a fixed
+ * set — the Manage page lets a unit be added/edited/deleted like anything
+ * else, so `WORKOUT_UNITS` below is only the built-in starting suggestions
+ * (with a tuned stepper — see NumberStepper's `UNIT_STEP_PRESETS`), never
+ * an exhaustive list. */
+export const WORKOUT_UNITS = ["kg", "minutes", "reps"] as const;
+export type WorkoutUnit = string;
+
+const KNOWN_WORKOUT_UNIT_LABEL: Record<string, string> = {
+  kg: "kg",
+  minutes: "min",
+  reps: "reps",
+};
+
+/** Short display label for a unit — the 3 built-in units abbreviate
+ * (minutes -> min); anything a user typed in for a custom unit is shown
+ * exactly as they typed it, since there's no abbreviation to guess. */
+export function workoutUnitLabel(unit: string): string {
+  return KNOWN_WORKOUT_UNIT_LABEL[unit] ?? unit;
+}
+
+/** One logged set — an exercise + a numeric value (see `WorkoutUnit` for
+ * what it means) on a given day, from the Log page's Workout tab.
+ * `exercise` is a plain name matched against `workout_items.name` at the
+ * app layer (see that table's schema.sql comment for why this isn't a
+ * foreign key) rather than an item identity — unlike
+ * food/habit/supplement/symptom logs, which reference their item by
+ * identity. `weightKg` keeps its original name/column even though it now
+ * holds whatever unit the exercise is configured for (minutes, reps) —
+ * renaming the column would be a second migration on live data for a
+ * cosmetic gain only; every read site pairs it with the resolved unit
+ * label rather than assuming kg. */
 export interface RawGymLog {
   id: string;
   date: string; // YYYY-MM-DD
@@ -54,6 +95,11 @@ export interface RawItem {
    * cron-only bookkeeping this type deliberately never carries — see
    * setItemReminderTimeAndSync in lib/supabase/sync.ts for why. */
   reminderTime: string | null;
+  /** Workout items only — what a logged value for this exercise means (kg,
+   * minutes, reps). Null for every other type, and for a workout item
+   * that predates units (treated as "kg" wherever it's read — see
+   * WORKOUT_UNITS' own comment). */
+  unit: WorkoutUnit | null;
 }
 
 /** One log entry for an item on a given day — Supabase's `<type>_logs` tables. */

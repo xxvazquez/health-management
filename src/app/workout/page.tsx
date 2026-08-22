@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { useData } from "@/lib/DataContext";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Card, CardTitle } from "@/components/ui/Card";
@@ -9,7 +10,6 @@ import { DateRangeFilter } from "@/components/ui/DateRangeFilter";
 import { TrendAreaChart } from "@/components/charts/TrendAreaChart";
 import { RankedBarChart } from "@/components/charts/RankedBarChart";
 import { useDateRangeFilter } from "@/lib/useDateRangeFilter";
-import { putGymLogAndSync, deleteGymLogAndSync } from "@/lib/supabase/sync";
 import {
   describeProgression,
   gymConsistencySummary,
@@ -17,20 +17,19 @@ import {
   gymInsight,
   gymMonthlySessions,
   gymStatsByExercise,
-  gymTimeline,
   formatGymDate,
-  formatGymDateShort,
   type GymExerciseStats,
-  type GymTimelineEntry,
 } from "@/lib/aggregations/gym";
 import { formatMonthYear, todayLocalISODate } from "@/lib/aggregations/common";
-import { GYM_EXERCISES, type GymExercise, type RawGymLog } from "@/lib/types";
+import { TYPE_ACCENT } from "@/taxonomy/categories";
+import type { GymExercise } from "@/lib/types";
 
-// A single consistent brand accent for identity (which exercise, which
-// chart) — color is reserved for MEANINGFUL STATE (improved/declined), not
+// Same accent as every other Workout surface (Log's Workout tab, its
+// timeline entries, Manage's Workout section) — color is otherwise
+// reserved for MEANINGFUL STATE (improved/declined) on this page, not
 // spent distinguishing seven exercises from each other. See DIRECTION_COLOR
 // below for the only place color actually carries meaning on this page.
-const ACCENT = "var(--series-1)";
+const ACCENT = TYPE_ACCENT.workout;
 
 type Direction = "up" | "down" | "flat";
 
@@ -45,12 +44,6 @@ const DIRECTION_COLOR: Record<Direction, string> = {
   down: "var(--status-warning)",
   flat: "var(--text-muted)",
 };
-
-interface EditState {
-  id: string;
-  date: string;
-  weight: string;
-}
 
 function signed(n: number): string {
   return n >= 0 ? `+${n}` : String(n);
@@ -187,140 +180,10 @@ function StrengthProgressTable({
   );
 }
 
-/** The Timeline's entry cards — same visual language as /log's daily
- * timeline strip (small rounded-lg card, accent dot, monospaced date,
- * inline delete), adapted to a vertical scrolling list since this spans
- * months of history rather than one day's few entries. */
-function EntryList({
-  entries,
-  editing,
-  setEditing,
-  pendingId,
-  onSave,
-  onDelete,
-  today,
-}: {
-  entries: GymTimelineEntry[];
-  editing: EditState | null;
-  setEditing: (e: EditState | null) => void;
-  pendingId: string | null;
-  onSave: (entry: GymTimelineEntry) => void;
-  onDelete: (id: string) => void;
-  today: string;
-}) {
-  if (entries.length === 0) {
-    return (
-      <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-        Nothing here yet.
-      </p>
-    );
-  }
-  return (
-    <div className="flex max-h-[32rem] flex-col gap-2 overflow-y-auto pr-1">
-      {entries.map((entry) => {
-        const busy = pendingId === entry.id;
-        if (editing?.id === entry.id) {
-          return (
-            <div
-              key={entry.id}
-              className="flex flex-wrap items-center gap-2 rounded-lg border px-2.5 py-2 text-xs"
-              style={{ borderColor: "var(--border-hairline)", background: "var(--page-plane)" }}
-            >
-              <input
-                type="date"
-                value={editing.date}
-                max={today}
-                onChange={(e) => setEditing({ ...editing, date: e.target.value })}
-                className="rounded-md border px-2 py-1"
-                style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
-              />
-              <input
-                type="number"
-                inputMode="decimal"
-                step="0.25"
-                min="0"
-                value={editing.weight}
-                onChange={(e) => setEditing({ ...editing, weight: e.target.value })}
-                className="w-20 rounded-md border px-2 py-1"
-                style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
-              />
-              <button type="button" onClick={() => onSave(entry)} disabled={busy} className="font-medium disabled:opacity-40" style={{ color: "var(--status-good)" }}>
-                Save
-              </button>
-              <button type="button" onClick={() => setEditing(null)} disabled={busy} className="disabled:opacity-40" style={{ color: "var(--text-muted)" }}>
-                Cancel
-              </button>
-            </div>
-          );
-        }
-        return (
-          <div
-            key={entry.id}
-            className="flex flex-col gap-1 rounded-lg border px-2.5 py-2"
-            style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", opacity: busy ? 0.5 : 1 }}
-          >
-            <div className="flex items-center gap-2">
-              <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: ACCENT }} />
-              <span className="font-mono text-xs whitespace-nowrap" style={{ color: "var(--text-secondary)" }}>
-                {formatGymDate(entry.date)}
-              </span>
-              <button
-                type="button"
-                onClick={() => onDelete(entry.id)}
-                disabled={busy}
-                aria-label={`Delete ${entry.exercise} entry on ${entry.date}`}
-                className="ml-auto text-xs leading-none disabled:opacity-40"
-                style={{ color: "var(--text-secondary)" }}
-              >
-                ✕
-              </button>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium whitespace-nowrap" style={{ color: "var(--text-primary)" }}>
-                {entry.exercise}
-              </span>
-              <span className="text-sm whitespace-nowrap" style={{ color: "var(--text-primary)" }}>
-                {entry.weightKg} kg
-              </span>
-              {entry.isPR && (
-                <span
-                  className="rounded-md px-1.5 py-0.5 text-[10px] font-medium tracking-wide uppercase"
-                  style={{ background: "color-mix(in oklab, var(--status-good) 16%, transparent)", color: "var(--status-good)" }}
-                >
-                  PR
-                </span>
-              )}
-              <button
-                type="button"
-                onClick={() => setEditing({ id: entry.id, date: entry.date, weight: String(entry.weightKg) })}
-                disabled={busy}
-                aria-label={`Edit ${entry.exercise} entry on ${entry.date}`}
-                className="ml-auto text-xs underline decoration-dotted disabled:opacity-40"
-                style={{ color: "var(--text-muted)" }}
-              >
-                Edit
-              </button>
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
 export default function WorkoutPage() {
-  const { status, gymLogs, refresh } = useData();
+  const { status, gymLogs } = useData();
   const today = useMemo(() => todayLocalISODate(), []);
-  const [date, setDate] = useState(today);
-  const [exercise, setExercise] = useState<GymExercise>("Squat");
-  const [weight, setWeight] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [pendingId, setPendingId] = useState<string | null>(null);
-  const [editing, setEditing] = useState<EditState | null>(null);
-  const [timelineFilter, setTimelineFilter] = useState<GymExercise | "all">("all");
-  const [timelineOpen, setTimelineOpen] = useState(false);
   const [compareExercise, setCompareExercise] = useState<GymExercise | null>(null);
-  const [weightPrefillSignal, setWeightPrefillSignal] = useState<string | null>(null);
 
   const { span, range, setRange, filtered: filteredGymLogs } = useDateRangeFilter(gymLogs);
 
@@ -334,25 +197,9 @@ export default function WorkoutPage() {
   const consistency = useMemo(() => gymConsistencySummary(gymLogs, today), [gymLogs, today]);
   const monthlySessions = useMemo(() => gymMonthlySessions(filteredGymLogs), [filteredGymLogs]);
   const exerciseFrequency = useMemo(() => gymExerciseFrequency(filteredGymLogs), [filteredGymLogs]);
-  const timeline = useMemo(() => gymTimeline(gymLogs), [gymLogs]);
 
   const selectedExercise = compareExercise && stats.some((s) => s.exercise === compareExercise) ? compareExercise : (stats[0]?.exercise ?? null);
   const selectedStats = stats.find((s) => s.exercise === selectedExercise) ?? null;
-  const filteredTimeline = timelineFilter === "all" ? timeline : timeline.filter((e) => e.exercise === timelineFilter);
-
-  // Prefills the weight field with that exercise's last logged weight, so
-  // repeat entries (the common case) don't need retyping from scratch. Keyed
-  // on exercise + that exercise's last weight, so it fires once per actual
-  // change (exercise switch, or a new log arriving) and never fights the
-  // user clearing the field to type something else.
-  const lastWeightForExercise = stats.find((s) => s.exercise === exercise)?.current.weightKg;
-  const prefillSignal = `${exercise}:${lastWeightForExercise ?? ""}`;
-  if (weightPrefillSignal !== prefillSignal) {
-    setWeightPrefillSignal(prefillSignal);
-    if (weight === "" && lastWeightForExercise !== undefined) {
-      setWeight(String(lastWeightForExercise));
-    }
-  }
 
   if (status === "loading") return <p style={{ color: "var(--text-muted)" }}>Loading…</p>;
   if (status === "empty") return <EmptyState />;
@@ -385,99 +232,24 @@ export default function WorkoutPage() {
   const rangeIsAllTime = !!span && !!range && range.start === span.start && range.end === span.end;
   const rangeLabel = range ? (rangeIsAllTime ? "all time" : `${formatGymDate(range.start)} – ${formatGymDate(range.end)}`) : "";
 
-  async function handleAdd(e: React.FormEvent) {
-    e.preventDefault();
-    const weightKg = Number(weight);
-    if (!Number.isFinite(weightKg) || weightKg <= 0) return;
-    setSubmitting(true);
-    const log: RawGymLog = { id: crypto.randomUUID(), date, exercise, weightKg, updatedAt: Date.now() };
-    await putGymLogAndSync(log);
-    await refresh();
-    setSubmitting(false);
-    setWeight("");
-  }
-
-  async function handleDelete(id: string) {
-    setPendingId(id);
-    await deleteGymLogAndSync(id);
-    await refresh();
-    setPendingId(null);
-  }
-
-  async function handleSaveEdit(entry: GymTimelineEntry) {
-    if (!editing || editing.id !== entry.id) return;
-    const weightKg = Number(editing.weight);
-    if (!Number.isFinite(weightKg) || weightKg <= 0 || !editing.date) return;
-    setPendingId(entry.id);
-    const updated: RawGymLog = { id: entry.id, exercise: entry.exercise, date: editing.date, weightKg, updatedAt: Date.now() };
-    await putGymLogAndSync(updated);
-    await refresh();
-    setPendingId(null);
-    setEditing(null);
-  }
-
   return (
     <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
-      <h1 className="text-xl font-semibold tracking-tight lg:col-span-2" style={{ color: "var(--text-primary)" }}>
-        Workout
-      </h1>
-
-      <Card tier="raw" className="lg:col-span-2">
-        <CardTitle size="sm">Log a lift</CardTitle>
-        <form onSubmit={(e) => void handleAdd(e)} className="flex flex-wrap items-end gap-3">
-          <label className="flex flex-col gap-1 text-xs" style={{ color: "var(--text-muted)" }}>
-            Date
-            <input
-              type="date"
-              value={date}
-              max={today}
-              onChange={(e) => setDate(e.target.value)}
-              className="rounded-md border px-2.5 py-1.5 text-sm"
-              style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
-            />
-          </label>
-          <label className="flex flex-col gap-1 text-xs" style={{ color: "var(--text-muted)" }}>
-            Exercise
-            <select
-              value={exercise}
-              onChange={(e) => {
-                setExercise(e.target.value as GymExercise);
-                setWeight("");
-              }}
-              className="rounded-md border px-2.5 py-1.5 text-sm"
-              style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
-            >
-              {GYM_EXERCISES.map((ex) => (
-                <option key={ex} value={ex}>
-                  {ex}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="flex flex-col gap-1 text-xs" style={{ color: "var(--text-muted)" }}>
-            Weight (kg)
-            <input
-              type="number"
-              inputMode="decimal"
-              step="0.25"
-              min="0"
-              value={weight}
-              onChange={(e) => setWeight(e.target.value)}
-              placeholder="e.g. 100"
-              className="w-28 rounded-md border px-2.5 py-1.5 text-sm"
-              style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
-            />
-          </label>
-          <button
-            type="submit"
-            disabled={submitting || !weight}
-            className="rounded-md px-4 py-1.5 text-sm font-medium text-white disabled:opacity-40"
-            style={{ background: "var(--series-1)" }}
-          >
-            {submitting ? "Saving…" : "Log it"}
-          </button>
-        </form>
-      </Card>
+      <div className="lg:col-span-2">
+        <h1 className="text-xl font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
+          Workout
+        </h1>
+        <p className="mt-1 text-sm" style={{ color: "var(--text-secondary)" }}>
+          Charts and progression from what you&apos;ve logged — head to the{" "}
+          <Link href="/log" className="underline decoration-dotted" style={{ color: "var(--text-secondary)" }}>
+            Log page
+          </Link>{" "}
+          to add a lift, or{" "}
+          <Link href="/manage" className="underline decoration-dotted" style={{ color: "var(--text-secondary)" }}>
+            Manage
+          </Link>{" "}
+          to add, archive, or set units for exercises.
+        </p>
+      </div>
 
       {insight && (
         <div className="lg:col-span-2">
@@ -490,7 +262,7 @@ export default function WorkoutPage() {
           <p className="text-xs" style={{ color: "var(--text-muted)" }}>
             Showing <span style={{ color: "var(--text-secondary)" }}>{rangeLabel}</span> — affects the two charts below only
           </p>
-          <DateRangeFilter span={span} value={range} onChange={setRange} />
+          <DateRangeFilter span={span} value={range} onChange={setRange} accent={ACCENT} />
         </div>
       )}
 
@@ -577,56 +349,6 @@ export default function WorkoutPage() {
           />
         </Card>
       )}
-
-      <Card tier="supporting" className="lg:col-span-2">
-        <button
-          type="button"
-          onClick={() => setTimelineOpen((v) => !v)}
-          className="flex w-full items-center justify-between gap-3 text-left"
-        >
-          <div>
-            <h3 className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>
-              Timeline
-            </h3>
-            <p className="mt-0.5 text-xs" style={{ color: "var(--text-muted)" }}>
-              {timeline.length} session{timeline.length === 1 ? "" : "s"} logged
-              {timeline.length > 0 && <> · Last session {formatGymDateShort(timeline[0].date)}</>}
-              {stats.length > 0 && <> · {stats.length} exercise{stats.length === 1 ? "" : "s"}</>}
-            </p>
-          </div>
-          <span className="shrink-0 text-xs font-medium underline decoration-dotted" style={{ color: "var(--text-secondary)" }}>
-            {timelineOpen ? "Hide" : "Show"}
-          </span>
-        </button>
-        {timelineOpen && (
-          <div className="mt-4">
-            <div className="mb-3 flex justify-end">
-              <select
-                value={timelineFilter}
-                onChange={(e) => setTimelineFilter(e.target.value as GymExercise | "all")}
-                className="rounded-md border px-2.5 py-1.5 text-sm"
-                style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
-              >
-                <option value="all">All exercises</option>
-                {stats.map((s) => (
-                  <option key={s.exercise} value={s.exercise}>
-                    {s.exercise}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <EntryList
-              entries={filteredTimeline}
-              editing={editing}
-              setEditing={setEditing}
-              pendingId={pendingId}
-              onSave={(entry) => void handleSaveEdit(entry)}
-              onDelete={(id) => void handleDelete(id)}
-              today={today}
-            />
-          </div>
-        )}
-      </Card>
     </div>
   );
 }

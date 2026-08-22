@@ -78,7 +78,7 @@ export default function HabitsPage() {
         <p className="text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
           Details
         </p>
-        {span && range && <DateRangeFilter span={span} value={range} onChange={setRange} />}
+        {span && range && <DateRangeFilter span={span} value={range} onChange={setRange} accent={TYPE_ACCENT.habit} />}
       </div>
 
       {groups.map((group) => (

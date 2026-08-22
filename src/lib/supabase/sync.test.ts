@@ -308,12 +308,47 @@ describe("putItemAndSync — mutation and outbox enqueue are one atomic operatio
     const { putItemAndSync } = await import("./sync");
     const { getAllOutboxEntries } = await import("@/lib/db/indexedDb");
 
-    const item = { identity: "atomic-item-1", itemType: "food" as const, rawName: "Pear", category: "Fruit", categoryId: null, isArchived: false, createdDate: "2026-01-01", reminderTime: null };
+    const item = { identity: "atomic-item-1", itemType: "food" as const, rawName: "Pear", category: "Fruit", categoryId: null, isArchived: false, createdDate: "2026-01-01", reminderTime: null, unit: null };
     await putItemAndSync(item);
 
     const entries = (await getAllOutboxEntries()).filter((e) => e.dedupeKey === "food_items:atomic-item-1");
     expect(entries).toHaveLength(1);
     expect(entries[0]).toMatchObject({ table: "food_items", op: "upsert", status: "pending" });
+  });
+
+  // food_items/symptom_items/workout_items have no reminder_time column
+  // (see schema.sql) — sending that key would make Supabase reject the
+  // whole upsert as an unknown column, not just ignore it.
+  it("never sends reminder_time for a type whose table doesn't have that column", async () => {
+    const { putItemAndSync } = await import("./sync");
+    const { getAllOutboxEntries } = await import("@/lib/db/indexedDb");
+
+    const item = { identity: "no-reminder-item-1", itemType: "food" as const, rawName: "Kiwi", category: "Fruit", categoryId: null, isArchived: false, createdDate: "2026-01-01", reminderTime: null, unit: null };
+    await putItemAndSync(item);
+
+    const [entry] = (await getAllOutboxEntries()).filter((e) => e.dedupeKey === "food_items:no-reminder-item-1");
+    expect(entry.payload).not.toHaveProperty("reminder_time");
+  });
+
+  it("sends reminder_time for a type whose table has it (supplement/habit)", async () => {
+    const { putItemAndSync } = await import("./sync");
+    const { getAllOutboxEntries } = await import("@/lib/db/indexedDb");
+
+    const item = {
+      identity: "with-reminder-item-1",
+      itemType: "supplement" as const,
+      rawName: "Iron",
+      category: "Minerals",
+      categoryId: null,
+      isArchived: false,
+      createdDate: "2026-01-01",
+      reminderTime: "08:00",
+      unit: null,
+    };
+    await putItemAndSync(item);
+
+    const [entry] = (await getAllOutboxEntries()).filter((e) => e.dedupeKey === "supplement_items:with-reminder-item-1");
+    expect(entry.payload).toMatchObject({ reminder_time: "08:00" });
   });
 
   it("its mutation and its outbox enqueue are adjacent in the timeline — nothing, including a pull, can land between them", async () => {
@@ -326,7 +361,7 @@ describe("putItemAndSync — mutation and outbox enqueue are one atomic operatio
     // gap. With a real single-lock implementation there is no gap to
     // land in, so this second pull can only ever end up fully before or
     // fully after the whole putItemAndSync call.
-    const item = { identity: "atomic-item-2", itemType: "food" as const, rawName: "Plum", category: "Fruit", categoryId: null, isArchived: false, createdDate: "2026-01-01", reminderTime: null };
+    const item = { identity: "atomic-item-2", itemType: "food" as const, rawName: "Plum", category: "Fruit", categoryId: null, isArchived: false, createdDate: "2026-01-01", reminderTime: null, unit: null };
     const writePromise = putItemAndSync(item);
     await sleep(1);
     const pullPromise = pullFromCloud();
@@ -337,6 +372,23 @@ describe("putItemAndSync — mutation and outbox enqueue are one atomic operatio
     const enqueueIndex = calls.indexOf("enqueue:food_items:atomic-item-2");
     expect(itemIndex).toBeGreaterThanOrEqual(0);
     expect(enqueueIndex).toBe(itemIndex + 1);
+  });
+});
+
+describe("deleteItemAndSync", () => {
+  // putItemInternal/deleteItemLocalInternal aren't mocked in this file the
+  // way putItemInternal is (see the vi.mock("@/lib/db/indexedDb", ...)
+  // above) — deleteItemLocalInternal runs for real, so this only asserts
+  // the outbox side; indexedDb.test.ts covers the actual local delete.
+  it("enqueues a delete outbox entry for the item's table", async () => {
+    const { deleteItemAndSync } = await import("./sync");
+    const { getAllOutboxEntries } = await import("@/lib/db/indexedDb");
+
+    await deleteItemAndSync("habit-delete-1", "habit");
+
+    const entries = (await getAllOutboxEntries()).filter((e) => e.dedupeKey === "habit_items:habit-delete-1");
+    expect(entries).toHaveLength(1);
+    expect(entries[0]).toMatchObject({ table: "habit_items", op: "delete", payload: { id: "habit-delete-1" }, status: "pending" });
   });
 });
 
@@ -354,6 +406,7 @@ describe("setItemReminderTimeAndSync — reminder reset can't be coalesced away 
       isArchived: false,
       createdDate: "2026-01-01",
       reminderTime: null,
+      unit: null,
     };
 
     // Changing the reminder time first (queues the reset), then an
@@ -391,6 +444,7 @@ describe("setItemReminderTimeAndSync — reminder reset can't be coalesced away 
       isArchived: false,
       createdDate: "2026-01-01",
       reminderTime: null,
+      unit: null,
     };
 
     await setItemReminderTimeAndSync(item, "07:00");

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import clsx from "clsx";
 import { useData } from "@/lib/DataContext";
@@ -12,6 +12,8 @@ import {
   putItemAndSync,
   putStoolLogAndSync,
   deleteStoolLogByIdAndSync,
+  putGymLogAndSync,
+  deleteGymLogAndSync,
   setDailyDurationAndSync,
   toggleDailyLogAndSync,
   updateLogMealTagAndSync,
@@ -20,7 +22,7 @@ import {
   decrementDailyLogAndSync,
   decrementDailyLogForMealAndSync,
 } from "@/lib/supabase/sync";
-import { getAllDiary, getAllItems, getAllLogs, getAllCategories, getAllStoolLogs } from "@/lib/db/indexedDb";
+import { getAllDiary, getAllItems, getAllLogs, getAllCategories, getAllStoolLogs, getAllGymLogs } from "@/lib/db/indexedDb";
 import {
   buildLogCandidates,
   combineDateAndTime,
@@ -32,7 +34,7 @@ import {
   type TimelineEntry,
 } from "@/lib/logCandidates";
 import { buildCanonicalEvents } from "@/lib/canonical/buildCanonicalEvents";
-import { ensureCategoryId } from "@/lib/categoryResolution";
+import { ensureCategoryId, ensureDefaultWorkoutItems } from "@/lib/categoryResolution";
 import { seasonalPicksForMonth, weeklyCategoryPriority } from "@/lib/aggregations/seasonal";
 import { formatMinutes, todayLocalISODate } from "@/lib/aggregations/common";
 import { buildDemoDataset } from "@/lib/demoData";
@@ -42,19 +44,30 @@ import { lookupFoodCategory } from "@/taxonomy/classify";
 import { POLAND_FOOD_CATALOG } from "@/taxonomy/polandFoodCatalog";
 import { DURATION_DEFAULT_MINUTES, INPUT_KIND } from "@/taxonomy/inputKinds";
 import { DurationStepper } from "@/components/ui/DurationStepper";
+import { NumberStepper, UNIT_STEP_PRESETS } from "@/components/ui/NumberStepper";
 import { StoolTab, type NewStoolEntry, characteristicLabels } from "@/components/log/StoolTab";
+import { WorkoutTab, type NewGymEntry } from "@/components/log/WorkoutTab";
 import { DuplicateItemDialog } from "@/components/ui/DuplicateItemDialog";
-import type { RawLog, RawItem, RawDiaryEntry, RawCategory, RawStoolLog } from "@/lib/types";
+import { workoutUnitLabel, type RawLog, type RawItem, type RawDiaryEntry, type RawCategory, type RawStoolLog, type RawGymLog, type GymExercise, type WorkoutUnit } from "@/lib/types";
 
 const TABS: { type: ItemType; label: string; placeholder: string; defaultCategory: string; countable: boolean }[] = [
   { type: "food", label: "Food", placeholder: "Add a food or ingredient…", defaultCategory: "Misc", countable: true },
   { type: "outcome", label: "Symptoms", placeholder: "Add a symptom…", defaultCategory: "Other Symptom", countable: false },
   { type: "supplement", label: "Supplements", placeholder: "Add a supplement…", defaultCategory: "Other", countable: false },
-  { type: "habit", label: "Habits", placeholder: "Add a habit…", defaultCategory: "Other", countable: false },
+  { type: "habit", label: "Habits", placeholder: "Add a habit…", defaultCategory: "Daily", countable: false },
 ];
 
-type LogTab = ItemType | "stool";
+type LogTab = ItemType | "stool" | "workout";
 const STOOL_ACCENT = "var(--series-chestnut)";
+// Distinct from every TYPE_ACCENT and from STOOL_ACCENT so all six tabs
+// stay visually distinguishable at a glance in this one nav row.
+const WORKOUT_ACCENT = "var(--series-5)";
+
+const COLLAPSED_CATEGORIES_STORAGE_KEY = "lauva.log.collapsedCategories";
+
+function categoryStorageKey(itemType: ItemType, category: string): string {
+  return `${itemType}:${category}`;
+}
 
 const MEAL_OPTIONS = ["Breakfast", "Lunch", "Dinner", "Snack"] as const;
 
@@ -254,12 +267,58 @@ function TimelineNote({
   );
 }
 
+/** Workout entries only — what was logged (value + unit), read-only by
+ * default same as every other field on this card; tapping Edit swaps in
+ * the same tap stepper the Workout tab itself uses, so correcting a set
+ * here never means retyping it. */
+function TimelineWorkoutValue({
+  value,
+  unit,
+  accent,
+  busy,
+  hidden,
+  onChange,
+}: {
+  value: number;
+  unit: WorkoutUnit;
+  accent: string;
+  busy: boolean;
+  hidden: boolean;
+  onChange: (value: number) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+
+  if (editing) {
+    return <NumberStepper compact value={value} onChange={onChange} unit={workoutUnitLabel(unit)} accent={accent} {...UNIT_STEP_PRESETS[unit]} />;
+  }
+
+  return (
+    <span className="flex items-center gap-1.5 text-xs">
+      <span className="tabular-nums" style={{ color: "var(--text-secondary)" }}>
+        {value} {workoutUnitLabel(unit)}
+      </span>
+      {!hidden && (
+        <button
+          type="button"
+          onClick={() => setEditing(true)}
+          disabled={busy}
+          className="whitespace-nowrap underline decoration-dotted disabled:opacity-40"
+          style={{ color: "var(--text-muted)" }}
+        >
+          Edit
+        </button>
+      )}
+    </span>
+  );
+}
+
 interface Snapshot {
   items: RawItem[];
   logs: RawLog[];
   diary: RawDiaryEntry[];
   categories: RawCategory[];
   stoolLogs: RawStoolLog[];
+  gymLogs: RawGymLog[];
 }
 
 export default function LogPage() {
@@ -280,24 +339,47 @@ export default function LogPage() {
   // on date navigation either, since the time-of-day is independent of
   // which day it's applied to.
   const [logTime, setLogTime] = useState(() => toTimeInputValue(new Date().toISOString()));
+  // Workout's own copy of the same idea as `logTime` above — it renders
+  // outside the shared `tabConfig`-gated block (see the render below), same
+  // as Stool's own `loggedAtTime` draft field.
+  const [workoutTime, setWorkoutTime] = useState(() => toTimeInputValue(new Date().toISOString()));
   const [newItemText, setNewItemText] = useState("");
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [pending, setPending] = useState<string | null>(null);
+  // Persisted across navigation/reloads (localStorage, keyed per item type so
+  // same-named categories in different tabs don't collide) — defaults to
+  // empty (everything expanded) until the mount effect below hydrates it
+  // from whatever the user last chose, so this never overrides a saved
+  // choice with a fresh reset. Desktop always renders expanded regardless
+  // of this set (see the `lg:grid` override at the item grid below); only
+  // mobile actually collapses, so the set only matters there.
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(COLLAPSED_CATEGORIES_STORAGE_KEY);
+      // Reading from localStorage on mount — an external-system read, not a
+      // React-state sync loop, same pattern as DataContext's mount effects.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (raw) setCollapsedCategories(new Set(JSON.parse(raw) as string[]));
+    } catch {
+      // Corrupt or inaccessible storage — fall back to everything expanded.
+    }
+  }, []);
   // Which stool timeline cards have their extra details (color, floatation,
   // characteristics, paper cleanliness, time on toilet) expanded — collapsed
   // by default since a 144px-wide card has no room to show them all at once.
   const [expandedStoolIds, setExpandedStoolIds] = useState<Set<string>>(new Set());
 
   const loadSnapshot = useCallback(async () => {
-    const [items, logs, diary, categories, stoolLogs] = await Promise.all([
+    const [items, logs, diary, categories, stoolLogs, gymLogs] = await Promise.all([
       getAllItems(),
       getAllLogs(),
       getAllDiary(),
       getAllCategories(),
       getAllStoolLogs(),
+      getAllGymLogs(),
     ]);
-    setSnapshot({ items, logs, diary, categories, stoolLogs });
+    setSnapshot({ items, logs, diary, categories, stoolLogs, gymLogs });
   }, []);
 
   useEffect(() => {
@@ -309,6 +391,21 @@ export default function LogPage() {
     void loadSnapshot();
   }, [status, loadSnapshot]);
 
+  // One-time bootstrap for a signed-in user with no workout items yet (see
+  // ensureDefaultWorkoutItems's own doc comment) — guarded by a ref so it
+  // fires once per snapshot load rather than on every re-render, and only
+  // once real (non-demo) data has actually loaded.
+  const bootstrappedWorkoutItems = useRef(false);
+  useEffect(() => {
+    if (isDemoData || !snapshot || bootstrappedWorkoutItems.current) return;
+    if (snapshot.items.some((i) => i.itemType === "workout")) {
+      bootstrappedWorkoutItems.current = true;
+      return;
+    }
+    bootstrappedWorkoutItems.current = true;
+    void ensureDefaultWorkoutItems(snapshot.items, snapshot.categories).then(() => void loadSnapshot());
+  }, [isDemoData, snapshot, loadSnapshot]);
+
   // Signed out with nothing logged locally yet — show the same static demo
   // dataset the rest of the app uses (see DataContext), so the Log page
   // looks and reads exactly like a real day instead of an empty shell.
@@ -319,8 +416,8 @@ export default function LogPage() {
   const effective = useMemo<Snapshot>(
     () =>
       demo
-        ? { items: demo.items, logs: demo.logs, diary: [], categories: [], stoolLogs: demo.stoolLogs }
-        : (snapshot ?? { items: [], logs: [], diary: [], categories: [], stoolLogs: [] }),
+        ? { items: demo.items, logs: demo.logs, diary: [], categories: [], stoolLogs: demo.stoolLogs, gymLogs: demo.gymLogs }
+        : (snapshot ?? { items: [], logs: [], diary: [], categories: [], stoolLogs: [], gymLogs: [] }),
     [demo, snapshot],
   );
 
@@ -361,6 +458,26 @@ export default function LogPage() {
         .sort((a, b) => b.loggedAt.localeCompare(a.loggedAt)),
     [effective, date],
   );
+
+  const gymEntriesForDate = useMemo(
+    () => effective.gymLogs.filter((g) => g.date === date).sort((a, b) => b.updatedAt - a.updatedAt),
+    [effective, date],
+  );
+
+  // Most recent weight per exercise across all history (not just this day)
+  // — WorkoutTab's prefill convenience, same idea as the old Workout-page
+  // form's own prefill.
+  const gymLastWeights = useMemo(() => {
+    const map: Partial<Record<GymExercise, number>> = {};
+    const seenAt: Partial<Record<GymExercise, string>> = {};
+    for (const g of effective.gymLogs) {
+      if (!seenAt[g.exercise] || g.date > seenAt[g.exercise]!) {
+        seenAt[g.exercise] = g.date;
+        map[g.exercise] = g.weightKg;
+      }
+    }
+    return map;
+  }, [effective]);
 
   const trimmedNewItemText = newItemText.trim();
 
@@ -423,7 +540,13 @@ export default function LogPage() {
         }
       }
     }
-    for (const list of byCategory.values()) list.sort((a, b) => a.item.localeCompare(b.item));
+    // Case-insensitive (`sensitivity: "base"` ignores case) with a strict
+    // secondary compare so differently-cased near-duplicates still land in
+    // one deterministic order instead of whatever order they happened to
+    // come in.
+    for (const list of byCategory.values()) {
+      list.sort((a, b) => a.item.localeCompare(b.item, undefined, { sensitivity: "base" }) || a.item.localeCompare(b.item));
+    }
     // The real category list, unioned with whatever category names actually
     // showed up on a candidate/catalog entry — never drops a real item's
     // category just because it isn't in the "official" list.
@@ -444,10 +567,47 @@ export default function LogPage() {
     [effective, date],
   );
 
-  // Stool has no item/category of its own, but still belongs in the same
-  // day timeline as food/supplements/habits/symptoms — mapped into the
-  // same shape and merged in, sorted back together by the instant each one
-  // actually happened rather than kept as a second, separate list.
+  // Every workout item, active or archived — archived ones still need to
+  // resolve older timeline entries/notes correctly by name, same reasoning
+  // as the Food catalog's `known` set above.
+  const workoutItems = useMemo(() => effective.items.filter((i) => i.itemType === "workout"), [effective.items]);
+  const workoutItemIdByName = useMemo(
+    () => new Map(workoutItems.map((i) => [normalizeName(i.rawName), i.identity])),
+    [workoutItems],
+  );
+  const workoutItemById = useMemo(() => new Map(workoutItems.map((i) => [i.identity, i])), [workoutItems]);
+
+  // Active exercises grouped by category for the Workout tab's row-per-
+  // exercise picker — same case-insensitive, deterministic A-Z sort as the
+  // Food category grid above, and the real category rows (falling back to
+  // the built-in defaults only as a bootstrap seed), same rule as every
+  // other type's categoryNamesForTab.
+  const workoutGroupedByCategory = useMemo(() => {
+    const activeWorkoutItems = workoutItems.filter((i) => !i.isArchived);
+    const customCategories = effective.categories.filter((c) => c.itemType === "workout").map((c) => c.name);
+    const categoryNames = effectiveCategoryList("workout", customCategories);
+    const byCategory = new Map<string, RawItem[]>();
+    for (const item of activeWorkoutItems) {
+      const list = byCategory.get(item.category) ?? [];
+      list.push(item);
+      byCategory.set(item.category, list);
+    }
+    for (const list of byCategory.values()) {
+      list.sort((a, b) => a.rawName.localeCompare(b.rawName, undefined, { sensitivity: "base" }) || a.rawName.localeCompare(b.rawName));
+    }
+    const allCategoryNames = new Set([...categoryNames, ...byCategory.keys()]);
+    return Array.from(allCategoryNames)
+      .map((category) => ({ category, items: byCategory.get(category) ?? [] }))
+      .filter((group) => group.items.length > 0)
+      .sort((a, b) => a.category.localeCompare(b.category));
+  }, [workoutItems, effective.categories]);
+
+  // Stool and Workout have no item/category of their own the way
+  // food/supplements/habits/symptoms do (Workout's `gym_logs` links to an
+  // exercise by name, not identity — see RawGymLog's own comment), but
+  // both still belong in the same day timeline — mapped into the same
+  // shape and merged in, sorted back together by the instant each one
+  // actually happened rather than kept as separate lists.
   const combinedTimeline = useMemo(() => {
     const stoolAsTimeline: TimelineEntry[] = stoolEntriesForDate.map((s) => ({
       key: s.id,
@@ -459,9 +619,31 @@ export default function LogPage() {
       mealTag: null,
       value: null,
       note: s.note,
+      category: null,
+      unit: null,
     }));
-    return [...dayTimeline, ...stoolAsTimeline].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-  }, [dayTimeline, stoolEntriesForDate]);
+    const workoutNotesByItemIdentity = new Map(
+      effective.diary.filter((d) => d.itemType === "workout" && d.date === date && d.content).map((d) => [d.itemIdentity, d.content as string]),
+    );
+    const gymAsTimeline: TimelineEntry[] = gymEntriesForDate.map((g) => {
+      const itemIdentity = workoutItemIdByName.get(normalizeName(g.exercise)) ?? "";
+      const workoutItem = itemIdentity ? workoutItemById.get(itemIdentity) : undefined;
+      return {
+        key: g.id,
+        item: g.exercise,
+        itemType: "workout",
+        itemIdentity,
+        time: new Date(g.updatedAt).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }),
+        updatedAt: new Date(g.updatedAt).toISOString(),
+        mealTag: null,
+        value: g.weightKg,
+        note: itemIdentity ? (workoutNotesByItemIdentity.get(itemIdentity) ?? null) : null,
+        category: workoutItem?.category ?? null,
+        unit: workoutItem?.unit ?? "kg",
+      };
+    });
+    return [...dayTimeline, ...stoolAsTimeline, ...gymAsTimeline].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  }, [dayTimeline, stoolEntriesForDate, gymEntriesForDate, workoutItemIdByName, workoutItemById, effective.diary, date]);
 
   // Unfiltered canonical events (no archived-item or date-range filtering,
   // unlike the dashboards' DataContext) so "weeks since last eaten" stays
@@ -576,6 +758,12 @@ export default function LogPage() {
       setPending(null);
       return;
     }
+    if (entry.itemType === "workout") {
+      await deleteGymLogAndSync(entry.key);
+      await refreshAfterWrite();
+      setPending(null);
+      return;
+    }
     await deleteLogByIdAndSync(entry.key, entry.itemType);
     await refreshAfterWrite();
     setPending(null);
@@ -593,7 +781,7 @@ export default function LogPage() {
   }
 
   /** Corrects when an entry actually happened — available everywhere in the
-   * timeline, food/supplement/habit/symptom and Stool alike. */
+   * timeline, food/supplement/habit/symptom, Stool, and Workout alike. */
   async function handleChangeEntryTime(entry: TimelineEntry, time: string) {
     if (isDemoData) return;
     const iso = combineDateAndTime(date, time);
@@ -604,7 +792,29 @@ export default function LogPage() {
       setPending(null);
       return;
     }
+    if (entry.itemType === "workout") {
+      // No dedicated updateGymLogTimeAndSync — gym_logs has no generic
+      // *_logs shape to reuse (see RawGymLog's own comment), so this just
+      // re-puts the existing row with a new `updatedAt`, the same write
+      // handleUpdateGymEntry already does for every other field.
+      const existing = effective.gymLogs.find((g) => g.id === entry.key);
+      if (existing) await putGymLogAndSync({ ...existing, updatedAt: new Date(iso).getTime() });
+      await refreshAfterWrite();
+      setPending(null);
+      return;
+    }
     await updateLogTimeAndSync(entry.key, iso);
+    await refreshAfterWrite();
+    setPending(null);
+  }
+
+  /** Corrects a logged set's value (weight/duration/reps, depending on the
+   * exercise's unit) in place — Workout only, from the day timeline. */
+  async function handleChangeEntryValue(entry: TimelineEntry, value: number) {
+    if (isDemoData || entry.itemType !== "workout") return;
+    setPending(entry.key);
+    const existing = effective.gymLogs.find((g) => g.id === entry.key);
+    if (existing) await putGymLogAndSync({ ...existing, weightKg: value });
     await refreshAfterWrite();
     setPending(null);
   }
@@ -673,6 +883,7 @@ export default function LogPage() {
       isArchived: false,
       createdDate: date,
       reminderTime: null,
+      unit: null,
     };
     await putItemAndSync(item);
     if (tabConfig.countable) {
@@ -723,6 +934,7 @@ export default function LogPage() {
       isArchived: false,
       createdDate: date,
       reminderTime: null,
+      unit: null,
     };
     await putItemAndSync(item);
     await applyLogTime(await incrementDailyLogAndSync(item.identity, "food", date, meal));
@@ -731,10 +943,18 @@ export default function LogPage() {
   }
 
   function toggleCategoryCollapsed(category: string) {
+    if (!tabConfig) return;
+    const key = categoryStorageKey(tabConfig.type, category);
     setCollapsedCategories((prev) => {
       const next = new Set(prev);
-      if (next.has(category)) next.delete(category);
-      else next.add(category);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      try {
+        window.localStorage.setItem(COLLAPSED_CATEGORIES_STORAGE_KEY, JSON.stringify(Array.from(next)));
+      } catch {
+        // Storage unavailable (private browsing, quota) — collapse still
+        // works for this session, it just won't persist.
+      }
       return next;
     });
   }
@@ -825,6 +1045,19 @@ export default function LogPage() {
     setPending(null);
   }
 
+  async function handleSaveGymEntry(entry: NewGymEntry) {
+    if (isDemoData) return;
+    const log: RawGymLog = {
+      id: crypto.randomUUID(),
+      date,
+      exercise: entry.exercise,
+      weightKg: Number(entry.weightKg),
+      updatedAt: new Date(combineDateAndTime(date, entry.time)).getTime(),
+    };
+    await putGymLogAndSync(log);
+    await refreshAfterWrite();
+  }
+
   /** A plain list row, not a pill — available items are just text; a
    * tracked one gets a tinted background, a colored left edge, and a
    * checkmark, which reads as "the strongest state on the row" without
@@ -903,9 +1136,11 @@ export default function LogPage() {
               ? "Example data — this is what a tracked day looks like. Sign in or log something for real to replace it."
               : tab === "stool"
                 ? "Log a bowel movement."
-                : tabConfig?.countable
-                  ? "Tap a food to log it."
-                  : "Tap what applies."}
+                : tab === "workout"
+                  ? "Log a lift."
+                  : tabConfig?.countable
+                    ? "Tap a food to log it."
+                    : "Tap what applies."}
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
@@ -988,18 +1223,36 @@ export default function LogPage() {
               </span>
             )}
           </button>
+          <button
+            type="button"
+            onClick={() => setTab("workout")}
+            className="flex items-center gap-1.5 pb-2.5 text-sm whitespace-nowrap transition-colors"
+            style={{
+              color: tab === "workout" ? WORKOUT_ACCENT : "var(--text-secondary)",
+              fontWeight: tab === "workout" ? 700 : 500,
+              borderBottom: `2px solid ${tab === "workout" ? WORKOUT_ACCENT : "transparent"}`,
+              marginBottom: "-1px",
+            }}
+          >
+            Workout
+            {gymEntriesForDate.length > 0 && (
+              <span className="text-xs" style={{ color: tab === "workout" ? WORKOUT_ACCENT : "var(--text-muted)" }}>
+                {gymEntriesForDate.length}
+              </span>
+            )}
+          </button>
         </nav>
         <span className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
           {loggedTodayCount} logged {formatDateLabel(date, today).toLowerCase()}
         </span>
       </div>
 
-      {tab === "stool" ? (
+      {tab === "stool" || tab === "workout" ? (
         !dataReady ? (
           <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
             Loading…
           </p>
-        ) : (
+        ) : tab === "stool" ? (
           <StoolTab
             entries={stoolEntriesForDate}
             isDemoData={isDemoData}
@@ -1008,6 +1261,17 @@ export default function LogPage() {
             onSave={handleSaveStoolEntry}
             onUpdate={handleUpdateStoolEntry}
             onDelete={handleDeleteStoolEntry}
+          />
+        ) : (
+          <WorkoutTab
+            groups={workoutGroupedByCategory}
+            entries={gymEntriesForDate}
+            lastValues={gymLastWeights}
+            isDemoData={isDemoData}
+            accent={WORKOUT_ACCENT}
+            time={workoutTime}
+            onTimeChange={setWorkoutTime}
+            onSave={handleSaveGymEntry}
           />
         )
       ) : (
@@ -1206,13 +1470,27 @@ export default function LogPage() {
                 </form>
               )}
 
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <div
+                className={clsx(
+                  "grid grid-cols-1 gap-3 sm:grid-cols-2",
+                  // Habits only has a handful of broad categories (Food/
+                  // Body/Daily) — a 3rd column at desktop just squeezed
+                  // every card narrow enough to wrap its own item labels.
+                  // The other tabs (Food especially, with 11 categories)
+                  // still benefit from the extra column, so this stays
+                  // scoped to Habits rather than changing everywhere.
+                  tab !== "habit" && "lg:grid-cols-3",
+                )}
+              >
                 {groupedByCategory.map((group) => {
                   const accent = tab === "food" ? colorForCategorySlot(group.category) : TYPE_ACCENT[tabConfig.type];
                   const icon = tab === "food" ? FOOD_CATEGORY_ICON[group.category] : null;
                   const items = group.items;
                   if (items.length === 0) return null;
-                  const collapsed = collapsedCategories.has(group.category);
+                  // Collapse only actually hides anything on mobile (see the
+                  // `lg:` overrides below) — desktop always shows every
+                  // category expanded, regardless of this saved state.
+                  const collapsed = collapsedCategories.has(categoryStorageKey(tabConfig.type, group.category));
                   return (
                     <div key={group.category} className="flex flex-col gap-2 rounded-lg border p-3" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
                       <button
@@ -1234,19 +1512,33 @@ export default function LogPage() {
                             strokeWidth="1.8"
                             strokeLinecap="round"
                             strokeLinejoin="round"
+                            className="lg:hidden"
                             style={{ transform: collapsed ? "rotate(-90deg)" : "none", transition: "transform 150ms" }}
                           >
                             <path d="M5 7.5 10 12.5 15 7.5" />
                           </svg>
                         </span>
                       </button>
-                      {!collapsed && (
-                        <div className="grid grid-cols-[repeat(auto-fill,minmax(110px,1fr))] gap-x-2 gap-y-0.5">
-                          {items.map((c) =>
-                            INPUT_KIND[c.item] === "duration" ? renderDurationControl(c, accent) : renderChip(c, accent),
-                          )}
-                        </div>
-                      )}
+                      <div
+                        className={clsx(
+                          // Food keeps the same multi-column layout as the other
+                          // tabs, but flows top-to-bottom within each column
+                          // (CSS multi-column) instead of left-to-right across
+                          // rows (CSS grid auto-placement) — so the A-Z sort
+                          // below reads down each column, not across. The other
+                          // tabs are unchanged. Collapse only hides this on
+                          // mobile — `lg:` always shows it regardless of the
+                          // saved state.
+                          tab === "food"
+                            ? "columns-[110px] gap-x-2 [&>*]:mb-0.5 [&>*]:break-inside-avoid-column"
+                            : "grid-cols-[repeat(auto-fill,minmax(110px,1fr))] gap-x-2 gap-y-0.5",
+                          collapsed
+                            ? clsx("hidden", tab === "food" ? "lg:block" : "lg:grid")
+                            : tab !== "food" && "grid",
+                        )}
+                      >
+                        {items.map((c) => (INPUT_KIND[c.item] === "duration" ? renderDurationControl(c, accent) : renderChip(c, accent)))}
+                      </div>
                     </div>
                   );
                 })}
@@ -1341,6 +1633,20 @@ export default function LogPage() {
                       )}
                     </span>
 
+                    {/* Category pill, directly below the name — Workout's
+                     * equivalent of Food's meal-tag pill below. Read-only
+                     * (recategorizing here would mean recategorizing the
+                     * exercise itself, not just this one entry — that's a
+                     * Manage-page action, not a timeline one). */}
+                    {entry.itemType === "workout" && entry.category && (
+                      <span
+                        className="self-start rounded px-1.5 py-0.5 text-[11px] font-medium whitespace-nowrap"
+                        style={{ background: `color-mix(in oklab, ${accent} 14%, var(--surface-1))`, color: accent }}
+                      >
+                        {entry.category}
+                      </span>
+                    )}
+
                     {/* Meal selector, directly below the name when it
                      * applies — absent for anything that isn't food. */}
                     {hasMealTag &&
@@ -1403,6 +1709,20 @@ export default function LogPage() {
                           </div>
                         );
                       })()}
+
+                    {/* Value + unit, its own bottom line — read-only until
+                     * Edit is tapped, same reveal-on-click shape as the
+                     * note button below. */}
+                    {entry.itemType === "workout" && entry.value != null && (
+                      <TimelineWorkoutValue
+                        value={entry.value}
+                        unit={entry.unit ?? "kg"}
+                        accent={accent}
+                        busy={busy}
+                        hidden={isDemoData}
+                        onChange={(v) => void handleChangeEntryValue(entry, v)}
+                      />
+                    )}
 
                     {hasNote && (
                       <TimelineNote

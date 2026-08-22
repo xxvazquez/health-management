@@ -3,9 +3,9 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { CanonicalEvent, RawGymLog, RawStoolLog } from "@/lib/types";
 import { buildCanonicalEvents } from "@/lib/canonical/buildCanonicalEvents";
-import { clearAllData, getAllDiary, getAllLogs, getAllItems, getAllStoolLogs, getAllGymLogs, hasAnyData } from "@/lib/db/indexedDb";
+import { clearAllData, getAllDiary, getAllLogs, getAllItems, getAllStoolLogs, getAllGymLogs, hasAnyData, type OutboxEntry } from "@/lib/db/indexedDb";
 import { pullFromCloud } from "@/lib/supabase/sync";
-import { drainOutbox, getOutboxSyncState } from "@/lib/supabase/outbox";
+import { drainOutbox, getDeadLetterEntries, getOutboxSyncState, retryOutboxEntry } from "@/lib/supabase/outbox";
 import { ANALYTICS_START_DATE } from "@/lib/config";
 import { buildDemoDataset } from "@/lib/demoData";
 import { useAuth } from "@/lib/supabase/AuthContext";
@@ -32,6 +32,11 @@ interface DataContextValue {
   isDemoData: boolean;
   error: string | null;
   syncState: SyncState;
+  /** The dead-letter entries behind `syncState.deadLetter` — enough detail
+   * (table, error code) for SyncStatusBanner to explain what failed. */
+  deadLetterEntries: OutboxEntry[];
+  /** Re-queues one dead-letter entry and attempts to send it again. */
+  retrySync: (id: string) => Promise<void>;
   refresh: () => Promise<void>;
   clearData: () => Promise<void>;
 }
@@ -47,10 +52,20 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [isDemoData, setIsDemoData] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [syncState, setSyncState] = useState<SyncState>({ pending: 0, deadLetter: 0 });
+  const [deadLetterEntries, setDeadLetterEntries] = useState<OutboxEntry[]>([]);
 
   const refreshSyncState = useCallback(async () => {
     setSyncState(await getOutboxSyncState());
+    setDeadLetterEntries(await getDeadLetterEntries());
   }, []);
+
+  const retrySync = useCallback(
+    async (id: string) => {
+      await retryOutboxEntry(id);
+      await refreshSyncState();
+    },
+    [refreshSyncState],
+  );
 
   /** Triggers a drain then refreshes the pending/dead-letter counts. Safe
    * to call from multiple triggers (below) — drainOutbox itself already
@@ -208,8 +223,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   }, [refreshSyncState]);
 
   const value = useMemo(
-    () => ({ status, events, gymLogs, stoolLogs, isDemoData, error, syncState, refresh, clearData }),
-    [status, events, gymLogs, stoolLogs, isDemoData, error, syncState, refresh, clearData],
+    () => ({ status, events, gymLogs, stoolLogs, isDemoData, error, syncState, deadLetterEntries, retrySync, refresh, clearData }),
+    [status, events, gymLogs, stoolLogs, isDemoData, error, syncState, deadLetterEntries, retrySync, refresh, clearData],
   );
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
