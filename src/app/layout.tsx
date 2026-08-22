@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { DataProvider } from "@/lib/DataContext";
+import { VisibleDomainsProvider } from "@/lib/visibleDomains";
 import { AuthProvider } from "@/lib/supabase/AuthContext";
 import { Nav } from "@/components/Nav";
 import { ContentContainer } from "@/components/ContentContainer";
@@ -53,23 +54,25 @@ export default function RootLayout({
         <RegisterServiceWorker />
         <AuthProvider>
           <DataProvider>
-            <Nav />
-            <main className="flex min-w-0 flex-1 flex-col">
-              <AuthBanner />
-              <SyncStatusBanner />
-              <div className="px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
-                <ContentContainer>{children}</ContentContainer>
-              </div>
-              <footer className="px-4 pb-6 sm:px-6 lg:px-8">
-                <p
-                  className="mx-auto w-full max-w-4xl text-center text-xs"
-                  style={{ color: "var(--text-muted)" }}
-                >
-                  Lauva provides personal data insights only. It is not medical
-                  advice and does not diagnose or treat medical conditions.
-                </p>
-              </footer>
-            </main>
+            <VisibleDomainsProvider>
+              <Nav />
+              <main className="flex min-w-0 flex-1 flex-col">
+                <AuthBanner />
+                <SyncStatusBanner />
+                <div className="px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
+                  <ContentContainer>{children}</ContentContainer>
+                </div>
+                <footer className="px-4 pb-6 sm:px-6 lg:px-8">
+                  <p
+                    className="mx-auto w-full max-w-4xl text-center text-xs"
+                    style={{ color: "var(--text-muted)" }}
+                  >
+                    Lauva provides personal data insights only. It is not medical
+                    advice and does not diagnose or treat medical conditions.
+                  </p>
+                </footer>
+              </main>
+            </VisibleDomainsProvider>
           </DataProvider>
         </AuthProvider>
       </body>

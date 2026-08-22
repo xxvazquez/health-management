@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import Link from "next/link";
 import clsx from "clsx";
 import { useData } from "@/lib/DataContext";
+import { useVisibleDomains } from "@/lib/visibleDomains";
 import { useAuth } from "@/lib/supabase/AuthContext";
 import {
   setDiaryNoteAndSync,
@@ -66,11 +67,14 @@ import {
   type WorkoutUnit,
 } from "@/lib/types";
 
-const TABS: { type: ItemType; label: string; placeholder: string; defaultCategory: string; countable: boolean }[] = [
-  { type: "food", label: "Food", placeholder: "Add a food or ingredient…", defaultCategory: "Misc", countable: true },
-  { type: "outcome", label: "Symptoms", placeholder: "Add a symptom…", defaultCategory: "Other Symptom", countable: false },
-  { type: "supplement", label: "Supplements", placeholder: "Add a supplement…", defaultCategory: "Other", countable: false },
-  { type: "habit", label: "Habits", placeholder: "Add a habit…", defaultCategory: "Daily", countable: false },
+const TABS: { type: ItemType; label: string; singular: string; placeholder: string; defaultCategory: string; countable: boolean }[] = [
+  { type: "food", label: "Food", singular: "food", placeholder: "Add a food or ingredient…", defaultCategory: "Misc", countable: true },
+  { type: "outcome", label: "Symptoms", singular: "symptom", placeholder: "Add a symptom…", defaultCategory: "Other Symptom", countable: false },
+  // Countable (not a plain toggle) since a supplement is often taken more
+  // than once a day — morning/afternoon/night, same idea as Food's meal
+  // tags, so a second dose doesn't just remove the first one's log.
+  { type: "supplement", label: "Supplements", singular: "supplement", placeholder: "Add a supplement…", defaultCategory: "Other", countable: true },
+  { type: "habit", label: "Habits", singular: "habit", placeholder: "Add a habit…", defaultCategory: "Daily", countable: false },
 ];
 
 type LogTab = ItemType | "stool" | "workout" | "cycle";
@@ -81,12 +85,15 @@ const WORKOUT_ACCENT = "var(--series-magenta)";
 const CYCLE_ACCENT = "var(--series-4)";
 
 const COLLAPSED_CATEGORIES_STORAGE_KEY = "lauva.log.collapsedCategories";
+const LOG_TAB_STORAGE_KEY = "lauva.log.tab";
+const VALID_LOG_TABS: readonly string[] = ["food", "outcome", "supplement", "habit", "stool", "workout", "cycle"];
 
 function categoryStorageKey(itemType: ItemType, category: string): string {
   return `${itemType}:${category}`;
 }
 
 const MEAL_OPTIONS = ["Breakfast", "Lunch", "Dinner", "Snack"] as const;
+const SUPPLEMENT_TIME_OPTIONS = ["Morning", "Afternoon", "Night"] as const;
 
 /** Guesses which meal is being logged from the current time of day, so the
  * selector starts on something plausible instead of always "Breakfast" —
@@ -97,6 +104,23 @@ function defaultMealForTime(now: Date = new Date()): (typeof MEAL_OPTIONS)[numbe
   if (minutes >= 12 * 60 && minutes < 15 * 60) return "Lunch";
   if (minutes >= 15 * 60 && minutes < 23 * 60 + 30) return "Dinner";
   return "Snack";
+}
+
+/** Same idea as `defaultMealForTime`, for Supplements' own tag set. */
+function defaultSupplementTimeForTime(now: Date = new Date()): (typeof SUPPLEMENT_TIME_OPTIONS)[number] {
+  const minutes = now.getHours() * 60 + now.getMinutes();
+  if (minutes < 12 * 60) return "Morning";
+  if (minutes < 18 * 60) return "Afternoon";
+  return "Night";
+}
+
+/** Which tag chips a given item type's entries get — Food's meals,
+ * Supplements' morning/afternoon/night, or none for anything else (that's
+ * what gates the whole tag row/column off for those types). */
+function tagOptionsForType(type: string): readonly string[] {
+  if (type === "food") return MEAL_OPTIONS;
+  if (type === "supplement") return SUPPLEMENT_TIME_OPTIONS;
+  return [];
 }
 
 function CategoryIconWrap({ children }: { children: ReactNode }) {
@@ -341,6 +365,7 @@ interface Snapshot {
 
 export default function LogPage() {
   const { refresh, isDemoData, status } = useData();
+  const { isHidden } = useVisibleDomains();
   const { openPanel } = useAuth();
   const today = useMemo(() => todayLocalISODate(), []);
   const [date, setDate] = useState(today);
@@ -352,7 +377,11 @@ export default function LogPage() {
   // Filters the category grid below by name — cleared on tab switch since
   // each tab's items are a different set (see selectTab).
   const [search, setSearch] = useState("");
-  const [meal, setMeal] = useState<(typeof MEAL_OPTIONS)[number]>(defaultMealForTime);
+  // Food's meal or Supplements' time-of-day tag, depending on which of the
+  // two countable tabs is active — reset to a fresh time-of-day guess in
+  // selectTab whenever you switch between them, since a value from one set
+  // ("Lunch") isn't meaningful in the other.
+  const [meal, setMeal] = useState<string>(defaultMealForTime);
   // What time a tap logs something as — lets you log at 9pm something you
   // actually did at 10am, same idea as Stool's own time field. Stays as
   // set (doesn't reset after each tap) so logging several things at the
@@ -386,6 +415,32 @@ export default function LogPage() {
       // Corrupt or inaccessible storage — fall back to everything expanded.
     }
   }, []);
+  // Same hydrate-on-mount pattern as collapsedCategories above — starts on
+  // "food" (matches server-rendered markup, avoiding a hydration mismatch)
+  // and switches to whatever tab was last open the instant this runs on
+  // the client, so a reload doesn't always dump you back on Food.
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(LOG_TAB_STORAGE_KEY);
+      if (raw && VALID_LOG_TABS.includes(raw)) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setTab(raw as LogTab);
+        if (raw === "supplement") setMeal(defaultSupplementTimeForTime());
+      }
+    } catch {
+      // Corrupt or inaccessible storage — fall back to Food.
+    }
+  }, []);
+  // If the tab you're sitting on gets hidden from under you (toggled off
+  // in Manage, in another tab, or restored from a stale saved choice),
+  // jump to the first tab that's still visible rather than rendering a
+  // tab nobody can reach via the nav bar anymore.
+  useEffect(() => {
+    if (!isHidden(tab)) return;
+    const fallback = ([...TABS.map((t) => t.type), "stool", "workout", "cycle"] as LogTab[]).find((t) => !isHidden(t));
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (fallback) setTab(fallback);
+  }, [tab, isHidden]);
   // Which stool timeline cards have their extra details (color, floatation,
   // characteristics, paper cleanliness, time on toilet) expanded — collapsed
   // by default since a 144px-wide card has no room to show them all at once.
@@ -446,6 +501,14 @@ export default function LogPage() {
   function selectTab(t: LogTab) {
     setTab(t);
     setSearch("");
+    if (t === "food") setMeal(defaultMealForTime());
+    else if (t === "supplement") setMeal(defaultSupplementTimeForTime());
+    try {
+      window.localStorage.setItem(LOG_TAB_STORAGE_KEY, t);
+    } catch {
+      // Inaccessible storage (private browsing, quota) — the tab still
+      // switches for this session, it just won't survive a reload.
+    }
   }
 
   const candidates = useMemo(() => buildLogCandidates(effective.items, effective.logs), [effective]);
@@ -596,11 +659,6 @@ export default function LogPage() {
       .filter((group) => group.items.length > 0)
       .sort((a, b) => a.category.localeCompare(b.category));
   }, [tabCandidates, tab, tabConfig, categoryNamesForTab, effective.items, search]);
-
-  const loggedTodayCount = useMemo(
-    () => candidates.filter((c) => (counts.get(c.key) ?? 0) > 0).length,
-    [candidates, counts],
-  );
 
   const dayTimeline = useMemo(
     () => dayTimelineEntries(effective.items, effective.logs, effective.diary, date),
@@ -809,9 +867,10 @@ export default function LogPage() {
     setPending(null);
   }
 
-  /** Corrects the meal tag on an already-logged entry, e.g. something typed
-   * as Lunch that was actually Dinner. Food only — the timeline only ever
-   * offers this control for food entries. */
+  /** Corrects the meal/time-of-day tag on an already-logged entry, e.g.
+   * something typed as Lunch that was actually Dinner. Food and
+   * Supplements only — the timeline only ever offers this control for
+   * those two entry types (see hasMealTag below). */
   async function handleChangeEntryMeal(entry: TimelineEntry, mealTag: string) {
     if (isDemoData || entry.itemType === "stool") return;
     setPending(entry.key);
@@ -1206,7 +1265,7 @@ export default function LogPage() {
                   : tab === "cycle"
                     ? "Track your cycle."
                     : tabConfig?.countable
-                      ? "Tap a food to log it."
+                      ? `Tap a ${tabConfig.singular} to log it.`
                       : "Tap what applies."}
           </p>
         </div>
@@ -1247,7 +1306,7 @@ export default function LogPage() {
          * control: this one switches the whole page's content (primary
          * navigation), that one just tags optional metadata on a food. */}
         <nav className="flex w-fit flex-wrap items-center gap-5 border-b" style={{ borderColor: "var(--border-hairline)" }}>
-          {TABS.map((t) => {
+          {TABS.filter((t) => !isHidden(t.type)).map((t) => {
             const active = t.type === tab;
             const count = candidates.filter((c) => c.itemType === t.type).length;
             return (
@@ -1272,55 +1331,61 @@ export default function LogPage() {
               </button>
             );
           })}
-          <button
-            type="button"
-            onClick={() => selectTab("stool")}
-            className="flex items-center gap-1.5 pb-2.5 text-sm whitespace-nowrap transition-colors"
-            style={{
-              color: tab === "stool" ? STOOL_ACCENT : "var(--text-secondary)",
-              fontWeight: tab === "stool" ? 700 : 500,
-              borderBottom: `2px solid ${tab === "stool" ? STOOL_ACCENT : "transparent"}`,
-              marginBottom: "-1px",
-            }}
-          >
-            Stool
-            {stoolEntriesForDate.length > 0 && (
-              <span className="text-xs" style={{ color: tab === "stool" ? STOOL_ACCENT : "var(--text-muted)" }}>
-                {stoolEntriesForDate.length}
-              </span>
-            )}
-          </button>
-          <button
-            type="button"
-            onClick={() => selectTab("workout")}
-            className="flex items-center gap-1.5 pb-2.5 text-sm whitespace-nowrap transition-colors"
-            style={{
-              color: tab === "workout" ? WORKOUT_ACCENT : "var(--text-secondary)",
-              fontWeight: tab === "workout" ? 700 : 500,
-              borderBottom: `2px solid ${tab === "workout" ? WORKOUT_ACCENT : "transparent"}`,
-              marginBottom: "-1px",
-            }}
-          >
-            Workout
-            {workoutEntriesForDate.length > 0 && (
-              <span className="text-xs" style={{ color: tab === "workout" ? WORKOUT_ACCENT : "var(--text-muted)" }}>
-                {workoutEntriesForDate.length}
-              </span>
-            )}
-          </button>
-          <button
-            type="button"
-            onClick={() => selectTab("cycle")}
-            className="flex items-center gap-1.5 pb-2.5 text-sm whitespace-nowrap transition-colors"
-            style={{
-              color: tab === "cycle" ? CYCLE_ACCENT : "var(--text-secondary)",
-              fontWeight: tab === "cycle" ? 700 : 500,
-              borderBottom: `2px solid ${tab === "cycle" ? CYCLE_ACCENT : "transparent"}`,
-              marginBottom: "-1px",
-            }}
-          >
-            Cycle
-          </button>
+          {!isHidden("stool") && (
+            <button
+              type="button"
+              onClick={() => selectTab("stool")}
+              className="flex items-center gap-1.5 pb-2.5 text-sm whitespace-nowrap transition-colors"
+              style={{
+                color: tab === "stool" ? STOOL_ACCENT : "var(--text-secondary)",
+                fontWeight: tab === "stool" ? 700 : 500,
+                borderBottom: `2px solid ${tab === "stool" ? STOOL_ACCENT : "transparent"}`,
+                marginBottom: "-1px",
+              }}
+            >
+              Stool
+              {stoolEntriesForDate.length > 0 && (
+                <span className="text-xs" style={{ color: tab === "stool" ? STOOL_ACCENT : "var(--text-muted)" }}>
+                  {stoolEntriesForDate.length}
+                </span>
+              )}
+            </button>
+          )}
+          {!isHidden("workout") && (
+            <button
+              type="button"
+              onClick={() => selectTab("workout")}
+              className="flex items-center gap-1.5 pb-2.5 text-sm whitespace-nowrap transition-colors"
+              style={{
+                color: tab === "workout" ? WORKOUT_ACCENT : "var(--text-secondary)",
+                fontWeight: tab === "workout" ? 700 : 500,
+                borderBottom: `2px solid ${tab === "workout" ? WORKOUT_ACCENT : "transparent"}`,
+                marginBottom: "-1px",
+              }}
+            >
+              Workout
+              {workoutEntriesForDate.length > 0 && (
+                <span className="text-xs" style={{ color: tab === "workout" ? WORKOUT_ACCENT : "var(--text-muted)" }}>
+                  {workoutEntriesForDate.length}
+                </span>
+              )}
+            </button>
+          )}
+          {!isHidden("cycle") && (
+            <button
+              type="button"
+              onClick={() => selectTab("cycle")}
+              className="flex items-center gap-1.5 pb-2.5 text-sm whitespace-nowrap transition-colors"
+              style={{
+                color: tab === "cycle" ? CYCLE_ACCENT : "var(--text-secondary)",
+                fontWeight: tab === "cycle" ? 700 : 500,
+                borderBottom: `2px solid ${tab === "cycle" ? CYCLE_ACCENT : "transparent"}`,
+                marginBottom: "-1px",
+              }}
+            >
+              Cycle
+            </button>
+          )}
         </nav>
         <div className="flex items-center gap-3">
           {tabConfig && (
@@ -1344,15 +1409,10 @@ export default function LogPage() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder={`Search ${tabConfig.label.toLowerCase()}…`}
-                className="h-7 w-36 rounded-md border py-1 pr-2.5 pl-7 text-xs outline-none sm:w-48"
+                className="w-36 rounded-md border py-1.5 pr-2.5 pl-7 text-xs outline-none sm:w-48"
                 style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
               />
             </div>
-          )}
-          {tab !== "cycle" && (
-            <span className="text-xs font-medium whitespace-nowrap" style={{ color: "var(--text-secondary)" }}>
-              {loggedTodayCount} logged {formatDateLabel(date, today).toLowerCase()}
-            </span>
           )}
         </div>
       </div>
@@ -1397,7 +1457,7 @@ export default function LogPage() {
         )
       ) : (
         <>
-          {tabConfig?.countable && dataReady && seasonalPicks.length > 0 && (
+          {tab === "food" && dataReady && seasonalPicks.length > 0 && (
             <div className="flex flex-col gap-2 rounded-lg border p-3" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
               <button
                 type="button"
@@ -1480,7 +1540,7 @@ export default function LogPage() {
               </label>
               {tabConfig?.countable && (
                 <div className="flex flex-wrap items-center gap-1.5">
-                  {MEAL_OPTIONS.map((m) => {
+                  {tagOptionsForType(tab).map((m) => {
                     const active = m === meal;
                     return (
                       <button
@@ -1693,7 +1753,7 @@ export default function LogPage() {
             <div className="flex min-w-max items-start gap-3">
               {combinedTimeline.map((entry, i) => {
                 const busy = pending === entry.key;
-                const hasMealTag = entry.itemType === "food" && (entry.mealTag || !isDemoData);
+                const hasMealTag = (entry.itemType === "food" || entry.itemType === "supplement") && (entry.mealTag || !isDemoData);
                 const hasNote = !isDemoData || entry.note;
                 const accent = entry.itemType === "stool" ? STOOL_ACCENT : TYPE_ACCENT[entry.itemType];
                 return (
@@ -1768,8 +1828,9 @@ export default function LogPage() {
                       </span>
                     )}
 
-                    {/* Meal selector, directly below the name when it
-                     * applies — absent for anything that isn't food. */}
+                    {/* Meal/time-of-day selector, directly below the name
+                     * when it applies — absent for anything that isn't
+                     * Food or Supplements. */}
                     {hasMealTag &&
                       (isDemoData ? (
                         entry.mealTag && (
@@ -1789,9 +1850,9 @@ export default function LogPage() {
                           style={{ background: "color-mix(in oklab, var(--series-2) 14%, var(--surface-1))", color: "var(--series-2)", border: "none" }}
                         >
                           <option value="" disabled>
-                            set meal
+                            {entry.itemType === "supplement" ? "set time" : "set meal"}
                           </option>
-                          {MEAL_OPTIONS.map((m) => (
+                          {tagOptionsForType(entry.itemType).map((m) => (
                             <option key={m} value={m}>
                               {m}
                             </option>

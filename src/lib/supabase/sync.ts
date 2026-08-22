@@ -116,7 +116,11 @@ function buildLogRow(log: RawLog, userId: string): Record<string, unknown> {
     value: log.value,
     updated_at: log.updatedAt,
   };
-  if (log.itemType === "food") row.meal_tag = log.mealTag;
+  // meal_tag doubles as Food's meal and Supplements' time-of-day tag (see
+  // TABS' own comment in log/page.tsx) — both food_logs and
+  // supplement_logs have the column; symptom_logs/habit_logs don't, and
+  // sending it there would make Supabase reject the whole upsert.
+  if (log.itemType === "food" || log.itemType === "supplement") row.meal_tag = log.mealTag;
   return row;
 }
 
@@ -651,7 +655,7 @@ export async function pullFromCloud(): Promise<void> {
           date: row.date,
           value: row.value,
           updatedAt: row.updated_at,
-          mealTag: itemType === "food" ? (row.meal_tag ?? null) : null,
+          mealTag: itemType === "food" || itemType === "supplement" ? (row.meal_tag ?? null) : null,
         };
         await putLogInternal(log);
       }

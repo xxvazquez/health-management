@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useData } from "@/lib/DataContext";
+import type { OutboxEntry } from "@/lib/db/indexedDb";
 
 const TABLE_LABEL: Record<string, string> = {
   food_items: "food item",
@@ -24,6 +25,24 @@ const TABLE_LABEL: Record<string, string> = {
 
 function friendlyTable(table: string): string {
   return TABLE_LABEL[table] ?? "change";
+}
+
+/** Pulls a human-readable label out of the entry's own payload — the
+ * `name` an item/category upsert carries, or the note/log's `date` — so
+ * "a habit item didn't sync" becomes "Sleep well" didn't sync" instead of
+ * forcing a guess at which of several identical-looking failures is which.
+ * A delete's payload is just `{ id }`, and some upserts genuinely have
+ * nothing better than that either — falls back to a short id fragment
+ * rather than nothing. */
+function describeRecord(entry: OutboxEntry): string {
+  const payload = entry.payload;
+  if (payload && typeof payload === "object") {
+    const p = payload as Record<string, unknown>;
+    if (typeof p.name === "string" && p.name.trim()) return p.name;
+    if (typeof p.content === "string" && p.content.trim()) return p.content.length > 40 ? `${p.content.slice(0, 40)}…` : p.content;
+    if (typeof p.date === "string" && p.date.trim()) return p.date;
+  }
+  return entry.dedupeKey.split(":").at(-1)?.slice(0, 8) ?? "unknown";
 }
 
 /** Translates the Postgres/PostgREST error codes classifySupabaseError
@@ -102,7 +121,10 @@ export function SyncStatusBanner() {
               return (
                 <li key={entry.id} className="flex items-center justify-between gap-3 py-2 text-xs">
                   <span style={{ color: "var(--text-secondary)" }}>
-                    A {friendlyTable(entry.table)} didn&apos;t sync because {reason}. {action}
+                    <span className="font-semibold" style={{ color: "var(--text-primary)" }}>
+                      &ldquo;{describeRecord(entry)}&rdquo;
+                    </span>{" "}
+                    ({friendlyTable(entry.table)}) didn&apos;t sync because {reason}. {action}
                   </span>
                   <button
                     type="button"

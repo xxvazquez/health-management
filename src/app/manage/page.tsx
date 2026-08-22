@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useData } from "@/lib/DataContext";
+import { useVisibleDomains, DOMAIN_LABELS, type TrackedDomain } from "@/lib/visibleDomains";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Card } from "@/components/ui/Card";
 import { ItemNameField, ItemActionButtons, useInlineRename } from "@/components/ui/ItemActions";
@@ -18,7 +19,54 @@ import { normalizeName, titleCaseFallback } from "@/taxonomy/normalizeName";
 import { CATEGORIES_BY_TYPE, type ItemType } from "@/taxonomy/categories";
 import { todayLocalISODate } from "@/lib/aggregations/common";
 import { buildDemoDataset } from "@/lib/demoData";
-import { WORKOUT_UNITS, type RawItem, type RawCategory, type WorkoutUnit } from "@/lib/types";
+import { WORKOUT_UNITS, workoutUnitLabel, type RawItem, type RawCategory, type WorkoutUnit } from "@/lib/types";
+
+// Log tab order — Food, Symptoms, Supplements, Habits, Stool, Workout,
+// Cycle — so the toggle list reads left-to-right the same way the tabs
+// it controls do.
+const DOMAIN_TOGGLE_ORDER: TrackedDomain[] = ["food", "outcome", "supplement", "habit", "stool", "workout", "cycle"];
+
+/** Turns a tracked type on/off everywhere it appears — its Log tab and,
+ * for Food/Workout/Cycle, its Analytics dashboard link — without deleting
+ * or archiving anything underneath. Purely a local display preference
+ * (see visibleDomains.tsx), not synced: "I don't track this on this
+ * device" rather than a change to the account's actual data. */
+function VisibleSectionsCard() {
+  const { hidden, toggle } = useVisibleDomains();
+  return (
+    <Card tier="supporting">
+      <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+        Visible sections
+      </p>
+      <p className="mt-0.5 mb-3 text-xs" style={{ color: "var(--text-secondary)" }}>
+        Hide anything you don&apos;t track — it disappears from the Log page&apos;s tabs (and its Analytics page, if it
+        has one) on this device. Nothing underneath is deleted or archived.
+      </p>
+      <div className="flex flex-wrap gap-1.5">
+        {DOMAIN_TOGGLE_ORDER.map((domain) => {
+          const isHidden = hidden.has(domain);
+          return (
+            <button
+              key={domain}
+              type="button"
+              onClick={() => toggle(domain)}
+              aria-pressed={!isHidden}
+              className="rounded-md border px-2.5 py-1.5 text-xs font-medium whitespace-nowrap transition-colors"
+              style={{
+                borderColor: isHidden ? "var(--border-hairline)" : "var(--series-1)",
+                background: isHidden ? "transparent" : "color-mix(in oklab, var(--series-1) 14%, var(--surface-1))",
+                color: isHidden ? "var(--text-muted)" : "var(--series-1)",
+                textDecoration: isHidden ? "line-through" : "none",
+              }}
+            >
+              {DOMAIN_LABELS[domain]}
+            </button>
+          );
+        })}
+      </div>
+    </Card>
+  );
+}
 
 const TYPE_SECTIONS: { type: ItemType; label: string; placeholder: string }[] = [
   { type: "food", label: "Food", placeholder: "e.g. Kohlrabi" },
@@ -249,6 +297,76 @@ function CatalogFoodRow({ item, busy, onHide }: { item: ManageableItem; busy: bo
   );
 }
 
+const CUSTOM_UNIT_SENTINEL = "__custom__";
+
+/** Same interaction shape as the category `<select>` next to it — pick
+ * from what's already in use with one click — with a "Custom…" escape
+ * hatch for a genuinely new unit, since units are free text (see
+ * WORKOUT_UNITS' own comment), not a fixed list a `<select>` alone could
+ * ever fully cover. Replaces the old free-text-input-with-a-datalist,
+ * which looked and behaved nothing like every other picker on this page. */
+function UnitSelect({
+  unit,
+  knownUnits,
+  busy,
+  onSetUnit,
+  itemName,
+}: {
+  unit: WorkoutUnit;
+  knownUnits: WorkoutUnit[];
+  busy: boolean;
+  onSetUnit: (unit: WorkoutUnit) => void;
+  itemName: string;
+}) {
+  const [customEntry, setCustomEntry] = useState<string | null>(null);
+  const options = knownUnits.includes(unit) ? knownUnits : [...knownUnits, unit].sort((a, b) => a.localeCompare(b));
+
+  if (customEntry !== null) {
+    return (
+      <input
+        autoFocus
+        value={customEntry}
+        disabled={busy}
+        onChange={(e) => setCustomEntry(e.target.value)}
+        onBlur={() => {
+          const trimmed = customEntry.trim();
+          setCustomEntry(null);
+          if (trimmed && trimmed !== unit) onSetUnit(trimmed);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") e.currentTarget.blur();
+          if (e.key === "Escape") setCustomEntry(null);
+        }}
+        placeholder="e.g. laps"
+        aria-label={`Custom unit for ${itemName}`}
+        className="w-20 rounded-md border px-2 py-1 text-xs outline-none disabled:opacity-40"
+        style={{ borderColor: "var(--series-1)", background: "var(--surface-1)", color: "var(--text-primary)" }}
+      />
+    );
+  }
+
+  return (
+    <select
+      value={unit}
+      disabled={busy}
+      onChange={(e) => {
+        if (e.target.value === CUSTOM_UNIT_SENTINEL) setCustomEntry("");
+        else onSetUnit(e.target.value);
+      }}
+      aria-label={`Unit for ${itemName}`}
+      className="rounded-md border px-2 py-1 text-xs disabled:opacity-40"
+      style={{ borderColor: "var(--border-hairline)", background: "var(--page-plane)", color: "var(--text-secondary)" }}
+    >
+      {options.map((u) => (
+        <option key={u} value={u}>
+          {workoutUnitLabel(u)}
+        </option>
+      ))}
+      <option value={CUSTOM_UNIT_SENTINEL}>Custom…</option>
+    </select>
+  );
+}
+
 function ItemRow({
   item,
   itemType,
@@ -260,6 +378,7 @@ function ItemRow({
   onHideCatalog,
   onSetReminderTime,
   onSetUnit,
+  knownUnits,
   onDelete,
 }: {
   item: ManageableItem;
@@ -272,6 +391,7 @@ function ItemRow({
   onHideCatalog?: () => void;
   onSetReminderTime?: (time: string | null) => void;
   onSetUnit?: (unit: WorkoutUnit) => void;
+  knownUnits?: WorkoutUnit[];
   onDelete?: () => void;
 }) {
   const renameState = useInlineRename(item, onRename);
@@ -319,24 +439,7 @@ function ItemRow({
             )}
           </span>
         )}
-        {canSetUnit && (
-          <input
-            list="workout-unit-suggestions"
-            defaultValue={item.unit ?? "kg"}
-            disabled={busy}
-            onBlur={(e) => {
-              const trimmed = e.target.value.trim();
-              if (trimmed) onSetUnit(trimmed);
-              else e.target.value = item.unit ?? "kg";
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") e.currentTarget.blur();
-            }}
-            aria-label={`Unit for ${item.item}`}
-            className="w-20 rounded-md border px-2 py-1 text-xs disabled:opacity-40"
-            style={{ borderColor: "var(--border-hairline)", background: "var(--page-plane)", color: "var(--text-secondary)" }}
-          />
-        )}
+        {canSetUnit && <UnitSelect unit={item.unit ?? "kg"} knownUnits={knownUnits ?? []} busy={busy} onSetUnit={onSetUnit} itemName={item.item} />}
         {categories && onChangeCategory ? (
           <select
             value={item.category}
@@ -421,6 +524,16 @@ function ItemSection({
     .filter((i) => i.isArchived && (!isSearching || matches(i)))
     .sort((a, b) => a.item.localeCompare(b.item));
 
+  // Every unit already in play across this type's items, plus the built-in
+  // starting suggestions — the select below offers all of them so picking
+  // a unit someone else's exercise already uses is one click, same as
+  // picking an existing category. Units aren't first-class rows (unlike
+  // categories), so this is derived from usage rather than a stored list.
+  const knownUnits =
+    itemType === "workout"
+      ? Array.from(new Set([...WORKOUT_UNITS, ...items.map((i) => i.unit).filter((u): u is WorkoutUnit => Boolean(u))])).sort((a, b) => a.localeCompare(b))
+      : [];
+
   if (isSearching && active.length === 0 && archived.length === 0) return null;
 
   const sectionOpen = isSearching ? true : open;
@@ -446,13 +559,6 @@ function ItemSection({
 
       {sectionOpen && (
         <div className="mt-4">
-          {itemType === "workout" && (
-            <datalist id="workout-unit-suggestions">
-              {WORKOUT_UNITS.map((u) => (
-                <option key={u} value={u} />
-              ))}
-            </datalist>
-          )}
           <CategoryManager categories={categories} onAddCategory={onAddCategory} onRemoveCategory={onRemoveCategory} />
 
           <div className="mb-4">
@@ -478,6 +584,7 @@ function ItemSection({
                   onHideCatalog={onHideCatalogFood ? () => void onHideCatalogFood(item.item, item.category) : undefined}
                   onSetReminderTime={onSetReminderTime ? (time) => onSetReminderTime(item, time) : undefined}
                   onSetUnit={onSetUnit ? (unit) => onSetUnit(item, unit) : undefined}
+                  knownUnits={knownUnits}
                   onDelete={() => onDelete(item)}
                 />
               ))}
@@ -894,6 +1001,8 @@ export default function ManagePage() {
           </p>
         )}
       </div>
+
+      <VisibleSectionsCard />
 
       <SearchBar value={searchQuery} onChange={setSearchQuery} />
       {TYPE_SECTIONS.map((section) => (

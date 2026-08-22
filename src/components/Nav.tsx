@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import clsx from "clsx";
 import { useData } from "@/lib/DataContext";
+import { useVisibleDomains, type TrackedDomain } from "@/lib/visibleDomains";
 import { Logo } from "@/components/Logo";
 import { AccountMenuButton } from "@/components/auth/AccountMenuButton";
 import { AccountPanel } from "@/components/auth/AccountPanel";
@@ -70,6 +71,11 @@ const ICONS: Record<string, ReactNode> = {
       <rect x="5.4" y="8.2" width="9.2" height="3.6" rx="0.8" />
     </IconWrap>
   ),
+  Cycle: (
+    <IconWrap>
+      <path d="M10 3.5c2.9 4.3 5 7.4 5 9.7a5 5 0 0 1-10 0c0-2.3 2.1-5.4 5-9.7Z" />
+    </IconWrap>
+  ),
   "Manage items": (
     <IconWrap>
       <path d="M6 5.5h8M6 10h8M6 14.5h5" />
@@ -95,7 +101,17 @@ const LOG_LINKS = [{ href: "/log", label: "Log" }];
 const ANALYTICS_LINKS = [
   { href: "/food", label: "Food" },
   { href: "/workout", label: "Workout" },
+  { href: "/cycle", label: "Cycle" },
 ];
+/** Which `TrackedDomain` (the same one Manage's "Visible sections" toggles
+ * and the Log page's tabs use) each analytics link corresponds to — hiding
+ * a domain there hides its dashboard link here too, same underlying
+ * on/off switch. */
+const ANALYTICS_LINK_DOMAIN: Record<string, TrackedDomain> = {
+  "/food": "food",
+  "/workout": "workout",
+  "/cycle": "cycle",
+};
 const MANAGE_LINKS = [{ href: "/manage", label: "Manage items" }];
 const TOOLS_LINKS = [{ href: "/my-drive", label: "My Drive" }];
 
@@ -149,13 +165,20 @@ function NavLinkList({
 }
 
 function NavLinks({ pathname, collapsed, onNavigate }: { pathname: string; collapsed?: boolean; onNavigate?: () => void }) {
+  const { isHidden } = useVisibleDomains();
+  const visibleAnalyticsLinks = ANALYTICS_LINKS.filter((link) => !isHidden(ANALYTICS_LINK_DOMAIN[link.href]));
+
   return (
     <nav className="flex flex-1 flex-col gap-1">
       {/* No section label above Log — it's both the destination and the
        * only item in its section, so a heading would just repeat itself. */}
       <NavLinkList links={LOG_LINKS} pathname={pathname} collapsed={collapsed} onNavigate={onNavigate} />
-      <NavSectionLabel collapsed={collapsed}>Analytics</NavSectionLabel>
-      <NavLinkList links={ANALYTICS_LINKS} pathname={pathname} collapsed={collapsed} onNavigate={onNavigate} />
+      {visibleAnalyticsLinks.length > 0 && (
+        <>
+          <NavSectionLabel collapsed={collapsed}>Analytics</NavSectionLabel>
+          <NavLinkList links={visibleAnalyticsLinks} pathname={pathname} collapsed={collapsed} onNavigate={onNavigate} />
+        </>
+      )}
       <NavSectionLabel collapsed={collapsed}>Manage</NavSectionLabel>
       <NavLinkList links={MANAGE_LINKS} pathname={pathname} collapsed={collapsed} onNavigate={onNavigate} />
       <NavSectionLabel collapsed={collapsed}>Tools</NavSectionLabel>

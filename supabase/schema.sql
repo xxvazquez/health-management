@@ -143,6 +143,9 @@ create table public.supplement_logs (
   item_id uuid not null,
   date date not null,
   value numeric,
+  -- Morning/Afternoon/Night — same idea and column as food_logs.meal_tag,
+  -- for a supplement taken more than once a day.
+  meal_tag text,
   updated_at timestamptz not null default now(),
   foreign key (user_id, item_id) references public.supplement_items (user_id, id) on delete restrict
 );
@@ -490,3 +493,11 @@ create policy "push_subscriptions_all_own" on public.push_subscriptions for all 
 -- create index period_logs_user_date_idx on public.period_logs (user_id, date);
 -- alter table public.period_logs enable row level security;
 -- create policy "period_logs_all_own" on public.period_logs for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- Migration for a project that already ran the create table statements
+-- above before Supplements had their own morning/afternoon/night tag
+-- (every existing row just gets null, same as "no tag set" going
+-- forward): adds supplement_logs.meal_tag. Non-destructive, doesn't touch
+-- any existing row's data.
+--
+-- alter table public.supplement_logs add column if not exists meal_tag text;
