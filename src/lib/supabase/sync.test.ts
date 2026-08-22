@@ -39,7 +39,7 @@ const {
   mockPutDiaryEntryInternal,
   mockPutCategoryInternal,
   mockPutStoolLogInternal,
-  mockPutGymLogInternal,
+  mockPutWorkoutLogInternal,
 } = vi.hoisted(() => {
   const calls: string[] = [];
   const committed: string[] = [];
@@ -68,7 +68,7 @@ const {
     mockPutDiaryEntryInternal: delayedRecorder("diary", (d: { identity: string }) => d.identity),
     mockPutCategoryInternal: delayedRecorder("category", (c: { id: string }) => c.id),
     mockPutStoolLogInternal: delayedRecorder("stool", (s: { id: string }) => s.id),
-    mockPutGymLogInternal: delayedRecorder("gym", (g: { id: string }) => g.id),
+    mockPutWorkoutLogInternal: delayedRecorder("workout", (g: { id: string }) => g.id),
   };
 });
 
@@ -84,7 +84,7 @@ vi.mock("@/lib/db/indexedDb", async (importOriginal) => {
     putDiaryEntryInternal: mockPutDiaryEntryInternal,
     putCategoryInternal: mockPutCategoryInternal,
     putStoolLogInternal: mockPutStoolLogInternal,
-    putGymLogInternal: mockPutGymLogInternal,
+    putWorkoutLogInternal: mockPutWorkoutLogInternal,
     // Records into the SAME `calls` timeline as the put mocks above
     // (synchronously, before delegating to the real enqueue), so a
     // *AndSync function's mutation and its outbox enqueue can be checked
@@ -173,7 +173,7 @@ const baseTables = {
   workout_items: [
     { id: "item-workout-1", name: "Squat", category_id: null, is_archived: false, created_date: "2026-01-01", unit: "kg" },
   ],
-  workout_logs: [{ id: "gym-1", item_id: "item-workout-1", date: "2026-01-01", weight_kg: 60, updated_at: "2026-01-01T10:00:00.000Z" }],
+  workout_logs: [{ id: "workout-1", item_id: "item-workout-1", date: "2026-01-01", weight_kg: 60, updated_at: "2026-01-01T10:00:00.000Z" }],
 };
 
 beforeEach(() => {
@@ -189,7 +189,7 @@ beforeEach(() => {
   mockPutDiaryEntryInternal.mockClear();
   mockPutCategoryInternal.mockClear();
   mockPutStoolLogInternal.mockClear();
-  mockPutGymLogInternal.mockClear();
+  mockPutWorkoutLogInternal.mockClear();
   configureFakeSupabase(baseTables);
 });
 
@@ -218,7 +218,7 @@ describe("pullFromCloud", () => {
         "diary:diary-food-1",
         "item:item-workout-1",
         "stool:stool-1",
-        "gym:gym-1",
+        "workout:workout-1",
       ]),
     );
     expect(committed.length).toBe(11);
@@ -241,7 +241,7 @@ describe("pullFromCloud", () => {
     expect(concurrency.diary.max).toBe(1);
     expect(concurrency.category.max).toBe(1);
     expect(concurrency.stool.max).toBe(1);
-    expect(concurrency.gym.max).toBe(1);
+    expect(concurrency.workout.max).toBe(1);
   });
 
   it("clears before writing anything, and every write happens after the clear", async () => {
@@ -249,7 +249,7 @@ describe("pullFromCloud", () => {
     await pullFromCloud();
 
     expect(calls[0]).toBe("clear");
-    expect(calls.filter((c) => c !== "clear").length).toBe(11); // 1 category + 3 items + 1 workout item + 3 logs + 1 diary + 1 stool + 1 gym
+    expect(calls.filter((c) => c !== "clear").length).toBe(11); // 1 category + 3 items + 1 workout item + 3 logs + 1 diary + 1 stool + 1 workout
   });
 
   it("writes every item across more than one item type, not just the first type in the loop", async () => {

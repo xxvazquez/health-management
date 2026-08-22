@@ -5,7 +5,7 @@ export interface DateRange {
   end: string; // YYYY-MM-DD, inclusive
 }
 
-/** Generic over anything date-stamped (CanonicalEvent, RawGymLog, …) so the
+/** Generic over anything date-stamped (CanonicalEvent, RawWorkoutLog, …) so the
  * same date-range filter panel works on every analytics page, not just
  * ones built on CanonicalEvent. */
 export function filterByDateRange<T extends { date: string }>(events: T[], range?: DateRange): T[] {

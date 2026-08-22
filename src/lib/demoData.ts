@@ -1,4 +1,5 @@
-import type { RawItem, RawLog, RawGymLog, RawStoolLog, GymExercise } from "@/lib/types";
+import type { RawItem, RawLog, RawWorkoutLog, RawStoolLog, RawPeriodLog, PeriodIntensity, WorkoutExercise } from "@/lib/types";
+import { COLLECTION_METHODS } from "@/lib/types";
 import type { ItemType } from "@/taxonomy/categories";
 
 /** Every demo item/log identity starts with this — purely in-memory,
@@ -71,8 +72,8 @@ const DEMO_WINDOW_DAYS = 75;
 /** A handful of core lifts, each trained roughly weekly with a plausible
  * upward trend — enough for the Strength Progress table and its charts to
  * have something real to show (started/current/best all differ) instead
- * of the Gym page just being the one dashboard demo mode leaves empty. */
-const GYM_PROGRESSIONS: { exercise: GymExercise; startKg: number; incrementKg: number; cadenceDays: number; phase: number }[] = [
+ * of the Workout page just being the one dashboard demo mode leaves empty. */
+const WORKOUT_PROGRESSIONS: { exercise: WorkoutExercise; startKg: number; incrementKg: number; cadenceDays: number; phase: number }[] = [
   { exercise: "Squat", startKg: 60, incrementKg: 2.5, cadenceDays: 7, phase: 2 },
   { exercise: "Deadlift", startKg: 70, incrementKg: 2.5, cadenceDays: 7, phase: 5 },
   { exercise: "Bench Press", startKg: 40, incrementKg: 1.25, cadenceDays: 7, phase: 0 },
@@ -103,8 +104,9 @@ function demoItemIdentity(rawName: string): string {
 export interface DemoDataset {
   items: RawItem[];
   logs: RawLog[];
-  gymLogs: RawGymLog[];
+  workoutLogs: RawWorkoutLog[];
   stoolLogs: RawStoolLog[];
+  periodLogs: RawPeriodLog[];
 }
 
 /**
@@ -232,12 +234,12 @@ export function buildDemoDataset(): DemoDataset {
     }
   }
 
-  const gymLogs: RawGymLog[] = [];
-  let gymCounter = 0;
-  for (const prog of GYM_PROGRESSIONS) {
+  const workoutLogs: RawWorkoutLog[] = [];
+  let workoutCounter = 0;
+  for (const prog of WORKOUT_PROGRESSIONS) {
     // Same registry every real user gets via ensureDefaultWorkoutItems —
     // without this, demo mode's row-per-exercise Workout tab would have
-    // nothing to render despite gymLogs below having real history.
+    // nothing to render despite workoutLogs below having real history.
     ensureItem("workout", prog.exercise, "Strength Training");
     let weightKg = prog.startKg;
     for (let dayOffset = DEMO_WINDOW_DAYS; dayOffset >= 0; dayOffset--) {
@@ -248,9 +250,9 @@ export function buildDemoDataset(): DemoDataset {
       const d = new Date(today);
       d.setDate(d.getDate() - dayOffset);
       const date = isoDate(d);
-      gymCounter++;
-      gymLogs.push({
-        id: `${DEMO_ID_PREFIX}gym:${prog.exercise}:${gymCounter}`,
+      workoutCounter++;
+      workoutLogs.push({
+        id: `${DEMO_ID_PREFIX}workout:${prog.exercise}:${workoutCounter}`,
         date,
         exercise: prog.exercise,
         weightKg,
@@ -259,5 +261,37 @@ export function buildDemoDataset(): DemoDataset {
     }
   }
 
-  return { items: Array.from(itemsByName.values()), logs, gymLogs, stoolLogs };
+  // Anchored further back than DEMO_WINDOW_DAYS (unlike food/stool/workout
+  // above) so the Analysis section has more than one completed cycle to
+  // compute a real average/variation from, not just the single most recent
+  // one — a lone data point would make "variation" meaningless.
+  const periodLogs: RawPeriodLog[] = [];
+  let periodCounter = 0;
+  const CYCLE_LENGTH_POOL = [25, 26, 27, 27, 28, 29, 30];
+  const PERIOD_INTENSITY_BY_DAY: PeriodIntensity[] = ["Heavy", "Heavy", "Medium", "Medium", "Light", "Light"];
+  let cycleStart = new Date(today);
+  cycleStart.setDate(cycleStart.getDate() - 165);
+  while (cycleStart <= today) {
+    const periodLength = 4 + Math.floor(rand() * 3); // 4–6 days
+    const methods = chance(0.5) ? [pick(COLLECTION_METHODS)] : [pick(COLLECTION_METHODS), pick(COLLECTION_METHODS)];
+    for (let day = 0; day < periodLength; day++) {
+      const d = new Date(cycleStart);
+      d.setDate(d.getDate() + day);
+      if (d > today) break;
+      const date = isoDate(d);
+      periodCounter++;
+      periodLogs.push({
+        id: `${DEMO_ID_PREFIX}period:${periodCounter}`,
+        date,
+        intensity: PERIOD_INTENSITY_BY_DAY[Math.min(day, PERIOD_INTENSITY_BY_DAY.length - 1)],
+        collectionMethods: Array.from(new Set(methods)),
+        updatedAt: new Date(`${date}T09:00:00`).getTime(),
+      });
+    }
+    const next = new Date(cycleStart);
+    next.setDate(next.getDate() + pick(CYCLE_LENGTH_POOL));
+    cycleStart = next;
+  }
+
+  return { items: Array.from(itemsByName.values()), logs, workoutLogs, stoolLogs, periodLogs };
 }

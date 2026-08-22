@@ -18,7 +18,7 @@ import {
   MULTIPLE_COMPARISONS_NOTE,
 } from "@/lib/aggregations/patterns";
 import { generateInsights, trackingCoverageSummary } from "@/lib/aggregations/recommendations";
-import type { CanonicalEvent, RawGymLog } from "@/lib/types";
+import type { CanonicalEvent, RawWorkoutLog } from "@/lib/types";
 
 /** "the same day as X" / "the day after X" / "2 days after X" */
 function lagPhrase(lagDays: number): string {
@@ -28,14 +28,14 @@ function lagPhrase(lagDays: number): string {
 }
 
 export default function PatternsPage() {
-  const { status, events, gymLogs } = useData();
+  const { status, events, workoutLogs } = useData();
   const { span, range, setRange, filtered } = useDateRangeFilter(events);
-  const filteredGymLogs = useMemo(
-    () => (range ? gymLogs.filter((g) => g.date >= range.start && g.date <= range.end) : gymLogs),
-    [gymLogs, range],
+  const filteredWorkoutLogs = useMemo(
+    () => (range ? workoutLogs.filter((g) => g.date >= range.start && g.date <= range.end) : workoutLogs),
+    [workoutLogs, range],
   );
 
-  const topPatterns = useMemo(() => generateTopPatterns(filtered, filteredGymLogs), [filtered, filteredGymLogs]);
+  const topPatterns = useMemo(() => generateTopPatterns(filtered, filteredWorkoutLogs), [filtered, filteredWorkoutLogs]);
   const insights = useMemo(() => generateInsights(filtered), [filtered]);
   const coverage = useMemo(() => trackingCoverageSummary(filtered), [filtered]);
 
@@ -111,7 +111,7 @@ export default function PatternsPage() {
         </div>
       </Card>
 
-      <LagExplorer events={filtered} gymLogs={filteredGymLogs} />
+      <LagExplorer events={filtered} workoutLogs={filteredWorkoutLogs} />
 
       <ToleratedFoods events={filtered} />
 
@@ -165,8 +165,8 @@ export default function PatternsPage() {
   );
 }
 
-function LagExplorer({ events, gymLogs }: { events: CanonicalEvent[]; gymLogs: RawGymLog[] }) {
-  const causeOptions = useMemo(() => allCauseOptions(events, gymLogs), [events, gymLogs]);
+function LagExplorer({ events, workoutLogs }: { events: CanonicalEvent[]; workoutLogs: RawWorkoutLog[] }) {
+  const causeOptions = useMemo(() => allCauseOptions(events, workoutLogs), [events, workoutLogs]);
 
   const outcomeOptions = useMemo(() => {
     const items = Array.from(

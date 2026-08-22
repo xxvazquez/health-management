@@ -1,9 +1,9 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import type { CanonicalEvent, RawGymLog, RawStoolLog } from "@/lib/types";
+import type { CanonicalEvent, RawWorkoutLog, RawStoolLog, RawPeriodLog } from "@/lib/types";
 import { buildCanonicalEvents } from "@/lib/canonical/buildCanonicalEvents";
-import { clearAllData, getAllDiary, getAllLogs, getAllItems, getAllStoolLogs, getAllGymLogs, hasAnyData, type OutboxEntry } from "@/lib/db/indexedDb";
+import { clearAllData, getAllDiary, getAllLogs, getAllItems, getAllStoolLogs, getAllWorkoutLogs, getAllPeriodLogs, hasAnyData, type OutboxEntry } from "@/lib/db/indexedDb";
 import { pullFromCloud } from "@/lib/supabase/sync";
 import { drainOutbox, getDeadLetterEntries, getOutboxSyncState, retryOutboxEntry } from "@/lib/supabase/outbox";
 import { ANALYTICS_START_DATE } from "@/lib/config";
@@ -24,8 +24,9 @@ export interface SyncState {
 interface DataContextValue {
   status: DataStatus;
   events: CanonicalEvent[];
-  gymLogs: RawGymLog[];
+  workoutLogs: RawWorkoutLog[];
   stoolLogs: RawStoolLog[];
+  periodLogs: RawPeriodLog[];
   /** True while showing the static, in-memory demo dataset (lib/demoData.ts)
    * instead of anything real — always the case while signed out with no
    * local data logged yet, never once signed in or once something's logged. */
@@ -47,8 +48,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const { session, loading: authLoading } = useAuth();
   const [status, setStatus] = useState<DataStatus>("loading");
   const [events, setEvents] = useState<CanonicalEvent[]>([]);
-  const [gymLogs, setGymLogs] = useState<RawGymLog[]>([]);
+  const [workoutLogs, setWorkoutLogs] = useState<RawWorkoutLog[]>([]);
   const [stoolLogs, setStoolLogs] = useState<RawStoolLog[]>([]);
+  const [periodLogs, setPeriodLogs] = useState<RawPeriodLog[]>([]);
   const [isDemoData, setIsDemoData] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [syncState, setSyncState] = useState<SyncState>({ pending: 0, deadLetter: 0 });
@@ -83,11 +85,17 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     setStatus("loading");
     try {
       const hasData = await hasAnyData();
-      // Fetched independently of the food/habit demo overlay below — gym
+      // Fetched independently of the food/habit demo overlay below — workout
       // logs are real local data the moment they exist, never part of the
       // synthetic demo dataset, so they should show up even while the rest
       // of the app is still displaying demo food/habit data.
-      const gymLogsNow = (await getAllGymLogs()).filter((g) => g.date >= ANALYTICS_START_DATE);
+      const workoutLogsNow = (await getAllWorkoutLogs()).filter((g) => g.date >= ANALYTICS_START_DATE);
+      // Unfiltered by ANALYTICS_START_DATE, same reasoning as workoutLogsNow
+      // above (real the moment it exists, outside the demo overlay) plus
+      // one more: cycle predictions read further back than that fixed
+      // cutoff on purpose (see aggregations/cycle.ts), so trimming history
+      // here would quietly make them less accurate.
+      const periodLogsNow = await getAllPeriodLogs();
       if (!hasData) {
         if (!session) {
           // Signed out with nothing logged locally yet — show the static
@@ -98,31 +106,35 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           const demo = buildDemoDataset();
           const scoped = buildCanonicalEvents(demo.items, demo.logs, []).filter((e) => e.date >= ANALYTICS_START_DATE);
           setEvents(scoped);
-          // Real gym logs (if any exist locally already) always win over
-          // the demo ones — only fall back to demo gym data when there's
-          // genuinely nothing real to show yet.
-          setGymLogs(gymLogsNow.length > 0 ? gymLogsNow : demo.gymLogs.filter((g) => g.date >= ANALYTICS_START_DATE));
+          // Real workout/period logs (if any exist locally already) always
+          // win over the demo ones — only fall back to demo data when
+          // there's genuinely nothing real to show yet.
+          setWorkoutLogs(workoutLogsNow.length > 0 ? workoutLogsNow : demo.workoutLogs.filter((g) => g.date >= ANALYTICS_START_DATE));
           setStoolLogs(demo.stoolLogs.filter((s) => s.date >= ANALYTICS_START_DATE));
+          setPeriodLogs(periodLogsNow.length > 0 ? periodLogsNow : demo.periodLogs);
           setIsDemoData(true);
           setStatus("ready");
           return;
         }
         setEvents([]);
-        setGymLogs(gymLogsNow);
+        setWorkoutLogs(workoutLogsNow);
         setStoolLogs([]);
+        setPeriodLogs(periodLogsNow);
         setIsDemoData(false);
-        // Real gym data alone is still real data — only the food/symptom/
-        // supplement/habit/stool side is empty. Forcing "empty" here
-        // regardless used to hide a gym-only account's own logs behind the
-        // shared EmptyState on the Gym page.
-        setStatus(gymLogsNow.length > 0 ? "ready" : "empty");
+        // Real workout/period data alone is still real data — only the
+        // food/symptom/supplement/habit/stool side is empty. Forcing
+        // "empty" here regardless used to hide a workout-only account's own
+        // logs behind the shared EmptyState on the Workout page; same idea
+        // extended to period-only accounts.
+        setStatus(workoutLogsNow.length > 0 || periodLogsNow.length > 0 ? "ready" : "empty");
         return;
       }
       const [items, logs, diary, stoolLogsNow] = await Promise.all([getAllItems(), getAllLogs(), getAllDiary(), getAllStoolLogs()]);
       const scoped = buildCanonicalEvents(items, logs, diary).filter((e) => e.date >= ANALYTICS_START_DATE);
       setEvents(scoped);
-      setGymLogs(gymLogsNow);
+      setWorkoutLogs(workoutLogsNow);
       setStoolLogs(stoolLogsNow.filter((s) => s.date >= ANALYTICS_START_DATE));
+      setPeriodLogs(periodLogsNow);
       setIsDemoData(false);
       setStatus("ready");
     } catch (err) {
@@ -223,8 +235,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   }, [refreshSyncState]);
 
   const value = useMemo(
-    () => ({ status, events, gymLogs, stoolLogs, isDemoData, error, syncState, deadLetterEntries, retrySync, refresh, clearData }),
-    [status, events, gymLogs, stoolLogs, isDemoData, error, syncState, deadLetterEntries, retrySync, refresh, clearData],
+    () => ({ status, events, workoutLogs, stoolLogs, periodLogs, isDemoData, error, syncState, deadLetterEntries, retrySync, refresh, clearData }),
+    [status, events, workoutLogs, stoolLogs, periodLogs, isDemoData, error, syncState, deadLetterEntries, retrySync, refresh, clearData],
   );
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;

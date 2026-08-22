@@ -31,38 +31,38 @@
   --border-hairline: rgba(36, 49, 58, 0.1);
 
   /* Categorical (fixed order — never cycle). Deepened versions of the
-     brand palette plus a couple of warm accents so 8 series stay
+     brand palette, plus the in-between hues below, so 8 series stay
      distinguishable — dusty and muted, not pale/candy-toned. Every value
      here is calibrated to clear 4.5:1 against --surface-1 (WCAG AA for
      normal text, which is what these actually render as in category
      labels and exercise names, not just chart marks) — verified by
      measuring rendered contrast, not eyeballed. Re-verify these whenever
      --surface-1 changes — a few of these were right at the edge and slipped
-     under 4.5 the last time --surface-1 was darkened by even a few points. */
+     under 4.5 the last time --surface-1 was darkened by even a few points.
+     Numbering has gaps at 5 and 7: those slots used to hold off-brand warm
+     accents (terracotta, ochre) and were retired in favor of the indigo/
+     magenta in-between hues below, so every series stays on the brand arc. */
   --series-1: #4a7a6c; /* deep sage — leaf */
   --series-2: #3c78a7; /* deep sky blue — wave */
   --series-3: #7768b5; /* deep lavender */
   --series-4: #c4436f; /* deep rose — dot */
-  --series-5: #a16331; /* terracotta */
   --series-6: #2f6b57; /* deep teal-green */
-  --series-7: #97683d; /* ochre */
   --series-8: #8a4f6e; /* plum */
   --series-other: #66737b;
   /* In-between hues on the same cool leaf→wave→lavender→dot arc, for a
-   * single surface (e.g. Gym's per-exercise colors) that wants more than
-   * 4-5 distinguishable identities without reaching for the warm
-   * off-brand accents above (series-5/7). */
+   * single surface (e.g. Workout's per-exercise colors) that wants more than
+   * 4-5 distinguishable identities without reaching outside the palette. */
   --series-indigo: #4554a1; /* between wave and lavender */
   --series-magenta: #9d43a3; /* between lavender and dot */
 
   /* Food-category slot colors (see CATEGORY_SLOT in categories.ts) — one
    * fixed hue family per real-world food group, distinct enough at a
-   * glance that two categories in the same family (the two blues, the two
-   * greens, the four browns) still read apart. */
-  --series-chestnut: #7d4a35; /* Grains */
-  --series-caramel: #a3803f; /* Nuts & Seeds */
-  --series-mustard: #8f8a2a; /* Fats */
-  --series-orange: #bd6a2e; /* Legumes */
+   * glance that two categories in the same family still read apart. Grains,
+   * Nuts & Seeds and Fats reuse the deep-rose/plum/magenta categorical
+   * tokens above; Legumes is a color-mix of two of those so every food
+   * category stays a shade or blend of the brand arc rather than an
+   * independent hue. */
+  --series-berry: color-mix(in oklab, var(--series-4) 55%, var(--series-8) 45%); /* Legumes */
   --series-slate: #5f7a8c; /* Dairy Alternatives */
 
   /* Sequential (blue), used for ordinal/magnitude encodings (e.g. Bristol scale) */
@@ -75,10 +75,14 @@
   --seq-600: #1f4c6c;
   --seq-700: #14344b;
 
-  /* Status (reserved — never reused as a categorical series) */
+  /* Status (reserved — never reused as a categorical series). Good/critical
+     are their own deep leaf-green/dot-red tones; warning/serious alias the
+     lavender and magenta categorical tokens above so the good→attention→
+     serious→critical progression climbs the brand's own leaf→lavender→
+     dot arc instead of reaching for an off-brand amber. */
   --status-good: #2f6b52;
-  --status-warning: #94691b;
-  --status-serious: #b65531;
+  --status-warning: var(--series-3);
+  --status-serious: var(--series-magenta);
   --status-critical: #a83552;
 
   /* Elevation — soft, diffused, never harsh */

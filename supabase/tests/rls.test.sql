@@ -96,7 +96,7 @@ grant select, insert, update, delete on
   public.categories, public.food_items, public.supplement_items, public.habit_items, public.symptom_items, public.workout_items,
   public.food_logs, public.supplement_logs, public.habit_logs, public.symptom_logs,
   public.food_diary, public.supplement_diary, public.habit_diary, public.symptom_diary, public.workout_diary,
-  public.stool_logs, public.workout_logs, public.push_subscriptions
+  public.stool_logs, public.workout_logs, public.period_logs, public.push_subscriptions
   to authenticated;
 
 set local role authenticated;
@@ -392,6 +392,24 @@ select public.test_assert_raises(
   $sql$insert into public.workout_logs (id, user_id, item_id, date, weight_kg)
        values ('89900000-0000-0000-0000-000000000899', '22222222-2222-2222-2222-222222222222', 'ac000000-0000-0000-0000-0000000000ac', '2026-01-01', 999)$sql$,
   'workout_logs: an item_id belonging to another user is rejected by the composite FK'
+);
+
+-- ============================================================================
+-- period_logs (no item/category — standalone, one row per period day)
+-- ============================================================================
+
+select public.test_switch_user('11111111-1111-1111-1111-111111111111');
+insert into public.period_logs (id, user_id, date, intensity) values ('99900000-0000-0000-0000-000000000999', '11111111-1111-1111-1111-111111111111', '2026-01-01', 'Medium');
+
+select public.test_switch_user('22222222-2222-2222-2222-222222222222');
+select public.test_assert(
+  (select count(*) from public.period_logs where id = '99900000-0000-0000-0000-000000000999') = 0,
+  'period_logs: user B cannot SELECT user A''s entry'
+);
+select public.test_assert_raises(
+  $sql$insert into public.period_logs (id, user_id, date, intensity)
+       values ('99a00000-0000-0000-0000-00000000099a', '11111111-1111-1111-1111-111111111111', '2026-01-01', 'Medium')$sql$,
+  'period_logs: user_id cannot be spoofed on INSERT'
 );
 
 -- ============================================================================

@@ -1,4 +1,4 @@
-import type { CanonicalEvent, RawGymLog, RawStoolLog } from "@/lib/types";
+import type { CanonicalEvent, RawWorkoutLog, RawStoolLog } from "@/lib/types";
 import { bristolAssessedDates, bristolTypeDates } from "./digestion";
 import {
   computeAssociationFromDateSets,
@@ -27,7 +27,7 @@ export const BRISTOL_COMPARISON_LABEL = "Bristol 3–4";
 
 /**
  * Single-cause, single-outcome cross-domain scan against Bristol: for every
- * candidate (foods, supplements, every tracked habit, a gym-trained day,
+ * candidate (foods, supplements, every tracked habit, a workout-trained day,
  * sleep duration ≥7h when that's being logged), how often was the
  * same/lagged-day Bristol reading in the 3–4 range vs. not, among days any
  * Bristol reading was logged. Mirrors `generateTopPatterns`'s structure and
@@ -38,7 +38,7 @@ export const BRISTOL_COMPARISON_LABEL = "Bristol 3–4";
  * `stoolLogs` (its own table), everything else from `events` — the two
  * datasets are joined here only by shared calendar dates.
  */
-export function generateBristolPatterns(events: CanonicalEvent[], stoolLogs: RawStoolLog[], gymLogs: RawGymLog[] = []): AssociationResult[] {
+export function generateBristolPatterns(events: CanonicalEvent[], stoolLogs: RawStoolLog[], workoutLogs: RawWorkoutLog[] = []): AssociationResult[] {
   const trackedSet = bristolAssessedDates(stoolLogs);
   if (trackedSet.size === 0) return [];
 
@@ -46,7 +46,7 @@ export function generateBristolPatterns(events: CanonicalEvent[], stoolLogs: Raw
 
   const hasSleepDuration = events.some((e) => e.item === SLEEP_DURATION_ITEM);
   const causeCandidates = [
-    ...crossDomainCauseCandidates(events, gymLogs),
+    ...crossDomainCauseCandidates(events, workoutLogs),
     ...(hasSleepDuration
       ? [
           {

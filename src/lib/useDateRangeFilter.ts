@@ -5,7 +5,7 @@ import { filterByDateRange, getDatasetSpan, type DateRange } from "@/lib/aggrega
 
 /** Generic over anything date-stamped, so the same range-filter panel and
  * preset list drives every analytics page (CanonicalEvent-based pages and
- * Gym's RawGymLog alike). */
+ * Workout's RawWorkoutLog alike). */
 export function useDateRangeFilter<T extends { date: string }>(events: T[]) {
   const span = useMemo(() => getDatasetSpan(events), [events]);
   const [range, setRange] = useState<DateRange | null>(null);

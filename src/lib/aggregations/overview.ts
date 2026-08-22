@@ -1,4 +1,4 @@
-import type { CanonicalEvent, RawGymLog, RawStoolLog } from "@/lib/types";
+import type { CanonicalEvent, RawWorkoutLog, RawStoolLog } from "@/lib/types";
 import { addDaysToDate, getDatasetSpan, trackedCalendarDates } from "./common";
 import { supplementsInsight } from "./supplements";
 import { habitsInsight } from "./habits";
@@ -137,14 +137,14 @@ const MAX_OVERVIEW_FINDINGS = 4;
 
 /**
  * The strongest cross-domain findings across the whole app — Bristol
- * comparisons plus the general food/supplement/habit/gym-vs-symptom scan —
+ * comparisons plus the general food/supplement/habit/workout-vs-symptom scan —
  * ranked by magnitude and deduped by cause+outcome pair, for a short
  * "what stands out" list on Overview. Reuses `generateBristolPatterns` and
  * `generateTopPatterns` directly rather than re-scanning anything; this is
  * a ranked slice of their combined output, not a separate analysis.
  */
-export function topCrossDomainFindings(events: CanonicalEvent[], stoolLogs: RawStoolLog[], gymLogs: RawGymLog[] = []): AssociationResult[] {
-  const combined = [...generateBristolPatterns(events, stoolLogs, gymLogs), ...generateTopPatterns(events, gymLogs)].sort(
+export function topCrossDomainFindings(events: CanonicalEvent[], stoolLogs: RawStoolLog[], workoutLogs: RawWorkoutLog[] = []): AssociationResult[] {
+  const combined = [...generateBristolPatterns(events, stoolLogs, workoutLogs), ...generateTopPatterns(events, workoutLogs)].sort(
     (a, b) => Math.abs(b.diffPct) - Math.abs(a.diffPct),
   );
 

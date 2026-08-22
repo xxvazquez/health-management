@@ -1,5 +1,5 @@
 import { openDB, type DBSchema, type IDBPDatabase } from "idb";
-import type { RawItem, RawLog, RawDiaryEntry, RawGymLog, RawCategory, RawStoolLog } from "@/lib/types";
+import type { RawItem, RawLog, RawDiaryEntry, RawWorkoutLog, RawCategory, RawStoolLog, RawPeriodLog } from "@/lib/types";
 import type { ItemType } from "@/taxonomy/categories";
 import { normalizeName } from "@/taxonomy/normalizeName";
 
@@ -38,12 +38,13 @@ interface HealthDbSchema extends DBSchema {
   diary: { key: string; value: RawDiaryEntry; indexes: { itemIdentity: string; itemType: string } };
   categories: { key: string; value: RawCategory; indexes: { itemType: string } };
   stoolLogs: { key: string; value: RawStoolLog };
-  gymLogs: { key: string; value: RawGymLog };
+  workoutLogs: { key: string; value: RawWorkoutLog };
+  periodLogs: { key: string; value: RawPeriodLog };
   outbox: { key: string; value: OutboxEntry; indexes: { userId: string; status: string; nextAttemptAt: number; dedupeKey: string } };
 }
 
 const DB_NAME = "health-analytics";
-const DB_VERSION = 8;
+const DB_VERSION = 9;
 
 let dbPromise: Promise<IDBPDatabase<HealthDbSchema>> | null = null;
 
@@ -73,8 +74,11 @@ function getDb(): Promise<IDBPDatabase<HealthDbSchema>> {
         if (!db.objectStoreNames.contains("stoolLogs")) {
           db.createObjectStore("stoolLogs", { keyPath: "id" });
         }
-        if (!db.objectStoreNames.contains("gymLogs")) {
-          db.createObjectStore("gymLogs", { keyPath: "id" });
+        if (!db.objectStoreNames.contains("workoutLogs")) {
+          db.createObjectStore("workoutLogs", { keyPath: "id" });
+        }
+        if (!db.objectStoreNames.contains("periodLogs")) {
+          db.createObjectStore("periodLogs", { keyPath: "id" });
         }
         if (!db.objectStoreNames.contains("outbox")) {
           const outbox = db.createObjectStore("outbox", { keyPath: "id" });
@@ -158,20 +162,20 @@ export function putItem(item: RawItem): Promise<void> {
  *
  * Workout items are matched into this set by name rather than by
  * `itemIdentity` (`workout_logs` has no `itemIdentity` column — see
- * `RawGymLog`'s own comment) — same resolution sync.ts uses at the push/
+ * `RawWorkoutLog`'s own comment) — same resolution sync.ts uses at the push/
  * pull boundary. */
 export async function getItemIdentitiesWithHistory(): Promise<Set<string>> {
   const db = await getDb();
-  const [logs, diary, items, gymLogs] = await Promise.all([
+  const [logs, diary, items, workoutLogs] = await Promise.all([
     db.getAll("logs"),
     db.getAll("diary"),
     db.getAll("items"),
-    db.getAll("gymLogs"),
+    db.getAll("workoutLogs"),
   ]);
   const withHistory = new Set([...logs.map((l) => l.itemIdentity), ...diary.map((d) => d.itemIdentity)]);
-  const gymExerciseNames = new Set(gymLogs.map((g) => normalizeName(g.exercise)));
+  const workoutExerciseNames = new Set(workoutLogs.map((g) => normalizeName(g.exercise)));
   for (const item of items) {
-    if (item.itemType === "workout" && gymExerciseNames.has(normalizeName(item.rawName))) {
+    if (item.itemType === "workout" && workoutExerciseNames.has(normalizeName(item.rawName))) {
       withHistory.add(item.identity);
     }
   }
@@ -548,28 +552,55 @@ export function updateStoolLogTime(id: string, loggedAt: string): Promise<RawSto
   return withDataLock(() => updateStoolLogTimeInternal(id, loggedAt));
 }
 
-export async function getAllGymLogs(): Promise<RawGymLog[]> {
-  return (await getDb()).getAll("gymLogs");
+export async function getAllWorkoutLogs(): Promise<RawWorkoutLog[]> {
+  return (await getDb()).getAll("workoutLogs");
 }
 
 /** Raw, unlocked write — see `putItemInternal`. */
-export async function putGymLogInternal(log: RawGymLog): Promise<void> {
+export async function putWorkoutLogInternal(log: RawWorkoutLog): Promise<void> {
   const db = await getDb();
-  await db.put("gymLogs", log);
+  await db.put("workoutLogs", log);
 }
 
-export function putGymLog(log: RawGymLog): Promise<void> {
-  return withDataLock(() => putGymLogInternal(log));
+export function putWorkoutLog(log: RawWorkoutLog): Promise<void> {
+  return withDataLock(() => putWorkoutLogInternal(log));
 }
 
 /** Raw, unlocked delete — see `putItemInternal`. */
-export async function deleteGymLogByIdInternal(id: string): Promise<void> {
+export async function deleteWorkoutLogByIdInternal(id: string): Promise<void> {
   const db = await getDb();
-  await db.delete("gymLogs", id);
+  await db.delete("workoutLogs", id);
 }
 
-export function deleteGymLogById(id: string): Promise<void> {
-  return withDataLock(() => deleteGymLogByIdInternal(id));
+export function deleteWorkoutLogById(id: string): Promise<void> {
+  return withDataLock(() => deleteWorkoutLogByIdInternal(id));
+}
+
+export async function getAllPeriodLogs(): Promise<RawPeriodLog[]> {
+  return (await getDb()).getAll("periodLogs");
+}
+
+/** Raw, unlocked write — see `putItemInternal`. At most one row per date is
+ * an app-level invariant (matching the Supabase `unique(user_id, date)`
+ * constraint), enforced by the caller reusing an existing day's `id`
+ * rather than by this function — see `setPeriodDayAndSync` in sync.ts. */
+export async function putPeriodLogInternal(log: RawPeriodLog): Promise<void> {
+  const db = await getDb();
+  await db.put("periodLogs", log);
+}
+
+export function putPeriodLog(log: RawPeriodLog): Promise<void> {
+  return withDataLock(() => putPeriodLogInternal(log));
+}
+
+/** Raw, unlocked delete — see `putItemInternal`. */
+export async function deletePeriodLogByIdInternal(id: string): Promise<void> {
+  const db = await getDb();
+  await db.delete("periodLogs", id);
+}
+
+export function deletePeriodLogById(id: string): Promise<void> {
+  return withDataLock(() => deletePeriodLogByIdInternal(id));
 }
 
 export async function hasAnyData(): Promise<boolean> {
@@ -583,7 +614,7 @@ export async function hasAnyData(): Promise<boolean> {
  * `clearAllData`. */
 export async function clearAllDataInternal(): Promise<void> {
   const db = await getDb();
-  const stores = ["items", "logs", "diary", "categories", "stoolLogs", "gymLogs"] as const;
+  const stores = ["items", "logs", "diary", "categories", "stoolLogs", "workoutLogs", "periodLogs"] as const;
   const tx = db.transaction(stores, "readwrite");
   await Promise.all([...stores.map((s) => tx.objectStore(s).clear()), tx.done]);
 }

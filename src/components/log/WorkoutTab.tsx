@@ -2,10 +2,10 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { workoutUnitLabel, type RawGymLog, type RawItem, type WorkoutUnit } from "@/lib/types";
+import { workoutUnitLabel, type RawWorkoutLog, type RawItem, type WorkoutUnit } from "@/lib/types";
 import { NumberStepper, UNIT_STEP_PRESETS } from "@/components/ui/NumberStepper";
 
-export interface NewGymEntry {
+export interface NewWorkoutEntry {
   exercise: string;
   weightKg: string;
   /** Local "HH:MM" — matches the shared Time field every other tab has
@@ -101,7 +101,7 @@ export function WorkoutTab({
   groups: { category: string; items: RawItem[] }[];
   /** Today's already-logged sets — used only for the read-only "Logged
    * today" summary per row; edited/deleted from the shared day timeline. */
-  entries: RawGymLog[];
+  entries: RawWorkoutLog[];
   /** Most recently logged value per exercise, across all history (not
    * just today), in whatever unit that exercise is configured for —
    * prefill convenience so repeat entries don't need re-adjusting the
@@ -111,7 +111,7 @@ export function WorkoutTab({
   accent: string;
   time: string;
   onTimeChange: (time: string) => void;
-  onSave: (entry: NewGymEntry) => Promise<void>;
+  onSave: (entry: NewWorkoutEntry) => Promise<void>;
 }) {
   return (
     <div className="flex flex-col gap-3">

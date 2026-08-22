@@ -274,12 +274,33 @@ create table public.workout_logs (
   foreign key (user_id, item_id) references public.workout_items (user_id, id) on delete restrict
 );
 
+-- One row per calendar day flagged as a period day — no item/category of
+-- its own, same standalone shape as stool_logs. A day's presence in this
+-- table (not a separate boolean) is what "on your period" means; deleting
+-- the row un-marks the day. Period/cycle length, current cycle day, and
+-- predictions are all derived from this table's dates at the app layer,
+-- not stored — see src/lib/aggregations/cycle.ts.
+create table public.period_logs (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id),
+  date date not null,
+  intensity text not null check (intensity in ('Light', 'Medium', 'Heavy', 'Super Heavy')),
+  -- Free text, not constrained to the app's four suggested chips — same
+  -- reasoning as workout_items.unit: a value logged elsewhere (or
+  -- imported from historical data) stays intact even if it isn't one of
+  -- the chips offered in Manage/Log.
+  collection_methods text[] not null default '{}'::text[],
+  updated_at timestamptz not null default now(),
+  unique (user_id, date)
+);
+
 create index food_logs_item_date_idx on public.food_logs (item_id, date);
 create index supplement_logs_item_date_idx on public.supplement_logs (item_id, date);
 create index habit_logs_item_date_idx on public.habit_logs (item_id, date);
 create index symptom_logs_item_date_idx on public.symptom_logs (item_id, date);
 create index stool_logs_user_date_idx on public.stool_logs (user_id, date);
 create index workout_logs_item_date_idx on public.workout_logs (item_id, date);
+create index period_logs_user_date_idx on public.period_logs (user_id, date);
 
 -- One row per user: the push subscription for whichever device they last
 -- enabled notifications on (enabling on a second device overwrites the
@@ -324,6 +345,7 @@ alter table public.symptom_diary enable row level security;
 alter table public.workout_diary enable row level security;
 alter table public.stool_logs enable row level security;
 alter table public.workout_logs enable row level security;
+alter table public.period_logs enable row level security;
 alter table public.push_subscriptions enable row level security;
 
 create policy "categories_all_own" on public.categories for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
@@ -343,6 +365,7 @@ create policy "symptom_diary_all_own" on public.symptom_diary for all using (aut
 create policy "workout_diary_all_own" on public.workout_diary for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "stool_logs_all_own" on public.stool_logs for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "workout_logs_all_own" on public.workout_logs for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "period_logs_all_own" on public.period_logs for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "push_subscriptions_all_own" on public.push_subscriptions for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 -- Reminders: schedule the Edge Function that checks and sends them (still
@@ -449,3 +472,21 @@ create policy "push_subscriptions_all_own" on public.push_subscriptions for all 
 -- create index workout_logs_item_date_idx on public.workout_logs (item_id, date);
 -- alter table public.workout_logs enable row level security;
 -- create policy "workout_logs_all_own" on public.workout_logs for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- Migration for a project that already ran the create table statements
+-- above before the Cycle Tracker existed: adds period_logs. Non-destructive
+-- — safe to run on a project with existing data, doesn't touch any other
+-- table.
+--
+-- create table public.period_logs (
+--   id uuid primary key default gen_random_uuid(),
+--   user_id uuid not null default auth.uid() references auth.users(id),
+--   date date not null,
+--   intensity text not null check (intensity in ('Light', 'Medium', 'Heavy', 'Super Heavy')),
+--   collection_methods text[] not null default '{}'::text[],
+--   updated_at timestamptz not null default now(),
+--   unique (user_id, date)
+-- );
+-- create index period_logs_user_date_idx on public.period_logs (user_id, date);
+-- alter table public.period_logs enable row level security;
+-- create policy "period_logs_all_own" on public.period_logs for all using (auth.uid() = user_id) with check (auth.uid() = user_id);

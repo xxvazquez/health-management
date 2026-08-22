@@ -60,7 +60,7 @@ const BAND_COLOR: Record<string, string> = {
   "Loose (5–7)": "var(--series-1)",
 };
 
-const SYMPTOM_LINE_COLORS = ["var(--series-1)", "var(--series-2)", "var(--series-3)", "var(--series-4)", "var(--series-5)"];
+const SYMPTOM_LINE_COLORS = ["var(--series-1)", "var(--series-2)", "var(--series-3)", "var(--series-4)", "var(--series-magenta)"];
 
 function deltaDetail(recentPct: number | null, priorPct: number | null): string | undefined {
   if (recentPct === null) return undefined;
@@ -72,11 +72,11 @@ function deltaDetail(recentPct: number | null, priorPct: number | null): string 
 }
 
 export default function DigestionPage() {
-  const { status, events, gymLogs, stoolLogs } = useData();
+  const { status, events, workoutLogs, stoolLogs } = useData();
   const { span, range, setRange, filtered } = useDateRangeFilter(events);
-  const filteredGymLogs = useMemo(
-    () => (range ? gymLogs.filter((g) => g.date >= range.start && g.date <= range.end) : gymLogs),
-    [gymLogs, range],
+  const filteredWorkoutLogs = useMemo(
+    () => (range ? workoutLogs.filter((g) => g.date >= range.start && g.date <= range.end) : workoutLogs),
+    [workoutLogs, range],
   );
   const filteredStoolLogs = useMemo(() => filterByDateRange(stoolLogs, range ?? undefined), [stoolLogs, range]);
 
@@ -87,8 +87,8 @@ export default function DigestionPage() {
   const rangeChange = useMemo(() => bristolTargetRangeChange(stoolLogs), [stoolLogs]);
   const symptomRateChange = useMemo(() => digestiveSymptomRateChange(events), [events]);
   const bristolPatterns = useMemo(
-    () => generateBristolPatterns(filtered, filteredStoolLogs, filteredGymLogs),
-    [filtered, filteredStoolLogs, filteredGymLogs],
+    () => generateBristolPatterns(filtered, filteredStoolLogs, filteredWorkoutLogs),
+    [filtered, filteredStoolLogs, filteredWorkoutLogs],
   );
 
   const scoreSeries = useMemo(() => bristolScoreSeries(filteredStoolLogs), [filteredStoolLogs]);

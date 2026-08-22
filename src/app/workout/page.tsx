@@ -12,17 +12,17 @@ import { RankedBarChart } from "@/components/charts/RankedBarChart";
 import { useDateRangeFilter } from "@/lib/useDateRangeFilter";
 import {
   describeProgression,
-  gymConsistencySummary,
-  gymExerciseFrequency,
-  gymInsight,
-  gymMonthlySessions,
-  gymStatsByExercise,
-  formatGymDate,
-  type GymExerciseStats,
-} from "@/lib/aggregations/gym";
+  workoutConsistencySummary,
+  workoutExerciseFrequency,
+  workoutInsight,
+  workoutMonthlySessions,
+  workoutStatsByExercise,
+  formatWorkoutDate,
+  type WorkoutExerciseStats,
+} from "@/lib/aggregations/workout";
 import { formatMonthYear, todayLocalISODate } from "@/lib/aggregations/common";
 import { TYPE_ACCENT } from "@/taxonomy/categories";
-import type { GymExercise } from "@/lib/types";
+import type { WorkoutExercise } from "@/lib/types";
 
 // Same accent as every other Workout surface (Log's Workout tab, its
 // timeline entries, Manage's Workout section) — color is otherwise
@@ -54,7 +54,7 @@ function signed(n: number): string {
  * lift's bigger real gain. A single data point has nothing to rank (no
  * second reading to compare against yet), so it always sinks to the bottom
  * rather than reading as "0 kg change". */
-function trendRank(s: GymExerciseStats): number {
+function trendRank(s: WorkoutExerciseStats): number {
   return s.recordsCount >= 2 ? s.changeKg : -Infinity;
 }
 
@@ -82,7 +82,7 @@ function ProgressionStat({ label, value, detail, accent }: { label: string; valu
 
 /** "SQ", "BP", "OP" — a plain two-letter monogram, not an emoji or icon
  * asset, to keep the row marker calm and data-oriented rather than decorative. */
-function monogram(exercise: GymExercise): string {
+function monogram(exercise: WorkoutExercise): string {
   const words = exercise.split(" ");
   return words.length >= 2 ? (words[0][0] + words[1][0]).toUpperCase() : exercise.slice(0, 2).toUpperCase();
 }
@@ -97,9 +97,9 @@ function StrengthProgressTable({
   selected,
   onSelect,
 }: {
-  stats: GymExerciseStats[];
-  selected: GymExercise | null;
-  onSelect: (exercise: GymExercise) => void;
+  stats: WorkoutExerciseStats[];
+  selected: WorkoutExercise | null;
+  onSelect: (exercise: WorkoutExercise) => void;
 }) {
   const sorted = useMemo(() => [...stats].sort((a, b) => trendRank(b) - trendRank(a)), [stats]);
   const trending = useMemo(() => stats.filter((s) => s.recordsCount >= 2), [stats]);
@@ -181,22 +181,22 @@ function StrengthProgressTable({
 }
 
 export default function WorkoutPage() {
-  const { status, gymLogs } = useData();
+  const { status, workoutLogs } = useData();
   const today = useMemo(() => todayLocalISODate(), []);
-  const [compareExercise, setCompareExercise] = useState<GymExercise | null>(null);
+  const [compareExercise, setCompareExercise] = useState<WorkoutExercise | null>(null);
 
-  const { span, range, setRange, filtered: filteredGymLogs } = useDateRangeFilter(gymLogs);
+  const { span, range, setRange, filtered: filteredWorkoutLogs } = useDateRangeFilter(workoutLogs);
 
   // Strength progress and Progression track a lift since its very first
   // recorded weight — filtering those to the range picker below would make
   // "Started" and "Best" wrong (they'd only reflect whatever's inside the
   // window), so they always read the full history. Only the frequency-style
   // cards (how often you trained, which lifts) are scoped to the range.
-  const stats = useMemo(() => gymStatsByExercise(gymLogs), [gymLogs]);
-  const insight = useMemo(() => gymInsight(gymLogs, today), [gymLogs, today]);
-  const consistency = useMemo(() => gymConsistencySummary(gymLogs, today), [gymLogs, today]);
-  const monthlySessions = useMemo(() => gymMonthlySessions(filteredGymLogs), [filteredGymLogs]);
-  const exerciseFrequency = useMemo(() => gymExerciseFrequency(filteredGymLogs), [filteredGymLogs]);
+  const stats = useMemo(() => workoutStatsByExercise(workoutLogs), [workoutLogs]);
+  const insight = useMemo(() => workoutInsight(workoutLogs, today), [workoutLogs, today]);
+  const consistency = useMemo(() => workoutConsistencySummary(workoutLogs, today), [workoutLogs, today]);
+  const monthlySessions = useMemo(() => workoutMonthlySessions(filteredWorkoutLogs), [filteredWorkoutLogs]);
+  const exerciseFrequency = useMemo(() => workoutExerciseFrequency(filteredWorkoutLogs), [filteredWorkoutLogs]);
 
   const selectedExercise = compareExercise && stats.some((s) => s.exercise === compareExercise) ? compareExercise : (stats[0]?.exercise ?? null);
   const selectedStats = stats.find((s) => s.exercise === selectedExercise) ?? null;
@@ -221,7 +221,7 @@ export default function WorkoutPage() {
     );
     if (consistency.longestGapDays !== null && consistency.longestGapDays >= 10) {
       frequencyCaptions.push(
-        `Longest gap: ${consistency.longestGapDays} days (${formatGymDate(consistency.longestGapStart!)}–${formatGymDate(consistency.longestGapEnd!)})`,
+        `Longest gap: ${consistency.longestGapDays} days (${formatWorkoutDate(consistency.longestGapStart!)}–${formatWorkoutDate(consistency.longestGapEnd!)})`,
       );
     }
     if (!heroCoversCurrentGap && consistency.currentGapDays !== null && consistency.currentGapDays >= 10) {
@@ -230,7 +230,7 @@ export default function WorkoutPage() {
   }
 
   const rangeIsAllTime = !!span && !!range && range.start === span.start && range.end === span.end;
-  const rangeLabel = range ? (rangeIsAllTime ? "all time" : `${formatGymDate(range.start)} – ${formatGymDate(range.end)}`) : "";
+  const rangeLabel = range ? (rangeIsAllTime ? "all time" : `${formatWorkoutDate(range.start)} – ${formatWorkoutDate(range.end)}`) : "";
 
   return (
     <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
@@ -309,7 +309,7 @@ export default function WorkoutPage() {
             </CardTitle>
             <select
               value={selectedStats.exercise}
-              onChange={(e) => setCompareExercise(e.target.value as GymExercise)}
+              onChange={(e) => setCompareExercise(e.target.value as WorkoutExercise)}
               className="rounded-md border px-2.5 py-1.5 text-sm font-medium"
               style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
             >
@@ -322,9 +322,9 @@ export default function WorkoutPage() {
           </div>
 
           <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-            <ProgressionStat label="Started" value={`${selectedStats.started.weightKg} kg`} detail={formatGymDate(selectedStats.started.date)} />
-            <ProgressionStat label="Current" value={`${selectedStats.current.weightKg} kg`} detail={formatGymDate(selectedStats.current.date)} />
-            <ProgressionStat label="Best" value={`${selectedStats.best.weightKg} kg`} detail={formatGymDate(selectedStats.best.date)} />
+            <ProgressionStat label="Started" value={`${selectedStats.started.weightKg} kg`} detail={formatWorkoutDate(selectedStats.started.date)} />
+            <ProgressionStat label="Current" value={`${selectedStats.current.weightKg} kg`} detail={formatWorkoutDate(selectedStats.current.date)} />
+            <ProgressionStat label="Best" value={`${selectedStats.best.weightKg} kg`} detail={formatWorkoutDate(selectedStats.best.date)} />
             <ProgressionStat
               label="Change"
               value={`${signed(selectedStats.changeKg)} kg`}

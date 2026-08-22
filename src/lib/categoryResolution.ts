@@ -1,6 +1,6 @@
 import { putCategoryAndSync, putItemAndSync } from "@/lib/supabase/sync";
 import { CATEGORIES_BY_TYPE, type ItemType } from "@/taxonomy/categories";
-import { GYM_EXERCISES, type RawCategory, type RawItem } from "@/lib/types";
+import { WORKOUT_EXERCISES, type RawCategory, type RawItem } from "@/lib/types";
 import { todayLocalISODate } from "@/lib/aggregations/common";
 
 /**
@@ -46,7 +46,7 @@ export function categoryRowsToSeedForDemo(itemType: ItemType, name: string, exis
 }
 
 /**
- * Materializes the 7 exercises this app used to hardcode (`GYM_EXERCISES`)
+ * Materializes the 7 exercises this app used to hardcode (`WORKOUT_EXERCISES`)
  * as real `workout_items`, all filed under a seeded "Strength Training"
  * category — but only the first time, for a user with zero workout items
  * of their own yet. Mirrors `categoryNamesToSeed`'s "whole default list at
@@ -58,7 +58,7 @@ export async function ensureDefaultWorkoutItems(existingItems: RawItem[], existi
   if (existingItems.some((i) => i.itemType === "workout")) return;
   const categoryId = await ensureCategoryId("workout", "Strength Training", existingCategories);
   const today = todayLocalISODate();
-  for (const name of GYM_EXERCISES) {
+  for (const name of WORKOUT_EXERCISES) {
     const item: RawItem = {
       identity: crypto.randomUUID(),
       itemType: "workout",
