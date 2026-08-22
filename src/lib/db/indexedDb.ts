@@ -157,7 +157,7 @@ export function putItem(item: RawItem): Promise<void> {
  * server's rejection after the fact.
  *
  * Workout items are matched into this set by name rather than by
- * `itemIdentity` (`gym_logs` has no `itemIdentity` column — see
+ * `itemIdentity` (`workout_logs` has no `itemIdentity` column — see
  * `RawGymLog`'s own comment) — same resolution sync.ts uses at the push/
  * pull boundary. */
 export async function getItemIdentitiesWithHistory(): Promise<Set<string>> {

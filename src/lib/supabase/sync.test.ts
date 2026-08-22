@@ -173,7 +173,7 @@ const baseTables = {
   workout_items: [
     { id: "item-workout-1", name: "Squat", category_id: null, is_archived: false, created_date: "2026-01-01", unit: "kg" },
   ],
-  gym_logs: [{ id: "gym-1", item_id: "item-workout-1", date: "2026-01-01", weight_kg: 60, updated_at: "2026-01-01T10:00:00.000Z" }],
+  workout_logs: [{ id: "gym-1", item_id: "item-workout-1", date: "2026-01-01", weight_kg: 60, updated_at: "2026-01-01T10:00:00.000Z" }],
 };
 
 beforeEach(() => {

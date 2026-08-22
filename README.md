@@ -65,7 +65,7 @@ All optional — without them the app just runs local-only with fewer features. 
 
 **Items, logs, diary, categories** — one consistent shape across Food, Supplement, Habit, Symptom, and Workout: an *item* (what you track, with a category) has many *logs* (one per occurrence) and an optional *diary* entry per day (a note). Categories are shared per item type and editable from Manage; a type with no custom categories yet falls back to the built-in defaults in `src/taxonomy/categories.ts`, and once any real row exists the database is the only source of truth from then on. Archiving hides an item from Log without touching its history; deleting is only allowed once an item has zero logged history (every `*_logs`/`*_diary` foreign key is `on delete restrict`).
 
-**Stool and Workout logs don't fit that shape and keep their own tables** (`stool_logs`, `gym_logs`) — a bowel movement or a lift isn't "an item plus an occurrence." Workout still gets a real item type (`workout_items`: name, category, archive state, a unit like kg/minutes/reps) for the Manage page and the Log page's per-exercise rows, and `gym_logs.item_id` is a real foreign key to it, same as every other log table — the app layer just keeps working with a plain exercise name, resolving to/from `item_id` only at the Supabase sync boundary (`buildGymLogRow`/`pullFromCloud` in `sync.ts`).
+**Stool and Workout logs don't fit that shape and keep their own tables** (`stool_logs`, `workout_logs`) — a bowel movement or a lift isn't "an item plus an occurrence." Workout still gets a real item type (`workout_items`: name, category, archive state, a unit like kg/minutes/reps) for the Manage page and the Log page's per-exercise rows, and `workout_logs.item_id` is a real foreign key to it, same as every other log table — the app layer just keeps working with a plain exercise name, resolving to/from `item_id` only at the Supabase sync boundary (`buildGymLogRow`/`pullFromCloud` in `sync.ts`).
 
 **PWA / offline shell**: `public/manifest.webmanifest` + `public/sw.js` cache the app shell (HTML/JS/CSS) separately from IndexedDB's data cache. The service worker's cache name bakes in the deploy's git SHA, substituted by `.github/workflows/deploy.yml`, so every deploy is a genuinely new cache instead of accumulating old assets.
 
@@ -88,7 +88,7 @@ erDiagram
     SYMPTOM_ITEMS ||--o{ SYMPTOM_LOGS : "(user_id, item_id)"
     SYMPTOM_ITEMS ||--o{ SYMPTOM_DIARY : "(user_id, item_id)"
     WORKOUT_ITEMS ||--o{ WORKOUT_DIARY : "(user_id, item_id)"
-    WORKOUT_ITEMS ||--o{ GYM_LOGS : "(user_id, item_id)"
+    WORKOUT_ITEMS ||--o{ WORKOUT_LOGS : "(user_id, item_id)"
 
     CATEGORIES {
         uuid id PK
@@ -198,7 +198,7 @@ erDiagram
         smallint_array bristol_scores
         text color
     }
-    GYM_LOGS {
+    WORKOUT_LOGS {
         uuid user_id PK
         uuid id PK
         uuid item_id FK

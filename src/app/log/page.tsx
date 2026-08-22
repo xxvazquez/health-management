@@ -603,8 +603,8 @@ export default function LogPage() {
   }, [workoutItems, effective.categories]);
 
   // Stool and Workout have no item/category of their own the way
-  // food/supplements/habits/symptoms do (Workout's `gym_logs` links to an
-  // exercise by name, not identity — see RawGymLog's own comment), but
+  // food/supplements/habits/symptoms do (Workout's `workout_logs` links to
+  // an exercise by name, not identity — see RawGymLog's own comment), but
   // both still belong in the same day timeline — mapped into the same
   // shape and merged in, sorted back together by the instant each one
   // actually happened rather than kept as separate lists.
@@ -793,7 +793,7 @@ export default function LogPage() {
       return;
     }
     if (entry.itemType === "workout") {
-      // No dedicated updateGymLogTimeAndSync — gym_logs has no generic
+      // No dedicated updateGymLogTimeAndSync — workout_logs has no generic
       // *_logs shape to reuse (see RawGymLog's own comment), so this just
       // re-puts the existing row with a new `updatedAt`, the same write
       // handleUpdateGymEntry already does for every other field.

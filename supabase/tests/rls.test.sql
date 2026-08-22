@@ -96,7 +96,7 @@ grant select, insert, update, delete on
   public.categories, public.food_items, public.supplement_items, public.habit_items, public.symptom_items, public.workout_items,
   public.food_logs, public.supplement_logs, public.habit_logs, public.symptom_logs,
   public.food_diary, public.supplement_diary, public.habit_diary, public.symptom_diary, public.workout_diary,
-  public.stool_logs, public.gym_logs, public.push_subscriptions
+  public.stool_logs, public.workout_logs, public.push_subscriptions
   to authenticated;
 
 set local role authenticated;
@@ -310,7 +310,7 @@ select public.test_assert_raises(
 -- ============================================================================
 -- Same composite-FK shape as food_items/food_diary above — workout_items
 -- is a real item type (name, category, archive state, unit), referenced by
--- both workout_diary (per-item-per-day note) and gym_logs (per-set weight,
+-- both workout_diary (per-item-per-day note) and workout_logs (per-set weight,
 -- tested further below) via the same (user_id, id) composite FK.
 
 select public.test_switch_user('11111111-1111-1111-1111-111111111111');
@@ -371,27 +371,27 @@ select public.test_assert_raises(
 );
 
 -- ============================================================================
--- gym_logs (references workout_items via a composite FK, like the other
+-- workout_logs (references workout_items via a composite FK, like the other
 -- *_logs tables — no diary/item dimension of its own beyond that)
 -- ============================================================================
 
 select public.test_switch_user('11111111-1111-1111-1111-111111111111');
-insert into public.gym_logs (id, user_id, item_id, date, weight_kg) values ('77700000-0000-0000-0000-000000000777', '11111111-1111-1111-1111-111111111111', 'ac000000-0000-0000-0000-0000000000ac', '2026-01-01', 60);
+insert into public.workout_logs (id, user_id, item_id, date, weight_kg) values ('77700000-0000-0000-0000-000000000777', '11111111-1111-1111-1111-111111111111', 'ac000000-0000-0000-0000-0000000000ac', '2026-01-01', 60);
 
 select public.test_switch_user('22222222-2222-2222-2222-222222222222');
 select public.test_assert(
-  (select count(*) from public.gym_logs where id = '77700000-0000-0000-0000-000000000777') = 0,
-  'gym_logs: user B cannot SELECT user A''s lift'
+  (select count(*) from public.workout_logs where id = '77700000-0000-0000-0000-000000000777') = 0,
+  'workout_logs: user B cannot SELECT user A''s lift'
 );
 select public.test_assert_raises(
-  $sql$insert into public.gym_logs (id, user_id, item_id, date, weight_kg)
+  $sql$insert into public.workout_logs (id, user_id, item_id, date, weight_kg)
        values ('88800000-0000-0000-0000-000000000888', '11111111-1111-1111-1111-111111111111', 'ac000000-0000-0000-0000-0000000000ac', '2026-01-01', 999)$sql$,
-  'gym_logs: user_id cannot be spoofed on INSERT'
+  'workout_logs: user_id cannot be spoofed on INSERT'
 );
 select public.test_assert_raises(
-  $sql$insert into public.gym_logs (id, user_id, item_id, date, weight_kg)
+  $sql$insert into public.workout_logs (id, user_id, item_id, date, weight_kg)
        values ('89900000-0000-0000-0000-000000000899', '22222222-2222-2222-2222-222222222222', 'ac000000-0000-0000-0000-0000000000ac', '2026-01-01', 999)$sql$,
-  'gym_logs: an item_id belonging to another user is rejected by the composite FK'
+  'workout_logs: an item_id belonging to another user is rejected by the composite FK'
 );
 
 -- ============================================================================

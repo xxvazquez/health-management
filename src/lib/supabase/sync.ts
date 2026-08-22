@@ -44,7 +44,7 @@ const ITEM_TABLE: Record<ItemType, string> = {
   habit: "habit_items",
   workout: "workout_items",
 };
-// Workout logging stays on its own gym_logs/RawGymLog path (weight per set,
+// Workout logging stays on its own workout_logs/RawGymLog path (weight per set,
 // several entries a day) rather than the generic increment/toggle/duration
 // *AndSync functions below — "workout" is only ever looked up here to keep
 // this dict exhaustive over ItemType; nothing actually calls a generic log
@@ -54,7 +54,7 @@ const LOG_TABLE: Record<ItemType, string> = {
   supplement: "supplement_logs",
   outcome: "symptom_logs",
   habit: "habit_logs",
-  workout: "gym_logs",
+  workout: "workout_logs",
 };
 const DIARY_TABLE: Record<ItemType, string> = {
   food: "food_diary",
@@ -158,7 +158,7 @@ function buildStoolLogRow(log: RawStoolLog, userId: string): Record<string, unkn
   };
 }
 
-/** gym_logs stores a real FK to workout_items (item_id), but the rest of the
+/** workout_logs stores a real FK to workout_items (item_id), but the rest of the
  * app still treats a RawGymLog's `exercise` as a plain display name (see the
  * decision in workoutItemIdByName-style lookups elsewhere) — resolving name
  * -> id is confined to this push boundary so nothing else has to change. */
@@ -398,7 +398,7 @@ export function putGymLogAndSync(log: RawGymLog): Promise<void> {
   return withDataLock(async () => {
     await putGymLogInternal(log);
     const userId = await currentUserId();
-    if (userId) await enqueueOutboxInternal({ userId, table: "gym_logs", op: "upsert", payload: await buildGymLogRow(log, userId), dedupeKey: `gym_logs:${log.id}` });
+    if (userId) await enqueueOutboxInternal({ userId, table: "workout_logs", op: "upsert", payload: await buildGymLogRow(log, userId), dedupeKey: `workout_logs:${log.id}` });
   });
 }
 
@@ -410,7 +410,7 @@ export function deleteGymLogAndSync(id: string): Promise<void> {
   return withDataLock(async () => {
     await deleteGymLogByIdInternal(id);
     const userId = await currentUserId();
-    if (userId) await enqueueOutboxInternal({ userId, table: "gym_logs", op: "delete", payload: { id }, dedupeKey: `gym_logs:${id}` });
+    if (userId) await enqueueOutboxInternal({ userId, table: "workout_logs", op: "delete", payload: { id }, dedupeKey: `workout_logs:${id}` });
   });
 }
 
@@ -535,15 +535,14 @@ export async function pullFromCloud(): Promise<void> {
     Promise.all(ITEM_TYPES.map((t) => fetchAllRows<LogRow>(supabase!, LOG_TABLE[t]))),
     Promise.all(ITEM_TYPES.map((t) => fetchAllRows<DiaryRow>(supabase!, DIARY_TABLE[t]))),
   ]);
-  // Workout items/diary aren't part of the ITEM_TYPES loop above:
-  // LOG_TABLE["workout"] deliberately points at gym_logs (see its own
-  // comment) rather than a real `workout_logs` table, so folding "workout"
-  // into that shared loop would try to pull gym_logs through the
-  // generic LogRow shape (item_id/value) that table doesn't have. gym_logs
-  // itself is already pulled below, exactly like stool_logs.
+  // Workout items/diary aren't part of the ITEM_TYPES loop above: workout_logs
+  // doesn't match the generic LogRow shape (no meal_tag, and its own
+  // GymLogRow type below), so folding "workout" into that shared loop would
+  // try to pull it as if it did. workout_logs itself is already pulled
+  // below, exactly like stool_logs.
   const [stoolLogRows, gymLogRows, workoutItemRows, workoutDiaryRows] = await Promise.all([
     fetchAllRows<StoolLogRow>(supabase, "stool_logs"),
-    fetchAllRows<GymLogRow>(supabase, "gym_logs"),
+    fetchAllRows<GymLogRow>(supabase, "workout_logs"),
     fetchAllRows<ItemRow>(supabase, "workout_items"),
     fetchAllRows<DiaryRow>(supabase, "workout_diary"),
   ]);

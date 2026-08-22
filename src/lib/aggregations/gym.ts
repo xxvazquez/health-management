@@ -4,8 +4,8 @@ import { addDaysToDate, daysBetween, monthStart, pct, round1 } from "./common";
 
 /** Bridges gym data into the cross-domain association engine (`patterns.ts`,
  * `bristolPatterns.ts`) as a plain date-set — "did a gym session happen
- * that day" — without migrating gym_logs into the items/logs table gym
- * itself doesn't need. */
+ * that day" — without pulling in the full items/logs infra this simple
+ * check doesn't need. */
 export function gymTrainedDates(logs: RawGymLog[]): Set<string> {
   return new Set(logs.map((l) => l.date));
 }
