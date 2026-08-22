@@ -12,8 +12,10 @@ import {
   putItemAndSync,
   putStoolLogAndSync,
   deleteStoolLogByIdAndSync,
-  putGymLogAndSync,
-  deleteGymLogAndSync,
+  putWorkoutLogAndSync,
+  deleteWorkoutLogAndSync,
+  putPeriodLogAndSync,
+  deletePeriodLogAndSync,
   setDailyDurationAndSync,
   toggleDailyLogAndSync,
   updateLogMealTagAndSync,
@@ -22,7 +24,7 @@ import {
   decrementDailyLogAndSync,
   decrementDailyLogForMealAndSync,
 } from "@/lib/supabase/sync";
-import { getAllDiary, getAllItems, getAllLogs, getAllCategories, getAllStoolLogs, getAllGymLogs } from "@/lib/db/indexedDb";
+import { getAllDiary, getAllItems, getAllLogs, getAllCategories, getAllStoolLogs, getAllWorkoutLogs, getAllPeriodLogs } from "@/lib/db/indexedDb";
 import {
   buildLogCandidates,
   combineDateAndTime,
@@ -46,9 +48,23 @@ import { DURATION_DEFAULT_MINUTES, INPUT_KIND } from "@/taxonomy/inputKinds";
 import { DurationStepper } from "@/components/ui/DurationStepper";
 import { NumberStepper, UNIT_STEP_PRESETS } from "@/components/ui/NumberStepper";
 import { StoolTab, type NewStoolEntry, characteristicLabels } from "@/components/log/StoolTab";
-import { WorkoutTab, type NewGymEntry } from "@/components/log/WorkoutTab";
+import { WorkoutTab, type NewWorkoutEntry } from "@/components/log/WorkoutTab";
+import { CycleTab } from "@/components/log/CycleTab";
 import { DuplicateItemDialog } from "@/components/ui/DuplicateItemDialog";
-import { workoutUnitLabel, type RawLog, type RawItem, type RawDiaryEntry, type RawCategory, type RawStoolLog, type RawGymLog, type GymExercise, type WorkoutUnit } from "@/lib/types";
+import {
+  workoutUnitLabel,
+  type RawLog,
+  type RawItem,
+  type RawDiaryEntry,
+  type RawCategory,
+  type RawStoolLog,
+  type RawWorkoutLog,
+  type RawPeriodLog,
+  type PeriodIntensity,
+  type CollectionMethod,
+  type WorkoutExercise,
+  type WorkoutUnit,
+} from "@/lib/types";
 
 const TABS: { type: ItemType; label: string; placeholder: string; defaultCategory: string; countable: boolean }[] = [
   { type: "food", label: "Food", placeholder: "Add a food or ingredient…", defaultCategory: "Misc", countable: true },
@@ -57,11 +73,12 @@ const TABS: { type: ItemType; label: string; placeholder: string; defaultCategor
   { type: "habit", label: "Habits", placeholder: "Add a habit…", defaultCategory: "Daily", countable: false },
 ];
 
-type LogTab = ItemType | "stool" | "workout";
-const STOOL_ACCENT = "var(--series-chestnut)";
-// Distinct from every TYPE_ACCENT and from STOOL_ACCENT so all six tabs
+type LogTab = ItemType | "stool" | "workout" | "cycle";
+const STOOL_ACCENT = "var(--series-indigo)";
+// Distinct from every TYPE_ACCENT and from STOOL_ACCENT so all seven tabs
 // stay visually distinguishable at a glance in this one nav row.
-const WORKOUT_ACCENT = "var(--series-5)";
+const WORKOUT_ACCENT = "var(--series-magenta)";
+const CYCLE_ACCENT = "var(--series-4)";
 
 const COLLAPSED_CATEGORIES_STORAGE_KEY = "lauva.log.collapsedCategories";
 
@@ -318,7 +335,8 @@ interface Snapshot {
   diary: RawDiaryEntry[];
   categories: RawCategory[];
   stoolLogs: RawStoolLog[];
-  gymLogs: RawGymLog[];
+  workoutLogs: RawWorkoutLog[];
+  periodLogs: RawPeriodLog[];
 }
 
 export default function LogPage() {
@@ -374,15 +392,16 @@ export default function LogPage() {
   const [expandedStoolIds, setExpandedStoolIds] = useState<Set<string>>(new Set());
 
   const loadSnapshot = useCallback(async () => {
-    const [items, logs, diary, categories, stoolLogs, gymLogs] = await Promise.all([
+    const [items, logs, diary, categories, stoolLogs, workoutLogs, periodLogs] = await Promise.all([
       getAllItems(),
       getAllLogs(),
       getAllDiary(),
       getAllCategories(),
       getAllStoolLogs(),
-      getAllGymLogs(),
+      getAllWorkoutLogs(),
+      getAllPeriodLogs(),
     ]);
-    setSnapshot({ items, logs, diary, categories, stoolLogs, gymLogs });
+    setSnapshot({ items, logs, diary, categories, stoolLogs, workoutLogs, periodLogs });
   }, []);
 
   useEffect(() => {
@@ -419,8 +438,8 @@ export default function LogPage() {
   const effective = useMemo<Snapshot>(
     () =>
       demo
-        ? { items: demo.items, logs: demo.logs, diary: [], categories: [], stoolLogs: demo.stoolLogs, gymLogs: demo.gymLogs }
-        : (snapshot ?? { items: [], logs: [], diary: [], categories: [], stoolLogs: [], gymLogs: [] }),
+        ? { items: demo.items, logs: demo.logs, diary: [], categories: [], stoolLogs: demo.stoolLogs, workoutLogs: demo.workoutLogs, periodLogs: demo.periodLogs }
+        : (snapshot ?? { items: [], logs: [], diary: [], categories: [], stoolLogs: [], workoutLogs: [], periodLogs: [] }),
     [demo, snapshot],
   );
 
@@ -467,18 +486,18 @@ export default function LogPage() {
     [effective, date],
   );
 
-  const gymEntriesForDate = useMemo(
-    () => effective.gymLogs.filter((g) => g.date === date).sort((a, b) => b.updatedAt - a.updatedAt),
+  const workoutEntriesForDate = useMemo(
+    () => effective.workoutLogs.filter((g) => g.date === date).sort((a, b) => b.updatedAt - a.updatedAt),
     [effective, date],
   );
 
   // Most recent weight per exercise across all history (not just this day)
   // — WorkoutTab's prefill convenience, same idea as the old Workout-page
   // form's own prefill.
-  const gymLastWeights = useMemo(() => {
-    const map: Partial<Record<GymExercise, number>> = {};
-    const seenAt: Partial<Record<GymExercise, string>> = {};
-    for (const g of effective.gymLogs) {
+  const workoutLastWeights = useMemo(() => {
+    const map: Partial<Record<WorkoutExercise, number>> = {};
+    const seenAt: Partial<Record<WorkoutExercise, string>> = {};
+    for (const g of effective.workoutLogs) {
       if (!seenAt[g.exercise] || g.date > seenAt[g.exercise]!) {
         seenAt[g.exercise] = g.date;
         map[g.exercise] = g.weightKg;
@@ -625,7 +644,7 @@ export default function LogPage() {
 
   // Stool and Workout have no item/category of their own the way
   // food/supplements/habits/symptoms do (Workout's `workout_logs` links to
-  // an exercise by name, not identity — see RawGymLog's own comment), but
+  // an exercise by name, not identity — see RawWorkoutLog's own comment), but
   // both still belong in the same day timeline — mapped into the same
   // shape and merged in, sorted back together by the instant each one
   // actually happened rather than kept as separate lists.
@@ -646,7 +665,7 @@ export default function LogPage() {
     const workoutNotesByItemIdentity = new Map(
       effective.diary.filter((d) => d.itemType === "workout" && d.date === date && d.content).map((d) => [d.itemIdentity, d.content as string]),
     );
-    const gymAsTimeline: TimelineEntry[] = gymEntriesForDate.map((g) => {
+    const workoutAsTimeline: TimelineEntry[] = workoutEntriesForDate.map((g) => {
       const itemIdentity = workoutItemIdByName.get(normalizeName(g.exercise)) ?? "";
       const workoutItem = itemIdentity ? workoutItemById.get(itemIdentity) : undefined;
       return {
@@ -663,8 +682,8 @@ export default function LogPage() {
         unit: workoutItem?.unit ?? "kg",
       };
     });
-    return [...dayTimeline, ...stoolAsTimeline, ...gymAsTimeline].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-  }, [dayTimeline, stoolEntriesForDate, gymEntriesForDate, workoutItemIdByName, workoutItemById, effective.diary, date]);
+    return [...dayTimeline, ...stoolAsTimeline, ...workoutAsTimeline].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  }, [dayTimeline, stoolEntriesForDate, workoutEntriesForDate, workoutItemIdByName, workoutItemById, effective.diary, date]);
 
   // Unfiltered canonical events (no archived-item or date-range filtering,
   // unlike the dashboards' DataContext) so "weeks since last eaten" stays
@@ -780,7 +799,7 @@ export default function LogPage() {
       return;
     }
     if (entry.itemType === "workout") {
-      await deleteGymLogAndSync(entry.key);
+      await deleteWorkoutLogAndSync(entry.key);
       await refreshAfterWrite();
       setPending(null);
       return;
@@ -814,12 +833,12 @@ export default function LogPage() {
       return;
     }
     if (entry.itemType === "workout") {
-      // No dedicated updateGymLogTimeAndSync — workout_logs has no generic
-      // *_logs shape to reuse (see RawGymLog's own comment), so this just
+      // No dedicated updateWorkoutLogTimeAndSync — workout_logs has no generic
+      // *_logs shape to reuse (see RawWorkoutLog's own comment), so this just
       // re-puts the existing row with a new `updatedAt`, the same write
-      // handleUpdateGymEntry already does for every other field.
-      const existing = effective.gymLogs.find((g) => g.id === entry.key);
-      if (existing) await putGymLogAndSync({ ...existing, updatedAt: new Date(iso).getTime() });
+      // handleUpdateWorkoutEntry already does for every other field.
+      const existing = effective.workoutLogs.find((g) => g.id === entry.key);
+      if (existing) await putWorkoutLogAndSync({ ...existing, updatedAt: new Date(iso).getTime() });
       await refreshAfterWrite();
       setPending(null);
       return;
@@ -834,8 +853,8 @@ export default function LogPage() {
   async function handleChangeEntryValue(entry: TimelineEntry, value: number) {
     if (isDemoData || entry.itemType !== "workout") return;
     setPending(entry.key);
-    const existing = effective.gymLogs.find((g) => g.id === entry.key);
-    if (existing) await putGymLogAndSync({ ...existing, weightKg: value });
+    const existing = effective.workoutLogs.find((g) => g.id === entry.key);
+    if (existing) await putWorkoutLogAndSync({ ...existing, weightKg: value });
     await refreshAfterWrite();
     setPending(null);
   }
@@ -1066,16 +1085,41 @@ export default function LogPage() {
     setPending(null);
   }
 
-  async function handleSaveGymEntry(entry: NewGymEntry) {
+  async function handleSaveWorkoutEntry(entry: NewWorkoutEntry) {
     if (isDemoData) return;
-    const log: RawGymLog = {
+    const log: RawWorkoutLog = {
       id: crypto.randomUUID(),
       date,
       exercise: entry.exercise,
       weightKg: Number(entry.weightKg),
       updatedAt: new Date(combineDateAndTime(date, entry.time)).getTime(),
     };
-    await putGymLogAndSync(log);
+    await putWorkoutLogAndSync(log);
+    await refreshAfterWrite();
+  }
+
+  /** Reuses the given date's existing period_logs id when one already
+   * exists (an edit), or mints a fresh one (a new period day) — the same
+   * division of labor putPeriodLogAndSync's own doc comment describes. */
+  async function handleSetPeriodDay(forDate: string, intensity: PeriodIntensity, collectionMethods: CollectionMethod[]) {
+    if (isDemoData) return;
+    const existing = effective.periodLogs.find((p) => p.date === forDate);
+    const log: RawPeriodLog = {
+      id: existing?.id ?? crypto.randomUUID(),
+      date: forDate,
+      intensity,
+      collectionMethods,
+      updatedAt: Date.now(),
+    };
+    await putPeriodLogAndSync(log);
+    await refreshAfterWrite();
+  }
+
+  async function handleClearPeriodDay(forDate: string) {
+    if (isDemoData) return;
+    const existing = effective.periodLogs.find((p) => p.date === forDate);
+    if (!existing) return;
+    await deletePeriodLogAndSync(existing.id);
     await refreshAfterWrite();
   }
 
@@ -1159,9 +1203,11 @@ export default function LogPage() {
                 ? "Log a bowel movement."
                 : tab === "workout"
                   ? "Log a lift."
-                  : tabConfig?.countable
-                    ? "Tap a food to log it."
-                    : "Tap what applies."}
+                  : tab === "cycle"
+                    ? "Track your cycle."
+                    : tabConfig?.countable
+                      ? "Tap a food to log it."
+                      : "Tap what applies."}
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
@@ -1256,11 +1302,24 @@ export default function LogPage() {
             }}
           >
             Workout
-            {gymEntriesForDate.length > 0 && (
+            {workoutEntriesForDate.length > 0 && (
               <span className="text-xs" style={{ color: tab === "workout" ? WORKOUT_ACCENT : "var(--text-muted)" }}>
-                {gymEntriesForDate.length}
+                {workoutEntriesForDate.length}
               </span>
             )}
+          </button>
+          <button
+            type="button"
+            onClick={() => selectTab("cycle")}
+            className="flex items-center gap-1.5 pb-2.5 text-sm whitespace-nowrap transition-colors"
+            style={{
+              color: tab === "cycle" ? CYCLE_ACCENT : "var(--text-secondary)",
+              fontWeight: tab === "cycle" ? 700 : 500,
+              borderBottom: `2px solid ${tab === "cycle" ? CYCLE_ACCENT : "transparent"}`,
+              marginBottom: "-1px",
+            }}
+          >
+            Cycle
           </button>
         </nav>
         <div className="flex items-center gap-3">
@@ -1290,13 +1349,15 @@ export default function LogPage() {
               />
             </div>
           )}
-          <span className="text-xs font-medium whitespace-nowrap" style={{ color: "var(--text-secondary)" }}>
-            {loggedTodayCount} logged {formatDateLabel(date, today).toLowerCase()}
-          </span>
+          {tab !== "cycle" && (
+            <span className="text-xs font-medium whitespace-nowrap" style={{ color: "var(--text-secondary)" }}>
+              {loggedTodayCount} logged {formatDateLabel(date, today).toLowerCase()}
+            </span>
+          )}
         </div>
       </div>
 
-      {tab === "stool" || tab === "workout" ? (
+      {tab === "stool" || tab === "workout" || tab === "cycle" ? (
         !dataReady ? (
           <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
             Loading…
@@ -1311,16 +1372,27 @@ export default function LogPage() {
             onUpdate={handleUpdateStoolEntry}
             onDelete={handleDeleteStoolEntry}
           />
-        ) : (
+        ) : tab === "workout" ? (
           <WorkoutTab
             groups={workoutGroupedByCategory}
-            entries={gymEntriesForDate}
-            lastValues={gymLastWeights}
+            entries={workoutEntriesForDate}
+            lastValues={workoutLastWeights}
             isDemoData={isDemoData}
             accent={WORKOUT_ACCENT}
             time={workoutTime}
             onTimeChange={setWorkoutTime}
-            onSave={handleSaveGymEntry}
+            onSave={handleSaveWorkoutEntry}
+          />
+        ) : (
+          <CycleTab
+            periodLogs={effective.periodLogs}
+            date={date}
+            today={today}
+            isDemoData={isDemoData}
+            accent={CYCLE_ACCENT}
+            onSetDay={handleSetPeriodDay}
+            onClearDay={handleClearPeriodDay}
+            onNavigateToDate={setDate}
           />
         )
       ) : (

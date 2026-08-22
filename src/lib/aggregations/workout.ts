@@ -1,16 +1,16 @@
-import { GYM_EXERCISES, type GymExercise, type RawGymLog } from "@/lib/types";
+import { WORKOUT_EXERCISES, type WorkoutExercise, type RawWorkoutLog } from "@/lib/types";
 import type { InsightTone } from "./insights";
 import { addDaysToDate, daysBetween, monthStart, pct, round1 } from "./common";
 
-/** Bridges gym data into the cross-domain association engine (`patterns.ts`,
- * `bristolPatterns.ts`) as a plain date-set — "did a gym session happen
+/** Bridges workout data into the cross-domain association engine (`patterns.ts`,
+ * `bristolPatterns.ts`) as a plain date-set — "did a workout session happen
  * that day" — without pulling in the full items/logs infra this simple
  * check doesn't need. */
-export function gymTrainedDates(logs: RawGymLog[]): Set<string> {
+export function workoutTrainedDates(logs: RawWorkoutLog[]): Set<string> {
   return new Set(logs.map((l) => l.date));
 }
 
-export interface GymMonthlySessions {
+export interface WorkoutMonthlySessions {
   monthStart: string;
   sessions: number;
 }
@@ -18,9 +18,9 @@ export interface GymMonthlySessions {
 /** Distinct training dates per calendar month — "session" here means any
  * day at least one lift was logged, since the data has no separate session
  * concept. */
-export function gymMonthlySessions(logs: RawGymLog[]): GymMonthlySessions[] {
+export function workoutMonthlySessions(logs: RawWorkoutLog[]): WorkoutMonthlySessions[] {
   const byMonth = new Map<string, number>();
-  for (const date of gymTrainedDates(logs)) {
+  for (const date of workoutTrainedDates(logs)) {
     const month = monthStart(date);
     byMonth.set(month, (byMonth.get(month) ?? 0) + 1);
   }
@@ -41,7 +41,7 @@ function shiftMonthStart(monthStartDate: string, deltaMonths: number): string {
   return `${y}-${String(m + 1).padStart(2, "0")}-01`;
 }
 
-export interface GymConsistencySummary {
+export interface WorkoutConsistencySummary {
   insufficientData: boolean;
   totalSessions: number;
   /** Average sessions/month over the 3 months ending with the month of the most recent session. */
@@ -65,8 +65,8 @@ const MIN_TRACKED_MONTHS_FOR_INSIGHT = 2;
  * function stays pure and testable — the page supplies today's date, the
  * same one it already uses for the log-a-lift form's date input.
  */
-export function gymConsistencySummary(logs: RawGymLog[], asOfDate: string): GymConsistencySummary {
-  const dates = Array.from(gymTrainedDates(logs)).sort();
+export function workoutConsistencySummary(logs: RawWorkoutLog[], asOfDate: string): WorkoutConsistencySummary {
+  const dates = Array.from(workoutTrainedDates(logs)).sort();
   const totalSessions = dates.length;
   const empty = {
     insufficientData: true,
@@ -121,8 +121,8 @@ export function gymConsistencySummary(logs: RawGymLog[], asOfDate: string): GymC
   };
 }
 
-export interface GymExerciseFrequencyEntry {
-  exercise: GymExercise;
+export interface WorkoutExerciseFrequencyEntry {
+  exercise: WorkoutExercise;
   sessionCount: number;
   sharePct: number;
 }
@@ -134,20 +134,20 @@ export interface GymExerciseFrequencyEntry {
  * taxonomy on top of a fixed 7-exercise list rather than reading it from
  * what was actually logged.
  */
-export function gymExerciseFrequency(logs: RawGymLog[]): GymExerciseFrequencyEntry[] {
-  const totalSessions = gymTrainedDates(logs).size;
-  const counts = new Map<GymExercise, Set<string>>();
+export function workoutExerciseFrequency(logs: RawWorkoutLog[]): WorkoutExerciseFrequencyEntry[] {
+  const totalSessions = workoutTrainedDates(logs).size;
+  const counts = new Map<WorkoutExercise, Set<string>>();
   for (const l of logs) {
     const set = counts.get(l.exercise) ?? new Set<string>();
     set.add(l.date);
     counts.set(l.exercise, set);
   }
-  return GYM_EXERCISES.filter((ex) => counts.has(ex))
+  return WORKOUT_EXERCISES.filter((ex) => counts.has(ex))
     .map((ex) => ({ exercise: ex, sessionCount: counts.get(ex)!.size, sharePct: pct(counts.get(ex)!.size, totalSessions) }))
     .sort((a, b) => b.sessionCount - a.sessionCount);
 }
 
-export function formatGymDate(date: string): string {
+export function formatWorkoutDate(date: string): string {
   return new Date(`${date}T00:00:00Z`).toLocaleDateString(undefined, {
     day: "numeric",
     month: "short",
@@ -156,10 +156,10 @@ export function formatGymDate(date: string): string {
   });
 }
 
-/** "17 Aug" — same as `formatGymDate` without the year, for compact spots
+/** "17 Aug" — same as `formatWorkoutDate` without the year, for compact spots
  * (e.g. the Timeline's collapsed summary) where the date is always recent
  * enough that the year adds nothing. */
-export function formatGymDateShort(date: string): string {
+export function formatWorkoutDateShort(date: string): string {
   return new Date(`${date}T00:00:00Z`).toLocaleDateString(undefined, {
     day: "numeric",
     month: "short",
@@ -167,7 +167,7 @@ export function formatGymDateShort(date: string): string {
   });
 }
 
-export interface GymEntry {
+export interface WorkoutEntry {
   id: string;
   date: string;
   weightKg: number;
@@ -177,10 +177,10 @@ export interface GymEntry {
   isPR: boolean;
 }
 
-export interface GymExerciseStats {
-  exercise: GymExercise;
+export interface WorkoutExerciseStats {
+  exercise: WorkoutExercise;
   /** Ascending by date. */
-  entries: GymEntry[];
+  entries: WorkoutEntry[];
   recordsCount: number;
   started: { date: string; weightKg: number };
   current: { date: string; weightKg: number };
@@ -196,16 +196,16 @@ export interface GymExerciseStats {
  * days are simply absent from `entries`, never treated as a zero — every
  * exercise has its own recording frequency and that's expected.
  */
-export function gymStatsByExercise(logs: RawGymLog[]): GymExerciseStats[] {
-  const out: GymExerciseStats[] = [];
-  for (const exercise of GYM_EXERCISES) {
+export function workoutStatsByExercise(logs: RawWorkoutLog[]): WorkoutExerciseStats[] {
+  const out: WorkoutExerciseStats[] = [];
+  for (const exercise of WORKOUT_EXERCISES) {
     const sorted = logs
       .filter((l) => l.exercise === exercise)
       .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
     if (sorted.length === 0) continue;
 
     let runningMax = sorted[0].weightKg;
-    const entries: GymEntry[] = sorted.map((l, i) => {
+    const entries: WorkoutEntry[] = sorted.map((l, i) => {
       const isPR = i > 0 && l.weightKg > runningMax;
       if (l.weightKg > runningMax) runningMax = l.weightKg;
       return { id: l.id, date: l.date, weightKg: l.weightKg, updatedAt: l.updatedAt, isPR };
@@ -229,25 +229,25 @@ export function gymStatsByExercise(logs: RawGymLog[]): GymExerciseStats[] {
   return out;
 }
 
-export interface GymInsight {
+export interface WorkoutInsight {
   headline: string;
   detail: string | null;
   tone: InsightTone;
 }
 
-/** Plain-English progression sentence reusing `GymExerciseStats`'s existing
+/** Plain-English progression sentence reusing `WorkoutExerciseStats`'s existing
  * fields (no new math) — e.g. "Squat has gone from 60 kg to 82 kg — up 22 kg
  * (+37%) since 12 Jan 2026." */
-export function describeProgression(stats: GymExerciseStats): string {
+export function describeProgression(stats: WorkoutExerciseStats): string {
   if (stats.recordsCount < 2) {
-    return `First logged ${formatGymDate(stats.started.date)} at ${stats.started.weightKg} kg — log it again to see a trend.`;
+    return `First logged ${formatWorkoutDate(stats.started.date)} at ${stats.started.weightKg} kg — log it again to see a trend.`;
   }
   if (stats.changeKg === 0) {
-    return `${stats.exercise} has stayed at ${stats.current.weightKg} kg since ${formatGymDate(stats.started.date)}.`;
+    return `${stats.exercise} has stayed at ${stats.current.weightKg} kg since ${formatWorkoutDate(stats.started.date)}.`;
   }
   const direction = stats.changeKg > 0 ? "up" : "down";
   const changeText = `${direction} ${Math.abs(stats.changeKg)} kg${stats.changePct !== null ? ` (${stats.changePct > 0 ? "+" : ""}${stats.changePct}%)` : ""}`;
-  return `${stats.exercise} has gone from ${stats.started.weightKg} kg to ${stats.current.weightKg} kg — ${changeText} since ${formatGymDate(stats.started.date)}.`;
+  return `${stats.exercise} has gone from ${stats.started.weightKg} kg to ${stats.current.weightKg} kg — ${changeText} since ${formatWorkoutDate(stats.started.date)}.`;
 }
 
 const MEANINGFUL_FREQUENCY_CHANGE_PER_MONTH = 1;
@@ -261,11 +261,11 @@ const NOTABLE_GAP_DAYS = 10;
  * N sessions/month" restates what the frequency chart and "what changed"
  * bullets already show, so it's deliberately NOT surfaced here — the
  * hero should never be the biggest text on the page for an unremarkable
- * baseline number. `asOfDate` flows through to `gymConsistencySummary` for
+ * baseline number. `asOfDate` flows through to `workoutConsistencySummary` for
  * the same purity reason those functions take it.
  */
-export function gymInsight(logs: RawGymLog[], asOfDate: string): GymInsight | null {
-  const stats = gymStatsByExercise(logs);
+export function workoutInsight(logs: RawWorkoutLog[], asOfDate: string): WorkoutInsight | null {
+  const stats = workoutStatsByExercise(logs);
   if (stats.length === 0) {
     return {
       headline: "No workout sessions logged yet.",
@@ -284,13 +284,13 @@ export function gymInsight(logs: RawGymLog[], asOfDate: string): GymInsight | nu
       headline:
         prsToday.length === 1
           ? `New best on ${prsToday[0].exercise}: ${prsToday[0].weightKg} kg.`
-          : `${prsToday.length} new personal bests logged ${formatGymDate(lastDate)}.`,
-      detail: prsToday.length === 1 ? `Logged ${formatGymDate(lastDate)}.` : prsToday.map((e) => `${e.exercise}: ${e.weightKg} kg`).join(", "),
+          : `${prsToday.length} new personal bests logged ${formatWorkoutDate(lastDate)}.`,
+      detail: prsToday.length === 1 ? `Logged ${formatWorkoutDate(lastDate)}.` : prsToday.map((e) => `${e.exercise}: ${e.weightKg} kg`).join(", "),
       tone: "good",
     };
   }
 
-  const consistency = gymConsistencySummary(logs, asOfDate);
+  const consistency = workoutConsistencySummary(logs, asOfDate);
   if (consistency.insufficientData || consistency.recentAvgPerMonth === null) return null;
 
   if (consistency.currentGapDays !== null && consistency.currentGapDays >= NOTABLE_GAP_DAYS) {
@@ -317,19 +317,19 @@ export function gymInsight(logs: RawGymLog[], asOfDate: string): GymInsight | nu
   return null;
 }
 
-export interface GymTimelineEntry {
+export interface WorkoutTimelineEntry {
   id: string;
   date: string;
-  exercise: GymExercise;
+  exercise: WorkoutExercise;
   weightKg: number;
   updatedAt: number;
   isPR: boolean;
 }
 
 /** Every logged set across every exercise, most recent first. */
-export function gymTimeline(logs: RawGymLog[]): GymTimelineEntry[] {
-  const byExercise = gymStatsByExercise(logs);
-  const out: GymTimelineEntry[] = [];
+export function workoutTimeline(logs: RawWorkoutLog[]): WorkoutTimelineEntry[] {
+  const byExercise = workoutStatsByExercise(logs);
+  const out: WorkoutTimelineEntry[] = [];
   for (const s of byExercise) {
     for (const e of s.entries) {
       out.push({ id: e.id, date: e.date, exercise: s.exercise, weightKg: e.weightKg, updatedAt: e.updatedAt, isPR: e.isPR });

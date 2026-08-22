@@ -110,10 +110,10 @@ function ChangeTile({ label, value }: { label: string; value: string }) {
 }
 
 export default function OverviewPage() {
-  const { status, events, gymLogs, stoolLogs } = useData();
+  const { status, events, workoutLogs, stoolLogs } = useData();
 
   const insight = useMemo(() => computeOverviewInsight(events, stoolLogs), [events, stoolLogs]);
-  const crossDomainFindings = useMemo(() => topCrossDomainFindings(events, stoolLogs, gymLogs), [events, stoolLogs, gymLogs]);
+  const crossDomainFindings = useMemo(() => topCrossDomainFindings(events, stoolLogs, workoutLogs), [events, stoolLogs, workoutLogs]);
 
   if (status === "loading") {
     return <p style={{ color: "var(--text-secondary)" }}>Loading your data…</p>;

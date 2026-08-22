@@ -4,7 +4,7 @@ A personal food, symptom, supplement, habit, and workout tracker, with a dashboa
 
 ## What it does
 
-- **Log** (`/log`) — tap-to-log entry for Food, Symptoms, Supplements, Habits, Stool, and Workout. No forms; pick a category, tap the item. Food supports multi-tapping (once per meal) and a meal tag; every log type has a Time field so you can log something at 9pm that actually happened at 10am.
+- **Log** (`/log`) — tap-to-log entry for Food, Symptoms, Supplements, Habits, Stool, Workout, and Cycle. No forms; pick a category, tap the item. Food supports multi-tapping (once per meal) and a meal tag; every log type has a Time field so you can log something at 9pm that actually happened at 10am. Cycle tracks period days (intensity, collection method) on a calendar, with next-period predictions and cycle-length stats computed from your own recorded history, not a fixed assumed cycle length.
 - **Manage** (`/manage`) — add, rename, archive, or delete items and categories for all five tracked types. Reminders and per-exercise units live here too.
 - **Food / Workout dashboards** — charts and pattern analysis over what's been logged. Food additionally scores logged intake against a research-informed model and surfaces what's underrepresented, without diagnosing anything.
 - **My Drive** (`/my-drive`) — read-only browser for the signed-in Google account's own Google Drive.
@@ -65,72 +65,75 @@ All optional — without them the app just runs local-only with fewer features. 
 
 **Items, logs, diary, categories** — one consistent shape across Food, Supplement, Habit, Symptom, and Workout: an *item* (what you track, with a category) has many *logs* (one per occurrence) and an optional *diary* entry per day (a note). Categories are shared per item type and editable from Manage; a type with no custom categories yet falls back to the built-in defaults in `src/taxonomy/categories.ts`, and once any real row exists the database is the only source of truth from then on. Archiving hides an item from Log without touching its history; deleting is only allowed once an item has zero logged history (every `*_logs`/`*_diary` foreign key is `on delete restrict`).
 
-**Stool and Workout logs don't fit that shape and keep their own tables** (`stool_logs`, `workout_logs`) — a bowel movement or a lift isn't "an item plus an occurrence." Workout still gets a real item type (`workout_items`: name, category, archive state, a unit like kg/minutes/reps) for the Manage page and the Log page's per-exercise rows, and `workout_logs.item_id` is a real foreign key to it, same as every other log table — the app layer just keeps working with a plain exercise name, resolving to/from `item_id` only at the Supabase sync boundary (`buildGymLogRow`/`pullFromCloud` in `sync.ts`).
+**Stool and Workout logs don't fit that shape and keep their own tables** (`stool_logs`, `workout_logs`) — a bowel movement or a lift isn't "an item plus an occurrence." Workout still gets a real item type (`workout_items`: name, category, archive state, a unit like kg/minutes/reps) for the Manage page and the Log page's per-exercise rows, and `workout_logs.item_id` is a real foreign key to it, same as every other log table — the app layer just keeps working with a plain exercise name, resolving to/from `item_id` only at the Supabase sync boundary (`buildWorkoutLogRow`/`pullFromCloud` in `sync.ts`).
+
+**Cycle is the same standalone shape as Stool** (`period_logs`, one row per calendar day flagged as a period day — no item/category of its own) but nothing about cycle length, cycle day, or predictions is stored: `src/lib/aggregations/cycle.ts` derives all of it from the recorded dates on the fly (grouping consecutive dates into periods, then reading days-between-period-starts as cycle length), using a recent-cycles window rather than entire history so predictions track how the cycle actually behaves lately, not an average smoothed over years.
 
 **PWA / offline shell**: `public/manifest.webmanifest` + `public/sw.js` cache the app shell (HTML/JS/CSS) separately from IndexedDB's data cache. The service worker's cache name bakes in the deploy's git SHA, substituted by `.github/workflows/deploy.yml`, so every deploy is a genuinely new cache instead of accumulating old assets.
 
 ## Data model
 
 ```mermaid
+%%{init: {"theme": "base", "themeVariables": {
+  "primaryColor": "#eef5f3",
+  "primaryBorderColor": "#5c8a7a",
+  "primaryTextColor": "#24313a",
+  "lineColor": "#7d9a90",
+  "tertiaryColor": "#ffffff",
+  "fontFamily": "Inter, -apple-system, sans-serif",
+  "fontSize": "15px"
+}}}%%
 erDiagram
-    CATEGORIES ||--o{ FOOD_ITEMS : "(user_id, category_id, item_type)"
-    CATEGORIES ||--o{ SUPPLEMENT_ITEMS : "(user_id, category_id, item_type)"
-    CATEGORIES ||--o{ HABIT_ITEMS : "(user_id, category_id, item_type)"
-    CATEGORIES ||--o{ SYMPTOM_ITEMS : "(user_id, category_id, item_type)"
-    CATEGORIES ||--o{ WORKOUT_ITEMS : "(user_id, category_id, item_type)"
+    CATEGORIES ||--o{ FOOD_ITEMS : groups
+    CATEGORIES ||--o{ SUPPLEMENT_ITEMS : groups
+    CATEGORIES ||--o{ HABIT_ITEMS : groups
+    CATEGORIES ||--o{ SYMPTOM_ITEMS : groups
+    CATEGORIES ||--o{ WORKOUT_ITEMS : groups
 
-    FOOD_ITEMS ||--o{ FOOD_LOGS : "(user_id, item_id)"
-    FOOD_ITEMS ||--o{ FOOD_DIARY : "(user_id, item_id)"
-    SUPPLEMENT_ITEMS ||--o{ SUPPLEMENT_LOGS : "(user_id, item_id)"
-    SUPPLEMENT_ITEMS ||--o{ SUPPLEMENT_DIARY : "(user_id, item_id)"
-    HABIT_ITEMS ||--o{ HABIT_LOGS : "(user_id, item_id)"
-    HABIT_ITEMS ||--o{ HABIT_DIARY : "(user_id, item_id)"
-    SYMPTOM_ITEMS ||--o{ SYMPTOM_LOGS : "(user_id, item_id)"
-    SYMPTOM_ITEMS ||--o{ SYMPTOM_DIARY : "(user_id, item_id)"
-    WORKOUT_ITEMS ||--o{ WORKOUT_DIARY : "(user_id, item_id)"
-    WORKOUT_ITEMS ||--o{ WORKOUT_LOGS : "(user_id, item_id)"
+    FOOD_ITEMS ||--o{ FOOD_LOGS : logged
+    FOOD_ITEMS ||--o{ FOOD_DIARY : noted
+    SUPPLEMENT_ITEMS ||--o{ SUPPLEMENT_LOGS : logged
+    SUPPLEMENT_ITEMS ||--o{ SUPPLEMENT_DIARY : noted
+    HABIT_ITEMS ||--o{ HABIT_LOGS : logged
+    HABIT_ITEMS ||--o{ HABIT_DIARY : noted
+    SYMPTOM_ITEMS ||--o{ SYMPTOM_LOGS : logged
+    SYMPTOM_ITEMS ||--o{ SYMPTOM_DIARY : noted
+    WORKOUT_ITEMS ||--o{ WORKOUT_DIARY : noted
+    WORKOUT_ITEMS ||--o{ WORKOUT_LOGS : logged
 
     CATEGORIES {
         uuid id PK
-        uuid user_id
         text item_type
         text name
     }
     FOOD_ITEMS {
         uuid id PK
-        uuid user_id
         text name
         uuid category_id FK
         boolean is_archived
     }
     SUPPLEMENT_ITEMS {
         uuid id PK
-        uuid user_id
         text name
         uuid category_id FK
         boolean is_archived
         time reminder_time
-        date reminder_last_sent_date
     }
     HABIT_ITEMS {
         uuid id PK
-        uuid user_id
         text name
         uuid category_id FK
         boolean is_archived
         time reminder_time
-        date reminder_last_sent_date
     }
     SYMPTOM_ITEMS {
         uuid id PK
-        uuid user_id
         text name
         uuid category_id FK
         boolean is_archived
     }
     WORKOUT_ITEMS {
         uuid id PK
-        uuid user_id
         text name
         uuid category_id FK
         boolean is_archived
@@ -193,7 +196,6 @@ erDiagram
     }
     STOOL_LOGS {
         uuid id PK
-        uuid user_id
         date date
         smallint_array bristol_scores
         text color
@@ -205,6 +207,12 @@ erDiagram
         date date
         numeric weight_kg
     }
+    PERIOD_LOGS {
+        uuid id PK
+        date date
+        text intensity
+        text_array collection_methods
+    }
     PUSH_SUBSCRIPTIONS {
         uuid user_id PK
         text endpoint
@@ -212,7 +220,7 @@ erDiagram
     }
 ```
 
-Every drawn relationship is a **composite** foreign key, not a plain one — `(user_id, category_id, item_type)` means a supplement item structurally can't reference a habit category, and `(user_id, item_id)` means no row can ever reference another user's data, independent of RLS. Full DDL and RLS policies: [`supabase/schema.sql`](supabase/schema.sql).
+Every table also carries a `user_id` column (omitted above for legibility) and every relationship drawn is actually a **composite** foreign key on it, not a plain one — `(user_id, category_id, item_type)` for the five item tables, `(user_id, item_id)` for their logs and diary entries — so a supplement item structurally can't reference a habit category, and no row can ever reference another user's data, independent of RLS. Full DDL and RLS policies: [`supabase/schema.sql`](supabase/schema.sql).
 
 ## Development commands
 
@@ -237,6 +245,8 @@ Reminders run the same way, for the same reason nothing can run in the backgroun
 ## Notes for maintainers
 
 - **Colors/branding**: CSS variables in `src/app/globals.css` (`--brand-*` is the true palette; everything else is a deepened, more legible version for text/charts). Light theme only, one typeface (Inter). `public/icons/` are PNG renders of `public/logo-mark.svg` — regenerate from the SVG if the mark changes, don't hand-edit the PNGs.
+
+  ![Lauva brand palette](docs/palette.svg)
 - **My Drive** uses [Google Identity Services' token client](https://developers.google.com/identity/oauth2/web/guides/use-token-model) (no backend, so no client secret) — the token is `drive.metadata.readonly`, lives in memory only, and never touches your Lauva/Supabase account. To develop against it, create a Google Cloud OAuth client (Web application type), authorize `http://localhost:3000`, and enable the Drive API on that project.
 - **Not in git**: `.next/`, `out/` (build output), `data/` (local raw export, never read by the app), `.claude/` (Claude Code worktrees). See `.gitignore`.
 

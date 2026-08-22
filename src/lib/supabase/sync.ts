@@ -19,8 +19,10 @@ import {
   putStoolLogInternal,
   deleteStoolLogByIdInternal,
   updateStoolLogTimeInternal,
-  putGymLogInternal,
-  deleteGymLogByIdInternal,
+  putWorkoutLogInternal,
+  deleteWorkoutLogByIdInternal,
+  putPeriodLogInternal,
+  deletePeriodLogByIdInternal,
   clearAllDataInternal,
   enqueueOutboxInternal,
   withDataLock,
@@ -29,7 +31,7 @@ import {
   type OutboxOperation,
 } from "@/lib/db/indexedDb";
 import { drainOutbox } from "./outbox";
-import type { RawDiaryEntry, RawLog, RawItem, RawGymLog, RawCategory, RawStoolLog, StoolColor, StoolFloatation, PaperCleanliness, WorkoutUnit } from "@/lib/types";
+import type { RawDiaryEntry, RawLog, RawItem, RawWorkoutLog, RawCategory, RawStoolLog, RawPeriodLog, StoolColor, StoolFloatation, PaperCleanliness, WorkoutUnit, PeriodIntensity } from "@/lib/types";
 import type { ItemType } from "@/taxonomy/categories";
 import { normalizeName } from "@/taxonomy/normalizeName";
 
@@ -44,7 +46,7 @@ const ITEM_TABLE: Record<ItemType, string> = {
   habit: "habit_items",
   workout: "workout_items",
 };
-// Workout logging stays on its own workout_logs/RawGymLog path (weight per set,
+// Workout logging stays on its own workout_logs/RawWorkoutLog path (weight per set,
 // several entries a day) rather than the generic increment/toggle/duration
 // *AndSync functions below — "workout" is only ever looked up here to keep
 // this dict exhaustive over ItemType; nothing actually calls a generic log
@@ -159,10 +161,10 @@ function buildStoolLogRow(log: RawStoolLog, userId: string): Record<string, unkn
 }
 
 /** workout_logs stores a real FK to workout_items (item_id), but the rest of the
- * app still treats a RawGymLog's `exercise` as a plain display name (see the
+ * app still treats a RawWorkoutLog's `exercise` as a plain display name (see the
  * decision in workoutItemIdByName-style lookups elsewhere) — resolving name
  * -> id is confined to this push boundary so nothing else has to change. */
-async function buildGymLogRow(log: RawGymLog, userId: string): Promise<Record<string, unknown>> {
+async function buildWorkoutLogRow(log: RawWorkoutLog, userId: string): Promise<Record<string, unknown>> {
   const items = await getAllItems();
   const match = items.find((item) => item.itemType === "workout" && normalizeName(item.rawName) === normalizeName(log.exercise));
   if (!match) throw new Error(`No workout item found for exercise "${log.exercise}" — add it in Manage before logging.`);
@@ -172,6 +174,17 @@ async function buildGymLogRow(log: RawGymLog, userId: string): Promise<Record<st
     date: log.date,
     item_id: match.identity,
     weight_kg: log.weightKg,
+    updated_at: new Date(log.updatedAt).toISOString(),
+  };
+}
+
+function buildPeriodLogRow(log: RawPeriodLog, userId: string): Record<string, unknown> {
+  return {
+    id: log.id,
+    user_id: userId,
+    date: log.date,
+    intensity: log.intensity,
+    collection_methods: log.collectionMethods,
     updated_at: new Date(log.updatedAt).toISOString(),
   };
 }
@@ -394,23 +407,44 @@ export function updateStoolLogTimeAndSync(id: string, loggedAt: string): Promise
   });
 }
 
-export function putGymLogAndSync(log: RawGymLog): Promise<void> {
+export function putWorkoutLogAndSync(log: RawWorkoutLog): Promise<void> {
   return withDataLock(async () => {
-    await putGymLogInternal(log);
+    await putWorkoutLogInternal(log);
     const userId = await currentUserId();
-    if (userId) await enqueueOutboxInternal({ userId, table: "workout_logs", op: "upsert", payload: await buildGymLogRow(log, userId), dedupeKey: `workout_logs:${log.id}` });
+    if (userId) await enqueueOutboxInternal({ userId, table: "workout_logs", op: "upsert", payload: await buildWorkoutLogRow(log, userId), dedupeKey: `workout_logs:${log.id}` });
   });
 }
 
-/** Also fixes a pre-outbox redundancy: the old `deleteGymLog` called
- * `deleteGymLogById` a second time on top of the page already having
+/** Also fixes a pre-outbox redundancy: the old `deleteWorkoutLog` called
+ * `deleteWorkoutLogById` a second time on top of the page already having
  * called it directly — this is now the single call site for both the
  * local delete and the sync side. */
-export function deleteGymLogAndSync(id: string): Promise<void> {
+export function deleteWorkoutLogAndSync(id: string): Promise<void> {
   return withDataLock(async () => {
-    await deleteGymLogByIdInternal(id);
+    await deleteWorkoutLogByIdInternal(id);
     const userId = await currentUserId();
     if (userId) await enqueueOutboxInternal({ userId, table: "workout_logs", op: "delete", payload: { id }, dedupeKey: `workout_logs:${id}` });
+  });
+}
+
+/** Caller (the Cycle Tracker) is responsible for the "at most one row per
+ * date" invariant — reusing that date's existing `id` when one already
+ * exists, generating a fresh one otherwise — same division of labor as
+ * putStoolLogAndSync/putWorkoutLogAndSync, where the id always comes in
+ * already decided. */
+export function putPeriodLogAndSync(log: RawPeriodLog): Promise<void> {
+  return withDataLock(async () => {
+    await putPeriodLogInternal(log);
+    const userId = await currentUserId();
+    if (userId) await enqueueOutboxInternal({ userId, table: "period_logs", op: "upsert", payload: buildPeriodLogRow(log, userId), dedupeKey: `period_logs:${log.id}` });
+  });
+}
+
+export function deletePeriodLogAndSync(id: string): Promise<void> {
+  return withDataLock(async () => {
+    await deletePeriodLogByIdInternal(id);
+    const userId = await currentUserId();
+    if (userId) await enqueueOutboxInternal({ userId, table: "period_logs", op: "delete", payload: { id }, dedupeKey: `period_logs:${id}` });
   });
 }
 
@@ -471,11 +505,19 @@ interface StoolLogRow {
   updated_at: string | null;
 }
 
-interface GymLogRow {
+interface WorkoutLogRow {
   id: string;
   date: string;
   item_id: string;
   weight_kg: number;
+  updated_at: string;
+}
+
+interface PeriodLogRow {
+  id: string;
+  date: string;
+  intensity: PeriodIntensity;
+  collection_methods: string[] | null;
   updated_at: string;
 }
 
@@ -537,14 +579,15 @@ export async function pullFromCloud(): Promise<void> {
   ]);
   // Workout items/diary aren't part of the ITEM_TYPES loop above: workout_logs
   // doesn't match the generic LogRow shape (no meal_tag, and its own
-  // GymLogRow type below), so folding "workout" into that shared loop would
+  // WorkoutLogRow type below), so folding "workout" into that shared loop would
   // try to pull it as if it did. workout_logs itself is already pulled
   // below, exactly like stool_logs.
-  const [stoolLogRows, gymLogRows, workoutItemRows, workoutDiaryRows] = await Promise.all([
+  const [stoolLogRows, workoutLogRows, workoutItemRows, workoutDiaryRows, periodLogRows] = await Promise.all([
     fetchAllRows<StoolLogRow>(supabase, "stool_logs"),
-    fetchAllRows<GymLogRow>(supabase, "workout_logs"),
+    fetchAllRows<WorkoutLogRow>(supabase, "workout_logs"),
     fetchAllRows<ItemRow>(supabase, "workout_items"),
     fetchAllRows<DiaryRow>(supabase, "workout_diary"),
+    fetchAllRows<PeriodLogRow>(supabase, "period_logs"),
   ]);
   const workoutItemNameById = new Map(workoutItemRows.map((item) => [item.id, item.name]));
 
@@ -667,17 +710,28 @@ export async function pullFromCloud(): Promise<void> {
       await putStoolLogInternal(log);
     }
 
-    for (const row of gymLogRows) {
+    for (const row of workoutLogRows) {
       const exercise = workoutItemNameById.get(row.item_id);
       if (!exercise) continue; // orphaned row (workout item deleted) — shouldn't happen, FK is on delete restrict
-      const log: RawGymLog = {
+      const log: RawWorkoutLog = {
         id: row.id,
         date: row.date,
         exercise,
         weightKg: row.weight_kg,
         updatedAt: new Date(row.updated_at).getTime(),
       };
-      await putGymLogInternal(log);
+      await putWorkoutLogInternal(log);
+    }
+
+    for (const row of periodLogRows) {
+      const log: RawPeriodLog = {
+        id: row.id,
+        date: row.date,
+        intensity: row.intensity,
+        collectionMethods: row.collection_methods ?? [],
+        updatedAt: new Date(row.updated_at).getTime(),
+      };
+      await putPeriodLogInternal(log);
     }
   });
 }

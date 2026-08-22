@@ -1,9 +1,9 @@
-import type { CanonicalEvent, RawGymLog } from "@/lib/types";
+import type { CanonicalEvent, RawWorkoutLog } from "@/lib/types";
 import { addDaysToDate, pct, round1, trackedCalendarDates } from "./common";
 import { foodCategoryDistribution, newFoodsOverTime, rankedFoods } from "./food";
 import { supplementStats } from "./supplements";
 import { habitStats } from "./habits";
-import { gymTrainedDates } from "./gym";
+import { workoutTrainedDates } from "./workout";
 
 export interface ItemMatcher {
   label: string;
@@ -93,7 +93,7 @@ function sampleTier(withTotal: number, withoutTotal: number): SampleTier {
  *
  * Deliberately takes plain `Set<string>` dates rather than `ItemMatcher`s —
  * that's what lets every kind of cause/outcome (a specific item, a Bristol
- * type-group, a gym-trained day, a sleep-duration threshold, an ingredient
+ * type-group, a workout-trained day, a sleep-duration threshold, an ingredient
  * pair) share this one statistical implementation instead of each
  * reimplementing sample-tiering/lag math on its own.
  */
@@ -229,7 +229,7 @@ function habitCauseCandidates(events: CanonicalEvent[]): ItemMatcher[] {
 /**
  * Full cause-candidate pool for the Lag Explorer's dropdown: top-tracked
  * foods and food categories, non-reactive supplements, every tracked habit,
- * and (when gym data exists) whether a gym session happened that day — so
+ * and (when workout data exists) whether a workout session happened that day — so
  * "is exercise related to symptoms at all?" is answerable in the UI, not
  * just in this module.
  */
@@ -238,7 +238,7 @@ export interface CauseOption {
   dates: Set<string>;
 }
 
-export function allCauseOptions(events: CanonicalEvent[], gymLogs: RawGymLog[] = []): CauseOption[] {
+export function allCauseOptions(events: CanonicalEvent[], workoutLogs: RawWorkoutLog[] = []): CauseOption[] {
   const foods = rankedFoods(events).map((f) => ({ label: `Food: ${f.item}`, dates: dateSetForMatcher(events, matchItem(f.item)) }));
   const categories = foodCategoryDistribution(events)
     .filter((c) => c.count > 0)
@@ -248,8 +248,8 @@ export function allCauseOptions(events: CanonicalEvent[], gymLogs: RawGymLog[] =
     dates: dateSetForMatcher(events, matchItem(s.item)),
   }));
   const habits = habitCauseCandidates(events).map((m) => ({ label: `Habit: ${m.label}`, dates: dateSetForMatcher(events, m) }));
-  const gym = gymLogs.length > 0 ? [{ label: "Workout: trained that day", dates: gymTrainedDates(gymLogs) }] : [];
-  return [...foods, ...categories, ...supplements, ...habits, ...gym];
+  const workout = workoutLogs.length > 0 ? [{ label: "Workout: trained that day", dates: workoutTrainedDates(workoutLogs) }] : [];
+  return [...foods, ...categories, ...supplements, ...habits, ...workout];
 }
 
 /**
@@ -258,12 +258,12 @@ export function allCauseOptions(events: CanonicalEvent[], gymLogs: RawGymLog[] =
  * `bristolPatterns.ts`) — specific top-tracked foods (never a whole
  * category — "bloating after Veggies" isn't actionable, "bloating after
  * Onion" is), non-reactive supplements, every tracked habit, and a
- * gym-trained day when gym data exists. One definition so both scans stay
+ * workout-trained day when workout data exists. One definition so both scans stay
  * in sync rather than drifting apart.
  */
 export function crossDomainCauseCandidates(
   events: CanonicalEvent[],
-  gymLogs: RawGymLog[] = [],
+  workoutLogs: RawWorkoutLog[] = [],
 ): { label: string; dates: Set<string> }[] {
   return [
     ...rankedFoods(events)
@@ -273,13 +273,13 @@ export function crossDomainCauseCandidates(
       .filter((s) => !EXCLUDED_CAUSE_SUPPLEMENT_CATEGORIES.has(s.category))
       .map((s) => ({ label: s.item, dates: dateSetForMatcher(events, matchItem(s.item)) })),
     ...habitCauseCandidates(events).map((m) => ({ label: m.label, dates: dateSetForMatcher(events, m) })),
-    ...(gymLogs.length > 0 ? [{ label: "Workout: trained that day", dates: gymTrainedDates(gymLogs) }] : []),
+    ...(workoutLogs.length > 0 ? [{ label: "Workout: trained that day", dates: workoutTrainedDates(workoutLogs) }] : []),
   ];
 }
 
 /**
  * Every scan this module runs (12 foods + N supplements + every tracked
- * habit + gym, against every outcome, across 4 lags) is a
+ * habit + workout, against every outcome, across 4 lags) is a
  * multiple-comparisons setup: the more pairs checked, the more likely *some*
  * pair clears the diff-pct bar by chance alone, even with an adequate
  * per-pair sample size. Dropping the habit-category allowlist widens this
@@ -293,18 +293,18 @@ export const MULTIPLE_COMPARISONS_NOTE =
 /**
  * Scans a curated set of cause candidates (specific top-tracked foods, never
  * a whole food category; non-reactive supplements; every tracked habit; a
- * gym-trained day when gym data exists) against tracked symptom/outcome
+ * workout-trained day when workout data exists) against tracked symptom/outcome
  * items — Stool/Bristol is its own separate scan, see `bristolPatterns.ts`
  * — checking same day through +3 days for each pair, and surfaces only the
  * strongest-lag association per pair when it has both an adequate sample
  * size and a non-trivial percentage-point gap. Purely descriptive — never
  * implies causation. See `MULTIPLE_COMPARISONS_NOTE`.
  */
-export function generateTopPatterns(events: CanonicalEvent[], gymLogs: RawGymLog[] = []): AssociationResult[] {
+export function generateTopPatterns(events: CanonicalEvent[], workoutLogs: RawWorkoutLog[] = []): AssociationResult[] {
   const outcomeItems = Array.from(new Set(events.filter((e) => e.itemType === "outcome").map((e) => e.item)));
   if (outcomeItems.length === 0) return [];
 
-  const causeCandidates = crossDomainCauseCandidates(events, gymLogs);
+  const causeCandidates = crossDomainCauseCandidates(events, workoutLogs);
   const trackedSet = outcomeTrackedDates(events);
 
   const results: AssociationResult[] = [];

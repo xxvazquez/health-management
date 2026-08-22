@@ -108,7 +108,7 @@ export const TYPE_ACCENT: Record<ItemType, string> = {
   supplement: "var(--series-2)", // sky blue
   outcome: "var(--series-8)", // plum
   habit: "var(--series-3)", // lavender
-  workout: "var(--series-5)", // terracotta
+  workout: "var(--series-magenta)", // magenta, between lavender and dot
 };
 
 /**
@@ -127,10 +127,10 @@ export const CATEGORY_SLOT: Record<string, string> = {
   Meat: "var(--series-3)", // purple
   Veggies: "var(--series-6)", // green, distinct from Fruit
   Fish: "var(--series-indigo)", // blue, distinct from Dairy
-  Grains: "var(--series-chestnut)", // brown
-  "Nuts & Seeds": "var(--series-caramel)", // brown, distinct from Grains
-  Fats: "var(--series-mustard)", // mustard
-  Legumes: "var(--series-orange)", // orange
+  Grains: "var(--series-4)", // deep rose
+  "Nuts & Seeds": "var(--series-8)", // plum, distinct from Grains
+  Fats: "var(--series-magenta)", // magenta
+  Legumes: "var(--series-berry)", // rose/plum blend
   "Dairy Alternatives": "var(--series-slate)", // grey
 };
 export const CATEGORY_SLOT_OTHER = "var(--series-other)";

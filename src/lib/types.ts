@@ -6,7 +6,7 @@ import type { ItemType } from "@/taxonomy/categories";
  * used to hardcode, now just as a starting point rather than the whole
  * list. Exercise names are otherwise fully user-defined from here on
  * (Running, Swimming, Yoga, ... — see the Workout section of Manage). */
-export const GYM_EXERCISES = [
+export const WORKOUT_EXERCISES = [
   "Squat",
   "Deadlift",
   "Overhead Press",
@@ -15,9 +15,9 @@ export const GYM_EXERCISES = [
   "Push Ups",
   "Row Machine",
 ] as const;
-export type GymExercise = string;
+export type WorkoutExercise = string;
 
-/** What a `RawGymLog.weightKg` value actually means for a given exercise —
+/** What a `RawWorkoutLog.weightKg` value actually means for a given exercise —
  * kg for strength work, but a yoga/cardio session is more naturally tracked
  * in minutes, and a bodyweight exercise in reps. Configured per exercise on
  * its `workout_items` row (see `RawItem.unit`), defaulting to "kg" (every
@@ -45,7 +45,7 @@ export function workoutUnitLabel(unit: string): string {
 /** One logged set — an exercise + a numeric value (see `WorkoutUnit` for
  * what it means) on a given day, from the Log page's Workout tab.
  * `exercise` is a plain display name locally, resolved to/from
- * `workout_items.id` only at the Supabase sync boundary (`buildGymLogRow`/
+ * `workout_items.id` only at the Supabase sync boundary (`buildWorkoutLogRow`/
  * `pullFromCloud` in `sync.ts`) — `workout_logs.item_id` is a real foreign
  * key there, same as every other log table, but the in-app shape stays a name
  * to avoid touching the aggregation/UI code that reads it. `weightKg` keeps
@@ -53,11 +53,41 @@ export function workoutUnitLabel(unit: string): string {
  * exercise is configured for (minutes, reps) — renaming the column would
  * be a second migration on live data for a cosmetic gain only; every read
  * site pairs it with the resolved unit label rather than assuming kg. */
-export interface RawGymLog {
+export interface RawWorkoutLog {
   id: string;
   date: string; // YYYY-MM-DD
-  exercise: GymExercise;
+  exercise: WorkoutExercise;
   weightKg: number;
+  /** Epoch-millisecond timestamp of when this entry was last created or edited. */
+  updatedAt: number;
+}
+
+export const PERIOD_INTENSITIES = ["Light", "Medium", "Heavy", "Super Heavy"] as const;
+export type PeriodIntensity = (typeof PERIOD_INTENSITIES)[number];
+
+/** The app's four suggested collection methods — shown as chips in the
+ * Cycle Tracker's editor. `RawPeriodLog.collectionMethods` isn't
+ * constrained to these (see its own comment): this is a UI suggestion
+ * list, not the full domain, same relationship WORKOUT_UNITS has to
+ * `workout_items.unit`. */
+export const COLLECTION_METHODS = ["Tampon", "Pad", "Panty Liner", "Period Underwear"] as const;
+export type CollectionMethod = string;
+
+/**
+ * One calendar day flagged as a period day — Supabase's `period_logs`
+ * table. Standalone, like `RawStoolLog`: no item/category of its own, at
+ * most one row per date (enforced by a unique constraint), and a day's
+ * presence in the table is itself what "on your period" means — there's
+ * no separate boolean. Period length, cycle length, cycle day, and
+ * predictions are all derived from a list of these at the app layer (see
+ * `src/lib/aggregations/cycle.ts`), never stored.
+ */
+export interface RawPeriodLog {
+  id: string;
+  date: string; // YYYY-MM-DD
+  intensity: PeriodIntensity;
+  /** Free text, not a fixed set — see COLLECTION_METHODS' own comment. */
+  collectionMethods: CollectionMethod[];
   /** Epoch-millisecond timestamp of when this entry was last created or edited. */
   updatedAt: number;
 }
