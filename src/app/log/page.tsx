@@ -331,6 +331,9 @@ export default function LogPage() {
   const [newItemCategory, setNewItemCategory] = useState("");
   const [duplicateConflict, setDuplicateConflict] = useState<RawItem | null>(null);
   const [picksOpen, setPicksOpen] = useState(false);
+  // Filters the category grid below by name — cleared on tab switch since
+  // each tab's items are a different set (see selectTab).
+  const [search, setSearch] = useState("");
   const [meal, setMeal] = useState<(typeof MEAL_OPTIONS)[number]>(defaultMealForTime);
   // What time a tap logs something as — lets you log at 9pm something you
   // actually did at 10am, same idea as Stool's own time field. Stays as
@@ -420,6 +423,11 @@ export default function LogPage() {
         : (snapshot ?? { items: [], logs: [], diary: [], categories: [], stoolLogs: [], gymLogs: [] }),
     [demo, snapshot],
   );
+
+  function selectTab(t: LogTab) {
+    setTab(t);
+    setSearch("");
+  }
 
   const candidates = useMemo(() => buildLogCandidates(effective.items, effective.logs), [effective]);
 
@@ -547,6 +555,19 @@ export default function LogPage() {
     for (const list of byCategory.values()) {
       list.sort((a, b) => a.item.localeCompare(b.item, undefined, { sensitivity: "base" }) || a.item.localeCompare(b.item));
     }
+    // Search narrows what's shown but never what's tracked — a category
+    // whose every item gets filtered out just drops out of the grid below
+    // (via the empty-group filter a few lines down) rather than showing an
+    // empty card.
+    const query = search.trim().toLowerCase();
+    if (query) {
+      for (const [category, list] of byCategory) {
+        byCategory.set(
+          category,
+          list.filter((c) => c.item.toLowerCase().includes(query)),
+        );
+      }
+    }
     // The real category list, unioned with whatever category names actually
     // showed up on a candidate/catalog entry — never drops a real item's
     // category just because it isn't in the "official" list.
@@ -555,7 +576,7 @@ export default function LogPage() {
       .map((category) => ({ category, items: byCategory.get(category) ?? [] }))
       .filter((group) => group.items.length > 0)
       .sort((a, b) => a.category.localeCompare(b.category));
-  }, [tabCandidates, tab, tabConfig, categoryNamesForTab, effective.items]);
+  }, [tabCandidates, tab, tabConfig, categoryNamesForTab, effective.items, search]);
 
   const loggedTodayCount = useMemo(
     () => candidates.filter((c) => (counts.get(c.key) ?? 0) > 0).length,
@@ -1187,7 +1208,7 @@ export default function LogPage() {
               <button
                 key={t.type}
                 type="button"
-                onClick={() => setTab(t.type)}
+                onClick={() => selectTab(t.type)}
                 className="flex items-center gap-1.5 pb-2.5 text-sm whitespace-nowrap transition-colors"
                 style={{
                   color: active ? TYPE_ACCENT[t.type] : "var(--text-secondary)",
@@ -1207,7 +1228,7 @@ export default function LogPage() {
           })}
           <button
             type="button"
-            onClick={() => setTab("stool")}
+            onClick={() => selectTab("stool")}
             className="flex items-center gap-1.5 pb-2.5 text-sm whitespace-nowrap transition-colors"
             style={{
               color: tab === "stool" ? STOOL_ACCENT : "var(--text-secondary)",
@@ -1225,7 +1246,7 @@ export default function LogPage() {
           </button>
           <button
             type="button"
-            onClick={() => setTab("workout")}
+            onClick={() => selectTab("workout")}
             className="flex items-center gap-1.5 pb-2.5 text-sm whitespace-nowrap transition-colors"
             style={{
               color: tab === "workout" ? WORKOUT_ACCENT : "var(--text-secondary)",
@@ -1242,9 +1263,37 @@ export default function LogPage() {
             )}
           </button>
         </nav>
-        <span className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
-          {loggedTodayCount} logged {formatDateLabel(date, today).toLowerCase()}
-        </span>
+        <div className="flex items-center gap-3">
+          {tabConfig && (
+            <div className="relative">
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 20 20"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2"
+                style={{ color: "var(--text-muted)" }}
+              >
+                <circle cx="8.5" cy="8.5" r="5.5" />
+                <path d="M16.5 16.5 13 13" />
+              </svg>
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder={`Search ${tabConfig.label.toLowerCase()}…`}
+                className="h-7 w-36 rounded-md border py-1 pr-2.5 pl-7 text-xs outline-none sm:w-48"
+                style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
+              />
+            </div>
+          )}
+          <span className="text-xs font-medium whitespace-nowrap" style={{ color: "var(--text-secondary)" }}>
+            {loggedTodayCount} logged {formatDateLabel(date, today).toLowerCase()}
+          </span>
+        </div>
       </div>
 
       {tab === "stool" || tab === "workout" ? (
