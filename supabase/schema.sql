@@ -100,13 +100,11 @@ create table public.symptom_items (
 
 -- Which exercises exist, their category, and archive state — the registry
 -- Manage/the Log page's Workout tab read to know what to offer, exactly
--- like every other item type. Deliberately NOT what `gym_logs` rows
--- reference: `gym_logs.exercise` stays a plain name (matched against this
--- table's `name` at the app layer, not a foreign key) so the existing
--- weight-tracking table/queries/aggregations don't need touching, and a
--- rename here doesn't retroactively relabel history the way a real FK
--- rename would. No reminder_time/reminder_last_sent_date — reminders
--- don't apply to workouts.
+-- like every other item type. `gym_logs.item_id` is a real foreign key to
+-- this table (see gym_logs below), same pattern as food/supplement/habit/
+-- symptom items and their logs — renaming an exercise here relabels its
+-- history, same as renaming any other item. No reminder_time/
+-- reminder_last_sent_date — reminders don't apply to workouts.
 create table public.workout_items (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null default auth.uid() references auth.users(id),
@@ -269,12 +267,12 @@ create table public.stool_logs (
 create table public.gym_logs (
   id uuid not null default gen_random_uuid(),
   user_id uuid not null default auth.uid(),
+  item_id uuid not null,
   date date not null,
-  exercise text not null,
   weight_kg numeric not null,
   updated_at timestamp with time zone not null default now(),
   constraint gym_logs_pkey primary key (user_id, id),
-  constraint gym_logs_user_id_fkey foreign key (user_id) references auth.users(id)
+  foreign key (user_id, item_id) references public.workout_items (user_id, id) on delete restrict
 );
 
 create index food_logs_item_date_idx on public.food_logs (item_id, date);
@@ -282,6 +280,7 @@ create index supplement_logs_item_date_idx on public.supplement_logs (item_id, d
 create index habit_logs_item_date_idx on public.habit_logs (item_id, date);
 create index symptom_logs_item_date_idx on public.symptom_logs (item_id, date);
 create index stool_logs_user_date_idx on public.stool_logs (user_id, date);
+create index gym_logs_item_date_idx on public.gym_logs (item_id, date);
 
 -- One row per user: the push subscription for whichever device they last
 -- enabled notifications on (enabling on a second device overwrites the
@@ -425,3 +424,28 @@ create policy "push_subscriptions_all_own" on public.push_subscriptions for all 
 --
 -- alter table public.workout_items add column if not exists unit text not null default 'kg';
 -- alter table public.workout_items drop constraint if exists workout_items_unit_check;
+
+-- Migration for a project that already ran the gym_logs create table
+-- statement above before it referenced workout_items by a real foreign key
+-- (exercise used to be plain text, matched by name at the app layer — see
+-- workout_items' own comment upstream, now updated). This one is
+-- destructive: it drops and recreates gym_logs, so it's only safe to run if
+-- you're fine losing existing gym history (re-log it afterwards). It does
+-- NOT touch food/supplement/habit/symptom/stool data or workout_items
+-- itself — only gym_logs.
+--
+-- drop table public.gym_logs;
+--
+-- create table public.gym_logs (
+--   id uuid not null default gen_random_uuid(),
+--   user_id uuid not null default auth.uid(),
+--   item_id uuid not null,
+--   date date not null,
+--   weight_kg numeric not null,
+--   updated_at timestamp with time zone not null default now(),
+--   constraint gym_logs_pkey primary key (user_id, id),
+--   foreign key (user_id, item_id) references public.workout_items (user_id, id) on delete restrict
+-- );
+-- create index gym_logs_item_date_idx on public.gym_logs (item_id, date);
+-- alter table public.gym_logs enable row level security;
+-- create policy "gym_logs_all_own" on public.gym_logs for all using (auth.uid() = user_id) with check (auth.uid() = user_id);

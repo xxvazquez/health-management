@@ -170,7 +170,10 @@ const baseTables = {
       updated_at: "2026-01-01T09:00:00.000Z",
     },
   ],
-  gym_logs: [{ id: "gym-1", date: "2026-01-01", exercise: "Squat", weight_kg: 60, updated_at: "2026-01-01T10:00:00.000Z" }],
+  workout_items: [
+    { id: "item-workout-1", name: "Squat", category_id: null, is_archived: false, created_date: "2026-01-01", unit: "kg" },
+  ],
+  gym_logs: [{ id: "gym-1", item_id: "item-workout-1", date: "2026-01-01", weight_kg: 60, updated_at: "2026-01-01T10:00:00.000Z" }],
 };
 
 beforeEach(() => {
@@ -213,11 +216,12 @@ describe("pullFromCloud", () => {
         "log:log-food-2",
         "log:log-supp-1",
         "diary:diary-food-1",
+        "item:item-workout-1",
         "stool:stool-1",
         "gym:gym-1",
       ]),
     );
-    expect(committed.length).toBe(10);
+    expect(committed.length).toBe(11);
   });
 
   it("never has more than one write of the same kind in flight at once — each row is awaited before the next one starts", async () => {
@@ -245,16 +249,16 @@ describe("pullFromCloud", () => {
     await pullFromCloud();
 
     expect(calls[0]).toBe("clear");
-    expect(calls.filter((c) => c !== "clear").length).toBe(10); // 1 category + 3 items + 3 logs + 1 diary + 1 stool + 1 gym
+    expect(calls.filter((c) => c !== "clear").length).toBe(11); // 1 category + 3 items + 1 workout item + 3 logs + 1 diary + 1 stool + 1 gym
   });
 
   it("writes every item across more than one item type, not just the first type in the loop", async () => {
     const { pullFromCloud } = await import("./sync");
     await pullFromCloud();
 
-    expect(mockPutItemInternal).toHaveBeenCalledTimes(3);
+    expect(mockPutItemInternal).toHaveBeenCalledTimes(4);
     const ids = mockPutItemInternal.mock.calls.map(([item]) => (item as { identity: string }).identity);
-    expect(ids).toEqual(expect.arrayContaining(["item-food-1", "item-food-2", "item-supp-1"]));
+    expect(ids).toEqual(expect.arrayContaining(["item-food-1", "item-food-2", "item-supp-1", "item-workout-1"]));
   });
 
   it("a local write submitted while a pull is in flight cannot land in the clear-to-repopulate gap", async () => {
@@ -274,11 +278,11 @@ describe("pullFromCloud", () => {
     await Promise.all([pullPromise, writePromise]);
 
     // The local write must be the very last thing recorded — after the
-    // clear and all 10 puts — proving it couldn't have landed in (or been
+    // clear and all 11 puts — proving it couldn't have landed in (or been
     // wiped by) any part of the pull's clear-and-repopulate sequence.
     expect(calls.at(-1)).toBe("local-write");
     expect(calls.filter((c) => c === "local-write")).toHaveLength(1);
-    expect(calls.length).toBe(12); // clear + 10 puts + the local write
+    expect(calls.length).toBe(13); // clear + 11 puts + the local write
   });
 
   it("a local write already in flight completes before a concurrently-triggered pull can start clearing", async () => {

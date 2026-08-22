@@ -14,6 +14,10 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Deno runtime, not Node/browser — its own environment, not this config's.
     "supabase/functions/**",
+    // Claude Code worktrees (gitignored, one per in-progress branch) — each
+    // has its own .next/out/node_modules, which the patterns above don't
+    // reach since they're nested rather than at the repo root.
+    ".claude/**",
   ]),
 ]);
 

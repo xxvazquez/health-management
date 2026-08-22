@@ -44,15 +44,15 @@ export function workoutUnitLabel(unit: string): string {
 
 /** One logged set — an exercise + a numeric value (see `WorkoutUnit` for
  * what it means) on a given day, from the Log page's Workout tab.
- * `exercise` is a plain name matched against `workout_items.name` at the
- * app layer (see that table's schema.sql comment for why this isn't a
- * foreign key) rather than an item identity — unlike
- * food/habit/supplement/symptom logs, which reference their item by
- * identity. `weightKg` keeps its original name/column even though it now
- * holds whatever unit the exercise is configured for (minutes, reps) —
- * renaming the column would be a second migration on live data for a
- * cosmetic gain only; every read site pairs it with the resolved unit
- * label rather than assuming kg. */
+ * `exercise` is a plain display name locally, resolved to/from
+ * `workout_items.id` only at the Supabase sync boundary (`buildGymLogRow`/
+ * `pullFromCloud` in `sync.ts`) — `gym_logs.item_id` is a real foreign key
+ * there, same as every other log table, but the in-app shape stays a name
+ * to avoid touching the aggregation/UI code that reads it. `weightKg` keeps
+ * its original name/column even though it now holds whatever unit the
+ * exercise is configured for (minutes, reps) — renaming the column would
+ * be a second migration on live data for a cosmetic gain only; every read
+ * site pairs it with the resolved unit label rather than assuming kg. */
 export interface RawGymLog {
   id: string;
   date: string; // YYYY-MM-DD

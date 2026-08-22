@@ -1,6 +1,7 @@
 import { openDB, type DBSchema, type IDBPDatabase } from "idb";
 import type { RawItem, RawLog, RawDiaryEntry, RawGymLog, RawCategory, RawStoolLog } from "@/lib/types";
 import type { ItemType } from "@/taxonomy/categories";
+import { normalizeName } from "@/taxonomy/normalizeName";
 
 // ---------------------------------------------------------------------------
 // Outbox
@@ -153,11 +154,28 @@ export function putItem(item: RawItem): Promise<void> {
  * table (see supabase/schema.sql) — an item in this set can only ever be
  * archived, never hard-deleted, since Supabase would reject the delete.
  * Checked before offering Delete in the UI rather than just surfacing the
- * server's rejection after the fact. */
+ * server's rejection after the fact.
+ *
+ * Workout items are matched into this set by name rather than by
+ * `itemIdentity` (`gym_logs` has no `itemIdentity` column — see
+ * `RawGymLog`'s own comment) — same resolution sync.ts uses at the push/
+ * pull boundary. */
 export async function getItemIdentitiesWithHistory(): Promise<Set<string>> {
   const db = await getDb();
-  const [logs, diary] = await Promise.all([db.getAll("logs"), db.getAll("diary")]);
-  return new Set([...logs.map((l) => l.itemIdentity), ...diary.map((d) => d.itemIdentity)]);
+  const [logs, diary, items, gymLogs] = await Promise.all([
+    db.getAll("logs"),
+    db.getAll("diary"),
+    db.getAll("items"),
+    db.getAll("gymLogs"),
+  ]);
+  const withHistory = new Set([...logs.map((l) => l.itemIdentity), ...diary.map((d) => d.itemIdentity)]);
+  const gymExerciseNames = new Set(gymLogs.map((g) => normalizeName(g.exercise)));
+  for (const item of items) {
+    if (item.itemType === "workout" && gymExerciseNames.has(normalizeName(item.rawName))) {
+      withHistory.add(item.identity);
+    }
+  }
+  return withHistory;
 }
 
 /** Raw, unlocked delete — see `putItemInternal`. Only safe for an item

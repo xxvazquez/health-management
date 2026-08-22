@@ -5,7 +5,7 @@ export default function NotFound() {
   return (
     <div
       className="flex min-h-[70vh] flex-col items-center justify-center rounded-xl border bg-cover bg-center px-6 py-16 text-center"
-      style={{ borderColor: "var(--border-hairline)", backgroundImage: "url(/banner.png)", backgroundColor: "var(--surface-1)" }}
+      style={{ borderColor: "var(--border-hairline)", backgroundImage: "url(/background.png)", backgroundColor: "var(--surface-1)" }}
     >
       <Logo size={48} />
       <p className="mt-6 text-sm font-semibold tracking-[0.3em]" style={{ color: "var(--text-muted)" }}>
