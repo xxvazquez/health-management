@@ -27,8 +27,11 @@ import {
   enqueueOutboxInternal,
   withDataLock,
   getAllItems,
+  getItem,
   getItemIdentitiesWithHistory,
   hasOutboxEntriesSinceInternal,
+  getDeadLetterOutboxEntries,
+  deleteOutboxEntryById,
   type NewOutboxEntry,
   type OutboxOperation,
 } from "@/lib/db/indexedDb";
@@ -562,6 +565,186 @@ async function fetchAllRows<T>(client: SupabaseClient, table: string): Promise<T
 
 const ITEM_TYPES: ItemType[] = ["food", "supplement", "outcome", "habit"];
 
+// ---------------------------------------------------------------------------
+// Initial-pull gate
+// ---------------------------------------------------------------------------
+// Tracks whether pullFromCloud has successfully installed at least one
+// snapshot for the CURRENTLY signed-in user since this tab last saw a
+// sign-in for them. Exists for one reason: anything that decides "no rows
+// exist yet for this type, materialize the built-in defaults" (
+// categoryResolution.ts's ensureCategoryId/ensureDefaultWorkoutItems) reads
+// local IndexedDB directly — and if that read happens to run before the
+// FIRST pull of a fresh session has installed the user's real, already-
+// synced categories/items, it sees an empty cache and concludes "nothing
+// here yet", seeding a full duplicate default set under brand-new ids. Each
+// of those then permanently dead-letters against Supabase's own name
+// uniqueness constraint (23505), and any item that got filed under one of
+// them fails right along with it (23503, its category was never actually
+// created). This is NOT the same race `categorySeedQueue`/`workoutSeedQueue`
+// already close (two ensureCategoryId calls overlapping IN THE SAME TAB) —
+// this is "ran once, but before the pull that would have shown it wasn't
+// actually empty" — which is far more likely right after a fresh cold
+// start (a reload, a new tab, the service worker forcing a reload after a
+// deploy) than in an already-warm session that's had a pull land already.
+let initialPullState: { userId: string; done: boolean; promise: Promise<void>; resolve: () => void } | null = null;
+
+function ensurePullState(userId: string) {
+  if (initialPullState && initialPullState.userId === userId) return initialPullState;
+  let resolve!: () => void;
+  const promise = new Promise<void>((res) => (resolve = res));
+  initialPullState = { userId, done: false, promise, resolve };
+  return initialPullState;
+}
+
+/** Resolves once this tab has confirmed there's nothing to wait for — no
+ * session at all, so there's no cloud data that could be missed — or the
+ * signed-in user's first pull this session has finished installing. Called
+ * by ensureCategoryId/ensureDefaultWorkoutItems before they ever decide "no
+ * rows yet, seed the defaults" — see the comment above `initialPullState`.
+ * Never resolves the FIRST time until pullFromCloud actually finishes
+ * (successfully or by giving up after MAX_PULL_ATTEMPTS — either way,
+ * `markInitialPullDone` below runs in every code path that returns), so a
+ * user with no network at all isn't stuck forever: it just proceeds with
+ * whatever pullFromCloud managed to leave in the local cache. */
+export async function waitForInitialPull(): Promise<void> {
+  if (!supabase) return;
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session) return;
+  const state = ensurePullState(session.user.id);
+  if (state.done) return;
+  await state.promise;
+}
+
+/** Marks this user's initial-pull gate open — called once pullFromCloud has
+ * done everything it's going to do for this call, whether or not it
+ * actually managed to install a fresh snapshot (see pullFromCloud's own
+ * comment on giving up after MAX_PULL_ATTEMPTS). A pull that never
+ * completes at all (offline, no session) must not leave
+ * ensureCategoryId/ensureDefaultWorkoutItems waiting forever — they're
+ * still allowed to seed defaults from whatever's already cached locally in
+ * that case, same as before this gate existed. */
+function markInitialPullDone(userId: string): void {
+  const state = ensurePullState(userId);
+  if (state.done) return;
+  state.done = true;
+  state.resolve();
+}
+
+/** Resets the initial-pull gate — called on sign-out (see DataContext.tsx)
+ * so a later sign-in, whether the same user again or a different one on a
+ * shared device, correctly waits for its own fresh pull rather than
+ * incorrectly reusing a previous user's already-resolved gate. */
+export function resetInitialPullState(): void {
+  initialPullState = null;
+}
+
+// All five item tables (categories' own `item_type` check constraint lists
+// the same five DB-spelled values — see schema.sql) — used below to scope
+// the dead-letter repair pass to exactly the tables that can hit the
+// stale-category-reference/duplicate-name failure shapes it fixes.
+const ALL_ITEM_TABLES = new Set<string>(Object.values(ITEM_TABLE));
+
+interface RepairPlan {
+  /** Dead-letter entry ids that are unconditionally safe to give up on —
+   * either a 23505 (a name collision that can never resolve for that exact
+   * payload), or a 23503 item upsert whose item is already gone locally
+   * (nothing left to repair it from). */
+  toDiscard: string[];
+  /** Dead-letter entry id + the corrected item to re-save in its place,
+   * for a 23503 item upsert whose item still exists locally right now, re-
+   * pointed at the category the fresh pull is about to confirm is real. */
+  toRepair: { entryId: string; item: RawItem }[];
+}
+
+/**
+ * READ half of the dead-letter repair pass — must run BEFORE the
+ * destructive clear+repopulate below, while a still-unsynced local item
+ * (if any) is still there to read. Deciding what to do about it and
+ * actually writing the fix happens after, in `applyRepairPlan`, once the
+ * fresh categories are the ones on record — see that function's own
+ * comment for why this exists and the two shapes it handles.
+ */
+async function buildRepairPlan(userId: string): Promise<RepairPlan> {
+  const deadLetters = await getDeadLetterOutboxEntries(userId);
+  const plan: RepairPlan = { toDiscard: [], toRepair: [] };
+  for (const entry of deadLetters) {
+    if (entry.op !== "upsert") continue;
+    const isCategoryTable = entry.table === "categories";
+    const isItemTable = ALL_ITEM_TABLES.has(entry.table);
+    if (!isCategoryTable && !isItemTable) continue;
+
+    if (entry.lastErrorCode === "23505") {
+      plan.toDiscard.push(entry.id);
+      continue;
+    }
+
+    if (isItemTable && entry.lastErrorCode === "23503") {
+      const identity = (entry.payload as { id?: string } | null)?.id;
+      if (!identity) continue;
+      const item = await getItem(identity);
+      if (!item) continue; // already evicted — nothing left to safely repair from
+      plan.toRepair.push({ entryId: entry.id, item });
+    }
+  }
+  return plan;
+}
+
+/**
+ * WRITE half of the dead-letter repair pass — cleans up outbox entries
+ * left behind by the race `waitForInitialPull` (above) now closes:
+ * ensureCategoryId/ensureDefaultWorkoutItems running before this session's
+ * first pull had installed the user's real, already-synced
+ * categories/items, concluding "nothing here yet", and seeding a full
+ * duplicate default set under brand-new ids. Closing that race only stops
+ * NEW occurrences; it does nothing for entries that got stuck before this
+ * shipped, which is what this repairs — run once after every successful
+ * pull install, using the fresh snapshot that pull just installed. Two
+ * shapes, matching `RepairPlan`'s two lists:
+ *
+ *  - `toDiscard`: unconditionally, permanently unrecoverable by retrying
+ *    the same payload — either a 23505 (that error code means a row with
+ *    that exact name already exists, so the real, already-synced version
+ *    of whatever this was trying to create is sitting right in the
+ *    snapshot just installed) or a 23503 whose item is already gone (see
+ *    `buildRepairPlan`). Nothing to repair either way; just stop asking
+ *    them to retry forever.
+ *  - `toRepair`: a 23503 item upsert whose item still existed locally at
+ *    the moment `buildRepairPlan` ran (BEFORE the destructive clear that
+ *    just happened wiped it, since it was never actually in Supabase to
+ *    survive that clear) — re-resolve its category by matching (itemType,
+ *    its own already-correct `category` display name) against the
+ *    categories just installed, and write the corrected categoryId back
+ *    via `putItemAndSync`, which both restores the item to the
+ *    freshly-cleared local cache AND enqueues a fresh, correct upsert that
+ *    supersedes the stale dead-lettered one.
+ *
+ * Scoped to `userId` throughout (every dead-letter entry `buildRepairPlan`
+ * read already came pre-filtered to it by getDeadLetterOutboxEntries) —
+ * never touches another account's queued entries, same as every other
+ * outbox operation.
+ */
+async function applyRepairPlan(plan: RepairPlan, categoryRows: CategoryRow[]): Promise<void> {
+  if (plan.toDiscard.length === 0 && plan.toRepair.length === 0) return;
+
+  for (const id of plan.toDiscard) {
+    await deleteOutboxEntryById(id);
+  }
+
+  if (plan.toRepair.length === 0) return;
+  const categoryIdByTypeAndName = new Map<string, string>();
+  for (const row of categoryRows) {
+    categoryIdByTypeAndName.set(`${row.item_type}:${normalizeName(row.name)}`, row.id);
+  }
+  for (const { entryId, item } of plan.toRepair) {
+    const correctCategoryId = categoryIdByTypeAndName.get(`${DB_TYPE[item.itemType]}:${normalizeName(item.category)}`);
+    if (!correctCategoryId || correctCategoryId === item.categoryId) continue;
+    await deleteOutboxEntryById(entryId);
+    await putItemAndSync({ ...item, categoryId: correctCategoryId });
+  }
+}
+
 /** How many times pullFromCloud will re-fetch and retry after detecting a
  * local write raced in after its snapshot (see the loop in pullFromCloud
  * below). Each retry is cheap relative to how rare a real collision is —
@@ -648,6 +831,14 @@ export async function pullFromCloud(): Promise<void> {
     // already holds the lock — calling the locked public versions here
     // would deadlock. Note clearAllDataInternal does NOT touch the outbox
     // store — a pending sync operation is never erased by a pull.
+    //
+    // buildRepairPlan reads dead-lettered entries and, for a 23503 item
+    // upsert, the item itself — which MUST happen before clearAllDataInternal
+    // below, since a dead-lettered item's own upsert never reached Supabase
+    // and would otherwise be silently wiped by the clear before there was
+    // any chance to read (and repair) it. See applyRepairPlan's own doc
+    // comment for what happens with what's captured here.
+    const repairPlan = await buildRepairPlan(userId);
     const installed = await withDataLock(async () => {
       if (await hasOutboxEntriesSinceInternal(userId, pullStartedAt)) return false;
 
@@ -784,13 +975,21 @@ export async function pullFromCloud(): Promise<void> {
       }
       return true;
     });
-    if (installed) return;
+    if (installed) {
+      markInitialPullDone(userId);
+      await applyRepairPlan(repairPlan, categoryRows);
+      return;
+    }
   }
   // Every attempt hit a genuine race (an outbox entry kept appearing after
   // each fresh fetch) — vanishingly unlikely in practice. Leave the local
   // cache exactly as it is rather than risk installing a stale snapshot;
   // the next pull trigger (tab focus, the periodic timer, another sign-in)
-  // will try again.
+  // will try again. Still open the initial-pull gate — see
+  // waitForInitialPull's own doc comment on why a pull that can't fully
+  // land must not leave ensureCategoryId/ensureDefaultWorkoutItems waiting
+  // forever.
+  markInitialPullDone(userId);
 }
 
 function dbTypeToItemType(dbType: string): ItemType {

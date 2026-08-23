@@ -143,3 +143,28 @@ export async function retryOutboxEntry(id: string): Promise<void> {
   await updateOutboxEntry(id, { status: "pending", nextAttemptAt: Date.now() });
   await drainOutbox();
 }
+
+/**
+ * Permanently gives up on ONE dead-lettered sync attempt, without ever
+ * sending it. For failures Retry can never fix by itself — most notably a
+ * 23505 unique-name conflict, where the queued payload will keep colliding
+ * with the exact same already-synced row forever, no matter how many times
+ * it's resent unchanged. The local record this entry was trying to push is
+ * completely untouched: discarding only cancels the queued CLOUD write,
+ * the same "local data was never at risk" guarantee `retryOutboxEntry`
+ * documents. The right move after discarding a duplicate-name failure is
+ * to go rename (or delete) whichever of the two conflicting records is the
+ * one to keep — that produces a fresh, non-conflicting outbox entry that
+ * syncs normally, rather than this dead one ever being resent.
+ *
+ * Scoped to the current user, like every other outbox read/write here, so
+ * a stale id left over from a previous account on a shared device can
+ * never discard another account's entry.
+ */
+export async function discardDeadLetterEntry(id: string): Promise<void> {
+  const userId = await currentUserId();
+  if (!userId) return;
+  const entries = await getDeadLetterOutboxEntries(userId);
+  if (!entries.some((e) => e.id === id)) return;
+  await deleteOutboxEntryById(id);
+}

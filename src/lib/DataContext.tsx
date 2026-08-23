@@ -4,8 +4,8 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import type { CanonicalEvent, RawWorkoutLog, RawStoolLog, RawPeriodLog } from "@/lib/types";
 import { buildCanonicalEvents } from "@/lib/canonical/buildCanonicalEvents";
 import { clearAllData, getAllDiary, getAllLogs, getAllItems, getAllStoolLogs, getAllWorkoutLogs, getAllPeriodLogs, hasAnyData, withDataLock, type OutboxEntry } from "@/lib/db/indexedDb";
-import { pullFromCloud } from "@/lib/supabase/sync";
-import { drainOutbox, getDeadLetterEntries, getOutboxSyncState, retryOutboxEntry } from "@/lib/supabase/outbox";
+import { pullFromCloud, resetInitialPullState } from "@/lib/supabase/sync";
+import { discardDeadLetterEntry, drainOutbox, getDeadLetterEntries, getOutboxSyncState, retryOutboxEntry } from "@/lib/supabase/outbox";
 import { ANALYTICS_START_DATE } from "@/lib/config";
 import { buildDemoDataset } from "@/lib/demoData";
 import { useAuth } from "@/lib/supabase/AuthContext";
@@ -38,6 +38,11 @@ interface DataContextValue {
   deadLetterEntries: OutboxEntry[];
   /** Re-queues one dead-letter entry and attempts to send it again. */
   retrySync: (id: string) => Promise<void>;
+  /** Permanently gives up on one dead-lettered entry without ever sending
+   * it — for a failure Retry can never fix (see discardDeadLetterEntry's
+   * own doc comment), most commonly a duplicate-name conflict. The local
+   * record itself is never touched by this. */
+  discardSync: (id: string) => Promise<void>;
   refresh: () => Promise<void>;
   clearData: () => Promise<void>;
 }
@@ -64,6 +69,14 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const retrySync = useCallback(
     async (id: string) => {
       await retryOutboxEntry(id);
+      await refreshSyncState();
+    },
+    [refreshSyncState],
+  );
+
+  const discardSync = useCallback(
+    async (id: string) => {
+      await discardDeadLetterEntry(id);
       await refreshSyncState();
     },
     [refreshSyncState],
@@ -203,6 +216,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       // the sign-out transition itself.
       if (pulledForUserId.current !== null) {
         pulledForUserId.current = null;
+        // A later sign-in — same user again, or a different one on a
+        // shared device — must wait for its OWN fresh pull before
+        // ensureCategoryId/ensureDefaultWorkoutItems trust "nothing here
+        // yet" (see waitForInitialPull's own doc comment); resetting here
+        // stops it from reusing this session's already-resolved gate.
+        resetInitialPullState();
         void clearAllData().then(() => refresh());
       }
       return;
@@ -255,8 +274,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   }, [refreshSyncState]);
 
   const value = useMemo(
-    () => ({ status, events, workoutLogs, stoolLogs, periodLogs, isDemoData, error, syncState, deadLetterEntries, retrySync, refresh, clearData }),
-    [status, events, workoutLogs, stoolLogs, periodLogs, isDemoData, error, syncState, deadLetterEntries, retrySync, refresh, clearData],
+    () => ({ status, events, workoutLogs, stoolLogs, periodLogs, isDemoData, error, syncState, deadLetterEntries, retrySync, discardSync, refresh, clearData }),
+    [status, events, workoutLogs, stoolLogs, periodLogs, isDemoData, error, syncState, deadLetterEntries, retrySync, discardSync, refresh, clearData],
   );
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
