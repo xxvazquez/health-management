@@ -79,9 +79,26 @@ afterEach(() => {
   currentFakeSupabase = null;
 });
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 /** Enqueues a real outbox entry, then immediately marks it dead-letter with
  * the given code — the same end state drainOutbox itself would leave
- * behind after a permanent rejection, without needing a real failing send. */
+ * behind after a permanent rejection, without needing a real failing send.
+ *
+ * Ends with a short real delay past this entry's own `createdAt` — every
+ * test in this file goes on to call `pullFromCloud()` right after seeding,
+ * which captures its own race-detection cutoff (`pullStartedAt`,
+ * `Date.now()`-based — see hasOutboxEntriesSinceInternal in indexedDb.ts)
+ * as its very first step. `Date.now()`'s millisecond resolution means a
+ * fast in-memory test can easily land the seed and that cutoff in the same
+ * millisecond, making `createdAt >= pullStartedAt` spuriously true —
+ * pullFromCloud would then (correctly, by its own logic) treat this
+ * already-dead-lettered entry as a local write that raced in after its
+ * snapshot, and discard/retry the attempt instead of installing it. Without
+ * this delay that's flaky: usually the attempt eventually clears the
+ * millisecond boundary within MAX_PULL_ATTEMPTS retries, but not always. */
 async function seedDeadLetter(entry: Parameters<typeof enqueueOutboxInternal>[0], code: string) {
   await withDataLock(() => enqueueOutboxInternal(entry));
   const [row] = (await getAllOutboxEntries()).filter((e) => e.dedupeKey === entry.dedupeKey);
@@ -90,6 +107,7 @@ async function seedDeadLetter(entry: Parameters<typeof enqueueOutboxInternal>[0]
   // outer call can never finish waiting on the inner one, which can never
   // start because the queue already advanced past it).
   await updateOutboxEntry(row.id, { status: "dead-letter", attempts: 1, lastErrorCode: code, lastError: "simulated" });
+  await sleep(2);
   return row.id;
 }
 
