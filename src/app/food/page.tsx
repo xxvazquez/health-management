@@ -31,6 +31,7 @@ import {
   computeNutritionPriorities,
   type CoverageRow,
   type GroupStatus,
+  type DietBalanceStatus,
 } from "@/lib/aggregations/nutritionPriorities";
 import { TYPE_ACCENT } from "@/taxonomy/categories";
 
@@ -40,6 +41,16 @@ const STATUS_COLOR: Record<GroupStatus, string> = {
   increase: "var(--series-4)",
   good: "var(--series-1)",
   strong: "var(--status-good)",
+};
+
+// Same severity ramp as STATUS_COLOR above, applied to the coarser
+// per-pillar diet-balance verdict shown on Overview.
+const DIET_BALANCE_COLOR: Record<DietBalanceStatus, string> = {
+  "not-enough-data": "var(--text-muted)",
+  underrepresented: "var(--status-warning)",
+  "could-use-more-variety": "var(--series-4)",
+  "well-represented": "var(--series-1)",
+  "strongly-represented": "var(--status-good)",
 };
 
 function StatusPill({ status, label, color }: { status: string; label: string; color: string }) {
@@ -224,6 +235,8 @@ export default function FoodPage() {
 
   const topFoods = ranked.slice(0, 10).map((f) => ({ label: f.item, value: f.count }));
 
+  const rangeLabel = span && range ? (range.start === span.start && range.end === span.end ? "all time" : `${range.start} – ${range.end}`) : "";
+
   return (
     <div className="flex flex-col">
       <div>
@@ -231,6 +244,16 @@ export default function FoodPage() {
           Food
         </h1>
       </div>
+
+      {span && range && (
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+          <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+            Showing <span style={{ color: "var(--text-secondary)" }}>{rangeLabel}</span> — applies to every section below except
+            Overview&apos;s diet-balance summary, which always reads your full history
+          </p>
+          <DateRangeFilter span={span} value={range} onChange={setRange} presets={FOOD_DATE_PRESETS} customLabel accent={TYPE_ACCENT.food} />
+        </div>
+      )}
 
       <div className="mt-5">
         <SectionNav items={SECTION_NAV_ITEMS} activeId={activeSection} onSelect={setActiveSection} accent={SECTION_NAV_ACCENT} />
@@ -250,7 +273,7 @@ export default function FoodPage() {
           </Card>
         ) : (
           <>
-            <div className="grid grid-cols-2 gap-3 sm:max-w-sm">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               <StatTile
                 label="Ingredients"
                 value={String(priorities.variety.totalUniqueFoods)}
@@ -262,51 +285,67 @@ export default function FoodPage() {
                 value={`${TREND_DISPLAY[trendDirection].arrow} ${TREND_DISPLAY[trendDirection].label}`}
                 detail="vs. prior 30 days"
               />
+              <StatTile label="Top 3 concentration" value={`${concentration}%`} detail="of what's logged in range" />
+              <StatTile label="Days tracked" value={String(priorities.daysWithFoodTracked)} detail="all-time" />
             </div>
 
-            <BulletList
-              title="Worth noticing"
-              tone="var(--text-muted)"
-              bullets={priorities.underrepresentedGroups.slice(0, 3).map((c) => ({ label: c.headline, detail: c.detail }))}
-              emptyText="Nothing appears unusually infrequent right now."
-            />
+            <Card tier="raw">
+              <CardTitle size="sm" subtitle="How consistently each food group shows up in what you log">
+                Diet balance
+              </CardTitle>
+              <div className="grid grid-cols-1 gap-x-8 gap-y-2.5 sm:grid-cols-2">
+                {priorities.dietBalance.map((row) => (
+                  <div key={row.pillar} className="flex items-center justify-between gap-3">
+                    <span className="text-sm" style={{ color: "var(--text-primary)" }}>
+                      {row.label}
+                    </span>
+                    <StatusPill status={row.status} label={row.statusLabel} color={DIET_BALANCE_COLOR[row.status]} />
+                  </div>
+                ))}
+              </div>
+              <div className="mt-3">
+                <AllTimeScopeNote>fixed rolling windows, independent of the range filter above.</AllTimeScopeNote>
+              </div>
+            </Card>
+
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+              <BulletList
+                title="Going well"
+                tone="var(--status-good)"
+                bullets={priorities.doingWell.slice(0, 5)}
+                emptyText="Nothing stands out as strongly consistent yet."
+              />
+              <BulletList
+                title="Worth noticing"
+                tone="var(--status-warning)"
+                bullets={priorities.missing.slice(0, 5)}
+                emptyText="Nothing appears unusually infrequent right now."
+              />
+            </div>
           </>
         )}
       </PageSection>
       )}
 
       {activeSection === "variety" && (
-      <PageSection id="variety" headingLabel="Variety" subtitle={span && range ? `${range.start} – ${range.end}` : undefined}>
-        {span && range && (
-          <div className="flex justify-end">
-            <DateRangeFilter span={span} value={range} onChange={setRange} presets={FOOD_DATE_PRESETS} customLabel accent={TYPE_ACCENT.food} />
-          </div>
-        )}
-
+      <PageSection id="variety" headingLabel="Variety">
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
           <Card tier="raw" className="flex h-full flex-col">
             <CardTitle size="sm" subtitle="Distinct ingredients logged in this range">
               Ingredient diversity
             </CardTitle>
-            {/* Only 2 stat tiles' worth of content next to a full bar chart —
-             * centered in the remaining space (rather than left stranded at
-             * the card's natural height) so the paired cards read as one
-             * balanced row instead of a tall card next to a mostly-empty
-             * short one. */}
-            <div className="flex flex-1 items-center">
-              <div className="grid w-full grid-cols-2 gap-4">
-                <StatTile label="Unique ingredients" value={String(diversity?.current ?? 0)} />
-                {diversity?.previous != null ? (
-                  <StatTile
-                    label="Vs. prior period"
-                    value={diversity.current === diversity.previous ? "No change" : diversity.current > diversity.previous ? `+${diversity.current - diversity.previous}` : `${diversity.current - diversity.previous}`}
-                    detail={`was ${diversity.previous}`}
-                    accent={diversity.current >= diversity.previous ? "var(--status-good)" : "var(--status-warning)"}
-                  />
-                ) : (
-                  <StatTile label="Vs. prior period" value="—" detail="not enough earlier history" />
-                )}
-              </div>
+            <div className="grid grid-cols-2 gap-4">
+              <StatTile label="Unique ingredients" value={String(diversity?.current ?? 0)} />
+              {diversity?.previous != null ? (
+                <StatTile
+                  label="Vs. prior period"
+                  value={diversity.current === diversity.previous ? "No change" : diversity.current > diversity.previous ? `+${diversity.current - diversity.previous}` : `${diversity.current - diversity.previous}`}
+                  detail={`was ${diversity.previous}`}
+                  accent={diversity.current >= diversity.previous ? "var(--status-good)" : "var(--status-warning)"}
+                />
+              ) : (
+                <StatTile label="Vs. prior period" value="—" detail="not enough earlier history" />
+              )}
             </div>
           </Card>
 
