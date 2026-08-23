@@ -293,7 +293,7 @@ export default function FoodPage() {
               <CardTitle size="sm" subtitle="How consistently each food group shows up in what you log">
                 Diet balance
               </CardTitle>
-              <div className="grid grid-cols-1 gap-x-8 gap-y-2.5 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-x-8 gap-y-3 sm:grid-cols-2">
                 {priorities.dietBalance.map((row) => (
                   <div key={row.pillar} className="flex items-center justify-between gap-3">
                     <span className="text-sm" style={{ color: "var(--text-primary)" }}>
@@ -303,24 +303,31 @@ export default function FoodPage() {
                   </div>
                 ))}
               </div>
-              <div className="mt-3">
+              <div className="mt-4">
                 <AllTimeScopeNote>fixed rolling windows, independent of the range filter above.</AllTimeScopeNote>
               </div>
             </Card>
 
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-              <BulletList
-                title="Going well"
-                tone="var(--status-good)"
-                bullets={priorities.doingWell.slice(0, 5)}
-                emptyText="Nothing stands out as strongly consistent yet."
-              />
-              <BulletList
-                title="Worth noticing"
-                tone="var(--status-warning)"
-                bullets={priorities.missing.slice(0, 5)}
-                emptyText="Nothing appears unusually infrequent right now."
-              />
+            {/* Same "raw" card tier as Diet balance above, so all three
+             * Overview cards read as one coherent set rather than a
+             * structured summary sitting above two loose lists. */}
+            <div className="grid grid-cols-1 gap-5 pt-2 sm:grid-cols-2">
+              <Card tier="raw">
+                <BulletList
+                  title="Going well"
+                  tone="var(--status-good)"
+                  bullets={priorities.doingWell.slice(0, 5)}
+                  emptyText="Nothing stands out as strongly consistent yet."
+                />
+              </Card>
+              <Card tier="raw">
+                <BulletList
+                  title="Worth noticing"
+                  tone="var(--status-warning)"
+                  bullets={priorities.missing.slice(0, 5)}
+                  emptyText="Nothing appears unusually infrequent right now."
+                />
+              </Card>
             </div>
           </>
         )}
@@ -503,7 +510,11 @@ export default function FoodPage() {
       </PageSection>
       )}
 
-      <div className="border-t pt-8" style={{ borderColor: "var(--gridline)" }}>
+      {/* mt-10 (not just pt-8 after the line) so the divider itself has
+       * room before it, not just the methodology text after it — otherwise
+       * the line sits flush against whichever section's last content
+       * happens to be active, reading as an accidental boundary. */}
+      <div className="mt-10 border-t pt-8" style={{ borderColor: "var(--gridline)" }}>
         <Methodology>
           Suggestions combine your logged intake with research-informed evidence, weighted by how well-established
           that evidence is and how well-covered the food group already is in what you&apos;ve logged. Eating an
