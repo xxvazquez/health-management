@@ -412,14 +412,17 @@ export async function decrementDailyLogForMealInternal(
 ): Promise<RawLog | null> {
   const db = await getDb();
   const tx = db.transaction("logs", "readwrite");
-  const sameMeal = (await tx.store.index("itemIdentity").getAll(itemIdentity)).filter(
-    (l) => l.date === date && l.mealTag === mealTag,
-  );
-  if (sameMeal.length === 0) {
+  const sameDay = (await tx.store.index("itemIdentity").getAll(itemIdentity)).filter((l) => l.date === date);
+  // Prefer an exact tag match; fall back to an untagged (legacy) row — see
+  // loggedCountsForDate's own comment for why an untagged row counts as
+  // "logged" toward every meal. Without this fallback, un-tapping a chip
+  // that's showing as logged only because of that fallback would silently
+  // find nothing to remove.
+  const target = sameDay.find((l) => l.mealTag === mealTag) ?? sameDay.find((l) => l.mealTag == null);
+  if (!target) {
     await tx.done;
     return null;
   }
-  const target = sameMeal[0];
   await tx.store.delete(target.identity);
   await tx.done;
   return target;
@@ -429,7 +432,8 @@ export async function decrementDailyLogForMealInternal(
  * Same as `decrementDailyLog`, but only removes a row tagged with the given
  * meal — so un-tapping "Milk" while viewing Lunch removes today's lunch
  * milk, not the breakfast one, when the same food was logged at more than
- * one meal.
+ * one meal. Falls back to an untagged row if no exact match exists — see
+ * `decrementDailyLogForMealInternal`'s own comment.
  */
 export function decrementDailyLogForMeal(
   itemIdentity: string,
@@ -576,6 +580,36 @@ export function deleteWorkoutLogById(id: string): Promise<void> {
   return withDataLock(() => deleteWorkoutLogByIdInternal(id));
 }
 
+/** Raw, unlocked write — see `putItemInternal`. Cascades a workout item
+ * rename onto every local `workoutLogs` row currently matching the OLD
+ * name: `workout_logs` stores a denormalized exercise name, not the item's
+ * id (see `RawWorkoutLog`'s own comment), and every local consumer
+ * (`getItemIdentitiesWithHistory`, the Log page's day timeline, `WorkoutTab`'s
+ * "today's sets") matches a log to its item by `normalizeName(exercise)`
+ * against the item's CURRENT `rawName`. Without this, a rename would break
+ * that match for every log recorded before it — including
+ * `getItemIdentitiesWithHistory`, which would then wrongly report the item
+ * as having no history and let a hard-delete through. Matched the same way
+ * every other consumer matches it (normalizeName), not exact string
+ * equality, so a rename that only changes casing/whitespace still cascades
+ * correctly. Never needs an outbox entry: `workout_logs`' Supabase payload
+ * never contains a name, only `item_id` (resolved fresh at push time by
+ * `buildWorkoutLogRow`), so nothing about this needs to reach the server. */
+export async function renameWorkoutLogsExerciseInternal(oldName: string, newName: string): Promise<void> {
+  const db = await getDb();
+  const all = await db.getAll("workoutLogs");
+  const oldKey = normalizeName(oldName);
+  for (const log of all) {
+    if (normalizeName(log.exercise) === oldKey) {
+      await db.put("workoutLogs", { ...log, exercise: newName });
+    }
+  }
+}
+
+export function renameWorkoutLogsExercise(oldName: string, newName: string): Promise<void> {
+  return withDataLock(() => renameWorkoutLogsExerciseInternal(oldName, newName));
+}
+
 export async function getAllPeriodLogs(): Promise<RawPeriodLog[]> {
   return (await getDb()).getAll("periodLogs");
 }
@@ -706,6 +740,20 @@ export async function getOutboxCounts(userId: string): Promise<{ pending: number
     pending: all.filter((e) => e.status === "pending").length,
     deadLetter: all.filter((e) => e.status === "dead-letter").length,
   };
+}
+
+/** Raw, unlocked read — for pullFromCloud's own use only, from inside its
+ * withDataLock callback (see sync.ts). Whether this user has any outbox
+ * entry (any status — even one already dead-lettered still means a local
+ * write happened) created at or after `sinceMs`: a local `*AndSync` write
+ * and its outbox entry are created atomically (same withDataLock call), so
+ * this is how pullFromCloud detects a write that raced in after it already
+ * fetched its cloud snapshot but before it acquired the lock to install
+ * it — that write's record would otherwise be silently wiped by the
+ * destructive clear without being reflected in the (now-stale) snapshot. */
+export async function hasOutboxEntriesSinceInternal(userId: string, sinceMs: number): Promise<boolean> {
+  const all = await getAllOutboxEntries();
+  return all.some((e) => e.userId === userId && e.createdAt >= sinceMs);
 }
 
 /** The actual dead-letter rows for the current user — enough detail

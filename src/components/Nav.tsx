@@ -321,7 +321,7 @@ export function Nav() {
             type="button"
             aria-label="Close menu"
             onClick={() => setMobileOpen(false)}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
             style={{ background: "var(--page-plane)", color: "var(--text-primary)" }}
           >
             <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">

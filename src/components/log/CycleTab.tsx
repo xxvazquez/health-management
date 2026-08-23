@@ -210,7 +210,7 @@ export function CycleTab({
 
   const runs = useMemo(() => groupIntoPeriodRuns(periodLogs), [periodLogs]);
   const status = useMemo(() => currentCycleStatus(runs, date), [runs, date]);
-  const predictions = useMemo(() => predictUpcomingPeriods(runs, 3), [runs]);
+  const predictions = useMemo(() => predictUpcomingPeriods(runs, 3, today), [runs, today]);
 
   const selectedEntry = useMemo(() => periodLogs.find((l) => l.date === date) ?? null, [periodLogs, date]);
 

@@ -97,18 +97,26 @@ vi.mock("@/lib/db/indexedDb", async (importOriginal) => {
   };
 });
 
-function makeFakeSupabase(tables: Record<string, unknown[]>) {
+function makeFakeSupabase(tables: Record<string, unknown[]>, opts: { fetchDelayMs?: number } = {}) {
+  const fetchDelayMs = opts.fetchDelayMs ?? 0;
+  // How many times each table's `.range()` was actually called — the
+  // direct signal of how many pull *attempts* happened (one call per table
+  // per attempt), used by the race-detection test below.
+  const rangeCallCounts: Record<string, number> = {};
   return {
     auth: {
       getSession: async () => ({ data: { session: { user: { id: "user-1" } } } }),
     },
+    rangeCallCounts,
     from(table: string) {
       const rows = tables[table] ?? [];
       return {
         select() {
           return {
-            range(from: number, to: number) {
-              return Promise.resolve({ data: rows.slice(from, to + 1), error: null });
+            async range(from: number, to: number) {
+              rangeCallCounts[table] = (rangeCallCounts[table] ?? 0) + 1;
+              if (fetchDelayMs > 0) await sleep(fetchDelayMs);
+              return { data: rows.slice(from, to + 1), error: null };
             },
           };
         },
@@ -127,8 +135,8 @@ vi.mock("./client", () => ({
 // Set per-test via configureFakeSupabase(); read lazily by the mocked
 // getter above so each test can swap in its own fixture.
 let currentFakeSupabase: ReturnType<typeof makeFakeSupabase> | null = null;
-function configureFakeSupabase(tables: Record<string, unknown[]>) {
-  currentFakeSupabase = makeFakeSupabase(tables);
+function configureFakeSupabase(tables: Record<string, unknown[]>, opts?: { fetchDelayMs?: number }) {
+  currentFakeSupabase = makeFakeSupabase(tables, opts);
 }
 
 const baseTables = {
@@ -304,6 +312,45 @@ describe("pullFromCloud", () => {
     // (start *and* end) has released — proving the pull couldn't begin
     // clearing while that write was still in progress.
     expect(calls.slice(0, 3)).toEqual(["write:start", "write:end", "clear"]);
+  });
+
+  // The specific race the app's architecture docs call out: the fetches
+  // that build a pull's cloud snapshot are NOT covered by the lock
+  // (deliberately — see pullFromCloud's own comment), so a local write can
+  // land after the snapshot is fetched but before the lock is acquired to
+  // install it. Without detection, the destructive clear that follows
+  // would wipe that write from IndexedDB even though it's not reflected in
+  // the (now-stale) snapshot about to be installed.
+  it("retries with a fresh snapshot instead of installing a stale one when a local write races in mid-fetch", async () => {
+    // Slow the fetch phase down so there's a real window to land a write in
+    // — every other test uses an instant (0ms) fetch, which the race can't
+    // reliably land inside of.
+    configureFakeSupabase(baseTables, { fetchDelayMs: 20 });
+    const { pullFromCloud } = await import("./sync");
+    const { withDataLock, enqueueOutboxInternal } = await import("@/lib/db/indexedDb");
+
+    const pullPromise = pullFromCloud();
+    await sleep(5); // inside the first attempt's ~20ms fetch window, well before it can acquire the lock
+    await withDataLock(() =>
+      enqueueOutboxInternal({
+        userId: "user-1",
+        table: "food_items",
+        op: "upsert",
+        payload: { id: "race-item", name: "Raced-in food" },
+        dedupeKey: "food_items:race-item",
+      }),
+    );
+
+    await pullPromise;
+
+    // Proof a second attempt actually happened: each attempt calls
+    // `.range()` on "categories" exactly once, so more than one call means
+    // the first attempt's snapshot was discarded and re-fetched rather than
+    // installed.
+    expect(currentFakeSupabase!.rangeCallCounts.categories).toBeGreaterThan(1);
+    // The pull must still end up fully populated (via its retry), not
+    // stuck empty or partially applied.
+    expect(committed.filter((c) => c.startsWith("category:"))).toHaveLength(1);
   });
 });
 

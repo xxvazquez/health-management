@@ -10,7 +10,7 @@ import { ItemNameField, ItemActionButtons, useInlineRename } from "@/components/
 import { DuplicateItemDialog } from "@/components/ui/DuplicateItemDialog";
 import { PushNotificationsToggle } from "@/components/PushNotificationsToggle";
 import { useItemActions, type ManageableItem } from "@/lib/useItemActions";
-import { getAllItems, getAllCategories, getItemIdentitiesWithHistory } from "@/lib/db/indexedDb";
+import { getAllItems, getAllCategories, getItemIdentitiesWithHistory, withDataLock } from "@/lib/db/indexedDb";
 import { putItemAndSync, deleteCategoryAndSync } from "@/lib/supabase/sync";
 import { ensureCategoryId, categoryRowsToSeedForDemo } from "@/lib/categoryResolution";
 import { lookupFoodCategory } from "@/taxonomy/classify";
@@ -675,7 +675,13 @@ export default function ManagePage() {
   // touching the shared data status, so the effect below can call this on
   // every status change without looping (see next comment).
   const loadLocalSnapshot = useCallback(async () => {
-    const [items, categories, withHistory] = await Promise.all([getAllItems(), getAllCategories(), getItemIdentitiesWithHistory()]);
+    // One atomic read against withDataLock — pullFromCloud's destructive
+    // clear-and-repopulate is also one withDataLock call (see sync.ts), so
+    // this can never land mid-pull and see an empty or half-repopulated
+    // cache.
+    const [items, categories, withHistory] = await withDataLock(() =>
+      Promise.all([getAllItems(), getAllCategories(), getItemIdentitiesWithHistory()]),
+    );
     setRawItems(items);
     setCategoryRows(categories);
     setItemsWithHistory(withHistory);
@@ -768,7 +774,7 @@ export default function ManagePage() {
     // default) if nothing more specific applies.
     const guessed = itemType === "food" ? lookupFoodCategory(trimmed, categoryNamesByType.food) : null;
     const category = guessed ?? (categoryChoice || categoryNamesByType[itemType][0]);
-    const categoryId = await ensureCategoryId(itemType, category, categoryRows);
+    const categoryId = await ensureCategoryId(itemType, category);
 
     const item: RawItem = {
       identity: crypto.randomUUID(),
@@ -790,7 +796,7 @@ export default function ManagePage() {
    * real row for it yet, "hide" means creating one and archiving it in the
    * same step, not toggling a flag on something that already exists. */
   async function handleHideCatalogFood(name: string, category: string) {
-    const categoryId = await ensureCategoryId("food", category, categoryRows);
+    const categoryId = await ensureCategoryId("food", category);
     const item: RawItem = {
       identity: crypto.randomUUID(),
       itemType: "food",
@@ -809,15 +815,24 @@ export default function ManagePage() {
   async function handleAddCategory(itemType: ItemType, name: string) {
     const trimmed = name.trim();
     if (!trimmed) return;
-    await ensureCategoryId(itemType, trimmed, categoryRows);
+    await ensureCategoryId(itemType, trimmed);
     await refresh();
   }
 
   async function handleRemoveCategory(itemType: ItemType, name: string) {
     setRemoveCategoryError(null);
+    // Re-read fresh rather than trusting this page's `itemsByType` state,
+    // which only reflects whatever was loaded as of the last `refresh()` —
+    // stale enough (e.g. right after adding an item under this category)
+    // to let a removal through here that Supabase's `on delete restrict`
+    // FK would reject anyway, dead-lettering it silently in the outbox.
     // Catalog-only rows (itemIdentity "") aren't real items yet, so they
     // never block a category removal the way an actually-tracked item does.
-    const inUse = itemsByType[itemType].some((i) => i.itemIdentity !== "" && i.category === name);
+    // Locked (rather than a plain getAllItems() call) so this can't land
+    // mid-pull and read an empty/half-repopulated items store — see
+    // loadLocalSnapshot's own comment above.
+    const freshItems = isDemoData ? demoItems : await withDataLock(() => getAllItems());
+    const inUse = freshItems.some((i) => i.itemType === itemType && i.category === name);
     if (inUse) {
       setRemoveCategoryError(`"${name}" is still used by at least one ${itemType} item — recategorize those first.`);
       return;
@@ -826,17 +841,25 @@ export default function ManagePage() {
     // it (and the rest of that type's defaults, same as any other
     // first-ever use) before removing exactly this one, so the removal
     // actually persists instead of the default just reappearing next render.
-    const id = await ensureCategoryId(itemType, name, categoryRows);
+    const id = await ensureCategoryId(itemType, name);
     await deleteCategoryAndSync(id);
     await refresh();
   }
 
   /** Permanently removes an item — only ever reachable when it has no
    * logged history (see ItemRow's `hasHistory === false` gate), so nothing
-   * is lost; still confirmed since it can't be undone. */
+   * is lost; still confirmed since it can't be undone. `deleteItemAndSync`
+   * re-verifies that freshly right before deleting and throws if it's since
+   * become stale (something logged this item since this page last loaded)
+   * — surfaced here rather than silently swallowed. */
   async function handleDelete(item: ManageableItem) {
     if (!window.confirm(`Delete "${item.item}"? It's never been logged, so nothing will be lost, but this can't be undone.`)) return;
-    await realDeleteItem(item);
+    try {
+      await realDeleteItem(item);
+    } catch (err) {
+      window.alert(err instanceof Error ? err.message : "Couldn't delete this item — please try again.");
+      await refresh();
+    }
   }
 
   // --- Demo-mode equivalents of the handlers above — same shapes, but
@@ -1024,7 +1047,7 @@ export default function ManagePage() {
               demoChangeCategory(item, section.type, category);
               return;
             }
-            void ensureCategoryId(section.type, category, categoryRows).then((id) => realChangeCategory(item, category, id));
+            void ensureCategoryId(section.type, category).then((id) => realChangeCategory(item, category, id));
           }}
           onAdd={(name, category) => (isDemoData ? demoHandleAdd(section.type, name, category) : handleAdd(section.type, name, category))}
           onAddCategory={(name) => (isDemoData ? demoAddCategory(section.type, name) : handleAddCategory(section.type, name))}

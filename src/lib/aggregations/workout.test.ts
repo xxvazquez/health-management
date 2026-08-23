@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  describeProgression,
   formatWorkoutDate,
   formatWorkoutDateShort,
   workoutConsistencySummary,
@@ -84,6 +85,18 @@ describe("workoutExerciseFrequency", () => {
     ];
     expect(workoutExerciseFrequency(logs).map((f) => f.exercise)).toEqual(["Bench Press", "Squat"]);
   });
+
+  // Regression: exercises are fully user-editable (rename/add via Manage —
+  // see categoryResolution.ts), but this used to iterate the fixed 7-name
+  // WORKOUT_EXERCISES list rather than reading exercises from the logs
+  // themselves, so a renamed or custom exercise silently never appeared
+  // here (or in workoutStatsByExercise/workoutTimeline, which share the
+  // same underlying logic).
+  it("includes an exercise that isn't one of the 7 built-in defaults", () => {
+    const logs = [makeWorkoutLog({ date: "2026-01-01", exercise: "Farmer's Walk" })];
+    expect(workoutExerciseFrequency(logs).map((f) => f.exercise)).toContain("Farmer's Walk");
+    expect(workoutStatsByExercise(logs).map((s) => s.exercise)).toContain("Farmer's Walk");
+  });
 });
 
 describe("formatWorkoutDate / formatWorkoutDateShort", () => {
@@ -115,5 +128,38 @@ describe("workoutStatsByExercise / workoutInsight / workoutTimeline (smoke)", ()
     expect(() => workoutTimeline(logs)).not.toThrow();
     const timeline = workoutTimeline(logs);
     expect(timeline.length).toBeGreaterThan(0);
+  });
+});
+
+// Regression: RawWorkoutLog.weightKg's own doc comment says "every read
+// site pairs it with the resolved unit label rather than assuming kg" —
+// workoutStatsByExercise/describeProgression/workoutInsight used to always
+// say "kg" regardless of what the exercise was actually configured for.
+describe("unit propagation (kg vs a configured non-kg unit)", () => {
+  it("workoutStatsByExercise defaults to kg with no unit map, and uses a passed-in unit otherwise", () => {
+    const logs = [makeWorkoutLog({ date: "2026-01-01", exercise: "Running", weightKg: 30 })];
+    expect(workoutStatsByExercise(logs)[0].unit).toBe("kg");
+    expect(workoutStatsByExercise(logs, new Map([["Running", "minutes"]]))[0].unit).toBe("minutes");
+  });
+
+  it("describeProgression uses the stats' unit (abbreviated via workoutUnitLabel), not a hardcoded kg", () => {
+    const logs = [
+      makeWorkoutLog({ date: "2026-01-01", exercise: "Running", weightKg: 30 }),
+      makeWorkoutLog({ date: "2026-01-08", exercise: "Running", weightKg: 35 }),
+    ];
+    const [stats] = workoutStatsByExercise(logs, new Map([["Running", "minutes"]]));
+    const description = describeProgression(stats);
+    expect(description).toContain("min"); // workoutUnitLabel("minutes") -> "min"
+    expect(description).not.toMatch(/\bkg\b/);
+  });
+
+  it("workoutInsight's PR headline uses the exercise's configured unit", () => {
+    const logs = [
+      makeWorkoutLog({ date: "2026-01-01", exercise: "Running", weightKg: 30 }),
+      makeWorkoutLog({ date: "2026-01-08", exercise: "Running", weightKg: 35 }), // a new best -> triggers the PR headline
+    ];
+    const insight = workoutInsight(logs, "2026-01-08", new Map([["Running", "minutes"]]));
+    expect(insight?.headline).toContain("min"); // workoutUnitLabel("minutes") -> "min"
+    expect(insight?.headline).not.toMatch(/\bkg\b/);
   });
 });
