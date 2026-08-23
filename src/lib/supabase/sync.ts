@@ -32,10 +32,13 @@ import {
   hasOutboxEntriesSinceInternal,
   getDeadLetterOutboxEntries,
   deleteOutboxEntryById,
+  getAllOutboxEntries,
+  updateOutboxEntry,
   type NewOutboxEntry,
   type OutboxOperation,
+  type OutboxEntry,
 } from "@/lib/db/indexedDb";
-import { drainOutbox } from "./outbox";
+import { drainOutbox, retryOutboxEntry } from "./outbox";
 import type { RawDiaryEntry, RawLog, RawItem, RawWorkoutLog, RawCategory, RawStoolLog, RawPeriodLog, StoolColor, StoolFloatation, PaperCleanliness, WorkoutUnit, PeriodIntensity } from "@/lib/types";
 import type { ItemType } from "@/taxonomy/categories";
 import { normalizeName } from "@/taxonomy/normalizeName";
@@ -743,6 +746,55 @@ async function applyRepairPlan(plan: RepairPlan, categoryRows: CategoryRow[]): P
     await deleteOutboxEntryById(entryId);
     await putItemAndSync({ ...item, categoryId: correctCategoryId });
   }
+}
+
+/**
+ * Re-derives a dead-letter entry's payload from whatever the record it
+ * represents looks like locally RIGHT NOW, instead of the frozen snapshot
+ * captured back when the original upsert first failed. Without this,
+ * clicking Retry on an item that's since been fixed through the UI (e.g.
+ * recategorized away from a category that no longer exists — exactly what
+ * Manage's own "duplicate conflict"/recategorize flows do) just resends
+ * the exact same broken payload and fails identically forever: the fix
+ * already made never reaches this stuck entry, because the entry doesn't
+ * know the fix happened. Only items currently know how to rebuild
+ * themselves this way (buildItemRow is pure — it only needs the item row
+ * and userId); categories have no rename path (see categoryResolution.ts)
+ * so there's nothing about a category upsert that could have changed since
+ * it was queued, and every other table's *AndSync function always builds a
+ * FRESH outbox entry on every edit rather than reusing this retry path.
+ * Returns null when there's nothing to refresh from — not an upsert, not
+ * an item table, or the record no longer exists locally (see
+ * `applyRepairPlan`'s own reasoning for why that last case can't be
+ * guessed at) — in which case the caller should fall back to resending the
+ * entry's existing payload unchanged.
+ */
+async function refreshedOutboxPayload(entry: OutboxEntry): Promise<Record<string, unknown> | null> {
+  if (entry.op !== "upsert" || !ALL_ITEM_TABLES.has(entry.table)) return null;
+  const identity = (entry.payload as { id?: string } | null)?.id;
+  if (!identity) return null;
+  const userId = await currentUserId();
+  if (!userId) return null;
+  const item = await getItem(identity);
+  if (!item) return null;
+  return buildItemRow(item, userId);
+}
+
+/**
+ * The actual "Retry" action behind SyncStatusBanner's button — re-derives
+ * the entry's payload first (see `refreshedOutboxPayload`), so a record
+ * that's since been fixed locally gets a real chance to sync instead of
+ * repeating the exact same failure, then hands off to
+ * `retryOutboxEntry` (outbox.ts) for the actual "back to pending, drain
+ * now" mechanics, same as before this existed.
+ */
+export async function retryDeadLetterEntry(id: string): Promise<void> {
+  const entry = (await getAllOutboxEntries()).find((e) => e.id === id);
+  if (entry) {
+    const freshPayload = await refreshedOutboxPayload(entry);
+    if (freshPayload) await updateOutboxEntry(id, { payload: freshPayload });
+  }
+  await retryOutboxEntry(id);
 }
 
 /** How many times pullFromCloud will re-fetch and retry after detecting a

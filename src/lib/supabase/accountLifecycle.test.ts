@@ -7,7 +7,10 @@ import {
   clearAllData,
   clearAllDataInternal,
   getAllItems,
+  putItemInternal,
+  updateOutboxEntry,
 } from "@/lib/db/indexedDb";
+import type { RawItem } from "@/lib/types";
 
 // Deliberately does NOT mock @/lib/db/indexedDb — see repair.test.ts's own
 // comment on why (needs real local reads/writes, backed by the same
@@ -151,5 +154,77 @@ describe("a pending outbox mutation across pull, sign-out, and sign-in", () => {
     const afterUserASignsBackIn = await getAllOutboxEntries();
     expect(afterUserASignsBackIn).toHaveLength(0);
     expect(currentFakeSupabase!.getTable("habit_logs").map((r) => r.id)).toEqual(["log-a"]);
+  });
+});
+
+function makeHabitItem(overrides: Partial<RawItem> = {}): RawItem {
+  return {
+    identity: "item-1",
+    itemType: "habit",
+    rawName: "Fast 12+ hours",
+    category: "Food",
+    categoryId: "phantom-category-1",
+    isArchived: false,
+    createdDate: "2026-01-01",
+    reminderTime: null,
+    unit: null,
+    ...overrides,
+  };
+}
+
+// Regression for a real reported failure: a user recategorized a stuck
+// item through Manage (fixing it), but clicking "Retry" on its dead-letter
+// entry kept failing forever — because Retry was resending the FROZEN
+// payload captured when the upsert first failed, still pointing at the
+// long-gone category, never the item's current, already-fixed state.
+describe("retryDeadLetterEntry — Retry reflects the record's CURRENT local state, not a frozen snapshot", () => {
+  it("succeeds once the item has been recategorized locally, even though the dead-letter entry's own payload still has the old, gone category", async () => {
+    const { retryDeadLetterEntry } = await import("./sync");
+
+    await withDataLock(() =>
+      enqueueOutboxInternal({
+        userId: "user-a",
+        table: "habit_items",
+        op: "upsert",
+        payload: { id: "item-1", user_id: "user-a", name: "Fast 12+ hours", category_id: "phantom-category-1", item_type: "habit" },
+        dedupeKey: "habit_items:item-1",
+      }),
+    );
+    const [entry] = (await getAllOutboxEntries()).filter((e) => e.dedupeKey === "habit_items:item-1");
+    await updateOutboxEntry(entry.id, { status: "dead-letter", attempts: 1, lastErrorCode: "23503", lastError: "simulated" });
+
+    // The user has since fixed it through Manage: recategorized to a
+    // category that's real.
+    await withDataLock(() => putItemInternal(makeHabitItem({ category: "Routines", categoryId: "real-routines-category" })));
+
+    // Clicking Retry must succeed now, sending the item's CURRENT category
+    // — not the stale one still frozen in the entry's own payload.
+    await retryDeadLetterEntry(entry.id);
+
+    expect(await getAllOutboxEntries()).toHaveLength(0); // no longer stuck
+    const serverRow = currentFakeSupabase!.getTable("habit_items").find((r) => r.id === "item-1");
+    expect(serverRow?.category_id).toBe("real-routines-category");
+  });
+
+  it("falls back to resending the existing payload unchanged when the item no longer exists locally", async () => {
+    const { retryDeadLetterEntry } = await import("./sync");
+    await withDataLock(() =>
+      enqueueOutboxInternal({
+        userId: "user-a",
+        table: "habit_items",
+        op: "upsert",
+        payload: { id: "item-missing", user_id: "user-a", name: "Ghost", category_id: "phantom-category-1", item_type: "habit" },
+        dedupeKey: "habit_items:item-missing",
+      }),
+    );
+    const [entry] = (await getAllOutboxEntries()).filter((e) => e.dedupeKey === "habit_items:item-missing");
+    await updateOutboxEntry(entry.id, { status: "dead-letter", attempts: 1, lastErrorCode: "23503", lastError: "simulated" });
+
+    // No local item for "item-missing" — nothing to refresh from; must not
+    // throw, must fall back to the original payload as-is.
+    await retryDeadLetterEntry(entry.id);
+
+    const serverRow = currentFakeSupabase!.getTable("habit_items").find((r) => r.id === "item-missing");
+    expect(serverRow?.category_id).toBe("phantom-category-1");
   });
 });
