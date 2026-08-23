@@ -6,6 +6,7 @@ import { useData } from "@/lib/DataContext";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { Insight } from "@/components/ui/Insight";
+import { StatTile } from "@/components/ui/StatTile";
 import { DateRangeFilter } from "@/components/ui/DateRangeFilter";
 import { TrendAreaChart } from "@/components/charts/TrendAreaChart";
 import { useDateRangeFilter } from "@/lib/useDateRangeFilter";
@@ -17,19 +18,6 @@ const ACCENT = "var(--series-4)";
 
 function formatShortDate(date: string): string {
   return new Date(`${date}T00:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" });
-}
-
-function StatTile({ label, value, unit }: { label: string; value: string; unit: string }) {
-  return (
-    <div className="rounded-lg border px-3 py-2" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
-      <p className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
-        {label}
-      </p>
-      <p className="mt-0.5 text-base font-semibold tabular-nums" style={{ color: "var(--text-primary)" }}>
-        {value} <span className="text-xs font-normal">{unit}</span>
-      </p>
-    </div>
-  );
 }
 
 export default function CyclePage() {
@@ -115,10 +103,10 @@ export default function CyclePage() {
               </p>
             ) : (
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                <StatTile label="Last cycle" value={String(analysis.lastCycleLength)} unit="days" />
-                <StatTile label="Average cycle" value={String(analysis.averageCycleLength)} unit="days" />
-                <StatTile label="Cycle variation" value={`± ${analysis.cycleLengthVariation ?? 0}`} unit="days" />
-                <StatTile label="Average period" value={String(analysis.averagePeriodLength)} unit="days" />
+                <StatTile label="Last cycle" value={String(analysis.lastCycleLength)} detail="days" />
+                <StatTile label="Average cycle" value={String(analysis.averageCycleLength)} detail="days" />
+                <StatTile label="Cycle variation" value={`± ${analysis.cycleLengthVariation ?? 0}`} detail="days" />
+                <StatTile label="Average period" value={String(analysis.averagePeriodLength)} detail="days" />
               </div>
             )}
           </Card>
