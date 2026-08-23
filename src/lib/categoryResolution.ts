@@ -1,4 +1,4 @@
-import { putCategoryAndSync, putItemAndSync } from "@/lib/supabase/sync";
+import { putCategoryAndSync, putItemAndSync, waitForInitialPull } from "@/lib/supabase/sync";
 import { getAllCategories, getAllItems } from "@/lib/db/indexedDb";
 import { CATEGORIES_BY_TYPE, type ItemType } from "@/taxonomy/categories";
 import { WORKOUT_EXERCISES, type RawCategory, type RawItem } from "@/lib/types";
@@ -60,9 +60,21 @@ let categorySeedQueue: Promise<unknown> = Promise.resolve();
  * caller-supplied snapshot, which may be stale from before an earlier call
  * (or another tab) wrote to it — see `categorySeedQueue` above for why that
  * matters.
+ *
+ * Waits for this session's initial cloud pull before reading, when signed
+ * in — a "fresh" read taken before that pull has landed is still only as
+ * complete as whatever happened to already be cached locally, which for a
+ * just-opened/just-reloaded tab can be nothing at all. Without this, that
+ * incomplete read looks identical to "this user genuinely has no
+ * categories of this type yet", and the exact same duplicate-seeding
+ * failure this function already guards against (see `categorySeedQueue`)
+ * happens anyway — just from a different trigger (a cold start racing the
+ * pull, not two calls racing each other). See `waitForInitialPull`'s own
+ * doc comment.
  */
 export function ensureCategoryId(itemType: ItemType, name: string): Promise<string> {
   const run = async () => {
+    await waitForInitialPull();
     const current = await getAllCategories();
     const found = current.find((c) => c.itemType === itemType && normalizeName(c.name) === normalizeName(name));
     const toSeed = categoryNamesToSeed(itemType, name, current);
@@ -110,10 +122,16 @@ let workoutSeedQueue: Promise<unknown> = Promise.resolve();
  *
  * Re-checks with a fresh `getAllItems()` read (not a possibly-stale
  * snapshot the caller loaded earlier) and serializes concurrent calls
- * through `workoutSeedQueue` — see its own comment.
+ * through `workoutSeedQueue` — see its own comment. Also waits for this
+ * session's initial cloud pull first, same reasoning as `ensureCategoryId`
+ * — this is exactly what let a returning user's already-created "Squat",
+ * "Strength Training", etc. get silently re-seeded under fresh ids on a
+ * cold start (a reload, a fresh tab) that raced ahead of the pull that
+ * would have shown they already existed.
  */
 export function ensureDefaultWorkoutItems(): Promise<void> {
   const run = async () => {
+    await waitForInitialPull();
     const current = await getAllItems();
     if (current.some((i) => i.itemType === "workout")) return;
     const categoryId = await ensureCategoryId("workout", "Strength Training");

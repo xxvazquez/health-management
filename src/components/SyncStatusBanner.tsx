@@ -9,6 +9,7 @@ const TABLE_LABEL: Record<string, string> = {
   supplement_items: "supplement item",
   symptom_items: "symptom item",
   habit_items: "habit item",
+  workout_items: "workout item",
   food_logs: "food log entry",
   supplement_logs: "supplement log entry",
   symptom_logs: "symptom log entry",
@@ -17,6 +18,7 @@ const TABLE_LABEL: Record<string, string> = {
   supplement_diary: "supplement note",
   symptom_diary: "symptom note",
   habit_diary: "habit note",
+  workout_diary: "workout note",
   categories: "category",
   stool_logs: "stool entry",
   workout_logs: "workout entry",
@@ -48,16 +50,27 @@ function describeRecord(entry: OutboxEntry): string {
 /** Translates the Postgres/PostgREST error codes classifySupabaseError
  * treats as permanent (see lib/supabase/outbox.ts) into plain language —
  * never the raw error message, which can contain table/column names or
- * other implementation detail that isn't useful to a non-technical user. */
-function friendlyReason(code: string | undefined): { reason: string; action: string } {
+ * other implementation detail that isn't useful to a non-technical user.
+ *
+ * `op` matters because the same code means something different depending
+ * on direction: a 23503 on an upsert means THIS record points at
+ * something missing; a 23503 on a delete means something ELSE still
+ * points at THIS record. And a blind "Retry" is never actually going to
+ * fix a 23505 — the exact same payload hits the exact same name collision
+ * every time (see discardDeadLetterEntry's own doc comment in outbox.ts)
+ * — so that one is honest about needing either a rename or a Discard,
+ * never a claim that retrying alone will resolve it. */
+function friendlyReason(code: string | undefined, op: "upsert" | "delete"): { reason: string; action: string } {
   switch (code) {
     case "23503":
-      return {
-        reason: "it points to something (like a category) that's since been removed",
-        action: "Check the item still has a valid category, then retry.",
-      };
+      return op === "delete"
+        ? { reason: "something else still refers to it", action: "Move whatever's still using it elsewhere first, then retry." }
+        : { reason: "it points to something (like a category) that's since been removed", action: "Check it still has a valid category, then retry." };
     case "23505":
-      return { reason: "a duplicate of it already exists in your account", action: "Retry — this often clears up on its own." };
+      return {
+        reason: "a duplicate of it already exists in your account",
+        action: "Retrying alone won't fix this — rename it (or the other one) so they don't collide, then retry, or Discard if the other copy already has what you need.",
+      };
     case "23514":
       return { reason: "one of its values isn't valid", action: "Edit it and save again." };
     case "42501":
@@ -82,9 +95,10 @@ function friendlyReason(code: string | undefined): { reason: string; action: str
  * the record itself is safely in this device's local storage regardless,
  * and stays there whether or not the retry below ever succeeds. */
 export function SyncStatusBanner() {
-  const { syncState, deadLetterEntries, retrySync } = useData();
+  const { syncState, deadLetterEntries, retrySync, discardSync } = useData();
   const [expanded, setExpanded] = useState(false);
   const [retryingId, setRetryingId] = useState<string | null>(null);
+  const [discardingId, setDiscardingId] = useState<string | null>(null);
 
   if (syncState.deadLetter === 0 && syncState.pending === 0) return null;
 
@@ -94,6 +108,16 @@ export function SyncStatusBanner() {
       await retrySync(id);
     } finally {
       setRetryingId(null);
+    }
+  }
+
+  async function handleDiscard(id: string, label: string) {
+    if (!window.confirm(`Stop trying to back up "${label}" to the cloud? It stays exactly as-is on this device — this only gives up on the cloud copy.`)) return;
+    setDiscardingId(id);
+    try {
+      await discardSync(id);
+    } finally {
+      setDiscardingId(null);
     }
   }
 
@@ -117,24 +141,37 @@ export function SyncStatusBanner() {
         {expanded && (
           <ul className="flex flex-col divide-y px-4 pb-2 sm:px-6 lg:px-8" style={{ borderColor: "var(--gridline)" }}>
             {deadLetterEntries.map((entry) => {
-              const { reason, action } = friendlyReason(entry.lastErrorCode);
+              const { reason, action } = friendlyReason(entry.lastErrorCode, entry.op);
+              const label = describeRecord(entry);
               return (
                 <li key={entry.id} className="flex items-center justify-between gap-3 py-2 text-xs">
                   <span style={{ color: "var(--text-secondary)" }}>
                     <span className="font-semibold" style={{ color: "var(--text-primary)" }}>
-                      &ldquo;{describeRecord(entry)}&rdquo;
+                      &ldquo;{label}&rdquo;
                     </span>{" "}
                     ({friendlyTable(entry.table)}) didn&apos;t sync because {reason}. {action}
                   </span>
-                  <button
-                    type="button"
-                    onClick={() => void handleRetry(entry.id)}
-                    disabled={retryingId === entry.id}
-                    className="shrink-0 rounded-md border px-2 py-1 text-[11px] font-medium disabled:opacity-50"
-                    style={{ borderColor: "var(--border-hairline)", color: "var(--text-secondary)" }}
-                  >
-                    {retryingId === entry.id ? "Retrying…" : "Retry"}
-                  </button>
+                  <span className="flex shrink-0 gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => void handleRetry(entry.id)}
+                      disabled={retryingId === entry.id || discardingId === entry.id}
+                      className="rounded-md border px-2 py-1 text-[11px] font-medium disabled:opacity-50"
+                      style={{ borderColor: "var(--border-hairline)", color: "var(--text-secondary)" }}
+                    >
+                      {retryingId === entry.id ? "Retrying…" : "Retry"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void handleDiscard(entry.id, label)}
+                      disabled={retryingId === entry.id || discardingId === entry.id}
+                      title="Give up on syncing this one — the local copy on this device is untouched"
+                      className="rounded-md border px-2 py-1 text-[11px] font-medium disabled:opacity-50"
+                      style={{ borderColor: "var(--border-hairline)", color: "var(--text-muted)" }}
+                    >
+                      {discardingId === entry.id ? "Discarding…" : "Discard"}
+                    </button>
+                  </span>
                 </li>
               );
             })}
