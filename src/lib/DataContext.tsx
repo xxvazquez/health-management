@@ -4,8 +4,8 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import type { CanonicalEvent, RawWorkoutLog, RawStoolLog, RawPeriodLog } from "@/lib/types";
 import { buildCanonicalEvents } from "@/lib/canonical/buildCanonicalEvents";
 import { clearAllData, getAllDiary, getAllLogs, getAllItems, getAllStoolLogs, getAllWorkoutLogs, getAllPeriodLogs, hasAnyData, withDataLock, type OutboxEntry } from "@/lib/db/indexedDb";
-import { pullFromCloud, resetInitialPullState } from "@/lib/supabase/sync";
-import { discardDeadLetterEntry, drainOutbox, getDeadLetterEntries, getOutboxSyncState, retryOutboxEntry } from "@/lib/supabase/outbox";
+import { pullFromCloud, resetInitialPullState, retryDeadLetterEntry } from "@/lib/supabase/sync";
+import { discardDeadLetterEntry, drainOutbox, getDeadLetterEntries, getOutboxSyncState } from "@/lib/supabase/outbox";
 import { ANALYTICS_START_DATE } from "@/lib/config";
 import { buildDemoDataset } from "@/lib/demoData";
 import { useAuth } from "@/lib/supabase/AuthContext";
@@ -68,7 +68,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const retrySync = useCallback(
     async (id: string) => {
-      await retryOutboxEntry(id);
+      await retryDeadLetterEntry(id);
       await refreshSyncState();
     },
     [refreshSyncState],
