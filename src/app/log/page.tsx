@@ -1306,7 +1306,6 @@ export default function LogPage() {
         <nav className="flex w-fit flex-wrap items-center gap-5 border-b" style={{ borderColor: "var(--border-hairline)" }}>
           {TABS.filter((t) => !isHidden(t.type)).map((t) => {
             const active = t.type === tab;
-            const count = candidates.filter((c) => c.itemType === t.type).length;
             return (
               <button
                 key={t.type}
@@ -1321,11 +1320,6 @@ export default function LogPage() {
                 }}
               >
                 {t.label}
-                {count > 0 && (
-                  <span className="text-xs" style={{ color: active ? TYPE_ACCENT[t.type] : "var(--text-muted)" }}>
-                    {count}
-                  </span>
-                )}
               </button>
             );
           })}
@@ -1342,11 +1336,6 @@ export default function LogPage() {
               }}
             >
               Stool
-              {stoolEntriesForDate.length > 0 && (
-                <span className="text-xs" style={{ color: tab === "stool" ? STOOL_ACCENT : "var(--text-muted)" }}>
-                  {stoolEntriesForDate.length}
-                </span>
-              )}
             </button>
           )}
           {!isHidden("workout") && (
@@ -1362,11 +1351,6 @@ export default function LogPage() {
               }}
             >
               Workout
-              {workoutEntriesForDate.length > 0 && (
-                <span className="text-xs" style={{ color: tab === "workout" ? WORKOUT_ACCENT : "var(--text-muted)" }}>
-                  {workoutEntriesForDate.length}
-                </span>
-              )}
             </button>
           )}
           {!isHidden("cycle") && (
