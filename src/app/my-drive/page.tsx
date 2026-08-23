@@ -7,6 +7,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { driveFileIcon, DriveFolderIcon } from "@/components/icons/DriveFileIcons";
 import { useGoogleDriveAuth } from "@/lib/googleDrive/useGoogleDriveAuth";
 import { listFolder, searchDrive, isFolder, DriveApiError, type DriveFile } from "@/lib/googleDrive/api";
+import { useAuth } from "@/lib/supabase/AuthContext";
 
 interface Crumb {
   id: string;
@@ -192,6 +193,17 @@ function ConnectCard({
 
 export default function MyDrivePage() {
   const { configured, status: authStatus, errorMessage: authError, connect, disconnect, getAccessToken, markExpired } = useGoogleDriveAuth();
+  const { session } = useAuth();
+
+  // Drive's access token lives only in useGoogleDriveAuth's local state (see
+  // its own doc comment) and is never tied to Supabase's session lifecycle
+  // on its own — signing out of Supabase doesn't unmount this page or clear
+  // it. Without this, a second person signing into their own Supabase
+  // account on the same device/tab right after someone else signs out would
+  // still see the previous person's connected Drive listing.
+  useEffect(() => {
+    if (!session) disconnect();
+  }, [session, disconnect]);
 
   const [crumbs, setCrumbs] = useState<Crumb[]>([ROOT_CRUMB]);
   const [items, setItems] = useState<DriveFile[]>([]);

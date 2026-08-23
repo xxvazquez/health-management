@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useData } from "@/lib/DataContext";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -22,7 +22,8 @@ import {
 } from "@/lib/aggregations/workout";
 import { formatMonthYear, todayLocalISODate } from "@/lib/aggregations/common";
 import { TYPE_ACCENT } from "@/taxonomy/categories";
-import type { WorkoutExercise } from "@/lib/types";
+import { getAllItems, withDataLock } from "@/lib/db/indexedDb";
+import { workoutUnitLabel, type WorkoutExercise, type WorkoutUnit } from "@/lib/types";
 
 // Same accent as every other Workout surface (Log's Workout tab, its
 // timeline entries, Manage's Workout section) — color is otherwise
@@ -144,7 +145,7 @@ function StrengthProgressTable({
                   {s.exercise}
                 </p>
                 <p className="text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>
-                  {s.started.weightKg} → {s.current.weightKg} kg
+                  {s.started.weightKg} → {s.current.weightKg} {workoutUnitLabel(s.unit)}
                 </p>
               </div>
 
@@ -157,7 +158,7 @@ function StrengthProgressTable({
               <div className="ml-auto shrink-0 text-right">
                 {hasTrend ? (
                   <p className="text-sm font-semibold tabular-nums" style={{ color: changeColor }}>
-                    {s.changeKg >= 0 ? "↑" : "↓"} {signed(s.changeKg)} kg
+                    {s.changeKg >= 0 ? "↑" : "↓"} {signed(s.changeKg)} {workoutUnitLabel(s.unit)}
                     {s.changePct !== null && <span className="font-normal"> · {signed(s.changePct)}%</span>}
                   </p>
                 ) : (
@@ -166,7 +167,7 @@ function StrengthProgressTable({
                   </p>
                 )}
                 <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-                  Best {s.best.weightKg} kg
+                  Best {s.best.weightKg} {workoutUnitLabel(s.unit)}
                 </p>
               </div>
             </button>
@@ -185,6 +186,26 @@ export default function WorkoutPage() {
   const today = useMemo(() => todayLocalISODate(), []);
   const [compareExercise, setCompareExercise] = useState<WorkoutExercise | null>(null);
 
+  // DataContext doesn't expose raw items (only canonical events/logs), and
+  // a workout log's own row has no unit of its own (see RawWorkoutLog's
+  // doc comment) — its exercise's configured unit lives on the matching
+  // workout_items row, so this page reads that directly, the same pattern
+  // Manage/Log use for their own local snapshots. Without this, every
+  // figure on this page silently assumed "kg" even for an exercise
+  // configured as minutes or reps.
+  const [unitByExercise, setUnitByExercise] = useState<Map<string, WorkoutUnit>>(new Map());
+  useEffect(() => {
+    if (status === "loading") return;
+    let cancelled = false;
+    void withDataLock(() => getAllItems()).then((items) => {
+      if (cancelled) return;
+      setUnitByExercise(new Map(items.filter((i) => i.itemType === "workout").map((i) => [i.rawName, i.unit ?? "kg"])));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [status]);
+
   const { span, range, setRange, filtered: filteredWorkoutLogs } = useDateRangeFilter(workoutLogs);
 
   // Strength progress and Progression track a lift since its very first
@@ -192,8 +213,8 @@ export default function WorkoutPage() {
   // "Started" and "Best" wrong (they'd only reflect whatever's inside the
   // window), so they always read the full history. Only the frequency-style
   // cards (how often you trained, which lifts) are scoped to the range.
-  const stats = useMemo(() => workoutStatsByExercise(workoutLogs), [workoutLogs]);
-  const insight = useMemo(() => workoutInsight(workoutLogs, today), [workoutLogs, today]);
+  const stats = useMemo(() => workoutStatsByExercise(workoutLogs, unitByExercise), [workoutLogs, unitByExercise]);
+  const insight = useMemo(() => workoutInsight(workoutLogs, today, unitByExercise), [workoutLogs, today, unitByExercise]);
   const consistency = useMemo(() => workoutConsistencySummary(workoutLogs, today), [workoutLogs, today]);
   const monthlySessions = useMemo(() => workoutMonthlySessions(filteredWorkoutLogs), [filteredWorkoutLogs]);
   const exerciseFrequency = useMemo(() => workoutExerciseFrequency(filteredWorkoutLogs), [filteredWorkoutLogs]);
@@ -322,12 +343,24 @@ export default function WorkoutPage() {
           </div>
 
           <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-            <ProgressionStat label="Started" value={`${selectedStats.started.weightKg} kg`} detail={formatWorkoutDate(selectedStats.started.date)} />
-            <ProgressionStat label="Current" value={`${selectedStats.current.weightKg} kg`} detail={formatWorkoutDate(selectedStats.current.date)} />
-            <ProgressionStat label="Best" value={`${selectedStats.best.weightKg} kg`} detail={formatWorkoutDate(selectedStats.best.date)} />
+            <ProgressionStat
+              label="Started"
+              value={`${selectedStats.started.weightKg} ${workoutUnitLabel(selectedStats.unit)}`}
+              detail={formatWorkoutDate(selectedStats.started.date)}
+            />
+            <ProgressionStat
+              label="Current"
+              value={`${selectedStats.current.weightKg} ${workoutUnitLabel(selectedStats.unit)}`}
+              detail={formatWorkoutDate(selectedStats.current.date)}
+            />
+            <ProgressionStat
+              label="Best"
+              value={`${selectedStats.best.weightKg} ${workoutUnitLabel(selectedStats.unit)}`}
+              detail={formatWorkoutDate(selectedStats.best.date)}
+            />
             <ProgressionStat
               label="Change"
-              value={`${signed(selectedStats.changeKg)} kg`}
+              value={`${signed(selectedStats.changeKg)} ${workoutUnitLabel(selectedStats.unit)}`}
               detail={selectedStats.changePct !== null ? `${signed(selectedStats.changePct)}%` : undefined}
               accent={DIRECTION_COLOR[changeDirection(selectedStats.changeKg)]}
             />
@@ -340,12 +373,12 @@ export default function WorkoutPage() {
           <TrendAreaChart
             data={selectedStats.entries.map((e) => ({ date: e.date, value: e.weightKg }))}
             color={ACCENT}
-            valueLabel={`${selectedStats.exercise} (kg)`}
+            valueLabel={`${selectedStats.exercise} (${workoutUnitLabel(selectedStats.unit)})`}
             height={140}
             linear
             showDots
             xTickFormatter={formatMonthYear}
-            yTickFormatter={(v) => `${v} kg`}
+            yTickFormatter={(v) => `${v} ${workoutUnitLabel(selectedStats.unit)}`}
           />
         </Card>
       )}

@@ -1,4 +1,4 @@
-import { WORKOUT_EXERCISES, type WorkoutExercise, type RawWorkoutLog } from "@/lib/types";
+import { WORKOUT_EXERCISES, workoutUnitLabel, type WorkoutExercise, type WorkoutUnit, type RawWorkoutLog } from "@/lib/types";
 import type { InsightTone } from "./insights";
 import { addDaysToDate, daysBetween, monthStart, pct, round1 } from "./common";
 
@@ -121,6 +121,30 @@ export function workoutConsistencySummary(logs: RawWorkoutLog[], asOfDate: strin
   };
 }
 
+/** Every exercise that appears in `logs`, in a stable order: the 7 built-in
+ * defaults first (in their original order, for anyone who hasn't renamed or
+ * added anything), then anything else — a renamed or custom exercise — in
+ * first-appearance order. Exercises are fully user-editable (rename/add via
+ * Manage — see categoryResolution.ts's `ensureDefaultWorkoutItems`), so
+ * reading the set from the logs themselves, not the fixed `WORKOUT_EXERCISES`
+ * list, is what lets the functions below keep showing an exercise after
+ * it's renamed or after a custom one is added — they used to iterate
+ * `WORKOUT_EXERCISES` directly and simply never saw anything outside that
+ * original 7. */
+function exercisesInLogs(logs: RawWorkoutLog[]): string[] {
+  const seen = new Set<string>();
+  const order: string[] = [];
+  for (const l of logs) {
+    if (!seen.has(l.exercise)) {
+      seen.add(l.exercise);
+      order.push(l.exercise);
+    }
+  }
+  const known = WORKOUT_EXERCISES.filter((ex) => seen.has(ex));
+  const custom = order.filter((ex) => !(WORKOUT_EXERCISES as readonly string[]).includes(ex));
+  return [...known, ...custom];
+}
+
 export interface WorkoutExerciseFrequencyEntry {
   exercise: WorkoutExercise;
   sessionCount: number;
@@ -142,7 +166,7 @@ export function workoutExerciseFrequency(logs: RawWorkoutLog[]): WorkoutExercise
     set.add(l.date);
     counts.set(l.exercise, set);
   }
-  return WORKOUT_EXERCISES.filter((ex) => counts.has(ex))
+  return exercisesInLogs(logs)
     .map((ex) => ({ exercise: ex, sessionCount: counts.get(ex)!.size, sharePct: pct(counts.get(ex)!.size, totalSessions) }))
     .sort((a, b) => b.sessionCount - a.sessionCount);
 }
@@ -179,6 +203,14 @@ export interface WorkoutEntry {
 
 export interface WorkoutExerciseStats {
   exercise: WorkoutExercise;
+  /** What a `weightKg` value here actually means for this exercise (kg,
+   * minutes, reps, or any other unit set on its `workout_items` row) — see
+   * `RawWorkoutLog.weightKg`'s own doc comment: every read site is
+   * supposed to pair the number with this rather than assume kg. Falls
+   * back to "kg" when the caller doesn't have (or doesn't pass) the
+   * exercise's configured unit, matching every log recorded before
+   * per-exercise units existed. */
+  unit: WorkoutUnit;
   /** Ascending by date. */
   entries: WorkoutEntry[];
   recordsCount: number;
@@ -195,10 +227,15 @@ export interface WorkoutExerciseStats {
  * (current / progress / best / activity), nothing invented on top. Missing
  * days are simply absent from `entries`, never treated as a zero — every
  * exercise has its own recording frequency and that's expected.
+ *
+ * `unitByExercise` maps each exercise's current display name to its
+ * configured `workout_items.unit` — pass the real lookup so `unit` above
+ * (and everything that formats these stats with a unit label) reflects
+ * what the exercise is actually tracked in, not a blind "kg" assumption.
  */
-export function workoutStatsByExercise(logs: RawWorkoutLog[]): WorkoutExerciseStats[] {
+export function workoutStatsByExercise(logs: RawWorkoutLog[], unitByExercise: ReadonlyMap<string, WorkoutUnit> = new Map()): WorkoutExerciseStats[] {
   const out: WorkoutExerciseStats[] = [];
-  for (const exercise of WORKOUT_EXERCISES) {
+  for (const exercise of exercisesInLogs(logs)) {
     const sorted = logs
       .filter((l) => l.exercise === exercise)
       .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
@@ -217,6 +254,7 @@ export function workoutStatsByExercise(logs: RawWorkoutLog[]): WorkoutExerciseSt
 
     out.push({
       exercise,
+      unit: unitByExercise.get(exercise) ?? "kg",
       entries,
       recordsCount: entries.length,
       started: { date: started.date, weightKg: started.weightKg },
@@ -237,17 +275,19 @@ export interface WorkoutInsight {
 
 /** Plain-English progression sentence reusing `WorkoutExerciseStats`'s existing
  * fields (no new math) — e.g. "Squat has gone from 60 kg to 82 kg — up 22 kg
- * (+37%) since 12 Jan 2026." */
+ * (+37%) since 12 Jan 2026." Uses `stats.unit`, not a hardcoded "kg" — see
+ * `WorkoutExerciseStats.unit`'s own doc comment. */
 export function describeProgression(stats: WorkoutExerciseStats): string {
+  const unit = workoutUnitLabel(stats.unit);
   if (stats.recordsCount < 2) {
-    return `First logged ${formatWorkoutDate(stats.started.date)} at ${stats.started.weightKg} kg — log it again to see a trend.`;
+    return `First logged ${formatWorkoutDate(stats.started.date)} at ${stats.started.weightKg} ${unit} — log it again to see a trend.`;
   }
   if (stats.changeKg === 0) {
-    return `${stats.exercise} has stayed at ${stats.current.weightKg} kg since ${formatWorkoutDate(stats.started.date)}.`;
+    return `${stats.exercise} has stayed at ${stats.current.weightKg} ${unit} since ${formatWorkoutDate(stats.started.date)}.`;
   }
   const direction = stats.changeKg > 0 ? "up" : "down";
-  const changeText = `${direction} ${Math.abs(stats.changeKg)} kg${stats.changePct !== null ? ` (${stats.changePct > 0 ? "+" : ""}${stats.changePct}%)` : ""}`;
-  return `${stats.exercise} has gone from ${stats.started.weightKg} kg to ${stats.current.weightKg} kg — ${changeText} since ${formatWorkoutDate(stats.started.date)}.`;
+  const changeText = `${direction} ${Math.abs(stats.changeKg)} ${unit}${stats.changePct !== null ? ` (${stats.changePct > 0 ? "+" : ""}${stats.changePct}%)` : ""}`;
+  return `${stats.exercise} has gone from ${stats.started.weightKg} ${unit} to ${stats.current.weightKg} ${unit} — ${changeText} since ${formatWorkoutDate(stats.started.date)}.`;
 }
 
 const MEANINGFUL_FREQUENCY_CHANGE_PER_MONTH = 1;
@@ -262,10 +302,11 @@ const NOTABLE_GAP_DAYS = 10;
  * bullets already show, so it's deliberately NOT surfaced here — the
  * hero should never be the biggest text on the page for an unremarkable
  * baseline number. `asOfDate` flows through to `workoutConsistencySummary` for
- * the same purity reason those functions take it.
+ * the same purity reason those functions take it. `unitByExercise` is
+ * forwarded to `workoutStatsByExercise` — see its own doc comment.
  */
-export function workoutInsight(logs: RawWorkoutLog[], asOfDate: string): WorkoutInsight | null {
-  const stats = workoutStatsByExercise(logs);
+export function workoutInsight(logs: RawWorkoutLog[], asOfDate: string, unitByExercise: ReadonlyMap<string, WorkoutUnit> = new Map()): WorkoutInsight | null {
+  const stats = workoutStatsByExercise(logs, unitByExercise);
   if (stats.length === 0) {
     return {
       headline: "No workout sessions logged yet.",
@@ -277,15 +318,16 @@ export function workoutInsight(logs: RawWorkoutLog[], asOfDate: string): Workout
   const lastDate = stats.reduce((max, s) => (s.current.date > max ? s.current.date : max), stats[0].current.date);
   const prsToday = stats
     .filter((s) => s.current.date === lastDate && s.entries[s.entries.length - 1].isPR)
-    .map((s) => ({ exercise: s.exercise, weightKg: s.current.weightKg }));
+    .map((s) => ({ exercise: s.exercise, weightKg: s.current.weightKg, unit: workoutUnitLabel(s.unit) }));
 
   if (prsToday.length > 0) {
     return {
       headline:
         prsToday.length === 1
-          ? `New best on ${prsToday[0].exercise}: ${prsToday[0].weightKg} kg.`
+          ? `New best on ${prsToday[0].exercise}: ${prsToday[0].weightKg} ${prsToday[0].unit}.`
           : `${prsToday.length} new personal bests logged ${formatWorkoutDate(lastDate)}.`,
-      detail: prsToday.length === 1 ? `Logged ${formatWorkoutDate(lastDate)}.` : prsToday.map((e) => `${e.exercise}: ${e.weightKg} kg`).join(", "),
+      detail:
+        prsToday.length === 1 ? `Logged ${formatWorkoutDate(lastDate)}.` : prsToday.map((e) => `${e.exercise}: ${e.weightKg} ${e.unit}`).join(", "),
       tone: "good",
     };
   }

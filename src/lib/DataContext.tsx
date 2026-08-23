@@ -3,7 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { CanonicalEvent, RawWorkoutLog, RawStoolLog, RawPeriodLog } from "@/lib/types";
 import { buildCanonicalEvents } from "@/lib/canonical/buildCanonicalEvents";
-import { clearAllData, getAllDiary, getAllLogs, getAllItems, getAllStoolLogs, getAllWorkoutLogs, getAllPeriodLogs, hasAnyData, type OutboxEntry } from "@/lib/db/indexedDb";
+import { clearAllData, getAllDiary, getAllLogs, getAllItems, getAllStoolLogs, getAllWorkoutLogs, getAllPeriodLogs, hasAnyData, withDataLock, type OutboxEntry } from "@/lib/db/indexedDb";
 import { pullFromCloud } from "@/lib/supabase/sync";
 import { drainOutbox, getDeadLetterEntries, getOutboxSyncState, retryOutboxEntry } from "@/lib/supabase/outbox";
 import { ANALYTICS_START_DATE } from "@/lib/config";
@@ -84,19 +84,39 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     if (authLoading) return;
     setStatus("loading");
     try {
-      const hasData = await hasAnyData();
-      // Fetched independently of the food/habit demo overlay below — workout
-      // logs are real local data the moment they exist, never part of the
-      // synthetic demo dataset, so they should show up even while the rest
-      // of the app is still displaying demo food/habit data.
-      const workoutLogsNow = (await getAllWorkoutLogs()).filter((g) => g.date >= ANALYTICS_START_DATE);
-      // Unfiltered by ANALYTICS_START_DATE, same reasoning as workoutLogsNow
-      // above (real the moment it exists, outside the demo overlay) plus
-      // one more: cycle predictions read further back than that fixed
-      // cutoff on purpose (see aggregations/cycle.ts), so trimming history
-      // here would quietly make them less accurate.
-      const periodLogsNow = await getAllPeriodLogs();
-      if (!hasData) {
+      // Every read below goes through withDataLock as ONE unit, not
+      // individually — pullFromCloud's clear-and-repopulate is also one
+      // withDataLock call (see sync.ts), so this either runs entirely
+      // before it starts or entirely after it finishes, never landing
+      // partway through and seeing an empty or half-repopulated cache.
+      // (The individual getAllX() reads aren't locked on their own — they're
+      // also used from inside other already-locked callbacks elsewhere,
+      // where re-acquiring the lock here would deadlock — so the locking
+      // has to happen at this call site instead.)
+      const snapshot = await withDataLock(async () => {
+        const hasData = await hasAnyData();
+        // Fetched independently of the food/habit demo overlay below —
+        // workout logs are real local data the moment they exist, never
+        // part of the synthetic demo dataset, so they should show up even
+        // while the rest of the app is still displaying demo food/habit
+        // data.
+        const workoutLogsAll = await getAllWorkoutLogs();
+        // Unfiltered by ANALYTICS_START_DATE, same reasoning as workoutLogs
+        // above (real the moment it exists, outside the demo overlay) plus
+        // one more: cycle predictions read further back than that fixed
+        // cutoff on purpose (see aggregations/cycle.ts), so trimming
+        // history here would quietly make them less accurate.
+        const periodLogsAll = await getAllPeriodLogs();
+        // Reading items/logs/diary/stool unconditionally (even when the
+        // "no data" branch below won't use them) keeps this whole snapshot
+        // one consistent shape rather than a union — these are cheap local
+        // reads, not worth branching around.
+        const [items, logs, diary, stoolLogsAll] = await Promise.all([getAllItems(), getAllLogs(), getAllDiary(), getAllStoolLogs()]);
+        return { hasData, workoutLogsAll, periodLogsAll, items, logs, diary, stoolLogsAll };
+      });
+      const workoutLogsNow = snapshot.workoutLogsAll.filter((g) => g.date >= ANALYTICS_START_DATE);
+      const periodLogsNow = snapshot.periodLogsAll;
+      if (!snapshot.hasData) {
         if (!session) {
           // Signed out with nothing logged locally yet — show the static
           // demo dataset so the app never looks empty to a first-time
@@ -129,11 +149,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         setStatus(workoutLogsNow.length > 0 || periodLogsNow.length > 0 ? "ready" : "empty");
         return;
       }
-      const [items, logs, diary, stoolLogsNow] = await Promise.all([getAllItems(), getAllLogs(), getAllDiary(), getAllStoolLogs()]);
+      const { items, logs, diary, stoolLogsAll } = snapshot;
       const scoped = buildCanonicalEvents(items, logs, diary).filter((e) => e.date >= ANALYTICS_START_DATE);
       setEvents(scoped);
       setWorkoutLogs(workoutLogsNow);
-      setStoolLogs(stoolLogsNow.filter((s) => s.date >= ANALYTICS_START_DATE));
+      setStoolLogs(stoolLogsAll.filter((s) => s.date >= ANALYTICS_START_DATE));
       setPeriodLogs(periodLogsNow);
       setIsDemoData(false);
       setStatus("ready");

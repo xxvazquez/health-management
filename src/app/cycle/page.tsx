@@ -42,7 +42,7 @@ export default function CyclePage() {
   // respects the range filter, per how every other analytics page works.
   const allRuns = useMemo(() => groupIntoPeriodRuns(periodLogs), [periodLogs]);
   const currentStatus = useMemo(() => currentCycleStatus(allRuns, today), [allRuns, today]);
-  const nextPredictions = useMemo(() => predictUpcomingPeriods(allRuns, 1), [allRuns]);
+  const nextPredictions = useMemo(() => predictUpcomingPeriods(allRuns, 1, today), [allRuns, today]);
   const delayDays = useMemo(() => periodDelayDays(nextPredictions, today, currentStatus.onPeriod), [nextPredictions, today, currentStatus.onPeriod]);
   // Only counts down while the expected date is still ahead — once it's
   // passed, that's the delayDays/Insight banner's job instead, so the two
@@ -51,7 +51,7 @@ export default function CyclePage() {
 
   const { span, range, setRange, filtered } = useDateRangeFilter(periodLogs);
   const filteredRuns = useMemo(() => groupIntoPeriodRuns(filtered), [filtered]);
-  const analysis = useMemo(() => cycleAnalysis(filteredRuns), [filteredRuns]);
+  const analysis = useMemo(() => cycleAnalysis(filteredRuns, today), [filteredRuns, today]);
   const cycleTrend = useMemo(() => cycleLengthTrend(filteredRuns), [filteredRuns]);
   const periodTrend = useMemo(() => periodLengthTrend(filteredRuns), [filteredRuns]);
 

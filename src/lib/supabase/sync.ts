@@ -27,6 +27,8 @@ import {
   enqueueOutboxInternal,
   withDataLock,
   getAllItems,
+  getItemIdentitiesWithHistory,
+  hasOutboxEntriesSinceInternal,
   type NewOutboxEntry,
   type OutboxOperation,
 } from "@/lib/db/indexedDb";
@@ -228,12 +230,22 @@ export function putItemAndSync(item: RawItem): Promise<void> {
 }
 
 /** Hard-deletes an item with no logged history — unlike archiving, this
- * actually removes the row. Only ever safe to call for an item identity
- * not in `getItemIdentitiesWithHistory()` (checked by the caller): every
- * `*_logs`/`*_diary` table's FK to its item table is `on delete restrict`,
- * so deleting an item with any history would be rejected by Supabase. */
+ * actually removes the row. Every `*_logs`/`*_diary` table's FK to its item
+ * table is `on delete restrict`, so deleting an item with any history
+ * would be rejected by Supabase — callers should already have checked
+ * `getItemIdentitiesWithHistory()` before offering Delete at all, but that
+ * check happens against whatever React state was last loaded, which can go
+ * stale (another tab/device logs something for this item in the meantime).
+ * This re-verifies freshly, from inside the lock, and throws rather than
+ * proceeding if it's now out of date — otherwise the item would vanish
+ * locally while its logs are silently orphaned until the next pull
+ * restores it (and the delete permanently dead-letters server-side). */
 export function deleteItemAndSync(identity: string, itemType: ItemType): Promise<void> {
   return withDataLock(async () => {
+    const withHistory = await getItemIdentitiesWithHistory();
+    if (withHistory.has(identity)) {
+      throw new Error("This item has been logged since it was last checked, so it can no longer be deleted — archive it instead.");
+    }
     await deleteItemLocalInternal(identity);
     const userId = await currentUserId();
     if (!userId) return;
@@ -550,6 +562,12 @@ async function fetchAllRows<T>(client: SupabaseClient, table: string): Promise<T
 
 const ITEM_TYPES: ItemType[] = ["food", "supplement", "outcome", "habit"];
 
+/** How many times pullFromCloud will re-fetch and retry after detecting a
+ * local write raced in after its snapshot (see the loop in pullFromCloud
+ * below). Each retry is cheap relative to how rare a real collision is —
+ * this is just a safety margin, not tuned against any measurement. */
+const MAX_PULL_ATTEMPTS = 3;
+
 /**
  * Pulls every cloud row belonging to the signed-in user into IndexedDB — a
  * full mirror, not a merge. The local cache is wiped first: Supabase is the
@@ -562,6 +580,7 @@ export async function pullFromCloud(): Promise<void> {
     data: { session },
   } = await supabase.auth.getSession();
   if (!session) return;
+  const userId = session.user.id;
 
   // Best-effort: give any not-yet-synced local writes a chance to reach
   // Supabase BEFORE the destructive clear below, so the snapshot this pull
@@ -573,101 +592,141 @@ export async function pullFromCloud(): Promise<void> {
   // *AndSync functions above and outbox.ts.
   await drainOutbox();
 
-  const categoryRows = await fetchAllRows<CategoryRow>(supabase, "categories");
-  const categoryNameById = new Map(categoryRows.map((c) => [c.id, c.name]));
+  // The fetches below (network round-trips) and the *AndSync functions'
+  // local writes are NOT mutually locked — deliberately: holding
+  // withDataLock for the whole multi-second fetch would freeze every local
+  // write (a food tap, etc.) until the pull finishes, which is worse than
+  // the race it would prevent. That leaves a real window: a local write can
+  // land after the snapshot below is fetched but before the lock is
+  // acquired to install it, and the destructive clear+repopulate would then
+  // wipe that write from IndexedDB without it being in the snapshot (its
+  // outbox entry survives — clearAllDataInternal never touches that store —
+  // so nothing is permanently lost, but the record would be invisible in
+  // the local cache until a later pull happens to land cleanly).
+  //
+  // Closed by marking the moment right before fetching starts, then — from
+  // inside the same lock that's about to do the destructive clear —
+  // checking whether any outbox entry for this user was created at or
+  // after that moment. If so, a write really did race in: skip installing
+  // this now-stale snapshot and re-fetch a fresh one instead, up to
+  // MAX_PULL_ATTEMPTS times. On the (extremely unlikely) exhaustion of all
+  // attempts, this pull simply gives up and leaves the local cache as-is
+  // rather than risk wiping a write it can't account for — the next pull
+  // trigger (tab focus, the periodic timer, another sign-in) tries again.
+  for (let attempt = 0; attempt < MAX_PULL_ATTEMPTS; attempt++) {
+    const pullStartedAt = Date.now();
 
-  const [itemsByType, logsByType, diaryByType] = await Promise.all([
-    Promise.all(ITEM_TYPES.map((t) => fetchAllRows<ItemRow>(supabase!, ITEM_TABLE[t]))),
-    Promise.all(ITEM_TYPES.map((t) => fetchAllRows<LogRow>(supabase!, LOG_TABLE[t]))),
-    Promise.all(ITEM_TYPES.map((t) => fetchAllRows<DiaryRow>(supabase!, DIARY_TABLE[t]))),
-  ]);
-  // Workout items/diary aren't part of the ITEM_TYPES loop above: workout_logs
-  // doesn't match the generic LogRow shape (no meal_tag, and its own
-  // WorkoutLogRow type below), so folding "workout" into that shared loop would
-  // try to pull it as if it did. workout_logs itself is already pulled
-  // below, exactly like stool_logs.
-  const [stoolLogRows, workoutLogRows, workoutItemRows, workoutDiaryRows, periodLogRows] = await Promise.all([
-    fetchAllRows<StoolLogRow>(supabase, "stool_logs"),
-    fetchAllRows<WorkoutLogRow>(supabase, "workout_logs"),
-    fetchAllRows<ItemRow>(supabase, "workout_items"),
-    fetchAllRows<DiaryRow>(supabase, "workout_diary"),
-    fetchAllRows<PeriodLogRow>(supabase, "period_logs"),
-  ]);
-  const workoutItemNameById = new Map(workoutItemRows.map((item) => [item.id, item.name]));
+    const categoryRows = await fetchAllRows<CategoryRow>(supabase, "categories");
+    const categoryNameById = new Map(categoryRows.map((c) => [c.id, c.name]));
 
-  // Wiping and repopulating IndexedDB is one atomic unit against
-  // withDataLock — see indexedDb.ts. A local write started while this is
-  // running waits for it to finish (and vice versa), so a write can never
-  // land in the gap between the clear and the repopulation that follows
-  // it, and a read right after this resolves (e.g. DataContext's
-  // refresh()) can never observe a half-repopulated cache. Every write
-  // below uses the *Internal (unlocked) variant, since this callback
-  // already holds the lock — calling the locked public versions here
-  // would deadlock. Note clearAllDataInternal does NOT touch the outbox
-  // store — a pending sync operation is never erased by a pull.
-  await withDataLock(async () => {
-    await clearAllDataInternal();
+    const [itemsByType, logsByType, diaryByType] = await Promise.all([
+      Promise.all(ITEM_TYPES.map((t) => fetchAllRows<ItemRow>(supabase!, ITEM_TABLE[t]))),
+      Promise.all(ITEM_TYPES.map((t) => fetchAllRows<LogRow>(supabase!, LOG_TABLE[t]))),
+      Promise.all(ITEM_TYPES.map((t) => fetchAllRows<DiaryRow>(supabase!, DIARY_TABLE[t]))),
+    ]);
+    // Workout items/diary aren't part of the ITEM_TYPES loop above: workout_logs
+    // doesn't match the generic LogRow shape (no meal_tag, and its own
+    // WorkoutLogRow type below), so folding "workout" into that shared loop would
+    // try to pull it as if it did. workout_logs itself is already pulled
+    // below, exactly like stool_logs.
+    const [stoolLogRows, workoutLogRows, workoutItemRows, workoutDiaryRows, periodLogRows] = await Promise.all([
+      fetchAllRows<StoolLogRow>(supabase, "stool_logs"),
+      fetchAllRows<WorkoutLogRow>(supabase, "workout_logs"),
+      fetchAllRows<ItemRow>(supabase, "workout_items"),
+      fetchAllRows<DiaryRow>(supabase, "workout_diary"),
+      fetchAllRows<PeriodLogRow>(supabase, "period_logs"),
+    ]);
+    const workoutItemNameById = new Map(workoutItemRows.map((item) => [item.id, item.name]));
 
-    for (const entry of categoryRows) {
-      await putCategoryInternal({ id: entry.id, itemType: dbTypeToItemType(entry.item_type), name: entry.name });
-    }
+    // Wiping and repopulating IndexedDB is one atomic unit against
+    // withDataLock — see indexedDb.ts. A local write started while this is
+    // running waits for it to finish (and vice versa), so a write can never
+    // land in the gap between the clear and the repopulation that follows
+    // it, and a read right after this resolves (e.g. DataContext's
+    // refresh()) can never observe a half-repopulated cache. Every write
+    // below uses the *Internal (unlocked) variant, since this callback
+    // already holds the lock — calling the locked public versions here
+    // would deadlock. Note clearAllDataInternal does NOT touch the outbox
+    // store — a pending sync operation is never erased by a pull.
+    const installed = await withDataLock(async () => {
+      if (await hasOutboxEntriesSinceInternal(userId, pullStartedAt)) return false;
 
-    for (let i = 0; i < ITEM_TYPES.length; i++) {
-      const itemType = ITEM_TYPES[i];
-      for (const row of itemsByType[i]) {
+      await clearAllDataInternal();
+
+      for (const entry of categoryRows) {
+        await putCategoryInternal({ id: entry.id, itemType: dbTypeToItemType(entry.item_type), name: entry.name });
+      }
+
+      for (let i = 0; i < ITEM_TYPES.length; i++) {
+        const itemType = ITEM_TYPES[i];
+        for (const row of itemsByType[i]) {
+          const item: RawItem = {
+            identity: row.id,
+            itemType,
+            rawName: row.name,
+            category: categoryNameById.get(row.category_id ?? "") ?? "Other",
+            categoryId: row.category_id,
+            isArchived: row.is_archived ?? false,
+            createdDate: row.created_date,
+            reminderTime: row.reminder_time ? row.reminder_time.slice(0, 5) : null,
+            unit: null,
+          };
+          await putItemInternal(item);
+        }
+      }
+
+      for (const row of workoutItemRows) {
         const item: RawItem = {
           identity: row.id,
-          itemType,
+          itemType: "workout",
           rawName: row.name,
           category: categoryNameById.get(row.category_id ?? "") ?? "Other",
           categoryId: row.category_id,
           isArchived: row.is_archived ?? false,
           createdDate: row.created_date,
-          reminderTime: row.reminder_time ? row.reminder_time.slice(0, 5) : null,
-          unit: null,
+          reminderTime: null,
+          unit: row.unit ?? "kg",
         };
         await putItemInternal(item);
       }
-    }
 
-    for (const row of workoutItemRows) {
-      const item: RawItem = {
-        identity: row.id,
-        itemType: "workout",
-        rawName: row.name,
-        category: categoryNameById.get(row.category_id ?? "") ?? "Other",
-        categoryId: row.category_id,
-        isArchived: row.is_archived ?? false,
-        createdDate: row.created_date,
-        reminderTime: null,
-        unit: row.unit ?? "kg",
-      };
-      await putItemInternal(item);
-    }
-
-    for (let i = 0; i < ITEM_TYPES.length; i++) {
-      const itemType = ITEM_TYPES[i];
-      for (const row of logsByType[i]) {
-        const log: RawLog = {
-          identity: row.id,
-          itemIdentity: row.item_id,
-          itemType,
-          date: row.date,
-          value: row.value,
-          updatedAt: row.updated_at,
-          mealTag: itemType === "food" || itemType === "supplement" ? (row.meal_tag ?? null) : null,
-        };
-        await putLogInternal(log);
+      for (let i = 0; i < ITEM_TYPES.length; i++) {
+        const itemType = ITEM_TYPES[i];
+        for (const row of logsByType[i]) {
+          const log: RawLog = {
+            identity: row.id,
+            itemIdentity: row.item_id,
+            itemType,
+            date: row.date,
+            value: row.value,
+            updatedAt: row.updated_at,
+            mealTag: itemType === "food" || itemType === "supplement" ? (row.meal_tag ?? null) : null,
+          };
+          await putLogInternal(log);
+        }
       }
-    }
 
-    for (let i = 0; i < ITEM_TYPES.length; i++) {
-      const itemType = ITEM_TYPES[i];
-      for (const row of diaryByType[i]) {
+      for (let i = 0; i < ITEM_TYPES.length; i++) {
+        const itemType = ITEM_TYPES[i];
+        for (const row of diaryByType[i]) {
+          const entry: RawDiaryEntry = {
+            identity: row.id,
+            itemIdentity: row.item_id,
+            itemType,
+            date: row.date,
+            content: row.content,
+            title: row.title,
+            updatedAt: row.updated_at,
+          };
+          await putDiaryEntryInternal(entry);
+        }
+      }
+
+      for (const row of workoutDiaryRows) {
         const entry: RawDiaryEntry = {
           identity: row.id,
           itemIdentity: row.item_id,
-          itemType,
+          itemType: "workout",
           date: row.date,
           content: row.content,
           title: row.title,
@@ -675,69 +734,63 @@ export async function pullFromCloud(): Promise<void> {
         };
         await putDiaryEntryInternal(entry);
       }
-    }
 
-    for (const row of workoutDiaryRows) {
-      const entry: RawDiaryEntry = {
-        identity: row.id,
-        itemIdentity: row.item_id,
-        itemType: "workout",
-        date: row.date,
-        content: row.content,
-        title: row.title,
-        updatedAt: row.updated_at,
-      };
-      await putDiaryEntryInternal(entry);
-    }
+      for (const row of stoolLogRows) {
+        const log: RawStoolLog = {
+          id: row.id,
+          date: row.date,
+          loggedAt: row.logged_at,
+          bristolScores: row.bristol_scores ?? [],
+          noBristol: row.no_bristol,
+          color: (row.color as StoolColor | null) ?? null,
+          floatation: (row.floatation as StoolFloatation | null) ?? null,
+          isSticky: row.is_sticky,
+          isSmelly: row.is_smelly,
+          isStraining: row.is_straining,
+          hasMucus: row.has_mucus,
+          hasUrgency: row.has_urgency,
+          hasVisibleFoodParticles: row.has_visible_food_particles,
+          hasIncompleteEvacuation: row.has_incomplete_evacuation,
+          paperCleanliness: (row.paper_cleanliness as PaperCleanliness | null) ?? null,
+          timeOnToiletMinutes: row.time_on_toilet_minutes,
+          note: row.note,
+          updatedAt: row.updated_at,
+        };
+        await putStoolLogInternal(log);
+      }
 
-    for (const row of stoolLogRows) {
-      const log: RawStoolLog = {
-        id: row.id,
-        date: row.date,
-        loggedAt: row.logged_at,
-        bristolScores: row.bristol_scores ?? [],
-        noBristol: row.no_bristol,
-        color: (row.color as StoolColor | null) ?? null,
-        floatation: (row.floatation as StoolFloatation | null) ?? null,
-        isSticky: row.is_sticky,
-        isSmelly: row.is_smelly,
-        isStraining: row.is_straining,
-        hasMucus: row.has_mucus,
-        hasUrgency: row.has_urgency,
-        hasVisibleFoodParticles: row.has_visible_food_particles,
-        hasIncompleteEvacuation: row.has_incomplete_evacuation,
-        paperCleanliness: (row.paper_cleanliness as PaperCleanliness | null) ?? null,
-        timeOnToiletMinutes: row.time_on_toilet_minutes,
-        note: row.note,
-        updatedAt: row.updated_at,
-      };
-      await putStoolLogInternal(log);
-    }
+      for (const row of workoutLogRows) {
+        const exercise = workoutItemNameById.get(row.item_id);
+        if (!exercise) continue; // orphaned row (workout item deleted) — shouldn't happen, FK is on delete restrict
+        const log: RawWorkoutLog = {
+          id: row.id,
+          date: row.date,
+          exercise,
+          weightKg: row.weight_kg,
+          updatedAt: new Date(row.updated_at).getTime(),
+        };
+        await putWorkoutLogInternal(log);
+      }
 
-    for (const row of workoutLogRows) {
-      const exercise = workoutItemNameById.get(row.item_id);
-      if (!exercise) continue; // orphaned row (workout item deleted) — shouldn't happen, FK is on delete restrict
-      const log: RawWorkoutLog = {
-        id: row.id,
-        date: row.date,
-        exercise,
-        weightKg: row.weight_kg,
-        updatedAt: new Date(row.updated_at).getTime(),
-      };
-      await putWorkoutLogInternal(log);
-    }
-
-    for (const row of periodLogRows) {
-      const log: RawPeriodLog = {
-        id: row.id,
-        date: row.date,
-        intensity: row.intensity,
-        collectionMethods: row.collection_methods ?? [],
-        updatedAt: new Date(row.updated_at).getTime(),
-      };
-      await putPeriodLogInternal(log);
-    }
-  });
+      for (const row of periodLogRows) {
+        const log: RawPeriodLog = {
+          id: row.id,
+          date: row.date,
+          intensity: row.intensity,
+          collectionMethods: row.collection_methods ?? [],
+          updatedAt: new Date(row.updated_at).getTime(),
+        };
+        await putPeriodLogInternal(log);
+      }
+      return true;
+    });
+    if (installed) return;
+  }
+  // Every attempt hit a genuine race (an outbox entry kept appearing after
+  // each fresh fetch) — vanishingly unlikely in practice. Leave the local
+  // cache exactly as it is rather than risk installing a stale snapshot;
+  // the next pull trigger (tab focus, the periodic timer, another sign-in)
+  // will try again.
 }
 
 function dbTypeToItemType(dbType: string): ItemType {

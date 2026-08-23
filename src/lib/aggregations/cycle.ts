@@ -46,6 +46,22 @@ export function cycleLengthsFromRuns(runs: PeriodRun[]): number[] {
   return lengths;
 }
 
+/** The recent runs' own lengths (days), for period-length averages/medians
+ * — EXCLUDING the last run when it's still in progress as of `today` (i.e.
+ * `today` falls within its start/end range), same reasoning
+ * `cycleLengthsFromRuns` already applies to the last run's CYCLE length
+ * ("no next start yet"): a period that might still gain more logged days
+ * doesn't have a final length yet either, so counting it as a completed
+ * data point would understate the real average/typical length (and, via
+ * `predictUpcomingPeriods`, shrink the predicted-period calendar band) for
+ * as long as it's still being logged. */
+function recentPeriodLengths(runs: PeriodRun[], today: string): number[] {
+  const lastRun = runs.at(-1);
+  const lastRunInProgress = !!lastRun && today >= lastRun.startDate && today <= lastRun.endDate;
+  const closedRuns = lastRunInProgress ? runs.slice(0, -1) : runs;
+  return closedRuns.slice(-RECENT_CYCLES_WINDOW).map((r) => daysBetween(r.startDate, r.endDate) + 1);
+}
+
 function mean(values: number[]): number {
   return values.reduce((a, b) => a + b, 0) / values.length;
 }
@@ -105,14 +121,15 @@ export interface PredictedPeriod {
  * `RECENT_CYCLES_WINDOW` cycles (or everything available, if less) —
  * median rather than mean so one unusually long or short cycle doesn't
  * skew every prediction after it. Returns an empty array when there's no
- * recorded period to project from at all.
+ * recorded period to project from at all. `today` is used only to exclude
+ * a still-in-progress last period from the period-length median — see
+ * `recentPeriodLengths`'s own comment.
  */
-export function predictUpcomingPeriods(runs: PeriodRun[], count = 3): PredictedPeriod[] {
+export function predictUpcomingPeriods(runs: PeriodRun[], count: number, today: string): PredictedPeriod[] {
   if (runs.length === 0) return [];
   const lastStart = runs.at(-1)!.startDate;
   const allCycleLengths = cycleLengthsFromRuns(runs);
   const recentCycleLengths = allCycleLengths.slice(-RECENT_CYCLES_WINDOW);
-  const recentPeriodLengths = runs.slice(-RECENT_CYCLES_WINDOW).map((r) => daysBetween(r.startDate, r.endDate) + 1);
 
   // No completed cycle yet (a single logged period) — nothing to base a
   // cycle length on, so no prediction rather than a made-up default.
@@ -121,7 +138,7 @@ export function predictUpcomingPeriods(runs: PeriodRun[], count = 3): PredictedP
   const typicalCycle = Math.round(median(recentCycleLengths));
   const minCycle = Math.min(...recentCycleLengths);
   const maxCycle = Math.max(...recentCycleLengths);
-  const typicalPeriodLength = Math.round(median(recentPeriodLengths)) || 5;
+  const typicalPeriodLength = Math.round(median(recentPeriodLengths(runs, today))) || 5;
 
   const predictions: PredictedPeriod[] = [];
   for (let i = 1; i <= count; i++) {
@@ -151,18 +168,18 @@ export interface CycleAnalysis {
   periodsAnalyzed: number;
 }
 
-export function cycleAnalysis(runs: PeriodRun[]): CycleAnalysis {
+export function cycleAnalysis(runs: PeriodRun[], today: string): CycleAnalysis {
   const allCycleLengths = cycleLengthsFromRuns(runs);
   const recentCycleLengths = allCycleLengths.slice(-RECENT_CYCLES_WINDOW);
-  const recentPeriodLengths = runs.slice(-RECENT_CYCLES_WINDOW).map((r) => daysBetween(r.startDate, r.endDate) + 1);
+  const recentLengths = recentPeriodLengths(runs, today);
 
   return {
     lastCycleLength: allCycleLengths.at(-1) ?? null,
     averageCycleLength: recentCycleLengths.length > 0 ? Math.round(mean(recentCycleLengths) * 10) / 10 : null,
     cycleLengthVariation: recentCycleLengths.length > 1 ? Math.round(stddev(recentCycleLengths) * 10) / 10 : null,
-    averagePeriodLength: recentPeriodLengths.length > 0 ? Math.round(mean(recentPeriodLengths) * 10) / 10 : null,
+    averagePeriodLength: recentLengths.length > 0 ? Math.round(mean(recentLengths) * 10) / 10 : null,
     cyclesAnalyzed: recentCycleLengths.length,
-    periodsAnalyzed: recentPeriodLengths.length,
+    periodsAnalyzed: recentLengths.length,
   };
 }
 

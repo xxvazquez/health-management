@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { getItem } from "@/lib/db/indexedDb";
+import { getItem, renameWorkoutLogsExercise } from "@/lib/db/indexedDb";
 import { putItemAndSync, setItemReminderTimeAndSync, deleteItemAndSync } from "@/lib/supabase/sync";
 import { titleCaseFallback } from "@/taxonomy/normalizeName";
 import type { WorkoutUnit } from "@/lib/types";
@@ -67,13 +67,19 @@ export function useItemActions(refresh: () => Promise<void>) {
     const trimmed = titleCaseFallback(newName);
     if (!trimmed || trimmed === item.item) return;
     setBusyIdentity(item.itemIdentity);
-    const existing = await getItem(item.itemIdentity);
-    if (existing) {
-      const updated = { ...existing, rawName: trimmed };
-      await putItemAndSync(updated);
+    try {
+      const existing = await getItem(item.itemIdentity);
+      if (existing) {
+        const updated = { ...existing, rawName: trimmed };
+        await putItemAndSync(updated);
+        // Workout logs need their own cascade — see
+        // renameWorkoutLogsExercise's doc comment for why.
+        if (existing.itemType === "workout") await renameWorkoutLogsExercise(existing.rawName, trimmed);
+      }
+      await refresh();
+    } finally {
+      setBusyIdentity(null);
     }
-    await refresh();
-    setBusyIdentity(null);
   }
 
   /** Moves an item into a different category without touching its display
@@ -116,13 +122,19 @@ export function useItemActions(refresh: () => Promise<void>) {
   /** Hard-deletes an item, as opposed to archiving it — only ever called
    * for an item the caller has already confirmed has no logged history
    * (see `ManageableItem.hasHistory`), since one with any history can't be
-   * deleted (see `deleteItemAndSync`'s doc comment). */
+   * deleted (see `deleteItemAndSync`'s doc comment). `deleteItemAndSync`
+   * re-checks that freshly and can throw if it's gone stale — left to
+   * propagate to the caller (rather than swallowed here) so it can tell the
+   * user, but `busyIdentity` is still cleared either way via `finally`. */
   async function deleteItem(item: ManageableItem) {
     setBusyIdentity(item.itemIdentity);
-    const existing = await getItem(item.itemIdentity);
-    if (existing) await deleteItemAndSync(existing.identity, existing.itemType);
-    await refresh();
-    setBusyIdentity(null);
+    try {
+      const existing = await getItem(item.itemIdentity);
+      if (existing) await deleteItemAndSync(existing.identity, existing.itemType);
+      await refresh();
+    } finally {
+      setBusyIdentity(null);
+    }
   }
 
   return { busyIdentity, toggleArchive, rename, changeCategory, setReminderTime, setUnit, deleteItem };

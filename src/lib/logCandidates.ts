@@ -42,12 +42,22 @@ export function buildLogCandidates(items: RawItem[], logs: RawLog[]): LogCandida
  * meal — the Log page uses this so the same food can be logged separately
  * at breakfast, lunch, and dinner without one meal's tap marking the others
  * as done too.
+ *
+ * An untagged row (`mealTag: null`) — from before per-meal tagging existed,
+ * or from `toggleDailyLogInternal`'s own toggle path, which never sets one —
+ * counts toward EVERY meal, not none: a strict `mealTag !== meal` filter
+ * would make such a row invisible in every tab's count (since `null` never
+ * equals any real tag), which made `decideChipTapAction` see "not logged"
+ * everywhere and create a brand-new tagged row on top of it instead of
+ * recognizing it was already logged — see `decrementDailyLogForMealInternal`'s
+ * matching fallback, which is what actually lets removing it work once it's
+ * counted here.
  */
 export function loggedCountsForDate(logs: RawLog[], date: string, meal?: string | null): Map<string, number> {
   const counts = new Map<string, number>();
   for (const l of logs) {
     if (l.date !== date || (l.value ?? 0) <= 0) continue;
-    if (meal != null && l.mealTag !== meal) continue;
+    if (meal != null && l.mealTag !== meal && l.mealTag != null) continue;
     counts.set(l.itemIdentity, (counts.get(l.itemIdentity) ?? 0) + 1);
   }
   return counts;

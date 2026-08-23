@@ -25,7 +25,7 @@ import {
   decrementDailyLogAndSync,
   decrementDailyLogForMealAndSync,
 } from "@/lib/supabase/sync";
-import { getAllDiary, getAllItems, getAllLogs, getAllCategories, getAllStoolLogs, getAllWorkoutLogs, getAllPeriodLogs } from "@/lib/db/indexedDb";
+import { getAllDiary, getAllItems, getAllLogs, getAllCategories, getAllStoolLogs, getAllWorkoutLogs, getAllPeriodLogs, withDataLock } from "@/lib/db/indexedDb";
 import {
   buildLogCandidates,
   combineDateAndTime,
@@ -447,15 +447,13 @@ export default function LogPage() {
   const [expandedStoolIds, setExpandedStoolIds] = useState<Set<string>>(new Set());
 
   const loadSnapshot = useCallback(async () => {
-    const [items, logs, diary, categories, stoolLogs, workoutLogs, periodLogs] = await Promise.all([
-      getAllItems(),
-      getAllLogs(),
-      getAllDiary(),
-      getAllCategories(),
-      getAllStoolLogs(),
-      getAllWorkoutLogs(),
-      getAllPeriodLogs(),
-    ]);
+    // One atomic read against withDataLock — pullFromCloud's destructive
+    // clear-and-repopulate is also one withDataLock call (see sync.ts), so
+    // this can never land mid-pull and see an empty or half-repopulated
+    // cache across these seven stores.
+    const [items, logs, diary, categories, stoolLogs, workoutLogs, periodLogs] = await withDataLock(() =>
+      Promise.all([getAllItems(), getAllLogs(), getAllDiary(), getAllCategories(), getAllStoolLogs(), getAllWorkoutLogs(), getAllPeriodLogs()]),
+    );
     setSnapshot({ items, logs, diary, categories, stoolLogs, workoutLogs, periodLogs });
   }, []);
 
@@ -480,7 +478,7 @@ export default function LogPage() {
       return;
     }
     bootstrappedWorkoutItems.current = true;
-    void ensureDefaultWorkoutItems(snapshot.items, snapshot.categories).then(() => void loadSnapshot());
+    void ensureDefaultWorkoutItems().then(() => void loadSnapshot());
   }, [isDemoData, snapshot, loadSnapshot]);
 
   // Signed out with nothing logged locally yet — show the same static demo
@@ -972,7 +970,7 @@ export default function LogPage() {
     const category = guessed ?? (newItemCategory || categoryNamesForTab[0]);
 
     setPending("__new__");
-    const categoryId = await ensureCategoryId(tabConfig.type, category, effective.categories);
+    const categoryId = await ensureCategoryId(tabConfig.type, category);
     const item: RawItem = {
       identity: crypto.randomUUID(),
       itemType: tabConfig.type,
@@ -1023,7 +1021,7 @@ export default function LogPage() {
     }
 
     setPending(pendingKey);
-    const categoryId = await ensureCategoryId("food", category, effective.categories);
+    const categoryId = await ensureCategoryId("food", category);
     const item: RawItem = {
       identity: crypto.randomUUID(),
       itemType: "food",
@@ -1274,7 +1272,7 @@ export default function LogPage() {
             <button
               type="button"
               onClick={() => setDate((d) => addDaysLocal(d, -1))}
-              className="flex h-7 w-7 items-center justify-center rounded-md text-sm font-medium"
+              className="flex h-9 w-9 items-center justify-center rounded-md text-sm font-medium"
               style={{ color: "var(--text-secondary)" }}
               aria-label="Previous day"
             >
@@ -1290,7 +1288,7 @@ export default function LogPage() {
               type="button"
               onClick={() => setDate((d) => (d < today ? addDaysLocal(d, 1) : d))}
               disabled={date >= today}
-              className="flex h-7 w-7 items-center justify-center rounded-md text-sm font-medium disabled:opacity-30"
+              className="flex h-9 w-9 items-center justify-center rounded-md text-sm font-medium disabled:opacity-30"
               style={{ color: "var(--text-secondary)" }}
               aria-label="Next day"
             >
