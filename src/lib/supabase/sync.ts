@@ -682,15 +682,59 @@ async function retryDependentDeadLetters(userId: string, itemIdentity: string): 
   }
 }
 
+const ITEM_TYPE_BY_TABLE = new Map<string, ItemType>(Object.entries(ITEM_TABLE).map(([type, table]) => [table, type as ItemType]));
+
+// Stands in for a deleted category's name, which the dead-letter payload
+// never carried (only its now-gone id) — deliberately not a name any real
+// category would have, so it never accidentally matches one in
+// applyRepairPlan's lookup and always falls through to "restore as-is,
+// needs a human to pick a category". Shown as-is in Manage's category
+// dropdown (see ItemRow in manage/page.tsx), which already renders
+// whatever string an item's category is as a fallback option.
+const RECONSTRUCTED_CATEGORY_LABEL = "(deleted category — pick a new one)";
+
+/**
+ * Rebuilds a RawItem from a dead-lettered upsert's own frozen payload —
+ * the fallback when the item has ALREADY been evicted from local storage by
+ * an earlier pull (one that ran before this item's category was deleted was
+ * ever repaired, possibly before this repair pass existed at all). Without
+ * this, such an item has nothing left locally to repair FROM: buildRepairPlan
+ * would give up on it forever, and it would stay invisible in Manage even
+ * after this fix ships, since there's no later moment where a still-present
+ * local copy exists to read from again. The category NAME is unrecoverable
+ * at this point — the payload only ever carried its id, and that row is
+ * gone — so it's flagged with `RECONSTRUCTED_CATEGORY_LABEL` instead of
+ * guessed. Returns null when the payload itself doesn't look like an item
+ * row (missing id/name) — nothing safely reconstructable from that.
+ */
+function itemFromDeadLetterPayload(entry: OutboxEntry): RawItem | null {
+  const itemType = ITEM_TYPE_BY_TABLE.get(entry.table);
+  const payload = entry.payload as Record<string, unknown> | null;
+  if (!itemType || !payload || typeof payload.id !== "string" || typeof payload.name !== "string") return null;
+  return {
+    identity: payload.id,
+    itemType,
+    rawName: payload.name,
+    category: RECONSTRUCTED_CATEGORY_LABEL,
+    categoryId: typeof payload.category_id === "string" ? payload.category_id : null,
+    isArchived: Boolean(payload.is_archived),
+    createdDate: typeof payload.created_date === "string" ? payload.created_date : null,
+    reminderTime: typeof payload.reminder_time === "string" ? payload.reminder_time.slice(0, 5) : null,
+    unit: typeof payload.unit === "string" ? payload.unit : null,
+  };
+}
+
 interface RepairPlan {
-  /** Dead-letter entry ids that are unconditionally safe to give up on —
-   * either a 23505 (a name collision that can never resolve for that exact
-   * payload), or a 23503 item upsert whose item is already gone locally
-   * (nothing left to repair it from). */
+  /** Dead-letter entry ids that are unconditionally safe to give up on — a
+   * 23505 (a name collision that can never resolve for that exact payload).
+   */
   toDiscard: string[];
-  /** Dead-letter entry id + the corrected item to re-save in its place,
-   * for a 23503 item upsert whose item still exists locally right now, re-
-   * pointed at the category the fresh pull is about to confirm is real. */
+  /** Dead-letter entry id + the item to re-save in its place, for a 23503
+   * item upsert — either the item as it still exists locally right now (re-
+   * pointed at the category the fresh pull is about to confirm is real), or,
+   * if it's already been evicted from local storage, reconstructed from the
+   * dead-letter entry's own frozen payload (see `itemFromDeadLetterPayload`)
+   * so it isn't lost for good. */
   toRepair: { entryId: string; item: RawItem }[];
 }
 
@@ -719,8 +763,8 @@ async function buildRepairPlan(userId: string): Promise<RepairPlan> {
     if (isItemTable && entry.lastErrorCode === "23503") {
       const identity = (entry.payload as { id?: string } | null)?.id;
       if (!identity) continue;
-      const item = await getItem(identity);
-      if (!item) continue; // already evicted — nothing left to safely repair from
+      const item = (await getItem(identity)) ?? itemFromDeadLetterPayload(entry);
+      if (!item) continue; // payload itself unusable — nothing left to repair from
       plan.toRepair.push({ entryId: entry.id, item });
     }
   }
@@ -740,18 +784,19 @@ async function buildRepairPlan(userId: string): Promise<RepairPlan> {
  * shapes, matching `RepairPlan`'s two lists:
  *
  *  - `toDiscard`: unconditionally, permanently unrecoverable by retrying
- *    the same payload — either a 23505 (that error code means a row with
- *    that exact name already exists, so the real, already-synced version
- *    of whatever this was trying to create is sitting right in the
- *    snapshot just installed) or a 23503 whose item is already gone (see
- *    `buildRepairPlan`). Nothing to repair either way; just stop asking
- *    them to retry forever.
- *  - `toRepair`: a 23503 item upsert whose item still existed locally at
- *    the moment `buildRepairPlan` ran (BEFORE the destructive clear that
- *    just happened wiped it, since it was never actually in Supabase to
- *    survive that clear) — re-resolve its category by matching (itemType,
- *    its own already-correct `category` display name) against the
- *    categories just installed, and write the corrected categoryId back
+ *    the same payload — a 23505 (that error code means a row with that
+ *    exact name already exists, so the real, already-synced version of
+ *    whatever this was trying to create is sitting right in the snapshot
+ *    just installed). Nothing to repair; just stop asking to retry forever.
+ *  - `toRepair`: a 23503 item upsert, its item either still existing
+ *    locally at the moment `buildRepairPlan` ran (BEFORE the destructive
+ *    clear that just happened wiped it, since it was never actually in
+ *    Supabase to survive that clear) or reconstructed from the dead-letter
+ *    entry's own frozen payload when it had already been evicted by an
+ *    earlier pull (see `itemFromDeadLetterPayload`) — re-resolve its
+ *    category by matching (itemType, its own already-correct `category`
+ *    display name) against the categories just installed, and write the
+ *    corrected categoryId back
  *    via `putItemAndSync`, which both restores the item to the
  *    freshly-cleared local cache AND enqueues a fresh, correct upsert that
  *    supersedes the stale dead-lettered one — then gives any dead-lettered

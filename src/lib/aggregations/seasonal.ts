@@ -45,6 +45,12 @@ export interface WeeklyCategoryStat {
   countThisWeek: number;
 }
 
+// Categories that should never surface as "this week's priority" regardless
+// of how rarely they're logged — deliberate, not neglected. Meat is the one
+// case so far: rarely eating it is the intent, not a gap to nudge toward
+// closing.
+const NEVER_PRIORITIZE_CATEGORIES = new Set(["meat"]);
+
 /**
  * Food-category counts over the trailing 7 days (today inclusive), so "this
  * week's least-tracked category" always means the same rolling window
@@ -58,6 +64,7 @@ export function weeklyCategoryPriority(events: CanonicalEvent[], referenceDate: 
   const byCategory = new Map<string, number>();
   for (const e of events) {
     if (e.itemType !== "food" || !e.completed) continue;
+    if (NEVER_PRIORITIZE_CATEGORIES.has(normalizeName(e.category))) continue;
     if (!byCategory.has(e.category)) byCategory.set(e.category, 0);
     if (e.date < weekStart || e.date > referenceDate) continue;
     byCategory.set(e.category, (byCategory.get(e.category) ?? 0) + 1);

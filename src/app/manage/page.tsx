@@ -169,14 +169,16 @@ function AddItemForm({
         value={name}
         onChange={(e) => setName(e.target.value)}
         placeholder={placeholder}
-        className="rounded-md border px-2.5 py-1.5 text-sm"
+        // pill-field: see the matching comment on CategoryManager's
+        // add-category input.
+        className="pill-field rounded-md border px-2.5 py-1.5 text-sm leading-5"
         style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
       />
       {needsCategory && (
         <select
           value={category}
           onChange={(e) => setCategory(e.target.value)}
-          className="rounded-md border px-2.5 py-1.5 text-sm"
+          className="appearance-none rounded-md border px-2.5 py-1.5 text-sm leading-5"
           style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
         >
           {categories.map((c) => (
@@ -251,7 +253,11 @@ function CategoryManager({
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Add a category…"
-          className="rounded-md border px-2.5 py-1 text-xs"
+          // pill-field opts this typed field out of the mobile 16px-font
+          // rule (globals.css) — confirmed on-device not to trigger iOS's
+          // zoom-on-focus, so it can stay at the same size as the category
+          // pills it sits next to instead of visibly ballooning past them.
+          className="pill-field rounded-md border px-2.5 py-1 text-xs leading-4"
           style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
         />
         <button
@@ -339,7 +345,9 @@ function UnitSelect({
         }}
         placeholder="e.g. laps"
         aria-label={`Custom unit for ${itemName}`}
-        className="w-20 rounded-md border px-2 py-1 text-xs outline-none disabled:opacity-40"
+        // pill-field: see the matching comment on CategoryManager's
+        // add-category input (manage/page.tsx).
+        className="pill-field w-20 rounded-md border px-2 py-1 text-xs leading-4 outline-none disabled:opacity-40"
         style={{ borderColor: "var(--series-1)", background: "var(--surface-1)", color: "var(--text-primary)" }}
       />
     );
@@ -354,7 +362,9 @@ function UnitSelect({
         else onSetUnit(e.target.value);
       }}
       aria-label={`Unit for ${itemName}`}
-      className="rounded-md border px-2 py-1 text-xs disabled:opacity-40"
+      // See the matching comment on ItemRow's category <select> — same
+      // native-chrome-plus-inherited-line-height blowup on iOS without this.
+      className="appearance-none rounded-md border px-2 py-1 text-xs leading-4 disabled:opacity-40"
       style={{ borderColor: "var(--border-hairline)", background: "var(--page-plane)", color: "var(--text-secondary)" }}
     >
       {options.map((u) => (
@@ -445,7 +455,14 @@ function ItemRow({
             value={item.category}
             disabled={busy}
             onChange={(e) => onChangeCategory(e.target.value)}
-            className="rounded-md border px-2 py-1 text-xs disabled:opacity-40"
+            // appearance-none strips iOS Safari's native control chrome, and
+            // leading-4 pins line-height to the 16px this pill was designed
+            // around — without both, the forced 16px font-size below
+            // (globals.css, to stop iOS auto-zooming on focus) renders with
+            // native chrome's own bulky padding AND the browser's inherited
+            // "normal" line-height (~21px, not the 16px text-xs asks for),
+            // ballooning this pill well past its intended size on a phone.
+            className="appearance-none rounded-md border px-2 py-1 text-xs leading-4 disabled:opacity-40"
             style={{ borderColor: "var(--border-hairline)", background: "var(--page-plane)", color: "var(--text-secondary)" }}
           >
             {!categories.includes(item.category) && <option value={item.category}>{item.category}</option>}

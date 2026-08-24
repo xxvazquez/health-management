@@ -143,14 +143,31 @@ button:not(:disabled),
    triggered a page-wide zoom that often stayed stuck after the field lost
    focus. Bumping to 16px only on mobile viewports (matches Tailwind's own
    sm breakpoint) prevents the zoom without changing field size on desktop.
-   Excludes time/date-family inputs: those open a native wheel-sheet picker
-   rather than a zoomable text cursor, so they never had the zoom problem,
-   and several are sized (fixed height/width) for a much smaller font — at
-   16px they overflowed their own box instead. */
+   Excludes time/date-family inputs AND <select>: all of those open a
+   native wheel-sheet/menu picker rather than a zoomable text cursor, so
+   they never had the zoom problem in the first place — forcing 16px onto
+   them was pure cost with no zoom-prevention benefit, and on the compact
+   pill-style selects throughout Manage (category/unit pickers) that cost
+   was a real one: it inflated their font (and the native control chrome
+   around it) well past the 12px/14px pill design they were built for,
+   producing a visibly oversized, mismatched control next to same-styled
+   plain chips that don't go through a <select> at all. Several of the
+   excluded inputs are also sized (fixed height/width) for a much smaller
+   font — at 16px they overflowed their own box instead.
+
+   Also excludes `.pill-field`: the small typed inputs living inside a
+   pill/chip-styled row (Manage's add-category/add-item/rename fields,
+   the workout unit's custom-entry field) — confirmed on-device (2026-08)
+   to not trigger the zoom either, so they're opted out the same way
+   time/date/select are, rather than living with a permanently oversized
+   field next to same-sized plain chips. This is a narrower claim than the
+   select/time/date exclusions above (those never COULD zoom, by how the
+   OS handles them; this one empirically doesn't, on the device it was
+   checked on) — if a stuck-zoom report ever comes back in, this is the
+   first thing to revert. */
 @media (max-width: 639px) {
-  input:not([type="time"]):not([type="date"]):not([type="month"]):not([type="week"]):not([type="datetime-local"]):not([type="color"]):not([type="range"]):not([type="checkbox"]):not([type="radio"]):not([type="file"]),
-  textarea,
-  select {
+  input:not([type="time"]):not([type="date"]):not([type="month"]):not([type="week"]):not([type="datetime-local"]):not([type="color"]):not([type="range"]):not([type="checkbox"]):not([type="radio"]):not([type="file"]):not(.pill-field),
+  textarea {
     font-size: 16px;
   }
 }

@@ -41,7 +41,11 @@ export function ItemNameField({ item, state }: { item: ManageableItem; state: In
           value={state.name}
           onChange={(e) => state.setName(e.target.value)}
           autoFocus
-          className="rounded-md border px-2 py-1 text-sm"
+          // pill-field opts this typed field out of the mobile 16px-font
+          // rule (globals.css's zoom-prevention rule) — confirmed on-device
+          // not to trigger iOS's zoom-on-focus, so it can stay sized like
+          // the rest of this row instead of visibly ballooning past it.
+          className="pill-field rounded-md border px-2 py-1 text-sm leading-5"
           style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
         />
       </form>
