@@ -16,6 +16,7 @@ import {
   setDiaryNoteInternal,
   putCategoryInternal,
   deleteCategoryLocalInternal,
+  putItem,
   putStoolLogInternal,
   deleteStoolLogByIdInternal,
   updateStoolLogTimeInternal,
@@ -648,6 +649,38 @@ export function resetInitialPullState(): void {
 // the dead-letter repair pass to exactly the tables that can hit the
 // stale-category-reference/duplicate-name failure shapes it fixes.
 const ALL_ITEM_TABLES = new Set<string>(Object.values(ITEM_TABLE));
+// The *_logs/*_diary tables — every one of them FKs to its item table on
+// `item_id`, so a dead-lettered row here is only ever waiting on that same
+// item to land first (its own payload never changes when the item's
+// category does — item_id is stable). Used by retryDependentDeadLetters
+// below to find which dead letters are worth another try once an item gets
+// one.
+const ALL_LOG_AND_DIARY_TABLES = new Set<string>([...Object.values(LOG_TABLE), ...Object.values(DIARY_TABLE)]);
+
+/**
+ * After an item's own dead-lettered upsert gets a fresh chance to land
+ * (repaired automatically below, or retried by hand via
+ * retryDeadLetterEntry), any dead-lettered log/diary entries that were only
+ * stuck because THIS item hadn't reached Supabase yet get the same fresh
+ * chance too — their own payload was always correct (item_id doesn't
+ * change when an item's category does), so once the item exists
+ * server-side a plain retry is all they need. Without this, a user has to
+ * separately notice and retry each dependent log by hand even after fixing
+ * the item that was blocking it — exactly the "retry doesn't work" shape a
+ * dead-lettered symptom log tied to a dead-lettered symptom item produces.
+ * Harmless to call even when the item's own retry fails again: the
+ * dependent entries just fail identically and stay dead-lettered, same as
+ * if nothing had called this.
+ */
+async function retryDependentDeadLetters(userId: string, itemIdentity: string): Promise<void> {
+  const deadLetters = await getDeadLetterOutboxEntries(userId);
+  for (const entry of deadLetters) {
+    if (entry.op !== "upsert" || !ALL_LOG_AND_DIARY_TABLES.has(entry.table)) continue;
+    const payload = entry.payload as { item_id?: string } | null;
+    if (payload?.item_id !== itemIdentity) continue;
+    await retryOutboxEntry(entry.id);
+  }
+}
 
 interface RepairPlan {
   /** Dead-letter entry ids that are unconditionally safe to give up on —
@@ -721,14 +754,23 @@ async function buildRepairPlan(userId: string): Promise<RepairPlan> {
  *    categories just installed, and write the corrected categoryId back
  *    via `putItemAndSync`, which both restores the item to the
  *    freshly-cleared local cache AND enqueues a fresh, correct upsert that
- *    supersedes the stale dead-lettered one.
+ *    supersedes the stale dead-lettered one — then gives any dead-lettered
+ *    logs/diary notes that were only stuck waiting on this item a fresh
+ *    retry too (see `retryDependentDeadLetters`). When no category by that
+ *    name exists any more (a real deletion, not this race), there's
+ *    nothing to auto-repair — but the item still gets restored to the
+ *    freshly-cleared local cache as-is, so it doesn't silently vanish from
+ *    Manage. Without that, a genuinely deleted category leaves the item
+ *    dead-lettered AND invisible, with no way for the user to act on the
+ *    "check it still has a valid category" guidance SyncStatusBanner gives
+ *    them, since there'd be nothing left locally to re-point at a new one.
  *
  * Scoped to `userId` throughout (every dead-letter entry `buildRepairPlan`
  * read already came pre-filtered to it by getDeadLetterOutboxEntries) —
  * never touches another account's queued entries, same as every other
  * outbox operation.
  */
-async function applyRepairPlan(plan: RepairPlan, categoryRows: CategoryRow[]): Promise<void> {
+async function applyRepairPlan(plan: RepairPlan, categoryRows: CategoryRow[], userId: string): Promise<void> {
   if (plan.toDiscard.length === 0 && plan.toRepair.length === 0) return;
 
   for (const id of plan.toDiscard) {
@@ -742,9 +784,13 @@ async function applyRepairPlan(plan: RepairPlan, categoryRows: CategoryRow[]): P
   }
   for (const { entryId, item } of plan.toRepair) {
     const correctCategoryId = categoryIdByTypeAndName.get(`${DB_TYPE[item.itemType]}:${normalizeName(item.category)}`);
-    if (!correctCategoryId || correctCategoryId === item.categoryId) continue;
+    if (!correctCategoryId || correctCategoryId === item.categoryId) {
+      await putItem(item);
+      continue;
+    }
     await deleteOutboxEntryById(entryId);
     await putItemAndSync({ ...item, categoryId: correctCategoryId });
+    await retryDependentDeadLetters(userId, item.identity);
   }
 }
 
@@ -786,7 +832,12 @@ async function refreshedOutboxPayload(entry: OutboxEntry): Promise<Record<string
  * that's since been fixed locally gets a real chance to sync instead of
  * repeating the exact same failure, then hands off to
  * `retryOutboxEntry` (outbox.ts) for the actual "back to pending, drain
- * now" mechanics, same as before this existed.
+ * now" mechanics, same as before this existed. When the entry being
+ * retried is an item, also gives any dead-lettered logs/diary notes
+ * waiting on that same item a fresh retry (see
+ * `retryDependentDeadLetters`) — otherwise a user who fixes and retries a
+ * dead-lettered item still has to separately notice and retry every
+ * dead-lettered log tied to it by hand.
  */
 export async function retryDeadLetterEntry(id: string): Promise<void> {
   const entry = (await getAllOutboxEntries()).find((e) => e.id === id);
@@ -795,6 +846,11 @@ export async function retryDeadLetterEntry(id: string): Promise<void> {
     if (freshPayload) await updateOutboxEntry(id, { payload: freshPayload });
   }
   await retryOutboxEntry(id);
+  if (entry?.op === "upsert" && ALL_ITEM_TABLES.has(entry.table)) {
+    const identity = (entry.payload as { id?: string } | null)?.id;
+    const userId = await currentUserId();
+    if (identity && userId) await retryDependentDeadLetters(userId, identity);
+  }
 }
 
 /** How many times pullFromCloud will re-fetch and retry after detecting a
@@ -1029,7 +1085,7 @@ export async function pullFromCloud(): Promise<void> {
     });
     if (installed) {
       markInitialPullDone(userId);
-      await applyRepairPlan(repairPlan, categoryRows);
+      await applyRepairPlan(repairPlan, categoryRows, userId);
       return;
     }
   }

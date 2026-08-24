@@ -702,6 +702,36 @@ export async function enqueueOutboxInternal(entry: NewOutboxEntry): Promise<void
     return;
   }
 
+  // A dead-lettered entry is a CONFIRMED terminal failure — unlike
+  // pendingUnattempted above, there's no "might still be in flight"
+  // ambiguity to protect (that payload never actually landed on Supabase;
+  // that's what dead-letter means), so a fresh local write for the same
+  // record can safely take its place instead of queuing a second attempt
+  // behind one that will never clear itself. Without this, fixing a record
+  // through the UI (e.g. recategorizing an item whose category was
+  // deleted) leaves its original failure permanently stuck in
+  // SyncStatusBanner even after the fix already reached Supabase under a
+  // brand-new entry.
+  const deadLetter = !pendingUnattempted && existing.find((e) => e.status === "dead-letter");
+  if (deadLetter && entry.op === "upsert" && deadLetter.op === "upsert") {
+    const updated: OutboxEntry = {
+      ...deadLetter,
+      payload: entry.payload,
+      status: "pending",
+      attempts: 0,
+      createdAt: Date.now(),
+      nextAttemptAt: Date.now(),
+      lastError: undefined,
+      lastErrorCode: undefined,
+    };
+    await db.put("outbox", updated);
+    return;
+  }
+  if (deadLetter && entry.op === "delete" && deadLetter.op === "upsert") {
+    await db.delete("outbox", deadLetter.id);
+    return;
+  }
+
   const row: OutboxEntry = {
     id: crypto.randomUUID(),
     userId: entry.userId,

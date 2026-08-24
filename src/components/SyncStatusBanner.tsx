@@ -55,17 +55,23 @@ function describeRecord(entry: OutboxEntry): string {
  * `op` matters because the same code means something different depending
  * on direction: a 23503 on an upsert means THIS record points at
  * something missing; a 23503 on a delete means something ELSE still
- * points at THIS record. And a blind "Retry" is never actually going to
- * fix a 23505 — the exact same payload hits the exact same name collision
- * every time (see discardDeadLetterEntry's own doc comment in outbox.ts)
- * — so that one is honest about needing either a rename or a Discard,
- * never a claim that retrying alone will resolve it. */
-function friendlyReason(code: string | undefined, op: "upsert" | "delete"): { reason: string; action: string } {
+ * points at THIS record. `table` further splits the upsert case: an item
+ * table (food/supplement/symptom/habit/workout _items) points at a
+ * category, but a log/diary table points at its item instead — the app
+ * auto-retries a dead-lettered log once its item gets a fresh chance (see
+ * retryDependentDeadLetters in lib/supabase/sync.ts), so this is mostly
+ * seen on entries stuck from before that existed. And a blind "Retry" is
+ * never actually going to fix a 23505 — the exact same payload hits the
+ * exact same name collision every time (see discardDeadLetterEntry's own
+ * doc comment in outbox.ts) — so that one is honest about needing either a
+ * rename or a Discard, never a claim that retrying alone will resolve it. */
+function friendlyReason(code: string | undefined, op: "upsert" | "delete", table: string): { reason: string; action: string } {
   switch (code) {
     case "23503":
-      return op === "delete"
-        ? { reason: "something else still refers to it", action: "Move whatever's still using it elsewhere first, then retry." }
-        : { reason: "it points to something (like a category) that's since been removed", action: "Check it still has a valid category, then retry." };
+      if (op === "delete") return { reason: "something else still refers to it", action: "Move whatever's still using it elsewhere first, then retry." };
+      return table.endsWith("_items")
+        ? { reason: "it points to something (like a category) that's since been removed", action: "Check it still has a valid category, then retry." }
+        : { reason: "the item it belongs to hasn't synced yet (its own sync failed too)", action: "Fix and retry that item first, then retry this." };
     case "23505":
       return {
         reason: "a duplicate of it already exists in your account",
@@ -141,7 +147,7 @@ export function SyncStatusBanner() {
         {expanded && (
           <ul className="flex flex-col divide-y px-4 pb-2 sm:px-6 lg:px-8" style={{ borderColor: "var(--gridline)" }}>
             {deadLetterEntries.map((entry) => {
-              const { reason, action } = friendlyReason(entry.lastErrorCode, entry.op);
+              const { reason, action } = friendlyReason(entry.lastErrorCode, entry.op, entry.table);
               const label = describeRecord(entry);
               return (
                 <li key={entry.id} className="flex items-center justify-between gap-3 py-2 text-xs">

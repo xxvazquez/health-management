@@ -5,7 +5,7 @@ import type { CanonicalEvent, RawWorkoutLog, RawStoolLog, RawPeriodLog } from "@
 import { buildCanonicalEvents } from "@/lib/canonical/buildCanonicalEvents";
 import { clearAllData, getAllDiary, getAllLogs, getAllItems, getAllStoolLogs, getAllWorkoutLogs, getAllPeriodLogs, hasAnyData, withDataLock, type OutboxEntry } from "@/lib/db/indexedDb";
 import { pullFromCloud, resetInitialPullState, retryDeadLetterEntry } from "@/lib/supabase/sync";
-import { discardDeadLetterEntry, drainOutbox, getDeadLetterEntries, getOutboxSyncState } from "@/lib/supabase/outbox";
+import { discardDeadLetterEntry, getDeadLetterEntries, getOutboxSyncState } from "@/lib/supabase/outbox";
 import { ANALYTICS_START_DATE } from "@/lib/config";
 import { buildDemoDataset } from "@/lib/demoData";
 import { useAuth } from "@/lib/supabase/AuthContext";
@@ -81,14 +81,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     },
     [refreshSyncState],
   );
-
-  /** Triggers a drain then refreshes the pending/dead-letter counts. Safe
-   * to call from multiple triggers (below) — drainOutbox itself already
-   * guards against running twice concurrently in this tab. */
-  const runDrain = useCallback(async () => {
-    await drainOutbox();
-    await refreshSyncState();
-  }, [refreshSyncState]);
 
   const refresh = useCallback(async () => {
     // Wait for the session check to resolve before deciding what to show —
@@ -242,26 +234,36 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     return () => document.removeEventListener("visibilitychange", handleVisibility);
   }, [session, syncFromCloud]);
 
-  // Drain the outbox the moment connectivity returns — the fastest of the
-  // triggers, since `online` fires immediately on reconnect rather than
-  // waiting for the next tab-focus or the periodic timer below.
+  // Full sync (push the outbox, then pull) the moment connectivity
+  // returns — the fastest of the triggers, since `online` fires immediately
+  // on reconnect rather than waiting for the next tab-focus or the periodic
+  // timer below. Pulling too (not just draining) means changes made on
+  // another device while this one was offline show up right away instead
+  // of waiting for the next tab-focus or periodic tick.
   useEffect(() => {
     if (!session) return;
     function handleOnline() {
-      void runDrain();
+      void syncFromCloud();
     }
     window.addEventListener("online", handleOnline);
     return () => window.removeEventListener("online", handleOnline);
-  }, [session, runDrain]);
+  }, [session, syncFromCloud]);
 
-  // A modest periodic fallback so a tab left open (visible, online, never
-  // backgrounded) still retries a backed-off entry eventually, without
-  // waiting on the user to trigger one of the other paths.
+  // A tab that's simply left open and focused never fires visibilitychange
+  // again, so without this it would never see a change made on another
+  // device (e.g. the phone) until it's backgrounded/refocused or reloaded.
+  // Polling every minute keeps cross-device latency low without needing a
+  // realtime subscription — also drains the local outbox on each pass
+  // (pullFromCloud does that itself, see sync.ts), so this covers the old
+  // push-only fallback timer too. Gated on visibility so a backgrounded tab
+  // doesn't keep firing full pulls.
   useEffect(() => {
     if (!session) return;
-    const intervalId = window.setInterval(() => void runDrain(), 5 * 60_000);
+    const intervalId = window.setInterval(() => {
+      if (document.visibilityState === "visible") void syncFromCloud();
+    }, 60_000);
     return () => window.clearInterval(intervalId);
-  }, [session, runDrain]);
+  }, [session, syncFromCloud]);
 
   // Once at startup too, independent of sign-in state changing — e.g. a
   // page reload while already signed in with something left in the
