@@ -352,6 +352,44 @@ describe("pullFromCloud", () => {
     // stuck empty or partially applied.
     expect(committed.filter((c) => c.startsWith("category:"))).toHaveLength(1);
   });
+
+  // Regression test for a real production bug: an item dead-lettered
+  // because its category was genuinely deleted (not just the recoverable
+  // seeding race the repair pass was originally built for) used to vanish
+  // from local storage on the very next pull — clearAllDataInternal wipes
+  // it, and with no matching category name to repair it against, nothing
+  // ever wrote it back. It would stay dead-lettered AND invisible in
+  // Manage, with no way to act on "check it still has a valid category".
+  it("restores a dead-lettered item from its own frozen payload once it's already been evicted locally, even with no category to repair it against", async () => {
+    const { pullFromCloud } = await import("./sync");
+    const { withDataLock, enqueueOutboxInternal, updateOutboxEntry, getAllOutboxEntries, getItem } = await import("@/lib/db/indexedDb");
+
+    await withDataLock(() =>
+      enqueueOutboxInternal({
+        userId: "user-1",
+        table: "symptom_items",
+        op: "upsert",
+        payload: { id: "item-tiredness", user_id: "user-1", name: "Tiredness", category_id: "cat-deleted-999", item_type: "symptom", is_archived: false, created_date: "2026-08-20" },
+        dedupeKey: "symptom_items:item-tiredness",
+      }),
+    );
+    const [seeded] = (await getAllOutboxEntries()).filter((e) => e.dedupeKey === "symptom_items:item-tiredness");
+    await updateOutboxEntry(seeded.id, { status: "dead-letter", attempts: 1, lastErrorCode: "23503", lastError: "FK violation" });
+    // Nothing in this pull's categories is named "symptom" anything — the
+    // deleted-category case, not the recoverable seeding-race one — so
+    // there's no name to re-match this item's category against.
+
+    await pullFromCloud();
+
+    const restored = await getItem("item-tiredness");
+    expect(restored).toMatchObject({ identity: "item-tiredness", itemType: "outcome", rawName: "Tiredness", categoryId: "cat-deleted-999" });
+
+    // Still dead-lettered — there's no real category to auto-repoint it
+    // at — but it's no longer gone, so the user can actually recategorize
+    // it through Manage now.
+    const stillDeadLetter = (await getAllOutboxEntries()).find((e) => e.id === seeded.id);
+    expect(stillDeadLetter?.status).toBe("dead-letter");
+  });
 });
 
 describe("putItemAndSync — mutation and outbox enqueue are one atomic operation", () => {

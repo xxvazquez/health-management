@@ -89,4 +89,15 @@ describe("weeklyCategoryPriority", () => {
     ];
     expect(weeklyCategoryPriority(events, "2026-01-15")).toEqual([]);
   });
+
+  it("never surfaces Meat, however rarely it's logged", () => {
+    const events = [
+      makeEvent({ itemType: "food", category: "Meat", date: "2025-01-01", completed: true }), // logged once, long ago
+      makeEvent({ itemType: "food", category: "Fruit", date: "2026-01-15", completed: true }),
+      makeEvent({ itemType: "food", category: "Fruit", date: "2026-01-14", completed: true }),
+    ];
+    const stats = weeklyCategoryPriority(events, "2026-01-15");
+    expect(stats.some((s) => s.category === "Meat")).toBe(false);
+    expect(stats[0].category).toBe("Fruit");
+  });
 });

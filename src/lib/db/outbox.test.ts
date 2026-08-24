@@ -99,6 +99,34 @@ describe("enqueueOutbox — dedup rules", () => {
     expect(matching).toHaveLength(2);
     expect(matching.map((e) => e.op).sort()).toEqual(["delete", "upsert"]);
   });
+
+  it("resurrects a dead-lettered upsert into a fresh pending entry instead of queuing a second one behind it", async () => {
+    const { userId, dedupeKey } = unique("dead-letter-resurrect");
+    await enqueueOutbox({ userId, dedupeKey, table: "food_items", op: "upsert", payload: { id: "a", name: "v1" } });
+    const [firstEntry] = (await getAllOutboxEntries()).filter((e) => e.dedupeKey === dedupeKey);
+    await updateOutboxEntry(firstEntry.id, { status: "dead-letter", attempts: 1, lastError: "boom", lastErrorCode: "23503" });
+
+    await enqueueOutbox({ userId, dedupeKey, table: "food_items", op: "upsert", payload: { id: "a", name: "v2 (fixed)" } });
+
+    const matching = (await getAllOutboxEntries()).filter((e) => e.dedupeKey === dedupeKey);
+    expect(matching).toHaveLength(1);
+    expect(matching[0].id).toBe(firstEntry.id);
+    expect(matching[0]).toMatchObject({ status: "pending", attempts: 0, payload: { id: "a", name: "v2 (fixed)" } });
+    expect(matching[0].lastError).toBeUndefined();
+    expect(matching[0].lastErrorCode).toBeUndefined();
+  });
+
+  it("cancels a dead-lettered upsert instead of queuing a delete for it — it never actually reached Supabase", async () => {
+    const { userId, dedupeKey } = unique("dead-letter-cancel");
+    await enqueueOutbox({ userId, dedupeKey, table: "food_items", op: "upsert", payload: { id: "a" } });
+    const [firstEntry] = (await getAllOutboxEntries()).filter((e) => e.dedupeKey === dedupeKey);
+    await updateOutboxEntry(firstEntry.id, { status: "dead-letter", attempts: 1, lastErrorCode: "23503" });
+
+    await enqueueOutbox({ userId, dedupeKey, table: "food_items", op: "delete", payload: { id: "a" } });
+
+    const matching = (await getAllOutboxEntries()).filter((e) => e.dedupeKey === dedupeKey);
+    expect(matching).toHaveLength(0);
+  });
 });
 
 describe("getEligibleOutboxEntries", () => {
