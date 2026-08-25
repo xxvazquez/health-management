@@ -236,9 +236,19 @@ export interface WorkoutExerciseStats {
 export function workoutStatsByExercise(logs: RawWorkoutLog[], unitByExercise: ReadonlyMap<string, WorkoutUnit> = new Map()): WorkoutExerciseStats[] {
   const out: WorkoutExerciseStats[] = [];
   for (const exercise of exercisesInLogs(logs)) {
+    // Sorted by date first (so backdating an entry still files it under the
+    // day it actually happened, not "now"), then by the full-precision
+    // updatedAt timestamp for anything logged the same day — a plain date
+    // tie used to fall through to `0`, leaving same-day entries in
+    // whatever arbitrary order they came out of IndexedDB (its `getAll()`
+    // iterates by key/id, not by time), so e.g. three sets of Squats in one
+    // session could show in a random order instead of the order they were
+    // actually logged. That silently corrupted `isPR` (computed by walking
+    // this list as a running max) and `current` (assumed to be the last
+    // entry) whenever it happened.
     const sorted = logs
       .filter((l) => l.exercise === exercise)
-      .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+      .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : a.updatedAt - b.updatedAt));
     if (sorted.length === 0) continue;
 
     let runningMax = sorted[0].weightKg;
@@ -377,5 +387,10 @@ export function workoutTimeline(logs: RawWorkoutLog[]): WorkoutTimelineEntry[] {
       out.push({ id: e.id, date: e.date, exercise: s.exercise, weightKg: e.weightKg, updatedAt: e.updatedAt, isPR: e.isPR });
     }
   }
-  return out.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : a.exercise.localeCompare(b.exercise)));
+  // Same date first, then the full-precision updatedAt timestamp — not
+  // exercise name, which was never a chronological signal and made two
+  // exercises logged the same day sort alphabetically instead of by which
+  // actually happened first/last. See workoutStatsByExercise's own comment
+  // on why a same-day tie needs a real timestamp, not something arbitrary.
+  return out.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : b.updatedAt - a.updatedAt));
 }

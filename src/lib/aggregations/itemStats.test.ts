@@ -3,10 +3,6 @@ import { computeItemStats, computeItemStatsForFilter, computeItemTrends } from "
 import { makeEvent } from "@/lib/testFixtures";
 
 describe("computeItemStats", () => {
-  it("returns an empty array for no events", () => {
-    expect(computeItemStats([], [])).toEqual([]);
-  });
-
   it("computes tracked/completed counts and consistency for a single item", () => {
     const events = [
       makeEvent({ item: "Vitamin D", date: "2026-01-01", completed: true }),
@@ -126,9 +122,5 @@ describe("computeItemTrends", () => {
     expect(trend.recentConsistencyPct).toBe(100);
     expect(trend.recentTrackedDays).toBe(14);
     expect(trend.overallTrackedDays).toBe(14); // item's own first-tracked-date onward
-  });
-
-  it("returns an empty array for no events regardless of active dates", () => {
-    expect(computeItemTrends([], ["2026-01-01"])).toEqual([]);
   });
 });

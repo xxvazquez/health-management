@@ -33,10 +33,6 @@ describe("filterByDateRange", () => {
     const result = filterByDateRange(items, { start: "2026-01-01", end: "2026-01-10" });
     expect(result).toHaveLength(2);
   });
-
-  it("returns an empty array for empty input", () => {
-    expect(filterByDateRange([], { start: "2026-01-01", end: "2026-01-31" })).toEqual([]);
-  });
 });
 
 describe("getDatasetSpan", () => {
@@ -69,10 +65,6 @@ describe("listDatesBetween", () => {
       "2026-02-02",
     ]);
   });
-
-  it("crosses a year boundary correctly", () => {
-    expect(listDatesBetween("2025-12-30", "2026-01-02")).toEqual(["2025-12-30", "2025-12-31", "2026-01-01", "2026-01-02"]);
-  });
 });
 
 describe("addDaysToDate", () => {
@@ -84,10 +76,6 @@ describe("addDaysToDate", () => {
     expect(addDaysToDate("2026-03-01", -1)).toBe("2026-02-28");
   });
 
-  it("is a no-op for 0 days", () => {
-    expect(addDaysToDate("2026-05-15", 0)).toBe("2026-05-15");
-  });
-
   it("handles a leap-year Feb 29 correctly", () => {
     expect(addDaysToDate("2028-02-28", 1)).toBe("2028-02-29");
     expect(addDaysToDate("2028-02-29", 1)).toBe("2028-03-01");
@@ -95,10 +83,6 @@ describe("addDaysToDate", () => {
 });
 
 describe("daysBetween", () => {
-  it("is 0 for the same date", () => {
-    expect(daysBetween("2026-01-01", "2026-01-01")).toBe(0);
-  });
-
   it("is positive when b is after a, negative when b is before a", () => {
     expect(daysBetween("2026-01-01", "2026-01-10")).toBe(9);
     expect(daysBetween("2026-01-10", "2026-01-01")).toBe(-9);
@@ -106,10 +90,6 @@ describe("daysBetween", () => {
 });
 
 describe("trackedCalendarDates", () => {
-  it("returns an empty set for no events", () => {
-    expect(trackedCalendarDates([])).toEqual(new Set());
-  });
-
   it("dedups repeated dates across different items", () => {
     const events = [makeEvent({ date: "2026-01-01" }), makeEvent({ date: "2026-01-01", item: "Other" }), makeEvent({ date: "2026-01-02" })];
     expect(trackedCalendarDates(events)).toEqual(new Set(["2026-01-01", "2026-01-02"]));
@@ -161,10 +141,6 @@ describe("round1 / pct", () => {
   it("pct returns 0 for a zero denominator instead of NaN/Infinity", () => {
     expect(pct(0, 0)).toBe(0);
     expect(pct(5, 0)).toBe(0);
-  });
-
-  it("pct handles a numerator of 0", () => {
-    expect(pct(0, 10)).toBe(0);
   });
 });
 

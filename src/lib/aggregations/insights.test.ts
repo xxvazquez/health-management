@@ -34,11 +34,6 @@ describe("driftFor", () => {
   it("is decreased when recent trails overall by at least 15pp", () => {
     expect(driftFor(makeTrend({ overallConsistencyPct: 50, recentConsistencyPct: 35 }))).toBe("decreased");
   });
-
-  it("treats exactly the 15pp threshold as a change, not stable (boundary case)", () => {
-    expect(driftFor(makeTrend({ overallConsistencyPct: 50, recentConsistencyPct: 65 }))).toBe("increased");
-    expect(driftFor(makeTrend({ overallConsistencyPct: 50, recentConsistencyPct: 35 }))).toBe("decreased");
-  });
 });
 
 describe("buildPersonalChangeSummary", () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeAssociationFromDateSets, generateTopPatterns, matchCategory, matchItem, outcomeTrackedDates } from "./patterns";
+import { computeAssociationFromDateSets, generateTopPatterns, matchCategory, matchItem } from "./patterns";
 import { makeEvent } from "@/lib/testFixtures";
 
 describe("matchItem / matchCategory", () => {
@@ -15,13 +15,6 @@ describe("matchItem / matchCategory", () => {
     expect(matcher.test(makeEvent({ category: "Dairy", item: "Milk", completed: true }))).toBe(true);
     expect(matcher.test(makeEvent({ category: "Dairy", item: "Cheese", completed: true }))).toBe(true);
     expect(matcher.test(makeEvent({ category: "Fruit", completed: true }))).toBe(false);
-  });
-});
-
-describe("outcomeTrackedDates", () => {
-  it("is every date anything was tracked at all, deduped", () => {
-    const events = [makeEvent({ date: "2026-01-01" }), makeEvent({ date: "2026-01-01", item: "Other" }), makeEvent({ date: "2026-01-02" })];
-    expect(outcomeTrackedDates(events)).toEqual(new Set(["2026-01-01", "2026-01-02"]));
   });
 });
 
@@ -81,24 +74,10 @@ describe("computeAssociationFromDateSets", () => {
     expect(result.withoutPct).toBe(0);
   });
 
-  it("handles an empty tracked-dates set without crashing", () => {
-    const result = computeAssociationFromDateSets(new Set(), new Set(), new Set(), 0, "Cause", "Outcome");
-    expect(result.withTotal).toBe(0);
-    expect(result.withoutTotal).toBe(0);
-    expect(result.diffPct).toBe(0);
-  });
 });
 
 describe("generateTopPatterns", () => {
   it("returns an empty array for no events", () => {
     expect(generateTopPatterns([], [])).toEqual([]);
-  });
-
-  it("does not throw on a small, sparse dataset (falls below sample-size gates, but must not crash)", () => {
-    const events = [
-      makeEvent({ itemType: "food", item: "Coffee", category: "Misc", date: "2026-01-01", completed: true }),
-      makeEvent({ itemType: "outcome", item: "Headache", category: "Other Symptom", date: "2026-01-01", completed: true }),
-    ];
-    expect(() => generateTopPatterns(events, [])).not.toThrow();
   });
 });

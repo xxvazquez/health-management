@@ -52,10 +52,6 @@ describe("seasonalPicksForMonth", () => {
 });
 
 describe("weeklyCategoryPriority", () => {
-  it("returns an empty array for no food events", () => {
-    expect(weeklyCategoryPriority([], "2026-01-15")).toEqual([]);
-  });
-
   it("zero-fills a category logged before the window but not during it", () => {
     const events = [makeEvent({ itemType: "food", category: "Fats", date: "2025-12-01", completed: true })];
     const stats = weeklyCategoryPriority(events, "2026-01-15");

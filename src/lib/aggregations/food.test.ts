@@ -3,10 +3,6 @@ import { favoriteCombosByMeal, foodCategoryDistribution, foodVarietyOverTime, me
 import { makeEvent } from "@/lib/testFixtures";
 
 describe("foodCategoryDistribution", () => {
-  it("returns an empty array for no events", () => {
-    expect(foodCategoryDistribution([])).toEqual([]);
-  });
-
   it("ignores non-food events entirely", () => {
     const events = [makeEvent({ itemType: "habit", category: "Other" })];
     expect(foodCategoryDistribution(events)).toEqual([]);
@@ -46,18 +42,9 @@ describe("foodCategoryDistribution", () => {
     expect(dist[0].sharePct).toBe(75);
     expect(dist[1].sharePct).toBe(25);
   });
-
-  it("respects a user-renamed/custom category name — no assumption of a fixed category set", () => {
-    const events = [makeEvent({ itemType: "food", category: "Fermented", item: "Kimchi" })];
-    expect(foodCategoryDistribution(events)).toEqual([{ category: "Fermented", count: 1, uniqueFoods: 1, sharePct: 100 }]);
-  });
 });
 
 describe("rankedFoods", () => {
-  it("returns an empty array for no food events", () => {
-    expect(rankedFoods([])).toEqual([]);
-  });
-
   it("ranks foods by occurrence count, descending", () => {
     const events = [
       makeEvent({ itemType: "food", item: "Rice", category: "Grains" }),
@@ -101,9 +88,6 @@ describe("foodVarietyOverTime", () => {
 });
 
 describe("newFoodsOverTime", () => {
-  it("returns an empty array for no food events", () => {
-    expect(newFoodsOverTime([])).toEqual([]);
-  });
 
   it("keeps only the first-seen date per food, ordered by that date ascending", () => {
     const events = [

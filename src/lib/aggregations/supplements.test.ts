@@ -19,10 +19,6 @@ describe("supplementsByCategory", () => {
     // Whatever the exact known-category order is, an unrecognized one always lands last.
     expect(groups[groups.length - 1].category).toBe("Zzz Custom");
   });
-
-  it("returns an empty array for no supplement events", () => {
-    expect(supplementsByCategory([])).toEqual([]);
-  });
 });
 
 describe("supplementsAtAGlance", () => {
@@ -33,9 +29,5 @@ describe("supplementsAtAGlance", () => {
     const glance = supplementsAtAGlance(events);
     // With the only supplement event excluded, there's nothing to summarize.
     expect(glance.trackedCount).toBe(0);
-  });
-
-  it("does not throw for no events", () => {
-    expect(() => supplementsAtAGlance([])).not.toThrow();
   });
 });

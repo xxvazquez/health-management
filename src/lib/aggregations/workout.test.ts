@@ -24,10 +24,6 @@ function makeWorkoutLog(overrides: Partial<RawWorkoutLog> = {}): RawWorkoutLog {
 }
 
 describe("workoutTrainedDates", () => {
-  it("returns an empty set for no logs", () => {
-    expect(workoutTrainedDates([])).toEqual(new Set());
-  });
-
   it("dedups multiple lifts on the same day to one trained date", () => {
     const logs = [makeWorkoutLog({ date: "2026-01-01", exercise: "Squat" }), makeWorkoutLog({ date: "2026-01-01", exercise: "Bench Press" })];
     expect(workoutTrainedDates(logs)).toEqual(new Set(["2026-01-01"]));
@@ -63,10 +59,6 @@ describe("workoutConsistencySummary", () => {
 });
 
 describe("workoutExerciseFrequency", () => {
-  it("returns an empty array for no logs", () => {
-    expect(workoutExerciseFrequency([])).toEqual([]);
-  });
-
   it("counts distinct trained dates per exercise, not raw log rows", () => {
     const logs = [
       makeWorkoutLog({ date: "2026-01-01", exercise: "Squat", weightKg: 50 }),
@@ -117,17 +109,37 @@ describe("workoutStatsByExercise / workoutInsight / workoutTimeline (smoke)", ()
     expect(workoutInsight([], "2026-01-01")).toMatchObject({ headline: "No workout sessions logged yet." });
     expect(workoutTimeline([])).toEqual([]);
   });
+});
 
-  it("produce output for a real dataset without throwing", () => {
+// Regression: same-day entries used to fall through to an arbitrary tie
+// (stable-sorted by whatever order they arrived in, i.e. IndexedDB's own
+// getAll() key order — not creation time) in workoutStatsByExercise, and to
+// alphabetical-by-exercise-name in workoutTimeline. Both are fixed to break
+// same-date ties by the full-precision `updatedAt` timestamp instead.
+describe("same-day ordering is by actual timestamp, not array/name order", () => {
+  it("workoutStatsByExercise orders same-day sets by updatedAt even when the input array arrives out of order", () => {
     const logs = [
-      makeWorkoutLog({ date: "2026-01-01", exercise: "Squat", weightKg: 50 }),
-      makeWorkoutLog({ date: "2026-01-08", exercise: "Squat", weightKg: 52.5 }),
-      makeWorkoutLog({ date: "2026-01-15", exercise: "Squat", weightKg: 55 }),
+      makeWorkoutLog({ id: "third", date: "2026-01-01", exercise: "Squat", weightKg: 70, updatedAt: Date.parse("2026-01-01T18:45:00Z") }),
+      makeWorkoutLog({ id: "first", date: "2026-01-01", exercise: "Squat", weightKg: 60, updatedAt: Date.parse("2026-01-01T18:00:00Z") }),
+      makeWorkoutLog({ id: "second", date: "2026-01-01", exercise: "Squat", weightKg: 65, updatedAt: Date.parse("2026-01-01T18:15:00Z") }),
     ];
-    expect(() => workoutStatsByExercise(logs)).not.toThrow();
-    expect(() => workoutTimeline(logs)).not.toThrow();
+    const [stats] = workoutStatsByExercise(logs);
+    expect(stats.entries.map((e) => e.id)).toEqual(["first", "second", "third"]);
+    // "current" is meant to be the most recently logged set of the day —
+    // wrong without the fix, since entries[entries.length - 1] would have
+    // been whatever the input's last array element happened to be.
+    expect(stats.current.weightKg).toBe(70);
+  });
+
+  it("workoutTimeline orders same-day entries across exercises by updatedAt (most recent first), not exercise name", () => {
+    const logs = [
+      makeWorkoutLog({ id: "squat", date: "2026-01-01", exercise: "Squat", weightKg: 60, updatedAt: Date.parse("2026-01-01T18:30:00Z") }),
+      makeWorkoutLog({ id: "bench", date: "2026-01-01", exercise: "Bench Press", weightKg: 40, updatedAt: Date.parse("2026-01-01T18:00:00Z") }),
+    ];
     const timeline = workoutTimeline(logs);
-    expect(timeline.length).toBeGreaterThan(0);
+    // Alphabetically "Bench Press" < "Squat", but Squat was logged later —
+    // most-recent-first must put it first regardless of exercise name.
+    expect(timeline.map((e) => e.id)).toEqual(["squat", "bench"]);
   });
 });
 

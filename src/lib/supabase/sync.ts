@@ -549,14 +549,29 @@ const PAGE_SIZE = 1000;
 /** Reads an entire table for the signed-in user, paginated — a plain
  * `.select("*")` silently truncates at Postgrest's default max-rows (1000
  * on most projects); paging with `.range()` until a page comes back short
- * is what actually gets everything. */
-async function fetchAllRows<T>(client: SupabaseClient, table: string): Promise<T[]> {
+ * is what actually gets everything.
+ *
+ * Explicitly filters `.eq("user_id", userId)` rather than trusting Supabase
+ * row-level security alone to scope every row to the signed-in user: RLS is
+ * still the real enforcement boundary (this app's anon key has no way to
+ * bypass it), but a table whose RLS policy is missing, disabled, or
+ * mis-scoped on the live project would otherwise hand back every user's
+ * rows with no client-side check to catch it — exactly the shape of a real
+ * cross-account data leak (workout_items/workout_logs/workout_diary were
+ * added to this schema after the original tables, via a separate `alter
+ * table ... enable row level security` migration — see schema.sql's own
+ * comments — which is precisely the kind of manual step that can be missed
+ * on a live project). This filter makes the query itself scoped, so this
+ * app can never display another account's rows through this path even if a
+ * table's RLS is ever wrong. */
+async function fetchAllRows<T>(client: SupabaseClient, table: string, userId: string): Promise<T[]> {
   const out: T[] = [];
   let from = 0;
   for (;;) {
     const { data, error } = await client
       .from(table)
       .select("*")
+      .eq("user_id", userId)
       .range(from, from + PAGE_SIZE - 1);
     if (error) throw error;
     const rows = (data ?? []) as T[];
@@ -952,13 +967,13 @@ export async function pullFromCloud(): Promise<void> {
   for (let attempt = 0; attempt < MAX_PULL_ATTEMPTS; attempt++) {
     const pullStartedAt = Date.now();
 
-    const categoryRows = await fetchAllRows<CategoryRow>(supabase, "categories");
+    const categoryRows = await fetchAllRows<CategoryRow>(supabase, "categories", userId);
     const categoryNameById = new Map(categoryRows.map((c) => [c.id, c.name]));
 
     const [itemsByType, logsByType, diaryByType] = await Promise.all([
-      Promise.all(ITEM_TYPES.map((t) => fetchAllRows<ItemRow>(supabase!, ITEM_TABLE[t]))),
-      Promise.all(ITEM_TYPES.map((t) => fetchAllRows<LogRow>(supabase!, LOG_TABLE[t]))),
-      Promise.all(ITEM_TYPES.map((t) => fetchAllRows<DiaryRow>(supabase!, DIARY_TABLE[t]))),
+      Promise.all(ITEM_TYPES.map((t) => fetchAllRows<ItemRow>(supabase!, ITEM_TABLE[t], userId))),
+      Promise.all(ITEM_TYPES.map((t) => fetchAllRows<LogRow>(supabase!, LOG_TABLE[t], userId))),
+      Promise.all(ITEM_TYPES.map((t) => fetchAllRows<DiaryRow>(supabase!, DIARY_TABLE[t], userId))),
     ]);
     // Workout items/diary aren't part of the ITEM_TYPES loop above: workout_logs
     // doesn't match the generic LogRow shape (no meal_tag, and its own
@@ -966,11 +981,11 @@ export async function pullFromCloud(): Promise<void> {
     // try to pull it as if it did. workout_logs itself is already pulled
     // below, exactly like stool_logs.
     const [stoolLogRows, workoutLogRows, workoutItemRows, workoutDiaryRows, periodLogRows] = await Promise.all([
-      fetchAllRows<StoolLogRow>(supabase, "stool_logs"),
-      fetchAllRows<WorkoutLogRow>(supabase, "workout_logs"),
-      fetchAllRows<ItemRow>(supabase, "workout_items"),
-      fetchAllRows<DiaryRow>(supabase, "workout_diary"),
-      fetchAllRows<PeriodLogRow>(supabase, "period_logs"),
+      fetchAllRows<StoolLogRow>(supabase, "stool_logs", userId),
+      fetchAllRows<WorkoutLogRow>(supabase, "workout_logs", userId),
+      fetchAllRows<ItemRow>(supabase, "workout_items", userId),
+      fetchAllRows<DiaryRow>(supabase, "workout_diary", userId),
+      fetchAllRows<PeriodLogRow>(supabase, "period_logs", userId),
     ]);
     const workoutItemNameById = new Map(workoutItemRows.map((item) => [item.id, item.name]));
 

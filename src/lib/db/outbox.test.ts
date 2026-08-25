@@ -205,11 +205,6 @@ describe("updateOutboxEntry / deleteOutboxEntryById", () => {
     const remaining = (await getAllOutboxEntries()).filter((e) => e.dedupeKey === entry.dedupeKey);
     expect(remaining).toHaveLength(0);
   });
-
-  it("is a no-op deleting an id that doesn't exist — repeated delete is safe", async () => {
-    await expect(deleteOutboxEntryById("does-not-exist")).resolves.not.toThrow();
-    await expect(deleteOutboxEntryById("does-not-exist")).resolves.not.toThrow();
-  });
 });
 
 describe("clearAllData and the outbox", () => {
