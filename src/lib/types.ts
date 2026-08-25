@@ -26,12 +26,13 @@ export type WorkoutExercise = string;
  * else, so `WORKOUT_UNITS` below is only the built-in starting suggestions
  * (with a tuned stepper — see NumberStepper's `UNIT_STEP_PRESETS`), never
  * an exhaustive list. */
-export const WORKOUT_UNITS = ["kg", "minutes", "reps"] as const;
+export const WORKOUT_UNITS = ["kg", "minutes", "hours", "reps"] as const;
 export type WorkoutUnit = string;
 
 const KNOWN_WORKOUT_UNIT_LABEL: Record<string, string> = {
   kg: "kg",
   minutes: "min",
+  hours: "h",
   reps: "reps",
 };
 
@@ -40,6 +41,20 @@ const KNOWN_WORKOUT_UNIT_LABEL: Record<string, string> = {
  * exactly as they typed it, since there's no abbreviation to guess. */
 export function workoutUnitLabel(unit: string): string {
   return KNOWN_WORKOUT_UNIT_LABEL[unit] ?? unit;
+}
+
+/** Sensible default unit for a brand-new exercise, guessed from the
+ * category it's filed under at creation time — Strength Training is
+ * naturally weighted, Cardio is naturally timed, anything else (Flexibility
+ * & Mind-Body, or any custom category) defaults to a plain rep count. Only
+ * a one-time convenience like `lookupFoodCategory`: the unit is a real,
+ * explicit column from then on and freely editable on the Manage page, so
+ * a wrong guess here (e.g. a Strength Training exercise that's actually
+ * timed, like a plank) is a one-click fix, not a trap. */
+export function defaultWorkoutUnitForCategory(category: string): WorkoutUnit {
+  if (category === "Strength Training") return "kg";
+  if (category === "Cardio") return "minutes";
+  return "reps";
 }
 
 /** One logged set — an exercise + a numeric value (see `WorkoutUnit` for
