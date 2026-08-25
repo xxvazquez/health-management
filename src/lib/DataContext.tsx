@@ -82,12 +82,23 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     [refreshSyncState],
   );
 
+  // True once this tab has shown real content at least once — guards the
+  // `setStatus("loading")` below so only the very first load blanks the
+  // page. Without it, every background refresh (the periodic sync timer,
+  // tab-refocus, reconnect) flashed the whole page to "Loading…" and back,
+  // since every one of those already calls this same refresh() at the end —
+  // visible as a flicker every ~60s once the periodic timer sped up to that
+  // interval. A background refresh still updates events/logs/etc. the
+  // moment its snapshot is ready; it just no longer blanks the screen first.
+  const hasLoadedOnceRef = useRef(false);
+
   const refresh = useCallback(async () => {
     // Wait for the session check to resolve before deciding what to show —
     // otherwise a signed-in visitor would flash the demo dataset for a
     // moment before their real data replaces it.
     if (authLoading) return;
-    setStatus("loading");
+    if (!hasLoadedOnceRef.current) setStatus("loading");
+    hasLoadedOnceRef.current = true;
     try {
       // Every read below goes through withDataLock as ONE unit, not
       // individually — pullFromCloud's clear-and-repopulate is also one

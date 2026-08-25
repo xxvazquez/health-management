@@ -19,7 +19,7 @@ import { normalizeName, titleCaseFallback } from "@/taxonomy/normalizeName";
 import { CATEGORIES_BY_TYPE, type ItemType } from "@/taxonomy/categories";
 import { todayLocalISODate } from "@/lib/aggregations/common";
 import { buildDemoDataset } from "@/lib/demoData";
-import { WORKOUT_UNITS, workoutUnitLabel, type RawItem, type RawCategory, type WorkoutUnit } from "@/lib/types";
+import { WORKOUT_UNITS, workoutUnitLabel, defaultWorkoutUnitForCategory, type RawItem, type RawCategory, type WorkoutUnit } from "@/lib/types";
 
 // Log tab order — Food, Symptoms, Supplements, Habits, Stool, Workout,
 // Cycle — so the toggle list reads left-to-right the same way the tabs
@@ -802,7 +802,7 @@ export default function ManagePage() {
       isArchived: false,
       createdDate: todayLocalISODate(),
       reminderTime: null,
-      unit: null,
+      unit: itemType === "workout" ? defaultWorkoutUnitForCategory(category) : null,
     };
     await putItemAndSync(item);
     await refresh();
@@ -953,7 +953,7 @@ export default function ManagePage() {
         isArchived: false,
         createdDate: todayLocalISODate(),
         reminderTime: null,
-        unit: null,
+        unit: itemType === "workout" ? defaultWorkoutUnitForCategory(category) : null,
       },
     ]);
     return Promise.resolve(true);

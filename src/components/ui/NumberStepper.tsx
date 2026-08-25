@@ -101,5 +101,6 @@ export function NumberStepper({
 export const UNIT_STEP_PRESETS: Record<string, { step: number; bigStep: number; max: number }> = {
   kg: { step: 0.25, bigStep: 2.5, max: 400 },
   minutes: { step: 1, bigStep: 5, max: 300 },
+  hours: { step: 0.25, bigStep: 1, max: 24 },
   reps: { step: 1, bigStep: 5, max: 200 },
 };
