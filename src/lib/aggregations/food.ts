@@ -217,14 +217,6 @@ export function ingredientDiversity(filtered: CanonicalEvent[], range: DateRange
   return { current, previous: new Set(prevFoods.map((e) => e.item)).size };
 }
 
-/** Share of total logged occurrences in range that the top N ingredients
- * account for — "how concentrated is this range around a few foods". */
-export function topConcentrationShare(ranked: FoodRankEntry[], topN = 3): number {
-  const total = ranked.reduce((sum, r) => sum + r.count, 0);
-  const topSum = ranked.slice(0, topN).reduce((sum, r) => sum + r.count, 0);
-  return pct(topSum, total);
-}
-
 export type RepetitionTag = "beneficial" | "worth-noting" | "neutral";
 
 export interface RepetitionEntry {

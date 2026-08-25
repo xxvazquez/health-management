@@ -22,7 +22,6 @@ import {
   mealTypeIngredientBreakdown,
   rankedFoods,
   repetitionInsights,
-  topConcentrationShare,
   varietyTrendDirection,
   type MealComboEntry,
   type VarietyTrendDirection,
@@ -62,20 +61,6 @@ function StatusPill({ status, label, color }: { status: string; label: string; c
     >
       {label}
     </span>
-  );
-}
-
-/** The scope note repeated wherever a card intentionally ignores the page's
- * date-range filter and instead reads the full logged history through its
- * own fixed rolling windows — so that never happens silently. */
-function AllTimeScopeNote({ children }: { children: React.ReactNode }) {
-  return (
-    <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-      <span className="font-medium" style={{ color: "var(--text-secondary)" }}>
-        Full history, not the range filter —
-      </span>{" "}
-      {children}
-    </p>
   );
 }
 
@@ -197,15 +182,19 @@ export default function FoodPage() {
   const [showAllRepetition, setShowAllRepetition] = useState(false);
   const [showAllIngredients, setShowAllIngredients] = useState(false);
 
-  // The dietary-pattern synthesis (priorities, coverage, doing-well/
-  // missing, pattern, trend, variety) always reads the full history
-  // through its own fixed 7/30/90-day windows — "what should I prioritize
-  // now" shouldn't change because the range filter below happens to be
-  // narrowed to last month, and a 30-day rolling window can't be computed
-  // correctly from a narrower slice anyway. Labeled explicitly wherever it
-  // appears (see AllTimeScopeNote) rather than left as a silent mismatch
-  // with the range-filtered charts underneath.
-  const priorities = useMemo(() => computeNutritionPriorities(events), [events]);
+  // Length of the selected range, reused everywhere a label needs to name
+  // the exact comparison window instead of a hardcoded number.
+  const rangeLengthDays = range ? daysBetween(range.start, range.end) + 1 : 0;
+  // Wording only ("this week" vs. the generic phrasing) — any 7-day-long
+  // range reads as "this week" regardless of which control produced it
+  // (the This-week preset or a manually picked 7-day custom range).
+  const isThisWeek = rangeLengthDays === 7;
+
+  // Every metric below — including the dietary-pattern synthesis (priorities,
+  // coverage, doing-well/missing, pattern, trend, variety) — is scoped to
+  // the selected range, so switching the date-range control recalculates
+  // everything on this page, not just the charts.
+  const priorities = useMemo(() => computeNutritionPriorities(events, range ?? null), [events, range]);
 
   const distribution = useMemo(() => foodCategoryDistribution(filtered), [filtered]);
   const varietySeries = useMemo(() => foodVarietyOverTime(filtered), [filtered]);
@@ -214,7 +203,15 @@ export default function FoodPage() {
   const mealInstanceCount = mealInstancesList.length;
   const combos = useMemo(() => favoriteCombosByMeal(mealInstancesList), [mealInstancesList]);
   const diversity = useMemo(() => (range ? ingredientDiversity(filtered, range, events) : null), [filtered, range, events]);
-  const concentration = useMemo(() => topConcentrationShare(ranked, 3), [ranked]);
+  // Increasing/decreasing/stable straight off the same current-vs-prior-
+  // range comparison the Variety section's own "Vs. previous N days" tile
+  // shows — one trend definition on this page, not a second one derived a
+  // different way (see the doc comment on varietyTrendDirection below).
+  const diversityTrend: VarietyTrendDirection | null = useMemo(() => {
+    if (!diversity || diversity.previous == null) return null;
+    if (diversity.current === diversity.previous) return "stable";
+    return diversity.current > diversity.previous ? "increasing" : "decreasing";
+  }, [diversity]);
   const hasCoreGaps = priorities.missing.length > 0;
   const repetition = useMemo(
     () => repetitionInsights(ranked, mealInstancesList, priorities.groupStates, hasCoreGaps, 20),
@@ -224,11 +221,10 @@ export default function FoodPage() {
     () => mealTypeIngredientBreakdown(mealInstancesList, ranked.slice(0, 8).map((r) => r.item)),
     [mealInstancesList, ranked],
   );
+  // Chart-local trend (rolling-30-day line, recent stretch vs. the stretch
+  // before it) — describes the shape of the "Ingredient variety over time"
+  // chart specifically, distinct from diversityTrend above.
   const trendDirection = useMemo(() => varietyTrendDirection(varietySeries), [varietySeries]);
-  // Wording only ("this week" vs. the generic phrasing) — any 7-day-long
-  // range reads as "this week" regardless of which control produced it
-  // (the This-week preset or a manually picked 7-day custom range).
-  const isThisWeek = range ? daysBetween(range.start, range.end) + 1 === 7 : false;
 
   if (status === "loading") return <p style={{ color: "var(--text-muted)" }}>Loading…</p>;
   if (status === "empty") return <EmptyState />;
@@ -248,8 +244,8 @@ export default function FoodPage() {
       {span && range && (
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
           <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-            Showing <span style={{ color: "var(--text-secondary)" }}>{rangeLabel}</span> — applies to every section below except
-            Overview&apos;s diet-balance summary, which always reads your full history
+            Showing <span style={{ color: "var(--text-secondary)" }}>{rangeLabel}</span> — every metric and chart below is
+            calculated for this range
           </p>
           <DateRangeFilter span={span} value={range} onChange={setRange} presets={FOOD_DATE_PRESETS} customLabel accent={TYPE_ACCENT.food} />
         </div>
@@ -268,25 +264,23 @@ export default function FoodPage() {
             </CardTitle>
             <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
               Only {priorities.daysWithFoodTracked} day{priorities.daysWithFoodTracked === 1 ? "" : "s"} with food
-              logged so far. Keep logging on the Log page and this page fills in.
+              logged in this range. Widen the range or keep logging on the Log page and this page fills in.
             </p>
           </Card>
         ) : (
           <>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3">
               <StatTile
                 label="Ingredients"
                 value={String(priorities.variety.totalUniqueFoods)}
-                detail="unique, last 90 days"
+                detail="unique in range"
                 accent={TYPE_ACCENT.food}
               />
               <StatTile
                 label="Variety trend"
-                value={`${TREND_DISPLAY[trendDirection].arrow} ${TREND_DISPLAY[trendDirection].label}`}
-                detail="vs. prior 30 days"
+                value={diversityTrend ? `${TREND_DISPLAY[diversityTrend].arrow} ${TREND_DISPLAY[diversityTrend].label}` : "—"}
+                detail={diversityTrend ? `vs. previous ${rangeLengthDays} days` : "not enough earlier history"}
               />
-              <StatTile label="Top 3 concentration" value={`${concentration}%`} detail="of what's logged in range" />
-              <StatTile label="Days tracked" value={String(priorities.daysWithFoodTracked)} detail="all-time" />
             </div>
 
             <Card tier="raw">
@@ -302,9 +296,6 @@ export default function FoodPage() {
                     <StatusPill status={row.status} label={row.statusLabel} color={DIET_BALANCE_COLOR[row.status]} />
                   </div>
                 ))}
-              </div>
-              <div className="mt-4">
-                <AllTimeScopeNote>fixed rolling windows, independent of the range filter above.</AllTimeScopeNote>
               </div>
             </Card>
 
@@ -336,22 +327,22 @@ export default function FoodPage() {
 
       {activeSection === "variety" && (
       <PageSection id="variety" headingLabel="Variety">
-        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-          <Card tier="raw" className="flex h-full flex-col">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:items-start">
+          <Card tier="raw">
             <CardTitle size="sm" subtitle="Distinct ingredients logged in this range">
               Ingredient diversity
             </CardTitle>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-3">
               <StatTile label="Unique ingredients" value={String(diversity?.current ?? 0)} />
               {diversity?.previous != null ? (
                 <StatTile
-                  label="Vs. prior period"
+                  label={`Vs. previous ${rangeLengthDays} days`}
                   value={diversity.current === diversity.previous ? "No change" : diversity.current > diversity.previous ? `+${diversity.current - diversity.previous}` : `${diversity.current - diversity.previous}`}
                   detail={`was ${diversity.previous}`}
                   accent={diversity.current >= diversity.previous ? "var(--status-good)" : "var(--status-warning)"}
                 />
               ) : (
-                <StatTile label="Vs. prior period" value="—" detail="not enough earlier history" />
+                <StatTile label={`Vs. previous ${rangeLengthDays} days`} value="—" detail="not enough earlier history" />
               )}
             </div>
           </Card>
@@ -364,12 +355,7 @@ export default function FoodPage() {
               Top ingredients
             </CardTitle>
             {topFoods.length > 0 ? (
-              <>
-                <RankedBarChart data={topFoods} color={TYPE_ACCENT.food} />
-                <p className="mt-2 text-xs" style={{ color: "var(--text-muted)" }}>
-                  Your top 3 ingredients make up {concentration}% of everything logged in this range.
-                </p>
-              </>
+              <RankedBarChart data={topFoods} color={TYPE_ACCENT.food} />
             ) : (
               <p className="text-sm" style={{ color: "var(--text-muted)" }}>No data.</p>
             )}
@@ -377,17 +363,14 @@ export default function FoodPage() {
         </div>
 
         <Card tier="raw">
-          <CardTitle size="sm" subtitle="How often each food group has been logged — counts are logged days, not servings or grams.">
+          <CardTitle size="sm" subtitle="Days logged in this range, per food group — not servings or grams.">
             Food-group coverage
           </CardTitle>
           {priorities.coverageTable.length > 0 ? (
-            <CoverageTableRows rows={priorities.coverageTable} />
+            <CoverageTableRows rows={priorities.coverageTable} rangeLengthDays={rangeLengthDays} />
           ) : (
             <p className="text-sm" style={{ color: "var(--text-muted)" }}>Not enough data yet.</p>
           )}
-          <div className="mt-3">
-            <AllTimeScopeNote>fixed 7-day and 30-day windows ending today, independent of the range filter above.</AllTimeScopeNote>
-          </div>
         </Card>
 
         <Card tier="raw">
@@ -492,10 +475,6 @@ export default function FoodPage() {
 
         {tab === "trends" && (
           <>
-            <AllTimeScopeNote>
-              the trend comparison and variety metrics below always read your full logged history in fixed windows,
-              independent of the range filter above.
-            </AllTimeScopeNote>
             {priorities.insufficientData ? (
               <p className="text-sm" style={{ color: "var(--text-muted)" }}>Not enough data yet.</p>
             ) : (
@@ -534,15 +513,14 @@ const VARIETY_TREND_LABEL: Record<ReturnType<typeof varietyTrendDirection>, stri
   stable: "holding steady",
 };
 
-function CoverageTableRows({ rows }: { rows: CoverageRow[] }) {
+function CoverageTableRows({ rows, rangeLengthDays }: { rows: CoverageRow[]; rangeLengthDays: number }) {
   return (
     <div className="overflow-x-auto">
       <table className="text-sm">
         <thead>
           <tr className="text-left text-xs whitespace-nowrap" style={{ color: "var(--text-muted)" }}>
             <th className="pb-2 pr-8 font-medium">Food group</th>
-            <th className="pb-2 pr-5 text-right font-medium">7 days</th>
-            <th className="pb-2 pr-5 text-right font-medium">30 days</th>
+            <th className="pb-2 pr-5 text-right font-medium">Days in range</th>
             <th className="pb-2 text-right font-medium">Status</th>
           </tr>
         </thead>
@@ -550,8 +528,9 @@ function CoverageTableRows({ rows }: { rows: CoverageRow[] }) {
           {rows.map((r) => (
             <tr key={r.label} className="border-t whitespace-nowrap" style={{ borderColor: "var(--gridline)" }}>
               <td className="py-2 pr-8" style={{ color: "var(--text-primary)" }}>{r.label}</td>
-              <td className="py-2 pr-5 text-right tabular-nums" style={{ color: "var(--text-secondary)" }}>{r.days7}</td>
-              <td className="py-2 pr-5 text-right tabular-nums" style={{ color: "var(--text-secondary)" }}>{r.days30}</td>
+              <td className="py-2 pr-5 text-right tabular-nums" style={{ color: "var(--text-secondary)" }}>
+                {r.daysInRange} / {rangeLengthDays}
+              </td>
               <td className="py-2 text-right">
                 <StatusPill status={r.status} label={r.statusLabel} color={STATUS_COLOR[r.status]} />
               </td>
@@ -566,7 +545,7 @@ function CoverageTableRows({ rows }: { rows: CoverageRow[] }) {
 function VarietySection({ variety }: { variety: ReturnType<typeof computeNutritionPriorities>["variety"] }) {
   return (
     <Card tier="raw">
-      <CardTitle size="sm" subtitle={`Distinct foods logged in the last ${variety.windowDays} days`}>
+      <CardTitle size="sm" subtitle="Distinct foods logged in the selected range">
         Variety
       </CardTitle>
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
@@ -596,7 +575,7 @@ function VarietySection({ variety }: { variety: ReturnType<typeof computeNutriti
 function TrendSection({ trend }: { trend: ReturnType<typeof computeNutritionPriorities>["trend"] }) {
   return (
     <Card tier="raw">
-      <CardTitle size="sm" subtitle="Last 30 days vs. the 30 days before that">
+      <CardTitle size="sm" subtitle={`Selected range vs. the ${trend.rangeLengthDays}-day period immediately before it`}>
         Over time
       </CardTitle>
       <ul className="flex flex-col divide-y" style={{ borderColor: "var(--gridline)" }}>
