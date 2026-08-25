@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { groupIntoPeriodRuns, cycleLengthsFromRuns, currentCycleStatus, predictUpcomingPeriods, cycleAnalysis } from "./cycle";
+import { groupIntoPeriodRuns, cycleLengthsFromRuns, currentCycleStatus, predictUpcomingPeriods, cycleAnalysis, cycleLengthTrend, periodLengthTrend } from "./cycle";
 import type { RawPeriodLog } from "@/lib/types";
 
 function makeLog(date: string, overrides: Partial<RawPeriodLog> = {}): RawPeriodLog {
@@ -48,6 +48,28 @@ describe("cycleLengthsFromRuns", () => {
   it("computes days between consecutive run starts", () => {
     const logs = [makeLog("2026-01-01"), makeLog("2026-01-29")];
     expect(cycleLengthsFromRuns(groupIntoPeriodRuns(logs))).toEqual([28]);
+  });
+});
+
+// Regression: the Cycle analytics page's "Cycle length"/"Period duration"
+// charts must never show data from before 2022 — old, sparse logging isn't
+// reliable enough to trust. cycleAnalysis/currentCycleStatus/
+// predictUpcomingPeriods deliberately still read full history (see their
+// own doc comments) — only these two trend-chart functions get the floor.
+describe("cycleLengthTrend / periodLengthTrend — 2022 floor", () => {
+  it("excludes a cycle-length point dated before 2022, keeping later points", () => {
+    const logs = [makeLog("2021-12-01"), makeLog("2021-12-29"), makeLog("2026-01-26")];
+    const runs = groupIntoPeriodRuns(logs);
+    const points = cycleLengthTrend(runs);
+    expect(points.map((p) => p.date)).not.toContain("2021-12-29");
+    expect(points.some((p) => p.date === "2026-01-26")).toBe(true);
+  });
+
+  it("excludes a period-duration point dated before 2022, keeping later points", () => {
+    const logs = [makeLog("2021-06-01"), makeLog("2021-06-02"), makeLog("2026-02-01")];
+    const runs = groupIntoPeriodRuns(logs);
+    const points = periodLengthTrend(runs);
+    expect(points.map((p) => p.date)).toEqual(["2026-02-01"]);
   });
 });
 

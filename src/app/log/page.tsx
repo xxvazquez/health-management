@@ -85,8 +85,6 @@ const WORKOUT_ACCENT = "var(--series-magenta)";
 const CYCLE_ACCENT = "var(--series-4)";
 
 const COLLAPSED_CATEGORIES_STORAGE_KEY = "lauva.log.collapsedCategories";
-const LOG_TAB_STORAGE_KEY = "lauva.log.tab";
-const VALID_LOG_TABS: readonly string[] = ["food", "outcome", "supplement", "habit", "stool", "workout", "cycle"];
 
 function categoryStorageKey(itemType: ItemType, category: string): string {
   return `${itemType}:${category}`;
@@ -415,22 +413,6 @@ export default function LogPage() {
       // Corrupt or inaccessible storage — fall back to everything expanded.
     }
   }, []);
-  // Same hydrate-on-mount pattern as collapsedCategories above — starts on
-  // "food" (matches server-rendered markup, avoiding a hydration mismatch)
-  // and switches to whatever tab was last open the instant this runs on
-  // the client, so a reload doesn't always dump you back on Food.
-  useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(LOG_TAB_STORAGE_KEY);
-      if (raw && VALID_LOG_TABS.includes(raw)) {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setTab(raw as LogTab);
-        if (raw === "supplement") setMeal(defaultSupplementTimeForTime());
-      }
-    } catch {
-      // Corrupt or inaccessible storage — fall back to Food.
-    }
-  }, []);
   // If the tab you're sitting on gets hidden from under you (toggled off
   // in Manage, in another tab, or restored from a stale saved choice),
   // jump to the first tab that's still visible rather than rendering a
@@ -501,12 +483,6 @@ export default function LogPage() {
     setSearch("");
     if (t === "food") setMeal(defaultMealForTime());
     else if (t === "supplement") setMeal(defaultSupplementTimeForTime());
-    try {
-      window.localStorage.setItem(LOG_TAB_STORAGE_KEY, t);
-    } catch {
-      // Inaccessible storage (private browsing, quota) — the tab still
-      // switches for this session, it just won't survive a reload.
-    }
   }
 
   const candidates = useMemo(() => buildLogCandidates(effective.items, effective.logs), [effective]);

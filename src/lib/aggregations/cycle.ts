@@ -202,6 +202,12 @@ export interface DatedValue {
   value: number;
 }
 
+/** Older logging (pre-2022) was sparse/inconsistent enough that its cycle
+ * and period lengths aren't reliable — excluded from these two trend charts
+ * specifically, not from `cycleAnalysis`/`currentCycleStatus`/predictions,
+ * which intentionally keep reading full history. */
+const CYCLE_METRICS_MIN_DATE = "2022-01-01";
+
 /** One point per completed cycle, dated at the LATER period's start (the
  * only point in time the cycle's length is actually known) — for the
  * Cycle analytics page's "cycle length over time" chart. */
@@ -210,11 +216,11 @@ export function cycleLengthTrend(runs: PeriodRun[]): DatedValue[] {
   for (let i = 0; i < runs.length - 1; i++) {
     points.push({ date: runs[i + 1].startDate, value: daysBetween(runs[i].startDate, runs[i + 1].startDate) });
   }
-  return points;
+  return points.filter((p) => p.date >= CYCLE_METRICS_MIN_DATE);
 }
 
 /** One point per recorded period, dated at its own start — for the Cycle
  * analytics page's "period length over time" chart. */
 export function periodLengthTrend(runs: PeriodRun[]): DatedValue[] {
-  return runs.map((r) => ({ date: r.startDate, value: daysBetween(r.startDate, r.endDate) + 1 }));
+  return runs.map((r) => ({ date: r.startDate, value: daysBetween(r.startDate, r.endDate) + 1 })).filter((p) => p.date >= CYCLE_METRICS_MIN_DATE);
 }

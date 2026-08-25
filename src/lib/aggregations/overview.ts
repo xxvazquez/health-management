@@ -65,7 +65,12 @@ export function computeOverviewInsight(events: CanonicalEvent[], stoolLogs: RawS
 
   const habits = habitsInsight(events);
   const supplements = supplementsInsight(events);
-  const food = computeNutritionPriorities(events);
+  // No date-range control on this page (unlike the Food page, which now
+  // drives computeNutritionPriorities off its own selected range) — this
+  // dashboard summary keeps reading the same trailing-30-day window it
+  // always has, computed as an explicit range instead of an internal
+  // default now that the function requires one.
+  const food = computeNutritionPriorities(events, { start: addDaysToDate(span.end, -29), end: span.end });
   const digestion = digestionInsight(events, stoolLogs);
 
   // --- What matters / needs attention: Food only, evidence-grounded ---

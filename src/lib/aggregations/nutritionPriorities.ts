@@ -1,5 +1,5 @@
 import type { CanonicalEvent } from "@/lib/types";
-import { addDaysToDate, getDatasetSpan } from "./common";
+import { addDaysToDate, daysBetween, getDatasetSpan, type DateRange } from "./common";
 import {
   NUTRITION_GROUP_LABEL,
   PILLAR_LABEL,
@@ -13,15 +13,12 @@ import {
 } from "@/taxonomy/nutritionGroups";
 import { evidenceForGroup } from "@/lib/nutritionEvidence";
 
-/** Distinct food-tracked days needed before the engine trusts its own
- * ranking enough to produce priorities — below this, "never logged" is
- * indistinguishable from "hasn't logged much of anything yet". */
+/** Distinct food-tracked days needed, WITHIN THE SELECTED RANGE, before the
+ * engine trusts its own ranking enough to produce priorities — below this,
+ * "never logged" is indistinguishable from "hasn't logged much of anything
+ * yet". A short range (e.g. "This week") will often land here, which is
+ * correct: a week of data isn't enough to judge a pattern of eating. */
 const MIN_FOOD_DAYS_FOR_CONFIDENCE = 10;
-
-const RECENT_WINDOW_DAYS = 30;
-const SHORT_WINDOW_DAYS = 7;
-const TREND_WINDOW_DAYS = 30;
-const VARIETY_WINDOW_DAYS = 90;
 
 const CONSISTENCY_RARE_CUTOFF = 0.34;
 const CONSISTENCY_OCCASIONAL_CUTOFF = 0.7;
@@ -57,13 +54,20 @@ export interface GroupState {
   group: NutritionGroupId;
   label: string;
   pillar: PillarId;
-  daysLast7: number;
-  daysLast30: number;
+  /** Distinct days this group was logged, within the selected range. */
+  daysInRange: number;
+  /** Length of the selected range in days — carried on the state so display
+   * code (groupCandidateDetail) can describe `daysInRange` against it
+   * without threading the range through separately. */
+  rangeLengthDays: number;
+  /** Ever logged, across the full dataset — not scoped to the range. Keeps
+   * "never eaten, ever" distinguishable from "eaten before, just not within
+   * this range" (the `not-recent` consistency band). */
   totalLogsAllTime: number;
-  distinctFoodsLast90: string[];
+  distinctFoodsInRange: string[];
   consistency: Consistency;
   status: GroupStatus;
-  rateLast30PerWeek: number;
+  rateInRangePerWeek: number;
   targetPerWeek: number | null;
 }
 
@@ -95,8 +99,7 @@ export interface PriorityCandidate {
 
 export interface CoverageRow {
   label: string;
-  days7: number;
-  days30: number;
+  daysInRange: number;
   status: GroupStatus;
   statusLabel: string;
 }
@@ -115,7 +118,6 @@ export interface PatternBuckets {
 }
 
 export interface VarietyMetrics {
-  windowDays: number;
   totalUniqueFoods: number;
   uniquePlantFoods: number;
   plantGroupsRepresented: number;
@@ -135,6 +137,9 @@ export interface TrendPoint {
 
 export interface TrendSummary {
   available: boolean;
+  /** Length of the selected range (= the prior comparison window too) —
+   * lets the UI say "vs. the N days before" without hardcoding a number. */
+  rangeLengthDays: number;
   points: TrendPoint[];
 }
 
@@ -189,9 +194,9 @@ function statusFromConsistency(consistency: Consistency, insufficientData: boole
   }
 }
 
-function bandConsistency(totalLogsAllTime: number, daysLast30: number, ratio: number): Consistency {
+function bandConsistency(totalLogsAllTime: number, daysInRange: number, ratio: number): Consistency {
   if (totalLogsAllTime === 0) return "never";
-  if (daysLast30 === 0) return "not-recent";
+  if (daysInRange === 0) return "not-recent";
   if (ratio < CONSISTENCY_RARE_CUTOFF) return "rare";
   if (ratio < CONSISTENCY_OCCASIONAL_CUTOFF) return "occasional";
   if (ratio < CONSISTENCY_CONSISTENT_CUTOFF) return "regular";
@@ -205,6 +210,12 @@ function bandConsistency(totalLogsAllTime: number, daysLast30: number, ratio: nu
  * so a day covered by leafy greens and a different day covered by other
  * vegetables both count toward "vegetables logged that day", instead of
  * whichever subgroup happens to have the higher count on its own.
+ *
+ * Everything here is scoped to the SELECTED RANGE (`range`), except
+ * `totalLogsAllTime`, which deliberately reads the full `foods` list — the
+ * one place "ever logged at all" needs to stay independent of whatever
+ * range is currently selected, so "never eaten" and "eaten before, just
+ * not in this range" stay distinguishable regardless of range length.
  */
 function computeAggregateState(
   groups: NutritionGroupId[],
@@ -212,59 +223,41 @@ function computeAggregateState(
   label: string,
   pillar: PillarId,
   foods: CanonicalEvent[],
-  today: string,
+  range: DateRange,
   insufficientData: boolean,
 ): GroupState {
-  const window7Start = addDaysToDate(today, -(SHORT_WINDOW_DAYS - 1));
-  const window30Start = addDaysToDate(today, -(RECENT_WINDOW_DAYS - 1));
-  const window90Start = addDaysToDate(today, -(VARIETY_WINDOW_DAYS - 1));
-
+  const rangeLengthDays = daysBetween(range.start, range.end) + 1;
   const groupSet = new Set(groups);
   const matchEvents = foods.filter((e) => groupsFor(e.item).some((g) => groupSet.has(g)));
-  const days7 = new Set(matchEvents.filter((e) => e.date >= window7Start).map((e) => e.date)).size;
-  const days30 = new Set(matchEvents.filter((e) => e.date >= window30Start).map((e) => e.date)).size;
-  const distinctFoodsLast90 = Array.from(
-    new Set(matchEvents.filter((e) => e.date >= window90Start).map((e) => e.item)),
-  );
+  const inRangeEvents = matchEvents.filter((e) => e.date >= range.start && e.date <= range.end);
+  const daysInRange = new Set(inRangeEvents.map((e) => e.date)).size;
+  const distinctFoodsInRange = Array.from(new Set(inRangeEvents.map((e) => e.item)));
   const totalLogsAllTime = matchEvents.length;
 
-  const rateLast30PerWeek = (days30 * 7) / RECENT_WINDOW_DAYS;
-  const ratio = targetPerWeek ? rateLast30PerWeek / targetPerWeek : 0;
+  const rateInRangePerWeek = (daysInRange * 7) / rangeLengthDays;
+  const ratio = targetPerWeek ? rateInRangePerWeek / targetPerWeek : 0;
 
-  const consistency = bandConsistency(totalLogsAllTime, days30, ratio);
+  const consistency = bandConsistency(totalLogsAllTime, daysInRange, ratio);
   const status = statusFromConsistency(consistency, insufficientData);
 
   return {
     group: groups[0],
     label,
     pillar,
-    daysLast7: days7,
-    daysLast30: days30,
+    daysInRange,
+    rangeLengthDays,
     totalLogsAllTime,
-    distinctFoodsLast90,
+    distinctFoodsInRange,
     consistency,
     status,
-    rateLast30PerWeek,
+    rateInRangePerWeek,
     targetPerWeek,
   };
 }
 
-function computeGroupState(
-  group: NutritionGroupId,
-  foods: CanonicalEvent[],
-  today: string,
-  insufficientData: boolean,
-): GroupState {
+function computeGroupState(group: NutritionGroupId, foods: CanonicalEvent[], range: DateRange, insufficientData: boolean): GroupState {
   const evidence = evidenceForGroup(group);
-  return computeAggregateState(
-    [group],
-    evidence?.targetPerWeek ?? null,
-    NUTRITION_GROUP_LABEL[group],
-    pillarForGroup(group),
-    foods,
-    today,
-    insufficientData,
-  );
+  return computeAggregateState([group], evidence?.targetPerWeek ?? null, NUTRITION_GROUP_LABEL[group], pillarForGroup(group), foods, range, insufficientData);
 }
 
 const ADD_PHRASE: Partial<Record<NutritionGroupId, string>> = {
@@ -285,11 +278,11 @@ function groupCandidateDetail(state: GroupState): string {
     case "never":
       return "Not appearing in your tracked data.";
     case "not-recent":
-      return "Logged before, but not in the last 30 days.";
+      return "Logged before, but not in the selected range.";
     case "rare":
-      return `Only appeared on ${state.daysLast30} day${state.daysLast30 === 1 ? "" : "s"} of the last 30.`;
+      return `Only appeared on ${state.daysInRange} of ${state.rangeLengthDays} day${state.rangeLengthDays === 1 ? "" : "s"} in this range.`;
     case "occasional":
-      return `Logged on ${state.daysLast30} days of the last 30.`;
+      return `Logged on ${state.daysInRange} of ${state.rangeLengthDays} days in this range.`;
     default:
       return "";
   }
@@ -299,13 +292,7 @@ const VEGETABLE_VARIETY_THRESHOLD = 4;
 const FRUIT_VARIETY_THRESHOLD = 3;
 const NUTS_SEEDS_VARIETY_THRESHOLD = 2;
 
-function pillarVarietyCandidate(
-  pillar: PillarId,
-  threshold: number,
-  states: GroupState[],
-  foods: CanonicalEvent[],
-  today: string,
-): PriorityCandidate | null {
+function pillarVarietyCandidate(pillar: PillarId, threshold: number, states: GroupState[], foods: CanonicalEvent[], range: DateRange): PriorityCandidate | null {
   const subgroups = states.filter((s) => s.pillar === pillar);
   if (subgroups.length === 0) return null;
 
@@ -313,9 +300,8 @@ function pillarVarietyCandidate(
   const anyGoodFrequency = subgroups.some((s) => s.status === "good" || s.status === "strong");
   if (!anyGoodFrequency) return null;
 
-  const window90Start = addDaysToDate(today, -(VARIETY_WINDOW_DAYS - 1));
   const pillarGroups = new Set(subgroups.map((s) => s.group));
-  const pillarEvents = foods.filter((e) => e.date >= window90Start && groupsFor(e.item).some((g) => pillarGroups.has(g)));
+  const pillarEvents = foods.filter((e) => e.date >= range.start && e.date <= range.end && groupsFor(e.item).some((g) => pillarGroups.has(g)));
   const distinctFoods = new Set(pillarEvents.map((e) => e.item));
   if (distinctFoods.size >= threshold) return null;
 
@@ -367,31 +353,32 @@ function groupWellSentence(state: GroupState): Bullet {
   };
 }
 
+const emptyVariety: VarietyMetrics = {
+  totalUniqueFoods: 0,
+  uniquePlantFoods: 0,
+  plantGroupsRepresented: 0,
+  totalPlantGroups: PLANT_GROUPS.length,
+  uniqueVegetables: 0,
+  uniqueFruit: 0,
+  uniqueLegumes: 0,
+  uniqueNutsSeeds: 0,
+  plantFamiliesRepresented: 0,
+};
+
 /**
  * Main entry point: everything the Food page's decision-oriented sections
- * need, in one pass over the (unfiltered) canonical events. Always operates
- * on the full dataset rather than whatever date range the page's filter is
- * set to — "what should I prioritize now" shouldn't change because someone
- * happened to narrow the chart below it to last month.
+ * need, in one pass over the canonical events. Every metric here is scoped
+ * to `range` (the page's own date-range selector) — nothing is computed
+ * over a hardcoded trailing window, so switching the selected range to 30
+ * days, 90 days, a year, or a custom span recalculates everything, not just
+ * the charts underneath. The one deliberate exception is `totalLogsAllTime`
+ * inside each `GroupState` (see `computeAggregateState`'s own comment).
  */
-export function computeNutritionPriorities(events: CanonicalEvent[]): NutritionPriorities {
+export function computeNutritionPriorities(events: CanonicalEvent[], range: DateRange | null): NutritionPriorities {
   const span = getDatasetSpan(events);
   const foods = foodEvents(events);
 
-  const emptyVariety: VarietyMetrics = {
-    windowDays: VARIETY_WINDOW_DAYS,
-    totalUniqueFoods: 0,
-    uniquePlantFoods: 0,
-    plantGroupsRepresented: 0,
-    totalPlantGroups: PLANT_GROUPS.length,
-    uniqueVegetables: 0,
-    uniqueFruit: 0,
-    uniqueLegumes: 0,
-    uniqueNutsSeeds: 0,
-    plantFamiliesRepresented: 0,
-  };
-
-  if (!span || foods.length === 0) {
+  if (!span || !range || foods.length === 0) {
     return {
       insufficientData: true,
       daysWithFoodTracked: 0,
@@ -404,16 +391,17 @@ export function computeNutritionPriorities(events: CanonicalEvent[]): NutritionP
       pattern: { strong: [], needsVariety: [], underrepresented: [] },
       dietBalance: [],
       variety: emptyVariety,
-      trend: { available: false, points: [] },
+      trend: { available: false, rangeLengthDays: 0, points: [] },
     };
   }
 
-  const today = span.end;
-  const daysWithFoodTracked = new Set(foods.map((e) => e.date)).size;
+  const rangeLengthDays = daysBetween(range.start, range.end) + 1;
+  const foodsInRange = foods.filter((e) => e.date >= range.start && e.date <= range.end);
+  const daysWithFoodTracked = new Set(foodsInRange.map((e) => e.date)).size;
   const insufficientData = daysWithFoodTracked < MIN_FOOD_DAYS_FOR_CONFIDENCE;
 
-  const allGroupStates = PRIORITY_ELIGIBLE_GROUPS.map((g) => computeGroupState(g, foods, today, insufficientData));
-  const otherSeafoodState = computeGroupState("other_seafood", foods, today, insufficientData);
+  const allGroupStates = PRIORITY_ELIGIBLE_GROUPS.map((g) => computeGroupState(g, foods, range, insufficientData));
+  const otherSeafoodState = computeGroupState("other_seafood", foods, range, insufficientData);
 
   // ---- Priority candidates (group gaps + pillar variety gaps) ----
   const groupCandidates: PriorityCandidate[] = allGroupStates
@@ -426,7 +414,7 @@ export function computeNutritionPriorities(events: CanonicalEvent[]): NutritionP
         action: ADD_PHRASE[s.group] ?? `Add ${s.label.toLowerCase()}`,
         detail: groupCandidateDetail(s),
         exampleFoods: evidence?.exampleFoods ?? [],
-        score: Math.max(0, 1 - s.rateLast30PerWeek / (s.targetPerWeek ?? 1)) * (evidence?.weight ?? 1),
+        score: Math.max(0, 1 - s.rateInRangePerWeek / (s.targetPerWeek ?? 1)) * (evidence?.weight ?? 1),
         evidenceId: evidence?.evidenceId ?? null,
       };
     });
@@ -434,7 +422,7 @@ export function computeNutritionPriorities(events: CanonicalEvent[]): NutritionP
   // Special-case: eats fish generally, but fatty fish specifically lags —
   // replaces the generic fatty_fish bullet with a more precise one.
   const fattyFishIdx = groupCandidates.findIndex((c) => c.headline === NUTRITION_GROUP_LABEL.fatty_fish);
-  if (fattyFishIdx >= 0 && otherSeafoodState.daysLast30 >= 4) {
+  if (fattyFishIdx >= 0 && otherSeafoodState.daysInRange >= 4) {
     groupCandidates[fattyFishIdx] = {
       ...groupCandidates[fattyFishIdx],
       detail: "You eat fish, but fatty fish specifically (salmon, mackerel, sardines) isn't regularly represented.",
@@ -442,15 +430,13 @@ export function computeNutritionPriorities(events: CanonicalEvent[]): NutritionP
   }
 
   const varietyCandidates = [
-    pillarVarietyCandidate("vegetables", VEGETABLE_VARIETY_THRESHOLD, allGroupStates, foods, today),
-    pillarVarietyCandidate("fruit", FRUIT_VARIETY_THRESHOLD, allGroupStates, foods, today),
-    pillarVarietyCandidate("nuts_seeds", NUTS_SEEDS_VARIETY_THRESHOLD, allGroupStates, foods, today),
+    pillarVarietyCandidate("vegetables", VEGETABLE_VARIETY_THRESHOLD, allGroupStates, foods, range),
+    pillarVarietyCandidate("fruit", FRUIT_VARIETY_THRESHOLD, allGroupStates, foods, range),
+    pillarVarietyCandidate("nuts_seeds", NUTS_SEEDS_VARIETY_THRESHOLD, allGroupStates, foods, range),
   ].filter((c): c is PriorityCandidate => c !== null);
 
   const sortedGroupCandidates = [...groupCandidates].sort((a, b) => b.score - a.score);
-  const topPriorities = insufficientData
-    ? []
-    : [...groupCandidates, ...varietyCandidates].sort((a, b) => b.score - a.score).slice(0, 3);
+  const topPriorities = insufficientData ? [] : [...groupCandidates, ...varietyCandidates].sort((a, b) => b.score - a.score).slice(0, 3);
 
   // ---- Doing well / missing, built pillar-by-pillar so a mixed pillar
   // (e.g. good other-vegetables, rare cruciferous) names the specific gap
@@ -473,7 +459,7 @@ export function computeNutritionPriorities(events: CanonicalEvent[]): NutritionP
         for (const s of goodOnes) doingWell.push(groupWellSentence(s));
       }
 
-      if (pillar === "fish" && gapOnes.some((s) => s.group === "fatty_fish") && otherSeafoodState.daysLast30 >= 4) {
+      if (pillar === "fish" && gapOnes.some((s) => s.group === "fatty_fish") && otherSeafoodState.daysInRange >= 4) {
         missing.push({
           label: "Fatty fish",
           detail: "You eat fish, but fatty fish specifically isn't regularly represented.",
@@ -510,17 +496,9 @@ export function computeNutritionPriorities(events: CanonicalEvent[]): NutritionP
 
   // ---- Coverage table: the fixed compact set from the design brief ----
   const byGroup = new Map(allGroupStates.map((s) => [s.group, s]));
-  const vegState = computeAggregateState(
-    ["leafy_greens", "cruciferous", "other_vegetables"],
-    7,
-    "Vegetables (overall)",
-    "vegetables",
-    foods,
-    today,
-    insufficientData,
-  );
-  const fruitState = computeAggregateState(["berries", "other_fruit"], 7, "Fruit (overall)", "fruit", foods, today, insufficientData);
-  const nutsSeedsState = computeAggregateState(["nuts", "seeds"], 5, "Nuts & seeds", "nuts_seeds", foods, today, insufficientData);
+  const vegState = computeAggregateState(["leafy_greens", "cruciferous", "other_vegetables"], 7, "Vegetables (overall)", "vegetables", foods, range, insufficientData);
+  const fruitState = computeAggregateState(["berries", "other_fruit"], 7, "Fruit (overall)", "fruit", foods, range, insufficientData);
+  const nutsSeedsState = computeAggregateState(["nuts", "seeds"], 5, "Nuts & seeds", "nuts_seeds", foods, range, insufficientData);
 
   const coverageTable: CoverageRow[] = [
     rowFor("Leafy greens", byGroup.get("leafy_greens")!),
@@ -554,15 +532,9 @@ export function computeNutritionPriorities(events: CanonicalEvent[]): NutritionP
     nuts_seeds: nutsSeedsState,
     fish: byGroup.get("fatty_fish"),
   };
-  const dietBalance: DietBalanceRow[] = CORE_PILLARS.map((pillar) =>
-    dietBalanceRow(pillar, aggregateStateByPillar[pillar]!, varietyCandidates, insufficientData),
-  );
+  const dietBalance: DietBalanceRow[] = CORE_PILLARS.map((pillar) => dietBalanceRow(pillar, aggregateStateByPillar[pillar]!, varietyCandidates, insufficientData));
 
-  // ---- Variety metrics ----
-  const window90Start = addDaysToDate(today, -(VARIETY_WINDOW_DAYS - 1));
-  const recentFoods = foods.filter((e) => e.date >= window90Start);
-  const totalUniqueFoods = new Set(recentFoods.map((e) => e.item)).size;
-
+  // ---- Variety metrics: distinct foods within the selected range ----
   const plantItems = new Set<string>();
   const plantGroupsSeen = new Set<NutritionGroupId>();
   const vegItems = new Set<string>();
@@ -570,7 +542,7 @@ export function computeNutritionPriorities(events: CanonicalEvent[]): NutritionP
   const legumeItems = new Set<string>();
   const nutSeedItems = new Set<string>();
   const families = new Set<string>();
-  for (const e of recentFoods) {
+  for (const e of foodsInRange) {
     const groups = groupsFor(e.item);
     for (const g of groups) {
       if (PLANT_GROUPS.includes(g)) {
@@ -587,8 +559,7 @@ export function computeNutritionPriorities(events: CanonicalEvent[]): NutritionP
   }
 
   const variety: VarietyMetrics = {
-    windowDays: VARIETY_WINDOW_DAYS,
-    totalUniqueFoods,
+    totalUniqueFoods: new Set(foodsInRange.map((e) => e.item)).size,
     uniquePlantFoods: plantItems.size,
     plantGroupsRepresented: plantGroupsSeen.size,
     totalPlantGroups: PLANT_GROUPS.length,
@@ -599,33 +570,28 @@ export function computeNutritionPriorities(events: CanonicalEvent[]): NutritionP
     plantFamiliesRepresented: families.size,
   };
 
-  // ---- Longitudinal trend: last 30 days vs. the 30 before that ----
-  const spanDays = dayDiff(span.start, span.end) + 1;
-  const trendAvailable = spanDays >= TREND_WINDOW_DAYS * 2;
-  let trend: TrendSummary = { available: false, points: [] };
+  // ---- Longitudinal trend: selected range vs. the equal-length period
+  // immediately before it — same "prior period" definition already used by
+  // Variety's ingredientDiversity, so this page never has two different
+  // ideas of what "prior" means. Only available when the dataset actually
+  // extends back far enough for that comparison, same guard. ----
+  const prevEnd = addDaysToDate(range.start, -1);
+  const prevStart = addDaysToDate(prevEnd, -(rangeLengthDays - 1));
+  const trendAvailable = prevStart >= span.start;
+  let trend: TrendSummary = { available: false, rangeLengthDays, points: [] };
   if (trendAvailable) {
-    const currentStart = addDaysToDate(today, -(TREND_WINDOW_DAYS - 1));
-    const previousEnd = addDaysToDate(currentStart, -1);
-    const previousStart = addDaysToDate(previousEnd, -(TREND_WINDOW_DAYS - 1));
+    const currentFoods = foodsInRange;
+    const previousFoods = foods.filter((e) => e.date >= prevStart && e.date <= prevEnd);
 
-    const currentFoods = foods.filter((e) => e.date >= currentStart && e.date <= today);
-    const previousFoods = foods.filter((e) => e.date >= previousStart && e.date <= previousEnd);
-
-    const uniquePlants = (list: CanonicalEvent[]) =>
-      new Set(list.filter((e) => groupsFor(e.item).some((g) => PLANT_GROUPS.includes(g))).map((e) => e.item)).size;
+    const uniquePlants = (list: CanonicalEvent[]) => new Set(list.filter((e) => groupsFor(e.item).some((g) => PLANT_GROUPS.includes(g))).map((e) => e.item)).size;
     const uniqueVeg = (list: CanonicalEvent[]) =>
-      new Set(
-        list
-          .filter((e) => groupsFor(e.item).some((g) => g === "leafy_greens" || g === "cruciferous" || g === "other_vegetables"))
-          .map((e) => e.item),
-      ).size;
-    const exposureDays = (list: CanonicalEvent[], group: NutritionGroupId) =>
-      new Set(list.filter((e) => groupsFor(e.item).includes(group)).map((e) => e.date)).size;
-    const coverageCount = (list: CanonicalEvent[]) =>
-      PRIORITY_ELIGIBLE_GROUPS.filter((g) => list.some((e) => groupsFor(e.item).includes(g))).length;
+      new Set(list.filter((e) => groupsFor(e.item).some((g) => g === "leafy_greens" || g === "cruciferous" || g === "other_vegetables")).map((e) => e.item)).size;
+    const exposureDays = (list: CanonicalEvent[], group: NutritionGroupId) => new Set(list.filter((e) => groupsFor(e.item).includes(group)).map((e) => e.date)).size;
+    const coverageCount = (list: CanonicalEvent[]) => PRIORITY_ELIGIBLE_GROUPS.filter((g) => list.some((e) => groupsFor(e.item).includes(g))).length;
 
     trend = {
       available: true,
+      rangeLengthDays,
       points: [
         { label: "Plant diversity (unique plant foods)", current: uniquePlants(currentFoods), previous: uniquePlants(previousFoods) },
         { label: "Vegetable diversity (unique vegetables)", current: uniqueVeg(currentFoods), previous: uniqueVeg(previousFoods) },
@@ -633,7 +599,11 @@ export function computeNutritionPriorities(events: CanonicalEvent[]): NutritionP
         { label: "Legume exposure (days)", current: exposureDays(currentFoods, "legumes"), previous: exposureDays(previousFoods, "legumes") },
         { label: "Whole-grain exposure (days)", current: exposureDays(currentFoods, "whole_grains"), previous: exposureDays(previousFoods, "whole_grains") },
         { label: "Fatty-fish exposure (days)", current: exposureDays(currentFoods, "fatty_fish"), previous: exposureDays(previousFoods, "fatty_fish") },
-        { label: "Nut/seed exposure (days)", current: exposureDays(currentFoods, "nuts") + exposureDays(currentFoods, "seeds"), previous: exposureDays(previousFoods, "nuts") + exposureDays(previousFoods, "seeds") },
+        {
+          label: "Nut/seed exposure (days)",
+          current: exposureDays(currentFoods, "nuts") + exposureDays(currentFoods, "seeds"),
+          previous: exposureDays(previousFoods, "nuts") + exposureDays(previousFoods, "seeds"),
+        },
         { label: "Food groups covered (of 10 tracked)", current: coverageCount(currentFoods), previous: coverageCount(previousFoods) },
       ],
     };
@@ -658,8 +628,7 @@ export function computeNutritionPriorities(events: CanonicalEvent[]): NutritionP
 function rowFor(label: string, state: GroupState): CoverageRow {
   return {
     label,
-    days7: state.daysLast7,
-    days30: state.daysLast30,
+    daysInRange: state.daysInRange,
     status: state.status,
     statusLabel: STATUS_LABEL[state.status],
   };
@@ -670,12 +639,7 @@ function rowFor(label: string, state: GroupState): CoverageRow {
  * table (single group for single-subgroup pillars) so this never
  * contradicts "What you're missing" for the same pillar.
  */
-function dietBalanceRow(
-  pillar: PillarId,
-  aggregate: GroupState,
-  varietyCandidates: PriorityCandidate[],
-  insufficientData: boolean,
-): DietBalanceRow {
+function dietBalanceRow(pillar: PillarId, aggregate: GroupState, varietyCandidates: PriorityCandidate[], insufficientData: boolean): DietBalanceRow {
   const label = PILLAR_LABEL[pillar];
   if (insufficientData) return { pillar, label, status: "not-enough-data", statusLabel: DIET_BALANCE_LABEL["not-enough-data"] };
 
@@ -694,10 +658,4 @@ function dietBalanceRow(
   }
 
   return { pillar, label, status, statusLabel: DIET_BALANCE_LABEL[status] };
-}
-
-function dayDiff(start: string, end: string): number {
-  const a = new Date(`${start}T00:00:00Z`).getTime();
-  const b = new Date(`${end}T00:00:00Z`).getTime();
-  return Math.round((b - a) / 86_400_000);
 }
