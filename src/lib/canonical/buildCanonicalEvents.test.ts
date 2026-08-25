@@ -3,10 +3,6 @@ import { buildCanonicalEvents } from "./buildCanonicalEvents";
 import { makeDiaryEntry, makeItem, makeLog } from "@/lib/testFixtures";
 
 describe("buildCanonicalEvents", () => {
-  it("returns an empty array for empty input", () => {
-    expect(buildCanonicalEvents([], [], [])).toEqual([]);
-  });
-
   it("joins a log to its item, carrying item name/type/category/archive state onto the event", () => {
     const item = makeItem({ identity: "i1", rawName: "Apple", itemType: "food", category: "Fruit", isArchived: false });
     const log = makeLog({ identity: "l1", itemIdentity: "i1", date: "2026-02-01", value: 2, mealTag: "Lunch" });

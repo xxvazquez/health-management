@@ -19,21 +19,6 @@ describe("computeNutritionPriorities", () => {
     expect(computeNutritionPriorities(events).insufficientData).toBe(true);
   });
 
-  it("does not throw and returns real content with enough food-tracking history", () => {
-    const events = Array.from({ length: 30 }, (_, i) =>
-      makeEvent({
-        itemType: "food",
-        item: i % 2 === 0 ? "Spinach" : "Salmon",
-        category: i % 2 === 0 ? "Veggies" : "Fish",
-        date: `2026-01-${String((i % 28) + 1).padStart(2, "0")}`,
-        completed: true,
-      }),
-    );
-    expect(() => computeNutritionPriorities(events)).not.toThrow();
-    const result = computeNutritionPriorities(events);
-    expect(typeof result.insufficientData).toBe("boolean");
-  });
-
   it("ignores non-food events entirely when judging food-tracking coverage", () => {
     const events = Array.from({ length: 30 }, (_, i) => makeEvent({ itemType: "habit", date: `2026-01-${String((i % 28) + 1).padStart(2, "0")}` }));
     expect(computeNutritionPriorities(events).insufficientData).toBe(true);

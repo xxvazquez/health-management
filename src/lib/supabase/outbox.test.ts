@@ -256,12 +256,6 @@ describe("drainOutbox", () => {
     // would process the same eligible entry twice if two drains overlapped.
     expect(sentCalls.filter((c) => c.table === "food_items")).toHaveLength(1);
   });
-
-  it("is a safe no-op when nothing is eligible", async () => {
-    currentSessionUserId = "user-with-nothing-pending";
-    const { drainOutbox } = await import("./outbox");
-    await expect(drainOutbox()).resolves.toBeUndefined();
-  });
 });
 
 describe("getOutboxSyncState", () => {

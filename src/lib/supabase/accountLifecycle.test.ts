@@ -38,12 +38,21 @@ function makeFakeSupabase() {
       const store = tables[table];
       return {
         select() {
-          return {
+          // .eq() chaining to match fetchAllRows' real query shape (see the
+          // identical comment in sync.test.ts's own fake) — a no-op filter
+          // here since this fake never mixes more than one user's rows into
+          // the same table's Map in a way any test here reads back through
+          // select().
+          const builder = {
+            eq() {
+              return builder;
+            },
             range(from: number, to: number) {
               const rows = [...store.values()];
               return Promise.resolve({ data: rows.slice(from, to + 1), error: null });
             },
           };
+          return builder;
         },
         upsert(payload: Record<string, unknown>) {
           store.set(payload.id as string, payload);

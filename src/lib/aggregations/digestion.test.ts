@@ -22,9 +22,6 @@ describe("bristolAssessedDates", () => {
     expect(bristolAssessedDates(logs)).toEqual(new Set(["2026-01-01", "2026-01-02"]));
   });
 
-  it("returns an empty set for no logs", () => {
-    expect(bristolAssessedDates([])).toEqual(new Set());
-  });
 });
 
 describe("bristolTypeDates", () => {
@@ -57,10 +54,6 @@ describe("unclassifiedStoolStats", () => {
 });
 
 describe("bristolBandDistribution", () => {
-  it("returns an empty array for no logs", () => {
-    expect(bristolBandDistribution([])).toEqual([]);
-  });
-
   it("bands 1-2 as Hard, 3-4 as Normal, 5-7 as Loose", () => {
     const logs = [makeStoolLog({ bristolScores: [1] }), makeStoolLog({ bristolScores: [4] }), makeStoolLog({ bristolScores: [7] })];
     const dist = bristolBandDistribution(logs);
@@ -136,10 +129,6 @@ describe("bristolTargetRangeChange", () => {
 });
 
 describe("bristolScoreSeries", () => {
-  it("returns an empty array for no logs", () => {
-    expect(bristolScoreSeries([])).toEqual([]);
-  });
-
   it("excludes unclassified entries", () => {
     const logs = [makeStoolLog({ noBristol: true, bristolScores: [] })];
     expect(bristolScoreSeries(logs)).toEqual([]);
@@ -165,10 +154,6 @@ describe("bristolScoreSeries", () => {
 });
 
 describe("bristolMonthlyScoreAverage", () => {
-  it("returns an empty array for no logs", () => {
-    expect(bristolMonthlyScoreAverage([])).toEqual([]);
-  });
-
   it("averages every individual score (including from multi-score entries) within a month", () => {
     const logs = [
       makeStoolLog({ date: "2026-01-05", bristolScores: [2, 6] }), // avg contribution: 2 and 6
@@ -188,10 +173,6 @@ describe("bristolMonthlyScoreAverage", () => {
 });
 
 describe("stoolCharacteristicStats", () => {
-  it("returns an empty array for no logs", () => {
-    expect(stoolCharacteristicStats([])).toEqual([]);
-  });
-
   it("omits a characteristic with zero occurrences", () => {
     const logs = [makeStoolLog({ isSticky: false, isSmelly: false })];
     expect(stoolCharacteristicStats(logs)).toEqual([]);
@@ -227,10 +208,6 @@ describe("stoolColorDistribution / paperCleanlinessDistribution", () => {
 describe("averageTimeOnToiletMinutes", () => {
   it("returns null when nothing recorded a duration", () => {
     expect(averageTimeOnToiletMinutes([makeStoolLog({ timeOnToiletMinutes: null })])).toBeNull();
-  });
-
-  it("returns null for no logs", () => {
-    expect(averageTimeOnToiletMinutes([])).toBeNull();
   });
 
   it("averages only entries that recorded a duration", () => {

@@ -97,28 +97,46 @@ vi.mock("@/lib/db/indexedDb", async (importOriginal) => {
   };
 });
 
-function makeFakeSupabase(tables: Record<string, unknown[]>, opts: { fetchDelayMs?: number } = {}) {
+function makeFakeSupabase(tables: Record<string, unknown[]>, opts: { fetchDelayMs?: number; userId?: string } = {}) {
   const fetchDelayMs = opts.fetchDelayMs ?? 0;
+  const userId = opts.userId ?? "user-1";
   // How many times each table's `.range()` was actually called — the
   // direct signal of how many pull *attempts* happened (one call per table
   // per attempt), used by the race-detection test below.
   const rangeCallCounts: Record<string, number> = {};
   return {
     auth: {
-      getSession: async () => ({ data: { session: { user: { id: "user-1" } } } }),
+      getSession: async () => ({ data: { session: { user: { id: userId } } } }),
     },
     rangeCallCounts,
     from(table: string) {
       const rows = tables[table] ?? [];
       return {
         select() {
-          return {
+          // Filters applied via .eq() before .range() executes — mirrors the
+          // real query shape (`.select("*").eq("user_id", userId).range(...)`)
+          // closely enough to catch a regression where that filter is
+          // dropped. A row missing the filtered column passes through
+          // unfiltered, so every existing fixture above (none of which set
+          // `user_id`) is unaffected; only a test whose fixture rows DO
+          // carry `user_id` (see the cross-account isolation test) actually
+          // exercises the filtering.
+          const filters: [string, unknown][] = [];
+          const builder = {
+            eq(column: string, value: unknown) {
+              filters.push([column, value]);
+              return builder;
+            },
             async range(from: number, to: number) {
               rangeCallCounts[table] = (rangeCallCounts[table] ?? 0) + 1;
               if (fetchDelayMs > 0) await sleep(fetchDelayMs);
-              return { data: rows.slice(from, to + 1), error: null };
+              const filtered = rows.filter((r) =>
+                filters.every(([col, val]) => !(col in (r as object)) || (r as Record<string, unknown>)[col] === val),
+              );
+              return { data: filtered.slice(from, to + 1), error: null };
             },
           };
+          return builder;
         },
       };
     },
@@ -135,7 +153,7 @@ vi.mock("./client", () => ({
 // Set per-test via configureFakeSupabase(); read lazily by the mocked
 // getter above so each test can swap in its own fixture.
 let currentFakeSupabase: ReturnType<typeof makeFakeSupabase> | null = null;
-function configureFakeSupabase(tables: Record<string, unknown[]>, opts?: { fetchDelayMs?: number }) {
+function configureFakeSupabase(tables: Record<string, unknown[]>, opts?: { fetchDelayMs?: number; userId?: string }) {
   currentFakeSupabase = makeFakeSupabase(tables, opts);
 }
 
@@ -389,6 +407,114 @@ describe("pullFromCloud", () => {
     // it through Manage now.
     const stillDeadLetter = (await getAllOutboxEntries()).find((e) => e.id === seeded.id);
     expect(stillDeadLetter?.status).toBe("dead-letter");
+  });
+
+  // Regression/safety net for a real cross-account data leak: every table
+  // (workout_items/workout_logs included) is scoped ONLY by Supabase RLS —
+  // the client query itself never filtered by user_id, so a table whose
+  // live RLS policy is missing, disabled, or wrong would hand back every
+  // account's rows with nothing on the client to catch it. fetchAllRows now
+  // also filters `.eq("user_id", userId)` itself, so this account's pull
+  // can never install another account's rows even if a table's RLS is ever
+  // misconfigured. Workout is the table this was actually reported against,
+  // but every table goes through the same fetchAllRows — this fixture
+  // exercises workout_items/workout_logs specifically since that's the
+  // confirmed real-world case.
+  it("never installs another account's workout rows, even if they're present in the same query result set", async () => {
+    configureFakeSupabase({
+      ...baseTables,
+      workout_items: [
+        { id: "item-workout-1", user_id: "user-1", name: "Squat", category_id: null, is_archived: false, created_date: "2026-01-01", unit: "kg" },
+        { id: "item-workout-boyfriend", user_id: "user-2", name: "Deadlift", category_id: null, is_archived: false, created_date: "2026-01-01", unit: "kg" },
+      ],
+      workout_logs: [
+        { id: "workout-1", user_id: "user-1", item_id: "item-workout-1", date: "2026-01-01", weight_kg: 60, updated_at: "2026-01-01T10:00:00.000Z" },
+        { id: "workout-boyfriend", user_id: "user-2", item_id: "item-workout-boyfriend", date: "2026-01-01", weight_kg: 100, updated_at: "2026-01-01T10:00:00.000Z" },
+      ],
+    });
+    const { pullFromCloud } = await import("./sync");
+    await pullFromCloud();
+
+    // mockPutWorkoutLogInternal/mockPutItemInternal (see the hoisted mocks
+    // above) record every row pullFromCloud actually tried to install
+    // locally — the other account's rows must never reach that call at all.
+    const installedWorkoutLogIds = mockPutWorkoutLogInternal.mock.calls.map(([log]) => (log as { id: string }).id);
+    expect(installedWorkoutLogIds).toContain("workout-1");
+    expect(installedWorkoutLogIds).not.toContain("workout-boyfriend");
+
+    const installedItemIds = mockPutItemInternal.mock.calls.map(([item]) => (item as { identity: string }).identity);
+    expect(installedItemIds).not.toContain("item-workout-boyfriend");
+  });
+
+  // The literal shared-device scenario behind the reported bug: not just "a
+  // pull response has two accounts' rows mixed in" (see the test above),
+  // but one account actually signing out and a DIFFERENT one signing in on
+  // the same browser/device afterward. Exercises categories/items/logs and
+  // workout together, since the fix lives once in the shared fetchAllRows —
+  // any table going through it needs to behave the same way.
+  it("switching from one signed-in account to another never carries the first account's rows into the second account's local view", async () => {
+    const { pullFromCloud, resetInitialPullState } = await import("./sync");
+    const { clearAllData } = await import("@/lib/db/indexedDb");
+
+    const sharedTables = {
+      categories: [
+        { id: "cat-a", user_id: "user-a", item_type: "food", name: "A's Fruit" },
+        { id: "cat-b", user_id: "user-b", item_type: "food", name: "B's Fruit" },
+      ],
+      food_items: [
+        { id: "item-a", user_id: "user-a", name: "Apple (A's)", category_id: "cat-a", is_archived: false, created_date: "2026-01-01" },
+        { id: "item-b", user_id: "user-b", name: "Apple (B's)", category_id: "cat-b", is_archived: false, created_date: "2026-01-01" },
+      ],
+      food_logs: [
+        { id: "log-a", user_id: "user-a", item_id: "item-a", date: "2026-01-01", value: 1, updated_at: "2026-01-01T08:00:00.000Z" },
+        { id: "log-b", user_id: "user-b", item_id: "item-b", date: "2026-01-01", value: 1, updated_at: "2026-01-01T08:00:00.000Z" },
+      ],
+      workout_items: [
+        { id: "witem-a", user_id: "user-a", name: "Squat (A's)", category_id: null, is_archived: false, created_date: "2026-01-01", unit: "kg" },
+        { id: "witem-b", user_id: "user-b", name: "Squat (B's)", category_id: null, is_archived: false, created_date: "2026-01-01", unit: "kg" },
+      ],
+      workout_logs: [
+        { id: "wlog-a", user_id: "user-a", item_id: "witem-a", date: "2026-01-01", weight_kg: 60, updated_at: "2026-01-01T08:00:00.000Z" },
+        { id: "wlog-b", user_id: "user-b", item_id: "witem-b", date: "2026-01-01", weight_kg: 80, updated_at: "2026-01-01T08:00:00.000Z" },
+      ],
+    };
+
+    // Phase 1: User A signs in and pulls their own data — a sanity check
+    // that the filter isn't just dropping everything.
+    configureFakeSupabase(sharedTables, { userId: "user-a" });
+    await pullFromCloud();
+    expect(mockPutItemInternal.mock.calls.map(([i]) => (i as { identity: string }).identity)).toContain("item-a");
+    expect(mockPutWorkoutLogInternal.mock.calls.map(([l]) => (l as { id: string }).id)).toContain("wlog-a");
+
+    // Phase 2: User A signs out — DataContext's real sign-out behavior — and
+    // a DIFFERENT user (B) signs into the same browser/device. The backing
+    // tables still contain BOTH accounts' rows the whole time, so this only
+    // passes if isolation comes from the query itself, not from A's rows
+    // happening to be absent.
+    await clearAllData();
+    resetInitialPullState();
+    mockPutItemInternal.mockClear();
+    mockPutLogInternal.mockClear();
+    mockPutWorkoutLogInternal.mockClear();
+    mockPutCategoryInternal.mockClear();
+    configureFakeSupabase(sharedTables, { userId: "user-b" });
+
+    await pullFromCloud();
+
+    const installedCategoryIds = mockPutCategoryInternal.mock.calls.map(([c]) => (c as { id: string }).id);
+    const installedItemIds = mockPutItemInternal.mock.calls.map(([i]) => (i as { identity: string }).identity);
+    const installedLogIds = mockPutLogInternal.mock.calls.map(([l]) => (l as { identity: string }).identity);
+    const installedWorkoutLogIds = mockPutWorkoutLogInternal.mock.calls.map(([l]) => (l as { id: string }).id);
+
+    expect(installedCategoryIds).toContain("cat-b");
+    expect(installedCategoryIds).not.toContain("cat-a");
+    expect(installedItemIds).toEqual(expect.arrayContaining(["item-b", "witem-b"]));
+    expect(installedItemIds).not.toContain("item-a");
+    expect(installedItemIds).not.toContain("witem-a");
+    expect(installedLogIds).toContain("log-b");
+    expect(installedLogIds).not.toContain("log-a");
+    expect(installedWorkoutLogIds).toContain("wlog-b");
+    expect(installedWorkoutLogIds).not.toContain("wlog-a");
   });
 });
 

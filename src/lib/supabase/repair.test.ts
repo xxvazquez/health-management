@@ -29,11 +29,18 @@ function makeFakeSupabase(tables: Record<string, unknown[]>) {
       const rows = tables[table] ?? [];
       return {
         select() {
-          return {
+          // .eq() chaining to match fetchAllRows' real query shape (see the
+          // identical comment in sync.test.ts's own fake) — a no-op filter
+          // here since none of this file's fixtures set `user_id`.
+          const builder = {
+            eq() {
+              return builder;
+            },
             range(from: number, to: number) {
               return Promise.resolve({ data: rows.slice(from, to + 1), error: null });
             },
           };
+          return builder;
         },
       };
     },

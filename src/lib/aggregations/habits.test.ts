@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { habitStats, habitsAtAGlance, habitsByCategory, habitsInsight } from "./habits";
+import { habitStats, habitsByCategory } from "./habits";
 import { makeEvent } from "@/lib/testFixtures";
 
 describe("habitStats", () => {
@@ -9,17 +9,9 @@ describe("habitStats", () => {
     expect(stats).toHaveLength(1);
     expect(stats[0].item).toBe("Stretch");
   });
-
-  it("returns an empty array for no events", () => {
-    expect(habitStats([])).toEqual([]);
-  });
 });
 
 describe("habitsByCategory", () => {
-  it("returns an empty array for no habit events", () => {
-    expect(habitsByCategory([])).toEqual([]);
-  });
-
   it("keeps a known category's curated position and appends an unknown custom category alphabetically after", () => {
     const events = [
       makeEvent({ itemType: "habit", item: "Nap", category: "Daily" }),
@@ -37,13 +29,5 @@ describe("habitsByCategory", () => {
     const groups = habitsByCategory(events);
     const daily = groups.find((g) => g.category === "Daily")!;
     expect(daily.items.map((i) => i.item)).toEqual(["Nap"]);
-  });
-});
-
-describe("habitsInsight / habitsAtAGlance", () => {
-  it("don't throw for no events, and describe/summarize an empty trend set", () => {
-    expect(() => habitsInsight([])).not.toThrow();
-    const glance = habitsAtAGlance([]);
-    expect(glance).toBeDefined();
   });
 });

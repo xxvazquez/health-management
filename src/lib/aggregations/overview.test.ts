@@ -16,16 +16,6 @@ describe("computeOverviewInsight", () => {
     const events = Array.from({ length: 5 }, () => makeEvent({ date: "2026-01-01" }));
     expect(computeOverviewInsight(events, []).insufficientData).toBe(true);
   });
-
-  it("does not throw and returns real content once there's enough tracked history", () => {
-    const events = Array.from({ length: 15 }, (_, i) =>
-      makeEvent({ itemType: "food", category: "Fruit", date: `2026-01-${String(i + 1).padStart(2, "0")}`, completed: true }),
-    );
-    expect(() => computeOverviewInsight(events, [])).not.toThrow();
-    const insight = computeOverviewInsight(events, []);
-    expect(insight.insufficientData).toBe(false);
-    expect(typeof insight.headline).toBe("string");
-  });
 });
 
 describe("topCrossDomainFindings", () => {

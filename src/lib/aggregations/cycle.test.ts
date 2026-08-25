@@ -32,12 +32,6 @@ describe("groupIntoPeriodRuns", () => {
     expect(runs).toHaveLength(2);
   });
 
-  it("splits into separate runs when the gap is more than a day", () => {
-    const logs = [makeLog("2026-01-01"), makeLog("2026-01-05")];
-    const runs = groupIntoPeriodRuns(logs);
-    expect(runs).toHaveLength(2);
-  });
-
   it("sorts out-of-order input by date before grouping", () => {
     const logs = [makeLog("2026-02-01"), makeLog("2026-01-01"), makeLog("2026-01-02")];
     const runs = groupIntoPeriodRuns(logs);

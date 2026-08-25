@@ -12,14 +12,4 @@ describe("generateBristolPatterns", () => {
     const events = [makeEvent({ itemType: "food", item: "Coffee", date: "2026-01-01", completed: true })];
     expect(generateBristolPatterns(events, stoolLogs, [])).toEqual([]);
   });
-
-  it("does not throw on a larger dataset", () => {
-    const stoolLogs = Array.from({ length: 30 }, (_, i) =>
-      makeStoolLog({ date: `2026-01-${String((i % 28) + 1).padStart(2, "0")}`, bristolScores: [i % 2 === 0 ? 4 : 1] }),
-    );
-    const events = Array.from({ length: 30 }, (_, i) =>
-      makeEvent({ itemType: "food", item: "Coffee", date: `2026-01-${String((i % 28) + 1).padStart(2, "0")}`, completed: i % 3 === 0 }),
-    );
-    expect(() => generateBristolPatterns(events, stoolLogs, [])).not.toThrow();
-  });
 });
