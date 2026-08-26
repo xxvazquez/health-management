@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import Link from "next/link";
 import clsx from "clsx";
 import { useData } from "@/lib/DataContext";
-import { useVisibleDomains } from "@/lib/visibleDomains";
+import { useVisibleDomains, type TrackedDomain } from "@/lib/visibleDomains";
 import { useAuth } from "@/lib/supabase/AuthContext";
 import {
   setDiaryNoteAndSync,
@@ -51,6 +51,7 @@ import { NumberStepper, UNIT_STEP_PRESETS } from "@/components/ui/NumberStepper"
 import { StoolTab, type NewStoolEntry, characteristicLabels } from "@/components/log/StoolTab";
 import { WorkoutTab, type NewWorkoutEntry } from "@/components/log/WorkoutTab";
 import { CycleTab } from "@/components/log/CycleTab";
+import { JournalTab } from "@/components/log/JournalTab";
 import { DuplicateItemDialog } from "@/components/ui/DuplicateItemDialog";
 import {
   workoutUnitLabel,
@@ -77,7 +78,7 @@ const TABS: { type: ItemType; label: string; singular: string; placeholder: stri
   { type: "habit", label: "Habits", singular: "habit", placeholder: "Add a habit…", defaultCategory: "Daily", countable: false },
 ];
 
-type LogTab = ItemType | "stool" | "workout" | "cycle";
+type LogTab = ItemType | "stool" | "workout" | "cycle" | "journal";
 const STOOL_ACCENT = "var(--series-indigo)";
 // Distinct from every TYPE_ACCENT and from STOOL_ACCENT so all seven tabs
 // stay visually distinguishable at a glance in this one nav row. Matches
@@ -86,6 +87,10 @@ const STOOL_ACCENT = "var(--series-indigo)";
 // stool/cycle, which aren't real ItemTypes and have no TYPE_ACCENT entry.
 const WORKOUT_ACCENT = "var(--series-6)";
 const CYCLE_ACCENT = "var(--series-4)";
+// The "other" categorical token, reused deliberately rather than added
+// off-brand — Journal is the one tab that's explicitly not a structured
+// category, so the palette's own miscellaneous slot fits its identity.
+const JOURNAL_ACCENT = "var(--series-other)";
 
 const COLLAPSED_CATEGORIES_STORAGE_KEY = "lauva.log.collapsedCategories";
 
@@ -419,10 +424,12 @@ export default function LogPage() {
   // If the tab you're sitting on gets hidden from under you (toggled off
   // in Manage, in another tab, or restored from a stale saved choice),
   // jump to the first tab that's still visible rather than rendering a
-  // tab nobody can reach via the nav bar anymore.
+  // tab nobody can reach via the nav bar anymore. Journal isn't part of the
+  // hide/show system at all (it's always on), so it's excluded here rather
+  // than passed to isHidden, which only knows about TrackedDomain.
   useEffect(() => {
-    if (!isHidden(tab)) return;
-    const fallback = ([...TABS.map((t) => t.type), "stool", "workout", "cycle"] as LogTab[]).find((t) => !isHidden(t));
+    if (tab === "journal" || !isHidden(tab)) return;
+    const fallback = ([...TABS.map((t) => t.type), "stool", "workout", "cycle"] as TrackedDomain[]).find((t) => !isHidden(t));
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (fallback) setTab(fallback);
   }, [tab, isHidden]);
@@ -1347,6 +1354,19 @@ export default function LogPage() {
               Cycle
             </button>
           )}
+          <button
+            type="button"
+            onClick={() => selectTab("journal")}
+            className="flex items-center gap-1.5 pb-2.5 text-sm whitespace-nowrap transition-colors"
+            style={{
+              color: tab === "journal" ? JOURNAL_ACCENT : "var(--text-secondary)",
+              fontWeight: tab === "journal" ? 700 : 500,
+              borderBottom: `2px solid ${tab === "journal" ? JOURNAL_ACCENT : "transparent"}`,
+              marginBottom: "-1px",
+            }}
+          >
+            Journal
+          </button>
         </nav>
         <div className="flex items-center gap-3">
           {tabConfig && (
@@ -1378,7 +1398,9 @@ export default function LogPage() {
         </div>
       </div>
 
-      {tab === "stool" || tab === "workout" || tab === "cycle" ? (
+      {tab === "journal" ? (
+        <JournalTab isDemoData={isDemoData} accent={JOURNAL_ACCENT} onSignIn={openPanel} />
+      ) : tab === "stool" || tab === "workout" || tab === "cycle" ? (
         !dataReady ? (
           <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
             Loading…
