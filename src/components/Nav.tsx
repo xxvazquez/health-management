@@ -95,6 +95,18 @@ const ICONS: Record<string, ReactNode> = {
       <path d="M4 6.2l6 5 6-5" />
     </IconWrap>
   ),
+  Personal: (
+    <IconWrap>
+      <path d="M4.5 6.2 9.7 3l5.8 3.2v7.6l-5.8 3.2-5.2-2.9" />
+      <path d="M7 9.5l2.2 2.2 4-4.3" />
+    </IconWrap>
+  ),
+  Home: (
+    <IconWrap>
+      <path d="M3.5 9.8 10 4l6.5 5.8" />
+      <path d="M5.3 8.4V16h9.4V8.4" />
+    </IconWrap>
+  ),
 };
 
 /** The app's home/at-a-glance page — Today, Recent Activity, Trends,
@@ -132,6 +144,14 @@ const TOOLS_LINKS = [{ href: "/my-drive", label: "My Drive" }];
  * a dashboard reading back something you logged, so it gets its own
  * section rather than being folded into either existing one. */
 const CONNECT_LINKS = [{ href: "/notes", label: "Notes" }];
+/** Neither a dashboard (Analytics), partner messaging (Connect), nor item
+ * configuration (Manage) — Personal is private to-dos/notes, Home is the
+ * same shared with a linked partner, so both get their own section rather
+ * than being folded into an existing one. */
+const REMINDERS_LINKS = [
+  { href: "/reminders", label: "Personal" },
+  { href: "/home", label: "Home" },
+];
 
 function NavSectionLabel({ children, collapsed }: { children: ReactNode; collapsed?: boolean }) {
   if (collapsed) return <div className="my-1.5 h-px" style={{ background: "var(--gridline)" }} />;
@@ -282,6 +302,8 @@ function NavLinks({ pathname, collapsed, onNavigate }: { pathname: string; colla
         onNavigate={onNavigate}
         badges={{ "/notes": unreadNotes }}
       />
+      <NavSectionLabel collapsed={collapsed}>Reminders</NavSectionLabel>
+      <NavLinkList links={REMINDERS_LINKS} pathname={pathname} collapsed={collapsed} onNavigate={onNavigate} />
       <NavSectionLabel collapsed={collapsed}>Manage</NavSectionLabel>
       <NavLinkList links={MANAGE_LINKS} pathname={pathname} collapsed={collapsed} onNavigate={onNavigate} />
       <NavSectionLabel collapsed={collapsed}>Tools</NavSectionLabel>
