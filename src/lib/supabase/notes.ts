@@ -72,6 +72,27 @@ interface NoteRow {
   recipient_archived: boolean;
 }
 
+/** The Nav sidebar's unread badge lives in a completely different
+ * component tree from wherever a note actually gets marked read/unread
+ * (the Notes page, or its "mark all as read" bulk action) — it has its own
+ * poll timer and only otherwise refetches on a route change, so without
+ * this a bulk mark-as-read looked "stuck" at the old count until the next
+ * 60s tick or navigation. Same-tab only (a plain DOM event, not a
+ * Supabase realtime channel) — the *other* person's badge in their own
+ * browser still just waits for their own poll/route-change, same as before. */
+const NOTES_CHANGED_EVENT = "lauva:notes-changed";
+
+function notifyNotesChanged(): void {
+  if (typeof window !== "undefined") window.dispatchEvent(new Event(NOTES_CHANGED_EVENT));
+}
+
+/** Subscribes to the event above; returns an unsubscribe function. */
+export function onNotesChanged(handler: () => void): () => void {
+  if (typeof window === "undefined") return () => {};
+  window.addEventListener(NOTES_CHANGED_EVENT, handler);
+  return () => window.removeEventListener(NOTES_CHANGED_EVENT, handler);
+}
+
 async function currentUserId(): Promise<string | null> {
   if (!supabase) return null;
   const {
@@ -259,6 +280,10 @@ async function updateMyThreadState(
   if (patch.archived !== undefined) update[isMine ? "sender_archived" : "recipient_archived"] = patch.archived;
   const { error } = await supabase.from("notes").update(update).eq("id", threadId);
   if (error) throw error;
+  // read/unread and archive both change what counts as unread — cheap
+  // enough to fire for favourite too rather than threading a "does this
+  // actually affect the badge" flag through every call site.
+  notifyNotesChanged();
 }
 
 export function markThreadRead(threadId: string, isMine: boolean): Promise<void> {
@@ -290,4 +315,5 @@ export async function markAllThreadsRead(): Promise<void> {
   ]);
   if (sent.error) throw sent.error;
   if (received.error) throw received.error;
+  notifyNotesChanged();
 }
