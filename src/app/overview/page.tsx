@@ -1,127 +1,182 @@
 "use client";
 
-import { useMemo, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useData } from "@/lib/DataContext";
+import { useAuth } from "@/lib/supabase/AuthContext";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { Card } from "@/components/ui/Card";
-import { SampleTierBadge } from "@/components/ui/SampleTierBadge";
-import { MyDay } from "@/components/MyDay";
-import { computeOverviewInsight, topCrossDomainFindings } from "@/lib/aggregations/overview";
-import { todayLocalISODate } from "@/lib/aggregations/common";
+import { addDaysToDate, todayLocalISODate, type DateRange } from "@/lib/aggregations/common";
+import { buildActivityFeed, buildActivityDateMap, type ActivityEntry } from "@/lib/aggregations/activity";
+import { buildPersonalTrends, topCrossDomainFindings } from "@/lib/aggregations/overview";
+import { fetchNoteThreads, notesConfigured, unreadNoteCount, type NoteThread } from "@/lib/supabase/notes";
+import { getPartnerLink } from "@/lib/supabase/partner";
+import { buildDemoThreads, DEMO_PARTNER_LABEL } from "@/lib/demoNotes";
+import { TodaySnapshot, type DayNoteSummary } from "@/components/overview/TodaySnapshot";
+import { ActivityFeed } from "@/components/overview/ActivityFeed";
+import { PersonalTrendsSection } from "@/components/overview/PersonalTrendsSection";
+import { ActivityCalendarSection } from "@/components/overview/ActivityCalendarSection";
+import { PartnerNotesSection } from "@/components/overview/PartnerNotesSection";
+import { PeriodReviewSection } from "@/components/overview/PeriodReviewSection";
+import { Card, CardTitle } from "@/components/ui/Card";
 import type { Bullet } from "@/lib/aggregations/insights";
-import type { AssociationResult } from "@/lib/aggregations/patterns";
 
-/** "the same day as X" / "the day after X" / "2 days after X" */
-function lagPhrase(lagDays: number): string {
-  if (lagDays === 0) return "the same day as";
-  if (lagDays === 1) return "the day after";
-  return `${lagDays} days after`;
+/** Same local-calendar-day reasoning as `todayLocalISODate` — a note's
+ * timestamp is a real instant (unlike every other domain's plain `date`
+ * field), so it has to be bucketed by the *viewer's* calendar day, not a
+ * naive UTC slice, or a note near midnight could land on the wrong day. */
+function localDateOf(iso: string): string {
+  const d = new Date(iso);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-/** The strongest cross-domain findings, app-wide — a pointer at what's
- * worth a closer look on Digestion/Patterns, not the full picture (no
- * bars, no underlying counts here; that detail lives on those pages). */
-function CrossDomainFindings({ findings }: { findings: AssociationResult[] }) {
-  return (
-    <Card tier="raw">
-      <p className="mb-2.5 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-secondary)" }}>
-        What stands out
-      </p>
-      <ul className="flex flex-col">
-        {findings.map((f, i) => (
-          <li
-            key={`${f.causeLabel}-${f.outcomeLabel}`}
-            className="flex flex-wrap items-center justify-between gap-2 py-2"
-            style={{ borderTop: i > 0 ? "1px solid var(--gridline)" : "none" }}
-          >
-            <p className="text-sm" style={{ color: "var(--text-primary)" }}>
-              <span className="font-semibold">{f.outcomeLabel}</span>{" "}
-              <span style={{ color: "var(--text-secondary)" }}>
-                {f.diffPct > 0 ? "occurred more often" : "occurred less often"} {lagPhrase(f.lagDays)}
-              </span>{" "}
-              <span className="font-semibold">{f.causeLabel}</span>
-            </p>
-            <SampleTierBadge tier={f.sampleTier} />
-          </li>
-        ))}
-      </ul>
-    </Card>
-  );
+function noteToDaySummary(t: NoteThread): DayNoteSummary {
+  return {
+    key: t.id,
+    time: new Date(t.lastMessageAt).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }),
+    sortKey: t.lastMessageAt,
+    label: t.isMine ? "Note sent" : "Note received",
+    description: t.subject || t.body.slice(0, 60),
+  };
 }
 
-function SectionLabel({ children }: { children: ReactNode }) {
-  return (
-    <p className="mb-2 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-secondary)" }}>
-      {children}
-    </p>
-  );
+function noteToActivityEntry(t: NoteThread): ActivityEntry {
+  return {
+    key: `notes:${t.id}`,
+    date: localDateOf(t.lastMessageAt),
+    time: new Date(t.lastMessageAt).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }),
+    sortKey: t.lastMessageAt,
+    domain: "notes",
+    label: t.isMine ? "Note sent" : "Note received",
+    description: t.subject || t.body.slice(0, 60),
+  };
 }
 
-/** "What matters" / "Needs attention" — subject prominent, explanation
- * secondary, stacked instead of joined into one long sentence. Boxed and
- * divided so a long list still reads as discrete facts, not a paragraph. */
-function FindingsPanel({ title, tone, items, emptyText }: { title: string; tone: string; items: Bullet[]; emptyText: string }) {
-  return (
-    <Card tier="raw">
-      <p className="mb-2.5 text-xs font-semibold tracking-wide uppercase" style={{ color: tone }}>
-        {title}
-      </p>
-      {items.length === 0 ? (
-        <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-          {emptyText}
-        </p>
-      ) : (
-        <ul className="flex flex-col">
-          {items.map((b, i) => (
-            <li
-              key={b.label}
-              className="flex items-start gap-2.5 py-2 first:pt-0 last:pb-0"
-              style={{ borderTop: i > 0 ? "1px solid var(--gridline)" : "none" }}
-            >
-              <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: tone }} />
-              <div className="min-w-0">
-                <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-                  {b.label}
-                </p>
-                <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
-                  {b.detail}
-                </p>
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
-    </Card>
-  );
-}
-
-/** "What changed" — a dense grid of compact facts. The label names what
- * moved; the value (the actual magnitude/context) is the prominent line,
- * since that number is the point, not the sentence around it. */
-function ChangeTile({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-lg border px-3 py-2" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
-      <p className="truncate text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
-        {label}
-      </p>
-      <p className="mt-0.5 text-sm font-semibold tabular-nums" style={{ color: "var(--text-primary)" }}>
-        {value}
-      </p>
-    </div>
-  );
-}
-
+/**
+ * Lauva's home/overview page — Today → Recent Activity → Personal Trends →
+ * Calendar → Partner Notes → Weekly/Monthly Review → Lauva Timeline, most
+ * useful information first. Every section reads data that already exists
+ * elsewhere in the app (DataContext's events/workoutLogs/periodLogs, plus
+ * Notes fetched the same way the Notes page and Nav's unread badge already
+ * do) — nothing here is a second copy of that data or a duplicate of what
+ * Food/Workout/Cycle/Notes already show in depth; this is the at-a-glance
+ * layer on top.
+ */
 export default function OverviewPage() {
-  const { status, events, workoutLogs, stoolLogs } = useData();
+  const { status, events, workoutLogs, stoolLogs, periodLogs } = useData();
+  const { session } = useAuth();
   const today = useMemo(() => todayLocalISODate(), []);
+  const yesterday = useMemo(() => addDaysToDate(today, -1), [today]);
 
-  const insight = useMemo(() => computeOverviewInsight(events, stoolLogs), [events, stoolLogs]);
-  const crossDomainFindings = useMemo(() => topCrossDomainFindings(events, stoolLogs, workoutLogs), [events, stoolLogs, workoutLogs]);
+  // ---- Notes: fetched separately from everything above — Notes lives in
+  // Supabase directly, never the IndexedDB cache (see notes.ts's own
+  // comment) — so it needs its own load, same as the Nav's unread badge.
+  // Signed-out visitors see the same fixed example dataset /notes itself
+  // shows them, so Overview never disagrees with what /notes would show
+  // for the same account state.
+  const [noteThreads, setNoteThreads] = useState<NoteThread[]>([]);
+  const [partnerLabel, setPartnerLabel] = useState<string | null>(null);
+  const [notesUnread, setNotesUnread] = useState(0);
+
+  const loadNotes = useCallback(async () => {
+    if (!session) {
+      const demo = buildDemoThreads();
+      setNoteThreads(demo);
+      setPartnerLabel(DEMO_PARTNER_LABEL);
+      setNotesUnread(demo.filter((t) => t.isUnreadForMe).length);
+      return;
+    }
+    if (!notesConfigured) return;
+    try {
+      const link = await getPartnerLink();
+      if (!link) {
+        setNoteThreads([]);
+        setPartnerLabel(null);
+        setNotesUnread(0);
+        return;
+      }
+      const [inbox, sent, unread] = await Promise.all([
+        fetchNoteThreads("inbox"),
+        fetchNoteThreads("sent"),
+        unreadNoteCount(),
+      ]);
+      setNoteThreads([...inbox, ...sent]);
+      // Never the partner's actual email — see notes/page.tsx's own note.
+      setPartnerLabel("your partner");
+      setNotesUnread(unread);
+    } catch (err) {
+      console.error("Overview: loading notes failed", err);
+    }
+  }, [session]);
+
+  useEffect(() => {
+    // Loading from Supabase (or seeding the demo set) on mount/sign-in — an
+    // external-system read, not a React-state sync loop.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadNotes();
+  }, [loadNotes]);
+
+  const todayNotes = useMemo(() => noteThreads.filter((t) => localDateOf(t.lastMessageAt) === today).map(noteToDaySummary), [noteThreads, today]);
+  const yesterdayNotes = useMemo(
+    () => noteThreads.filter((t) => localDateOf(t.lastMessageAt) === yesterday).map(noteToDaySummary),
+    [noteThreads, yesterday],
+  );
+
+  const notesByDate = useMemo(() => {
+    const map = new Map<string, DayNoteSummary[]>();
+    for (const t of noteThreads) {
+      const d = localDateOf(t.lastMessageAt);
+      const list = map.get(d) ?? [];
+      list.push(noteToDaySummary(t));
+      map.set(d, list);
+    }
+    return map;
+  }, [noteThreads]);
+
+  const notesInRange = useCallback(
+    (range: DateRange) => noteThreads.filter((t) => {
+      const d = localDateOf(t.lastMessageAt);
+      return d >= range.start && d <= range.end;
+    }).length,
+    [noteThreads],
+  );
+
+  // ---- Recent Activity / Lauva Timeline: one shared flat feed, Notes
+  // merged in — see ActivityFeed's own comment on why the two sections
+  // reuse this exact same component/data rather than each building its own.
+  const activityFeed = useMemo(() => {
+    const base = buildActivityFeed(events, workoutLogs, periodLogs);
+    const notes = noteThreads.map(noteToActivityEntry);
+    return [...base, ...notes].sort((a, b) => b.sortKey.localeCompare(a.sortKey));
+  }, [events, workoutLogs, periodLogs, noteThreads]);
+
+  const activityDateMap = useMemo(() => {
+    const map = buildActivityDateMap(events, workoutLogs, periodLogs);
+    for (const t of noteThreads) {
+      const d = localDateOf(t.lastMessageAt);
+      const set = map.get(d) ?? new Set();
+      set.add("notes");
+      map.set(d, set);
+    }
+    return map;
+  }, [events, workoutLogs, periodLogs, noteThreads]);
+
+  // ---- Personal Trends
+  const trends = useMemo(() => buildPersonalTrends(events, workoutLogs, periodLogs, today), [events, workoutLogs, periodLogs, today]);
+  const findings = useMemo(() => topCrossDomainFindings(events, stoolLogs, workoutLogs), [events, stoolLogs, workoutLogs]);
+  const notesTrend: Bullet | null = useMemo(() => {
+    const last7 = notesInRange({ start: addDaysToDate(today, -6), end: today });
+    const prior7 = notesInRange({ start: addDaysToDate(today, -13), end: addDaysToDate(today, -7) });
+    if (Math.abs(last7 - prior7) < 2) return null;
+    return {
+      label: "Notes",
+      detail: `${last7} note${last7 === 1 ? "" : "s"} exchanged in the last 7 days, vs. ${prior7} the week before.`,
+      compact: `${last7} recently · ${prior7} before`,
+    };
+  }, [notesInRange, today]);
 
   if (status === "loading") {
     return <p style={{ color: "var(--text-secondary)" }}>Loading your data…</p>;
   }
-  if (status === "empty" || events.length === 0) {
+  if (status === "empty") {
     return <EmptyState />;
   }
 
@@ -131,37 +186,30 @@ export default function OverviewPage() {
         Overview
       </h1>
 
-      <MyDay events={events} workoutLogs={workoutLogs} date={today} />
+      <TodaySnapshot events={events} workoutLogs={workoutLogs} periodLogs={periodLogs} todayNotes={todayNotes} yesterdayNotes={yesterdayNotes} today={today} />
 
-      {!insight.insufficientData && (insight.whatMatters.length > 0 || insight.needsAttention.length > 0) && (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <FindingsPanel
-            title="What matters"
-            tone="var(--status-good)"
-            items={insight.whatMatters}
-            emptyText="Not enough food data yet to say what's well covered."
-          />
-          <FindingsPanel
-            title="Needs attention"
-            tone="var(--status-warning)"
-            items={insight.needsAttention}
-            emptyText="No standout gaps against established food-group guidance right now."
-          />
-        </div>
-      )}
+      <Card tier="supporting">
+        <CardTitle subtitle="What's happened lately, across everything you track — a glance, not the full log.">Recent activity</CardTitle>
+        <ActivityFeed entries={activityFeed} initialLimit={10} emptyText="Nothing logged yet." />
+      </Card>
 
-      {!insight.insufficientData && insight.whatChanged.length > 0 && (
-        <div>
-          <SectionLabel>What changed</SectionLabel>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-            {insight.whatChanged.map((b, i) => (
-              <ChangeTile key={`${b.label}-${i}`} label={b.label} value={b.compact ?? b.detail} />
-            ))}
-          </div>
-        </div>
-      )}
+      <PersonalTrendsSection trends={trends} findings={findings} notesTrend={notesTrend} />
 
-      {crossDomainFindings.length > 0 && <CrossDomainFindings findings={crossDomainFindings} />}
+      <ActivityCalendarSection events={events} workoutLogs={workoutLogs} periodLogs={periodLogs} dateMap={activityDateMap} notesByDate={notesByDate} today={today} />
+
+      <PartnerNotesSection threads={noteThreads} partnerLabel={partnerLabel} unreadCount={notesUnread} />
+
+      <PeriodReviewSection events={events} workoutLogs={workoutLogs} periodLogs={periodLogs} today={today} notesInRange={notesInRange} />
+
+      <Card tier="raw">
+        <CardTitle
+          size="sm"
+          subtitle="Every logged moment, filterable by category — for understanding what happened, not managing records (that's the Log page)."
+        >
+          Lauva timeline
+        </CardTitle>
+        <ActivityFeed entries={activityFeed} showFilter initialLimit={20} pageSize={30} emptyText="Nothing logged yet." />
+      </Card>
     </div>
   );
 }

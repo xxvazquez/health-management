@@ -97,15 +97,21 @@ const ICONS: Record<string, ReactNode> = {
   ),
 };
 
+/** The app's home/at-a-glance page — Today, Recent Activity, Trends,
+ * Calendar, Partner Notes, and the Lauva Timeline all in one place. Its own
+ * top-level entry (not folded into Analytics) since it isn't a single-
+ * domain dashboard the way Food/Workout/Cycle are; it's the landing point
+ * for "what's going on" before drilling into any one of them. */
+const OVERVIEW_LINKS = [{ href: "/overview", label: "Overview" }];
 /** The two purposes the whole app is organized around — fast logging vs.
  * everything that reads the logged data back. Log gets its own section
  * because it's the only page in the "tracking" half; every other page is
  * an analytics dashboard for one domain. */
 const LOG_LINKS = [{ href: "/log", label: "Log" }];
-/** Overview, Supplements, Habits, Digestion, and Patterns are hidden from
- * navigation but their routes and code are still intact — only the entry
- * points here were removed. Food is back as the first analytics area being
- * actively rebuilt. */
+/** Supplements, Habits, Digestion, and Patterns are hidden from navigation
+ * but their routes and code are still intact — only the entry points here
+ * were removed. Food is back as the first analytics area being actively
+ * rebuilt. */
 const ANALYTICS_LINKS = [
   { href: "/food", label: "Food" },
   { href: "/workout", label: "Workout" },
@@ -249,8 +255,10 @@ function NavLinks({ pathname, collapsed, onNavigate }: { pathname: string; colla
 
   return (
     <nav className="flex flex-1 flex-col gap-1">
-      {/* No section label above Log — it's both the destination and the
-       * only item in its section, so a heading would just repeat itself. */}
+      {/* No section label above Overview/Log — both are single-item
+       * "sections" in their own right (the home page, and the one tracking
+       * page), so a heading above either would just repeat itself. */}
+      <NavLinkList links={OVERVIEW_LINKS} pathname={pathname} collapsed={collapsed} onNavigate={onNavigate} />
       <NavLinkList links={LOG_LINKS} pathname={pathname} collapsed={collapsed} onNavigate={onNavigate} />
       {visibleAnalyticsLinks.length > 0 && (
         <>

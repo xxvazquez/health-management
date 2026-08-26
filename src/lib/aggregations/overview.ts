@@ -1,141 +1,114 @@
-import type { CanonicalEvent, RawWorkoutLog, RawStoolLog } from "@/lib/types";
+import type { CanonicalEvent, RawWorkoutLog, RawStoolLog, RawPeriodLog } from "@/lib/types";
 import { addDaysToDate, getDatasetSpan, trackedCalendarDates } from "./common";
 import { supplementsInsight } from "./supplements";
 import { habitsInsight } from "./habits";
-import { digestionInsight } from "./digestion";
 import { computeNutritionPriorities } from "./nutritionPriorities";
 import { generateTopPatterns, type AssociationResult } from "./patterns";
 import { generateBristolPatterns } from "./bristolPatterns";
-import type { Bullet, InsightTone } from "./insights";
+import { workoutConsistencySummary } from "./workout";
+import { groupIntoPeriodRuns, cycleAnalysis } from "./cycle";
+import type { Bullet } from "./insights";
 
-export interface OverviewInsight {
+export interface PersonalTrends {
   insufficientData: boolean;
-  headline: string;
-  detail: string | null;
-  tone: InsightTone;
-  /** Evidence-grounded coverage that's genuinely well represented — sourced
-   * only from Food's dietary-guidance engine, the one domain in this app
-   * with an actual external basis for "this matters". */
-  whatMatters: Bullet[];
-  /** Evidence-grounded gaps — same source, same reasoning, the other
-   * direction. Never populated from habit/supplement drift: neither has an
-   * explicit user-defined target, so neither has a basis to be "attention
-   * worthy" rather than merely "different from usual". */
-  needsAttention: Bullet[];
-  /** Purely personal longitudinal — what moved vs. this person's own
-   * history, across every domain, with no claim about whether the move is
-   * good or bad. */
-  whatChanged: Bullet[];
+  /** Every domain's own recent-vs-usual comparison, purely descriptive —
+   * never ranked "good" or "bad" against each other, and never used to
+   * imply one caused another (that's what topCrossDomainFindings below is
+   * for, and even that stays in "occurred more/less often around" phrasing,
+   * never "causes"). Capped short on purpose — Overview's Trends section is
+   * a handful of useful facts, not a stats page. */
+  changed: Bullet[];
 }
 
-const MIN_TRACKED_DAYS_FOR_INSIGHT = 10;
+const MIN_TRACKED_DAYS_FOR_TRENDS = 10;
 const CHANGE_DAY_THRESHOLD = 2;
 const CHANGE_COUNT_THRESHOLD = 2;
+const MAX_TRENDS = 5;
 
 /**
- * "How am I doing overall" — the primary Overview insight. Two separate
- * questions, kept structurally separate rather than blended into one
- * ranking:
- *
- *  - "What matters / needs attention" comes ONLY from Food's
- *    evidence-informed engine (established dietary guidance + personal
- *    intake + sample-size gating) — the only domain here with a
- *    defensible external basis for calling something good or a gap.
- *  - "What changed" comes from every domain's own recent-vs-usual
- *    comparison, but is never used to rank domains against each other or
- *    to decide what's "attention worthy" — a big swing in something
- *    unimportant must never outrank a smaller but meaningful food-group
- *    gap, so drift never feeds the headline or the tone.
+ * Overview's "Personal Trends" — a short, cross-domain list of what's
+ * actually changed recently vs. this person's own history (Food/Workout/
+ * Symptoms/Cycle, plus whatever Habits/Supplements drift is notable),
+ * reusing each domain's own existing insight engine rather than
+ * re-deriving anything. Deliberately excludes Food's evidence-graded
+ * "what's well covered / what's a gap" scoring (`computeNutritionPriorities`'s
+ * `doingWell`/`topPriorities`) — that's the Food page's own job; folding it
+ * in here would duplicate it, not summarize it.
  */
-export function computeOverviewInsight(events: CanonicalEvent[], stoolLogs: RawStoolLog[]): OverviewInsight {
+export function buildPersonalTrends(
+  events: CanonicalEvent[],
+  workoutLogs: RawWorkoutLog[],
+  periodLogs: RawPeriodLog[],
+  today: string,
+): PersonalTrends {
   const span = getDatasetSpan(events);
   const trackedDates = trackedCalendarDates(events);
-
-  if (!span || trackedDates.size < MIN_TRACKED_DAYS_FOR_INSIGHT) {
-    return {
-      insufficientData: true,
-      headline: "Not enough data yet to summarize your patterns.",
-      detail: "Keep logging — this section fills in once there's enough history to compare against.",
-      tone: "neutral",
-      whatMatters: [],
-      needsAttention: [],
-      whatChanged: [],
-    };
+  if (!span || trackedDates.size < MIN_TRACKED_DAYS_FOR_TRENDS) {
+    return { insufficientData: true, changed: [] };
   }
 
   const habits = habitsInsight(events);
   const supplements = supplementsInsight(events);
-  // No date-range control on this page (unlike the Food page, which now
-  // drives computeNutritionPriorities off its own selected range) — this
-  // dashboard summary keeps reading the same trailing-30-day window it
-  // always has, computed as an explicit range instead of an internal
-  // default now that the function requires one.
   const food = computeNutritionPriorities(events, { start: addDaysToDate(span.end, -29), end: span.end });
-  const digestion = digestionInsight(events, stoolLogs);
 
-  // --- What matters / needs attention: Food only, evidence-grounded ---
-  const whatMatters: Bullet[] = food.insufficientData ? [] : food.doingWell.slice(0, 3);
-  const needsAttention: Bullet[] = food.insufficientData
-    ? []
-    : food.topPriorities.slice(0, 3).map((p) => ({ label: p.headline, detail: p.detail }));
-
-  let headline: string;
-  if (food.insufficientData) {
-    headline = "Not enough food data logged yet to say what matters most.";
-  } else if (needsAttention.length > 0) {
-    headline = `${needsAttention[0].label} could use more attention.`;
-  } else if (whatMatters.length > 0) {
-    headline = "Your tracked food groups are looking well covered.";
-  } else {
-    headline = "There's not a clear standout in your food data yet.";
-  }
-
-  const tone: InsightTone =
-    !food.insufficientData && needsAttention.length > 0
-      ? "attention"
-      : !food.insufficientData && whatMatters.length > 0
-        ? "good"
-        : "neutral";
-
-  // --- What changed: every domain's own recent-vs-usual, neutral, capped ---
-  const whatChanged: Bullet[] = [];
+  const changed: Bullet[] = [];
   const sortedTracked = Array.from(trackedDates).sort();
   const last7 = sortedTracked.filter((d) => d >= addDaysToDate(span.end, -6)).length;
   const prior7 = sortedTracked.filter((d) => d >= addDaysToDate(span.end, -13) && d < addDaysToDate(span.end, -6)).length;
   if (Math.abs(last7 - prior7) >= CHANGE_DAY_THRESHOLD) {
-    whatChanged.push({
+    changed.push({
       label: "Tracking",
       detail: `Logged on ${last7} of the last 7 days, vs. ${prior7} the week before.`,
       compact: `${last7}/7 days recently · ${prior7}/7 before`,
     });
   }
-  if (!habits.insufficientData) {
-    for (const b of habits.changed.slice(0, 2)) whatChanged.push({ label: b.label, detail: b.detail, compact: b.compact });
+
+  const symptomDates = new Set(events.filter((e) => e.itemType === "outcome" && e.completed).map((e) => e.date));
+  const symptomLast7 = sortedTracked.filter((d) => d >= addDaysToDate(span.end, -6) && symptomDates.has(d)).length;
+  const symptomPrior7 = sortedTracked.filter(
+    (d) => d >= addDaysToDate(span.end, -13) && d < addDaysToDate(span.end, -6) && symptomDates.has(d),
+  ).length;
+  if (Math.abs(symptomLast7 - symptomPrior7) >= CHANGE_DAY_THRESHOLD) {
+    changed.push({
+      label: "Symptoms",
+      detail: `Logged a symptom on ${symptomLast7} of the last 7 days, vs. ${symptomPrior7} the week before.`,
+      compact: `${symptomLast7}/7 days recently · ${symptomPrior7}/7 before`,
+    });
   }
-  if (!supplements.insufficientData) {
-    for (const b of supplements.changed.slice(0, 2)) whatChanged.push({ label: b.label, detail: b.detail, compact: b.compact });
+
+  const consistency = workoutConsistencySummary(workoutLogs, today);
+  if (!consistency.insufficientData && consistency.recentAvgPerMonth !== null && consistency.priorAvgPerMonth !== null) {
+    if (Math.abs(consistency.recentAvgPerMonth - consistency.priorAvgPerMonth) >= 1) {
+      changed.push({
+        label: "Workouts",
+        detail: `Averaging ${consistency.recentAvgPerMonth} sessions/month recently, vs. ${consistency.priorAvgPerMonth} before.`,
+        compact: `${consistency.recentAvgPerMonth}/mo recently · ${consistency.priorAvgPerMonth}/mo before`,
+      });
+    }
   }
+
+  const cycle = cycleAnalysis(groupIntoPeriodRuns(periodLogs), today);
+  if (cycle.averageCycleLength !== null && cycle.cyclesAnalyzed > 0) {
+    changed.push({
+      label: "Cycle",
+      detail: `Averaging a ${cycle.averageCycleLength}-day cycle over your last ${cycle.cyclesAnalyzed} recorded.`,
+      compact: `~${cycle.averageCycleLength}-day cycle`,
+    });
+  }
+
+  if (!habits.insufficientData && habits.changed.length > 0) changed.push(habits.changed[0]);
+  if (!supplements.insufficientData && supplements.changed.length > 0) changed.push(supplements.changed[0]);
+
   const plantTrend = food.trend.available ? food.trend.points.find((p) => p.label.startsWith("Plant diversity")) : null;
   if (plantTrend && Math.abs(plantTrend.current - plantTrend.previous) >= CHANGE_COUNT_THRESHOLD) {
-    whatChanged.push({
+    changed.push({
       label: "Food variety",
       detail: `Unique plant foods over 30 days: ${plantTrend.previous} → ${plantTrend.current}.`,
       compact: `${plantTrend.previous} → ${plantTrend.current} unique plants`,
     });
   }
-  if (!digestion.insufficientData) {
-    for (const b of digestion.changed.slice(0, 1)) whatChanged.push({ label: b.label, detail: b.detail, compact: b.compact });
-  }
 
-  return {
-    insufficientData: false,
-    headline,
-    detail: null,
-    tone,
-    whatMatters,
-    needsAttention,
-    whatChanged: whatChanged.slice(0, 6),
-  };
+  return { insufficientData: false, changed: changed.slice(0, MAX_TRENDS) };
 }
 
 const MAX_OVERVIEW_FINDINGS = 4;

@@ -2,10 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/supabase/AuthContext";
-import { getPartnerEmail, getPartnerLink, type PartnerLink } from "@/lib/supabase/partner";
+import { getPartnerLink, type PartnerLink } from "@/lib/supabase/partner";
 import {
+  fetchNoteThread,
   fetchNoteThreads,
   fetchThreadMessages,
+  markAllThreadsRead,
   markThreadRead,
   markThreadUnread,
   replyToNote,
@@ -24,6 +26,9 @@ import { NoteThreadList } from "@/components/notes/NoteThreadList";
 import { NoteThreadView } from "@/components/notes/NoteThreadView";
 
 const ACCENT = "var(--series-magenta)";
+// Never the partner's email — that's private data the app shouldn't surface
+// as casual UI copy, so every real-account label reads generically instead.
+const PARTNER_LABEL = "your partner";
 
 const VIEWS: { id: NoteView; label: string }[] = [
   { id: "inbox", label: "Inbox" },
@@ -52,14 +57,12 @@ export default function NotesPage() {
 
   const [partnerState, setPartnerState] = useState<"loading" | "unlinked" | "linked">("loading");
   const [partnerLink, setPartnerLink] = useState<PartnerLink | null>(null);
-  const [partnerEmail, setPartnerEmail] = useState<string | null>(null);
 
   const loadPartner = useCallback(async () => {
     setPartnerState("loading");
     try {
-      const [link, email] = await Promise.all([getPartnerLink(), getPartnerEmail()]);
+      const link = await getPartnerLink();
       setPartnerLink(link);
-      setPartnerEmail(email);
       setPartnerState(link ? "linked" : "unlinked");
     } catch (err) {
       console.error("loadPartner failed", err);
@@ -80,6 +83,12 @@ export default function NotesPage() {
   const [threadsLoading, setThreadsLoading] = useState(true);
   const [threadsError, setThreadsError] = useState(false);
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
+  // Set only via the `?thread=` deep link (see the effect below) — a
+  // thread linked from outside (Overview's Partner Notes preview) might not
+  // be in whichever tab's `threads` list is currently loaded (it could be
+  // Sent while Inbox is open, say), so it's fetched and held separately
+  // rather than requiring it to already be in `threads`.
+  const [directThread, setDirectThread] = useState<NoteThread | null>(null);
   const [composeOpen, setComposeOpen] = useState(false);
 
   const loadThreads = useCallback(async () => {
@@ -102,6 +111,47 @@ export default function NotesPage() {
       void loadThreads();
     }
   }, [partnerState, loadThreads]);
+
+  const handleMarkAllRead = useCallback(async () => {
+    try {
+      await markAllThreadsRead();
+      await loadThreads();
+    } catch (err) {
+      console.error("markAllThreadsRead failed", err);
+    }
+  }, [loadThreads]);
+
+  // One-time deep-link resolution: `/notes?thread=<id>` opens that thread
+  // directly regardless of which tab it belongs to. Only meaningful once a
+  // partner is actually linked — demo mode's own thread ids are already in
+  // `demoThreads` regardless of tab, so it never needs this fetch at all.
+  useEffect(() => {
+    if (partnerState !== "linked") return;
+    const id = new URLSearchParams(window.location.search).get("thread");
+    if (!id) return;
+    fetchNoteThread(id)
+      .then((t) => {
+        if (t) {
+          setDirectThread(t);
+          setSelectedThreadId(t.id);
+        }
+      })
+      .catch((err) => console.error("fetchNoteThread failed", err));
+  }, [partnerState]);
+
+  // Same deep link, demo-mode version — demo thread ids are already in
+  // `demoThreads` regardless of tab (see below), so this just needs to set
+  // `selectedThreadId`, no fetch. Separate from the effect above because it
+  // has to fire on `isDemo` becoming true instead of `partnerState`, which
+  // never leaves "loading" for a signed-out visitor.
+  useEffect(() => {
+    if (!isDemo) return;
+    const id = new URLSearchParams(window.location.search).get("thread");
+    // Reading the URL on mount — an external-system read, not a React-state
+    // sync loop, same reasoning as every other deep-link/mount effect here.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (id) setSelectedThreadId(id);
+  }, [isDemo]);
 
   // --- Demo mode: same shape as the real handlers above, but reading/
   // writing local state instead of Supabase (see demoNotes.ts). Reused
@@ -128,6 +178,9 @@ export default function NotesPage() {
   }, []);
   const demoMarkRead = useCallback(async (threadId: string) => demoSetField(threadId, { isUnreadForMe: false }), [demoSetField]);
   const demoMarkUnread = useCallback(async (threadId: string) => demoSetField(threadId, { isUnreadForMe: true }), [demoSetField]);
+  const demoMarkAllRead = useCallback(async () => {
+    setDemoThreads((prev) => prev.map((t) => ({ ...t, isUnreadForMe: false })));
+  }, []);
   const demoToggleFavourite = useCallback(
     async (threadId: string, _isMine: boolean, next: boolean) => demoSetField(threadId, { isFavouritedByMe: next }),
     [demoSetField],
@@ -170,7 +223,7 @@ export default function NotesPage() {
 
     return (
       <div className="flex flex-col gap-4">
-        <NotesHeader partnerLabel={DEMO_PARTNER_LABEL} onCompose={() => setComposeOpen(true)} />
+        <NotesHeader partnerLabel={DEMO_PARTNER_LABEL} onCompose={() => setComposeOpen(true)} onMarkAllRead={() => void demoMarkAllRead()} />
         <p className="text-xs" style={{ color: "var(--series-magenta)" }}>
           Example data — try replying, favouriting, or archiving freely below. None of this is saved anywhere; sign in to connect
           with your real partner instead.
@@ -221,18 +274,23 @@ export default function NotesPage() {
     return <PartnerLinkPanel onLinked={() => void loadPartner()} />;
   }
 
-  const selectedThread = threads.find((t) => t.id === selectedThreadId) ?? null;
-  const partnerLabel = partnerEmail ?? "your partner";
+  const selectedThread =
+    threads.find((t) => t.id === selectedThreadId) ?? (directThread?.id === selectedThreadId ? directThread : null);
+  const partnerLabel = PARTNER_LABEL;
 
   return (
     <div className="flex flex-col gap-4">
-      <NotesHeader partnerLabel={partnerLabel} onCompose={() => setComposeOpen(true)} />
+      <NotesHeader partnerLabel={partnerLabel} onCompose={() => setComposeOpen(true)} onMarkAllRead={() => void handleMarkAllRead()} />
 
       {selectedThread ? (
         <NoteThreadView
           thread={selectedThread}
           partnerLabel={partnerLabel}
-          onBack={() => setSelectedThreadId(null)}
+          onBack={() => {
+            setSelectedThreadId(null);
+            setDirectThread(null);
+            if (window.location.search) window.history.replaceState(null, "", window.location.pathname);
+          }}
           onChanged={() => void loadThreads()}
           fetchMessages={fetchThreadMessages}
           onMarkRead={markThreadRead}
@@ -267,7 +325,15 @@ export default function NotesPage() {
   );
 }
 
-function NotesHeader({ partnerLabel, onCompose }: { partnerLabel: string; onCompose: () => void }) {
+function NotesHeader({
+  partnerLabel,
+  onCompose,
+  onMarkAllRead,
+}: {
+  partnerLabel: string;
+  onCompose: () => void;
+  onMarkAllRead: () => void;
+}) {
   return (
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div>
@@ -278,14 +344,24 @@ function NotesHeader({ partnerLabel, onCompose }: { partnerLabel: string; onComp
           Private notes between you and <span style={{ color: "var(--text-primary)" }}>{partnerLabel}</span>.
         </p>
       </div>
-      <button
-        type="button"
-        onClick={onCompose}
-        className="flex shrink-0 items-center gap-1.5 rounded-md px-4 py-2 text-sm font-medium text-white"
-        style={{ background: ACCENT }}
-      >
-        + New note
-      </button>
+      <div className="flex shrink-0 items-center gap-2">
+        <button
+          type="button"
+          onClick={onMarkAllRead}
+          className="rounded-md border px-3 py-2 text-sm font-medium"
+          style={{ borderColor: "var(--border-hairline)", color: "var(--text-secondary)" }}
+        >
+          Mark all as read
+        </button>
+        <button
+          type="button"
+          onClick={onCompose}
+          className="flex items-center gap-1.5 rounded-md px-4 py-2 text-sm font-medium text-white"
+          style={{ background: ACCENT }}
+        >
+          + New note
+        </button>
+      </div>
     </div>
   );
 }
