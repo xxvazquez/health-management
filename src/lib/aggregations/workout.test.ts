@@ -6,6 +6,7 @@ import {
   workoutConsistencySummary,
   workoutExerciseFrequency,
   workoutInsight,
+  workoutRecentSessions,
   workoutStatsByExercise,
   workoutTimeline,
   workoutTrainedDates,
@@ -140,6 +141,42 @@ describe("same-day ordering is by actual timestamp, not array/name order", () =>
     // Alphabetically "Bench Press" < "Squat", but Squat was logged later —
     // most-recent-first must put it first regardless of exercise name.
     expect(timeline.map((e) => e.id)).toEqual(["squat", "bench"]);
+  });
+});
+
+describe("workoutTimeline unit resolution", () => {
+  it("labels each entry with its exercise's configured unit, not a blind kg default", () => {
+    const logs = [makeWorkoutLog({ id: "a", exercise: "Walking", weightKg: 30 })];
+    const timeline = workoutTimeline(logs, new Map([["Walking", "minutes"]]));
+    expect(timeline[0].unit).toBe("minutes");
+  });
+
+  it("falls back to kg for an exercise with no configured unit", () => {
+    const timeline = workoutTimeline([makeWorkoutLog({ id: "a" })]);
+    expect(timeline[0].unit).toBe("kg");
+  });
+});
+
+describe("workoutRecentSessions", () => {
+  it("returns an empty list for no logs", () => {
+    expect(workoutRecentSessions([])).toEqual([]);
+  });
+
+  it("groups by date, most recent day first, each day's own entries most recent first", () => {
+    const logs = [
+      makeWorkoutLog({ id: "day1-squat", date: "2026-01-01", exercise: "Squat", updatedAt: Date.parse("2026-01-01T18:00:00Z") }),
+      makeWorkoutLog({ id: "day2-bench-early", date: "2026-01-03", exercise: "Bench Press", updatedAt: Date.parse("2026-01-03T18:00:00Z") }),
+      makeWorkoutLog({ id: "day2-bench-late", date: "2026-01-03", exercise: "Bench Press", updatedAt: Date.parse("2026-01-03T18:30:00Z") }),
+    ];
+    const sessions = workoutRecentSessions(logs);
+    expect(sessions.map((s) => s.date)).toEqual(["2026-01-03", "2026-01-01"]);
+    expect(sessions[0].entries.map((e) => e.id)).toEqual(["day2-bench-late", "day2-bench-early"]);
+  });
+
+  it("caps at maxSessions distinct training days", () => {
+    const logs = ["2026-01-01", "2026-01-02", "2026-01-03"].map((date) => makeWorkoutLog({ id: date, date }));
+    const sessions = workoutRecentSessions(logs, new Map(), 2);
+    expect(sessions.map((s) => s.date)).toEqual(["2026-01-03", "2026-01-02"]);
   });
 });
 

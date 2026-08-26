@@ -75,6 +75,33 @@ exception
 end;
 $$;
 
+-- Same idea as test_assert_raises, but for redeem_partner_invite's plain
+-- `raise exception` business-rule checks (already-redeemed, already-linked,
+-- etc.) — those carry the generic P0001 SQLSTATE, not one of the specific
+-- ones test_assert_raises narrows to, so they need their own broad catch
+-- rather than being lumped in with (and potentially masking a gap in) the
+-- RLS/FK/check-constraint-specific assertion above.
+-- The "unexpectedly succeeded" failure below is itself raised from inside
+-- this same block, so a bare `when others` would catch and silently
+-- swallow it too, same as every other exception — reporting a bug (the
+-- statement wrongly succeeding) as "ok". Tagging it with a sentinel
+-- errcode and re-raising when that specific code is seen keeps it from
+-- ever being mistaken for the business-rule rejection this is meant to
+-- confirm.
+create or replace function public.test_assert_raises_any(sql_text text, message text) returns void
+language plpgsql as $$
+begin
+  execute sql_text;
+  raise exception 'RLS TEST FAILED: % (expected an error, but the statement succeeded)', message using errcode = '99999';
+exception
+  when others then
+    if sqlstate = '99999' then
+      raise;
+    end if;
+    raise notice 'ok - % (correctly rejected: %)', message, sqlerrm;
+end;
+$$;
+
 set local role postgres;
 
 -- Two fake users — RLS only needs matching auth.users rows for the foreign
@@ -96,7 +123,8 @@ grant select, insert, update, delete on
   public.categories, public.food_items, public.supplement_items, public.habit_items, public.symptom_items, public.workout_items,
   public.food_logs, public.supplement_logs, public.habit_logs, public.symptom_logs,
   public.food_diary, public.supplement_diary, public.habit_diary, public.symptom_diary, public.workout_diary,
-  public.stool_logs, public.workout_logs, public.period_logs, public.push_subscriptions
+  public.stool_logs, public.workout_logs, public.period_logs, public.push_subscriptions,
+  public.partner_invites, public.partner_links, public.notes
   to authenticated;
 
 set local role authenticated;
@@ -437,6 +465,153 @@ select public.test_assert_raises(
   $sql$insert into public.push_subscriptions (user_id, endpoint, p256dh, auth_key, timezone)
        values ('22222222-2222-2222-2222-222222222222', 'https://push.example/spoofed', 'k', 'a', 'UTC')$sql$,
   'push_subscriptions: user_id cannot be spoofed on INSERT (attempted as A, targeting B''s row)'
+);
+
+-- ============================================================================
+-- partner_invites / partner_links / redeem_partner_invite
+-- ============================================================================
+-- A third fake user, C, is introduced here — the notes tests below need
+-- someone who is NOT A's partner to prove a note can't be sent to (or a
+-- thread joined by) anyone outside the actual partner_links pairing.
+insert into auth.users (id, email)
+values ('33333333-3333-3333-3333-333333333333', 'user-c@example.com')
+on conflict (id) do nothing;
+
+select public.test_switch_user('11111111-1111-1111-1111-111111111111');
+insert into public.partner_invites (id, code, created_by) values ('c1000000-0000-0000-0000-0000000000c1', 'INVITE-AB', '11111111-1111-1111-1111-111111111111');
+
+select public.test_switch_user('22222222-2222-2222-2222-222222222222');
+select public.test_assert(
+  (select count(*) from public.partner_invites where id = 'c1000000-0000-0000-0000-0000000000c1') = 0,
+  'partner_invites: user B cannot SELECT user A''s invite (only the creator can)'
+);
+
+select public.test_switch_user('11111111-1111-1111-1111-111111111111');
+select public.test_assert_raises_any(
+  $sql$select public.redeem_partner_invite('INVITE-AB')$sql$,
+  'redeem_partner_invite: creator cannot redeem their own invite'
+);
+
+-- B redeems A's invite — creates the link.
+select public.test_switch_user('22222222-2222-2222-2222-222222222222');
+select public.redeem_partner_invite('INVITE-AB');
+select public.test_assert(
+  (select count(*) from public.partner_links where user_a_id = '11111111-1111-1111-1111-111111111111' and user_b_id = '22222222-2222-2222-2222-222222222222') = 1,
+  'redeem_partner_invite: redeeming creates a partner_links row for A and B'
+);
+
+-- get_partner_email: A and B (now linked) can each see the other's email;
+-- C (unrelated, and not yet linked to anyone) gets null.
+select public.test_switch_user('11111111-1111-1111-1111-111111111111');
+select public.test_assert(
+  public.get_partner_email() = 'user-b@example.com',
+  'get_partner_email: A sees B''s email'
+);
+select public.test_switch_user('22222222-2222-2222-2222-222222222222');
+select public.test_assert(
+  public.get_partner_email() = 'user-a@example.com',
+  'get_partner_email: B sees A''s email'
+);
+select public.test_switch_user('33333333-3333-3333-3333-333333333333');
+select public.test_assert(
+  public.get_partner_email() is null,
+  'get_partner_email: an unlinked user gets null, not A or B''s email'
+);
+
+-- The same code cannot be redeemed a second time.
+select public.test_switch_user('33333333-3333-3333-3333-333333333333');
+select public.test_assert_raises_any(
+  $sql$select public.redeem_partner_invite('INVITE-AB')$sql$,
+  'redeem_partner_invite: an already-redeemed code cannot be redeemed again'
+);
+
+select public.test_assert(
+  (select count(*) from public.partner_links where user_a_id = '11111111-1111-1111-1111-111111111111') = 0,
+  'partner_links: user C (not a participant) cannot SELECT A/B''s link'
+);
+
+select public.test_switch_user('11111111-1111-1111-1111-111111111111');
+select public.test_assert(
+  (select count(*) from public.partner_links where user_a_id = '11111111-1111-1111-1111-111111111111') = 1,
+  'partner_links: user A (participant) can SELECT the link'
+);
+select public.test_switch_user('22222222-2222-2222-2222-222222222222');
+select public.test_assert(
+  (select count(*) from public.partner_links where user_b_id = '22222222-2222-2222-2222-222222222222') = 1,
+  'partner_links: user B (participant) can SELECT the link'
+);
+
+-- Someone already linked can't redeem a second invite.
+select public.test_switch_user('33333333-3333-3333-3333-333333333333');
+insert into public.partner_invites (id, code, created_by) values ('c2000000-0000-0000-0000-0000000000c2', 'INVITE-C', '33333333-3333-3333-3333-333333333333');
+select public.test_switch_user('11111111-1111-1111-1111-111111111111');
+select public.test_assert_raises_any(
+  $sql$select public.redeem_partner_invite('INVITE-C')$sql$,
+  'redeem_partner_invite: an already-linked user cannot redeem a second invite'
+);
+
+-- ============================================================================
+-- notes
+-- ============================================================================
+-- A (linked to B) sends B a note.
+select public.test_switch_user('11111111-1111-1111-1111-111111111111');
+insert into public.notes (id, sender_id, recipient_id, category, subject, body)
+values ('d1000000-0000-0000-0000-0000000000d1', '11111111-1111-1111-1111-111111111111', '22222222-2222-2222-2222-222222222222', 'note', 'Hi', 'A''s first note to B');
+
+select public.test_switch_user('33333333-3333-3333-3333-333333333333');
+select public.test_assert(
+  (select count(*) from public.notes where id = 'd1000000-0000-0000-0000-0000000000d1') = 0,
+  'notes: user C (not a participant) cannot SELECT A''s note to B'
+);
+select public.test_assert_raises(
+  $sql$insert into public.notes (id, sender_id, recipient_id, category, body)
+       values ('d2000000-0000-0000-0000-0000000000d2', '33333333-3333-3333-3333-333333333333', '22222222-2222-2222-2222-222222222222', 'note', 'C trying to message B, who is not C''s partner')$sql$,
+  'notes: cannot send a note to someone who is not your linked partner'
+);
+select public.test_assert_raises(
+  $sql$insert into public.notes (id, sender_id, recipient_id, category, body)
+       values ('d3000000-0000-0000-0000-0000000000d3', '11111111-1111-1111-1111-111111111111', '22222222-2222-2222-2222-222222222222', 'note', 'Spoofed sender')$sql$,
+  'notes: sender_id cannot be spoofed on INSERT (as C, claiming to be A)'
+);
+
+-- B replies — a reply's thread_root_id must point at a thread the sender
+-- is actually part of.
+select public.test_switch_user('22222222-2222-2222-2222-222222222222');
+insert into public.notes (id, sender_id, recipient_id, thread_root_id, category, body)
+values ('d4000000-0000-0000-0000-0000000000d4', '22222222-2222-2222-2222-222222222222', '11111111-1111-1111-1111-111111111111', 'd1000000-0000-0000-0000-0000000000d1', 'note', 'B''s reply');
+
+select public.test_switch_user('33333333-3333-3333-3333-333333333333');
+select public.test_assert_raises(
+  $sql$insert into public.notes (id, sender_id, recipient_id, thread_root_id, category, body)
+       values ('d5000000-0000-0000-0000-0000000000d5', '33333333-3333-3333-3333-333333333333', '11111111-1111-1111-1111-111111111111', 'd1000000-0000-0000-0000-0000000000d1', 'note', 'C trying to graft a reply onto A/B''s thread')$sql$,
+  'notes: a reply cannot be grafted onto a thread the sender isn''t part of'
+);
+
+-- notes_touch_thread: B's reply above must have bumped the root's
+-- last_message_at to the reply's own created_at.
+select public.test_switch_user('11111111-1111-1111-1111-111111111111');
+select public.test_assert(
+  (select last_message_at from public.notes where id = 'd1000000-0000-0000-0000-0000000000d1')
+    = (select created_at from public.notes where id = 'd4000000-0000-0000-0000-0000000000d4'),
+  'notes: a reply bumps its thread root''s last_message_at (notes_touch_thread)'
+);
+
+-- Read/favourite/archive: either participant can update their own side's
+-- state on the root note.
+update public.notes set sender_favourited = true, sender_read_at = now() where id = 'd1000000-0000-0000-0000-0000000000d1';
+select public.test_assert(
+  (select sender_favourited from public.notes where id = 'd1000000-0000-0000-0000-0000000000d1') = true,
+  'notes: a participant can favourite/mark-read their own side of a note they''re part of'
+);
+
+-- Identity columns are locked after creation, even for a participant —
+-- notes_lock_identity_columns raises a plain exception (not an RLS/FK/
+-- check violation, since RLS itself allows this update: A stays sender_id
+-- either way), hence test_assert_raises_any rather than test_assert_raises.
+select public.test_assert_raises_any(
+  $sql$update public.notes set recipient_id = '33333333-3333-3333-3333-333333333333'
+       where id = 'd1000000-0000-0000-0000-0000000000d1'$sql$,
+  'notes: recipient_id cannot be changed after creation, even by a participant (notes_lock_identity_columns)'
 );
 
 do $$ begin raise notice '=== all RLS tests passed ==='; end $$;

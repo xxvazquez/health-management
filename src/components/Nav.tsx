@@ -1,11 +1,13 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import clsx from "clsx";
 import { useData } from "@/lib/DataContext";
 import { useVisibleDomains, type TrackedDomain } from "@/lib/visibleDomains";
+import { useAuth } from "@/lib/supabase/AuthContext";
+import { notesConfigured, unreadNoteCount } from "@/lib/supabase/notes";
 import { Logo } from "@/components/Logo";
 import { AccountMenuButton } from "@/components/auth/AccountMenuButton";
 import { AccountPanel } from "@/components/auth/AccountPanel";
@@ -87,6 +89,12 @@ const ICONS: Record<string, ReactNode> = {
       <path d="M3.5 6.7c0-.8.6-1.4 1.4-1.4h4l1.6 1.8h4.6c.8 0 1.4.6 1.4 1.4v6.1c0 .8-.6 1.4-1.4 1.4H4.9c-.8 0-1.4-.6-1.4-1.4Z" />
     </IconWrap>
   ),
+  Notes: (
+    <IconWrap>
+      <path d="M3.5 5.8c0-.7.6-1.3 1.3-1.3h10.4c.7 0 1.3.6 1.3 1.3v8.4c0 .7-.6 1.3-1.3 1.3H4.8c-.7 0-1.3-.6-1.3-1.3Z" />
+      <path d="M4 6.2l6 5 6-5" />
+    </IconWrap>
+  ),
 };
 
 /** The two purposes the whole app is organized around — fast logging vs.
@@ -114,6 +122,10 @@ const ANALYTICS_LINK_DOMAIN: Record<string, TrackedDomain> = {
 };
 const MANAGE_LINKS = [{ href: "/manage", label: "Manage items" }];
 const TOOLS_LINKS = [{ href: "/my-drive", label: "My Drive" }];
+/** Separate from Analytics — Notes is partner-to-partner communication, not
+ * a dashboard reading back something you logged, so it gets its own
+ * section rather than being folded into either existing one. */
+const CONNECT_LINKS = [{ href: "/notes", label: "Notes" }];
 
 function NavSectionLabel({ children, collapsed }: { children: ReactNode; collapsed?: boolean }) {
   if (collapsed) return <div className="my-1.5 h-px" style={{ background: "var(--gridline)" }} />;
@@ -129,16 +141,21 @@ function NavLinkList({
   pathname,
   collapsed,
   onNavigate,
+  badges,
 }: {
   links: { href: string; label: string }[];
   pathname: string;
   collapsed?: boolean;
   onNavigate?: () => void;
+  /** Unread-style count per href — a small pill next to the icon/label
+   * (or a bare dot when collapsed, since there's no room for a number). */
+  badges?: Record<string, number>;
 }) {
   return (
     <>
       {links.map((link) => {
         const active = pathname === link.href;
+        const badge = badges?.[link.href] ?? 0;
         return (
           <Link
             key={link.href}
@@ -146,7 +163,7 @@ function NavLinkList({
             onClick={onNavigate}
             title={collapsed ? link.label : undefined}
             className={clsx(
-              "flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-medium whitespace-nowrap transition-colors",
+              "relative flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-medium whitespace-nowrap transition-colors",
               collapsed && "justify-center px-0",
               !active && "hover:bg-[var(--page-plane)]",
             )}
@@ -157,6 +174,21 @@ function NavLinkList({
           >
             {ICONS[link.label]}
             {!collapsed && link.label}
+            {badge > 0 &&
+              (collapsed ? (
+                <span
+                  className="absolute top-1.5 right-3.5 h-2 w-2 rounded-full"
+                  style={{ background: "var(--series-magenta)" }}
+                  aria-hidden="true"
+                />
+              ) : (
+                <span
+                  className="ml-auto flex h-4.5 min-w-4.5 items-center justify-center rounded-full px-1 text-[10px] font-semibold text-white tabular-nums"
+                  style={{ background: "var(--series-magenta)" }}
+                >
+                  {badge > 99 ? "99+" : badge}
+                </span>
+              ))}
           </Link>
         );
       })}
@@ -164,9 +196,56 @@ function NavLinkList({
   );
 }
 
+/** Polls rather than subscribing to realtime — Notes has no live-updating
+ * requirement (see notes.ts's own comment on this), so a periodic refetch
+ * plus a refetch whenever the route changes (covers "just read something in
+ * /notes, badge should drop now") is simple and enough for a private
+ * couple's-notes feature. Session-gated: no point polling while signed out
+ * or before Supabase is configured, both of which make every Notes query a
+ * silent no-op anyway. */
+const UNREAD_POLL_MS = 60_000;
+
+function useUnreadNoteCount(pathname: string): number {
+  const { session } = useAuth();
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    if (!notesConfigured || !session) {
+      // Deferred rather than a direct synchronous setState call in the
+      // effect body — same "update from a callback, not inline" shape as
+      // the refresh() path below, just with no real async work to hang it
+      // off of (signing out is itself the trigger, nothing to await).
+      queueMicrotask(() => setCount(0));
+      return;
+    }
+    let cancelled = false;
+    const refresh = () => {
+      void unreadNoteCount()
+        .then((n) => {
+          if (!cancelled) setCount(n);
+        })
+        .catch(() => {
+          // Transient network/RLS hiccup — leave the last known count
+          // showing rather than flashing it to 0.
+        });
+    };
+    refresh();
+    const interval = setInterval(refresh, UNREAD_POLL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+    // `pathname` is read only to retrigger this on navigation (e.g. leaving
+    // /notes after reading something), not otherwise used in the effect.
+  }, [session, pathname]);
+
+  return count;
+}
+
 function NavLinks({ pathname, collapsed, onNavigate }: { pathname: string; collapsed?: boolean; onNavigate?: () => void }) {
   const { isHidden } = useVisibleDomains();
   const visibleAnalyticsLinks = ANALYTICS_LINKS.filter((link) => !isHidden(ANALYTICS_LINK_DOMAIN[link.href]));
+  const unreadNotes = useUnreadNoteCount(pathname);
 
   return (
     <nav className="flex flex-1 flex-col gap-1">
@@ -179,6 +258,14 @@ function NavLinks({ pathname, collapsed, onNavigate }: { pathname: string; colla
           <NavLinkList links={visibleAnalyticsLinks} pathname={pathname} collapsed={collapsed} onNavigate={onNavigate} />
         </>
       )}
+      <NavSectionLabel collapsed={collapsed}>Connect</NavSectionLabel>
+      <NavLinkList
+        links={CONNECT_LINKS}
+        pathname={pathname}
+        collapsed={collapsed}
+        onNavigate={onNavigate}
+        badges={{ "/notes": unreadNotes }}
+      />
       <NavSectionLabel collapsed={collapsed}>Manage</NavSectionLabel>
       <NavLinkList links={MANAGE_LINKS} pathname={pathname} collapsed={collapsed} onNavigate={onNavigate} />
       <NavSectionLabel collapsed={collapsed}>Tools</NavSectionLabel>

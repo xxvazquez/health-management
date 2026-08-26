@@ -16,9 +16,12 @@ import {
   workoutExerciseFrequency,
   workoutInsight,
   workoutMonthlySessions,
+  workoutRecentSessions,
   workoutStatsByExercise,
   formatWorkoutDate,
+  formatWorkoutDateShort,
   type WorkoutExerciseStats,
+  type WorkoutRecentSession,
 } from "@/lib/aggregations/workout";
 import { formatMonthYear, todayLocalISODate } from "@/lib/aggregations/common";
 import { TYPE_ACCENT } from "@/taxonomy/categories";
@@ -88,40 +91,103 @@ function monogram(exercise: WorkoutExercise): string {
   return words.length >= 2 ? (words[0][0] + words[1][0]).toUpperCase() : exercise.slice(0, 2).toUpperCase();
 }
 
-/** Ranked start→current→change per exercise — answers "which lift has
- * progressed the most" via row order and a proportional bar. Ranking and bar
- * length are both driven by kg change (see `trendRank`); color is reserved
- * for the direction of that change, not the exercise's identity. Clicking a
- * row loads that exercise into the detail chart below. */
-function StrengthProgressTable({
-  stats,
-  selected,
+/** Small filled-star accent badge for a set that beat every earlier one for
+ * that exercise — the app's line-icon style (Nav.tsx) is stroke-only for
+ * navigation chrome, but a tiny status accent like this reads better filled,
+ * same idea as the app's other filled status dots. */
+function PRBadge() {
+  return (
+    <span
+      className="inline-flex shrink-0 items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold"
+      style={{ background: "color-mix(in oklab, var(--status-good) 16%, var(--surface-1))", color: "var(--status-good)" }}
+    >
+      <svg width="9" height="9" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+        <path d="M10 1.8l2.36 5.1 5.53.58-4.15 3.83 1.16 5.51L10 13.9l-4.9 2.92 1.16-5.51-4.15-3.83 5.53-.58z" />
+      </svg>
+      PR
+    </span>
+  );
+}
+
+/** First and most prominent section on the page — "what did I just do,
+ * and when" — a compact vertical timeline of the last few training days
+ * (see `workoutRecentSessions`), always full history so it never reads
+ * empty just because a narrow range is selected elsewhere on the page. */
+function RecentActivityTimeline({ sessions }: { sessions: WorkoutRecentSession[] }) {
+  return (
+    <Card tier="supporting" className="lg:col-span-2">
+      <CardTitle subtitle="Your last few training days, most recent first — full history, not affected by the range filter below">
+        Recent activity
+      </CardTitle>
+      <div className="flex flex-col">
+        {sessions.map((session, i) => {
+          const isLast = i === sessions.length - 1;
+          return (
+            <div key={session.date} className="flex gap-3">
+              <div className="flex flex-col items-center">
+                <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full" style={{ background: ACCENT }} />
+                {!isLast && <span className="w-px flex-1" style={{ background: "var(--gridline)" }} />}
+              </div>
+              <div className={`min-w-0 flex-1 ${isLast ? "" : "pb-3"}`}>
+                <p className="text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
+                  {formatWorkoutDateShort(session.date)}
+                </p>
+                <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1">
+                  {session.entries.map((e) => (
+                    <div key={e.id} className="flex items-center gap-1.5 text-sm">
+                      <span className="font-medium" style={{ color: "var(--text-primary)" }}>
+                        {e.exercise}
+                      </span>
+                      <span className="tabular-nums" style={{ color: "var(--text-secondary)" }}>
+                        {e.weightKg} {workoutUnitLabel(e.unit)}
+                      </span>
+                      {e.isPR && <PRBadge />}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </Card>
+  );
+}
+
+/** The page's main analytical section — ranked start→current→change per
+ * exercise (answers "which lift has progressed the most" via row order and
+ * a proportional bar) with the selected lift's own chart inline, in one
+ * Card instead of two separate ones. Defaults to the top-ranked lift so
+ * there's something useful to read before tapping anything; tapping another
+ * row swaps the chart below without a second, redundant picker control. */
+function ProgressSection({
+  sortedStats,
+  selectedStats,
   onSelect,
 }: {
-  stats: WorkoutExerciseStats[];
-  selected: WorkoutExercise | null;
+  sortedStats: WorkoutExerciseStats[];
+  selectedStats: WorkoutExerciseStats | null;
   onSelect: (exercise: WorkoutExercise) => void;
 }) {
-  const sorted = useMemo(() => [...stats].sort((a, b) => trendRank(b) - trendRank(a)), [stats]);
-  const trending = useMemo(() => stats.filter((s) => s.recordsCount >= 2), [stats]);
+  const trending = useMemo(() => sortedStats.filter((s) => s.recordsCount >= 2), [sortedStats]);
   const improving = useMemo(() => trending.filter((s) => s.changeKg > 0).length, [trending]);
   const maxAbsChangeKg = useMemo(
-    () => Math.max(1, ...sorted.filter((s) => s.recordsCount >= 2).map((s) => Math.abs(s.changeKg))),
-    [sorted],
+    () => Math.max(1, ...sortedStats.filter((s) => s.recordsCount >= 2).map((s) => Math.abs(s.changeKg))),
+    [sortedStats],
   );
 
   const subtitle =
     trending.length > 0
-      ? `${improving} of ${trending.length} lifts up since first recorded · ranked by kg change, full history — tap a row for its progression.`
-      : "Log an exercise a second time to start tracking a trend. Full history, not affected by the range filter above.";
+      ? `${improving} of ${trending.length} lifts up since first recorded · ranked by kg change, full history — tap a lift for its chart.`
+      : "Log an exercise a second time to start tracking a trend. Full history, not affected by the range filter below.";
 
   return (
-    <Card tier="supporting">
-      <CardTitle subtitle={subtitle}>Strength progress</CardTitle>
+    <Card tier="primary" className="lg:col-span-2">
+      <CardTitle subtitle={subtitle}>Progress</CardTitle>
       <div className="flex flex-col">
-        {sorted.map((s) => {
+        {sortedStats.map((s) => {
           const hasTrend = s.recordsCount >= 2;
-          const active = s.exercise === selected;
+          const active = s.exercise === selectedStats?.exercise;
           const direction = changeDirection(s.changeKg);
           const changeColor = DIRECTION_COLOR[direction];
           const barPct = hasTrend ? Math.max(4, Math.round((Math.abs(s.changeKg) / maxAbsChangeKg) * 100)) : 0;
@@ -177,6 +243,49 @@ function StrengthProgressTable({
       <p className="mt-4 text-xs" style={{ color: "var(--text-muted)" }}>
         Start = first recorded weight · Current = most recent · Best = personal record
       </p>
+
+      {selectedStats && (
+        <div className="mt-5 border-t pt-4" style={{ borderColor: "var(--gridline)" }}>
+          <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <ProgressionStat
+              label="Started"
+              value={`${selectedStats.started.weightKg} ${workoutUnitLabel(selectedStats.unit)}`}
+              detail={formatWorkoutDate(selectedStats.started.date)}
+            />
+            <ProgressionStat
+              label="Current"
+              value={`${selectedStats.current.weightKg} ${workoutUnitLabel(selectedStats.unit)}`}
+              detail={formatWorkoutDate(selectedStats.current.date)}
+            />
+            <ProgressionStat
+              label="Best"
+              value={`${selectedStats.best.weightKg} ${workoutUnitLabel(selectedStats.unit)}`}
+              detail={formatWorkoutDate(selectedStats.best.date)}
+            />
+            <ProgressionStat
+              label="Change"
+              value={`${signed(selectedStats.changeKg)} ${workoutUnitLabel(selectedStats.unit)}`}
+              detail={selectedStats.changePct !== null ? `${signed(selectedStats.changePct)}%` : undefined}
+              accent={DIRECTION_COLOR[changeDirection(selectedStats.changeKg)]}
+            />
+          </div>
+
+          <p className="mb-3 text-sm" style={{ color: "var(--text-secondary)" }}>
+            {describeProgression(selectedStats)}
+          </p>
+
+          <TrendAreaChart
+            data={selectedStats.entries.map((e) => ({ date: e.date, value: e.weightKg }))}
+            color={ACCENT}
+            valueLabel={`${selectedStats.exercise} (${workoutUnitLabel(selectedStats.unit)})`}
+            height={140}
+            linear
+            showDots
+            xTickFormatter={formatMonthYear}
+            yTickFormatter={(v) => `${v} ${workoutUnitLabel(selectedStats.unit)}`}
+          />
+        </div>
+      )}
     </Card>
   );
 }
@@ -214,12 +323,18 @@ export default function WorkoutPage() {
   // window), so they always read the full history. Only the frequency-style
   // cards (how often you trained, which lifts) are scoped to the range.
   const stats = useMemo(() => workoutStatsByExercise(workoutLogs, unitByExercise), [workoutLogs, unitByExercise]);
+  // Same ranking the Progress section's rows use — read here too so the
+  // default selection (before anything's been tapped) is the top-ranked
+  // lift, not just whatever order it happened to come out of `stats`.
+  const sortedStats = useMemo(() => [...stats].sort((a, b) => trendRank(b) - trendRank(a)), [stats]);
   const insight = useMemo(() => workoutInsight(workoutLogs, today, unitByExercise), [workoutLogs, today, unitByExercise]);
   const consistency = useMemo(() => workoutConsistencySummary(workoutLogs, today), [workoutLogs, today]);
   const monthlySessions = useMemo(() => workoutMonthlySessions(filteredWorkoutLogs), [filteredWorkoutLogs]);
   const exerciseFrequency = useMemo(() => workoutExerciseFrequency(filteredWorkoutLogs), [filteredWorkoutLogs]);
+  const recentSessions = useMemo(() => workoutRecentSessions(workoutLogs, unitByExercise), [workoutLogs, unitByExercise]);
 
-  const selectedExercise = compareExercise && stats.some((s) => s.exercise === compareExercise) ? compareExercise : (stats[0]?.exercise ?? null);
+  const selectedExercise =
+    compareExercise && stats.some((s) => s.exercise === compareExercise) ? compareExercise : (sortedStats[0]?.exercise ?? null);
   const selectedStats = stats.find((s) => s.exercise === selectedExercise) ?? null;
 
   if (status === "loading") return <p style={{ color: "var(--text-muted)" }}>Loading…</p>;
@@ -278,6 +393,16 @@ export default function WorkoutPage() {
         </div>
       )}
 
+      {recentSessions.length > 0 && <RecentActivityTimeline sessions={recentSessions} />}
+
+      {stats.length > 0 && <ProgressSection sortedStats={sortedStats} selectedStats={selectedStats} onSelect={setCompareExercise} />}
+
+      <div className="lg:col-span-2">
+        <p className="text-xs font-bold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
+          Training patterns
+        </p>
+      </div>
+
       {span && range && (
         <div className="flex flex-wrap items-center justify-between gap-3 lg:col-span-2">
           <p className="text-xs" style={{ color: "var(--text-muted)" }}>
@@ -313,73 +438,6 @@ export default function WorkoutPage() {
             Which lifts you train most
           </CardTitle>
           <RankedBarChart data={exerciseFrequency.map((e) => ({ label: e.exercise, value: e.sessionCount }))} color={ACCENT} />
-        </Card>
-      )}
-
-      {stats.length > 0 && (
-        <div className="lg:col-span-2">
-          <StrengthProgressTable stats={stats} selected={selectedExercise} onSelect={setCompareExercise} />
-        </div>
-      )}
-
-      {selectedStats && (
-        <Card tier="supporting" className="lg:col-span-2">
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-            <CardTitle size="default" subtitle="Every logged session for the selected lift — full history, not affected by the range filter above.">
-              Progression
-            </CardTitle>
-            <select
-              value={selectedStats.exercise}
-              onChange={(e) => setCompareExercise(e.target.value as WorkoutExercise)}
-              className="rounded-md border px-2.5 py-1.5 text-sm font-medium"
-              style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
-            >
-              {stats.map((s) => (
-                <option key={s.exercise} value={s.exercise}>
-                  {s.exercise}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-            <ProgressionStat
-              label="Started"
-              value={`${selectedStats.started.weightKg} ${workoutUnitLabel(selectedStats.unit)}`}
-              detail={formatWorkoutDate(selectedStats.started.date)}
-            />
-            <ProgressionStat
-              label="Current"
-              value={`${selectedStats.current.weightKg} ${workoutUnitLabel(selectedStats.unit)}`}
-              detail={formatWorkoutDate(selectedStats.current.date)}
-            />
-            <ProgressionStat
-              label="Best"
-              value={`${selectedStats.best.weightKg} ${workoutUnitLabel(selectedStats.unit)}`}
-              detail={formatWorkoutDate(selectedStats.best.date)}
-            />
-            <ProgressionStat
-              label="Change"
-              value={`${signed(selectedStats.changeKg)} ${workoutUnitLabel(selectedStats.unit)}`}
-              detail={selectedStats.changePct !== null ? `${signed(selectedStats.changePct)}%` : undefined}
-              accent={DIRECTION_COLOR[changeDirection(selectedStats.changeKg)]}
-            />
-          </div>
-
-          <p className="mb-3 text-sm" style={{ color: "var(--text-secondary)" }}>
-            {describeProgression(selectedStats)}
-          </p>
-
-          <TrendAreaChart
-            data={selectedStats.entries.map((e) => ({ date: e.date, value: e.weightKg }))}
-            color={ACCENT}
-            valueLabel={`${selectedStats.exercise} (${workoutUnitLabel(selectedStats.unit)})`}
-            height={140}
-            linear
-            showDots
-            xTickFormatter={formatMonthYear}
-            yTickFormatter={(v) => `${v} ${workoutUnitLabel(selectedStats.unit)}`}
-          />
         </Card>
       )}
     </div>

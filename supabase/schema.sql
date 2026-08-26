@@ -297,6 +297,199 @@ create table public.period_logs (
   unique (user_id, date)
 );
 
+-- Connect -> Notes: private partner-to-partner messages. Two users become
+-- "partners" by redeeming a short-lived invite code (partner_invites) into
+-- a partner_links row; every note then flows between exactly those two
+-- users. A user can be linked to at most one partner at a time — enforced
+-- in redeem_partner_invite below, not by a table constraint (a two-column
+-- symmetric "no user appears twice" rule isn't expressible as a plain
+-- unique index).
+create table public.partner_invites (
+  id uuid primary key default gen_random_uuid(),
+  code text not null unique,
+  created_by uuid not null default auth.uid() references auth.users(id),
+  created_at timestamptz not null default now(),
+  expires_at timestamptz not null default (now() + interval '7 days'),
+  redeemed_by uuid references auth.users(id),
+  redeemed_at timestamptz
+);
+
+create table public.partner_links (
+  id uuid primary key default gen_random_uuid(),
+  user_a_id uuid not null references auth.users(id),
+  user_b_id uuid not null references auth.users(id),
+  created_at timestamptz not null default now(),
+  check (user_a_id <> user_b_id)
+);
+
+-- Redeeming an invite means looking up a row by `code` that the redeemer
+-- doesn't own per RLS (they're not `created_by`), then inserting a
+-- partner_links row and touching the invite as a single atomic unit —
+-- exactly the kind of cross-user side effect this schema otherwise never
+-- needs, so it's a security-definer function (runs as the table owner,
+-- which bypasses RLS) rather than a relaxed policy. `for update` locks the
+-- invite row for the transaction so two near-simultaneous redemptions of
+-- the same code can't both succeed.
+create or replace function public.redeem_partner_invite(invite_code text)
+returns public.partner_links
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  invite public.partner_invites;
+  new_link public.partner_links;
+begin
+  if auth.uid() is null then
+    raise exception 'Not signed in';
+  end if;
+
+  select * into invite from public.partner_invites where code = invite_code for update;
+
+  if invite is null then
+    raise exception 'Invalid invite code';
+  end if;
+  if invite.redeemed_by is not null then
+    raise exception 'This invite has already been used';
+  end if;
+  if invite.expires_at < now() then
+    raise exception 'This invite has expired';
+  end if;
+  if invite.created_by = auth.uid() then
+    raise exception 'You cannot redeem your own invite';
+  end if;
+  if exists (select 1 from public.partner_links where auth.uid() in (user_a_id, user_b_id)) then
+    raise exception 'You already have a linked partner';
+  end if;
+  if exists (select 1 from public.partner_links where invite.created_by in (user_a_id, user_b_id)) then
+    raise exception 'That person already has a linked partner';
+  end if;
+
+  insert into public.partner_links (user_a_id, user_b_id)
+  values (invite.created_by, auth.uid())
+  returning * into new_link;
+
+  update public.partner_invites set redeemed_by = auth.uid(), redeemed_at = now() where id = invite.id;
+
+  return new_link;
+end;
+$$;
+
+revoke all on function public.redeem_partner_invite(text) from public;
+grant execute on function public.redeem_partner_invite(text) to authenticated;
+
+-- `auth.users` isn't queryable by a regular signed-in client at all (no
+-- RLS story on it applies here — it's simply not exposed), so this is the
+-- only way the Notes UI can show "who am I talking to" (an email, since
+-- that's the only identity Lauva has for anyone). Security definer, same
+-- reasoning as redeem_partner_invite above, deliberately returns nothing
+-- but this one field — never anything else from auth.users. Null when the
+-- caller has no linked partner.
+create or replace function public.get_partner_email()
+returns text
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select u.email
+  from public.partner_links pl
+  join auth.users u on u.id = (case when pl.user_a_id = auth.uid() then pl.user_b_id else pl.user_a_id end)
+  where auth.uid() in (pl.user_a_id, pl.user_b_id)
+  limit 1;
+$$;
+
+revoke all on function public.get_partner_email() from public;
+grant execute on function public.get_partner_email() to authenticated;
+
+-- Every note AND every reply is a row here — a reply is just a note with
+-- `thread_root_id` set to the top-level note's id (and sender/recipient
+-- flipped), so threading needs no separate table. The columns below the
+-- comment are meaningful on the ROOT row only (a reply never reads or
+-- writes its own copy) — "sender"/"recipient" there always mean the
+-- thread's two fixed participants (the root's), never whoever happens to
+-- have sent the latest reply. `notes_touch_thread` below keeps them
+-- current as replies arrive.
+create table public.notes (
+  id uuid primary key default gen_random_uuid(),
+  sender_id uuid not null default auth.uid() references auth.users(id),
+  recipient_id uuid not null references auth.users(id),
+  thread_root_id uuid references public.notes(id),
+  category text not null default 'note' check (category in ('note', 'reminder', 'appreciation', 'question')),
+  subject text,
+  body text not null check (char_length(trim(body)) > 0),
+  created_at timestamptz not null default now(),
+  -- Root-only: when the thread last had any activity (root or reply) —
+  -- lets the inbox list sort/show recency without a join per row.
+  last_message_at timestamptz not null default now(),
+  -- Root-only: last time each fixed participant "opened" this thread. Null
+  -- means never read. Unread-for-a-participant = their column is null or
+  -- older than last_message_at — computed at the app layer, not stored as
+  -- its own boolean, so a new reply makes a thread unread again for free.
+  sender_read_at timestamptz,
+  recipient_read_at timestamptz,
+  -- Root-only, independent per side — sender and recipient organize their
+  -- own copy of a thread separately (favouriting/archiving something you
+  -- sent doesn't affect your partner's view of it, and vice versa).
+  sender_favourited boolean not null default false,
+  recipient_favourited boolean not null default false,
+  sender_archived boolean not null default false,
+  recipient_archived boolean not null default false,
+  -- Per-row (root or reply): whether notify-note has already emailed this
+  -- specific message's recipient — dedupe guard against a retried call.
+  notified_at timestamptz
+);
+
+create index notes_recipient_idx on public.notes (recipient_id, last_message_at desc) where thread_root_id is null;
+create index notes_sender_idx on public.notes (sender_id, last_message_at desc) where thread_root_id is null;
+create index notes_thread_idx on public.notes (thread_root_id);
+
+-- Keeps a root's last_message_at/*_read_at current on every insert into its
+-- thread (including the root's own insert, where root_id = new.id — a
+-- harmless self-update, not a trigger loop, since this is an UPDATE not an
+-- INSERT). Whoever just sent this message has implicitly "read" the thread
+-- up to it; the other side's read_at is left untouched, so last_message_at
+-- moving past it is what makes the thread unread again for them.
+create or replace function public.notes_touch_thread() returns trigger
+language plpgsql as $$
+declare
+  root_id uuid := coalesce(new.thread_root_id, new.id);
+begin
+  update public.notes n
+  set
+    last_message_at = new.created_at,
+    sender_read_at = case when new.sender_id = n.sender_id then new.created_at else n.sender_read_at end,
+    recipient_read_at = case when new.sender_id = n.recipient_id then new.created_at else n.recipient_read_at end
+  where n.id = root_id;
+  return new;
+end;
+$$;
+
+create trigger notes_touch_thread_trigger
+  after insert on public.notes
+  for each row execute function public.notes_touch_thread();
+
+-- sender_id/recipient_id/thread_root_id are a note's identity — nothing in
+-- the app ever legitimately changes who a note was between or what thread
+-- it's in after the fact, so this closes the one gap the shared "either
+-- participant can UPDATE" policy below leaves open (RLS's WITH CHECK on
+-- UPDATE only constrains the *new* row, not whether it matches the old
+-- one — see this table's own policies for why that's fine for
+-- read/favourite/archive but not for identity).
+create or replace function public.notes_lock_identity_columns() returns trigger
+language plpgsql as $$
+begin
+  if new.sender_id <> old.sender_id or new.recipient_id <> old.recipient_id or new.thread_root_id is distinct from old.thread_root_id then
+    raise exception 'sender_id, recipient_id, and thread_root_id cannot be changed after a note is created';
+  end if;
+  return new;
+end;
+$$;
+
+create trigger notes_lock_identity_columns_trigger
+  before update on public.notes
+  for each row execute function public.notes_lock_identity_columns();
+
 create index food_logs_item_date_idx on public.food_logs (item_id, date);
 create index supplement_logs_item_date_idx on public.supplement_logs (item_id, date);
 create index habit_logs_item_date_idx on public.habit_logs (item_id, date);
@@ -350,6 +543,9 @@ alter table public.stool_logs enable row level security;
 alter table public.workout_logs enable row level security;
 alter table public.period_logs enable row level security;
 alter table public.push_subscriptions enable row level security;
+alter table public.partner_invites enable row level security;
+alter table public.partner_links enable row level security;
+alter table public.notes enable row level security;
 
 create policy "categories_all_own" on public.categories for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "food_items_all_own" on public.food_items for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
@@ -370,6 +566,48 @@ create policy "stool_logs_all_own" on public.stool_logs for all using (auth.uid(
 create policy "workout_logs_all_own" on public.workout_logs for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "period_logs_all_own" on public.period_logs for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "push_subscriptions_all_own" on public.push_subscriptions for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- partner_invites: only the creator can see/manage their own pending
+-- invite (e.g. to show "your code is still waiting"). Redemption by the
+-- *other* person goes through redeem_partner_invite above, which bypasses
+-- RLS as a security-definer function — nothing here needs to grant a
+-- stranger SELECT access to look a code up themselves.
+create policy "partner_invites_all_own" on public.partner_invites for all using (auth.uid() = created_by) with check (auth.uid() = created_by);
+
+-- partner_links: visible to either linked participant. No INSERT/UPDATE
+-- policy at all — the only way a link is created is redeem_partner_invite
+-- (security definer, bypasses RLS); regular clients can only read their
+-- own link and delete it (unlinking).
+create policy "partner_links_select_participant" on public.partner_links for select using (auth.uid() = user_a_id or auth.uid() = user_b_id);
+create policy "partner_links_delete_participant" on public.partner_links for delete using (auth.uid() = user_a_id or auth.uid() = user_b_id);
+
+-- notes: visible to either participant. Insert must be as yourself, to
+-- your actual linked partner (not any user_id a buggy/malicious client
+-- might set — see the exists() subquery against partner_links), and a
+-- reply's thread_root_id must point at a thread you're actually part of.
+-- Update is shared between both participants (read/favourite/archive are
+-- all legitimately theirs to set) — see notes_lock_identity_columns above
+-- for why sender_id/recipient_id/thread_root_id don't ride along on that
+-- same policy. No delete policy: archiving is the retirement path, same
+-- "no hard delete" rule as every item type elsewhere in this schema.
+create policy "notes_select_participant" on public.notes for select using (auth.uid() = sender_id or auth.uid() = recipient_id);
+create policy "notes_insert_to_partner" on public.notes for insert with check (
+  auth.uid() = sender_id
+  and exists (
+    select 1 from public.partner_links pl
+    where (pl.user_a_id = auth.uid() and pl.user_b_id = recipient_id)
+       or (pl.user_b_id = auth.uid() and pl.user_a_id = recipient_id)
+  )
+  and (
+    thread_root_id is null
+    or exists (
+      select 1 from public.notes root
+      where root.id = thread_root_id
+        and (root.sender_id = auth.uid() or root.recipient_id = auth.uid())
+    )
+  )
+);
+create policy "notes_update_participant" on public.notes for update using (auth.uid() = sender_id or auth.uid() = recipient_id) with check (auth.uid() = sender_id or auth.uid() = recipient_id);
 
 -- Reminders: schedule the Edge Function that checks and sends them (still
 -- named breakfast-reminder-cron — it now walks every supplement/habit
@@ -501,3 +739,35 @@ create policy "push_subscriptions_all_own" on public.push_subscriptions for all 
 -- any existing row's data.
 --
 -- alter table public.supplement_logs add column if not exists meal_tag text;
+
+-- Migration for a project that already ran the create table statements
+-- above before Connect -> Notes existed: adds partner_invites,
+-- partner_links, notes, the redeem_partner_invite function, and the two
+-- notes triggers. Non-destructive, doesn't touch any existing table. Run
+-- once by hand in the SQL editor.
+--
+-- create table public.partner_invites ( ... );  -- see CREATE TABLE public.partner_invites above
+-- create table public.partner_links ( ... );     -- see CREATE TABLE public.partner_links above
+-- create or replace function public.redeem_partner_invite(invite_code text) ...;  -- see above
+-- revoke all on function public.redeem_partner_invite(text) from public;
+-- grant execute on function public.redeem_partner_invite(text) to authenticated;
+-- create or replace function public.get_partner_email() ...;  -- see above
+-- revoke all on function public.get_partner_email() from public;
+-- grant execute on function public.get_partner_email() to authenticated;
+-- create table public.notes ( ... );  -- see CREATE TABLE public.notes above
+-- create index notes_recipient_idx on public.notes (recipient_id, last_message_at desc) where thread_root_id is null;
+-- create index notes_sender_idx on public.notes (sender_id, last_message_at desc) where thread_root_id is null;
+-- create index notes_thread_idx on public.notes (thread_root_id);
+-- create or replace function public.notes_touch_thread() ...;  -- see above
+-- create trigger notes_touch_thread_trigger after insert on public.notes for each row execute function public.notes_touch_thread();
+-- create or replace function public.notes_lock_identity_columns() ...;  -- see above
+-- create trigger notes_lock_identity_columns_trigger before update on public.notes for each row execute function public.notes_lock_identity_columns();
+-- alter table public.partner_invites enable row level security;
+-- alter table public.partner_links enable row level security;
+-- alter table public.notes enable row level security;
+-- create policy "partner_invites_all_own" on public.partner_invites for all using (auth.uid() = created_by) with check (auth.uid() = created_by);
+-- create policy "partner_links_select_participant" on public.partner_links for select using (auth.uid() = user_a_id or auth.uid() = user_b_id);
+-- create policy "partner_links_delete_participant" on public.partner_links for delete using (auth.uid() = user_a_id or auth.uid() = user_b_id);
+-- create policy "notes_select_participant" on public.notes for select using (auth.uid() = sender_id or auth.uid() = recipient_id);
+-- create policy "notes_insert_to_partner" on public.notes for insert with check ( ... );  -- see above
+-- create policy "notes_update_participant" on public.notes for update using (auth.uid() = sender_id or auth.uid() = recipient_id) with check (auth.uid() = sender_id or auth.uid() = recipient_id);
