@@ -473,9 +473,16 @@ select public.test_assert_raises(
 -- A third fake user, C, is introduced here — the notes tests below need
 -- someone who is NOT A's partner to prove a note can't be sent to (or a
 -- thread joined by) anyone outside the actual partner_links pairing.
+-- Writing directly to auth.users needs the same privileged role the
+-- original A/B insert used at the top of this file (`authenticated` has no
+-- business inserting there at all, same as a real app never would) — the
+-- session is still `authenticated` from the harness setup above, so this
+-- switches out to postgres just for the insert and back immediately after.
+set local role postgres;
 insert into auth.users (id, email)
 values ('33333333-3333-3333-3333-333333333333', 'user-c@example.com')
 on conflict (id) do nothing;
+set local role authenticated;
 
 select public.test_switch_user('11111111-1111-1111-1111-111111111111');
 insert into public.partner_invites (id, code, created_by) values ('c1000000-0000-0000-0000-0000000000c1', 'INVITE-AB', '11111111-1111-1111-1111-111111111111');
