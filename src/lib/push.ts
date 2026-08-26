@@ -23,8 +23,18 @@ function urlBase64ToUint8Array(base64: string): Uint8Array<ArrayBuffer> {
   return output;
 }
 
-/** One row per signed-in user — whether it exists is the enabled state.
- * Also opportunistically refreshes the stored IANA timezone if it's
+/** A DB row existing is necessary but not sufficient — it only proves some
+ * device once subscribed for this account, and never gets cleaned up if
+ * *this* device's own grant quietly dies (a Home Screen icon removed and
+ * re-added, a Safari data clear, an iOS update resetting permissions all
+ * do this) since the push service can keep accepting sends to the old
+ * endpoint for a while with no error. Left unchecked, the toggle claims
+ * "Notifications on" forever even after this device can no longer show
+ * anything. So the row is only trusted once this device's own live state
+ * — OS permission plus an actual subscription — confirms it; a mismatch
+ * clears the row and reports disabled, since re-subscribing needs a fresh
+ * user gesture (the toggle's own click) rather than happening silently
+ * here. Also opportunistically refreshes the stored IANA timezone if it's
  * drifted from the browser's current one (e.g. the user travelled), via a
  * plain UPDATE — not upsert, so it can't fail on the table's other NOT
  * NULL columns — since this table isn't part of the outbox/RawItem sync
@@ -33,13 +43,25 @@ function urlBase64ToUint8Array(base64: string): Uint8Array<ArrayBuffer> {
  * page load while signed in, so drift gets caught the next time the app is
  * actually open rather than staying stale until the user toggles off/on. */
 export async function isPushNotificationsEnabled(): Promise<boolean> {
-  if (!supabase) return false;
+  if (!supabase || !pushNotificationsSupported) return false;
   const {
     data: { session },
   } = await supabase.auth.getSession();
   if (!session) return false;
   const { data } = await supabase.from("push_subscriptions").select("user_id, timezone").eq("user_id", session.user.id).maybeSingle();
   if (!data) return false;
+
+  if (Notification.permission !== "granted") {
+    await supabase.from("push_subscriptions").delete().eq("user_id", session.user.id);
+    return false;
+  }
+  const registration = await navigator.serviceWorker.ready;
+  const subscription = await registration.pushManager.getSubscription();
+  if (!subscription) {
+    await supabase.from("push_subscriptions").delete().eq("user_id", session.user.id);
+    return false;
+  }
+
   const currentTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   if (data.timezone !== currentTimezone) {
     await supabase.from("push_subscriptions").update({ timezone: currentTimezone }).eq("user_id", session.user.id);

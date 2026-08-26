@@ -54,8 +54,12 @@ function escapeHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }
 
-function buildEmail(opts: { senderName: string; isReply: boolean; categoryLabel: string; subject: string | null; preview: string; threadUrl: string }) {
-  const { senderName, isReply, categoryLabel, subject, preview, threadUrl } = opts;
+// Deliberately never includes the note's subject or body — email isn't a
+// private channel the way the app is (forwarding, shared inboxes, provider
+// scanning), so the notification only ever says *that* something arrived,
+// never *what*. Read the actual note in Lauva.
+function buildEmail(opts: { senderName: string; isReply: boolean; categoryLabel: string; threadUrl: string }) {
+  const { senderName, isReply, categoryLabel, threadUrl } = opts;
   const heading = isReply ? `${senderName} replied to a note` : `${senderName} sent you a note`;
   const subjectLine = isReply ? `${senderName} replied on Lauva` : `${senderName} sent you a ${categoryLabel.toLowerCase()} on Lauva`;
 
@@ -69,15 +73,16 @@ function buildEmail(opts: { senderName: string; isReply: boolean; categoryLabel:
         </td>
       </tr>
       <tr>
-        <td style="background:#ffffff;border-radius:16px;padding:28px;box-shadow:0 1px 3px rgba(36,49,58,0.08);">
+        <td style="background:#ffffff;border-radius:16px;padding:28px;box-shadow:0 1px 3px rgba(36,49,58,0.08);text-align:center;">
           <span style="display:inline-block;padding:3px 10px;border-radius:999px;background:${ACCENT}22;color:${ACCENT};font-size:12px;font-weight:600;letter-spacing:0.03em;text-transform:uppercase;">
             ${escapeHtml(categoryLabel)}${isReply ? " · Reply" : ""}
           </span>
-          <h1 style="margin:14px 0 4px;font-size:19px;line-height:1.3;color:${TEXT_PRIMARY};font-weight:600;">
+          <h1 style="margin:14px 0 6px;font-size:19px;line-height:1.3;color:${TEXT_PRIMARY};font-weight:600;">
             ${escapeHtml(heading)}
           </h1>
-          ${subject ? `<p style="margin:0 0 12px;font-size:15px;font-weight:600;color:${TEXT_PRIMARY};">${escapeHtml(subject)}</p>` : ""}
-          <p style="margin:0 0 22px;padding:14px 16px;background:${MINT};border-radius:10px;font-size:14px;line-height:1.6;color:${TEXT_SECONDARY};white-space:pre-wrap;">${escapeHtml(preview)}</p>
+          <p style="margin:0 0 22px;font-size:14px;line-height:1.6;color:${TEXT_SECONDARY};">
+            Kept private between you and your partner — open Lauva to read it.
+          </p>
           <a href="${threadUrl}" style="display:inline-block;padding:10px 20px;border-radius:8px;background:${ACCENT};color:#ffffff;font-size:14px;font-weight:600;text-decoration:none;">
             Open in Lauva
           </a>
@@ -92,7 +97,7 @@ function buildEmail(opts: { senderName: string; isReply: boolean; categoryLabel:
   </body>
 </html>`;
 
-  const text = [heading, "", subject ?? null, preview, "", `Open in Lauva: ${threadUrl}`].filter((l): l is string => l !== null).join("\n");
+  const text = [heading, "", "Kept private between you and your partner — open Lauva to read it.", "", `Open in Lauva: ${threadUrl}`].join("\n");
 
   return { subjectLine, html, text };
 }
@@ -123,7 +128,7 @@ Deno.serve(async (req) => {
 
   const { data: note, error: noteError } = await admin
     .from("notes")
-    .select("id, sender_id, recipient_id, thread_root_id, category, subject, body, notified_at")
+    .select("id, sender_id, recipient_id, thread_root_id, category, notified_at")
     .eq("id", noteId)
     .single();
 
@@ -151,14 +156,11 @@ Deno.serve(async (req) => {
   const appUrl = Deno.env.get("NOTES_APP_URL") ?? "https://lauva.pl";
   const threadRootId = (note.thread_root_id as string | null) ?? note.id;
   const threadUrl = `${appUrl}/notes?thread=${threadRootId}`;
-  const preview = typeof note.body === "string" ? note.body.slice(0, 400) : "";
 
   const { subjectLine, html, text } = buildEmail({
     senderName,
     isReply,
     categoryLabel,
-    subject: typeof note.subject === "string" ? note.subject : null,
-    preview,
     threadUrl,
   });
 
