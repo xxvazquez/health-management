@@ -522,6 +522,25 @@ create table public.push_subscriptions (
   constraint push_subscriptions_user_id_fkey foreign key (user_id) references auth.users(id)
 );
 
+-- Log -> Journal: a personal freeform journal entry, one row per entry.
+-- Unrelated to food_diary/supplement_diary/etc. above (those are a single
+-- optional note attached to one specific logged item on one specific day,
+-- synced through the outbox) — this has no item of its own and is written
+-- and read directly against Supabase instead, same pattern as `notes` (see
+-- src/lib/supabase/journal.ts), since an entry is written once in a sitting
+-- and edited occasionally rather than logged repeatedly.
+create table public.journal_entries (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id),
+  date date not null,
+  title text,
+  body text not null check (char_length(trim(body)) > 0),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index journal_entries_user_date_idx on public.journal_entries (user_id, date desc, created_at desc);
+
 -- Row-level security: every table, same shape — a user can only read or
 -- write rows where user_id matches their own auth.uid().
 alter table public.categories enable row level security;
@@ -543,6 +562,7 @@ alter table public.stool_logs enable row level security;
 alter table public.workout_logs enable row level security;
 alter table public.period_logs enable row level security;
 alter table public.push_subscriptions enable row level security;
+alter table public.journal_entries enable row level security;
 alter table public.partner_invites enable row level security;
 alter table public.partner_links enable row level security;
 alter table public.notes enable row level security;
@@ -566,6 +586,7 @@ create policy "stool_logs_all_own" on public.stool_logs for all using (auth.uid(
 create policy "workout_logs_all_own" on public.workout_logs for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "period_logs_all_own" on public.period_logs for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "push_subscriptions_all_own" on public.push_subscriptions for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "journal_entries_all_own" on public.journal_entries for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 -- partner_invites: only the creator can see/manage their own pending
 -- invite (e.g. to show "your code is still waiting"). Redemption by the
@@ -771,3 +792,25 @@ create policy "notes_update_participant" on public.notes for update using (auth.
 -- create policy "notes_select_participant" on public.notes for select using (auth.uid() = sender_id or auth.uid() = recipient_id);
 -- create policy "notes_insert_to_partner" on public.notes for insert with check ( ... );  -- see above
 -- create policy "notes_update_participant" on public.notes for update using (auth.uid() = sender_id or auth.uid() = recipient_id) with check (auth.uid() = sender_id or auth.uid() = recipient_id);
+
+-- Migration for a project that already ran the create table statements
+-- above before Log -> Journal existed: adds journal_entries. Non-destructive,
+-- doesn't touch any existing table. Run once by hand in the SQL editor.
+--
+-- create table public.journal_entries ( ... );  -- see CREATE TABLE public.journal_entries above
+-- create index journal_entries_user_date_idx on public.journal_entries (user_id, date desc, created_at desc);
+-- alter table public.journal_entries enable row level security;
+-- create policy "journal_entries_all_own" on public.journal_entries for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- Migration for a project that already ran the migration above back when
+-- this feature was still called Diary (table `diary_entries`, index
+-- `diary_entries_user_date_idx`, policy `diary_entries_all_own`): renames
+-- everything to journal_entries instead of dropping and recreating, so any
+-- entries already written aren't lost. Run once by hand in the SQL editor
+-- — only ever needed on a project that ran the OLD version of the block
+-- above, not a fresh one (which already gets the journal_entries name from
+-- the CREATE TABLE statements up top).
+--
+-- alter table public.diary_entries rename to journal_entries;
+-- alter index diary_entries_user_date_idx rename to journal_entries_user_date_idx;
+-- alter policy "diary_entries_all_own" on public.journal_entries rename to "journal_entries_all_own";
