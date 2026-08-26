@@ -497,6 +497,16 @@ create index symptom_logs_item_date_idx on public.symptom_logs (item_id, date);
 create index stool_logs_user_date_idx on public.stool_logs (user_id, date);
 create index workout_logs_item_date_idx on public.workout_logs (item_id, date);
 create index period_logs_user_date_idx on public.period_logs (user_id, date);
+-- These four log tables had no index with `user_id` as a leading column —
+-- every one of them is fetched by the client as `select * ... where user_id
+-- = ...` on every sync pull (see fetchAllRows in src/lib/supabase/sync.ts),
+-- exactly the access pattern stool_logs/period_logs' own (user_id, date)
+-- indexes above already cover, so this brings the other four log tables up
+-- to the same standard rather than leaving them to a sequential scan.
+create index food_logs_user_date_idx on public.food_logs (user_id, date);
+create index supplement_logs_user_date_idx on public.supplement_logs (user_id, date);
+create index habit_logs_user_date_idx on public.habit_logs (user_id, date);
+create index symptom_logs_user_date_idx on public.symptom_logs (user_id, date);
 
 -- One row per user: the push subscription for whichever device they last
 -- enabled notifications on (enabling on a second device overwrites the
@@ -541,6 +551,121 @@ create table public.journal_entries (
 
 create index journal_entries_user_date_idx on public.journal_entries (user_id, date desc, created_at desc);
 
+-- Reminders -> Personal: private to one user, same ownership shape as
+-- journal_entries above (no offline/outbox — written directly against
+-- Supabase). A "task" covers both a one-off deadline and a recurring chore:
+-- recurrence_days null means one-off (last_completed_at, once set, means
+-- done); recurrence_days set means recurring (due_at is the *next* due
+-- instance, advanced by recurrence_days on every completion, and the task
+-- never becomes permanently "done"). reminder_sent_at is the idempotency
+-- stamp for the current due_at occurrence — cleared whenever due_at
+-- advances so the next occurrence can remind again; see the "Reminders"
+-- cron section below.
+create table public.personal_notes (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id),
+  title text,
+  body text not null check (char_length(trim(body)) > 0),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table public.personal_tasks (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id),
+  title text not null check (char_length(trim(title)) > 0),
+  notes text,
+  due_at timestamptz,
+  recurrence_days int check (recurrence_days is null or recurrence_days > 0),
+  last_completed_at timestamptz,
+  reminder_sent_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+-- Every completion of a recurring personal_tasks row, not just the latest
+-- (last_completed_at above is a denormalized copy for fast display).
+create table public.personal_task_completions (
+  id uuid primary key default gen_random_uuid(),
+  task_id uuid not null references public.personal_tasks(id) on delete cascade,
+  user_id uuid not null default auth.uid() references auth.users(id),
+  completed_at timestamptz not null default now()
+);
+
+create index personal_notes_user_updated_idx on public.personal_notes (user_id, updated_at desc);
+create index personal_tasks_user_due_idx on public.personal_tasks (user_id, due_at);
+create index personal_task_completions_task_idx on public.personal_task_completions (task_id, completed_at desc);
+
+-- Reminders -> Home: the same three concepts as Personal above, but shared
+-- with a linked partner (see partner_links, defined earlier) instead of
+-- owned outright. `owner_id` is whoever created the row; visibility/edit
+-- rights extend to their linked partner via is_household_member below, so
+-- either person can view, edit, and complete the other's rows — same
+-- "shared, not just visible" rule Notes uses for reading/archiving/
+-- favouriting a thread either participant is part of.
+create or replace function public.is_household_member(target_user_id uuid)
+returns boolean
+language sql
+security invoker
+stable
+as $$
+  select exists (
+    select 1 from public.partner_links pl
+    where (pl.user_a_id = target_user_id and pl.user_b_id = auth.uid())
+       or (pl.user_b_id = target_user_id and pl.user_a_id = auth.uid())
+  );
+$$;
+
+create table public.household_notes (
+  id uuid primary key default gen_random_uuid(),
+  owner_id uuid not null default auth.uid() references auth.users(id),
+  title text,
+  body text not null check (char_length(trim(body)) > 0),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table public.household_tasks (
+  id uuid primary key default gen_random_uuid(),
+  owner_id uuid not null default auth.uid() references auth.users(id),
+  title text not null check (char_length(trim(title)) > 0),
+  notes text,
+  due_at timestamptz,
+  recurrence_days int check (recurrence_days is null or recurrence_days > 0),
+  last_completed_at timestamptz,
+  last_completed_by uuid references auth.users(id),
+  reminder_sent_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table public.household_task_completions (
+  id uuid primary key default gen_random_uuid(),
+  task_id uuid not null references public.household_tasks(id) on delete cascade,
+  completed_by uuid not null default auth.uid() references auth.users(id),
+  completed_at timestamptz not null default now()
+);
+
+-- Home -> Expiration: household products/items tracked by expiry date, not
+-- tied to any item/category dimension elsewhere in this schema (its own
+-- standalone shape, same reasoning as stool_logs/period_logs). Reminders
+-- fire remind_days_before the expiry date — see the cron section below.
+create table public.household_items (
+  id uuid primary key default gen_random_uuid(),
+  owner_id uuid not null default auth.uid() references auth.users(id),
+  name text not null check (char_length(trim(name)) > 0),
+  expires_on date not null,
+  remind_days_before int not null default 3 check (remind_days_before >= 0),
+  reminder_sent_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index household_notes_owner_updated_idx on public.household_notes (owner_id, updated_at desc);
+create index household_tasks_owner_due_idx on public.household_tasks (owner_id, due_at);
+create index household_task_completions_task_idx on public.household_task_completions (task_id, completed_at desc);
+create index household_items_owner_expires_idx on public.household_items (owner_id, expires_on);
+
 -- Row-level security: every table, same shape — a user can only read or
 -- write rows where user_id matches their own auth.uid().
 alter table public.categories enable row level security;
@@ -566,6 +691,13 @@ alter table public.journal_entries enable row level security;
 alter table public.partner_invites enable row level security;
 alter table public.partner_links enable row level security;
 alter table public.notes enable row level security;
+alter table public.personal_notes enable row level security;
+alter table public.personal_tasks enable row level security;
+alter table public.personal_task_completions enable row level security;
+alter table public.household_notes enable row level security;
+alter table public.household_tasks enable row level security;
+alter table public.household_task_completions enable row level security;
+alter table public.household_items enable row level security;
 
 create policy "categories_all_own" on public.categories for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "food_items_all_own" on public.food_items for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
@@ -587,6 +719,9 @@ create policy "workout_logs_all_own" on public.workout_logs for all using (auth.
 create policy "period_logs_all_own" on public.period_logs for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "push_subscriptions_all_own" on public.push_subscriptions for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "journal_entries_all_own" on public.journal_entries for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "personal_notes_all_own" on public.personal_notes for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "personal_tasks_all_own" on public.personal_tasks for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "personal_task_completions_all_own" on public.personal_task_completions for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 -- partner_invites: only the creator can see/manage their own pending
 -- invite (e.g. to show "your code is still waiting"). Redemption by the
@@ -630,11 +765,50 @@ create policy "notes_insert_to_partner" on public.notes for insert with check (
 );
 create policy "notes_update_participant" on public.notes for update using (auth.uid() = sender_id or auth.uid() = recipient_id) with check (auth.uid() = sender_id or auth.uid() = recipient_id);
 
+-- household_notes/household_tasks/household_items: visible to the owner and
+-- their linked partner (is_household_member, defined with these tables
+-- above); insert is always as yourself. update/delete are pair-wide too —
+-- unlike notes' identity columns, there's no per-row "which side am I"
+-- distinction to lock down, so a plain shared using()/with check() is
+-- enough for either partner to edit or complete the other's row.
+create policy "household_notes_select_pair" on public.household_notes for select using (auth.uid() = owner_id or public.is_household_member(owner_id));
+create policy "household_notes_insert_own" on public.household_notes for insert with check (auth.uid() = owner_id);
+create policy "household_notes_update_pair" on public.household_notes for update using (auth.uid() = owner_id or public.is_household_member(owner_id)) with check (auth.uid() = owner_id or public.is_household_member(owner_id));
+create policy "household_notes_delete_pair" on public.household_notes for delete using (auth.uid() = owner_id or public.is_household_member(owner_id));
+
+create policy "household_tasks_select_pair" on public.household_tasks for select using (auth.uid() = owner_id or public.is_household_member(owner_id));
+create policy "household_tasks_insert_own" on public.household_tasks for insert with check (auth.uid() = owner_id);
+create policy "household_tasks_update_pair" on public.household_tasks for update using (auth.uid() = owner_id or public.is_household_member(owner_id)) with check (auth.uid() = owner_id or public.is_household_member(owner_id));
+create policy "household_tasks_delete_pair" on public.household_tasks for delete using (auth.uid() = owner_id or public.is_household_member(owner_id));
+
+create policy "household_items_select_pair" on public.household_items for select using (auth.uid() = owner_id or public.is_household_member(owner_id));
+create policy "household_items_insert_own" on public.household_items for insert with check (auth.uid() = owner_id);
+create policy "household_items_update_pair" on public.household_items for update using (auth.uid() = owner_id or public.is_household_member(owner_id)) with check (auth.uid() = owner_id or public.is_household_member(owner_id));
+create policy "household_items_delete_pair" on public.household_items for delete using (auth.uid() = owner_id or public.is_household_member(owner_id));
+
+-- household_task_completions has no owner_id of its own (it's a log of
+-- who/when, not a thing anyone "owns"), so its policies join back to the
+-- parent task's pair-visibility instead. No update policy — a completion
+-- record is immutable once inserted, same "no editing history" rule as
+-- notes' read-receipt timestamps.
+create policy "household_task_completions_select_pair" on public.household_task_completions for select using (
+  exists (select 1 from public.household_tasks t where t.id = task_id and (auth.uid() = t.owner_id or public.is_household_member(t.owner_id)))
+);
+create policy "household_task_completions_insert_pair" on public.household_task_completions for insert with check (
+  completed_by = auth.uid()
+  and exists (select 1 from public.household_tasks t where t.id = task_id and (auth.uid() = t.owner_id or public.is_household_member(t.owner_id)))
+);
+create policy "household_task_completions_delete_pair" on public.household_task_completions for delete using (
+  exists (select 1 from public.household_tasks t where t.id = task_id and (auth.uid() = t.owner_id or public.is_household_member(t.owner_id)))
+);
+
 -- Reminders: schedule the Edge Function that checks and sends them (still
 -- named breakfast-reminder-cron — it now walks every supplement/habit
--- item's own reminder_time rather than one fixed breakfast check, but the
--- function's deployed name is a live URL a running pg_cron job already
--- calls, so renaming it would need this schedule re-pointed by hand too).
+-- item's own reminder_time, plus personal_tasks/household_tasks (by
+-- due_at) and household_items (by expires_on - remind_days_before), rather
+-- than one fixed breakfast check, but the function's deployed name is a
+-- live URL a running pg_cron job already calls, so renaming it would need
+-- this schedule re-pointed by hand too).
 -- Run this once, filling in your own project ref and anon key (Dashboard ->
 -- Project Settings -> API) — the anon key is public by design (see the
 -- note in .github/workflows/deploy.yml), so it's fine inline here. Needs
@@ -814,3 +988,64 @@ create policy "notes_update_participant" on public.notes for update using (auth.
 -- alter table public.diary_entries rename to journal_entries;
 -- alter index diary_entries_user_date_idx rename to journal_entries_user_date_idx;
 -- alter policy "diary_entries_all_own" on public.journal_entries rename to "journal_entries_all_own";
+
+-- Migration for a project that already ran the create table statements
+-- above before Personal Reminders + Home existed: adds personal_notes/
+-- personal_tasks/personal_task_completions and household_notes/
+-- household_tasks/household_task_completions/household_items, plus the
+-- is_household_member helper. Non-destructive — doesn't touch any existing
+-- table. Run once by hand in the SQL editor.
+--
+-- create table public.personal_notes ( ... );               -- see CREATE TABLE public.personal_notes above
+-- create table public.personal_tasks ( ... );                -- see CREATE TABLE public.personal_tasks above
+-- create table public.personal_task_completions ( ... );     -- see CREATE TABLE public.personal_task_completions above
+-- create index personal_notes_user_updated_idx on public.personal_notes (user_id, updated_at desc);
+-- create index personal_tasks_user_due_idx on public.personal_tasks (user_id, due_at);
+-- create index personal_task_completions_task_idx on public.personal_task_completions (task_id, completed_at desc);
+-- create or replace function public.is_household_member(target_user_id uuid) ... ;  -- see CREATE FUNCTION public.is_household_member above
+-- create table public.household_notes ( ... );                -- see CREATE TABLE public.household_notes above
+-- create table public.household_tasks ( ... );                -- see CREATE TABLE public.household_tasks above
+-- create table public.household_task_completions ( ... );     -- see CREATE TABLE public.household_task_completions above
+-- create table public.household_items ( ... );                -- see CREATE TABLE public.household_items above
+-- create index household_notes_owner_updated_idx on public.household_notes (owner_id, updated_at desc);
+-- create index household_tasks_owner_due_idx on public.household_tasks (owner_id, due_at);
+-- create index household_task_completions_task_idx on public.household_task_completions (task_id, completed_at desc);
+-- create index household_items_owner_expires_idx on public.household_items (owner_id, expires_on);
+-- alter table public.personal_notes enable row level security;
+-- alter table public.personal_tasks enable row level security;
+-- alter table public.personal_task_completions enable row level security;
+-- alter table public.household_notes enable row level security;
+-- alter table public.household_tasks enable row level security;
+-- alter table public.household_task_completions enable row level security;
+-- alter table public.household_items enable row level security;
+-- create policy "personal_notes_all_own" on public.personal_notes for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+-- create policy "personal_tasks_all_own" on public.personal_tasks for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+-- create policy "personal_task_completions_all_own" on public.personal_task_completions for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+-- create policy "household_notes_select_pair" on public.household_notes for select using ( ... );   -- see policies above
+-- create policy "household_notes_insert_own" on public.household_notes for insert with check (auth.uid() = owner_id);
+-- create policy "household_notes_update_pair" on public.household_notes for update using ( ... ) with check ( ... );  -- see policies above
+-- create policy "household_notes_delete_pair" on public.household_notes for delete using ( ... );   -- see policies above
+-- create policy "household_tasks_select_pair" on public.household_tasks for select using ( ... );    -- see policies above
+-- create policy "household_tasks_insert_own" on public.household_tasks for insert with check (auth.uid() = owner_id);
+-- create policy "household_tasks_update_pair" on public.household_tasks for update using ( ... ) with check ( ... ); -- see policies above
+-- create policy "household_tasks_delete_pair" on public.household_tasks for delete using ( ... );    -- see policies above
+-- create policy "household_items_select_pair" on public.household_items for select using ( ... );    -- see policies above
+-- create policy "household_items_insert_own" on public.household_items for insert with check (auth.uid() = owner_id);
+-- create policy "household_items_update_pair" on public.household_items for update using ( ... ) with check ( ... ); -- see policies above
+-- create policy "household_items_delete_pair" on public.household_items for delete using ( ... );    -- see policies above
+-- create policy "household_task_completions_select_pair" on public.household_task_completions for select using ( ... );  -- see policies above
+-- create policy "household_task_completions_insert_pair" on public.household_task_completions for insert with check ( ... ); -- see policies above
+-- create policy "household_task_completions_delete_pair" on public.household_task_completions for delete using ( ... );  -- see policies above
+
+-- Migration for a project that already ran the create table statements
+-- above before food_logs/supplement_logs/habit_logs/symptom_logs had a
+-- user_id-leading index: adds one to each, matching stool_logs/period_logs'
+-- own (user_id, date) index above. Non-destructive — CREATE INDEX only,
+-- safe to run on a project with existing data (takes a brief lock while it
+-- builds; fine at this app's scale, use CONCURRENTLY instead if a table has
+-- grown very large). Run once by hand in the SQL editor.
+--
+-- create index food_logs_user_date_idx on public.food_logs (user_id, date);
+-- create index supplement_logs_user_date_idx on public.supplement_logs (user_id, date);
+-- create index habit_logs_user_date_idx on public.habit_logs (user_id, date);
+-- create index symptom_logs_user_date_idx on public.symptom_logs (user_id, date);
