@@ -747,6 +747,14 @@ create policy "partner_links_delete_participant" on public.partner_links for del
 -- same policy. No delete policy: archiving is the retirement path, same
 -- "no hard delete" rule as every item type elsewhere in this schema.
 create policy "notes_select_participant" on public.notes for select using (auth.uid() = sender_id or auth.uid() = recipient_id);
+-- The thread_root_id reference inside the exists() below MUST be qualified
+-- as `notes.thread_root_id` (the new row being inserted), not left bare —
+-- `notes` itself has a thread_root_id column, so an unqualified reference
+-- resolves to the subquery's OWN `root.thread_root_id` instead (the
+-- closest matching scope wins), silently turning the check into
+-- `root.id = root.thread_root_id` — never true for a real reply. That bug
+-- meant every reply, from anyone, was always rejected here; caught by
+-- supabase/tests/rls.test.sql's reply-insert check, not by hand-testing.
 create policy "notes_insert_to_partner" on public.notes for insert with check (
   auth.uid() = sender_id
   and exists (
@@ -1049,3 +1057,30 @@ create policy "household_task_completions_delete_pair" on public.household_task_
 -- create index supplement_logs_user_date_idx on public.supplement_logs (user_id, date);
 -- create index habit_logs_user_date_idx on public.habit_logs (user_id, date);
 -- create index symptom_logs_user_date_idx on public.symptom_logs (user_id, date);
+
+-- Migration for a project that already ran the create table statements
+-- above before notes_insert_to_partner's thread_root_id bug was fixed: a
+-- bare `thread_root_id` reference inside the reply-check exists() resolved
+-- to the subquery's own `root.thread_root_id` instead of the new row's
+-- (notes has a column of that name too), which meant every reply to a
+-- note — from anyone, always — was silently rejected by this policy. Run
+-- once by hand in the SQL editor; non-destructive (replaces one policy,
+-- touches no data).
+--
+-- drop policy "notes_insert_to_partner" on public.notes;
+-- create policy "notes_insert_to_partner" on public.notes for insert with check (
+--   auth.uid() = sender_id
+--   and exists (
+--     select 1 from public.partner_links pl
+--     where (pl.user_a_id = auth.uid() and pl.user_b_id = recipient_id)
+--        or (pl.user_b_id = auth.uid() and pl.user_a_id = recipient_id)
+--   )
+--   and (
+--     thread_root_id is null
+--     or exists (
+--       select 1 from public.notes root
+--       where root.id = notes.thread_root_id
+--         and (root.sender_id = auth.uid() or root.recipient_id = auth.uid())
+--     )
+--   )
+-- );
