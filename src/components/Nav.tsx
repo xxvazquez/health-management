@@ -7,7 +7,7 @@ import clsx from "clsx";
 import { useData } from "@/lib/DataContext";
 import { useVisibleDomains, type TrackedDomain } from "@/lib/visibleDomains";
 import { useAuth } from "@/lib/supabase/AuthContext";
-import { notesConfigured, unreadNoteCount } from "@/lib/supabase/notes";
+import { notesConfigured, onNotesChanged, unreadNoteCount } from "@/lib/supabase/notes";
 import { Logo } from "@/components/Logo";
 import { AccountMenuButton } from "@/components/auth/AccountMenuButton";
 import { AccountPanel } from "@/components/auth/AccountPanel";
@@ -237,9 +237,17 @@ function useUnreadNoteCount(pathname: string): number {
     };
     refresh();
     const interval = setInterval(refresh, UNREAD_POLL_MS);
+    // Immediate refresh the moment something actually changes read/unread
+    // state — the Notes page's "mark all as read" (and every other read/
+    // unread/archive action) lives in a completely different component
+    // tree from this badge, so without this it stayed stuck at the old
+    // count until the next poll tick or route change. See notes.ts's
+    // onNotesChanged for what fires it.
+    const unsubscribe = onNotesChanged(refresh);
     return () => {
       cancelled = true;
       clearInterval(interval);
+      unsubscribe();
     };
     // `pathname` is read only to retrigger this on navigation (e.g. leaving
     // /notes after reading something), not otherwise used in the effect.

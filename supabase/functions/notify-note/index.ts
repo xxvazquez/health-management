@@ -24,11 +24,78 @@ function json(body: unknown, status = 200): Response {
 }
 
 const CATEGORY_LABEL: Record<string, string> = {
-  note: "note",
-  reminder: "reminder",
-  appreciation: "appreciation",
-  question: "question",
+  note: "Note",
+  reminder: "Reminder",
+  appreciation: "Appreciation",
+  question: "Question",
 };
+
+// Same Notes accent as the app itself (--series-magenta in globals.css),
+// plus the app's own brand-mint background — this should look like it came
+// from Lauva, not a generic transactional-email template.
+const ACCENT = "#9d43a3";
+const MINT = "#e6f1f2";
+const TEXT_PRIMARY = "#24313a";
+const TEXT_SECONDARY = "#57666d";
+const FONT_STACK = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
+
+/** "andrzejzuk93@example.com" -> "Andrzejzuk93" — same rule
+ * src/components/auth/AccountPanel.tsx uses for the account menu's own
+ * greeting, duplicated here rather than shared since an Edge Function is a
+ * separate Deno module with no access to the Next app's source tree. A
+ * name, even a guessed one, reads as an actual message from someone; a raw
+ * email address in a sentence like "x@y.com sent you a note" doesn't. */
+function displayNameFromEmail(email: string): string {
+  const local = email.split("@")[0] ?? email;
+  return local.charAt(0).toUpperCase() + local.slice(1);
+}
+
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
+function buildEmail(opts: { senderName: string; isReply: boolean; categoryLabel: string; subject: string | null; preview: string; threadUrl: string }) {
+  const { senderName, isReply, categoryLabel, subject, preview, threadUrl } = opts;
+  const heading = isReply ? `${senderName} replied to a note` : `${senderName} sent you a note`;
+  const subjectLine = isReply ? `${senderName} replied on Lauva` : `${senderName} sent you a ${categoryLabel.toLowerCase()} on Lauva`;
+
+  const html = `<!doctype html>
+<html>
+  <body style="margin:0;padding:32px 16px;background:${MINT};font-family:${FONT_STACK};">
+    <table role="presentation" width="100%" style="max-width:480px;margin:0 auto;border-collapse:collapse;">
+      <tr>
+        <td style="padding-bottom:20px;text-align:center;">
+          <span style="font-size:15px;font-weight:600;letter-spacing:0.2em;color:${TEXT_PRIMARY};">LAUVA</span>
+        </td>
+      </tr>
+      <tr>
+        <td style="background:#ffffff;border-radius:16px;padding:28px;box-shadow:0 1px 3px rgba(36,49,58,0.08);">
+          <span style="display:inline-block;padding:3px 10px;border-radius:999px;background:${ACCENT}22;color:${ACCENT};font-size:12px;font-weight:600;letter-spacing:0.03em;text-transform:uppercase;">
+            ${escapeHtml(categoryLabel)}${isReply ? " · Reply" : ""}
+          </span>
+          <h1 style="margin:14px 0 4px;font-size:19px;line-height:1.3;color:${TEXT_PRIMARY};font-weight:600;">
+            ${escapeHtml(heading)}
+          </h1>
+          ${subject ? `<p style="margin:0 0 12px;font-size:15px;font-weight:600;color:${TEXT_PRIMARY};">${escapeHtml(subject)}</p>` : ""}
+          <p style="margin:0 0 22px;padding:14px 16px;background:${MINT};border-radius:10px;font-size:14px;line-height:1.6;color:${TEXT_SECONDARY};white-space:pre-wrap;">${escapeHtml(preview)}</p>
+          <a href="${threadUrl}" style="display:inline-block;padding:10px 20px;border-radius:8px;background:${ACCENT};color:#ffffff;font-size:14px;font-weight:600;text-decoration:none;">
+            Open in Lauva
+          </a>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding-top:20px;text-align:center;font-size:12px;color:${TEXT_SECONDARY};">
+          Private notes between you and your partner on Lauva.
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
+
+  const text = [heading, "", subject ?? null, preview, "", `Open in Lauva: ${threadUrl}`].filter((l): l is string => l !== null).join("\n");
+
+  return { subjectLine, html, text };
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -79,15 +146,21 @@ Deno.serve(async (req) => {
   }
 
   const isReply = Boolean(note.thread_root_id);
-  const senderLabel = sender?.user?.email ?? "Your partner";
-  const categoryLabel = CATEGORY_LABEL[note.category as string] ?? "note";
+  const senderName = sender?.user?.email ? displayNameFromEmail(sender.user.email) : "Your partner";
+  const categoryLabel = CATEGORY_LABEL[note.category as string] ?? "Note";
   const appUrl = Deno.env.get("NOTES_APP_URL") ?? "https://lauva.pl";
-  const subjectLine = isReply ? `${senderLabel} replied on Lauva` : `${senderLabel} sent you a ${categoryLabel} on Lauva`;
+  const threadRootId = (note.thread_root_id as string | null) ?? note.id;
+  const threadUrl = `${appUrl}/notes?thread=${threadRootId}`;
+  const preview = typeof note.body === "string" ? note.body.slice(0, 400) : "";
 
-  const preview = typeof note.body === "string" ? note.body.slice(0, 500) : "";
-  const text = [subjectLine, "", note.subject ? `Subject: ${note.subject}` : null, preview, "", `Read and reply: ${appUrl}/notes`]
-    .filter((line): line is string => line !== null)
-    .join("\n");
+  const { subjectLine, html, text } = buildEmail({
+    senderName,
+    isReply,
+    categoryLabel,
+    subject: typeof note.subject === "string" ? note.subject : null,
+    preview,
+    threadUrl,
+  });
 
   const resendRes = await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -96,9 +169,10 @@ Deno.serve(async (req) => {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      from: Deno.env.get("NOTES_FROM") ?? "Lauva Notes <onboarding@resend.dev>",
+      from: Deno.env.get("NOTES_FROM") ?? "Lauva <onboarding@resend.dev>",
       to: recipientEmail,
       subject: subjectLine,
+      html,
       text,
     }),
   });
