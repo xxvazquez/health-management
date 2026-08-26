@@ -450,8 +450,17 @@ create index notes_thread_idx on public.notes (thread_root_id);
 -- INSERT). Whoever just sent this message has implicitly "read" the thread
 -- up to it; the other side's read_at is left untouched, so last_message_at
 -- moving past it is what makes the thread unread again for them.
+-- security definer: this bookkeeping update targets the thread ROOT row,
+-- not the row actually being inserted — for a reply, that's a different
+-- row than the one the INSERT's own WITH CHECK already validated access
+-- to. Bypasses RLS for exactly this one system-maintained side effect
+-- (last_message_at / read timestamps), same reasoning redeem_partner_invite
+-- uses it for a cross-user side effect elsewhere in this file.
 create or replace function public.notes_touch_thread() returns trigger
-language plpgsql as $$
+language plpgsql
+security definer
+set search_path = public
+as $$
 declare
   root_id uuid := coalesce(new.thread_root_id, new.id);
 begin
