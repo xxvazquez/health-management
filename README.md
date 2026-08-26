@@ -9,6 +9,7 @@ A personal food, symptom, supplement, habit, workout, and cycle tracker, with a 
 - **Overview** (`/overview`, not currently linked from nav) — a read-only "My Day" summary built from the day's own logged data (meals, exercise, notable symptoms), plus cross-domain pattern findings.
 - **Food / Workout / Cycle dashboards** — charts and pattern analysis over what's been logged. Food additionally scores logged intake against a research-informed model and surfaces what's underrepresented, without diagnosing anything. Cycle's analytics (cycle-length/period-length trends, delay-vs-prediction) are separate from the Log page's Cycle tab, which just handles today's entry and a compact calendar.
 - **My Drive** (`/my-drive`) — read-only browser for the signed-in Google account's own Google Drive.
+- **Connect → Notes** (`/notes`) — private notes between two linked partner accounts, separate from personal logging. Link once with a short invite code (Manage-style — no invite emails), then send a note with a category (Note/Reminder/Appreciation/Question), reply to build a simple thread, favourite, mark read/unread, and archive. The recipient gets an email when a note or reply arrives.
 - Works fully offline; syncs to Supabase when signed in; installable as a PWA.
 
 Supplements, Habits, Digestion, and Patterns dashboards also exist and work, but aren't currently linked from the nav (`src/components/Nav.tsx`) while Food/Workout/Cycle get rebuilt first — nothing about them was removed, they're one nav entry away from coming back.
@@ -35,7 +36,7 @@ src/
   taxonomy/             category definitions, food classification, naming rules
 supabase/
   schema.sql            full DDL + RLS policies — the source of truth for the data model
-  functions/            Edge Functions (bug report email, reminder cron)
+  functions/            Edge Functions (bug report email, reminder cron, Notes email)
   tests/rls.test.sql    automated RLS isolation tests (CI only, never a real project)
 ```
 
@@ -69,6 +70,8 @@ All optional — without them the app just runs local-only with fewer features. 
 **Stool and Workout logs don't fit that shape and keep their own tables** (`stool_logs`, `workout_logs`) — a bowel movement or a lift isn't "an item plus an occurrence." Workout still gets a real item type (`workout_items`: name, category, archive state, a unit like kg/minutes/reps) for the Manage page and the Log page's per-exercise rows, and `workout_logs.item_id` is a real foreign key to it, same as every other log table — the app layer just keeps working with a plain exercise name, resolving to/from `item_id` only at the Supabase sync boundary (`buildWorkoutLogRow`/`pullFromCloud` in `sync.ts`).
 
 **Cycle is the same standalone shape as Stool** (`period_logs`, one row per calendar day flagged as a period day — no item/category of its own) but nothing about cycle length, cycle day, or predictions is stored: `src/lib/aggregations/cycle.ts` derives all of it from the recorded dates on the fly (grouping consecutive dates into periods, then reading days-between-period-starts as cycle length), using a recent-cycles window rather than entire history so predictions track how the cycle actually behaves lately, not an average smoothed over years.
+
+**Connect → Notes has no offline mode and isn't part of the IndexedDB sync system above** — a note only means anything once it reaches your partner's real account, so it talks to Supabase directly (`src/lib/supabase/notes.ts` / `partner.ts`) rather than going through the write-local-first outbox. Two accounts become "partners" by redeeming a short-lived invite code into a `partner_links` row (`redeem_partner_invite`, a `security definer` Postgres function — the only place in this schema one user's action creates a row naming a *different* user, so it needs to bypass RLS deliberately rather than relying on a policy); every note is then one row in `notes`, sender/recipient RLS-checked against that link on insert. A reply is just another `notes` row with `thread_root_id` pointing at the top-level note — no separate replies table — with a trigger (`notes_touch_thread`) keeping the thread's `last_message_at` and each side's own read timestamp current as messages arrive, which is what makes a thread go unread-again for the other person without a full chat-style read-receipt system. `supabase/functions/notify-note` emails whoever just received a note or reply — the one place this app needs a user's *email* rather than their id, which requires the service-role client (`SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY`, injected into every Edge Function automatically) since `auth.users` isn't queryable by a regular signed-in client at all.
 
 **Which domains show up is a local, per-device preference, not synced data.** `src/lib/visibleDomains.tsx` holds a `VisibleDomainsProvider` (localStorage-backed) that Log and Nav both read to hide a tracked type — and its analytics page — everywhere at once; deliberately not pushed to Supabase, since "I don't track this" is a statement about this device/person using the account, not a fact about the data itself.
 
@@ -226,6 +229,8 @@ erDiagram
 
 Every table also carries a `user_id` column (omitted above for legibility) and every relationship drawn is actually a **composite** foreign key on it, not a plain one — `(user_id, category_id, item_type)` for the five item tables, `(user_id, item_id)` for their logs and diary entries — so a supplement item structurally can't reference a habit category, and no row can ever reference another user's data, independent of RLS. Full DDL and RLS policies: [`supabase/schema.sql`](supabase/schema.sql).
 
+Connect's three tables (`partner_invites`, `partner_links`, `notes`) aren't in the diagram above — they're a genuinely different shape (a note is visible to *two* users, not one; see the Architecture section above) rather than a variation on the single-owner item/log/diary pattern every other table follows.
+
 ## Development commands
 
 ```bash
@@ -242,7 +247,7 @@ npm run build        # production build (also type-checks)
 
 Push to `main` → `.github/workflows/deploy.yml` builds and publishes to GitHub Pages at the domain in `public/CNAME`. No separate deploy step; a merge to `main` is the deploy.
 
-Supabase Edge Functions (`supabase/functions/`) are deployed separately by `.github/workflows/deploy-functions.yml`, triggered whenever that folder changes. Their secrets (`SUPABASE_ACCESS_TOKEN`, `SUPABASE_PROJECT_REF`, plus whatever each function needs — `RESEND_API_KEY`/`BUG_EMAIL` for bug reports, `VAPID_PRIVATE_KEY` for push) are pushed into Supabase's own secret store by that same workflow. One gotcha: changing a secret's *value* in GitHub doesn't retrigger the workflow (no file changed) — run it manually from the Actions tab, or the function keeps the old value.
+Supabase Edge Functions (`supabase/functions/`) are deployed separately by `.github/workflows/deploy-functions.yml`, triggered whenever that folder changes. Their secrets (`SUPABASE_ACCESS_TOKEN`, `SUPABASE_PROJECT_REF`, plus whatever each function needs — `RESEND_API_KEY`/`BUG_EMAIL` for bug reports, `VAPID_PRIVATE_KEY` for push) are pushed into Supabase's own secret store by that same workflow. One gotcha: changing a secret's *value* in GitHub doesn't retrigger the workflow (no file changed) — run it manually from the Actions tab, or the function keeps the old value. `notify-note` (Connect's email) needs no new secret at all — it reuses `RESEND_API_KEY` and gets `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY` for free, the same way every Edge Function does.
 
 Reminders run the same way, for the same reason nothing can run in the background on a static site: `supabase/functions/breakfast-reminder-cron` (still named after the check it started as, now general) is called every 15 minutes by Supabase's `pg_cron`/`pg_net` (setup SQL is in `schema.sql`, commented out). It checks every supplement/habit's `reminder_time` against the signed-in user's local time and sends a Web Push notification if it's passed and not yet logged today.
 
@@ -253,6 +258,7 @@ Reminders run the same way, for the same reason nothing can run in the backgroun
   ![Lauva brand palette](docs/palette.svg)
 - **My Drive** uses [Google Identity Services' token client](https://developers.google.com/identity/oauth2/web/guides/use-token-model) (no backend, so no client secret) — the token is `drive.metadata.readonly`, lives in memory only, and never touches your Lauva/Supabase account. Signing out of Lauva also disconnects Drive, so a shared device never carries a Drive session over to whoever signs in next. To develop against it, create a Google Cloud OAuth client (Web application type), authorize `http://localhost:3000`, and enable the Drive API on that project.
 - **Not in git**: `.next/`, `out/` (build output), `data/` (local raw export, never read by the app), `.claude/` (Claude Code worktrees). See `.gitignore`.
+- **Connect assumes exactly one partner per account** — `redeem_partner_invite` rejects a redemption if either side is already linked to someone. Unlinking (delete your own `partner_links` row) is supported so a mistaken pairing isn't permanent, but there's no "multiple partners" or "family" concept, by design.
 
 ## License
 

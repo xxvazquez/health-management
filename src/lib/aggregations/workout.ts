@@ -374,17 +374,20 @@ export interface WorkoutTimelineEntry {
   date: string;
   exercise: WorkoutExercise;
   weightKg: number;
+  unit: WorkoutUnit;
   updatedAt: number;
   isPR: boolean;
 }
 
-/** Every logged set across every exercise, most recent first. */
-export function workoutTimeline(logs: RawWorkoutLog[]): WorkoutTimelineEntry[] {
-  const byExercise = workoutStatsByExercise(logs);
+/** Every logged set across every exercise, most recent first. `unitByExercise`
+ * is forwarded to `workoutStatsByExercise` — see its own doc comment on why
+ * that matters (a cardio/reps exercise otherwise reads as kg). */
+export function workoutTimeline(logs: RawWorkoutLog[], unitByExercise: ReadonlyMap<string, WorkoutUnit> = new Map()): WorkoutTimelineEntry[] {
+  const byExercise = workoutStatsByExercise(logs, unitByExercise);
   const out: WorkoutTimelineEntry[] = [];
   for (const s of byExercise) {
     for (const e of s.entries) {
-      out.push({ id: e.id, date: e.date, exercise: s.exercise, weightKg: e.weightKg, updatedAt: e.updatedAt, isPR: e.isPR });
+      out.push({ id: e.id, date: e.date, exercise: s.exercise, weightKg: e.weightKg, unit: s.unit, updatedAt: e.updatedAt, isPR: e.isPR });
     }
   }
   // Same date first, then the full-precision updatedAt timestamp — not
@@ -393,4 +396,34 @@ export function workoutTimeline(logs: RawWorkoutLog[]): WorkoutTimelineEntry[] {
   // actually happened first/last. See workoutStatsByExercise's own comment
   // on why a same-day tie needs a real timestamp, not something arbitrary.
   return out.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : b.updatedAt - a.updatedAt));
+}
+
+export interface WorkoutRecentSession {
+  date: string;
+  /** That day's sets, most recent first (matches `workoutTimeline`'s own ordering). */
+  entries: WorkoutTimelineEntry[];
+}
+
+const DEFAULT_RECENT_SESSIONS = 5;
+
+/** The last few training days for the Workout page's "Recent Activity"
+ * section — always full history, not the range filter, since "what did I
+ * just do" means the days you actually trained, not whatever window happens
+ * to be selected. Capped at `maxSessions` days so it stays a glance, not a
+ * full log dump (that's the Log page's own day timeline). */
+export function workoutRecentSessions(
+  logs: RawWorkoutLog[],
+  unitByExercise: ReadonlyMap<string, WorkoutUnit> = new Map(),
+  maxSessions = DEFAULT_RECENT_SESSIONS,
+): WorkoutRecentSession[] {
+  const byDate = new Map<string, WorkoutTimelineEntry[]>();
+  for (const entry of workoutTimeline(logs, unitByExercise)) {
+    const list = byDate.get(entry.date) ?? [];
+    list.push(entry);
+    byDate.set(entry.date, list);
+  }
+  return Array.from(byDate.entries())
+    .sort((a, b) => (a[0] < b[0] ? 1 : a[0] > b[0] ? -1 : 0))
+    .slice(0, maxSessions)
+    .map(([date, entries]) => ({ date, entries }));
 }

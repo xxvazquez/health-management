@@ -80,8 +80,11 @@ const TABS: { type: ItemType; label: string; singular: string; placeholder: stri
 type LogTab = ItemType | "stool" | "workout" | "cycle";
 const STOOL_ACCENT = "var(--series-indigo)";
 // Distinct from every TYPE_ACCENT and from STOOL_ACCENT so all seven tabs
-// stay visually distinguishable at a glance in this one nav row.
-const WORKOUT_ACCENT = "var(--series-magenta)";
+// stay visually distinguishable at a glance in this one nav row. Matches
+// TYPE_ACCENT.workout in taxonomy/categories.ts — kept as its own constant
+// here (rather than imported) since this file also needs accents for
+// stool/cycle, which aren't real ItemTypes and have no TYPE_ACCENT entry.
+const WORKOUT_ACCENT = "var(--series-6)";
 const CYCLE_ACCENT = "var(--series-4)";
 
 const COLLAPSED_CATEGORIES_STORAGE_KEY = "lauva.log.collapsedCategories";
