@@ -37,6 +37,7 @@ import {
   type TimelineEntry,
 } from "@/lib/logCandidates";
 import { buildCanonicalEvents } from "@/lib/canonical/buildCanonicalEvents";
+import { createTimeOrderedId } from "@/lib/sortableId";
 import { ensureCategoryId, ensureDefaultWorkoutItems } from "@/lib/categoryResolution";
 import { seasonalPicksForMonth, weeklyCategoryPriority } from "@/lib/aggregations/seasonal";
 import { formatMinutes, todayLocalISODate } from "@/lib/aggregations/common";
@@ -724,7 +725,10 @@ export default function LogPage() {
         unit: workoutItem?.unit ?? "kg",
       };
     });
-    return [...dayTimeline, ...stoolAsTimeline, ...workoutAsTimeline].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+    return [...dayTimeline, ...stoolAsTimeline, ...workoutAsTimeline].sort((a, b) => {
+      const byTime = b.updatedAt.localeCompare(a.updatedAt);
+      return byTime !== 0 ? byTime : b.key.localeCompare(a.key);
+    });
   }, [dayTimeline, stoolEntriesForDate, workoutEntriesForDate, workoutItemIdByName, workoutItemById, effective.diary, date]);
 
   // Unfiltered canonical events (no archived-item or date-range filtering,
@@ -1104,7 +1108,7 @@ export default function LogPage() {
 
   async function handleSaveStoolEntry(entry: NewStoolEntry) {
     if (isDemoData) return;
-    const log = stoolLogFromDraft(crypto.randomUUID(), entry);
+    const log = stoolLogFromDraft(createTimeOrderedId(), entry);
     await putStoolLogAndSync(log);
     await refreshAfterWrite();
   }
@@ -1131,7 +1135,7 @@ export default function LogPage() {
   async function handleSaveWorkoutEntry(entry: NewWorkoutEntry) {
     if (isDemoData) return;
     const log: RawWorkoutLog = {
-      id: crypto.randomUUID(),
+      id: createTimeOrderedId(),
       date,
       exercise: entry.exercise,
       weightKg: Number(entry.weightKg),

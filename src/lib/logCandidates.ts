@@ -142,7 +142,10 @@ export function dayTimelineEntries(
   );
   const relevant = logs
     .filter((l) => l.date === date && (l.value ?? 0) > 0 && l.updatedAt != null)
-    .sort((a, b) => (b.updatedAt as string).localeCompare(a.updatedAt as string));
+    .sort((a, b) => {
+      const byTime = (b.updatedAt as string).localeCompare(a.updatedAt as string);
+      return byTime !== 0 ? byTime : b.identity.localeCompare(a.identity);
+    });
 
   const entries: TimelineEntry[] = [];
   for (const l of relevant) {

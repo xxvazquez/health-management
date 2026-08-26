@@ -1,6 +1,7 @@
-import { describe, expect, it } from "vitest";
-import { combineDateAndTime, decideChipTapAction, loggedCountsForDate, toTimeInputValue, type LogCandidate } from "./logCandidates";
-import type { RawLog } from "@/lib/types";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { combineDateAndTime, dayTimelineEntries, decideChipTapAction, loggedCountsForDate, toTimeInputValue, type LogCandidate } from "./logCandidates";
+import type { RawItem, RawLog } from "@/lib/types";
+import { createTimeOrderedId } from "@/lib/sortableId";
 
 function makeCandidate(overrides: Partial<LogCandidate> = {}): LogCandidate {
   return { key: "item-1", item: "Apple", itemType: "food", category: "Fruit", itemIdentity: "item-1", count: 0, ...overrides };
@@ -71,6 +72,58 @@ describe("loggedCountsForDate", () => {
   it("ignores rows on a different date", () => {
     const logs = [makeLog({ date: "2026-01-02", mealTag: null })];
     expect(loggedCountsForDate(logs, "2026-01-01", "Morning").get("item-1")).toBeUndefined();
+  });
+});
+
+describe("dayTimelineEntries", () => {
+  function makeItem(overrides: Partial<RawItem> = {}): RawItem {
+    return {
+      identity: "item-1",
+      itemType: "food",
+      rawName: "Apple",
+      category: "Fruit",
+      categoryId: null,
+      isArchived: false,
+      createdDate: null,
+      reminderTime: null,
+      unit: null,
+      ...overrides,
+    };
+  }
+
+  it("breaks a same-`updatedAt` tie by identity, newest tap first", () => {
+    const items = [makeItem({ identity: "item-1", rawName: "Apple" }), makeItem({ identity: "item-2", rawName: "Banana" })];
+    // Both logged in the same minute — the real-world case (the Log page's
+    // time picker is minute-precision and stays fixed across taps), so
+    // `updatedAt` alone can't tell them apart; a lexicographically later
+    // identity (as `createTimeOrderedId` produces for a later tap) must win.
+    const sameMinute = "2026-01-01T08:00:00.000Z";
+    const first = makeLog({ identity: "aaaaaaaa-0000-7000-8000-000000000001", itemIdentity: "item-1", updatedAt: sameMinute });
+    const second = makeLog({ identity: "aaaaaaaa-0000-7000-8000-000000000002", itemIdentity: "item-2", updatedAt: sameMinute });
+    // Deliberately passed in reverse of insertion order, to rule out the
+    // sort silently relying on pre-sort array order.
+    const entries = dayTimelineEntries(items, [first, second], [], "2026-01-01");
+    expect(entries.map((e) => e.item)).toEqual(["Banana", "Apple"]);
+  });
+});
+
+describe("createTimeOrderedId", () => {
+  it("produces a valid v7 UUID", () => {
+    const id = createTimeOrderedId();
+    expect(id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+  });
+
+  it("sorts later-timestamped ids after earlier ones", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
+    const earlier = createTimeOrderedId();
+    vi.setSystemTime(new Date("2026-01-01T00:00:01.000Z"));
+    const later = createTimeOrderedId();
+    expect(later > earlier).toBe(true);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 });
 

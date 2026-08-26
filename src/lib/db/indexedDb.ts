@@ -2,6 +2,7 @@ import { openDB, type DBSchema, type IDBPDatabase } from "idb";
 import type { RawItem, RawLog, RawDiaryEntry, RawWorkoutLog, RawCategory, RawStoolLog, RawPeriodLog } from "@/lib/types";
 import type { ItemType } from "@/taxonomy/categories";
 import { normalizeName } from "@/taxonomy/normalizeName";
+import { createTimeOrderedId } from "@/lib/sortableId";
 
 // ---------------------------------------------------------------------------
 // Outbox
@@ -275,7 +276,7 @@ export async function toggleDailyLogInternal(
   }
 
   const log: RawLog = {
-    identity: crypto.randomUUID(),
+    identity: createTimeOrderedId(),
     itemIdentity,
     itemType,
     date,
@@ -313,7 +314,7 @@ export async function incrementDailyLogInternal(
 ): Promise<RawLog> {
   const db = await getDb();
   const log: RawLog = {
-    identity: crypto.randomUUID(),
+    identity: createTimeOrderedId(),
     itemIdentity,
     itemType,
     date,
@@ -352,7 +353,7 @@ export async function setDailyDurationInternal(
   const tx = db.transaction("logs", "readwrite");
   const existing = (await tx.store.index("itemIdentity").getAll(itemIdentity)).find((l) => l.date === date);
   const log: RawLog = {
-    identity: existing?.identity ?? crypto.randomUUID(),
+    identity: existing?.identity ?? createTimeOrderedId(),
     itemIdentity,
     itemType,
     date,
