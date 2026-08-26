@@ -1,20 +1,26 @@
 import { describe, expect, it } from "vitest";
-import { computeOverviewInsight, topCrossDomainFindings } from "./overview";
+import { buildPersonalTrends, topCrossDomainFindings } from "./overview";
 import { makeEvent } from "@/lib/testFixtures";
 
-describe("computeOverviewInsight", () => {
+describe("buildPersonalTrends", () => {
   it("reports insufficientData for no events", () => {
-    const insight = computeOverviewInsight([], []);
-    expect(insight.insufficientData).toBe(true);
-    expect(insight.whatMatters).toEqual([]);
-    expect(insight.needsAttention).toEqual([]);
-    expect(insight.whatChanged).toEqual([]);
+    const trends = buildPersonalTrends([], [], [], "2026-01-15");
+    expect(trends.insufficientData).toBe(true);
+    expect(trends.changed).toEqual([]);
   });
 
   it("reports insufficientData when fewer than 10 distinct tracked days exist, even with many events", () => {
     // 5 events, but only on a single day — 1 tracked day total.
     const events = Array.from({ length: 5 }, () => makeEvent({ date: "2026-01-01" }));
-    expect(computeOverviewInsight(events, []).insufficientData).toBe(true);
+    expect(buildPersonalTrends(events, [], [], "2026-01-15").insufficientData).toBe(true);
+  });
+
+  it("never exceeds the short cap even with drift in every domain", () => {
+    const events = Array.from({ length: 20 }, (_, i) =>
+      makeEvent({ date: `2026-0${Math.floor(i / 10) + 1}-${String((i % 10) + 1).padStart(2, "0")}` }),
+    );
+    const trends = buildPersonalTrends(events, [], [], "2026-02-10");
+    expect(trends.changed.length).toBeLessThanOrEqual(5);
   });
 });
 

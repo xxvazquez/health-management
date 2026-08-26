@@ -124,6 +124,22 @@ export async function fetchNoteThreads(view: NoteView): Promise<NoteThread[]> {
   return (data as NoteRow[]).map((row) => toThread(row, myUserId));
 }
 
+/** One specific thread by its root id, regardless of which of the four
+ * tabs it'd normally show up under — for a deep link (e.g. Overview's
+ * Partner Notes preview links straight to `/notes?thread=<id>`) that has
+ * to resolve a thread without knowing or caring whether it's currently in
+ * Inbox, Sent, Favourites, or Archived. RLS still applies as normal (only
+ * a participant's own query returns anything), so this can't leak a
+ * thread that `fetchNoteThreads` wouldn't eventually surface anyway. */
+export async function fetchNoteThread(id: string): Promise<NoteThread | null> {
+  if (!supabase) return null;
+  const myUserId = await currentUserId();
+  if (!myUserId) return null;
+  const { data, error } = await supabase.from("notes").select(THREAD_COLUMNS).eq("id", id).is("thread_root_id", null).maybeSingle();
+  if (error) throw error;
+  return data ? toThread(data as NoteRow, myUserId) : null;
+}
+
 /** For the sidebar badge. PostgREST filters compare a column against a
  * supplied value, not against another column in the same row, so "is this
  * thread unread" (read_at is null OR older than last_message_at) can't be
@@ -256,4 +272,22 @@ export function setThreadFavourited(threadId: string, isMine: boolean, favourite
 }
 export function setThreadArchived(threadId: string, isMine: boolean, archived: boolean): Promise<void> {
   return updateMyThreadState(threadId, isMine, { archived });
+}
+
+/** Clears unread across every thread at once — both the ones sent to the
+ * caller (recipient_read_at) and any of their own that got a reply since
+ * they last opened it (sender_read_at). Two bulk updates instead of one
+ * because a single row can't be both "my sent thread" and "my inbox
+ * thread" at once, so each column only ever needs the caller's own side. */
+export async function markAllThreadsRead(): Promise<void> {
+  if (!supabase) return;
+  const myUserId = await currentUserId();
+  if (!myUserId) return;
+  const nowIso = new Date().toISOString();
+  const [sent, received] = await Promise.all([
+    supabase.from("notes").update({ sender_read_at: nowIso }).eq("sender_id", myUserId).is("thread_root_id", null),
+    supabase.from("notes").update({ recipient_read_at: nowIso }).eq("recipient_id", myUserId).is("thread_root_id", null),
+  ]);
+  if (sent.error) throw sent.error;
+  if (received.error) throw received.error;
 }
