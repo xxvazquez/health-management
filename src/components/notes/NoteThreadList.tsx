@@ -1,6 +1,7 @@
 "use client";
 
-import { CategoryIcon, StarIcon } from "./icons";
+import { useState, type ReactNode } from "react";
+import { ArchiveIcon, CategoryIcon, EnvelopeClosedIcon, EnvelopeOpenIcon, StarIcon } from "./icons";
 import { NOTE_CATEGORY_LABEL, type NoteThread, type NoteView } from "@/lib/supabase/notes";
 
 const ACCENT = "var(--series-magenta)";
@@ -16,6 +17,36 @@ const VIEW_EMPTY_COPY: Record<NoteView, { title: string; description: string }> 
   archived: { title: "Nothing archived", description: "Notes you archive will show up here." },
 };
 
+/** Compact per-row action — same visual language as NoteThreadView's
+ * ActionButton, just smaller since it sits inline in the list. */
+function RowAction({
+  onClick,
+  active,
+  label,
+  disabled,
+  children,
+}: {
+  onClick: () => void;
+  active?: boolean;
+  label: string;
+  disabled?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={label}
+      title={label}
+      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-[var(--surface-1)] disabled:opacity-40"
+      style={{ color: active ? ACCENT : "var(--text-muted)" }}
+    >
+      {children}
+    </button>
+  );
+}
+
 export function NoteThreadList({
   threads,
   loading,
@@ -23,6 +54,11 @@ export function NoteThreadList({
   view,
   partnerLabel,
   onOpen,
+  onToggleFavourite,
+  onToggleArchive,
+  onMarkRead,
+  onMarkUnread,
+  onChanged,
 }: {
   threads: NoteThread[];
   loading: boolean;
@@ -30,7 +66,29 @@ export function NoteThreadList({
   view: NoteView;
   partnerLabel: string;
   onOpen: (id: string) => void;
+  /** Same four actions the open-thread view exposes, so read/unread,
+   * favourite and archive work without opening a note first. Injected
+   * (not called directly) for the same demo/real split as NoteThreadView. */
+  onToggleFavourite: (threadId: string, isMine: boolean, next: boolean) => Promise<void>;
+  onToggleArchive: (threadId: string, isMine: boolean, next: boolean) => Promise<void>;
+  onMarkRead: (threadId: string, isMine: boolean) => Promise<void>;
+  onMarkUnread: (threadId: string, isMine: boolean) => Promise<void>;
+  onChanged: () => void;
 }) {
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  async function run(id: string, fn: () => Promise<void>) {
+    setBusyId(id);
+    try {
+      await fn();
+      onChanged();
+    } catch (err) {
+      console.error("note row action failed", err);
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   if (loading) {
     return (
       <p className="py-10 text-center text-sm" style={{ color: "var(--text-muted)" }}>
@@ -66,36 +124,71 @@ export function NoteThreadList({
 
   return (
     <div className="flex flex-col">
-      {threads.map((t) => (
-        <button
-          key={t.id}
-          type="button"
-          onClick={() => onOpen(t.id)}
-          className="flex w-full items-start gap-3 border-t py-3.5 pr-3 pl-2 text-left transition-colors first:border-t-0 hover:bg-[var(--page-plane)]"
-          style={{ borderColor: "var(--gridline)" }}
-        >
-          <span className="mt-1.5 flex h-2 w-2 shrink-0 items-center justify-center">
-            {t.isUnreadForMe && <span className="h-2 w-2 rounded-full" style={{ background: ACCENT }} aria-hidden="true" />}
-          </span>
-          <span className="mt-0.5 shrink-0" style={{ color: ACCENT }}>
-            <CategoryIcon category={t.category} />
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="flex items-center gap-1.5">
-              <span className="truncate text-sm" style={{ fontWeight: t.isUnreadForMe ? 600 : 500, color: "var(--text-primary)" }}>
-                {t.subject || t.body.slice(0, 60)}
+      {threads.map((t) => {
+        const busy = busyId === t.id;
+        return (
+          <div
+            key={t.id}
+            className="flex items-center gap-1 border-t pr-1 pl-2 transition-colors first:border-t-0 hover:bg-[var(--page-plane)]"
+            style={{ borderColor: "var(--gridline)" }}
+          >
+            <button
+              type="button"
+              onClick={() => onOpen(t.id)}
+              className="flex min-w-0 flex-1 items-start gap-3 py-3.5 text-left"
+            >
+              <span className="mt-1.5 flex h-2 w-2 shrink-0 items-center justify-center">
+                {t.isUnreadForMe && <span className="h-2 w-2 rounded-full" style={{ background: ACCENT }} aria-hidden="true" />}
               </span>
-              {t.isFavouritedByMe && <StarIcon filled size={12} />}
-            </span>
-            <span className="mt-0.5 block truncate text-xs" style={{ color: "var(--text-muted)" }}>
-              {t.isMine ? `To ${partnerLabel}` : `From ${partnerLabel}`} · {NOTE_CATEGORY_LABEL[t.category]}
-            </span>
-          </span>
-          <span className="shrink-0 text-xs whitespace-nowrap" style={{ color: "var(--text-muted)" }}>
-            {formatNoteTimestamp(t.lastMessageAt)}
-          </span>
-        </button>
-      ))}
+              <span className="mt-0.5 shrink-0" style={{ color: ACCENT }}>
+                <CategoryIcon category={t.category} />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="flex items-center gap-1.5">
+                  <span className="truncate text-sm" style={{ fontWeight: t.isUnreadForMe ? 600 : 500, color: "var(--text-primary)" }}>
+                    {t.subject || t.body.slice(0, 60)}
+                  </span>
+                  {t.isFavouritedByMe && <StarIcon filled size={12} />}
+                  <span className="ml-auto shrink-0 text-[11px] whitespace-nowrap" style={{ color: "var(--text-muted)" }}>
+                    {formatNoteTimestamp(t.lastMessageAt)}
+                  </span>
+                </span>
+                <span className="mt-0.5 block truncate text-xs" style={{ color: "var(--text-muted)" }}>
+                  {t.isMine ? `To ${partnerLabel}` : `From ${partnerLabel}`} · {NOTE_CATEGORY_LABEL[t.category]}
+                </span>
+              </span>
+            </button>
+
+            <div className="flex shrink-0 items-center gap-0.5">
+              <RowAction
+                onClick={() => void run(t.id, () => onToggleFavourite(t.id, t.isMine, !t.isFavouritedByMe))}
+                active={t.isFavouritedByMe}
+                label={t.isFavouritedByMe ? "Remove favourite" : "Favourite"}
+                disabled={busy}
+              >
+                <StarIcon filled={t.isFavouritedByMe} size={14} />
+              </RowAction>
+              {t.isUnreadForMe ? (
+                <RowAction onClick={() => void run(t.id, () => onMarkRead(t.id, t.isMine))} label="Mark as read" disabled={busy}>
+                  <EnvelopeClosedIcon size={14} />
+                </RowAction>
+              ) : (
+                <RowAction onClick={() => void run(t.id, () => onMarkUnread(t.id, t.isMine))} label="Mark as unread" disabled={busy}>
+                  <EnvelopeOpenIcon size={14} />
+                </RowAction>
+              )}
+              <RowAction
+                onClick={() => void run(t.id, () => onToggleArchive(t.id, t.isMine, !t.isArchivedByMe))}
+                active={t.isArchivedByMe}
+                label={t.isArchivedByMe ? "Unarchive" : "Archive"}
+                disabled={busy}
+              >
+                <ArchiveIcon size={14} />
+              </RowAction>
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }

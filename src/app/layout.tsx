@@ -10,6 +10,7 @@ import { ContentContainer } from "@/components/ContentContainer";
 import { AuthBanner } from "@/components/auth/AuthBanner";
 import { SyncStatusBanner } from "@/components/SyncStatusBanner";
 import { RegisterServiceWorker } from "@/components/RegisterServiceWorker";
+import { MedicalDisclaimer } from "@/components/MedicalDisclaimer";
 
 const bodyFont = Inter({
   variable: "--font-body",
@@ -62,15 +63,7 @@ export default function RootLayout({
                 <div className="px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
                   <ContentContainer>{children}</ContentContainer>
                 </div>
-                <footer className="px-4 pb-6 sm:px-6 lg:px-8">
-                  <p
-                    className="mx-auto w-full max-w-4xl text-center text-xs"
-                    style={{ color: "var(--text-muted)" }}
-                  >
-                    Lauva provides personal data insights only. It is not medical
-                    advice and does not diagnose or treat medical conditions.
-                  </p>
-                </footer>
+                <MedicalDisclaimer />
               </main>
             </VisibleDomainsProvider>
           </DataProvider>
