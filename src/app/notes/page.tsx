@@ -252,6 +252,11 @@ export default function NotesPage() {
               view={view}
               partnerLabel={DEMO_PARTNER_LABEL}
               onOpen={setSelectedThreadId}
+              onToggleFavourite={demoToggleFavourite}
+              onToggleArchive={demoToggleArchive}
+              onMarkRead={demoMarkRead}
+              onMarkUnread={demoMarkUnread}
+              onChanged={() => {}}
             />
           </>
         )}
@@ -309,6 +314,11 @@ export default function NotesPage() {
             view={view}
             partnerLabel={partnerLabel}
             onOpen={setSelectedThreadId}
+            onToggleFavourite={setThreadFavourited}
+            onToggleArchive={setThreadArchived}
+            onMarkRead={markThreadRead}
+            onMarkUnread={markThreadUnread}
+            onChanged={() => void loadThreads()}
           />
         </>
       )}

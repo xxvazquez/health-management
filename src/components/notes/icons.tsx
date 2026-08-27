@@ -99,6 +99,15 @@ export function EnvelopeOpenIcon({ size = 15 }: { size?: number }) {
   );
 }
 
+export function EnvelopeClosedIcon({ size = 15 }: { size?: number }) {
+  return (
+    <IconWrap size={size}>
+      <rect x="3.3" y="4.8" width="13.4" height="10.4" rx="1.3" />
+      <path d="M3.7 5.6 10 10.4 16.3 5.6" />
+    </IconWrap>
+  );
+}
+
 export function ReplyIcon({ size = 15 }: { size?: number }) {
   return (
     <IconWrap size={size}>
