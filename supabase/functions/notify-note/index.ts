@@ -44,10 +44,26 @@ const FONT_STACK = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helve
  * greeting, duplicated here rather than shared since an Edge Function is a
  * separate Deno module with no access to the Next app's source tree. A
  * name, even a guessed one, reads as an actual message from someone; a raw
- * email address in a sentence like "x@y.com sent you a note" doesn't. */
+ * email address in a sentence like "x@y.com sent you a note" doesn't.
+ * Only the fallback — `senderDisplayName` prefers a real nickname first. */
 function displayNameFromEmail(email: string): string {
   const local = email.split("@")[0] ?? email;
   return local.charAt(0).toUpperCase() + local.slice(1);
+}
+
+/** The name to show as "X sent you a note". Prefers a nickname set on the
+ * user's Supabase auth metadata (`display_name`, or `name`/`full_name` —
+ * whatever's there), set per person from Dashboard -> Authentication ->
+ * Users -> the user -> User Metadata, or by the app via
+ * supabase.auth.updateUser({ data: { display_name } }). Falls back to the
+ * email-derived guess, then a generic label. */
+function senderDisplayName(user: { email?: string | null; user_metadata?: Record<string, unknown> | null } | null | undefined): string {
+  const meta = user?.user_metadata ?? {};
+  for (const key of ["display_name", "name", "full_name", "nickname"]) {
+    const value = meta[key];
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  return user?.email ? displayNameFromEmail(user.email) : "Your partner";
 }
 
 function escapeHtml(s: string): string {
@@ -151,7 +167,7 @@ Deno.serve(async (req) => {
   }
 
   const isReply = Boolean(note.thread_root_id);
-  const senderName = sender?.user?.email ? displayNameFromEmail(sender.user.email) : "Your partner";
+  const senderName = senderDisplayName(sender?.user);
   const categoryLabel = CATEGORY_LABEL[note.category as string] ?? "Note";
   const appUrl = Deno.env.get("NOTES_APP_URL") ?? "https://lauva.pl";
   const threadRootId = (note.thread_root_id as string | null) ?? note.id;
