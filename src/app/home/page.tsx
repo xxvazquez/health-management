@@ -16,7 +16,8 @@ import {
   updateHouseholdNote,
   type HouseholdNote,
 } from "@/lib/supabase/household";
-import { buildDemoHouseholdItems, buildDemoHouseholdNotes, buildDemoHouseholdTasks, DEMO_HOME_ME_ID } from "@/lib/demoHousehold";
+import { buildDemoHouseholdItems, buildDemoHouseholdNotes, buildDemoHouseholdTasks, DEMO_HOME_ME_ID, DEMO_HOME_PARTNER_ID } from "@/lib/demoHousehold";
+import { getPartnerLink } from "@/lib/supabase/partner";
 import { isRecurringTask, nextRecurringDueAt, type ExpirationItem, type TaskItem } from "@/lib/reminders";
 import { NoteBoard } from "@/components/reminders/NoteBoard";
 import { TaskBoard } from "@/components/reminders/TaskBoard";
@@ -58,6 +59,25 @@ export default function HomePage() {
   const [items, setItems] = useState<ExpirationItem[]>(() => buildDemoHouseholdItems());
   const [itemsLoading, setItemsLoading] = useState(true);
   const [itemsError, setItemsError] = useState(false);
+
+  // Null until resolved: for a real account from getPartnerLink, or the
+  // fixed demo partner id in demo mode (same reasoning as lastCompletedBy's
+  // demo data — the "assign to partner" option needs to be visible without a
+  // real linked account). Resolved in the effect rather than the initializer
+  // because `isDemo` is still false on the first render while auth loads.
+  const [partnerId, setPartnerId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (isDemo) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setPartnerId(DEMO_HOME_PARTNER_ID);
+      return;
+    }
+    getPartnerLink()
+      .then((link) => setPartnerId(link?.partnerId ?? null))
+      .catch((err) => console.error("getPartnerLink failed", err));
+  }, [authLoading, isDemo]);
 
   const loadNotes = useCallback(async () => {
     setNotesLoading(true);
@@ -139,15 +159,15 @@ export default function HomePage() {
     if (!isDemo) await deleteHouseholdNote(id);
   }
 
-  async function handleCreateTask(title: string, notes: string, dueAt: string | null, recurrenceDays: number | null) {
+  async function handleCreateTask(title: string, notes: string, dueAt: string | null, recurrenceDays: number | null, assignedTo: string | null) {
     if (isDemo) {
       setTasks((prev) => [
         ...prev,
-        { id: `demo-${Date.now()}`, title: title.trim(), notes: notes.trim() || null, dueAt, recurrenceDays, lastCompletedAt: null, lastCompletedBy: null },
+        { id: `demo-${Date.now()}`, title: title.trim(), notes: notes.trim() || null, dueAt, recurrenceDays, lastCompletedAt: null, lastCompletedBy: null, assignedTo },
       ]);
       return;
     }
-    const created = await createHouseholdTask({ title, notes, dueAt, recurrenceDays });
+    const created = await createHouseholdTask({ title, notes, dueAt, recurrenceDays, assignedTo });
     setTasks((prev) => [...prev, created]);
   }
 
@@ -245,6 +265,7 @@ export default function HomePage() {
           error={tasksError}
           accent={ACCENT}
           mode="all"
+          assignable={myUserId ? { myUserId, partnerId } : undefined}
           emptyTitle="No shared tasks yet"
           emptyDescription="Tap + New for a one-off task or a recurring chore — either of you can complete it."
           completedByLabel={completedByLabel}

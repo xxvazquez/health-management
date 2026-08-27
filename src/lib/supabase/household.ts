@@ -34,6 +34,7 @@ interface TaskRow {
   recurrence_days: number | null;
   last_completed_at: string | null;
   last_completed_by: string | null;
+  assigned_to: string | null;
 }
 
 function toTask(row: TaskRow): TaskItem {
@@ -45,6 +46,7 @@ function toTask(row: TaskRow): TaskItem {
     recurrenceDays: row.recurrence_days,
     lastCompletedAt: row.last_completed_at,
     lastCompletedBy: row.last_completed_by,
+    assignedTo: row.assigned_to,
   };
 }
 
@@ -68,7 +70,7 @@ async function currentUserId(): Promise<string | null> {
 }
 
 const NOTE_COLUMNS = "id, title, body, created_at, updated_at";
-const TASK_COLUMNS = "id, title, notes, due_at, recurrence_days, last_completed_at, last_completed_by";
+const TASK_COLUMNS = "id, title, notes, due_at, recurrence_days, last_completed_at, last_completed_by, assigned_to";
 const ITEM_COLUMNS = "id, name, expires_on, remind_days_before";
 
 // --- Notes -------------------------------------------------------------
@@ -129,6 +131,7 @@ export interface NewHouseholdTaskInput {
   notes: string;
   dueAt: string | null;
   recurrenceDays: number | null;
+  assignedTo: string | null;
 }
 
 export async function createHouseholdTask(input: NewHouseholdTaskInput): Promise<TaskItem> {
@@ -143,6 +146,7 @@ export async function createHouseholdTask(input: NewHouseholdTaskInput): Promise
       notes: input.notes.trim() || null,
       due_at: input.dueAt,
       recurrence_days: input.recurrenceDays,
+      assigned_to: input.assignedTo,
     })
     .select(TASK_COLUMNS)
     .single();

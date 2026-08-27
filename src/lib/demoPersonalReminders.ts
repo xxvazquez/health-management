@@ -37,6 +37,7 @@ export function buildDemoPersonalTasks(): TaskItem[] {
       recurrenceDays: null,
       lastCompletedAt: null,
       lastCompletedBy: null,
+      assignedTo: null,
     },
     {
       id: "demo-task-2",
@@ -46,6 +47,7 @@ export function buildDemoPersonalTasks(): TaskItem[] {
       recurrenceDays: null,
       lastCompletedAt: null,
       lastCompletedBy: null,
+      assignedTo: null,
     },
     {
       id: "demo-task-3",
@@ -55,6 +57,7 @@ export function buildDemoPersonalTasks(): TaskItem[] {
       recurrenceDays: 90,
       lastCompletedAt: iso(-70 * DAY),
       lastCompletedBy: null,
+      assignedTo: null,
     },
   ];
 }

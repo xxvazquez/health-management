@@ -115,7 +115,7 @@ export default function RemindersPage() {
     if (isDemo) {
       setTasks((prev) => [
         ...prev,
-        { id: `demo-${Date.now()}`, title: title.trim(), notes: notes.trim() || null, dueAt, recurrenceDays, lastCompletedAt: null, lastCompletedBy: null },
+        { id: `demo-${Date.now()}`, title: title.trim(), notes: notes.trim() || null, dueAt, recurrenceDays, lastCompletedAt: null, lastCompletedBy: null, assignedTo: null },
       ]);
       return;
     }
