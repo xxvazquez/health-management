@@ -43,16 +43,29 @@ jobs:
       # Every secret an Edge Function needs is pushed into Supabase's own
       # secret store here, straight from GitHub Actions secrets — none of
       # this flows through `npm run build`, so none of it reaches the
-      # static bundle deploy.yml publishes to GitHub Pages. VAPID_SUBJECT
-      # is optional — breakfast-reminder-cron falls back to BUG_EMAIL if
-      # it's unset.
+      # static bundle deploy.yml publishes to GitHub Pages.
+      #
+      # Only secrets that actually have a value are pushed: an unset GitHub
+      # secret must never overwrite a good value already in Supabase (e.g.
+      # NOTES_FROM / RESEND_API_KEY set by hand in the dashboard). So the
+      # safe way to add or rotate one of these is: set it in the GitHub
+      # Actions secrets, THEN run this workflow.
       - name: Sync function secrets
+        env:
+          BUG_EMAIL: ${{ secrets.BUG_EMAIL }}
+          BUG_REPORT_FROM: ${{ secrets.BUG_REPORT_FROM }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          NOTES_FROM: ${{ secrets.NOTES_FROM }}
+          REMINDERS_FROM: ${{ secrets.REMINDERS_FROM }}
+          VAPID_PUBLIC_KEY: ${{ secrets.NEXT_PUBLIC_VAPID_PUBLIC_KEY }}
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+          VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT }}
         run: |
-          supabase secrets set --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}" \
-            BUG_EMAIL="${{ secrets.BUG_EMAIL }}" \
-            RESEND_API_KEY="${{ secrets.RESEND_API_KEY }}" \
-            NOTES_FROM="${{ secrets.NOTES_FROM }}" \
-            REMINDERS_FROM="${{ secrets.REMINDERS_FROM }}" \
-            VAPID_PUBLIC_KEY="${{ secrets.NEXT_PUBLIC_VAPID_PUBLIC_KEY }}" \
-            VAPID_PRIVATE_KEY="${{ secrets.VAPID_PRIVATE_KEY }}" \
-            VAPID_SUBJECT="${{ secrets.VAPID_SUBJECT }}"
+          args=()
+          for key in BUG_EMAIL BUG_REPORT_FROM RESEND_API_KEY NOTES_FROM REMINDERS_FROM VAPID_PUBLIC_KEY VAPID_PRIVATE_KEY VAPID_SUBJECT; do
+            val="${!key}"
+            [ -n "$val" ] && args+=("$key=$val")
+          done
+          if [ ${#args[@]} -gt 0 ]; then
+            supabase secrets set --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}" "${args[@]}"
+          fi
