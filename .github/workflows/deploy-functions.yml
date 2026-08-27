@@ -9,10 +9,17 @@ on:
 
 # Changing a secret's value in GitHub does NOT re-run this workflow —
 # there's no such trigger event. If you add/rotate BUG_EMAIL,
-# RESEND_API_KEY, or any of the VAPID secrets without also touching a file
-# under supabase/functions/, the live Edge Functions keep running with
-# whatever they last had (or nothing, if this has never run) until you
-# manually run this workflow from the Actions tab.
+# RESEND_API_KEY, NOTES_FROM, REMINDERS_FROM, or any of the VAPID secrets
+# without also touching a file under supabase/functions/, the live Edge
+# Functions keep running with whatever they last had (or nothing, if this
+# has never run) until you manually run this workflow from the Actions tab.
+#
+# NOTES_FROM / REMINDERS_FROM must be an address on a domain verified in
+# Resend (e.g. "Lauva <notes@lauva.pl>"). Left unset, both functions fall
+# back to Resend's shared onboarding@resend.dev sender, which only delivers
+# to the Resend account's own address — so partner/reminder emails to
+# anyone else are rejected. report-bug is unaffected (it mails BUG_EMAIL,
+# the account owner).
 
 jobs:
   deploy:
@@ -44,6 +51,8 @@ jobs:
           supabase secrets set --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}" \
             BUG_EMAIL="${{ secrets.BUG_EMAIL }}" \
             RESEND_API_KEY="${{ secrets.RESEND_API_KEY }}" \
+            NOTES_FROM="${{ secrets.NOTES_FROM }}" \
+            REMINDERS_FROM="${{ secrets.REMINDERS_FROM }}" \
             VAPID_PUBLIC_KEY="${{ secrets.NEXT_PUBLIC_VAPID_PUBLIC_KEY }}" \
             VAPID_PRIVATE_KEY="${{ secrets.VAPID_PRIVATE_KEY }}" \
             VAPID_SUBJECT="${{ secrets.VAPID_SUBJECT }}"

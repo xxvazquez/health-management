@@ -107,6 +107,13 @@ const ICONS: Record<string, ReactNode> = {
       <path d="M5.3 8.4V16h9.4V8.4" />
     </IconWrap>
   ),
+  Help: (
+    <IconWrap>
+      <circle cx="10" cy="10" r="6.6" />
+      <path d="M7.8 8a2.2 2.2 0 1 1 3.1 2c-.7.5-1 .9-1 1.7" />
+      <path d="M10 14.3h.01" />
+    </IconWrap>
+  ),
 };
 
 /** The app's home/at-a-glance page — Today, Recent Activity, Trends,
@@ -139,7 +146,10 @@ const ANALYTICS_LINK_DOMAIN: Record<string, TrackedDomain> = {
   "/cycle": "cycle",
 };
 const MANAGE_LINKS = [{ href: "/manage", label: "Manage items" }];
-const TOOLS_LINKS = [{ href: "/my-drive", label: "My Drive" }];
+const TOOLS_LINKS = [
+  { href: "/my-drive", label: "My Drive" },
+  { href: "/help", label: "Help" },
+];
 /** Separate from Analytics — Notes is partner-to-partner communication, not
  * a dashboard reading back something you logged, so it gets its own
  * section rather than being folded into either existing one. */
@@ -390,7 +400,7 @@ export function Nav() {
           <AccountMenuButton collapsed={collapsed} />
           <SignOutButton />
         </div>
-        <div className="mt-6 flex flex-1 flex-col">
+        <div className="mt-6 flex min-h-0 flex-1 flex-col overflow-y-auto">
           <NavLinks pathname={pathname} collapsed={collapsed} />
         </div>
         <BugReportButton collapsed={collapsed} onClick={() => setBugReportOpen(true)} />
@@ -458,7 +468,7 @@ export function Nav() {
           <AccountMenuButton />
           <SignOutButton />
         </div>
-        <div className="mt-6 flex flex-1 flex-col">
+        <div className="mt-6 flex min-h-0 flex-1 flex-col overflow-y-auto">
           <NavLinks pathname={pathname} onNavigate={() => setMobileOpen(false)} />
         </div>
         <BugReportButton onClick={() => setBugReportOpen(true)} />

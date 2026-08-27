@@ -43,6 +43,7 @@ function toTask(row: TaskRow): TaskItem {
     recurrenceDays: row.recurrence_days,
     lastCompletedAt: row.last_completed_at,
     lastCompletedBy: null,
+    assignedTo: null,
   };
 }
 

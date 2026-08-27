@@ -10,6 +10,7 @@ function makeTask(overrides: Partial<TaskItem> = {}): TaskItem {
     recurrenceDays: null,
     lastCompletedAt: null,
     lastCompletedBy: null,
+    assignedTo: null,
     ...overrides,
   };
 }

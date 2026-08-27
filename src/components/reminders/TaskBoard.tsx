@@ -21,12 +21,17 @@ function formatDate(iso: string): string {
 function TaskForm({
   accent,
   recurrenceMode,
+  assignable,
   onSave,
   onCancel,
 }: {
   accent: string;
   recurrenceMode: "none" | "optional" | "required";
-  onSave: (title: string, notes: string, dueAt: string | null, recurrenceDays: number | null) => Promise<void>;
+  /** Home only — when set, offers an "Assigned to" dropdown (Anyone/Me/
+   * Partner). Personal tasks have no second person to assign to, so this
+   * is left undefined there and the dropdown doesn't render at all. */
+  assignable?: { myUserId: string; partnerId: string | null };
+  onSave: (title: string, notes: string, dueAt: string | null, recurrenceDays: number | null, assignedTo: string | null) => Promise<void>;
   onCancel: () => void;
 }) {
   const [title, setTitle] = useState("");
@@ -34,6 +39,7 @@ function TaskForm({
   const [dueAtLocal, setDueAtLocal] = useState("");
   const [recurring, setRecurring] = useState(recurrenceMode === "required");
   const [recurrenceDays, setRecurrenceDays] = useState(recurrenceMode === "required" ? "7" : "");
+  const [assignedTo, setAssignedTo] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -47,7 +53,7 @@ function TaskForm({
     setError(null);
     try {
       const dueAt = dueAtLocal ? new Date(dueAtLocal).toISOString() : usesRecurrence ? new Date(Date.now() + Number(recurrenceDays) * 86_400_000).toISOString() : null;
-      await onSave(title, notes, dueAt, usesRecurrence ? Number(recurrenceDays) : null);
+      await onSave(title, notes, dueAt, usesRecurrence ? Number(recurrenceDays) : null, assignedTo || null);
     } catch (err) {
       console.error("task save failed", err);
       setError("Couldn't save that — try again in a moment.");
@@ -80,6 +86,22 @@ function TaskForm({
         className="resize-y rounded-md border px-3 py-2.5 text-sm leading-relaxed outline-none"
         style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
       />
+
+      {assignable && (
+        <label className="flex items-center gap-2 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
+          Assigned to
+          <select
+            value={assignedTo}
+            onChange={(e) => setAssignedTo(e.target.value)}
+            className="rounded-md border px-2 py-1 text-sm"
+            style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
+          >
+            <option value="">Anyone</option>
+            <option value={assignable.myUserId}>Me</option>
+            {assignable.partnerId && <option value={assignable.partnerId}>Partner</option>}
+          </select>
+        </label>
+      )}
 
       {recurrenceMode === "optional" && (
         <label className="flex items-center gap-2 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
@@ -140,6 +162,7 @@ export function TaskBoard({
   error,
   accent,
   mode,
+  assignable,
   onCreate,
   onComplete,
   onDelete,
@@ -152,12 +175,14 @@ export function TaskBoard({
   error: boolean;
   accent: string;
   mode: TaskBoardMode;
-  onCreate: (title: string, notes: string, dueAt: string | null, recurrenceDays: number | null) => Promise<void>;
+  /** Home only — see TaskForm's own doc comment. */
+  assignable?: { myUserId: string; partnerId: string | null };
+  onCreate: (title: string, notes: string, dueAt: string | null, recurrenceDays: number | null, assignedTo: string | null) => Promise<void>;
   onComplete: (task: TaskItem) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
-  /** Home only — resolves a task's `lastCompletedBy` into "You"/"Your
-   * partner" without ever surfacing a raw email (same privacy stance Notes
-   * takes with the partner's identity). */
+  /** Home only — resolves a task's `lastCompletedBy`/`assignedTo` into
+   * "you"/"your partner" without ever surfacing a raw email (same privacy
+   * stance Notes takes with the partner's identity). */
   completedByLabel?: (userId: string) => string;
   emptyTitle?: string;
   emptyDescription?: string;
@@ -187,8 +212,9 @@ export function TaskBoard({
       <TaskForm
         accent={accent}
         recurrenceMode={mode === "recurring" ? "required" : mode === "all" ? "optional" : "none"}
-        onSave={async (title, notes, dueAt, recurrenceDays) => {
-          await onCreate(title, notes, dueAt, recurrenceDays);
+        assignable={assignable}
+        onSave={async (title, notes, dueAt, recurrenceDays, assignedTo) => {
+          await onCreate(title, notes, dueAt, recurrenceDays, assignedTo);
           setComposing(false);
         }}
         onCancel={() => setComposing(false)}
@@ -257,6 +283,7 @@ export function TaskBoard({
                     <span className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[11px]" style={{ color: due ? "var(--status-critical)" : "var(--text-muted)" }}>
                       {task.dueAt && <span>{recurring ? `Next: ${formatDueAt(task.dueAt)}` : formatDueAt(task.dueAt)}</span>}
                       {recurring && <span style={{ color: "var(--text-muted)" }}>· every {task.recurrenceDays}d</span>}
+                      {completedByLabel && task.assignedTo && <span style={{ color: "var(--text-muted)" }}>· for {completedByLabel(task.assignedTo)}</span>}
                       {task.lastCompletedAt && (
                         <span style={{ color: "var(--text-muted)" }}>
                           · last done {formatDate(task.lastCompletedAt)}

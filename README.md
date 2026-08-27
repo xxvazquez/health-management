@@ -9,9 +9,10 @@ A personal food, symptom, supplement, habit, workout, and cycle tracker, with a 
 - **Manage** (`/manage`) — add, rename, archive, or delete items and categories for all five item-backed types, set per-exercise units, and toggle which tracked domains show up in Log/analytics at all.
 - **Food / Workout / Cycle dashboards** — charts and pattern analysis over what's been logged. Food additionally scores logged intake against a research-informed model and surfaces what's underrepresented, without diagnosing anything. Cycle's analytics (cycle-length/period-length trends, delay-vs-prediction) are separate from the Log page's Cycle tab, which just handles today's entry and a compact calendar.
 - **My Drive** (`/my-drive`) — read-only browser for the signed-in Google account's own Google Drive.
+- **Help** (`/help`) — a one-page plain-language reference for what each part of the app does.
 - **Connect → Notes** (`/notes`) — private notes between two linked partner accounts, separate from personal logging. Link once with a short invite code (Manage-style — no invite emails), then send a note with a category (Note/Reminder/Appreciation/Question), reply to build a simple thread, favourite, mark read/unread, and archive. The recipient gets an email when a note or reply arrives.
 - **Reminders → Personal** (`/reminders`) — private notes, one-off tasks with an optional deadline, and recurring tasks (cleaning, changing filters, taking out the rubbish) with a completion history. Completing a task sends an email (and a push notification, if enabled) the next time it's due; a recurring task's due date auto-advances and its full completion history is kept, not just the latest one.
-- **Reminders → Home** (`/home`) — the same three concepts as Personal, shared with your linked partner (reuses the Connect pairing, see below): shared notes, shared tasks either of you can complete, and a product **Expiration** tracker (add by text or voice, grouped into Expired / Expiring soon / Later) with the same email+push reminders. Every shared item shows who completed it and when.
+- **Reminders → Home** (`/home`) — the same three concepts as Personal, shared with your linked partner (reuses the Connect pairing, see below): shared notes, shared tasks either of you can complete (and optionally assign to one of you), and a product **Expiration** tracker (add by text or voice, grouped into Expired / Expiring soon / Later) with the same email+push reminders. Every shared item shows who completed it and when.
 - Works fully offline; syncs to Supabase when signed in; installable as a PWA.
 
 Supplements, Habits, Digestion, and Patterns dashboards also exist and work, but aren't currently linked from the nav (`src/components/Nav.tsx`) while Food/Workout/Cycle get rebuilt first — nothing about them was removed, they're one nav entry away from coming back.
@@ -40,6 +41,9 @@ supabase/
   schema.sql            full DDL + RLS policies — the source of truth for the data model
   functions/            Edge Functions (bug report email, reminder cron, Notes email)
   tests/rls.test.sql    automated RLS isolation tests (CI only, never a real project)
+docs/
+  data-model.md         readable map of the schema — grouped ER diagrams, RLS shapes
+  palette.svg           brand palette reference
 ```
 
 ## Running it locally
@@ -65,6 +69,34 @@ All optional — without them the app just runs local-only with fewer features. 
 
 ## Architecture
 
+```mermaid
+%%{init: {"theme": "base", "themeVariables": {
+  "primaryColor": "#eef5f3", "primaryBorderColor": "#5c8a7a",
+  "primaryTextColor": "#24313a", "lineColor": "#7d9a90",
+  "fontFamily": "Inter, -apple-system, sans-serif", "fontSize": "14px"
+}}}%%
+flowchart LR
+    subgraph browser["Browser — Next.js PWA (static export)"]
+        ui["React UI"]
+        idb[("IndexedDB<br/>item/log/diary cache")]
+        outbox["Outbox<br/>(queued writes)"]
+        ui --> idb
+        ui --> outbox
+    end
+    subgraph supa["Supabase project"]
+        pg[("Postgres + RLS")]
+        auth["Auth"]
+        ef["Edge Functions"]
+    end
+    outbox -->|"drain, retry/backoff"| pg
+    pg -->|"pull: sign-in / focus / reconnect / 60s"| idb
+    ui --> auth
+    ui -.->|"Notes, Journal, Reminders<br/>(direct, no offline)"| pg
+    ef -->|"reminder cron, Notes email"| pg
+    ef --> resend["Resend (email)"]
+    ef --> push["Web Push"]
+```
+
 **Supabase is the only source of truth; IndexedDB is a synced cache.** IndexedDB is wiped and repopulated from Supabase on sign-in, whenever the tab regains focus, on reconnect, and on a 60-second timer while the tab is visible — so a change made on another device shows up here within about a minute without needing to background/refocus this tab first. Every pull filters `.eq("user_id", ...)` explicitly rather than trusting RLS alone to scope rows — belt-and-suspenders after a real incident where a table's RLS was live but a retrofitted `enable row level security` migration hadn't actually been run against the deployed project, and rows briefly weren't scoped per account. Every write goes to IndexedDB first (so the UI never waits on the network) and is queued in a small outbox; a background drain sends queued writes to Supabase with retry/backoff, so nothing typed offline is lost. A write that's permanently rejected (not just offline) shows up in a banner (`src/components/SyncStatusBanner.tsx`) naming what failed and why, with a Retry button — the local record was never at risk, only its cloud copy is stuck; retrying (or auto-repairing) an item also retries any of its logs/notes that were only stuck waiting on it. A single write lock (`withDataLock` in `indexedDb.ts`) keeps a cloud pull from ever running in the middle of a local write.
 
 **Items, logs, diary, categories** — one consistent shape across Food, Supplement, Habit, Symptom, and Workout: an *item* (what you track, with a category) has many *logs* (one per occurrence) and an optional *diary* entry per day (a note). Categories are shared per item type and editable from Manage; a type with no custom categories yet falls back to the built-in defaults in `src/taxonomy/categories.ts`, and once any real row exists the database is the only source of truth from then on. Archiving hides an item from Log without touching its history; deleting is only allowed once an item has zero logged history (every `*_logs`/`*_diary` foreign key is `on delete restrict`).
@@ -85,246 +117,19 @@ All optional — without them the app just runs local-only with fewer features. 
 
 ## Data model
 
-```mermaid
-%%{init: {"theme": "base", "themeVariables": {
-  "primaryColor": "#eef5f3",
-  "primaryBorderColor": "#5c8a7a",
-  "primaryTextColor": "#24313a",
-  "lineColor": "#7d9a90",
-  "tertiaryColor": "#ffffff",
-  "fontFamily": "Inter, -apple-system, sans-serif",
-  "fontSize": "15px"
-}}}%%
-erDiagram
-    CATEGORIES ||--o{ FOOD_ITEMS : groups
-    CATEGORIES ||--o{ SUPPLEMENT_ITEMS : groups
-    CATEGORIES ||--o{ HABIT_ITEMS : groups
-    CATEGORIES ||--o{ SYMPTOM_ITEMS : groups
-    CATEGORIES ||--o{ WORKOUT_ITEMS : groups
+Everything is stored in one Supabase (Postgres) project, one row per user,
+scoped by row-level security. [`supabase/schema.sql`](supabase/schema.sql)
+is the authoritative definition; **[`docs/data-model.md`](docs/data-model.md)
+is the readable map** — grouped ER diagrams (tracked-domain core,
+standalone logs, Connect, Reminders), the RLS policy shapes, and the
+`security definer` functions.
 
-    FOOD_ITEMS ||--o{ FOOD_LOGS : logged
-    FOOD_ITEMS ||--o{ FOOD_DIARY : noted
-    SUPPLEMENT_ITEMS ||--o{ SUPPLEMENT_LOGS : logged
-    SUPPLEMENT_ITEMS ||--o{ SUPPLEMENT_DIARY : noted
-    HABIT_ITEMS ||--o{ HABIT_LOGS : logged
-    HABIT_ITEMS ||--o{ HABIT_DIARY : noted
-    SYMPTOM_ITEMS ||--o{ SYMPTOM_LOGS : logged
-    SYMPTOM_ITEMS ||--o{ SYMPTOM_DIARY : noted
-    WORKOUT_ITEMS ||--o{ WORKOUT_DIARY : noted
-    WORKOUT_ITEMS ||--o{ WORKOUT_LOGS : logged
-
-    CATEGORIES {
-        uuid id PK
-        text item_type
-        text name
-    }
-    FOOD_ITEMS {
-        uuid id PK
-        text name
-        uuid category_id FK
-        boolean is_archived
-    }
-    SUPPLEMENT_ITEMS {
-        uuid id PK
-        text name
-        uuid category_id FK
-        boolean is_archived
-        time reminder_time
-    }
-    HABIT_ITEMS {
-        uuid id PK
-        text name
-        uuid category_id FK
-        boolean is_archived
-        time reminder_time
-    }
-    SYMPTOM_ITEMS {
-        uuid id PK
-        text name
-        uuid category_id FK
-        boolean is_archived
-    }
-    WORKOUT_ITEMS {
-        uuid id PK
-        text name
-        uuid category_id FK
-        boolean is_archived
-        text unit
-    }
-    FOOD_LOGS {
-        uuid id PK
-        uuid item_id FK
-        date date
-        numeric value
-        text meal_tag
-    }
-    SUPPLEMENT_LOGS {
-        uuid id PK
-        uuid item_id FK
-        date date
-        numeric value
-        text meal_tag
-    }
-    HABIT_LOGS {
-        uuid id PK
-        uuid item_id FK
-        date date
-        numeric value
-    }
-    SYMPTOM_LOGS {
-        uuid id PK
-        uuid item_id FK
-        date date
-        numeric value
-    }
-    FOOD_DIARY {
-        uuid id PK
-        uuid item_id FK
-        date date
-        text content
-    }
-    SUPPLEMENT_DIARY {
-        uuid id PK
-        uuid item_id FK
-        date date
-        text content
-    }
-    HABIT_DIARY {
-        uuid id PK
-        uuid item_id FK
-        date date
-        text content
-    }
-    SYMPTOM_DIARY {
-        uuid id PK
-        uuid item_id FK
-        date date
-        text content
-    }
-    WORKOUT_DIARY {
-        uuid id PK
-        uuid item_id FK
-        date date
-        text content
-    }
-    STOOL_LOGS {
-        uuid id PK
-        date date
-        smallint_array bristol_scores
-        text color
-    }
-    WORKOUT_LOGS {
-        uuid user_id PK
-        uuid id PK
-        uuid item_id FK
-        date date
-        numeric weight_kg
-    }
-    PERIOD_LOGS {
-        uuid id PK
-        date date
-        text intensity
-        text_array collection_methods
-    }
-    PUSH_SUBSCRIPTIONS {
-        uuid user_id PK
-        text endpoint
-        text timezone
-    }
-```
-
-Every table also carries a `user_id` column (omitted above for legibility) and every relationship drawn is actually a **composite** foreign key on it, not a plain one — `(user_id, category_id, item_type)` for the five item tables, `(user_id, item_id)` for their logs and diary entries — so a supplement item structurally can't reference a habit category, and no row can ever reference another user's data, independent of RLS. Full DDL and RLS policies: [`supabase/schema.sql`](supabase/schema.sql).
-
-Connect's three tables (`partner_invites`, `partner_links`, `notes`), Journal (`journal_entries`), and Reminders' seven tables aren't in the diagram above — each is a genuinely different shape from the single-owner item/log/diary pattern every table above follows, so they get their own diagrams below instead of being crammed into one.
-
-### Reminders → Personal
-
-```mermaid
-%%{init: {"theme": "base", "themeVariables": {
-  "primaryColor": "#eef5f3",
-  "primaryBorderColor": "#5c8a7a",
-  "primaryTextColor": "#24313a",
-  "lineColor": "#7d9a90",
-  "tertiaryColor": "#ffffff",
-  "fontFamily": "Inter, -apple-system, sans-serif",
-  "fontSize": "15px"
-}}}%%
-erDiagram
-    PERSONAL_TASKS ||--o{ PERSONAL_TASK_COMPLETIONS : completed
-
-    PERSONAL_NOTES {
-        uuid id PK
-        uuid user_id FK
-        text title
-        text body
-    }
-    PERSONAL_TASKS {
-        uuid id PK
-        uuid user_id FK
-        text title
-        timestamptz due_at
-        int recurrence_days
-        timestamptz last_completed_at
-        timestamptz reminder_sent_at
-    }
-    PERSONAL_TASK_COMPLETIONS {
-        uuid id PK
-        uuid task_id FK
-        uuid user_id FK
-        timestamptz completed_at
-    }
-```
-
-`recurrence_days` null means a one-off task (`due_at` is its deadline, `last_completed_at` once set means done); set means recurring (`due_at` is the *next* occurrence, pushed forward by `recurrence_days` on every completion, and the task never becomes permanently "done"). `personal_notes` has no relationship to the other two — a plain title+body note with no deadline. `user_id` on every table is the same owner-only `auth.uid() = user_id` shape as every table in the main diagram; `PERSONAL_NOTES` is omitted from the relationship line above only because it has none, not because it's structured any differently.
-
-### Reminders → Home
-
-```mermaid
-%%{init: {"theme": "base", "themeVariables": {
-  "primaryColor": "#eef1fa",
-  "primaryBorderColor": "#4554a1",
-  "primaryTextColor": "#24313a",
-  "lineColor": "#7d8ec7",
-  "tertiaryColor": "#ffffff",
-  "fontFamily": "Inter, -apple-system, sans-serif",
-  "fontSize": "15px"
-}}}%%
-erDiagram
-    HOUSEHOLD_TASKS ||--o{ HOUSEHOLD_TASK_COMPLETIONS : completed
-
-    HOUSEHOLD_NOTES {
-        uuid id PK
-        uuid owner_id FK
-        text title
-        text body
-    }
-    HOUSEHOLD_TASKS {
-        uuid id PK
-        uuid owner_id FK
-        text title
-        timestamptz due_at
-        int recurrence_days
-        timestamptz last_completed_at
-        uuid last_completed_by FK
-        timestamptz reminder_sent_at
-    }
-    HOUSEHOLD_TASK_COMPLETIONS {
-        uuid id PK
-        uuid task_id FK
-        uuid completed_by FK
-        timestamptz completed_at
-    }
-    HOUSEHOLD_ITEMS {
-        uuid id PK
-        uuid owner_id FK
-        text name
-        date expires_on
-        int remind_days_before
-        timestamptz reminder_sent_at
-    }
-```
-
-Same one-off-vs-recurring shape as Personal's `personal_tasks`, plus `last_completed_by`/`completed_by` so the UI can show who did it. `HOUSEHOLD_ITEMS` (the product Expiration tracker) has no relationship to the others — a standalone table, same reasoning as `stool_logs`/`period_logs` in the main diagram. None of these four tables has a *stored* relationship to `partner_links` (no foreign key — `owner_id` references `auth.users` directly, same as every other owner/user column in this schema): sharing is enforced entirely by RLS, via a `is_household_member(target_user_id)` SQL function that checks whether the caller is linked to `target_user_id` through `partner_links`. Every policy is `using (auth.uid() = owner_id or is_household_member(owner_id))`, so a row is visible/editable by its creator and, once linked, their one partner — with no explicit "share" action and no change needed if a partner links later.
+The invariant worth knowing up front: every foreign key between user-owned
+tables is a **composite key on `(user_id, id)`**, not `id` alone (category
+FKs also carry `item_type`), so a row structurally can't reference another
+user's data — or the wrong item type — regardless of RLS. Nothing about
+the cycle is stored beyond flagged period days; length/day/predictions are
+all derived at the app layer.
 
 ## Development commands
 
@@ -342,7 +147,9 @@ npm run build        # production build (also type-checks)
 
 Push to `main` → `.github/workflows/deploy.yml` builds and publishes to GitHub Pages at the domain in `public/CNAME`. No separate deploy step; a merge to `main` is the deploy.
 
-Supabase Edge Functions (`supabase/functions/`) are deployed separately by `.github/workflows/deploy-functions.yml`, triggered whenever that folder changes. Their secrets (`SUPABASE_ACCESS_TOKEN`, `SUPABASE_PROJECT_REF`, plus whatever each function needs — `RESEND_API_KEY`/`BUG_EMAIL` for bug reports, `VAPID_PRIVATE_KEY` for push) are pushed into Supabase's own secret store by that same workflow. One gotcha: changing a secret's *value* in GitHub doesn't retrigger the workflow (no file changed) — run it manually from the Actions tab, or the function keeps the old value. `notify-note` (Connect's email) needs no new secret at all — it reuses `RESEND_API_KEY` and gets `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY` for free, the same way every Edge Function does.
+Supabase Edge Functions (`supabase/functions/`) are deployed separately by `.github/workflows/deploy-functions.yml`, triggered whenever that folder changes. Their secrets (`SUPABASE_ACCESS_TOKEN`, `SUPABASE_PROJECT_REF`, plus whatever each function needs — `RESEND_API_KEY`/`BUG_EMAIL` for bug reports, `NOTES_FROM`/`REMINDERS_FROM` for the Notes and reminder emails, `VAPID_PRIVATE_KEY` for push) are pushed into Supabase's own secret store by that same workflow. One gotcha: changing a secret's *value* in GitHub doesn't retrigger the workflow (no file changed) — run it manually from the Actions tab, or the function keeps the old value.
+
+**Email sending requires a verified Resend domain.** `notify-note` and the reminder cron send to a *user's* address (a partner, or whoever a task is for), not a fixed one. Resend's shared `onboarding@resend.dev` sender only delivers to the Resend account's own address, so those emails silently fail until you [verify a domain](https://resend.com/domains) (e.g. `lauva.pl`) and set `NOTES_FROM` / `REMINDERS_FROM` to an address on it (`Lauva <notes@lauva.pl>`). `report-bug` is unaffected — it mails `BUG_EMAIL`, the account owner. Both functions get `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY` for free, the same way every Edge Function does.
 
 Reminders run the same way, for the same reason nothing can run in the background on a static site: `supabase/functions/breakfast-reminder-cron` (still named after the check it started as, now general) is called every 15 minutes by Supabase's `pg_cron`/`pg_net` (setup SQL is in `schema.sql`, commented out). It checks every supplement/habit's `reminder_time` against the signed-in user's local time and sends a Web Push notification if it's passed and not yet logged today, and separately scans Personal/Home tasks (`due_at`) and Home's product Expiration items (`expires_on` minus their own `remind_days_before`) for anything due that hasn't been reminded yet, sending both a push and an email (reusing the same Resend account as `notify-note`) — see the Reminders paragraph under Architecture above for the idempotency/recurrence details.
 
@@ -352,7 +159,7 @@ Reminders run the same way, for the same reason nothing can run in the backgroun
 
   ![Lauva brand palette](docs/palette.svg)
 - **My Drive** uses [Google Identity Services' token client](https://developers.google.com/identity/oauth2/web/guides/use-token-model) (no backend, so no client secret) — the token is `drive.metadata.readonly`, lives in memory only, and never touches your Lauva/Supabase account. Signing out of Lauva also disconnects Drive, so a shared device never carries a Drive session over to whoever signs in next. To develop against it, create a Google Cloud OAuth client (Web application type), authorize `http://localhost:3000`, and enable the Drive API on that project.
-- **Not in git**: `.next/`, `out/` (build output), `data/` (local raw export, never read by the app), `.claude/` (Claude Code worktrees). See `.gitignore`.
+- **Not in git**: `.next/`, `out/` (build output), `data/` (local raw export, never read by the app), `.claude/` (local editor/tooling scratch). See `.gitignore`.
 - **Connect assumes exactly one partner per account, and Home inherits that limit** — `redeem_partner_invite` rejects a redemption if either side is already linked to someone, and Home's sharing (`is_household_member`) is defined directly in terms of the same `partner_links` row. Unlinking (delete your own `partner_links` row) is supported so a mistaken pairing isn't permanent, but there's no "multiple partners" or "family" concept anywhere in the app, by design.
 
 ## License

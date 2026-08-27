@@ -42,6 +42,7 @@ export function buildDemoHouseholdTasks(): TaskItem[] {
       recurrenceDays: null,
       lastCompletedAt: null,
       lastCompletedBy: null,
+      assignedTo: null,
     },
     {
       id: "demo-home-task-2",
@@ -51,6 +52,7 @@ export function buildDemoHouseholdTasks(): TaskItem[] {
       recurrenceDays: 7,
       lastCompletedAt: iso(-4 * DAY),
       lastCompletedBy: DEMO_HOME_PARTNER_ID,
+      assignedTo: DEMO_HOME_PARTNER_ID,
     },
     {
       id: "demo-home-task-3",
@@ -60,6 +62,7 @@ export function buildDemoHouseholdTasks(): TaskItem[] {
       recurrenceDays: 14,
       lastCompletedAt: iso(-8 * DAY),
       lastCompletedBy: DEMO_HOME_ME_ID,
+      assignedTo: DEMO_HOME_ME_ID,
     },
   ];
 }

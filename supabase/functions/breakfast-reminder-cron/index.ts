@@ -14,8 +14,10 @@
 // 2. Personal Reminders / Home: scans personal_tasks/household_tasks (by
 //    due_at) and household_items (by expires_on - remind_days_before) for
 //    due, not-yet-sent rows, and sends both an email (Resend, same as
-//    notify-note) and a push — Home rows notify both linked partners, not
-//    just whoever created the row. See isTaskRowDue/isItemRowDue below.
+//    notify-note) and a push. A Home task assigned to one partner
+//    (assigned_to set) notifies only that person; an unassigned task, and
+//    every Home item, notifies both linked partners. See isTaskRowDue/
+//    isItemRowDue below.
 // SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are injected automatically by
 // Supabase for every Edge Function; only the VAPID keys (and RESEND_API_KEY,
 // already set for notify-note) need to be set by hand (see
@@ -132,11 +134,12 @@ async function sendPushToUser(subsByUser: Map<string, Subscription>, userId: str
   }
 }
 
-/** The signed-in user's linked partner id, or null — same lookup
+/** The given user's linked partner id, or null — same lookup
  * `get_partner_email` does at the DB layer, done here in JS since this
  * function already holds a service-role client with no RLS to route
- * through. Home reminders go to both members regardless of who created the
- * row (either can complete either's task — see household_tasks_update_pair). */
+ * through. An unassigned Home task (and every Home item) reminds both
+ * members, since either can act on it (see household_tasks_update_pair);
+ * an assigned task reminds only assigned_to. */
 async function getPartnerId(userId: string): Promise<string | null> {
   const { data } = await supabase.from("partner_links").select("user_a_id, user_b_id").or(`user_a_id.eq.${userId},user_b_id.eq.${userId}`).maybeSingle();
   if (!data) return null;
@@ -273,12 +276,16 @@ Deno.serve(async (req) => {
     dueSent++;
   }
 
-  const { data: householdTasks } = await supabase.from("household_tasks").select("id, owner_id, title, due_at, reminder_sent_at").not("due_at", "is", null).is("reminder_sent_at", null);
-  for (const task of (householdTasks ?? []) as { id: string; owner_id: string; title: string; due_at: string | null; reminder_sent_at: string | null }[]) {
+  const { data: householdTasks } = await supabase.from("household_tasks").select("id, owner_id, title, due_at, reminder_sent_at, assigned_to").not("due_at", "is", null).is("reminder_sent_at", null);
+  for (const task of (householdTasks ?? []) as { id: string; owner_id: string; title: string; due_at: string | null; reminder_sent_at: string | null; assigned_to: string | null }[]) {
     dueChecked++;
     if (!isTaskRowDue(task.due_at, task.reminder_sent_at, nowDate)) continue;
-    const partnerId = await getPartnerId(task.owner_id);
-    for (const userId of [task.owner_id, partnerId].filter((id): id is string => id != null)) {
+    // Assigned to one partner -> only they hear about it; unassigned ->
+    // both members, since either can complete it.
+    const recipientIds = task.assigned_to
+      ? [task.assigned_to]
+      : [task.owner_id, await getPartnerId(task.owner_id)].filter((id): id is string => id != null);
+    for (const userId of recipientIds) {
       const email = await getUserEmail(userId);
       if (email) await sendReminderEmail(email, `Home reminder: ${task.title}`, `"${task.title}" is due in Home on Lauva.`);
       await sendPushToUser(subsByUser, userId, `Home: ${task.title}`, `household-task:${task.id}`);

@@ -634,6 +634,7 @@ create table public.household_tasks (
   recurrence_days int check (recurrence_days is null or recurrence_days > 0),
   last_completed_at timestamptz,
   last_completed_by uuid references auth.users(id),
+  assigned_to uuid references auth.users(id),
   reminder_sent_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -1084,3 +1085,12 @@ create policy "household_task_completions_delete_pair" on public.household_task_
 --     )
 --   )
 -- );
+
+-- Migration for a project that already ran the household_tasks create table
+-- statement above before a shared task could be assigned to a specific
+-- partner: adds household_tasks.assigned_to (null = either of you). The
+-- existing household_tasks_*_pair policies already cover it — it's just
+-- another nullable column on a row those policies scope. Non-destructive.
+-- Run once by hand in the SQL editor.
+--
+-- alter table public.household_tasks add column if not exists assigned_to uuid references auth.users(id);

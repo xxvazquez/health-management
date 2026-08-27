@@ -4,7 +4,9 @@ import { addDaysToDate, todayLocalISODate } from "@/lib/aggregations/common";
  * (`household_tasks`) — one table covers both a one-off deadline and a
  * recurring chore (see schema.sql's own comment on personal_tasks).
  * `lastCompletedBy` is always null for a personal task (there's only ever
- * one possible completer); Home tasks set it to show "who completed it". */
+ * one possible completer); Home tasks set it to show "who completed it".
+ * `assignedTo` is the same story — always null for a personal task, and
+ * optional for a Home task (blank means either of you). */
 export interface TaskItem {
   id: string;
   title: string;
@@ -13,6 +15,7 @@ export interface TaskItem {
   recurrenceDays: number | null;
   lastCompletedAt: string | null;
   lastCompletedBy: string | null;
+  assignedTo: string | null;
 }
 
 export function isRecurringTask(task: Pick<TaskItem, "recurrenceDays">): boolean {
