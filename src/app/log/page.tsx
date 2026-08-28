@@ -46,13 +46,14 @@ import { normalizeName, titleCaseFallback } from "@/taxonomy/normalizeName";
 import { TYPE_ACCENT, colorForCategorySlot, effectiveCategoryList, type ItemType } from "@/taxonomy/categories";
 import { lookupFoodCategory } from "@/taxonomy/classify";
 import { POLAND_FOOD_CATALOG } from "@/taxonomy/polandFoodCatalog";
-import { DURATION_DEFAULT_MINUTES, INPUT_KIND } from "@/taxonomy/inputKinds";
+import { DURATION_DEFAULT_MINUTES, INPUT_KIND, RANGE_OPTIONS, SYMPTOM_INTENSITIES, rangeLabelForValue } from "@/taxonomy/inputKinds";
 import { DurationStepper } from "@/components/ui/DurationStepper";
 import { NumberStepper, UNIT_STEP_PRESETS } from "@/components/ui/NumberStepper";
 import { StoolTab, type NewStoolEntry, characteristicLabels } from "@/components/log/StoolTab";
 import { WorkoutTab, type NewWorkoutEntry } from "@/components/log/WorkoutTab";
 import { CycleTab } from "@/components/log/CycleTab";
 import { JournalTab } from "@/components/log/JournalTab";
+import { TAB_ICON } from "@/components/tabIcons";
 import { NoteBoard } from "@/components/reminders/NoteBoard";
 import { TaskBoard } from "@/components/reminders/TaskBoard";
 import { ExpirationBoard } from "@/components/home/ExpirationBoard";
@@ -88,6 +89,10 @@ type LogTab = ItemType | "stool" | "workout" | "cycle" | "journal" | "notes" | "
 // Journal rather than living on a separate page, since they're the same
 // "private to you" surface as everything else on Log. The shared (partner)
 // versions still live on their own /home page.
+/** The Symptoms tab logs an intensity (1/2/3) instead of a plain tap —
+ * rendered with the same value-picker as Sleep's range buckets. */
+const INTENSITY_OPTIONS = SYMPTOM_INTENSITIES.map((n) => ({ label: String(n), value: n }));
+
 const NOTES_ACCENT = "var(--series-magenta)";
 const REMINDERS_ACCENT = "var(--series-berry)";
 const EXPIRATION_ACCENT = "var(--series-2)";
@@ -516,6 +521,22 @@ export default function LogPage() {
 
   const tabConfig = TABS.find((t) => t.type === tab);
 
+  // The whole tab bar as data — the tracked ones (a `domain`) drop out when
+  // hidden from Manage; Journal/Notes/Reminders/Expiration are always on.
+  const logTabs = useMemo(() => {
+    const all: { id: LogTab; label: string; accent: string; domain?: TrackedDomain }[] = [
+      ...TABS.map((t) => ({ id: t.type as LogTab, label: t.label, accent: TYPE_ACCENT[t.type], domain: t.type })),
+      { id: "stool", label: "Stool", accent: STOOL_ACCENT, domain: "stool" },
+      { id: "workout", label: "Workout", accent: WORKOUT_ACCENT, domain: "workout" },
+      { id: "cycle", label: "Cycle", accent: CYCLE_ACCENT, domain: "cycle" },
+      { id: "journal", label: "Journal", accent: JOURNAL_ACCENT },
+      { id: "notes", label: "Notes", accent: NOTES_ACCENT },
+      { id: "reminders", label: "Reminders", accent: REMINDERS_ACCENT },
+      { id: "expiration", label: "Expiration", accent: EXPIRATION_ACCENT },
+    ];
+    return all.filter((t) => !t.domain || !isHidden(t.domain));
+  }, [isHidden]);
+
   // For the Food tab specifically, a chip's checkmark reflects whether it
   // was logged for the *currently selected meal*, not the whole day — so
   // switching from Breakfast to Lunch shows everything unticked again and
@@ -841,6 +862,23 @@ export default function LogPage() {
     setPending(candidate.key);
     const log = await setDailyDurationAndSync(candidate.itemIdentity, candidate.itemType, date, totalMinutes);
     await applyLogTime(log);
+    await refreshAfterWrite();
+    setPending(null);
+  }
+
+  /** Range buckets (Sleep) and symptom intensity (1/2/3) both mean "one
+   * log per item per day, carrying a specific value". Tapping a value sets
+   * it (upsert); tapping the one that's already active clears the day's
+   * log entirely — same toggle-off feel as a plain chip. */
+  async function handleSetValueOrToggle(candidate: LogCandidate, value: number, isActive: boolean) {
+    if (isDemoData) return;
+    setPending(candidate.key);
+    if (isActive) {
+      await toggleDailyLogAndSync(candidate.itemIdentity, candidate.itemType, date);
+    } else {
+      const log = await setDailyDurationAndSync(candidate.itemIdentity, candidate.itemType, date, value);
+      await applyLogTime(log);
+    }
     await refreshAfterWrite();
     setPending(null);
   }
@@ -1250,6 +1288,58 @@ export default function LogPage() {
     );
   }
 
+  /** A row of preset buckets — one per RANGE_OPTIONS entry — for a "range"
+   * item (Sleep). Tapping one sets that day's value; tapping the active one
+   * clears it. */
+  function renderValuePicker(c: LogCandidate, accent: string, options: { label: string; value: number }[]) {
+    const current = durationValueForDate.get(c.itemIdentity);
+    // Highlight the exact option, or — for a value logged with the old
+    // stepper that doesn't land on a bucket — the closest one.
+    const activeValue =
+      current == null
+        ? null
+        : (options.find((o) => o.value === current)?.value ??
+          options.reduce((best, o) => (Math.abs(o.value - current) < Math.abs(best.value - current) ? o : best)).value);
+    const busy = pending === c.key;
+    return (
+      <div
+        key={c.key}
+        className="col-span-full flex flex-wrap items-center gap-2 rounded-md px-2 py-1.5"
+        style={{
+          background: current != null ? `color-mix(in oklab, ${accent} 14%, var(--surface-1))` : "transparent",
+          borderLeft: `2px solid ${current != null ? accent : "transparent"}`,
+          opacity: busy ? 0.6 : 1,
+        }}
+      >
+        <span
+          className="mr-1 text-sm whitespace-nowrap"
+          style={{ color: current != null ? "var(--text-primary)" : "var(--text-secondary)", fontWeight: current != null ? 600 : 400 }}
+        >
+          {c.item}
+        </span>
+        {options.map((o) => {
+          const active = activeValue === o.value;
+          return (
+            <button
+              key={o.label}
+              type="button"
+              disabled={busy}
+              onClick={() => void handleSetValueOrToggle(c, o.value, active)}
+              className="rounded-md border px-2.5 py-1 text-xs font-medium transition-colors disabled:opacity-50"
+              style={{
+                borderColor: active ? accent : "var(--border-hairline)",
+                background: active ? `color-mix(in oklab, ${accent} 18%, var(--surface-1))` : "var(--surface-1)",
+                color: active ? accent : "var(--text-secondary)",
+              }}
+            >
+              {o.label}
+            </button>
+          );
+        })}
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -1310,115 +1400,38 @@ export default function LogPage() {
         )}
       </div>
 
-      <div className="flex flex-wrap items-end justify-between gap-3">
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between sm:gap-3">
         {/* An underlined menu, not pills — deliberately a different shape
          * from "Eaten at" below so the two rows read as different kinds of
          * control: this one switches the whole page's content (primary
-         * navigation), that one just tags optional metadata on a food. */}
-        <nav className="flex w-fit flex-wrap items-center gap-5 border-b" style={{ borderColor: "var(--border-hairline)" }}>
-          {TABS.filter((t) => !isHidden(t.type)).map((t) => {
-            const active = t.type === tab;
+         * navigation), that one just tags optional metadata on a food.
+         * Scrolls sideways rather than wrapping; the search box drops to its
+         * own line below on a narrow screen. */}
+        <nav className="no-scrollbar flex w-full min-w-0 items-center gap-5 overflow-x-auto border-b sm:flex-1" style={{ borderColor: "var(--border-hairline)" }}>
+          {logTabs.map((t) => {
+            const active = t.id === tab;
             return (
               <button
-                key={t.type}
+                key={t.id}
                 type="button"
-                onClick={() => selectTab(t.type)}
-                className="flex items-center gap-1.5 pb-2.5 text-sm whitespace-nowrap transition-colors"
+                onClick={() => selectTab(t.id)}
+                className="flex shrink-0 items-center gap-1.5 pb-2.5 text-sm whitespace-nowrap transition-colors"
                 style={{
-                  color: active ? TYPE_ACCENT[t.type] : "var(--text-secondary)",
+                  color: active ? t.accent : "var(--text-secondary)",
                   fontWeight: active ? 700 : 500,
-                  borderBottom: `2px solid ${active ? TYPE_ACCENT[t.type] : "transparent"}`,
+                  borderBottom: `2px solid ${active ? t.accent : "transparent"}`,
                   marginBottom: "-1px",
                 }}
               >
+                {TAB_ICON[t.id]}
                 {t.label}
               </button>
             );
           })}
-          {!isHidden("stool") && (
-            <button
-              type="button"
-              onClick={() => selectTab("stool")}
-              className="flex items-center gap-1.5 pb-2.5 text-sm whitespace-nowrap transition-colors"
-              style={{
-                color: tab === "stool" ? STOOL_ACCENT : "var(--text-secondary)",
-                fontWeight: tab === "stool" ? 700 : 500,
-                borderBottom: `2px solid ${tab === "stool" ? STOOL_ACCENT : "transparent"}`,
-                marginBottom: "-1px",
-              }}
-            >
-              Stool
-            </button>
-          )}
-          {!isHidden("workout") && (
-            <button
-              type="button"
-              onClick={() => selectTab("workout")}
-              className="flex items-center gap-1.5 pb-2.5 text-sm whitespace-nowrap transition-colors"
-              style={{
-                color: tab === "workout" ? WORKOUT_ACCENT : "var(--text-secondary)",
-                fontWeight: tab === "workout" ? 700 : 500,
-                borderBottom: `2px solid ${tab === "workout" ? WORKOUT_ACCENT : "transparent"}`,
-                marginBottom: "-1px",
-              }}
-            >
-              Workout
-            </button>
-          )}
-          {!isHidden("cycle") && (
-            <button
-              type="button"
-              onClick={() => selectTab("cycle")}
-              className="flex items-center gap-1.5 pb-2.5 text-sm whitespace-nowrap transition-colors"
-              style={{
-                color: tab === "cycle" ? CYCLE_ACCENT : "var(--text-secondary)",
-                fontWeight: tab === "cycle" ? 700 : 500,
-                borderBottom: `2px solid ${tab === "cycle" ? CYCLE_ACCENT : "transparent"}`,
-                marginBottom: "-1px",
-              }}
-            >
-              Cycle
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={() => selectTab("journal")}
-            className="flex items-center gap-1.5 pb-2.5 text-sm whitespace-nowrap transition-colors"
-            style={{
-              color: tab === "journal" ? JOURNAL_ACCENT : "var(--text-secondary)",
-              fontWeight: tab === "journal" ? 700 : 500,
-              borderBottom: `2px solid ${tab === "journal" ? JOURNAL_ACCENT : "transparent"}`,
-              marginBottom: "-1px",
-            }}
-          >
-            Journal
-          </button>
-          {(
-            [
-              ["notes", "Notes", NOTES_ACCENT],
-              ["reminders", "Reminders", REMINDERS_ACCENT],
-              ["expiration", "Expiration", EXPIRATION_ACCENT],
-            ] as const
-          ).map(([id, label, accent]) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => selectTab(id)}
-              className="flex items-center gap-1.5 pb-2.5 text-sm whitespace-nowrap transition-colors"
-              style={{
-                color: tab === id ? accent : "var(--text-secondary)",
-                fontWeight: tab === id ? 700 : 500,
-                borderBottom: `2px solid ${tab === id ? accent : "transparent"}`,
-                marginBottom: "-1px",
-              }}
-            >
-              {label}
-            </button>
-          ))}
         </nav>
-        <div className="flex items-center gap-3">
+        <div className="flex w-full items-center gap-3 sm:w-auto">
           {tabConfig && (
-            <div className="relative">
+            <div className="relative w-full sm:w-auto">
               <svg
                 width="14"
                 height="14"
@@ -1438,7 +1451,7 @@ export default function LogPage() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder={`Search ${tabConfig.label.toLowerCase()}…`}
-                className="w-36 rounded-md border py-1.5 pr-2.5 pl-7 text-xs outline-none sm:w-48"
+                className="w-full rounded-md border py-1.5 pr-2.5 pl-7 text-xs outline-none sm:w-48"
                 style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
               />
             </div>
@@ -1807,7 +1820,12 @@ export default function LogPage() {
                             : tab !== "food" && "grid",
                         )}
                       >
-                        {items.map((c) => (INPUT_KIND[c.item] === "duration" ? renderDurationControl(c, accent) : renderChip(c, accent)))}
+                        {items.map((c) => {
+                          if (INPUT_KIND[c.item] === "range" && RANGE_OPTIONS[c.item]) return renderValuePicker(c, accent, RANGE_OPTIONS[c.item]);
+                          if (INPUT_KIND[c.item] === "duration") return renderDurationControl(c, accent);
+                          if (tab === "outcome") return renderValuePicker(c, accent, INTENSITY_OPTIONS);
+                          return renderChip(c, accent);
+                        })}
                       </div>
                     </div>
                   );
@@ -1898,11 +1916,21 @@ export default function LogPage() {
                      * push the rest of the card's layout around. */}
                     <span className="line-clamp-2 text-xs font-semibold" style={{ color: "var(--text-primary)" }}>
                       {entry.item}
-                      {INPUT_KIND[entry.item] === "duration" && entry.value != null && (
-                        <span className="ml-1 font-normal" style={{ color: "var(--text-secondary)" }}>
-                          {formatMinutes(entry.value)}
-                        </span>
-                      )}
+                      {entry.value != null && (() => {
+                        const suffix =
+                          INPUT_KIND[entry.item] === "range"
+                            ? rangeLabelForValue(entry.item, entry.value)
+                            : INPUT_KIND[entry.item] === "duration"
+                              ? formatMinutes(entry.value)
+                              : entry.itemType === "outcome" && entry.value > 1
+                                ? `intensity ${entry.value}`
+                                : null;
+                        return suffix ? (
+                          <span className="ml-1 font-normal" style={{ color: "var(--text-secondary)" }}>
+                            {suffix}
+                          </span>
+                        ) : null;
+                      })()}
                     </span>
 
                     {/* Category pill, directly below the name — Workout's

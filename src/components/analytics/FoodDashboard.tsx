@@ -418,7 +418,7 @@ export function FoodDashboard() {
 
       {activeSection === "ingredients" && (
       <PageSection id="ingredients" headingLabel="Ingredients">
-        <nav className="flex w-fit flex-wrap items-center gap-5 border-b" style={{ borderColor: "var(--border-hairline)" }}>
+        <nav className="no-scrollbar flex items-center gap-5 overflow-x-auto border-b" style={{ borderColor: "var(--border-hairline)" }}>
           {INVESTIGATION_TABS.map((t) => {
             const active = t.key === tab;
             return (
@@ -426,7 +426,7 @@ export function FoodDashboard() {
                 key={t.key}
                 type="button"
                 onClick={() => setTab(t.key)}
-                className="flex items-center gap-1.5 pb-2.5 text-sm whitespace-nowrap transition-colors"
+                className="flex shrink-0 items-center gap-1.5 pb-2.5 text-sm whitespace-nowrap transition-colors"
                 style={{
                   color: active ? TYPE_ACCENT.food : "var(--text-secondary)",
                   fontWeight: active ? 700 : 500,

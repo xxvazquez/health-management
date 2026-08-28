@@ -38,7 +38,7 @@ export function SectionNav({
   return (
     <nav
       aria-label="Food sections"
-      className="sticky top-16 z-10 flex gap-5 overflow-x-auto border-b bg-[var(--page-backdrop)] lg:top-0"
+      className="no-scrollbar sticky top-16 z-10 flex gap-5 overflow-x-auto border-b bg-[var(--page-backdrop)] lg:top-0"
       style={{ borderColor: "var(--border-hairline)" }}
     >
       {items.map((item) => {

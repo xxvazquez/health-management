@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, type ComponentType } from "react";
 import { useVisibleDomains, type TrackedDomain } from "@/lib/visibleDomains";
 import { TYPE_ACCENT } from "@/taxonomy/categories";
+import { TAB_ICON } from "@/components/tabIcons";
 import { FoodDashboard } from "@/components/analytics/FoodDashboard";
 import { SupplementsDashboard } from "@/components/analytics/SupplementsDashboard";
 import { HabitsDashboard } from "@/components/analytics/HabitsDashboard";
@@ -65,7 +66,7 @@ export default function AnalyticsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <nav className="flex w-fit flex-wrap items-center gap-5 border-b" style={{ borderColor: "var(--border-hairline)" }}>
+      <nav className="no-scrollbar flex items-center gap-5 overflow-x-auto border-b" style={{ borderColor: "var(--border-hairline)" }}>
         {visibleTabs.map((t) => {
           const isActive = t.id === active.id;
           return (
@@ -73,7 +74,7 @@ export default function AnalyticsPage() {
               key={t.id}
               type="button"
               onClick={() => selectTab(t.id)}
-              className="pb-2.5 text-sm whitespace-nowrap transition-colors"
+              className="flex shrink-0 items-center gap-1.5 pb-2.5 text-sm whitespace-nowrap transition-colors"
               style={{
                 color: isActive ? t.accent : "var(--text-secondary)",
                 fontWeight: isActive ? 700 : 500,
@@ -81,6 +82,7 @@ export default function AnalyticsPage() {
                 marginBottom: "-1px",
               }}
             >
+              {TAB_ICON[t.id]}
               {t.label}
             </button>
           );

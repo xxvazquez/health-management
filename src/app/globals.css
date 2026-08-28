@@ -175,3 +175,14 @@ button:not(:disabled),
 ::selection {
   background: color-mix(in oklab, var(--series-1) 30%, transparent);
 }
+
+/* Horizontal tab strips (Log, Analytics, the dashboard SectionNavs) scroll
+   sideways instead of wrapping to a second line — the scrollbar itself
+   would just add clutter under a one-line menu, so it's hidden. */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
