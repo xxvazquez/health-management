@@ -8,12 +8,11 @@ import { useDialogA11y } from "@/components/ui/useDialogA11y";
 const PAGE_LABELS: Record<string, string> = {
   "/overview": "Overview",
   "/log": "Log",
-  "/food": "Food",
-  "/supplements": "Supplements",
-  "/habits": "Habits",
-  "/digestion": "Digestion",
-  "/patterns": "Patterns",
-  "/workout": "Workout",
+  "/analytics": "Analytics",
+  "/home": "Home",
+  "/notes": "Notes",
+  "/my-drive": "My Drive",
+  "/help": "Help",
   "/manage": "Manage items",
 };
 

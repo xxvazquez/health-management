@@ -1,9 +1,19 @@
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { isRecurringTask, isTaskDone, isTaskDue, type TaskItem } from "@/lib/reminders";
 
 export type TaskBoardMode = "one-off" | "recurring" | "all";
+
+/** The fields a create/edit form hands back — same tuple for both, so a
+ * parent can point `onCreate` and `onEdit` at the same handler shape. */
+export type TaskFormValues = {
+  title: string;
+  notes: string;
+  dueAt: string | null;
+  recurrenceDays: number | null;
+  assignedTo: string | null;
+};
 
 function formatDueAt(iso: string): string {
   return new Date(iso).toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
@@ -13,33 +23,42 @@ function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
 }
 
-/** New-task form. `allowRecurrence` controls whether a "repeat every N
- * days" field is offered at all — Personal splits Tasks/Recurring into two
- * tabs each with its own fixed shape, so only the Recurring tab passes a
- * form that always sets a recurrence; Home's single Tasks tab passes
- * "optional", letting either kind be created from one form. */
+/** ISO timestamp -> the `YYYY-MM-DDTHH:mm` a `datetime-local` input wants,
+ * in the viewer's own timezone (matching how the form reads it back). */
+function toLocalInput(iso: string): string {
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+/** Create OR edit form. `initial` (edit mode) pre-fills every field and
+ * switches the button to "Save changes". `allowRecurrence` still controls
+ * whether the "repeat every N days" field appears at all. */
 function TaskForm({
   accent,
   recurrenceMode,
   assignable,
+  initial,
   onSave,
   onCancel,
 }: {
   accent: string;
   recurrenceMode: "none" | "optional" | "required";
   /** Home only — when set, offers an "Assigned to" dropdown (Anyone/Me/
-   * Partner). Personal tasks have no second person to assign to, so this
-   * is left undefined there and the dropdown doesn't render at all. */
+   * Partner). Personal tasks have no second person to assign to. */
   assignable?: { myUserId: string; partnerId: string | null };
-  onSave: (title: string, notes: string, dueAt: string | null, recurrenceDays: number | null, assignedTo: string | null) => Promise<void>;
+  initial?: TaskItem;
+  onSave: (values: TaskFormValues) => Promise<void>;
   onCancel: () => void;
 }) {
-  const [title, setTitle] = useState("");
-  const [notes, setNotes] = useState("");
-  const [dueAtLocal, setDueAtLocal] = useState("");
-  const [recurring, setRecurring] = useState(recurrenceMode === "required");
-  const [recurrenceDays, setRecurrenceDays] = useState(recurrenceMode === "required" ? "7" : "");
-  const [assignedTo, setAssignedTo] = useState("");
+  const [title, setTitle] = useState(initial?.title ?? "");
+  const [notes, setNotes] = useState(initial?.notes ?? "");
+  const [dueAtLocal, setDueAtLocal] = useState(initial?.dueAt && !isRecurringTask(initial) ? toLocalInput(initial.dueAt) : "");
+  const [recurring, setRecurring] = useState(recurrenceMode === "required" || (initial != null && isRecurringTask(initial)));
+  const [recurrenceDays, setRecurrenceDays] = useState(
+    initial && isRecurringTask(initial) ? String(initial.recurrenceDays) : recurrenceMode === "required" ? "7" : "",
+  );
+  const [assignedTo, setAssignedTo] = useState(initial?.assignedTo ?? "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -52,8 +71,18 @@ function TaskForm({
     setSaving(true);
     setError(null);
     try {
-      const dueAt = dueAtLocal ? new Date(dueAtLocal).toISOString() : usesRecurrence ? new Date(Date.now() + Number(recurrenceDays) * 86_400_000).toISOString() : null;
-      await onSave(title, notes, dueAt, usesRecurrence ? Number(recurrenceDays) : null, assignedTo || null);
+      const dueAt = dueAtLocal
+        ? new Date(dueAtLocal).toISOString()
+        : usesRecurrence
+          ? new Date(Date.now() + Number(recurrenceDays) * 86_400_000).toISOString()
+          : null;
+      await onSave({
+        title,
+        notes,
+        dueAt,
+        recurrenceDays: usesRecurrence ? Number(recurrenceDays) : null,
+        assignedTo: assignedTo || null,
+      });
     } catch (err) {
       console.error("task save failed", err);
       setError("Couldn't save that — try again in a moment.");
@@ -144,7 +173,7 @@ function TaskForm({
           className="rounded-md px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
           style={{ background: accent }}
         >
-          {saving ? "Saving…" : "Save"}
+          {saving ? "Saving…" : initial ? "Save changes" : "Save"}
         </button>
         {error && (
           <span className="text-xs" style={{ color: "var(--status-critical)" }}>
@@ -156,6 +185,52 @@ function TaskForm({
   );
 }
 
+function RowButton({ onClick, children, tone = "muted", disabled }: { onClick: () => void; children: ReactNode; tone?: "muted" | "critical"; disabled?: boolean }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="shrink-0 rounded-md px-2 py-1 text-xs font-medium transition-colors hover:bg-[var(--page-plane)] disabled:opacity-40"
+      style={{ color: tone === "critical" ? "var(--status-critical)" : "var(--text-secondary)" }}
+    >
+      {children}
+    </button>
+  );
+}
+
+function CollapsibleGroup({ title, count, children }: { title: string; count: number; children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="border-t pt-2" style={{ borderColor: "var(--gridline)" }}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="flex w-full items-center gap-1.5 px-2 py-1 text-xs font-semibold tracking-wide uppercase"
+        style={{ color: "var(--text-muted)" }}
+      >
+        <svg
+          width="10"
+          height="10"
+          viewBox="0 0 12 12"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className={open ? "" : "-rotate-90"}
+          aria-hidden="true"
+        >
+          <path d="M2.5 4.5 6 8l3.5-3.5" />
+        </svg>
+        {title} ({count})
+      </button>
+      {open && <div className="mt-1 flex flex-col">{children}</div>}
+    </div>
+  );
+}
+
 export function TaskBoard({
   tasks,
   loading,
@@ -164,7 +239,10 @@ export function TaskBoard({
   mode,
   assignable,
   onCreate,
+  onEdit,
   onComplete,
+  onUncomplete,
+  onArchive,
   onDelete,
   completedByLabel,
   emptyTitle = "Nothing here yet",
@@ -177,8 +255,11 @@ export function TaskBoard({
   mode: TaskBoardMode;
   /** Home only — see TaskForm's own doc comment. */
   assignable?: { myUserId: string; partnerId: string | null };
-  onCreate: (title: string, notes: string, dueAt: string | null, recurrenceDays: number | null, assignedTo: string | null) => Promise<void>;
+  onCreate: (values: TaskFormValues) => Promise<void>;
+  onEdit: (id: string, values: TaskFormValues) => Promise<void>;
   onComplete: (task: TaskItem) => Promise<void>;
+  onUncomplete: (task: TaskItem) => Promise<void>;
+  onArchive: (id: string, archived: boolean) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
   /** Home only — resolves a task's `lastCompletedBy`/`assignedTo` into
    * "you"/"your partner" without ever surfacing a raw email (same privacy
@@ -188,39 +269,54 @@ export function TaskBoard({
   emptyDescription?: string;
 }) {
   const [composing, setComposing] = useState(false);
+  const [editing, setEditing] = useState<TaskItem | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  const visibleTasks = useMemo(() => {
-    const filtered = tasks.filter((t) => {
+  const { active, done, archived } = useMemo(() => {
+    const inMode = tasks.filter((t) => {
       if (mode === "one-off") return !isRecurringTask(t);
       if (mode === "recurring") return isRecurringTask(t);
       return true;
     });
-    return [...filtered].sort((a, b) => {
-      const aDone = isTaskDone(a);
-      const bDone = isTaskDone(b);
-      if (aDone !== bDone) return aDone ? 1 : -1; // done tasks sink to the bottom
-      if (!a.dueAt && !b.dueAt) return 0;
-      if (!a.dueAt) return 1;
-      if (!b.dueAt) return -1;
-      return a.dueAt.localeCompare(b.dueAt);
-    });
+    const sortByDue = (list: TaskItem[]) =>
+      [...list].sort((a, b) => {
+        if (isTaskDue(a) !== isTaskDue(b)) return isTaskDue(a) ? -1 : 1;
+        if (!a.dueAt && !b.dueAt) return 0;
+        if (!a.dueAt) return 1;
+        if (!b.dueAt) return -1;
+        return a.dueAt.localeCompare(b.dueAt);
+      });
+    return {
+      active: sortByDue(inMode.filter((t) => !t.isArchived && !isTaskDone(t))),
+      done: inMode
+        .filter((t) => !t.isArchived && isTaskDone(t))
+        .sort((a, b) => (b.lastCompletedAt ?? "").localeCompare(a.lastCompletedAt ?? "")),
+      archived: inMode.filter((t) => t.isArchived).sort((a, b) => a.title.localeCompare(b.title)),
+    };
   }, [tasks, mode]);
 
-  if (composing) {
+  if (composing || editing) {
     return (
       <TaskForm
         accent={accent}
         recurrenceMode={mode === "recurring" ? "required" : mode === "all" ? "optional" : "none"}
         assignable={assignable}
-        onSave={async (title, notes, dueAt, recurrenceDays, assignedTo) => {
-          await onCreate(title, notes, dueAt, recurrenceDays, assignedTo);
+        initial={editing ?? undefined}
+        onSave={async (values) => {
+          if (editing) await onEdit(editing.id, values);
+          else await onCreate(values);
           setComposing(false);
+          setEditing(null);
         }}
-        onCancel={() => setComposing(false)}
+        onCancel={() => {
+          setComposing(false);
+          setEditing(null);
+        }}
       />
     );
   }
+
+  const nothing = active.length === 0 && done.length === 0 && archived.length === 0;
 
   return (
     <div className="flex flex-col gap-4">
@@ -238,7 +334,7 @@ export function TaskBoard({
         <p className="py-10 text-center text-sm" style={{ color: "var(--status-critical)" }}>
           Couldn&apos;t load tasks — try again in a moment.
         </p>
-      ) : visibleTasks.length === 0 ? (
+      ) : nothing ? (
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed py-12 text-center" style={{ borderColor: "var(--border-hairline)" }}>
           <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
             {emptyTitle}
@@ -249,30 +345,22 @@ export function TaskBoard({
         </div>
       ) : (
         <div className="flex flex-col">
-          {visibleTasks.map((task) => {
+          {active.map((task) => {
             const recurring = isRecurringTask(task);
-            const done = isTaskDone(task);
             const due = isTaskDue(task);
             const expanded = expandedId === task.id;
             return (
-              <div key={task.id} className="border-t py-3.5 first:border-t-0" style={{ borderColor: "var(--gridline)" }}>
+              <div key={task.id} className="border-t py-3 first:border-t-0" style={{ borderColor: "var(--gridline)" }}>
                 <div className="flex items-start gap-3 pr-1 pl-2">
                   <button
                     type="button"
                     onClick={() => void onComplete(task)}
-                    disabled={done}
                     aria-label={recurring ? "Mark done for this cycle" : "Mark done"}
-                    className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border disabled:opacity-40"
-                    style={{ borderColor: done ? "var(--status-good)" : "var(--border-hairline)", background: done ? "var(--status-good)" : "transparent" }}
-                  >
-                    {done && (
-                      <svg width="11" height="11" viewBox="0 0 20 20" fill="none" stroke="white" strokeWidth="2.4" strokeLinecap="round">
-                        <path d="M4 10.5 8 14.5 16 5.5" />
-                      </svg>
-                    )}
-                  </button>
+                    className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border"
+                    style={{ borderColor: "var(--border-hairline)", background: "transparent" }}
+                  />
                   <button type="button" onClick={() => setExpandedId(expanded ? null : task.id)} className="min-w-0 flex-1 text-left">
-                    <span className="block truncate text-sm font-medium" style={{ color: done ? "var(--text-muted)" : "var(--text-primary)", textDecoration: done ? "line-through" : "none" }}>
+                    <span className="block truncate text-sm font-medium" style={{ color: "var(--text-primary)" }}>
                       {task.title}
                     </span>
                     {task.notes && (
@@ -292,19 +380,78 @@ export function TaskBoard({
                       )}
                     </span>
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => void onDelete(task.id)}
-                    className="shrink-0 rounded-md px-2 py-1 text-xs font-medium"
-                    style={{ color: "var(--status-critical)" }}
-                    aria-label="Delete task"
-                  >
-                    Delete
-                  </button>
                 </div>
+                {expanded && (
+                  <div className="mt-2 flex flex-wrap items-center gap-1 pl-10">
+                    <RowButton onClick={() => setEditing(task)}>Edit</RowButton>
+                    {task.lastCompletedAt && <RowButton onClick={() => void onUncomplete(task)}>Undo last done</RowButton>}
+                    <RowButton onClick={() => void onArchive(task.id, true)}>Archive</RowButton>
+                    <RowButton onClick={() => void onDelete(task.id)} tone="critical">
+                      Delete
+                    </RowButton>
+                  </div>
+                )}
               </div>
             );
           })}
+
+          {done.length > 0 && (
+            <CollapsibleGroup title="Done" count={done.length}>
+              {done.map((task) => (
+                <div key={task.id} className="flex items-start gap-3 border-t py-3 pr-1 pl-2 first:border-t-0" style={{ borderColor: "var(--gridline)" }}>
+                  <button
+                    type="button"
+                    onClick={() => void onUncomplete(task)}
+                    aria-label="Undo — mark not done"
+                    className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border"
+                    style={{ borderColor: "var(--status-good)", background: "var(--status-good)" }}
+                  >
+                    <svg width="11" height="11" viewBox="0 0 20 20" fill="none" stroke="white" strokeWidth="2.4" strokeLinecap="round">
+                      <path d="M4 10.5 8 14.5 16 5.5" />
+                    </svg>
+                  </button>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-medium line-through" style={{ color: "var(--text-muted)" }}>
+                      {task.title}
+                    </span>
+                    {task.lastCompletedAt && (
+                      <span className="mt-0.5 block text-[11px]" style={{ color: "var(--text-muted)" }}>
+                        done {formatDate(task.lastCompletedAt)}
+                        {completedByLabel && task.lastCompletedBy ? ` by ${completedByLabel(task.lastCompletedBy)}` : ""}
+                      </span>
+                    )}
+                  </span>
+                  <RowButton onClick={() => void onUncomplete(task)}>Undo</RowButton>
+                  <RowButton onClick={() => void onArchive(task.id, true)}>Archive</RowButton>
+                  <RowButton onClick={() => void onDelete(task.id)} tone="critical">
+                    Delete
+                  </RowButton>
+                </div>
+              ))}
+            </CollapsibleGroup>
+          )}
+
+          {archived.length > 0 && (
+            <CollapsibleGroup title="Archived" count={archived.length}>
+              {archived.map((task) => (
+                <div key={task.id} className="flex items-start gap-3 border-t py-3 pr-1 pl-2 first:border-t-0" style={{ borderColor: "var(--gridline)" }}>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-medium" style={{ color: "var(--text-secondary)" }}>
+                      {task.title}
+                    </span>
+                    <span className="mt-0.5 block text-[11px]" style={{ color: "var(--text-muted)" }}>
+                      {isRecurringTask(task) ? `every ${task.recurrenceDays}d` : "one-off"}
+                      {task.lastCompletedAt ? ` · last done ${formatDate(task.lastCompletedAt)}` : ""}
+                    </span>
+                  </span>
+                  <RowButton onClick={() => void onArchive(task.id, false)}>Unarchive</RowButton>
+                  <RowButton onClick={() => void onDelete(task.id)} tone="critical">
+                    Delete
+                  </RowButton>
+                </div>
+              ))}
+            </CollapsibleGroup>
+          )}
         </div>
       )}
     </div>

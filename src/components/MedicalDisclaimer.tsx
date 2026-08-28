@@ -7,7 +7,7 @@ import { usePathname } from "next/navigation";
  * browser, and the Personal/Home reminder boards. Kept as a client
  * component (rather than inline in the server layout) only so it can read
  * the route and opt those pages out. */
-const HIDE_ON = ["/notes", "/my-drive", "/reminders", "/home", "/help"];
+const HIDE_ON = ["/notes", "/my-drive", "/home", "/help"];
 
 export function MedicalDisclaimer() {
   const pathname = usePathname();

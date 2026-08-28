@@ -11,6 +11,7 @@ function makeTask(overrides: Partial<TaskItem> = {}): TaskItem {
     lastCompletedAt: null,
     lastCompletedBy: null,
     assignedTo: null,
+    isArchived: false,
     ...overrides,
   };
 }

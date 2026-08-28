@@ -32,6 +32,7 @@ interface TaskRow {
   due_at: string | null;
   recurrence_days: number | null;
   last_completed_at: string | null;
+  is_archived: boolean;
 }
 
 function toTask(row: TaskRow): TaskItem {
@@ -44,7 +45,26 @@ function toTask(row: TaskRow): TaskItem {
     lastCompletedAt: row.last_completed_at,
     lastCompletedBy: null,
     assignedTo: null,
+    isArchived: row.is_archived,
   };
+}
+
+export interface PersonalItem {
+  id: string;
+  name: string;
+  expiresOn: string;
+  remindDaysBefore: number;
+}
+
+interface ItemRow {
+  id: string;
+  name: string;
+  expires_on: string;
+  remind_days_before: number;
+}
+
+function toItem(row: ItemRow): PersonalItem {
+  return { id: row.id, name: row.name, expiresOn: row.expires_on, remindDaysBefore: row.remind_days_before };
 }
 
 async function currentUserId(): Promise<string | null> {
@@ -56,7 +76,8 @@ async function currentUserId(): Promise<string | null> {
 }
 
 const NOTE_COLUMNS = "id, title, body, created_at, updated_at";
-const TASK_COLUMNS = "id, title, notes, due_at, recurrence_days, last_completed_at";
+const TASK_COLUMNS = "id, title, notes, due_at, recurrence_days, last_completed_at, is_archived";
+const ITEM_COLUMNS = "id, name, expires_on, remind_days_before";
 
 export async function fetchPersonalNotes(): Promise<PersonalNote[]> {
   if (!supabase) return [];
@@ -140,9 +161,118 @@ export async function createPersonalTask(input: NewPersonalTaskInput): Promise<T
   return toTask(data as TaskRow);
 }
 
+/** Edits a task's own fields (not its completion state). `dueAt`/
+ * `recurrenceDays` are recomputed by the caller the same way create does,
+ * so switching a task between one-off and recurring just works. */
+export async function updatePersonalTask(id: string, input: NewPersonalTaskInput): Promise<TaskItem> {
+  if (!supabase) throw new Error("Cloud sync isn't set up for this deployment.");
+  const { data, error } = await supabase
+    .from("personal_tasks")
+    .update({
+      title: input.title.trim(),
+      notes: input.notes.trim() || null,
+      due_at: input.dueAt,
+      recurrence_days: input.recurrenceDays,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id)
+    .select(TASK_COLUMNS)
+    .single();
+  if (error) throw error;
+  return toTask(data as TaskRow);
+}
+
+export async function setPersonalTaskArchived(id: string, archived: boolean): Promise<TaskItem> {
+  if (!supabase) throw new Error("Cloud sync isn't set up for this deployment.");
+  const { data, error } = await supabase
+    .from("personal_tasks")
+    .update({ is_archived: archived, updated_at: new Date().toISOString() })
+    .eq("id", id)
+    .select(TASK_COLUMNS)
+    .single();
+  if (error) throw error;
+  return toTask(data as TaskRow);
+}
+
+/** Undoes the most recent completion: clears `last_completed_at`, drops
+ * the newest personal_task_completions row, and for a recurring task moves
+ * `due_at` back to the moment it was completed (so it reads as due again)
+ * and re-arms the cron via `reminder_sent_at = null`. Restoring the exact
+ * prior `due_at` for a task completed early isn't tracked — edit the date
+ * if that matters. */
+export async function uncompletePersonalTask(task: TaskItem): Promise<TaskItem> {
+  if (!supabase) throw new Error("Cloud sync isn't set up for this deployment.");
+  const now = new Date().toISOString();
+  const update: Record<string, unknown> = { last_completed_at: null, updated_at: now };
+  if (isRecurringTask(task)) {
+    update.due_at = task.lastCompletedAt ?? task.dueAt;
+    update.reminder_sent_at = null;
+  }
+  const { data, error } = await supabase.from("personal_tasks").update(update).eq("id", task.id).select(TASK_COLUMNS).single();
+  if (error) throw error;
+  const { data: latest } = await supabase
+    .from("personal_task_completions")
+    .select("id")
+    .eq("task_id", task.id)
+    .order("completed_at", { ascending: false })
+    .limit(1);
+  const latestId = (latest as { id: string }[] | null)?.[0]?.id;
+  if (latestId) await supabase.from("personal_task_completions").delete().eq("id", latestId);
+  return toTask(data as TaskRow);
+}
+
 export async function deletePersonalTask(id: string): Promise<void> {
   if (!supabase) return;
   const { error } = await supabase.from("personal_tasks").delete().eq("id", id);
+  if (error) throw error;
+}
+
+// --- Expiration (private) -------------------------------------------------
+// The owner-only counterpart to household.ts's expiration functions.
+
+export async function fetchPersonalItems(): Promise<PersonalItem[]> {
+  if (!supabase) return [];
+  const myUserId = await currentUserId();
+  if (!myUserId) return [];
+  const { data, error } = await supabase.from("personal_items").select(ITEM_COLUMNS).eq("user_id", myUserId).order("expires_on", { ascending: true });
+  if (error) throw error;
+  return (data as ItemRow[]).map(toItem);
+}
+
+export interface NewPersonalItemInput {
+  name: string;
+  expiresOn: string;
+  remindDaysBefore: number;
+}
+
+export async function createPersonalItem(input: NewPersonalItemInput): Promise<PersonalItem> {
+  if (!supabase) throw new Error("Cloud sync isn't set up for this deployment.");
+  const myUserId = await currentUserId();
+  if (!myUserId) throw new Error("Sign in first.");
+  const { data, error } = await supabase
+    .from("personal_items")
+    .insert({ user_id: myUserId, name: input.name.trim(), expires_on: input.expiresOn, remind_days_before: input.remindDaysBefore })
+    .select(ITEM_COLUMNS)
+    .single();
+  if (error) throw error;
+  return toItem(data as ItemRow);
+}
+
+export async function updatePersonalItem(id: string, input: NewPersonalItemInput): Promise<PersonalItem> {
+  if (!supabase) throw new Error("Cloud sync isn't set up for this deployment.");
+  const { data, error } = await supabase
+    .from("personal_items")
+    .update({ name: input.name.trim(), expires_on: input.expiresOn, remind_days_before: input.remindDaysBefore, reminder_sent_at: null, updated_at: new Date().toISOString() })
+    .eq("id", id)
+    .select(ITEM_COLUMNS)
+    .single();
+  if (error) throw error;
+  return toItem(data as ItemRow);
+}
+
+export async function deletePersonalItem(id: string): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.from("personal_items").delete().eq("id", id);
   if (error) throw error;
 }
 

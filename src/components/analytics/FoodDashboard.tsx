@@ -174,7 +174,7 @@ const MIN_MEAL_INSTANCES_FOR_COMBINATIONS = 5;
  * still renders, just after the known ones. */
 const MEAL_ORDER = ["Breakfast", "Lunch", "Dinner", "Snack"];
 
-export default function FoodPage() {
+export function FoodDashboard() {
   const { status, events } = useData();
   const { span, range, setRange, filtered } = useDateRangeFilter(events);
   const [activeSection, setActiveSection] = useState<string>(SECTION_NAV_ITEMS[0].id);

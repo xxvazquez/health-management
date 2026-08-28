@@ -1,4 +1,4 @@
-import type { TaskItem } from "@/lib/reminders";
+import type { ExpirationItem, TaskItem } from "@/lib/reminders";
 import type { PersonalNote } from "@/lib/supabase/personalReminders";
 
 /** Example data for the Personal Reminders page when signed out — same
@@ -38,6 +38,7 @@ export function buildDemoPersonalTasks(): TaskItem[] {
       lastCompletedAt: null,
       lastCompletedBy: null,
       assignedTo: null,
+      isArchived: false,
     },
     {
       id: "demo-task-2",
@@ -48,6 +49,7 @@ export function buildDemoPersonalTasks(): TaskItem[] {
       lastCompletedAt: null,
       lastCompletedBy: null,
       assignedTo: null,
+      isArchived: false,
     },
     {
       id: "demo-task-3",
@@ -58,6 +60,17 @@ export function buildDemoPersonalTasks(): TaskItem[] {
       lastCompletedAt: iso(-70 * DAY),
       lastCompletedBy: null,
       assignedTo: null,
+      isArchived: false,
     },
+  ];
+}
+
+const isoDate = (msOffset: number) => new Date(now() + msOffset).toISOString().slice(0, 10);
+
+export function buildDemoPersonalItems(): ExpirationItem[] {
+  return [
+    { id: "demo-item-1", name: "Vitamin D drops", expiresOn: isoDate(-2 * DAY), remindDaysBefore: 7 },
+    { id: "demo-item-2", name: "Protein powder", expiresOn: isoDate(9 * DAY), remindDaysBefore: 5 },
+    { id: "demo-item-3", name: "Magnesium", expiresOn: isoDate(140 * DAY), remindDaysBefore: 14 },
   ];
 }

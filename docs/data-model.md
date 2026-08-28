@@ -186,10 +186,12 @@ erDiagram
   created is `redeem_partner_invite()`. Participants can SELECT their own
   link and DELETE it (unlink).
 
-## Reminders → Personal
+## Log → Notes / Reminders / Expiration (private)
 
-Private to-dos, notes, and recurring chores. One user, standard
-owner-only RLS. Written directly to Supabase (no offline/outbox).
+The three private-organiser tabs after Journal on the Log page. One user,
+standard owner-only RLS, written directly to Supabase (no offline/outbox).
+The `/home` page has shared (partner) versions of all three — same
+components, `household_*` tables (next section).
 
 ```mermaid
 %%{init: {"theme": "base", "themeVariables": {
@@ -212,6 +214,7 @@ erDiagram
         timestamptz due_at "one-off: deadline / recurring: next occurrence"
         int         recurrence_days "null = one-off"
         timestamptz last_completed_at "denormalised latest completion"
+        boolean     is_archived "retired from the active list"
         timestamptz reminder_sent_at "idempotency stamp for current due_at"
     }
     PERSONAL_TASK_COMPLETIONS {
@@ -219,13 +222,23 @@ erDiagram
         uuid        task_id FK
         timestamptz completed_at
     }
+    PERSONAL_ITEMS {
+        uuid id PK
+        text name
+        date expires_on
+        int  remind_days_before
+        timestamptz reminder_sent_at
+    }
 ```
 
-`recurrence_days` null → one-off task (`last_completed_at` set = done).
-Set → recurring: `due_at` advances by `recurrence_days` on every
-completion, `reminder_sent_at` clears so the next occurrence reminds
-again, and the task never becomes permanently done.
-`personal_notes` is a plain title+body note with no relationships.
+`recurrence_days` null → one-off task (`last_completed_at` set = done, shown
+in a "Done" section). Set → recurring: `due_at` advances by
+`recurrence_days` on every completion, `reminder_sent_at` clears so the next
+occurrence reminds again, and the task never becomes permanently done.
+`is_archived` moves a task into an "Archived" section without deleting its
+history; "Undo" drops the newest completion row (and rewinds `due_at` for a
+recurring task). `personal_notes` and `personal_items` have no
+relationships — a title+body note, and a name+expiry-date product.
 
 ## Reminders → Home
 
@@ -257,6 +270,7 @@ erDiagram
         timestamptz last_completed_at
         uuid        last_completed_by FK "who completed it"
         uuid        assigned_to FK "null = either of you"
+        boolean     is_archived
         timestamptz reminder_sent_at
     }
     HOUSEHOLD_TASK_COMPLETIONS {
@@ -286,12 +300,13 @@ relationship to the others. All four tables use the pair RLS shape below.
 |---|---|
 | `push_subscriptions` | One row per user — the Web Push endpoint/keys/timezone for their last device that enabled notifications. Row present = enabled. Read by the reminder cron with the service-role key. |
 | `journal_entries` | Log → Journal: a freeform diary (`date`, optional `title`, `body`). Unrelated to the per-item `*_diary` tables. Written directly to Supabase. |
+| `notes_digest_state` | One row per user — `last_sent_date` for the daily unread-notes digest email. Written only by the cron (service role); a client only reads its own row. |
 
 ## RLS shapes
 
 | Tables | `using` / `with check` |
 |---|---|
-| All tracked-domain, standalone-log, Personal, infra tables | `auth.uid() = user_id` |
+| All tracked-domain, standalone-log, `personal_*`, and infra tables | `auth.uid() = user_id` (SELECT only for `notes_digest_state` — the cron does every write) |
 | `partner_invites` | `auth.uid() = created_by` |
 | `partner_links` | SELECT/DELETE only: `auth.uid() in (user_a_id, user_b_id)` — no INSERT/UPDATE (created via `redeem_partner_invite()`) |
 | `notes` | SELECT/UPDATE: `auth.uid() in (sender_id, recipient_id)`. INSERT: must be yourself, to your actual linked partner, into a thread you're part of. No DELETE. |
@@ -306,6 +321,10 @@ relationship to the others. All four tables use the pair RLS shape below.
 | `is_household_member(uuid)` | `security invoker` fn | True if the caller is linked to the given user via `partner_links`. Used in every Home RLS policy. |
 | `notes_touch_thread()` | AFTER INSERT trigger | Keeps a thread root's `last_message_at` / `*_read_at` current on every insert into the thread. |
 | `notes_lock_identity_columns()` | BEFORE UPDATE trigger | Rejects post-insert changes to `sender_id` / `recipient_id` / `thread_root_id`. |
+
+Email goes out only from the `reminder-cron` Edge Function
+(service role): due reminders, and a once-a-day unread-notes digest gated by
+`notes_digest_state`. Notes no longer send a mail per message.
 
 ## Not in Postgres
 

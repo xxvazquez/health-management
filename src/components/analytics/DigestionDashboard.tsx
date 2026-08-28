@@ -71,7 +71,7 @@ function deltaDetail(recentPct: number | null, priorPct: number | null): string 
   return `${diff > 0 ? "+" : ""}${diff}pp vs ${priorRounded}% previous 30 days`;
 }
 
-export default function DigestionPage() {
+export function DigestionDashboard() {
   const { status, events, workoutLogs, stoolLogs } = useData();
   const { span, range, setRange, filtered } = useDateRangeFilter(events);
   const filteredWorkoutLogs = useMemo(

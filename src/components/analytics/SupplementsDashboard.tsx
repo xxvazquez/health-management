@@ -18,7 +18,7 @@ import { TYPE_ACCENT } from "@/taxonomy/categories";
 
 const STRIP_WINDOW_DAYS = 90;
 
-export default function SupplementsPage() {
+export function SupplementsDashboard() {
   const { status, events } = useData();
   const { span, range, setRange, filtered } = useDateRangeFilter(events);
 

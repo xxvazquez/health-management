@@ -27,7 +27,7 @@ function lagPhrase(lagDays: number): string {
   return `${lagDays} days after`;
 }
 
-export default function PatternsPage() {
+export function PatternsDashboard() {
   const { status, events, workoutLogs } = useData();
   const { span, range, setRange, filtered } = useDateRangeFilter(events);
   const filteredWorkoutLogs = useMemo(

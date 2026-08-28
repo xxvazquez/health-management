@@ -6,7 +6,9 @@ import { addDaysToDate, todayLocalISODate } from "@/lib/aggregations/common";
  * `lastCompletedBy` is always null for a personal task (there's only ever
  * one possible completer); Home tasks set it to show "who completed it".
  * `assignedTo` is the same story — always null for a personal task, and
- * optional for a Home task (blank means either of you). */
+ * optional for a Home task (blank means either of you). `isArchived`
+ * retires a task from the active list without deleting its history —
+ * mainly for a recurring chore you've stopped. */
 export interface TaskItem {
   id: string;
   title: string;
@@ -16,6 +18,7 @@ export interface TaskItem {
   lastCompletedAt: string | null;
   lastCompletedBy: string | null;
   assignedTo: string | null;
+  isArchived: boolean;
 }
 
 export function isRecurringTask(task: Pick<TaskItem, "recurrenceDays">): boolean {

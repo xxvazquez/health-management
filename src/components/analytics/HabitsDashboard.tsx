@@ -20,7 +20,7 @@ import { TYPE_ACCENT } from "@/taxonomy/categories";
 
 const STRIP_WINDOW_DAYS = 90;
 
-export default function HabitsPage() {
+export function HabitsDashboard() {
   const { status, events, refresh } = useData();
   const { span, range, setRange, filtered } = useDateRangeFilter(events);
   const { busyIdentity, toggleArchive, rename } = useItemActions(refresh);

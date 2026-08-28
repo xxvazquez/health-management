@@ -1,26 +1,27 @@
-// Checked every 15 minutes by pg_cron + pg_net (see supabase/schema.sql's
-// "Reminders" section). Still named breakfast-reminder-cron — it now walks
-// every supplement/habit item's own reminder_time instead of one fixed
-// breakfast check, but the deployed function name is a live URL an
-// existing pg_cron job already calls, so renaming it would need that
-// schedule re-pointed by hand too; see the schema.sql comment.
+// Runs every 15 minutes via pg_cron + pg_net (see supabase/schema.sql's
+// "Reminders" section for the schedule).
 //
-// Two independent phases:
+// Three independent phases:
 // 1. For every push subscription, for every one of that user's supplement/
 //    habit items with a reminder_time set, sends a push once local time
 //    reaches that item's reminder_time (no upper bound — a late or skipped
 //    cron tick still sends, just later, rather than silently never sending
 //    that day) unless it's already logged today or already resolved today.
 // 2. Personal Reminders / Home: scans personal_tasks/household_tasks (by
-//    due_at) and household_items (by expires_on - remind_days_before) for
-//    due, not-yet-sent rows, and sends both an email (Resend, same as
-//    notify-note) and a push. A Home task assigned to one partner
+//    due_at) and personal_items/household_items (by expires_on -
+//    remind_days_before) for due, not-yet-sent rows, and sends both an
+//    email (Resend) and a push. A Home task assigned to one partner
 //    (assigned_to set) notifies only that person; an unassigned task, and
 //    every Home item, notifies both linked partners. See isTaskRowDue/
 //    isItemRowDue below.
+// 3. Notes digest: once per day, after 09:00 in DIGEST_TIMEZONE (defaults
+//    to Europe/Warsaw), emails + pushes each linked user a single "you
+//    have N unread notes from <name>" summary — instead of a mail per
+//    message. notes_digest_state stops it re-sending the same day.
 // SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are injected automatically by
-// Supabase for every Edge Function; only the VAPID keys (and RESEND_API_KEY,
-// already set for notify-note) need to be set by hand (see
+// Supabase for every Edge Function; only the VAPID keys, RESEND_API_KEY,
+// NOTES_FROM/REMINDERS_FROM, and (optionally) DIGEST_TIMEZONE need to be
+// set by hand (see
 // .github/workflows/deploy-functions.yml).
 
 import webpush from "npm:web-push@3.6.7";
@@ -109,7 +110,7 @@ async function sendReminderEmail(toEmail: string, subject: string, bodyText: str
     }),
   });
   if (!res.ok) {
-    console.error("breakfast-reminder-cron: reminder email failed", res.status, await res.text());
+    console.error("reminder-cron: reminder email failed", res.status, await res.text());
   }
 }
 
@@ -129,7 +130,7 @@ async function sendPushToUser(subsByUser: Map<string, Subscription>, userId: str
       await supabase.from("push_subscriptions").delete().eq("user_id", userId);
       subsByUser.delete(userId);
     } else {
-      console.error("breakfast-reminder-cron: push failed for", userId, tag, err);
+      console.error("reminder-cron: push failed for", userId, tag, err);
     }
   }
 }
@@ -149,6 +150,24 @@ async function getPartnerId(userId: string): Promise<string | null> {
 async function getUserEmail(userId: string): Promise<string | null> {
   const { data } = await supabase.auth.admin.getUserById(userId);
   return data?.user?.email ?? null;
+}
+
+/** "X sent you a note" name — a nickname from auth metadata if set, else a
+ * capitalised email local-part, else a generic label. Mirrors the app's
+ * own AccountPanel greeting rule. */
+async function getUserDisplayName(userId: string): Promise<string> {
+  const { data } = await supabase.auth.admin.getUserById(userId);
+  const meta = (data?.user?.user_metadata ?? {}) as Record<string, unknown>;
+  for (const key of ["display_name", "name", "full_name", "nickname"]) {
+    const value = meta[key];
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  const email = data?.user?.email;
+  if (email) {
+    const local = email.split("@")[0] ?? email;
+    return local.charAt(0).toUpperCase() + local.slice(1);
+  }
+  return "your partner";
 }
 
 interface Subscription {
@@ -185,7 +204,7 @@ const REMINDER_SOURCES = [
 async function markResolved(itemTable: string, itemId: string, date: string): Promise<void> {
   const { error } = await supabase.from(itemTable).update({ reminder_last_sent_date: date }).eq("id", itemId);
   if (error) {
-    console.error(`breakfast-reminder-cron: failed to stamp reminder_last_sent_date for ${itemTable}:${itemId}`, error);
+    console.error(`reminder-cron: failed to stamp reminder_last_sent_date for ${itemTable}:${itemId}`, error);
   }
 }
 
@@ -194,7 +213,7 @@ Deno.serve(async (req) => {
 
   const { data: subs, error } = await supabase.from("push_subscriptions").select("*");
   if (error) {
-    console.error("breakfast-reminder-cron: failed to load subscriptions", error);
+    console.error("reminder-cron: failed to load subscriptions", error);
     return new Response(JSON.stringify({ error: error.message }), { status: 500 });
   }
 
@@ -247,7 +266,7 @@ Deno.serve(async (req) => {
             subscriptionValid = false;
             break;
           }
-          console.error("breakfast-reminder-cron: send failed for", sub.user_id, item.id, err);
+          console.error("reminder-cron: send failed for", sub.user_id, item.id, err);
         }
       }
     }
@@ -265,7 +284,13 @@ Deno.serve(async (req) => {
   let dueChecked = 0;
   let dueSent = 0;
 
-  const { data: personalTasks } = await supabase.from("personal_tasks").select("id, user_id, title, due_at, reminder_sent_at").not("due_at", "is", null).is("reminder_sent_at", null);
+  // Archived tasks (is_archived) are retired — never remind on them.
+  const { data: personalTasks } = await supabase
+    .from("personal_tasks")
+    .select("id, user_id, title, due_at, reminder_sent_at")
+    .eq("is_archived", false)
+    .not("due_at", "is", null)
+    .is("reminder_sent_at", null);
   for (const task of (personalTasks ?? []) as { id: string; user_id: string; title: string; due_at: string | null; reminder_sent_at: string | null }[]) {
     dueChecked++;
     if (!isTaskRowDue(task.due_at, task.reminder_sent_at, nowDate)) continue;
@@ -276,7 +301,12 @@ Deno.serve(async (req) => {
     dueSent++;
   }
 
-  const { data: householdTasks } = await supabase.from("household_tasks").select("id, owner_id, title, due_at, reminder_sent_at, assigned_to").not("due_at", "is", null).is("reminder_sent_at", null);
+  const { data: householdTasks } = await supabase
+    .from("household_tasks")
+    .select("id, owner_id, title, due_at, reminder_sent_at, assigned_to")
+    .eq("is_archived", false)
+    .not("due_at", "is", null)
+    .is("reminder_sent_at", null);
   for (const task of (householdTasks ?? []) as { id: string; owner_id: string; title: string; due_at: string | null; reminder_sent_at: string | null; assigned_to: string | null }[]) {
     dueChecked++;
     if (!isTaskRowDue(task.due_at, task.reminder_sent_at, nowDate)) continue;
@@ -310,5 +340,76 @@ Deno.serve(async (req) => {
     dueSent++;
   }
 
-  return new Response(JSON.stringify({ checked, sent, dueChecked, dueSent }), { headers: { "Content-Type": "application/json" } });
+  // personal_items — the private Expiration tab on the Log page. Same
+  // due-check as household_items, but owner-only (no partner fan-out).
+  const { data: personalItems } = await supabase
+    .from("personal_items")
+    .select("id, user_id, name, expires_on, remind_days_before, reminder_sent_at")
+    .is("reminder_sent_at", null);
+  for (const item of (personalItems ?? []) as { id: string; user_id: string; name: string; expires_on: string; remind_days_before: number; reminder_sent_at: string | null }[]) {
+    dueChecked++;
+    if (!isItemRowDue(item.expires_on, item.remind_days_before, item.reminder_sent_at, today)) continue;
+    const label = item.expires_on < today ? "expired" : "expiring soon";
+    const email = await getUserEmail(item.user_id);
+    if (email) await sendReminderEmail(email, `${item.name} is ${label}`, `"${item.name}" (expires ${item.expires_on}) is ${label} — check Lauva.`);
+    await sendPushToUser(subsByUser, item.user_id, `${item.name} is ${label}`, `personal-item:${item.id}`);
+    await supabase.from("personal_items").update({ reminder_sent_at: nowDate.toISOString() }).eq("id", item.id);
+    dueSent++;
+  }
+
+  // --- Phase 3: daily unread-notes digest ---------------------------
+  // One "you have N unread notes from <partner>" per day, after 09:00 in
+  // DIGEST_TIMEZONE — defaults to Europe/Warsaw (this app's users share one
+  // zone); set the secret to override. notes_digest_state is stamped every
+  // day it's evaluated, sent or not, so a user is checked at most once/day.
+  let digestSent = 0;
+  const digestLocal = localNow(Deno.env.get("DIGEST_TIMEZONE") ?? "Europe/Warsaw", nowDate);
+  if (digestLocal.minutesSinceMidnight >= 9 * 60) {
+    const { data: links } = await supabase.from("partner_links").select("user_a_id, user_b_id");
+    const linkedUserIds = new Set<string>();
+    for (const link of (links ?? []) as { user_a_id: string; user_b_id: string }[]) {
+      linkedUserIds.add(link.user_a_id);
+      linkedUserIds.add(link.user_b_id);
+    }
+    for (const userId of linkedUserIds) {
+      const { data: state } = await supabase.from("notes_digest_state").select("last_sent_date").eq("user_id", userId).maybeSingle();
+      if ((state as { last_sent_date: string | null } | null)?.last_sent_date === digestLocal.date) continue;
+
+      const { data: roots } = await supabase
+        .from("notes")
+        .select("id, sender_id, recipient_id, last_message_at, sender_read_at, recipient_read_at")
+        .is("thread_root_id", null)
+        .or(`sender_id.eq.${userId},recipient_id.eq.${userId}`);
+      let unread = 0;
+      for (const n of (roots ?? []) as {
+        sender_id: string;
+        recipient_id: string;
+        last_message_at: string;
+        sender_read_at: string | null;
+        recipient_read_at: string | null;
+      }[]) {
+        const readAt = n.sender_id === userId ? n.sender_read_at : n.recipient_read_at;
+        if (!readAt || readAt < n.last_message_at) unread++;
+      }
+
+      if (unread > 0) {
+        const partnerId = await getPartnerId(userId);
+        const partnerName = partnerId ? await getUserDisplayName(partnerId) : "your partner";
+        const noun = unread === 1 ? "note" : "notes";
+        const email = await getUserEmail(userId);
+        if (email) {
+          await sendReminderEmail(
+            email,
+            `${unread} unread ${noun} on Lauva`,
+            `You have ${unread} unread ${noun} from ${partnerName}. Open Lauva to read ${unread === 1 ? "it" : "them"}.`,
+          );
+        }
+        await sendPushToUser(subsByUser, userId, `${unread} unread ${noun} from ${partnerName}`, "notes-digest");
+        digestSent++;
+      }
+      await supabase.from("notes_digest_state").upsert({ user_id: userId, last_sent_date: digestLocal.date, updated_at: nowDate.toISOString() });
+    }
+  }
+
+  return new Response(JSON.stringify({ checked, sent, dueChecked, dueSent, digestSent }), { headers: { "Content-Type": "application/json" } });
 });
