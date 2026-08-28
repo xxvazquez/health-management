@@ -13,14 +13,18 @@ import {
   fetchHouseholdItems,
   fetchHouseholdNotes,
   fetchHouseholdTasks,
+  setHouseholdTaskArchived,
+  uncompleteHouseholdTask,
+  updateHouseholdItem,
   updateHouseholdNote,
+  updateHouseholdTask,
   type HouseholdNote,
 } from "@/lib/supabase/household";
 import { buildDemoHouseholdItems, buildDemoHouseholdNotes, buildDemoHouseholdTasks, DEMO_HOME_ME_ID, DEMO_HOME_PARTNER_ID } from "@/lib/demoHousehold";
 import { getPartnerLink } from "@/lib/supabase/partner";
 import { isRecurringTask, nextRecurringDueAt, type ExpirationItem, type TaskItem } from "@/lib/reminders";
 import { NoteBoard } from "@/components/reminders/NoteBoard";
-import { TaskBoard } from "@/components/reminders/TaskBoard";
+import { TaskBoard, type TaskFormValues } from "@/components/reminders/TaskBoard";
 import { ExpirationBoard } from "@/components/home/ExpirationBoard";
 
 const ACCENT = "var(--series-indigo)";
@@ -159,16 +163,41 @@ export default function HomePage() {
     if (!isDemo) await deleteHouseholdNote(id);
   }
 
-  async function handleCreateTask(title: string, notes: string, dueAt: string | null, recurrenceDays: number | null, assignedTo: string | null) {
+  async function handleCreateTask(values: TaskFormValues) {
     if (isDemo) {
       setTasks((prev) => [
         ...prev,
-        { id: `demo-${Date.now()}`, title: title.trim(), notes: notes.trim() || null, dueAt, recurrenceDays, lastCompletedAt: null, lastCompletedBy: null, assignedTo },
+        {
+          id: `demo-${Date.now()}`,
+          title: values.title.trim(),
+          notes: values.notes.trim() || null,
+          dueAt: values.dueAt,
+          recurrenceDays: values.recurrenceDays,
+          lastCompletedAt: null,
+          lastCompletedBy: null,
+          assignedTo: values.assignedTo,
+          isArchived: false,
+        },
       ]);
       return;
     }
-    const created = await createHouseholdTask({ title, notes, dueAt, recurrenceDays, assignedTo });
+    const created = await createHouseholdTask(values);
     setTasks((prev) => [...prev, created]);
+  }
+
+  async function handleEditTask(id: string, values: TaskFormValues) {
+    if (isDemo) {
+      setTasks((prev) =>
+        prev.map((t) =>
+          t.id === id
+            ? { ...t, title: values.title.trim(), notes: values.notes.trim() || null, dueAt: values.dueAt, recurrenceDays: values.recurrenceDays, assignedTo: values.assignedTo }
+            : t,
+        ),
+      );
+      return;
+    }
+    const updated = await updateHouseholdTask(id, values);
+    setTasks((prev) => prev.map((t) => (t.id === id ? updated : t)));
   }
 
   async function handleCompleteTask(task: TaskItem) {
@@ -192,6 +221,30 @@ export default function HomePage() {
     setTasks((prev) => prev.map((t) => (t.id === task.id ? updated : t)));
   }
 
+  async function handleUncompleteTask(task: TaskItem) {
+    if (isDemo) {
+      setTasks((prev) =>
+        prev.map((t) =>
+          t.id === task.id
+            ? { ...t, lastCompletedAt: null, lastCompletedBy: null, dueAt: isRecurringTask(t) ? (t.lastCompletedAt ?? t.dueAt) : t.dueAt }
+            : t,
+        ),
+      );
+      return;
+    }
+    const updated = await uncompleteHouseholdTask(task);
+    setTasks((prev) => prev.map((t) => (t.id === task.id ? updated : t)));
+  }
+
+  async function handleArchiveTask(id: string, archived: boolean) {
+    if (isDemo) {
+      setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, isArchived: archived } : t)));
+      return;
+    }
+    const updated = await setHouseholdTaskArchived(id, archived);
+    setTasks((prev) => prev.map((t) => (t.id === id ? updated : t)));
+  }
+
   async function handleDeleteTask(id: string) {
     setTasks((prev) => prev.filter((t) => t.id !== id));
     if (!isDemo) await deleteHouseholdTask(id);
@@ -204,6 +257,15 @@ export default function HomePage() {
     }
     const created = await createHouseholdItem({ name, expiresOn, remindDaysBefore });
     setItems((prev) => [...prev, created]);
+  }
+
+  async function handleEditItem(id: string, name: string, expiresOn: string, remindDaysBefore: number) {
+    if (isDemo) {
+      setItems((prev) => prev.map((i) => (i.id === id ? { ...i, name: name.trim(), expiresOn, remindDaysBefore } : i)));
+      return;
+    }
+    const updated = await updateHouseholdItem(id, { name, expiresOn, remindDaysBefore });
+    setItems((prev) => prev.map((i) => (i.id === id ? updated : i)));
   }
 
   async function handleDeleteItem(id: string) {
@@ -270,13 +332,24 @@ export default function HomePage() {
           emptyDescription="Tap + New for a one-off task or a recurring chore — either of you can complete it."
           completedByLabel={completedByLabel}
           onCreate={handleCreateTask}
+          onEdit={handleEditTask}
           onComplete={handleCompleteTask}
+          onUncomplete={handleUncompleteTask}
+          onArchive={handleArchiveTask}
           onDelete={handleDeleteTask}
         />
       )}
 
       {tab === "expiration" && (
-        <ExpirationBoard items={items} loading={!isDemo && itemsLoading} error={itemsError} accent={ACCENT} onCreate={handleCreateItem} onDelete={handleDeleteItem} />
+        <ExpirationBoard
+          items={items}
+          loading={!isDemo && itemsLoading}
+          error={itemsError}
+          accent={ACCENT}
+          onCreate={handleCreateItem}
+          onEdit={handleEditItem}
+          onDelete={handleDeleteItem}
+        />
       )}
     </div>
   );

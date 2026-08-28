@@ -211,20 +211,6 @@ export async function fetchThreadMessages(rootId: string): Promise<NoteMessage[]
   }));
 }
 
-/** Fire-and-forget — a slow or failed send must never block the note
- * itself (already saved by the time this runs) or surface as an error the
- * sender has to deal with; the message is there either way, they just
- * might not get emailed about it. */
-async function notifyNote(noteId: string): Promise<void> {
-  if (!supabase) return;
-  try {
-    const { error } = await supabase.functions.invoke("notify-note", { body: { noteId } });
-    if (error) console.error("notify-note failed", error);
-  } catch (err) {
-    console.error("notify-note failed", err);
-  }
-}
-
 export interface NewNoteInput {
   recipientId: string;
   category: NoteCategory;
@@ -248,7 +234,6 @@ export async function sendNote(input: NewNoteInput): Promise<string> {
     .select("id")
     .single();
   if (error) throw error;
-  void notifyNote(data.id);
   return data.id;
 }
 
@@ -264,7 +249,6 @@ export async function replyToNote(rootId: string, recipientId: string, body: str
     .select("id")
     .single();
   if (error) throw error;
-  void notifyNote(data.id);
   return data.id;
 }
 

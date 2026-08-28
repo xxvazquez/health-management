@@ -22,10 +22,10 @@ export function BugReportButton({ collapsed, onClick }: { collapsed?: boolean; o
       title="Report a bug"
       aria-label="Report a bug"
       className={clsx(
-        "flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-medium whitespace-nowrap transition-colors hover:bg-[var(--page-plane)]",
+        "flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium whitespace-nowrap transition-colors hover:bg-[var(--page-plane)]",
         collapsed && "justify-center px-0",
       )}
-      style={{ color: "var(--text-muted)" }}
+      style={{ color: "var(--status-critical)" }}
     >
       <BugIcon />
       {!collapsed && "Report a bug"}

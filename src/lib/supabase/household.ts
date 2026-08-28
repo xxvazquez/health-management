@@ -35,6 +35,7 @@ interface TaskRow {
   last_completed_at: string | null;
   last_completed_by: string | null;
   assigned_to: string | null;
+  is_archived: boolean;
 }
 
 function toTask(row: TaskRow): TaskItem {
@@ -47,6 +48,7 @@ function toTask(row: TaskRow): TaskItem {
     lastCompletedAt: row.last_completed_at,
     lastCompletedBy: row.last_completed_by,
     assignedTo: row.assigned_to,
+    isArchived: row.is_archived,
   };
 }
 
@@ -70,7 +72,7 @@ async function currentUserId(): Promise<string | null> {
 }
 
 const NOTE_COLUMNS = "id, title, body, created_at, updated_at";
-const TASK_COLUMNS = "id, title, notes, due_at, recurrence_days, last_completed_at, last_completed_by, assigned_to";
+const TASK_COLUMNS = "id, title, notes, due_at, recurrence_days, last_completed_at, last_completed_by, assigned_to, is_archived";
 const ITEM_COLUMNS = "id, name, expires_on, remind_days_before";
 
 // --- Notes -------------------------------------------------------------
@@ -154,6 +156,62 @@ export async function createHouseholdTask(input: NewHouseholdTaskInput): Promise
   return toTask(data as TaskRow);
 }
 
+/** Edits a task's own fields (title/notes/schedule/assignee), not its
+ * completion state. Same shape as `updatePersonalTask`. */
+export async function updateHouseholdTask(id: string, input: NewHouseholdTaskInput): Promise<TaskItem> {
+  if (!supabase) throw new Error("Cloud sync isn't set up for this deployment.");
+  const { data, error } = await supabase
+    .from("household_tasks")
+    .update({
+      title: input.title.trim(),
+      notes: input.notes.trim() || null,
+      due_at: input.dueAt,
+      recurrence_days: input.recurrenceDays,
+      assigned_to: input.assignedTo,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id)
+    .select(TASK_COLUMNS)
+    .single();
+  if (error) throw error;
+  return toTask(data as TaskRow);
+}
+
+export async function setHouseholdTaskArchived(id: string, archived: boolean): Promise<TaskItem> {
+  if (!supabase) throw new Error("Cloud sync isn't set up for this deployment.");
+  const { data, error } = await supabase
+    .from("household_tasks")
+    .update({ is_archived: archived, updated_at: new Date().toISOString() })
+    .eq("id", id)
+    .select(TASK_COLUMNS)
+    .single();
+  if (error) throw error;
+  return toTask(data as TaskRow);
+}
+
+/** Undoes the most recent completion — see `uncompletePersonalTask` for
+ * the full rationale. Also clears `last_completed_by`. */
+export async function uncompleteHouseholdTask(task: TaskItem): Promise<TaskItem> {
+  if (!supabase) throw new Error("Cloud sync isn't set up for this deployment.");
+  const now = new Date().toISOString();
+  const update: Record<string, unknown> = { last_completed_at: null, last_completed_by: null, updated_at: now };
+  if (isRecurringTask(task)) {
+    update.due_at = task.lastCompletedAt ?? task.dueAt;
+    update.reminder_sent_at = null;
+  }
+  const { data, error } = await supabase.from("household_tasks").update(update).eq("id", task.id).select(TASK_COLUMNS).single();
+  if (error) throw error;
+  const { data: latest } = await supabase
+    .from("household_task_completions")
+    .select("id")
+    .eq("task_id", task.id)
+    .order("completed_at", { ascending: false })
+    .limit(1);
+  const latestId = (latest as { id: string }[] | null)?.[0]?.id;
+  if (latestId) await supabase.from("household_task_completions").delete().eq("id", latestId);
+  return toTask(data as TaskRow);
+}
+
 export async function deleteHouseholdTask(id: string): Promise<void> {
   if (!supabase) return;
   const { error } = await supabase.from("household_tasks").delete().eq("id", id);
@@ -221,6 +279,25 @@ export async function createHouseholdItem(input: NewHouseholdItemInput): Promise
   const { data, error } = await supabase
     .from("household_items")
     .insert({ owner_id: myUserId, name: input.name.trim(), expires_on: input.expiresOn, remind_days_before: input.remindDaysBefore })
+    .select(ITEM_COLUMNS)
+    .single();
+  if (error) throw error;
+  return toItem(data as ItemRow);
+}
+
+export async function updateHouseholdItem(id: string, input: NewHouseholdItemInput): Promise<ExpirationItem> {
+  if (!supabase) throw new Error("Cloud sync isn't set up for this deployment.");
+  const { data, error } = await supabase
+    .from("household_items")
+    .update({
+      name: input.name.trim(),
+      expires_on: input.expiresOn,
+      remind_days_before: input.remindDaysBefore,
+      // Editing the date re-arms the reminder for the new window.
+      reminder_sent_at: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id)
     .select(ITEM_COLUMNS)
     .single();
   if (error) throw error;

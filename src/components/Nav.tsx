@@ -5,7 +5,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import clsx from "clsx";
 import { useData } from "@/lib/DataContext";
-import { useVisibleDomains, type TrackedDomain } from "@/lib/visibleDomains";
 import { useAuth } from "@/lib/supabase/AuthContext";
 import { notesConfigured, onNotesChanged, unreadNoteCount } from "@/lib/supabase/notes";
 import { Logo } from "@/components/Logo";
@@ -101,10 +100,15 @@ const ICONS: Record<string, ReactNode> = {
       <path d="M7 9.5l2.2 2.2 4-4.3" />
     </IconWrap>
   ),
-  Home: (
+  Reminders: (
     <IconWrap>
-      <path d="M3.5 9.8 10 4l6.5 5.8" />
-      <path d="M5.3 8.4V16h9.4V8.4" />
+      <path d="M10 3.4a4 4 0 0 0-4 4c0 3.4-1.3 4.6-1.3 4.6h10.6S14 10.8 14 7.4a4 4 0 0 0-4-4Z" />
+      <path d="M8.6 15a1.7 1.7 0 0 0 2.8 0" />
+    </IconWrap>
+  ),
+  Analytics: (
+    <IconWrap>
+      <path d="M4 16.5V10M8 16.5V5M12 16.5v-4M16 16.5V8" />
     </IconWrap>
   ),
   Help: (
@@ -117,50 +121,28 @@ const ICONS: Record<string, ReactNode> = {
 };
 
 /** The app's home/at-a-glance page — Today, Recent Activity, Trends,
- * Calendar, Partner Notes, and the Lauva Timeline all in one place. Its own
- * top-level entry (not folded into Analytics) since it isn't a single-
- * domain dashboard the way Food/Workout/Cycle are; it's the landing point
- * for "what's going on" before drilling into any one of them. */
+ * Calendar, Partner Notes, and the Weekly/Monthly Review all in one place.
+ * Its own top-level entry (not an Analytics tab) since it's cross-domain,
+ * the landing point for "what's going on" before drilling into a dashboard. */
 const OVERVIEW_LINKS = [{ href: "/overview", label: "Overview" }];
-/** The two purposes the whole app is organized around — fast logging vs.
- * everything that reads the logged data back. Log gets its own section
- * because it's the only page in the "tracking" half; every other page is
- * an analytics dashboard for one domain. */
+/** Log (enter data) and Analytics (read it back) — the two halves the whole
+ * app is organized around, both top-level. Analytics is a single page with
+ * a Log-style tab bar for every dashboard (`/analytics#food` …), so hiding
+ * a domain from Manage just drops its tab, not a whole nav entry. */
 const LOG_LINKS = [{ href: "/log", label: "Log" }];
-/** Supplements, Habits, Digestion, and Patterns are hidden from navigation
- * but their routes and code are still intact — only the entry points here
- * were removed. Food is back as the first analytics area being actively
- * rebuilt. */
-const ANALYTICS_LINKS = [
-  { href: "/food", label: "Food" },
-  { href: "/workout", label: "Workout" },
-  { href: "/cycle", label: "Cycle" },
-];
-/** Which `TrackedDomain` (the same one Manage's "Visible sections" toggles
- * and the Log page's tabs use) each analytics link corresponds to — hiding
- * a domain there hides its dashboard link here too, same underlying
- * on/off switch. */
-const ANALYTICS_LINK_DOMAIN: Record<string, TrackedDomain> = {
-  "/food": "food",
-  "/workout": "workout",
-  "/cycle": "cycle",
-};
+const ANALYTICS_LINKS = [{ href: "/analytics", label: "Analytics" }];
 const MANAGE_LINKS = [{ href: "/manage", label: "Manage items" }];
 const TOOLS_LINKS = [
   { href: "/my-drive", label: "My Drive" },
   { href: "/help", label: "Help" },
 ];
-/** Separate from Analytics — Notes is partner-to-partner communication, not
- * a dashboard reading back something you logged, so it gets its own
- * section rather than being folded into either existing one. */
-const CONNECT_LINKS = [{ href: "/notes", label: "Notes" }];
-/** Neither a dashboard (Analytics), partner messaging (Connect), nor item
- * configuration (Manage) — Personal is private to-dos/notes, Home is the
- * same shared with a linked partner, so both get their own section rather
- * than being folded into an existing one. */
-const REMINDERS_LINKS = [
-  { href: "/reminders", label: "Personal" },
-  { href: "/home", label: "Home" },
+/** The "you + your linked partner" surface, grouped on its own: shared
+ * reminders/tasks/expiration (`/home`) and partner messaging (`/notes`).
+ * Kept together because both only mean anything once a partner is linked.
+ * (Private notes/reminders/expiration live as tabs on the Log page.) */
+const HOME_LINKS = [
+  { href: "/home", label: "Reminders" },
+  { href: "/notes", label: "Notes" },
 ];
 
 const NAV_SECTIONS_KEY = "lauva-nav-collapsed-sections";
@@ -264,6 +246,12 @@ function NavSection({
   );
 }
 
+/** `next.config.ts` sets `trailingSlash: true`, so `usePathname()` returns
+ * `/log/` while our link hrefs are `/log` — compare without the slash. */
+function isActiveHref(pathname: string, href: string): boolean {
+  return pathname.replace(/\/+$/, "") === href.replace(/\/+$/, "");
+}
+
 function NavLinkList({
   links,
   pathname,
@@ -282,7 +270,7 @@ function NavLinkList({
   return (
     <>
       {links.map((link) => {
-        const active = pathname === link.href;
+        const active = isActiveHref(pathname, link.href);
         const badge = badges?.[link.href] ?? 0;
         return (
           <Link
@@ -379,26 +367,22 @@ function useUnreadNoteCount(pathname: string): number {
 }
 
 function NavLinks({ pathname, collapsed, onNavigate }: { pathname: string; collapsed?: boolean; onNavigate?: () => void }) {
-  const { isHidden } = useVisibleDomains();
-  const visibleAnalyticsLinks = ANALYTICS_LINKS.filter((link) => !isHidden(ANALYTICS_LINK_DOMAIN[link.href]));
   const unreadNotes = useUnreadNoteCount(pathname);
   const { collapsed: sectionCollapsed, toggle } = useCollapsedSections();
 
   const sections: { label: string; links: { href: string; label: string }[]; badges?: Record<string, number> }[] = [
-    ...(visibleAnalyticsLinks.length > 0 ? [{ label: "Analytics", links: visibleAnalyticsLinks }] : []),
-    { label: "Connect", links: CONNECT_LINKS, badges: { "/notes": unreadNotes } },
-    { label: "Reminders", links: REMINDERS_LINKS },
+    { label: "Home", links: HOME_LINKS, badges: { "/notes": unreadNotes } },
     { label: "Manage", links: MANAGE_LINKS },
     { label: "Tools", links: TOOLS_LINKS },
   ];
 
   return (
     <nav className="flex flex-1 flex-col gap-0.5">
-      {/* No section label above Overview/Log — both are single-item
-       * "sections" in their own right (the home page, and the one tracking
-       * page), so a heading above either would just repeat itself. */}
+      {/* No section label above these — each is a single top-level page you
+       * either use or don't, so a heading would just repeat the label. */}
       <NavLinkList links={OVERVIEW_LINKS} pathname={pathname} collapsed={collapsed} onNavigate={onNavigate} />
       <NavLinkList links={LOG_LINKS} pathname={pathname} collapsed={collapsed} onNavigate={onNavigate} />
+      <NavLinkList links={ANALYTICS_LINKS} pathname={pathname} collapsed={collapsed} onNavigate={onNavigate} />
       {sections.map((s) => (
         <NavSection
           key={s.label}
@@ -411,7 +395,7 @@ function NavLinks({ pathname, collapsed, onNavigate }: { pathname: string; colla
           // The section holding the current page stays open regardless of
           // the stored preference — collapsing away the page you're on
           // would just be confusing.
-          open={s.links.some((l) => l.href === pathname) || !sectionCollapsed[s.label]}
+          open={s.links.some((l) => isActiveHref(pathname, l.href)) || !sectionCollapsed[s.label]}
           onToggle={() => toggle(s.label)}
         />
       ))}

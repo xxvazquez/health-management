@@ -53,6 +53,10 @@ import { StoolTab, type NewStoolEntry, characteristicLabels } from "@/components
 import { WorkoutTab, type NewWorkoutEntry } from "@/components/log/WorkoutTab";
 import { CycleTab } from "@/components/log/CycleTab";
 import { JournalTab } from "@/components/log/JournalTab";
+import { NoteBoard } from "@/components/reminders/NoteBoard";
+import { TaskBoard } from "@/components/reminders/TaskBoard";
+import { ExpirationBoard } from "@/components/home/ExpirationBoard";
+import { usePersonalReminderBoards } from "@/lib/usePersonalReminderBoards";
 import { DuplicateItemDialog } from "@/components/ui/DuplicateItemDialog";
 import {
   workoutUnitLabel,
@@ -79,7 +83,14 @@ const TABS: { type: ItemType; label: string; singular: string; placeholder: stri
   { type: "habit", label: "Habits", singular: "habit", placeholder: "Add a habit…", defaultCategory: "Daily", countable: false },
 ];
 
-type LogTab = ItemType | "stool" | "workout" | "cycle" | "journal";
+type LogTab = ItemType | "stool" | "workout" | "cycle" | "journal" | "notes" | "reminders" | "expiration";
+// Personal notes / reminders / product-expiration — folded in here after
+// Journal rather than living on a separate page, since they're the same
+// "private to you" surface as everything else on Log. The shared (partner)
+// versions still live on their own /home page.
+const NOTES_ACCENT = "var(--series-magenta)";
+const REMINDERS_ACCENT = "var(--series-berry)";
+const EXPIRATION_ACCENT = "var(--series-2)";
 const STOOL_ACCENT = "var(--series-indigo)";
 // Distinct from every TYPE_ACCENT and from STOOL_ACCENT so all seven tabs
 // stay visually distinguishable at a glance in this one nav row. Matches
@@ -374,6 +385,9 @@ export default function LogPage() {
   const { refresh, isDemoData, status } = useData();
   const { isHidden } = useVisibleDomains();
   const { openPanel } = useAuth();
+  // Personal notes / reminders / expiration — self-contained state + Supabase
+  // wiring, rendered by the three tabs after Journal.
+  const personal = usePersonalReminderBoards();
   const today = useMemo(() => todayLocalISODate(), []);
   const [date, setDate] = useState(today);
   const [tab, setTab] = useState<LogTab>("food");
@@ -429,7 +443,7 @@ export default function LogPage() {
   // hide/show system at all (it's always on), so it's excluded here rather
   // than passed to isHidden, which only knows about TrackedDomain.
   useEffect(() => {
-    if (tab === "journal" || !isHidden(tab)) return;
+    if (tab === "journal" || tab === "notes" || tab === "reminders" || tab === "expiration" || !isHidden(tab)) return;
     const fallback = ([...TABS.map((t) => t.type), "stool", "workout", "cycle"] as TrackedDomain[]).find((t) => !isHidden(t));
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (fallback) setTab(fallback);
@@ -1244,19 +1258,26 @@ export default function LogPage() {
             Log
           </h1>
           <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-            {isDemoData
-              ? "Example data — this is what a tracked day looks like. Sign in or log something for real to replace it."
-              : tab === "stool"
-                ? "Log a bowel movement."
-                : tab === "workout"
-                  ? "Log a lift."
-                  : tab === "cycle"
-                    ? "Track your cycle."
-                    : tabConfig?.countable
-                      ? `Tap a ${tabConfig.singular} to log it.`
-                      : "Tap what applies."}
+            {tab === "notes"
+              ? "Private notes — a code, a measurement, a reminder to yourself."
+              : tab === "reminders"
+                ? "One-off tasks with a deadline and recurring chores — private to you."
+                : tab === "expiration"
+                  ? "Track when your own products and supplements expire."
+                  : isDemoData
+                    ? "Example data — this is what a tracked day looks like. Sign in or log something for real to replace it."
+                    : tab === "stool"
+                      ? "Log a bowel movement."
+                      : tab === "workout"
+                        ? "Log a lift."
+                        : tab === "cycle"
+                          ? "Track your cycle."
+                          : tabConfig?.countable
+                            ? `Tap a ${tabConfig.singular} to log it.`
+                            : "Tap what applies."}
           </p>
         </div>
+        {tab !== "notes" && tab !== "reminders" && tab !== "expiration" && (
         <div className="flex shrink-0 items-center gap-2">
           <div className="flex items-center gap-0.5 rounded-lg border p-1" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
             <button
@@ -1286,6 +1307,7 @@ export default function LogPage() {
             </button>
           </div>
         </div>
+        )}
       </div>
 
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -1371,6 +1393,28 @@ export default function LogPage() {
           >
             Journal
           </button>
+          {(
+            [
+              ["notes", "Notes", NOTES_ACCENT],
+              ["reminders", "Reminders", REMINDERS_ACCENT],
+              ["expiration", "Expiration", EXPIRATION_ACCENT],
+            ] as const
+          ).map(([id, label, accent]) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => selectTab(id)}
+              className="flex items-center gap-1.5 pb-2.5 text-sm whitespace-nowrap transition-colors"
+              style={{
+                color: tab === id ? accent : "var(--text-secondary)",
+                fontWeight: tab === id ? 700 : 500,
+                borderBottom: `2px solid ${tab === id ? accent : "transparent"}`,
+                marginBottom: "-1px",
+              }}
+            >
+              {label}
+            </button>
+          ))}
         </nav>
         <div className="flex items-center gap-3">
           {tabConfig && (
@@ -1404,6 +1448,64 @@ export default function LogPage() {
 
       {tab === "journal" ? (
         <JournalTab isDemoData={isDemoData} accent={JOURNAL_ACCENT} onSignIn={openPanel} />
+      ) : tab === "notes" ? (
+        <div className="flex flex-col gap-3">
+          {personal.isDemo && (
+            <p className="text-xs" style={{ color: NOTES_ACCENT }}>
+              Example data — nothing here is saved. Sign in to keep your own notes.
+            </p>
+          )}
+          <NoteBoard
+            notes={personal.notes.data}
+            loading={!personal.isDemo && personal.notes.loading}
+            error={personal.notes.error}
+            accent={NOTES_ACCENT}
+            emptyDescription="Tap + New note to jot something down — a code, a measurement, anything."
+            onCreate={personal.notes.create}
+            onUpdate={personal.notes.update}
+            onDelete={personal.notes.remove}
+          />
+        </div>
+      ) : tab === "reminders" ? (
+        <div className="flex flex-col gap-3">
+          {personal.isDemo && (
+            <p className="text-xs" style={{ color: REMINDERS_ACCENT }}>
+              Example data — nothing here is saved. Sign in to keep your own reminders.
+            </p>
+          )}
+          <TaskBoard
+            tasks={personal.tasks.data}
+            loading={!personal.isDemo && personal.tasks.loading}
+            error={personal.tasks.error}
+            accent={REMINDERS_ACCENT}
+            mode="all"
+            emptyTitle="No reminders yet"
+            emptyDescription="Tap + New for a one-off task with a deadline, or a recurring chore."
+            onCreate={personal.tasks.create}
+            onEdit={personal.tasks.edit}
+            onComplete={personal.tasks.complete}
+            onUncomplete={personal.tasks.uncomplete}
+            onArchive={personal.tasks.archive}
+            onDelete={personal.tasks.remove}
+          />
+        </div>
+      ) : tab === "expiration" ? (
+        <div className="flex flex-col gap-3">
+          {personal.isDemo && (
+            <p className="text-xs" style={{ color: EXPIRATION_ACCENT }}>
+              Example data — nothing here is saved. Sign in to track your own products.
+            </p>
+          )}
+          <ExpirationBoard
+            items={personal.items.data}
+            loading={!personal.isDemo && personal.items.loading}
+            error={personal.items.error}
+            accent={EXPIRATION_ACCENT}
+            onCreate={personal.items.create}
+            onEdit={personal.items.edit}
+            onDelete={personal.items.remove}
+          />
+        </div>
       ) : tab === "stool" || tab === "workout" || tab === "cycle" ? (
         !dataReady ? (
           <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
@@ -1725,7 +1827,9 @@ export default function LogPage() {
           )}
         </>
       )}
-      {combinedTimeline.length > 0 && (
+      {/* The day timeline belongs only to the date-scoped logging tabs —
+       * Notes/Reminders/Expiration aren't tied to a day at all. */}
+      {tab !== "notes" && tab !== "reminders" && tab !== "expiration" && combinedTimeline.length > 0 && (
         <div className="mt-1 flex flex-col gap-2 border-t pt-3" style={{ borderColor: "var(--border-hairline)" }}>
           <h2 className="text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-secondary)" }}>
             Timeline — {formatDateLabel(date, today).toLowerCase()}

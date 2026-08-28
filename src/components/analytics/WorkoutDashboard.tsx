@@ -290,7 +290,7 @@ function ProgressSection({
   );
 }
 
-export default function WorkoutPage() {
+export function WorkoutDashboard() {
   const { status, workoutLogs } = useData();
   const today = useMemo(() => todayLocalISODate(), []);
   const [compareExercise, setCompareExercise] = useState<WorkoutExercise | null>(null);

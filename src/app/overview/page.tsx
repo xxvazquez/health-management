@@ -52,8 +52,8 @@ function noteToActivityEntry(t: NoteThread): ActivityEntry {
 
 /**
  * Lauva's home/overview page — Today → Recent Activity → Personal Trends →
- * Calendar → Partner Notes → Weekly/Monthly Review → Lauva Timeline, most
- * useful information first. Every section reads data that already exists
+ * Calendar → Partner Notes → Weekly/Monthly Review, most useful
+ * information first. Every section reads data that already exists
  * elsewhere in the app (DataContext's events/workoutLogs/periodLogs, plus
  * Notes fetched the same way the Notes page and Nav's unread badge already
  * do) — nothing here is a second copy of that data or a duplicate of what
@@ -189,8 +189,10 @@ export default function OverviewPage() {
       <TodaySnapshot events={events} workoutLogs={workoutLogs} periodLogs={periodLogs} todayNotes={todayNotes} yesterdayNotes={yesterdayNotes} today={today} />
 
       <Card tier="supporting">
-        <CardTitle subtitle="What's happened lately, across everything you track — a glance, not the full log.">Recent activity</CardTitle>
-        <ActivityFeed entries={activityFeed} initialLimit={10} emptyText="Nothing logged yet." />
+        <CardTitle subtitle="Everything you've logged, newest first — filter by category, load more to go further back. For understanding what happened, not editing records (that's the Log page).">
+          Recent activity
+        </CardTitle>
+        <ActivityFeed entries={activityFeed} showFilter initialLimit={12} pageSize={30} emptyText="Nothing logged yet." />
       </Card>
 
       <PersonalTrendsSection trends={trends} findings={findings} notesTrend={notesTrend} />
@@ -200,16 +202,6 @@ export default function OverviewPage() {
       <PartnerNotesSection threads={noteThreads} partnerLabel={partnerLabel} unreadCount={notesUnread} />
 
       <PeriodReviewSection events={events} workoutLogs={workoutLogs} periodLogs={periodLogs} today={today} notesInRange={notesInRange} />
-
-      <Card tier="raw">
-        <CardTitle
-          size="sm"
-          subtitle="Every logged moment, filterable by category — for understanding what happened, not managing records (that's the Log page)."
-        >
-          Lauva timeline
-        </CardTitle>
-        <ActivityFeed entries={activityFeed} showFilter initialLimit={20} pageSize={30} emptyText="Nothing logged yet." />
-      </Card>
     </div>
   );
 }

@@ -33,10 +33,20 @@ function MicButton({ onText }: { onText: (text: string) => void }) {
   );
 }
 
-function ItemForm({ accent, onSave, onCancel }: { accent: string; onSave: (name: string, expiresOn: string, remindDaysBefore: number) => Promise<void>; onCancel: () => void }) {
-  const [name, setName] = useState("");
-  const [expiresOn, setExpiresOn] = useState(todayLocalISODate());
-  const [remindDaysBefore, setRemindDaysBefore] = useState("3");
+function ItemForm({
+  accent,
+  initial,
+  onSave,
+  onCancel,
+}: {
+  accent: string;
+  initial?: ExpirationItem;
+  onSave: (name: string, expiresOn: string, remindDaysBefore: number) => Promise<void>;
+  onCancel: () => void;
+}) {
+  const [name, setName] = useState(initial?.name ?? "");
+  const [expiresOn, setExpiresOn] = useState(initial?.expiresOn ?? todayLocalISODate());
+  const [remindDaysBefore, setRemindDaysBefore] = useState(String(initial?.remindDaysBefore ?? 3));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -99,7 +109,7 @@ function ItemForm({ accent, onSave, onCancel }: { accent: string; onSave: (name:
       </label>
       <div className="flex items-center gap-3">
         <button type="submit" disabled={saving || !name.trim()} className="rounded-md px-4 py-2 text-sm font-medium text-white disabled:opacity-50" style={{ background: accent }}>
-          {saving ? "Saving…" : "Save"}
+          {saving ? "Saving…" : initial ? "Save changes" : "Save"}
         </button>
         {error && (
           <span className="text-xs" style={{ color: "var(--status-critical)" }}>
@@ -117,6 +127,7 @@ export function ExpirationBoard({
   error,
   accent,
   onCreate,
+  onEdit,
   onDelete,
 }: {
   items: ExpirationItem[];
@@ -124,9 +135,11 @@ export function ExpirationBoard({
   error: boolean;
   accent: string;
   onCreate: (name: string, expiresOn: string, remindDaysBefore: number) => Promise<void>;
+  onEdit: (id: string, name: string, expiresOn: string, remindDaysBefore: number) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
 }) {
   const [composing, setComposing] = useState(false);
+  const [editing, setEditing] = useState<ExpirationItem | null>(null);
 
   const grouped = useMemo(() => {
     const today = todayLocalISODate();
@@ -136,15 +149,21 @@ export function ExpirationBoard({
     return groups;
   }, [items]);
 
-  if (composing) {
+  if (composing || editing) {
     return (
       <ItemForm
         accent={accent}
+        initial={editing ?? undefined}
         onSave={async (name, expiresOn, remindDaysBefore) => {
-          await onCreate(name, expiresOn, remindDaysBefore);
+          if (editing) await onEdit(editing.id, name, expiresOn, remindDaysBefore);
+          else await onCreate(name, expiresOn, remindDaysBefore);
           setComposing(false);
+          setEditing(null);
         }}
-        onCancel={() => setComposing(false)}
+        onCancel={() => {
+          setComposing(false);
+          setEditing(null);
+        }}
       />
     );
   }
@@ -190,6 +209,15 @@ export function ExpirationBoard({
                     <span className="shrink-0 text-xs whitespace-nowrap" style={{ color: BUCKET_COLOR[bucket] }}>
                       {formatExpiresOn(item.expiresOn)}
                     </span>
+                    <button
+                      type="button"
+                      onClick={() => setEditing(item)}
+                      className="shrink-0 rounded-md px-2 py-1 text-xs font-medium transition-colors hover:bg-[var(--page-plane)]"
+                      style={{ color: "var(--text-secondary)" }}
+                      aria-label="Edit product"
+                    >
+                      Edit
+                    </button>
                     <button
                       type="button"
                       onClick={() => void onDelete(item.id)}

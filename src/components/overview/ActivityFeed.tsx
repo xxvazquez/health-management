@@ -9,14 +9,12 @@ function formatDateHeader(date: string): string {
 }
 
 /**
- * Shared, read-only cross-domain feed — the same visual language (a date
- * header, a connecting dot rail, domain-colored rows) powers both
- * Overview's compact Recent Activity and its longer, filterable Lauva
- * Timeline (`showFilter`), so the two read as one consistent idea at two
- * different depths rather than two unrelated widgets. Deliberately not the
- * Log page's day timeline: nothing here is editable — no edit/delete, no
- * note field, no meal-tag correction — this is for understanding what
- * happened, not managing records (see the Log page for that).
+ * Read-only cross-domain feed for Overview's "Recent activity" — a date
+ * header, a connecting dot rail, domain-colored rows, an optional category
+ * filter (`showFilter`) and load-more pagination. Deliberately not the Log
+ * page's day timeline: nothing here is editable — no edit/delete, no note
+ * field, no meal-tag correction — this is for understanding what happened,
+ * not managing records (see the Log page for that).
  */
 export function ActivityFeed({
   entries,

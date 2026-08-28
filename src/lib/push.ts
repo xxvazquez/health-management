@@ -71,7 +71,7 @@ export async function isPushNotificationsEnabled(): Promise<boolean> {
 
 /** Requests notification permission (only ever called from an explicit
  * user action — the toggle's "on" click), subscribes to push, and saves
- * the subscription server-side so the breakfast-reminder-cron Edge
+ * the subscription server-side so the reminder-cron Edge
  * Function can reach this device. */
 export async function enablePushNotifications(): Promise<void> {
   if (!pushNotificationsSupported || !supabase) throw new Error("Not supported in this browser or deployment.");

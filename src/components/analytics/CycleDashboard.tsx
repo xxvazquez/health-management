@@ -20,7 +20,7 @@ function formatShortDate(date: string): string {
   return new Date(`${date}T00:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
-export default function CyclePage() {
+export function CycleDashboard() {
   const { status, periodLogs } = useData();
   const today = useMemo(() => todayLocalISODate(), []);
 
