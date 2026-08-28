@@ -7,12 +7,16 @@ import {
   createPersonalItem,
   createPersonalNote,
   createPersonalTask,
+  createReminderList,
   deletePersonalItem,
   deletePersonalNote,
   deletePersonalTask,
+  deleteReminderList,
   fetchPersonalItems,
   fetchPersonalNotes,
   fetchPersonalTasks,
+  fetchReminderLists,
+  renameReminderList,
   setPersonalTaskArchived,
   uncompletePersonalTask,
   updatePersonalItem,
@@ -20,8 +24,9 @@ import {
   updatePersonalTask,
   type PersonalItem,
   type PersonalNote,
+  type ReminderList,
 } from "@/lib/supabase/personalReminders";
-import { buildDemoPersonalItems, buildDemoPersonalNotes, buildDemoPersonalTasks } from "@/lib/demoPersonalReminders";
+import { buildDemoPersonalItems, buildDemoPersonalNotes, buildDemoPersonalTasks, buildDemoReminderLists } from "@/lib/demoPersonalReminders";
 import { isRecurringTask, nextRecurringDueAt, type TaskItem } from "@/lib/reminders";
 import type { TaskFormValues } from "@/components/reminders/TaskBoard";
 
@@ -29,7 +34,7 @@ import type { TaskFormValues } from "@/components/reminders/TaskBoard";
  * re-flash "Loading…" — the fetch still re-runs in the background to stay
  * fresh, it just doesn't blank what's already on screen. Keyed by user id
  * so an account switch starts clean; cleared on sign-out. */
-let cache: { userId: string; notes: PersonalNote[]; tasks: TaskItem[]; items: PersonalItem[] } | null = null;
+let cache: { userId: string; notes: PersonalNote[]; tasks: TaskItem[]; items: PersonalItem[]; lists: ReminderList[] } | null = null;
 
 /** All the state + handlers behind the Log page's Notes / Reminders /
  * Expiration tabs — the private counterpart to Home's own (inline)
@@ -53,6 +58,8 @@ export function usePersonalReminderBoards() {
   const [items, setItems] = useState<PersonalItem[]>(() => seed?.items ?? buildDemoPersonalItems());
   const [itemsLoading, setItemsLoading] = useState(seed === null);
   const [itemsError, setItemsError] = useState(false);
+
+  const [lists, setLists] = useState<ReminderList[]>(() => seed?.lists ?? buildDemoReminderLists());
 
   // The load* functions never set *Loading true — the initial state already
   // reflects "loading iff nothing cached", and a background refresh must
@@ -93,6 +100,14 @@ export function usePersonalReminderBoards() {
     }
   }, []);
 
+  const loadLists = useCallback(async () => {
+    try {
+      setLists(await fetchReminderLists());
+    } catch (err) {
+      console.error("fetchReminderLists failed", err);
+    }
+  }, []);
+
   // Keep the cross-navigation cache in step with whatever's currently
   // settled on screen (fetches and local edits alike); drop it on sign-out.
   useEffect(() => {
@@ -101,9 +116,9 @@ export function usePersonalReminderBoards() {
       return;
     }
     if (!notesLoading && !tasksLoading && !itemsLoading) {
-      cache = { userId, notes, tasks, items };
+      cache = { userId, notes, tasks, items, lists };
     }
-  }, [userId, isDemo, notes, tasks, items, notesLoading, tasksLoading, itemsLoading]);
+  }, [userId, isDemo, notes, tasks, items, lists, notesLoading, tasksLoading, itemsLoading]);
 
   useEffect(() => {
     // Wait for auth to resolve — otherwise this fires while authLoading is
@@ -115,9 +130,10 @@ export function usePersonalReminderBoards() {
     void loadNotes();
     void loadTasks();
     void loadItems();
+    void loadLists();
     // `userId` in the deps so an account switch refetches (isDemo alone
     // stays false across one signed-in user swapping for another).
-  }, [authLoading, isDemo, userId, loadNotes, loadTasks, loadItems]);
+  }, [authLoading, isDemo, userId, loadNotes, loadTasks, loadItems, loadLists]);
 
   // --- Notes ---
   const createNote = useCallback(
@@ -153,6 +169,40 @@ export function usePersonalReminderBoards() {
     [isDemo],
   );
 
+  // --- Lists ---
+  const createList = useCallback(
+    async (name: string): Promise<string> => {
+      const trimmed = name.trim();
+      if (isDemo) {
+        const id = `demo-list-${Date.now()}`;
+        setLists((prev) => [...prev, { id, name: trimmed, sortOrder: prev.length }]);
+        return id;
+      }
+      const created = await createReminderList(trimmed, lists.length);
+      setLists((prev) => [...prev, created]);
+      return created.id;
+    },
+    [isDemo, lists.length],
+  );
+
+  const renameList = useCallback(
+    async (id: string, name: string) => {
+      const trimmed = name.trim();
+      setLists((prev) => prev.map((l) => (l.id === id ? { ...l, name: trimmed } : l)));
+      if (!isDemo) await renameReminderList(id, trimmed);
+    },
+    [isDemo],
+  );
+
+  const deleteList = useCallback(
+    async (id: string) => {
+      setLists((prev) => prev.filter((l) => l.id !== id));
+      setTasks((prev) => prev.map((t) => (t.listId === id ? { ...t, listId: null } : t)));
+      if (!isDemo) await deleteReminderList(id);
+    },
+    [isDemo],
+  );
+
   // --- Tasks ---
   const createTask = useCallback(
     async (v: TaskFormValues) => {
@@ -169,11 +219,12 @@ export function usePersonalReminderBoards() {
             lastCompletedBy: null,
             assignedTo: null,
             isArchived: false,
+            listId: v.listId,
           },
         ]);
         return;
       }
-      const created = await createPersonalTask({ title: v.title, notes: v.notes, dueAt: v.dueAt, recurrenceDays: v.recurrenceDays });
+      const created = await createPersonalTask({ title: v.title, notes: v.notes, dueAt: v.dueAt, recurrenceDays: v.recurrenceDays, listId: v.listId });
       setTasks((prev) => [...prev, created]);
     },
     [isDemo],
@@ -183,11 +234,11 @@ export function usePersonalReminderBoards() {
     async (id: string, v: TaskFormValues) => {
       if (isDemo) {
         setTasks((prev) =>
-          prev.map((t) => (t.id === id ? { ...t, title: v.title.trim(), notes: v.notes.trim() || null, dueAt: v.dueAt, recurrenceDays: v.recurrenceDays } : t)),
+          prev.map((t) => (t.id === id ? { ...t, title: v.title.trim(), notes: v.notes.trim() || null, dueAt: v.dueAt, recurrenceDays: v.recurrenceDays, listId: v.listId } : t)),
         );
         return;
       }
-      const updated = await updatePersonalTask(id, { title: v.title, notes: v.notes, dueAt: v.dueAt, recurrenceDays: v.recurrenceDays });
+      const updated = await updatePersonalTask(id, { title: v.title, notes: v.notes, dueAt: v.dueAt, recurrenceDays: v.recurrenceDays, listId: v.listId });
       setTasks((prev) => prev.map((t) => (t.id === id ? updated : t)));
     },
     [isDemo],
@@ -294,5 +345,6 @@ export function usePersonalReminderBoards() {
       remove: deleteTask,
     },
     items: { data: items, loading: itemsLoading, error: itemsError, create: createItem, edit: editItem, remove: deleteItem },
+    lists: { data: lists, create: createList, rename: renameList, remove: deleteList },
   };
 }

@@ -89,10 +89,6 @@ type LogTab = ItemType | "stool" | "workout" | "cycle" | "journal" | "notes" | "
 // Journal rather than living on a separate page, since they're the same
 // "private to you" surface as everything else on Log. The shared (partner)
 // versions still live on their own /home page.
-/** The Symptoms tab logs an intensity (1/2/3) instead of a plain tap —
- * rendered with the same value-picker as Sleep's range buckets. */
-const INTENSITY_OPTIONS = SYMPTOM_INTENSITIES.map((n) => ({ label: String(n), value: n }));
-
 const NOTES_ACCENT = "var(--series-magenta)";
 const REMINDERS_ACCENT = "var(--series-berry)";
 const EXPIRATION_ACCENT = "var(--series-2)";
@@ -1253,85 +1249,196 @@ export default function LogPage() {
     );
   }
 
-  /** Duration-kind items (Sleep duration) render an hours+minutes picker
-   * instead of a tap chip — a magnitude, not an occurrence. Spans the full
-   * row width since the stepper needs more room than a plain item cell. */
-  function renderDurationControl(c: LogCandidate, accent: string) {
-    const loggedMinutes = durationValueForDate.get(c.itemIdentity);
-    const logged = loggedMinutes != null;
-    // Not logged yet today — start the picker from a sensible anchor
-    // (e.g. 7h for sleep) instead of 0h 0m, so most days need only a small
-    // nudge. Purely a display default: nothing is saved until the picker
-    // is actually touched.
-    const minutes = loggedMinutes ?? DURATION_DEFAULT_MINUTES[c.item] ?? 0;
-    const busy = pending === c.key;
+  // --- Habits / Supplements / Symptoms: one clean checklist, grouped by
+  //     category. Full-width rows, a single check-circle for state, the
+  //     minimum extra control on the right (range buckets for Sleep, a dose
+  //     count for supplements, a 1/2/3 selector for a present symptom).
+  //     Food keeps its own dense multi-column catalog grid.
 
+  function TrackDot({ active, accent, label }: { active: boolean; accent: string; label?: string }) {
     return (
-      <div
-        key={c.key}
-        className="col-span-full flex items-center gap-2 rounded-md px-2 py-1.5"
-        style={{
-          background: logged ? `color-mix(in oklab, ${accent} 14%, var(--surface-1))` : "transparent",
-          borderLeft: `2px solid ${logged ? accent : "transparent"}`,
-          opacity: busy ? 0.6 : 1,
-        }}
+      <span
+        className="flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full border-2 text-[10px] font-bold tabular-nums"
+        style={{ borderColor: active ? accent : "var(--baseline)", background: active ? accent : "transparent", color: "#fff" }}
       >
-        <span className="text-sm whitespace-nowrap" style={{ color: logged ? "var(--text-primary)" : "var(--text-secondary)", fontWeight: logged ? 600 : 400 }}>
-          {c.item}
-        </span>
-        <DurationStepper totalMinutes={minutes} onChange={(m) => void handleSetDuration(c, m)} />
-      </div>
+        {active &&
+          (label ?? (
+            <svg width="11" height="11" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M4 10.5 8.5 15 16 6" />
+            </svg>
+          ))}
+      </span>
     );
   }
 
-  /** A row of preset buckets — one per RANGE_OPTIONS entry — for a "range"
-   * item (Sleep). Tapping one sets that day's value; tapping the active one
-   * clears it. */
-  function renderValuePicker(c: LogCandidate, accent: string, options: { label: string; value: number }[]) {
+  function rowNameStyle(active: boolean) {
+    return { color: active ? "var(--text-primary)" : "var(--text-secondary)", fontWeight: active ? 500 : 400 } as const;
+  }
+
+  /** Sleep-style range row (buckets on the right) or, for a bare duration
+   * item, the hours+minutes stepper. */
+  function renderRangeRow(c: LogCandidate, accent: string, options: { label: string; value: number }[] | null) {
     const current = durationValueForDate.get(c.itemIdentity);
-    // Highlight the exact option, or — for a value logged with the old
-    // stepper that doesn't land on a bucket — the closest one.
+    const busy = pending === c.key;
     const activeValue =
-      current == null
+      current == null || !options
         ? null
         : (options.find((o) => o.value === current)?.value ??
           options.reduce((best, o) => (Math.abs(o.value - current) < Math.abs(best.value - current) ? o : best)).value);
+    return (
+      <li key={c.key} className="flex flex-wrap items-center gap-x-4 gap-y-1.5 py-2.5" style={{ opacity: busy ? 0.6 : 1 }}>
+        <span className="flex min-w-[6rem] flex-1 items-center gap-3">
+          <TrackDot active={current != null} accent={accent} />
+          <span className="text-sm" style={rowNameStyle(current != null)}>
+            {c.item}
+          </span>
+        </span>
+        {options ? (
+          <span className="flex flex-wrap items-center gap-0.5">
+            {options.map((o) => {
+              const active = activeValue === o.value;
+              return (
+                <button
+                  key={o.label}
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void handleSetValueOrToggle(c, o.value, active)}
+                  className="rounded-md px-2 py-1 text-xs font-medium transition-colors disabled:opacity-50"
+                  style={{ color: active ? accent : "var(--text-muted)", background: active ? `color-mix(in oklab, ${accent} 16%, transparent)` : "transparent" }}
+                >
+                  {o.label}
+                </button>
+              );
+            })}
+          </span>
+        ) : (
+          <DurationStepper totalMinutes={current ?? DURATION_DEFAULT_MINUTES[c.item] ?? 0} onChange={(m) => void handleSetDuration(c, m)} />
+        )}
+      </li>
+    );
+  }
+
+  function renderHabitRow(c: LogCandidate, accent: string) {
+    if (INPUT_KIND[c.item] === "range" && RANGE_OPTIONS[c.item]) return renderRangeRow(c, accent, RANGE_OPTIONS[c.item]);
+    if (INPUT_KIND[c.item] === "duration") return renderRangeRow(c, accent, null);
+    const logged = (mealCounts.get(c.key) ?? 0) > 0;
     const busy = pending === c.key;
     return (
-      <div
-        key={c.key}
-        className="col-span-full flex flex-wrap items-center gap-2 rounded-md px-2 py-1.5"
-        style={{
-          background: current != null ? `color-mix(in oklab, ${accent} 14%, var(--surface-1))` : "transparent",
-          borderLeft: `2px solid ${current != null ? accent : "transparent"}`,
-          opacity: busy ? 0.6 : 1,
-        }}
-      >
-        <span
-          className="mr-1 text-sm whitespace-nowrap"
-          style={{ color: current != null ? "var(--text-primary)" : "var(--text-secondary)", fontWeight: current != null ? 600 : 400 }}
+      <li key={c.key}>
+        <button
+          type="button"
+          onClick={() => handleChipTap(c)}
+          disabled={busy}
+          className="flex min-h-[44px] w-full items-center gap-3 py-2 text-left disabled:opacity-50"
         >
-          {c.item}
-        </span>
-        {options.map((o) => {
-          const active = activeValue === o.value;
-          return (
+          <TrackDot active={logged} accent={accent} />
+          <span className="flex-1 text-sm" style={rowNameStyle(logged)}>
+            {c.item}
+          </span>
+        </button>
+      </li>
+    );
+  }
+
+  /** Supplements: tap the row to log a dose for the selected time of day;
+   * the count and a small − appear once at least one dose is logged. */
+  function renderSupplementRow(c: LogCandidate, accent: string) {
+    const count = mealCounts.get(c.key) ?? 0;
+    const busy = pending === c.key;
+    return (
+      <li key={c.key} className="flex min-h-[44px] items-center gap-3" style={{ opacity: busy ? 0.6 : 1 }}>
+        <button type="button" onClick={() => void handleIncrement(c)} disabled={busy} className="flex flex-1 items-center gap-3 py-2 text-left disabled:opacity-50">
+          <TrackDot active={count > 0} accent={accent} label={count > 1 ? String(count) : undefined} />
+          <span className="flex-1 text-sm" style={rowNameStyle(count > 0)}>
+            {c.item}
+          </span>
+        </button>
+        {count > 0 && (
+          <span className="flex shrink-0 items-center gap-1">
+            <span className="text-xs font-semibold tabular-nums" style={{ color: accent }}>
+              {count}×
+            </span>
             <button
-              key={o.label}
               type="button"
+              onClick={() => void handleDecrement(c)}
               disabled={busy}
-              onClick={() => void handleSetValueOrToggle(c, o.value, active)}
-              className="rounded-md border px-2.5 py-1 text-xs font-medium transition-colors disabled:opacity-50"
-              style={{
-                borderColor: active ? accent : "var(--border-hairline)",
-                background: active ? `color-mix(in oklab, ${accent} 18%, var(--surface-1))` : "var(--surface-1)",
-                color: active ? accent : "var(--text-secondary)",
-              }}
+              aria-label={`Remove a ${c.item} dose`}
+              className="rounded-md px-2 py-1 text-sm leading-none disabled:opacity-40"
+              style={{ color: "var(--text-muted)" }}
             >
-              {o.label}
+              −
             </button>
-          );
-        })}
+          </span>
+        )}
+      </li>
+    );
+  }
+
+  /** Symptoms: mark present with a tap; the 1/2/3 intensity selector only
+   * appears once it is. Stored as a numeric value, unchanged. */
+  function renderSymptomRow(c: LogCandidate, accent: string) {
+    const current = durationValueForDate.get(c.itemIdentity);
+    const present = current != null;
+    const busy = pending === c.key;
+    return (
+      <li key={c.key} className="flex min-h-[44px] items-center gap-3" style={{ opacity: busy ? 0.6 : 1 }}>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => void handleSetValueOrToggle(c, present ? (current as number) : 1, present)}
+          className="flex flex-1 items-center gap-3 py-2 text-left disabled:opacity-50"
+        >
+          <TrackDot active={present} accent={accent} />
+          <span className="flex-1 text-sm" style={rowNameStyle(present)}>
+            {c.item}
+          </span>
+        </button>
+        {present && (
+          <span className="flex shrink-0 items-center gap-0.5">
+            {SYMPTOM_INTENSITIES.map((n) => {
+              const active = current === n;
+              return (
+                <button
+                  key={n}
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void handleSetValueOrToggle(c, n, active)}
+                  aria-label={`Intensity ${n}`}
+                  aria-pressed={active}
+                  className="flex h-7 w-7 items-center justify-center rounded-md text-xs transition-colors disabled:opacity-40"
+                  style={{
+                    color: active ? accent : "var(--text-muted)",
+                    background: active ? `color-mix(in oklab, ${accent} 16%, transparent)` : "transparent",
+                    fontWeight: active ? 700 : 400,
+                  }}
+                >
+                  {n}
+                </button>
+              );
+            })}
+          </span>
+        )}
+      </li>
+    );
+  }
+
+  function renderTrackerList() {
+    if (!tabConfig) return null;
+    const accent = TYPE_ACCENT[tabConfig.type];
+    return (
+      <div className="flex max-w-xl flex-col gap-6">
+        {groupedByCategory.map((group) => (
+          <section key={group.category} className="flex flex-col">
+            <h3 className="px-1 pb-1 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
+              {group.category}
+            </h3>
+            <ul className="flex flex-col divide-y divide-[color:var(--gridline)] px-1">
+              {group.items.map((c) =>
+                tab === "supplement" ? renderSupplementRow(c, accent) : tab === "outcome" ? renderSymptomRow(c, accent) : renderHabitRow(c, accent),
+              )}
+            </ul>
+          </section>
+        ))}
       </div>
     );
   }
@@ -1456,7 +1563,7 @@ export default function LogPage() {
       </div>
 
       {tab === "journal" ? (
-        <JournalTab isDemoData={isDemoData} accent={JOURNAL_ACCENT} onSignIn={openPanel} />
+        <JournalTab isDemoData={isDemoData} accent={JOURNAL_ACCENT} />
       ) : tab === "notes" ? (
         <div className="flex flex-col gap-3">
           {personal.isDemo && (
@@ -1488,6 +1595,10 @@ export default function LogPage() {
             error={personal.tasks.error}
             accent={REMINDERS_ACCENT}
             mode="all"
+            lists={personal.lists.data}
+            onCreateList={personal.lists.create}
+            onRenameList={personal.lists.rename}
+            onDeleteList={personal.lists.remove}
             emptyTitle="No reminders yet"
             emptyDescription="Tap + New for a one-off task with a deadline, or a recurring chore."
             onCreate={personal.tasks.create}
@@ -1637,7 +1748,7 @@ export default function LogPage() {
                 />
               </label>
               {tabConfig?.countable && (
-                <div className="flex flex-wrap items-center gap-1.5">
+                <div className="inline-flex rounded-lg border p-0.5" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
                   {tagOptionsForType(tab).map((m) => {
                     const active = m === meal;
                     return (
@@ -1645,11 +1756,11 @@ export default function LogPage() {
                         key={m}
                         type="button"
                         onClick={() => setMeal(m)}
-                        className="flex h-7 items-center rounded-md border px-2.5 text-xs font-medium whitespace-nowrap transition-colors"
+                        aria-pressed={active}
+                        className="rounded-md px-3 py-1.5 text-[13px] font-semibold whitespace-nowrap transition-colors"
                         style={{
-                          borderColor: active ? "var(--series-2)" : "var(--border-hairline)",
-                          background: active ? "color-mix(in oklab, var(--series-2) 14%, var(--surface-1))" : "transparent",
-                          color: active ? "var(--series-2)" : "var(--text-secondary)",
+                          background: active ? TYPE_ACCENT[tabConfig.type] : "transparent",
+                          color: active ? "#fff" : "var(--text-secondary)",
                         }}
                       >
                         {m}
@@ -1669,8 +1780,12 @@ export default function LogPage() {
             <div className="flex flex-col gap-4">
               {groupedByCategory.length > 0 && (
                 <p className="flex items-center gap-1 text-xs" style={{ color: "var(--text-muted)" }}>
-                  <span style={{ color: TYPE_ACCENT[tabConfig.type] }}>✓</span> logged{" "}
-                  {tabConfig.countable ? `for ${meal.toLowerCase()}` : formatDateLabel(date, today).toLowerCase()} — tap again to remove
+                  <span style={{ color: TYPE_ACCENT[tabConfig.type] }}>✓</span>
+                  {tab === "supplement"
+                    ? ` logged for ${meal.toLowerCase()} — tap to add a dose`
+                    : tab === "outcome"
+                      ? ` marked for ${formatDateLabel(date, today).toLowerCase()} — tap for intensity`
+                      : ` logged ${tabConfig.countable ? `for ${meal.toLowerCase()}` : formatDateLabel(date, today).toLowerCase()} — tap again to remove`}
                 </p>
               )}
 
@@ -1749,84 +1864,64 @@ export default function LogPage() {
                 </form>
               )}
 
-              <div
-                className={clsx(
-                  "grid grid-cols-1 gap-3 sm:grid-cols-2",
-                  // Habits only has a handful of broad categories (Food/
-                  // Body/Daily) — a 3rd column at desktop just squeezed
-                  // every card narrow enough to wrap its own item labels.
-                  // The other tabs (Food especially, with 11 categories)
-                  // still benefit from the extra column, so this stays
-                  // scoped to Habits rather than changing everywhere.
-                  tab !== "habit" && "lg:grid-cols-3",
-                )}
-              >
-                {groupedByCategory.map((group) => {
-                  const accent = tab === "food" ? colorForCategorySlot(group.category) : TYPE_ACCENT[tabConfig.type];
-                  const icon = tab === "food" ? FOOD_CATEGORY_ICON[group.category] : null;
-                  const items = group.items;
-                  if (items.length === 0) return null;
-                  // Collapse only actually hides anything on mobile (see the
-                  // `lg:` overrides below) — desktop always shows every
-                  // category expanded, regardless of this saved state.
-                  const collapsed = collapsedCategories.has(categoryStorageKey(tabConfig.type, group.category));
-                  return (
-                    <div key={group.category} className="flex flex-col gap-2 rounded-lg border p-3" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
-                      <button
-                        type="button"
-                        onClick={() => toggleCategoryCollapsed(group.category)}
-                        className="flex items-center gap-1.5 border-b pb-2 text-left text-xs font-bold tracking-wide uppercase"
-                        style={{ color: accent, borderColor: "var(--border-hairline)" }}
-                      >
-                        {icon}
-                        {group.category}
-                        <span className="ml-auto flex items-center gap-1 font-medium normal-case" style={{ color: "var(--text-secondary)" }}>
-                          {items.length}
-                          <svg
-                            width="12"
-                            height="12"
-                            viewBox="0 0 20 20"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="1.8"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            className="lg:hidden"
-                            style={{ transform: collapsed ? "rotate(-90deg)" : "none", transition: "transform 150ms" }}
-                          >
-                            <path d="M5 7.5 10 12.5 15 7.5" />
-                          </svg>
-                        </span>
-                      </button>
-                      <div
-                        className={clsx(
-                          // Food keeps the same multi-column layout as the other
-                          // tabs, but flows top-to-bottom within each column
-                          // (CSS multi-column) instead of left-to-right across
-                          // rows (CSS grid auto-placement) — so the A-Z sort
-                          // below reads down each column, not across. The other
-                          // tabs are unchanged. Collapse only hides this on
-                          // mobile — `lg:` always shows it regardless of the
-                          // saved state.
-                          tab === "food"
-                            ? "columns-[110px] gap-x-2 [&>*]:mb-0.5 [&>*]:break-inside-avoid-column"
-                            : "grid-cols-[repeat(auto-fill,minmax(110px,1fr))] gap-x-2 gap-y-0.5",
-                          collapsed
-                            ? clsx("hidden", tab === "food" ? "lg:block" : "lg:grid")
-                            : tab !== "food" && "grid",
-                        )}
-                      >
-                        {items.map((c) => {
-                          if (INPUT_KIND[c.item] === "range" && RANGE_OPTIONS[c.item]) return renderValuePicker(c, accent, RANGE_OPTIONS[c.item]);
-                          if (INPUT_KIND[c.item] === "duration") return renderDurationControl(c, accent);
-                          if (tab === "outcome") return renderValuePicker(c, accent, INTENSITY_OPTIONS);
-                          return renderChip(c, accent);
-                        })}
+              {tab === "food" ? (
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {groupedByCategory.map((group) => {
+                    const accent = colorForCategorySlot(group.category);
+                    const icon = FOOD_CATEGORY_ICON[group.category];
+                    const items = group.items;
+                    if (items.length === 0) return null;
+                    // Collapse only actually hides anything on mobile — desktop
+                    // always shows every category expanded (see the `lg:`
+                    // overrides below), regardless of this saved state.
+                    const collapsed = collapsedCategories.has(categoryStorageKey(tabConfig.type, group.category));
+                    return (
+                      <div key={group.category} className="flex flex-col gap-2 rounded-lg border p-3" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
+                        <button
+                          type="button"
+                          onClick={() => toggleCategoryCollapsed(group.category)}
+                          className="flex items-center gap-1.5 border-b pb-2 text-left text-xs font-bold tracking-wide uppercase"
+                          style={{ color: accent, borderColor: "var(--border-hairline)" }}
+                        >
+                          {icon}
+                          {group.category}
+                          <span className="ml-auto flex items-center gap-1 font-medium normal-case" style={{ color: "var(--text-secondary)" }}>
+                            {items.length}
+                            <svg
+                              width="12"
+                              height="12"
+                              viewBox="0 0 20 20"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="1.8"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              className="lg:hidden"
+                              style={{ transform: collapsed ? "rotate(-90deg)" : "none", transition: "transform 150ms" }}
+                            >
+                              <path d="M5 7.5 10 12.5 15 7.5" />
+                            </svg>
+                          </span>
+                        </button>
+                        <div
+                          className={clsx(
+                            // Flows top-to-bottom within each column (CSS
+                            // multi-column) so the A–Z sort reads down each
+                            // column, not across. Collapse hides this on
+                            // mobile only — `lg:` always shows it.
+                            "columns-[110px] gap-x-2 [&>*]:mb-0.5 [&>*]:break-inside-avoid-column",
+                            collapsed ? "hidden lg:block" : "block",
+                          )}
+                        >
+                          {items.map((c) => renderChip(c, accent))}
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                renderTrackerList()
+              )}
 
               {groupedByCategory.length === 0 && (
                 <p className="text-sm" style={{ color: "var(--text-secondary)" }}>

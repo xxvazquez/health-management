@@ -33,6 +33,7 @@ interface TaskRow {
   recurrence_days: number | null;
   last_completed_at: string | null;
   is_archived: boolean;
+  list_id: string | null;
 }
 
 function toTask(row: TaskRow): TaskItem {
@@ -46,6 +47,7 @@ function toTask(row: TaskRow): TaskItem {
     lastCompletedBy: null,
     assignedTo: null,
     isArchived: row.is_archived,
+    listId: row.list_id,
   };
 }
 
@@ -76,8 +78,70 @@ async function currentUserId(): Promise<string | null> {
 }
 
 const NOTE_COLUMNS = "id, title, body, created_at, updated_at";
-const TASK_COLUMNS = "id, title, notes, due_at, recurrence_days, last_completed_at, is_archived";
+const TASK_COLUMNS = "id, title, notes, due_at, recurrence_days, last_completed_at, is_archived, list_id";
 const ITEM_COLUMNS = "id, name, expires_on, remind_days_before";
+const LIST_COLUMNS = "id, name, sort_order";
+
+/** A user-owned reminder list ("To Do", "To Buy", "Bathroom", …). Real
+ * rows so a list can be empty, renamed, and deleted independently of the
+ * tasks in it. */
+export interface ReminderList {
+  id: string;
+  name: string;
+  sortOrder: number;
+}
+
+interface ListRow {
+  id: string;
+  name: string;
+  sort_order: number;
+}
+
+function toList(row: ListRow): ReminderList {
+  return { id: row.id, name: row.name, sortOrder: row.sort_order };
+}
+
+export async function fetchReminderLists(): Promise<ReminderList[]> {
+  if (!supabase) return [];
+  const myUserId = await currentUserId();
+  if (!myUserId) return [];
+  const { data, error } = await supabase
+    .from("reminder_lists")
+    .select(LIST_COLUMNS)
+    .eq("user_id", myUserId)
+    .order("sort_order", { ascending: true })
+    .order("name", { ascending: true });
+  if (error) throw error;
+  return (data as ListRow[]).map(toList);
+}
+
+export async function createReminderList(name: string, sortOrder: number): Promise<ReminderList> {
+  if (!supabase) throw new Error("Cloud sync isn't set up for this deployment.");
+  const myUserId = await currentUserId();
+  if (!myUserId) throw new Error("Sign in first.");
+  const { data, error } = await supabase
+    .from("reminder_lists")
+    .insert({ user_id: myUserId, name: name.trim(), sort_order: sortOrder })
+    .select(LIST_COLUMNS)
+    .single();
+  if (error) throw error;
+  return toList(data as ListRow);
+}
+
+export async function renameReminderList(id: string, name: string): Promise<ReminderList> {
+  if (!supabase) throw new Error("Cloud sync isn't set up for this deployment.");
+  const { data, error } = await supabase.from("reminder_lists").update({ name: name.trim() }).eq("id", id).select(LIST_COLUMNS).single();
+  if (error) throw error;
+  return toList(data as ListRow);
+}
+
+/** The FK is `on delete set null`, so tasks in a deleted list fall back to
+ * the default "Reminders" bucket rather than vanishing. */
+export async function deleteReminderList(id: string): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.from("reminder_lists").delete().eq("id", id);
+  if (error) throw error;
+}
 
 export async function fetchPersonalNotes(): Promise<PersonalNote[]> {
   if (!supabase) return [];
@@ -140,6 +204,7 @@ export interface NewPersonalTaskInput {
   notes: string;
   dueAt: string | null;
   recurrenceDays: number | null;
+  listId: string | null;
 }
 
 export async function createPersonalTask(input: NewPersonalTaskInput): Promise<TaskItem> {
@@ -154,6 +219,7 @@ export async function createPersonalTask(input: NewPersonalTaskInput): Promise<T
       notes: input.notes.trim() || null,
       due_at: input.dueAt,
       recurrence_days: input.recurrenceDays,
+      list_id: input.listId,
     })
     .select(TASK_COLUMNS)
     .single();
@@ -173,6 +239,7 @@ export async function updatePersonalTask(id: string, input: NewPersonalTaskInput
       notes: input.notes.trim() || null,
       due_at: input.dueAt,
       recurrence_days: input.recurrenceDays,
+      list_id: input.listId,
       updated_at: new Date().toISOString(),
     })
     .eq("id", id)
