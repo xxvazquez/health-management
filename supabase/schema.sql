@@ -583,6 +583,19 @@ create table public.personal_notes (
   updated_at timestamptz not null default now()
 );
 
+-- Reminders -> Personal: user-owned lists ("To Do", "To Buy", "Bathroom",
+-- …), like iPhone Reminders. Real rows so a list can be empty, renamed,
+-- and deleted on its own; personal_tasks.list_id points here (null = the
+-- implicit default "Reminders" list). Home tasks have no lists.
+create table public.reminder_lists (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id),
+  name text not null check (char_length(trim(name)) > 0),
+  sort_order int not null default 0,
+  created_at timestamptz not null default now(),
+  unique (user_id, id)
+);
+
 create table public.personal_tasks (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null default auth.uid() references auth.users(id),
@@ -590,6 +603,11 @@ create table public.personal_tasks (
   notes text,
   due_at timestamptz,
   recurrence_days int check (recurrence_days is null or recurrence_days > 0),
+  -- Which reminder_lists row this belongs to; null = the default
+  -- "Reminders" list. Composite FK on (user_id, list_id) so a task can
+  -- never point at another user's list; on delete set null drops a task
+  -- back to the default list rather than deleting it with the list.
+  list_id uuid,
   last_completed_at timestamptz,
   -- Retired from the active list without losing its history — mainly for a
   -- recurring chore you've stopped doing (a one-off task just gets deleted
@@ -597,7 +615,8 @@ create table public.personal_tasks (
   is_archived boolean not null default false,
   reminder_sent_at timestamptz,
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  foreign key (user_id, list_id) references public.reminder_lists (user_id, id) on delete set null
 );
 
 -- Every completion of a recurring personal_tasks row, not just the latest
@@ -625,8 +644,10 @@ create table public.personal_items (
   updated_at timestamptz not null default now()
 );
 
+create index reminder_lists_user_order_idx on public.reminder_lists (user_id, sort_order);
 create index personal_notes_user_updated_idx on public.personal_notes (user_id, updated_at desc);
 create index personal_tasks_user_due_idx on public.personal_tasks (user_id, due_at);
+create index personal_tasks_user_list_idx on public.personal_tasks (user_id, list_id);
 create index personal_task_completions_task_idx on public.personal_task_completions (task_id, completed_at desc);
 create index personal_items_user_expires_idx on public.personal_items (user_id, expires_on);
 
@@ -728,6 +749,7 @@ alter table public.notes_digest_state enable row level security;
 alter table public.partner_invites enable row level security;
 alter table public.partner_links enable row level security;
 alter table public.notes enable row level security;
+alter table public.reminder_lists enable row level security;
 alter table public.personal_notes enable row level security;
 alter table public.personal_tasks enable row level security;
 alter table public.personal_task_completions enable row level security;
@@ -761,6 +783,7 @@ create policy "journal_entries_all_own" on public.journal_entries for all using 
 -- reason to touch this and shouldn't be able to reset its own digest state.
 create policy "notes_digest_state_select_own" on public.notes_digest_state for select using (auth.uid() = user_id);
 create policy "personal_notes_all_own" on public.personal_notes for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "reminder_lists_all_own" on public.reminder_lists for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "personal_tasks_all_own" on public.personal_tasks for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "personal_task_completions_all_own" on public.personal_task_completions for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "personal_items_all_own" on public.personal_items for all using (auth.uid() = user_id) with check (auth.uid() = user_id);

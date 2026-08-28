@@ -197,6 +197,7 @@ export default function HomePage() {
           lastCompletedBy: null,
           assignedTo: values.assignedTo,
           isArchived: false,
+          listId: null,
         },
       ]);
       return;

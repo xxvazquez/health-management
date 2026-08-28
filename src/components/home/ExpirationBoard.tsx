@@ -2,12 +2,17 @@
 
 import { useMemo, useState, type FormEvent } from "react";
 import { todayLocalISODate } from "@/lib/aggregations/common";
-import { expirationBucket, type ExpirationBucket, type ExpirationItem } from "@/lib/reminders";
+import { EXPIRATION_BUCKET_LABEL, EXPIRATION_BUCKET_ORDER, expirationBucket, type ExpirationBucket, type ExpirationItem } from "@/lib/reminders";
 import { isSpeechToTextSupported, useSpeechToText } from "@/lib/useSpeechToText";
+import { PencilIcon, TrashIcon } from "@/components/ui/Notebook";
 
-const BUCKET_LABEL: Record<ExpirationBucket, string> = { expired: "Expired", soon: "Expiring soon", later: "Later" };
-const BUCKET_COLOR: Record<ExpirationBucket, string> = { expired: "var(--status-critical)", soon: "var(--status-warning)", later: "var(--text-muted)" };
-const BUCKET_ORDER: ExpirationBucket[] = ["expired", "soon", "later"];
+// Emphasis only where it earns its keep — Expired and this week read as
+// urgent; everything further out is the same quiet muted tone.
+function bucketColor(bucket: ExpirationBucket): string {
+  if (bucket === "expired") return "var(--status-critical)";
+  if (bucket === "this_week") return "var(--status-serious)";
+  return "var(--text-muted)";
+}
 
 function formatExpiresOn(date: string): string {
   return new Date(`${date}T00:00:00`).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
@@ -121,6 +126,73 @@ function ItemForm({
   );
 }
 
+/** One product line: name + expiry date, with a quiet edit pencil and a
+ * two-step delete — same restrained treatment as the notes cards. */
+function ExpirationRow({
+  item,
+  dateColor,
+  onEdit,
+  onDelete,
+}: {
+  item: ExpirationItem;
+  dateColor: string;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  return (
+    <div className="group flex items-center gap-3 py-2.5 pr-1 pl-1">
+      <button type="button" onClick={onEdit} className="flex min-w-0 flex-1 items-center gap-3 text-left">
+        <span className="min-w-0 flex-1 truncate text-[15px] font-medium" style={{ color: "var(--text-primary)" }}>
+          {item.name}
+        </span>
+        <span className="shrink-0 text-xs whitespace-nowrap tabular-nums" style={{ color: dateColor }}>
+          {formatExpiresOn(item.expiresOn)}
+        </span>
+      </button>
+      <div
+        className={`flex shrink-0 items-center gap-1 transition-opacity ${
+          confirmingDelete ? "opacity-100" : "opacity-45 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100"
+        }`}
+      >
+        {confirmingDelete ? (
+          <>
+            <button type="button" onClick={onDelete} className="rounded-md px-2 py-1 text-xs font-semibold" style={{ color: "var(--status-critical)" }}>
+              Remove
+            </button>
+            <button type="button" onClick={() => setConfirmingDelete(false)} className="rounded-md px-2 py-1 text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+              Keep
+            </button>
+          </>
+        ) : (
+          <>
+            <button
+              type="button"
+              onClick={onEdit}
+              aria-label="Edit product"
+              title="Edit product"
+              className="rounded-md p-1.5 transition-colors hover:bg-[var(--page-plane)]"
+              style={{ color: "var(--text-muted)" }}
+            >
+              <PencilIcon size={15} />
+            </button>
+            <button
+              type="button"
+              onClick={() => setConfirmingDelete(true)}
+              aria-label="Remove product"
+              title="Remove product"
+              className="notebook-danger rounded-md p-1.5 transition-colors hover:bg-[var(--page-plane)]"
+              style={{ color: "var(--text-muted)" }}
+            >
+              <TrashIcon size={15} />
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function ExpirationBoard({
   items,
   loading,
@@ -143,9 +215,12 @@ export function ExpirationBoard({
 
   const grouped = useMemo(() => {
     const today = todayLocalISODate();
-    const groups: Record<ExpirationBucket, ExpirationItem[]> = { expired: [], soon: [], later: [] };
-    for (const item of items) groups[expirationBucket(item, today)].push(item);
-    for (const bucket of BUCKET_ORDER) groups[bucket].sort((a, b) => a.expiresOn.localeCompare(b.expiresOn));
+    const groups = new Map<ExpirationBucket, ExpirationItem[]>();
+    for (const item of items) {
+      const id = expirationBucket(item, today);
+      (groups.get(id) ?? groups.set(id, []).get(id)!).push(item);
+    }
+    for (const list of groups.values()) list.sort((a, b) => a.expiresOn.localeCompare(b.expiresOn));
     return groups;
   }, [items]);
 
@@ -194,44 +269,34 @@ export function ExpirationBoard({
           </p>
         </div>
       ) : (
-        <div className="flex flex-col gap-5">
-          {BUCKET_ORDER.filter((bucket) => grouped[bucket].length > 0).map((bucket) => (
-            <div key={bucket} className="flex flex-col gap-1">
-              <h3 className="px-2 text-xs font-semibold tracking-wide uppercase" style={{ color: BUCKET_COLOR[bucket] }}>
-                {BUCKET_LABEL[bucket]} ({grouped[bucket].length})
-              </h3>
-              <div className="flex flex-col">
-                {grouped[bucket].map((item) => (
-                  <div key={item.id} className="flex items-center gap-3 border-t py-3 pr-1 pl-2 first:border-t-0" style={{ borderColor: "var(--gridline)" }}>
-                    <span className="min-w-0 flex-1 truncate text-sm font-medium" style={{ color: "var(--text-primary)" }}>
-                      {item.name}
-                    </span>
-                    <span className="shrink-0 text-xs whitespace-nowrap" style={{ color: BUCKET_COLOR[bucket] }}>
-                      {formatExpiresOn(item.expiresOn)}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setEditing(item)}
-                      className="shrink-0 rounded-md px-2 py-1 text-xs font-medium transition-colors hover:bg-[var(--page-plane)]"
-                      style={{ color: "var(--text-secondary)" }}
-                      aria-label="Edit product"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void onDelete(item.id)}
-                      className="shrink-0 rounded-md px-2 py-1 text-xs font-medium"
-                      style={{ color: "var(--status-critical)" }}
-                      aria-label="Remove product"
-                    >
-                      Remove
-                    </button>
-                  </div>
-                ))}
+        <div className="flex flex-col gap-6">
+          {EXPIRATION_BUCKET_ORDER.filter((bucket) => (grouped.get(bucket)?.length ?? 0) > 0).map((bucket) => {
+            const emphatic = bucket === "expired" || bucket === "this_week";
+            return (
+              <div key={bucket} className="flex flex-col">
+                <h3
+                  className="px-1 pb-1.5 text-xs font-semibold tracking-wide uppercase"
+                  style={{ color: emphatic ? bucketColor(bucket) : "var(--text-muted)" }}
+                >
+                  {EXPIRATION_BUCKET_LABEL[bucket]}
+                  <span className="ml-1.5 font-normal" style={{ color: "var(--text-muted)" }}>
+                    {grouped.get(bucket)!.length}
+                  </span>
+                </h3>
+                <div className="flex flex-col divide-y divide-[color:var(--gridline)]">
+                  {grouped.get(bucket)!.map((item) => (
+                    <ExpirationRow
+                      key={item.id}
+                      item={item}
+                      dateColor={emphatic ? bucketColor(bucket) : "var(--text-secondary)"}
+                      onEdit={() => setEditing(item)}
+                      onDelete={() => void onDelete(item.id)}
+                    />
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

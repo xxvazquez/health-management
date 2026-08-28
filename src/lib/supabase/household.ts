@@ -49,6 +49,7 @@ function toTask(row: TaskRow): TaskItem {
     lastCompletedBy: row.last_completed_by,
     assignedTo: row.assigned_to,
     isArchived: row.is_archived,
+    listId: null, // Home tasks have no lists — that's a personal-reminders feature.
   };
 }
 

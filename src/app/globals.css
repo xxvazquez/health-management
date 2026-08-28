@@ -186,3 +186,9 @@ button:not(:disabled),
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
+/* Quiet trash button that only warms to the critical tone on hover. */
+.notebook-danger:hover {
+  color: var(--status-critical) !important;
+  background: color-mix(in oklab, var(--status-critical) 12%, transparent) !important;
+}
