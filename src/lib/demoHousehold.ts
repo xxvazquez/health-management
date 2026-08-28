@@ -44,6 +44,7 @@ export function buildDemoHouseholdTasks(): TaskItem[] {
       lastCompletedBy: null,
       assignedTo: null,
       isArchived: false,
+      listId: null,
     },
     {
       id: "demo-home-task-2",
@@ -55,6 +56,7 @@ export function buildDemoHouseholdTasks(): TaskItem[] {
       lastCompletedBy: DEMO_HOME_PARTNER_ID,
       assignedTo: DEMO_HOME_PARTNER_ID,
       isArchived: false,
+      listId: null,
     },
     {
       id: "demo-home-task-3",
@@ -66,6 +68,7 @@ export function buildDemoHouseholdTasks(): TaskItem[] {
       lastCompletedBy: DEMO_HOME_ME_ID,
       assignedTo: DEMO_HOME_ME_ID,
       isArchived: false,
+      listId: null,
     },
   ];
 }
