@@ -25,6 +25,12 @@ import { buildDemoPersonalItems, buildDemoPersonalNotes, buildDemoPersonalTasks 
 import { isRecurringTask, nextRecurringDueAt, type TaskItem } from "@/lib/reminders";
 import type { TaskFormValues } from "@/components/reminders/TaskBoard";
 
+/** Survives navigation away from Log and back, so returning doesn't
+ * re-flash "Loading…" — the fetch still re-runs in the background to stay
+ * fresh, it just doesn't blank what's already on screen. Keyed by user id
+ * so an account switch starts clean; cleared on sign-out. */
+let cache: { userId: string; notes: PersonalNote[]; tasks: TaskItem[]; items: PersonalItem[] } | null = null;
+
 /** All the state + handlers behind the Log page's Notes / Reminders /
  * Expiration tabs — the private counterpart to Home's own (inline)
  * household board wiring. Signed out shows interactive example data that
@@ -32,22 +38,26 @@ import type { TaskFormValues } from "@/components/reminders/TaskBoard";
  * signed-out surface in the app takes. */
 export function usePersonalReminderBoards() {
   const { session, loading: authLoading } = useAuth();
+  const userId = session?.user?.id ?? null;
   const isDemo = !authLoading && !session;
+  const seed = cache && cache.userId === userId ? cache : null;
 
-  const [notes, setNotes] = useState<PersonalNote[]>(() => buildDemoPersonalNotes());
-  const [notesLoading, setNotesLoading] = useState(true);
+  const [notes, setNotes] = useState<PersonalNote[]>(() => seed?.notes ?? buildDemoPersonalNotes());
+  const [notesLoading, setNotesLoading] = useState(seed === null);
   const [notesError, setNotesError] = useState(false);
 
-  const [tasks, setTasks] = useState<TaskItem[]>(() => buildDemoPersonalTasks());
-  const [tasksLoading, setTasksLoading] = useState(true);
+  const [tasks, setTasks] = useState<TaskItem[]>(() => seed?.tasks ?? buildDemoPersonalTasks());
+  const [tasksLoading, setTasksLoading] = useState(seed === null);
   const [tasksError, setTasksError] = useState(false);
 
-  const [items, setItems] = useState<PersonalItem[]>(() => buildDemoPersonalItems());
-  const [itemsLoading, setItemsLoading] = useState(true);
+  const [items, setItems] = useState<PersonalItem[]>(() => seed?.items ?? buildDemoPersonalItems());
+  const [itemsLoading, setItemsLoading] = useState(seed === null);
   const [itemsError, setItemsError] = useState(false);
 
+  // The load* functions never set *Loading true — the initial state already
+  // reflects "loading iff nothing cached", and a background refresh must
+  // not blank a screen that already has content.
   const loadNotes = useCallback(async () => {
-    setNotesLoading(true);
     setNotesError(false);
     try {
       setNotes(await fetchPersonalNotes());
@@ -60,7 +70,6 @@ export function usePersonalReminderBoards() {
   }, []);
 
   const loadTasks = useCallback(async () => {
-    setTasksLoading(true);
     setTasksError(false);
     try {
       setTasks(await fetchPersonalTasks());
@@ -73,7 +82,6 @@ export function usePersonalReminderBoards() {
   }, []);
 
   const loadItems = useCallback(async () => {
-    setItemsLoading(true);
     setItemsError(false);
     try {
       setItems(await fetchPersonalItems());
@@ -85,6 +93,18 @@ export function usePersonalReminderBoards() {
     }
   }, []);
 
+  // Keep the cross-navigation cache in step with whatever's currently
+  // settled on screen (fetches and local edits alike); drop it on sign-out.
+  useEffect(() => {
+    if (isDemo || !userId) {
+      cache = null;
+      return;
+    }
+    if (!notesLoading && !tasksLoading && !itemsLoading) {
+      cache = { userId, notes, tasks, items };
+    }
+  }, [userId, isDemo, notes, tasks, items, notesLoading, tasksLoading, itemsLoading]);
+
   useEffect(() => {
     // Wait for auth to resolve — otherwise this fires while authLoading is
     // still true (isDemo reads false then too) and overwrites the seeded
@@ -95,7 +115,9 @@ export function usePersonalReminderBoards() {
     void loadNotes();
     void loadTasks();
     void loadItems();
-  }, [authLoading, isDemo, loadNotes, loadTasks, loadItems]);
+    // `userId` in the deps so an account switch refetches (isDemo alone
+    // stays false across one signed-in user swapping for another).
+  }, [authLoading, isDemo, userId, loadNotes, loadTasks, loadItems]);
 
   // --- Notes ---
   const createNote = useCallback(

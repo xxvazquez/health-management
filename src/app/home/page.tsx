@@ -29,6 +29,11 @@ import { ExpirationBoard } from "@/components/home/ExpirationBoard";
 
 const ACCENT = "var(--series-indigo)";
 
+/** In-memory, per-session cache of the signed-in account's shared boards,
+ * so leaving `/home` and coming back doesn't blank to "Loading…" while the
+ * refetch runs. Keyed by user id; cleared on sign-out. */
+let homeCache: { userId: string; notes: HouseholdNote[]; tasks: TaskItem[]; items: ExpirationItem[] } | null = null;
+
 type Tab = "notes" | "tasks" | "expiration";
 const TABS: { id: Tab; label: string }[] = [
   { id: "notes", label: "Notes" },
@@ -48,20 +53,25 @@ const TABS: { id: Tab; label: string }[] = [
 export default function HomePage() {
   const { session, loading: authLoading } = useAuth();
   const isDemo = !authLoading && !session;
-  const myUserId = isDemo ? DEMO_HOME_ME_ID : (session?.user.id ?? null);
+  const accountId = session?.user?.id ?? null;
+  const myUserId = isDemo ? DEMO_HOME_ME_ID : accountId;
 
   const [tab, setTab] = useState<Tab>("notes");
 
-  const [notes, setNotes] = useState<HouseholdNote[]>(() => buildDemoHouseholdNotes());
-  const [notesLoading, setNotesLoading] = useState(true);
+  // Survives navigating away and back so returning doesn't re-flash
+  // "Loading…" — see usePersonalReminderBoards for the same pattern.
+  const seed = homeCache && homeCache.userId === accountId ? homeCache : null;
+
+  const [notes, setNotes] = useState<HouseholdNote[]>(() => seed?.notes ?? buildDemoHouseholdNotes());
+  const [notesLoading, setNotesLoading] = useState(seed === null);
   const [notesError, setNotesError] = useState(false);
 
-  const [tasks, setTasks] = useState<TaskItem[]>(() => buildDemoHouseholdTasks());
-  const [tasksLoading, setTasksLoading] = useState(true);
+  const [tasks, setTasks] = useState<TaskItem[]>(() => seed?.tasks ?? buildDemoHouseholdTasks());
+  const [tasksLoading, setTasksLoading] = useState(seed === null);
   const [tasksError, setTasksError] = useState(false);
 
-  const [items, setItems] = useState<ExpirationItem[]>(() => buildDemoHouseholdItems());
-  const [itemsLoading, setItemsLoading] = useState(true);
+  const [items, setItems] = useState<ExpirationItem[]>(() => seed?.items ?? buildDemoHouseholdItems());
+  const [itemsLoading, setItemsLoading] = useState(seed === null);
   const [itemsError, setItemsError] = useState(false);
 
   // Null until resolved: for a real account from getPartnerLink, or the
@@ -83,8 +93,9 @@ export default function HomePage() {
       .catch((err) => console.error("getPartnerLink failed", err));
   }, [authLoading, isDemo]);
 
+  // Never set *Loading true here — the initial state already means "loading
+  // iff nothing cached", and a background refresh must not blank the screen.
   const loadNotes = useCallback(async () => {
-    setNotesLoading(true);
     setNotesError(false);
     try {
       setNotes(await fetchHouseholdNotes());
@@ -97,7 +108,6 @@ export default function HomePage() {
   }, []);
 
   const loadTasks = useCallback(async () => {
-    setTasksLoading(true);
     setTasksError(false);
     try {
       setTasks(await fetchHouseholdTasks());
@@ -110,7 +120,6 @@ export default function HomePage() {
   }, []);
 
   const loadItems = useCallback(async () => {
-    setItemsLoading(true);
     setItemsError(false);
     try {
       setItems(await fetchHouseholdItems());
@@ -123,6 +132,16 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
+    if (isDemo || !accountId) {
+      homeCache = null;
+      return;
+    }
+    if (!notesLoading && !tasksLoading && !itemsLoading) {
+      homeCache = { userId: accountId, notes, tasks, items };
+    }
+  }, [accountId, isDemo, notes, tasks, items, notesLoading, tasksLoading, itemsLoading]);
+
+  useEffect(() => {
     // Wait for auth to resolve first — see reminders/page.tsx's identical
     // effect for why isDemo alone isn't enough here.
     if (authLoading || isDemo) return;
@@ -132,7 +151,8 @@ export default function HomePage() {
     void loadNotes();
     void loadTasks();
     void loadItems();
-  }, [authLoading, isDemo, loadNotes, loadTasks, loadItems]);
+    // `accountId` so an account switch refetches.
+  }, [authLoading, isDemo, accountId, loadNotes, loadTasks, loadItems]);
 
   // Never the partner's email in UI copy — same privacy stance Notes takes
   // (see notes/page.tsx's PARTNER_LABEL) — just "you" vs "your partner"

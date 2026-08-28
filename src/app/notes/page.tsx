@@ -37,6 +37,11 @@ const VIEWS: { id: NoteView; label: string }[] = [
   { id: "archived", label: "Archived" },
 ];
 
+/** Per-session cache of the resolved partner link, keyed by user id — so
+ * navigating back to Notes skips the full-page loading wall. Cleared on
+ * sign-out. */
+let partnerLinkCache: { userId: string; link: PartnerLink | null } | null = null;
+
 function matchesView(t: NoteThread, view: NoteView): boolean {
   if (view === "inbox") return !t.isMine && !t.isArchivedByMe;
   if (view === "sent") return t.isMine && !t.isArchivedByMe;
@@ -54,24 +59,34 @@ function matchesView(t: NoteThread, view: NoteView): boolean {
 export default function NotesPage() {
   const { session, loading: authLoading } = useAuth();
   const isDemo = !authLoading && !session;
+  const accountId = session?.user?.id ?? null;
 
-  const [partnerState, setPartnerState] = useState<"loading" | "unlinked" | "linked">("loading");
-  const [partnerLink, setPartnerLink] = useState<PartnerLink | null>(null);
+  // The partner link rarely changes — cache it across navigations so
+  // re-opening Notes doesn't hit the full-page "Loading…" wall every time.
+  const cachedPartner = partnerLinkCache && partnerLinkCache.userId === accountId ? partnerLinkCache : null;
+  const [partnerState, setPartnerState] = useState<"loading" | "unlinked" | "linked">(
+    cachedPartner ? (cachedPartner.link ? "linked" : "unlinked") : "loading",
+  );
+  const [partnerLink, setPartnerLink] = useState<PartnerLink | null>(cachedPartner?.link ?? null);
 
   const loadPartner = useCallback(async () => {
-    setPartnerState("loading");
+    if (!partnerLinkCache) setPartnerState("loading");
     try {
       const link = await getPartnerLink();
       setPartnerLink(link);
       setPartnerState(link ? "linked" : "unlinked");
+      if (accountId) partnerLinkCache = { userId: accountId, link };
     } catch (err) {
       console.error("loadPartner failed", err);
-      setPartnerState("unlinked");
+      if (!partnerLinkCache) setPartnerState("unlinked");
     }
-  }, []);
+  }, [accountId]);
 
   useEffect(() => {
-    if (!session) return;
+    if (!session) {
+      partnerLinkCache = null;
+      return;
+    }
     // Loading from Supabase on sign-in — an external-system read, not a
     // React-state sync loop, so the async setState it triggers is fine.
     // eslint-disable-next-line react-hooks/set-state-in-effect
