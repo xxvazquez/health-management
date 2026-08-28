@@ -46,7 +46,7 @@ import { normalizeName, titleCaseFallback } from "@/taxonomy/normalizeName";
 import { TYPE_ACCENT, colorForCategorySlot, effectiveCategoryList, type ItemType } from "@/taxonomy/categories";
 import { lookupFoodCategory } from "@/taxonomy/classify";
 import { POLAND_FOOD_CATALOG } from "@/taxonomy/polandFoodCatalog";
-import { DURATION_DEFAULT_MINUTES, INPUT_KIND, RANGE_OPTIONS, SYMPTOM_INTENSITIES, rangeLabelForValue } from "@/taxonomy/inputKinds";
+import { DURATION_DEFAULT_MINUTES, INPUT_KIND } from "@/taxonomy/inputKinds";
 import { DurationStepper } from "@/components/ui/DurationStepper";
 import { NumberStepper, UNIT_STEP_PRESETS } from "@/components/ui/NumberStepper";
 import { StoolTab, type NewStoolEntry, characteristicLabels } from "@/components/log/StoolTab";
@@ -1249,78 +1249,63 @@ export default function LogPage() {
     );
   }
 
-  // --- Habits / Supplements / Symptoms: one clean checklist, grouped by
-  //     category. Full-width rows, a single check-circle for state, the
-  //     minimum extra control on the right (range buckets for Sleep, a dose
-  //     count for supplements, a 1/2/3 selector for a present symptom).
-  //     Food keeps its own dense multi-column catalog grid.
+  // --- Habits / Supplements / Symptoms: full-width rows grouped into the
+  //     same white category cards Food uses, with Food's own logged look
+  //     (accent tick + tint + left bar). Sleep gets range buckets on its
+  //     row, supplements a dose count, a present symptom a 1/2/3 selector.
 
-  function TrackDot({ active, accent, label }: { active: boolean; accent: string; label?: string }) {
+  /** Food's logged-chip look, reused for a whole row. */
+  function trackRowStyle(active: boolean, accent: string) {
+    return {
+      background: active ? `color-mix(in oklab, ${accent} 14%, var(--surface-1))` : "transparent",
+      borderLeft: `2px solid ${active ? accent : "transparent"}`,
+      color: active ? "var(--text-primary)" : "var(--text-secondary)",
+    } as const;
+  }
+
+  /** Fixed-width state marker at the head of every tracker row — a tick for
+   * a logged habit/supplement, the intensity digit for a present symptom —
+   * so item names line up regardless of state or length. */
+  function RowMark({ children, accent }: { children?: ReactNode; accent: string }) {
     return (
-      <span
-        className="flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full border-2 text-[10px] font-bold tabular-nums"
-        style={{ borderColor: active ? accent : "var(--baseline)", background: active ? accent : "transparent", color: "#fff" }}
-      >
-        {active &&
-          (label ?? (
-            <svg width="11" height="11" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M4 10.5 8.5 15 16 6" />
-            </svg>
-          ))}
+      <span className="w-3 shrink-0 text-center text-xs font-bold leading-none tabular-nums" style={{ color: accent }}>
+        {children}
       </span>
     );
   }
 
-  function rowNameStyle(active: boolean) {
-    return { color: active ? "var(--text-primary)" : "var(--text-secondary)", fontWeight: active ? 500 : 400 } as const;
+  /** Symptom tap cycles absent → 1 → 2 → 3 → absent. `handleSetValueOrToggle`
+   * upserts (or clears) the numeric `symptom_logs.value` through the sync
+   * layer, exactly as before. */
+  function cycleSymptom(c: LogCandidate) {
+    const cur = durationValueForDate.get(c.itemIdentity);
+    if (cur == null) void handleSetValueOrToggle(c, 1, false);
+    else if (cur >= 3) void handleSetValueOrToggle(c, cur, true);
+    else void handleSetValueOrToggle(c, cur + 1, false);
   }
 
-  /** Sleep-style range row (buckets on the right) or, for a bare duration
-   * item, the hours+minutes stepper. */
-  function renderRangeRow(c: LogCandidate, accent: string, options: { label: string; value: number }[] | null) {
+  /** A measured habit (Sleep, and any other amount) — the name plus an
+   * hours+minutes stepper, defaulting to a sensible anchor until it's set. */
+  function renderDurationRow(c: LogCandidate, accent: string) {
     const current = durationValueForDate.get(c.itemIdentity);
     const busy = pending === c.key;
-    const activeValue =
-      current == null || !options
-        ? null
-        : (options.find((o) => o.value === current)?.value ??
-          options.reduce((best, o) => (Math.abs(o.value - current) < Math.abs(best.value - current) ? o : best)).value);
     return (
-      <li key={c.key} className="flex flex-wrap items-center gap-x-4 gap-y-1.5 py-2.5" style={{ opacity: busy ? 0.6 : 1 }}>
-        <span className="flex min-w-[6rem] flex-1 items-center gap-3">
-          <TrackDot active={current != null} accent={accent} />
-          <span className="text-sm" style={rowNameStyle(current != null)}>
-            {c.item}
-          </span>
+      <li
+        key={c.key}
+        className="col-span-full flex flex-wrap items-center gap-x-2 gap-y-1 rounded-md px-2 py-1 text-xs"
+        style={{ ...trackRowStyle(current != null, accent), opacity: busy ? 0.6 : 1 }}
+      >
+        <RowMark accent={accent}>{current != null ? "✓" : null}</RowMark>
+        <span className="mr-1 flex-1" style={{ fontWeight: current != null ? 500 : 400 }}>
+          {c.item}
         </span>
-        {options ? (
-          <span className="flex flex-wrap items-center gap-0.5">
-            {options.map((o) => {
-              const active = activeValue === o.value;
-              return (
-                <button
-                  key={o.label}
-                  type="button"
-                  disabled={busy}
-                  onClick={() => void handleSetValueOrToggle(c, o.value, active)}
-                  className="rounded-md px-2 py-1 text-xs font-medium transition-colors disabled:opacity-50"
-                  style={{ color: active ? accent : "var(--text-muted)", background: active ? `color-mix(in oklab, ${accent} 16%, transparent)` : "transparent" }}
-                >
-                  {o.label}
-                </button>
-              );
-            })}
-          </span>
-        ) : (
-          <DurationStepper totalMinutes={current ?? DURATION_DEFAULT_MINUTES[c.item] ?? 0} onChange={(m) => void handleSetDuration(c, m)} />
-        )}
+        <DurationStepper totalMinutes={current ?? DURATION_DEFAULT_MINUTES[c.item] ?? 0} onChange={(m) => void handleSetDuration(c, m)} />
       </li>
     );
   }
 
   function renderHabitRow(c: LogCandidate, accent: string) {
-    if (INPUT_KIND[c.item] === "range" && RANGE_OPTIONS[c.item]) return renderRangeRow(c, accent, RANGE_OPTIONS[c.item]);
-    if (INPUT_KIND[c.item] === "duration") return renderRangeRow(c, accent, null);
+    if (INPUT_KIND[c.item] === "duration") return renderDurationRow(c, accent);
     const logged = (mealCounts.get(c.key) ?? 0) > 0;
     const busy = pending === c.key;
     return (
@@ -1329,10 +1314,11 @@ export default function LogPage() {
           type="button"
           onClick={() => handleChipTap(c)}
           disabled={busy}
-          className="flex min-h-[44px] w-full items-center gap-3 py-2 text-left disabled:opacity-50"
+          className="flex w-full items-center gap-1.5 rounded-md px-2 py-1 text-left text-xs transition-colors disabled:opacity-50"
+          style={trackRowStyle(logged, accent)}
         >
-          <TrackDot active={logged} accent={accent} />
-          <span className="flex-1 text-sm" style={rowNameStyle(logged)}>
+          <RowMark accent={accent}>{logged ? "✓" : null}</RowMark>
+          <span className="min-w-0 flex-1 truncate" style={{ fontWeight: logged ? 500 : 400 }}>
             {c.item}
           </span>
         </button>
@@ -1346,16 +1332,20 @@ export default function LogPage() {
     const count = mealCounts.get(c.key) ?? 0;
     const busy = pending === c.key;
     return (
-      <li key={c.key} className="flex min-h-[44px] items-center gap-3" style={{ opacity: busy ? 0.6 : 1 }}>
-        <button type="button" onClick={() => void handleIncrement(c)} disabled={busy} className="flex flex-1 items-center gap-3 py-2 text-left disabled:opacity-50">
-          <TrackDot active={count > 0} accent={accent} label={count > 1 ? String(count) : undefined} />
-          <span className="flex-1 text-sm" style={rowNameStyle(count > 0)}>
+      <li
+        key={c.key}
+        className={`flex items-center rounded-md pr-1 text-xs ${count > 0 ? "col-span-full" : ""}`}
+        style={{ ...trackRowStyle(count > 0, accent), opacity: busy ? 0.6 : 1 }}
+      >
+        <button type="button" onClick={() => void handleIncrement(c)} disabled={busy} className="flex min-w-0 flex-1 items-center gap-1.5 px-2 py-1 text-left disabled:opacity-50">
+          <RowMark accent={accent}>{count > 0 ? "✓" : null}</RowMark>
+          <span className="min-w-0 flex-1 truncate" style={{ fontWeight: count > 0 ? 500 : 400 }}>
             {c.item}
           </span>
         </button>
         {count > 0 && (
-          <span className="flex shrink-0 items-center gap-1">
-            <span className="text-xs font-semibold tabular-nums" style={{ color: accent }}>
+          <>
+            <span className="shrink-0 text-[11px] font-semibold tabular-nums" style={{ color: accent }}>
               {count}×
             </span>
             <button
@@ -1363,61 +1353,39 @@ export default function LogPage() {
               onClick={() => void handleDecrement(c)}
               disabled={busy}
               aria-label={`Remove a ${c.item} dose`}
-              className="rounded-md px-2 py-1 text-sm leading-none disabled:opacity-40"
+              className="shrink-0 rounded px-1.5 py-1 text-sm leading-none disabled:opacity-40"
               style={{ color: "var(--text-muted)" }}
             >
               −
             </button>
-          </span>
+          </>
         )}
       </li>
     );
   }
 
-  /** Symptoms: mark present with a tap; the 1/2/3 intensity selector only
-   * appears once it is. Stored as a numeric value, unchanged. */
+  /** Symptoms: one tap marks it at intensity 1; each further tap raises it
+   * (2, 3); a tap past 3 clears it. The level shows as a small digit in the
+   * shared left-hand marker slot, so names stay aligned. */
   function renderSymptomRow(c: LogCandidate, accent: string) {
     const current = durationValueForDate.get(c.itemIdentity);
     const present = current != null;
     const busy = pending === c.key;
     return (
-      <li key={c.key} className="flex min-h-[44px] items-center gap-3" style={{ opacity: busy ? 0.6 : 1 }}>
+      <li key={c.key}>
         <button
           type="button"
           disabled={busy}
-          onClick={() => void handleSetValueOrToggle(c, present ? (current as number) : 1, present)}
-          className="flex flex-1 items-center gap-3 py-2 text-left disabled:opacity-50"
+          onClick={() => cycleSymptom(c)}
+          aria-label={present ? `${c.item}, intensity ${current} of 3 — tap to change` : `Mark ${c.item}`}
+          className="flex w-full items-center gap-1.5 rounded-md px-2 py-1 text-left text-xs transition-colors disabled:opacity-50"
+          style={{ ...trackRowStyle(present, accent), opacity: busy ? 0.6 : 1 }}
         >
-          <TrackDot active={present} accent={accent} />
-          <span className="flex-1 text-sm" style={rowNameStyle(present)}>
+          <RowMark accent={accent}>{present ? current : null}</RowMark>
+          <span className="min-w-0 flex-1 truncate" style={{ fontWeight: present ? 500 : 400 }}>
             {c.item}
           </span>
         </button>
-        {present && (
-          <span className="flex shrink-0 items-center gap-0.5">
-            {SYMPTOM_INTENSITIES.map((n) => {
-              const active = current === n;
-              return (
-                <button
-                  key={n}
-                  type="button"
-                  disabled={busy}
-                  onClick={() => void handleSetValueOrToggle(c, n, active)}
-                  aria-label={`Intensity ${n}`}
-                  aria-pressed={active}
-                  className="flex h-7 w-7 items-center justify-center rounded-md text-xs transition-colors disabled:opacity-40"
-                  style={{
-                    color: active ? accent : "var(--text-muted)",
-                    background: active ? `color-mix(in oklab, ${accent} 16%, transparent)` : "transparent",
-                    fontWeight: active ? 700 : 400,
-                  }}
-                >
-                  {n}
-                </button>
-              );
-            })}
-          </span>
-        )}
       </li>
     );
   }
@@ -1426,18 +1394,21 @@ export default function LogPage() {
     if (!tabConfig) return null;
     const accent = TYPE_ACCENT[tabConfig.type];
     return (
-      <div className="flex max-w-xl flex-col gap-6">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {groupedByCategory.map((group) => (
-          <section key={group.category} className="flex flex-col">
-            <h3 className="px-1 pb-1 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
+          <div key={group.category} className="flex flex-col gap-1 rounded-lg border p-2.5" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
+            <div className="mb-0.5 flex items-center gap-1.5 border-b pb-1.5 text-[11px] font-bold tracking-wide uppercase" style={{ color: accent, borderColor: "var(--border-hairline)" }}>
               {group.category}
-            </h3>
-            <ul className="flex flex-col divide-y divide-[color:var(--gridline)] px-1">
+              <span className="ml-auto font-medium normal-case" style={{ color: "var(--text-secondary)" }}>
+                {group.items.length}
+              </span>
+            </div>
+            <ul className="grid grid-cols-2 gap-x-3 gap-y-0.5">
               {group.items.map((c) =>
                 tab === "supplement" ? renderSupplementRow(c, accent) : tab === "outcome" ? renderSymptomRow(c, accent) : renderHabitRow(c, accent),
               )}
             </ul>
-          </section>
+          </div>
         ))}
       </div>
     );
@@ -1472,19 +1443,19 @@ export default function LogPage() {
         </div>
         {tab !== "notes" && tab !== "reminders" && tab !== "expiration" && (
         <div className="flex shrink-0 items-center gap-2">
-          <div className="flex items-center gap-0.5 rounded-lg border p-1" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
+          <div className="flex items-center gap-0.5 rounded-md border p-0.5" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
             <button
               type="button"
               onClick={() => setDate((d) => addDaysLocal(d, -1))}
-              className="flex h-9 w-9 items-center justify-center rounded-md text-sm font-medium"
+              className="flex h-7 w-7 items-center justify-center rounded text-sm font-medium"
               style={{ color: "var(--text-secondary)" }}
               aria-label="Previous day"
             >
               ‹
             </button>
             <span
-              className="min-w-24 rounded-md px-2 py-1 text-center text-sm font-semibold whitespace-nowrap"
-              style={{ color: "var(--text-primary)", background: "var(--surface-1)" }}
+              className="min-w-20 rounded px-1.5 py-0.5 text-center text-xs font-semibold whitespace-nowrap"
+              style={{ color: "var(--text-primary)" }}
             >
               {formatDateLabel(date, today)}
             </span>
@@ -1492,7 +1463,7 @@ export default function LogPage() {
               type="button"
               onClick={() => setDate((d) => (d < today ? addDaysLocal(d, 1) : d))}
               disabled={date >= today}
-              className="flex h-9 w-9 items-center justify-center rounded-md text-sm font-medium disabled:opacity-30"
+              className="flex h-7 w-7 items-center justify-center rounded text-sm font-medium disabled:opacity-30"
               style={{ color: "var(--text-secondary)" }}
               aria-label="Next day"
             >
@@ -1510,7 +1481,7 @@ export default function LogPage() {
          * navigation), that one just tags optional metadata on a food.
          * Scrolls sideways rather than wrapping; the search box drops to its
          * own line below on a narrow screen. */}
-        <nav className="no-scrollbar flex w-full min-w-0 items-center gap-5 overflow-x-auto border-b sm:flex-1" style={{ borderColor: "var(--border-hairline)" }}>
+        <nav className="no-scrollbar flex w-full min-w-0 items-center gap-4 overflow-x-auto border-b sm:flex-1" style={{ borderColor: "var(--border-hairline)" }}>
           {logTabs.map((t) => {
             const active = t.id === tab;
             return (
@@ -1518,7 +1489,7 @@ export default function LogPage() {
                 key={t.id}
                 type="button"
                 onClick={() => selectTab(t.id)}
-                className="flex shrink-0 items-center gap-1.5 pb-2.5 text-sm whitespace-nowrap transition-colors"
+                className="flex shrink-0 items-center gap-1 pb-2 text-[13px] whitespace-nowrap transition-colors"
                 style={{
                   color: active ? t.accent : "var(--text-secondary)",
                   fontWeight: active ? 700 : 500,
@@ -1748,7 +1719,7 @@ export default function LogPage() {
                 />
               </label>
               {tabConfig?.countable && (
-                <div className="inline-flex rounded-lg border p-0.5" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
+                <div className="inline-flex rounded-md border p-0.5" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
                   {tagOptionsForType(tab).map((m) => {
                     const active = m === meal;
                     return (
@@ -1757,7 +1728,7 @@ export default function LogPage() {
                         type="button"
                         onClick={() => setMeal(m)}
                         aria-pressed={active}
-                        className="rounded-md px-3 py-1.5 text-[13px] font-semibold whitespace-nowrap transition-colors"
+                        className="rounded px-2.5 py-1 text-xs font-semibold whitespace-nowrap transition-colors"
                         style={{
                           background: active ? TYPE_ACCENT[tabConfig.type] : "transparent",
                           color: active ? "#fff" : "var(--text-secondary)",
@@ -1784,7 +1755,7 @@ export default function LogPage() {
                   {tab === "supplement"
                     ? ` logged for ${meal.toLowerCase()} — tap to add a dose`
                     : tab === "outcome"
-                      ? ` marked for ${formatDateLabel(date, today).toLowerCase()} — tap for intensity`
+                      ? ` marked for ${formatDateLabel(date, today).toLowerCase()} — tap again to raise intensity (1–3), once more to clear`
                       : ` logged ${tabConfig.countable ? `for ${meal.toLowerCase()}` : formatDateLabel(date, today).toLowerCase()} — tap again to remove`}
                 </p>
               )}
@@ -1793,7 +1764,7 @@ export default function LogPage() {
                 <button
                   type="button"
                   onClick={() => (isDemoData ? openPanel() : setAddingNew(true))}
-                  className="self-start rounded-md border border-dashed px-3 py-1.5 text-sm font-medium whitespace-nowrap"
+                  className="self-start rounded-md border border-dashed px-2.5 py-1 text-xs font-medium whitespace-nowrap"
                   style={{ borderColor: "var(--border-hairline)", color: "var(--text-secondary)" }}
                 >
                   {isDemoData ? "+ Can't find it? Sign in to add it" : "+ Can't find it? Add it"}
@@ -2009,13 +1980,11 @@ export default function LogPage() {
                       {entry.item}
                       {entry.value != null && (() => {
                         const suffix =
-                          INPUT_KIND[entry.item] === "range"
-                            ? rangeLabelForValue(entry.item, entry.value)
-                            : INPUT_KIND[entry.item] === "duration"
-                              ? formatMinutes(entry.value)
-                              : entry.itemType === "outcome" && entry.value > 1
-                                ? `intensity ${entry.value}`
-                                : null;
+                          INPUT_KIND[entry.item] === "duration"
+                            ? formatMinutes(entry.value)
+                            : entry.itemType === "outcome" && entry.value >= 1
+                              ? `intensity ${entry.value}`
+                              : null;
                         return suffix ? (
                           <span className="ml-1 font-normal" style={{ color: "var(--text-secondary)" }}>
                             {suffix}
