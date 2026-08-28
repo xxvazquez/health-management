@@ -240,30 +240,35 @@ create table public.stool_logs (
   logged_at timestamptz not null default now(),
   -- One bowel movement can include more than one consistency (e.g. both a
   -- Type 1 and a Type 3 piece), so this is an array, not a single value.
-  -- Empty exactly when no_bristol is true (enforced by the check below).
-  bristol_scores smallint[] not null default '{}'::smallint[]
-    check (bristol_scores <@ array[1,2,3,4,5,6,7]::smallint[]),
-  no_bristol boolean not null default false,
-  color text check (color in ('Brown', 'Dark Brown', 'Light Brown', 'Green', 'Yellow')),
+  -- Always non-empty: a day with no bowel movement is simply no row, not a
+  -- typeless one.
+  bristol_scores smallint[] not null
+    check (cardinality(bristol_scores) > 0 and bristol_scores <@ array[1,2,3,4,5,6,7]::smallint[]),
+  color text check (color in ('Brown', 'Dark Brown', 'Light Brown', 'Green', 'Yellow', 'Black', 'Pale')),
   -- Null means neither observed — a normal sinking stool isn't itself
   -- trackable, only the two notable states are.
   floatation text check (floatation in ('Partially Floats', 'Floats')),
+  -- Properties of the stool / the act itself, as opposed to symptoms below.
   is_sticky boolean not null default false,
   is_smelly boolean not null default false,
   is_straining boolean not null default false,
-  has_mucus boolean not null default false,
-  has_urgency boolean not null default false,
-  has_visible_food_particles boolean not null default false,
-  has_incomplete_evacuation boolean not null default false,
-  paper_cleanliness text check (paper_cleanliness in ('Clean', 'Slightly Dirty', 'Dirty', 'Very Dirty')),
+  -- Paper-cleanliness grade(s) and/or non-paper method(s) as one flat set,
+  -- so "Paper – dirty" and "Water and soap" can both apply to one movement.
+  -- Replaces the old single-value paper_cleanliness column.
+  hygiene text[] not null default '{}'::text[]
+    check (hygiene <@ array['Clean', 'Slightly Dirty', 'Dirty', 'Very Dirty', 'Water', 'Water and soap', 'Wet wipes']::text[]),
+  -- Symptoms belonging to this bowel movement — cramps, urgency, mucus,
+  -- burning, etc. General symptoms (bloating, fatigue, …) are logged as
+  -- ordinary symptom_logs instead. Free text, same reasoning as
+  -- period_logs.collection_methods: an imported value stays intact even if
+  -- the app no longer offers it as a chip.
+  symptoms text[] not null default '{}'::text[],
   time_on_toilet_minutes smallint check (time_on_toilet_minutes between 1 and 60),
   note text,
-  updated_at timestamptz not null default now(),
-  check (
-    (cardinality(bristol_scores) > 0 and not no_bristol)
-    or
-    (cardinality(bristol_scores) = 0 and no_bristol)
-  )
+  -- Provenance tag for bulk-imported history ('sheet' / 'app-backup') —
+  -- null for anything logged in the app.
+  import_source text,
+  updated_at timestamptz not null default now()
 );
 
 create table public.workout_logs (

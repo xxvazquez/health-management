@@ -1,16 +1,18 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { BristolIcon, NoBristolIcon } from "@/components/icons/BristolIcons";
+import { BristolIcon } from "@/components/icons/BristolIcons";
 import { toTimeInputValue } from "@/lib/logCandidates";
 import {
   STOOL_COLORS,
-  PAPER_CLEANLINESS_OPTIONS,
+  HYGIENE_OPTIONS,
+  STOOL_SYMPTOM_OPTIONS,
   STOOL_FLOATATION_OPTIONS,
   type RawStoolLog,
   type StoolColor,
   type StoolFloatation,
-  type PaperCleanliness,
+  type HygieneOption,
+  type StoolSymptom,
 } from "@/lib/types";
 
 const BRISTOL_SCORES = [1, 2, 3, 4, 5, 6, 7];
@@ -28,9 +30,11 @@ function ChipIconWrap({ children }: { children: ReactNode }) {
 const STOOL_COLOR_SWATCH: Record<StoolColor, string> = {
   Brown: "#8a5a34",
   "Dark Brown": "#4f3420",
-  Green: "#4a7a5c",
   "Light Brown": "#b98a58",
+  Green: "#4a7a5c",
   Yellow: "#d1ab3e",
+  Black: "#2b2b2b",
+  Pale: "#cabfa8",
 };
 
 function ColorDot({ color }: { color: StoolColor }) {
@@ -47,16 +51,6 @@ function FloatationIcon() {
 }
 
 const CHARACTERISTIC_ICON: Record<string, ReactNode> = {
-  hasIncompleteEvacuation: (
-    <ChipIconWrap>
-      <circle cx="10" cy="10" r="6.5" strokeDasharray="2.2 2.6" />
-    </ChipIconWrap>
-  ),
-  hasMucus: (
-    <ChipIconWrap>
-      <path d="M10 3c2.6 3.8 4.5 6.6 4.5 9a4.5 4.5 0 0 1-9 0c0-2.4 1.9-5.2 4.5-9Z" />
-    </ChipIconWrap>
-  ),
   isSmelly: (
     <ChipIconWrap>
       <path d="M6 4c1.4 1.4 1.4 2.6 0 4s-1.4 2.6 0 4" />
@@ -76,30 +70,36 @@ const CHARACTERISTIC_ICON: Record<string, ReactNode> = {
       <path d="M10 6.5v6M6.5 9.5 10 8l3.5 1.5M7 17l3-6.5 3 6.5" />
     </ChipIconWrap>
   ),
-  hasUrgency: (
-    <ChipIconWrap>
-      <path d="M11 2.5 5 11.5h4l-1 6 6.5-9.5h-4z" />
-    </ChipIconWrap>
-  ),
-  hasVisibleFoodParticles: (
-    <ChipIconWrap>
-      <path d="M6 2.5v6.5M4.3 2.5v4.3a1.7 1.7 0 0 0 3.4 0V2.5M6 9v8.5" />
-      <path d="M13.5 2.5c-1.4 0-2.3 1.7-2.3 4.5s.9 3.5 2.3 3.5v7" />
-    </ChipIconWrap>
-  ),
 };
 
-function PaperIcon({ level }: { level: PaperCleanliness }) {
+/** Dots for the paper-cleanliness grades; a droplet for water; a folded
+ * sheet for wipes. */
+function HygieneIcon({ option }: { option: HygieneOption }) {
+  if (option === "Water" || option === "Water and soap") {
+    return (
+      <ChipIconWrap>
+        <path d="M10 3c3 4 4.5 6.5 4.5 9a4.5 4.5 0 0 1-9 0c0-2.5 1.5-5 4.5-9Z" />
+      </ChipIconWrap>
+    );
+  }
+  if (option === "Wet wipes") {
+    return (
+      <ChipIconWrap>
+        <rect x="4" y="5" width="12" height="10" rx="1.5" />
+        <path d="M4 9h12" />
+      </ChipIconWrap>
+    );
+  }
   const dots: [number, number][] =
-    level === "Clean"
+    option === "Clean"
       ? [[10, 6]]
-      : level === "Slightly Dirty"
+      : option === "Slightly Dirty"
         ? [
             [7, 7],
             [12, 5.5],
             [9.5, 12],
           ]
-        : level === "Dirty"
+        : option === "Dirty"
           ? [
               [6, 5.5],
               [10.5, 4.5],
@@ -126,14 +126,10 @@ function PaperIcon({ level }: { level: PaperCleanliness }) {
   );
 }
 
-const CHARACTERISTIC_FIELDS: { key: keyof NewStoolEntry; label: string }[] = [
-  { key: "hasIncompleteEvacuation", label: "Incomplete evacuation" },
-  { key: "hasMucus", label: "Mucus" },
+const CHARACTERISTIC_FIELDS: { key: "isSmelly" | "isSticky" | "isStraining"; label: string }[] = [
   { key: "isSmelly", label: "Smelly" },
   { key: "isSticky", label: "Sticky" },
   { key: "isStraining", label: "Straining" },
-  { key: "hasUrgency", label: "Urgency" },
-  { key: "hasVisibleFoodParticles", label: "Visible food particles" },
 ];
 
 /** 5-minute steps up to 50 — tap-to-select, same interaction as every
@@ -146,17 +142,13 @@ function timeOnToiletLabel(minutes: number): string {
 
 export interface NewStoolEntry {
   bristolScores: number[];
-  noBristol: boolean;
   color: StoolColor | null;
   floatation: StoolFloatation | null;
   isSticky: boolean;
   isSmelly: boolean;
   isStraining: boolean;
-  hasMucus: boolean;
-  hasUrgency: boolean;
-  hasVisibleFoodParticles: boolean;
-  hasIncompleteEvacuation: boolean;
-  paperCleanliness: PaperCleanliness | null;
+  hygiene: HygieneOption[];
+  symptoms: StoolSymptom[];
   timeOnToiletMinutes: number | null;
   note: string | null;
   /** Local "HH:MM" — defaults to the moment the form was opened, editable
@@ -168,17 +160,13 @@ export interface NewStoolEntry {
 function blankEntry(): NewStoolEntry {
   return {
     bristolScores: [],
-    noBristol: false,
     color: null,
     floatation: null,
     isSticky: false,
     isSmelly: false,
     isStraining: false,
-    hasMucus: false,
-    hasUrgency: false,
-    hasVisibleFoodParticles: false,
-    hasIncompleteEvacuation: false,
-    paperCleanliness: null,
+    hygiene: [],
+    symptoms: [],
     timeOnToiletMinutes: null,
     note: null,
     loggedAtTime: toTimeInputValue(new Date().toISOString()),
@@ -188,17 +176,13 @@ function blankEntry(): NewStoolEntry {
 function entryToDraft(entry: RawStoolLog): NewStoolEntry {
   return {
     bristolScores: entry.bristolScores,
-    noBristol: entry.noBristol,
     color: entry.color,
     floatation: entry.floatation,
     isSticky: entry.isSticky,
     isSmelly: entry.isSmelly,
     isStraining: entry.isStraining,
-    hasMucus: entry.hasMucus,
-    hasUrgency: entry.hasUrgency,
-    hasVisibleFoodParticles: entry.hasVisibleFoodParticles,
-    hasIncompleteEvacuation: entry.hasIncompleteEvacuation,
-    paperCleanliness: entry.paperCleanliness,
+    hygiene: entry.hygiene,
+    symptoms: entry.symptoms,
     timeOnToiletMinutes: entry.timeOnToiletMinutes,
     note: entry.note,
     loggedAtTime: toTimeInputValue(entry.loggedAt),
@@ -240,19 +224,11 @@ export function characteristicLabels(entry: {
   isSticky: boolean;
   isSmelly: boolean;
   isStraining: boolean;
-  hasMucus: boolean;
-  hasUrgency: boolean;
-  hasVisibleFoodParticles: boolean;
-  hasIncompleteEvacuation: boolean;
 }): string[] {
   const labels: string[] = [];
-  if (entry.isSticky) labels.push("Sticky");
   if (entry.isSmelly) labels.push("Smelly");
+  if (entry.isSticky) labels.push("Sticky");
   if (entry.isStraining) labels.push("Straining");
-  if (entry.hasMucus) labels.push("Mucus");
-  if (entry.hasUrgency) labels.push("Urgency");
-  if (entry.hasVisibleFoodParticles) labels.push("Visible food particles");
-  if (entry.hasIncompleteEvacuation) labels.push("Incomplete evacuation");
   return labels;
 }
 
@@ -278,7 +254,7 @@ export function StoolTab({
   const [saving, setSaving] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(true);
 
-  const canSave = draft.bristolScores.length > 0 || draft.noBristol;
+  const canSave = draft.bristolScores.length > 0;
 
   async function handleSave() {
     if (!canSave || saving || isDemoData) return;
@@ -301,7 +277,8 @@ export function StoolTab({
     if (
       entry.color ||
       entry.floatation ||
-      entry.paperCleanliness ||
+      entry.hygiene.length > 0 ||
+      entry.symptoms.length > 0 ||
       entry.timeOnToiletMinutes != null ||
       entry.note ||
       characteristicLabels(entry).length > 0
@@ -319,12 +296,8 @@ export function StoolTab({
     setDraft((d) =>
       d.bristolScores.includes(score)
         ? { ...d, bristolScores: d.bristolScores.filter((s) => s !== score) }
-        : { ...d, bristolScores: [...d.bristolScores, score], noBristol: false },
+        : { ...d, bristolScores: [...d.bristolScores, score] },
     );
-  }
-
-  function pickNoBristol() {
-    setDraft((d) => (d.noBristol ? { ...d, noBristol: false } : { ...d, noBristol: true, bristolScores: [] }));
   }
 
   function pickColor(color: StoolColor) {
@@ -335,22 +308,33 @@ export function StoolTab({
     setDraft((d) => ({ ...d, floatation: d.floatation === level ? null : level }));
   }
 
-  function pickPaper(level: PaperCleanliness) {
-    setDraft((d) => ({ ...d, paperCleanliness: d.paperCleanliness === level ? null : level }));
+  function toggleHygiene(option: HygieneOption) {
+    setDraft((d) => ({
+      ...d,
+      hygiene: d.hygiene.includes(option) ? d.hygiene.filter((h) => h !== option) : [...d.hygiene, option],
+    }));
+  }
+
+  function toggleSymptom(symptom: StoolSymptom) {
+    setDraft((d) => ({
+      ...d,
+      symptoms: d.symptoms.includes(symptom) ? d.symptoms.filter((s) => s !== symptom) : [...d.symptoms, symptom],
+    }));
   }
 
   function pickTimeOnToilet(minutes: number) {
     setDraft((d) => ({ ...d, timeOnToiletMinutes: d.timeOnToiletMinutes === minutes ? null : minutes }));
   }
 
-  function toggleCharacteristic(key: keyof NewStoolEntry) {
+  function toggleCharacteristic(key: "isSmelly" | "isSticky" | "isStraining") {
     setDraft((d) => ({ ...d, [key]: !d[key] }));
   }
 
   const detailsChosenCount =
     (draft.color ? 1 : 0) +
     (draft.floatation ? 1 : 0) +
-    (draft.paperCleanliness ? 1 : 0) +
+    (draft.hygiene.length > 0 ? 1 : 0) +
+    (draft.symptoms.length > 0 ? 1 : 0) +
     (draft.timeOnToiletMinutes != null ? 1 : 0) +
     (draft.note?.trim() ? 1 : 0) +
     CHARACTERISTIC_FIELDS.filter((f) => draft[f.key]).length;
@@ -414,21 +398,6 @@ export function StoolTab({
               </button>
             );
           })}
-          <button
-            type="button"
-            onClick={pickNoBristol}
-            aria-label="No Bristol"
-            aria-pressed={draft.noBristol}
-            className="flex flex-col items-center gap-0.5 rounded-md border px-2 py-1.5 transition-colors"
-            style={{
-              borderColor: draft.noBristol ? accent : "var(--border-hairline)",
-              background: draft.noBristol ? `color-mix(in oklab, ${accent} 14%, var(--surface-1))` : "transparent",
-              color: draft.noBristol ? accent : "var(--text-secondary)",
-            }}
-          >
-            <NoBristolIcon />
-            <span className="text-[11px] font-semibold whitespace-nowrap">No Bristol</span>
-          </button>
         </div>
       </div>
 
@@ -496,7 +465,7 @@ export function StoolTab({
                     key={f.key}
                     label={f.label}
                     icon={CHARACTERISTIC_ICON[f.key]}
-                    active={Boolean(draft[f.key])}
+                    active={draft[f.key]}
                     onClick={() => toggleCharacteristic(f.key)}
                     accent={accent}
                   />
@@ -506,11 +475,22 @@ export function StoolTab({
 
             <div>
               <p className="mb-2 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
-                Paper cleanliness
+                Symptoms
               </p>
               <div className="flex flex-wrap gap-1.5">
-                {PAPER_CLEANLINESS_OPTIONS.map((p) => (
-                  <Chip key={p} label={p} icon={<PaperIcon level={p} />} active={draft.paperCleanliness === p} onClick={() => pickPaper(p)} accent={accent} />
+                {STOOL_SYMPTOM_OPTIONS.map((s) => (
+                  <Chip key={s} label={s} active={draft.symptoms.includes(s)} onClick={() => toggleSymptom(s)} accent={accent} />
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <p className="mb-2 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
+                Hygiene
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {HYGIENE_OPTIONS.map((h) => (
+                  <Chip key={h} label={h} icon={<HygieneIcon option={h} />} active={draft.hygiene.includes(h)} onClick={() => toggleHygiene(h)} accent={accent} />
                 ))}
               </div>
             </div>
@@ -570,32 +550,31 @@ export function StoolTab({
                 style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", opacity: busy ? 0.5 : 1 }}
               >
                 <span className="flex shrink-0 items-center gap-0.5" style={{ color: accent }}>
-                  {entry.bristolScores.length > 0 ? (
-                    entry.bristolScores.map((score) => (
-                      <span key={score} className="flex h-8 w-8 items-center justify-center">
-                        <BristolIcon score={score} />
-                      </span>
-                    ))
-                  ) : (
-                    <span className="flex h-8 w-8 items-center justify-center">
-                      <NoBristolIcon />
+                  {entry.bristolScores.map((score) => (
+                    <span key={score} className="flex h-8 w-8 items-center justify-center">
+                      <BristolIcon score={score} />
                     </span>
-                  )}
+                  ))}
                 </span>
                 <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                   <span className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-                    {entry.bristolScores.length > 0 ? `Bristol ${entry.bristolScores.join(", ")}` : "No Bristol"}
+                    {`Bristol ${entry.bristolScores.join(", ")}`}
                     {entry.color && <span className="ml-1.5 font-normal" style={{ color: "var(--text-secondary)" }}>· {entry.color}</span>}
                     {entry.floatation && <span className="ml-1.5 font-normal" style={{ color: "var(--text-secondary)" }}>· {entry.floatation}</span>}
                   </span>
                   <span className="text-xs" style={{ color: "var(--text-muted)" }}>
                     {new Date(entry.loggedAt).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}
-                    {entry.paperCleanliness && ` · Paper: ${entry.paperCleanliness}`}
+                    {entry.hygiene.length > 0 && ` · ${entry.hygiene.join(", ")}`}
                     {entry.timeOnToiletMinutes != null && ` · ${entry.timeOnToiletMinutes}m on toilet`}
                   </span>
                   {labels.length > 0 && (
                     <span className="text-xs" style={{ color: "var(--text-secondary)" }}>
                       {labels.join(", ")}
+                    </span>
+                  )}
+                  {entry.symptoms.length > 0 && (
+                    <span className="text-xs" style={{ color: "var(--text-secondary)" }}>
+                      {entry.symptoms.join(", ")}
                     </span>
                   )}
                   {entry.note && (

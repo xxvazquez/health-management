@@ -9,19 +9,18 @@ import {
   bristolTypeDates,
   digestionInsight,
   digestiveSymptomRateChange,
-  paperCleanlinessDistribution,
+  hygieneDistribution,
   stoolCharacteristicStats,
   stoolColorDistribution,
-  unclassifiedStoolStats,
+  stoolSymptomStats,
 } from "./digestion";
 import { makeStoolLog } from "@/lib/testFixtures";
 
 describe("bristolAssessedDates", () => {
-  it("returns every logged date, classified or not", () => {
-    const logs = [makeStoolLog({ date: "2026-01-01" }), makeStoolLog({ date: "2026-01-02", noBristol: true, bristolScores: [] })];
+  it("returns every logged date", () => {
+    const logs = [makeStoolLog({ date: "2026-01-01" }), makeStoolLog({ date: "2026-01-02", bristolScores: [2] })];
     expect(bristolAssessedDates(logs)).toEqual(new Set(["2026-01-01", "2026-01-02"]));
   });
-
 });
 
 describe("bristolTypeDates", () => {
@@ -31,25 +30,9 @@ describe("bristolTypeDates", () => {
     expect(bristolTypeDates(logs, [6, 7])).toEqual(new Set());
   });
 
-  it("excludes an unclassified (No Bristol) entry", () => {
-    const logs = [makeStoolLog({ date: "2026-01-01", noBristol: true, bristolScores: [] })];
+  it("matches nothing for an entry with no scores", () => {
+    const logs = [makeStoolLog({ date: "2026-01-01", bristolScores: [] })];
     expect(bristolTypeDates(logs, [1, 2, 3, 4, 5, 6, 7])).toEqual(new Set());
-  });
-});
-
-describe("unclassifiedStoolStats", () => {
-  it("returns zeroes for no logs", () => {
-    expect(unclassifiedStoolStats([])).toEqual({ unclassifiedCount: 0, classifiedCount: 0, unclassifiedSharePct: 0 });
-  });
-
-  it("splits classified vs unclassified and computes the unclassified share", () => {
-    const logs = [
-      makeStoolLog({ noBristol: true, bristolScores: [] }),
-      makeStoolLog({ noBristol: false, bristolScores: [4] }),
-      makeStoolLog({ noBristol: false, bristolScores: [4] }),
-      makeStoolLog({ noBristol: false, bristolScores: [4] }),
-    ];
-    expect(unclassifiedStoolStats(logs)).toEqual({ unclassifiedCount: 1, classifiedCount: 3, unclassifiedSharePct: 25 });
   });
 });
 
@@ -72,8 +55,8 @@ describe("bristolBandDistribution", () => {
     expect(normal.sharePct).toBe(50);
   });
 
-  it("excludes unclassified entries from the distribution entirely", () => {
-    const logs = [makeStoolLog({ noBristol: true, bristolScores: [] })];
+  it("excludes entries with no scores from the distribution entirely", () => {
+    const logs = [makeStoolLog({ bristolScores: [] })];
     expect(bristolBandDistribution(logs)).toEqual([]);
   });
 });
@@ -116,12 +99,12 @@ describe("bristolTargetRangeChange", () => {
     expect(result.recentPct).toBe(75); // 3 of 4 entries
   });
 
-  it("dilutes recentPct with unclassified entries (denominator is all entries, not just classified ones)", () => {
+  it("counts every entry in the denominator, not just in-target ones", () => {
     const logs = [
       makeStoolLog({ date: "2026-01-01", bristolScores: [4] }),
-      makeStoolLog({ date: "2026-01-02", noBristol: true, bristolScores: [] }),
-      makeStoolLog({ date: "2026-01-03", noBristol: true, bristolScores: [] }),
-      makeStoolLog({ date: "2026-01-04", noBristol: true, bristolScores: [] }),
+      makeStoolLog({ date: "2026-01-02", bristolScores: [1] }),
+      makeStoolLog({ date: "2026-01-03", bristolScores: [1] }),
+      makeStoolLog({ date: "2026-01-04", bristolScores: [6] }),
     ];
     const result = bristolTargetRangeChange(logs);
     expect(result.recentPct).toBe(25); // only 1 of 4 entries is in target
@@ -129,8 +112,8 @@ describe("bristolTargetRangeChange", () => {
 });
 
 describe("bristolScoreSeries", () => {
-  it("excludes unclassified entries", () => {
-    const logs = [makeStoolLog({ noBristol: true, bristolScores: [] })];
+  it("excludes entries with no scores", () => {
+    const logs = [makeStoolLog({ bristolScores: [] })];
     expect(bristolScoreSeries(logs)).toEqual([]);
   });
 
@@ -191,17 +174,40 @@ describe("stoolCharacteristicStats", () => {
   });
 });
 
-describe("stoolColorDistribution / paperCleanlinessDistribution", () => {
-  it("excludes entries with no color/paper cleanliness set", () => {
-    const logs = [makeStoolLog({ color: null, paperCleanliness: null })];
+describe("stoolColorDistribution / hygieneDistribution", () => {
+  it("excludes entries with no color / hygiene set", () => {
+    const logs = [makeStoolLog({ color: null, hygiene: [] })];
     expect(stoolColorDistribution(logs)).toEqual([]);
-    expect(paperCleanlinessDistribution(logs)).toEqual([]);
+    expect(hygieneDistribution(logs)).toEqual([]);
   });
 
   it("distributes by the set value", () => {
     const logs = [makeStoolLog({ color: "Brown" }), makeStoolLog({ color: "Brown" }), makeStoolLog({ color: "Green" })];
     const dist = stoolColorDistribution(logs);
     expect(dist[0]).toMatchObject({ label: "Brown", count: 2, sharePct: 66.7 });
+  });
+
+  it("counts each hygiene value of a multi-value entry", () => {
+    const logs = [
+      makeStoolLog({ hygiene: ["Dirty", "Water and soap"] }),
+      makeStoolLog({ hygiene: ["Dirty"] }),
+    ];
+    const dist = hygieneDistribution(logs);
+    expect(dist.find((d) => d.label === "Dirty")).toMatchObject({ count: 2, sharePct: 100 });
+    expect(dist.find((d) => d.label === "Water and soap")).toMatchObject({ count: 1, sharePct: 50 });
+  });
+});
+
+describe("stoolSymptomStats", () => {
+  it("counts each symptom across entries, sorted by frequency", () => {
+    const logs = [
+      makeStoolLog({ symptoms: ["Urgency", "Mucus"] }),
+      makeStoolLog({ symptoms: ["Urgency"] }),
+      makeStoolLog({ symptoms: [] }),
+    ];
+    const stats = stoolSymptomStats(logs);
+    expect(stats[0]).toMatchObject({ label: "Urgency", count: 2 });
+    expect(stats.find((s) => s.label === "Mucus")).toMatchObject({ count: 1 });
   });
 });
 

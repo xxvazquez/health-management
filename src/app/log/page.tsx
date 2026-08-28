@@ -729,7 +729,7 @@ export default function LogPage() {
   const combinedTimeline = useMemo(() => {
     const stoolAsTimeline: TimelineEntry[] = stoolEntriesForDate.map((s) => ({
       key: s.id,
-      item: s.bristolScores.length > 0 ? `Bristol ${s.bristolScores.join(", ")}` : "No Bristol",
+      item: `Bristol ${s.bristolScores.join(", ")}`,
       itemType: "stool",
       itemIdentity: s.id,
       time: new Date(s.loggedAt).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }),
@@ -1141,17 +1141,13 @@ export default function LogPage() {
       date,
       loggedAt: combineDateAndTime(date, entry.loggedAtTime),
       bristolScores: entry.bristolScores,
-      noBristol: entry.noBristol,
       color: entry.color,
       floatation: entry.floatation,
       isSticky: entry.isSticky,
       isSmelly: entry.isSmelly,
       isStraining: entry.isStraining,
-      hasMucus: entry.hasMucus,
-      hasUrgency: entry.hasUrgency,
-      hasVisibleFoodParticles: entry.hasVisibleFoodParticles,
-      hasIncompleteEvacuation: entry.hasIncompleteEvacuation,
-      paperCleanliness: entry.paperCleanliness,
+      hygiene: entry.hygiene,
+      symptoms: entry.symptoms,
       timeOnToiletMinutes: entry.timeOnToiletMinutes,
       note: entry.note,
       updatedAt: new Date().toISOString(),
@@ -1985,7 +1981,12 @@ export default function LogPage() {
                         if (!full) return null;
                         const labels = characteristicLabels(full);
                         const hasDetails =
-                          full.color || full.floatation || full.paperCleanliness || full.timeOnToiletMinutes != null || labels.length > 0;
+                          full.color ||
+                          full.floatation ||
+                          full.hygiene.length > 0 ||
+                          full.symptoms.length > 0 ||
+                          full.timeOnToiletMinutes != null ||
+                          labels.length > 0;
                         if (!hasDetails) return null;
                         const expanded = expandedStoolIds.has(full.id);
                         return (
@@ -2003,7 +2004,8 @@ export default function LogPage() {
                                 {full.color && <span>Color: {full.color}</span>}
                                 {full.floatation && <span>{full.floatation}</span>}
                                 {labels.length > 0 && <span>{labels.join(", ")}</span>}
-                                {full.paperCleanliness && <span>Paper: {full.paperCleanliness}</span>}
+                                {full.symptoms.length > 0 && <span>{full.symptoms.join(", ")}</span>}
+                                {full.hygiene.length > 0 && <span>Hygiene: {full.hygiene.join(", ")}</span>}
                                 {full.timeOnToiletMinutes != null && <span>{full.timeOnToiletMinutes}m on toilet</span>}
                               </div>
                             )}

@@ -40,7 +40,7 @@ import {
   type OutboxEntry,
 } from "@/lib/db/indexedDb";
 import { drainOutbox, retryOutboxEntry } from "./outbox";
-import type { RawDiaryEntry, RawLog, RawItem, RawWorkoutLog, RawCategory, RawStoolLog, RawPeriodLog, StoolColor, StoolFloatation, PaperCleanliness, WorkoutUnit, PeriodIntensity } from "@/lib/types";
+import type { RawDiaryEntry, RawLog, RawItem, RawWorkoutLog, RawCategory, RawStoolLog, RawPeriodLog, StoolColor, StoolFloatation, HygieneOption, StoolSymptom, WorkoutUnit, PeriodIntensity } from "@/lib/types";
 import type { ItemType } from "@/taxonomy/categories";
 import { normalizeName } from "@/taxonomy/normalizeName";
 
@@ -156,17 +156,13 @@ function buildStoolLogRow(log: RawStoolLog, userId: string): Record<string, unkn
     date: log.date,
     logged_at: log.loggedAt,
     bristol_scores: log.bristolScores,
-    no_bristol: log.noBristol,
     color: log.color,
     floatation: log.floatation,
     is_sticky: log.isSticky,
     is_smelly: log.isSmelly,
     is_straining: log.isStraining,
-    has_mucus: log.hasMucus,
-    has_urgency: log.hasUrgency,
-    has_visible_food_particles: log.hasVisibleFoodParticles,
-    has_incomplete_evacuation: log.hasIncompleteEvacuation,
-    paper_cleanliness: log.paperCleanliness,
+    hygiene: log.hygiene,
+    symptoms: log.symptoms,
     time_on_toilet_minutes: log.timeOnToiletMinutes,
     note: log.note,
     updated_at: log.updatedAt,
@@ -512,17 +508,13 @@ interface StoolLogRow {
   date: string;
   logged_at: string;
   bristol_scores: number[] | null;
-  no_bristol: boolean;
   color: string | null;
   floatation: string | null;
   is_sticky: boolean;
   is_smelly: boolean;
   is_straining: boolean;
-  has_mucus: boolean;
-  has_urgency: boolean;
-  has_visible_food_particles: boolean;
-  has_incomplete_evacuation: boolean;
-  paper_cleanliness: string | null;
+  hygiene: string[] | null;
+  symptoms: string[] | null;
   time_on_toilet_minutes: number | null;
   note: string | null;
   updated_at: string | null;
@@ -1100,17 +1092,13 @@ export async function pullFromCloud(): Promise<void> {
           date: row.date,
           loggedAt: row.logged_at,
           bristolScores: row.bristol_scores ?? [],
-          noBristol: row.no_bristol,
           color: (row.color as StoolColor | null) ?? null,
           floatation: (row.floatation as StoolFloatation | null) ?? null,
           isSticky: row.is_sticky,
           isSmelly: row.is_smelly,
           isStraining: row.is_straining,
-          hasMucus: row.has_mucus,
-          hasUrgency: row.has_urgency,
-          hasVisibleFoodParticles: row.has_visible_food_particles,
-          hasIncompleteEvacuation: row.has_incomplete_evacuation,
-          paperCleanliness: (row.paper_cleanliness as PaperCleanliness | null) ?? null,
+          hygiene: (row.hygiene as HygieneOption[] | null) ?? [],
+          symptoms: (row.symptoms as StoolSymptom[] | null) ?? [],
           timeOnToiletMinutes: row.time_on_toilet_minutes,
           note: row.note,
           updatedAt: row.updated_at,
