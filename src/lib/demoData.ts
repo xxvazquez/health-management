@@ -32,7 +32,9 @@ const OCCASIONAL_SUPPLEMENTS: [string, string][] = [
   ["Iron", "Minerals"],
   ["Folate", "Vitamins"],
 ];
-const DAILY_HABIT: [string, string] = ["Sleep", "Daily"];
+// Its own category — a stepper-tracked amount, not a yes/no habit. Other
+// measurables (weight, steps, …) would live here too.
+const DAILY_HABIT: [string, string] = ["Sleep", "Measures"];
 const OCCASIONAL_HABITS: [string, string][] = [
   ["Workout", "Body"],
   ["Walk", "Body"],
@@ -146,14 +148,14 @@ export function buildDemoDataset(): DemoDataset {
     return identity;
   }
 
-  function writeLog(itemIdentity: string, itemType: ItemType, date: string, mealTag: string | null): void {
+  function writeLog(itemIdentity: string, itemType: ItemType, date: string, mealTag: string | null, value = 1): void {
     logCounter++;
     logs.push({
       identity: `${DEMO_ID_PREFIX}log:${itemIdentity}:${date}:${logCounter}`,
       itemIdentity,
       itemType,
       date,
-      value: 1,
+      value,
       updatedAt: new Date(`${date}T12:00:00`).toISOString(),
       mealTag,
     });
@@ -194,7 +196,11 @@ export function buildDemoDataset(): DemoDataset {
       writeLog(ensureItem("supplement", name, category), "supplement", date, null);
     }
 
-    if (chance(0.75)) writeLog(ensureItem("habit", DAILY_HABIT[0], DAILY_HABIT[1]), "habit", date, null);
+    // Sleep is a duration in minutes — mostly 6–8½h, in 15-minute steps.
+    if (chance(0.85)) {
+      const sleepMinutes = (chance(0.15) ? 315 : 375) + Math.floor(rand() * 9) * 15;
+      writeLog(ensureItem("habit", DAILY_HABIT[0], DAILY_HABIT[1]), "habit", date, null, sleepMinutes);
+    }
     if (chance(0.5)) {
       const [name, category] = pick(OCCASIONAL_HABITS);
       writeLog(ensureItem("habit", name, category), "habit", date, null);
