@@ -4,12 +4,11 @@ import { computeItemStatsForFilter, type ItemStats } from "./itemStats";
 import type { Bullet, InsightTone } from "./insights";
 
 /**
- * Dates any bowel movement was logged (classified or not) — "we know the
- * outcome that day" for cross-domain Bristol comparisons. Deliberately
- * every entry, not just a specific type's own dates: using a single type's
- * occurred-dates as its own tracked-set would make tracked ≈ occurred by
- * construction and collapse the comparison toward 0 regardless of the real
- * signal.
+ * Dates any bowel movement was logged — "we know the outcome that day" for
+ * cross-domain Bristol comparisons. Deliberately every entry, not just a
+ * specific type's own dates: using a single type's occurred-dates as its
+ * own tracked-set would make tracked ≈ occurred by construction and
+ * collapse the comparison toward 0 regardless of the real signal.
  */
 export function bristolAssessedDates(stoolLogs: RawStoolLog[]): Set<string> {
   return new Set(stoolLogs.map((s) => s.date));
@@ -32,27 +31,6 @@ export function bristolTypeDates(stoolLogs: RawStoolLog[], scores: readonly numb
  * averaged away. */
 function flattenedBristolScores(stoolLogs: RawStoolLog[]): { id: string; date: string; loggedAt: string; score: number }[] {
   return stoolLogs.flatMap((s) => s.bristolScores.map((score) => ({ id: s.id, date: s.date, loggedAt: s.loggedAt, score })));
-}
-
-export interface UnclassifiedStoolStats {
-  /** Entries logged as "No Bristol" — a bowel movement happened, but the
-   * type wasn't observed/classifiable. */
-  unclassifiedCount: number;
-  /** Entries with a classified Bristol type (1–7). */
-  classifiedCount: number;
-  /** Share of all logged entries (classified + unclassified) that were unclassified. */
-  unclassifiedSharePct: number;
-}
-
-/** Explicit accounting of "happened but unclassified" entries — never folded into the type distribution. */
-export function unclassifiedStoolStats(stoolLogs: RawStoolLog[]): UnclassifiedStoolStats {
-  const unclassifiedCount = stoolLogs.filter((s) => s.noBristol).length;
-  const classifiedCount = stoolLogs.length - unclassifiedCount;
-  return {
-    unclassifiedCount,
-    classifiedCount,
-    unclassifiedSharePct: pct(unclassifiedCount, stoolLogs.length),
-  };
 }
 
 export type BristolBand = "Hard (1–2)" | "Normal (3–4)" | "Loose (5–7)";
@@ -129,11 +107,9 @@ export function bristolTargetRangeChange(stoolLogs: RawStoolLog[]): BristolTarge
     return { insufficientData: true, recentPct: null, recentTotal: recent.length, priorPct: null, priorTotal: prior.length };
   }
 
-  // Denominator is every logged entry, unclassified included — an
-  // unclassified stretch should dilute this share, not be excluded from
-  // it (matches the headline's "share of recorded stools" framing). An
-  // entry with more than one score counts toward the numerator if any one
-  // of them lands in the target band.
+  // Denominator is every logged entry (matches the headline's "share of
+  // recorded stools" framing). An entry with more than one score counts
+  // toward the numerator if any one of them lands in the target band.
   const shareInTarget = (list: RawStoolLog[]) =>
     pct(list.filter((s) => s.bristolScores.some((sc) => bandForScore(sc) === "Normal (3–4)")).length, list.length);
 
@@ -153,12 +129,10 @@ export interface BristolScorePoint {
 }
 
 /**
- * Every classified Bristol reading, chronological, as one numeric 1–7
- * series — the single-line "Bristol over time" chart. Unclassified ("No
- * Bristol") entries are excluded since they have no numeric value to plot
- * (see `unclassifiedStoolStats`). Multiple same-day readings are never
- * merged or averaged into an invented value — each stays its own point,
- * ordered by `loggedAt`.
+ * Every Bristol reading, chronological, as one numeric 1–7 series — the
+ * single-line "Bristol over time" chart. Multiple same-day readings are
+ * never merged or averaged into an invented value — each stays its own
+ * point, ordered by `loggedAt`.
  */
 export function bristolScoreSeries(stoolLogs: RawStoolLog[]): BristolScorePoint[] {
   return flattenedBristolScores(stoolLogs)
@@ -207,16 +181,11 @@ const CHARACTERISTIC_TESTS: [string, (s: RawStoolLog) => boolean][] = [
   ["Sticky", (s) => s.isSticky],
   ["Smelly", (s) => s.isSmelly],
   ["Straining", (s) => s.isStraining],
-  ["Mucus", (s) => s.hasMucus],
-  ["Urgency", (s) => s.hasUrgency],
-  ["Visible food particles", (s) => s.hasVisibleFoodParticles],
-  ["Incomplete evacuation", (s) => s.hasIncompleteEvacuation],
 ];
 
-/** How often each independent characteristic (sticky, smelly, straining,
- * ...) showed up, out of every logged entry — replaces the old
- * items-table-backed "stool quality" stats now that these are plain
- * boolean columns on `stool_logs`, not tap-to-log items. */
+/** How often each stool property (sticky, smelly, straining) showed up, out
+ * of every logged entry — plain boolean columns on `stool_logs`. Symptoms
+ * tied to the movement are counted separately (`stoolSymptomStats`). */
 export function stoolCharacteristicStats(stoolLogs: RawStoolLog[]): StoolCharacteristicCount[] {
   const total = stoolLogs.length;
   if (total === 0) return [];
@@ -225,6 +194,18 @@ export function stoolCharacteristicStats(stoolLogs: RawStoolLog[]): StoolCharact
     return { label, count, sharePct: pct(count, total) };
   })
     .filter((c) => c.count > 0)
+    .sort((a, b) => b.count - a.count);
+}
+
+/** How often each movement-level symptom (urgency, mucus, cramps, …) was
+ * logged, out of every entry. */
+export function stoolSymptomStats(stoolLogs: RawStoolLog[]): StoolCharacteristicCount[] {
+  const total = stoolLogs.length;
+  if (total === 0) return [];
+  const counts = new Map<string, number>();
+  for (const s of stoolLogs) for (const sym of s.symptoms) counts.set(sym, (counts.get(sym) ?? 0) + 1);
+  return Array.from(counts.entries())
+    .map(([label, count]) => ({ label, count, sharePct: pct(count, total) }))
     .sort((a, b) => b.count - a.count);
 }
 
@@ -246,14 +227,18 @@ export function stoolColorDistribution(stoolLogs: RawStoolLog[]): StoolDistribut
     .sort((a, b) => b.count - a.count);
 }
 
-/** Distribution of logged paper cleanliness, entries with none set excluded. */
-export function paperCleanlinessDistribution(stoolLogs: RawStoolLog[]): StoolDistributionEntry[] {
-  const withValue = stoolLogs.filter((s) => s.paperCleanliness != null);
+/** Distribution of logged hygiene grades/methods. One entry can record more
+ * than one, so shares are out of entries-with-any-hygiene and can sum past
+ * 100%. Entries with none set are excluded. */
+export function hygieneDistribution(stoolLogs: RawStoolLog[]): StoolDistributionEntry[] {
+  const withValue = stoolLogs.filter((s) => s.hygiene.length > 0);
   const total = withValue.length;
   if (total === 0) return [];
   const counts = new Map<string, number>();
-  for (const s of withValue) counts.set(s.paperCleanliness as string, (counts.get(s.paperCleanliness as string) ?? 0) + 1);
-  return Array.from(counts.entries()).map(([label, count]) => ({ label, count, sharePct: pct(count, total) }));
+  for (const s of withValue) for (const h of s.hygiene) counts.set(h, (counts.get(h) ?? 0) + 1);
+  return Array.from(counts.entries())
+    .map(([label, count]) => ({ label, count, sharePct: pct(count, total) }))
+    .sort((a, b) => b.count - a.count);
 }
 
 /** Average minutes spent on the toilet, across entries that logged a duration. */
@@ -364,9 +349,9 @@ const TARGET_RANGE_NOTABLE_DIFF_PP = 10;
  * quantified last-30-days-vs-previous-30-days share of entries in the 3–4
  * target range (the actual question this page exists to answer — "how
  * often am I in my desired range, and is that changing"), then adds
- * digestive-symptom-frequency and unclassified-entry drift as supporting
- * bullets. Never a diagnosis — describes what was logged, not what it
- * means medically (no "constipation", "IBS", etc.).
+ * digestive-symptom-frequency drift as a supporting bullet. Never a
+ * diagnosis — describes what was logged, not what it means medically (no
+ * "constipation", "IBS", etc.).
  */
 export function digestionInsight(events: CanonicalEvent[], stoolLogs: RawStoolLog[]): DigestionInsight {
   const rangeChange = bristolTargetRangeChange(stoolLogs);
@@ -398,8 +383,6 @@ export function digestionInsight(events: CanonicalEvent[], stoolLogs: RawStoolLo
   if (!span) return { insufficientData: false, headline, detail, tone, changed };
 
   const windowStart = addDaysToDate(span.end, -(RECENT_WINDOW_DAYS - 1));
-  const recentStoolLogs = stoolLogs.filter((s) => s.date >= windowStart);
-  const recentClassifiedCount = bristolBandDistribution(recentStoolLogs).reduce((s, b) => s + b.count, 0);
 
   const trackedDates = Array.from(trackedCalendarDates(events)).sort();
   const recentTrackedDates = trackedDates.filter((d) => d >= windowStart);
@@ -420,19 +403,6 @@ export function digestionInsight(events: CanonicalEvent[], stoolLogs: RawStoolLo
     } else if (diff <= -SYMPTOM_RATE_DRIFT_PP) {
       changed.push({ label: "Digestive symptoms", detail: "Logged less often than usual over the last 3 weeks.", compact });
     }
-  }
-
-  // Absolute threshold, not a personal-baseline comparison — the wording
-  // must not claim "more than usual" since no historical unclassified rate
-  // is computed here to actually compare against.
-  const unclassifiedRecent = recentStoolLogs.length - recentClassifiedCount;
-  if (recentClassifiedCount + unclassifiedRecent >= 6 && unclassifiedRecent / (recentClassifiedCount + unclassifiedRecent) >= 0.4) {
-    const unclassifiedSharePct = Math.round((unclassifiedRecent / (recentClassifiedCount + unclassifiedRecent)) * 100);
-    changed.push({
-      label: "Unclassified entries",
-      detail: "A large share of recent stool logs weren't classifiable into a Bristol type.",
-      compact: `${unclassifiedSharePct}% unclassified recently`,
-    });
   }
 
   return { insufficientData: false, headline, detail, tone, changed };

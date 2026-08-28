@@ -162,9 +162,8 @@ export function buildDemoDataset(): DemoDataset {
 
   const stoolLogs: RawStoolLog[] = [];
   let stoolCounter = 0;
-  // Weighted toward the 3–4 target range, with occasional wider readings
-  // and unclassified checks — same shape a real, mostly-in-range logger's
-  // history looks like.
+  // Weighted toward the 3–4 target range, with occasional wider readings —
+  // same shape a real, mostly-in-range logger's history looks like.
   const BRISTOL_POOL = [3, 4, 3, 4, 2, 5, 3, 4, 6];
 
   for (let dayOffset = DEMO_WINDOW_DAYS; dayOffset >= 0; dayOffset--) {
@@ -209,25 +208,20 @@ export function buildDemoDataset(): DemoDataset {
 
     if (chance(0.7)) {
       stoolCounter++;
-      const noBristol = chance(0.08);
-      const bristolScores = noBristol ? [] : chance(0.12) ? [pick(BRISTOL_POOL), pick(BRISTOL_POOL)] : [pick(BRISTOL_POOL)];
+      const bristolScores = chance(0.12) ? [pick(BRISTOL_POOL), pick(BRISTOL_POOL)] : [pick(BRISTOL_POOL)];
       stoolLogs.push({
         id: `${DEMO_ID_PREFIX}stool:${stoolCounter}`,
         date,
         loggedAt: new Date(`${date}T09:00:00`).toISOString(),
         bristolScores,
-        noBristol,
-        color: noBristol ? null : "Brown",
-        floatation: !noBristol && chance(0.1) ? (chance(0.5) ? "Floats" : "Partially Floats") : null,
-        isSticky: !noBristol && chance(0.1),
-        isSmelly: !noBristol && chance(0.08),
-        isStraining: !noBristol && chance(0.05),
-        hasMucus: false,
-        hasUrgency: !noBristol && chance(0.05),
-        hasVisibleFoodParticles: false,
-        hasIncompleteEvacuation: !noBristol && chance(0.08),
-        paperCleanliness: noBristol ? null : (chance(0.6) ? "Clean" : "Slightly Dirty"),
-        timeOnToiletMinutes: noBristol ? null : 3 + Math.floor(rand() * 8),
+        color: "Brown",
+        floatation: chance(0.1) ? (chance(0.5) ? "Floats" : "Partially Floats") : null,
+        isSticky: chance(0.1),
+        isSmelly: chance(0.08),
+        isStraining: chance(0.05),
+        hygiene: chance(0.6) ? ["Clean"] : ["Slightly Dirty"],
+        symptoms: chance(0.08) ? ["Urgency"] : chance(0.06) ? ["Incomplete evacuation"] : [],
+        timeOnToiletMinutes: 3 + Math.floor(rand() * 8),
         note: null,
         updatedAt: new Date(`${date}T09:00:00`).toISOString(),
       });
