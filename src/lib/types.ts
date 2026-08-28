@@ -183,11 +183,32 @@ export interface RawDiaryEntry {
   updatedAt: string | null;
 }
 
-export const STOOL_COLORS = ["Brown", "Dark Brown", "Green", "Light Brown", "Yellow"] as const;
+export const STOOL_COLORS = ["Brown", "Dark Brown", "Light Brown", "Green", "Yellow", "Black", "Pale"] as const;
 export type StoolColor = (typeof STOOL_COLORS)[number];
 
-export const PAPER_CLEANLINESS_OPTIONS = ["Clean", "Slightly Dirty", "Dirty", "Very Dirty"] as const;
-export type PaperCleanliness = (typeof PAPER_CLEANLINESS_OPTIONS)[number];
+/** Paper-cleanliness grades plus the non-paper methods — one flat list, so
+ * a single movement can record "Paper – dirty" and "Water and soap"
+ * together. Replaces the old single-value `paperCleanliness`. */
+export const HYGIENE_OPTIONS = ["Clean", "Slightly Dirty", "Dirty", "Very Dirty", "Water", "Water and soap", "Wet wipes"] as const;
+export type HygieneOption = (typeof HYGIENE_OPTIONS)[number];
+
+/** Symptoms that belong to the bowel movement itself (as opposed to the
+ * general symptoms tracked on the Symptoms tab). Free list — a value logged
+ * elsewhere or imported stays intact even if it isn't offered as a chip. */
+export const STOOL_SYMPTOM_OPTIONS = [
+  "Abdominal cramps",
+  "Anal cramping",
+  "Anal pressure",
+  "Bleeding",
+  "Burning sensation",
+  "Excessive flatulence",
+  "Incomplete evacuation",
+  "Mucus",
+  "Tense pelvic floor",
+  "Urgency",
+  "Visible food particles",
+] as const;
+export type StoolSymptom = (typeof STOOL_SYMPTOM_OPTIONS)[number];
 
 export const STOOL_FLOATATION_OPTIONS = ["Floats", "Partially Floats"] as const;
 export type StoolFloatation = (typeof STOOL_FLOATATION_OPTIONS)[number];
@@ -204,11 +225,9 @@ export interface RawStoolLog {
   loggedAt: string;
   /** One or more of 1–7 — a single bowel movement can include more than one
    * consistency (e.g. both a Type 1 and a Type 3 piece), so this is never
-   * collapsed to a single value. Empty exactly when `noBristol` is true. */
+   * collapsed to a single value. Always has at least one score: a day with
+   * no bowel movement is simply no row, not a typeless one. */
   bristolScores: number[];
-  /** A bowel movement happened but the type wasn't observed/classifiable —
-   * still counts as "assessed that day", just excluded from numeric charts. */
-  noBristol: boolean;
   color: StoolColor | null;
   /** Unset (null) means neither observed — a normal sinking stool isn't
    * itself trackable, only the two notable states are. */
@@ -216,11 +235,11 @@ export interface RawStoolLog {
   isSticky: boolean;
   isSmelly: boolean;
   isStraining: boolean;
-  hasMucus: boolean;
-  hasUrgency: boolean;
-  hasVisibleFoodParticles: boolean;
-  hasIncompleteEvacuation: boolean;
-  paperCleanliness: PaperCleanliness | null;
+  /** Paper cleanliness grade(s) and/or method(s) used — empty if not logged. */
+  hygiene: HygieneOption[];
+  /** Symptoms tied to this movement — empty if none logged. General
+   * symptoms (bloating, fatigue, …) live on the Symptoms tab instead. */
+  symptoms: StoolSymptom[];
   timeOnToiletMinutes: number | null;
   note: string | null;
   updatedAt: string | null;

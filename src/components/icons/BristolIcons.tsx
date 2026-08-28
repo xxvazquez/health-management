@@ -67,17 +67,3 @@ export const BRISTOL_ICON: Record<number, ReactNode> = {
 export function BristolIcon({ score }: { score: number }) {
   return BRISTOL_ICON[score] ?? null;
 }
-
-/** "Not observed/classifiable" — a question mark, not a stool shape, since
- * there's nothing to depict; same stroke language as the numbered icons so
- * the "No Bristol" option reads as one more tile, not a different kind of
- * control. */
-export function NoBristolIcon() {
-  return (
-    <IconWrap>
-      <circle cx="14" cy="14" r="9.5" />
-      <path d="M11 11.3c0-1.8 1.4-3.2 3.2-3.2S17.4 9.5 17.4 11.3c0 1.5-1 2.2-2 2.9-.8.6-1.2 1.1-1.2 2.1" />
-      <circle cx="14.2" cy="19.8" r="0.9" fill="currentColor" stroke="none" />
-    </IconWrap>
-  );
-}
