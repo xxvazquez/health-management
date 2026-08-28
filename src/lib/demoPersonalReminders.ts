@@ -1,5 +1,5 @@
 import type { ExpirationItem, TaskItem } from "@/lib/reminders";
-import type { PersonalNote } from "@/lib/supabase/personalReminders";
+import type { PersonalNote, ReminderList } from "@/lib/supabase/personalReminders";
 
 /** Example data for the Personal Reminders page when signed out — same
  * idea as demoNotes.ts, scoped to this one page (no offline/local-only
@@ -27,6 +27,18 @@ export function buildDemoPersonalNotes(): PersonalNote[] {
   ];
 }
 
+export const DEMO_LIST_TODO = "demo-list-todo";
+export const DEMO_LIST_TOBUY = "demo-list-tobuy";
+export const DEMO_LIST_BATHROOM = "demo-list-bathroom";
+
+export function buildDemoReminderLists(): ReminderList[] {
+  return [
+    { id: DEMO_LIST_TODO, name: "To Do", sortOrder: 0 },
+    { id: DEMO_LIST_TOBUY, name: "To Buy", sortOrder: 1 },
+    { id: DEMO_LIST_BATHROOM, name: "Bathroom", sortOrder: 2 },
+  ];
+}
+
 export function buildDemoPersonalTasks(): TaskItem[] {
   return [
     {
@@ -39,6 +51,7 @@ export function buildDemoPersonalTasks(): TaskItem[] {
       lastCompletedBy: null,
       assignedTo: null,
       isArchived: false,
+      listId: DEMO_LIST_TODO,
     },
     {
       id: "demo-task-2",
@@ -50,6 +63,7 @@ export function buildDemoPersonalTasks(): TaskItem[] {
       lastCompletedBy: null,
       assignedTo: null,
       isArchived: false,
+      listId: DEMO_LIST_TODO,
     },
     {
       id: "demo-task-3",
@@ -61,6 +75,43 @@ export function buildDemoPersonalTasks(): TaskItem[] {
       lastCompletedBy: null,
       assignedTo: null,
       isArchived: false,
+      listId: null,
+    },
+    {
+      id: "demo-task-4",
+      title: "Toothpaste",
+      notes: null,
+      dueAt: null,
+      recurrenceDays: null,
+      lastCompletedAt: null,
+      lastCompletedBy: null,
+      assignedTo: null,
+      isArchived: false,
+      listId: DEMO_LIST_TOBUY,
+    },
+    {
+      id: "demo-task-5",
+      title: "Dish soap",
+      notes: null,
+      dueAt: null,
+      recurrenceDays: null,
+      lastCompletedAt: null,
+      lastCompletedBy: null,
+      assignedTo: null,
+      isArchived: false,
+      listId: DEMO_LIST_TOBUY,
+    },
+    {
+      id: "demo-task-6",
+      title: "Descale the showerhead",
+      notes: null,
+      dueAt: iso(2 * DAY),
+      recurrenceDays: 30,
+      lastCompletedAt: iso(-28 * DAY),
+      lastCompletedBy: null,
+      assignedTo: null,
+      isArchived: false,
+      listId: DEMO_LIST_BATHROOM,
     },
   ];
 }

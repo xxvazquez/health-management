@@ -12,6 +12,7 @@ function makeTask(overrides: Partial<TaskItem> = {}): TaskItem {
     lastCompletedBy: null,
     assignedTo: null,
     isArchived: false,
+    listId: null,
     ...overrides,
   };
 }
@@ -72,29 +73,39 @@ describe("nextRecurringDueAt", () => {
   });
 });
 
-describe("expirationBucket / isExpirationDue", () => {
+describe("expirationBucket", () => {
+  // Monday, so the ISO week runs 2026-06-15 … 2026-06-21.
   const today = "2026-06-15";
 
   it("is expired once the date has passed", () => {
-    expect(expirationBucket({ expiresOn: "2026-06-14", remindDaysBefore: 3 }, today)).toBe("expired");
+    expect(expirationBucket({ expiresOn: "2026-06-14" }, today)).toBe("expired");
   });
 
-  it("is 'soon' once within its own remind-before window", () => {
-    expect(expirationBucket({ expiresOn: "2026-06-17", remindDaysBefore: 3 }, today)).toBe("soon");
+  it("buckets against real calendar periods, not fixed day counts", () => {
+    expect(expirationBucket({ expiresOn: "2026-06-15" }, today)).toBe("this_week"); // today
+    expect(expirationBucket({ expiresOn: "2026-06-21" }, today)).toBe("this_week"); // Sunday
+    expect(expirationBucket({ expiresOn: "2026-06-22" }, today)).toBe("next_week"); // next Monday
+    expect(expirationBucket({ expiresOn: "2026-06-28" }, today)).toBe("next_week"); // next Sunday
+    expect(expirationBucket({ expiresOn: "2026-06-29" }, today)).toBe("next_month"); // still June, but past next week
+    expect(expirationBucket({ expiresOn: "2026-07-31" }, today)).toBe("next_month"); // end of July
+    expect(expirationBucket({ expiresOn: "2026-08-01" }, today)).toBe("two_months");
+    expect(expirationBucket({ expiresOn: "2026-08-31" }, today)).toBe("two_months"); // end of August
+    expect(expirationBucket({ expiresOn: "2026-09-01" }, today)).toBe("six_months");
+    expect(expirationBucket({ expiresOn: "2026-12-31" }, today)).toBe("six_months"); // end of December
+    expect(expirationBucket({ expiresOn: "2027-01-01" }, today)).toBe("later");
   });
+});
 
-  it("is 'later' outside the remind-before window", () => {
-    expect(expirationBucket({ expiresOn: "2026-06-30", remindDaysBefore: 3 }, today)).toBe("later");
-  });
+describe("isExpirationDue", () => {
+  const today = "2026-06-15";
 
-  it("a shorter remind-before window means 'soon' starts later, closer to the date", () => {
-    // Same expiry date, but a 1-day window hasn't opened yet at 2 days out.
-    expect(expirationBucket({ expiresOn: "2026-06-17", remindDaysBefore: 1 }, today)).toBe("later");
-  });
-
-  it("isExpirationDue mirrors the bucket: due once expired or soon, not once later", () => {
+  it("is due once today has reached the item's own remind-before window", () => {
     expect(isExpirationDue({ expiresOn: "2026-06-14", remindDaysBefore: 3 }, today)).toBe(true);
     expect(isExpirationDue({ expiresOn: "2026-06-17", remindDaysBefore: 3 }, today)).toBe(true);
     expect(isExpirationDue({ expiresOn: "2026-06-30", remindDaysBefore: 3 }, today)).toBe(false);
+  });
+
+  it("a shorter remind-before window means due starts later, closer to the date", () => {
+    expect(isExpirationDue({ expiresOn: "2026-06-17", remindDaysBefore: 1 }, today)).toBe(false);
   });
 });

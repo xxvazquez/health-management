@@ -1,18 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { todayLocalISODate } from "@/lib/aggregations/common";
 import { createJournalEntry, fetchJournalEntries, updateJournalEntry, type JournalEntry } from "@/lib/supabase/journal";
-
-const PREVIEW_LENGTH = 100;
+import { buildDemoJournalEntries } from "@/lib/demoJournal";
+import { NoteList, NoteRow, NotebookForm } from "@/components/ui/Notebook";
 
 function formatJournalDate(date: string): string {
   return new Date(`${date}T00:00:00`).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
-}
-
-function preview(body: string): string {
-  const flat = body.replace(/\s+/g, " ").trim();
-  return flat.length > PREVIEW_LENGTH ? `${flat.slice(0, PREVIEW_LENGTH)}…` : flat;
 }
 
 function matchesSearch(entry: JournalEntry, query: string): boolean {
@@ -26,104 +21,56 @@ function matchesSearch(entry: JournalEntry, query: string): boolean {
  * of Journal (per its own spec) is somewhere that doesn't force a thought
  * into a structured category. Shared between "new entry" and "edit an
  * existing one": `editing` is null for the former, the entry being opened
- * for the latter.
+ * for the latter. Thin wrapper over the shared NotebookForm — it only adds
+ * the per-entry date, which the notes boards don't have.
  */
 function JournalEntryForm({
   editing,
   defaultDate,
   accent,
+  onSave,
   onSaved,
   onCancel,
 }: {
   editing: JournalEntry | null;
   defaultDate: string;
   accent: string;
+  onSave: (fields: { editing: JournalEntry | null; date: string; title: string; body: string }) => Promise<JournalEntry>;
   onSaved: (entry: JournalEntry) => void;
   onCancel: () => void;
 }) {
   const [date, setDate] = useState(editing?.date ?? defaultDate);
-  const [title, setTitle] = useState(editing?.title ?? "");
-  const [body, setBody] = useState(editing?.body ?? "");
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault();
-    if (!body.trim()) return;
-    setSaving(true);
-    setError(null);
-    try {
-      const saved = editing ? await updateJournalEntry(editing.id, { date, title, body }) : await createJournalEntry({ date, title, body });
-      onSaved(saved);
-    } catch (err) {
-      console.error("journal save failed", err);
-      setError("Couldn't save that — try again in a moment.");
-    } finally {
-      setSaving(false);
-    }
-  }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-      <div className="flex items-center justify-between">
-        <label className="flex items-center gap-2 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
-          Date
-          <input
-            type="date"
-            required
-            value={date}
-            max={todayLocalISODate()}
-            onChange={(e) => setDate(e.target.value)}
-            className="rounded-md border px-2 py-1 text-sm"
-            style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
-          />
-        </label>
-        <button type="button" onClick={onCancel} className="text-xs font-medium underline decoration-dotted" style={{ color: "var(--text-muted)" }}>
-          Cancel
-        </button>
-      </div>
-
-      <input
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        placeholder="Title (optional)"
-        maxLength={150}
-        className="rounded-md border px-3 py-2 text-sm font-medium outline-none"
-        style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
-      />
-
-      <textarea
-        required
-        autoFocus={!editing}
-        value={body}
-        onChange={(e) => setBody(e.target.value)}
-        rows={10}
-        placeholder="Write whatever's on your mind…"
-        className="resize-y rounded-md border px-3 py-2.5 text-sm leading-relaxed outline-none"
-        style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
-      />
-
-      <div className="flex items-center gap-3">
-        <button
-          type="submit"
-          disabled={saving || !body.trim()}
-          className="rounded-md px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
-          style={{ background: accent }}
-        >
-          {saving ? "Saving…" : "Save entry"}
-        </button>
-        {error && (
-          <span className="text-xs" style={{ color: "var(--status-critical)" }}>
-            {error}
-          </span>
-        )}
-      </div>
-    </form>
+    <NotebookForm
+      initialTitle={editing?.title ?? ""}
+      initialBody={editing?.body ?? ""}
+      accent={accent}
+      submitLabel={editing ? "Save changes" : "Save entry"}
+      bodyPlaceholder="Write whatever's on your mind…"
+      bodyRows={12}
+      autoFocusBody={!editing}
+      headerSlot={
+        <input
+          type="date"
+          required
+          value={date}
+          max={todayLocalISODate()}
+          onChange={(e) => setDate(e.target.value)}
+          className="border-0 bg-transparent p-0 text-xs font-medium outline-none"
+          style={{ color: "var(--text-secondary)" }}
+        />
+      }
+      onSubmit={async (title, body) => {
+        onSaved(await onSave({ editing, date, title, body }));
+      }}
+      onCancel={onCancel}
+    />
   );
 }
 
-export function JournalTab({ isDemoData, accent, onSignIn }: { isDemoData: boolean; accent: string; onSignIn: () => void }) {
-  const [entries, setEntries] = useState<JournalEntry[]>([]);
+export function JournalTab({ isDemoData, accent }: { isDemoData: boolean; accent: string }) {
+  const [entries, setEntries] = useState<JournalEntry[]>(() => (isDemoData ? buildDemoJournalEntries() : []));
   const [loading, setLoading] = useState(() => !isDemoData);
   const [loadError, setLoadError] = useState(false);
   const [search, setSearch] = useState("");
@@ -131,15 +78,25 @@ export function JournalTab({ isDemoData, accent, onSignIn }: { isDemoData: boole
   const [composing, setComposing] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
-  // Reset to "loading" whenever isDemoData flips (e.g. signing in while the
-  // demo message was showing) — adjusted directly during render, same
-  // pattern PushNotificationsToggle uses for its own reset-on-user-change,
-  // rather than in the effect below (which would fire an extra post-mount
-  // render just to toggle a boolean).
+  // Reset whenever isDemoData flips (e.g. signing in while example data was
+  // showing) — adjusted directly during render, same pattern
+  // PushNotificationsToggle uses for its own reset-on-user-change, rather
+  // than in the effect below (which would fire an extra post-mount render).
   const [knownIsDemoData, setKnownIsDemoData] = useState(isDemoData);
   if (isDemoData !== knownIsDemoData) {
     setKnownIsDemoData(isDemoData);
     setLoading(!isDemoData);
+    setEntries(isDemoData ? buildDemoJournalEntries() : []);
+  }
+
+  async function handleSave({ editing, date, title, body }: { editing: JournalEntry | null; date: string; title: string; body: string }): Promise<JournalEntry> {
+    if (isDemoData) {
+      const nowIso = new Date().toISOString();
+      return editing
+        ? { ...editing, date, title: title.trim() || null, body: body.trim(), updatedAt: nowIso }
+        : { id: `demo-journal-${Date.now()}`, date, title: title.trim() || null, body: body.trim(), createdAt: nowIso, updatedAt: nowIso };
+    }
+    return editing ? updateJournalEntry(editing.id, { date, title, body }) : createJournalEntry({ date, title, body });
   }
 
   useEffect(() => {
@@ -181,22 +138,6 @@ export function JournalTab({ isDemoData, accent, onSignIn }: { isDemoData: boole
     setEditingId(null);
   }
 
-  if (isDemoData) {
-    return (
-      <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed py-14 text-center" style={{ borderColor: "var(--border-hairline)" }}>
-        <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-          Sign in to keep a journal
-        </p>
-        <p className="max-w-xs text-xs" style={{ color: "var(--text-secondary)" }}>
-          Entries are saved to your account, so there&apos;s nothing to show until you&apos;re signed in.
-        </p>
-        <button type="button" onClick={onSignIn} className="rounded-md px-4 py-2 text-sm font-medium text-white" style={{ background: accent }}>
-          Sign in
-        </button>
-      </div>
-    );
-  }
-
   if (composing || editingEntry) {
     return (
       <JournalEntryForm
@@ -204,6 +145,7 @@ export function JournalTab({ isDemoData, accent, onSignIn }: { isDemoData: boole
         editing={editingEntry}
         defaultDate={todayLocalISODate()}
         accent={accent}
+        onSave={handleSave}
         onSaved={handleSaved}
         onCancel={() => {
           setComposing(false);
@@ -214,7 +156,12 @@ export function JournalTab({ isDemoData, accent, onSignIn }: { isDemoData: boole
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-3">
+      {isDemoData && (
+        <p className="text-xs" style={{ color: accent }}>
+          Example journal entries — nothing here is saved. Sign in to keep your own.
+        </p>
+      )}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <div className="relative">
@@ -264,7 +211,7 @@ export function JournalTab({ isDemoData, accent, onSignIn }: { isDemoData: boole
           Couldn&apos;t load your journal — try again in a moment.
         </p>
       ) : visibleEntries.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed py-12 text-center" style={{ borderColor: "var(--border-hairline)" }}>
+        <div className="flex flex-col items-center justify-center py-12 text-center">
           <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
             {entries.length === 0 ? "No entries yet" : "Nothing matches that search"}
           </p>
@@ -273,29 +220,17 @@ export function JournalTab({ isDemoData, accent, onSignIn }: { isDemoData: boole
           </p>
         </div>
       ) : (
-        <div className="flex flex-col">
+        <NoteList>
           {visibleEntries.map((entry) => (
-            <button
+            <NoteRow
               key={entry.id}
-              type="button"
-              onClick={() => setEditingId(entry.id)}
-              className="flex w-full items-start gap-3 border-t py-3.5 pr-3 pl-2 text-left transition-colors first:border-t-0 hover:bg-[var(--page-plane)]"
-              style={{ borderColor: "var(--gridline)" }}
-            >
-              <span className="shrink-0 pt-0.5 text-xs whitespace-nowrap tabular-nums" style={{ color: "var(--text-muted)" }}>
-                {formatJournalDate(entry.date)}
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-medium" style={{ color: "var(--text-primary)" }}>
-                  {entry.title || "Untitled"}
-                </span>
-                <span className="mt-0.5 block truncate text-xs" style={{ color: "var(--text-secondary)" }}>
-                  {preview(entry.body)}
-                </span>
-              </span>
-            </button>
+              title={entry.title || "Untitled"}
+              meta={formatJournalDate(entry.date)}
+              body={entry.body}
+              onOpen={() => setEditingId(entry.id)}
+            />
           ))}
-        </div>
+        </NoteList>
       )}
     </div>
   );

@@ -37,13 +37,12 @@ const OCCASIONAL_HABITS: [string, string][] = [
   ["Workout", "Body"],
   ["Walk", "Body"],
   ["Physiotherapy", "Body"],
+  ["Stretch", "Body"],
   ["Take a shower", "Daily"],
   ["Read", "Daily"],
-  ["Sugar", "Food"],
+  ["Meditate", "Daily"],
   ["Fasting", "Food"],
-  ["Breakfast timing", "Food"],
-  ["Lunch timing", "Food"],
-  ["Dinner timing", "Food"],
+  ["No alcohol", "Food"],
 ];
 const SYMPTOMS: [string, string][] = [
   ["Bloating", "Digestive Symptom"],
