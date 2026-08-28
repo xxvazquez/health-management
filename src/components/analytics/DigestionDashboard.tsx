@@ -31,10 +31,10 @@ import {
   otherSymptomStats,
   stoolCharacteristicStats,
   stoolColorDistribution,
-  paperCleanlinessDistribution,
+  hygieneDistribution,
   averageTimeOnToiletMinutes,
   symptomFrequencyOverTime,
-  unclassifiedStoolStats,
+  stoolSymptomStats,
 } from "@/lib/aggregations/digestion";
 import { generateBristolPatterns } from "@/lib/aggregations/bristolPatterns";
 import { MULTIPLE_COMPARISONS_NOTE } from "@/lib/aggregations/patterns";
@@ -96,10 +96,10 @@ export function DigestionDashboard() {
   const rangeSpanDays = range ? daysBetween(range.start, range.end) : 0;
   const showMonthlyScoreView = rangeSpanDays > SCORE_CHART_MONTHLY_THRESHOLD_DAYS;
   const bristolBands = useMemo(() => bristolBandDistribution(filteredStoolLogs), [filteredStoolLogs]);
-  const unclassifiedStool = useMemo(() => unclassifiedStoolStats(filteredStoolLogs), [filteredStoolLogs]);
   const stoolCharacteristics = useMemo(() => stoolCharacteristicStats(filteredStoolLogs), [filteredStoolLogs]);
+  const stoolSymptoms = useMemo(() => stoolSymptomStats(filteredStoolLogs), [filteredStoolLogs]);
   const stoolColors = useMemo(() => stoolColorDistribution(filteredStoolLogs), [filteredStoolLogs]);
-  const paperCleanliness = useMemo(() => paperCleanlinessDistribution(filteredStoolLogs), [filteredStoolLogs]);
+  const hygiene = useMemo(() => hygieneDistribution(filteredStoolLogs), [filteredStoolLogs]);
   const avgTimeOnToilet = useMemo(() => averageTimeOnToiletMinutes(filteredStoolLogs), [filteredStoolLogs]);
   const digestiveSymptoms = useMemo(() => digestiveSymptomStats(filtered), [filtered]);
   const otherSymptoms = useMemo(() => otherSymptomStats(filtered), [filtered]);
@@ -145,9 +145,7 @@ export function DigestionDashboard() {
           subtitle={
             showMonthlyScoreView
               ? "Target range: 3–4. Monthly average — too wide a range to show every observation legibly."
-              : `Target range: 3–4. Each point is one recorded observation${
-                  unclassifiedStool.unclassifiedCount > 0 ? " — unclassified ('No Bristol') entries have no numeric value and are excluded" : ""
-                }.`
+              : "Target range: 3–4. Each point is one recorded observation."
           }
         >
           Bristol score over time
@@ -162,12 +160,12 @@ export function DigestionDashboard() {
               showEveryTick
             />
           ) : (
-            <p className="text-sm" style={{ color: "var(--text-muted)" }}>No classified Bristol data in this range.</p>
+            <p className="text-sm" style={{ color: "var(--text-muted)" }}>No Bristol data in this range.</p>
           )
         ) : scoreSeries.length > 0 ? (
           <BristolScoreChart data={scoreSeries} />
         ) : (
-          <p className="text-sm" style={{ color: "var(--text-muted)" }}>No classified Bristol data in this range.</p>
+          <p className="text-sm" style={{ color: "var(--text-muted)" }}>No Bristol data in this range.</p>
         )}
       </Card>
 
@@ -191,13 +189,13 @@ export function DigestionDashboard() {
       </div>
 
       <Card tier="raw">
-        <CardTitle size="sm" subtitle="Classified entries only, grouped into three bands for a quicker read than seven separate types">
+        <CardTitle size="sm" subtitle="Grouped into three bands for a quicker read than seven separate types">
           Stool consistency distribution
         </CardTitle>
         {bristolBands.length > 0 ? (
           <RankedBarChart data={bristolBands.map((b) => ({ label: b.band, value: b.count, color: BAND_COLOR[b.band] }))} />
         ) : (
-          <p className="text-sm" style={{ color: "var(--text-muted)" }}>No classified Bristol data in this range.</p>
+          <p className="text-sm" style={{ color: "var(--text-muted)" }}>No Bristol data in this range.</p>
         )}
       </Card>
 
@@ -300,10 +298,19 @@ export function DigestionDashboard() {
         </Card>
       )}
 
-      {(stoolColors.length > 0 || paperCleanliness.length > 0 || avgTimeOnToilet !== null) && (
+      {stoolSymptoms.length > 0 && (
+        <Card tier="raw">
+          <CardTitle size="sm" subtitle="Symptoms logged with a bowel movement — general symptoms are on the Symptoms tab">
+            Stool symptoms
+          </CardTitle>
+          <RankedBarChart data={stoolSymptoms.map((s) => ({ label: s.label, value: s.count }))} color={TYPE_ACCENT.outcome} />
+        </Card>
+      )}
+
+      {(stoolColors.length > 0 || hygiene.length > 0 || avgTimeOnToilet !== null) && (
         <Card tier="raw">
           <CardTitle size="sm" subtitle="Everything else logged on the Stool tab">
-            Color, paper, and time
+            Color, hygiene, and time
           </CardTitle>
           <div className="flex flex-col gap-3 text-sm">
             {stoolColors.length > 0 && (
@@ -317,10 +324,10 @@ export function DigestionDashboard() {
                 ))}
               </p>
             )}
-            {paperCleanliness.length > 0 && (
+            {hygiene.length > 0 && (
               <p style={{ color: "var(--text-secondary)" }}>
-                Paper:{" "}
-                {paperCleanliness.map((c, i) => (
+                Hygiene:{" "}
+                {hygiene.map((c, i) => (
                   <span key={c.label}>
                     {i > 0 && ", "}
                     <strong style={{ color: "var(--text-primary)" }}>{c.label}</strong> ({c.sharePct}%)
@@ -372,9 +379,9 @@ export function DigestionDashboard() {
 
       <Methodology className="lg:col-span-2">
         This page never diagnoses anything — it only describes what&apos;s in your own tracked data. The Bristol
-        score line plots each classified reading (1–7) chronologically. &quot;Current pattern&quot; and &quot;At a
+        score line plots each reading (1–7) chronologically. &quot;Current pattern&quot; and &quot;At a
         glance&quot; compare the last 30 days&apos; share of readings in the 3–4 target range against the 30 days
-        before that, and need at least 4 classified entries in the most recent window to say anything. Bristol
+        before that, and need at least 4 entries in the most recent window to say anything. Bristol
         banding groups readings into Hard (1–2), Normal (3–4), and Loose (5–7) for a quicker read — a standard
         grouping shown for reference, not a verdict on your own data.
       </Methodology>

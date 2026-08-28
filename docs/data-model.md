@@ -103,10 +103,12 @@ erDiagram
         uuid        id PK
         date        date
         timestamptz logged_at
-        smallint    bristol_scores "array of 1-7"
-        text        color
+        smallint    bristol_scores "array of 1-7, never empty"
+        text        color "Brown / … / Black / Pale"
+        text        hygiene "array: cleanliness grade(s) + method(s)"
+        text        symptoms "array: movement-level symptoms"
+        boolean     flags "is_sticky, is_smelly, is_straining"
         text        note
-        boolean     many_flags "is_sticky, has_mucus, straining, urgency, …"
     }
     WORKOUT_LOGS {
         uuid    id PK
