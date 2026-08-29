@@ -721,10 +721,26 @@ create table public.household_items (
   updated_at timestamptz not null default now()
 );
 
+-- Home -> Codes: discount/promo/loyalty codes both partners can reach.
+-- `expires_on` is optional; when it is set and in the past the client
+-- deletes the row the next time either partner opens the list (see
+-- fetchHouseholdCodes) — no cron, unlike household_items' reminders.
+create table public.household_codes (
+  id uuid primary key default gen_random_uuid(),
+  owner_id uuid not null default auth.uid() references auth.users(id),
+  code text not null check (char_length(trim(code)) > 0),
+  name text not null check (char_length(trim(name)) > 0),
+  comment text,
+  expires_on date,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 create index household_notes_owner_updated_idx on public.household_notes (owner_id, updated_at desc);
 create index household_tasks_owner_due_idx on public.household_tasks (owner_id, due_at);
 create index household_task_completions_task_idx on public.household_task_completions (task_id, completed_at desc);
 create index household_items_owner_expires_idx on public.household_items (owner_id, expires_on);
+create index household_codes_owner_created_idx on public.household_codes (owner_id, created_at desc);
 
 -- Row-level security: every table, same shape — a user can only read or
 -- write rows where user_id matches their own auth.uid().
@@ -761,6 +777,7 @@ alter table public.household_notes enable row level security;
 alter table public.household_tasks enable row level security;
 alter table public.household_task_completions enable row level security;
 alter table public.household_items enable row level security;
+alter table public.household_codes enable row level security;
 
 create policy "categories_all_own" on public.categories for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "food_items_all_own" on public.food_items for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
@@ -861,6 +878,11 @@ create policy "household_items_select_pair" on public.household_items for select
 create policy "household_items_insert_own" on public.household_items for insert with check (auth.uid() = owner_id);
 create policy "household_items_update_pair" on public.household_items for update using (auth.uid() = owner_id or public.is_household_member(owner_id)) with check (auth.uid() = owner_id or public.is_household_member(owner_id));
 create policy "household_items_delete_pair" on public.household_items for delete using (auth.uid() = owner_id or public.is_household_member(owner_id));
+
+create policy "household_codes_select_pair" on public.household_codes for select using (auth.uid() = owner_id or public.is_household_member(owner_id));
+create policy "household_codes_insert_own" on public.household_codes for insert with check (auth.uid() = owner_id);
+create policy "household_codes_update_pair" on public.household_codes for update using (auth.uid() = owner_id or public.is_household_member(owner_id)) with check (auth.uid() = owner_id or public.is_household_member(owner_id));
+create policy "household_codes_delete_pair" on public.household_codes for delete using (auth.uid() = owner_id or public.is_household_member(owner_id));
 
 -- household_task_completions has no owner_id of its own (it's a log of
 -- who/when, not a thing anyone "owns"), so its policies join back to the
