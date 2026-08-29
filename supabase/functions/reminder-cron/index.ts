@@ -395,7 +395,7 @@ Deno.serve(async (req) => {
       if (unread > 0) {
         const partnerId = await getPartnerId(userId);
         const partnerName = partnerId ? await getUserDisplayName(partnerId) : "your partner";
-        const noun = unread === 1 ? "note" : "notes";
+        const noun = unread === 1 ? "message" : "messages";
         const email = await getUserEmail(userId);
         if (email) {
           await sendReminderEmail(

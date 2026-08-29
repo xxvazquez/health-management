@@ -54,7 +54,7 @@ export function PartnerLinkPanel({ onLinked }: { onLinked: () => void }) {
           Connect with your partner
         </h1>
         <p className="mt-1 text-sm" style={{ color: "var(--text-secondary)" }}>
-          Link accounts once, then send each other private notes. Only one of you needs to do this.
+          Link accounts once, then send each other private messages and share reminders. Only one of you needs to do this.
         </p>
       </div>
 

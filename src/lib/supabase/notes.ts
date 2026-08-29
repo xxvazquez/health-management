@@ -9,8 +9,11 @@ export const notesConfigured = supabaseConfigured;
 export const NOTE_CATEGORIES = ["note", "reminder", "appreciation", "question"] as const;
 export type NoteCategory = (typeof NOTE_CATEGORIES)[number];
 
+// User-facing labels for the four message categories. The DB stores the
+// keys ("note", …) unchanged — only the display text moved off "Note" when
+// the feature became "Messages".
 export const NOTE_CATEGORY_LABEL: Record<NoteCategory, string> = {
-  note: "Note",
+  note: "General",
   reminder: "Reminder",
   appreciation: "Appreciation",
   question: "Question",
