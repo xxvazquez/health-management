@@ -1737,9 +1737,9 @@ export default function LogPage() {
                 onClick={() => setPicksOpen((v) => !v)}
                 className="flex items-center justify-between gap-2 text-left"
               >
-                <span className="text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-primary)" }}>
+                <span className="text-xs font-semibold" style={{ color: "var(--text-primary)" }}>
                   {monthName} picks
-                  <span className="ml-1.5 font-normal normal-case" style={{ color: "var(--text-secondary)" }}>
+                  <span className="ml-1.5 font-normal" style={{ color: "var(--text-secondary)" }}>
                     · {seasonalPicks.length} in season
                   </span>
                 </span>
@@ -1795,7 +1795,7 @@ export default function LogPage() {
           {tabConfig && (
             <div className="flex flex-wrap items-center gap-3">
               <label className="flex items-center gap-1.5" style={{ color: "var(--text-secondary)" }}>
-                <span className="text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
+                <span className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
                   Time
                 </span>
                 <input
@@ -1930,7 +1930,7 @@ export default function LogPage() {
 
               {tab === "food" && frequentFoods.length >= 3 && (
                 <div className="flex flex-col gap-1.5">
-                  <p className="text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
+                  <p className="text-xs font-semibold" style={{ color: "var(--text-secondary)" }}>
                     Your usual
                   </p>
                   <div className="no-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
@@ -2034,7 +2034,7 @@ export default function LogPage() {
       )}
       {combinedTimeline.length > 0 && (
         <div className="mt-1 flex flex-col gap-2 border-t pt-3" style={{ borderColor: "var(--border-hairline)" }}>
-          <h2 className="text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-secondary)" }}>
+          <h2 className="text-xs font-semibold" style={{ color: "var(--text-secondary)" }}>
             Timeline — {formatDateLabel(date, today).toLowerCase()}
           </h2>
           <div className="overflow-x-auto pb-2">

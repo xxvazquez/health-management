@@ -351,7 +351,7 @@ export function StoolTab({
       )}
 
       <div className="flex items-center gap-3">
-        <p className="text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
+        <p className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
           Time
         </p>
         <input
@@ -434,7 +434,7 @@ export function StoolTab({
         {detailsOpen && (
           <div className="flex flex-col gap-5 border-t pt-3.5" style={{ borderColor: "var(--border-hairline)" }}>
             <div>
-              <p className="mb-2 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
+              <p className="mb-2 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
                 Color
               </p>
               <div className="flex flex-wrap gap-1.5">
@@ -445,7 +445,7 @@ export function StoolTab({
             </div>
 
             <div>
-              <p className="mb-2 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
+              <p className="mb-2 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
                 Floatation
               </p>
               <div className="flex flex-wrap gap-1.5">
@@ -456,7 +456,7 @@ export function StoolTab({
             </div>
 
             <div>
-              <p className="mb-2 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
+              <p className="mb-2 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
                 Characteristics
               </p>
               <div className="flex flex-wrap gap-1.5">
@@ -474,7 +474,7 @@ export function StoolTab({
             </div>
 
             <div>
-              <p className="mb-2 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
+              <p className="mb-2 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
                 Symptoms
               </p>
               <div className="flex flex-wrap gap-1.5">
@@ -485,7 +485,7 @@ export function StoolTab({
             </div>
 
             <div>
-              <p className="mb-2 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
+              <p className="mb-2 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
                 Hygiene
               </p>
               <div className="flex flex-wrap gap-1.5">
@@ -496,7 +496,7 @@ export function StoolTab({
             </div>
 
             <div>
-              <p className="mb-2 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
+              <p className="mb-2 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
                 Time on toilet
               </p>
               <div className="flex flex-wrap gap-1.5">
@@ -513,7 +513,7 @@ export function StoolTab({
             </div>
 
             <div>
-              <p className="mb-2 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
+              <p className="mb-2 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
                 Notes
               </p>
               <input

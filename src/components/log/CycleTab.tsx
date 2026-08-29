@@ -283,7 +283,7 @@ export function CycleTab({
         </div>
 
         <div>
-          <p className="mb-2 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
+          <p className="mb-2 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
             Period intensity
           </p>
           <div className="flex flex-wrap gap-1.5">
@@ -301,7 +301,7 @@ export function CycleTab({
         </div>
 
         <div>
-          <p className="mb-2 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
+          <p className="mb-2 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
             Collection method
           </p>
           <div className={clsx("flex flex-wrap gap-1.5", !selectedEntry && "opacity-40")}>
@@ -336,7 +336,7 @@ export function CycleTab({
           >
             ‹
           </button>
-          <p className="text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
+          <p className="text-xs font-semibold" style={{ color: "var(--text-secondary)" }}>
             Period calendar
           </p>
           <button
