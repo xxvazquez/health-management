@@ -108,7 +108,7 @@ export function ActivityFeed({
                 {gi < groups.length - 1 && <span className="w-px flex-1" style={{ background: "var(--gridline)" }} />}
               </div>
               <div className={gi < groups.length - 1 ? "min-w-0 flex-1 pb-3" : "min-w-0 flex-1"}>
-                <p className="text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
+                <p className="text-xs font-semibold" style={{ color: "var(--text-secondary)" }}>
                   {formatDateHeader(group.date)}
                 </p>
                 <div className="mt-1 flex flex-col gap-1.5">

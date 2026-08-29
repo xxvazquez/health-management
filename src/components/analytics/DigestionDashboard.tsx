@@ -175,7 +175,7 @@ export function DigestionDashboard() {
       </Card>
 
       <div>
-        <p className="mb-3 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
+        <p className="mb-3 text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
           At a glance — last 30 days
         </p>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -253,7 +253,7 @@ export function DigestionDashboard() {
         </div>
       </Card>
 
-      <p className="text-xs font-semibold tracking-wide uppercase lg:col-span-2" style={{ color: "var(--text-muted)" }}>
+      <p className="text-sm font-semibold lg:col-span-2" style={{ color: "var(--text-primary)" }}>
         Detailed exploration
       </p>
 

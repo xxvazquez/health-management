@@ -97,7 +97,7 @@ export function TodaySnapshot({
       )}
 
       <div className="mt-4 border-t pt-3" style={{ borderColor: "var(--gridline)" }}>
-        <p className="text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
+        <p className="text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-secondary)" }}>
           Yesterday{yesterdayCycle.onPeriod ? " · on your period" : ""}
         </p>
         <p className="mt-1 text-sm" style={{ color: "var(--text-secondary)" }}>

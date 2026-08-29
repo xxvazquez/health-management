@@ -54,7 +54,7 @@ export function PersonalTrendsSection({
 
       {findings.length > 0 && (
         <div className={changed.length > 0 ? "mt-3 border-t pt-3" : ""} style={{ borderColor: "var(--gridline)" }}>
-          <p className="mb-2 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
+          <p className="mb-2 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-secondary)" }}>
             What stands out
           </p>
           <ul className="flex flex-col gap-2">
