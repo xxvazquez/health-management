@@ -39,7 +39,11 @@ const SECTIONS: { title: string; body: string }[] = [
   },
   {
     title: "Shared",
-    body: "The partner-facing counterpart to your Personal page — shared notes, tasks, and product expiry. Once you and your partner are linked (via Messages), everything here is visible to both of you and either can complete it.",
+    body: "The partner-facing counterpart to your Personal page — shared notes, tasks, product expiry, and discount codes. Once you and your partner are linked (via Messages), everything here is visible to both of you and either can complete it.",
+  },
+  {
+    title: "Codes",
+    body: "Store discount and promo codes you both can reach, under Shared. Each has the code itself, a shop or short name, an optional comment, and an optional expiry date. Add one by typing or by voice, tap a code to copy it, and sort or search the list. A code with an expiry date disappears on its own once that date has passed; one without an expiry date stays until you remove it.",
   },
   {
     title: "Manage items",

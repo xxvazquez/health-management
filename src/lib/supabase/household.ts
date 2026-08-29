@@ -1,4 +1,5 @@
 import { supabase, supabaseConfigured } from "./client";
+import { todayLocalISODate } from "@/lib/aggregations/common";
 import { isRecurringTask, nextRecurringDueAt, type ExpirationItem, type TaskItem } from "@/lib/reminders";
 
 /** Same "is cloud set up" flag as personalReminders/notes/journal — Home
@@ -64,6 +65,39 @@ function toItem(row: ItemRow): ExpirationItem {
   return { id: row.id, name: row.name, expiresOn: row.expires_on, remindDaysBefore: row.remind_days_before };
 }
 
+export interface HouseholdCode {
+  id: string;
+  code: string;
+  name: string;
+  comment: string | null;
+  /** ISO date, or null for a code that never expires. */
+  expiresOn: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface CodeRow {
+  id: string;
+  code: string;
+  name: string;
+  comment: string | null;
+  expires_on: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+function toCode(row: CodeRow): HouseholdCode {
+  return {
+    id: row.id,
+    code: row.code,
+    name: row.name,
+    comment: row.comment,
+    expiresOn: row.expires_on,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
 async function currentUserId(): Promise<string | null> {
   if (!supabase) return null;
   const {
@@ -75,6 +109,7 @@ async function currentUserId(): Promise<string | null> {
 const NOTE_COLUMNS = "id, title, body, created_at, updated_at";
 const TASK_COLUMNS = "id, title, notes, due_at, recurrence_days, last_completed_at, last_completed_by, assigned_to, is_archived";
 const ITEM_COLUMNS = "id, name, expires_on, remind_days_before";
+const CODE_COLUMNS = "id, code, name, comment, expires_on, created_at, updated_at";
 
 // --- Notes -------------------------------------------------------------
 
@@ -308,5 +343,79 @@ export async function updateHouseholdItem(id: string, input: NewHouseholdItemInp
 export async function deleteHouseholdItem(id: string): Promise<void> {
   if (!supabase) return;
   const { error } = await supabase.from("household_items").delete().eq("id", id);
+  if (error) throw error;
+}
+
+// --- Codes ----------------------------------------------------------------
+
+/** Newest first. A code whose `expires_on` has passed is dropped here
+ * (fire-and-forget) rather than by a cron: whoever opens the list next
+ * cleans it up for both partners. Codes with no expiry date stay forever. */
+export async function fetchHouseholdCodes(): Promise<HouseholdCode[]> {
+  if (!supabase) return [];
+  const { data, error } = await supabase.from("household_codes").select(CODE_COLUMNS).order("created_at", { ascending: false });
+  if (error) throw error;
+  const codes = (data as CodeRow[]).map(toCode);
+  const today = todayLocalISODate();
+  const expiredIds = codes.filter((c) => c.expiresOn !== null && c.expiresOn < today).map((c) => c.id);
+  if (expiredIds.length > 0) {
+    void supabase
+      .from("household_codes")
+      .delete()
+      .in("id", expiredIds)
+      .then(({ error: delError }) => {
+        if (delError) console.error("expired household code cleanup failed", delError);
+      });
+  }
+  return codes.filter((c) => c.expiresOn === null || c.expiresOn >= today);
+}
+
+export interface NewHouseholdCodeInput {
+  code: string;
+  name: string;
+  comment: string;
+  expiresOn: string | null;
+}
+
+export async function createHouseholdCode(input: NewHouseholdCodeInput): Promise<HouseholdCode> {
+  if (!supabase) throw new Error("Cloud sync isn't set up for this deployment.");
+  const myUserId = await currentUserId();
+  if (!myUserId) throw new Error("Sign in first.");
+  const { data, error } = await supabase
+    .from("household_codes")
+    .insert({
+      owner_id: myUserId,
+      code: input.code.trim(),
+      name: input.name.trim(),
+      comment: input.comment.trim() || null,
+      expires_on: input.expiresOn,
+    })
+    .select(CODE_COLUMNS)
+    .single();
+  if (error) throw error;
+  return toCode(data as CodeRow);
+}
+
+export async function updateHouseholdCode(id: string, input: NewHouseholdCodeInput): Promise<HouseholdCode> {
+  if (!supabase) throw new Error("Cloud sync isn't set up for this deployment.");
+  const { data, error } = await supabase
+    .from("household_codes")
+    .update({
+      code: input.code.trim(),
+      name: input.name.trim(),
+      comment: input.comment.trim() || null,
+      expires_on: input.expiresOn,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id)
+    .select(CODE_COLUMNS)
+    .single();
+  if (error) throw error;
+  return toCode(data as CodeRow);
+}
+
+export async function deleteHouseholdCode(id: string): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.from("household_codes").delete().eq("id", id);
   if (error) throw error;
 }

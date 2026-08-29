@@ -15,7 +15,7 @@ It works fully offline, syncs to Supabase once you sign in, and installs as a PW
 | **Personal** | `/personal` | Journal, private notes, reminders, and product-expiry tracking — the "write once, come back to it" stuff. |
 | **Analytics** | `/analytics` | One dashboard per domain (Food, Supplements, Habits, Digestion, Workout, Cycle, Patterns), switched by a tab bar. |
 | **Manage** | `/manage` | Add / rename / archive / delete items and categories, set exercise units, edit reminder lists, hide domains you don't track. |
-| **Shared** | `/home` | The partner-facing versions of notes, tasks, and expiry — once you're linked, either of you can see and complete them. |
+| **Shared** | `/home` | The partner-facing versions of notes, tasks, and expiry, plus a shared list of discount codes — once you're linked, either of you can see and edit them. |
 | **Messages** | `/notes` | Private one-to-one messaging with your linked partner. |
 | **My Drive** | `/my-drive` | Read-only browser for the signed-in Google account's Drive. |
 | **Help** | `/help` | Plain-language reference for what each part does. |
@@ -189,6 +189,11 @@ they only mean anything once they're on the server.
   via an `is_household_member()` SQL helper, so a row is visible to its creator
   *and* their one linked partner with no "share this" step. Both sides reuse the
   exact same `NoteBoard` / `TaskBoard` / `ExpirationBoard` components.
+- **Shared codes** (`household_codes`, pair-visible) — discount/promo codes with a
+  code, name, optional comment and optional `expires_on`. There's no cron: a code
+  whose `expires_on` has passed is deleted client-side by `fetchHouseholdCodes`
+  the next time either partner opens the list; codes with no date stay until
+  removed.
 - **Reminder lists** (`reminder_lists`, owner-only) — `personal_tasks.list_id` is
   a composite FK with `on delete set null`, so deleting a list drops its tasks
   back to the default bucket rather than removing them. Lists are managed on the
@@ -198,7 +203,7 @@ they only mean anything once they're on the server.
   occurrence, advanced on each completion). Every completion also writes a
   `*_task_completions` row; "Undo" drops the latest one. `reminder_sent_at` is
   the sole idempotency guard for notifications, cleared when `due_at` advances.
-- **Voice input on Expiration** is the browser's own Web Speech API, feature-detected — no server, no dependency.
+- **Voice input on Expiration and Codes** is the browser's own Web Speech API, feature-detected — no server, no dependency.
 
 ### PWA shell
 

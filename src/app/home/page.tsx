@@ -4,41 +4,56 @@ import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/lib/supabase/AuthContext";
 import {
   completeHouseholdTask,
+  createHouseholdCode,
   createHouseholdItem,
   createHouseholdNote,
   createHouseholdTask,
+  deleteHouseholdCode,
   deleteHouseholdItem,
   deleteHouseholdNote,
   deleteHouseholdTask,
+  fetchHouseholdCodes,
   fetchHouseholdItems,
   fetchHouseholdNotes,
   fetchHouseholdTasks,
   setHouseholdTaskArchived,
   uncompleteHouseholdTask,
+  updateHouseholdCode,
   updateHouseholdItem,
   updateHouseholdNote,
   updateHouseholdTask,
+  type HouseholdCode,
   type HouseholdNote,
+  type NewHouseholdCodeInput,
 } from "@/lib/supabase/household";
-import { buildDemoHouseholdItems, buildDemoHouseholdNotes, buildDemoHouseholdTasks, DEMO_HOME_ME_ID, DEMO_HOME_PARTNER_ID } from "@/lib/demoHousehold";
+import {
+  buildDemoHouseholdCodes,
+  buildDemoHouseholdItems,
+  buildDemoHouseholdNotes,
+  buildDemoHouseholdTasks,
+  DEMO_HOME_ME_ID,
+  DEMO_HOME_PARTNER_ID,
+} from "@/lib/demoHousehold";
 import { getPartnerLink } from "@/lib/supabase/partner";
 import { isRecurringTask, nextRecurringDueAt, type ExpirationItem, type TaskItem } from "@/lib/reminders";
 import { NoteBoard } from "@/components/reminders/NoteBoard";
 import { TaskBoard, type TaskFormValues } from "@/components/reminders/TaskBoard";
 import { ExpirationBoard } from "@/components/home/ExpirationBoard";
+import { CodeBoard } from "@/components/home/CodeBoard";
 
 const ACCENT = "var(--series-indigo)";
 
 /** In-memory, per-session cache of the signed-in account's shared boards,
  * so leaving `/home` and coming back doesn't blank to "Loading…" while the
  * refetch runs. Keyed by user id; cleared on sign-out. */
-let homeCache: { userId: string; notes: HouseholdNote[]; tasks: TaskItem[]; items: ExpirationItem[] } | null = null;
+let homeCache: { userId: string; notes: HouseholdNote[]; tasks: TaskItem[]; items: ExpirationItem[]; codes: HouseholdCode[] } | null = null;
 
-type Tab = "notes" | "tasks" | "expiration";
+type Tab = "notes" | "tasks" | "expiration" | "codes";
 const TABS: { id: Tab; label: string }[] = [
   { id: "notes", label: "Notes" },
   { id: "tasks", label: "Tasks" },
   { id: "expiration", label: "Expiration" },
+  { id: "codes", label: "Codes" },
 ];
 
 /** Reminders -> Home: the same notes/tasks concept as Personal, but shared
@@ -73,6 +88,10 @@ export default function HomePage() {
   const [items, setItems] = useState<ExpirationItem[]>(() => seed?.items ?? buildDemoHouseholdItems());
   const [itemsLoading, setItemsLoading] = useState(seed === null);
   const [itemsError, setItemsError] = useState(false);
+
+  const [codes, setCodes] = useState<HouseholdCode[]>(() => seed?.codes ?? buildDemoHouseholdCodes());
+  const [codesLoading, setCodesLoading] = useState(seed === null);
+  const [codesError, setCodesError] = useState(false);
 
   // Null until resolved: for a real account from getPartnerLink, or the
   // fixed demo partner id in demo mode (same reasoning as lastCompletedBy's
@@ -131,15 +150,27 @@ export default function HomePage() {
     }
   }, []);
 
+  const loadCodes = useCallback(async () => {
+    setCodesError(false);
+    try {
+      setCodes(await fetchHouseholdCodes());
+    } catch (err) {
+      console.error("fetchHouseholdCodes failed", err);
+      setCodesError(true);
+    } finally {
+      setCodesLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (isDemo || !accountId) {
       homeCache = null;
       return;
     }
-    if (!notesLoading && !tasksLoading && !itemsLoading) {
-      homeCache = { userId: accountId, notes, tasks, items };
+    if (!notesLoading && !tasksLoading && !itemsLoading && !codesLoading) {
+      homeCache = { userId: accountId, notes, tasks, items, codes };
     }
-  }, [accountId, isDemo, notes, tasks, items, notesLoading, tasksLoading, itemsLoading]);
+  }, [accountId, isDemo, notes, tasks, items, codes, notesLoading, tasksLoading, itemsLoading, codesLoading]);
 
   useEffect(() => {
     // Wait for auth to resolve first — see reminders/page.tsx's identical
@@ -151,8 +182,9 @@ export default function HomePage() {
     void loadNotes();
     void loadTasks();
     void loadItems();
+    void loadCodes();
     // `accountId` so an account switch refetches.
-  }, [authLoading, isDemo, accountId, loadNotes, loadTasks, loadItems]);
+  }, [authLoading, isDemo, accountId, loadNotes, loadTasks, loadItems, loadCodes]);
 
   // Never the partner's email in UI copy — same privacy stance Notes takes
   // (see notes/page.tsx's PARTNER_LABEL) — just "you" vs "your partner"
@@ -294,6 +326,47 @@ export default function HomePage() {
     if (!isDemo) await deleteHouseholdItem(id);
   }
 
+  async function handleCreateCode(input: NewHouseholdCodeInput) {
+    if (isDemo) {
+      const now = new Date().toISOString();
+      setCodes((prev) => [
+        {
+          id: `demo-${Date.now()}`,
+          code: input.code.trim(),
+          name: input.name.trim(),
+          comment: input.comment.trim() || null,
+          expiresOn: input.expiresOn,
+          createdAt: now,
+          updatedAt: now,
+        },
+        ...prev,
+      ]);
+      return;
+    }
+    const created = await createHouseholdCode(input);
+    setCodes((prev) => [created, ...prev]);
+  }
+
+  async function handleEditCode(id: string, input: NewHouseholdCodeInput) {
+    if (isDemo) {
+      setCodes((prev) =>
+        prev.map((c) =>
+          c.id === id
+            ? { ...c, code: input.code.trim(), name: input.name.trim(), comment: input.comment.trim() || null, expiresOn: input.expiresOn, updatedAt: new Date().toISOString() }
+            : c,
+        ),
+      );
+      return;
+    }
+    const updated = await updateHouseholdCode(id, input);
+    setCodes((prev) => prev.map((c) => (c.id === id ? updated : c)));
+  }
+
+  async function handleDeleteCode(id: string) {
+    setCodes((prev) => prev.filter((c) => c.id !== id));
+    if (!isDemo) await deleteHouseholdCode(id);
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <div>
@@ -301,8 +374,8 @@ export default function HomePage() {
           Shared
         </h1>
         <p className="mt-1 text-sm" style={{ color: "var(--text-secondary)" }}>
-          Notes, tasks, and product expiry you share with your linked partner. Your private versions of these live
-          on the Log page.
+          Notes, tasks, product expiry, and discount codes you share with your linked partner. Your private versions
+          of notes, reminders and expiry live on the Personal page.
         </p>
         {isDemo && (
           <p className="mt-2 text-xs" style={{ color: ACCENT }}>
@@ -371,6 +444,18 @@ export default function HomePage() {
           onCreate={handleCreateItem}
           onEdit={handleEditItem}
           onDelete={handleDeleteItem}
+        />
+      )}
+
+      {tab === "codes" && (
+        <CodeBoard
+          codes={codes}
+          loading={!isDemo && codesLoading}
+          error={codesError}
+          accent={ACCENT}
+          onCreate={handleCreateCode}
+          onEdit={handleEditCode}
+          onDelete={handleDeleteCode}
         />
       )}
     </div>
