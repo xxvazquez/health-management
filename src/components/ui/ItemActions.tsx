@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, type ReactNode } from "react";
 import type { ManageableItem } from "@/lib/useItemActions";
+import { PencilIcon, TrashIcon } from "@/components/ui/Notebook";
 
 /** Shared rename state backing the two pieces below — lets a row put the
  * name on one side and the Edit/Archive (or Save/Cancel, while renaming)
@@ -58,10 +59,42 @@ export function ItemNameField({ item, state }: { item: ManageableItem; state: In
   );
 }
 
-/** Edit/Archive buttons (Save/Cancel while renaming) — placeable anywhere
- * relative to `ItemNameField`, so a row can keep them pinned next to
- * whatever fixed-width control sits beside it (a category select, stats)
- * instead of drifting with the item name's length. */
+/** Small trailing icon button — same shape as the note / reminder row
+ * actions elsewhere in the app. */
+function RowIcon({
+  onClick,
+  label,
+  disabled,
+  danger,
+  children,
+}: {
+  onClick: () => void;
+  label: string;
+  disabled?: boolean;
+  danger?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={label}
+      title={label}
+      className={`rounded-md p-1.5 transition-colors hover:bg-[var(--page-plane)] disabled:opacity-40 ${danger ? "notebook-danger" : ""}`}
+      style={{ color: "var(--text-muted)" }}
+    >
+      {children}
+    </button>
+  );
+}
+
+/** Rename (pencil) + Archive + Delete (trash, with an inline Delete/Keep
+ * confirm) for one item row — Save/Cancel while renaming. Delete is only
+ * offered for an item with no logged history; Archive stays a plain text
+ * button since it's the real "remove from Log" action for everything else.
+ * Placeable anywhere relative to `ItemNameField` so a row can pin it next
+ * to a fixed-width control instead of drifting with the name's length. */
 export function ItemActionButtons({
   item,
   busy,
@@ -73,12 +106,10 @@ export function ItemActionButtons({
   busy: boolean;
   state: InlineRenameState;
   onArchiveToggle: () => void;
-  /** Only ever passed when the item has no logged history — see
-   * `ManageableItem.hasHistory`. Omitted entirely (rather than passed
-   * disabled) for an item that can't be deleted, so there's no dead button
-   * inviting a click that would just fail. */
   onDelete?: () => void;
 }) {
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+
   if (state.editing) {
     return (
       <span className="flex items-center gap-1.5">
@@ -92,36 +123,45 @@ export function ItemActionButtons({
     );
   }
 
+  if (confirmingDelete && onDelete) {
+    return (
+      <span className="flex items-center gap-1.5">
+        <button
+          type="button"
+          onClick={() => {
+            setConfirmingDelete(false);
+            onDelete();
+          }}
+          className="text-xs font-semibold"
+          style={{ color: "var(--status-critical)" }}
+        >
+          Delete
+        </button>
+        <button type="button" onClick={() => setConfirmingDelete(false)} className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+          Keep
+        </button>
+      </span>
+    );
+  }
+
   return (
-    <span className="flex items-center gap-2">
-      <button
-        type="button"
-        onClick={state.start}
-        disabled={busy}
-        className="text-xs font-medium underline decoration-dotted disabled:opacity-40"
-        style={{ color: "var(--text-muted)" }}
-      >
-        Edit
-      </button>
+    <span className="flex items-center gap-0.5">
+      <RowIcon onClick={state.start} disabled={busy} label="Rename">
+        <PencilIcon size={15} />
+      </RowIcon>
       <button
         type="button"
         onClick={onArchiveToggle}
         disabled={busy}
-        className="text-xs font-medium underline decoration-dotted disabled:opacity-40"
+        className="rounded-md px-1.5 py-1 text-xs font-medium transition-colors hover:bg-[var(--page-plane)] disabled:opacity-40"
         style={{ color: "var(--text-muted)" }}
       >
         {item.isArchived ? "Unarchive" : "Archive"}
       </button>
       {onDelete && (
-        <button
-          type="button"
-          onClick={onDelete}
-          disabled={busy}
-          className="text-xs font-medium underline decoration-dotted disabled:opacity-40"
-          style={{ color: "var(--status-critical)" }}
-        >
-          Delete
-        </button>
+        <RowIcon onClick={() => setConfirmingDelete(true)} disabled={busy} label="Delete" danger>
+          <TrashIcon size={15} />
+        </RowIcon>
       )}
     </span>
   );

@@ -1109,7 +1109,7 @@ export default function ManagePage() {
   const [itemsWithHistory, setItemsWithHistory] = useState<Set<string>>(new Set());
   const [openSections, setOpenSections] = useState<Set<ItemType>>(new Set());
   const [searchQuery, setSearchQuery] = useState("");
-  const [removeCategoryError, setRemoveCategoryError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   // Set when Add matches an existing item's name (active or archived) —
   // surfaced as a dialog instead of silently either creating a duplicate
   // or (for an archived match) failing to sync against the DB's
@@ -1276,7 +1276,7 @@ export default function ManagePage() {
   }
 
   async function handleRemoveCategory(itemType: ItemType, name: string) {
-    setRemoveCategoryError(null);
+    setActionError(null);
     // Re-read fresh rather than trusting this page's `itemsByType` state,
     // which only reflects whatever was loaded as of the last `refresh()` —
     // stale enough (e.g. right after adding an item under this category)
@@ -1290,7 +1290,7 @@ export default function ManagePage() {
     const freshItems = isDemoData ? demoItems : await withDataLock(() => getAllItems());
     const inUse = freshItems.some((i) => i.itemType === itemType && i.category === name);
     if (inUse) {
-      setRemoveCategoryError(`"${name}" is still used by at least one ${itemType} item — recategorize those first.`);
+      setActionError(`"${name}" is still used by at least one ${itemType} item — recategorize those first.`);
       return;
     }
     // A never-used built-in default has no row yet to delete — materialize
@@ -1303,17 +1303,17 @@ export default function ManagePage() {
   }
 
   /** Permanently removes an item — only ever reachable when it has no
-   * logged history (see ItemRow's `hasHistory === false` gate), so nothing
-   * is lost; still confirmed since it can't be undone. `deleteItemAndSync`
-   * re-verifies that freshly right before deleting and throws if it's since
-   * become stale (something logged this item since this page last loaded)
-   * — surfaced here rather than silently swallowed. */
+   * logged history (see ItemRow's `hasHistory === false` gate) and after
+   * the row's own Delete/Keep confirm. `deleteItemAndSync` re-verifies that
+   * freshly right before deleting and throws if it's since become stale
+   * (something logged this item since this page last loaded) — surfaced in
+   * the page's error line rather than silently swallowed. */
   async function handleDelete(item: ManageableItem) {
-    if (!window.confirm(`Delete "${item.item}"? It's never been logged, so nothing will be lost, but this can't be undone.`)) return;
+    setActionError(null);
     try {
       await realDeleteItem(item);
     } catch (err) {
-      window.alert(err instanceof Error ? err.message : "Couldn't delete this item — please try again.");
+      setActionError(err instanceof Error ? err.message : "Couldn't delete this item — please try again.");
       await refresh();
     }
   }
@@ -1323,7 +1323,6 @@ export default function ManagePage() {
   // declarations up top for why this never touches real storage. ---
 
   function demoDeleteItem(item: ManageableItem) {
-    if (!window.confirm(`Delete "${item.item}"? It's never been logged, so nothing will be lost, but this can't be undone.`)) return;
     setDemoBusyIdentity(item.itemIdentity);
     setDemoItems((prev) => prev.filter((it) => it.identity !== item.itemIdentity));
     setDemoBusyIdentity(null);
@@ -1425,9 +1424,9 @@ export default function ManagePage() {
   }
 
   function demoRemoveCategory(itemType: ItemType, name: string): Promise<void> {
-    setRemoveCategoryError(null);
+    setActionError(null);
     if (itemsByType[itemType].some((i) => i.itemIdentity !== "" && i.category === name)) {
-      setRemoveCategoryError(`"${name}" is still used by at least one ${itemType} item — recategorize those first.`);
+      setActionError(`"${name}" is still used by at least one ${itemType} item — recategorize those first.`);
       return Promise.resolve();
     }
     // Same materialize-then-remove as the real handler — a never-used
@@ -1467,9 +1466,9 @@ export default function ManagePage() {
             saved anywhere; sign in to manage your real items instead.
           </p>
         )}
-        {removeCategoryError && (
+        {actionError && (
           <p className="mt-2 text-sm" style={{ color: "var(--status-warning)" }}>
-            {removeCategoryError}
+            {actionError}
           </p>
         )}
       </div>

@@ -105,6 +105,7 @@ export function SyncStatusBanner() {
   const [expanded, setExpanded] = useState(false);
   const [retryingId, setRetryingId] = useState<string | null>(null);
   const [discardingId, setDiscardingId] = useState<string | null>(null);
+  const [confirmingDiscardId, setConfirmingDiscardId] = useState<string | null>(null);
 
   if (syncState.deadLetter === 0 && syncState.pending === 0) return null;
 
@@ -117,8 +118,8 @@ export function SyncStatusBanner() {
     }
   }
 
-  async function handleDiscard(id: string, label: string) {
-    if (!window.confirm(`Stop trying to back up "${label}" to the cloud? It stays exactly as-is on this device — this only gives up on the cloud copy.`)) return;
+  async function handleDiscard(id: string) {
+    setConfirmingDiscardId(null);
     setDiscardingId(id);
     try {
       await discardSync(id);
@@ -157,27 +158,44 @@ export function SyncStatusBanner() {
                     </span>{" "}
                     ({friendlyTable(entry.table)}) didn&apos;t sync because {reason}. {action}
                   </span>
-                  <span className="flex shrink-0 gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => void handleRetry(entry.id)}
-                      disabled={retryingId === entry.id || discardingId === entry.id}
-                      className="rounded-md border px-2 py-1 text-xs font-medium disabled:opacity-50"
-                      style={{ borderColor: "var(--border-hairline)", color: "var(--text-secondary)" }}
-                    >
-                      {retryingId === entry.id ? "Retrying…" : "Retry"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void handleDiscard(entry.id, label)}
-                      disabled={retryingId === entry.id || discardingId === entry.id}
-                      title="Give up on syncing this one — the local copy on this device is untouched"
-                      className="rounded-md border px-2 py-1 text-xs font-medium disabled:opacity-50"
-                      style={{ borderColor: "var(--border-hairline)", color: "var(--text-muted)" }}
-                    >
-                      {discardingId === entry.id ? "Discarding…" : "Discard"}
-                    </button>
-                  </span>
+                  {confirmingDiscardId === entry.id ? (
+                    <span className="flex shrink-0 items-center gap-1.5">
+                      <span style={{ color: "var(--text-muted)" }}>Give up on the cloud copy?</span>
+                      <button
+                        type="button"
+                        onClick={() => void handleDiscard(entry.id)}
+                        className="rounded-md px-2 py-1 text-xs font-semibold"
+                        style={{ color: "var(--status-critical)" }}
+                      >
+                        Discard
+                      </button>
+                      <button type="button" onClick={() => setConfirmingDiscardId(null)} className="rounded-md px-2 py-1 text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+                        Keep
+                      </button>
+                    </span>
+                  ) : (
+                    <span className="flex shrink-0 gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => void handleRetry(entry.id)}
+                        disabled={retryingId === entry.id || discardingId === entry.id}
+                        className="rounded-md border px-2 py-1 text-xs font-medium disabled:opacity-50"
+                        style={{ borderColor: "var(--border-hairline)", color: "var(--text-secondary)" }}
+                      >
+                        {retryingId === entry.id ? "Retrying…" : "Retry"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmingDiscardId(entry.id)}
+                        disabled={retryingId === entry.id || discardingId === entry.id}
+                        title="Give up on syncing this one — the local copy on this device is untouched"
+                        className="rounded-md border px-2 py-1 text-xs font-medium disabled:opacity-50"
+                        style={{ borderColor: "var(--border-hairline)", color: "var(--text-muted)" }}
+                      >
+                        {discardingId === entry.id ? "Discarding…" : "Discard"}
+                      </button>
+                    </span>
+                  )}
                 </li>
               );
             })}
