@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { useDoctors } from "@/lib/useDoctors";
-import { DEFAULT_DOCTOR_SPECIALTIES, mergeSpecialtyNames } from "@/lib/doctors";
+import { resolveSpecialtyNames } from "@/lib/doctors";
 import { AppointmentForm } from "./AppointmentForm";
 import { AppointmentList } from "./AppointmentList";
 
@@ -12,9 +12,8 @@ export function AppointmentsTab({ api, accent }: { api: DoctorsApi; accent: stri
   const [composing, setComposing] = useState(false);
   const { doctors, appointments, specialties } = api;
 
-  const specialtyOptions = mergeSpecialtyNames(
-    specialties.data.map((s) => s.name),
-    [...DEFAULT_DOCTOR_SPECIALTIES],
+  const specialtyOptions = resolveSpecialtyNames(
+    specialties.data,
     appointments.data.map((a) => a.specialty),
     doctors.data.map((d) => d.specialty),
   );

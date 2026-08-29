@@ -36,7 +36,7 @@ export function SearchField({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-40 rounded-md border py-1.5 pr-2.5 pl-7 text-xs outline-none sm:w-56"
+        className="w-40 rounded-md border py-1.5 pr-2.5 pl-7 text-sm outline-none sm:w-56"
         style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
       />
     </div>

@@ -15,7 +15,7 @@ It works fully offline, syncs to Supabase once you sign in, and installs as a PW
 | **Personal** | `/personal` | Journal, private notes, reminders, and product-expiry tracking — the "write once, come back to it" stuff. |
 | **Doctors** | `/doctors` | A history log of doctor appointments already attended: reusable doctors and specialties, per-doctor rating/language, follow-up notes and tasks, and one next-appointment date per specialty. |
 | **Analytics** | `/analytics` | One dashboard per domain (Food, Supplements, Habits, Digestion, Workout, Cycle, Patterns), switched by a tab bar. |
-| **Manage** | `/manage` | Add / rename / archive / delete items and categories, set exercise units, edit reminder lists, hide domains you don't track. |
+| **Manage** | `/manage` | Add / rename / archive / delete items and categories, set exercise units, edit reminder lists and doctor types, hide domains you don't track. Searchable across every section. |
 | **Household** | `/home` | The partner-facing versions of notes, reminders, and expiry, plus a shared list of discount codes — once you're linked, either of you can see and edit them. |
 | **Messages** | `/notes` | Private one-to-one messaging with your linked partner. |
 | **My Drive** | `/my-drive` | Read-only browser for the signed-in Google account's Drive. |
@@ -211,8 +211,12 @@ write-local-first outbox — they only mean anything once they're on the server.
   specialty; each appointment freezes a copy of that specialty when it's logged,
   so correcting a doctor's specialty later never rewrites history. The one
   next-appointment date per specialty lives on `doctor_specialties`, not on any
-  doctor or appointment. Follow-up tasks may set an optional `reminder_at` that
-  the reminder cron sends once (phase 2 below).
+  doctor or appointment. `doctor_specialties` is the picker list (built-in
+  defaults in `src/lib/doctors.ts` until the user edits one, then the rows win);
+  each row can be renamed, archived (`is_archived` — kept out of the picker,
+  reversible, history keeps its frozen string), or deleted, all from Manage.
+  Follow-up tasks may set an optional `reminder_at` that the reminder cron sends
+  once (phase 2 below).
 - **Voice input on Expiration and Codes** is the browser's own Web Speech API, feature-detected — no server, no dependency.
 
 ### PWA shell

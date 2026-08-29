@@ -262,6 +262,7 @@ erDiagram
         text name
         text name_key "generated, unique per user"
         date next_appointment_date "one per specialty, nullable"
+        boolean is_archived "hidden from the picker, reversible"
     }
     DOCTORS {
         uuid id PK
@@ -290,10 +291,14 @@ erDiagram
 ```
 
 `doctor_specialties` is the managed picker list; a built-in default set
-(`src/lib/doctors.ts`) shows until the user has their own rows, same rule as
-item categories. It also holds the single next-appointment date per specialty
-— deliberately not on `doctors` or `doctor_appointments`, so several doctors
-in one specialty still share one "next visit" date. Each appointment copies
+(`src/lib/doctors.ts`) shows until the user edits one, at which point the whole
+set is materialized as rows and the rows win from then on — same rule as item
+categories. Each row can be renamed, archived (`is_archived` — kept out of the
+picker but reversible; a historical appointment keeps its own frozen specialty
+string so nothing is lost) or deleted, all from the Manage page. The table also
+holds the single next-appointment date per specialty — deliberately not on
+`doctors` or `doctor_appointments`, so several doctors in one specialty still
+share one "next visit" date. Each appointment copies
 the doctor's specialty at logging time and never rewrites it, so specialty
 history stays accurate after a doctor's specialty is corrected.
 `doctor_appointments → doctors` is `on delete restrict` (deleting an

@@ -52,3 +52,13 @@ export function mergeSpecialtyNames(...groups: string[][]): string[] {
   }
   return [...seen.values()].sort((a, b) => a.localeCompare(b));
 }
+
+/** The specialty names to offer: the user's own non-archived rows once they
+ * have any (so a hidden or removed built-in stays gone), otherwise the
+ * built-in defaults. `extra` names — e.g. specialties frozen onto old
+ * appointments — are always folded in so nothing in the history is
+ * unreachable. Same "rows win once they exist" rule item categories use. */
+export function resolveSpecialtyNames(rows: { name: string; isArchived: boolean }[], ...extra: string[][]): string[] {
+  const base = rows.length > 0 ? rows.filter((r) => !r.isArchived).map((r) => r.name) : [...DEFAULT_DOCTOR_SPECIALTIES];
+  return mergeSpecialtyNames(base, ...extra);
+}

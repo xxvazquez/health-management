@@ -3,7 +3,7 @@
 import { useState } from "react";
 import type { useDoctors } from "@/lib/useDoctors";
 import type { Doctor } from "@/lib/supabase/doctors";
-import { DEFAULT_DOCTOR_SPECIALTIES, mergeSpecialtyNames } from "@/lib/doctors";
+import { resolveSpecialtyNames } from "@/lib/doctors";
 import { ComboBox, DoctorName, FIELD_CLS, FIELD_STYLE, LanguageChips, NextAppointmentField, PencilIcon, RatingChips } from "./shared";
 import { AppointmentList } from "./AppointmentList";
 
@@ -19,9 +19,8 @@ function DoctorHistory({ api, doctor, accent, onBack }: { api: DoctorsApi; docto
 
   const theirAppointments = appointments.data.filter((a) => a.doctorId === doctor.id);
   const nextAppt = specialties.data.find((s) => s.name.toLowerCase() === doctor.specialty.toLowerCase())?.nextAppointmentDate ?? null;
-  const specialtyOptions = mergeSpecialtyNames(
-    specialties.data.map((s) => s.name),
-    [...DEFAULT_DOCTOR_SPECIALTIES],
+  const specialtyOptions = resolveSpecialtyNames(
+    specialties.data,
     appointments.data.map((a) => a.specialty),
     doctors.data.map((d) => d.specialty),
   );

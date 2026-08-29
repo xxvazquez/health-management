@@ -1602,8 +1602,8 @@ export default function LogPage() {
             >
               ‹
             </button>
-            <label className="relative flex min-w-20 cursor-pointer items-center justify-center rounded px-1.5 py-1.5">
-              <span className="text-xs font-semibold whitespace-nowrap" style={{ color: "var(--text-primary)" }}>
+            <label className="relative flex min-w-24 cursor-pointer items-center justify-center rounded px-1.5 py-1.5">
+              <span className="text-sm font-semibold whitespace-nowrap" style={{ color: "var(--text-primary)" }}>
                 {formatDateLabel(date, today)}
               </span>
               <input
@@ -1638,7 +1638,7 @@ export default function LogPage() {
          * Scrolls sideways rather than wrapping; the search box drops to its
          * own line below on a narrow screen. */}
         <nav
-          className="no-scrollbar flex w-full min-w-0 items-center gap-4 overflow-x-auto border-b sm:flex-1"
+          className="no-scrollbar flex w-full min-w-0 items-center gap-5 overflow-x-auto border-b sm:flex-1"
           style={{ borderColor: tabConfig ? `color-mix(in oklab, ${TYPE_ACCENT[tabConfig.type]} 22%, var(--border-hairline))` : "var(--border-hairline)" }}
         >
           {logTabs.map((t) => {
@@ -1648,7 +1648,7 @@ export default function LogPage() {
                 key={t.id}
                 type="button"
                 onClick={() => selectTab(t.id)}
-                className="flex shrink-0 items-center gap-1 pb-2 text-xs whitespace-nowrap transition-colors"
+                className="flex shrink-0 items-center gap-1.5 pb-2.5 text-sm whitespace-nowrap transition-colors"
                 style={{
                   color: active ? t.accent : "var(--text-secondary)",
                   fontWeight: active ? 700 : 500,
@@ -1684,7 +1684,7 @@ export default function LogPage() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder={`Search ${tabConfig.label.toLowerCase()}…`}
-                className="w-full rounded-md border py-1.5 pr-2.5 pl-7 text-xs outline-none sm:w-48"
+                className="w-full rounded-md border py-1.5 pr-2.5 pl-7 text-sm outline-none sm:w-48"
                 style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
               />
             </div>
