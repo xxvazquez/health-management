@@ -99,7 +99,7 @@ function PageSection({ id, headingLabel, subtitle, children }: {
     <section
       id={id}
       aria-labelledby={`${id}-heading`}
-      className="flex scroll-mt-28 flex-col gap-4 border-t pt-6 first:border-t-0 first:pt-0 lg:scroll-mt-8"
+      className="flex scroll-mt-36 flex-col gap-4 border-t pt-6 first:border-t-0 first:pt-0 lg:scroll-mt-20"
       style={{ borderColor: "var(--gridline)" }}
     >
       <SectionHeading id={`${id}-heading`} subtitle={subtitle}>
@@ -299,11 +299,10 @@ export function FoodDashboard() {
         <Insight label={foodInsight.label} headline={foodInsight.headline} detail={foodInsight.detail} tone={foodInsight.tone} />
       </div>
 
-      <div className="mt-3">
-        <SectionNav items={SECTION_NAV_ITEMS} activeId={activeSection} onSelect={jumpToSection} accent={SECTION_NAV_ACCENT} />
-      </div>
-
-      <div className="flex flex-col gap-2">
+      {/* SectionNav and the sections it jumps to share one parent so its
+          `position: sticky` has room to actually stick while you scroll. */}
+      <div className="mt-3 flex flex-col gap-2">
+      <SectionNav items={SECTION_NAV_ITEMS} activeId={activeSection} onSelect={jumpToSection} accent={SECTION_NAV_ACCENT} />
       <PageSection id="overview" headingLabel="Overview">
         {priorities.insufficientData ? (
           <Card tier="supporting">

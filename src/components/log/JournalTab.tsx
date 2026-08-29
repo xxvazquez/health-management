@@ -7,6 +7,7 @@ import { buildDemoJournalEntries } from "@/lib/demoJournal";
 import { NoteList, NoteRow, NotebookForm } from "@/components/ui/Notebook";
 import { SearchField } from "@/components/ui/SearchField";
 import { ListSkeleton } from "@/components/ui/Skeleton";
+import { InlineEmpty } from "@/components/ui/EmptyState";
 
 function formatJournalDate(date: string): string {
   return new Date(`${date}T00:00:00`).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
@@ -208,14 +209,10 @@ export function JournalTab({ isDemoData, accent }: { isDemoData: boolean; accent
           Couldn&apos;t load your journal — try again in a moment.
         </p>
       ) : visibleEntries.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-12 text-center">
-          <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-            {entries.length === 0 ? "No entries yet" : "Nothing matches that search"}
-          </p>
-          <p className="mt-1 max-w-xs text-xs" style={{ color: "var(--text-secondary)" }}>
-            {entries.length === 0 ? "Tap + New entry to write your first one." : "Try a different search term."}
-          </p>
-        </div>
+        <InlineEmpty
+          title={entries.length === 0 ? "No entries yet" : "Nothing matches that search"}
+          description={entries.length === 0 ? "Tap + New entry to write your first one." : "Try a different search term."}
+        />
       ) : (
         <NoteList>
           {visibleEntries.map((entry) => (

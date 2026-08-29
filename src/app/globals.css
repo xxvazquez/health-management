@@ -201,6 +201,28 @@ button:not(:disabled),
   display: none;
 }
 
+/* Soft fade on whichever edge of a horizontal scroller still has content
+   past it. Driven by --fade-l / --fade-r (0 or 1), set by useOverflowFade —
+   both default to 0 so the mask is a no-op until the hook runs. */
+.fade-x {
+  --fade-l: 0;
+  --fade-r: 0;
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    #000 calc(var(--fade-l) * 24px),
+    #000 calc(100% - var(--fade-r) * 24px),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    #000 calc(var(--fade-l) * 24px),
+    #000 calc(100% - var(--fade-r) * 24px),
+    transparent 100%
+  );
+}
+
 /* Quiet trash button that only warms to the critical tone on hover. */
 .notebook-danger:hover {
   color: var(--status-critical) !important;

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, type ComponentType } from "react";
 import { useVisibleDomains, type TrackedDomain } from "@/lib/visibleDomains";
+import { useOverflowFade } from "@/lib/useOverflowFade";
 import { TYPE_ACCENT } from "@/taxonomy/categories";
 import { TAB_ICON } from "@/components/tabIcons";
 import { FoodDashboard } from "@/components/analytics/FoodDashboard";
@@ -31,6 +32,7 @@ const TABS: { id: string; label: string; domain: TrackedDomain; accent: string; 
 export default function AnalyticsPage() {
   const { isHidden } = useVisibleDomains();
   const visibleTabs = useMemo(() => TABS.filter((t) => !isHidden(t.domain)), [isHidden]);
+  const navRef = useOverflowFade<HTMLElement>();
 
   // Starts at "food" for a match with the statically-rendered HTML, then
   // syncs to the URL hash on mount (and on every back/forward) — reading
@@ -67,7 +69,8 @@ export default function AnalyticsPage() {
   return (
     <div className="flex flex-col gap-6">
       <nav
-        className="no-scrollbar flex items-center gap-5 overflow-x-auto border-b"
+        ref={navRef}
+        className="no-scrollbar fade-x sticky top-16 z-20 -mx-4 flex items-center gap-5 overflow-x-auto border-b bg-[var(--page-backdrop)] px-4 sm:-mx-6 sm:px-6 lg:top-0 lg:-mx-8 lg:px-8"
         style={{ borderColor: `color-mix(in oklab, ${active.accent} 22%, var(--border-hairline))` }}
       >
         {visibleTabs.map((t) => {

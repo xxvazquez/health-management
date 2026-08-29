@@ -1,6 +1,24 @@
 import Link from "next/link";
 import { Logo } from "@/components/Logo";
 
+/** The in-page "nothing here" state — for a section inside a page that
+ * already has its own heading, tabs and add button, where the full-page
+ * EmptyState below would be too heavy. A centred title and one line. */
+export function InlineEmpty({ title, description }: { title: string; description?: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-12 text-center">
+      <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+        {title}
+      </p>
+      {description && (
+        <p className="mt-1 max-w-xs text-xs" style={{ color: "var(--text-secondary)" }}>
+          {description}
+        </p>
+      )}
+    </div>
+  );
+}
+
 export function EmptyState({
   title = "Nothing logged yet",
   description = "Start logging on the Log page and this fills in. Signed in on another device? It syncs down automatically.",

@@ -8,6 +8,7 @@ import { PencilIcon, TrashIcon } from "@/components/ui/Notebook";
 import { ListSection, SectionIcon } from "@/components/ui/ListSection";
 import { SearchField } from "@/components/ui/SearchField";
 import { ListSkeleton } from "@/components/ui/Skeleton";
+import { InlineEmpty } from "@/components/ui/EmptyState";
 
 // Emphasis only where it earns its keep — Expired and this week read as
 // urgent; everything further out is the same quiet muted tone.
@@ -308,23 +309,9 @@ export function ExpirationBoard({
           Couldn&apos;t load products — try again in a moment.
         </p>
       ) : items.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed py-12 text-center" style={{ borderColor: "var(--border-hairline)" }}>
-          <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-            No products tracked yet
-          </p>
-          <p className="mt-1 max-w-xs text-xs" style={{ color: "var(--text-secondary)" }}>
-            Tap + Add product to track its expiration date.
-          </p>
-        </div>
+        <InlineEmpty title="No products tracked yet" description="Tap + Add product to track its expiration date." />
       ) : !anyMatch ? (
-        <div className="flex flex-col items-center justify-center py-12 text-center">
-          <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-            Nothing matches that search
-          </p>
-          <p className="mt-1 max-w-xs text-xs" style={{ color: "var(--text-secondary)" }}>
-            Try a different search term.
-          </p>
-        </div>
+        <InlineEmpty title="Nothing matches that search" description="Try a different search term." />
       ) : (
         <div className="flex flex-col gap-3">
           {EXPIRATION_BUCKET_ORDER.filter((bucket) => (grouped.get(bucket)?.length ?? 0) > 0).map((bucket) => {

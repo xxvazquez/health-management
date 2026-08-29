@@ -40,7 +40,10 @@ import {
 } from "@/lib/aggregations/digestion";
 import { generateBristolPatterns } from "@/lib/aggregations/bristolPatterns";
 import { MULTIPLE_COMPARISONS_NOTE } from "@/lib/aggregations/patterns";
-import { TYPE_ACCENT } from "@/taxonomy/categories";
+
+/** One accent for the whole page — the same deep indigo the Log page's
+ * Stool tab and the Analytics domain switcher use for digestion. */
+const ACCENT = "var(--series-indigo)";
 
 /** "the same day as X" / "the day after X" / "2 days after X" */
 function lagPhrase(lagDays: number): string {
@@ -125,7 +128,7 @@ export function DigestionDashboard() {
 
   return (
     <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-2">
-      <DashboardHeader accent="var(--series-indigo)" className="lg:col-span-2">
+      <DashboardHeader accent={ACCENT} className="lg:col-span-2">
         Digestion
       </DashboardHeader>
 
@@ -137,7 +140,7 @@ export function DigestionDashboard() {
 
       {span && range && (
         <div className="lg:col-span-2">
-          <DateRangeFilter span={span} value={range} onChange={setRange} accent={TYPE_ACCENT.outcome} />
+          <DateRangeFilter span={span} value={range} onChange={setRange} accent={ACCENT} />
         </div>
       )}
 
@@ -180,7 +183,7 @@ export function DigestionDashboard() {
             label="In target range (3–4)"
             value={rangeChange.recentPct !== null ? `${Math.round(rangeChange.recentPct)}%` : "—"}
             detail={deltaDetail(rangeChange.recentPct, rangeChange.priorPct)}
-            accent={TYPE_ACCENT.outcome}
+            accent={ACCENT}
           />
           <StatTile
             label="Digestive symptom rate"
@@ -277,7 +280,7 @@ export function DigestionDashboard() {
       <Card tier="raw">
         <CardTitle size="sm" subtitle="Occurrences in this date range">Digestive symptoms</CardTitle>
         {digestiveSymptoms.length > 0 ? (
-          <RankedBarChart data={digestiveSymptoms.map((s) => ({ label: s.item, value: s.daysCompleted }))} color={TYPE_ACCENT.outcome} />
+          <RankedBarChart data={digestiveSymptoms.map((s) => ({ label: s.item, value: s.daysCompleted }))} color={ACCENT} />
         ) : (
           <p className="text-sm" style={{ color: "var(--text-muted)" }}>No data.</p>
         )}
@@ -285,7 +288,7 @@ export function DigestionDashboard() {
       <Card tier="raw">
         <CardTitle size="sm" subtitle="Non-digestive symptoms also being tracked">Other symptoms</CardTitle>
         {otherSymptoms.length > 0 ? (
-          <RankedBarChart data={otherSymptoms.map((s) => ({ label: s.item, value: s.daysCompleted }))} color={TYPE_ACCENT.outcome} />
+          <RankedBarChart data={otherSymptoms.map((s) => ({ label: s.item, value: s.daysCompleted }))} color={ACCENT} />
         ) : (
           <p className="text-sm" style={{ color: "var(--text-muted)" }}>No data.</p>
         )}
@@ -296,7 +299,7 @@ export function DigestionDashboard() {
           <CardTitle size="sm" subtitle="Share of logged bowel movements with each characteristic, tracked separately from the Bristol type">
             Stool characteristics
           </CardTitle>
-          <RankedBarChart data={stoolCharacteristics.map((c) => ({ label: c.label, value: c.count }))} color={TYPE_ACCENT.outcome} />
+          <RankedBarChart data={stoolCharacteristics.map((c) => ({ label: c.label, value: c.count }))} color={ACCENT} />
         </Card>
       )}
 
@@ -305,7 +308,7 @@ export function DigestionDashboard() {
           <CardTitle size="sm" subtitle="Symptoms logged with a bowel movement — general symptoms are on the Symptoms tab">
             Stool symptoms
           </CardTitle>
-          <RankedBarChart data={stoolSymptoms.map((s) => ({ label: s.label, value: s.count }))} color={TYPE_ACCENT.outcome} />
+          <RankedBarChart data={stoolSymptoms.map((s) => ({ label: s.label, value: s.count }))} color={ACCENT} />
         </Card>
       )}
 

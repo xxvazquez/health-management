@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { NoteList, NoteRow, NotebookForm } from "@/components/ui/Notebook";
 import { SearchField } from "@/components/ui/SearchField";
 import { ListSkeleton } from "@/components/ui/Skeleton";
+import { InlineEmpty } from "@/components/ui/EmptyState";
 
 export interface BoardNote {
   id: string;
@@ -106,14 +107,10 @@ export function NoteBoard({
           Couldn&apos;t load notes — try again in a moment.
         </p>
       ) : visibleNotes.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-12 text-center">
-          <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-            {notes.length === 0 ? emptyTitle : "Nothing matches that search"}
-          </p>
-          <p className="mt-1 max-w-xs text-xs" style={{ color: "var(--text-secondary)" }}>
-            {notes.length === 0 ? emptyDescription : "Try a different search term."}
-          </p>
-        </div>
+        <InlineEmpty
+          title={notes.length === 0 ? emptyTitle : "Nothing matches that search"}
+          description={notes.length === 0 ? emptyDescription : "Try a different search term."}
+        />
       ) : (
         <NoteList>
           {visibleNotes.map((note) => (
