@@ -67,23 +67,22 @@ function StatusPill({ status, label, color }: { status: string; label: string; c
   );
 }
 
-/** Uniform heading for each of the page's 6 top-level sections — same small
- * uppercase-eyebrow treatment this page already used for its old "Evidence"/
- * "Investigate" dividers, now applied consistently everywhere instead of
- * only in two spots. A real `<h2>` (not a styled `<p>`) so SectionNav's
- * targets are proper landmarks, not just visual labels. */
+/** Each section's `<h2>` is a landmark and a SectionNav scroll target, but
+ * not shown — the sticky SectionNav already names every section and
+ * highlights the current one, and each section's top border is the visual
+ * break. A subtitle, where one is given, does render. */
 function SectionHeading({ id, subtitle, children }: { id: string; subtitle?: ReactNode; children: ReactNode }) {
   return (
-    <div>
-      <h2 id={id} className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+    <>
+      <h2 id={id} className="sr-only">
         {children}
       </h2>
       {subtitle && (
-        <p className="mt-0.5 text-xs" style={{ color: "var(--text-muted)" }}>
+        <p className="text-xs" style={{ color: "var(--text-muted)" }}>
           {subtitle}
         </p>
       )}
-    </div>
+    </>
   );
 }
 
