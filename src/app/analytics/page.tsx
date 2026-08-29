@@ -66,7 +66,10 @@ export default function AnalyticsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <nav className="no-scrollbar flex items-center gap-5 overflow-x-auto border-b" style={{ borderColor: "var(--border-hairline)" }}>
+      <nav
+        className="no-scrollbar flex items-center gap-5 overflow-x-auto border-b"
+        style={{ borderColor: `color-mix(in oklab, ${active.accent} 22%, var(--border-hairline))` }}
+      >
         {visibleTabs.map((t) => {
           const isActive = t.id === active.id;
           return (

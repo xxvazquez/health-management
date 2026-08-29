@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useData } from "@/lib/DataContext";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageSkeleton } from "@/components/ui/Skeleton";
+import { DashboardHeader } from "@/components/analytics/DashboardHeader";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { DateRangeFilter } from "@/components/ui/DateRangeFilter";
 import { Methodology } from "@/components/ui/Methodology";
@@ -47,9 +48,7 @@ export function PatternsDashboard() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
-            Patterns
-          </h1>
+          <DashboardHeader accent="var(--series-berry)">Patterns</DashboardHeader>
           <p className="mt-1 text-sm" style={{ color: "var(--text-muted)" }}>
             For when you want to dig deeper — associations and correlations in your own data. Descriptive only,
             never causal.

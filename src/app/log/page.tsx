@@ -556,6 +556,7 @@ export default function LogPage() {
     ];
     return all.filter((t) => !t.domain || !isHidden(t.domain));
   }, [isHidden]);
+  const activeLogTab = logTabs.find((t) => t.id === tab);
 
   // For the Food tab specifically, a chip's checkmark reflects whether it
   // was logged for the *currently selected meal*, not the whole day — so
@@ -1559,9 +1560,12 @@ export default function LogPage() {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
+        <div
+          className="min-w-0 flex-1 border-l-[3px] pl-2.5"
+          style={{ borderColor: activeLogTab ? activeLogTab.accent : "var(--baseline)" }}
+        >
           <h1 className="text-xl font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
-            Log
+            {activeLogTab ? activeLogTab.label : "Log"}
           </h1>
           <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
             {tab === "notes"
@@ -1623,7 +1627,10 @@ export default function LogPage() {
          * navigation), that one just tags optional metadata on a food.
          * Scrolls sideways rather than wrapping; the search box drops to its
          * own line below on a narrow screen. */}
-        <nav className="no-scrollbar flex w-full min-w-0 items-center gap-4 overflow-x-auto border-b sm:flex-1" style={{ borderColor: "var(--border-hairline)" }}>
+        <nav
+          className="no-scrollbar flex w-full min-w-0 items-center gap-4 overflow-x-auto border-b sm:flex-1"
+          style={{ borderColor: tabConfig ? `color-mix(in oklab, ${TYPE_ACCENT[tabConfig.type]} 22%, var(--border-hairline))` : "var(--border-hairline)" }}
+        >
           {logTabs.map((t) => {
             const active = t.id === tab;
             return (

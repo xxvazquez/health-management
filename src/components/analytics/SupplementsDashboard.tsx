@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { useData } from "@/lib/DataContext";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageSkeleton } from "@/components/ui/Skeleton";
+import { DashboardHeader } from "@/components/analytics/DashboardHeader";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { StatTile } from "@/components/ui/StatTile";
 import { DateRangeFilter } from "@/components/ui/DateRangeFilter";
@@ -43,9 +44,9 @@ export function SupplementsDashboard() {
 
   return (
     <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-2">
-      <h1 className="text-xl font-semibold tracking-tight lg:col-span-2" style={{ color: "var(--text-primary)" }}>
+      <DashboardHeader accent="var(--series-2)" className="lg:col-span-2">
         Supplements
-      </h1>
+      </DashboardHeader>
 
       {glance.trackedCount > 0 && (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:col-span-2">
