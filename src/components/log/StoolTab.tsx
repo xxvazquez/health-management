@@ -339,6 +339,14 @@ export function StoolTab({
     (draft.note?.trim() ? 1 : 0) +
     CHARACTERISTIC_FIELDS.filter((f) => draft[f.key]).length;
 
+  // The Time field stays neutral while it reads roughly "now", and only
+  // takes a tinted border once it's set more than a few minutes off — a
+  // quiet "this entry is being timestamped for earlier", matching the Log
+  // page's own Time field.
+  const nowMinutes = new Date().getHours() * 60 + new Date().getMinutes();
+  const [draftHrs, draftMins] = draft.loggedAtTime.split(":").map(Number);
+  const timeIsExplicit = Math.abs((draftHrs || 0) * 60 + (draftMins || 0) - nowMinutes) > 5;
+
   return (
     <div className="flex flex-col gap-3">
       {editingId && (
@@ -359,21 +367,21 @@ export function StoolTab({
           value={draft.loggedAtTime}
           onChange={(e) => setDraft((d) => ({ ...d, loggedAtTime: e.target.value }))}
           onClick={(e) => e.currentTarget.showPicker?.()}
-          className="h-7 rounded-md border px-2.5 text-xs font-medium tabular-nums"
+          className="h-7 rounded-md border px-2.5 text-xs font-medium tabular-nums transition-colors"
           style={{
-            borderColor: "var(--series-2)",
-            background: "color-mix(in oklab, var(--series-2) 14%, var(--surface-1))",
+            borderColor: timeIsExplicit ? "var(--series-2)" : "var(--border-hairline)",
+            background: "var(--surface-1)",
             color: "var(--text-primary)",
           }}
         />
       </div>
 
       {/* Same card treatment as every other tab's category groups
-          (border, rounded-lg, colored uppercase header) — Bristol type is
-          this tab's one "always tappable" grid, so unlike the details
-          below it's never collapsed. */}
+          (border, rounded-lg, colored header) — Bristol type is this tab's
+          one "always tappable" grid, so unlike the details below it's never
+          collapsed. */}
       <div className="flex flex-col gap-2 rounded-lg border p-3" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
-        <p className="border-b pb-2 text-xs font-bold tracking-wide uppercase" style={{ color: accent, borderColor: "var(--border-hairline)" }}>
+        <p className="border-b pb-2 text-xs font-semibold" style={{ color: accent, borderColor: "var(--border-hairline)" }}>
           Bristol type — tap all that apply
         </p>
         <div className="flex flex-wrap items-center gap-2">
@@ -409,11 +417,11 @@ export function StoolTab({
         <button
           type="button"
           onClick={() => setDetailsOpen((v) => !v)}
-          className="flex items-center gap-1.5 text-left text-xs font-bold tracking-wide uppercase"
+          className="flex items-center gap-1.5 text-left text-xs font-semibold"
           style={{ color: "var(--text-primary)" }}
         >
           More details
-          <span className="ml-auto flex items-center gap-1 font-medium normal-case" style={{ color: "var(--text-secondary)" }}>
+          <span className="ml-auto flex items-center gap-1 font-medium" style={{ color: "var(--text-secondary)" }}>
             {detailsChosenCount > 0 && `${detailsChosenCount} set`}
             <svg
               width="12"
