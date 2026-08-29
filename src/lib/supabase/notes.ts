@@ -39,6 +39,8 @@ export interface NoteThread {
    * lists sort by. */
   lastMessageAt: string;
   isUnreadForMe: boolean;
+  /** Shared between both partners — either can star or unstar a thread and
+   * it shows under Favourites for both. (Archive stays per-side.) */
   isFavouritedByMe: boolean;
   isArchivedByMe: boolean;
   /** Did *I* send the root note — i.e. is this "my" note from Sent, or one
@@ -114,7 +116,7 @@ function toThread(row: NoteRow, myUserId: string): NoteThread {
     createdAt: row.created_at,
     lastMessageAt: row.last_message_at,
     isUnreadForMe: !myReadAt || myReadAt < row.last_message_at,
-    isFavouritedByMe: isMine ? row.sender_favourited : row.recipient_favourited,
+    isFavouritedByMe: row.sender_favourited || row.recipient_favourited,
     isArchivedByMe: isMine ? row.sender_archived : row.recipient_archived,
     isMine,
   };
@@ -125,9 +127,8 @@ const THREAD_COLUMNS =
 
 /** The four Notes page lists. Inbox/Sent split by who sent the root note
  * (classic email semantics — a partner's reply doesn't move a thread out
- * of Sent, it just makes it unread there again); Favourites/Archived cut
- * across both since either side of a thread can favourite/archive their
- * own copy of it independently. */
+ * of Sent, it just makes it unread there again); Favourites is a shared
+ * thread flag (either side toggles it for both); Archived stays per-side. */
 export async function fetchNoteThreads(view: NoteView): Promise<NoteThread[]> {
   if (!supabase) return [];
   const myUserId = await currentUserId();
@@ -137,7 +138,8 @@ export async function fetchNoteThreads(view: NoteView): Promise<NoteThread[]> {
   if (view === "inbox") query = query.eq("recipient_id", myUserId).eq("recipient_archived", false);
   else if (view === "sent") query = query.eq("sender_id", myUserId).eq("sender_archived", false);
   else if (view === "favourites")
-    query = query.or(`and(sender_id.eq.${myUserId},sender_favourited.eq.true),and(recipient_id.eq.${myUserId},recipient_favourited.eq.true)`);
+    // Shared flag — RLS already scopes this to threads I'm part of.
+    query = query.or("sender_favourited.eq.true,recipient_favourited.eq.true");
   else query = query.or(`and(sender_id.eq.${myUserId},sender_archived.eq.true),and(recipient_id.eq.${myUserId},recipient_archived.eq.true)`);
 
   const { data, error } = await query.order("last_message_at", { ascending: false });
@@ -260,7 +262,13 @@ async function updateMyThreadState(
   if (!supabase) return;
   const update: Record<string, unknown> = {};
   if (patch.readAt !== undefined) update[isMine ? "sender_read_at" : "recipient_read_at"] = patch.readAt;
-  if (patch.favourited !== undefined) update[isMine ? "sender_favourited" : "recipient_favourited"] = patch.favourited;
+  // Favourite is a shared thread flag — write both sides so it shows under
+  // Favourites for both partners and either can clear it (the RLS update
+  // policy already allows either participant to write the root row).
+  if (patch.favourited !== undefined) {
+    update.sender_favourited = patch.favourited;
+    update.recipient_favourited = patch.favourited;
+  }
   if (patch.archived !== undefined) update[isMine ? "sender_archived" : "recipient_archived"] = patch.archived;
   const { error } = await supabase.from("notes").update(update).eq("id", threadId);
   if (error) throw error;

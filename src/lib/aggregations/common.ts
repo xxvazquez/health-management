@@ -40,9 +40,14 @@ export function listDatesBetween(start: string, end: string): string[] {
  * `addDaysToDate` and friends work in UTC since they only ever shift an
  * already-known date, but "today" itself must reflect the user's own
  * clock, or a log made late at night could land on the wrong calendar
- * day). Shared by every page that needs "today" as a default/max date. */
+ * day). Shared by every page that needs "today" as a default/max date.
+ *
+ * The day rolls over at 03:00, not midnight: someone still up at 00:40 is
+ * having "today", so anything between midnight and 3 AM counts as the
+ * previous calendar date everywhere the app talks about "today". */
 export function todayLocalISODate(): string {
   const d = new Date();
+  if (d.getHours() < 3) d.setDate(d.getDate() - 1);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { combineDateAndTime, dayTimelineEntries, decideChipTapAction, loggedCountsForDate, toTimeInputValue, type LogCandidate } from "./logCandidates";
+import { combineDateAndTime, dayTimelineEntries, decideChipTapAction, defaultLogTimeValue, loggedCountsForDate, toTimeInputValue, type LogCandidate } from "./logCandidates";
 import type { RawItem, RawLog } from "@/lib/types";
 import { createTimeOrderedId } from "@/lib/sortableId";
 
@@ -19,6 +19,18 @@ function makeLog(overrides: Partial<RawLog> = {}): RawLog {
     ...overrides,
   };
 }
+
+describe("defaultLogTimeValue", () => {
+  it("returns the current time from 03:00 onwards", () => {
+    expect(defaultLogTimeValue(new Date(2026, 7, 29, 9, 15))).toBe("09:15");
+    expect(defaultLogTimeValue(new Date(2026, 7, 29, 22, 5))).toBe("22:05");
+  });
+
+  it("returns a fixed 23:30 between midnight and 03:00", () => {
+    expect(defaultLogTimeValue(new Date(2026, 7, 29, 0, 40))).toBe("23:30");
+    expect(defaultLogTimeValue(new Date(2026, 7, 29, 2, 59))).toBe("23:30");
+  });
+});
 
 describe("decideChipTapAction", () => {
   it("creates a catalog-only chip (no real item yet) regardless of countable/loggedCount", () => {

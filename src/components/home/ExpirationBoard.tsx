@@ -126,8 +126,19 @@ function ItemForm({
   );
 }
 
-/** One product line: name + expiry date, with a quiet edit pencil and a
- * two-step delete — same restrained treatment as the notes cards. */
+function BellIcon({ size = 12 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M6 8a4 4 0 0 1 8 0c0 4 1.5 5 1.5 5h-11S6 12 6 8Z" />
+      <path d="M8.5 16a1.6 1.6 0 0 0 3 0" />
+    </svg>
+  );
+}
+
+/** One product line: name + expiry date, with always-visible edit/delete
+ * icons and a two-step delete — same restrained treatment as the notes
+ * cards. Shows a bell + cadence when a reminder is set, so it's clear one
+ * is active. */
 function ExpirationRow({
   item,
   dateColor,
@@ -146,15 +157,22 @@ function ExpirationRow({
         <span className="min-w-0 flex-1 truncate text-[15px] font-medium" style={{ color: "var(--text-primary)" }}>
           {item.name}
         </span>
+        {item.remindDaysBefore > 0 && (
+          <span
+            className="flex shrink-0 items-center gap-1 text-[11px] whitespace-nowrap"
+            style={{ color: "var(--text-muted)" }}
+            title={`Reminder set — ${item.remindDaysBefore} day${item.remindDaysBefore === 1 ? "" : "s"} before`}
+          >
+            <BellIcon />
+            <span className="tabular-nums">{item.remindDaysBefore}d</span>
+            <span className="hidden sm:inline">before</span>
+          </span>
+        )}
         <span className="shrink-0 text-xs whitespace-nowrap tabular-nums" style={{ color: dateColor }}>
           {formatExpiresOn(item.expiresOn)}
         </span>
       </button>
-      <div
-        className={`flex shrink-0 items-center gap-1 transition-opacity ${
-          confirmingDelete ? "opacity-100" : "opacity-45 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100"
-        }`}
-      >
+      <div className={`flex shrink-0 items-center gap-1 ${confirmingDelete ? "opacity-100" : ""}`}>
         {confirmingDelete ? (
           <>
             <button type="button" onClick={onDelete} className="rounded-md px-2 py-1 text-xs font-semibold" style={{ color: "var(--status-critical)" }}>

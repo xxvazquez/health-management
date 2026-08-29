@@ -20,6 +20,9 @@ import { CATEGORIES_BY_TYPE, type ItemType } from "@/taxonomy/categories";
 import { todayLocalISODate } from "@/lib/aggregations/common";
 import { buildDemoDataset } from "@/lib/demoData";
 import { WORKOUT_UNITS, workoutUnitLabel, defaultWorkoutUnitForCategory, type RawItem, type RawCategory, type WorkoutUnit } from "@/lib/types";
+import { createReminderList, deleteReminderList, fetchReminderLists, renameReminderList, type ReminderList } from "@/lib/supabase/personalReminders";
+import { buildDemoReminderLists } from "@/lib/demoPersonalReminders";
+import { PencilIcon, TrashIcon } from "@/components/ui/Notebook";
 
 // Log tab order — Food, Symptoms, Supplements, Habits, Stool, Workout,
 // Cycle — so the toggle list reads left-to-right the same way the tabs
@@ -64,6 +67,168 @@ function VisibleSectionsCard() {
           );
         })}
       </div>
+    </Card>
+  );
+}
+
+/** Reminder lists (the "To Do" / "To Buy" buckets on Log → Reminders) —
+ * created, renamed and deleted here rather than on the Reminders tab
+ * itself, so that tab stays a plain list switcher. Deleting a list drops
+ * its tasks back to the default "Reminders" bucket (DB `on delete set
+ * null`), it never removes them. */
+function ReminderListsCard({ isDemoData }: { isDemoData: boolean }) {
+  const [lists, setLists] = useState<ReminderList[]>(() => (isDemoData ? buildDemoReminderLists() : []));
+  const [loading, setLoading] = useState(!isDemoData);
+  const [newName, setNewName] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState("");
+  const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isDemoData) return;
+    let cancelled = false;
+    fetchReminderLists()
+      .then((rows) => !cancelled && setLists(rows))
+      .catch((err) => console.error("fetchReminderLists failed", err))
+      .finally(() => !cancelled && setLoading(false));
+    return () => {
+      cancelled = true;
+    };
+  }, [isDemoData]);
+
+  async function handleAdd(e: FormEvent) {
+    e.preventDefault();
+    const name = newName.trim();
+    if (!name) return;
+    setNewName("");
+    if (isDemoData) {
+      setLists((prev) => [...prev, { id: `demo-list-${Date.now()}`, name, sortOrder: prev.length }]);
+      return;
+    }
+    try {
+      const created = await createReminderList(name, lists.length);
+      setLists((prev) => [...prev, created]);
+    } catch (err) {
+      console.error("createReminderList failed", err);
+    }
+  }
+
+  async function handleRename(id: string) {
+    const name = editingName.trim();
+    setEditingId(null);
+    if (!name) return;
+    setLists((prev) => prev.map((l) => (l.id === id ? { ...l, name } : l)));
+    if (!isDemoData) await renameReminderList(id, name).catch((err) => console.error("renameReminderList failed", err));
+  }
+
+  async function handleDelete(id: string) {
+    setConfirmingDeleteId(null);
+    setLists((prev) => prev.filter((l) => l.id !== id));
+    if (!isDemoData) await deleteReminderList(id).catch((err) => console.error("deleteReminderList failed", err));
+  }
+
+  return (
+    <Card tier="supporting">
+      <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+        Reminder lists
+      </p>
+      <p className="mt-0.5 mb-3 text-xs" style={{ color: "var(--text-secondary)" }}>
+        The buckets your reminders are organised into on the Log page. Deleting a list moves its reminders back to
+        the default &ldquo;Reminders&rdquo; list — it never deletes them.
+      </p>
+
+      {loading ? (
+        <p className="py-3 text-xs" style={{ color: "var(--text-muted)" }}>
+          Loading…
+        </p>
+      ) : (
+        <ul className="mb-3 flex flex-col divide-y divide-[color:var(--gridline)]">
+          {lists.length === 0 && (
+            <li className="py-2 text-xs" style={{ color: "var(--text-muted)" }}>
+              No custom lists yet — everything sits in the default &ldquo;Reminders&rdquo; list.
+            </li>
+          )}
+          {lists.map((l) => (
+            <li key={l.id} className="flex items-center gap-2 py-2">
+              {editingId === l.id ? (
+                <form
+                  className="flex flex-1 items-center gap-2"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    void handleRename(l.id);
+                  }}
+                >
+                  <input
+                    autoFocus
+                    value={editingName}
+                    onChange={(e) => setEditingName(e.target.value)}
+                    onFocus={(e) => e.target.select()}
+                    onBlur={() => void handleRename(l.id)}
+                    maxLength={40}
+                    className="flex-1 rounded-md border px-2 py-1 text-sm outline-none"
+                    style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
+                  />
+                </form>
+              ) : (
+                <span className="flex-1 truncate text-sm" style={{ color: "var(--text-primary)" }}>
+                  {l.name}
+                </span>
+              )}
+
+              {confirmingDeleteId === l.id ? (
+                <span className="flex shrink-0 items-center gap-1">
+                  <button type="button" onClick={() => void handleDelete(l.id)} className="rounded-md px-2 py-1 text-xs font-semibold" style={{ color: "var(--status-critical)" }}>
+                    Delete
+                  </button>
+                  <button type="button" onClick={() => setConfirmingDeleteId(null)} className="rounded-md px-2 py-1 text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+                    Keep
+                  </button>
+                </span>
+              ) : (
+                <span className="flex shrink-0 items-center gap-0.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingId(l.id);
+                      setEditingName(l.name);
+                    }}
+                    aria-label={`Rename ${l.name}`}
+                    title="Rename"
+                    className="rounded-md p-1.5 transition-colors hover:bg-[var(--page-plane)]"
+                    style={{ color: "var(--text-muted)" }}
+                  >
+                    <PencilIcon size={15} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmingDeleteId(l.id)}
+                    aria-label={`Delete ${l.name}`}
+                    title="Delete"
+                    className="notebook-danger rounded-md p-1.5 transition-colors hover:bg-[var(--page-plane)]"
+                    style={{ color: "var(--text-muted)" }}
+                  >
+                    <TrashIcon size={15} />
+                  </button>
+                </span>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <form onSubmit={handleAdd} className="flex items-center gap-2">
+        <input
+          value={newName}
+          onChange={(e) => setNewName(e.target.value)}
+          placeholder="New list name"
+          maxLength={40}
+          className="flex-1 rounded-md border px-2.5 py-1.5 text-xs outline-none"
+          style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
+        />
+        <button type="submit" disabled={!newName.trim()} className="shrink-0 rounded-md px-3 py-1.5 text-xs font-semibold disabled:opacity-40" style={{ color: "var(--series-1)" }}>
+          Add list
+        </button>
+      </form>
     </Card>
   );
 }
@@ -1020,11 +1185,12 @@ export default function ManagePage() {
           {!isDemoData && <PushNotificationsToggle />}
         </div>
         <p className="mt-1 text-sm" style={{ color: "var(--text-secondary)" }}>
-          Add, rename, archive, or unarchive anything you track, and manage the category list for Food,
-          Supplements, Habits, and Symptoms. Everything here is synced straight to your account — the same tables
-          every page reads from, so there&apos;s nowhere else to edit this by hand. Archiving hides an item from
-          the Log page and this list&apos;s active section; its full logged history stays in every dashboard.
-          Turn on notifications above, then set a time on any supplement or habit below to get reminded.
+          Add, rename, archive, or unarchive anything you track, manage the category list for Food,
+          Supplements, Habits, and Symptoms, and organise your reminder lists. Everything here is synced straight
+          to your account — the same tables every page reads from, so there&apos;s nowhere else to edit this by
+          hand. Archiving hides an item from the Log page and this list&apos;s active section; its full logged
+          history stays in every dashboard. Turn on notifications above, then set a time on any supplement or
+          habit below to get reminded.
         </p>
         <Link href="/manage/nutrition-evidence" className="mt-2 inline-block text-sm underline decoration-dotted" style={{ color: "var(--series-2)" }}>
           Nutrition evidence →
@@ -1043,6 +1209,8 @@ export default function ManagePage() {
       </div>
 
       <VisibleSectionsCard />
+
+      <ReminderListsCard isDemoData={isDemoData} />
 
       <SearchBar value={searchQuery} onChange={setSearchQuery} />
       {TYPE_SECTIONS.map((section) => (

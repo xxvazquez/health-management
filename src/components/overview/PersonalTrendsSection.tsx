@@ -4,7 +4,6 @@ import { Card, CardTitle } from "@/components/ui/Card";
 import { SampleTierBadge } from "@/components/ui/SampleTierBadge";
 import type { PersonalTrends } from "@/lib/aggregations/overview";
 import type { AssociationResult } from "@/lib/aggregations/patterns";
-import type { Bullet } from "@/lib/aggregations/insights";
 
 /** "the same day as X" / "the day after X" / "2 days after X" — never
  * "causes", matching this whole section's non-causal framing. */
@@ -16,22 +15,18 @@ function lagPhrase(lagDays: number): string {
 
 /**
  * Overview's "Personal Trends" — a short, descriptive list of what's
- * changed recently across every domain (`trends`, plus an optional Notes
- * bullet the page computes since Notes lives outside this aggregation's
- * reach) and what stands out cross-domain (`findings`). Deliberately no
- * charts here — a handful of sentences, capped short by the aggregations
- * themselves, never a dashboard.
+ * changed recently across every domain (`trends`) and what stands out
+ * cross-domain (`findings`). Deliberately no charts here — a handful of
+ * sentences, capped short by the aggregations themselves, never a dashboard.
  */
 export function PersonalTrendsSection({
   trends,
   findings,
-  notesTrend,
 }: {
   trends: PersonalTrends;
   findings: AssociationResult[];
-  notesTrend: Bullet | null;
 }) {
-  const changed = notesTrend ? [...trends.changed, notesTrend] : trends.changed;
+  const changed = trends.changed;
   if (changed.length === 0 && findings.length === 0) return null;
 
   return (

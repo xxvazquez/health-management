@@ -1,23 +1,24 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useData } from "@/lib/DataContext";
 import { useAuth } from "@/lib/supabase/AuthContext";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { addDaysToDate, todayLocalISODate, type DateRange } from "@/lib/aggregations/common";
-import { buildActivityFeed, buildActivityDateMap, type ActivityEntry } from "@/lib/aggregations/activity";
+import { buildActivityFeed, type ActivityEntry } from "@/lib/aggregations/activity";
 import { buildPersonalTrends, topCrossDomainFindings } from "@/lib/aggregations/overview";
-import { fetchNoteThreads, notesConfigured, unreadNoteCount, type NoteThread } from "@/lib/supabase/notes";
+import { fetchNoteThreads, notesConfigured, type NoteThread } from "@/lib/supabase/notes";
 import { getPartnerLink } from "@/lib/supabase/partner";
-import { buildDemoThreads, DEMO_PARTNER_LABEL } from "@/lib/demoNotes";
+import { fetchPersonalItems, type PersonalItem } from "@/lib/supabase/personalReminders";
+import { buildDemoPersonalItems } from "@/lib/demoPersonalReminders";
+import { isExpirationDue } from "@/lib/reminders";
+import { buildDemoThreads } from "@/lib/demoNotes";
 import { TodaySnapshot, type DayNoteSummary } from "@/components/overview/TodaySnapshot";
 import { ActivityFeed } from "@/components/overview/ActivityFeed";
 import { PersonalTrendsSection } from "@/components/overview/PersonalTrendsSection";
-import { ActivityCalendarSection } from "@/components/overview/ActivityCalendarSection";
-import { PartnerNotesSection } from "@/components/overview/PartnerNotesSection";
 import { PeriodReviewSection } from "@/components/overview/PeriodReviewSection";
 import { Card, CardTitle } from "@/components/ui/Card";
-import type { Bullet } from "@/lib/aggregations/insights";
 
 /** Same local-calendar-day reasoning as `todayLocalISODate` — a note's
  * timestamp is a real instant (unlike every other domain's plain `date`
@@ -52,13 +53,12 @@ function noteToActivityEntry(t: NoteThread): ActivityEntry {
 
 /**
  * Lauva's home/overview page — Today → Recent Activity → Personal Trends →
- * Calendar → Partner Notes → Weekly/Monthly Review, most useful
- * information first. Every section reads data that already exists
- * elsewhere in the app (DataContext's events/workoutLogs/periodLogs, plus
- * Notes fetched the same way the Notes page and Nav's unread badge already
- * do) — nothing here is a second copy of that data or a duplicate of what
- * Food/Workout/Cycle/Notes already show in depth; this is the at-a-glance
- * layer on top.
+ * Weekly/Monthly Review, most useful information first. Every section reads
+ * data that already exists elsewhere in the app (DataContext's
+ * events/workoutLogs/periodLogs, plus partner notes fetched the same way
+ * the Notes page does) — nothing here is a second copy of that data or a
+ * duplicate of what Food/Workout/Cycle/Notes already show in depth; this is
+ * the at-a-glance layer on top.
  */
 export default function OverviewPage() {
   const { status, events, workoutLogs, stoolLogs, periodLogs } = useData();
@@ -73,15 +73,11 @@ export default function OverviewPage() {
   // shows them, so Overview never disagrees with what /notes would show
   // for the same account state.
   const [noteThreads, setNoteThreads] = useState<NoteThread[]>([]);
-  const [partnerLabel, setPartnerLabel] = useState<string | null>(null);
-  const [notesUnread, setNotesUnread] = useState(0);
+  const [expirationItems, setExpirationItems] = useState<PersonalItem[]>([]);
 
   const loadNotes = useCallback(async () => {
     if (!session) {
-      const demo = buildDemoThreads();
-      setNoteThreads(demo);
-      setPartnerLabel(DEMO_PARTNER_LABEL);
-      setNotesUnread(demo.filter((t) => t.isUnreadForMe).length);
+      setNoteThreads(buildDemoThreads());
       return;
     }
     if (!notesConfigured) return;
@@ -89,21 +85,24 @@ export default function OverviewPage() {
       const link = await getPartnerLink();
       if (!link) {
         setNoteThreads([]);
-        setPartnerLabel(null);
-        setNotesUnread(0);
         return;
       }
-      const [inbox, sent, unread] = await Promise.all([
-        fetchNoteThreads("inbox"),
-        fetchNoteThreads("sent"),
-        unreadNoteCount(),
-      ]);
+      const [inbox, sent] = await Promise.all([fetchNoteThreads("inbox"), fetchNoteThreads("sent")]);
       setNoteThreads([...inbox, ...sent]);
-      // Never the partner's actual email — see notes/page.tsx's own note.
-      setPartnerLabel("your partner");
-      setNotesUnread(unread);
     } catch (err) {
       console.error("Overview: loading notes failed", err);
+    }
+  }, [session]);
+
+  const loadExpiration = useCallback(async () => {
+    if (!session) {
+      setExpirationItems(buildDemoPersonalItems());
+      return;
+    }
+    try {
+      setExpirationItems(await fetchPersonalItems());
+    } catch (err) {
+      console.error("Overview: loading expiration items failed", err);
     }
   }, [session]);
 
@@ -112,24 +111,25 @@ export default function OverviewPage() {
     // external-system read, not a React-state sync loop.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadNotes();
-  }, [loadNotes]);
+    void loadExpiration();
+  }, [loadNotes, loadExpiration]);
+
+  // Products whose reminder window has been reached (or already expired) —
+  // the same "due" test the reminder cron uses. Read-only here; editing is
+  // on Log → Expiration.
+  const expiringSoon = useMemo(
+    () =>
+      expirationItems
+        .filter((i) => isExpirationDue(i, today))
+        .sort((a, b) => a.expiresOn.localeCompare(b.expiresOn)),
+    [expirationItems, today],
+  );
 
   const todayNotes = useMemo(() => noteThreads.filter((t) => localDateOf(t.lastMessageAt) === today).map(noteToDaySummary), [noteThreads, today]);
   const yesterdayNotes = useMemo(
     () => noteThreads.filter((t) => localDateOf(t.lastMessageAt) === yesterday).map(noteToDaySummary),
     [noteThreads, yesterday],
   );
-
-  const notesByDate = useMemo(() => {
-    const map = new Map<string, DayNoteSummary[]>();
-    for (const t of noteThreads) {
-      const d = localDateOf(t.lastMessageAt);
-      const list = map.get(d) ?? [];
-      list.push(noteToDaySummary(t));
-      map.set(d, list);
-    }
-    return map;
-  }, [noteThreads]);
 
   const notesInRange = useCallback(
     (range: DateRange) => noteThreads.filter((t) => {
@@ -139,39 +139,18 @@ export default function OverviewPage() {
     [noteThreads],
   );
 
-  // ---- Recent Activity / Lauva Timeline: one shared flat feed, Notes
-  // merged in — see ActivityFeed's own comment on why the two sections
-  // reuse this exact same component/data rather than each building its own.
+  // ---- Recent Activity: one shared flat feed, partner notes merged in,
+  // ordered by each entry's real date (then time-of-day) — see
+  // buildActivityFeed's own comment.
   const activityFeed = useMemo(() => {
     const base = buildActivityFeed(events, workoutLogs, periodLogs);
     const notes = noteThreads.map(noteToActivityEntry);
-    return [...base, ...notes].sort((a, b) => b.sortKey.localeCompare(a.sortKey));
-  }, [events, workoutLogs, periodLogs, noteThreads]);
-
-  const activityDateMap = useMemo(() => {
-    const map = buildActivityDateMap(events, workoutLogs, periodLogs);
-    for (const t of noteThreads) {
-      const d = localDateOf(t.lastMessageAt);
-      const set = map.get(d) ?? new Set();
-      set.add("notes");
-      map.set(d, set);
-    }
-    return map;
+    return [...base, ...notes].sort((a, b) => b.date.localeCompare(a.date) || b.sortKey.localeCompare(a.sortKey));
   }, [events, workoutLogs, periodLogs, noteThreads]);
 
   // ---- Personal Trends
   const trends = useMemo(() => buildPersonalTrends(events, workoutLogs, periodLogs, today), [events, workoutLogs, periodLogs, today]);
   const findings = useMemo(() => topCrossDomainFindings(events, stoolLogs, workoutLogs), [events, stoolLogs, workoutLogs]);
-  const notesTrend: Bullet | null = useMemo(() => {
-    const last7 = notesInRange({ start: addDaysToDate(today, -6), end: today });
-    const prior7 = notesInRange({ start: addDaysToDate(today, -13), end: addDaysToDate(today, -7) });
-    if (Math.abs(last7 - prior7) < 2) return null;
-    return {
-      label: "Notes",
-      detail: `${last7} note${last7 === 1 ? "" : "s"} exchanged in the last 7 days, vs. ${prior7} the week before.`,
-      compact: `${last7} recently · ${prior7} before`,
-    };
-  }, [notesInRange, today]);
 
   if (status === "loading") {
     return <p style={{ color: "var(--text-secondary)" }}>Loading your data…</p>;
@@ -195,11 +174,34 @@ export default function OverviewPage() {
         <ActivityFeed entries={activityFeed} showFilter initialLimit={12} pageSize={30} emptyText="Nothing logged yet." />
       </Card>
 
-      <PersonalTrendsSection trends={trends} findings={findings} notesTrend={notesTrend} />
+      <PersonalTrendsSection trends={trends} findings={findings} />
 
-      <ActivityCalendarSection events={events} workoutLogs={workoutLogs} periodLogs={periodLogs} dateMap={activityDateMap} notesByDate={notesByDate} today={today} />
-
-      <PartnerNotesSection threads={noteThreads} partnerLabel={partnerLabel} unreadCount={notesUnread} />
+      {expiringSoon.length > 0 && (
+        <Card tier="supporting">
+          <CardTitle subtitle="Products past — or within — their reminder window. Manage these on Log → Expiration.">
+            Expiring soon
+          </CardTitle>
+          <ul className="flex flex-col divide-y divide-[color:var(--gridline)]">
+            {expiringSoon.map((item) => {
+              const expired = item.expiresOn < today;
+              return (
+                <li key={item.id} className="flex items-center justify-between gap-3 py-2">
+                  <span className="min-w-0 flex-1 truncate text-sm" style={{ color: "var(--text-primary)" }}>
+                    {item.name}
+                  </span>
+                  <span className="shrink-0 text-xs tabular-nums" style={{ color: expired ? "var(--status-critical)" : "var(--text-secondary)" }}>
+                    {expired ? "expired " : "expires "}
+                    {new Date(`${item.expiresOn}T00:00:00`).toLocaleDateString(undefined, { day: "numeric", month: "short" })}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+          <Link href="/log" className="mt-2 inline-block text-xs underline decoration-dotted" style={{ color: "var(--series-2)" }}>
+            Open Expiration →
+          </Link>
+        </Card>
+      )}
 
       <PeriodReviewSection events={events} workoutLogs={workoutLogs} periodLogs={periodLogs} today={today} notesInRange={notesInRange} />
     </div>

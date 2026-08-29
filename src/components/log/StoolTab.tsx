@@ -2,7 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import { BristolIcon } from "@/components/icons/BristolIcons";
-import { toTimeInputValue } from "@/lib/logCandidates";
+import { defaultLogTimeValue, toTimeInputValue } from "@/lib/logCandidates";
 import {
   STOOL_COLORS,
   HYGIENE_OPTIONS,
@@ -169,7 +169,7 @@ function blankEntry(): NewStoolEntry {
     symptoms: [],
     timeOnToiletMinutes: null,
     note: null,
-    loggedAtTime: toTimeInputValue(new Date().toISOString()),
+    loggedAtTime: defaultLogTimeValue(),
   };
 }
 

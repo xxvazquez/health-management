@@ -102,3 +102,9 @@ export async function updateJournalEntry(id: string, patch: JournalEntryPatch): 
   if (error) throw error;
   return toEntry(data as JournalRow);
 }
+
+export async function deleteJournalEntry(id: string): Promise<void> {
+  if (!supabase) throw new Error("Cloud sync isn't set up for this deployment.");
+  const { error } = await supabase.from("journal_entries").delete().eq("id", id);
+  if (error) throw error;
+}

@@ -433,9 +433,12 @@ create table public.notes (
   -- its own boolean, so a new reply makes a thread unread again for free.
   sender_read_at timestamptz,
   recipient_read_at timestamptz,
-  -- Root-only, independent per side — sender and recipient organize their
-  -- own copy of a thread separately (favouriting/archiving something you
-  -- sent doesn't affect your partner's view of it, and vice versa).
+  -- Root-only. Favourite is a *shared* thread flag: the app writes both
+  -- columns together (see setThreadFavourited in lib/supabase/notes.ts), so
+  -- starring a thread favourites it for both partners and either can clear
+  -- it. Archive stays per-side — archiving something you sent doesn't
+  -- affect your partner's view of it. Both are writable by either
+  -- participant under the notes_update_participant policy below.
   sender_favourited boolean not null default false,
   recipient_favourited boolean not null default false,
   sender_archived boolean not null default false,

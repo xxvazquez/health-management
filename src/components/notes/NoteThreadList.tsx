@@ -149,15 +149,16 @@ export function NoteThreadList({
                     {t.subject || t.body.slice(0, 60)}
                   </span>
                   {t.isFavouritedByMe && <StarIcon filled size={12} />}
-                  <span className="ml-auto shrink-0 text-[11px] whitespace-nowrap" style={{ color: "var(--text-muted)" }}>
-                    {formatNoteTimestamp(t.lastMessageAt)}
-                  </span>
                 </span>
                 <span className="mt-0.5 block truncate text-xs" style={{ color: "var(--text-muted)" }}>
                   {t.isMine ? `To ${partnerLabel}` : `From ${partnerLabel}`} · {NOTE_CATEGORY_LABEL[t.category]}
                 </span>
               </span>
             </button>
+
+            <span className="shrink-0 text-[11px] whitespace-nowrap tabular-nums" style={{ color: "var(--text-muted)" }}>
+              {formatNoteTimestamp(t.lastMessageAt)}
+            </span>
 
             <div className="flex shrink-0 items-center gap-0.5">
               <RowAction

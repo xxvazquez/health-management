@@ -3,6 +3,35 @@
 import { useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { compareTasksByDue, isRecurringTask, isTaskDone, isTaskDue, type TaskItem } from "@/lib/reminders";
 import type { ReminderList } from "@/lib/supabase/personalReminders";
+import { PencilIcon, TrashIcon } from "@/components/ui/Notebook";
+import { ArchiveIcon } from "@/components/notes/icons";
+
+function UndoIcon({ size = 15 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M5 8h7a3.5 3.5 0 0 1 0 7H8" />
+      <path d="M7.5 5 5 8l2.5 3" />
+    </svg>
+  );
+}
+
+/** Always-visible low-contrast row action — same language as the Notes
+ * list's RowAction and the notebook rows. */
+function IconAction({ onClick, label, tone = "muted", disabled, children }: { onClick: () => void; label: string; tone?: "muted" | "critical"; disabled?: boolean; children: ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={label}
+      title={label}
+      className={`shrink-0 rounded-md p-1.5 transition-colors hover:bg-[var(--page-plane)] disabled:opacity-40 ${tone === "critical" ? "notebook-danger" : ""}`}
+      style={{ color: "var(--text-muted)" }}
+    >
+      {children}
+    </button>
+  );
+}
 
 export type TaskBoardMode = "one-off" | "recurring" | "all";
 
@@ -192,19 +221,6 @@ function TaskForm({
   );
 }
 
-function RowButton({ onClick, children, tone = "muted", disabled }: { onClick: () => void; children: ReactNode; tone?: "muted" | "critical"; disabled?: boolean }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className="shrink-0 rounded-md px-2 py-1 text-xs font-medium transition-colors hover:bg-[var(--page-plane)] disabled:opacity-40"
-      style={{ color: tone === "critical" ? "var(--status-critical)" : "var(--text-secondary)" }}
-    >
-      {children}
-    </button>
-  );
-}
 
 function CollapsibleGroup({ title, count, children }: { title: string; count: number; children: ReactNode }) {
   const [open, setOpen] = useState(false);
@@ -326,8 +342,6 @@ export function TaskBoard({
   assignable,
   lists,
   onCreateList,
-  onRenameList,
-  onDeleteList,
   onCreate,
   onEdit,
   onComplete,
@@ -345,11 +359,10 @@ export function TaskBoard({
   mode: TaskBoardMode;
   /** Home only — see TaskForm's own doc comment. */
   assignable?: { myUserId: string; partnerId: string | null };
-  /** Personal only — enables the list navigation + the form's List field. */
+  /** Personal only — enables the list navigation + the form's List field.
+   * Renaming/deleting a list happens on the Manage page, not here. */
   lists?: ReminderList[];
   onCreateList?: (name: string) => Promise<string>;
-  onRenameList?: (id: string, name: string) => Promise<void>;
-  onDeleteList?: (id: string) => Promise<void>;
   onCreate: (values: TaskFormValues) => Promise<void>;
   onEdit: (id: string, values: TaskFormValues) => Promise<void>;
   onComplete: (task: TaskItem) => Promise<void>;
@@ -364,7 +377,6 @@ export function TaskBoard({
 }) {
   const [composing, setComposing] = useState(false);
   const [editing, setEditing] = useState<TaskItem | null>(null);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [selectedList, setSelectedList] = useState<string | null | "all">("all");
 
   const listName = (id: string | null): string => (id ? (lists?.find((l) => l.id === id)?.name ?? DEFAULT_LIST_NAME) : DEFAULT_LIST_NAME);
@@ -437,54 +449,47 @@ export function TaskBoard({
   const activeListRow = (task: TaskItem) => {
     const recurring = isRecurringTask(task);
     const due = isTaskDue(task);
-    const expanded = expandedId === task.id;
     return (
-      <div key={task.id} className="border-t py-3 first:border-t-0" style={{ borderColor: "var(--gridline)" }}>
-        <div className="flex items-start gap-3 pr-1 pl-1">
-          <button
-            type="button"
-            onClick={() => void onComplete(task)}
-            aria-label={recurring ? "Mark done for this cycle" : "Mark done"}
-            className="mt-0.5 flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full border-2"
-            style={{ borderColor: "var(--baseline)", background: "transparent" }}
-          />
-          <button type="button" onClick={() => setExpandedId(expanded ? null : task.id)} className="min-w-0 flex-1 text-left">
-            <span className="block truncate text-sm font-medium" style={{ color: "var(--text-primary)" }}>
-              {task.title}
+      <div key={task.id} className="flex items-center gap-3 border-t py-3 pr-1 pl-1 first:border-t-0" style={{ borderColor: "var(--gridline)" }}>
+        <button
+          type="button"
+          onClick={() => void onComplete(task)}
+          aria-label={recurring ? "Mark done for this cycle" : "Mark done"}
+          className="flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full border"
+          style={{ borderColor: "var(--baseline)", background: "transparent" }}
+        />
+        <div className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-medium" style={{ color: "var(--text-primary)" }}>
+            {task.title}
+          </span>
+          {task.notes && (
+            <span className="mt-0.5 block truncate text-xs" style={{ color: "var(--text-secondary)" }}>
+              {task.notes}
             </span>
-            {task.notes && (
-              <span className="mt-0.5 block truncate text-xs" style={{ color: "var(--text-secondary)" }}>
-                {task.notes}
+          )}
+          <span className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[11px]" style={{ color: due ? "var(--status-critical)" : "var(--text-muted)" }}>
+            {task.dueAt && <span>{recurring ? `Next: ${formatDueAt(task.dueAt)}` : formatDueAt(task.dueAt)}</span>}
+            {recurring && <span style={{ color: "var(--text-muted)" }}>· every {task.recurrenceDays}d</span>}
+            {completedByLabel && task.assignedTo && <span style={{ color: "var(--text-muted)" }}>· for {completedByLabel(task.assignedTo)}</span>}
+            {task.lastCompletedAt && (
+              <span style={{ color: "var(--text-muted)" }}>
+                · last done {formatDate(task.lastCompletedAt)}
+                {completedByLabel && task.lastCompletedBy ? ` by ${completedByLabel(task.lastCompletedBy)}` : ""}
               </span>
             )}
-            <span className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[11px]" style={{ color: due ? "var(--status-critical)" : "var(--text-muted)" }}>
-              {task.dueAt && <span>{recurring ? `Next: ${formatDueAt(task.dueAt)}` : formatDueAt(task.dueAt)}</span>}
-              {recurring && <span style={{ color: "var(--text-muted)" }}>· every {task.recurrenceDays}d</span>}
-              {completedByLabel && task.assignedTo && <span style={{ color: "var(--text-muted)" }}>· for {completedByLabel(task.assignedTo)}</span>}
-              {task.lastCompletedAt && (
-                <span style={{ color: "var(--text-muted)" }}>
-                  · last done {formatDate(task.lastCompletedAt)}
-                  {completedByLabel && task.lastCompletedBy ? ` by ${completedByLabel(task.lastCompletedBy)}` : ""}
-                </span>
-              )}
-            </span>
-          </button>
+          </span>
         </div>
-        {expanded && (
-          <div className="mt-2 flex flex-wrap items-center gap-1 pl-9">
-            <RowButton onClick={() => setEditing(task)}>Edit</RowButton>
-            {task.lastCompletedAt && <RowButton onClick={() => void onUncomplete(task)}>Undo last done</RowButton>}
-            <RowButton onClick={() => void onArchive(task.id, true)}>Archive</RowButton>
-            <RowButton onClick={() => void onDelete(task.id)} tone="critical">
-              Delete
-            </RowButton>
-          </div>
-        )}
+        <div className="flex shrink-0 items-center gap-0.5">
+          <IconAction onClick={() => setEditing(task)} label="Edit"><PencilIcon size={15} /></IconAction>
+          {task.lastCompletedAt && (
+            <IconAction onClick={() => void onUncomplete(task)} label="Undo last done"><UndoIcon size={15} /></IconAction>
+          )}
+          <IconAction onClick={() => void onArchive(task.id, true)} label="Archive"><ArchiveIcon size={15} /></IconAction>
+          <IconAction onClick={() => void onDelete(task.id)} label="Delete" tone="critical"><TrashIcon size={15} /></IconAction>
+        </div>
       </div>
     );
   };
-
-  const canManageSelected = typeof selectedList === "string" && selectedList !== "all" && (onRenameList || onDeleteList);
 
   return (
     <div className="flex flex-col gap-3">
@@ -499,32 +504,7 @@ export function TaskBoard({
         />
       )}
 
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3 text-xs" style={{ color: "var(--text-muted)" }}>
-          {canManageSelected && onRenameList && (
-            <button
-              type="button"
-              onClick={() => {
-                const next = window.prompt("Rename list", listName(selectedList as string));
-                if (next && next.trim()) void onRenameList(selectedList as string, next.trim());
-              }}
-            >
-              Rename
-            </button>
-          )}
-          {canManageSelected && onDeleteList && (
-            <button
-              type="button"
-              className="notebook-danger rounded px-1"
-              onClick={() => {
-                void onDeleteList(selectedList as string);
-                setSelectedList("all");
-              }}
-            >
-              Delete list
-            </button>
-          )}
-        </div>
+      <div className="flex items-center justify-end gap-3">
         <button type="button" onClick={() => setComposing(true)} className="shrink-0 rounded-md px-3 py-1.5 text-sm font-medium text-white" style={{ background: accent }}>
           + New
         </button>
@@ -563,15 +543,15 @@ export function TaskBoard({
           {done.length > 0 && (
             <CollapsibleGroup title="Done" count={done.length}>
               {done.map((task) => (
-                <div key={task.id} className="flex items-start gap-3 border-t py-3 pr-1 pl-1 first:border-t-0" style={{ borderColor: "var(--gridline)" }}>
+                <div key={task.id} className="flex items-center gap-3 border-t py-3 pr-1 pl-1 first:border-t-0" style={{ borderColor: "var(--gridline)" }}>
                   <button
                     type="button"
                     onClick={() => void onUncomplete(task)}
                     aria-label="Undo — mark not done"
-                    className="mt-0.5 flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full border-2"
+                    className="flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full border"
                     style={{ borderColor: "var(--status-good)", background: "var(--status-good)" }}
                   >
-                    <svg width="11" height="11" viewBox="0 0 20 20" fill="none" stroke="white" strokeWidth="2.4" strokeLinecap="round">
+                    <svg width="10" height="10" viewBox="0 0 20 20" fill="none" stroke="white" strokeWidth="2.6" strokeLinecap="round">
                       <path d="M4 10.5 8 14.5 16 5.5" />
                     </svg>
                   </button>
@@ -586,11 +566,11 @@ export function TaskBoard({
                       </span>
                     )}
                   </span>
-                  <RowButton onClick={() => void onUncomplete(task)}>Undo</RowButton>
-                  <RowButton onClick={() => void onArchive(task.id, true)}>Archive</RowButton>
-                  <RowButton onClick={() => void onDelete(task.id)} tone="critical">
-                    Delete
-                  </RowButton>
+                  <div className="flex shrink-0 items-center gap-0.5">
+                    <IconAction onClick={() => void onUncomplete(task)} label="Undo"><UndoIcon size={15} /></IconAction>
+                    <IconAction onClick={() => void onArchive(task.id, true)} label="Archive"><ArchiveIcon size={15} /></IconAction>
+                    <IconAction onClick={() => void onDelete(task.id)} label="Delete" tone="critical"><TrashIcon size={15} /></IconAction>
+                  </div>
                 </div>
               ))}
             </CollapsibleGroup>
@@ -599,7 +579,7 @@ export function TaskBoard({
           {archived.length > 0 && (
             <CollapsibleGroup title="Archived" count={archived.length}>
               {archived.map((task) => (
-                <div key={task.id} className="flex items-start gap-3 border-t py-3 pr-1 pl-1 first:border-t-0" style={{ borderColor: "var(--gridline)" }}>
+                <div key={task.id} className="flex items-center gap-3 border-t py-3 pr-1 pl-1 first:border-t-0" style={{ borderColor: "var(--gridline)" }}>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-medium" style={{ color: "var(--text-secondary)" }}>
                       {task.title}
@@ -609,10 +589,10 @@ export function TaskBoard({
                       {task.lastCompletedAt ? ` · last done ${formatDate(task.lastCompletedAt)}` : ""}
                     </span>
                   </span>
-                  <RowButton onClick={() => void onArchive(task.id, false)}>Unarchive</RowButton>
-                  <RowButton onClick={() => void onDelete(task.id)} tone="critical">
-                    Delete
-                  </RowButton>
+                  <div className="flex shrink-0 items-center gap-0.5">
+                    <IconAction onClick={() => void onArchive(task.id, false)} label="Unarchive"><UndoIcon size={15} /></IconAction>
+                    <IconAction onClick={() => void onDelete(task.id)} label="Delete" tone="critical"><TrashIcon size={15} /></IconAction>
+                  </div>
                 </div>
               ))}
             </CollapsibleGroup>

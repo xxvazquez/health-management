@@ -76,6 +76,15 @@ export function toTimeInputValue(iso: string): string {
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
+/** Default "HH:MM" for a brand-new log. Normally the current time, but a
+ * fixed 23:30 between midnight and 03:00 — those hours belong to the
+ * previous day (see `todayLocalISODate`), so "now" would put the entry on
+ * the wrong day at an odd hour. */
+export function defaultLogTimeValue(now: Date = new Date()): string {
+  if (now.getHours() < 3) return "23:30";
+  return toTimeInputValue(now.toISOString());
+}
+
 export type ChipTapAction = "create" | "increment" | "decrement" | "toggle";
 
 /**

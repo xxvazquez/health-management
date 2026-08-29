@@ -13,8 +13,10 @@ export type ItemType = "food" | "supplement" | "outcome" | "habit" | "workout";
 // Dairy, "Meat & Fish", "Nuts & Seeds", Legumes, Misc) and have since been
 // split further where a single bucket was hiding a real distinction: Meat
 // and Fish are nutritionally different enough to track separately, plant
-// milks aren't dairy, and fats (butter, oils) aren't "misc". Don't add a
-// category here speculatively; add it when a real tracked item needs it.
+// milks aren't dairy, and fats (butter, oils) aren't "misc". Spices are
+// their own bucket so seasonings can be logged without skewing the
+// nutrition-priority engine (which ignores the Spices category entirely).
+// Don't add a category here speculatively; add it when a real tracked item needs it.
 export const FOOD_CATEGORIES = [
   "Veggies",
   "Fruit",
@@ -26,6 +28,7 @@ export const FOOD_CATEGORIES = [
   "Fish",
   "Nuts & Seeds",
   "Fats",
+  "Spices",
   "Misc",
 ] as const;
 export type FoodCategory = (typeof FOOD_CATEGORIES)[number];
@@ -119,12 +122,12 @@ export const TYPE_ACCENT: Record<ItemType, string> = {
 /**
  * Fixed category -> categorical slot assignment, used only where several
  * categories must share one chart at once (e.g. the food category
- * timeline). 10 of the 11 food categories get their own stable color; Misc
- * deliberately falls through to CATEGORY_SLOT_OTHER (gray) rather than
- * claiming an 11th hue — fitting for the catch-all category, and charts
- * stop being colorblind-safe well before 11 series anyway. Keyed by
- * category identity so a category always gets the same color regardless of
- * which categories happen to be in view.
+ * timeline). Most food categories get their own stable color; Misc and
+ * Spices deliberately fall through to CATEGORY_SLOT_OTHER (gray) rather
+ * than claiming another hue — fitting for the catch-all/seasoning
+ * categories, and charts stop being colorblind-safe well past 8 series
+ * anyway. Keyed by category identity so a category always gets the same
+ * color regardless of which categories happen to be in view.
  */
 export const CATEGORY_SLOT: Record<string, string> = {
   Fruit: "var(--series-1)", // green

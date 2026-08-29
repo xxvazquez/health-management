@@ -123,7 +123,10 @@ export function buildActivityFeed(events: CanonicalEvent[], workoutLogs: RawWork
     });
   }
 
-  return entries.sort((a, b) => b.sortKey.localeCompare(a.sortKey));
+  // Ordered by the entry's real calendar `date` first, then time-of-day —
+  // never by when the row was created. Something logged today but dated to
+  // last week belongs under last week, not at the top of the feed.
+  return entries.sort((a, b) => b.date.localeCompare(a.date) || b.sortKey.localeCompare(a.sortKey));
 }
 
 /** Which dates have at least one entry for each domain — the Calendar's

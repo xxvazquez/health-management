@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { todayLocalISODate } from "@/lib/aggregations/common";
-import { createJournalEntry, fetchJournalEntries, updateJournalEntry, type JournalEntry } from "@/lib/supabase/journal";
+import { createJournalEntry, deleteJournalEntry, fetchJournalEntries, updateJournalEntry, type JournalEntry } from "@/lib/supabase/journal";
 import { buildDemoJournalEntries } from "@/lib/demoJournal";
 import { NoteList, NoteRow, NotebookForm } from "@/components/ui/Notebook";
 
@@ -30,6 +30,7 @@ function JournalEntryForm({
   accent,
   onSave,
   onSaved,
+  onDelete,
   onCancel,
 }: {
   editing: JournalEntry | null;
@@ -37,6 +38,7 @@ function JournalEntryForm({
   accent: string;
   onSave: (fields: { editing: JournalEntry | null; date: string; title: string; body: string }) => Promise<JournalEntry>;
   onSaved: (entry: JournalEntry) => void;
+  onDelete?: () => void;
   onCancel: () => void;
 }) {
   const [date, setDate] = useState(editing?.date ?? defaultDate);
@@ -50,6 +52,7 @@ function JournalEntryForm({
       bodyPlaceholder="Write whatever's on your mind…"
       bodyRows={12}
       autoFocusBody={!editing}
+      onDelete={editing ? onDelete : undefined}
       headerSlot={
         <input
           type="date"
@@ -97,6 +100,22 @@ export function JournalTab({ isDemoData, accent }: { isDemoData: boolean; accent
         : { id: `demo-journal-${Date.now()}`, date, title: title.trim() || null, body: body.trim(), createdAt: nowIso, updatedAt: nowIso };
     }
     return editing ? updateJournalEntry(editing.id, { date, title, body }) : createJournalEntry({ date, title, body });
+  }
+
+  async function handleDelete(id: string) {
+    setEntries((prev) => prev.filter((e) => e.id !== id));
+    setComposing(false);
+    setEditingId(null);
+    if (isDemoData) return;
+    try {
+      await deleteJournalEntry(id);
+    } catch (err) {
+      console.error("deleteJournalEntry failed", err);
+      // Put it back by re-fetching — the local removal was optimistic.
+      fetchJournalEntries()
+        .then(setEntries)
+        .catch((e) => console.error("fetchJournalEntries failed", e));
+    }
   }
 
   useEffect(() => {
@@ -147,6 +166,7 @@ export function JournalTab({ isDemoData, accent }: { isDemoData: boolean; accent
         accent={accent}
         onSave={handleSave}
         onSaved={handleSaved}
+        onDelete={editingEntry ? () => void handleDelete(editingEntry.id) : undefined}
         onCancel={() => {
           setComposing(false);
           setEditingId(null);
@@ -227,7 +247,9 @@ export function JournalTab({ isDemoData, accent }: { isDemoData: boolean; accent
               title={entry.title || "Untitled"}
               meta={formatJournalDate(entry.date)}
               body={entry.body}
+              metaFirst
               onOpen={() => setEditingId(entry.id)}
+              onDelete={() => void handleDelete(entry.id)}
             />
           ))}
         </NoteList>

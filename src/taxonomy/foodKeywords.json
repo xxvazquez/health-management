@@ -1,5 +1,5 @@
 {
-  "_comment": "Fallback dictionary used only when a new 'Eat X' / 'Drink X' habit shows up in a future import that isn't in overrides.json yet. Maps a food keyword to one of the real food categories in categories.ts (Veggies, Fruit, Legumes, Grains, Dairy, 'Dairy Alternatives', Meat, Fish, 'Nuts & Seeds', Fats, Misc), never an invented category. Anything unmatched falls into food/Misc and is flagged for review rather than guessed. Extended with produce common in the Polish market/growing season (see src/lib/seasonalProduce.ts) so seasonal items classify correctly the first time they're logged, not just after a manual override.",
+  "_comment": "Fallback dictionary used only when a new 'Eat X' / 'Drink X' habit shows up in a future import that isn't in overrides.json yet. Maps a food keyword to one of the real food categories in categories.ts (Veggies, Fruit, Legumes, Grains, Dairy, 'Dairy Alternatives', Meat, Fish, 'Nuts & Seeds', Fats, Spices, Misc), never an invented category. Anything unmatched falls into food/Misc and is flagged for review rather than guessed. Extended with produce common in the Polish market/growing season (see src/lib/seasonalProduce.ts) so seasonal items classify correctly the first time they're logged, not just after a manual override.",
   "vegetable": "Veggies", "veggie": "Veggies", "spinach": "Veggies", "kale": "Veggies", "lettuce": "Veggies",
   "cabbage": "Veggies", "cucumber": "Veggies", "celery": "Veggies", "asparagus": "Veggies", "eggplant": "Veggies",
   "aubergine": "Veggies", "pumpkin": "Veggies", "squash": "Veggies", "radish": "Veggies", "beet": "Veggies",
@@ -60,5 +60,17 @@
   "chocolate": "Misc", "candy": "Misc", "cake": "Misc", "cookie": "Misc",
   "dessert": "Misc", "ice cream": "Misc", "sugar": "Misc", "honey": "Misc",
   "syrup": "Misc", "pastry": "Misc", "coffee": "Misc", "espresso": "Misc", "latte": "Misc",
-  "broth": "Misc", "cacao": "Misc", "vanilla": "Misc"
+  "broth": "Misc", "cacao": "Misc",
+
+  "spice": "Spices", "seasoning": "Spices", "salt": "Spices", "black pepper": "Spices",
+  "white pepper": "Spices", "peppercorn": "Spices", "paprika": "Spices", "smoked paprika": "Spices",
+  "chilli": "Spices", "chili": "Spices", "chilli flakes": "Spices", "cayenne": "Spices",
+  "cinnamon": "Spices", "cumin": "Spices", "turmeric": "Spices", "ground ginger": "Spices",
+  "nutmeg": "Spices", "clove": "Spices", "cardamom": "Spices", "coriander seed": "Spices",
+  "ground coriander": "Spices", "bay leaf": "Spices", "oregano": "Spices", "dried basil": "Spices",
+  "thyme": "Spices", "rosemary": "Spices", "marjoram": "Spices", "dried dill": "Spices",
+  "dried parsley": "Spices", "curry powder": "Spices", "garam masala": "Spices",
+  "garlic powder": "Spices", "onion powder": "Spices", "allspice": "Spices", "caraway": "Spices",
+  "mustard seed": "Spices", "fennel seed": "Spices", "star anise": "Spices", "saffron": "Spices",
+  "vanilla": "Spices"
 }

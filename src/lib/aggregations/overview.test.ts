@@ -22,6 +22,14 @@ describe("buildPersonalTrends", () => {
     const trends = buildPersonalTrends(events, [], [], "2026-02-10");
     expect(trends.changed.length).toBeLessThanOrEqual(5);
   });
+
+  it("does not emit tracking-frequency bullets (how often you logged isn't a trend)", () => {
+    const events = Array.from({ length: 20 }, (_, i) =>
+      makeEvent({ itemType: "outcome", item: "Headache", date: `2026-01-${String(i + 1).padStart(2, "0")}` }),
+    );
+    const trends = buildPersonalTrends(events, [], [], "2026-01-25");
+    expect(trends.changed.some((b) => b.detail.includes("of the last 7 days"))).toBe(false);
+  });
 });
 
 describe("topCrossDomainFindings", () => {

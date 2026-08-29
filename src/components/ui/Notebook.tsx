@@ -34,66 +34,85 @@ function firstLine(body: string, max = 160): string {
 
 /** One row in the notes / journal list. The whole row opens the entry
  * (there is no separate "expand" — the editor is the reading view, same as
- * iOS Notes). Delete is a quiet trailing affordance: hover-revealed on
- * pointer devices, permanently dim on touch, always with a confirm step. */
+ * iOS Notes). Edit and delete are always-visible trailing icons (matching
+ * the rest of the app), delete always with a confirm step. `metaFirst`
+ * flips the stack to meta → title → body, which Journal uses so the date
+ * leads each row. */
 export function NoteRow({
   title,
   meta,
   body,
+  metaFirst = false,
   onOpen,
   onDelete,
 }: {
   title: string;
   meta: string;
   body: string;
+  metaFirst?: boolean;
   onOpen: () => void;
   onDelete?: () => void;
 }) {
   const [confirmingDelete, setConfirmingDelete] = useState(false);
 
+  const titleEl = (
+    <span className="block truncate text-[15px] font-semibold" style={{ color: "var(--text-primary)" }}>
+      {title}
+    </span>
+  );
+  const metaEl = (
+    <span className="block text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>
+      {meta}
+    </span>
+  );
+
   return (
     <li className="group relative flex items-start">
       <button type="button" onClick={onOpen} className="min-w-0 flex-1 py-3 pr-2 text-left">
-        <span className="block truncate text-[15px] font-semibold" style={{ color: "var(--text-primary)" }}>
-          {title}
-        </span>
-        <span className="mt-0.5 block text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>
-          {meta}
-        </span>
+        {metaFirst ? metaEl : titleEl}
+        <span className="mt-0.5 block">{metaFirst ? titleEl : metaEl}</span>
         <span className="mt-0.5 line-clamp-2 text-[13px] leading-snug" style={{ color: "var(--text-secondary)" }}>
           {firstLine(body) || "No additional text"}
         </span>
       </button>
 
-      {onDelete && (
-        <div
-          className={`flex shrink-0 items-center gap-1 self-center pl-1 transition-opacity ${
-            confirmingDelete ? "opacity-100" : "opacity-45 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100"
-          }`}
-        >
-          {confirmingDelete ? (
-            <>
-              <button type="button" onClick={onDelete} className="rounded-md px-2 py-1 text-xs font-semibold" style={{ color: "var(--status-critical)" }}>
-                Delete
-              </button>
-              <button type="button" onClick={() => setConfirmingDelete(false)} className="rounded-md px-2 py-1 text-xs font-medium" style={{ color: "var(--text-muted)" }}>
-                Keep
-              </button>
-            </>
-          ) : (
+      <div className="flex shrink-0 items-center gap-0.5 self-center pl-1">
+        {confirmingDelete ? (
+          <>
+            <button type="button" onClick={onDelete} className="rounded-md px-2 py-1 text-xs font-semibold" style={{ color: "var(--status-critical)" }}>
+              Delete
+            </button>
+            <button type="button" onClick={() => setConfirmingDelete(false)} className="rounded-md px-2 py-1 text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+              Keep
+            </button>
+          </>
+        ) : (
+          <>
             <button
               type="button"
-              onClick={() => setConfirmingDelete(true)}
-              aria-label={`Delete ${title}`}
-              title="Delete"
-              className="notebook-danger rounded-md p-1.5 transition-colors hover:bg-[var(--page-plane)]"
+              onClick={onOpen}
+              aria-label={`Edit ${title}`}
+              title="Edit"
+              className="rounded-md p-1.5 transition-colors hover:bg-[var(--page-plane)]"
               style={{ color: "var(--text-muted)" }}
             >
-              <TrashIcon size={15} />
+              <PencilIcon size={15} />
             </button>
-          )}
-        </div>
-      )}
+            {onDelete && (
+              <button
+                type="button"
+                onClick={() => setConfirmingDelete(true)}
+                aria-label={`Delete ${title}`}
+                title="Delete"
+                className="notebook-danger rounded-md p-1.5 transition-colors hover:bg-[var(--page-plane)]"
+                style={{ color: "var(--text-muted)" }}
+              >
+                <TrashIcon size={15} />
+              </button>
+            )}
+          </>
+        )}
+      </div>
     </li>
   );
 }
