@@ -113,4 +113,10 @@ export const TAB_ICON: Record<string, ReactNode> = {
       <path d="M8 11.6 9.4 13l3-3.2" />
     </TabIconWrap>
   ),
+  codes: (
+    <TabIconWrap>
+      <path d="M4.2 7.2v-2a1 1 0 0 1 1-1h2M15.8 7.2v-2a1 1 0 0 0-1-1h-2M4.2 12.8v2a1 1 0 0 0 1 1h2M15.8 12.8v2a1 1 0 0 1-1 1h-2" />
+      <path d="M3.4 10h13.2" />
+    </TabIconWrap>
+  ),
 };

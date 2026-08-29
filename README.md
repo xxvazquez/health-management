@@ -15,7 +15,7 @@ It works fully offline, syncs to Supabase once you sign in, and installs as a PW
 | **Personal** | `/personal` | Journal, private notes, reminders, and product-expiry tracking — the "write once, come back to it" stuff. |
 | **Analytics** | `/analytics` | One dashboard per domain (Food, Supplements, Habits, Digestion, Workout, Cycle, Patterns), switched by a tab bar. |
 | **Manage** | `/manage` | Add / rename / archive / delete items and categories, set exercise units, edit reminder lists, hide domains you don't track. |
-| **Shared** | `/home` | The partner-facing versions of notes, tasks, and expiry, plus a shared list of discount codes — once you're linked, either of you can see and edit them. |
+| **Household** | `/home` | The partner-facing versions of notes, reminders, and expiry, plus a shared list of discount codes — once you're linked, either of you can see and edit them. |
 | **Messages** | `/notes` | Private one-to-one messaging with your linked partner. |
 | **My Drive** | `/my-drive` | Read-only browser for the signed-in Google account's Drive. |
 | **Help** | `/help` | Plain-language reference for what each part does. |
@@ -184,11 +184,13 @@ they only mean anything once they're on the server.
   `thread_root_id` set; a trigger keeps the thread's `last_message_at` and each
   side's read timestamp current. Read state and archive are per-side; favourite
   is shared (the client writes both `sender_*` and `recipient_*` columns).
-- **Personal vs Shared** — `personal_notes` / `personal_tasks` / `personal_items`
+- **Personal vs Household** — `personal_notes` / `personal_tasks` / `personal_items`
   are owner-only; the `household_*` tables reuse the same `partner_links` pairing
   via an `is_household_member()` SQL helper, so a row is visible to its creator
   *and* their one linked partner with no "share this" step. Both sides reuse the
-  exact same `NoteBoard` / `TaskBoard` / `ExpirationBoard` components.
+  exact same `NoteBoard` / `TaskBoard` / `ExpirationBoard` components. (The
+  Household page labels its `TaskBoard` tab "Reminders" to match Personal; the
+  table is still `household_tasks`.)
 - **Shared codes** (`household_codes`, pair-visible) — discount/promo codes with a
   code, name, optional comment and optional `expires_on`. There's no cron: a code
   whose `expires_on` has passed is deleted client-side by `fetchHouseholdCodes`
@@ -197,7 +199,7 @@ they only mean anything once they're on the server.
 - **Reminder lists** (`reminder_lists`, owner-only) — `personal_tasks.list_id` is
   a composite FK with `on delete set null`, so deleting a list drops its tasks
   back to the default bucket rather than removing them. Lists are managed on the
-  Manage page, not the Reminders tab. Shared tasks have no lists.
+  Manage page, not the Reminders tab. Household reminders have no lists.
 - **Tasks** — one `*_tasks` table covers both a one-off deadline and a recurring
   chore. `recurrence_days` null = one-off; set = recurring (`due_at` is the next
   occurrence, advanced on each completion). Every completion also writes a
@@ -274,7 +276,7 @@ bug-report function is unaffected — it mails `BUG_EMAIL`, the account owner.
   enable the Drive API.
 
 - **One partner per account** — `redeem_partner_invite` rejects a redemption if
-  either side is already linked, and the Shared page's `is_household_member()`
+  either side is already linked, and the Household page's `is_household_member()`
   helper is defined directly in terms of the same `partner_links` row. Unlinking
   is supported; there's no "multiple partners" or "family" concept anywhere, by
   design.

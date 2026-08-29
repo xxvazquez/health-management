@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
+import { useMemo, useRef, useState, type FormEvent } from "react";
 import { todayLocalISODate } from "@/lib/aggregations/common";
 import { isSpeechToTextSupported, useSpeechToText } from "@/lib/useSpeechToText";
 import { PencilIcon, TrashIcon } from "@/components/ui/Notebook";
+import { SearchField } from "@/components/ui/SearchField";
 import type { HouseholdCode, NewHouseholdCodeInput } from "@/lib/supabase/household";
 
 type SortMode = "recent" | "name";
@@ -18,17 +19,26 @@ function matchesSearch(code: HouseholdCode, query: string): boolean {
   return code.code.toLowerCase().includes(q) || code.name.toLowerCase().includes(q) || (code.comment ?? "").toLowerCase().includes(q);
 }
 
-function MicButton({ onText }: { onText: (text: string) => void }) {
+function MicButton({ onStart, onText }: { onStart?: () => void; onText: (text: string) => void }) {
   const { start, listening } = useSpeechToText(onText);
   if (!isSpeechToTextSupported()) return null;
   return (
     <button
       type="button"
-      onClick={start}
-      aria-label="Add code by voice"
+      onClick={() => {
+        // Focus the target field first, in the same user gesture, so the
+        // dictated text lands in an already-active input — no second tap.
+        onStart?.();
+        start();
+      }}
+      aria-label="Dictate the code"
       aria-pressed={listening}
-      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border"
-      style={{ borderColor: listening ? "var(--status-critical)" : "var(--border-hairline)", color: listening ? "var(--status-critical)" : "var(--text-secondary)" }}
+      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border transition-colors"
+      style={{
+        borderColor: listening ? "var(--status-critical)" : "var(--border-hairline)",
+        background: listening ? "color-mix(in oklab, var(--status-critical) 10%, var(--surface-1))" : "var(--surface-1)",
+        color: listening ? "var(--status-critical)" : "var(--text-secondary)",
+      }}
     >
       <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
         <rect x="7.2" y="2.5" width="5.6" height="9" rx="2.8" />
@@ -55,6 +65,14 @@ function CodeForm({
   const [expiresOn, setExpiresOn] = useState(initial?.expiresOn ?? "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const codeInputRef = useRef<HTMLInputElement>(null);
+
+  function focusCodeEnd() {
+    const el = codeInputRef.current;
+    if (!el) return;
+    el.focus();
+    el.setSelectionRange(el.value.length, el.value.length);
+  }
 
   const canSave = code.trim().length > 0 && name.trim().length > 0;
 
@@ -81,6 +99,7 @@ function CodeForm({
       </div>
       <div className="flex items-center gap-2">
         <input
+          ref={codeInputRef}
           required
           autoFocus
           value={code}
@@ -90,7 +109,15 @@ function CodeForm({
           className="min-w-0 flex-1 rounded-md border px-3 py-2 font-mono text-sm outline-none"
           style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
         />
-        <MicButton onText={(text) => setCode(text.trim())} />
+        <MicButton
+          onStart={focusCodeEnd}
+          onText={(text) => {
+            setCode(text.trim());
+            // Re-assert focus + caret after the result so the field is ready
+            // to edit straight away, no tap needed.
+            requestAnimationFrame(focusCodeEnd);
+          }}
+        />
       </div>
       <input
         required
@@ -280,14 +307,7 @@ export function CodeBoard({
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search codes…"
-            className="w-32 rounded-md border py-1.5 px-2.5 text-xs outline-none sm:w-48"
-            style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
-          />
+          <SearchField value={search} onChange={setSearch} placeholder="Search codes…" />
           <button
             type="button"
             onClick={() => setSort((s) => (s === "recent" ? "name" : "recent"))}

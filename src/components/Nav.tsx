@@ -99,6 +99,13 @@ export const ICONS: Record<string, ReactNode> = {
       <path d="M8.6 15a1.7 1.7 0 0 0 2.8 0" />
     </IconWrap>
   ),
+  Household: (
+    <IconWrap>
+      <path d="M4 9.8 10 4.8l6 5" />
+      <path d="M5.6 8.6V15.8h8.8V8.6" />
+      <path d="M10 13.7c1.7-1.1 2.6-2.1 2.6-3.1a1.4 1.4 0 0 0-2.6-.7 1.4 1.4 0 0 0-2.6.7c0 1 .9 2 2.6 3.1Z" />
+    </IconWrap>
+  ),
   Analytics: (
     <IconWrap>
       <path d="M4 16.5V10M8 16.5V5M12 16.5v-4M16 16.5V8" />
@@ -158,7 +165,7 @@ const TOOLS_LINKS = [
  * (Your *private* notes/reminders/expiration live as tabs on the Log
  * page — the "Shared" grouping is what keeps the two apart.) */
 const SHARED_LINKS = [
-  { href: "/home", label: "Reminders" },
+  { href: "/home", label: "Household" },
   { href: "/notes", label: "Messages" },
 ];
 

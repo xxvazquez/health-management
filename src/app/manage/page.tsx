@@ -1184,15 +1184,7 @@ export default function ManagePage() {
           </h1>
           {!isDemoData && <PushNotificationsToggle />}
         </div>
-        <p className="mt-1 text-sm" style={{ color: "var(--text-secondary)" }}>
-          Add, rename, archive, or unarchive anything you track, manage the category list for Food,
-          Supplements, Habits, and Symptoms, and organise your reminder lists. Everything here is synced straight
-          to your account — the same tables every page reads from, so there&apos;s nowhere else to edit this by
-          hand. Archiving hides an item from the Log page and this list&apos;s active section; its full logged
-          history stays in every dashboard. Turn on notifications above, then set a time on any supplement or
-          habit below to get reminded.
-        </p>
-        <Link href="/manage/nutrition-evidence" className="mt-2 inline-block text-sm underline decoration-dotted" style={{ color: "var(--series-2)" }}>
+        <Link href="/manage/nutrition-evidence" className="mt-1 inline-block text-sm underline decoration-dotted" style={{ color: "var(--series-2)" }}>
           Nutrition evidence →
         </Link>
         {isDemoData && (

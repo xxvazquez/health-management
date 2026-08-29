@@ -5,6 +5,7 @@ import { compareTasksByDue, isRecurringTask, isTaskDone, isTaskDue, type TaskIte
 import type { ReminderList } from "@/lib/supabase/personalReminders";
 import { PencilIcon, TrashIcon } from "@/components/ui/Notebook";
 import { ArchiveIcon } from "@/components/notes/icons";
+import { ListSection, SectionIcon } from "@/components/ui/ListSection";
 
 function UndoIcon({ size = 15 }: { size?: number }) {
   return (
@@ -509,7 +510,7 @@ export function TaskBoard({
     const recurring = isRecurringTask(task);
     const due = isTaskDue(task);
     return (
-      <div key={task.id} className="flex items-center gap-3 border-t py-3 pr-1 pl-1 first:border-t-0" style={{ borderColor: "var(--gridline)" }}>
+      <div key={task.id} className="flex items-center gap-3 border-t py-3 first:border-t-0" style={{ borderColor: "var(--gridline)" }}>
         <button
           type="button"
           onClick={() => void onComplete(task)}
@@ -603,17 +604,29 @@ export function TaskBoard({
           </p>
         </div>
       ) : (
-        <div className="flex flex-col">
-          {activeGroups.map((group) => (
-            <div key={group.id ?? "__default__"} className="flex flex-col">
-              {selectedList === "all" && lists && group.tasks.length > 0 && (
-                <h3 className="px-1 pt-3 pb-0.5 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
-                  {group.name}
-                </h3>
-              )}
-              {group.tasks.map(activeListRow)}
-            </div>
-          ))}
+        <div className="flex flex-col gap-3">
+          {selectedList === "all" && lists
+            ? activeGroups
+                .filter((group) => group.tasks.length > 0)
+                .map((group) => (
+                  <ListSection
+                    key={group.id ?? "__default__"}
+                    label={group.name}
+                    count={group.tasks.length}
+                    icon={
+                      <SectionIcon>
+                        <path d="M7 5.5h9M7 10h9M7 14.5h9M3.6 5.5h.01M3.6 10h.01M3.6 14.5h.01" />
+                      </SectionIcon>
+                    }
+                  >
+                    <div className="flex flex-col">{group.tasks.map(activeListRow)}</div>
+                  </ListSection>
+                ))
+            : activeGroups.map((group) => (
+                <div key={group.id ?? "__default__"} className="flex flex-col">
+                  {group.tasks.map(activeListRow)}
+                </div>
+              ))}
 
           {done.length > 0 && (
             <CollapsibleGroup title="Done" count={done.length}>

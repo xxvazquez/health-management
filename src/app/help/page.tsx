@@ -1,23 +1,39 @@
-type QA = { q: string; a: string };
+type Entry = { title: string; body: string };
 
-/** Help is a plain FAQ: topic groups, each a stack of questions that start
+/** Plain documentation: topic groups, each a stack of entries that start
  * collapsed. Native <details> so it stays a server component and needs no
- * JS — expand state is the browser's. */
-const GROUPS: { title: string; items: QA[] }[] = [
+ * JS. Each entry says how one part of Lauva works — no FAQ theatre. */
+const GROUPS: { title: string; items: Entry[] }[] = [
   {
-    title: "Getting around",
+    title: "The main pages",
     items: [
       {
-        q: "What are Log, Overview, Personal and Shared for?",
-        a: "Log is the tap-to-record screen for food, symptoms, supplements, habits, workouts and cycle. Overview is the daily read-back — today's summary, recent activity, a few trends, anything expiring soon. Personal holds your own journal, notes, reminders and product-expiry tracking. Shared holds the versions of notes, tasks, expiry and discount codes you keep with a linked partner.",
+        title: "Log",
+        body: "The tap-to-record screen. Pick a category, tap an item to log it, tap again to remove it. Covers food, symptoms, supplements, habits, stool, workout and cycle. Nothing here is a form — the entry time and date are editable, and the day stepper has a calendar for backdating.",
       },
       {
-        q: "Where do the Analytics dashboards come from?",
-        a: "Each dashboard — Food, Supplements, Habits, Digestion, Workout, Cycle, Patterns — reads back what you've logged as charts, streaks and patterns. Nothing to set up; they fill in from your Log entries. The Spices food category is left out of the nutrition-priority analysis so seasonings don't skew it.",
+        title: "Overview",
+        body: "The daily read-back. Today's summary at the top, then a recent-activity feed, a few personal trends, anything expiring soon, and a weekly or monthly review.",
       },
       {
-        q: "What's on the Manage page?",
-        a: "Add, edit or hide the specific foods, exercises and products offered when logging; rename or delete your reminder lists; set exercise units; and choose which Log tabs and Analytics sections appear.",
+        title: "Personal",
+        body: "Your own journal, plain notes, reminders and product-expiry tracking — the things you write once and come back to.",
+      },
+      {
+        title: "Household",
+        body: "The same notes, reminders and expiry, plus a shared list of discount codes, kept with a linked partner. Once linked, everything here is visible to both of you and either can act on it.",
+      },
+      {
+        title: "Analytics",
+        body: "One dashboard per area — Food, Supplements, Habits, Digestion, Workout, Cycle, Patterns — built automatically from your Log entries. Charts, streaks and patterns over time.",
+      },
+      {
+        title: "Manage items",
+        body: "Add, rename, archive or hide the specific foods, exercises and products offered when logging. Also where you rename or delete reminder lists, set exercise units, and choose which Log tabs and Analytics sections appear. Archiving hides an item from Log but keeps its history in every dashboard.",
+      },
+      {
+        title: "Messages",
+        body: "Private one-to-one messaging with your linked partner. Star a thread to favourite it for both of you.",
       },
     ],
   },
@@ -25,84 +41,79 @@ const GROUPS: { title: string; items: QA[] }[] = [
     title: "Logging",
     items: [
       {
-        q: "Why did my 1 AM entry land on yesterday?",
-        a: "The day rolls over at 3 AM, not midnight. Anything logged between midnight and 3 AM counts as the day before, with the time defaulting to 23:30 — so a late entry lands on the day you're still awake in. From 3 AM, time and date behave normally again.",
+        title: "The day starts at 3 AM",
+        body: "Anything logged between midnight and 3 AM counts as the previous day, with the time defaulting to 23:30. From 3 AM, the date and time behave normally.",
       },
       {
-        q: "How do symptom intensities work?",
-        a: "Tap a symptom once to mark it at intensity 1, again for 2, again for 3; a fourth tap clears it. Recent activity and Overview order symptoms by the date you say they happened, not when you typed them, so backdating is fine.",
+        title: "Symptom intensity",
+        body: "Tap a symptom once for intensity 1, again for 2, again for 3. A fourth tap clears it. Symptoms are ordered by the date you say they happened, so backdating works.",
       },
       {
-        q: "How does the meal picker choose?",
-        a: "Breakfast before noon, Lunch until 6 PM, Dinner after. Snack is never picked automatically — choose it yourself. You can change the meal on any entry afterwards from the day's list.",
+        title: "Meals",
+        body: "The Food tab pre-selects Breakfast before noon, Lunch until 6 PM, Dinner after. Snack is never picked automatically. You can change the meal on any entry from the day's list.",
       },
       {
-        q: "How do I record how long I slept?",
-        a: "Sleep sits in the Measures section at the bottom of the Habits tab. Tap a band — under 5h through 9h+ — to set it; tap the active band again to clear it.",
+        title: "Sleep and other measures",
+        body: "Sleep is in the Measures section at the bottom of the Habits tab. Tap a band — under 5h through 9h+ — to set it; tap the active band again to clear it.",
       },
       {
-        q: "Can I change an entry's time or date?",
-        a: "Yes. Every entry's time is editable, and the day stepper has a tap-a-date calendar, so at 9 PM you can still log something that happened at 10 AM.",
-      },
-    ],
-  },
-  {
-    title: "Reminders, notes & journal",
-    items: [
-      {
-        q: "How do I move a reminder to another list?",
-        a: "Each reminder row has a small list dropdown — pick a different list and it moves straight away, without opening the editor.",
-      },
-      {
-        q: "Where do I rename or delete a list?",
-        a: "On the Manage page. The tabs on the Reminders screen only switch between lists; they don't edit them.",
-      },
-      {
-        q: "How does the Journal work?",
-        a: "A plain diary on the Personal page — a date, an optional title, and a body. Each entry has visible edit and delete buttons, and the list is searchable and sorts newest or oldest first.",
+        title: "Spices",
+        body: "The Spices food category is kept out of the nutrition-priority analysis, so logging seasonings doesn't skew it.",
       },
     ],
   },
   {
-    title: "Expiry & codes",
+    title: "Reminders, notes and journal",
     items: [
       {
-        q: "How do product expiry reminders work?",
-        a: "Track a product by its expiry date and set 'remind N days before'. A bell on the row shows a reminder is set; a due item also shows under Expiring soon on Overview and, once notifications are on, sends a push and an email. The list has its own search.",
+        title: "Reminder lists",
+        body: "Reminders are grouped into named lists. The tabs on the Reminders screen switch between them; each reminder row has a small dropdown to move it to another list. Create, rename and delete lists on the Manage page.",
       },
       {
-        q: "What are Codes?",
-        a: "A shared list of discount and promo codes on the Shared page — the code, a shop or short name, an optional comment and an optional expiry date. Add one by typing or by voice, tap a code to copy it, and search or sort the list. A code with an expiry date drops off on its own once that date passes.",
+        title: "One-off vs recurring",
+        body: "A reminder with no repeat is a one-off with an optional deadline. Set a repeat interval and it becomes recurring — completing it advances the next occurrence. Every completion is recorded; Undo reverses the last one.",
+      },
+      {
+        title: "Journal",
+        body: "A plain diary — a date, an optional title, and a body. Each entry has edit and delete buttons, and the list is searchable and sorts newest or oldest first.",
+      },
+      {
+        title: "Notes",
+        body: "Short free-text notes — a code, a measurement, anything. Searchable, edited in place.",
       },
     ],
   },
   {
-    title: "With your partner",
+    title: "Expiry and codes",
     items: [
       {
-        q: "How do I link with my partner?",
-        a: "Open Messages. Generate an invite code to send them, or enter one they sent you — only one of you needs to. Once linked, everything on the Shared page is visible to both of you and either can act on it.",
+        title: "Product expiry",
+        body: "Track a product by its expiry date and set 'remind N days before'. A bell on the row shows a reminder is set; a due item also appears under Expiring soon on Overview and, with notifications on, sends a push and an email. The list has its own search.",
       },
       {
-        q: "What does starring a message do?",
-        a: "It favourites the thread for both of you, so either person can find it under Favourites.",
-      },
-      {
-        q: "What is My Drive?",
-        a: "A read-only browser for your own Google Drive, if you choose to connect it.",
+        title: "Shared codes",
+        body: "A Household list of discount and promo codes — the code, a shop or short name, an optional comment, an optional expiry date. Add by typing or by voice, tap a code to copy it, search and sort. A code with an expiry date drops off on its own once that date passes.",
       },
     ],
   },
   {
-    title: "Good to know",
+    title: "Partner, notifications and data",
     items: [
       {
-        q: "Does “not logged” count as zero?",
-        a: "No. Not logged means only that — never “didn't happen”. Days with nothing logged are left out of every percentage, not counted as zero.",
+        title: "Linking with a partner",
+        body: "Open Messages, then either generate an invite code to send your partner or enter one they sent you. Only one of you needs to. Everything under Household then becomes shared.",
       },
       {
-        q: "Is any of this medical advice?",
-        a: "No. Lauva shows you your own logged data and descriptive patterns in it — nothing more. It does not diagnose, treat, or advise on any medical condition. Talk to a clinician about anything health-related.",
+        title: "Notifications",
+        body: "Turn them on from the Manage page. Reminders and due expiry items then send a push and, where configured, an email.",
+      },
+      {
+        title: "“Not logged”",
+        body: "Not logged means only that — never that something didn't happen. Days with nothing logged are left out of every percentage, not counted as zero.",
+      },
+      {
+        title: "My Drive",
+        body: "A read-only browser for your own Google Drive, if you choose to connect it.",
       },
     ],
   },
@@ -135,9 +146,6 @@ export default function HelpPage() {
         <h1 className="text-xl font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
           Help
         </h1>
-        <p className="mt-1 text-sm" style={{ color: "var(--text-secondary)" }}>
-          How Lauva works, by topic. Tap a question to open it.
-        </p>
       </div>
 
       {GROUPS.map((group) => (
@@ -147,16 +155,16 @@ export default function HelpPage() {
           </h2>
           <div className="overflow-hidden rounded-xl border" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
             {group.items.map((item) => (
-              <details key={item.q} className="group border-t first:border-t-0" style={{ borderColor: "var(--gridline)" }}>
+              <details key={item.title} className="group border-t first:border-t-0" style={{ borderColor: "var(--gridline)" }}>
                 <summary
                   className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-medium [&::-webkit-details-marker]:hidden"
                   style={{ color: "var(--text-primary)" }}
                 >
-                  {item.q}
+                  {item.title}
                   <Chevron />
                 </summary>
                 <p className="px-4 pb-3 text-sm leading-relaxed" style={{ color: "var(--text-secondary)" }}>
-                  {item.a}
+                  {item.body}
                 </p>
               </details>
             ))}

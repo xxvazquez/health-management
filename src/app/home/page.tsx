@@ -40,6 +40,7 @@ import { NoteBoard } from "@/components/reminders/NoteBoard";
 import { TaskBoard, type TaskFormValues } from "@/components/reminders/TaskBoard";
 import { ExpirationBoard } from "@/components/home/ExpirationBoard";
 import { CodeBoard } from "@/components/home/CodeBoard";
+import { TAB_ICON } from "@/components/tabIcons";
 
 const ACCENT = "var(--series-indigo)";
 
@@ -49,11 +50,11 @@ const ACCENT = "var(--series-indigo)";
 let homeCache: { userId: string; notes: HouseholdNote[]; tasks: TaskItem[]; items: ExpirationItem[]; codes: HouseholdCode[] } | null = null;
 
 type Tab = "notes" | "tasks" | "expiration" | "codes";
-const TABS: { id: Tab; label: string }[] = [
-  { id: "notes", label: "Notes" },
-  { id: "tasks", label: "Tasks" },
-  { id: "expiration", label: "Expiration" },
-  { id: "codes", label: "Codes" },
+const TABS: { id: Tab; label: string; icon: keyof typeof TAB_ICON }[] = [
+  { id: "notes", label: "Notes", icon: "notes" },
+  { id: "tasks", label: "Reminders", icon: "reminders" },
+  { id: "expiration", label: "Expiration", icon: "expiration" },
+  { id: "codes", label: "Codes", icon: "codes" },
 ];
 
 /** Reminders -> Home: the same notes/tasks concept as Personal, but shared
@@ -369,23 +370,21 @@ export default function HomePage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
+      <div className="border-l-[3px] pl-2.5" style={{ borderColor: ACCENT }}>
         <h1 className="text-xl font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
-          Shared
+          Household
         </h1>
-        <p className="mt-1 text-sm" style={{ color: "var(--text-secondary)" }}>
-          Notes, tasks, product expiry, and discount codes you share with your linked partner. Your private versions
-          of notes, reminders and expiry live on the Personal page.
-        </p>
         {isDemo && (
-          <p className="mt-2 text-xs" style={{ color: ACCENT }}>
-            Example data — try adding or completing something below. None of this is saved anywhere; sign in to share it with your
-            real partner instead.
+          <p className="text-xs" style={{ color: ACCENT }}>
+            Example data — nothing here is saved. Sign in to share it with your real partner.
           </p>
         )}
       </div>
 
-      <div className="flex gap-1 border-b" style={{ borderColor: "var(--gridline)" }}>
+      <nav
+        className="no-scrollbar flex items-center gap-5 overflow-x-auto border-b"
+        style={{ borderColor: `color-mix(in oklab, ${ACCENT} 22%, var(--border-hairline))` }}
+      >
         {TABS.map((t) => {
           const active = t.id === tab;
           return (
@@ -393,14 +392,20 @@ export default function HomePage() {
               key={t.id}
               type="button"
               onClick={() => setTab(t.id)}
-              className="border-b-2 px-3 py-2 text-sm font-medium transition-colors"
-              style={{ borderColor: active ? ACCENT : "transparent", color: active ? ACCENT : "var(--text-secondary)" }}
+              className="flex shrink-0 items-center gap-1.5 pb-2.5 text-sm whitespace-nowrap transition-colors"
+              style={{
+                color: active ? ACCENT : "var(--text-secondary)",
+                fontWeight: active ? 700 : 500,
+                borderBottom: `2px solid ${active ? ACCENT : "transparent"}`,
+                marginBottom: "-1px",
+              }}
             >
+              {TAB_ICON[t.icon]}
               {t.label}
             </button>
           );
         })}
-      </div>
+      </nav>
 
       {tab === "notes" && (
         <NoteBoard
@@ -423,8 +428,8 @@ export default function HomePage() {
           accent={ACCENT}
           mode="all"
           assignable={myUserId ? { myUserId, partnerId } : undefined}
-          emptyTitle="No shared tasks yet"
-          emptyDescription="Tap + New for a one-off task or a recurring chore — either of you can complete it."
+          emptyTitle="No shared reminders yet"
+          emptyDescription="Tap + New for a one-off reminder or a recurring chore — either of you can complete it."
           completedByLabel={completedByLabel}
           onCreate={handleCreateTask}
           onEdit={handleEditTask}

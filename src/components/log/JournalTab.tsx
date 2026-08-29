@@ -5,6 +5,7 @@ import { todayLocalISODate } from "@/lib/aggregations/common";
 import { createJournalEntry, deleteJournalEntry, fetchJournalEntries, updateJournalEntry, type JournalEntry } from "@/lib/supabase/journal";
 import { buildDemoJournalEntries } from "@/lib/demoJournal";
 import { NoteList, NoteRow, NotebookForm } from "@/components/ui/Notebook";
+import { SearchField } from "@/components/ui/SearchField";
 
 function formatJournalDate(date: string): string {
   return new Date(`${date}T00:00:00`).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
@@ -184,30 +185,7 @@ export function JournalTab({ isDemoData, accent }: { isDemoData: boolean; accent
       )}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <div className="relative">
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 20 20"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2"
-              style={{ color: "var(--text-muted)" }}
-            >
-              <circle cx="8.5" cy="8.5" r="5.5" />
-              <path d="M16.5 16.5 13 13" />
-            </svg>
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search entries…"
-              className="w-40 rounded-md border py-1.5 pr-2.5 pl-7 text-xs outline-none sm:w-56"
-              style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
-            />
-          </div>
+          <SearchField value={search} onChange={setSearch} placeholder="Search entries…" />
           <button
             type="button"
             onClick={() => setOldestFirst((v) => !v)}

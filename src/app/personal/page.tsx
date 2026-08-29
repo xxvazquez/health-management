@@ -21,13 +21,6 @@ const TABS: { id: PersonalTab; label: string; accent: string }[] = [
   { id: "expiration", label: "Expiration", accent: EXPIRATION_ACCENT },
 ];
 
-const BLURB: Record<PersonalTab, string> = {
-  journal: "A private diary — a date, an optional title, and whatever's on your mind.",
-  notes: "Private notes to yourself — a code, a measurement, a reminder.",
-  reminders: "One-off tasks with a deadline, and recurring chores. Organise them into lists on Manage.",
-  expiration: "Track when your products and supplements run out.",
-};
-
 const TAB_STORAGE_KEY = "lauva-personal-tab";
 
 function isPersonalTab(v: string): v is PersonalTab {
@@ -92,9 +85,6 @@ export default function PersonalPage() {
         <h1 className="text-xl font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
           {active.label}
         </h1>
-        <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-          {BLURB[tab]}
-        </p>
       </div>
 
       <nav
