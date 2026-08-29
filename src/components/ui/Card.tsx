@@ -3,33 +3,36 @@ import clsx from "clsx";
 
 export type CardTier = "primary" | "supporting" | "raw";
 
+// Two elevations, plus the hero wash. `primary` is the one thing per page
+// that should win; `supporting` is an elevated standalone module (border +
+// a soft shadow); `raw` is the same surface without the lift, for a card
+// nested inside another or a secondary detail block. One radius across all
+// three so cards on a page read as one family.
 const TIER_STYLE: Record<CardTier, { bg: string; border: string; shadow: string; padding: string; radius: string }> = {
-  // The one thing per page that should visually win — a soft sage-mint
-  // panel, a real shadow, the largest radius. Used at most once or twice
-  // per page (the Insight component, Overview's Today, Food's ranked
-  // priorities). The wash is deliberately deeper than the page backdrop's
-  // faint mint whisper so the card reads as a distinct surface, not a
-  // barely-there tint that blends in.
+  // A soft sage-mint panel — used at most once or twice per page (the
+  // Insight component, Overview's Today, Food's ranked priorities). The
+  // wash is deeper than the page backdrop's faint mint whisper so the card
+  // reads as a distinct surface, not a barely-there tint.
   primary: {
     bg: "color-mix(in oklab, var(--brand-mint) 84%, var(--brand-leaf))",
     border: "color-mix(in oklab, var(--brand-leaf) 30%, var(--border-hairline))",
     shadow: "var(--shadow-card)",
     padding: "p-5",
-    radius: "rounded-2xl",
+    radius: "rounded-xl",
   },
-  // Default — a standalone section that's more than a footnote but not
-  // the page's primary decision. Plain white, light border, no shadow.
-  supporting: { bg: "var(--surface-1)", border: "var(--border-hairline)", shadow: "none", padding: "p-5", radius: "rounded-xl" },
-  // Deliberately quiet: a hair off pure white so a raw card nested inside
-  // a white supporting card still has an edge, and a standalone one on the
-  // page backdrop still reads as a surface. Smaller padding, no shadow —
-  // for charts/detail sections opened deliberately rather than scanned.
+  // The default standalone module — white, hairline border, and a soft
+  // shadow so it reads as a lifted surface against the page rather than one
+  // more flat rectangle.
+  supporting: { bg: "var(--surface-1)", border: "var(--border-hairline)", shadow: "var(--shadow-card)", padding: "p-5", radius: "rounded-xl" },
+  // Same white surface, no lift and tighter padding — for a card nested
+  // inside a `supporting` one, or a secondary detail block that shouldn't
+  // compete with the panels around it.
   raw: {
-    bg: "color-mix(in oklab, var(--page-backdrop) 55%, var(--surface-1))",
-    border: "var(--gridline)",
+    bg: "var(--surface-1)",
+    border: "var(--border-hairline)",
     shadow: "none",
     padding: "p-4",
-    radius: "rounded-lg",
+    radius: "rounded-xl",
   },
 };
 
