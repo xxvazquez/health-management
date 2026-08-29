@@ -131,7 +131,7 @@ function RecentActivityTimeline({ sessions }: { sessions: WorkoutRecentSession[]
                 {!isLast && <span className="w-px flex-1" style={{ background: "var(--gridline)" }} />}
               </div>
               <div className={`min-w-0 flex-1 ${isLast ? "" : "pb-3"}`}>
-                <p className="text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
+                <p className="text-xs font-semibold" style={{ color: "var(--text-secondary)" }}>
                   {formatWorkoutDateShort(session.date)}
                 </p>
                 <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1">
@@ -403,7 +403,7 @@ export function WorkoutDashboard() {
       {stats.length > 0 && <ProgressSection sortedStats={sortedStats} selectedStats={selectedStats} onSelect={setCompareExercise} />}
 
       <div className="lg:col-span-2">
-        <p className="text-xs font-bold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
+        <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
           Training patterns
         </p>
       </div>

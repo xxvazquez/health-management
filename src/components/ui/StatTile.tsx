@@ -13,7 +13,7 @@ export function StatTile({
 }) {
   return (
     <Card tier="raw">
-      <p className="text-xs font-medium uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>
+      <p className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
         {label}
       </p>
       <p
@@ -23,7 +23,7 @@ export function StatTile({
         {value}
       </p>
       {detail && (
-        <p className="mt-0.5 text-xs" style={{ color: "var(--text-secondary)" }}>
+        <p className="mt-0.5 text-xs" style={{ color: "var(--text-muted)" }}>
           {detail}
         </p>
       )}
