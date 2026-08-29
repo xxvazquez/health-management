@@ -108,6 +108,7 @@ export function PatternsDashboard() {
                   withoutPct={p.withoutPct}
                   withoutCount={p.withoutCount}
                   withoutTotal={p.withoutTotal}
+                  direction={p.diffPct > 0 ? "more" : "less"}
                 />
                 <p className="mt-3 text-xs" style={{ color: "var(--text-muted)" }}>
                   Association only, not evidence of cause — based on {p.withTotal + p.withoutTotal} days where{" "}

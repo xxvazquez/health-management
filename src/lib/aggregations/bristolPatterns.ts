@@ -5,6 +5,7 @@ import {
   crossDomainCauseCandidates,
   datesWhereValueMeets,
   MIN_INTERESTING_DIFF_PCT,
+  SAMPLE_TIER_RANK,
   SCAN_LAGS,
   type AssociationResult,
 } from "./patterns";
@@ -70,5 +71,7 @@ export function generateBristolPatterns(events: CanonicalEvent[], stoolLogs: Raw
     }
   }
 
-  return results.sort((a, b) => Math.abs(b.diffPct) - Math.abs(a.diffPct)).slice(0, MAX_BRISTOL_PATTERNS);
+  return results
+    .sort((a, b) => SAMPLE_TIER_RANK[b.sampleTier] - SAMPLE_TIER_RANK[a.sampleTier] || Math.abs(b.diffPct) - Math.abs(a.diffPct))
+    .slice(0, MAX_BRISTOL_PATTERNS);
 }

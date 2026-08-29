@@ -63,6 +63,15 @@ export const SAMPLE_TIER_LABEL: Record<SampleTier, string> = {
   strong: "Stronger descriptive evidence",
 };
 
+/** Ordering weight for "strongest first" lists — a comparison backed by
+ * more tracked days outranks a larger raw effect seen on fewer days. */
+export const SAMPLE_TIER_RANK: Record<SampleTier, number> = {
+  insufficient: 0,
+  exploratory: 1,
+  moderate: 2,
+  strong: 3,
+};
+
 export const SAMPLE_TIER_EXPLANATION: Record<SampleTier, string> = {
   insufficient: "Fewer than 10 exposed days (or fewer than 5 unexposed days) tracked — not shown as a finding.",
   exploratory: "10–19 exposed days tracked. Worth noting, but easily wrong by chance — treat as a hypothesis, not a finding.",
@@ -326,7 +335,9 @@ export function generateTopPatterns(events: CanonicalEvent[], workoutLogs: RawWo
     }
   }
 
-  return results.sort((a, b) => Math.abs(b.diffPct) - Math.abs(a.diffPct)).slice(0, MAX_TOP_PATTERNS);
+  return results
+    .sort((a, b) => SAMPLE_TIER_RANK[b.sampleTier] - SAMPLE_TIER_RANK[a.sampleTier] || Math.abs(b.diffPct) - Math.abs(a.diffPct))
+    .slice(0, MAX_TOP_PATTERNS);
 }
 
 const MIN_TOLERATED_EXPOSURE_DAYS = 20;

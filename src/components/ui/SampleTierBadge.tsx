@@ -2,7 +2,7 @@ import { SAMPLE_TIER_EXPLANATION, SAMPLE_TIER_LABEL, type SampleTier } from "@/l
 
 const SAMPLE_TIER_COLOR: Record<SampleTier, string> = {
   insufficient: "var(--text-muted)",
-  exploratory: "var(--status-warning)",
+  exploratory: "var(--text-muted)",
   moderate: "var(--series-1)",
   strong: "var(--status-good)",
 };
