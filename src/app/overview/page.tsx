@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { useData } from "@/lib/DataContext";
 import { useAuth } from "@/lib/supabase/AuthContext";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -9,14 +8,20 @@ import { PageSkeleton } from "@/components/ui/Skeleton";
 import { addDaysToDate, todayLocalISODate, type DateRange } from "@/lib/aggregations/common";
 import { buildActivityFeed, type ActivityEntry } from "@/lib/aggregations/activity";
 import { buildPersonalTrends, topCrossDomainFindings } from "@/lib/aggregations/overview";
+import { buildAttentionItems } from "@/lib/aggregations/attention";
 import { fetchNoteThreads, notesConfigured, type NoteThread } from "@/lib/supabase/notes";
 import { getPartnerLink } from "@/lib/supabase/partner";
-import { fetchPersonalItems, type PersonalItem } from "@/lib/supabase/personalReminders";
-import { buildDemoPersonalItems } from "@/lib/demoPersonalReminders";
-import { isExpirationDue } from "@/lib/reminders";
+import { fetchPersonalItems, fetchPersonalTasks, type PersonalItem } from "@/lib/supabase/personalReminders";
+import { fetchHouseholdItems, fetchHouseholdTasks } from "@/lib/supabase/household";
+import { fetchDoctorFollowUpTasks, type DoctorFollowUpTask } from "@/lib/supabase/doctors";
+import type { ExpirationItem, TaskItem } from "@/lib/reminders";
+import { buildDemoPersonalItems, buildDemoPersonalTasks } from "@/lib/demoPersonalReminders";
+import { buildDemoHouseholdItems, buildDemoHouseholdTasks } from "@/lib/demoHousehold";
+import { buildDemoDoctorFollowUpTasks } from "@/lib/demoDoctors";
 import { buildDemoThreads } from "@/lib/demoNotes";
 import { TodaySnapshot, type DayNoteSummary } from "@/components/overview/TodaySnapshot";
 import { ActivityFeed } from "@/components/overview/ActivityFeed";
+import { AttentionBand } from "@/components/overview/AttentionBand";
 import { PersonalTrendsSection } from "@/components/overview/PersonalTrendsSection";
 import { PeriodReviewSection } from "@/components/overview/PeriodReviewSection";
 import { Card, CardTitle } from "@/components/ui/Card";
@@ -75,6 +80,13 @@ export default function OverviewPage() {
   // for the same account state.
   const [noteThreads, setNoteThreads] = useState<NoteThread[]>([]);
   const [expirationItems, setExpirationItems] = useState<PersonalItem[]>([]);
+  // Extra sources for the Attention band — reminders, shared items, and
+  // doctor follow-ups aren't in DataContext (they go straight to Supabase),
+  // so Overview fetches them the same way it already does notes.
+  const [personalTasks, setPersonalTasks] = useState<TaskItem[]>([]);
+  const [householdTasks, setHouseholdTasks] = useState<TaskItem[]>([]);
+  const [householdItems, setHouseholdItems] = useState<ExpirationItem[]>([]);
+  const [followUps, setFollowUps] = useState<DoctorFollowUpTask[]>([]);
 
   const loadNotes = useCallback(async () => {
     if (!session) {
@@ -107,23 +119,58 @@ export default function OverviewPage() {
     }
   }, [session]);
 
+  const loadOutstanding = useCallback(async () => {
+    if (!session) {
+      setPersonalTasks(buildDemoPersonalTasks());
+      setHouseholdTasks(buildDemoHouseholdTasks());
+      setHouseholdItems(buildDemoHouseholdItems());
+      setFollowUps(buildDemoDoctorFollowUpTasks());
+      return;
+    }
+    try {
+      const [pt, ht, hi, fu] = await Promise.all([
+        fetchPersonalTasks(),
+        fetchHouseholdTasks(),
+        fetchHouseholdItems(),
+        fetchDoctorFollowUpTasks(),
+      ]);
+      setPersonalTasks(pt);
+      setHouseholdTasks(ht);
+      setHouseholdItems(hi);
+      setFollowUps(fu);
+    } catch (err) {
+      console.error("Overview: loading outstanding items failed", err);
+    }
+  }, [session]);
+
   useEffect(() => {
     // Loading from Supabase (or seeding the demo set) on mount/sign-in — an
     // external-system read, not a React-state sync loop.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadNotes();
     void loadExpiration();
-  }, [loadNotes, loadExpiration]);
+    void loadOutstanding();
+  }, [loadNotes, loadExpiration, loadOutstanding]);
 
-  // Products whose reminder window has been reached (or already expired) —
-  // the same "due" test the reminder cron uses. Read-only here; editing is
-  // on Log → Expiration.
-  const expiringSoon = useMemo(
+  const unreadMessages = useMemo(
+    () => noteThreads.filter((t) => !t.isMine && t.isUnreadForMe).length,
+    [noteThreads],
+  );
+
+  const attentionItems = useMemo(
     () =>
-      expirationItems
-        .filter((i) => isExpirationDue(i, today))
-        .sort((a, b) => a.expiresOn.localeCompare(b.expiresOn)),
-    [expirationItems, today],
+      buildAttentionItems(
+        {
+          personalReminders: personalTasks,
+          householdReminders: householdTasks,
+          personalExpiry: expirationItems,
+          householdExpiry: householdItems,
+          followUps,
+          unreadMessages,
+        },
+        { today },
+      ),
+    [personalTasks, householdTasks, expirationItems, householdItems, followUps, unreadMessages, today],
   );
 
   const todayNotes = useMemo(() => noteThreads.filter((t) => localDateOf(t.lastMessageAt) === today).map(noteToDaySummary), [noteThreads, today]);
@@ -146,8 +193,12 @@ export default function OverviewPage() {
   const activityFeed = useMemo(() => {
     const base = buildActivityFeed(events, workoutLogs, periodLogs);
     const notes = noteThreads.map(noteToActivityEntry);
-    return [...base, ...notes].sort((a, b) => b.date.localeCompare(a.date) || b.sortKey.localeCompare(a.sortKey));
-  }, [events, workoutLogs, periodLogs, noteThreads]);
+    // Today already has its own detailed section above — "Recent activity"
+    // is strictly what came before, so the two never show the same entry.
+    return [...base, ...notes]
+      .filter((e) => e.date < today)
+      .sort((a, b) => b.date.localeCompare(a.date) || b.sortKey.localeCompare(a.sortKey));
+  }, [events, workoutLogs, periodLogs, noteThreads, today]);
 
   // ---- Personal Trends
   const trends = useMemo(() => buildPersonalTrends(events, workoutLogs, periodLogs, today), [events, workoutLogs, periodLogs, today]);
@@ -166,6 +217,8 @@ export default function OverviewPage() {
         Overview
       </h1>
 
+      <AttentionBand items={attentionItems} />
+
       <TodaySnapshot events={events} workoutLogs={workoutLogs} periodLogs={periodLogs} todayNotes={todayNotes} yesterdayNotes={yesterdayNotes} today={today} />
 
       <Card tier="supporting">
@@ -174,31 +227,6 @@ export default function OverviewPage() {
       </Card>
 
       <PersonalTrendsSection trends={trends} findings={findings} />
-
-      {expiringSoon.length > 0 && (
-        <Card tier="supporting">
-          <CardTitle>Expiring soon</CardTitle>
-          <ul className="flex flex-col divide-y divide-[color:var(--gridline)]">
-            {expiringSoon.map((item) => {
-              const expired = item.expiresOn < today;
-              return (
-                <li key={item.id} className="flex items-center justify-between gap-3 py-2">
-                  <span className="min-w-0 flex-1 truncate text-sm" style={{ color: "var(--text-primary)" }}>
-                    {item.name}
-                  </span>
-                  <span className="shrink-0 text-xs tabular-nums" style={{ color: expired ? "var(--status-critical)" : "var(--text-secondary)" }}>
-                    {expired ? "expired " : "expires "}
-                    {new Date(`${item.expiresOn}T00:00:00`).toLocaleDateString(undefined, { day: "numeric", month: "short" })}
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-          <Link href="/personal#expiration" className="mt-2 inline-block text-xs underline decoration-dotted" style={{ color: "var(--series-2)" }}>
-            Open Expiration →
-          </Link>
-        </Card>
-      )}
 
       <PeriodReviewSection events={events} workoutLogs={workoutLogs} periodLogs={periodLogs} today={today} notesInRange={notesInRange} />
     </div>
