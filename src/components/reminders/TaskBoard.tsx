@@ -7,6 +7,7 @@ import { PencilIcon, TrashIcon } from "@/components/ui/Notebook";
 import { ArchiveIcon } from "@/components/notes/icons";
 import { ListSection, SectionIcon } from "@/components/ui/ListSection";
 import { ListSkeleton } from "@/components/ui/Skeleton";
+import { InlineEmpty } from "@/components/ui/EmptyState";
 
 function UndoIcon({ size = 15 }: { size?: number }) {
   return (
@@ -594,14 +595,10 @@ export function TaskBoard({
           Couldn&apos;t load tasks — try again in a moment.
         </p>
       ) : nothing ? (
-        <div className="flex flex-col items-center justify-center py-12 text-center">
-          <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-            {selectedList === "all" ? emptyTitle : `Nothing in ${listName(selectedList === "all" ? null : selectedList)}`}
-          </p>
-          <p className="mt-1 max-w-xs text-xs" style={{ color: "var(--text-secondary)" }}>
-            {emptyDescription}
-          </p>
-        </div>
+        <InlineEmpty
+          title={selectedList === "all" ? emptyTitle : `Nothing in ${listName(selectedList === "all" ? null : selectedList)}`}
+          description={emptyDescription}
+        />
       ) : (
         <div className="flex flex-col gap-3">
           {selectedList === "all" && lists

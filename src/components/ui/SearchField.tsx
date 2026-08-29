@@ -1,13 +1,16 @@
 "use client";
 
-/** The one search box used across the free-form lists — Journal, Notes,
- * Expiration, Codes — so they stay visually identical. Magnifier sits
- * inside the field on the left; width steps up at `sm`. */
+/** The one search box used across every filterable list — Journal, Notes,
+ * Expiration, Codes, Manage, and the Log page's per-tab item search. A
+ * magnifier inside the field on the left, a clear "✕" on the right once
+ * there's a value. Footprint is controlled by `className` on the wrapper
+ * (defaults to the compact stepped width the list screens use); pass
+ * `"w-full"` for the full-width bars on Manage and Log. */
 export function SearchField({
   value,
   onChange,
   placeholder,
-  className = "",
+  className = "w-40 sm:w-56",
 }: {
   value: string;
   onChange: (value: string) => void;
@@ -36,9 +39,20 @@ export function SearchField({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-40 rounded-md border py-1.5 pr-2.5 pl-7 text-sm outline-none sm:w-56"
+        className="w-full rounded-md border py-1.5 pr-8 pl-7 text-sm outline-none"
         style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
       />
+      {value && (
+        <button
+          type="button"
+          onClick={() => onChange("")}
+          aria-label="Clear search"
+          className="absolute top-1/2 right-2.5 -translate-y-1/2 text-xs"
+          style={{ color: "var(--text-muted)" }}
+        >
+          ✕
+        </button>
+      )}
     </div>
   );
 }

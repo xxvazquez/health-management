@@ -1,5 +1,7 @@
 "use client";
 
+import { useOverflowFade } from "@/lib/useOverflowFade";
+
 export interface SectionNavItem {
   id: string;
   label: string;
@@ -35,10 +37,14 @@ export function SectionNav({
    * default (e.g. Food, whose charts are already series-1 green). */
   accent?: string;
 }) {
+  const navRef = useOverflowFade<HTMLElement>();
   return (
     <nav
+      ref={navRef}
       aria-label="Food sections"
-      className="no-scrollbar sticky top-16 z-10 flex gap-5 overflow-x-auto border-b bg-[var(--page-backdrop)] lg:top-0"
+      // Sticks just below the page's own sticky domain switcher (~32px tall)
+      // rather than at the very top, so the two never overlap while scrolling.
+      className="no-scrollbar fade-x sticky top-24 z-10 flex gap-5 overflow-x-auto border-b bg-[var(--page-backdrop)] lg:top-8"
       style={{ borderColor: "var(--border-hairline)" }}
     >
       {items.map((item) => {

@@ -55,6 +55,8 @@ import { WorkoutTab, type NewWorkoutEntry } from "@/components/log/WorkoutTab";
 import { CycleTab } from "@/components/log/CycleTab";
 import { TAB_ICON } from "@/components/tabIcons";
 import { DuplicateItemDialog } from "@/components/ui/DuplicateItemDialog";
+import { SearchField } from "@/components/ui/SearchField";
+import { useOverflowFade } from "@/lib/useOverflowFade";
 import {
   workoutUnitLabel,
   type RawLog,
@@ -378,6 +380,7 @@ export default function LogPage() {
   const { refresh, isDemoData, status } = useData();
   const { isHidden } = useVisibleDomains();
   const { openPanel } = useAuth();
+  const tabNavRef = useOverflowFade<HTMLElement>();
   // Personal notes / reminders / expiration — self-contained state + Supabase
   // wiring, rendered by the three tabs after Journal.
   const today = useMemo(() => todayLocalISODate(), []);
@@ -1638,7 +1641,8 @@ export default function LogPage() {
          * Scrolls sideways rather than wrapping; the search box drops to its
          * own line below on a narrow screen. */}
         <nav
-          className="no-scrollbar flex w-full min-w-0 items-center gap-5 overflow-x-auto border-b sm:flex-1"
+          ref={tabNavRef}
+          className="no-scrollbar fade-x flex w-full min-w-0 items-center gap-5 overflow-x-auto border-b sm:flex-1"
           style={{ borderColor: tabConfig ? `color-mix(in oklab, ${TYPE_ACCENT[tabConfig.type]} 22%, var(--border-hairline))` : "var(--border-hairline)" }}
         >
           {logTabs.map((t) => {
@@ -1664,30 +1668,12 @@ export default function LogPage() {
         </nav>
         <div className="flex w-full items-center gap-3 sm:w-auto">
           {tabConfig && (
-            <div className="relative w-full sm:w-auto">
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 20 20"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2"
-                style={{ color: "var(--text-muted)" }}
-              >
-                <circle cx="8.5" cy="8.5" r="5.5" />
-                <path d="M16.5 16.5 13 13" />
-              </svg>
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder={`Search ${tabConfig.label.toLowerCase()}…`}
-                className="w-full rounded-md border py-1.5 pr-2.5 pl-7 text-sm outline-none sm:w-48"
-                style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
-              />
-            </div>
+            <SearchField
+              value={search}
+              onChange={setSearch}
+              placeholder={`Search ${tabConfig.label.toLowerCase()}…`}
+              className="w-full sm:w-48"
+            />
           )}
         </div>
       </div>

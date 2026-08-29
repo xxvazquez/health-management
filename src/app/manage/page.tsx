@@ -6,6 +6,7 @@ import { useData } from "@/lib/DataContext";
 import { useVisibleDomains, DOMAIN_LABELS, type TrackedDomain } from "@/lib/visibleDomains";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageSkeleton } from "@/components/ui/Skeleton";
+import { SearchField } from "@/components/ui/SearchField";
 import { Card } from "@/components/ui/Card";
 import { ItemNameField, ItemActionButtons, useInlineRename } from "@/components/ui/ItemActions";
 import { DuplicateItemDialog } from "@/components/ui/DuplicateItemDialog";
@@ -564,43 +565,6 @@ function displayCategoryNames(itemType: ItemType, rows: RawCategory[]): string[]
   const used = rows.filter((r) => r.itemType === itemType).map((r) => r.name);
   if (used.length > 0) return used.sort((a, b) => a.localeCompare(b));
   return [...CATEGORIES_BY_TYPE[itemType]];
-}
-
-function SearchIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-      <circle cx="8.5" cy="8.5" r="5.5" />
-      <path d="M16.5 16.5 13 13" />
-    </svg>
-  );
-}
-
-function SearchBar({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  return (
-    <div className="relative">
-      <span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2" style={{ color: "var(--text-muted)" }}>
-        <SearchIcon />
-      </span>
-      <input
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder="Search every item, in every section…"
-        className="w-full rounded-md border py-2 pr-9 pl-9 text-sm"
-        style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
-      />
-      {value && (
-        <button
-          type="button"
-          onClick={() => onChange("")}
-          aria-label="Clear search"
-          className="absolute top-1/2 right-3 -translate-y-1/2 text-xs"
-          style={{ color: "var(--text-muted)" }}
-        >
-          ✕
-        </button>
-      )}
-    </div>
-  );
 }
 
 function AddItemForm({
@@ -1512,7 +1476,7 @@ export default function ManagePage() {
 
       <VisibleSectionsCard />
 
-      <SearchBar value={searchQuery} onChange={setSearchQuery} />
+      <SearchField value={searchQuery} onChange={setSearchQuery} placeholder="Search every item, in every section…" className="w-full" />
 
       <ReminderListsCard isDemoData={isDemoData} searchQuery={searchQuery} />
 

@@ -6,6 +6,7 @@ import { isSpeechToTextSupported, useSpeechToText } from "@/lib/useSpeechToText"
 import { PencilIcon, TrashIcon } from "@/components/ui/Notebook";
 import { SearchField } from "@/components/ui/SearchField";
 import { ListSkeleton } from "@/components/ui/Skeleton";
+import { InlineEmpty } from "@/components/ui/EmptyState";
 import type { HouseholdCode, NewHouseholdCodeInput } from "@/lib/supabase/household";
 
 type SortMode = "recent" | "name";
@@ -331,16 +332,14 @@ export function CodeBoard({
           Couldn&apos;t load codes — try again in a moment.
         </p>
       ) : visibleCodes.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-12 text-center">
-          <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-            {codes.length === 0 ? "No codes yet" : "Nothing matches that search"}
-          </p>
-          <p className="mt-1 max-w-xs text-xs" style={{ color: "var(--text-secondary)" }}>
-            {codes.length === 0
+        <InlineEmpty
+          title={codes.length === 0 ? "No codes yet" : "Nothing matches that search"}
+          description={
+            codes.length === 0
               ? "Tap + Add code to save a discount or promo code you both can use."
-              : "Try a different search term."}
-          </p>
-        </div>
+              : "Try a different search term."
+          }
+        />
       ) : (
         <div className="flex flex-col divide-y divide-[color:var(--gridline)]">
           {visibleCodes.map((code) => (

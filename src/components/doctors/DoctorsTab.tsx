@@ -6,6 +6,7 @@ import type { Doctor } from "@/lib/supabase/doctors";
 import { resolveSpecialtyNames } from "@/lib/doctors";
 import { ComboBox, DoctorName, FIELD_CLS, FIELD_STYLE, LanguageChips, NextAppointmentField, PencilIcon, RatingChips } from "./shared";
 import { AppointmentList } from "./AppointmentList";
+import { InlineEmpty } from "@/components/ui/EmptyState";
 
 type DoctorsApi = ReturnType<typeof useDoctors>;
 
@@ -146,16 +147,7 @@ export function DoctorsTab({ api, accent }: { api: DoctorsApi; accent: string })
   if (selected) return <DoctorHistory api={api} doctor={selected} accent={accent} onBack={() => setSelectedId(null)} />;
 
   if (doctors.data.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-12 text-center">
-        <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-          No doctors yet
-        </p>
-        <p className="mt-1 max-w-xs text-xs" style={{ color: "var(--text-secondary)" }}>
-          Add one while logging an appointment — they&apos;re saved here for reuse.
-        </p>
-      </div>
-    );
+    return <InlineEmpty title="No doctors yet" description="Add one while logging an appointment — they're saved here for reuse." />;
   }
 
   return (
