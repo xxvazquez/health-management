@@ -111,11 +111,8 @@ export const TYPE_ACCENT: Record<ItemType, string> = {
   supplement: "var(--series-2)", // sky blue
   outcome: "var(--series-8)", // plum
   habit: "var(--series-3)", // lavender
-  // Moved off magenta once Notes (Connect) started using that same series
-  // for its own accent — the two never share a screen, but a deep
-  // teal-green reads distinctly from Notes' pink/magenta at a glance
-  // anyway, and previously doubled as --status-serious elsewhere, which a
-  // domain accent probably shouldn't share meaning with regardless.
+  // Deep teal-green rather than magenta: Notes (Connect) uses the magenta
+  // series for its own accent, and the two read distinctly at a glance.
   workout: "var(--series-6)", // deep teal-green
 };
 

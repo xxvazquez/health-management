@@ -75,14 +75,15 @@
   --seq-600: #1f4c6c;
   --seq-700: #14344b;
 
-  /* Status (reserved — never reused as a categorical series). Good/critical
-     are their own deep leaf-green/dot-red tones; warning/serious alias the
-     lavender and magenta categorical tokens above so the good→attention→
-     serious→critical progression climbs the brand's own leaf→lavender→
-     dot arc instead of reaching for an off-brand amber. */
+  /* Semantic status — its own four-step ramp, never reused as a categorical
+     series. A rising-urgency scale: calm leaf-green, a warm amber for
+     "worth attention", a burnt orange for "serious", and the dot-red for
+     "critical / overdue". Each value clears 4.5:1 on both --surface-1 and
+     --page-plane, since these render as small text and pill labels, not
+     just fills. */
   --status-good: #2f6b52;
-  --status-warning: var(--series-3);
-  --status-serious: var(--series-magenta);
+  --status-warning: #965d0f;
+  --status-serious: #a85028;
   --status-critical: #a83552;
 
   /* Elevation — soft, diffused, never harsh */
