@@ -1,9 +1,9 @@
-import Image from "next/image";
 import Link from "next/link";
+import { Logo } from "@/components/Logo";
 
 export function EmptyState({
-  title = "No data yet",
-  description = "Log something on the Log page, or refresh there to pull down data already in Supabase.",
+  title = "Nothing logged yet",
+  description = "Start logging on the Log page and this fills in. Signed in on another device? It syncs down automatically.",
   showLogLink = true,
 }: {
   title?: string;
@@ -15,7 +15,9 @@ export function EmptyState({
       className="flex flex-col items-center justify-center rounded-xl border border-dashed py-16 text-center"
       style={{ borderColor: "var(--border-hairline)" }}
     >
-      <Image src="/logo-lockup.png" alt="Lauva" width={220} height={200} className="mb-2 h-auto w-40 sm:w-48" priority={false} unoptimized />
+      <span className="mb-4 opacity-90">
+        <Logo size={56} />
+      </span>
       <p className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>
         {title}
       </p>

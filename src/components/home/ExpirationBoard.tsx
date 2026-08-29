@@ -159,7 +159,7 @@ function ExpirationRow({
         </span>
         {item.remindDaysBefore > 0 && (
           <span
-            className="flex shrink-0 items-center gap-1 text-[11px] whitespace-nowrap"
+            className="flex shrink-0 items-center gap-1 text-xs whitespace-nowrap"
             style={{ color: "var(--text-muted)" }}
             title={`Reminder set — ${item.remindDaysBefore} day${item.remindDaysBefore === 1 ? "" : "s"} before`}
           >

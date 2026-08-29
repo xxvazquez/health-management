@@ -143,7 +143,7 @@ function MonthGrid({
       <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
         {formatMonthLabel(month)}
       </p>
-      <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
+      <div className="grid grid-cols-7 gap-1 text-center text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
         {WEEKDAY_LABELS.map((w) => (
           <span key={w} className="w-8">
             {w}

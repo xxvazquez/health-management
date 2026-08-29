@@ -3,6 +3,7 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { useData } from "@/lib/DataContext";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { PageSkeleton } from "@/components/ui/Skeleton";
 import { StatTile } from "@/components/ui/StatTile";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { BulletList } from "@/components/ui/BulletList";
@@ -56,7 +57,7 @@ function StatusPill({ status, label, color }: { status: string; label: string; c
   return (
     <span
       key={status}
-      className="inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium whitespace-nowrap"
+      className="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium whitespace-nowrap"
       style={{ color, background: color === "var(--text-muted)" ? "var(--page-plane)" : `color-mix(in oklab, ${color} 14%, transparent)` }}
     >
       {label}
@@ -226,7 +227,7 @@ export function FoodDashboard() {
   // chart specifically, distinct from diversityTrend above.
   const trendDirection = useMemo(() => varietyTrendDirection(varietySeries), [varietySeries]);
 
-  if (status === "loading") return <p style={{ color: "var(--text-muted)" }}>Loading…</p>;
+  if (status === "loading") return <PageSkeleton />;
   if (status === "empty") return <EmptyState />;
 
   const topFoods = ranked.slice(0, 10).map((f) => ({ label: f.item, value: f.count }));
@@ -716,7 +717,7 @@ function RepetitionSection({
                 </span>
               </div>
               <span
-                className="shrink-0 rounded-md px-2 py-0.5 text-[11px] font-medium whitespace-nowrap"
+                className="shrink-0 rounded-md px-2 py-0.5 text-xs font-medium whitespace-nowrap"
                 style={{ color: REPETITION_TAG_COLOR[r.tag], background: `color-mix(in oklab, ${REPETITION_TAG_COLOR[r.tag]} 14%, transparent)` }}
               >
                 {REPETITION_TAG_LABEL[r.tag]}
@@ -795,7 +796,7 @@ function MealTypePatternsSection({
                       return (
                         <td key={m} className="py-1 pr-3 text-center">
                           <span
-                            className="inline-flex h-6 w-6 items-center justify-center rounded text-[11px] font-medium tabular-nums"
+                            className="inline-flex h-6 w-6 items-center justify-center rounded text-xs font-medium tabular-nums"
                             style={{
                               // Dark ink throughout, not white — this tint
                               // range (15-55% of series-1 into white) never

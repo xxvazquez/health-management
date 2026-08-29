@@ -394,7 +394,7 @@ export function StoolTab({
                 }}
               >
                 <BristolIcon score={score} />
-                <span className="text-[11px] font-semibold">{score}</span>
+                <span className="text-xs font-semibold">{score}</span>
               </button>
             );
           })}

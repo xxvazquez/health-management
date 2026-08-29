@@ -140,7 +140,7 @@ export function SyncStatusBanner() {
             {syncState.deadLetter} {syncState.deadLetter === 1 ? "change" : "changes"} failed to back up to the cloud — still saved
             on this device
           </span>
-          <span className="ml-auto shrink-0 text-[11px] underline decoration-dotted" style={{ color: "var(--text-muted)" }}>
+          <span className="ml-auto shrink-0 text-xs underline decoration-dotted" style={{ color: "var(--text-muted)" }}>
             {expanded ? "Hide" : "Details"}
           </span>
         </button>
@@ -162,7 +162,7 @@ export function SyncStatusBanner() {
                       type="button"
                       onClick={() => void handleRetry(entry.id)}
                       disabled={retryingId === entry.id || discardingId === entry.id}
-                      className="rounded-md border px-2 py-1 text-[11px] font-medium disabled:opacity-50"
+                      className="rounded-md border px-2 py-1 text-xs font-medium disabled:opacity-50"
                       style={{ borderColor: "var(--border-hairline)", color: "var(--text-secondary)" }}
                     >
                       {retryingId === entry.id ? "Retrying…" : "Retry"}
@@ -172,7 +172,7 @@ export function SyncStatusBanner() {
                       onClick={() => void handleDiscard(entry.id, label)}
                       disabled={retryingId === entry.id || discardingId === entry.id}
                       title="Give up on syncing this one — the local copy on this device is untouched"
-                      className="rounded-md border px-2 py-1 text-[11px] font-medium disabled:opacity-50"
+                      className="rounded-md border px-2 py-1 text-xs font-medium disabled:opacity-50"
                       style={{ borderColor: "var(--border-hairline)", color: "var(--text-muted)" }}
                     >
                       {discardingId === entry.id ? "Discarding…" : "Discard"}

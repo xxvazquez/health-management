@@ -49,6 +49,10 @@ const SECTIONS: { title: string; body: string }[] = [
     title: "My Drive",
     body: "A read-only browser for your own Google Drive, if you choose to connect it.",
   },
+  {
+    title: "Not medical advice",
+    body: "Lauva shows you your own logged data and descriptive patterns in it — nothing more. It does not diagnose, treat, or advise on any medical condition. Not logged always means only that; never that something didn't happen. Talk to a clinician about anything health-related.",
+  },
 ];
 
 export default function HelpPage() {

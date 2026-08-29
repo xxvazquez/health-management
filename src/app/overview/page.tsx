@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useData } from "@/lib/DataContext";
 import { useAuth } from "@/lib/supabase/AuthContext";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { PageSkeleton } from "@/components/ui/Skeleton";
 import { addDaysToDate, todayLocalISODate, type DateRange } from "@/lib/aggregations/common";
 import { buildActivityFeed, type ActivityEntry } from "@/lib/aggregations/activity";
 import { buildPersonalTrends, topCrossDomainFindings } from "@/lib/aggregations/overview";
@@ -153,7 +154,7 @@ export default function OverviewPage() {
   const findings = useMemo(() => topCrossDomainFindings(events, stoolLogs, workoutLogs), [events, stoolLogs, workoutLogs]);
 
   if (status === "loading") {
-    return <p style={{ color: "var(--text-secondary)" }}>Loading your data…</p>;
+    return <PageSkeleton cards={4} />;
   }
   if (status === "empty") {
     return <EmptyState />;

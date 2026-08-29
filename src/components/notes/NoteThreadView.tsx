@@ -211,7 +211,7 @@ export function NoteThreadView({
               <p className="text-sm whitespace-pre-wrap" style={{ color: "var(--text-primary)" }}>
                 {m.body}
               </p>
-              <p className="mt-1 text-[11px]" style={{ color: "var(--text-muted)" }}>
+              <p className="mt-1 text-xs" style={{ color: "var(--text-muted)" }}>
                 {m.isMine ? "You" : partnerLabel} · {formatNoteTimestamp(m.createdAt)}
               </p>
             </div>

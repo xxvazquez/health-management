@@ -280,7 +280,7 @@ function ListStrip({
         }}
       >
         {label}
-        <span className="text-[11px] font-normal tabular-nums" style={{ color: "var(--text-muted)" }}>
+        <span className="text-xs font-normal tabular-nums" style={{ color: "var(--text-muted)" }}>
           {count}
         </span>
       </button>
@@ -467,7 +467,7 @@ export function TaskBoard({
               {task.notes}
             </span>
           )}
-          <span className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[11px]" style={{ color: due ? "var(--status-critical)" : "var(--text-muted)" }}>
+          <span className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs" style={{ color: due ? "var(--status-critical)" : "var(--text-muted)" }}>
             {task.dueAt && <span>{recurring ? `Next: ${formatDueAt(task.dueAt)}` : formatDueAt(task.dueAt)}</span>}
             {recurring && <span style={{ color: "var(--text-muted)" }}>· every {task.recurrenceDays}d</span>}
             {completedByLabel && task.assignedTo && <span style={{ color: "var(--text-muted)" }}>· for {completedByLabel(task.assignedTo)}</span>}
@@ -560,7 +560,7 @@ export function TaskBoard({
                       {task.title}
                     </span>
                     {task.lastCompletedAt && (
-                      <span className="mt-0.5 block text-[11px]" style={{ color: "var(--text-muted)" }}>
+                      <span className="mt-0.5 block text-xs" style={{ color: "var(--text-muted)" }}>
                         done {formatDate(task.lastCompletedAt)}
                         {completedByLabel && task.lastCompletedBy ? ` by ${completedByLabel(task.lastCompletedBy)}` : ""}
                       </span>
@@ -584,7 +584,7 @@ export function TaskBoard({
                     <span className="block truncate text-sm font-medium" style={{ color: "var(--text-secondary)" }}>
                       {task.title}
                     </span>
-                    <span className="mt-0.5 block text-[11px]" style={{ color: "var(--text-muted)" }}>
+                    <span className="mt-0.5 block text-xs" style={{ color: "var(--text-muted)" }}>
                       {isRecurringTask(task) ? `every ${task.recurrenceDays}d` : "one-off"}
                       {task.lastCompletedAt ? ` · last done ${formatDate(task.lastCompletedAt)}` : ""}
                     </span>

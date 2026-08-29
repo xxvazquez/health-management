@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useData } from "@/lib/DataContext";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { PageSkeleton } from "@/components/ui/Skeleton";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { DateRangeFilter } from "@/components/ui/DateRangeFilter";
 import { Insight } from "@/components/ui/Insight";
@@ -41,7 +42,7 @@ export function HabitsDashboard() {
   );
   const archived = useMemo(() => allStats.filter((i) => i.isArchived), [allStats]);
 
-  if (status === "loading") return <p style={{ color: "var(--text-muted)" }}>Loading…</p>;
+  if (status === "loading") return <PageSkeleton />;
   if (status === "empty") return <EmptyState />;
 
   const stripEnd = range?.end ?? span?.end ?? "";

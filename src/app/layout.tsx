@@ -6,6 +6,7 @@ import { DataProvider } from "@/lib/DataContext";
 import { VisibleDomainsProvider } from "@/lib/visibleDomains";
 import { AuthProvider } from "@/lib/supabase/AuthContext";
 import { Nav } from "@/components/Nav";
+import { BottomNav } from "@/components/BottomNav";
 import { ContentContainer } from "@/components/ContentContainer";
 import { AuthBanner } from "@/components/auth/AuthBanner";
 import { SyncStatusBanner } from "@/components/SyncStatusBanner";
@@ -60,10 +61,11 @@ export default function RootLayout({
               <main className="flex min-w-0 flex-1 flex-col">
                 <AuthBanner />
                 <SyncStatusBanner />
-                <div className="px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
+                <div className="px-4 pt-6 pb-24 sm:px-6 sm:pt-8 lg:px-8 lg:pt-10 lg:pb-10">
                   <ContentContainer>{children}</ContentContainer>
+                  <MedicalDisclaimer />
                 </div>
-                <MedicalDisclaimer />
+                <BottomNav />
               </main>
             </VisibleDomainsProvider>
           </DataProvider>

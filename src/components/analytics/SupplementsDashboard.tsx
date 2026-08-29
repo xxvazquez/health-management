@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { useData } from "@/lib/DataContext";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { PageSkeleton } from "@/components/ui/Skeleton";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { StatTile } from "@/components/ui/StatTile";
 import { DateRangeFilter } from "@/components/ui/DateRangeFilter";
@@ -33,7 +34,7 @@ export function SupplementsDashboard() {
   const glance = useMemo(() => supplementsAtAGlance(events), [events]);
   const groups = useMemo(() => supplementsByCategory(filteredNoFiber), [filteredNoFiber]);
 
-  if (status === "loading") return <p style={{ color: "var(--text-muted)" }}>Loading…</p>;
+  if (status === "loading") return <PageSkeleton />;
   if (status === "empty") return <EmptyState />;
 
   const stripEnd = range?.end ?? span?.end ?? "";
