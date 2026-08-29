@@ -57,6 +57,10 @@ const TABS: { id: Tab; label: string; icon: keyof typeof TAB_ICON }[] = [
   { id: "codes", label: "Codes", icon: "codes" },
 ];
 
+function isHomeTab(v: string): v is Tab {
+  return TABS.some((t) => t.id === v);
+}
+
 /** Reminders -> Home: the same notes/tasks concept as Personal, but shared
  * with a linked partner (household_* tables + is_household_member, see
  * schema.sql) instead of owned outright, plus a product-expiration
@@ -73,6 +77,21 @@ export default function HomePage() {
   const myUserId = isDemo ? DEMO_HOME_ME_ID : accountId;
 
   const [tab, setTab] = useState<Tab>("notes");
+
+  useEffect(() => {
+    const fromHash = () => {
+      const id = window.location.hash.replace("#", "");
+      if (isHomeTab(id)) setTab(id);
+    };
+    fromHash();
+    window.addEventListener("hashchange", fromHash);
+    return () => window.removeEventListener("hashchange", fromHash);
+  }, []);
+
+  function selectTab(id: Tab) {
+    setTab(id);
+    window.history.replaceState(null, "", `#${id}`);
+  }
 
   // Survives navigating away and back so returning doesn't re-flash
   // "Loading…" — see usePersonalReminderBoards for the same pattern.
@@ -391,7 +410,7 @@ export default function HomePage() {
             <button
               key={t.id}
               type="button"
-              onClick={() => setTab(t.id)}
+              onClick={() => selectTab(t.id)}
               className="flex shrink-0 items-center gap-1.5 pb-2.5 text-sm whitespace-nowrap transition-colors"
               style={{
                 color: active ? ACCENT : "var(--text-secondary)",
