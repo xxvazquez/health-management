@@ -1,7 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import clsx from "clsx";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { DateRange } from "@/lib/aggregations/common";
 import { addDaysToDate } from "@/lib/aggregations/common";
 
@@ -14,17 +13,13 @@ interface Props {
   span: DateRange;
   value: DateRange;
   onChange: (range: DateRange) => void;
-  /** Defaults to the original rolling-window presets — pass a different
-   * list to change the wording/granularity for one page without affecting
-   * the other 5 pages that share this component. */
+  /** Defaults to the rolling-window presets — pass a different list to
+   * change the wording/granularity for one page without touching the
+   * others that share this control. */
   presets?: DateRangePreset[];
-  /** Labels the manual date inputs "Custom" — off by default so existing
-   * pages keep their current unlabeled look. */
-  customLabel?: boolean;
   /** Matches whichever page this renders on (its TYPE_ACCENT, or a
-   * page-level accent like Workout's) rather than a hardcoded color, so
-   * this selector never clashes with the page's own accent. Defaults to
-   * series-1 for the couple of call sites that haven't opted in yet. */
+   * page-level accent), so the control never clashes with the page's own
+   * accent. Defaults to series-1 for call sites that haven't opted in. */
   accent?: string;
 }
 
@@ -37,72 +32,169 @@ const DEFAULT_PRESETS: DateRangePreset[] = [
   { label: "All time", days: "all" },
 ];
 
+function presetRange(preset: DateRangePreset, span: DateRange): DateRange {
+  if (preset.days === "all") return { start: span.start, end: span.end };
+  const start = addDaysToDate(span.end, -(preset.days - 1));
+  return { start: start < span.start ? span.start : start, end: span.end };
+}
+
+function fmtShort(d: string): string {
+  return new Date(`${d}T00:00:00`).toLocaleDateString(undefined, { day: "numeric", month: "short" });
+}
+
 /**
- * Which preset reads as "active" is tracked by which button was actually
- * clicked, not by comparing ranges — with a short dataset, several presets
- * (90 days, 6 months, 1 year, All time) all clamp to the same underlying
- * span, so a range-equality check would light up several buttons at once
- * instead of just the one the user picked. Editing a date manually clears
- * it back to "no preset selected".
+ * One compact control: a button showing the current range that opens a
+ * popover of presets plus a custom start/end. Replaces the old row of six
+ * pills and two always-visible date inputs, which wrapped to two or three
+ * lines on every dashboard.
+ *
+ * The active preset is derived by matching `value` against each preset's
+ * computed range (first match wins) rather than tracked as state, so the
+ * selection reads correctly even after `useDateRangeFilter` rehydrates a
+ * range picked on another dashboard.
  */
-export function DateRangeFilter({ span, value, onChange, presets = DEFAULT_PRESETS, customLabel = false, accent = "var(--series-1)" }: Props) {
-  const [activeLabel, setActiveLabel] = useState<string | null>("All time");
+export function DateRangeFilter({ span, value, onChange, presets = DEFAULT_PRESETS, accent = "var(--series-1)" }: Props) {
+  const [open, setOpen] = useState(false);
+  // Which edge of the trigger the popover hangs from — right by default, but
+  // flipped to the left edge when the trigger sits too close to the screen's
+  // left edge for a right-anchored panel to fit (e.g. Food, where it wraps
+  // onto its own left-aligned line).
+  const [alignLeft, setAlignLeft] = useState(false);
+  const POPOVER_WIDTH = 224;
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    if (!open || !rootRef.current) return;
+    const rect = rootRef.current.getBoundingClientRect();
+    setAlignLeft(rect.right < POPOVER_WIDTH + 8);
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onPointerDown = (e: PointerEvent) => {
+      const root = rootRef.current;
+      if (!root) return;
+      // Keep the popover open while a native date picker is being used —
+      // focus stays inside our inputs even though the picker overlay is
+      // technically outside the root.
+      if (root.contains(e.target as Node) || root.contains(document.activeElement)) return;
+      setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  const activePreset = presets.find((p) => {
+    const r = presetRange(p, span);
+    return r.start === value.start && r.end === value.end;
+  });
+  const triggerLabel = activePreset ? activePreset.label : `${fmtShort(value.start)} – ${fmtShort(value.end)}`;
+
+  const fieldStyle = { borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" } as const;
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      {presets.map((preset) => {
-        const start = preset.days === "all" ? span.start : addDaysToDate(span.end, -(preset.days - 1));
-        const presetRange: DateRange = { start: start < span.start ? span.start : start, end: span.end };
-        const active = activeLabel === preset.label;
-        return (
-          <button
-            key={preset.label}
-            onClick={() => {
-              setActiveLabel(preset.label);
-              onChange(presetRange);
-            }}
-            // Same tinted-border selector shape as the Log page's meal
-            // picker — a filter/selector, not primary navigation, so it
-            // deliberately doesn't borrow the underline tab shape either.
-            className={clsx("flex h-7 items-center rounded-md border px-2.5 text-xs font-medium whitespace-nowrap transition-colors")}
-            style={{
-              borderColor: active ? accent : "var(--border-hairline)",
-              background: active ? `color-mix(in oklab, ${accent} 14%, var(--surface-1))` : "transparent",
-              color: active ? accent : "var(--text-secondary)",
-            }}
-          >
-            {preset.label}
-          </button>
-        );
-      })}
-      <div className="flex items-center gap-1.5 text-xs" style={{ color: "var(--text-muted)" }}>
-        {customLabel && <span className="font-medium">Custom:</span>}
-        <input
-          type="date"
-          value={value.start}
-          min={span.start}
-          max={value.end}
-          onChange={(e) => {
-            setActiveLabel(null);
-            onChange({ ...value, start: e.target.value });
-          }}
-          className="rounded-md border px-2 py-1"
-          style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
-        />
-        <span>–</span>
-        <input
-          type="date"
-          value={value.end}
-          min={value.start}
-          max={span.end}
-          onChange={(e) => {
-            setActiveLabel(null);
-            onChange({ ...value, end: e.target.value });
-          }}
-          className="rounded-md border px-2 py-1"
-          style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
-        />
-      </div>
+    <div ref={rootRef} className="relative shrink-0">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        aria-haspopup="dialog"
+        className="flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium transition-colors"
+        style={{ borderColor: open ? accent : "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-secondary)" }}
+      >
+        <svg width="13" height="13" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <rect x="3.5" y="4.5" width="13" height="12" rx="1.5" />
+          <path d="M3.5 8h13M7 3v3M13 3v3" />
+        </svg>
+        <span className="tabular-nums" style={{ color: "var(--text-primary)" }}>{triggerLabel}</span>
+        <svg
+          width="11"
+          height="11"
+          viewBox="0 0 20 20"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+          style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform 150ms" }}
+        >
+          <path d="M5 7.5 10 12.5 15 7.5" />
+        </svg>
+      </button>
+
+      {open && (
+        <div
+          role="dialog"
+          aria-label="Date range"
+          className={`absolute z-30 mt-1.5 w-56 rounded-lg border p-1.5 ${alignLeft ? "left-0" : "right-0"}`}
+          style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", boxShadow: "var(--shadow-card)" }}
+        >
+          <div className="flex flex-col">
+            {presets.map((preset) => {
+              const isActive = preset.label === activePreset?.label;
+              return (
+                <button
+                  key={preset.label}
+                  type="button"
+                  onClick={() => {
+                    onChange(presetRange(preset, span));
+                    setOpen(false);
+                  }}
+                  className="flex items-center justify-between rounded-md px-2 py-1.5 text-left text-xs transition-colors"
+                  style={{
+                    background: isActive ? `color-mix(in oklab, ${accent} 12%, transparent)` : "transparent",
+                    color: isActive ? accent : "var(--text-secondary)",
+                    fontWeight: isActive ? 600 : 400,
+                  }}
+                >
+                  {preset.label}
+                  {isActive && (
+                    <svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d="M4 10.5 8 14.5 16 5.5" />
+                    </svg>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="mt-1.5 border-t pt-2" style={{ borderColor: "var(--gridline)" }}>
+            <p className="mb-1.5 px-2 text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+              Custom range
+            </p>
+            <div className="flex flex-col gap-1 px-1">
+              <input
+                type="date"
+                aria-label="Start date"
+                value={value.start}
+                min={span.start}
+                max={value.end}
+                onChange={(e) => onChange({ ...value, start: e.target.value })}
+                className="w-full rounded-md border px-2 py-1 text-xs"
+                style={fieldStyle}
+              />
+              <input
+                type="date"
+                aria-label="End date"
+                value={value.end}
+                min={value.start}
+                max={span.end}
+                onChange={(e) => onChange({ ...value, end: e.target.value })}
+                className="w-full rounded-md border px-2 py-1 text-xs"
+                style={fieldStyle}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
