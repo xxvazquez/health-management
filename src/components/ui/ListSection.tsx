@@ -5,9 +5,9 @@ import type { ReactNode } from "react";
 /** A titled group inside a list screen (Expiration's date buckets,
  * Reminders' per-list groups). Same bordered-card shell the Log page uses
  * for its category groups, so grouped lists across the app read alike:
- * an icon + uppercase label + count on a hairline-ruled header, rows
- * below. `accent` colours the icon and label when a group needs emphasis
- * (e.g. an overdue bucket). */
+ * an icon + label + count on a hairline-ruled header, rows below. `accent`
+ * colours the icon and label when a group needs emphasis (e.g. an overdue
+ * bucket). */
 export function ListSection({
   icon,
   label,
@@ -30,7 +30,7 @@ export function ListSection({
             {icon}
           </span>
         )}
-        <h3 className="text-xs font-semibold tracking-wide uppercase" style={{ color: headColor }}>
+        <h3 className="text-xs font-semibold" style={{ color: headColor }}>
           {label}
         </h3>
         {count != null && (

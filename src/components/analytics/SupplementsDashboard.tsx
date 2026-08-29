@@ -69,7 +69,7 @@ export function SupplementsDashboard() {
       )}
 
       <div className="flex items-center justify-between gap-3 lg:col-span-2">
-        <p className="text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
+        <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
           Details
         </p>
         {span && range && <DateRangeFilter span={span} value={range} onChange={setRange} accent={TYPE_ACCENT.supplement} />}

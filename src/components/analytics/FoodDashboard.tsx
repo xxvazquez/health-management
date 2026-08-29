@@ -631,7 +631,7 @@ function FavoriteCombosByMeal({ combos, mealInstanceCount }: { combos: MealCombo
             const maxCount = Math.max(...mealCombos.map((c) => c.count), 1);
             return (
               <div key={mealTag}>
-                <p className="mb-2.5 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
+                <p className="mb-2.5 text-xs font-semibold" style={{ color: "var(--text-secondary)" }}>
                   {mealTag}
                 </p>
                 {mealCombos.length === 0 ? (
