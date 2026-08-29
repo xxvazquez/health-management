@@ -372,20 +372,25 @@ export function WorkoutDashboard() {
 
   return (
     <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
-      <div className="lg:col-span-2">
-        <DashboardHeader accent="var(--series-6)">Workout</DashboardHeader>
-        <p className="mt-1 text-sm" style={{ color: "var(--text-secondary)" }}>
-          Charts and progression from what you&apos;ve logged — head to the{" "}
-          <Link href="/log" className="underline decoration-dotted" style={{ color: "var(--text-secondary)" }}>
-            Log page
-          </Link>{" "}
-          to add a lift, or{" "}
-          <Link href="/manage" className="underline decoration-dotted" style={{ color: "var(--text-secondary)" }}>
-            Manage
-          </Link>{" "}
-          to add, archive, or set units for exercises.
-        </p>
-      </div>
+      <DashboardHeader
+        accent="var(--series-6)"
+        className="lg:col-span-2"
+        subtitle={
+          <>
+            Charts and progression from what you&apos;ve logged — head to the{" "}
+            <Link href="/log" className="underline decoration-dotted" style={{ color: "var(--text-secondary)" }}>
+              Log page
+            </Link>{" "}
+            to add a lift, or{" "}
+            <Link href="/manage" className="underline decoration-dotted" style={{ color: "var(--text-secondary)" }}>
+              Manage
+            </Link>{" "}
+            to add, archive, or set units for exercises.
+          </>
+        }
+      >
+        Workout
+      </DashboardHeader>
 
       {insight && (
         <div className="lg:col-span-2">

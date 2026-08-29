@@ -53,16 +53,20 @@ export function CycleDashboard() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <DashboardHeader accent="var(--series-4)">Cycle</DashboardHeader>
-        <p className="mt-1 text-sm" style={{ color: "var(--text-secondary)" }}>
-          Patterns from what you&apos;ve logged — head to the{" "}
-          <Link href="/log" className="underline decoration-dotted" style={{ color: "var(--text-secondary)" }}>
-            Log page
-          </Link>{" "}
-          to record or correct a period day.
-        </p>
-      </div>
+      <DashboardHeader
+        accent="var(--series-4)"
+        subtitle={
+          <>
+            Patterns from what you&apos;ve logged — head to the{" "}
+            <Link href="/log" className="underline decoration-dotted" style={{ color: "var(--text-secondary)" }}>
+              Log page
+            </Link>{" "}
+            to record or correct a period day.
+          </>
+        }
+      >
+        Cycle
+      </DashboardHeader>
 
       {(currentStatus.onPeriod || currentStatus.cycleDay !== null) && (
         <p className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>

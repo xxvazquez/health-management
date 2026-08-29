@@ -582,6 +582,18 @@ export default function LogPage() {
 
   const tabCandidates = useMemo(() => candidates.filter((c) => c.itemType === tab), [candidates, tab]);
 
+  // "Your usual" — the handful of foods logged most across all history,
+  // pinned above the catalog so the common case is one tap, not a scroll.
+  // Only for Food (its list is the longest); hidden until there's a real
+  // pattern to show.
+  const frequentFoods = useMemo(() => {
+    if (tab !== "food") return [];
+    return candidates
+      .filter((c) => c.itemType === "food" && c.count > 0)
+      .sort((a, b) => b.count - a.count || a.item.localeCompare(b.item))
+      .slice(0, 8);
+  }, [candidates, tab]);
+
   const stoolEntriesForDate = useMemo(
     () =>
       effective.stoolLogs
@@ -829,6 +841,14 @@ export default function LogPage() {
     await refresh();
   }
 
+  /** A barely-there tick when a tap registers a log — logging is a
+   * dozens-a-day action and the visual state change alone doesn't read as
+   * confirmation. No-ops on iOS (Apple doesn't expose the Vibration API)
+   * and anywhere else it's unsupported. */
+  function logHaptic() {
+    if (typeof navigator !== "undefined" && typeof navigator.vibrate === "function") navigator.vibrate(8);
+  }
+
   /** Applies the currently-selected Time (see `logTime` state) to a
    * just-created/updated log, so a tap actually gets timestamped as
    * whatever time was picked rather than always "right now" — same idea
@@ -892,6 +912,7 @@ export default function LogPage() {
    * a plain chip. `value` is the band midpoint in minutes. */
   async function handleSetBand(candidate: LogCandidate, value: number, isActive: boolean) {
     if (isDemoData) return;
+    logHaptic();
     setPending(candidate.key);
     if (isActive) {
       await toggleDailyLogAndSync(candidate.itemIdentity, candidate.itemType, date);
@@ -1138,6 +1159,7 @@ export default function LogPage() {
    * chip (itemIdentity "" sentinel — see groupedByCategory) has nothing to
    * increment/toggle yet, so its first tap creates the item instead. */
   function handleChipTap(c: LogCandidate) {
+    logHaptic();
     const action = decideChipTapAction(c, mealCounts.get(c.key) ?? 0, Boolean(tabConfig?.countable));
     switch (action) {
       case "create":
@@ -1176,6 +1198,7 @@ export default function LogPage() {
 
   async function handleSaveStoolEntry(entry: NewStoolEntry) {
     if (isDemoData) return;
+    logHaptic();
     const log = stoolLogFromDraft(createTimeOrderedId(), entry);
     await putStoolLogAndSync(log);
     await refreshAfterWrite();
@@ -1202,6 +1225,7 @@ export default function LogPage() {
 
   async function handleSaveWorkoutEntry(entry: NewWorkoutEntry) {
     if (isDemoData) return;
+    logHaptic();
     const log: RawWorkoutLog = {
       id: createTimeOrderedId(),
       date,
@@ -1218,6 +1242,7 @@ export default function LogPage() {
    * division of labor putPeriodLogAndSync's own doc comment describes. */
   async function handleSetPeriodDay(forDate: string, intensity: PeriodIntensity, collectionMethods: CollectionMethod[]) {
     if (isDemoData) return;
+    logHaptic();
     const existing = effective.periodLogs.find((p) => p.date === forDate);
     const log: RawPeriodLog = {
       id: existing?.id ?? crypto.randomUUID(),
@@ -1324,6 +1349,7 @@ export default function LogPage() {
    * once, as the value the user landed on. */
   function cycleSymptom(c: LogCandidate) {
     if (isDemoData) return;
+    logHaptic();
     const id = c.itemIdentity;
     const cur = symptomTargetsRef.current.has(id)
       ? (symptomTargetsRef.current.get(id) ?? null)
@@ -1567,25 +1593,27 @@ export default function LogPage() {
           <h1 className="text-xl font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
             {activeLogTab ? activeLogTab.label : "Log"}
           </h1>
-          <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-            {tab === "notes"
-              ? "Private notes — a code, a measurement, a reminder to yourself."
-              : tab === "reminders"
-                ? "One-off tasks with a deadline and recurring chores — private to you."
-                : tab === "expiration"
-                  ? "Track when your own products and supplements expire."
-                  : isDemoData
-                    ? "Example data — this is what a tracked day looks like. Sign in or log something for real to replace it."
-                    : tab === "stool"
-                      ? "Log a bowel movement."
-                      : tab === "workout"
-                        ? "Log a lift."
-                        : tab === "cycle"
-                          ? "Track your cycle."
-                          : tabConfig?.countable
-                            ? `Tap a ${tabConfig.singular} to log it.`
-                            : "Tap what applies."}
-          </p>
+          {/* Only a line that actually adds something the heading and the
+           * screen don't already say — the tracking tabs don't need one. */}
+          {(() => {
+            const blurb =
+              tab === "journal"
+                ? "A private diary — a date, an optional title, and whatever's on your mind."
+                : tab === "notes"
+                  ? "Private notes to yourself — a code, a measurement, a reminder."
+                  : tab === "reminders"
+                    ? "One-off tasks with a deadline, and recurring chores. Private to you."
+                    : tab === "expiration"
+                      ? "Track when your products and supplements run out."
+                      : isDemoData
+                        ? "Example data — sign in or log something real to replace it."
+                        : null;
+            return blurb ? (
+              <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
+                {blurb}
+              </p>
+            ) : null;
+          })()}
         </div>
         {tab !== "notes" && tab !== "reminders" && tab !== "expiration" && (
         <div className="flex shrink-0 items-center gap-2">
@@ -1599,12 +1627,20 @@ export default function LogPage() {
             >
               ‹
             </button>
-            <span
-              className="min-w-20 rounded px-1.5 py-0.5 text-center text-xs font-semibold whitespace-nowrap"
-              style={{ color: "var(--text-primary)" }}
-            >
-              {formatDateLabel(date, today)}
-            </span>
+            <label className="relative flex min-w-20 cursor-pointer items-center justify-center rounded px-1.5 py-1.5">
+              <span className="text-xs font-semibold whitespace-nowrap" style={{ color: "var(--text-primary)" }}>
+                {formatDateLabel(date, today)}
+              </span>
+              <input
+                type="date"
+                value={date}
+                max={today}
+                onChange={(e) => e.target.value && setDate(e.target.value)}
+                onClick={(e) => e.currentTarget.showPicker?.()}
+                aria-label="Pick a date"
+                className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+              />
+            </label>
             <button
               type="button"
               onClick={() => setDate((d) => (d < today ? addDaysLocal(d, 1) : d))}
@@ -1980,6 +2016,38 @@ export default function LogPage() {
                     )
                   )}
                 </form>
+              )}
+
+              {tab === "food" && frequentFoods.length >= 3 && (
+                <div className="flex flex-col gap-1.5">
+                  <p className="text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
+                    Your usual
+                  </p>
+                  <div className="no-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+                    {frequentFoods.map((c) => {
+                      const cAccent = colorForCategorySlot(c.category);
+                      const logged = (mealCounts.get(c.key) ?? 0) > 0;
+                      const busy = pending === c.key;
+                      return (
+                        <button
+                          key={`freq-${c.key}`}
+                          type="button"
+                          onClick={() => handleChipTap(c)}
+                          disabled={busy}
+                          className="flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-2 text-sm whitespace-nowrap transition-colors disabled:opacity-50"
+                          style={{
+                            background: logged ? `color-mix(in oklab, ${cAccent} 14%, var(--surface-1))` : "var(--surface-1)",
+                            borderColor: logged ? cAccent : "var(--border-hairline)",
+                            color: logged ? cAccent : "var(--text-secondary)",
+                          }}
+                        >
+                          {logged && <span aria-hidden="true">✓</span>}
+                          {c.item}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               )}
 
               {tab === "food" ? (
