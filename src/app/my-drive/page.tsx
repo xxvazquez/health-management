@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } fro
 import clsx from "clsx";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { ListSkeleton } from "@/components/ui/Skeleton";
 import { driveFileIcon, DriveFolderIcon } from "@/components/icons/DriveFileIcons";
 import { useGoogleDriveAuth } from "@/lib/googleDrive/useGoogleDriveAuth";
 import { listFolder, searchDrive, isFolder, DriveApiError, type DriveFile } from "@/lib/googleDrive/api";
@@ -378,7 +379,7 @@ export default function MyDrivePage() {
           )}
 
           {listLoading ? (
-            <p style={{ color: "var(--text-muted)" }}>Loading…</p>
+            <ListSkeleton />
           ) : (
             !listError &&
             (folders.length === 0 && files.length === 0 ? (

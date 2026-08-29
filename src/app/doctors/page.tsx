@@ -7,6 +7,7 @@ import { AppointmentsTab } from "@/components/doctors/AppointmentsTab";
 import { DoctorsTab } from "@/components/doctors/DoctorsTab";
 import { SpecialtiesTab } from "@/components/doctors/SpecialtiesTab";
 import { FollowUpsTab } from "@/components/doctors/FollowUpsTab";
+import { ListSkeleton } from "@/components/ui/Skeleton";
 
 const APPOINTMENTS_ACCENT = "var(--series-2)";
 const DOCTORS_ACCENT = "var(--series-1)";
@@ -113,9 +114,7 @@ export default function DoctorsPage() {
           Couldn&apos;t load your doctors — try again in a moment.
         </p>
       ) : api.loading ? (
-        <p className="py-10 text-center text-sm" style={{ color: "var(--text-muted)" }}>
-          Loading…
-        </p>
+        <ListSkeleton />
       ) : (
         <>
           {tab === "appointments" && <AppointmentsTab api={api} accent={APPOINTMENTS_ACCENT} />}

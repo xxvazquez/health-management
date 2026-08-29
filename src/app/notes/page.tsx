@@ -24,6 +24,7 @@ import { PartnerLinkPanel } from "@/components/notes/PartnerLinkPanel";
 import { ComposeNoteDialog } from "@/components/notes/ComposeNoteDialog";
 import { NoteThreadList } from "@/components/notes/NoteThreadList";
 import { NoteThreadView } from "@/components/notes/NoteThreadView";
+import { PageSkeleton } from "@/components/ui/Skeleton";
 
 const ACCENT = "var(--series-magenta)";
 // Never the partner's email — that's private data the app shouldn't surface
@@ -230,7 +231,7 @@ export default function NotesPage() {
     ]);
   }, []);
 
-  if (authLoading) return <p style={{ color: "var(--text-muted)" }}>Loading…</p>;
+  if (authLoading) return <PageSkeleton cards={3} />;
 
   if (isDemo) {
     const visibleDemoThreads = demoThreads.filter((t) => matchesView(t, view)).sort((a, b) => b.lastMessageAt.localeCompare(a.lastMessageAt));
@@ -288,7 +289,7 @@ export default function NotesPage() {
     );
   }
 
-  if (partnerState === "loading") return <p style={{ color: "var(--text-muted)" }}>Loading…</p>;
+  if (partnerState === "loading") return <PageSkeleton cards={3} />;
 
   if (partnerState === "unlinked" || !partnerLink) {
     return <PartnerLinkPanel onLinked={() => void loadPartner()} />;

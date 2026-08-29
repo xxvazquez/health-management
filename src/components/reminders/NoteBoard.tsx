@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { NoteList, NoteRow, NotebookForm } from "@/components/ui/Notebook";
 import { SearchField } from "@/components/ui/SearchField";
+import { ListSkeleton } from "@/components/ui/Skeleton";
 
 export interface BoardNote {
   id: string;
@@ -99,9 +100,7 @@ export function NoteBoard({
       </div>
 
       {loading ? (
-        <p className="py-10 text-center text-sm" style={{ color: "var(--text-muted)" }}>
-          Loading…
-        </p>
+        <ListSkeleton />
       ) : error ? (
         <p className="py-10 text-center text-sm" style={{ color: "var(--status-critical)" }}>
           Couldn&apos;t load notes — try again in a moment.

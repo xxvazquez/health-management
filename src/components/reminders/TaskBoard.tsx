@@ -6,6 +6,7 @@ import type { ReminderList } from "@/lib/supabase/personalReminders";
 import { PencilIcon, TrashIcon } from "@/components/ui/Notebook";
 import { ArchiveIcon } from "@/components/notes/icons";
 import { ListSection, SectionIcon } from "@/components/ui/ListSection";
+import { ListSkeleton } from "@/components/ui/Skeleton";
 
 function UndoIcon({ size = 15 }: { size?: number }) {
   return (
@@ -587,9 +588,7 @@ export function TaskBoard({
       </div>
 
       {loading ? (
-        <p className="py-10 text-center text-sm" style={{ color: "var(--text-muted)" }}>
-          Loading…
-        </p>
+        <ListSkeleton />
       ) : error ? (
         <p className="py-10 text-center text-sm" style={{ color: "var(--status-critical)" }}>
           Couldn&apos;t load tasks — try again in a moment.

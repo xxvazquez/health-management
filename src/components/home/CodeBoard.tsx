@@ -5,6 +5,7 @@ import { todayLocalISODate } from "@/lib/aggregations/common";
 import { isSpeechToTextSupported, useSpeechToText } from "@/lib/useSpeechToText";
 import { PencilIcon, TrashIcon } from "@/components/ui/Notebook";
 import { SearchField } from "@/components/ui/SearchField";
+import { ListSkeleton } from "@/components/ui/Skeleton";
 import type { HouseholdCode, NewHouseholdCodeInput } from "@/lib/supabase/household";
 
 type SortMode = "recent" | "name";
@@ -324,9 +325,7 @@ export function CodeBoard({
       </div>
 
       {loading ? (
-        <p className="py-10 text-center text-sm" style={{ color: "var(--text-muted)" }}>
-          Loading…
-        </p>
+        <ListSkeleton />
       ) : error ? (
         <p className="py-10 text-center text-sm" style={{ color: "var(--status-critical)" }}>
           Couldn&apos;t load codes — try again in a moment.

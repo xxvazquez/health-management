@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useData } from "@/lib/DataContext";
 import { useVisibleDomains, DOMAIN_LABELS, type TrackedDomain } from "@/lib/visibleDomains";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { PageSkeleton } from "@/components/ui/Skeleton";
 import { Card } from "@/components/ui/Card";
 import { ItemNameField, ItemActionButtons, useInlineRename } from "@/components/ui/ItemActions";
 import { DuplicateItemDialog } from "@/components/ui/DuplicateItemDialog";
@@ -1481,7 +1482,7 @@ export default function ManagePage() {
   // through "loading" and back) must NOT unmount the page again: doing so
   // was what threw the scroll position back to the top on every action.
   // Demo mode never hits this at all — `demoItems` is seeded synchronously.
-  if (!isDemoData && rawItems === null) return <p style={{ color: "var(--text-muted)" }}>Loading…</p>;
+  if (!isDemoData && rawItems === null) return <PageSkeleton cards={4} />;
   if (status === "empty" && !isDemoData) return <EmptyState />;
 
   return (
