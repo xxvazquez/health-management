@@ -664,7 +664,7 @@ function CategoryManager({
 
   return (
     <div className="mb-4 rounded-lg border p-3" style={{ borderColor: "var(--gridline)" }}>
-      <p className="mb-2 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
+      <p className="mb-2 text-xs font-semibold" style={{ color: "var(--text-secondary)" }}>
         Categories
       </p>
       <div className="flex flex-wrap gap-1.5">

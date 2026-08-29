@@ -278,7 +278,7 @@ export function WorkoutTab({
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-3">
         <label className="flex items-center gap-1.5" style={{ color: "var(--text-secondary)" }}>
-          <span className="text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
+          <span className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
             Time
           </span>
           <input
