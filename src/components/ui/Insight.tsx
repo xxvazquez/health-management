@@ -9,10 +9,10 @@ const TONE_COLOR: Record<InsightTone, string> = {
 };
 
 /**
- * The primary synthesized insight for a page — DECISION before CONTEXT
- * before DATA. Deliberately the single strongest visual element after the
- * page title: the only place on a page (besides Food's priorities list)
- * that uses the "primary" card tier. Never stacked more than once per page.
+ * The synthesized insight for a page — DECISION before CONTEXT before
+ * DATA. A plain card with a coloured kicker rather than a heavy panel:
+ * the tone label and its position at the top of the page carry the
+ * emphasis. Never stacked more than once per page.
  */
 export function Insight({
   label,
@@ -26,15 +26,15 @@ export function Insight({
   tone?: InsightTone;
 }) {
   return (
-    <Card tier="primary">
+    <Card tier="supporting" padded={false} className="px-4 py-3.5">
       <p className="text-xs font-semibold tracking-wide uppercase" style={{ color: TONE_COLOR[tone] }}>
         {label}
       </p>
-      <p className="mt-1.5 text-base leading-snug font-semibold" style={{ color: "var(--text-primary)" }}>
+      <p className="mt-1 text-sm leading-snug" style={{ color: "var(--text-primary)" }}>
         {headline}
       </p>
       {detail && (
-        <p className="mt-1.5 text-sm" style={{ color: "var(--text-secondary)" }}>
+        <p className="mt-1 text-xs" style={{ color: "var(--text-secondary)" }}>
           {detail}
         </p>
       )}
