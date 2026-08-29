@@ -367,14 +367,18 @@ export function digestionInsight(events: CanonicalEvent[], stoolLogs: RawStoolLo
 
   const recentRounded = Math.round(rangeChange.recentPct!);
   const priorRounded = rangeChange.priorPct !== null ? Math.round(rangeChange.priorPct) : null;
+  // A move under the notable threshold is noise — the headline says
+  // "held steady" rather than presenting a 1-point wobble as news.
+  const notableShift = priorRounded !== null && Math.abs(recentRounded - priorRounded) >= TARGET_RANGE_NOTABLE_DIFF_PP;
   const headline =
-    priorRounded !== null
-      ? `Bristol 3–4 made up ${recentRounded}% of recorded stools in the last 30 days, compared with ${priorRounded}% in the previous 30 days.`
-      : `Bristol 3–4 made up ${recentRounded}% of recorded stools in the last 30 days.`;
-  const detail =
-    priorRounded !== null && Math.abs(recentRounded - priorRounded) >= TARGET_RANGE_NOTABLE_DIFF_PP
-      ? `That's a ${recentRounded > priorRounded ? "higher" : "lower"} share of your stools in the target range than the previous 30 days.`
-      : null;
+    priorRounded === null
+      ? `Bristol 3–4 made up ${recentRounded}% of recorded stools in the last 30 days.`
+      : notableShift
+        ? `Bristol 3–4 made up ${recentRounded}% of recorded stools in the last 30 days, ${recentRounded > priorRounded ? "up" : "down"} from ${priorRounded}% the 30 days before.`
+        : `Bristol 3–4 has held steady around ${recentRounded}% of recorded stools over the last two months.`;
+  const detail = notableShift
+    ? `That's a ${recentRounded > priorRounded ? "higher" : "lower"} share of your stools in the target range than the previous 30 days.`
+    : null;
   const tone: InsightTone = "neutral";
 
   const changed: Bullet[] = [];
