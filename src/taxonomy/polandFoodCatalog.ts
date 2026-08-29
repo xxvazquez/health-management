@@ -41,5 +41,12 @@ export const POLAND_FOOD_CATALOG: Record<string, string[]> = {
     "Pistachios", "Sunflower seeds", "Pumpkin seeds", "Flaxseeds", "Chia", "Sesame seeds", "Tahini",
   ],
   Fats: ["Butter", "Ghee", "Olive oil", "Rapeseed oil"],
+  Spices: [
+    "Salt", "Black pepper", "Paprika", "Smoked paprika", "Chilli flakes", "Cayenne",
+    "Cinnamon", "Cumin", "Turmeric", "Ground ginger", "Nutmeg", "Cloves", "Cardamom",
+    "Coriander", "Bay leaf", "Oregano", "Basil", "Thyme", "Rosemary", "Marjoram",
+    "Dill", "Parsley", "Curry powder", "Garlic powder", "Onion powder", "Allspice",
+    "Caraway", "Mustard seed", "Vanilla",
+  ],
   Misc: ["Coffee", "Tea", "Chocolate", "Honey", "Sugar", "Vinegar", "Mustard", "Broth"],
 };

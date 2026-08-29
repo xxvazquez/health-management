@@ -31,6 +31,7 @@ import {
   combineDateAndTime,
   dayTimelineEntries,
   decideChipTapAction,
+  defaultLogTimeValue,
   loggedCountsForDate,
   toTimeInputValue,
   type LogCandidate,
@@ -116,13 +117,13 @@ const SUPPLEMENT_TIME_OPTIONS = ["Morning", "Afternoon", "Night"] as const;
 
 /** Guesses which meal is being logged from the current time of day, so the
  * selector starts on something plausible instead of always "Breakfast" —
- * still just a starting point, never locked in. */
+ * still just a starting point, never locked in. Snack is never auto-picked;
+ * it's always a deliberate choice. */
 function defaultMealForTime(now: Date = new Date()): (typeof MEAL_OPTIONS)[number] {
-  const minutes = now.getHours() * 60 + now.getMinutes();
-  if (minutes >= 6 * 60 && minutes < 12 * 60) return "Breakfast";
-  if (minutes >= 12 * 60 && minutes < 15 * 60) return "Lunch";
-  if (minutes >= 15 * 60 && minutes < 23 * 60 + 30) return "Dinner";
-  return "Snack";
+  const h = now.getHours();
+  if (h < 12) return "Breakfast";
+  if (h < 18) return "Lunch";
+  return "Dinner";
 }
 
 /** Same idea as `defaultMealForTime`, for Supplements' own tag set. */
@@ -218,6 +219,13 @@ const FOOD_CATEGORY_ICON: Record<string, ReactNode> = {
   Fats: (
     <CategoryIconWrap>
       <path d="M10 4c2 3.2 4 6 4 8.5a4 4 0 0 1-8 0C6 10 8 7.2 10 4Z" />
+    </CategoryIconWrap>
+  ),
+  Spices: (
+    <CategoryIconWrap>
+      <path d="M7.5 8h5l.7 7a1 1 0 0 1-1 1.1H7.8A1 1 0 0 1 6.8 15L7.5 8Z" />
+      <path d="M8 8V5.5a2 2 0 0 1 4 0V8" />
+      <path d="M9 4.6h2M8.7 6h2.6" />
     </CategoryIconWrap>
   ),
   Misc: (
@@ -410,14 +418,23 @@ export default function LogPage() {
   // same earlier time doesn't mean re-picking it every time; doesn't reset
   // on date navigation either, since the time-of-day is independent of
   // which day it's applied to.
-  const [logTime, setLogTime] = useState(() => toTimeInputValue(new Date().toISOString()));
+  const [logTime, setLogTime] = useState(() => defaultLogTimeValue());
   // Workout's own copy of the same idea as `logTime` above — it renders
   // outside the shared `tabConfig`-gated block (see the render below), same
   // as Stool's own `loggedAtTime` draft field.
-  const [workoutTime, setWorkoutTime] = useState(() => toTimeInputValue(new Date().toISOString()));
+  const [workoutTime, setWorkoutTime] = useState(() => defaultLogTimeValue());
   const [newItemText, setNewItemText] = useState("");
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [pending, setPending] = useState<string | null>(null);
+  // Symptom tap-cycle: taps are optimistic and coalesced. Each tap bumps
+  // the shown intensity immediately (absent → 1 → 2 → 3 → absent) via
+  // `symptomTargets`; a single debounced write persists the settled value.
+  // Without this, four quick taps all read the same pre-write snapshot and
+  // the symptom never advances past 1 or clears. `symptomTargetsRef` mirrors
+  // the state so the debounced commit reads the value the user landed on.
+  const [symptomTargets, setSymptomTargets] = useState<Map<string, number | null>>(() => new Map());
+  const symptomTargetsRef = useRef(symptomTargets);
+  const symptomTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
   // Persisted across navigation/reloads (localStorage, keyed per item type so
   // same-named categories in different tabs don't collide) — defaults to
   // empty (everything expanded) until the mount effect below hydrates it
@@ -463,6 +480,13 @@ export default function LogPage() {
       Promise.all([getAllItems(), getAllLogs(), getAllDiary(), getAllCategories(), getAllStoolLogs(), getAllWorkoutLogs(), getAllPeriodLogs()]),
     );
     setSnapshot({ items, logs, diary, categories, stoolLogs, workoutLogs, periodLogs });
+  }, []);
+
+  useEffect(() => {
+    const timers = symptomTimers.current;
+    return () => {
+      for (const t of timers.values()) clearTimeout(t);
+    };
   }, []);
 
   useEffect(() => {
@@ -862,23 +886,6 @@ export default function LogPage() {
     setPending(null);
   }
 
-  /** Range buckets (Sleep) and symptom intensity (1/2/3) both mean "one
-   * log per item per day, carrying a specific value". Tapping a value sets
-   * it (upsert); tapping the one that's already active clears the day's
-   * log entirely — same toggle-off feel as a plain chip. */
-  async function handleSetValueOrToggle(candidate: LogCandidate, value: number, isActive: boolean) {
-    if (isDemoData) return;
-    setPending(candidate.key);
-    if (isActive) {
-      await toggleDailyLogAndSync(candidate.itemIdentity, candidate.itemType, date);
-    } else {
-      const log = await setDailyDurationAndSync(candidate.itemIdentity, candidate.itemType, date, value);
-      await applyLogTime(log);
-    }
-    await refreshAfterWrite();
-    setPending(null);
-  }
-
   /** Undoes a specific mistaken tap from the day's timeline — deletes that
    * exact entry, locally and (once synced) in Supabase too. Stool entries
    * share this same timeline but live in their own table, so this branches
@@ -1274,14 +1281,71 @@ export default function LogPage() {
     );
   }
 
-  /** Symptom tap cycles absent → 1 → 2 → 3 → absent. `handleSetValueOrToggle`
-   * upserts (or clears) the numeric `symptom_logs.value` through the sync
-   * layer, exactly as before. */
+  /** The intensity to show for a symptom right now — the optimistic target
+   * while taps are still settling, otherwise whatever's actually logged. */
+  function symptomDisplayValue(identity: string): number | null {
+    return symptomTargets.has(identity)
+      ? (symptomTargets.get(identity) ?? null)
+      : (durationValueForDate.get(identity) ?? null);
+  }
+
+  function setSymptomTarget(id: string, value: number | null) {
+    const next = new Map(symptomTargetsRef.current).set(id, value);
+    symptomTargetsRef.current = next;
+    setSymptomTargets(next);
+  }
+
+  function clearSymptomTarget(id: string) {
+    const next = new Map(symptomTargetsRef.current);
+    next.delete(id);
+    symptomTargetsRef.current = next;
+    setSymptomTargets(next);
+  }
+
+  /** Symptom tap cycles absent → 1 → 2 → 3 → absent. The display updates on
+   * every tap; the actual write is debounced so a burst of taps commits
+   * once, as the value the user landed on. */
   function cycleSymptom(c: LogCandidate) {
-    const cur = durationValueForDate.get(c.itemIdentity);
-    if (cur == null) void handleSetValueOrToggle(c, 1, false);
-    else if (cur >= 3) void handleSetValueOrToggle(c, cur, true);
-    else void handleSetValueOrToggle(c, cur + 1, false);
+    if (isDemoData) return;
+    const id = c.itemIdentity;
+    const cur = symptomTargetsRef.current.has(id)
+      ? (symptomTargetsRef.current.get(id) ?? null)
+      : (durationValueForDate.get(id) ?? null);
+    const next = cur == null ? 1 : cur >= 3 ? null : cur + 1;
+    setSymptomTarget(id, next);
+
+    const running = symptomTimers.current.get(id);
+    if (running) clearTimeout(running);
+    symptomTimers.current.set(
+      id,
+      setTimeout(() => {
+        symptomTimers.current.delete(id);
+        void commitSymptom(c);
+      }, 500),
+    );
+  }
+
+  async function commitSymptom(c: LogCandidate) {
+    const id = c.itemIdentity;
+    const target = symptomTargetsRef.current.get(id) ?? null;
+    // No write has happened yet during this tap burst, so `durationValueForDate`
+    // still reflects the true persisted state before the taps.
+    const wasLogged = durationValueForDate.get(id) != null;
+    setPending(c.key);
+    try {
+      if (target == null) {
+        // Only clear an existing row — toggleDailyLog would otherwise
+        // create one when nothing is there.
+        if (wasLogged) await toggleDailyLogAndSync(c.itemIdentity, c.itemType, date);
+      } else {
+        const log = await setDailyDurationAndSync(c.itemIdentity, c.itemType, date, target);
+        await applyLogTime(log);
+      }
+      await refreshAfterWrite();
+    } finally {
+      clearSymptomTarget(id);
+      setPending(null);
+    }
   }
 
   /** A measured habit (Sleep, and any other amount) — the name plus an
@@ -1368,17 +1432,16 @@ export default function LogPage() {
    * (2, 3); a tap past 3 clears it. The level shows as a small digit in the
    * shared left-hand marker slot, so names stay aligned. */
   function renderSymptomRow(c: LogCandidate, accent: string) {
-    const current = durationValueForDate.get(c.itemIdentity);
+    const current = symptomDisplayValue(c.itemIdentity);
     const present = current != null;
     const busy = pending === c.key;
     return (
       <li key={c.key}>
         <button
           type="button"
-          disabled={busy}
           onClick={() => cycleSymptom(c)}
           aria-label={present ? `${c.item}, intensity ${current} of 3 — tap to change` : `Mark ${c.item}`}
-          className="flex w-full items-center gap-1.5 rounded-md px-2 py-1 text-left text-xs transition-colors disabled:opacity-50"
+          className="flex w-full items-center gap-1.5 rounded-md px-2 py-1 text-left text-xs transition-colors"
           style={{ ...trackRowStyle(present, accent), opacity: busy ? 0.6 : 1 }}
         >
           <RowMark accent={accent}>{present ? current : null}</RowMark>
@@ -1568,8 +1631,6 @@ export default function LogPage() {
             mode="all"
             lists={personal.lists.data}
             onCreateList={personal.lists.create}
-            onRenameList={personal.lists.rename}
-            onDeleteList={personal.lists.remove}
             emptyTitle="No reminders yet"
             emptyDescription="Tap + New for a one-off task with a deadline, or a recurring chore."
             onCreate={personal.tasks.create}
@@ -1730,8 +1791,8 @@ export default function LogPage() {
                         aria-pressed={active}
                         className="rounded px-2.5 py-1 text-xs font-semibold whitespace-nowrap transition-colors"
                         style={{
-                          background: active ? TYPE_ACCENT[tabConfig.type] : "transparent",
-                          color: active ? "#fff" : "var(--text-secondary)",
+                          background: active ? `color-mix(in oklab, ${TYPE_ACCENT[tabConfig.type]} 16%, var(--surface-1))` : "transparent",
+                          color: active ? TYPE_ACCENT[tabConfig.type] : "var(--text-secondary)",
                         }}
                       >
                         {m}
@@ -1755,7 +1816,7 @@ export default function LogPage() {
                   {tab === "supplement"
                     ? ` logged for ${meal.toLowerCase()} — tap to add a dose`
                     : tab === "outcome"
-                      ? ` marked for ${formatDateLabel(date, today).toLowerCase()} — tap again to raise intensity (1–3), once more to clear`
+                      ? ` marked for ${formatDateLabel(date, today).toLowerCase()} — tap to raise intensity, or clear`
                       : ` logged ${tabConfig.countable ? `for ${meal.toLowerCase()}` : formatDateLabel(date, today).toLowerCase()} — tap again to remove`}
                 </p>
               )}

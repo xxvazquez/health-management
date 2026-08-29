@@ -165,7 +165,10 @@ export interface NutritionPriorities {
 }
 
 function foodEvents(events: CanonicalEvent[]): CanonicalEvent[] {
-  return events.filter((e) => e.itemType === "food" && e.completed);
+  // Spices/seasonings are logged for completeness but say nothing about how
+  // someone actually eats — excluded from every priority, coverage and
+  // variety metric here so a cupboard of dried herbs can't inflate them.
+  return events.filter((e) => e.itemType === "food" && e.completed && e.category !== "Spices");
 }
 
 const groupCache = new Map<string, NutritionGroupId[]>();

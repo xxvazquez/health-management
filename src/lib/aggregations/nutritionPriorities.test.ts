@@ -41,4 +41,18 @@ describe("computeNutritionPriorities", () => {
     expect(leafyGreens.totalLogsAllTime).toBe(15); // still known to exist, just not in this range
     expect(leafyGreens.consistency).toBe("not-recent");
   });
+
+  it("excludes the Spices category from variety and coverage entirely", () => {
+    const base = Array.from({ length: 12 }, (_, i) =>
+      makeEvent({ itemType: "food", item: "Rice", category: "Grains", date: `2026-01-${String(i + 1).padStart(2, "0")}`, completed: true }),
+    );
+    const range = { start: "2026-01-01", end: "2026-01-12" };
+    const withoutSpices = computeNutritionPriorities(base, range);
+    const withSpices = computeNutritionPriorities(
+      [...base, ...["Cinnamon", "Turmeric", "Paprika"].map((item, i) => makeEvent({ itemType: "food", item, category: "Spices", date: `2026-01-0${i + 1}`, completed: true }))],
+      range,
+    );
+    expect(withSpices.variety.totalUniqueFoods).toBe(withoutSpices.variety.totalUniqueFoods);
+    expect(withSpices.daysWithFoodTracked).toBe(withoutSpices.daysWithFoodTracked);
+  });
 });

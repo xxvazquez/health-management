@@ -74,6 +74,14 @@ describe("buildActivityFeed", () => {
     const feed = buildActivityFeed(events, logs, []);
     expect(feed.map((e) => e.domain)).toEqual(["workout", "food"]);
   });
+
+  it("orders by the entry's real date, not when it was recorded", () => {
+    // A symptom that happened on 2026-01-01 but was typed in on 2026-01-20.
+    const backdated = makeEvent({ itemType: "outcome", item: "Cramp", date: "2026-01-01", updatedAt: "2026-01-20T21:00:00.000Z" });
+    const recent = makeEvent({ item: "Lunch", date: "2026-01-10", updatedAt: "2026-01-10T12:00:00.000Z" });
+    const feed = buildActivityFeed([backdated, recent], [], []);
+    expect(feed.map((e) => e.date)).toEqual(["2026-01-10", "2026-01-01"]);
+  });
 });
 
 describe("buildActivityDateMap", () => {

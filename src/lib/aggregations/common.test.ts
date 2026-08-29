@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   addDaysToDate,
   computeCurrentStreak,
@@ -12,6 +12,7 @@ import {
   monthStart,
   pct,
   round1,
+  todayLocalISODate,
   trackedCalendarDates,
 } from "./common";
 import { makeEvent } from "@/lib/testFixtures";
@@ -64,6 +65,32 @@ describe("listDatesBetween", () => {
       "2026-02-01",
       "2026-02-02",
     ]);
+  });
+});
+
+describe("todayLocalISODate", () => {
+  afterEach(() => vi.useRealTimers());
+
+  it("returns the current local date from 03:00 onwards", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 7, 29, 3, 0, 0)); // 29 Aug, 03:00 local
+    expect(todayLocalISODate()).toBe("2026-08-29");
+    vi.setSystemTime(new Date(2026, 7, 29, 23, 59, 0));
+    expect(todayLocalISODate()).toBe("2026-08-29");
+  });
+
+  it("still counts as the previous day between midnight and 03:00", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 7, 29, 0, 40, 0)); // 29 Aug, 00:40 local
+    expect(todayLocalISODate()).toBe("2026-08-28");
+    vi.setSystemTime(new Date(2026, 7, 29, 2, 59, 0));
+    expect(todayLocalISODate()).toBe("2026-08-28");
+  });
+
+  it("rolls back across a month boundary", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 8, 1, 1, 0, 0)); // 1 Sep, 01:00 local
+    expect(todayLocalISODate()).toBe("2026-08-31");
   });
 });
 

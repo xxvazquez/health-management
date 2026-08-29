@@ -21,7 +21,6 @@ export interface PersonalTrends {
 }
 
 const MIN_TRACKED_DAYS_FOR_TRENDS = 10;
-const CHANGE_DAY_THRESHOLD = 2;
 const CHANGE_COUNT_THRESHOLD = 2;
 const MAX_TRENDS = 5;
 
@@ -52,29 +51,11 @@ export function buildPersonalTrends(
   const food = computeNutritionPriorities(events, { start: addDaysToDate(span.end, -29), end: span.end });
 
   const changed: Bullet[] = [];
-  const sortedTracked = Array.from(trackedDates).sort();
-  const last7 = sortedTracked.filter((d) => d >= addDaysToDate(span.end, -6)).length;
-  const prior7 = sortedTracked.filter((d) => d >= addDaysToDate(span.end, -13) && d < addDaysToDate(span.end, -6)).length;
-  if (Math.abs(last7 - prior7) >= CHANGE_DAY_THRESHOLD) {
-    changed.push({
-      label: "Tracking",
-      detail: `Logged on ${last7} of the last 7 days, vs. ${prior7} the week before.`,
-      compact: `${last7}/7 days recently · ${prior7}/7 before`,
-    });
-  }
 
-  const symptomDates = new Set(events.filter((e) => e.itemType === "outcome" && e.completed).map((e) => e.date));
-  const symptomLast7 = sortedTracked.filter((d) => d >= addDaysToDate(span.end, -6) && symptomDates.has(d)).length;
-  const symptomPrior7 = sortedTracked.filter(
-    (d) => d >= addDaysToDate(span.end, -13) && d < addDaysToDate(span.end, -6) && symptomDates.has(d),
-  ).length;
-  if (Math.abs(symptomLast7 - symptomPrior7) >= CHANGE_DAY_THRESHOLD) {
-    changed.push({
-      label: "Symptoms",
-      detail: `Logged a symptom on ${symptomLast7} of the last 7 days, vs. ${symptomPrior7} the week before.`,
-      compact: `${symptomLast7}/7 days recently · ${symptomPrior7}/7 before`,
-    });
-  }
+  // Deliberately no "logged on N of the last 7 days" / "logged a symptom on
+  // N of the last 7 days" bullets — how often you *tracked* isn't a health
+  // trend, just tracking-diligence noise, so Trends stays about what the
+  // data actually shows.
 
   const consistency = workoutConsistencySummary(workoutLogs, today);
   if (!consistency.insufficientData && consistency.recentAvgPerMonth !== null && consistency.priorAvgPerMonth !== null) {
