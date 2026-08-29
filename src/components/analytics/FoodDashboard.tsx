@@ -291,7 +291,7 @@ export function FoodDashboard() {
             Showing <span style={{ color: "var(--text-secondary)" }}>{rangeLabel}</span> — every metric and chart below is
             calculated for this range
           </p>
-          <DateRangeFilter span={span} value={range} onChange={setRange} presets={FOOD_DATE_PRESETS} customLabel accent={TYPE_ACCENT.food} />
+          <DateRangeFilter span={span} value={range} onChange={setRange} presets={FOOD_DATE_PRESETS} accent={TYPE_ACCENT.food} />
         </div>
       )}
 
