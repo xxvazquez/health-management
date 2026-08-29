@@ -1552,9 +1552,9 @@ export default function LogPage() {
                 className="flex flex-col gap-1 rounded-lg border p-2.5"
                 style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}
               >
-                <div className="mb-0.5 flex items-center gap-1.5 border-b pb-1.5 text-xs font-bold tracking-wide uppercase" style={{ color: accent, borderColor: "var(--border-hairline)" }}>
+                <div className="mb-0.5 flex items-center gap-1.5 border-b pb-1.5 text-xs font-semibold" style={{ color: accent, borderColor: "var(--border-hairline)" }}>
                   {group.category}
-                  <span className="ml-auto font-medium normal-case" style={{ color: "var(--text-secondary)" }}>
+                  <span className="ml-auto font-medium" style={{ color: "var(--text-secondary)" }}>
                     {group.items.length}
                   </span>
                 </div>
@@ -1569,9 +1569,9 @@ export default function LogPage() {
         )}
         {measureItems.length > 0 && (
           <div className="flex flex-col gap-1 rounded-lg border p-2.5" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
-            <div className="mb-0.5 flex items-center gap-1.5 border-b pb-1.5 text-xs font-bold tracking-wide uppercase" style={{ color: accent, borderColor: "var(--border-hairline)" }}>
+            <div className="mb-0.5 flex items-center gap-1.5 border-b pb-1.5 text-xs font-semibold" style={{ color: accent, borderColor: "var(--border-hairline)" }}>
               Measures
-              <span className="ml-auto font-medium normal-case" style={{ color: "var(--text-secondary)" }}>
+              <span className="ml-auto font-medium" style={{ color: "var(--text-secondary)" }}>
                 {measureItems.length}
               </span>
             </div>
@@ -1976,12 +1976,12 @@ export default function LogPage() {
                         <button
                           type="button"
                           onClick={() => toggleCategoryCollapsed(group.category)}
-                          className="flex items-center gap-1.5 border-b pb-2 text-left text-xs font-bold tracking-wide uppercase"
+                          className="flex items-center gap-1.5 border-b pb-2 text-left text-xs font-semibold"
                           style={{ color: accent, borderColor: "var(--border-hairline)" }}
                         >
                           {icon}
                           {group.category}
-                          <span className="ml-auto flex items-center gap-1 font-medium normal-case" style={{ color: "var(--text-secondary)" }}>
+                          <span className="ml-auto flex items-center gap-1 font-medium" style={{ color: "var(--text-secondary)" }}>
                             {items.length}
                             <svg
                               width="12"

@@ -303,7 +303,7 @@ export function WorkoutTab({
       ) : (
         groups.map((group) => (
           <div key={group.category} className="flex flex-col gap-2">
-            <p className="text-xs font-bold tracking-wide uppercase" style={{ color: accent }}>
+            <p className="text-xs font-semibold" style={{ color: accent }}>
               {group.category}
             </p>
             <div className="flex flex-col gap-2">
