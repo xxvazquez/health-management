@@ -1248,9 +1248,13 @@ export default function LogPage() {
    * tracked one gets a tinted background, a colored left edge, and a
    * checkmark, which reads as "the strongest state on the row" without
    * needing a heavy rounded shape to do it. */
-  function renderChip(c: LogCandidate, accent: string) {
+  function renderChip(c: LogCandidate) {
     const logged = (mealCounts.get(c.key) ?? 0) > 0;
     const busy = pending === c.key;
+    // One "logged" colour for every food, regardless of category — a green
+    // tick reads as "done", where a category hue (rose for Grains, etc.)
+    // read as a status. Category colour stays on the group header only.
+    const accent = TYPE_ACCENT.food;
 
     return (
       <button
@@ -1578,6 +1582,14 @@ export default function LogPage() {
     );
   }
 
+  // The Time field is neutral while it reads roughly "now", and only picks
+  // up a tinted border once it's been set to a different day or a time more
+  // than a few minutes off — a quiet "you're logging this for earlier",
+  // not a permanent focal point.
+  const nowMinutes = new Date().getHours() * 60 + new Date().getMinutes();
+  const [logHrs, logMins] = logTime.split(":").map(Number);
+  const timeIsExplicit = date !== today || Math.abs((logHrs || 0) * 60 + (logMins || 0) - nowMinutes) > 5;
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -1791,10 +1803,10 @@ export default function LogPage() {
                   value={logTime}
                   onChange={(e) => setLogTime(e.target.value)}
                   onClick={(e) => e.currentTarget.showPicker?.()}
-                  className="h-7 rounded-md border px-2.5 text-xs font-medium tabular-nums outline-none"
+                  className="h-7 rounded-md border px-2.5 text-xs font-medium tabular-nums outline-none transition-colors"
                   style={{
-                    borderColor: "var(--series-2)",
-                    background: "color-mix(in oklab, var(--series-2) 14%, var(--surface-1))",
+                    borderColor: timeIsExplicit ? "var(--series-2)" : "var(--border-hairline)",
+                    background: "var(--surface-1)",
                     color: "var(--text-primary)",
                   }}
                 />
@@ -1923,7 +1935,7 @@ export default function LogPage() {
                   </p>
                   <div className="no-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
                     {frequentFoods.map((c) => {
-                      const cAccent = colorForCategorySlot(c.category);
+                      const cAccent = TYPE_ACCENT.food;
                       const logged = (mealCounts.get(c.key) ?? 0) > 0;
                       const busy = pending === c.key;
                       return (
@@ -1997,7 +2009,7 @@ export default function LogPage() {
                             collapsed ? "hidden lg:block" : "block",
                           )}
                         >
-                          {items.map((c) => renderChip(c, accent))}
+                          {items.map((c) => renderChip(c))}
                         </div>
                       </div>
                     );
