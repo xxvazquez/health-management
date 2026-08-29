@@ -130,86 +130,130 @@ function TaskForm({
   }
 
   const fieldStyle = { borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" } as const;
+  const fieldCls = "rounded-lg border px-3 py-2 text-sm outline-none focus:border-[color:var(--baseline)]";
+  const labelCls = "text-xs font-medium";
+  const labelStyle = { color: "var(--text-secondary)" } as const;
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-      <div className="flex items-center justify-end">
+    <form
+      onSubmit={handleSubmit}
+      className="flex flex-col gap-4 rounded-xl border p-4"
+      style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", boxShadow: "var(--shadow-card)" }}
+    >
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+          {initial ? "Edit reminder" : "New reminder"}
+        </h3>
         <button type="button" onClick={onCancel} className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
           Cancel
         </button>
       </div>
-      <input
-        required
-        autoFocus
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        placeholder="What needs doing?"
-        maxLength={150}
-        className="rounded-md border px-3 py-2 text-sm font-medium outline-none"
-        style={fieldStyle}
-      />
-      <textarea
-        value={notes}
-        onChange={(e) => setNotes(e.target.value)}
-        rows={2}
-        placeholder="Notes (optional)"
-        className="resize-y rounded-md border px-3 py-2.5 text-sm leading-relaxed outline-none"
-        style={fieldStyle}
-      />
 
-      {lists && (
-        <label className="flex items-center gap-2 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
-          List
-          <select value={listId} onChange={(e) => setListId(e.target.value)} className="rounded-md border px-2 py-1 text-sm" style={fieldStyle}>
-            <option value="">{DEFAULT_LIST_NAME}</option>
-            {lists.map((l) => (
-              <option key={l.id} value={l.id}>
-                {l.name}
-              </option>
-            ))}
-          </select>
+      <div className="flex flex-col gap-1.5">
+        <label className={labelCls} style={labelStyle}>
+          What needs doing?
         </label>
-      )}
+        <input
+          required
+          autoFocus
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="e.g. Call the dentist"
+          maxLength={150}
+          className={`${fieldCls} font-medium`}
+          style={fieldStyle}
+        />
+      </div>
 
-      {assignable && (
-        <label className="flex items-center gap-2 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
-          Assigned to
-          <select value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)} className="rounded-md border px-2 py-1 text-sm" style={fieldStyle}>
-            <option value="">Anyone</option>
-            <option value={assignable.myUserId}>Me</option>
-            {assignable.partnerId && <option value={assignable.partnerId}>Partner</option>}
-          </select>
+      <div className="flex flex-col gap-1.5">
+        <label className={labelCls} style={labelStyle}>
+          Notes <span style={{ color: "var(--text-muted)" }}>· optional</span>
         </label>
-      )}
+        <textarea
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          rows={2}
+          placeholder="Anything useful to remember"
+          className={`${fieldCls} resize-y leading-relaxed`}
+          style={fieldStyle}
+        />
+      </div>
 
       {recurrenceMode === "optional" && (
-        <label className="flex items-center gap-2 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
-          <input type="checkbox" checked={recurring} onChange={(e) => setRecurring(e.target.checked)} />
+        <label className="flex items-center gap-2 text-xs font-medium" style={labelStyle}>
+          <input type="checkbox" checked={recurring} onChange={(e) => setRecurring(e.target.checked)} style={{ accentColor: accent }} />
           Repeats on a schedule
         </label>
       )}
 
-      {usesRecurrence ? (
-        <label className="flex items-center gap-2 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
-          Repeat every
-          <input type="number" min={1} required value={recurrenceDays} onChange={(e) => setRecurrenceDays(e.target.value)} className="w-16 rounded-md border px-2 py-1 text-sm" style={fieldStyle} />
-          days
-        </label>
-      ) : (
-        <label className="flex items-center gap-2 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
-          Deadline (optional)
-          <input type="datetime-local" value={dueAtLocal} onChange={(e) => setDueAtLocal(e.target.value)} className="rounded-md border px-2 py-1 text-sm" style={fieldStyle} />
-        </label>
-      )}
+      <div className="grid gap-3 sm:grid-cols-2">
+        {lists && (
+          <div className="flex flex-col gap-1.5">
+            <label className={labelCls} style={labelStyle}>
+              List
+            </label>
+            <select value={listId} onChange={(e) => setListId(e.target.value)} className={fieldCls} style={fieldStyle}>
+              <option value="">{DEFAULT_LIST_NAME}</option>
+              {lists.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
-      <div className="flex items-center gap-3">
+        {assignable && (
+          <div className="flex flex-col gap-1.5">
+            <label className={labelCls} style={labelStyle}>
+              Assigned to
+            </label>
+            <select value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)} className={fieldCls} style={fieldStyle}>
+              <option value="">Anyone</option>
+              <option value={assignable.myUserId}>Me</option>
+              {assignable.partnerId && <option value={assignable.partnerId}>Partner</option>}
+            </select>
+          </div>
+        )}
+
+        {usesRecurrence ? (
+          <div className="flex flex-col gap-1.5">
+            <label className={labelCls} style={labelStyle}>
+              Repeat every
+            </label>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                min={1}
+                required
+                value={recurrenceDays}
+                onChange={(e) => setRecurrenceDays(e.target.value)}
+                className={`${fieldCls} w-20`}
+                style={fieldStyle}
+              />
+              <span className="text-xs" style={labelStyle}>
+                days
+              </span>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-1.5">
+            <label className={labelCls} style={labelStyle}>
+              Deadline <span style={{ color: "var(--text-muted)" }}>· optional</span>
+            </label>
+            <input type="datetime-local" value={dueAtLocal} onChange={(e) => setDueAtLocal(e.target.value)} className={fieldCls} style={fieldStyle} />
+          </div>
+        )}
+      </div>
+
+      <div className="flex items-center gap-3 pt-1">
         <button
           type="submit"
           disabled={saving || !title.trim()}
-          className="rounded-md px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+          className="rounded-lg px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
           style={{ background: accent }}
         >
-          {saving ? "Saving…" : initial ? "Save changes" : "Save"}
+          {saving ? "Saving…" : initial ? "Save changes" : "Save reminder"}
         </button>
         {error && (
           <span className="text-xs" style={{ color: "var(--status-critical)" }}>
@@ -219,6 +263,21 @@ function TaskForm({
       </div>
     </form>
   );
+}
+
+/** Rebuild the form-values tuple from an existing task, with a field or two
+ * overridden — lets a row-level control (the inline list picker) reuse the
+ * same `onEdit` path as the full form without opening it. */
+function taskToFormValues(task: TaskItem, overrides: Partial<TaskFormValues>): TaskFormValues {
+  return {
+    title: task.title,
+    notes: task.notes ?? "",
+    dueAt: task.dueAt,
+    recurrenceDays: task.recurrenceDays,
+    assignedTo: task.assignedTo,
+    listId: task.listId,
+    ...overrides,
+  };
 }
 
 
@@ -467,7 +526,23 @@ export function TaskBoard({
               {task.notes}
             </span>
           )}
-          <span className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs" style={{ color: due ? "var(--status-critical)" : "var(--text-muted)" }}>
+          <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs" style={{ color: due ? "var(--status-critical)" : "var(--text-muted)" }}>
+            {lists && (
+              <select
+                value={task.listId ?? ""}
+                onChange={(e) => void onEdit(task.id, taskToFormValues(task, { listId: e.target.value || null }))}
+                aria-label={`Move "${task.title}" to another list`}
+                className="max-w-[10rem] truncate rounded border py-0.5 pr-1 pl-1.5 text-xs outline-none"
+                style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-secondary)" }}
+              >
+                <option value="">{DEFAULT_LIST_NAME}</option>
+                {lists.map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.name}
+                  </option>
+                ))}
+              </select>
+            )}
             {task.dueAt && <span>{recurring ? `Next: ${formatDueAt(task.dueAt)}` : formatDueAt(task.dueAt)}</span>}
             {recurring && <span style={{ color: "var(--text-muted)" }}>· every {task.recurrenceDays}d</span>}
             {completedByLabel && task.assignedTo && <span style={{ color: "var(--text-muted)" }}>· for {completedByLabel(task.assignedTo)}</span>}

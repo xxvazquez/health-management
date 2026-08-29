@@ -76,7 +76,7 @@ export function PushNotificationsToggle() {
         onClick={() => void toggle()}
         disabled={busy}
         aria-pressed={enabled}
-        className="flex items-center gap-1.5 rounded-full border py-1 pr-2.5 pl-1.5 text-xs font-medium disabled:opacity-50"
+        className="flex items-center gap-1.5 rounded-md border py-1 pr-2.5 pl-1.5 text-xs font-medium disabled:opacity-50"
         style={{
           borderColor: enabled ? "var(--series-1)" : "var(--border-hairline)",
           background: enabled ? "color-mix(in oklab, var(--series-1) 14%, var(--surface-1))" : "var(--surface-1)",

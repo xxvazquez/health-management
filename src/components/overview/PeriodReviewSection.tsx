@@ -131,12 +131,8 @@ export function PeriodReviewSection({
         </p>
       ) : (
         <>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            <TotalTile label="Food logs" value={review.totals.foodLogs} />
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
             <TotalTile label="Unique foods" value={review.totals.uniqueFoods} />
-            <TotalTile label="Workout days" value={review.totals.workoutSessions} />
-            <TotalTile label="Symptom days" value={review.totals.symptomDays} />
-            <TotalTile label="Period days" value={review.totals.periodDays} />
             <TotalTile label="Notes exchanged" value={review.totals.notesExchanged} />
           </div>
           {review.highlights.length > 0 && (

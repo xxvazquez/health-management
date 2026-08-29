@@ -61,7 +61,7 @@ export default function RootLayout({
               <main className="flex min-w-0 flex-1 flex-col">
                 <AuthBanner />
                 <SyncStatusBanner />
-                <div className="px-4 pt-6 pb-24 sm:px-6 sm:pt-8 lg:px-8 lg:pt-10 lg:pb-10">
+                <div className="px-4 pt-5 pb-24 sm:px-6 sm:pt-6 lg:px-8 lg:pt-8 lg:pb-10">
                   <ContentContainer>{children}</ContentContainer>
                   <MedicalDisclaimer />
                 </div>
