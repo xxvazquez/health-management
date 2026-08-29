@@ -111,7 +111,7 @@ export function ComposeNoteDialog({
                   key={c}
                   type="button"
                   onClick={() => setCategory(c)}
-                  className="flex flex-1 flex-col items-center gap-1 rounded-lg border py-2 text-[11px] font-medium transition-colors"
+                  className="flex flex-1 flex-col items-center gap-1 rounded-lg border py-2 text-xs font-medium transition-colors"
                   style={{
                     borderColor: active ? ACCENT : "var(--border-hairline)",
                     background: active ? "color-mix(in oklab, var(--series-magenta) 12%, var(--surface-1))" : "transparent",

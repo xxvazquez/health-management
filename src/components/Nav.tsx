@@ -5,8 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import clsx from "clsx";
 import { useData } from "@/lib/DataContext";
-import { useAuth } from "@/lib/supabase/AuthContext";
-import { notesConfigured, onNotesChanged, unreadNoteCount } from "@/lib/supabase/notes";
+import { useUnreadNoteCount } from "@/lib/useUnreadNoteCount";
 import { Logo } from "@/components/Logo";
 import { AccountMenuButton } from "@/components/auth/AccountMenuButton";
 import { AccountPanel } from "@/components/auth/AccountPanel";
@@ -22,7 +21,7 @@ function IconWrap({ children }: { children: ReactNode }) {
   );
 }
 
-const ICONS: Record<string, ReactNode> = {
+export const ICONS: Record<string, ReactNode> = {
   Overview: (
     <IconWrap>
       <path d="M3 10.5 10 4l7 6.5" />
@@ -111,6 +110,14 @@ const ICONS: Record<string, ReactNode> = {
       <path d="M4 16.5V10M8 16.5V5M12 16.5v-4M16 16.5V8" />
     </IconWrap>
   ),
+  Shared: (
+    <IconWrap>
+      <circle cx="7" cy="8" r="2.4" />
+      <circle cx="13" cy="8" r="2.4" />
+      <path d="M3.5 16c.4-2.3 1.9-3.6 3.5-3.6 1 0 1.9.5 2.6 1.3" />
+      <path d="M10.4 13.7c.7-.8 1.6-1.3 2.6-1.3 1.6 0 3.1 1.3 3.5 3.6" />
+    </IconWrap>
+  ),
   Help: (
     <IconWrap>
       <circle cx="10" cy="10" r="6.6" />
@@ -120,10 +127,10 @@ const ICONS: Record<string, ReactNode> = {
   ),
 };
 
-/** The app's home/at-a-glance page — Today, Recent Activity, Trends,
- * Calendar, Partner Notes, and the Weekly/Monthly Review all in one place.
- * Its own top-level entry (not an Analytics tab) since it's cross-domain,
- * the landing point for "what's going on" before drilling into a dashboard. */
+/** The app's home/at-a-glance page — Today, Recent Activity, Trends, and
+ * the Weekly/Monthly Review in one place. Its own top-level entry (not an
+ * Analytics tab) since it's cross-domain, the landing point for "what's
+ * going on" before drilling into a dashboard. */
 const OVERVIEW_LINKS = [{ href: "/overview", label: "Overview" }];
 /** Log (enter data) and Analytics (read it back) — the two halves the whole
  * app is organized around, both top-level. Analytics is a single page with
@@ -136,11 +143,12 @@ const TOOLS_LINKS = [
   { href: "/my-drive", label: "My Drive" },
   { href: "/help", label: "Help" },
 ];
-/** The "you + your linked partner" surface, grouped on its own: shared
- * reminders/tasks/expiration (`/home`) and partner messaging (`/notes`).
- * Kept together because both only mean anything once a partner is linked.
- * (Private notes/reminders/expiration live as tabs on the Log page.) */
-const HOME_LINKS = [
+/** The "you + your linked partner" surface, grouped under "Shared": the
+ * shared board of reminders/tasks/expiration (`/home`) and partner
+ * messaging (`/notes`). Both only mean anything once a partner is linked.
+ * (Your *private* notes/reminders/expiration live as tabs on the Log
+ * page — the "Shared" grouping is what keeps the two apart.) */
+const SHARED_LINKS = [
   { href: "/home", label: "Reminders" },
   { href: "/notes", label: "Notes" },
 ];
@@ -235,7 +243,7 @@ function NavSection({
         type="button"
         onClick={onToggle}
         aria-expanded={open}
-        className="flex w-full items-center justify-between rounded-md px-3 py-1 text-[10px] font-semibold tracking-[0.12em] uppercase transition-colors hover:bg-[var(--page-plane)]"
+        className="flex w-full items-center justify-between rounded-md px-3 py-1 text-xs font-semibold tracking-[0.12em] uppercase transition-colors hover:bg-[var(--page-plane)]"
         style={{ color: "var(--text-muted)" }}
       >
         {label}
@@ -248,7 +256,7 @@ function NavSection({
 
 /** `next.config.ts` sets `trailingSlash: true`, so `usePathname()` returns
  * `/log/` while our link hrefs are `/log` — compare without the slash. */
-function isActiveHref(pathname: string, href: string): boolean {
+export function isActiveHref(pathname: string, href: string): boolean {
   return pathname.replace(/\/+$/, "") === href.replace(/\/+$/, "");
 }
 
@@ -299,7 +307,7 @@ function NavLinkList({
                 />
               ) : (
                 <span
-                  className="ml-auto flex h-4.5 min-w-4.5 items-center justify-center rounded-full px-1 text-[10px] font-semibold text-white tabular-nums"
+                  className="ml-auto flex h-4.5 min-w-4.5 items-center justify-center rounded-full px-1 text-xs font-semibold text-white tabular-nums"
                   style={{ background: "var(--series-magenta)" }}
                 >
                   {badge > 99 ? "99+" : badge}
@@ -312,66 +320,12 @@ function NavLinkList({
   );
 }
 
-/** Polls rather than subscribing to realtime — Notes has no live-updating
- * requirement (see notes.ts's own comment on this), so a periodic refetch
- * plus a refetch whenever the route changes (covers "just read something in
- * /notes, badge should drop now") is simple and enough for a private
- * couple's-notes feature. Session-gated: no point polling while signed out
- * or before Supabase is configured, both of which make every Notes query a
- * silent no-op anyway. */
-const UNREAD_POLL_MS = 60_000;
-
-function useUnreadNoteCount(pathname: string): number {
-  const { session } = useAuth();
-  const [count, setCount] = useState(0);
-
-  useEffect(() => {
-    if (!notesConfigured || !session) {
-      // Deferred rather than a direct synchronous setState call in the
-      // effect body — same "update from a callback, not inline" shape as
-      // the refresh() path below, just with no real async work to hang it
-      // off of (signing out is itself the trigger, nothing to await).
-      queueMicrotask(() => setCount(0));
-      return;
-    }
-    let cancelled = false;
-    const refresh = () => {
-      void unreadNoteCount()
-        .then((n) => {
-          if (!cancelled) setCount(n);
-        })
-        .catch(() => {
-          // Transient network/RLS hiccup — leave the last known count
-          // showing rather than flashing it to 0.
-        });
-    };
-    refresh();
-    const interval = setInterval(refresh, UNREAD_POLL_MS);
-    // Immediate refresh the moment something actually changes read/unread
-    // state — the Notes page's "mark all as read" (and every other read/
-    // unread/archive action) lives in a completely different component
-    // tree from this badge, so without this it stayed stuck at the old
-    // count until the next poll tick or route change. See notes.ts's
-    // onNotesChanged for what fires it.
-    const unsubscribe = onNotesChanged(refresh);
-    return () => {
-      cancelled = true;
-      clearInterval(interval);
-      unsubscribe();
-    };
-    // `pathname` is read only to retrigger this on navigation (e.g. leaving
-    // /notes after reading something), not otherwise used in the effect.
-  }, [session, pathname]);
-
-  return count;
-}
-
 function NavLinks({ pathname, collapsed, onNavigate }: { pathname: string; collapsed?: boolean; onNavigate?: () => void }) {
   const unreadNotes = useUnreadNoteCount(pathname);
   const { collapsed: sectionCollapsed, toggle } = useCollapsedSections();
 
   const sections: { label: string; links: { href: string; label: string }[]; badges?: Record<string, number> }[] = [
-    { label: "Home", links: HOME_LINKS, badges: { "/notes": unreadNotes } },
+    { label: "Shared", links: SHARED_LINKS, badges: { "/notes": unreadNotes } },
     { label: "Manage", links: MANAGE_LINKS },
     { label: "Tools", links: TOOLS_LINKS },
   ];

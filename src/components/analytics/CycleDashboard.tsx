@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import Link from "next/link";
 import { useData } from "@/lib/DataContext";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { PageSkeleton } from "@/components/ui/Skeleton";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { Insight } from "@/components/ui/Insight";
 import { StatTile } from "@/components/ui/StatTile";
@@ -43,7 +44,7 @@ export function CycleDashboard() {
   const cycleTrend = useMemo(() => cycleLengthTrend(filteredRuns), [filteredRuns]);
   const periodTrend = useMemo(() => periodLengthTrend(filteredRuns), [filteredRuns]);
 
-  if (status === "loading") return <p style={{ color: "var(--text-muted)" }}>Loading…</p>;
+  if (status === "loading") return <PageSkeleton />;
   if (status === "empty") return <EmptyState />;
 
   const rangeIsAllTime = !!span && !!range && range.start === span.start && range.end === span.end;

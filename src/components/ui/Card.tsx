@@ -7,14 +7,14 @@ const TIER_STYLE: Record<CardTier, { border: string; shadow: string; padding: st
   // The one thing per page that should visually win — the only tier with
   // a shadow. Used at most once or twice per page (the Insight component,
   // and Food's ranked priorities list).
-  primary: { border: "var(--border-hairline)", shadow: "var(--shadow-card)", padding: "p-4", radius: "rounded-xl" },
+  primary: { border: "var(--border-hairline)", shadow: "var(--shadow-card)", padding: "p-5", radius: "rounded-2xl" },
   // Default — a standalone section that's more than a footnote but not
   // the page's primary decision. White surface, light border, no shadow.
-  supporting: { border: "var(--border-hairline)", shadow: "none", padding: "p-4", radius: "rounded-xl" },
+  supporting: { border: "var(--border-hairline)", shadow: "none", padding: "p-5", radius: "rounded-xl" },
   // Deliberately quieter: smaller padding, lighter border, no shadow — for
   // charts/detail sections nested under a "Details" heading that a user
   // opens deliberately rather than scans by default.
-  raw: { border: "var(--gridline)", shadow: "none", padding: "p-3.5", radius: "rounded-lg" },
+  raw: { border: "var(--gridline)", shadow: "none", padding: "p-4", radius: "rounded-lg" },
 };
 
 export function Card({

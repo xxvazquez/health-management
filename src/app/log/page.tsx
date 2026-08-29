@@ -47,7 +47,7 @@ import { normalizeName, titleCaseFallback } from "@/taxonomy/normalizeName";
 import { TYPE_ACCENT, colorForCategorySlot, effectiveCategoryList, type ItemType } from "@/taxonomy/categories";
 import { lookupFoodCategory } from "@/taxonomy/classify";
 import { POLAND_FOOD_CATALOG } from "@/taxonomy/polandFoodCatalog";
-import { DURATION_DEFAULT_MINUTES, INPUT_KIND } from "@/taxonomy/inputKinds";
+import { BAND_OPTIONS, DURATION_DEFAULT_MINUTES, INPUT_KIND, activeBandValue, bandLabelForValue } from "@/taxonomy/inputKinds";
 import { DurationStepper } from "@/components/ui/DurationStepper";
 import { NumberStepper, UNIT_STEP_PRESETS } from "@/components/ui/NumberStepper";
 import { StoolTab, type NewStoolEntry, characteristicLabels } from "@/components/log/StoolTab";
@@ -886,6 +886,22 @@ export default function LogPage() {
     setPending(null);
   }
 
+  /** Tap a band to set the day's value (one log per item per day, upserted);
+   * tap the band that's already active to clear it — same toggle-off feel as
+   * a plain chip. `value` is the band midpoint in minutes. */
+  async function handleSetBand(candidate: LogCandidate, value: number, isActive: boolean) {
+    if (isDemoData) return;
+    setPending(candidate.key);
+    if (isActive) {
+      await toggleDailyLogAndSync(candidate.itemIdentity, candidate.itemType, date);
+    } else {
+      const log = await setDailyDurationAndSync(candidate.itemIdentity, candidate.itemType, date, value);
+      await applyLogTime(log);
+    }
+    await refreshAfterWrite();
+    setPending(null);
+  }
+
   /** Undoes a specific mistaken tap from the day's timeline — deletes that
    * exact entry, locally and (once synced) in Supabase too. Stool entries
    * share this same timeline but live in their own table, so this branches
@@ -1348,8 +1364,60 @@ export default function LogPage() {
     }
   }
 
-  /** A measured habit (Sleep, and any other amount) — the name plus an
-   * hours+minutes stepper, defaulting to a sensible anchor until it's set. */
+  /** A "roughly how much" measure (Sleep) — the name on one line, a
+   * full-width row of coarse bands to tap on the next. One tap sets it,
+   * tapping the active band clears it. */
+  function renderBandRow(c: LogCandidate, accent: string) {
+    const current = durationValueForDate.get(c.itemIdentity);
+    const bands = BAND_OPTIONS[c.item] ?? [];
+    const active = activeBandValue(c.item, current);
+    const busy = pending === c.key;
+    return (
+      <li
+        key={c.key}
+        className="col-span-full rounded-md px-2 py-1.5"
+        style={{ borderLeft: `2px solid ${current != null ? accent : "transparent"}`, opacity: busy ? 0.6 : 1 }}
+      >
+        <div className="flex items-center gap-1.5 text-xs">
+          <RowMark accent={accent}>{current != null ? "✓" : null}</RowMark>
+          <span className="flex-1" style={{ fontWeight: current != null ? 500 : 400, color: current != null ? "var(--text-primary)" : "var(--text-secondary)" }}>
+            {c.item}
+          </span>
+          {current != null && (
+            <span className="text-xs font-medium" style={{ color: accent }}>
+              {bandLabelForValue(c.item, current)}
+            </span>
+          )}
+        </div>
+        <div className="mt-1.5 flex overflow-hidden rounded-lg border" style={{ borderColor: "var(--border-hairline)" }}>
+          {bands.map((o, i) => {
+            const isActive = active === o.value;
+            return (
+              <button
+                key={o.label}
+                type="button"
+                disabled={busy}
+                onClick={() => void handleSetBand(c, o.value, isActive)}
+                aria-pressed={isActive}
+                className="min-h-10 flex-1 py-2.5 text-center text-[13px] font-medium transition-colors disabled:opacity-50"
+                style={{
+                  background: isActive ? `color-mix(in oklab, ${accent} 18%, var(--surface-1))` : "transparent",
+                  color: isActive ? accent : "var(--text-secondary)",
+                  borderLeft: i === 0 ? "none" : "0.5px solid var(--border-hairline)",
+                }}
+              >
+                {o.label}
+              </button>
+            );
+          })}
+        </div>
+      </li>
+    );
+  }
+
+  /** A measured habit — the name plus an exact hours+minutes stepper,
+   * defaulting to a sensible anchor until it's set. Kept for a future
+   * genuinely-quantitative item; nothing uses "duration" right now. */
   function renderDurationRow(c: LogCandidate, accent: string) {
     const current = durationValueForDate.get(c.itemIdentity);
     const busy = pending === c.key;
@@ -1369,6 +1437,7 @@ export default function LogPage() {
   }
 
   function renderHabitRow(c: LogCandidate, accent: string) {
+    if (INPUT_KIND[c.item] === "band") return renderBandRow(c, accent);
     if (INPUT_KIND[c.item] === "duration") return renderDurationRow(c, accent);
     const logged = (mealCounts.get(c.key) ?? 0) > 0;
     const busy = pending === c.key;
@@ -1409,7 +1478,7 @@ export default function LogPage() {
         </button>
         {count > 0 && (
           <>
-            <span className="shrink-0 text-[11px] font-semibold tabular-nums" style={{ color: accent }}>
+            <span className="shrink-0 text-xs font-semibold tabular-nums" style={{ color: accent }}>
               {count}×
             </span>
             <button
@@ -1458,9 +1527,18 @@ export default function LogPage() {
     const accent = TYPE_ACCENT[tabConfig.type];
     return (
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        {groupedByCategory.map((group) => (
-          <div key={group.category} className="flex flex-col gap-1 rounded-lg border p-2.5" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
-            <div className="mb-0.5 flex items-center gap-1.5 border-b pb-1.5 text-[11px] font-bold tracking-wide uppercase" style={{ color: accent, borderColor: "var(--border-hairline)" }}>
+        {groupedByCategory.map((group) => {
+          // A category with a measured item (Sleep's bands) reads better full
+          // width — its rows are full-bleed anyway, and a 6-band strip is
+          // cramped in a half-width card.
+          const hasMeasure = group.items.some((c) => INPUT_KIND[c.item]);
+          return (
+          <div
+            key={group.category}
+            className={`flex flex-col gap-1 rounded-lg border p-2.5 ${hasMeasure ? "sm:col-span-2" : ""}`}
+            style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}
+          >
+            <div className="mb-0.5 flex items-center gap-1.5 border-b pb-1.5 text-xs font-bold tracking-wide uppercase" style={{ color: accent, borderColor: "var(--border-hairline)" }}>
               {group.category}
               <span className="ml-auto font-medium normal-case" style={{ color: "var(--text-secondary)" }}>
                 {group.items.length}
@@ -1472,7 +1550,8 @@ export default function LogPage() {
               )}
             </ul>
           </div>
-        ))}
+          );
+        })}
       </div>
     );
   }
@@ -1510,7 +1589,7 @@ export default function LogPage() {
             <button
               type="button"
               onClick={() => setDate((d) => addDaysLocal(d, -1))}
-              className="flex h-7 w-7 items-center justify-center rounded text-sm font-medium"
+              className="flex h-9 w-9 items-center justify-center rounded text-base font-medium"
               style={{ color: "var(--text-secondary)" }}
               aria-label="Previous day"
             >
@@ -1526,7 +1605,7 @@ export default function LogPage() {
               type="button"
               onClick={() => setDate((d) => (d < today ? addDaysLocal(d, 1) : d))}
               disabled={date >= today}
-              className="flex h-7 w-7 items-center justify-center rounded text-sm font-medium disabled:opacity-30"
+              className="flex h-9 w-9 items-center justify-center rounded text-base font-medium disabled:opacity-30"
               style={{ color: "var(--text-secondary)" }}
               aria-label="Next day"
             >
@@ -2005,7 +2084,7 @@ export default function LogPage() {
                      * left (indented past the dot), delete at top-right. */}
                     <div className="flex w-full items-start justify-between gap-1 pl-3">
                       {isDemoData ? (
-                        <span className="font-mono text-[11px] whitespace-nowrap" style={{ color: "var(--text-muted)" }}>
+                        <span className="font-mono text-xs whitespace-nowrap" style={{ color: "var(--text-muted)" }}>
                           {entry.time}
                         </span>
                       ) : (
@@ -2016,7 +2095,7 @@ export default function LogPage() {
                           onChange={(e) => void handleChangeEntryTime(entry, e.target.value)}
                           onClick={(e) => e.currentTarget.showPicker?.()}
                           aria-label={`Change time for ${entry.item}`}
-                          className="w-[84px] min-w-0 rounded px-0.5 py-0.5 font-mono text-[11px] whitespace-nowrap outline-none disabled:opacity-40"
+                          className="w-[84px] min-w-0 rounded px-0.5 py-0.5 font-mono text-xs whitespace-nowrap outline-none disabled:opacity-40"
                           style={{ background: "transparent", color: "var(--text-muted)", border: "none" }}
                         />
                       )}
@@ -2041,11 +2120,13 @@ export default function LogPage() {
                       {entry.item}
                       {entry.value != null && (() => {
                         const suffix =
-                          INPUT_KIND[entry.item] === "duration"
-                            ? formatMinutes(entry.value)
-                            : entry.itemType === "outcome" && entry.value >= 1
-                              ? `intensity ${entry.value}`
-                              : null;
+                          INPUT_KIND[entry.item] === "band"
+                            ? bandLabelForValue(entry.item, entry.value)
+                            : INPUT_KIND[entry.item] === "duration"
+                              ? formatMinutes(entry.value)
+                              : entry.itemType === "outcome" && entry.value >= 1
+                                ? `intensity ${entry.value}`
+                                : null;
                         return suffix ? (
                           <span className="ml-1 font-normal" style={{ color: "var(--text-secondary)" }}>
                             {suffix}
@@ -2061,7 +2142,7 @@ export default function LogPage() {
                      * Manage-page action, not a timeline one). */}
                     {entry.itemType === "workout" && entry.category && (
                       <span
-                        className="self-start rounded px-1.5 py-0.5 text-[11px] font-medium whitespace-nowrap"
+                        className="self-start rounded px-1.5 py-0.5 text-xs font-medium whitespace-nowrap"
                         style={{ background: `color-mix(in oklab, ${accent} 14%, var(--surface-1))`, color: accent }}
                       >
                         {entry.category}
@@ -2075,7 +2156,7 @@ export default function LogPage() {
                       (isDemoData ? (
                         entry.mealTag && (
                           <span
-                            className="self-start rounded px-1.5 py-0.5 text-[11px] font-medium whitespace-nowrap"
+                            className="self-start rounded px-1.5 py-0.5 text-xs font-medium whitespace-nowrap"
                             style={{ background: "color-mix(in oklab, var(--series-2) 14%, var(--surface-1))", color: "var(--series-2)" }}
                           >
                             {entry.mealTag}
@@ -2086,7 +2167,7 @@ export default function LogPage() {
                           value={entry.mealTag ?? ""}
                           disabled={busy}
                           onChange={(e) => void handleChangeEntryMeal(entry, e.target.value)}
-                          className="w-full rounded px-1.5 py-0.5 text-[11px] font-medium whitespace-nowrap outline-none disabled:opacity-40"
+                          className="w-full rounded px-1.5 py-0.5 text-xs font-medium whitespace-nowrap outline-none disabled:opacity-40"
                           style={{ background: "color-mix(in oklab, var(--series-2) 14%, var(--surface-1))", color: "var(--series-2)", border: "none" }}
                         >
                           <option value="" disabled>
@@ -2119,13 +2200,13 @@ export default function LogPage() {
                             <button
                               type="button"
                               onClick={() => toggleStoolDetails(full.id)}
-                              className="self-start text-[11px] font-medium underline decoration-dotted"
+                              className="self-start text-xs font-medium underline decoration-dotted"
                               style={{ color: "var(--text-muted)" }}
                             >
                               {expanded ? "Hide details" : "More details"}
                             </button>
                             {expanded && (
-                              <div className="flex flex-col gap-0.5 text-[11px]" style={{ color: "var(--text-secondary)" }}>
+                              <div className="flex flex-col gap-0.5 text-xs" style={{ color: "var(--text-secondary)" }}>
                                 {full.color && <span>Color: {full.color}</span>}
                                 {full.floatation && <span>{full.floatation}</span>}
                                 {labels.length > 0 && <span>{labels.join(", ")}</span>}

@@ -56,7 +56,7 @@ export default function NutritionEvidencePage() {
             </div>
             <div className="mb-2 flex flex-wrap items-center gap-2">
               <span
-                className="inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium"
+                className="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium"
                 style={{
                   color: STRENGTH_COLOR[record.strength],
                   background: `color-mix(in oklab, ${STRENGTH_COLOR[record.strength]} 14%, transparent)`,
@@ -64,7 +64,7 @@ export default function NutritionEvidencePage() {
               >
                 {record.strength} evidence
               </span>
-              <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>
+              <span className="text-xs" style={{ color: "var(--text-muted)" }}>
                 {record.evidenceTypes.map((type) => EVIDENCE_TYPE_LABEL[type]).join(" + ")}
                 {record.publicationYear && ` · ${record.publicationYear}`}
               </span>

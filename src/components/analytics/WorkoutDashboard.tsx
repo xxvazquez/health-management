@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useData } from "@/lib/DataContext";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { PageSkeleton } from "@/components/ui/Skeleton";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { Insight } from "@/components/ui/Insight";
 import { DateRangeFilter } from "@/components/ui/DateRangeFilter";
@@ -98,7 +99,7 @@ function monogram(exercise: WorkoutExercise): string {
 function PRBadge() {
   return (
     <span
-      className="inline-flex shrink-0 items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold"
+      className="inline-flex shrink-0 items-center gap-1 rounded-full px-1.5 py-0.5 text-xs font-semibold"
       style={{ background: "color-mix(in oklab, var(--status-good) 16%, var(--surface-1))", color: "var(--status-good)" }}
     >
       <svg width="9" height="9" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
@@ -337,7 +338,7 @@ export function WorkoutDashboard() {
     compareExercise && stats.some((s) => s.exercise === compareExercise) ? compareExercise : (sortedStats[0]?.exercise ?? null);
   const selectedStats = stats.find((s) => s.exercise === selectedExercise) ?? null;
 
-  if (status === "loading") return <p style={{ color: "var(--text-muted)" }}>Loading…</p>;
+  if (status === "loading") return <PageSkeleton />;
   if (status === "empty") return <EmptyState />;
 
   // Skip whatever the hero Insight already said outright, so the frequency

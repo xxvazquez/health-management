@@ -39,7 +39,7 @@ function RowAction({
       disabled={disabled}
       aria-label={label}
       title={label}
-      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-[var(--surface-1)] disabled:opacity-40"
+      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-[var(--surface-1)] disabled:opacity-40"
       style={{ color: active ? ACCENT : "var(--text-muted)" }}
     >
       {children}
@@ -156,7 +156,7 @@ export function NoteThreadList({
               </span>
             </button>
 
-            <span className="shrink-0 text-[11px] whitespace-nowrap tabular-nums" style={{ color: "var(--text-muted)" }}>
+            <span className="shrink-0 text-xs whitespace-nowrap tabular-nums" style={{ color: "var(--text-muted)" }}>
               {formatNoteTimestamp(t.lastMessageAt)}
             </span>
 

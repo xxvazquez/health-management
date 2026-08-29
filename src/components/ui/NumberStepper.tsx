@@ -51,7 +51,7 @@ export function NumberStepper({
           onClick={() => onChange(clamp(value - bigStep))}
           disabled={value <= min}
           aria-label={`Decrease by ${bigStep}${unit}`}
-          className="flex h-full w-8 items-center justify-center text-[11px] font-medium disabled:opacity-30"
+          className="flex h-full w-8 items-center justify-center text-xs font-medium disabled:opacity-30"
           style={{ color: "var(--text-secondary)" }}
         >
           −{bigStep}
@@ -62,7 +62,7 @@ export function NumberStepper({
         onClick={() => onChange(clamp(value - step))}
         disabled={value <= min}
         aria-label={`Decrease by ${step}${unit}`}
-        className="flex h-full w-7 items-center justify-center text-[11px] font-medium disabled:opacity-30"
+        className="flex h-full w-7 items-center justify-center text-xs font-medium disabled:opacity-30"
         style={{ color: "var(--text-secondary)" }}
       >
         −{step}
@@ -75,7 +75,7 @@ export function NumberStepper({
         onClick={() => onChange(clamp(value + step))}
         disabled={value >= max}
         aria-label={`Increase by ${step}${unit}`}
-        className="flex h-full w-7 items-center justify-center text-[11px] font-medium disabled:opacity-30"
+        className="flex h-full w-7 items-center justify-center text-xs font-medium disabled:opacity-30"
         style={{ color: "var(--text-secondary)" }}
       >
         +{step}
@@ -86,7 +86,7 @@ export function NumberStepper({
           onClick={() => onChange(clamp(value + bigStep))}
           disabled={value >= max}
           aria-label={`Increase by ${bigStep}${unit}`}
-          className="flex h-full w-8 items-center justify-center text-[11px] font-medium disabled:opacity-30"
+          className="flex h-full w-8 items-center justify-center text-xs font-medium disabled:opacity-30"
           style={{ color: "var(--text-secondary)" }}
         >
           +{bigStep}

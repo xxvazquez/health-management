@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useData } from "@/lib/DataContext";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { PageSkeleton } from "@/components/ui/Skeleton";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { DateRangeFilter } from "@/components/ui/DateRangeFilter";
 import { Methodology } from "@/components/ui/Methodology";
@@ -39,7 +40,7 @@ export function PatternsDashboard() {
   const insights = useMemo(() => generateInsights(filtered), [filtered]);
   const coverage = useMemo(() => trackingCoverageSummary(filtered), [filtered]);
 
-  if (status === "loading") return <p style={{ color: "var(--text-muted)" }}>Loading…</p>;
+  if (status === "loading") return <PageSkeleton />;
   if (status === "empty") return <EmptyState />;
 
   return (

@@ -298,10 +298,11 @@ export default function HomePage() {
     <div className="flex flex-col gap-4">
       <div>
         <h1 className="text-xl font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
-          Home
+          Shared
         </h1>
         <p className="mt-1 text-sm" style={{ color: "var(--text-secondary)" }}>
-          Shared notes, tasks, and product expiration — visible to you and your linked partner.
+          Notes, tasks, and product expiry you share with your linked partner. Your private versions of these live
+          on the Log page.
         </p>
         {isDemo && (
           <p className="mt-2 text-xs" style={{ color: ACCENT }}>
