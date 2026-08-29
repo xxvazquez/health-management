@@ -93,12 +93,6 @@ export const ICONS: Record<string, ReactNode> = {
       <path d="M4 6.2l6 5 6-5" />
     </IconWrap>
   ),
-  Personal: (
-    <IconWrap>
-      <path d="M4.5 6.2 9.7 3l5.8 3.2v7.6l-5.8 3.2-5.2-2.9" />
-      <path d="M7 9.5l2.2 2.2 4-4.3" />
-    </IconWrap>
-  ),
   Reminders: (
     <IconWrap>
       <path d="M10 3.4a4 4 0 0 0-4 4c0 3.4-1.3 4.6-1.3 4.6h10.6S14 10.8 14 7.4a4 4 0 0 0-4-4Z" />
@@ -116,6 +110,17 @@ export const ICONS: Record<string, ReactNode> = {
       <circle cx="13" cy="8" r="2.4" />
       <path d="M3.5 16c.4-2.3 1.9-3.6 3.5-3.6 1 0 1.9.5 2.6 1.3" />
       <path d="M10.4 13.7c.7-.8 1.6-1.3 2.6-1.3 1.6 0 3.1 1.3 3.5 3.6" />
+    </IconWrap>
+  ),
+  Personal: (
+    <IconWrap>
+      <path d="M5.5 3.5h7.2a1.3 1.3 0 0 1 1.3 1.3v11.4l-4.9-2.3-4.9 2.3V4.8A1.3 1.3 0 0 1 5.5 3.5Z" />
+      <path d="M8 7h4M8 9.5h4" />
+    </IconWrap>
+  ),
+  Messages: (
+    <IconWrap>
+      <path d="M4 5.2h12a1 1 0 0 1 1 1v6.4a1 1 0 0 1-1 1H8l-3.5 2.6V13.6H4a1 1 0 0 1-1-1V6.2a1 1 0 0 1 1-1Z" />
     </IconWrap>
   ),
   Help: (
@@ -137,6 +142,10 @@ const OVERVIEW_LINKS = [{ href: "/overview", label: "Overview" }];
  * a Log-style tab bar for every dashboard (`/analytics#food` …), so hiding
  * a domain from Manage just drops its tab, not a whole nav entry. */
 const LOG_LINKS = [{ href: "/log", label: "Log" }];
+/** Journal, private notes, reminders, product-expiry — the "write it once,
+ * come back to it" surface, split off from Log's tracking tabs. The shared
+ * (partner) versions of these live under "Shared". */
+const PERSONAL_LINKS = [{ href: "/personal", label: "Personal" }];
 const ANALYTICS_LINKS = [{ href: "/analytics", label: "Analytics" }];
 const MANAGE_LINKS = [{ href: "/manage", label: "Manage items" }];
 const TOOLS_LINKS = [
@@ -150,7 +159,7 @@ const TOOLS_LINKS = [
  * page — the "Shared" grouping is what keeps the two apart.) */
 const SHARED_LINKS = [
   { href: "/home", label: "Reminders" },
-  { href: "/notes", label: "Notes" },
+  { href: "/notes", label: "Messages" },
 ];
 
 const NAV_SECTIONS_KEY = "lauva-nav-collapsed-sections";
@@ -336,6 +345,7 @@ function NavLinks({ pathname, collapsed, onNavigate }: { pathname: string; colla
        * either use or don't, so a heading would just repeat the label. */}
       <NavLinkList links={OVERVIEW_LINKS} pathname={pathname} collapsed={collapsed} onNavigate={onNavigate} />
       <NavLinkList links={LOG_LINKS} pathname={pathname} collapsed={collapsed} onNavigate={onNavigate} />
+      <NavLinkList links={PERSONAL_LINKS} pathname={pathname} collapsed={collapsed} onNavigate={onNavigate} />
       <NavLinkList links={ANALYTICS_LINKS} pathname={pathname} collapsed={collapsed} onNavigate={onNavigate} />
       {sections.map((s) => (
         <NavSection
