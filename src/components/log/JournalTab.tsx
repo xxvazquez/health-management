@@ -6,6 +6,7 @@ import { createJournalEntry, deleteJournalEntry, fetchJournalEntries, updateJour
 import { buildDemoJournalEntries } from "@/lib/demoJournal";
 import { NoteList, NoteRow, NotebookForm } from "@/components/ui/Notebook";
 import { SearchField } from "@/components/ui/SearchField";
+import { ListSkeleton } from "@/components/ui/Skeleton";
 
 function formatJournalDate(date: string): string {
   return new Date(`${date}T00:00:00`).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
@@ -201,9 +202,7 @@ export function JournalTab({ isDemoData, accent }: { isDemoData: boolean; accent
       </div>
 
       {loading ? (
-        <p className="py-10 text-center text-sm" style={{ color: "var(--text-muted)" }}>
-          Loading…
-        </p>
+        <ListSkeleton />
       ) : loadError ? (
         <p className="py-10 text-center text-sm" style={{ color: "var(--status-critical)" }}>
           Couldn&apos;t load your journal — try again in a moment.

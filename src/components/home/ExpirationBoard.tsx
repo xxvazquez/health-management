@@ -7,6 +7,7 @@ import { isSpeechToTextSupported, useSpeechToText } from "@/lib/useSpeechToText"
 import { PencilIcon, TrashIcon } from "@/components/ui/Notebook";
 import { ListSection, SectionIcon } from "@/components/ui/ListSection";
 import { SearchField } from "@/components/ui/SearchField";
+import { ListSkeleton } from "@/components/ui/Skeleton";
 
 // Emphasis only where it earns its keep — Expired and this week read as
 // urgent; everything further out is the same quiet muted tone.
@@ -301,9 +302,7 @@ export function ExpirationBoard({
       </div>
 
       {loading ? (
-        <p className="py-10 text-center text-sm" style={{ color: "var(--text-muted)" }}>
-          Loading…
-        </p>
+        <ListSkeleton />
       ) : error ? (
         <p className="py-10 text-center text-sm" style={{ color: "var(--status-critical)" }}>
           Couldn&apos;t load products — try again in a moment.
