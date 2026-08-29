@@ -152,26 +152,27 @@ function ExpirationRow({
 }) {
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   return (
-    <div className="group flex items-center gap-3 py-2.5 pr-1 pl-1">
-      <button type="button" onClick={onEdit} className="flex min-w-0 flex-1 items-center gap-3 text-left">
-        <span className="min-w-0 flex-1 truncate text-[15px] font-medium" style={{ color: "var(--text-primary)" }}>
-          {item.name}
-        </span>
-        {item.remindDaysBefore > 0 && (
-          <span
-            className="flex shrink-0 items-center gap-1 text-xs whitespace-nowrap"
-            style={{ color: "var(--text-muted)" }}
-            title={`Reminder set — ${item.remindDaysBefore} day${item.remindDaysBefore === 1 ? "" : "s"} before`}
-          >
-            <BellIcon />
-            <span className="tabular-nums">{item.remindDaysBefore}d</span>
-            <span className="hidden sm:inline">before</span>
-          </span>
-        )}
-        <span className="shrink-0 text-xs whitespace-nowrap tabular-nums" style={{ color: dateColor }}>
-          {formatExpiresOn(item.expiresOn)}
-        </span>
+    <div className="group flex items-center gap-2 py-2.5 pr-1 pl-1">
+      <button type="button" onClick={onEdit} className="min-w-0 flex-1 truncate text-left text-sm font-medium" style={{ color: "var(--text-primary)" }}>
+        {item.name}
       </button>
+      {/* Metadata + actions sit together on the right so the expiry date
+          reads next to the controls instead of stranded across a wide
+          desktop row. */}
+      {item.remindDaysBefore > 0 && (
+        <span
+          className="flex shrink-0 items-center gap-1 text-xs whitespace-nowrap"
+          style={{ color: "var(--text-muted)" }}
+          title={`Reminder set — ${item.remindDaysBefore} day${item.remindDaysBefore === 1 ? "" : "s"} before`}
+        >
+          <BellIcon />
+          <span className="tabular-nums">{item.remindDaysBefore}d</span>
+          <span className="hidden sm:inline">before</span>
+        </span>
+      )}
+      <span className="shrink-0 text-xs whitespace-nowrap tabular-nums" style={{ color: dateColor }}>
+        {formatExpiresOn(item.expiresOn)}
+      </span>
       <div className={`flex shrink-0 items-center gap-1 ${confirmingDelete ? "opacity-100" : ""}`}>
         {confirmingDelete ? (
           <>
@@ -230,17 +231,22 @@ export function ExpirationBoard({
 }) {
   const [composing, setComposing] = useState(false);
   const [editing, setEditing] = useState<ExpirationItem | null>(null);
+  const [search, setSearch] = useState("");
 
   const grouped = useMemo(() => {
     const today = todayLocalISODate();
+    const q = search.trim().toLowerCase();
     const groups = new Map<ExpirationBucket, ExpirationItem[]>();
     for (const item of items) {
+      if (q && !item.name.toLowerCase().includes(q)) continue;
       const id = expirationBucket(item, today);
       (groups.get(id) ?? groups.set(id, []).get(id)!).push(item);
     }
     for (const list of groups.values()) list.sort((a, b) => a.expiresOn.localeCompare(b.expiresOn));
     return groups;
-  }, [items]);
+  }, [items, search]);
+
+  const anyMatch = EXPIRATION_BUCKET_ORDER.some((bucket) => (grouped.get(bucket)?.length ?? 0) > 0);
 
   if (composing || editing) {
     return (
@@ -263,7 +269,15 @@ export function ExpirationBoard({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex justify-end">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search products…"
+          className="w-40 rounded-md border py-1.5 px-2.5 text-xs outline-none sm:w-56"
+          style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
+        />
         <button type="button" onClick={() => setComposing(true)} className="rounded-md px-3 py-1.5 text-sm font-medium text-white" style={{ background: accent }}>
           + Add product
         </button>
@@ -284,6 +298,15 @@ export function ExpirationBoard({
           </p>
           <p className="mt-1 max-w-xs text-xs" style={{ color: "var(--text-secondary)" }}>
             Tap + Add product to track its expiration date.
+          </p>
+        </div>
+      ) : !anyMatch ? (
+        <div className="flex flex-col items-center justify-center py-12 text-center">
+          <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+            Nothing matches that search
+          </p>
+          <p className="mt-1 max-w-xs text-xs" style={{ color: "var(--text-secondary)" }}>
+            Try a different search term.
           </p>
         </div>
       ) : (

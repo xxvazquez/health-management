@@ -56,7 +56,7 @@ export function NoteRow({
   const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   const titleEl = (
-    <span className="block truncate text-[15px] font-semibold" style={{ color: "var(--text-primary)" }}>
+    <span className="block truncate text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
       {title}
     </span>
   );
@@ -71,7 +71,7 @@ export function NoteRow({
       <button type="button" onClick={onOpen} className="min-w-0 flex-1 py-3 pr-2 text-left">
         {metaFirst ? metaEl : titleEl}
         <span className="mt-0.5 block">{metaFirst ? titleEl : metaEl}</span>
-        <span className="mt-0.5 line-clamp-2 text-[13px] leading-snug" style={{ color: "var(--text-secondary)" }}>
+        <span className="mt-0.5 line-clamp-2 text-xs leading-snug" style={{ color: "var(--text-secondary)" }}>
           {firstLine(body) || "No additional text"}
         </span>
       </button>

@@ -179,7 +179,7 @@ export default function OverviewPage() {
 
       {expiringSoon.length > 0 && (
         <Card tier="supporting">
-          <CardTitle subtitle="Products past — or within — their reminder window. Manage these on Log → Expiration.">
+          <CardTitle subtitle="Products past — or within — their reminder window. Manage these on Personal → Expiration.">
             Expiring soon
           </CardTitle>
           <ul className="flex flex-col divide-y divide-[color:var(--gridline)]">
@@ -198,7 +198,7 @@ export default function OverviewPage() {
               );
             })}
           </ul>
-          <Link href="/log" className="mt-2 inline-block text-xs underline decoration-dotted" style={{ color: "var(--series-2)" }}>
+          <Link href="/personal#expiration" className="mt-2 inline-block text-xs underline decoration-dotted" style={{ color: "var(--series-2)" }}>
             Open Expiration →
           </Link>
         </Card>

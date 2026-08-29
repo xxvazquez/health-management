@@ -99,17 +99,17 @@
   --font-sans: var(--font-body);
 }
 
-/* Type scale, nudged up from Tailwind's defaults so the app reads as a
-   calm product rather than a dense admin panel: base content 15px (was
-   14), captions 13px (was 12). Nothing is allowed below 12px — any
-   `text-[10px]`/`text-[11px]` in the codebase should use `text-xs`. Kept
-   under 16px on purpose, so the iOS focus-zoom guard in globals still
-   applies to text fields. */
+/* Type scale: base content 14px, captions 12px — Tailwind's own defaults.
+   An earlier version nudged these up to 15/13 to feel "calm", but at app
+   scale it just read oversized and unharmonious. Nothing is allowed below
+   12px — any `text-[10px]`/`text-[11px]` in the codebase should use
+   `text-xs`. Both sizes stay under 16px on purpose, so the iOS focus-zoom
+   guard below still applies to text fields. */
 @theme {
-  --text-xs: 0.8125rem;
-  --text-xs--line-height: 1.15rem;
-  --text-sm: 0.9375rem;
-  --text-sm--line-height: 1.4rem;
+  --text-xs: 0.75rem;
+  --text-xs--line-height: 1rem;
+  --text-sm: 0.875rem;
+  --text-sm--line-height: 1.25rem;
 }
 
 /* Deliberately no dark-mode media query — this app always uses the light

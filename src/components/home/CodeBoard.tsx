@@ -157,7 +157,7 @@ function CodeRow({ code, onEdit, onDelete }: { code: HouseholdCode; onEdit: () =
     <div className="flex items-start gap-3 py-3 pr-1 pl-1">
       <div className="flex min-w-0 flex-1 flex-col gap-1.5">
         <div className="flex items-center gap-2">
-          <span className="min-w-0 flex-1 truncate text-[15px] font-medium" style={{ color: "var(--text-primary)" }}>
+          <span className="min-w-0 flex-1 truncate text-sm font-medium" style={{ color: "var(--text-primary)" }}>
             {code.name}
           </span>
           {code.expiresOn && (
@@ -176,7 +176,7 @@ function CodeRow({ code, onEdit, onDelete }: { code: HouseholdCode; onEdit: () =
           <span className="truncate font-mono text-sm tracking-wide" style={{ color: "var(--text-primary)" }}>
             {code.code}
           </span>
-          <span className="shrink-0 text-[11px] font-semibold" style={{ color: copied ? "var(--status-good)" : "var(--text-muted)" }}>
+          <span className="shrink-0 text-xs font-semibold" style={{ color: copied ? "var(--status-good)" : "var(--text-muted)" }}>
             {copied ? "Copied" : "Copy"}
           </span>
         </button>

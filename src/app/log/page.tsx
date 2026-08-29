@@ -1369,10 +1369,13 @@ export default function LogPage() {
     }
   }
 
-  /** A "roughly how much" measure (Sleep) — the name on one line, a
-   * full-width row of coarse bands to tap on the next. One tap sets it,
-   * tapping the active band clears it. */
-  function renderBandRow(c: LogCandidate, accent: string) {
+  /** A "roughly how much" measure (Sleep) — lives in its own Measures
+   * section rather than mixed into the tap-to-log category cards. Name on
+   * the left, a compact segmented control on the right: full-width on
+   * mobile, natural width on desktop. One tap sets it; tapping the active
+   * band clears it. */
+  function renderMeasureRow(c: LogCandidate, accent: string) {
+    if (INPUT_KIND[c.item] === "duration") return renderDurationRow(c, accent);
     const current = durationValueForDate.get(c.itemIdentity);
     const bands = BAND_OPTIONS[c.item] ?? [];
     const active = activeBandValue(c.item, current);
@@ -1380,21 +1383,16 @@ export default function LogPage() {
     return (
       <li
         key={c.key}
-        className="col-span-full rounded-md px-2 py-1.5"
+        className="flex flex-col gap-1.5 py-2 pl-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
         style={{ borderLeft: `2px solid ${current != null ? accent : "transparent"}`, opacity: busy ? 0.6 : 1 }}
       >
         <div className="flex items-center gap-1.5 text-xs">
           <RowMark accent={accent}>{current != null ? "✓" : null}</RowMark>
-          <span className="flex-1" style={{ fontWeight: current != null ? 500 : 400, color: current != null ? "var(--text-primary)" : "var(--text-secondary)" }}>
+          <span style={{ fontWeight: current != null ? 500 : 400, color: current != null ? "var(--text-primary)" : "var(--text-secondary)" }}>
             {c.item}
           </span>
-          {current != null && (
-            <span className="text-xs font-medium" style={{ color: accent }}>
-              {bandLabelForValue(c.item, current)}
-            </span>
-          )}
         </div>
-        <div className="mt-1.5 flex overflow-hidden rounded-lg border" style={{ borderColor: "var(--border-hairline)" }}>
+        <div className="flex overflow-hidden rounded-md border" style={{ borderColor: "var(--border-hairline)" }}>
           {bands.map((o, i) => {
             const isActive = active === o.value;
             return (
@@ -1404,9 +1402,9 @@ export default function LogPage() {
                 disabled={busy}
                 onClick={() => void handleSetBand(c, o.value, isActive)}
                 aria-pressed={isActive}
-                className="min-h-10 flex-1 py-2.5 text-center text-[13px] font-medium transition-colors disabled:opacity-50"
+                className="flex-1 px-2.5 py-1.5 text-center text-xs font-medium transition-colors disabled:opacity-50 sm:flex-none"
                 style={{
-                  background: isActive ? `color-mix(in oklab, ${accent} 18%, var(--surface-1))` : "transparent",
+                  background: isActive ? `color-mix(in oklab, ${accent} 16%, var(--surface-1))` : "transparent",
                   color: isActive ? accent : "var(--text-secondary)",
                   borderLeft: i === 0 ? "none" : "0.5px solid var(--border-hairline)",
                 }}
@@ -1442,8 +1440,10 @@ export default function LogPage() {
   }
 
   function renderHabitRow(c: LogCandidate, accent: string) {
-    if (INPUT_KIND[c.item] === "band") return renderBandRow(c, accent);
-    if (INPUT_KIND[c.item] === "duration") return renderDurationRow(c, accent);
+    // Measures (Sleep's bands, a duration stepper) normally render in their
+    // own section — this fallthrough only matters if one is ever shown
+    // inside a category card directly.
+    if (INPUT_KIND[c.item]) return renderMeasureRow(c, accent);
     const logged = (mealCounts.get(c.key) ?? 0) > 0;
     const busy = pending === c.key;
     return (
@@ -1530,33 +1530,47 @@ export default function LogPage() {
   function renderTrackerList() {
     if (!tabConfig) return null;
     const accent = TYPE_ACCENT[tabConfig.type];
+    const isMeasure = (c: LogCandidate) => Boolean(INPUT_KIND[c.item]);
+    const measureItems = groupedByCategory.flatMap((g) => g.items.filter(isMeasure));
+    const plainGroups = groupedByCategory
+      .map((g) => ({ category: g.category, items: g.items.filter((c) => !isMeasure(c)) }))
+      .filter((g) => g.items.length > 0);
     return (
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        {groupedByCategory.map((group) => {
-          // A category with a measured item (Sleep's bands) reads better full
-          // width — its rows are full-bleed anyway, and a 6-band strip is
-          // cramped in a half-width card.
-          const hasMeasure = group.items.some((c) => INPUT_KIND[c.item]);
-          return (
-          <div
-            key={group.category}
-            className={`flex flex-col gap-1 rounded-lg border p-2.5 ${hasMeasure ? "sm:col-span-2" : ""}`}
-            style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}
-          >
+      <div className="flex flex-col gap-3">
+        {plainGroups.length > 0 && (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {plainGroups.map((group) => (
+              <div
+                key={group.category}
+                className="flex flex-col gap-1 rounded-lg border p-2.5"
+                style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}
+              >
+                <div className="mb-0.5 flex items-center gap-1.5 border-b pb-1.5 text-xs font-bold tracking-wide uppercase" style={{ color: accent, borderColor: "var(--border-hairline)" }}>
+                  {group.category}
+                  <span className="ml-auto font-medium normal-case" style={{ color: "var(--text-secondary)" }}>
+                    {group.items.length}
+                  </span>
+                </div>
+                <ul className="grid grid-cols-2 gap-x-3 gap-y-0.5">
+                  {group.items.map((c) =>
+                    tab === "supplement" ? renderSupplementRow(c, accent) : tab === "outcome" ? renderSymptomRow(c, accent) : renderHabitRow(c, accent),
+                  )}
+                </ul>
+              </div>
+            ))}
+          </div>
+        )}
+        {measureItems.length > 0 && (
+          <div className="flex flex-col gap-1 rounded-lg border p-2.5" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
             <div className="mb-0.5 flex items-center gap-1.5 border-b pb-1.5 text-xs font-bold tracking-wide uppercase" style={{ color: accent, borderColor: "var(--border-hairline)" }}>
-              {group.category}
+              Measures
               <span className="ml-auto font-medium normal-case" style={{ color: "var(--text-secondary)" }}>
-                {group.items.length}
+                {measureItems.length}
               </span>
             </div>
-            <ul className="grid grid-cols-2 gap-x-3 gap-y-0.5">
-              {group.items.map((c) =>
-                tab === "supplement" ? renderSupplementRow(c, accent) : tab === "outcome" ? renderSymptomRow(c, accent) : renderHabitRow(c, accent),
-              )}
-            </ul>
+            <ul className="flex flex-col divide-y divide-[color:var(--gridline)]">{measureItems.map((c) => renderMeasureRow(c, accent))}</ul>
           </div>
-          );
-        })}
+        )}
       </div>
     );
   }
@@ -1634,7 +1648,7 @@ export default function LogPage() {
                 key={t.id}
                 type="button"
                 onClick={() => selectTab(t.id)}
-                className="flex shrink-0 items-center gap-1 pb-2 text-[13px] whitespace-nowrap transition-colors"
+                className="flex shrink-0 items-center gap-1 pb-2 text-xs whitespace-nowrap transition-colors"
                 style={{
                   color: active ? t.accent : "var(--text-secondary)",
                   fontWeight: active ? 700 : 500,
@@ -1932,9 +1946,9 @@ export default function LogPage() {
                           type="button"
                           onClick={() => handleChipTap(c)}
                           disabled={busy}
-                          className="flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-2 text-sm whitespace-nowrap transition-colors disabled:opacity-50"
+                          className="flex shrink-0 items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs whitespace-nowrap transition-colors disabled:opacity-50"
                           style={{
-                            background: logged ? `color-mix(in oklab, ${cAccent} 14%, var(--surface-1))` : "var(--surface-1)",
+                            background: logged ? `color-mix(in oklab, ${cAccent} 12%, var(--surface-1))` : "var(--surface-1)",
                             borderColor: logged ? cAccent : "var(--border-hairline)",
                             color: logged ? cAccent : "var(--text-secondary)",
                           }}
