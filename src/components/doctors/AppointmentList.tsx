@@ -3,7 +3,7 @@
 import { useState } from "react";
 import type { useDoctors } from "@/lib/useDoctors";
 import type { DoctorAppointment } from "@/lib/supabase/doctors";
-import { DEFAULT_DOCTOR_SPECIALTIES, mergeSpecialtyNames } from "@/lib/doctors";
+import { resolveSpecialtyNames } from "@/lib/doctors";
 import { AppointmentCard } from "./AppointmentCard";
 import { AppointmentForm } from "./AppointmentForm";
 
@@ -26,9 +26,8 @@ export function AppointmentList({
 }) {
   const [editing, setEditing] = useState<DoctorAppointment | null>(null);
 
-  const specialtyOptions = mergeSpecialtyNames(
-    api.specialties.data.map((s) => s.name),
-    [...DEFAULT_DOCTOR_SPECIALTIES],
+  const specialtyOptions = resolveSpecialtyNames(
+    api.specialties.data,
     api.appointments.data.map((a) => a.specialty),
     api.doctors.data.map((d) => d.specialty),
   );

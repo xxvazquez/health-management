@@ -33,7 +33,7 @@ const GROUPS: { title: string; items: Entry[] }[] = [
       },
       {
         title: "Manage items",
-        body: "Add, rename, archive or hide the specific foods, exercises and products offered when logging. Also where you rename or delete reminder lists, set exercise units, and choose which Log tabs and Analytics sections appear. Archiving hides an item from Log but keeps its history in every dashboard.",
+        body: "Add, rename, archive or hide the specific foods, exercises and products offered when logging. Also where you edit reminder lists and doctor types, set exercise units, and choose which Log tabs and Analytics sections appear. Archiving hides an item from Log but keeps its history in every dashboard. The search box at the top filters every section at once, matching part of a name.",
       },
       {
         title: "Messages",
@@ -105,6 +105,10 @@ const GROUPS: { title: string; items: Entry[] }[] = [
       {
         title: "Next appointment",
         body: "One date per specialty, not per doctor. Set it with the calendar on a specialty's page (or a doctor's page); it's the same shared date. It's a plain reminder of when you next need that type of doctor, not a booking.",
+      },
+      {
+        title: "Doctor types",
+        body: "The type list comes with common specialties built in. On the Manage page you can rename any of them, add your own, hide the ones you don't use (they drop out of the picker but come back in one tap), or delete them. Appointments you've already logged keep the type they were logged under no matter what you change.",
       },
     ],
   },

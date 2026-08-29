@@ -669,6 +669,10 @@ create table public.doctor_specialties (
   name text not null check (char_length(trim(name)) > 0),
   name_key text generated always as (lower(trim(name))) stored,
   next_appointment_date date,
+  -- Reversible "don't offer this in the picker" — a historical appointment
+  -- keeps its own frozen specialty string, so hiding one never loses
+  -- history. Toggled from the Manage page, same idea as an archived item.
+  is_archived boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   unique (user_id, name_key),

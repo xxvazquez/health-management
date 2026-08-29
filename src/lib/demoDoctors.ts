@@ -1,4 +1,5 @@
 import type { Doctor, DoctorAppointment, DoctorFollowUpTask, DoctorSpecialty } from "@/lib/supabase/doctors";
+import { DEFAULT_DOCTOR_SPECIALTIES } from "@/lib/doctors";
 
 /** Example data for the Doctors page when signed out — same idea as
  * demoPersonalReminders.ts: interactive, in-memory only, nothing saved.
@@ -18,11 +19,16 @@ export const DEMO_APPT_CHECKUP = "demo-appt-checkup";
 export const DEMO_APPT_USG = "demo-appt-usg";
 
 export function buildDemoDoctorSpecialties(): DoctorSpecialty[] {
-  return [
-    { id: "demo-spec-dentist", name: "Dentist", nextAppointmentDate: dateOnly(21 * DAY) },
-    { id: "demo-spec-internist", name: "Internist (GP)", nextAppointmentDate: null },
-    { id: "demo-spec-gyn", name: "Gynecologist", nextAppointmentDate: dateOnly(60 * DAY) },
-  ];
+  const nextDates: Record<string, string> = {
+    Dentist: dateOnly(21 * DAY),
+    Gynecologist: dateOnly(60 * DAY),
+  };
+  return DEFAULT_DOCTOR_SPECIALTIES.map((name) => ({
+    id: `demo-spec-${name.toLowerCase().replace(/[^a-z]+/g, "-")}`,
+    name,
+    nextAppointmentDate: nextDates[name] ?? null,
+    isArchived: false,
+  }));
 }
 
 export function buildDemoDoctors(): Doctor[] {

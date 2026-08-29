@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type { useDoctors } from "@/lib/useDoctors";
-import { DEFAULT_DOCTOR_SPECIALTIES, mergeSpecialtyNames } from "@/lib/doctors";
+import { resolveSpecialtyNames } from "@/lib/doctors";
 import { formatDate, NextAppointmentField } from "./shared";
 import { AppointmentList } from "./AppointmentList";
 
@@ -40,9 +40,8 @@ export function SpecialtiesTab({ api, accent }: { api: DoctorsApi; accent: strin
   const [selected, setSelected] = useState<string | null>(null);
 
   const rows = useMemo(() => {
-    const names = mergeSpecialtyNames(
-      api.specialties.data.map((s) => s.name),
-      [...DEFAULT_DOCTOR_SPECIALTIES],
+    const names = resolveSpecialtyNames(
+      api.specialties.data,
       api.appointments.data.map((a) => a.specialty),
       api.doctors.data.map((d) => d.specialty),
     );

@@ -18,6 +18,7 @@ import {
   fetchDoctors,
   renameDoctorSpecialty,
   setDoctorFollowUpTaskComplete,
+  setDoctorSpecialtyArchived,
   setSpecialtyNextAppointment,
   updateDoctor,
   updateDoctorAppointment,
@@ -116,7 +117,7 @@ export function useDoctors() {
   const createSpecialty = useCallback(
     async (name: string) => {
       if (isDemo) {
-        setSpecialties((prev) => [...prev, { id: demoId("spec"), name: name.trim(), nextAppointmentDate: null }].sort((a, b) => a.name.localeCompare(b.name)));
+        setSpecialties((prev) => [...prev, { id: demoId("spec"), name: name.trim(), nextAppointmentDate: null, isArchived: false }].sort((a, b) => a.name.localeCompare(b.name)));
         return;
       }
       const created = await createDoctorSpecialty(name);
@@ -129,6 +130,14 @@ export function useDoctors() {
     async (id: string, name: string) => {
       setSpecialties((prev) => prev.map((s) => (s.id === id ? { ...s, name: name.trim() } : s)).sort((a, b) => a.name.localeCompare(b.name)));
       if (!isDemo) await renameDoctorSpecialty(id, name).catch((err) => console.error("renameDoctorSpecialty failed", err));
+    },
+    [isDemo],
+  );
+
+  const archiveSpecialty = useCallback(
+    async (id: string, archived: boolean) => {
+      setSpecialties((prev) => prev.map((s) => (s.id === id ? { ...s, isArchived: archived } : s)));
+      if (!isDemo) await setDoctorSpecialtyArchived(id, archived).catch((err) => console.error("setDoctorSpecialtyArchived failed", err));
     },
     [isDemo],
   );
@@ -149,7 +158,7 @@ export function useDoctors() {
           if (prev.some((s) => s.name.toLowerCase() === key)) {
             return prev.map((s) => (s.name.toLowerCase() === key ? { ...s, nextAppointmentDate: date } : s));
           }
-          return [...prev, { id: demoId("spec"), name: specialtyName.trim(), nextAppointmentDate: date }].sort((a, b) => a.name.localeCompare(b.name));
+          return [...prev, { id: demoId("spec"), name: specialtyName.trim(), nextAppointmentDate: date, isArchived: false }].sort((a, b) => a.name.localeCompare(b.name));
         });
         return;
       }
@@ -324,7 +333,7 @@ export function useDoctors() {
     isDemo,
     loading: !isDemo && loading,
     error,
-    specialties: { data: specialties, ensure: ensureSpecialties, create: createSpecialty, rename: renameSpecialty, remove: removeSpecialty, setNextAppointment },
+    specialties: { data: specialties, ensure: ensureSpecialties, create: createSpecialty, rename: renameSpecialty, archive: archiveSpecialty, remove: removeSpecialty, setNextAppointment },
     doctors: { data: doctors, edit: editDoctor, remove: removeDoctor },
     appointments: { data: appointments, log: logAppointment, edit: editAppointment, remove: removeAppointment },
     tasks: { data: tasks, add: addTask, edit: editTask, setComplete: setTaskComplete, remove: removeTask },

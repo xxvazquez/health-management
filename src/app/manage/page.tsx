@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import Link from "next/link";
 import { useData } from "@/lib/DataContext";
 import { useVisibleDomains, DOMAIN_LABELS, type TrackedDomain } from "@/lib/visibleDomains";
@@ -22,15 +22,53 @@ import { buildDemoDataset } from "@/lib/demoData";
 import { WORKOUT_UNITS, workoutUnitLabel, defaultWorkoutUnitForCategory, type RawItem, type RawCategory, type WorkoutUnit } from "@/lib/types";
 import { createReminderList, deleteReminderList, fetchReminderLists, renameReminderList, type ReminderList } from "@/lib/supabase/personalReminders";
 import { buildDemoReminderLists } from "@/lib/demoPersonalReminders";
-import { createDoctorSpecialty, deleteDoctorSpecialty, fetchDoctorSpecialties, fetchDoctors, renameDoctorSpecialty, type DoctorSpecialty } from "@/lib/supabase/doctors";
-import { buildDemoDoctorSpecialties, buildDemoDoctors } from "@/lib/demoDoctors";
-import { DEFAULT_DOCTOR_SPECIALTIES, mergeSpecialtyNames } from "@/lib/doctors";
+import {
+  createDoctorSpecialty,
+  deleteDoctorSpecialty,
+  ensureDoctorSpecialties,
+  fetchDoctorSpecialties,
+  renameDoctorSpecialty,
+  setDoctorSpecialtyArchived,
+  type DoctorSpecialty,
+} from "@/lib/supabase/doctors";
+import { buildDemoDoctorSpecialties } from "@/lib/demoDoctors";
+import { DEFAULT_DOCTOR_SPECIALTIES } from "@/lib/doctors";
 import { PencilIcon, TrashIcon } from "@/components/ui/Notebook";
 
 // Log tab order — Food, Symptoms, Supplements, Habits, Stool, Workout,
 // Cycle — so the toggle list reads left-to-right the same way the tabs
 // it controls do.
 const DOMAIN_TOGGLE_ORDER: TrackedDomain[] = ["food", "outcome", "supplement", "habit", "stool", "workout", "cycle"];
+
+/** A collapsible section card with the same Show/Hide header as the item
+ * sections below, for the settings blocks (Reminder lists, Doctor types)
+ * that would otherwise always take up space above the item list. Starts
+ * collapsed; `forceOpen` (a live search) pins it open. */
+function CollapsibleManageCard({ title, defaultOpen = false, forceOpen = false, children }: { title: string; defaultOpen?: boolean; forceOpen?: boolean; children: ReactNode }) {
+  const [open, setOpen] = useState(defaultOpen);
+  const shown = forceOpen || open;
+  return (
+    <Card tier="supporting">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        disabled={forceOpen}
+        aria-expanded={shown}
+        className="flex w-full items-center justify-between gap-3 text-left"
+      >
+        <span className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+          {title}
+        </span>
+        {!forceOpen && (
+          <span className="shrink-0 text-xs font-medium underline decoration-dotted" style={{ color: "var(--text-secondary)" }}>
+            {open ? "Hide" : "Show"}
+          </span>
+        )}
+      </button>
+      {shown && <div className="mt-3">{children}</div>}
+    </Card>
+  );
+}
 
 /** Turns a tracked type on/off everywhere it appears — its Log tab and,
  * for Food/Workout/Cycle, its Analytics dashboard link — without deleting
@@ -79,7 +117,7 @@ function VisibleSectionsCard() {
  * itself, so that tab stays a plain list switcher. Deleting a list drops
  * its tasks back to the default "Reminders" bucket (DB `on delete set
  * null`), it never removes them. */
-function ReminderListsCard({ isDemoData }: { isDemoData: boolean }) {
+function ReminderListsCard({ isDemoData, searchQuery }: { isDemoData: boolean; searchQuery: string }) {
   const [lists, setLists] = useState<ReminderList[]>(() => (isDemoData ? buildDemoReminderLists() : []));
   const [loading, setLoading] = useState(!isDemoData);
   const [newName, setNewName] = useState("");
@@ -130,28 +168,44 @@ function ReminderListsCard({ isDemoData }: { isDemoData: boolean }) {
     if (!isDemoData) await deleteReminderList(id).catch((err) => console.error("deleteReminderList failed", err));
   }
 
+  const query = searchQuery.trim().toLowerCase();
+  const isSearching = query.length > 0;
+  const visibleLists = isSearching ? lists.filter((l) => l.name.toLowerCase().includes(query)) : lists;
+  if (isSearching && visibleLists.length === 0) return null;
+
   return (
-    <Card tier="supporting">
-      <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-        Reminder lists
-      </p>
-      <p className="mt-0.5 mb-3 text-xs" style={{ color: "var(--text-secondary)" }}>
+    <CollapsibleManageCard title="Reminder lists" forceOpen={isSearching}>
+      <p className="mb-3 text-xs" style={{ color: "var(--text-secondary)" }}>
         The buckets your reminders are organised into on the Log page. Deleting a list moves its reminders back to
         the default &ldquo;Reminders&rdquo; list — it never deletes them.
       </p>
+
+      <form onSubmit={handleAdd} className="mb-3 flex items-center gap-2">
+        <input
+          value={newName}
+          onChange={(e) => setNewName(e.target.value)}
+          placeholder="New list name"
+          maxLength={40}
+          className="flex-1 rounded-md border px-2.5 py-1.5 text-xs outline-none"
+          style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
+        />
+        <button type="submit" disabled={!newName.trim()} className="shrink-0 rounded-md px-3 py-1.5 text-xs font-semibold disabled:opacity-40" style={{ color: "var(--series-1)" }}>
+          Add list
+        </button>
+      </form>
 
       {loading ? (
         <p className="py-3 text-xs" style={{ color: "var(--text-muted)" }}>
           Loading…
         </p>
       ) : (
-        <ul className="mb-3 flex flex-col divide-y divide-[color:var(--gridline)]">
-          {lists.length === 0 && (
+        <ul className="flex flex-col divide-y divide-[color:var(--gridline)]">
+          {!isSearching && lists.length === 0 && (
             <li className="py-2 text-xs" style={{ color: "var(--text-muted)" }}>
               No custom lists yet — everything sits in the default &ldquo;Reminders&rdquo; list.
             </li>
           )}
-          {lists.map((l) => (
+          {visibleLists.map((l) => (
             <li key={l.id} className="flex items-center gap-2 py-2">
               {editingId === l.id ? (
                 <form
@@ -218,47 +272,31 @@ function ReminderListsCard({ isDemoData }: { isDemoData: boolean }) {
           ))}
         </ul>
       )}
-
-      <form onSubmit={handleAdd} className="flex items-center gap-2">
-        <input
-          value={newName}
-          onChange={(e) => setNewName(e.target.value)}
-          placeholder="New list name"
-          maxLength={40}
-          className="flex-1 rounded-md border px-2.5 py-1.5 text-xs outline-none"
-          style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
-        />
-        <button type="submit" disabled={!newName.trim()} className="shrink-0 rounded-md px-3 py-1.5 text-xs font-semibold disabled:opacity-40" style={{ color: "var(--series-1)" }}>
-          Add list
-        </button>
-      </form>
-    </Card>
+    </CollapsibleManageCard>
   );
 }
 
 /** The selectable doctor-type list behind the Doctors page's pickers.
- * Built-in defaults show until the user has their own rows (same rule as
- * item categories); adding or renaming one saves a real row. Deleting is
- * blocked while a saved doctor still uses that type. */
-function DoctorSpecialtiesCard({ isDemoData }: { isDemoData: boolean }) {
+ * Built-in defaults show until the user edits one, at which point the whole
+ * set is saved as real rows (same "rows win once they exist" rule as item
+ * categories). Every type can be renamed, hidden (kept out of the picker,
+ * one tap to restore — appointments keep their own frozen type), or
+ * deleted. */
+function DoctorSpecialtiesCard({ isDemoData, searchQuery }: { isDemoData: boolean; searchQuery: string }) {
   const [rows, setRows] = useState<DoctorSpecialty[]>(() => (isDemoData ? buildDemoDoctorSpecialties() : []));
-  const [usedNames, setUsedNames] = useState<string[]>(() => (isDemoData ? buildDemoDoctors().map((d) => d.specialty) : []));
   const [loading, setLoading] = useState(!isDemoData);
+  const [busy, setBusy] = useState(false);
   const [newName, setNewName] = useState("");
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingKey, setEditingKey] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
-  const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [confirmingDeleteKey, setConfirmingDeleteKey] = useState<string | null>(null);
+  const [hiddenOpen, setHiddenOpen] = useState(false);
 
   useEffect(() => {
     if (isDemoData) return;
     let cancelled = false;
-    Promise.all([fetchDoctorSpecialties(), fetchDoctors()])
-      .then(([specialties, doctors]) => {
-        if (cancelled) return;
-        setRows(specialties);
-        setUsedNames(doctors.map((d) => d.specialty));
-      })
+    fetchDoctorSpecialties()
+      .then((specialties) => !cancelled && setRows(specialties))
       .catch((err) => console.error("fetchDoctorSpecialties failed", err))
       .finally(() => !cancelled && setLoading(false));
     return () => {
@@ -266,149 +304,194 @@ function DoctorSpecialtiesCard({ isDemoData }: { isDemoData: boolean }) {
     };
   }, [isDemoData]);
 
-  const names = mergeSpecialtyNames(rows.map((r) => r.name), [...DEFAULT_DOCTOR_SPECIALTIES], usedNames);
-  const rowByName = new Map(rows.map((r) => [r.name.toLowerCase(), r]));
-  const usedKeys = new Set(usedNames.map((n) => n.toLowerCase()));
+  const entries =
+    rows.length > 0
+      ? rows.map((r) => ({ key: r.name.toLowerCase(), name: r.name, isArchived: r.isArchived }))
+      : DEFAULT_DOCTOR_SPECIALTIES.map((name) => ({ key: name.toLowerCase(), name, isArchived: false }));
+
+  const query = searchQuery.trim().toLowerCase();
+  const isSearching = query.length > 0;
+  const matchesQuery = (e: { name: string }) => !isSearching || e.name.toLowerCase().includes(query);
+  const active = entries.filter((e) => !e.isArchived && matchesQuery(e)).sort((a, b) => a.name.localeCompare(b.name));
+  const hidden = entries.filter((e) => e.isArchived && matchesQuery(e)).sort((a, b) => a.name.localeCompare(b.name));
+
+  if (isSearching && active.length === 0 && hidden.length === 0) return null;
+
+  /** Turns the built-in defaults into real rows the first time one is
+   * edited, so an edit actually persists — mirrors `ensureCategoryId`. */
+  async function realize(): Promise<DoctorSpecialty[]> {
+    if (isDemoData || rows.length > 0) return rows;
+    const fresh = await ensureDoctorSpecialties();
+    setRows(fresh);
+    return fresh;
+  }
+
+  const findRow = (list: DoctorSpecialty[], name: string) => list.find((r) => r.name.toLowerCase() === name.toLowerCase());
+
+  async function run(action: (fresh: DoctorSpecialty[]) => Promise<void>) {
+    setBusy(true);
+    try {
+      await action(isDemoData ? rows : await realize());
+    } catch (err) {
+      console.error("doctor type action failed", err);
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function handleAdd(e: FormEvent) {
     e.preventDefault();
     const name = newName.trim();
-    if (!name || names.some((n) => n.toLowerCase() === name.toLowerCase())) {
-      setNewName("");
-      return;
-    }
     setNewName("");
+    if (!name) return;
     if (isDemoData) {
-      setRows((prev) => [...prev, { id: `demo-spec-${Date.now()}`, name, nextAppointmentDate: null }]);
+      setRows((prev) => {
+        const existing = findRow(prev, name);
+        if (existing) return prev.map((r) => (r.id === existing.id ? { ...r, isArchived: false } : r));
+        return [...prev, { id: `demo-spec-${Date.now()}`, name, nextAppointmentDate: null, isArchived: false }];
+      });
       return;
     }
-    try {
+    await run(async (fresh) => {
+      const existing = findRow(fresh, name);
+      if (existing) {
+        if (existing.isArchived) {
+          const updated = await setDoctorSpecialtyArchived(existing.id, false);
+          setRows((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+        }
+        return;
+      }
       const created = await createDoctorSpecialty(name);
       setRows((prev) => [...prev, created]);
-    } catch (err) {
-      console.error("createDoctorSpecialty failed", err);
-    }
+    });
   }
 
-  async function handleRename(row: DoctorSpecialty) {
-    const name = editingName.trim();
-    setEditingId(null);
-    if (!name || name === row.name) return;
-    setRows((prev) => prev.map((r) => (r.id === row.id ? { ...r, name } : r)));
-    if (!isDemoData) await renameDoctorSpecialty(row.id, name).catch((err) => console.error("renameDoctorSpecialty failed", err));
-  }
-
-  async function handleDelete(row: DoctorSpecialty) {
-    setConfirmingDeleteId(null);
-    setError(null);
-    if (usedKeys.has(row.name.toLowerCase())) {
-      setError(`"${row.name}" is still used by a saved doctor — change that doctor's type first.`);
+  async function handleRename(name: string) {
+    const next = editingName.trim();
+    setEditingKey(null);
+    if (!next || next.toLowerCase() === name.toLowerCase()) return;
+    if (isDemoData) {
+      setRows((prev) => prev.map((r) => (r.name.toLowerCase() === name.toLowerCase() ? { ...r, name: next } : r)));
       return;
     }
-    setRows((prev) => prev.filter((r) => r.id !== row.id));
-    if (!isDemoData) await deleteDoctorSpecialty(row.id).catch((err) => console.error("deleteDoctorSpecialty failed", err));
+    await run(async (fresh) => {
+      const row = findRow(fresh, name);
+      if (!row) return;
+      const updated = await renameDoctorSpecialty(row.id, next);
+      setRows((prev) => prev.map((r) => (r.id === row.id ? updated : r)));
+    });
   }
 
-  return (
-    <Card tier="supporting">
-      <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-        Doctor types
-      </p>
-      <p className="mt-0.5 mb-3 text-xs" style={{ color: "var(--text-secondary)" }}>
-        The specialties offered when logging a doctor appointment. The starting list is built in; anything you add,
-        rename or use is saved.
-      </p>
+  async function handleArchive(name: string, archived: boolean) {
+    if (isDemoData) {
+      setRows((prev) => prev.map((r) => (r.name.toLowerCase() === name.toLowerCase() ? { ...r, isArchived: archived } : r)));
+      return;
+    }
+    await run(async (fresh) => {
+      const row = findRow(fresh, name);
+      if (!row) return;
+      const updated = await setDoctorSpecialtyArchived(row.id, archived);
+      setRows((prev) => prev.map((r) => (r.id === row.id ? updated : r)));
+    });
+  }
 
-      {error && (
-        <p className="mb-2 text-xs" style={{ color: "var(--status-warning)" }}>
-          {error}
-        </p>
-      )}
+  async function handleDelete(name: string) {
+    setConfirmingDeleteKey(null);
+    if (isDemoData) {
+      setRows((prev) => prev.filter((r) => r.name.toLowerCase() !== name.toLowerCase()));
+      return;
+    }
+    await run(async (fresh) => {
+      const row = findRow(fresh, name);
+      if (!row) return;
+      setRows((prev) => prev.filter((r) => r.id !== row.id));
+      await deleteDoctorSpecialty(row.id);
+    });
+  }
 
-      {loading ? (
-        <p className="py-3 text-xs" style={{ color: "var(--text-muted)" }}>
-          Loading…
-        </p>
+  const rowEl = (e: { key: string; name: string; isArchived: boolean }) => (
+    <li key={e.key} className="flex items-center gap-2 py-2">
+      {editingKey === e.key ? (
+        <form
+          className="flex flex-1 items-center gap-2"
+          onSubmit={(ev) => {
+            ev.preventDefault();
+            void handleRename(e.name);
+          }}
+        >
+          <input
+            autoFocus
+            value={editingName}
+            onChange={(ev) => setEditingName(ev.target.value)}
+            onFocus={(ev) => ev.target.select()}
+            onBlur={() => void handleRename(e.name)}
+            maxLength={60}
+            className="flex-1 rounded-md border px-2 py-1 text-sm outline-none"
+            style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
+          />
+        </form>
       ) : (
-        <ul className="mb-3 flex flex-col divide-y divide-[color:var(--gridline)]">
-          {names.map((name) => {
-            const row = rowByName.get(name.toLowerCase());
-            return (
-              <li key={name} className="flex items-center gap-2 py-2">
-                {row && editingId === row.id ? (
-                  <form
-                    className="flex flex-1 items-center gap-2"
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      void handleRename(row);
-                    }}
-                  >
-                    <input
-                      autoFocus
-                      value={editingName}
-                      onChange={(e) => setEditingName(e.target.value)}
-                      onFocus={(e) => e.target.select()}
-                      onBlur={() => void handleRename(row)}
-                      maxLength={60}
-                      className="flex-1 rounded-md border px-2 py-1 text-sm outline-none"
-                      style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
-                    />
-                  </form>
-                ) : (
-                  <span className="flex-1 truncate text-sm" style={{ color: "var(--text-primary)" }}>
-                    {name}
-                    {!row && (
-                      <span className="ml-2 text-xs" style={{ color: "var(--text-muted)" }}>
-                        default
-                      </span>
-                    )}
-                  </span>
-                )}
-
-                {row &&
-                  (confirmingDeleteId === row.id ? (
-                    <span className="flex shrink-0 items-center gap-1">
-                      <button type="button" onClick={() => void handleDelete(row)} className="rounded-md px-2 py-1 text-xs font-semibold" style={{ color: "var(--status-critical)" }}>
-                        Delete
-                      </button>
-                      <button type="button" onClick={() => setConfirmingDeleteId(null)} className="rounded-md px-2 py-1 text-xs font-medium" style={{ color: "var(--text-muted)" }}>
-                        Keep
-                      </button>
-                    </span>
-                  ) : (
-                    <span className="flex shrink-0 items-center gap-0.5">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setEditingId(row.id);
-                          setEditingName(row.name);
-                        }}
-                        aria-label={`Rename ${name}`}
-                        title="Rename"
-                        className="rounded-md p-1.5 transition-colors hover:bg-[var(--page-plane)]"
-                        style={{ color: "var(--text-muted)" }}
-                      >
-                        <PencilIcon size={15} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setConfirmingDeleteId(row.id)}
-                        aria-label={`Delete ${name}`}
-                        title="Delete"
-                        className="notebook-danger rounded-md p-1.5 transition-colors hover:bg-[var(--page-plane)]"
-                        style={{ color: "var(--text-muted)" }}
-                      >
-                        <TrashIcon size={15} />
-                      </button>
-                    </span>
-                  ))}
-              </li>
-            );
-          })}
-        </ul>
+        <span className="flex-1 truncate text-sm" style={{ color: e.isArchived ? "var(--text-muted)" : "var(--text-primary)" }}>
+          {e.name}
+        </span>
       )}
 
-      <form onSubmit={handleAdd} className="flex items-center gap-2">
+      {confirmingDeleteKey === e.key ? (
+        <span className="flex shrink-0 items-center gap-1">
+          <button type="button" onClick={() => void handleDelete(e.name)} className="rounded-md px-2 py-1 text-xs font-semibold" style={{ color: "var(--status-critical)" }}>
+            Delete
+          </button>
+          <button type="button" onClick={() => setConfirmingDeleteKey(null)} className="rounded-md px-2 py-1 text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+            Keep
+          </button>
+        </span>
+      ) : (
+        <span className="flex shrink-0 items-center gap-0.5">
+          <button
+            type="button"
+            onClick={() => {
+              setEditingKey(e.key);
+              setEditingName(e.name);
+            }}
+            aria-label={`Rename ${e.name}`}
+            title="Rename"
+            className="rounded-md p-1.5 transition-colors hover:bg-[var(--page-plane)]"
+            style={{ color: "var(--text-muted)" }}
+          >
+            <PencilIcon size={15} />
+          </button>
+          <button
+            type="button"
+            onClick={() => void handleArchive(e.name, !e.isArchived)}
+            disabled={busy}
+            className="rounded-md px-1.5 py-1 text-xs font-medium transition-colors hover:bg-[var(--page-plane)] disabled:opacity-40"
+            style={{ color: "var(--text-muted)" }}
+          >
+            {e.isArchived ? "Show" : "Hide"}
+          </button>
+          <button
+            type="button"
+            onClick={() => setConfirmingDeleteKey(e.key)}
+            aria-label={`Delete ${e.name}`}
+            title="Delete"
+            className="notebook-danger rounded-md p-1.5 transition-colors hover:bg-[var(--page-plane)]"
+            style={{ color: "var(--text-muted)" }}
+          >
+            <TrashIcon size={15} />
+          </button>
+        </span>
+      )}
+    </li>
+  );
+
+  return (
+    <CollapsibleManageCard title="Doctor types" forceOpen={isSearching}>
+      <p className="mb-3 text-xs" style={{ color: "var(--text-secondary)" }}>
+        The specialties offered when logging a doctor appointment. Hide the ones you don&apos;t need or add your own —
+        appointments you&apos;ve already logged keep their type either way.
+      </p>
+
+      <form onSubmit={handleAdd} className="mb-3 flex items-center gap-2">
         <input
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
@@ -421,7 +504,41 @@ function DoctorSpecialtiesCard({ isDemoData }: { isDemoData: boolean }) {
           Add type
         </button>
       </form>
-    </Card>
+
+      {loading ? (
+        <p className="py-3 text-xs" style={{ color: "var(--text-muted)" }}>
+          Loading…
+        </p>
+      ) : (
+        <>
+          <ul className="flex flex-col divide-y divide-[color:var(--gridline)]">
+            {active.length === 0 && !isSearching && (
+              <li className="py-2 text-xs" style={{ color: "var(--text-muted)" }}>
+                Every type is hidden — add one above or show one back.
+              </li>
+            )}
+            {active.map(rowEl)}
+          </ul>
+
+          {hidden.length > 0 && (
+            <div className="mt-3 border-t pt-2" style={{ borderColor: "var(--gridline)" }}>
+              <button
+                type="button"
+                onClick={() => setHiddenOpen((v) => !v)}
+                disabled={isSearching}
+                className="text-xs font-medium underline decoration-dotted disabled:opacity-100"
+                style={{ color: "var(--text-secondary)" }}
+              >
+                Hidden ({hidden.length}) — {isSearching || hiddenOpen ? "Hide" : "Show"}
+              </button>
+              {(isSearching || hiddenOpen) && (
+                <ul className="mt-2 flex flex-col divide-y divide-[color:var(--gridline)] opacity-70">{hidden.map(rowEl)}</ul>
+              )}
+            </div>
+          )}
+        </>
+      )}
+    </CollapsibleManageCard>
   );
 }
 
@@ -1394,11 +1511,12 @@ export default function ManagePage() {
 
       <VisibleSectionsCard />
 
-      <ReminderListsCard isDemoData={isDemoData} />
-
-      <DoctorSpecialtiesCard isDemoData={isDemoData} />
-
       <SearchBar value={searchQuery} onChange={setSearchQuery} />
+
+      <ReminderListsCard isDemoData={isDemoData} searchQuery={searchQuery} />
+
+      <DoctorSpecialtiesCard isDemoData={isDemoData} searchQuery={searchQuery} />
+
       {TYPE_SECTIONS.map((section) => (
         <ItemSection
           key={section.type}
