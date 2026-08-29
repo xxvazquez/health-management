@@ -8,6 +8,7 @@ import { NoteList, NoteRow, NotebookForm } from "@/components/ui/Notebook";
 import { SearchField } from "@/components/ui/SearchField";
 import { ListSkeleton } from "@/components/ui/Skeleton";
 import { InlineEmpty } from "@/components/ui/EmptyState";
+import { PrimaryAction } from "@/components/ui/PrimaryAction";
 
 function formatJournalDate(date: string): string {
   return new Date(`${date}T00:00:00`).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
@@ -197,9 +198,7 @@ export function JournalTab({ isDemoData, accent }: { isDemoData: boolean; accent
             {oldestFirst ? "Oldest first" : "Newest first"}
           </button>
         </div>
-        <button type="button" onClick={() => setComposing(true)} className="rounded-md px-3 py-1.5 text-sm font-medium text-white" style={{ background: accent }}>
-          + New entry
-        </button>
+        <PrimaryAction label="New entry" accent={accent} onClick={() => setComposing(true)} />
       </div>
 
       {loading ? (
@@ -211,7 +210,7 @@ export function JournalTab({ isDemoData, accent }: { isDemoData: boolean; accent
       ) : visibleEntries.length === 0 ? (
         <InlineEmpty
           title={entries.length === 0 ? "No entries yet" : "Nothing matches that search"}
-          description={entries.length === 0 ? "Tap + New entry to write your first one." : "Try a different search term."}
+          description={entries.length === 0 ? "Tap New entry to write your first one." : "Try a different search term."}
         />
       ) : (
         <NoteList>

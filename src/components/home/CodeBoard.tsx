@@ -7,6 +7,7 @@ import { PencilIcon, TrashIcon } from "@/components/ui/Notebook";
 import { SearchField } from "@/components/ui/SearchField";
 import { ListSkeleton } from "@/components/ui/Skeleton";
 import { InlineEmpty } from "@/components/ui/EmptyState";
+import { PrimaryAction } from "@/components/ui/PrimaryAction";
 import type { HouseholdCode, NewHouseholdCodeInput } from "@/lib/supabase/household";
 
 type SortMode = "recent" | "name";
@@ -320,9 +321,7 @@ export function CodeBoard({
             {sort === "recent" ? "Newest first" : "Name A–Z"}
           </button>
         </div>
-        <button type="button" onClick={() => setComposing(true)} className="rounded-md px-3 py-1.5 text-sm font-medium text-white" style={{ background: accent }}>
-          + Add code
-        </button>
+        <PrimaryAction label="New code" accent={accent} onClick={() => setComposing(true)} />
       </div>
 
       {loading ? (
@@ -336,7 +335,7 @@ export function CodeBoard({
           title={codes.length === 0 ? "No codes yet" : "Nothing matches that search"}
           description={
             codes.length === 0
-              ? "Tap + Add code to save a discount or promo code you both can use."
+              ? "Tap New code to save a discount or promo code you both can use."
               : "Try a different search term."
           }
         />

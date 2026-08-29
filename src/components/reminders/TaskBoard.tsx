@@ -8,6 +8,7 @@ import { ArchiveIcon } from "@/components/notes/icons";
 import { ListSection, SectionIcon } from "@/components/ui/ListSection";
 import { ListSkeleton } from "@/components/ui/Skeleton";
 import { InlineEmpty } from "@/components/ui/EmptyState";
+import { PrimaryAction } from "@/components/ui/PrimaryAction";
 
 function UndoIcon({ size = 15 }: { size?: number }) {
   return (
@@ -412,7 +413,7 @@ export function TaskBoard({
   onDelete,
   completedByLabel,
   emptyTitle = "Nothing here yet",
-  emptyDescription = "Tap + New to add one.",
+  emptyDescription = "Tap New reminder to add one.",
 }: {
   tasks: TaskItem[];
   loading: boolean;
@@ -583,9 +584,7 @@ export function TaskBoard({
       )}
 
       <div className="flex items-center justify-end gap-3">
-        <button type="button" onClick={() => setComposing(true)} className="shrink-0 rounded-md px-3 py-1.5 text-sm font-medium text-white" style={{ background: accent }}>
-          + New
-        </button>
+        <PrimaryAction label="New reminder" accent={accent} onClick={() => setComposing(true)} />
       </div>
 
       {loading ? (

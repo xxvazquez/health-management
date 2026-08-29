@@ -128,7 +128,7 @@ export default function PersonalPage() {
           loading={!personal.isDemo && personal.notes.loading}
           error={personal.notes.error}
           accent={NOTES_ACCENT}
-          emptyDescription="Tap + New note to jot something down — a code, a measurement, anything."
+          emptyDescription="Tap New note to jot something down — a code, a measurement, anything."
           onCreate={personal.notes.create}
           onUpdate={personal.notes.update}
           onDelete={personal.notes.remove}
@@ -145,7 +145,7 @@ export default function PersonalPage() {
           lists={personal.lists.data}
           onCreateList={personal.lists.create}
           emptyTitle="No reminders yet"
-          emptyDescription="Tap + New for a one-off task with a deadline, or a recurring chore."
+          emptyDescription="Tap New reminder for a one-off task with a deadline, or a recurring chore."
           onCreate={personal.tasks.create}
           onEdit={personal.tasks.edit}
           onComplete={personal.tasks.complete}

@@ -12,7 +12,7 @@ export function formatNoteTimestamp(iso: string): string {
 
 const VIEW_EMPTY_COPY: Record<NoteView, { title: string; description: string }> = {
   inbox: { title: "Nothing in your inbox", description: "Messages your partner sends you will show up here." },
-  sent: { title: "Nothing sent yet", description: "Tap + New message to send your partner something." },
+  sent: { title: "Nothing sent yet", description: "Tap New message to send your partner something." },
   favourites: { title: "No favourites yet", description: "Star a message to keep it easy to find here." },
   archived: { title: "Nothing archived", description: "Messages you archive will show up here." },
 };
