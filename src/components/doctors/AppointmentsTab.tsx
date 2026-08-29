@@ -5,6 +5,7 @@ import type { useDoctors } from "@/lib/useDoctors";
 import { resolveSpecialtyNames } from "@/lib/doctors";
 import { AppointmentForm } from "./AppointmentForm";
 import { AppointmentList } from "./AppointmentList";
+import { PrimaryAction } from "@/components/ui/PrimaryAction";
 
 type DoctorsApi = ReturnType<typeof useDoctors>;
 
@@ -37,11 +38,9 @@ export function AppointmentsTab({ api, accent }: { api: DoctorsApi; accent: stri
   return (
     <div className="flex flex-col gap-3">
       <div className="flex justify-end">
-        <button type="button" onClick={() => setComposing(true)} className="rounded-md px-3 py-1.5 text-sm font-medium text-white" style={{ background: accent }}>
-          + Log appointment
-        </button>
+        <PrimaryAction label="Log appointment" accent={accent} onClick={() => setComposing(true)} />
       </div>
-      <AppointmentList api={api} appointments={appointments.data} accent={accent} emptyMessage="No appointments logged yet — tap + Log appointment to record a visit you've already had." />
+      <AppointmentList api={api} appointments={appointments.data} accent={accent} emptyMessage="No appointments logged yet — tap Log appointment to record a visit you've already had." />
     </div>
   );
 }

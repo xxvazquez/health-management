@@ -413,7 +413,7 @@ export default function HomePage() {
           loading={!isDemo && notesLoading}
           error={notesError}
           accent={ACCENT}
-          emptyDescription="Tap + New note to write your first shared note."
+          emptyDescription="Tap New note to write your first shared note."
           onCreate={handleCreateNote}
           onUpdate={handleUpdateNote}
           onDelete={handleDeleteNote}
@@ -429,7 +429,7 @@ export default function HomePage() {
           mode="all"
           assignable={myUserId ? { myUserId, partnerId } : undefined}
           emptyTitle="No shared reminders yet"
-          emptyDescription="Tap + New for a one-off reminder or a recurring chore — either of you can complete it."
+          emptyDescription="Tap New reminder for a one-off task or a recurring chore — either of you can complete it."
           completedByLabel={completedByLabel}
           onCreate={handleCreateTask}
           onEdit={handleEditTask}

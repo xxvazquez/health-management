@@ -9,6 +9,7 @@ import { ListSection, SectionIcon } from "@/components/ui/ListSection";
 import { SearchField } from "@/components/ui/SearchField";
 import { ListSkeleton } from "@/components/ui/Skeleton";
 import { InlineEmpty } from "@/components/ui/EmptyState";
+import { PrimaryAction } from "@/components/ui/PrimaryAction";
 
 // Emphasis only where it earns its keep — Expired and this week read as
 // urgent; everything further out is the same quiet muted tone.
@@ -297,9 +298,7 @@ export function ExpirationBoard({
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <SearchField value={search} onChange={setSearch} placeholder="Search products…" />
-        <button type="button" onClick={() => setComposing(true)} className="rounded-md px-3 py-1.5 text-sm font-medium text-white" style={{ background: accent }}>
-          + Add product
-        </button>
+        <PrimaryAction label="New product" accent={accent} onClick={() => setComposing(true)} />
       </div>
 
       {loading ? (
@@ -309,7 +308,7 @@ export function ExpirationBoard({
           Couldn&apos;t load products — try again in a moment.
         </p>
       ) : items.length === 0 ? (
-        <InlineEmpty title="No products tracked yet" description="Tap + Add product to track its expiration date." />
+        <InlineEmpty title="No products tracked yet" description="Tap New product to track its expiration date." />
       ) : !anyMatch ? (
         <InlineEmpty title="Nothing matches that search" description="Try a different search term." />
       ) : (

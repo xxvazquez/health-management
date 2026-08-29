@@ -5,6 +5,7 @@ import { NoteList, NoteRow, NotebookForm } from "@/components/ui/Notebook";
 import { SearchField } from "@/components/ui/SearchField";
 import { ListSkeleton } from "@/components/ui/Skeleton";
 import { InlineEmpty } from "@/components/ui/EmptyState";
+import { PrimaryAction } from "@/components/ui/PrimaryAction";
 
 export interface BoardNote {
   id: string;
@@ -36,7 +37,7 @@ export function NoteBoard({
   onUpdate,
   onDelete,
   emptyTitle = "No notes yet",
-  emptyDescription = "Tap + New note to write your first one.",
+  emptyDescription = "Tap New note to write your first one.",
 }: {
   notes: BoardNote[];
   loading: boolean;
@@ -95,9 +96,7 @@ export function NoteBoard({
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <SearchField value={search} onChange={setSearch} placeholder="Search notes…" />
-        <button type="button" onClick={() => setComposing(true)} className="rounded-md px-3 py-1.5 text-sm font-medium text-white" style={{ background: accent }}>
-          + New note
-        </button>
+        <PrimaryAction label="New note" accent={accent} onClick={() => setComposing(true)} />
       </div>
 
       {loading ? (

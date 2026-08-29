@@ -25,6 +25,7 @@ import { ComposeNoteDialog } from "@/components/notes/ComposeNoteDialog";
 import { NoteThreadList } from "@/components/notes/NoteThreadList";
 import { NoteThreadView } from "@/components/notes/NoteThreadView";
 import { PageSkeleton } from "@/components/ui/Skeleton";
+import { PrimaryAction } from "@/components/ui/PrimaryAction";
 
 const ACCENT = "var(--series-magenta)";
 // Never the partner's email — that's private data the app shouldn't surface
@@ -372,19 +373,12 @@ function NotesHeader({
         <button
           type="button"
           onClick={onMarkAllRead}
-          className="rounded-md border px-3 py-2 text-sm font-medium"
+          className="rounded-md border px-3 py-1.5 text-sm font-medium"
           style={{ borderColor: "var(--border-hairline)", color: "var(--text-secondary)" }}
         >
           Mark all as read
         </button>
-        <button
-          type="button"
-          onClick={onCompose}
-          className="flex items-center gap-1.5 rounded-md px-4 py-2 text-sm font-medium text-white"
-          style={{ background: ACCENT }}
-        >
-          + New message
-        </button>
+        <PrimaryAction label="New message" accent={ACCENT} onClick={onCompose} />
       </div>
     </div>
   );
