@@ -28,6 +28,12 @@ const BLURB: Record<PersonalTab, string> = {
   expiration: "Track when your products and supplements run out.",
 };
 
+const TAB_STORAGE_KEY = "lauva-personal-tab";
+
+function isPersonalTab(v: string): v is PersonalTab {
+  return TABS.some((t) => t.id === v);
+}
+
 /** Everything private that you write once and come back to — the diary,
  * plain notes, reminders, and expiry tracking. Split off from the Log page
  * (which is now just the tracking tabs) so "record something that happened"
@@ -35,14 +41,35 @@ const BLURB: Record<PersonalTab, string> = {
  * of notes/reminders/expiry live on the Shared page. */
 export default function PersonalPage() {
   const personal = usePersonalReminderBoards();
+  // Starts at "journal" for a match with the statically-rendered HTML, then
+  // hydrates from the URL hash (deep links win) or the last-used tab
+  // (localStorage) on mount — reading either in the initializer would be a
+  // hydration mismatch.
   const [tab, setTab] = useState<PersonalTab>("journal");
+
+  useEffect(() => {
+    // External read on mount (URL + localStorage), not a state-sync loop —
+    // same shape the rest of the app uses for hydration.
+    /* eslint-disable react-hooks/set-state-in-effect */
+    const hash = window.location.hash.replace("#", "");
+    if (isPersonalTab(hash)) {
+      setTab(hash);
+      return;
+    }
+    try {
+      const saved = localStorage.getItem(TAB_STORAGE_KEY);
+      if (saved && isPersonalTab(saved)) setTab(saved);
+    } catch {
+      // Storage blocked — just stay on the default.
+    }
+    /* eslint-enable react-hooks/set-state-in-effect */
+  }, []);
 
   useEffect(() => {
     const fromHash = () => {
       const id = window.location.hash.replace("#", "");
-      if (TABS.some((t) => t.id === id)) setTab(id as PersonalTab);
+      if (isPersonalTab(id)) setTab(id);
     };
-    fromHash();
     window.addEventListener("hashchange", fromHash);
     return () => window.removeEventListener("hashchange", fromHash);
   }, []);
@@ -50,6 +77,11 @@ export default function PersonalPage() {
   function selectTab(id: PersonalTab) {
     setTab(id);
     window.history.replaceState(null, "", `#${id}`);
+    try {
+      localStorage.setItem(TAB_STORAGE_KEY, id);
+    } catch {
+      // Storage blocked — the tab still switches for this session.
+    }
   }
 
   const active = TABS.find((t) => t.id === tab) ?? TABS[0];

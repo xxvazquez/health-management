@@ -11,10 +11,10 @@ export function formatNoteTimestamp(iso: string): string {
 }
 
 const VIEW_EMPTY_COPY: Record<NoteView, { title: string; description: string }> = {
-  inbox: { title: "Nothing in your inbox", description: "Notes your partner sends you will show up here." },
-  sent: { title: "No notes sent yet", description: "Tap + New note to send your partner something." },
-  favourites: { title: "No favourites yet", description: "Star a note to keep it easy to find here." },
-  archived: { title: "Nothing archived", description: "Notes you archive will show up here." },
+  inbox: { title: "Nothing in your inbox", description: "Messages your partner sends you will show up here." },
+  sent: { title: "Nothing sent yet", description: "Tap + New message to send your partner something." },
+  favourites: { title: "No favourites yet", description: "Star a message to keep it easy to find here." },
+  archived: { title: "Nothing archived", description: "Messages you archive will show up here." },
 };
 
 /** Compact per-row action — same visual language as NoteThreadView's

@@ -85,7 +85,7 @@ export function ComposeNoteDialog({
       >
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
-            New note
+            New message
           </h2>
           <button
             type="button"

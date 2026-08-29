@@ -6,6 +6,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { PageSkeleton } from "@/components/ui/Skeleton";
 import { DashboardHeader } from "@/components/analytics/DashboardHeader";
 import { Card, CardTitle } from "@/components/ui/Card";
+import { Insight } from "@/components/ui/Insight";
 import { DateRangeFilter } from "@/components/ui/DateRangeFilter";
 import { Methodology } from "@/components/ui/Methodology";
 import { SampleTierBadge } from "@/components/ui/SampleTierBadge";
@@ -55,6 +56,22 @@ export function PatternsDashboard() {
         </DashboardHeader>
         {span && range && <DateRangeFilter span={span} value={range} onChange={setRange} />}
       </div>
+
+      {topPatterns.length > 0 ? (
+        <Insight
+          label="Strongest signal"
+          headline={`${topPatterns[0].outcomeLabel} ${topPatterns[0].diffPct > 0 ? "occurred more often" : "occurred less often"} ${lagPhrase(topPatterns[0].lagDays)} ${topPatterns[0].causeLabel}.`}
+          detail={`Association only, never proof of cause — from ${topPatterns[0].withTotal + topPatterns[0].withoutTotal} days of overlapping tracking.`}
+          tone="neutral"
+        />
+      ) : (
+        <Insight
+          label="Patterns"
+          headline="Nothing stands out strongly yet."
+          detail="Each association needs about 10 days with the thing and 5 without before it shows here. Keep logging both sides."
+          tone="neutral"
+        />
+      )}
 
       {coverage && (
         <p className="text-xs" style={{ color: "var(--text-muted)" }}>
