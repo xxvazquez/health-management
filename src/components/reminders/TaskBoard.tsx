@@ -441,6 +441,7 @@ export function TaskBoard({
   const [composing, setComposing] = useState(false);
   const [editing, setEditing] = useState<TaskItem | null>(null);
   const [selectedList, setSelectedList] = useState<string | null | "all">("all");
+  const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
 
   const listName = (id: string | null): string => (id ? (lists?.find((l) => l.id === id)?.name ?? DEFAULT_LIST_NAME) : DEFAULT_LIST_NAME);
 
@@ -509,6 +510,32 @@ export function TaskBoard({
   }
 
   const nothing = active.length === 0 && done.length === 0 && archived.length === 0;
+
+  /** Trailing row actions — the normal icon cluster, or an inline
+   * "Delete / Keep" confirm once the trash icon is tapped. Matches the
+   * NoteRow / Manage / Doctors pattern; never a native confirm dialog. */
+  const rowActions = (taskId: string, icons: ReactNode) =>
+    confirmingDeleteId === taskId ? (
+      <span className="flex shrink-0 items-center gap-1">
+        <button
+          type="button"
+          onClick={() => {
+            setConfirmingDeleteId(null);
+            void onDelete(taskId);
+          }}
+          className="rounded-md px-2 py-1 text-xs font-semibold"
+          style={{ color: "var(--status-critical)" }}
+        >
+          Delete
+        </button>
+        <button type="button" onClick={() => setConfirmingDeleteId(null)} className="rounded-md px-2 py-1 text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+          Keep
+        </button>
+      </span>
+    ) : (
+      <div className="flex shrink-0 items-center gap-0.5">{icons}</div>
+    );
+
   const activeListRow = (task: TaskItem) => {
     const recurring = isRecurringTask(task);
     const due = isTaskDue(task);
@@ -558,14 +585,17 @@ export function TaskBoard({
             )}
           </span>
         </div>
-        <div className="flex shrink-0 items-center gap-0.5">
-          <IconAction onClick={() => setEditing(task)} label="Edit"><PencilIcon size={15} /></IconAction>
-          {task.lastCompletedAt && (
-            <IconAction onClick={() => void onUncomplete(task)} label="Undo last done"><UndoIcon size={15} /></IconAction>
-          )}
-          <IconAction onClick={() => void onArchive(task.id, true)} label="Archive"><ArchiveIcon size={15} /></IconAction>
-          <IconAction onClick={() => void onDelete(task.id)} label="Delete" tone="critical"><TrashIcon size={15} /></IconAction>
-        </div>
+        {rowActions(
+          task.id,
+          <>
+            <IconAction onClick={() => setEditing(task)} label="Edit"><PencilIcon size={15} /></IconAction>
+            {task.lastCompletedAt && (
+              <IconAction onClick={() => void onUncomplete(task)} label="Undo last done"><UndoIcon size={15} /></IconAction>
+            )}
+            <IconAction onClick={() => void onArchive(task.id, true)} label="Archive"><ArchiveIcon size={15} /></IconAction>
+            <IconAction onClick={() => setConfirmingDeleteId(task.id)} label="Delete" tone="critical"><TrashIcon size={15} /></IconAction>
+          </>,
+        )}
       </div>
     );
   };
@@ -649,11 +679,14 @@ export function TaskBoard({
                       </span>
                     )}
                   </span>
-                  <div className="flex shrink-0 items-center gap-0.5">
-                    <IconAction onClick={() => void onUncomplete(task)} label="Undo"><UndoIcon size={15} /></IconAction>
-                    <IconAction onClick={() => void onArchive(task.id, true)} label="Archive"><ArchiveIcon size={15} /></IconAction>
-                    <IconAction onClick={() => void onDelete(task.id)} label="Delete" tone="critical"><TrashIcon size={15} /></IconAction>
-                  </div>
+                  {rowActions(
+                    task.id,
+                    <>
+                      <IconAction onClick={() => void onUncomplete(task)} label="Undo"><UndoIcon size={15} /></IconAction>
+                      <IconAction onClick={() => void onArchive(task.id, true)} label="Archive"><ArchiveIcon size={15} /></IconAction>
+                      <IconAction onClick={() => setConfirmingDeleteId(task.id)} label="Delete" tone="critical"><TrashIcon size={15} /></IconAction>
+                    </>,
+                  )}
                 </div>
               ))}
             </CollapsibleGroup>
@@ -672,10 +705,13 @@ export function TaskBoard({
                       {task.lastCompletedAt ? ` · last done ${formatDate(task.lastCompletedAt)}` : ""}
                     </span>
                   </span>
-                  <div className="flex shrink-0 items-center gap-0.5">
-                    <IconAction onClick={() => void onArchive(task.id, false)} label="Unarchive"><UndoIcon size={15} /></IconAction>
-                    <IconAction onClick={() => void onDelete(task.id)} label="Delete" tone="critical"><TrashIcon size={15} /></IconAction>
-                  </div>
+                  {rowActions(
+                    task.id,
+                    <>
+                      <IconAction onClick={() => void onArchive(task.id, false)} label="Unarchive"><UndoIcon size={15} /></IconAction>
+                      <IconAction onClick={() => setConfirmingDeleteId(task.id)} label="Delete" tone="critical"><TrashIcon size={15} /></IconAction>
+                    </>,
+                  )}
                 </div>
               ))}
             </CollapsibleGroup>
