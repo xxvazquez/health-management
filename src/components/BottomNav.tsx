@@ -6,12 +6,13 @@ import clsx from "clsx";
 import { ICONS, isActiveHref } from "@/components/Nav";
 import { useUnreadNoteCount } from "@/lib/useUnreadNoteCount";
 
-/** The primary four, one tap away on mobile. Everything else (Manage, My
- * Drive, Help, account, bug report) stays in the drawer behind the top-bar
- * menu. Desktop hides this entirely — the sidebar covers it. */
+/** The primary destinations, one tap away on mobile. Everything else
+ * (Manage, My Drive, Help, account, bug report) stays in the drawer behind
+ * the top-bar menu. Desktop hides this entirely — the sidebar covers it. */
 const ITEMS: { href: string; label: string }[] = [
   { href: "/overview", label: "Overview" },
   { href: "/log", label: "Log" },
+  { href: "/personal", label: "Personal" },
   { href: "/analytics", label: "Analytics" },
   { href: "/home", label: "Shared" },
 ];
@@ -44,13 +45,13 @@ export function BottomNav() {
             style={{ color: active ? "var(--text-primary)" : "var(--text-muted)" }}
           >
             <span
-              className={clsx("flex h-7 w-12 items-center justify-center rounded-full transition-colors")}
+              className={clsx("relative flex h-7 w-11 items-center justify-center rounded-full transition-colors")}
               style={{ background: active ? "var(--page-plane)" : "transparent" }}
             >
               {ICONS[item.label]}
               {badge > 0 && (
                 <span
-                  className="absolute top-1.5 right-1/2 h-2 w-2 translate-x-4 rounded-full"
+                  className="absolute top-0.5 right-2 h-2 w-2 rounded-full"
                   style={{ background: "var(--series-magenta)" }}
                   aria-hidden="true"
                 />

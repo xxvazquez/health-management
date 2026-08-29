@@ -361,12 +361,15 @@ function NotesHeader({
 }) {
   return (
     <div className="flex flex-wrap items-start justify-between gap-3">
-      <div>
+      <div
+        className="border-l-[3px] pl-2.5"
+        style={{ borderColor: ACCENT }}
+      >
         <h1 className="text-xl font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
-          Notes
+          Messages
         </h1>
         <p className="mt-1 text-sm" style={{ color: "var(--text-secondary)" }}>
-          Private notes between you and <span style={{ color: "var(--text-primary)" }}>{partnerLabel}</span>.
+          Private messages between you and <span style={{ color: "var(--text-primary)" }}>{partnerLabel}</span>.
         </p>
       </div>
       <div className="flex shrink-0 items-center gap-2">
@@ -384,7 +387,7 @@ function NotesHeader({
           className="flex items-center gap-1.5 rounded-md px-4 py-2 text-sm font-medium text-white"
           style={{ background: ACCENT }}
         >
-          + New note
+          + New message
         </button>
       </div>
     </div>
