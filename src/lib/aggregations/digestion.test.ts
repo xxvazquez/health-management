@@ -253,4 +253,27 @@ describe("digestionInsight", () => {
     expect(result.insufficientData).toBe(false);
     expect(result.headline).toContain("100%");
   });
+
+  it("says 'held steady' when the recent vs prior share barely moved", () => {
+    const logs = [
+      // Recent 30-day window — all in the 3–4 band
+      ...["2026-02-10", "2026-02-11", "2026-02-12", "2026-02-13"].map((date) => makeStoolLog({ date, bristolScores: [4] })),
+      // Prior 30-day window — also all in the 3–4 band
+      ...["2025-12-20", "2025-12-21", "2025-12-22", "2025-12-23"].map((date) => makeStoolLog({ date, bristolScores: [4] })),
+    ];
+    const result = digestionInsight([], logs);
+    expect(result.headline).toContain("held steady");
+    expect(result.headline).not.toContain("compared with");
+    expect(result.detail).toBeNull();
+  });
+
+  it("names the direction when the share shifted by more than the noise threshold", () => {
+    const logs = [
+      ...["2026-02-10", "2026-02-11", "2026-02-12", "2026-02-13"].map((date) => makeStoolLog({ date, bristolScores: [4] })),
+      ...["2025-12-20", "2025-12-21", "2025-12-22", "2025-12-23"].map((date) => makeStoolLog({ date, bristolScores: [6] })),
+    ];
+    const result = digestionInsight([], logs);
+    expect(result.headline).toContain("up from 0%");
+    expect(result.detail).toContain("higher");
+  });
 });
