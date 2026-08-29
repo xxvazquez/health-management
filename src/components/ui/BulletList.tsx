@@ -20,7 +20,7 @@ export function BulletList({
   const dotColor = tone ?? "var(--text-muted)";
   return (
     <div>
-      <p className="mb-2 text-xs font-semibold tracking-wide uppercase" style={{ color: dotColor }}>
+      <p className="mb-2 text-xs font-semibold" style={{ color: dotColor }}>
         {title}
       </p>
       {bullets.length === 0 ? (

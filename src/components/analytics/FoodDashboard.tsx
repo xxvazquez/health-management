@@ -75,7 +75,7 @@ function StatusPill({ status, label, color }: { status: string; label: string; c
 function SectionHeading({ id, subtitle, children }: { id: string; subtitle?: ReactNode; children: ReactNode }) {
   return (
     <div>
-      <h2 id={id} className="text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
+      <h2 id={id} className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
         {children}
       </h2>
       {subtitle && (
