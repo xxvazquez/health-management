@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { useData } from "@/lib/DataContext";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageSkeleton } from "@/components/ui/Skeleton";
+import { DashboardHeader } from "@/components/analytics/DashboardHeader";
 import { StatTile } from "@/components/ui/StatTile";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { DateRangeFilter } from "@/components/ui/DateRangeFilter";
@@ -124,9 +125,9 @@ export function DigestionDashboard() {
 
   return (
     <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-2">
-      <h1 className="text-xl font-semibold tracking-tight lg:col-span-2" style={{ color: "var(--text-primary)" }}>
+      <DashboardHeader accent="var(--series-indigo)" className="lg:col-span-2">
         Digestion
-      </h1>
+      </DashboardHeader>
 
       <Insight label="Current pattern" headline={insight.headline} detail={insight.detail} tone={insight.tone} />
 

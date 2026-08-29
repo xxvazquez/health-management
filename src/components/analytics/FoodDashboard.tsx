@@ -10,6 +10,7 @@ import { BulletList } from "@/components/ui/BulletList";
 import { DateRangeFilter, type DateRangePreset } from "@/components/ui/DateRangeFilter";
 import { Methodology } from "@/components/ui/Methodology";
 import { SectionNav, type SectionNavItem } from "@/components/ui/SectionNav";
+import { DashboardHeader } from "@/components/analytics/DashboardHeader";
 import { RankedBarChart } from "@/components/charts/RankedBarChart";
 import { MultiLineChart } from "@/components/charts/MultiLineChart";
 import { useDateRangeFilter } from "@/lib/useDateRangeFilter";
@@ -237,9 +238,7 @@ export function FoodDashboard() {
   return (
     <div className="flex flex-col">
       <div>
-        <h1 className="text-xl font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
-          Food
-        </h1>
+        <DashboardHeader accent={TYPE_ACCENT.food}>Food</DashboardHeader>
       </div>
 
       {span && range && (

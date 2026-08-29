@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useData } from "@/lib/DataContext";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageSkeleton } from "@/components/ui/Skeleton";
+import { DashboardHeader } from "@/components/analytics/DashboardHeader";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { Insight } from "@/components/ui/Insight";
 import { StatTile } from "@/components/ui/StatTile";
@@ -53,9 +54,7 @@ export function CycleDashboard() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-xl font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
-          Cycle
-        </h1>
+        <DashboardHeader accent="var(--series-4)">Cycle</DashboardHeader>
         <p className="mt-1 text-sm" style={{ color: "var(--text-secondary)" }}>
           Patterns from what you&apos;ve logged — head to the{" "}
           <Link href="/log" className="underline decoration-dotted" style={{ color: "var(--text-secondary)" }}>
