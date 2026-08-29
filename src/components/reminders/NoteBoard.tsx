@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { NoteList, NoteRow, NotebookForm } from "@/components/ui/Notebook";
+import { SearchField } from "@/components/ui/SearchField";
 
 export interface BoardNote {
   id: string;
@@ -91,14 +92,7 @@ export function NoteBoard({
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search notes…"
-          className="w-40 rounded-md border py-1.5 px-2.5 text-xs outline-none sm:w-56"
-          style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
-        />
+        <SearchField value={search} onChange={setSearch} placeholder="Search notes…" />
         <button type="button" onClick={() => setComposing(true)} className="rounded-md px-3 py-1.5 text-sm font-medium text-white" style={{ background: accent }}>
           + New note
         </button>

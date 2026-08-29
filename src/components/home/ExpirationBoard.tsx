@@ -1,10 +1,12 @@
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
+import { useMemo, useRef, useState, type FormEvent } from "react";
 import { todayLocalISODate } from "@/lib/aggregations/common";
 import { EXPIRATION_BUCKET_LABEL, EXPIRATION_BUCKET_ORDER, expirationBucket, type ExpirationBucket, type ExpirationItem } from "@/lib/reminders";
 import { isSpeechToTextSupported, useSpeechToText } from "@/lib/useSpeechToText";
 import { PencilIcon, TrashIcon } from "@/components/ui/Notebook";
+import { ListSection, SectionIcon } from "@/components/ui/ListSection";
+import { SearchField } from "@/components/ui/SearchField";
 
 // Emphasis only where it earns its keep — Expired and this week read as
 // urgent; everything further out is the same quiet muted tone.
@@ -18,17 +20,24 @@ function formatExpiresOn(date: string): string {
   return new Date(`${date}T00:00:00`).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
 }
 
-function MicButton({ onText }: { onText: (text: string) => void }) {
+function MicButton({ onStart, onText }: { onStart?: () => void; onText: (text: string) => void }) {
   const { start, listening } = useSpeechToText(onText);
   if (!isSpeechToTextSupported()) return null;
   return (
     <button
       type="button"
-      onClick={start}
-      aria-label="Add product by voice"
+      onClick={() => {
+        onStart?.();
+        start();
+      }}
+      aria-label="Dictate the product name"
       aria-pressed={listening}
-      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border"
-      style={{ borderColor: listening ? "var(--status-critical)" : "var(--border-hairline)", color: listening ? "var(--status-critical)" : "var(--text-secondary)" }}
+      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border transition-colors"
+      style={{
+        borderColor: listening ? "var(--status-critical)" : "var(--border-hairline)",
+        background: listening ? "color-mix(in oklab, var(--status-critical) 10%, var(--surface-1))" : "var(--surface-1)",
+        color: listening ? "var(--status-critical)" : "var(--text-secondary)",
+      }}
     >
       <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
         <rect x="7.2" y="2.5" width="5.6" height="9" rx="2.8" />
@@ -54,6 +63,14 @@ function ItemForm({
   const [remindDaysBefore, setRemindDaysBefore] = useState(String(initial?.remindDaysBefore ?? 3));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const nameInputRef = useRef<HTMLInputElement>(null);
+
+  function focusNameEnd() {
+    const el = nameInputRef.current;
+    if (!el) return;
+    el.focus();
+    el.setSelectionRange(el.value.length, el.value.length);
+  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -78,6 +95,7 @@ function ItemForm({
       </div>
       <div className="flex items-center gap-2">
         <input
+          ref={nameInputRef}
           required
           autoFocus
           value={name}
@@ -87,7 +105,13 @@ function ItemForm({
           className="min-w-0 flex-1 rounded-md border px-3 py-2 text-sm font-medium outline-none"
           style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
         />
-        <MicButton onText={(text) => setName((prev) => (prev ? `${prev} ${text}` : text))} />
+        <MicButton
+          onStart={focusNameEnd}
+          onText={(text) => {
+            setName((prev) => (prev ? `${prev} ${text}` : text));
+            requestAnimationFrame(focusNameEnd);
+          }}
+        />
       </div>
       <label className="flex items-center gap-2 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
         Expires on
@@ -152,7 +176,7 @@ function ExpirationRow({
 }) {
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   return (
-    <div className="group flex items-center gap-2 py-2.5 pr-1 pl-1">
+    <div className="group flex items-center gap-2 py-2.5">
       <button type="button" onClick={onEdit} className="min-w-0 flex-1 truncate text-left text-sm font-medium" style={{ color: "var(--text-primary)" }}>
         {item.name}
       </button>
@@ -270,14 +294,7 @@ export function ExpirationBoard({
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search products…"
-          className="w-40 rounded-md border py-1.5 px-2.5 text-xs outline-none sm:w-56"
-          style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
-        />
+        <SearchField value={search} onChange={setSearch} placeholder="Search products…" />
         <button type="button" onClick={() => setComposing(true)} className="rounded-md px-3 py-1.5 text-sm font-medium text-white" style={{ background: accent }}>
           + Add product
         </button>
@@ -310,20 +327,31 @@ export function ExpirationBoard({
           </p>
         </div>
       ) : (
-        <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-3">
           {EXPIRATION_BUCKET_ORDER.filter((bucket) => (grouped.get(bucket)?.length ?? 0) > 0).map((bucket) => {
             const emphatic = bucket === "expired" || bucket === "this_week";
             return (
-              <div key={bucket} className="flex flex-col">
-                <h3
-                  className="px-1 pb-1.5 text-xs font-semibold tracking-wide uppercase"
-                  style={{ color: emphatic ? bucketColor(bucket) : "var(--text-muted)" }}
-                >
-                  {EXPIRATION_BUCKET_LABEL[bucket]}
-                  <span className="ml-1.5 font-normal" style={{ color: "var(--text-muted)" }}>
-                    {grouped.get(bucket)!.length}
-                  </span>
-                </h3>
+              <ListSection
+                key={bucket}
+                label={EXPIRATION_BUCKET_LABEL[bucket]}
+                count={grouped.get(bucket)!.length}
+                accent={emphatic ? bucketColor(bucket) : undefined}
+                icon={
+                  <SectionIcon>
+                    {emphatic ? (
+                      <>
+                        <circle cx="10" cy="11" r="6" />
+                        <path d="M10 8v3l2 1.6M6 3.5 3.5 6M14 3.5 16.5 6" />
+                      </>
+                    ) : (
+                      <>
+                        <rect x="4" y="5" width="12" height="11" rx="1.4" />
+                        <path d="M4 8.4h12M7.6 3.4v3M12.4 3.4v3" />
+                      </>
+                    )}
+                  </SectionIcon>
+                }
+              >
                 <div className="flex flex-col divide-y divide-[color:var(--gridline)]">
                   {grouped.get(bucket)!.map((item) => (
                     <ExpirationRow
@@ -335,7 +363,7 @@ export function ExpirationBoard({
                     />
                   ))}
                 </div>
-              </div>
+              </ListSection>
             );
           })}
         </div>

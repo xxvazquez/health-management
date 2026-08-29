@@ -4,12 +4,15 @@ import clsx from "clsx";
 export type CardTier = "primary" | "supporting" | "raw";
 
 const TIER_STYLE: Record<CardTier, { bg: string; border: string; shadow: string; padding: string; radius: string }> = {
-  // The one thing per page that should visually win — a soft mint wash,
-  // a real shadow, the largest radius. Used at most once or twice per page
-  // (the Insight component, Overview's Today, Food's ranked priorities).
+  // The one thing per page that should visually win — a soft sage-mint
+  // panel, a real shadow, the largest radius. Used at most once or twice
+  // per page (the Insight component, Overview's Today, Food's ranked
+  // priorities). The wash is deliberately deeper than the page backdrop's
+  // faint mint whisper so the card reads as a distinct surface, not a
+  // barely-there tint that blends in.
   primary: {
-    bg: "color-mix(in oklab, var(--brand-mint) 40%, var(--surface-1))",
-    border: "color-mix(in oklab, var(--brand-leaf) 18%, var(--border-hairline))",
+    bg: "color-mix(in oklab, var(--brand-mint) 84%, var(--brand-leaf))",
+    border: "color-mix(in oklab, var(--brand-leaf) 30%, var(--border-hairline))",
     shadow: "var(--shadow-card)",
     padding: "p-5",
     radius: "rounded-2xl",

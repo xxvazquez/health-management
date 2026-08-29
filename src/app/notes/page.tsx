@@ -238,7 +238,7 @@ export default function NotesPage() {
 
     return (
       <div className="flex flex-col gap-4">
-        <NotesHeader partnerLabel={DEMO_PARTNER_LABEL} onCompose={() => setComposeOpen(true)} onMarkAllRead={() => void demoMarkAllRead()} />
+        <NotesHeader onCompose={() => setComposeOpen(true)} onMarkAllRead={() => void demoMarkAllRead()} />
         <p className="text-xs" style={{ color: "var(--series-magenta)" }}>
           Example data — try replying, favouriting, or archiving freely below. None of this is saved anywhere; sign in to connect
           with your real partner instead.
@@ -300,7 +300,7 @@ export default function NotesPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <NotesHeader partnerLabel={partnerLabel} onCompose={() => setComposeOpen(true)} onMarkAllRead={() => void handleMarkAllRead()} />
+      <NotesHeader onCompose={() => setComposeOpen(true)} onMarkAllRead={() => void handleMarkAllRead()} />
 
       {selectedThread ? (
         <NoteThreadView
@@ -351,11 +351,9 @@ export default function NotesPage() {
 }
 
 function NotesHeader({
-  partnerLabel,
   onCompose,
   onMarkAllRead,
 }: {
-  partnerLabel: string;
   onCompose: () => void;
   onMarkAllRead: () => void;
 }) {
@@ -368,9 +366,6 @@ function NotesHeader({
         <h1 className="text-xl font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
           Messages
         </h1>
-        <p className="mt-1 text-sm" style={{ color: "var(--text-secondary)" }}>
-          Private messages between you and <span style={{ color: "var(--text-primary)" }}>{partnerLabel}</span>.
-        </p>
       </div>
       <div className="flex shrink-0 items-center gap-2">
         <button

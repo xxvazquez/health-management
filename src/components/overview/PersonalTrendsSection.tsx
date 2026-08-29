@@ -31,7 +31,7 @@ export function PersonalTrendsSection({
 
   return (
     <Card tier="supporting">
-      <CardTitle subtitle="What's changed recently, and what stands out — descriptive only, never a diagnosis.">Personal trends</CardTitle>
+      <CardTitle>Personal trends</CardTitle>
 
       {changed.length > 0 && (
         <ul className="flex flex-col">

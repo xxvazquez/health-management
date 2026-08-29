@@ -4,8 +4,8 @@ import { usePathname } from "next/navigation";
 
 /** The "not medical advice" line — shown only where the app is actually
  * interpreting data (Overview, Analytics), not on data-entry or utility
- * pages where it's just perpetual noise. The full disclaimer also lives on
- * the Help page. Client component so it can read the route. */
+ * pages where it's just perpetual noise. Client component so it can read
+ * the route. */
 const SHOW_ON = ["/overview", "/analytics"];
 
 export function MedicalDisclaimer() {

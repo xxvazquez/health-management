@@ -169,9 +169,7 @@ export default function OverviewPage() {
       <TodaySnapshot events={events} workoutLogs={workoutLogs} periodLogs={periodLogs} todayNotes={todayNotes} yesterdayNotes={yesterdayNotes} today={today} />
 
       <Card tier="supporting">
-        <CardTitle subtitle="Everything you've logged, newest first — filter by category, load more to go further back. For understanding what happened, not editing records (that's the Log page).">
-          Recent activity
-        </CardTitle>
+        <CardTitle>Recent activity</CardTitle>
         <ActivityFeed entries={activityFeed} showFilter initialLimit={12} pageSize={30} emptyText="Nothing logged yet." />
       </Card>
 
@@ -179,9 +177,7 @@ export default function OverviewPage() {
 
       {expiringSoon.length > 0 && (
         <Card tier="supporting">
-          <CardTitle subtitle="Products past — or within — their reminder window. Manage these on Personal → Expiration.">
-            Expiring soon
-          </CardTitle>
+          <CardTitle>Expiring soon</CardTitle>
           <ul className="flex flex-col divide-y divide-[color:var(--gridline)]">
             {expiringSoon.map((item) => {
               const expired = item.expiresOn < today;
