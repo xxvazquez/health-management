@@ -124,7 +124,8 @@ grant select, insert, update, delete on
   public.food_logs, public.supplement_logs, public.habit_logs, public.symptom_logs,
   public.food_diary, public.supplement_diary, public.habit_diary, public.symptom_diary, public.workout_diary,
   public.stool_logs, public.workout_logs, public.period_logs, public.push_subscriptions,
-  public.partner_invites, public.partner_links, public.notes
+  public.partner_invites, public.partner_links, public.notes,
+  public.doctor_specialties, public.doctors, public.doctor_appointments, public.doctor_appointment_tasks
   to authenticated;
 
 set local role authenticated;
@@ -619,6 +620,57 @@ select public.test_assert_raises_any(
   $sql$update public.notes set recipient_id = '33333333-3333-3333-3333-333333333333'
        where id = 'd1000000-0000-0000-0000-0000000000d1'$sql$,
   'notes: recipient_id cannot be changed after creation, even by a participant (notes_lock_identity_columns)'
+);
+
+-- ============================================================================
+-- doctors / doctor_specialties / doctor_appointments / doctor_appointment_tasks
+-- ============================================================================
+-- Plain owner-only tables, plus two composite FKs
+-- (doctor_appointments -> doctors, doctor_appointment_tasks ->
+-- doctor_appointments) that must not reach across the user boundary.
+select public.test_switch_user('11111111-1111-1111-1111-111111111111');
+insert into public.doctor_specialties (id, user_id, name) values ('e1000000-0000-0000-0000-0000000000e1', '11111111-1111-1111-1111-111111111111', 'Dentist');
+insert into public.doctors (id, user_id, name, specialty, rating) values ('e2000000-0000-0000-0000-0000000000e2', '11111111-1111-1111-1111-111111111111', 'Dr A', 'Dentist', 1);
+insert into public.doctor_appointments (id, user_id, doctor_id, specialty, appointment_at)
+values ('e3000000-0000-0000-0000-0000000000e3', '11111111-1111-1111-1111-111111111111', 'e2000000-0000-0000-0000-0000000000e2', 'Dentist', now());
+insert into public.doctor_appointment_tasks (id, user_id, appointment_id, description)
+values ('e4000000-0000-0000-0000-0000000000e4', '11111111-1111-1111-1111-111111111111', 'e3000000-0000-0000-0000-0000000000e3', 'Book CT scan');
+
+select public.test_switch_user('22222222-2222-2222-2222-222222222222');
+select public.test_assert(
+  (select count(*) from public.doctors where id = 'e2000000-0000-0000-0000-0000000000e2') = 0,
+  'doctors: user B cannot SELECT user A''s doctor'
+);
+select public.test_assert(
+  (select count(*) from public.doctor_appointments where id = 'e3000000-0000-0000-0000-0000000000e3') = 0,
+  'doctor_appointments: user B cannot SELECT user A''s appointment'
+);
+update public.doctor_appointment_tasks set description = 'hijacked' where id = 'e4000000-0000-0000-0000-0000000000e4';
+delete from public.doctor_appointment_tasks where id = 'e4000000-0000-0000-0000-0000000000e4';
+
+select public.test_switch_user('11111111-1111-1111-1111-111111111111');
+select public.test_assert(
+  (select description from public.doctor_appointment_tasks where id = 'e4000000-0000-0000-0000-0000000000e4') = 'Book CT scan',
+  'doctor_appointment_tasks: user A''s row survives user B''s UPDATE and DELETE attempts'
+);
+
+select public.test_switch_user('22222222-2222-2222-2222-222222222222');
+select public.test_assert_raises(
+  $sql$insert into public.doctors (id, user_id, name, specialty)
+       values ('e5000000-0000-0000-0000-0000000000e5', '11111111-1111-1111-1111-111111111111', 'Spoofed', 'Dentist')$sql$,
+  'doctors: user_id cannot be spoofed to another user on INSERT'
+);
+-- user_id is B's own (passes RLS) so this fails specifically on the
+-- composite FK, not an unrelated RLS rejection.
+select public.test_assert_raises(
+  $sql$insert into public.doctor_appointments (id, user_id, doctor_id, specialty, appointment_at)
+       values ('e6000000-0000-0000-0000-0000000000e6', '22222222-2222-2222-2222-222222222222', 'e2000000-0000-0000-0000-0000000000e2', 'Dentist', now())$sql$,
+  'doctor_appointments: a doctor_id belonging to another user is rejected by the composite FK'
+);
+select public.test_assert_raises(
+  $sql$insert into public.doctor_appointment_tasks (id, user_id, appointment_id, description)
+       values ('e7000000-0000-0000-0000-0000000000e7', '22222222-2222-2222-2222-222222222222', 'e3000000-0000-0000-0000-0000000000e3', 'Cross-user task')$sql$,
+  'doctor_appointment_tasks: an appointment_id belonging to another user is rejected by the composite FK'
 );
 
 do $$ begin raise notice '=== all RLS tests passed ==='; end $$;

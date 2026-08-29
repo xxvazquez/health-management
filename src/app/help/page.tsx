@@ -20,6 +20,10 @@ const GROUPS: { title: string; items: Entry[] }[] = [
         body: "Your own journal, plain notes, reminders and product-expiry tracking — the things you write once and come back to.",
       },
       {
+        title: "Doctors",
+        body: "A history log of doctor visits you've already had — not an appointment scheduler. Log the date, reason, follow-up notes and follow-up tasks. Doctors and specialties are reusable and you pick them from a searchable list.",
+      },
+      {
         title: "Household",
         body: "The same notes, reminders and expiry, plus a shared list of discount codes, kept with a linked partner. Once linked, everything here is visible to both of you and either can act on it.",
       },
@@ -80,6 +84,27 @@ const GROUPS: { title: string; items: Entry[] }[] = [
       {
         title: "Notes",
         body: "Short free-text notes — a code, a measurement, anything. Searchable, edited in place.",
+      },
+    ],
+  },
+  {
+    title: "Doctors",
+    items: [
+      {
+        title: "The four tabs",
+        body: "Appointments is the full log, newest first. Doctors is one page per saved doctor with all their visits. Specialties shows every visit for a type (e.g. all internists), across doctors. Follow-ups gathers every outstanding follow-up task in one list.",
+      },
+      {
+        title: "Doctor type, rating and language",
+        body: "These belong to the doctor, not to a single visit. Set them when you first add a doctor and change them any time from that doctor's page. A doctor rated 1 shows in red everywhere their name appears.",
+      },
+      {
+        title: "Follow-ups: notes vs tasks",
+        body: "Notes are free text about what was discussed. Tasks are concrete actions — 'do the CT scan' — each with an optional due date and an optional one-off reminder. Completed tasks stay under their appointment but move out of the outstanding list.",
+      },
+      {
+        title: "Next appointment",
+        body: "One date per specialty, not per doctor. Set it with the calendar on a specialty's page (or a doctor's page); it's the same shared date. It's a plain reminder of when you next need that type of doctor, not a booking.",
       },
     ],
   },

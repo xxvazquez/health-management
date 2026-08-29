@@ -119,4 +119,29 @@ export const TAB_ICON: Record<string, ReactNode> = {
       <path d="M3.4 10h13.2" />
     </TabIconWrap>
   ),
+  appointments: (
+    <TabIconWrap>
+      <rect x="4" y="5.4" width="12" height="10.2" rx="1.3" />
+      <path d="M4 8.6h12M7.7 3.8v3M12.3 3.8v3" />
+      <path d="M10 10.4v3.2M8.4 12h3.2" />
+    </TabIconWrap>
+  ),
+  doctors: (
+    <TabIconWrap>
+      <path d="M6 3.8v3.4a4 4 0 0 0 8 0V3.8" />
+      <path d="M10 11.2v2.2a3 3 0 0 0 6 0v-1" />
+      <circle cx="16" cy="10.4" r="1.5" />
+    </TabIconWrap>
+  ),
+  specialties: (
+    <TabIconWrap>
+      <path d="M3.5 6.7c0-.8.6-1.4 1.4-1.4h3.4l1.6 1.8h5.2c.8 0 1.4.6 1.4 1.4v5.4c0 .8-.6 1.4-1.4 1.4H4.9c-.8 0-1.4-.6-1.4-1.4Z" />
+    </TabIconWrap>
+  ),
+  followups: (
+    <TabIconWrap>
+      <path d="M6 4.5h8a1 1 0 0 1 1 1v10l-2.5-1.6L10 15.5 7.5 13.9 5 15.5v-10a1 1 0 0 1 1-1Z" />
+      <path d="M7.6 8.4 9.2 10l3.2-3.4" />
+    </TabIconWrap>
+  ),
 };

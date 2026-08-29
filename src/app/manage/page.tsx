@@ -22,6 +22,9 @@ import { buildDemoDataset } from "@/lib/demoData";
 import { WORKOUT_UNITS, workoutUnitLabel, defaultWorkoutUnitForCategory, type RawItem, type RawCategory, type WorkoutUnit } from "@/lib/types";
 import { createReminderList, deleteReminderList, fetchReminderLists, renameReminderList, type ReminderList } from "@/lib/supabase/personalReminders";
 import { buildDemoReminderLists } from "@/lib/demoPersonalReminders";
+import { createDoctorSpecialty, deleteDoctorSpecialty, fetchDoctorSpecialties, fetchDoctors, renameDoctorSpecialty, type DoctorSpecialty } from "@/lib/supabase/doctors";
+import { buildDemoDoctorSpecialties, buildDemoDoctors } from "@/lib/demoDoctors";
+import { DEFAULT_DOCTOR_SPECIALTIES, mergeSpecialtyNames } from "@/lib/doctors";
 import { PencilIcon, TrashIcon } from "@/components/ui/Notebook";
 
 // Log tab order — Food, Symptoms, Supplements, Habits, Stool, Workout,
@@ -227,6 +230,195 @@ function ReminderListsCard({ isDemoData }: { isDemoData: boolean }) {
         />
         <button type="submit" disabled={!newName.trim()} className="shrink-0 rounded-md px-3 py-1.5 text-xs font-semibold disabled:opacity-40" style={{ color: "var(--series-1)" }}>
           Add list
+        </button>
+      </form>
+    </Card>
+  );
+}
+
+/** The selectable doctor-type list behind the Doctors page's pickers.
+ * Built-in defaults show until the user has their own rows (same rule as
+ * item categories); adding or renaming one saves a real row. Deleting is
+ * blocked while a saved doctor still uses that type. */
+function DoctorSpecialtiesCard({ isDemoData }: { isDemoData: boolean }) {
+  const [rows, setRows] = useState<DoctorSpecialty[]>(() => (isDemoData ? buildDemoDoctorSpecialties() : []));
+  const [usedNames, setUsedNames] = useState<string[]>(() => (isDemoData ? buildDemoDoctors().map((d) => d.specialty) : []));
+  const [loading, setLoading] = useState(!isDemoData);
+  const [newName, setNewName] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState("");
+  const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isDemoData) return;
+    let cancelled = false;
+    Promise.all([fetchDoctorSpecialties(), fetchDoctors()])
+      .then(([specialties, doctors]) => {
+        if (cancelled) return;
+        setRows(specialties);
+        setUsedNames(doctors.map((d) => d.specialty));
+      })
+      .catch((err) => console.error("fetchDoctorSpecialties failed", err))
+      .finally(() => !cancelled && setLoading(false));
+    return () => {
+      cancelled = true;
+    };
+  }, [isDemoData]);
+
+  const names = mergeSpecialtyNames(rows.map((r) => r.name), [...DEFAULT_DOCTOR_SPECIALTIES], usedNames);
+  const rowByName = new Map(rows.map((r) => [r.name.toLowerCase(), r]));
+  const usedKeys = new Set(usedNames.map((n) => n.toLowerCase()));
+
+  async function handleAdd(e: FormEvent) {
+    e.preventDefault();
+    const name = newName.trim();
+    if (!name || names.some((n) => n.toLowerCase() === name.toLowerCase())) {
+      setNewName("");
+      return;
+    }
+    setNewName("");
+    if (isDemoData) {
+      setRows((prev) => [...prev, { id: `demo-spec-${Date.now()}`, name, nextAppointmentDate: null }]);
+      return;
+    }
+    try {
+      const created = await createDoctorSpecialty(name);
+      setRows((prev) => [...prev, created]);
+    } catch (err) {
+      console.error("createDoctorSpecialty failed", err);
+    }
+  }
+
+  async function handleRename(row: DoctorSpecialty) {
+    const name = editingName.trim();
+    setEditingId(null);
+    if (!name || name === row.name) return;
+    setRows((prev) => prev.map((r) => (r.id === row.id ? { ...r, name } : r)));
+    if (!isDemoData) await renameDoctorSpecialty(row.id, name).catch((err) => console.error("renameDoctorSpecialty failed", err));
+  }
+
+  async function handleDelete(row: DoctorSpecialty) {
+    setConfirmingDeleteId(null);
+    setError(null);
+    if (usedKeys.has(row.name.toLowerCase())) {
+      setError(`"${row.name}" is still used by a saved doctor — change that doctor's type first.`);
+      return;
+    }
+    setRows((prev) => prev.filter((r) => r.id !== row.id));
+    if (!isDemoData) await deleteDoctorSpecialty(row.id).catch((err) => console.error("deleteDoctorSpecialty failed", err));
+  }
+
+  return (
+    <Card tier="supporting">
+      <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+        Doctor types
+      </p>
+      <p className="mt-0.5 mb-3 text-xs" style={{ color: "var(--text-secondary)" }}>
+        The specialties offered when logging a doctor appointment. The starting list is built in; anything you add,
+        rename or use is saved.
+      </p>
+
+      {error && (
+        <p className="mb-2 text-xs" style={{ color: "var(--status-warning)" }}>
+          {error}
+        </p>
+      )}
+
+      {loading ? (
+        <p className="py-3 text-xs" style={{ color: "var(--text-muted)" }}>
+          Loading…
+        </p>
+      ) : (
+        <ul className="mb-3 flex flex-col divide-y divide-[color:var(--gridline)]">
+          {names.map((name) => {
+            const row = rowByName.get(name.toLowerCase());
+            return (
+              <li key={name} className="flex items-center gap-2 py-2">
+                {row && editingId === row.id ? (
+                  <form
+                    className="flex flex-1 items-center gap-2"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      void handleRename(row);
+                    }}
+                  >
+                    <input
+                      autoFocus
+                      value={editingName}
+                      onChange={(e) => setEditingName(e.target.value)}
+                      onFocus={(e) => e.target.select()}
+                      onBlur={() => void handleRename(row)}
+                      maxLength={60}
+                      className="flex-1 rounded-md border px-2 py-1 text-sm outline-none"
+                      style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
+                    />
+                  </form>
+                ) : (
+                  <span className="flex-1 truncate text-sm" style={{ color: "var(--text-primary)" }}>
+                    {name}
+                    {!row && (
+                      <span className="ml-2 text-xs" style={{ color: "var(--text-muted)" }}>
+                        default
+                      </span>
+                    )}
+                  </span>
+                )}
+
+                {row &&
+                  (confirmingDeleteId === row.id ? (
+                    <span className="flex shrink-0 items-center gap-1">
+                      <button type="button" onClick={() => void handleDelete(row)} className="rounded-md px-2 py-1 text-xs font-semibold" style={{ color: "var(--status-critical)" }}>
+                        Delete
+                      </button>
+                      <button type="button" onClick={() => setConfirmingDeleteId(null)} className="rounded-md px-2 py-1 text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+                        Keep
+                      </button>
+                    </span>
+                  ) : (
+                    <span className="flex shrink-0 items-center gap-0.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingId(row.id);
+                          setEditingName(row.name);
+                        }}
+                        aria-label={`Rename ${name}`}
+                        title="Rename"
+                        className="rounded-md p-1.5 transition-colors hover:bg-[var(--page-plane)]"
+                        style={{ color: "var(--text-muted)" }}
+                      >
+                        <PencilIcon size={15} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmingDeleteId(row.id)}
+                        aria-label={`Delete ${name}`}
+                        title="Delete"
+                        className="notebook-danger rounded-md p-1.5 transition-colors hover:bg-[var(--page-plane)]"
+                        style={{ color: "var(--text-muted)" }}
+                      >
+                        <TrashIcon size={15} />
+                      </button>
+                    </span>
+                  ))}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      <form onSubmit={handleAdd} className="flex items-center gap-2">
+        <input
+          value={newName}
+          onChange={(e) => setNewName(e.target.value)}
+          placeholder="New doctor type"
+          maxLength={60}
+          className="flex-1 rounded-md border px-2.5 py-1.5 text-xs outline-none"
+          style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
+        />
+        <button type="submit" disabled={!newName.trim()} className="shrink-0 rounded-md px-3 py-1.5 text-xs font-semibold disabled:opacity-40" style={{ color: "var(--series-1)" }}>
+          Add type
         </button>
       </form>
     </Card>
@@ -1203,6 +1395,8 @@ export default function ManagePage() {
       <VisibleSectionsCard />
 
       <ReminderListsCard isDemoData={isDemoData} />
+
+      <DoctorSpecialtiesCard isDemoData={isDemoData} />
 
       <SearchBar value={searchQuery} onChange={setSearchQuery} />
       {TYPE_SECTIONS.map((section) => (

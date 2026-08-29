@@ -242,6 +242,65 @@ history; "Undo" drops the newest completion row (and rewinds `due_at` for a
 recurring task). `personal_notes` and `personal_items` have no
 relationships — a title+body note, and a name+expiry-date product.
 
+## Doctors
+
+A personal history log of doctor appointments already attended (not a
+scheduler). One user, standard owner-only RLS, written directly to Supabase.
+
+```mermaid
+%%{init: {"theme": "base", "themeVariables": {
+  "primaryColor": "#eef5f3", "primaryBorderColor": "#5c8a7a",
+  "primaryTextColor": "#24313a", "lineColor": "#7d9a90",
+  "fontFamily": "Inter, -apple-system, sans-serif", "fontSize": "14px"
+}}}%%
+erDiagram
+    DOCTORS ||--o{ DOCTOR_APPOINTMENTS : "visits"
+    DOCTOR_APPOINTMENTS ||--o{ DOCTOR_APPOINTMENT_TASKS : "follow-up tasks"
+
+    DOCTOR_SPECIALTIES {
+        uuid id PK
+        text name
+        text name_key "generated, unique per user"
+        date next_appointment_date "one per specialty, nullable"
+    }
+    DOCTORS {
+        uuid id PK
+        text name
+        text specialty "current specialty (denormalised string)"
+        smallint rating "1-3, nullable; 1 = shown in red"
+        text language "Polish / English / Spanish, nullable"
+    }
+    DOCTOR_APPOINTMENTS {
+        uuid id PK
+        uuid doctor_id FK
+        text specialty "frozen copy from the doctor at logging time"
+        timestamptz appointment_at
+        text reason
+        text follow_up_notes
+    }
+    DOCTOR_APPOINTMENT_TASKS {
+        uuid id PK
+        uuid appointment_id FK
+        text description
+        date due_date "optional"
+        timestamptz reminder_at "optional one-off push/email"
+        timestamptz reminder_sent_at "cron idempotency guard"
+        timestamptz completed_at "null = open"
+    }
+```
+
+`doctor_specialties` is the managed picker list; a built-in default set
+(`src/lib/doctors.ts`) shows until the user has their own rows, same rule as
+item categories. It also holds the single next-appointment date per specialty
+— deliberately not on `doctors` or `doctor_appointments`, so several doctors
+in one specialty still share one "next visit" date. Each appointment copies
+the doctor's specialty at logging time and never rewrites it, so specialty
+history stays accurate after a doctor's specialty is corrected.
+`doctor_appointments → doctors` is `on delete restrict` (deleting an
+appointment never removes the doctor); `doctor_appointment_tasks →
+doctor_appointments` is `on delete cascade`. A `reminder_at` that has passed
+is sent once by the reminder cron (phase 2).
+
 ## Reminders → Home
 
 The same three concepts, shared with a linked partner. Reuses Connect's
@@ -308,7 +367,7 @@ relationship to the others. All four tables use the pair RLS shape below.
 
 | Tables | `using` / `with check` |
 |---|---|
-| All tracked-domain, standalone-log, `personal_*`, and infra tables | `auth.uid() = user_id` (SELECT only for `notes_digest_state` — the cron does every write) |
+| All tracked-domain, standalone-log, `personal_*`, `doctor_*`, and infra tables | `auth.uid() = user_id` (SELECT only for `notes_digest_state` — the cron does every write) |
 | `partner_invites` | `auth.uid() = created_by` |
 | `partner_links` | SELECT/DELETE only: `auth.uid() in (user_a_id, user_b_id)` — no INSERT/UPDATE (created via `redeem_partner_invite()`) |
 | `notes` | SELECT/UPDATE: `auth.uid() in (sender_id, recipient_id)`. INSERT: must be yourself, to your actual linked partner, into a thread you're part of. No DELETE. |

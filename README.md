@@ -13,6 +13,7 @@ It works fully offline, syncs to Supabase once you sign in, and installs as a PW
 | **Overview** | `/overview` | The landing page. Today's story, a recent-activity feed, a few personal trends, anything expiring soon, and a weekly/monthly review. |
 | **Log** | `/log` | Tap-to-log entry for the seven tracking domains: Food, Symptoms, Supplements, Habits, Stool, Workout, Cycle. |
 | **Personal** | `/personal` | Journal, private notes, reminders, and product-expiry tracking — the "write once, come back to it" stuff. |
+| **Doctors** | `/doctors` | A history log of doctor appointments already attended: reusable doctors and specialties, per-doctor rating/language, follow-up notes and tasks, and one next-appointment date per specialty. |
 | **Analytics** | `/analytics` | One dashboard per domain (Food, Supplements, Habits, Digestion, Workout, Cycle, Patterns), switched by a tab bar. |
 | **Manage** | `/manage` | Add / rename / archive / delete items and categories, set exercise units, edit reminder lists, hide domains you don't track. |
 | **Household** | `/home` | The partner-facing versions of notes, reminders, and expiry, plus a shared list of discount codes — once you're linked, either of you can see and edit them. |
@@ -173,9 +174,9 @@ user's data regardless of RLS. `supabase/schema.sql` is authoritative;
 
 ### Direct-to-Supabase features (no offline mode)
 
-Messages, and the Personal page's Journal / Notes / Reminders / Expiration, all
-talk to Supabase directly rather than through the write-local-first outbox —
-they only mean anything once they're on the server.
+Messages, the Personal page's Journal / Notes / Reminders / Expiration, and the
+Doctors page all talk to Supabase directly rather than through the
+write-local-first outbox — they only mean anything once they're on the server.
 
 - **Messages** (`notes` table) — two accounts become partners by redeeming a
   short-lived invite code into a `partner_links` row (`redeem_partner_invite`, a
@@ -205,6 +206,13 @@ they only mean anything once they're on the server.
   occurrence, advanced on each completion). Every completion also writes a
   `*_task_completions` row; "Undo" drops the latest one. `reminder_sent_at` is
   the sole idempotency guard for notifications, cleared when `due_at` advances.
+- **Doctors** (`doctor_specialties` / `doctors` / `doctor_appointments` /
+  `doctor_appointment_tasks`, owner-only) — a doctor carries its *current*
+  specialty; each appointment freezes a copy of that specialty when it's logged,
+  so correcting a doctor's specialty later never rewrites history. The one
+  next-appointment date per specialty lives on `doctor_specialties`, not on any
+  doctor or appointment. Follow-up tasks may set an optional `reminder_at` that
+  the reminder cron sends once (phase 2 below).
 - **Voice input on Expiration and Codes** is the browser's own Web Speech API, feature-detected — no server, no dependency.
 
 ### PWA shell
@@ -243,11 +251,15 @@ every 15 minutes by Supabase's `pg_cron` / `pg_net` (setup SQL is in
 
 1. Each supplement/habit's `reminder_time` vs the user's local time → a push if
    it's passed and not logged today.
-2. Due tasks (`personal_tasks` / `household_tasks`) and due expiry items
-   (`personal_items` / `household_items`, `expires_on` minus `remind_days_before`)
-   → push + email.
+2. Due tasks (`personal_tasks` / `household_tasks`), due expiry items
+   (`personal_items` / `household_items`, `expires_on` minus `remind_days_before`),
+   and doctor follow-up tasks with a `reminder_at` that has passed → push + email.
 3. After 09:00 Europe/Warsaw, one "N unread messages from …" email + push per
    linked user, at most once a day (`notes_digest_state`).
+
+A second, independent `pg_cron` job (`cron-job-run-details-cleanup`, setup SQL
+in `schema.sql`) trims `cron.job_run_details` to the last 7 days so pg_cron's
+own run history doesn't grow without bound. It touches nothing else.
 
 ### Email
 
