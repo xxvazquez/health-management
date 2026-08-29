@@ -654,6 +654,78 @@ create index personal_tasks_user_list_idx on public.personal_tasks (user_id, lis
 create index personal_task_completions_task_idx on public.personal_task_completions (task_id, completed_at desc);
 create index personal_items_user_expires_idx on public.personal_items (user_id, expires_on);
 
+-- Doctors: a personal history log of appointments already attended (not a
+-- scheduler). Direct-to-Supabase, owner-only, no offline/outbox — same class
+-- as journal_entries / personal_* above. `doctor_specialties` is the managed
+-- picker list AND holds the one current next-appointment date per specialty
+-- (deliberately not per doctor or per appointment — you keep a single "next
+-- internist visit" date regardless of which internist you end up seeing).
+-- A doctor carries its *current* specialty; each appointment copies that
+-- specialty at logging time and never rewrites it, so specialty history stays
+-- accurate even after a doctor's specialty is corrected later.
+create table public.doctor_specialties (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id),
+  name text not null check (char_length(trim(name)) > 0),
+  name_key text generated always as (lower(trim(name))) stored,
+  next_appointment_date date,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (user_id, name_key),
+  unique (user_id, id)
+);
+
+create table public.doctors (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id),
+  name text not null check (char_length(trim(name)) > 0),
+  name_key text generated always as (lower(trim(name))) stored,
+  specialty text not null,
+  rating smallint check (rating between 1 and 3),
+  language text check (language in ('Polish', 'English', 'Spanish')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (user_id, name_key),
+  unique (user_id, id)
+);
+
+create table public.doctor_appointments (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id),
+  doctor_id uuid not null,
+  -- Frozen copy of the doctor's specialty as of when this was logged.
+  specialty text not null,
+  appointment_at timestamptz not null,
+  reason text,
+  follow_up_notes text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (user_id, id),
+  foreign key (user_id, doctor_id) references public.doctors (user_id, id) on delete restrict
+);
+
+create table public.doctor_appointment_tasks (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id),
+  appointment_id uuid not null,
+  description text not null check (char_length(trim(description)) > 0),
+  due_date date,
+  -- Optional one-off push/email, sent by reminder-cron once reminder_at passes.
+  reminder_at timestamptz,
+  reminder_sent_at timestamptz,
+  completed_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (user_id, id),
+  foreign key (user_id, appointment_id) references public.doctor_appointments (user_id, id) on delete cascade
+);
+
+create index doctor_appointments_user_doctor_idx on public.doctor_appointments (user_id, doctor_id, appointment_at desc);
+create index doctor_appointments_user_specialty_idx on public.doctor_appointments (user_id, specialty, appointment_at desc);
+create index doctor_appointment_tasks_user_appt_idx on public.doctor_appointment_tasks (user_id, appointment_id);
+create index doctor_appointment_tasks_due_idx on public.doctor_appointment_tasks (user_id)
+  where reminder_at is not null and reminder_sent_at is null and completed_at is null;
+
 -- Reminders -> Home: the same three concepts as Personal above, but shared
 -- with a linked partner (see partner_links, defined earlier) instead of
 -- owned outright. `owner_id` is whoever created the row; visibility/edit
@@ -773,6 +845,10 @@ alter table public.personal_notes enable row level security;
 alter table public.personal_tasks enable row level security;
 alter table public.personal_task_completions enable row level security;
 alter table public.personal_items enable row level security;
+alter table public.doctor_specialties enable row level security;
+alter table public.doctors enable row level security;
+alter table public.doctor_appointments enable row level security;
+alter table public.doctor_appointment_tasks enable row level security;
 alter table public.household_notes enable row level security;
 alter table public.household_tasks enable row level security;
 alter table public.household_task_completions enable row level security;
@@ -807,6 +883,10 @@ create policy "reminder_lists_all_own" on public.reminder_lists for all using (a
 create policy "personal_tasks_all_own" on public.personal_tasks for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "personal_task_completions_all_own" on public.personal_task_completions for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "personal_items_all_own" on public.personal_items for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "doctor_specialties_all_own" on public.doctor_specialties for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "doctors_all_own" on public.doctors for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "doctor_appointments_all_own" on public.doctor_appointments for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "doctor_appointment_tasks_all_own" on public.doctor_appointment_tasks for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 -- partner_invites: only the creator can see/manage their own pending
 -- invite (e.g. to show "your code is still waiting"). Redemption by the
@@ -924,3 +1004,21 @@ create policy "household_task_completions_delete_pair" on public.household_task_
 --   );
 --   $$
 -- );
+--
+-- pg_cron appends a row to cron.job_run_details on every job run and never
+-- prunes it, so it grows without bound. This second, independent job trims it
+-- to the last 7 days. It only ever deletes old diagnostic rows — it never
+-- touches scheduled jobs or any application data, and is completely separate
+-- from reminder-cron and its schedule. cron.schedule() upserts by job name, so
+-- re-running this is idempotent and updates any existing job of that name
+-- rather than creating a duplicate.
+--
+-- select cron.schedule(
+--   'cron-job-run-details-cleanup',
+--   '17 * * * *',
+--   $$ delete from cron.job_run_details where end_time < now() - interval '7 days' $$
+-- );
+--
+-- After running, confirm reminder-cron is untouched — exactly one row, still
+-- every 15 minutes:
+--   select jobname, schedule from cron.job order by jobname;

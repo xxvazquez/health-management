@@ -8,12 +8,12 @@
 //    cron tick still sends, just later, rather than silently never sending
 //    that day) unless it's already logged today or already resolved today.
 // 2. Personal Reminders / Home: scans personal_tasks/household_tasks (by
-//    due_at) and personal_items/household_items (by expires_on -
-//    remind_days_before) for due, not-yet-sent rows, and sends both an
-//    email (Resend) and a push. A Home task assigned to one partner
-//    (assigned_to set) notifies only that person; an unassigned task, and
-//    every Home item, notifies both linked partners. See isTaskRowDue/
-//    isItemRowDue below.
+//    due_at), personal_items/household_items (by expires_on -
+//    remind_days_before), and doctor_appointment_tasks (by reminder_at) for
+//    due, not-yet-sent rows, and sends both an email (Resend) and a push. A
+//    Home task assigned to one partner (assigned_to set) notifies only that
+//    person; an unassigned task, and every Home item, notifies both linked
+//    partners. See isTaskRowDue/isItemRowDue below.
 // 3. Notes digest: once per day, after 09:00 in DIGEST_TIMEZONE (defaults
 //    to Europe/Warsaw), emails + pushes each linked user a single "you
 //    have N unread notes from <name>" summary — instead of a mail per
@@ -354,6 +354,30 @@ Deno.serve(async (req) => {
     if (email) await sendReminderEmail(email, `${item.name} is ${label}`, `"${item.name}" (expires ${item.expires_on}) is ${label} — check Lauva.`);
     await sendPushToUser(subsByUser, item.user_id, `${item.name} is ${label}`, `personal-item:${item.id}`);
     await supabase.from("personal_items").update({ reminder_sent_at: nowDate.toISOString() }).eq("id", item.id);
+    dueSent++;
+  }
+
+  // Doctor follow-up tasks — an optional one-off push/email once reminder_at
+  // passes, same reminder_sent_at idempotency guard as the task rows above.
+  // Independent phase; nothing here touches the reminder-cron schedule.
+  const { data: doctorTasks } = await supabase
+    .from("doctor_appointment_tasks")
+    .select("id, user_id, description, reminder_at, reminder_sent_at, appointment_id")
+    .not("reminder_at", "is", null)
+    .is("reminder_sent_at", null)
+    .is("completed_at", null);
+  for (const task of (doctorTasks ?? []) as { id: string; user_id: string; description: string; reminder_at: string | null; reminder_sent_at: string | null; appointment_id: string }[]) {
+    dueChecked++;
+    if (!isTaskRowDue(task.reminder_at, task.reminder_sent_at, nowDate)) continue;
+    const { data: appt } = await supabase.from("doctor_appointments").select("doctor_id").eq("id", task.appointment_id).maybeSingle();
+    const { data: doctor } = appt
+      ? await supabase.from("doctors").select("name").eq("id", (appt as { doctor_id: string }).doctor_id).maybeSingle()
+      : { data: null };
+    const doctorName = (doctor as { name: string } | null)?.name ?? "your doctor";
+    const email = await getUserEmail(task.user_id);
+    if (email) await sendReminderEmail(email, `Follow-up: ${task.description}`, `"${task.description}" — a follow-up from your visit with ${doctorName}.`);
+    await sendPushToUser(subsByUser, task.user_id, `Follow-up: ${task.description}`, `doctor-task:${task.id}`);
+    await supabase.from("doctor_appointment_tasks").update({ reminder_sent_at: nowDate.toISOString() }).eq("id", task.id);
     dueSent++;
   }
 
