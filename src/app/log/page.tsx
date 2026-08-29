@@ -454,6 +454,7 @@ export default function LogPage() {
   // characteristics, paper cleanliness, time on toilet) expanded — collapsed
   // by default since a 144px-wide card has no room to show them all at once.
   const [expandedStoolIds, setExpandedStoolIds] = useState<Set<string>>(new Set());
+  const timelineRef = useOverflowFade<HTMLDivElement>();
 
   const loadSnapshot = useCallback(async () => {
     // One atomic read against withDataLock — pullFromCloud's destructive
@@ -2037,14 +2038,12 @@ export default function LogPage() {
           <h2 className="text-xs font-semibold" style={{ color: "var(--text-secondary)" }}>
             Timeline — {formatDateLabel(date, today).toLowerCase()}
           </h2>
-          <div className="overflow-x-auto pb-2">
-            {/* Every card shares one fixed width, but height follows its own
-             * content — a short entry stays short instead of leaving a
-             * stretch of empty space to fill a row-wide fixed height. Each
-             * card (but the last) draws its own short connector into the
-             * gap that follows it, at the dot's own height — the line never
-             * crosses a card's face, so it can't render behind one. */}
-            <div className="flex min-w-max items-start gap-3">
+          {/* Horizontal card strip. Every card is the same width and — via
+           * `items-stretch` — the same height, so time / name / tag / note
+           * line up across the row. A right-edge fade (see useOverflowFade)
+           * shows when there's more to scroll to. */}
+          <div ref={timelineRef} className="no-scrollbar fade-x overflow-x-auto pb-2">
+            <div className="flex min-w-max items-stretch gap-3">
               {combinedTimeline.map((entry, i) => {
                 const busy = pending === entry.key;
                 const hasMealTag = (entry.itemType === "food" || entry.itemType === "supplement") && (entry.mealTag || !isDemoData);

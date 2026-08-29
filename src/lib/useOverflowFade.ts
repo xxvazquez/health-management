@@ -1,21 +1,25 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useCallback, useRef } from "react";
 
 /**
  * Attaches a soft fade to whichever edge of a horizontal scroller still has
- * content past it — so a tab strip that scrolls sideways (Log's type tabs,
- * the Analytics domain switcher) shows that more tabs exist off-screen
- * instead of just ending flush at the viewport edge.
+ * content past it — so a strip that scrolls sideways (Log's type tabs and
+ * day timeline, the Analytics domain switcher) shows there's more off-screen
+ * instead of ending flush at the viewport edge.
  *
- * Sets `--fade-l` / `--fade-r` (0 or 1) on the element; pair with the
- * `.fade-x` class in globals.css, which turns those into a mask.
+ * Returns a callback ref, so it works even when the scroller mounts later
+ * than the component (e.g. the timeline, which only renders once there's
+ * something logged). Sets `--fade-l` / `--fade-r` (0 or 1) on the element;
+ * pair with the `.fade-x` class in globals.css, which turns those into a
+ * mask.
  */
 export function useOverflowFade<T extends HTMLElement>() {
-  const ref = useRef<T>(null);
+  const cleanupRef = useRef<(() => void) | null>(null);
 
-  useEffect(() => {
-    const el = ref.current;
+  return useCallback((el: T | null) => {
+    cleanupRef.current?.();
+    cleanupRef.current = null;
     if (!el) return;
 
     const update = () => {
@@ -25,14 +29,13 @@ export function useOverflowFade<T extends HTMLElement>() {
     };
 
     update();
+    requestAnimationFrame(update);
     el.addEventListener("scroll", update, { passive: true });
     const ro = new ResizeObserver(update);
     ro.observe(el);
-    return () => {
+    cleanupRef.current = () => {
       el.removeEventListener("scroll", update);
       ro.disconnect();
     };
   }, []);
-
-  return ref;
 }
