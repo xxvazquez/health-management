@@ -5,15 +5,24 @@ import { todayLocalISODate } from "@/lib/aggregations/common";
 import { isSpeechToTextSupported, useSpeechToText } from "@/lib/useSpeechToText";
 import { PencilIcon, TrashIcon } from "@/components/ui/Notebook";
 import { SearchField } from "@/components/ui/SearchField";
+import { ListSection, SectionIcon } from "@/components/ui/ListSection";
 import { ListSkeleton } from "@/components/ui/Skeleton";
 import { InlineEmpty } from "@/components/ui/EmptyState";
 import { PrimaryAction } from "@/components/ui/PrimaryAction";
 import type { HouseholdCode, NewHouseholdCodeInput } from "@/lib/supabase/household";
 
-type SortMode = "recent" | "name";
+type SortMode = "shop" | "expiry";
+
+const NO_EXPIRY = "9999-12-31";
 
 function formatExpiresOn(date: string): string {
   return new Date(`${date}T00:00:00`).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+}
+
+/** Roughly how many days until the code lapses — for the amber "expiring
+ * soon" tint, and for ordering. */
+function daysUntil(date: string): number {
+  return Math.round((new Date(`${date}T00:00:00`).getTime() - new Date(new Date().toDateString()).getTime()) / 86_400_000);
 }
 
 function matchesSearch(code: HouseholdCode, query: string): boolean {
@@ -165,10 +174,38 @@ function CodeForm({
   );
 }
 
-/** One code line: shop name + optional expiry on top, the code itself as a
- * tap-to-copy chip below, with always-visible edit/delete icons and the
- * same two-step delete as the notes and expiration lists. */
-function CodeRow({ code, onEdit, onDelete }: { code: HouseholdCode; onEdit: () => void; onDelete: () => void }) {
+interface ShopGroup {
+  key: string;
+  name: string;
+  codes: HouseholdCode[];
+  soonestExpiry: string;
+}
+
+function groupByShop(codes: HouseholdCode[], sort: SortMode): ShopGroup[] {
+  const byShop = new Map<string, ShopGroup>();
+  for (const c of codes) {
+    const key = c.name.trim().toLowerCase() || "—";
+    const g = byShop.get(key) ?? { key, name: c.name.trim() || "Unnamed", codes: [], soonestExpiry: NO_EXPIRY };
+    g.codes.push(c);
+    byShop.set(key, g);
+  }
+  const groups = [...byShop.values()];
+  for (const g of groups) {
+    g.codes.sort((a, b) => (a.expiresOn ?? NO_EXPIRY).localeCompare(b.expiresOn ?? NO_EXPIRY) || b.createdAt.localeCompare(a.createdAt));
+    g.soonestExpiry = g.codes[0]?.expiresOn ?? NO_EXPIRY;
+  }
+  groups.sort((a, b) =>
+    sort === "expiry"
+      ? a.soonestExpiry.localeCompare(b.soonestExpiry) || a.name.localeCompare(b.name, undefined, { sensitivity: "base" })
+      : a.name.localeCompare(b.name, undefined, { sensitivity: "base" }),
+  );
+  return groups;
+}
+
+/** One code within a shop group — the code itself is an accent-tinted
+ * tap-to-copy chip, with its comment and expiry beneath and the row
+ * actions kept up at chip level. */
+function CodeItem({ code, accent, onEdit, onDelete }: { code: HouseholdCode; accent: string; onEdit: () => void; onDelete: () => void }) {
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -183,37 +220,35 @@ function CodeRow({ code, onEdit, onDelete }: { code: HouseholdCode; onEdit: () =
     }
   }
 
+  const days = code.expiresOn ? daysUntil(code.expiresOn) : null;
+  const expiryColor = days == null ? null : days < 0 ? "var(--status-critical)" : days <= 14 ? "var(--status-serious)" : "var(--text-muted)";
+
   return (
-    <div className="flex items-start gap-3 py-3 pr-1 pl-1">
-      <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-        <div className="flex items-center gap-2">
-          <span className="min-w-0 flex-1 truncate text-sm font-medium" style={{ color: "var(--text-primary)" }}>
-            {code.name}
-          </span>
-          {code.expiresOn && (
-            <span className="shrink-0 text-xs whitespace-nowrap tabular-nums" style={{ color: "var(--text-muted)" }}>
-              Expires {formatExpiresOn(code.expiresOn)}
-            </span>
-          )}
-        </div>
+    <div className="flex items-start gap-3 border-t py-2.5 first:border-t-0" style={{ borderColor: "var(--gridline)" }}>
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
         <button
           type="button"
           onClick={handleCopy}
           aria-label={`Copy code ${code.code}`}
-          className="flex w-fit max-w-full items-center gap-2 rounded-md border px-2 py-1 transition-colors hover:bg-[var(--surface-1)]"
-          style={{ borderColor: "var(--border-hairline)", background: "var(--page-plane)" }}
+          className="flex w-fit max-w-full items-center gap-2 rounded-md px-2.5 py-1.5 transition-opacity hover:opacity-80"
+          style={{ background: `color-mix(in oklab, ${accent} 12%, transparent)` }}
         >
-          <span className="truncate font-mono text-sm tracking-wide" style={{ color: "var(--text-primary)" }}>
+          <span className="truncate font-mono text-[13px] tracking-wide" style={{ color: accent }}>
             {code.code}
           </span>
-          <span className="shrink-0 text-xs font-semibold" style={{ color: copied ? "var(--status-good)" : "var(--text-muted)" }}>
-            {copied ? "Copied" : "Copy"}
+          <span className="shrink-0 text-[11px] font-medium" style={{ color: copied ? "var(--status-good)" : accent }}>
+            {copied ? "Copied ✓" : "Copy"}
           </span>
         </button>
         {code.comment && (
-          <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
+          <p className="text-[13px]" style={{ color: "var(--text-secondary)" }}>
             {code.comment}
           </p>
+        )}
+        {code.expiresOn && (
+          <span className="text-xs tabular-nums" style={{ color: expiryColor ?? "var(--text-muted)" }}>
+            {days != null && days < 0 ? "Expired" : "Expires"} {formatExpiresOn(code.expiresOn)}
+          </span>
         )}
       </div>
       <div className="flex shrink-0 items-center gap-1">
@@ -273,18 +308,13 @@ export function CodeBoard({
   onDelete: (id: string) => Promise<void>;
 }) {
   const [search, setSearch] = useState("");
-  const [sort, setSort] = useState<SortMode>("recent");
+  const [sort, setSort] = useState<SortMode>("shop");
   const [composing, setComposing] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
   const editingCode = editingId ? (codes.find((c) => c.id === editingId) ?? null) : null;
 
-  const visibleCodes = useMemo(() => {
-    const filtered = codes.filter((c) => matchesSearch(c, search));
-    return filtered.sort((a, b) =>
-      sort === "name" ? a.name.localeCompare(b.name, undefined, { sensitivity: "base" }) : b.createdAt.localeCompare(a.createdAt),
-    );
-  }, [codes, search, sort]);
+  const groups = useMemo(() => groupByShop(codes.filter((c) => matchesSearch(c, search)), sort), [codes, search, sort]);
 
   if (composing || editingCode) {
     return (
@@ -313,12 +343,12 @@ export function CodeBoard({
           <SearchField value={search} onChange={setSearch} placeholder="Search codes…" />
           <button
             type="button"
-            onClick={() => setSort((s) => (s === "recent" ? "name" : "recent"))}
+            onClick={() => setSort((s) => (s === "shop" ? "expiry" : "shop"))}
             className="shrink-0 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors"
             style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-secondary)" }}
             title="Change sort order"
           >
-            {sort === "recent" ? "Newest first" : "Name A–Z"}
+            {sort === "shop" ? "Shop A–Z" : "Expiring soon"}
           </button>
         </div>
         <PrimaryAction label="New code" accent={accent} onClick={() => setComposing(true)} />
@@ -330,7 +360,7 @@ export function CodeBoard({
         <p className="py-10 text-center text-sm" style={{ color: "var(--status-critical)" }}>
           Couldn&apos;t load codes — try again in a moment.
         </p>
-      ) : visibleCodes.length === 0 ? (
+      ) : groups.length === 0 ? (
         <InlineEmpty
           title={codes.length === 0 ? "No codes yet" : "Nothing matches that search"}
           description={
@@ -340,9 +370,25 @@ export function CodeBoard({
           }
         />
       ) : (
-        <div className="flex flex-col divide-y divide-[color:var(--gridline)]">
-          {visibleCodes.map((code) => (
-            <CodeRow key={code.id} code={code} onEdit={() => setEditingId(code.id)} onDelete={() => void onDelete(code.id)} />
+        <div className="flex flex-col gap-3">
+          {groups.map((g) => (
+            <ListSection
+              key={g.key}
+              label={g.name}
+              count={g.codes.length > 1 ? g.codes.length : undefined}
+              icon={
+                <SectionIcon>
+                  <path d="M3.5 8 10 3l6.5 5v8.5a1 1 0 0 1-1 1H4.5a1 1 0 0 1-1-1V8Z" />
+                  <path d="M8 17.5v-4.5h4v4.5" />
+                </SectionIcon>
+              }
+            >
+              <div className="flex flex-col">
+                {g.codes.map((code) => (
+                  <CodeItem key={code.id} code={code} accent={accent} onEdit={() => setEditingId(code.id)} onDelete={() => void onDelete(code.id)} />
+                ))}
+              </div>
+            </ListSection>
           ))}
         </div>
       )}

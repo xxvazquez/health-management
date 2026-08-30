@@ -42,15 +42,27 @@ import { PencilIcon, TrashIcon } from "@/components/ui/Notebook";
 // it controls do.
 const DOMAIN_TOGGLE_ORDER: TrackedDomain[] = ["food", "outcome", "supplement", "habit", "stool", "workout", "cycle"];
 
-/** A collapsible section card with the same Show/Hide header as the item
- * sections below, for the settings blocks (Reminder lists, Doctor types)
- * that would otherwise always take up space above the item list. Starts
+/** A collapsible section card for the settings blocks (Reminder lists,
+ * Doctor types) — same shell, header and count subtitle as the item
+ * sections below, so the whole Manage page reads as one list. Starts
  * collapsed; `forceOpen` (a live search) pins it open. */
-function CollapsibleManageCard({ title, defaultOpen = false, forceOpen = false, children }: { title: string; defaultOpen?: boolean; forceOpen?: boolean; children: ReactNode }) {
+function CollapsibleManageCard({
+  title,
+  subtitle,
+  defaultOpen = false,
+  forceOpen = false,
+  children,
+}: {
+  title: string;
+  subtitle?: string;
+  defaultOpen?: boolean;
+  forceOpen?: boolean;
+  children: ReactNode;
+}) {
   const [open, setOpen] = useState(defaultOpen);
   const shown = forceOpen || open;
   return (
-    <Card tier="supporting">
+    <Card tier="raw">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -58,16 +70,23 @@ function CollapsibleManageCard({ title, defaultOpen = false, forceOpen = false, 
         aria-expanded={shown}
         className="flex w-full items-center justify-between gap-3 text-left"
       >
-        <span className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-          {title}
-        </span>
+        <div>
+          <h3 className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>
+            {title}
+          </h3>
+          {subtitle && (
+            <p className="mt-0.5 text-xs" style={{ color: "var(--text-muted)" }}>
+              {subtitle}
+            </p>
+          )}
+        </div>
         {!forceOpen && (
           <span className="shrink-0 text-xs font-medium underline decoration-dotted" style={{ color: "var(--text-secondary)" }}>
             {open ? "Hide" : "Show"}
           </span>
         )}
       </button>
-      {shown && <div className="mt-3">{children}</div>}
+      {shown && <div className="mt-4">{children}</div>}
     </Card>
   );
 }
@@ -176,7 +195,11 @@ function ReminderListsCard({ isDemoData, searchQuery }: { isDemoData: boolean; s
   if (isSearching && visibleLists.length === 0) return null;
 
   return (
-    <CollapsibleManageCard title="Reminder lists" forceOpen={isSearching}>
+    <CollapsibleManageCard
+      title="Reminder lists"
+      subtitle={loading ? undefined : `${lists.length} list${lists.length === 1 ? "" : "s"}`}
+      forceOpen={isSearching}
+    >
       <p className="mb-3 text-xs" style={{ color: "var(--text-secondary)" }}>
         The buckets your reminders are organised into on the Log page. Deleting a list moves its reminders back to
         the default &ldquo;Reminders&rdquo; list — it never deletes them.
@@ -486,8 +509,15 @@ function DoctorSpecialtiesCard({ isDemoData, searchQuery }: { isDemoData: boolea
     </li>
   );
 
+  const totalActive = entries.filter((e) => !e.isArchived).length;
+  const totalHidden = entries.filter((e) => e.isArchived).length;
+
   return (
-    <CollapsibleManageCard title="Doctor types" forceOpen={isSearching}>
+    <CollapsibleManageCard
+      title="Doctor types"
+      subtitle={loading ? undefined : `${totalActive} active${totalHidden > 0 ? ` · ${totalHidden} hidden` : ""}`}
+      forceOpen={isSearching}
+    >
       <p className="mb-3 text-xs" style={{ color: "var(--text-secondary)" }}>
         The specialties offered when logging a doctor appointment. Hide the ones you don&apos;t need or add your own —
         appointments you&apos;ve already logged keep their type either way.

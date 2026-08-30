@@ -39,7 +39,7 @@ export function SearchField({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full rounded-md border py-1.5 pr-8 pl-7 text-sm outline-none"
+        className="pill-field w-full rounded-md border py-1.5 pr-8 pl-7 text-xs outline-none"
         style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
       />
       {value && (

@@ -1,7 +1,16 @@
 "use client";
 
 import { useMemo, useState, type FormEvent, type ReactNode } from "react";
-import { compareTasksByDue, isRecurringTask, isTaskDone, isTaskDue, type TaskItem } from "@/lib/reminders";
+import {
+  compareTasksByDue,
+  isRecurringTask,
+  isTaskDone,
+  isTaskDue,
+  TASK_TIME_BUCKET_LABEL,
+  TASK_TIME_BUCKET_ORDER,
+  taskTimeBucket,
+  type TaskItem,
+} from "@/lib/reminders";
 import type { ReminderList } from "@/lib/supabase/personalReminders";
 import { PencilIcon, TrashIcon } from "@/components/ui/Notebook";
 import { ArchiveIcon } from "@/components/notes/icons";
@@ -40,6 +49,10 @@ function IconAction({ onClick, label, tone = "muted", disabled, children }: { on
 export type TaskBoardMode = "one-off" | "recurring" | "all";
 
 const DEFAULT_LIST_NAME = "Reminders";
+
+// The "Overdue" section header — a very muted, dusty red: enough to
+// register at a glance, deliberately not the full critical tone.
+const SOFT_OVERDUE = "color-mix(in oklab, var(--status-critical) 38%, var(--text-muted))";
 
 /** The fields a create/edit form hands back — same tuple for both, so a
  * parent can point `onCreate` and `onEdit` at the same handler shape. */
@@ -472,19 +485,18 @@ export function TaskBoard({
     };
   }, [tasks, mode, selectedList]);
 
-  // "All" view groups the active tasks by list; a single list just shows a
-  // flat sorted list.
-  const activeGroups = useMemo(() => {
-    if (selectedList !== "all" || !lists) return [{ id: null as string | null, name: "", tasks: active }];
-    const groups: { id: string | null; name: string; tasks: TaskItem[] }[] = [];
-    for (const l of lists) {
-      const t = active.filter((x) => x.listId === l.id);
-      if (t.length) groups.push({ id: l.id, name: l.name, tasks: t });
+  // Active reminders (already filtered to the selected list) are grouped by
+  // when they're due — Overdue, Today, Next week, In two weeks, Next month,
+  // Later — each kept in the same soonest-first order within its section.
+  const timeGroups = useMemo(() => {
+    const now = new Date();
+    const byBucket = new Map<string, TaskItem[]>();
+    for (const t of active) {
+      const b = taskTimeBucket(t, now);
+      (byBucket.get(b) ?? byBucket.set(b, []).get(b)!).push(t);
     }
-    const untagged = active.filter((x) => !x.listId);
-    if (untagged.length) groups.push({ id: null, name: DEFAULT_LIST_NAME, tasks: untagged });
-    return groups;
-  }, [active, lists, selectedList]);
+    return TASK_TIME_BUCKET_ORDER.map((bucket) => ({ bucket, tasks: byBucket.get(bucket) ?? [] })).filter((g) => g.tasks.length > 0);
+  }, [active]);
 
   if (composing || editing) {
     return (
@@ -540,12 +552,12 @@ export function TaskBoard({
     const recurring = isRecurringTask(task);
     const due = isTaskDue(task);
     return (
-      <div key={task.id} className="flex items-center gap-3 border-t py-3 first:border-t-0" style={{ borderColor: "var(--gridline)" }}>
+      <div key={task.id} className="flex items-start gap-3 border-t py-3 first:border-t-0" style={{ borderColor: "var(--gridline)" }}>
         <button
           type="button"
           onClick={() => void onComplete(task)}
           aria-label={recurring ? "Mark done for this cycle" : "Mark done"}
-          className="flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full border"
+          className="mt-0.5 flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full border"
           style={{ borderColor: "var(--baseline)", background: "transparent" }}
         />
         <div className="min-w-0 flex-1">
@@ -574,8 +586,15 @@ export function TaskBoard({
                 ))}
               </select>
             )}
+            {recurring && (
+              <span
+                className="rounded px-1.5 py-0.5 text-[11px] font-semibold"
+                style={{ background: `color-mix(in oklab, ${accent} 14%, transparent)`, color: accent }}
+              >
+                every {task.recurrenceDays}d
+              </span>
+            )}
             {task.dueAt && <span>{recurring ? `Next: ${formatDueAt(task.dueAt)}` : formatDueAt(task.dueAt)}</span>}
-            {recurring && <span style={{ color: "var(--text-muted)" }}>· every {task.recurrenceDays}d</span>}
             {completedByLabel && task.assignedTo && <span style={{ color: "var(--text-muted)" }}>· for {completedByLabel(task.assignedTo)}</span>}
             {task.lastCompletedAt && (
               <span style={{ color: "var(--text-muted)" }}>
@@ -613,7 +632,7 @@ export function TaskBoard({
         />
       )}
 
-      <div className="flex items-center justify-end gap-3">
+      <div className="hidden items-center justify-end gap-3 lg:flex">
         <PrimaryAction label="New reminder" accent={accent} onClick={() => setComposing(true)} />
       </div>
 
@@ -630,28 +649,22 @@ export function TaskBoard({
         />
       ) : (
         <div className="flex flex-col gap-3">
-          {selectedList === "all" && lists
-            ? activeGroups
-                .filter((group) => group.tasks.length > 0)
-                .map((group) => (
-                  <ListSection
-                    key={group.id ?? "__default__"}
-                    label={group.name}
-                    count={group.tasks.length}
-                    icon={
-                      <SectionIcon>
-                        <path d="M7 5.5h9M7 10h9M7 14.5h9M3.6 5.5h.01M3.6 10h.01M3.6 14.5h.01" />
-                      </SectionIcon>
-                    }
-                  >
-                    <div className="flex flex-col">{group.tasks.map(activeListRow)}</div>
-                  </ListSection>
-                ))
-            : activeGroups.map((group) => (
-                <div key={group.id ?? "__default__"} className="flex flex-col">
-                  {group.tasks.map(activeListRow)}
-                </div>
-              ))}
+          {timeGroups.map(({ bucket, tasks }) => (
+            <ListSection
+              key={bucket}
+              label={TASK_TIME_BUCKET_LABEL[bucket]}
+              count={tasks.length}
+              accent={bucket === "overdue" ? SOFT_OVERDUE : bucket === "today" ? "var(--status-serious)" : undefined}
+              icon={
+                <SectionIcon>
+                  <circle cx="10" cy="11" r="6.2" />
+                  <path d="M10 7.6V11l2.4 1.6M10 2.6V4" />
+                </SectionIcon>
+              }
+            >
+              <div className="flex flex-col">{tasks.map(activeListRow)}</div>
+            </ListSection>
+          ))}
 
           {done.length > 0 && (
             <CollapsibleGroup title="Done" count={done.length}>

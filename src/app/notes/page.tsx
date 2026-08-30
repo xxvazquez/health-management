@@ -240,7 +240,11 @@ export default function NotesPage() {
 
     return (
       <div className="flex flex-col gap-4">
-        <NotesHeader onCompose={() => setComposeOpen(true)} onMarkAllRead={() => void demoMarkAllRead()} />
+        <NotesHeader
+          onCompose={() => setComposeOpen(true)}
+          onMarkAllRead={() => void demoMarkAllRead()}
+          showCompose={!selectedDemoThread}
+        />
         <p className="text-xs" style={{ color: "var(--series-magenta)" }}>
           Example data — try replying, favouriting, or archiving freely below. None of this is saved anywhere; sign in to connect
           with your real partner instead.
@@ -302,7 +306,11 @@ export default function NotesPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <NotesHeader onCompose={() => setComposeOpen(true)} onMarkAllRead={() => void handleMarkAllRead()} />
+      <NotesHeader
+        onCompose={() => setComposeOpen(true)}
+        onMarkAllRead={() => void handleMarkAllRead()}
+        showCompose={!selectedThread}
+      />
 
       {selectedThread ? (
         <NoteThreadView
@@ -355,9 +363,11 @@ export default function NotesPage() {
 function NotesHeader({
   onCompose,
   onMarkAllRead,
+  showCompose = true,
 }: {
   onCompose: () => void;
   onMarkAllRead: () => void;
+  showCompose?: boolean;
 }) {
   return (
     <div className="flex flex-wrap items-start justify-between gap-3">
@@ -378,7 +388,7 @@ function NotesHeader({
         >
           Mark all as read
         </button>
-        <PrimaryAction label="New message" accent={ACCENT} onClick={onCompose} />
+        {showCompose && <PrimaryAction label="New message" accent={ACCENT} onClick={onCompose} />}
       </div>
     </div>
   );

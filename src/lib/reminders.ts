@@ -75,6 +75,35 @@ export function compareTasksByDue(a: TaskItem, b: TaskItem, now: Date = new Date
   return new Date(a.dueAt as string).getTime() - new Date(b.dueAt as string).getTime() || byTitle(a, b);
 }
 
+export type TaskTimeBucket = "overdue" | "today" | "next_week" | "two_weeks" | "next_month" | "later";
+
+export const TASK_TIME_BUCKET_LABEL: Record<TaskTimeBucket, string> = {
+  overdue: "Overdue",
+  today: "Today",
+  next_week: "Next week",
+  two_weeks: "In two weeks",
+  next_month: "Next month",
+  later: "Later",
+};
+
+export const TASK_TIME_BUCKET_ORDER: TaskTimeBucket[] = ["overdue", "today", "next_week", "two_weeks", "next_month", "later"];
+
+/** Which section an active reminder falls in, by its (next) due date —
+ * days from today: today = 0, next week = 1–7, in two weeks = 8–14, next
+ * month = 15–31, everything further out and every undated task = later. */
+export function taskTimeBucket(task: Pick<TaskItem, "dueAt">, now: Date = new Date()): TaskTimeBucket {
+  if (!task.dueAt) return "later";
+  const day = 86_400_000;
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const due = new Date(task.dueAt).getTime();
+  if (due < startOfToday) return "overdue";
+  if (due < startOfToday + day) return "today";
+  if (due < startOfToday + 8 * day) return "next_week";
+  if (due < startOfToday + 15 * day) return "two_weeks";
+  if (due < startOfToday + 32 * day) return "next_month";
+  return "later";
+}
+
 export interface ExpirationItem {
   id: string;
   name: string;

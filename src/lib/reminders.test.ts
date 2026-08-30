@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { expirationBucket, isExpirationDue, isRecurringTask, isTaskDone, isTaskDue, nextRecurringDueAt, type TaskItem } from "./reminders";
+import { expirationBucket, isExpirationDue, isRecurringTask, isTaskDone, isTaskDue, nextRecurringDueAt, taskTimeBucket, type TaskItem } from "./reminders";
 
 function makeTask(overrides: Partial<TaskItem> = {}): TaskItem {
   return {
@@ -107,5 +107,27 @@ describe("isExpirationDue", () => {
 
   it("a shorter remind-before window means due starts later, closer to the date", () => {
     expect(isExpirationDue({ expiresOn: "2026-06-17", remindDaysBefore: 1 }, today)).toBe(false);
+  });
+});
+
+describe("taskTimeBucket", () => {
+  const now = new Date("2026-06-15T09:00:00"); // local
+
+  const at = (d: string) => new Date(`${d}T12:00:00`).toISOString();
+
+  it("has no due date → later", () => {
+    expect(taskTimeBucket({ dueAt: null }, now)).toBe("later");
+  });
+
+  it("buckets by how many days out the due date is", () => {
+    expect(taskTimeBucket({ dueAt: at("2026-06-14") }, now)).toBe("overdue");
+    expect(taskTimeBucket({ dueAt: at("2026-06-15") }, now)).toBe("today");
+    expect(taskTimeBucket({ dueAt: at("2026-06-16") }, now)).toBe("next_week"); // 1 day
+    expect(taskTimeBucket({ dueAt: at("2026-06-22") }, now)).toBe("next_week"); // 7 days
+    expect(taskTimeBucket({ dueAt: at("2026-06-23") }, now)).toBe("two_weeks"); // 8 days
+    expect(taskTimeBucket({ dueAt: at("2026-06-29") }, now)).toBe("two_weeks"); // 14 days
+    expect(taskTimeBucket({ dueAt: at("2026-06-30") }, now)).toBe("next_month"); // 15 days
+    expect(taskTimeBucket({ dueAt: at("2026-07-16") }, now)).toBe("next_month"); // 31 days
+    expect(taskTimeBucket({ dueAt: at("2026-07-17") }, now)).toBe("later"); // 32 days
   });
 });
