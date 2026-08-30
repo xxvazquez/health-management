@@ -6,7 +6,7 @@ import { JournalTab } from "@/components/log/JournalTab";
 import { NoteBoard } from "@/components/reminders/NoteBoard";
 import { TaskBoard } from "@/components/reminders/TaskBoard";
 import { ExpirationBoard } from "@/components/home/ExpirationBoard";
-import { TAB_ICON } from "@/components/tabIcons";
+import { BoardPage, type BoardPageTab } from "@/components/ui/BoardPage";
 
 const JOURNAL_ACCENT = "var(--series-other)";
 const NOTES_ACCENT = "var(--series-magenta)";
@@ -14,11 +14,11 @@ const REMINDERS_ACCENT = "var(--series-berry)";
 const EXPIRATION_ACCENT = "var(--series-2)";
 
 type PersonalTab = "journal" | "notes" | "reminders" | "expiration";
-const TABS: { id: PersonalTab; label: string; accent: string }[] = [
-  { id: "journal", label: "Journal", accent: JOURNAL_ACCENT },
-  { id: "notes", label: "Notes", accent: NOTES_ACCENT },
-  { id: "reminders", label: "Reminders", accent: REMINDERS_ACCENT },
-  { id: "expiration", label: "Expiration", accent: EXPIRATION_ACCENT },
+const TABS: BoardPageTab[] = [
+  { id: "journal", label: "Journal", icon: "journal", accent: JOURNAL_ACCENT },
+  { id: "notes", label: "Notes", icon: "notes", accent: NOTES_ACCENT },
+  { id: "reminders", label: "Reminders", icon: "reminders", accent: REMINDERS_ACCENT },
+  { id: "expiration", label: "Expiration", icon: "expiration", accent: EXPIRATION_ACCENT },
 ];
 
 const TAB_STORAGE_KEY = "lauva-personal-tab";
@@ -80,46 +80,15 @@ export default function PersonalPage() {
   const active = TABS.find((t) => t.id === tab) ?? TABS[0];
 
   return (
-    <div className="flex flex-col gap-5">
-      <div className="border-l-[3px] pl-2.5" style={{ borderColor: active.accent }}>
-        <h1 className="text-xl font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
-          {active.label}
-        </h1>
-      </div>
-
-      <nav
-        className="no-scrollbar flex items-center gap-5 overflow-x-auto border-b"
-        style={{ borderColor: `color-mix(in oklab, ${active.accent} 22%, var(--border-hairline))` }}
-      >
-        {TABS.map((t) => {
-          const isActive = t.id === active.id;
-          return (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => selectTab(t.id)}
-              className="flex shrink-0 items-center gap-1.5 pb-2.5 text-sm whitespace-nowrap transition-colors"
-              style={{
-                color: isActive ? t.accent : "var(--text-secondary)",
-                fontWeight: isActive ? 700 : 500,
-                borderBottom: `2px solid ${isActive ? t.accent : "transparent"}`,
-                marginBottom: "-1px",
-              }}
-            >
-              {TAB_ICON[t.id]}
-              {t.label}
-            </button>
-          );
-        })}
-      </nav>
-
-      {/* Journal shows its own "example data" line; the others don't. */}
-      {personal.isDemo && tab !== "journal" && (
-        <p className="text-xs" style={{ color: active.accent }}>
-          Example data — nothing here is saved. Sign in to keep your own.
-        </p>
-      )}
-
+    <BoardPage
+      title={active.label}
+      accent={active.accent}
+      tabs={TABS}
+      activeTab={active.id}
+      onSelectTab={(id) => selectTab(id as PersonalTab)}
+      // Journal shows its own "example data" line; the others don't.
+      notice={personal.isDemo && tab !== "journal" ? "Example data — nothing here is saved. Sign in to keep your own." : undefined}
+    >
       {tab === "journal" && <JournalTab isDemoData={personal.isDemo} accent={JOURNAL_ACCENT} />}
 
       {tab === "notes" && (
@@ -166,6 +135,6 @@ export default function PersonalPage() {
           onDelete={personal.items.remove}
         />
       )}
-    </div>
+    </BoardPage>
   );
 }

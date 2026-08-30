@@ -40,7 +40,7 @@ import { NoteBoard } from "@/components/reminders/NoteBoard";
 import { TaskBoard, type TaskFormValues } from "@/components/reminders/TaskBoard";
 import { ExpirationBoard } from "@/components/home/ExpirationBoard";
 import { CodeBoard } from "@/components/home/CodeBoard";
-import { TAB_ICON } from "@/components/tabIcons";
+import { BoardPage, type BoardPageTab } from "@/components/ui/BoardPage";
 
 const ACCENT = "var(--series-indigo)";
 // The Expiration board is shared with the personal Log page, which uses
@@ -53,11 +53,11 @@ const EXPIRATION_ACCENT = "var(--series-2)";
 let homeCache: { userId: string; notes: HouseholdNote[]; tasks: TaskItem[]; items: ExpirationItem[]; codes: HouseholdCode[] } | null = null;
 
 type Tab = "notes" | "tasks" | "expiration" | "codes";
-const TABS: { id: Tab; label: string; icon: keyof typeof TAB_ICON }[] = [
-  { id: "notes", label: "Notes", icon: "notes" },
-  { id: "tasks", label: "Reminders", icon: "reminders" },
-  { id: "expiration", label: "Expiration", icon: "expiration" },
-  { id: "codes", label: "Codes", icon: "codes" },
+const TABS: BoardPageTab[] = [
+  { id: "notes", label: "Notes", icon: "notes", accent: ACCENT },
+  { id: "tasks", label: "Reminders", icon: "reminders", accent: ACCENT },
+  { id: "expiration", label: "Expiration", icon: "expiration", accent: ACCENT },
+  { id: "codes", label: "Codes", icon: "codes", accent: ACCENT },
 ];
 
 function isHomeTab(v: string): v is Tab {
@@ -391,44 +391,14 @@ export default function HomePage() {
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="border-l-[3px] pl-2.5" style={{ borderColor: ACCENT }}>
-        <h1 className="text-xl font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
-          Household
-        </h1>
-        {isDemo && (
-          <p className="text-xs" style={{ color: ACCENT }}>
-            Example data — nothing here is saved. Sign in to share it with your real partner.
-          </p>
-        )}
-      </div>
-
-      <nav
-        className="no-scrollbar flex items-center gap-5 overflow-x-auto border-b"
-        style={{ borderColor: `color-mix(in oklab, ${ACCENT} 22%, var(--border-hairline))` }}
-      >
-        {TABS.map((t) => {
-          const active = t.id === tab;
-          return (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => selectTab(t.id)}
-              className="flex shrink-0 items-center gap-1.5 pb-2.5 text-sm whitespace-nowrap transition-colors"
-              style={{
-                color: active ? ACCENT : "var(--text-secondary)",
-                fontWeight: active ? 700 : 500,
-                borderBottom: `2px solid ${active ? ACCENT : "transparent"}`,
-                marginBottom: "-1px",
-              }}
-            >
-              {TAB_ICON[t.icon]}
-              {t.label}
-            </button>
-          );
-        })}
-      </nav>
-
+    <BoardPage
+      title="Household"
+      accent={ACCENT}
+      tabs={TABS}
+      activeTab={tab}
+      onSelectTab={(id) => selectTab(id as Tab)}
+      notice={isDemo ? "Example data — nothing here is saved. Sign in to share it with your real partner." : undefined}
+    >
       {tab === "notes" && (
         <NoteBoard
           notes={notes}
@@ -485,6 +455,6 @@ export default function HomePage() {
           onDelete={handleDeleteCode}
         />
       )}
-    </div>
+    </BoardPage>
   );
 }
