@@ -101,7 +101,8 @@ function friendlyReason(code: string | undefined, op: "upsert" | "delete", table
  * the record itself is safely in this device's local storage regardless,
  * and stays there whether or not the retry below ever succeeds. */
 export function SyncStatusBanner() {
-  const { syncState, deadLetterEntries, retrySync, discardSync } = useData();
+  const { syncState, deadLetterEntries, retrySync, discardSync, isOnline } = useData();
+  const offline = isOnline === false;
   const [expanded, setExpanded] = useState(false);
   const [retryingId, setRetryingId] = useState<string | null>(null);
   const [discardingId, setDiscardingId] = useState<string | null>(null);
@@ -212,7 +213,9 @@ export function SyncStatusBanner() {
     >
       <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: "var(--text-muted)" }} />
       <span style={{ color: "var(--text-secondary)" }}>
-        {syncState.pending} {syncState.pending === 1 ? "change" : "changes"} pending sync
+        {offline
+          ? `Offline — ${syncState.pending} ${syncState.pending === 1 ? "change is" : "changes are"} saved on this device and will sync when you reconnect`
+          : `${syncState.pending} ${syncState.pending === 1 ? "change" : "changes"} pending sync`}
       </span>
     </div>
   );

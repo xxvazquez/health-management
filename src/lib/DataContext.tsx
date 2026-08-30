@@ -21,6 +21,11 @@ export interface SyncState {
   deadLetter: number;
 }
 
+/** localStorage key for the last time a cloud pull succeeded on this
+ * device — so a reload can still say "synced 5 minutes ago" rather than
+ * "never". Cleared on sign-out. */
+const LAST_SYNCED_KEY = "lauva.lastSyncedAt";
+
 interface DataContextValue {
   status: DataStatus;
   events: CanonicalEvent[];
@@ -33,6 +38,18 @@ interface DataContextValue {
   isDemoData: boolean;
   error: string | null;
   syncState: SyncState;
+  /** True while a cloud pull is in flight (sign-in, tab-focus, reconnect,
+   * the periodic tick, or a manual `syncNow`). */
+  syncing: boolean;
+  /** Epoch ms of the last successful cloud pull on this device, or null if
+   * one hasn't happened yet (or the user is signed out). */
+  lastSyncedAt: number | null;
+  /** `navigator.onLine`, kept current — a best-effort "can we reach the
+   * cloud right now" for status copy, not a hard guarantee. */
+  isOnline: boolean;
+  /** Force a full sync now (push the outbox, then pull) — the "Sync now"
+   * button behind the account panel. */
+  syncNow: () => Promise<void>;
   /** The dead-letter entries behind `syncState.deadLetter` — enough detail
    * (table, error code) for SyncStatusBanner to explain what failed. */
   deadLetterEntries: OutboxEntry[];
@@ -60,6 +77,13 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [syncState, setSyncState] = useState<SyncState>({ pending: 0, deadLetter: 0 });
   const [deadLetterEntries, setDeadLetterEntries] = useState<OutboxEntry[]>([]);
+  const [syncing, setSyncing] = useState(false);
+  const [isOnline, setIsOnline] = useState(() => (typeof navigator === "undefined" ? true : navigator.onLine));
+  const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(() => {
+    if (typeof window === "undefined") return null;
+    const raw = window.localStorage.getItem(LAST_SYNCED_KEY);
+    return raw ? Number(raw) || null : null;
+  });
 
   const refreshSyncState = useCallback(async () => {
     setSyncState(await getOutboxSyncState());
@@ -190,9 +214,28 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     // pullFromCloud() already attempts a best-effort outbox drain of its
     // own before its destructive clear (see sync.ts) — this just refreshes
     // the counts shown in the UI afterward.
-    await pullFromCloud();
-    await refresh();
-    await refreshSyncState();
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      await refreshSyncState();
+      return;
+    }
+    setSyncing(true);
+    try {
+      await pullFromCloud();
+      await refresh();
+      await refreshSyncState();
+      const now = Date.now();
+      setLastSyncedAt(now);
+      try {
+        window.localStorage.setItem(LAST_SYNCED_KEY, String(now));
+      } catch {
+        // private mode / storage disabled — the in-memory value still works
+      }
+    } catch (err) {
+      console.error("syncFromCloud failed", err);
+      await refreshSyncState();
+    } finally {
+      setSyncing(false);
+    }
   }, [refresh, refreshSyncState]);
 
   useEffect(() => {
@@ -219,6 +262,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       // the sign-out transition itself.
       if (pulledForUserId.current !== null) {
         pulledForUserId.current = null;
+        setLastSyncedAt(null);
+        try {
+          window.localStorage.removeItem(LAST_SYNCED_KEY);
+        } catch {
+          // storage disabled — nothing to clear
+        }
         // A later sign-in — same user again, or a different one on a
         // shared device — must wait for its OWN fresh pull before
         // ensureCategoryId/ensureDefaultWorkoutItems trust "nothing here
@@ -252,12 +301,19 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   // another device while this one was offline show up right away instead
   // of waiting for the next tab-focus or periodic tick.
   useEffect(() => {
-    if (!session) return;
     function handleOnline() {
-      void syncFromCloud();
+      setIsOnline(true);
+      if (session) void syncFromCloud();
+    }
+    function handleOffline() {
+      setIsOnline(false);
     }
     window.addEventListener("online", handleOnline);
-    return () => window.removeEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
   }, [session, syncFromCloud]);
 
   // A tab that's simply left open and focused never fires visibilitychange
@@ -287,8 +343,26 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   }, [refreshSyncState]);
 
   const value = useMemo(
-    () => ({ status, events, workoutLogs, stoolLogs, periodLogs, isDemoData, error, syncState, deadLetterEntries, retrySync, discardSync, refresh, clearData }),
-    [status, events, workoutLogs, stoolLogs, periodLogs, isDemoData, error, syncState, deadLetterEntries, retrySync, discardSync, refresh, clearData],
+    () => ({
+      status,
+      events,
+      workoutLogs,
+      stoolLogs,
+      periodLogs,
+      isDemoData,
+      error,
+      syncState,
+      syncing,
+      lastSyncedAt,
+      isOnline,
+      syncNow: syncFromCloud,
+      deadLetterEntries,
+      retrySync,
+      discardSync,
+      refresh,
+      clearData,
+    }),
+    [status, events, workoutLogs, stoolLogs, periodLogs, isDemoData, error, syncState, syncing, lastSyncedAt, isOnline, syncFromCloud, deadLetterEntries, retrySync, discardSync, refresh, clearData],
   );
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;

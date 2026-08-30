@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { useAuth } from "@/lib/supabase/AuthContext";
+import { useData } from "@/lib/DataContext";
+import { relativeTime } from "@/lib/relativeTime";
 import { useDialogA11y } from "@/components/ui/useDialogA11y";
 
 /** Derived from the email local-part — sign-in is email/password only, no
@@ -17,6 +19,7 @@ function displayNameFromEmail(email: string): string {
  * per-page. */
 export function AccountPanel() {
   const { configured, session, panelOpen, closePanel, error, signIn, signUp, signOut } = useAuth();
+  const { syncing, lastSyncedAt, isOnline, syncNow, syncState } = useData();
   const [mode, setMode] = useState<"signIn" | "signUp">("signIn");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -79,6 +82,41 @@ export function AccountPanel() {
               <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: "var(--status-good)" }} />
               Signed in as <span className="font-medium">{session.user.email}</span>
             </div>
+
+            <div className="flex flex-col gap-1.5 rounded-md border p-3" style={{ borderColor: "var(--border-hairline)", background: "var(--page-plane)" }}>
+              <div className="flex items-center justify-between gap-2">
+                <span className="flex items-center gap-1.5 text-xs" style={{ color: "var(--text-secondary)" }}>
+                  <span
+                    className="h-1.5 w-1.5 shrink-0 rounded-full"
+                    style={{
+                      background: syncState.deadLetter > 0 ? "var(--status-warning)" : !isOnline || syncState.pending > 0 || syncing ? "var(--text-muted)" : "var(--status-good)",
+                    }}
+                  />
+                  {syncing
+                    ? "Syncing…"
+                    : !isOnline
+                      ? "Offline"
+                      : lastSyncedAt
+                        ? `Synced ${relativeTime(lastSyncedAt)}`
+                        : "Not synced yet"}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => void syncNow()}
+                  disabled={syncing || !isOnline}
+                  className="shrink-0 rounded-md border px-2 py-1 text-xs font-medium disabled:opacity-50"
+                  style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-secondary)" }}
+                >
+                  {syncing ? "Syncing…" : "Sync now"}
+                </button>
+              </div>
+              {syncState.pending > 0 && (
+                <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>
+                  {syncState.pending} {syncState.pending === 1 ? "change" : "changes"} saved on this device{isOnline ? ", uploading…" : " — will upload when you're back online"}
+                </span>
+              )}
+            </div>
+
             <button
               type="button"
               onClick={() => void handleSignOut()}
