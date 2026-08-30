@@ -7,6 +7,11 @@ import type { PersonalNote, ReminderList } from "@/lib/supabase/personalReminder
 const DAY = 24 * 60 * 60 * 1000;
 const now = () => Date.now();
 const iso = (msOffset: number) => new Date(now() + msOffset).toISOString();
+const isoAtHour = (msOffset: number, hour: number) => {
+  const d = new Date(now() + msOffset);
+  d.setHours(hour, 0, 0, 0);
+  return d.toISOString();
+};
 
 export function buildDemoPersonalNotes(): PersonalNote[] {
   return [
@@ -57,7 +62,31 @@ export function buildDemoPersonalTasks(): TaskItem[] {
       id: "demo-task-2",
       title: "Submit expense report",
       notes: null,
-      dueAt: iso(4 * DAY),
+      dueAt: isoAtHour(4 * DAY, 17),
+      recurrenceDays: null,
+      lastCompletedAt: null,
+      lastCompletedBy: null,
+      assignedTo: null,
+      isArchived: false,
+      listId: DEMO_LIST_TODO,
+    },
+    {
+      id: "demo-task-7",
+      title: "Call the pharmacy about the refill",
+      notes: null,
+      dueAt: isoAtHour(0, 15),
+      recurrenceDays: null,
+      lastCompletedAt: null,
+      lastCompletedBy: null,
+      assignedTo: null,
+      isArchived: false,
+      listId: DEMO_LIST_TODO,
+    },
+    {
+      id: "demo-task-8",
+      title: "Pick up the parcel",
+      notes: null,
+      dueAt: isoAtHour(1 * DAY, 9),
       recurrenceDays: null,
       lastCompletedAt: null,
       lastCompletedBy: null,

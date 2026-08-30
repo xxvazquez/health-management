@@ -13,11 +13,11 @@ import { fetchNoteThreads, notesConfigured, type NoteThread } from "@/lib/supaba
 import { getPartnerLink } from "@/lib/supabase/partner";
 import { fetchPersonalItems, fetchPersonalTasks, type PersonalItem } from "@/lib/supabase/personalReminders";
 import { fetchHouseholdItems, fetchHouseholdTasks } from "@/lib/supabase/household";
-import { fetchDoctorFollowUpTasks, type DoctorFollowUpTask } from "@/lib/supabase/doctors";
+import { fetchDoctorFollowUpTasks, fetchDoctorSpecialties, type DoctorFollowUpTask, type DoctorSpecialty } from "@/lib/supabase/doctors";
 import type { ExpirationItem, TaskItem } from "@/lib/reminders";
 import { buildDemoPersonalItems, buildDemoPersonalTasks } from "@/lib/demoPersonalReminders";
 import { buildDemoHouseholdItems, buildDemoHouseholdTasks } from "@/lib/demoHousehold";
-import { buildDemoDoctorFollowUpTasks } from "@/lib/demoDoctors";
+import { buildDemoDoctorFollowUpTasks, buildDemoDoctorSpecialties } from "@/lib/demoDoctors";
 import { buildDemoThreads } from "@/lib/demoNotes";
 import { TodaySnapshot, type DayNoteSummary } from "@/components/overview/TodaySnapshot";
 import { ActivityFeed } from "@/components/overview/ActivityFeed";
@@ -87,6 +87,7 @@ export default function OverviewPage() {
   const [householdTasks, setHouseholdTasks] = useState<TaskItem[]>([]);
   const [householdItems, setHouseholdItems] = useState<ExpirationItem[]>([]);
   const [followUps, setFollowUps] = useState<DoctorFollowUpTask[]>([]);
+  const [doctorSpecialties, setDoctorSpecialties] = useState<DoctorSpecialty[]>([]);
 
   const loadNotes = useCallback(async () => {
     if (!session) {
@@ -125,19 +126,22 @@ export default function OverviewPage() {
       setHouseholdTasks(buildDemoHouseholdTasks());
       setHouseholdItems(buildDemoHouseholdItems());
       setFollowUps(buildDemoDoctorFollowUpTasks());
+      setDoctorSpecialties(buildDemoDoctorSpecialties());
       return;
     }
     try {
-      const [pt, ht, hi, fu] = await Promise.all([
+      const [pt, ht, hi, fu, ds] = await Promise.all([
         fetchPersonalTasks(),
         fetchHouseholdTasks(),
         fetchHouseholdItems(),
         fetchDoctorFollowUpTasks(),
+        fetchDoctorSpecialties(),
       ]);
       setPersonalTasks(pt);
       setHouseholdTasks(ht);
       setHouseholdItems(hi);
       setFollowUps(fu);
+      setDoctorSpecialties(ds);
     } catch (err) {
       console.error("Overview: loading outstanding items failed", err);
     }
@@ -157,6 +161,14 @@ export default function OverviewPage() {
     [noteThreads],
   );
 
+  const upcomingAppointments = useMemo(
+    () =>
+      doctorSpecialties
+        .filter((s) => !s.isArchived && s.nextAppointmentDate)
+        .map((s) => ({ id: s.id, label: `${s.name} appointment`, date: s.nextAppointmentDate as string })),
+    [doctorSpecialties],
+  );
+
   const attentionItems = useMemo(
     () =>
       buildAttentionItems(
@@ -166,11 +178,12 @@ export default function OverviewPage() {
           personalExpiry: expirationItems,
           householdExpiry: householdItems,
           followUps,
+          upcomingAppointments,
           unreadMessages,
         },
         { today },
       ),
-    [personalTasks, householdTasks, expirationItems, householdItems, followUps, unreadMessages, today],
+    [personalTasks, householdTasks, expirationItems, householdItems, followUps, upcomingAppointments, unreadMessages, today],
   );
 
   const todayNotes = useMemo(() => noteThreads.filter((t) => localDateOf(t.lastMessageAt) === today).map(noteToDaySummary), [noteThreads, today]);

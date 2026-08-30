@@ -94,6 +94,70 @@ describe("buildAttentionItems", () => {
     expect(items[0].href).toBe("/doctors#followups");
   });
 
+  it("surfaces a follow-up once its reminder has fired, even past the due window", () => {
+    const items = buildAttentionItems(
+      {
+        followUps: [
+          followUp({ description: "Reminder fired", dueDate: "2026-09-20", reminderAt: "2026-08-28T09:00:00" }),
+          followUp({ description: "Reminder later", dueDate: "2026-09-20", reminderAt: "2026-09-19T09:00:00" }),
+        ],
+      },
+      { today: TODAY, now: NOW },
+    );
+    expect(items.map((i) => `${i.tier}:${i.label}`)).toEqual(["soon:Reminder fired"]);
+  });
+
+  it("includes an upcoming appointment within two weeks, tiered by its date", () => {
+    const items = buildAttentionItems(
+      {
+        upcomingAppointments: [
+          { id: "s1", label: "Dentist appointment", date: "2026-09-05" },
+          { id: "s2", label: "Today appointment", date: TODAY },
+          { id: "s3", label: "Far off appointment", date: "2026-10-30" },
+          { id: "s4", label: "Past appointment", date: "2026-08-01" },
+        ],
+      },
+      { today: TODAY, now: NOW },
+    );
+    expect(items.map((i) => `${i.tier}:${i.label}`)).toEqual(["today:Today appointment", "soon:Dentist appointment"]);
+    expect(items[0].href).toBe("/doctors");
+  });
+
+  it("files each row into an urgency group with scannable timing", () => {
+    const items = buildAttentionItems(
+      {
+        personalReminders: [
+          task({ title: "Two days ago", dueAt: "2026-08-27T09:00:00" }),
+          task({ title: "Yesterday", dueAt: "2026-08-28T09:00:00" }),
+          task({ title: "Tomorrow", dueAt: "2026-08-30T09:00:00" }),
+          task({ title: "In four days", dueAt: "2026-09-02T09:00:00" }),
+        ],
+        personalExpiry: [
+          expiry({ name: "Long gone", expiresOn: "2026-08-20" }),
+          expiry({ name: "Expires today", expiresOn: TODAY }),
+        ],
+      },
+      { today: TODAY, now: NOW },
+    );
+    const group = Object.fromEntries(items.map((i) => [i.label, i.group]));
+    expect(group["Two days ago"]).toBe("overdue");
+    expect(group["Yesterday"]).toBe("overdue");
+    expect(group["Long gone"]).toBe("overdue");
+    expect(group["Expires today"]).toBe("today");
+    expect(group["Tomorrow"]).toBe("tomorrow");
+    expect(group["In four days"]).toBe("week");
+
+    const when = Object.fromEntries(items.map((i) => [i.label, i.when]));
+    expect(when["Two days ago"]).toBe("2 days ago");
+    expect(when["Yesterday"]).toBe("yesterday");
+    expect(when["Long gone"]).toBe("9 days ago");
+  });
+
+  it("gives unread messages no timing label", () => {
+    const items = buildAttentionItems({ unreadMessages: 2 }, { today: TODAY, now: NOW });
+    expect(items[0].when).toBe("");
+  });
+
   it("adds one row for unread messages, always last within its tier", () => {
     const items = buildAttentionItems(
       { personalReminders: [task({ title: "Upcoming", dueAt: "2026-08-31T09:00:00" })], unreadMessages: 2 },

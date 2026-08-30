@@ -20,7 +20,7 @@ export const DEMO_APPT_USG = "demo-appt-usg";
 
 export function buildDemoDoctorSpecialties(): DoctorSpecialty[] {
   const nextDates: Record<string, string> = {
-    Dentist: dateOnly(21 * DAY),
+    Dentist: dateOnly(9 * DAY),
     Gynecologist: dateOnly(60 * DAY),
   };
   return DEFAULT_DOCTOR_SPECIALTIES.map((name) => ({
@@ -73,7 +73,7 @@ export function buildDemoDoctorAppointments(): DoctorAppointment[] {
 
 export function buildDemoDoctorFollowUpTasks(): DoctorFollowUpTask[] {
   return [
-    { id: "demo-task-ct", appointmentId: DEMO_APPT_TEETH, description: "Book the CT scan", dueDate: dateOnly(7 * DAY), reminderAt: iso(6 * DAY), completedAt: null },
+    { id: "demo-task-ct", appointmentId: DEMO_APPT_TEETH, description: "Book the CT scan", dueDate: dateOnly(4 * DAY), reminderAt: iso(-1 * DAY), completedAt: null },
     { id: "demo-task-vitd", appointmentId: DEMO_APPT_CHECKUP, description: "Repeat vitamin D blood test", dueDate: dateOnly(45 * DAY), reminderAt: null, completedAt: null },
     { id: "demo-task-usg", appointmentId: DEMO_APPT_USG, description: "Do the USG scan", dueDate: null, reminderAt: null, completedAt: iso(-5 * DAY) },
   ];
