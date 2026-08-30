@@ -10,7 +10,7 @@ It works fully offline, syncs to Supabase once you sign in, and installs as a PW
 
 | Page | Route | What it's for |
 |---|---|---|
-| **Overview** | `/overview` | The landing page. Today's story, a recent-activity feed, a few personal trends, anything expiring soon, and a weekly/monthly review. |
+| **Overview** | `/overview` | The landing page. A cross-domain "needs attention" list grouped by urgency (overdue / today / tomorrow / next 7 days) — reminders, expiring products, doctor follow-ups and appointments — then today's story, a recent-activity feed, a few personal trends, and a weekly/monthly review. |
 | **Log** | `/log` | Tap-to-log entry for the seven tracking domains: Food, Symptoms, Supplements, Habits, Stool, Workout, Cycle. |
 | **Personal** | `/personal` | Journal, private notes, reminders, and product-expiry tracking — the "write once, come back to it" stuff. |
 | **Doctors** | `/doctors` | A history log of doctor appointments already attended: reusable doctors and specialties, per-doctor rating/language, follow-up notes and tasks, and one next-appointment date per specialty. |
@@ -26,7 +26,7 @@ It works fully offline, syncs to Supabase once you sign in, and installs as a PW
 - **Logging is tap-only.** No forms on the tracking tabs — pick a category, tap the item. A symptom taps through intensity 1 → 2 → 3 → clear; Sleep taps a band (`<5h`…`9h+`).
 - **The day rolls over at 3 AM, not midnight.** Anything logged between midnight and 3 AM counts as the previous day, with the time defaulting to 23:30.
 - **Meals auto-pick by time of day** (Breakfast before noon, Lunch before 6pm, Dinner after — never Snack). The Food tab also pins a "Your usual" row of your most-logged foods.
-- **Time is editable per entry**, and the day stepper has a tap-a-date calendar, so you can log at 9pm something that happened at 10am.
+- **Time is editable per entry** — the per-tab time control stays collapsed as a small "now · change" link (it opens on its own once you pick a past day), and the day stepper has a tap-a-date calendar, so you can log at 9pm something that happened at 10am.
 - **Cycle stores only flagged period days.** Cycle length, cycle day, and next-period predictions are all derived on the fly from a recent-cycles window, never stored.
 - **"Not logged" always means only that** — never "didn't happen". Days with nothing logged are excluded from every percentage, not counted as zero.
 - **Hiding a domain from Manage** removes it from Log *and* its Analytics dashboard, on that device only (it's a local preference, not synced data).
@@ -189,9 +189,10 @@ write-local-first outbox — they only mean anything once they're on the server.
   are owner-only; the `household_*` tables reuse the same `partner_links` pairing
   via an `is_household_member()` SQL helper, so a row is visible to its creator
   *and* their one linked partner with no "share this" step. Both sides reuse the
-  exact same `NoteBoard` / `TaskBoard` / `ExpirationBoard` components. (The
-  Household page labels its `TaskBoard` tab "Reminders" to match Personal; the
-  table is still `household_tasks`.)
+  exact same `NoteBoard` / `TaskBoard` / `ExpirationBoard` components, inside the
+  same `BoardPage` shell (title rule + underlined tab bar). (The Household page
+  labels its `TaskBoard` tab "Reminders" to match Personal; the table is still
+  `household_tasks`.)
 - **Shared codes** (`household_codes`, pair-visible) — discount/promo codes with a
   code, name, optional comment and optional `expires_on`. There's no cron: a code
   whose `expires_on` has passed is deleted client-side by `fetchHouseholdCodes`

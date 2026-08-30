@@ -405,6 +405,10 @@ export default function LogPage() {
   // on date navigation either, since the time-of-day is independent of
   // which day it's applied to.
   const [logTime, setLogTime] = useState(() => defaultLogTimeValue());
+  // The Time field stays collapsed to a small "now · change" link until
+  // it's needed — either the user opens it, or a past date is picked
+  // (handled by `timeIsExplicit` at render).
+  const [showTimeField, setShowTimeField] = useState(false);
   // Workout's own copy of the same idea as `logTime` above — it renders
   // outside the shared `tabConfig`-gated block (see the render below), same
   // as Stool's own `loggedAtTime` draft field.
@@ -1760,23 +1764,49 @@ export default function LogPage() {
 
           {tabConfig && (
             <div className="flex flex-wrap items-center gap-3">
-              <label className="flex items-center gap-1.5" style={{ color: "var(--text-secondary)" }}>
-                <span className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
-                  Time
-                </span>
-                <input
-                  type="time"
-                  value={logTime}
-                  onChange={(e) => setLogTime(e.target.value)}
-                  onClick={(e) => e.currentTarget.showPicker?.()}
-                  className="h-7 rounded-md border px-2.5 text-xs font-medium tabular-nums outline-none transition-colors"
-                  style={{
-                    borderColor: timeIsExplicit ? "var(--series-2)" : "var(--border-hairline)",
-                    background: "var(--surface-1)",
-                    color: "var(--text-primary)",
-                  }}
-                />
-              </label>
+              {showTimeField || timeIsExplicit ? (
+                <label className="flex items-center gap-1.5" style={{ color: "var(--text-secondary)" }}>
+                  <span className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
+                    Time
+                  </span>
+                  <input
+                    type="time"
+                    value={logTime}
+                    autoFocus={showTimeField && !timeIsExplicit}
+                    onChange={(e) => setLogTime(e.target.value)}
+                    onClick={(e) => e.currentTarget.showPicker?.()}
+                    className="h-7 rounded-md border px-2.5 text-xs font-medium tabular-nums outline-none transition-colors"
+                    style={{
+                      borderColor: timeIsExplicit ? "var(--series-2)" : "var(--border-hairline)",
+                      background: "var(--surface-1)",
+                      color: "var(--text-primary)",
+                    }}
+                  />
+                  {!timeIsExplicit && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLogTime(defaultLogTimeValue());
+                        setShowTimeField(false);
+                      }}
+                      className="text-xs underline decoration-dotted"
+                      style={{ color: "var(--text-muted)" }}
+                    >
+                      now
+                    </button>
+                  )}
+                </label>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowTimeField(true)}
+                  className="text-xs font-medium"
+                  style={{ color: "var(--text-muted)" }}
+                >
+                  Time: <span style={{ color: "var(--text-secondary)" }}>now</span>
+                  <span className="ml-1 underline decoration-dotted">change</span>
+                </button>
+              )}
               {tabConfig?.countable && (
                 <div className="inline-flex rounded-md border p-0.5" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
                   {tagOptionsForType(tab).map((m) => {
