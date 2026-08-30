@@ -54,6 +54,12 @@ describe("SyncStatusBanner", () => {
     expect(screen.getByText("3 changes pending sync")).toBeInTheDocument();
   });
 
+  it("reassures instead when offline with pending changes", () => {
+    mockData({ syncState: { pending: 2, deadLetter: 0 }, isOnline: false });
+    render(<SyncStatusBanner />);
+    expect(screen.getByText(/Offline — 2 changes are saved on this device/)).toBeInTheDocument();
+  });
+
   it("shows the dead-letter count collapsed, then the entry list on Details", async () => {
     const entry = baseEntry();
     mockData({ syncState: { pending: 0, deadLetter: 1 }, deadLetterEntries: [entry] });

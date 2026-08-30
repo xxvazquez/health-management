@@ -1,6 +1,7 @@
 "use client";
 
 import { useAuth } from "@/lib/supabase/AuthContext";
+import { useData } from "@/lib/DataContext";
 import { displayNameFromEmail } from "@/components/auth/AccountPanel";
 
 function PersonIcon() {
@@ -12,10 +13,22 @@ function PersonIcon() {
   );
 }
 
+/** At-a-glance sync health on the account button: green once everything's
+ * reached the cloud, muted while a change is still on its way (offline,
+ * pending, mid-sync), amber if something failed and needs a look — full
+ * detail is in the account panel this button opens. */
+function useSyncDotColor(): string | null {
+  const { syncState, syncing, isOnline } = useData();
+  if (syncState.deadLetter > 0) return "var(--status-warning)";
+  if (syncing || syncState.pending > 0 || !isOnline) return "var(--text-muted)";
+  return "var(--status-good)";
+}
+
 /** The main menu's account entry — "Log in" when signed out, "Hi, name"
  * when signed in. Both states open the single shared AccountPanel. */
 export function AccountMenuButton({ collapsed }: { collapsed?: boolean }) {
   const { configured, session, loading, openPanel } = useAuth();
+  const dotColor = useSyncDotColor();
 
   if (!configured || loading) return null;
 
@@ -28,7 +41,7 @@ export function AccountMenuButton({ collapsed }: { collapsed?: boolean }) {
         onClick={openPanel}
         title={label}
         aria-label={label}
-        className="flex h-9 w-9 items-center justify-center self-center rounded-full border"
+        className="relative flex h-9 w-9 items-center justify-center self-center rounded-full border"
         style={{
           borderColor: session ? "var(--border-hairline)" : "var(--series-1)",
           background: session ? "var(--page-plane)" : "color-mix(in oklab, var(--series-1) 14%, var(--surface-1))",
@@ -36,6 +49,12 @@ export function AccountMenuButton({ collapsed }: { collapsed?: boolean }) {
         }}
       >
         <PersonIcon />
+        {session && (
+          <span
+            className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full ring-2"
+            style={{ background: dotColor ?? "transparent", ["--tw-ring-color" as string]: "var(--page-backdrop)" }}
+          />
+        )}
       </button>
     );
   }
@@ -53,6 +72,7 @@ export function AccountMenuButton({ collapsed }: { collapsed?: boolean }) {
     >
       <PersonIcon />
       {label}
+      {session && <span className="ml-auto h-2 w-2 shrink-0 rounded-full" style={{ background: dotColor ?? "transparent" }} />}
     </button>
   );
 }
