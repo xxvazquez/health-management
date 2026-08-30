@@ -43,6 +43,9 @@ import { CodeBoard } from "@/components/home/CodeBoard";
 import { TAB_ICON } from "@/components/tabIcons";
 
 const ACCENT = "var(--series-indigo)";
+// The Expiration board is shared with the personal Log page, which uses
+// this hue for it — kept in sync here so the two look identical.
+const EXPIRATION_ACCENT = "var(--series-2)";
 
 /** In-memory, per-session cache of the signed-in account's shared boards,
  * so leaving `/home` and coming back doesn't blank to "Loading…" while the
@@ -464,7 +467,7 @@ export default function HomePage() {
           items={items}
           loading={!isDemo && itemsLoading}
           error={itemsError}
-          accent={ACCENT}
+          accent={EXPIRATION_ACCENT}
           onCreate={handleCreateItem}
           onEdit={handleEditItem}
           onDelete={handleDeleteItem}

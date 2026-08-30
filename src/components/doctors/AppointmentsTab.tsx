@@ -37,7 +37,7 @@ export function AppointmentsTab({ api, accent }: { api: DoctorsApi; accent: stri
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex justify-end">
+      <div className="hidden justify-end lg:flex">
         <PrimaryAction label="Log appointment" accent={accent} onClick={() => setComposing(true)} />
       </div>
       <AppointmentList api={api} appointments={appointments.data} accent={accent} emptyMessage="No appointments logged yet — tap Log appointment to record a visit you've already had." />

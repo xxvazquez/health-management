@@ -1447,6 +1447,9 @@ export default function LogPage() {
     );
   }
 
+  /** A plain tracked item — Habits, and Supplements (a supplement tap logs
+   * it for the time of day selected above; the M/A/N split is the "which
+   * dose", so the row itself is just a toggle, no per-row counter). */
   function renderHabitRow(c: LogCandidate, accent: string) {
     // Measures (Sleep's bands, a duration stepper) normally render in their
     // own section — this fallthrough only matters if one is ever shown
@@ -1468,44 +1471,6 @@ export default function LogPage() {
             {c.item}
           </span>
         </button>
-      </li>
-    );
-  }
-
-  /** Supplements: tap the row to log a dose for the selected time of day;
-   * the count and a small − appear once at least one dose is logged. */
-  function renderSupplementRow(c: LogCandidate, accent: string) {
-    const count = mealCounts.get(c.key) ?? 0;
-    const busy = pending === c.key;
-    return (
-      <li
-        key={c.key}
-        className={`flex items-center rounded-md pr-1 text-xs ${count > 0 ? "col-span-full" : ""}`}
-        style={{ ...trackRowStyle(count > 0, accent), opacity: busy ? 0.6 : 1 }}
-      >
-        <button type="button" onClick={() => void handleIncrement(c)} disabled={busy} className="flex min-w-0 flex-1 items-center gap-1.5 px-2 py-1 text-left disabled:opacity-50">
-          <RowMark accent={accent}>{count > 0 ? "✓" : null}</RowMark>
-          <span className="min-w-0 flex-1 truncate" style={{ fontWeight: count > 0 ? 500 : 400 }}>
-            {c.item}
-          </span>
-        </button>
-        {count > 0 && (
-          <>
-            <span className="shrink-0 text-xs font-semibold tabular-nums" style={{ color: accent }}>
-              {count}×
-            </span>
-            <button
-              type="button"
-              onClick={() => void handleDecrement(c)}
-              disabled={busy}
-              aria-label={`Remove a ${c.item} dose`}
-              className="shrink-0 rounded px-1.5 py-1 text-sm leading-none disabled:opacity-40"
-              style={{ color: "var(--text-muted)" }}
-            >
-              −
-            </button>
-          </>
-        )}
       </li>
     );
   }
@@ -1561,7 +1526,7 @@ export default function LogPage() {
                 </div>
                 <ul className="grid grid-cols-2 gap-x-3 gap-y-0.5">
                   {group.items.map((c) =>
-                    tab === "supplement" ? renderSupplementRow(c, accent) : tab === "outcome" ? renderSymptomRow(c, accent) : renderHabitRow(c, accent),
+                    tab === "outcome" ? renderSymptomRow(c, accent) : renderHabitRow(c, accent),
                   )}
                 </ul>
               </div>
@@ -1846,11 +1811,9 @@ export default function LogPage() {
               {groupedByCategory.length > 0 && (
                 <p className="flex items-center gap-1 text-xs" style={{ color: "var(--text-muted)" }}>
                   <span style={{ color: TYPE_ACCENT[tabConfig.type] }}>✓</span>
-                  {tab === "supplement"
-                    ? ` logged for ${meal.toLowerCase()} — tap to add a dose`
-                    : tab === "outcome"
-                      ? ` marked for ${formatDateLabel(date, today).toLowerCase()} — tap to raise intensity, or clear`
-                      : ` logged ${tabConfig.countable ? `for ${meal.toLowerCase()}` : formatDateLabel(date, today).toLowerCase()} — tap again to remove`}
+                  {tab === "outcome"
+                    ? ` marked for ${formatDateLabel(date, today).toLowerCase()} — tap to raise intensity, or clear`
+                    : ` logged ${tabConfig.countable ? `for ${meal.toLowerCase()}` : formatDateLabel(date, today).toLowerCase()} — tap again to remove`}
                 </p>
               )}
 
