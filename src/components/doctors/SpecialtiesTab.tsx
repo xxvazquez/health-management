@@ -10,8 +10,10 @@ type DoctorsApi = ReturnType<typeof useDoctors>;
 
 function SpecialtyHistory({ api, name, accent, onBack }: { api: DoctorsApi; name: string; accent: string; onBack: () => void }) {
   const key = name.toLowerCase();
-  const nextAppt = api.specialties.data.find((s) => s.name.toLowerCase() === key)?.nextAppointmentDate ?? null;
+  const specialty = api.specialties.data.find((s) => s.name.toLowerCase() === key);
+  const nextAppt = specialty?.nextAppointmentDate ?? null;
   const theirAppointments = api.appointments.data.filter((a) => a.specialty.toLowerCase() === key);
+  const theirEntries = specialty ? api.careLog.data.filter((e) => e.specialtyIds.includes(specialty.id)) : [];
 
   return (
     <div className="flex flex-col gap-4">
@@ -27,6 +29,31 @@ function SpecialtyHistory({ api, name, accent, onBack }: { api: DoctorsApi; name
           <NextAppointmentField date={nextAppt} onChange={(date) => void api.specialties.setNextAppointment(name, date)} accent={accent} />
         </div>
       </div>
+
+      {theirEntries.length > 0 && (
+        <>
+          <h3 className="text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
+            To raise here ({theirEntries.length})
+          </h3>
+          <ul className="flex flex-col divide-y rounded-xl border px-4" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
+            {theirEntries.map((e) => (
+              <li key={e.id} className="py-2.5">
+                <span className="text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>
+                  {formatDate(e.happenedOn)}
+                </span>
+                <span className="mt-0.5 block text-sm font-medium" style={{ color: "var(--text-primary)" }}>
+                  {e.title}
+                </span>
+                {e.body && (
+                  <span className="mt-0.5 block text-xs leading-snug" style={{ color: "var(--text-secondary)" }}>
+                    {e.body}
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
 
       <h3 className="text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
         Appointments ({theirAppointments.length})
@@ -47,19 +74,22 @@ export function SpecialtiesTab({ api, accent }: { api: DoctorsApi; accent: strin
     );
     return names.map((name) => {
       const key = name.toLowerCase();
+      const specialty = api.specialties.data.find((s) => s.name.toLowerCase() === key);
       return {
         name,
         count: api.appointments.data.filter((a) => a.specialty.toLowerCase() === key).length,
-        nextAppointmentDate: api.specialties.data.find((s) => s.name.toLowerCase() === key)?.nextAppointmentDate ?? null,
+        entryCount: specialty ? api.careLog.data.filter((e) => e.specialtyIds.includes(specialty.id)).length : 0,
+        nextAppointmentDate: specialty?.nextAppointmentDate ?? null,
       };
     });
-  }, [api.specialties.data, api.appointments.data, api.doctors.data]);
+  }, [api.specialties.data, api.appointments.data, api.doctors.data, api.careLog.data]);
 
   if (selected) return <SpecialtyHistory api={api} name={selected} accent={accent} onBack={() => setSelected(null)} />;
 
-  // Specialties with history or a next-appointment date first, then the rest.
-  const withActivity = rows.filter((r) => r.count > 0 || r.nextAppointmentDate);
-  const rest = rows.filter((r) => r.count === 0 && !r.nextAppointmentDate);
+  // Specialties with history, log entries, or a next-appointment date first,
+  // then the rest.
+  const withActivity = rows.filter((r) => r.count > 0 || r.entryCount > 0 || r.nextAppointmentDate);
+  const rest = rows.filter((r) => r.count === 0 && r.entryCount === 0 && !r.nextAppointmentDate);
 
   return (
     <div className="flex flex-col gap-4">
@@ -79,7 +109,9 @@ export function SpecialtiesTab({ api, accent }: { api: DoctorsApi; accent: strin
                   )}
                 </span>
                 <span className="shrink-0 text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>
-                  {row.count} visit{row.count === 1 ? "" : "s"}
+                  {row.count > 0 && `${row.count} visit${row.count === 1 ? "" : "s"}`}
+                  {row.count > 0 && row.entryCount > 0 && " · "}
+                  {row.entryCount > 0 && `${row.entryCount} to raise`}
                 </span>
               </button>
             </li>

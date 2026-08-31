@@ -144,4 +144,10 @@ export const TAB_ICON: Record<string, ReactNode> = {
       <path d="M7.6 8.4 9.2 10l3.2-3.4" />
     </TabIconWrap>
   ),
+  carelog: (
+    <TabIconWrap>
+      <path d="M4 4.6c0-.7.6-1.3 1.3-1.3H13l3 3v8.8c0 .7-.6 1.3-1.3 1.3H5.3c-.7 0-1.3-.6-1.3-1.3Z" />
+      <path d="M7 8h6M7 11h6M7 14h3.5" />
+    </TabIconWrap>
+  ),
 };
