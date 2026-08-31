@@ -7,6 +7,7 @@ import { AppointmentsTab } from "@/components/doctors/AppointmentsTab";
 import { DoctorsTab } from "@/components/doctors/DoctorsTab";
 import { SpecialtiesTab } from "@/components/doctors/SpecialtiesTab";
 import { FollowUpsTab } from "@/components/doctors/FollowUpsTab";
+import { CareLogTab } from "@/components/doctors/CareLogTab";
 import { ListSkeleton } from "@/components/ui/Skeleton";
 import { TabRail } from "@/components/ui/TabRail";
 
@@ -14,10 +15,12 @@ const APPOINTMENTS_ACCENT = "var(--series-2)";
 const DOCTORS_ACCENT = "var(--series-1)";
 const SPECIALTIES_ACCENT = "var(--series-3)";
 const FOLLOWUPS_ACCENT = "var(--series-berry)";
+const CARELOG_ACCENT = "var(--series-indigo)";
 
-type DoctorsTabId = "appointments" | "doctors" | "specialties" | "followups";
+type DoctorsTabId = "appointments" | "carelog" | "doctors" | "specialties" | "followups";
 const TABS: { id: DoctorsTabId; label: string; accent: string }[] = [
   { id: "appointments", label: "Appointments", accent: APPOINTMENTS_ACCENT },
+  { id: "carelog", label: "Log", accent: CARELOG_ACCENT },
   { id: "doctors", label: "Doctors", accent: DOCTORS_ACCENT },
   { id: "specialties", label: "Specialties", accent: SPECIALTIES_ACCENT },
   { id: "followups", label: "Follow-ups", accent: FOLLOWUPS_ACCENT },
@@ -102,6 +105,7 @@ export default function DoctorsPage() {
       ) : (
         <>
           {tab === "appointments" && <AppointmentsTab api={api} accent={APPOINTMENTS_ACCENT} />}
+          {tab === "carelog" && <CareLogTab api={api} accent={CARELOG_ACCENT} />}
           {tab === "doctors" && <DoctorsTab api={api} accent={DOCTORS_ACCENT} />}
           {tab === "specialties" && <SpecialtiesTab api={api} accent={SPECIALTIES_ACCENT} />}
           {tab === "followups" && <FollowUpsTab api={api} accent={FOLLOWUPS_ACCENT} />}

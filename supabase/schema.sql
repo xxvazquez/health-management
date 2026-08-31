@@ -730,6 +730,38 @@ create index doctor_appointment_tasks_user_appt_idx on public.doctor_appointment
 create index doctor_appointment_tasks_due_idx on public.doctor_appointment_tasks (user_id)
   where reminder_at is not null and reminder_sent_at is null and completed_at is null;
 
+-- Care log: a dated timeline of things to remember about your medical care
+-- between appointments — an `observation` you noticed (a symptom, a change
+-- in how you feel) or a plain `note`. Each entry is tagged to one or more
+-- specialties via care_entry_specialties, so it can be read whole ("what's
+-- been going on") or filtered to one specialty's context before a visit.
+-- Direct-to-Supabase, owner-only, same class as doctor_appointments above.
+-- (`kind` will gain 'result' and 'decision' in a later migration, along
+-- with the extra columns each needs.)
+create table public.care_entries (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id),
+  happened_on date not null default current_date,
+  kind text not null check (kind in ('observation', 'note')),
+  title text not null check (char_length(trim(title)) > 0),
+  body text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (user_id, id)
+);
+
+create table public.care_entry_specialties (
+  user_id uuid not null default auth.uid() references auth.users(id),
+  entry_id uuid not null,
+  specialty_id uuid not null,
+  primary key (entry_id, specialty_id),
+  foreign key (user_id, entry_id) references public.care_entries (user_id, id) on delete cascade,
+  foreign key (user_id, specialty_id) references public.doctor_specialties (user_id, id) on delete cascade
+);
+
+create index care_entries_user_date_idx on public.care_entries (user_id, happened_on desc);
+create index care_entry_specialties_specialty_idx on public.care_entry_specialties (user_id, specialty_id);
+
 -- Reminders -> Home: the same three concepts as Personal above, but shared
 -- with a linked partner (see partner_links, defined earlier) instead of
 -- owned outright. `owner_id` is whoever created the row; visibility/edit
@@ -853,6 +885,8 @@ alter table public.doctor_specialties enable row level security;
 alter table public.doctors enable row level security;
 alter table public.doctor_appointments enable row level security;
 alter table public.doctor_appointment_tasks enable row level security;
+alter table public.care_entries enable row level security;
+alter table public.care_entry_specialties enable row level security;
 alter table public.household_notes enable row level security;
 alter table public.household_tasks enable row level security;
 alter table public.household_task_completions enable row level security;
@@ -891,6 +925,8 @@ create policy "doctor_specialties_all_own" on public.doctor_specialties for all 
 create policy "doctors_all_own" on public.doctors for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "doctor_appointments_all_own" on public.doctor_appointments for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "doctor_appointment_tasks_all_own" on public.doctor_appointment_tasks for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "care_entries_all_own" on public.care_entries for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "care_entry_specialties_all_own" on public.care_entry_specialties for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 -- partner_invites: only the creator can see/manage their own pending
 -- invite (e.g. to show "your code is still waiting"). Redemption by the
