@@ -41,6 +41,9 @@ export interface EvidenceRecord {
 }
 
 const REVIEWED = "2026-08-21";
+// Records added when the vegetable/fruit taxonomy was split into
+// carotenoid / allium / citrus subgroups.
+const REVIEWED_SUBGROUPS = "2026-08-31";
 
 export const EVIDENCE_RECORDS: Record<string, EvidenceRecord> = {
   leafy_greens_evidence: {
@@ -132,6 +135,60 @@ export const EVIDENCE_RECORDS: Record<string, EvidenceRecord> = {
     limitations:
       "Observational design cannot establish causation, and the estimate is a pooled extrapolation rather than a randomized causal effect. Fruit juice was analyzed as a separate category and excluded from these whole-fruit estimates.",
     reviewedDate: REVIEWED,
+  },
+  red_orange_veg_evidence: {
+    id: "red_orange_veg_evidence",
+    topic: "Red & orange vegetables",
+    claim:
+      "Higher lycopene intake or blood level — supplied mainly by tomatoes and other red/orange produce — is associated with roughly 14% lower cardiovascular disease risk and 26% lower stroke risk (highest vs. lowest category).",
+    explanation:
+      "Red and orange vegetables are the main dietary source of carotenoids: β-carotene from carrots, squash and sweet potato, and lycopene from tomatoes. A 2019 systematic review and meta-analysis of epidemiological evidence (28 publications, 25 with quantitative data) found the highest category of lycopene intake or serum concentration associated with lower cardiovascular disease (HR 0.86, 95% CI 0.77–0.95), lower stroke risk (HR 0.74, 95% CI 0.62–0.89), and, for serum lycopene specifically, lower all-cause mortality (HR 0.63, 95% CI 0.49–0.81).",
+    foodGroup: "red_orange_veg",
+    strength: "Limited",
+    evidenceTypes: ["meta-analysis", "cohort"],
+    publicationYear: 2019,
+    pubmedId: "28799780",
+    doi: "10.1080/10408398.2017.1362630",
+    url: "https://pubmed.ncbi.nlm.nih.gov/28799780/",
+    limitations:
+      "The pooled estimate is for lycopene specifically — overwhelmingly from tomatoes — not the whole red/orange group, and it combines dietary-intake studies with serum-biomarker studies. All underlying evidence is observational, so residual confounding by overall diet quality can't be excluded. Randomized β-carotene supplement trials have shown no cardiovascular benefit and, in smokers, increased lung cancer — so this association is not a case for carotenoid supplements.",
+    reviewedDate: REVIEWED_SUBGROUPS,
+  },
+  alliums_evidence: {
+    id: "alliums_evidence",
+    topic: "Onion-family vegetables",
+    claim:
+      "High intake of allium vegetables (onion, garlic, leek) is associated with roughly 46% lower gastric cancer risk versus low intake, with a dose-response relationship of about 9% lower risk per 20 g/day.",
+    explanation:
+      "Allium vegetables are the main dietary source of organosulfur compounds such as allicin. A 2011 meta-analysis in Gastroenterology pooling 19 case-control and 2 cohort studies (543,220 participants) found high allium vegetable intake associated with lower gastric cancer risk (OR 0.54, 95% CI 0.43–0.65), and estimated a per-20 g/day OR of 0.91 (95% CI 0.88–0.94).",
+    foodGroup: "alliums",
+    strength: "Limited",
+    evidenceTypes: ["meta-analysis", "cohort"],
+    publicationYear: 2011,
+    pubmedId: "21473867",
+    doi: "10.1053/j.gastro.2011.03.057",
+    url: "https://pubmed.ncbi.nlm.nih.gov/21473867/",
+    limitations:
+      "19 of the 21 pooled studies are case-control, a design prone to recall and selection bias, and the meta-analysis noted the inverse association held in Asian populations but not consistently in European or US ones. The evidence is for gastric cancer specifically; associations with cardiovascular disease and other cancers are thinner and come largely from concentrated garlic supplements rather than culinary amounts.",
+    reviewedDate: REVIEWED_SUBGROUPS,
+  },
+  citrus_evidence: {
+    id: "citrus_evidence",
+    topic: "Citrus fruit",
+    claim:
+      "Higher dietary flavanone intake — citrus fruit is the dominant source — is associated with roughly 15% lower stroke risk, with about an 11% reduction per 50 mg/day.",
+    explanation:
+      "Citrus fruits (oranges, lemons, grapefruit, mandarins) are the main dietary source of the flavanones hesperidin and naringenin, and a major source of vitamin C. A 2022 meta-analysis of 10 prospective cohort studies (387,076 participants, 9,564 stroke events) found higher flavanone intake associated with lower stroke risk (RR 0.85, 95% CI 0.78–0.93), with a dose-response of RR 0.89 (95% CI 0.84–0.94) per 50 mg/day.",
+    foodGroup: "citrus",
+    strength: "Limited",
+    evidenceTypes: ["meta-analysis", "cohort"],
+    publicationYear: 2022,
+    pubmedId: "35023220",
+    doi: "10.1002/ptr.7376",
+    url: "https://pubmed.ncbi.nlm.nih.gov/35023220/",
+    limitations:
+      "The exposure is total flavanone intake rather than citrus fruit directly, though citrus is its main source; a meaningful share of flavanone intake in these cohorts came from juice, which carries different sugar and fibre. All studies are observational, and the association was specific to stroke — not other cardiovascular endpoints.",
+    reviewedDate: REVIEWED_SUBGROUPS,
   },
   legumes_evidence: {
     id: "legumes_evidence",

@@ -2,19 +2,27 @@ import { describe, expect, it } from "vitest";
 import { NUTRITION_GROUP_EXAMPLES, NUTRITION_GROUPS, nutritionGroupsForFood } from "./nutritionGroups";
 
 describe("nutritionGroupsForFood", () => {
-  it("places a plain vegetable in other_vegetables", () => {
-    expect(nutritionGroupsForFood("Carrot")).toEqual(["other_vegetables"]);
-    expect(nutritionGroupsForFood("Tomato")).toEqual(["other_vegetables"]);
+  it("splits vegetables into research-backed subgroups", () => {
+    expect(nutritionGroupsForFood("Carrot")).toEqual(["red_orange_veg"]);
+    expect(nutritionGroupsForFood("Tomato")).toEqual(["red_orange_veg"]);
+    expect(nutritionGroupsForFood("Sweet potato")).toEqual(["red_orange_veg"]);
+    expect(nutritionGroupsForFood("Onion")).toEqual(["alliums"]);
+    expect(nutritionGroupsForFood("Garlic")).toEqual(["alliums"]);
+    expect(nutritionGroupsForFood("Cucumber")).toEqual(["other_vegetables"]);
+    expect(nutritionGroupsForFood("Mushroom")).toEqual(["other_vegetables"]);
   });
 
-  it("keeps white potato out of every group — starchy, not a vegetable serving", () => {
-    expect(nutritionGroupsForFood("Potato")).toEqual([]);
-    expect(nutritionGroupsForFood("Potatoes")).toEqual([]);
-    expect(nutritionGroupsForFood("Mashed potato")).toEqual([]);
+  it("splits citrus off from other fruit", () => {
+    expect(nutritionGroupsForFood("Orange")).toEqual(["citrus"]);
+    expect(nutritionGroupsForFood("Grapefruit")).toEqual(["citrus"]);
+    expect(nutritionGroupsForFood("Apple")).toEqual(["other_fruit"]);
   });
 
-  it("still counts sweet potato as a vegetable", () => {
-    expect(nutritionGroupsForFood("Sweet potato")).toEqual(["other_vegetables"]);
+  it("puts starchy roots in their own group, not with vegetables for health", () => {
+    expect(nutritionGroupsForFood("Potato")).toEqual(["starchy_veg"]);
+    expect(nutritionGroupsForFood("Potatoes")).toEqual(["starchy_veg"]);
+    expect(nutritionGroupsForFood("Mashed potato")).toEqual(["starchy_veg"]);
+    expect(nutritionGroupsForFood("Plantain")).toEqual(["starchy_veg"]);
   });
 
   it("does not treat plant milks as dairy", () => {

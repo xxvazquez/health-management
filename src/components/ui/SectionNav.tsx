@@ -14,10 +14,10 @@ export interface SectionNavItem {
  * getting to "Repetition" or "Ingredients" never means scrolling past
  * everything else first.
  *
- * A thin wrapper over `TabRail` (the app's one tab shape) that pins it just
- * below the page's own sticky domain switcher on `lg`, and gives every
- * active tab one consistent accent — matching the rule that colour marks
- * meaning, not just tells N similar things apart.
+ * A thin wrapper over `TabRail` (the app's one tab shape) that stays pinned
+ * while a long section scrolls — below the app header on mobile, below the
+ * page's own domain switcher on `lg` — and gives every active tab one
+ * consistent accent, matching the rule that colour marks meaning.
  */
 export function SectionNav({
   items,
@@ -39,7 +39,8 @@ export function SectionNav({
       items={items.map((item) => ({ ...item, accent }))}
       activeId={activeId}
       onSelect={onSelect}
-      className="bg-[var(--page-backdrop)] lg:sticky lg:top-8 lg:z-10"
+      wrap={false}
+      className="sticky top-16 z-10 -mx-4 border-b border-[color:var(--border-hairline)] bg-[var(--page-backdrop)] px-4 pt-3 sm:-mx-6 sm:px-6 lg:top-8 lg:mx-0 lg:px-0"
     />
   );
 }

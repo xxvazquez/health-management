@@ -1,6 +1,8 @@
 import type { CanonicalEvent } from "@/lib/types";
 import { addDaysToDate, daysBetween, getDatasetSpan, type DateRange } from "./common";
 import {
+  CORE_FRUIT_GROUPS,
+  CORE_VEGETABLE_GROUPS,
   NUTRITION_GROUP_EXAMPLES,
   NUTRITION_GROUP_LABEL,
   PILLAR_LABEL,
@@ -267,8 +269,11 @@ function computeGroupState(group: NutritionGroupId, foods: CanonicalEvent[], ran
 const ADD_PHRASE: Partial<Record<NutritionGroupId, string>> = {
   leafy_greens: "Add leafy greens",
   cruciferous: "Add cruciferous vegetables",
+  red_orange_veg: "Add red & orange veg",
+  alliums: "Add onions, garlic or leeks",
   other_vegetables: "Add more vegetable variety",
   berries: "Add berries",
+  citrus: "Add citrus fruit",
   other_fruit: "Add more fruit",
   legumes: "Add a legume",
   whole_grains: "Add whole grains",
@@ -506,13 +511,17 @@ export function computeNutritionPriorities(events: CanonicalEvent[], range: Date
 
   // ---- Coverage table: the fixed compact set from the design brief ----
   const byGroup = new Map(allGroupStates.map((s) => [s.group, s]));
-  const vegState = computeAggregateState(["leafy_greens", "cruciferous", "other_vegetables"], 7, "Vegetables (overall)", "vegetables", foods, range, insufficientData);
-  const fruitState = computeAggregateState(["berries", "other_fruit"], 7, "Fruit (overall)", "fruit", foods, range, insufficientData);
+  const vegState = computeAggregateState(CORE_VEGETABLE_GROUPS, 7, "Vegetables (overall)", "vegetables", foods, range, insufficientData);
+  const fruitState = computeAggregateState(CORE_FRUIT_GROUPS, 7, "Fruit (overall)", "fruit", foods, range, insufficientData);
   const nutsSeedsState = computeAggregateState(["nuts", "seeds"], 5, "Nuts & seeds", "nuts_seeds", foods, range, insufficientData);
 
   const coverageTable: CoverageRow[] = [
     rowFor("Leafy greens", byGroup.get("leafy_greens")!),
+    rowFor("Cruciferous", byGroup.get("cruciferous")!),
+    rowFor("Red & orange veg", byGroup.get("red_orange_veg")!),
+    rowFor("Onion family", byGroup.get("alliums")!),
     rowFor("Berries", byGroup.get("berries")!),
+    rowFor("Citrus", byGroup.get("citrus")!),
     rowFor("Legumes", byGroup.get("legumes")!),
     rowFor("Whole grains", byGroup.get("whole_grains")!),
     rowFor("Nuts & seeds", nutsSeedsState),
@@ -559,8 +568,8 @@ export function computeNutritionPriorities(events: CanonicalEvent[], range: Date
         plantItems.add(e.item);
         plantGroupsSeen.add(g);
       }
-      if (g === "leafy_greens" || g === "cruciferous" || g === "other_vegetables") vegItems.add(e.item);
-      if (g === "berries" || g === "other_fruit") fruitItems.add(e.item);
+      if (CORE_VEGETABLE_GROUPS.includes(g)) vegItems.add(e.item);
+      if (CORE_FRUIT_GROUPS.includes(g)) fruitItems.add(e.item);
       if (g === "legumes") legumeItems.add(e.item);
       if (g === "nuts" || g === "seeds") nutSeedItems.add(e.item);
     }
@@ -595,7 +604,7 @@ export function computeNutritionPriorities(events: CanonicalEvent[], range: Date
 
     const uniquePlants = (list: CanonicalEvent[]) => new Set(list.filter((e) => groupsFor(e.item).some((g) => PLANT_GROUPS.includes(g))).map((e) => e.item)).size;
     const uniqueVeg = (list: CanonicalEvent[]) =>
-      new Set(list.filter((e) => groupsFor(e.item).some((g) => g === "leafy_greens" || g === "cruciferous" || g === "other_vegetables")).map((e) => e.item)).size;
+      new Set(list.filter((e) => groupsFor(e.item).some((g) => CORE_VEGETABLE_GROUPS.includes(g))).map((e) => e.item)).size;
     const exposureDays = (list: CanonicalEvent[], group: NutritionGroupId) => new Set(list.filter((e) => groupsFor(e.item).includes(group)).map((e) => e.date)).size;
     const coverageCount = (list: CanonicalEvent[]) => PRIORITY_ELIGIBLE_GROUPS.filter((g) => list.some((e) => groupsFor(e.item).includes(g))).length;
 
