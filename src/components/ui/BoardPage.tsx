@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { TAB_ICON } from "@/components/tabIcons";
+import { TabRail } from "@/components/ui/TabRail";
 
 export interface BoardPageTab {
   id: string;
@@ -27,9 +28,10 @@ interface BoardPageProps {
 }
 
 /** Shared shell for the Household and Personal pages: a title with the
- * coloured left rule, a horizontally-scrolling underlined tab bar, and the
- * active board below. Keeps the two pages structurally identical — only the
- * tab set, colours, and board content differ. */
+ * coloured left rule, an underlined tab bar that wraps to a second row on
+ * narrow screens rather than scrolling sideways (so no tab is ever hidden
+ * off-edge), and the active board below. Keeps the two pages structurally
+ * identical — only the tab set, colours, and board content differ. */
 export function BoardPage({ title, accent, tabs, activeTab, onSelectTab, notice, children }: BoardPageProps) {
   return (
     <div className="flex flex-col gap-4">
@@ -39,31 +41,11 @@ export function BoardPage({ title, accent, tabs, activeTab, onSelectTab, notice,
         </h1>
       </div>
 
-      <nav
-        className="no-scrollbar flex items-center gap-5 overflow-x-auto border-b"
-        style={{ borderColor: `color-mix(in oklab, ${accent} 22%, var(--border-hairline))` }}
-      >
-        {tabs.map((t) => {
-          const active = t.id === activeTab;
-          return (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => onSelectTab(t.id)}
-              className="flex shrink-0 items-center gap-1.5 pb-2.5 text-sm whitespace-nowrap transition-colors"
-              style={{
-                color: active ? t.accent : "var(--text-secondary)",
-                fontWeight: active ? 700 : 500,
-                borderBottom: `2px solid ${active ? t.accent : "transparent"}`,
-                marginBottom: "-1px",
-              }}
-            >
-              {TAB_ICON[t.icon]}
-              {t.label}
-            </button>
-          );
-        })}
-      </nav>
+      <TabRail
+        items={tabs.map((t) => ({ id: t.id, label: t.label, icon: TAB_ICON[t.icon], accent: t.accent }))}
+        activeId={activeTab}
+        onSelect={onSelectTab}
+      />
 
       {notice && (
         <p className="text-xs" style={{ color: accent }}>

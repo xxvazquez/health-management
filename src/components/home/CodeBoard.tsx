@@ -251,7 +251,7 @@ function CodeItem({ code, accent, onEdit, onDelete }: { code: HouseholdCode; acc
           </span>
         )}
       </div>
-      <div className="flex shrink-0 items-center gap-1">
+      <div className="flex shrink-0 items-center gap-4">
         {confirmingDelete ? (
           <>
             <button type="button" onClick={onDelete} className="rounded-md px-2 py-1 text-xs font-semibold" style={{ color: "var(--status-critical)" }}>
@@ -268,7 +268,7 @@ function CodeItem({ code, accent, onEdit, onDelete }: { code: HouseholdCode; acc
               onClick={onEdit}
               aria-label="Edit code"
               title="Edit code"
-              className="rounded-md p-1.5 transition-colors hover:bg-[var(--page-plane)]"
+              className="tap-target rounded-md p-1.5 transition-colors hover:bg-[var(--page-plane)]"
               style={{ color: "var(--text-muted)" }}
             >
               <PencilIcon size={15} />
@@ -278,7 +278,7 @@ function CodeItem({ code, accent, onEdit, onDelete }: { code: HouseholdCode; acc
               onClick={() => setConfirmingDelete(true)}
               aria-label="Remove code"
               title="Remove code"
-              className="notebook-danger rounded-md p-1.5 transition-colors hover:bg-[var(--page-plane)]"
+              className="tap-target notebook-danger rounded-md p-1.5 transition-colors hover:bg-[var(--page-plane)]"
               style={{ color: "var(--text-muted)" }}
             >
               <TrashIcon size={15} />

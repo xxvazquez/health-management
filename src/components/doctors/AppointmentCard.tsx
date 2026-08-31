@@ -63,7 +63,7 @@ export function AppointmentCard({
             {!showDoctor && <span style={{ color: "var(--text-muted)" }}> · {appointment.specialty}</span>}
           </div>
         </div>
-        <div className="flex shrink-0 items-center gap-0.5">
+        <div className="flex shrink-0 items-center gap-4">
           <IconAction onClick={onEdit} label="Edit appointment">
             <PencilIcon size={15} />
           </IconAction>

@@ -81,7 +81,7 @@ function RowIcon({
       disabled={disabled}
       aria-label={label}
       title={label}
-      className={`rounded-md p-1.5 transition-colors hover:bg-[var(--page-plane)] disabled:opacity-40 ${danger ? "notebook-danger" : ""}`}
+      className={`tap-target rounded-md p-1.5 transition-colors hover:bg-[var(--page-plane)] disabled:opacity-40 ${danger ? "notebook-danger" : ""}`}
       style={{ color: "var(--text-muted)" }}
     >
       {children}
@@ -145,7 +145,7 @@ export function ItemActionButtons({
   }
 
   return (
-    <span className="flex items-center gap-0.5">
+    <span className="flex items-center gap-1">
       <RowIcon onClick={state.start} disabled={busy} label="Rename">
         <PencilIcon size={15} />
       </RowIcon>

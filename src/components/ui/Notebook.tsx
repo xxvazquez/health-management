@@ -34,10 +34,9 @@ function firstLine(body: string, max = 160): string {
 
 /** One row in the notes / journal list. The whole row opens the entry
  * (there is no separate "expand" — the editor is the reading view, same as
- * iOS Notes). Edit and delete are always-visible trailing icons (matching
- * the rest of the app), delete always with a confirm step. `metaFirst`
- * flips the stack to meta → title → body, which Journal uses so the date
- * leads each row. */
+ * iOS Notes), so the only trailing action is delete, always with a confirm
+ * step. `metaFirst` flips the stack to meta → title → body, which Journal
+ * uses so the date leads each row. */
 export function NoteRow({
   title,
   meta,
@@ -76,43 +75,31 @@ export function NoteRow({
         </span>
       </button>
 
-      <div className="flex shrink-0 items-center gap-0.5 self-center pl-1">
-        {confirmingDelete ? (
-          <>
-            <button type="button" onClick={onDelete} className="rounded-md px-2 py-1 text-xs font-semibold" style={{ color: "var(--status-critical)" }}>
-              Delete
-            </button>
-            <button type="button" onClick={() => setConfirmingDelete(false)} className="rounded-md px-2 py-1 text-xs font-medium" style={{ color: "var(--text-muted)" }}>
-              Keep
-            </button>
-          </>
-        ) : (
-          <>
+      {onDelete && (
+        <div className="flex shrink-0 items-center gap-1 self-center pl-1">
+          {confirmingDelete ? (
+            <>
+              <button type="button" onClick={onDelete} className="rounded-md px-2 py-1.5 text-xs font-semibold" style={{ color: "var(--status-critical)" }}>
+                Delete
+              </button>
+              <button type="button" onClick={() => setConfirmingDelete(false)} className="rounded-md px-2 py-1.5 text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+                Keep
+              </button>
+            </>
+          ) : (
             <button
               type="button"
-              onClick={onOpen}
-              aria-label={`Edit ${title}`}
-              title="Edit"
-              className="rounded-md p-1.5 transition-colors hover:bg-[var(--page-plane)]"
+              onClick={() => setConfirmingDelete(true)}
+              aria-label={`Delete ${title}`}
+              title="Delete"
+              className="tap-target notebook-danger rounded-md p-1.5 transition-colors hover:bg-[var(--page-plane)]"
               style={{ color: "var(--text-muted)" }}
             >
-              <PencilIcon size={15} />
+              <TrashIcon size={15} />
             </button>
-            {onDelete && (
-              <button
-                type="button"
-                onClick={() => setConfirmingDelete(true)}
-                aria-label={`Delete ${title}`}
-                title="Delete"
-                className="notebook-danger rounded-md p-1.5 transition-colors hover:bg-[var(--page-plane)]"
-                style={{ color: "var(--text-muted)" }}
-              >
-                <TrashIcon size={15} />
-              </button>
-            )}
-          </>
-        )}
-      </div>
+          )}
+        </div>
+      )}
     </li>
   );
 }

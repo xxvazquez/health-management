@@ -313,7 +313,7 @@ function NavLinkList({
             onClick={onNavigate}
             title={collapsed ? link.label : undefined}
             className={clsx(
-              "relative flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-colors",
+              "relative flex items-center gap-2.5 rounded-lg px-3 py-3 text-sm font-medium whitespace-nowrap transition-colors lg:py-1.5",
               collapsed && "justify-center px-0",
               !active && "hover:bg-[var(--page-plane)]",
             )}
@@ -480,7 +480,7 @@ export function Nav() {
             type="button"
             aria-label="Open menu"
             onClick={() => setMobileOpen(true)}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full"
             style={{ background: "var(--page-plane)", color: "var(--text-primary)" }}
           >
             <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
@@ -519,7 +519,7 @@ export function Nav() {
             type="button"
             aria-label="Close menu"
             onClick={() => setMobileOpen(false)}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full"
             style={{ background: "var(--page-plane)", color: "var(--text-primary)" }}
           >
             <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">

@@ -23,6 +23,7 @@ export function FollowUpTaskRow({
   onDelete: () => void;
 }) {
   const [editing, setEditing] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [description, setDescription] = useState(task.description);
   const [dueDate, setDueDate] = useState(task.dueDate ?? "");
   const [reminderAt, setReminderAt] = useState(task.reminderAt ? toLocalInput(task.reminderAt) : "");
@@ -89,13 +90,26 @@ export function FollowUpTaskRow({
           {done && task.completedAt && <span>· done {formatDate(task.completedAt)}</span>}
         </span>
       </div>
-      <div className="flex shrink-0 items-center gap-0.5">
-        <IconAction onClick={() => setEditing(true)} label="Edit task">
-          <PencilIcon size={15} />
-        </IconAction>
-        <IconAction onClick={onDelete} label="Delete task" tone="critical">
-          <TrashIcon size={15} />
-        </IconAction>
+      <div className="flex shrink-0 items-center gap-4 self-center">
+        {confirmingDelete ? (
+          <>
+            <button type="button" onClick={onDelete} className="rounded-md px-2 py-1.5 text-xs font-semibold" style={{ color: "var(--status-critical)" }}>
+              Delete
+            </button>
+            <button type="button" onClick={() => setConfirmingDelete(false)} className="rounded-md px-2 py-1.5 text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+              Keep
+            </button>
+          </>
+        ) : (
+          <>
+            <IconAction onClick={() => setEditing(true)} label="Edit task">
+              <PencilIcon size={15} />
+            </IconAction>
+            <IconAction onClick={() => setConfirmingDelete(true)} label="Delete task" tone="critical">
+              <TrashIcon size={15} />
+            </IconAction>
+          </>
+        )}
       </div>
     </div>
   );

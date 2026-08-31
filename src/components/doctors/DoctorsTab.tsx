@@ -79,7 +79,7 @@ function DoctorHistory({ api, doctor, accent, onBack }: { api: DoctorsApi; docto
                     setEditingDetails(true);
                   }}
                   aria-label="Edit name and specialty"
-                  className="rounded-md p-1 transition-colors hover:bg-[var(--page-plane)]"
+                  className="tap-target rounded-md p-1 transition-colors hover:bg-[var(--page-plane)]"
                   style={{ color: "var(--text-muted)" }}
                 >
                   <PencilIcon size={13} />

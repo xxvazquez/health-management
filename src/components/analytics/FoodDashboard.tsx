@@ -36,6 +36,7 @@ import {
   type DietBalanceStatus,
 } from "@/lib/aggregations/nutritionPriorities";
 import { TYPE_ACCENT } from "@/taxonomy/categories";
+import { NUTRITION_GROUP_EXAMPLES } from "@/taxonomy/nutritionGroups";
 
 const STATUS_COLOR: Record<GroupStatus, string> = {
   "not-enough-data": "var(--text-muted)",
@@ -256,7 +257,14 @@ export function FoodDashboard() {
 
   const rangeLabel = span && range ? (range.start === span.start && range.end === span.end ? "all time" : `${range.start} – ${range.end}`) : "";
 
-  const gaps = priorities.missing.map((b) => b.label);
+  // Spell out the groups whose name alone ("Other veg", "Other fruit") does
+  // not tell the reader what's in them — a few examples inline, right where
+  // the gap is named.
+  const gaps = priorities.missing.map((b) => {
+    if (!b.group || !/^Other\b/.test(b.label)) return b.label;
+    const eg = NUTRITION_GROUP_EXAMPLES[b.group].split(", ").slice(0, 3).join(", ");
+    return `${b.label} (${eg})`;
+  });
   const foodInsight = priorities.insufficientData
     ? {
         label: "Food",

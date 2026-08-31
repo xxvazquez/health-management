@@ -8,6 +8,7 @@ import { DoctorsTab } from "@/components/doctors/DoctorsTab";
 import { SpecialtiesTab } from "@/components/doctors/SpecialtiesTab";
 import { FollowUpsTab } from "@/components/doctors/FollowUpsTab";
 import { ListSkeleton } from "@/components/ui/Skeleton";
+import { TabRail } from "@/components/ui/TabRail";
 
 const APPOINTMENTS_ACCENT = "var(--series-2)";
 const DOCTORS_ACCENT = "var(--series-1)";
@@ -80,28 +81,11 @@ export default function DoctorsPage() {
         </h1>
       </div>
 
-      <nav className="no-scrollbar flex items-center gap-5 overflow-x-auto border-b" style={{ borderColor: `color-mix(in oklab, ${active.accent} 22%, var(--border-hairline))` }}>
-        {TABS.map((t) => {
-          const isActive = t.id === active.id;
-          return (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => selectTab(t.id)}
-              className="flex shrink-0 items-center gap-1.5 pb-2.5 text-sm whitespace-nowrap transition-colors"
-              style={{
-                color: isActive ? t.accent : "var(--text-secondary)",
-                fontWeight: isActive ? 700 : 500,
-                borderBottom: `2px solid ${isActive ? t.accent : "transparent"}`,
-                marginBottom: "-1px",
-              }}
-            >
-              {TAB_ICON[t.id]}
-              {t.label}
-            </button>
-          );
-        })}
-      </nav>
+      <TabRail
+        items={TABS.map((t) => ({ ...t, icon: TAB_ICON[t.id] }))}
+        activeId={tab}
+        onSelect={selectTab}
+      />
 
       {api.isDemo && (
         <p className="text-xs" style={{ color: active.accent }}>

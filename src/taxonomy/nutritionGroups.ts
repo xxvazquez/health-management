@@ -42,7 +42,7 @@ export type NutritionGroupId = (typeof NUTRITION_GROUPS)[number];
 export const NUTRITION_GROUP_LABEL: Record<NutritionGroupId, string> = {
   leafy_greens: "Leafy greens",
   cruciferous: "Cruciferous vegetables",
-  other_vegetables: "Other vegetables",
+  other_vegetables: "Other veg",
   berries: "Berries",
   other_fruit: "Other fruit",
   legumes: "Legumes",
@@ -61,6 +61,36 @@ export const NUTRITION_GROUP_LABEL: Record<NutritionGroupId, string> = {
   processed_meat: "Processed meat",
   red_meat: "Red meat",
   highly_processed: "Highly processed foods",
+};
+
+/**
+ * A few concrete, recognisable members of each group — shown next to the
+ * label wherever the name alone doesn't say enough ("Other veg", "Other
+ * fruit", "Fermented dairy"). Not the full membership, just enough to
+ * anchor what the group means at a glance.
+ */
+export const NUTRITION_GROUP_EXAMPLES: Record<NutritionGroupId, string> = {
+  leafy_greens: "spinach, kale, lettuce",
+  cruciferous: "broccoli, cabbage, cauliflower",
+  other_vegetables: "carrot, pepper, onion, mushroom, courgette",
+  berries: "blueberries, raspberries, strawberries",
+  other_fruit: "apple, banana, orange, grapes",
+  legumes: "lentils, chickpeas, beans",
+  whole_grains: "oats, quinoa, buckwheat",
+  refined_grains: "bread, pasta, white rice",
+  nuts: "almonds, walnuts, peanuts",
+  seeds: "chia, flax, sesame",
+  fatty_fish: "salmon, mackerel, sardines",
+  other_seafood: "cod, shrimp, mussels",
+  poultry: "chicken, turkey",
+  eggs: "eggs",
+  fermented_dairy: "yoghurt, kefir, cheese",
+  dairy_other: "milk, cream, butter",
+  olive_oil: "olive oil",
+  other_unsaturated_fat: "avocado, seed & nut oils",
+  processed_meat: "bacon, sausage, ham",
+  red_meat: "beef, pork, lamb",
+  highly_processed: "sweets, cake, crisps",
 };
 
 /** Broad dietary "pillars" — the level most insight copy is written at. */
@@ -150,8 +180,12 @@ const GROUP_KEYWORDS: Record<string, NutritionGroupId[]> = {
   mushroom: ["other_vegetables"], chanterelle: ["other_vegetables"], leek: ["other_vegetables"],
   celeriac: ["other_vegetables"], "bell pepper": ["other_vegetables"], pepper: ["other_vegetables"],
   onion: ["other_vegetables"], garlic: ["other_vegetables"], carrot: ["other_vegetables"],
-  ginger: ["other_vegetables"], "sweet potato": ["other_vegetables"], potato: ["other_vegetables"],
-  potatoes: ["other_vegetables"], sprouts: ["other_vegetables"],
+  ginger: ["other_vegetables"], "sweet potato": ["other_vegetables"], sprouts: ["other_vegetables"],
+  // White potato is starchy and glycaemically closer to a grain than a
+  // vegetable serving — the fruit/veg-for-health literature (and the USDA
+  // "starchy vegetables" subgroup) keeps it separate. Left ungrouped, like
+  // an ambiguous "bread", so it never pads out vegetable coverage.
+  potato: [], potatoes: [],
 
   // Berries
   blueberry: ["berries"], blueberries: ["berries"], raspberry: ["berries"], raspberries: ["berries"],
