@@ -104,14 +104,21 @@ export function monthStart(date: string): string {
   return `${date.slice(0, 7)}-01`;
 }
 
-/** "Aug 26" — for chart axis ticks once a range is long enough that
- * per-day labels would be unreadable. Works on any date, not just a
- * month-start one, since only the month/year are read. */
+/** "Aug '26" — month markers for a trend chart that can span more than one
+ * year. The apostrophe keeps the year from reading as a day-of-month. Works
+ * on any date, not just a month-start one, since only the month/year are read. */
 export function formatMonthYear(date: string): string {
   const d = new Date(`${date}T00:00:00Z`);
   const month = d.toLocaleDateString(undefined, { month: "short", timeZone: "UTC" });
   const year = String(d.getUTCFullYear()).slice(-2);
-  return `${month} ${year}`;
+  return `${month} '${year}`;
+}
+
+/** "31 Aug" — day + short month, no year, for a chart x-axis where the
+ * points are days within one selected range. Reads left-to-right at a
+ * glance; Recharts thins the ticks when they'd overlap. */
+export function formatAxisDate(date: string): string {
+  return new Date(`${date}T00:00:00Z`).toLocaleDateString(undefined, { day: "numeric", month: "short", timeZone: "UTC" });
 }
 
 /** "7h 30m" style — for any minutes-valued observation (currently just

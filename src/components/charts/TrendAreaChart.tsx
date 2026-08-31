@@ -1,6 +1,7 @@
 "use client";
 
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { formatAxisDate } from "@/lib/aggregations/common";
 
 export interface TrendPoint {
   date: string;
@@ -43,7 +44,7 @@ export function TrendAreaChart({
   const gradientId = `trend-gradient-${valueLabel.replace(/[^a-zA-Z0-9]+/g, "-")}`;
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <AreaChart data={data} margin={{ top: 8, right: 20, bottom: 28, left: 0 }}>
+      <AreaChart data={data} margin={{ top: 8, right: 20, bottom: showEveryTick ? 24 : 8, left: 0 }}>
         <defs>
           <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor={color} stopOpacity={0.25} />
@@ -56,11 +57,14 @@ export function TrendAreaChart({
           tickLine={false}
           axisLine={{ stroke: "var(--baseline)" }}
           tick={{ fill: "var(--text-muted)", fontSize: 11 }}
-          tickFormatter={xTickFormatter ?? ((d: string) => d.slice(2))}
-          angle={-90}
-          textAnchor="end"
-          height={56}
-          minTickGap={12}
+          tickFormatter={xTickFormatter ?? formatAxisDate}
+          tickMargin={8}
+          minTickGap={28}
+          // Show-every-tick charts (one point per month) can't rely on
+          // Recharts thinning, so their labels lean to fit.
+          angle={showEveryTick ? -35 : 0}
+          textAnchor={showEveryTick ? "end" : "middle"}
+          height={showEveryTick ? 48 : 22}
           interval={showEveryTick ? 0 : "preserveEnd"}
         />
         <YAxis

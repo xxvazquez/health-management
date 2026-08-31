@@ -261,7 +261,7 @@ function LagExplorer({ events, workoutLogs }: { events: CanonicalEvent[]; workou
               <>
                 <p className="mt-1 text-lg font-semibold tabular-nums" style={{ color: "var(--text-primary)" }}>
                   {r.diffPct > 0 ? "+" : ""}
-                  {r.diffPct}pp
+                  {r.diffPct} pts
                 </p>
                 <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
                   {r.withPct}% with ({r.withCount}/{r.withTotal}) vs {r.withoutPct}% without ({r.withoutCount}/
@@ -322,7 +322,7 @@ function ToleratedFoods({ events }: { events: CanonicalEvent[] }) {
                     {f.worstSymptomLabel ? (
                       <>
                         {f.worstSymptomDiffPct > 0 ? "+" : ""}
-                        {f.worstSymptomDiffPct}pp ({f.worstSymptomLabel})
+                        {f.worstSymptomDiffPct} pts ({f.worstSymptomLabel})
                       </>
                     ) : (
                       "—"

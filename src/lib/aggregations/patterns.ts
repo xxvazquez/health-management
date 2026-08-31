@@ -446,7 +446,7 @@ export interface NewFoodContextEntry {
   /** Total times this food has been logged (including the first occurrence). */
   timesEatenTotal: number;
   symptomReadout: NewFoodSymptomReadout;
-  /** e.g. "+22pp Bloating" — set whenever a same-day comparison was possible, regardless of readout. */
+  /** e.g. "+22 pts Bloating" — set whenever a same-day comparison was possible, regardless of readout. */
   symptomDetail: string | null;
 }
 
@@ -472,7 +472,7 @@ export function recentNewFoodsWithContext(events: CanonicalEvent[], limit = 15):
     if (worst.anyAdequate) {
       symptomReadout = worst.worstDiffPct >= MIN_INTERESTING_DIFF_PCT ? "elevated-association" : "no-elevated-association";
       if (worst.worstLabel) {
-        symptomDetail = `${worst.worstDiffPct > 0 ? "+" : ""}${worst.worstDiffPct}pp ${worst.worstLabel}`;
+        symptomDetail = `${worst.worstDiffPct > 0 ? "+" : ""}${worst.worstDiffPct} pts ${worst.worstLabel}`;
       }
     }
 
