@@ -214,7 +214,7 @@ export function AppointmentForm({
                   className={`${FIELD_CLS} flex-1`}
                   style={FIELD_STYLE}
                 />
-                <button type="button" onClick={() => removeTaskRow(index)} aria-label="Remove task" className="shrink-0 rounded-md p-1.5 notebook-danger" style={{ color: "var(--text-muted)" }}>
+                <button type="button" onClick={() => removeTaskRow(index)} aria-label="Remove task" className="tap-target shrink-0 rounded-md p-1.5 notebook-danger" style={{ color: "var(--text-muted)" }}>
                   <TrashIcon size={15} />
                 </button>
               </div>

@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState, type ComponentType } from "react";
 import { useVisibleDomains, type TrackedDomain } from "@/lib/visibleDomains";
-import { useOverflowFade } from "@/lib/useOverflowFade";
 import { TYPE_ACCENT } from "@/taxonomy/categories";
 import { TAB_ICON } from "@/components/tabIcons";
 import { FoodDashboard } from "@/components/analytics/FoodDashboard";
@@ -12,6 +11,7 @@ import { DigestionDashboard } from "@/components/analytics/DigestionDashboard";
 import { WorkoutDashboard } from "@/components/analytics/WorkoutDashboard";
 import { CycleDashboard } from "@/components/analytics/CycleDashboard";
 import { PatternsDashboard } from "@/components/analytics/PatternsDashboard";
+import { TabRail } from "@/components/ui/TabRail";
 
 /** One page for every analytics dashboard, switched by a Log-style tab bar
  * (`/analytics#food`) instead of one sidebar entry each. Each tab is gated
@@ -32,7 +32,6 @@ const TABS: { id: string; label: string; domain: TrackedDomain; accent: string; 
 export default function AnalyticsPage() {
   const { isHidden } = useVisibleDomains();
   const visibleTabs = useMemo(() => TABS.filter((t) => !isHidden(t.domain)), [isHidden]);
-  const navRef = useOverflowFade<HTMLElement>();
 
   // Starts at "food" for a match with the statically-rendered HTML, then
   // syncs to the URL hash on mount (and on every back/forward) — reading
@@ -68,32 +67,13 @@ export default function AnalyticsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <nav
-        ref={navRef}
-        className="no-scrollbar fade-x sticky top-16 z-20 -mx-4 flex items-center gap-5 overflow-x-auto border-b bg-[var(--page-backdrop)] px-4 sm:-mx-6 sm:px-6 lg:top-0 lg:-mx-8 lg:px-8"
+      <TabRail
+        items={visibleTabs.map((t) => ({ id: t.id, label: t.label, icon: TAB_ICON[t.id], accent: t.accent }))}
+        activeId={active.id}
+        onSelect={selectTab}
+        className="sticky top-16 z-20 -mx-4 border-b bg-[var(--page-backdrop)] px-4 sm:-mx-6 sm:px-6 lg:top-0 lg:-mx-8 lg:px-8"
         style={{ borderColor: `color-mix(in oklab, ${active.accent} 22%, var(--border-hairline))` }}
-      >
-        {visibleTabs.map((t) => {
-          const isActive = t.id === active.id;
-          return (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => selectTab(t.id)}
-              className="flex shrink-0 items-center gap-1.5 pb-2.5 text-sm whitespace-nowrap transition-colors"
-              style={{
-                color: isActive ? t.accent : "var(--text-secondary)",
-                fontWeight: isActive ? 700 : 500,
-                borderBottom: `2px solid ${isActive ? t.accent : "transparent"}`,
-                marginBottom: "-1px",
-              }}
-            >
-              {TAB_ICON[t.id]}
-              {t.label}
-            </button>
-          );
-        })}
-      </nav>
+      />
 
       <ActiveDashboard />
     </div>

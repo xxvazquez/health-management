@@ -38,7 +38,7 @@ function IconAction({ onClick, label, tone = "muted", disabled, children }: { on
       disabled={disabled}
       aria-label={label}
       title={label}
-      className={`shrink-0 rounded-md p-1.5 transition-colors hover:bg-[var(--page-plane)] disabled:opacity-40 ${tone === "critical" ? "notebook-danger" : ""}`}
+      className={`tap-target shrink-0 rounded-md p-1.5 transition-colors hover:bg-[var(--page-plane)] disabled:opacity-40 ${tone === "critical" ? "notebook-danger" : ""}`}
       style={{ color: "var(--text-muted)" }}
     >
       {children}
@@ -545,7 +545,7 @@ export function TaskBoard({
         </button>
       </span>
     ) : (
-      <div className="flex shrink-0 items-center gap-0.5">{icons}</div>
+      <div className="flex shrink-0 items-center gap-4">{icons}</div>
     );
 
   const activeListRow = (task: TaskItem) => {

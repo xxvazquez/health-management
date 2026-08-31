@@ -41,7 +41,7 @@ export function IconAction({ onClick, label, tone = "muted", disabled, children 
       disabled={disabled}
       aria-label={label}
       title={label}
-      className={`shrink-0 rounded-md p-1.5 transition-colors hover:bg-[var(--page-plane)] disabled:opacity-40 ${tone === "critical" ? "notebook-danger" : ""}`}
+      className={`tap-target shrink-0 rounded-md p-1.5 transition-colors hover:bg-[var(--page-plane)] disabled:opacity-40 ${tone === "critical" ? "notebook-danger" : ""}`}
       style={{ color: "var(--text-muted)" }}
     >
       {children}

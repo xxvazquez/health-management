@@ -200,13 +200,13 @@ function ExpirationRow({
       <span className="shrink-0 text-xs whitespace-nowrap tabular-nums" style={{ color: dateColor }}>
         {formatExpiresOn(item.expiresOn)}
       </span>
-      <div className={`flex shrink-0 items-center gap-1 ${confirmingDelete ? "opacity-100" : ""}`}>
+      <div className="flex shrink-0 items-center gap-4">
         {confirmingDelete ? (
           <>
-            <button type="button" onClick={onDelete} className="rounded-md px-2 py-1 text-xs font-semibold" style={{ color: "var(--status-critical)" }}>
+            <button type="button" onClick={onDelete} className="rounded-md px-2 py-1.5 text-xs font-semibold" style={{ color: "var(--status-critical)" }}>
               Remove
             </button>
-            <button type="button" onClick={() => setConfirmingDelete(false)} className="rounded-md px-2 py-1 text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+            <button type="button" onClick={() => setConfirmingDelete(false)} className="rounded-md px-2 py-1.5 text-xs font-medium" style={{ color: "var(--text-muted)" }}>
               Keep
             </button>
           </>
@@ -217,7 +217,7 @@ function ExpirationRow({
               onClick={onEdit}
               aria-label="Edit product"
               title="Edit product"
-              className="rounded-md p-1.5 transition-colors hover:bg-[var(--page-plane)]"
+              className="tap-target rounded-md p-1.5 transition-colors hover:bg-[var(--page-plane)]"
               style={{ color: "var(--text-muted)" }}
             >
               <PencilIcon size={15} />
@@ -227,7 +227,7 @@ function ExpirationRow({
               onClick={() => setConfirmingDelete(true)}
               aria-label="Remove product"
               title="Remove product"
-              className="notebook-danger rounded-md p-1.5 transition-colors hover:bg-[var(--page-plane)]"
+              className="tap-target notebook-danger rounded-md p-1.5 transition-colors hover:bg-[var(--page-plane)]"
               style={{ color: "var(--text-muted)" }}
             >
               <TrashIcon size={15} />

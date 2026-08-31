@@ -19,7 +19,7 @@ export function AuthBanner() {
         <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: "var(--status-warning)" }} />
         You&apos;re not logged in — log in to sync and save your data.
       </span>
-      <button type="button" onClick={openPanel} className="shrink-0 underline decoration-dotted" style={{ color: "var(--text-primary)" }}>
+      <button type="button" onClick={openPanel} className="tap-target shrink-0 underline decoration-dotted" style={{ color: "var(--text-primary)" }}>
         Log in
       </button>
     </div>

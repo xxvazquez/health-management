@@ -56,6 +56,7 @@ import { CycleTab } from "@/components/log/CycleTab";
 import { TAB_ICON } from "@/components/tabIcons";
 import { DuplicateItemDialog } from "@/components/ui/DuplicateItemDialog";
 import { SearchField } from "@/components/ui/SearchField";
+import { TabRail } from "@/components/ui/TabRail";
 import { useOverflowFade } from "@/lib/useOverflowFade";
 import {
   workoutUnitLabel,
@@ -380,7 +381,6 @@ export default function LogPage() {
   const { refresh, isDemoData, status } = useData();
   const { isHidden } = useVisibleDomains();
   const { openPanel } = useAuth();
-  const tabNavRef = useOverflowFade<HTMLElement>();
   // Personal notes / reminders / expiration — self-contained state + Supabase
   // wiring, rendered by the three tabs after Journal.
   const today = useMemo(() => todayLocalISODate(), []);
@@ -1619,35 +1619,14 @@ export default function LogPage() {
         {/* An underlined menu, not pills — deliberately a different shape
          * from "Eaten at" below so the two rows read as different kinds of
          * control: this one switches the whole page's content (primary
-         * navigation), that one just tags optional metadata on a food.
-         * Scrolls sideways rather than wrapping; the search box drops to its
-         * own line below on a narrow screen. */}
-        <nav
-          ref={tabNavRef}
-          className="no-scrollbar fade-x flex w-full min-w-0 items-center gap-5 overflow-x-auto border-b sm:flex-1"
-          style={{ borderColor: tabConfig ? `color-mix(in oklab, ${TYPE_ACCENT[tabConfig.type]} 22%, var(--border-hairline))` : "var(--border-hairline)" }}
-        >
-          {logTabs.map((t) => {
-            const active = t.id === tab;
-            return (
-              <button
-                key={t.id}
-                type="button"
-                onClick={() => selectTab(t.id)}
-                className="flex shrink-0 items-center gap-1.5 pb-2.5 text-sm whitespace-nowrap transition-colors"
-                style={{
-                  color: active ? t.accent : "var(--text-secondary)",
-                  fontWeight: active ? 700 : 500,
-                  borderBottom: `2px solid ${active ? t.accent : "transparent"}`,
-                  marginBottom: "-1px",
-                }}
-              >
-                {TAB_ICON[t.id]}
-                {t.label}
-              </button>
-            );
-          })}
-        </nav>
+         * navigation), that one just tags optional metadata on a food. On a
+         * narrow screen the search box drops to its own line below. */}
+        <TabRail
+          items={logTabs.map((t) => ({ id: t.id, label: t.label, icon: TAB_ICON[t.id], accent: t.accent }))}
+          activeId={tab}
+          onSelect={selectTab}
+          className="w-full min-w-0 sm:flex-1"
+        />
         <div className="flex w-full items-center gap-3 sm:w-auto">
           {tabConfig && (
             <SearchField

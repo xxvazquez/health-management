@@ -1,6 +1,7 @@
 import type { CanonicalEvent } from "@/lib/types";
 import { addDaysToDate, daysBetween, getDatasetSpan, type DateRange } from "./common";
 import {
+  NUTRITION_GROUP_EXAMPLES,
   NUTRITION_GROUP_LABEL,
   PILLAR_LABEL,
   PLANT_GROUPS,
@@ -277,18 +278,24 @@ const ADD_PHRASE: Partial<Record<NutritionGroupId, string>> = {
 };
 
 function groupCandidateDetail(state: GroupState): string {
-  switch (state.consistency) {
-    case "never":
-      return "Not appearing in your tracked data.";
-    case "not-recent":
-      return "Logged before, but not in the selected range.";
-    case "rare":
-      return `Only appeared on ${state.daysInRange} of ${state.rangeLengthDays} day${state.rangeLengthDays === 1 ? "" : "s"} in this range.`;
-    case "occasional":
-      return `Logged on ${state.daysInRange} of ${state.rangeLengthDays} days in this range.`;
-    default:
-      return "";
-  }
+  const base = (() => {
+    switch (state.consistency) {
+      case "never":
+        return "Not appearing in your tracked data.";
+      case "not-recent":
+        return "Logged before, but not in the selected range.";
+      case "rare":
+        return `Only appeared on ${state.daysInRange} of ${state.rangeLengthDays} day${state.rangeLengthDays === 1 ? "" : "s"} in this range.`;
+      case "occasional":
+        return `Logged on ${state.daysInRange} of ${state.rangeLengthDays} days in this range.`;
+      default:
+        return "";
+    }
+  })();
+  // Lead with a few concrete members so the group name is never the only
+  // thing telling the reader what it covers.
+  const eg = NUTRITION_GROUP_EXAMPLES[state.group];
+  return base ? `${eg}. ${base}` : eg;
 }
 
 const VEGETABLE_VARIETY_THRESHOLD = 4;

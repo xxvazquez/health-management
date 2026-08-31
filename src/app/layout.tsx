@@ -61,9 +61,11 @@ export default function RootLayout({
               <main className="flex min-w-0 flex-1 flex-col">
                 <AuthBanner />
                 <SyncStatusBanner />
-                {/* pb-28 on mobile clears the fixed BottomNav + its safe-area
-                    inset; desktop has no bottom nav so it drops back to pb-10. */}
-                <div className="px-4 pt-5 pb-28 sm:px-6 sm:pt-6 lg:px-8 lg:pt-8 lg:pb-10">
+                {/* pb-36 on mobile clears the fixed BottomNav plus the
+                    floating "+" action that sits above it (PrimaryAction),
+                    so the last list row is never tucked under either;
+                    desktop has neither and drops back to pb-10. */}
+                <div className="px-4 pt-5 pb-36 sm:px-6 sm:pt-6 lg:px-8 lg:pt-8 lg:pb-10">
                   <ContentContainer>{children}</ContentContainer>
                   <MedicalDisclaimer />
                 </div>
