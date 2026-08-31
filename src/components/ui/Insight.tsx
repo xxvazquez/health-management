@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import type { InsightTone } from "@/lib/aggregations/insights";
 import { Card } from "./Card";
 
@@ -21,8 +22,8 @@ export function Insight({
   tone = "neutral",
 }: {
   label: string;
-  headline: string;
-  detail?: string | null;
+  headline: ReactNode;
+  detail?: ReactNode | null;
   tone?: InsightTone;
 }) {
   return (

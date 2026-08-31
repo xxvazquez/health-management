@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useMemo, useRef, useState, type ReactNode } from "react";
 import { useData } from "@/lib/DataContext";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageSkeleton } from "@/components/ui/Skeleton";
@@ -27,7 +27,6 @@ import {
   repetitionInsights,
   varietyTrendDirection,
   type MealComboEntry,
-  type VarietyTrendDirection,
 } from "@/lib/aggregations/food";
 import {
   computeNutritionPriorities,
@@ -37,6 +36,12 @@ import {
 } from "@/lib/aggregations/nutritionPriorities";
 import { TYPE_ACCENT } from "@/taxonomy/categories";
 import { NUTRITION_GROUP_EXAMPLES } from "@/taxonomy/nutritionGroups";
+
+/** A nutrition-group name shown inside a sentence — lowercase and italic,
+ * so "other veg" and "citrus fruit" read as terms rather than proper nouns. */
+function CatTerm({ children }: { children: ReactNode }) {
+  return <span className="italic lowercase">{children}</span>;
+}
 
 const STATUS_COLOR: Record<GroupStatus, string> = {
   "not-enough-data": "var(--text-muted)",
@@ -68,10 +73,9 @@ function StatusPill({ status, label, color }: { status: string; label: string; c
   );
 }
 
-/** Each section's `<h2>` is a landmark and a SectionNav scroll target, but
- * not shown — the sticky SectionNav already names every section and
- * highlights the current one, and each section's top border is the visual
- * break. A subtitle, where one is given, does render. */
+/** Each section's `<h2>` is a landmark but not shown — the SectionNav
+ * above already names the current section. A subtitle, where one is given,
+ * does render. */
 function SectionHeading({ id, subtitle, children }: { id: string; subtitle?: ReactNode; children: ReactNode }) {
   return (
     <>
@@ -87,21 +91,18 @@ function SectionHeading({ id, subtitle, children }: { id: string; subtitle?: Rea
   );
 }
 
-/** One section of the (now single, scrolling) page. `scroll-mt` keeps the
- * heading clear of the sticky SectionNav when you jump to it. */
-function PageSection({ id, headingLabel, subtitle, children }: {
+/** One section of the page — only the one matching `activeId` renders, the
+ * rest return null (SectionNav switches between them, like the Log tabs). */
+function PageSection({ id, activeId, headingLabel, subtitle, children }: {
   id: string;
+  activeId: string;
   headingLabel: ReactNode;
   subtitle?: ReactNode;
   children: ReactNode;
 }) {
+  if (id !== activeId) return null;
   return (
-    <section
-      id={id}
-      aria-labelledby={`${id}-heading`}
-      className="flex scroll-mt-36 flex-col gap-4 border-t pt-6 first:border-t-0 first:pt-0 lg:scroll-mt-20"
-      style={{ borderColor: "var(--gridline)" }}
-    >
+    <section aria-labelledby={`${id}-heading`} className="flex flex-col gap-4">
       <SectionHeading id={`${id}-heading`} subtitle={subtitle}>
         {headingLabel}
       </SectionHeading>
@@ -145,15 +146,6 @@ function ShowMoreButton({ hiddenCount, expanded, onClick }: { hiddenCount: numbe
   );
 }
 
-/** Purely descriptive — an arrow and a word, never a value judgment.
- * Repeating the same foods is fine, so "decreasing" gets no warning color;
- * all three states share the same neutral treatment. */
-const TREND_DISPLAY: Record<VarietyTrendDirection, { label: string; arrow: string }> = {
-  increasing: { label: "Increasing", arrow: "↑" },
-  decreasing: { label: "Decreasing", arrow: "↓" },
-  stable: { label: "Stable", arrow: "→" },
-};
-
 const SECTION_NAV_ITEMS: SectionNavItem[] = [
   { id: "overview", label: "Overview" },
   { id: "variety", label: "Variety" },
@@ -178,32 +170,20 @@ const MEAL_ORDER = ["Breakfast", "Lunch", "Dinner", "Snack"];
 export function FoodDashboard() {
   const { status, events } = useData();
   const { span, range, setRange, filtered } = useDateRangeFilter(events);
-  // The page is one scroll now, not one-section-at-a-time. `activeSection`
-  // just tracks which heading is in view so SectionNav can highlight it and
-  // act as a jump-to.
+  // One section at a time, like the Log page — SectionNav swaps which
+  // section renders rather than scrolling to it, so reaching "Repetition"
+  // or "Ingredients" never means scrolling past everything above.
   const [activeSection, setActiveSection] = useState<string>(SECTION_NAV_ITEMS[0].id);
   const contentRef = useRef<HTMLDivElement>(null);
   const [showAllRepetition, setShowAllRepetition] = useState(false);
   const [showAllIngredients, setShowAllIngredients] = useState(false);
 
-  useEffect(() => {
-    const root = contentRef.current;
-    if (!root) return;
-    const sections = SECTION_NAV_ITEMS.map((s) => document.getElementById(s.id)).filter((el): el is HTMLElement => el != null);
-    if (sections.length === 0) return;
-    const io = new IntersectionObserver(
-      (entries) => {
-        const visible = entries.filter((e) => e.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
-        if (visible) setActiveSection(visible.target.id);
-      },
-      { rootMargin: "-12% 0px -78% 0px" },
-    );
-    sections.forEach((el) => io.observe(el));
-    return () => io.disconnect();
-  }, [status]);
-
-  function jumpToSection(id: string) {
-    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  function selectSection(id: string) {
+    setActiveSection(id);
+    // Jump straight to the (sticky) section tabs so the new section starts at
+    // the top of the viewport — no smooth scroll, which fights the content
+    // height changing under it.
+    contentRef.current?.scrollIntoView({ block: "start" });
   }
 
   // Length of the selected range, reused everywhere a label needs to name
@@ -227,15 +207,6 @@ export function FoodDashboard() {
   const mealInstanceCount = mealInstancesList.length;
   const combos = useMemo(() => favoriteCombosByMeal(mealInstancesList), [mealInstancesList]);
   const diversity = useMemo(() => (range ? ingredientDiversity(filtered, range, events) : null), [filtered, range, events]);
-  // Increasing/decreasing/stable straight off the same current-vs-prior-
-  // range comparison the Variety section's own "Vs. previous N days" tile
-  // shows — one trend definition on this page, not a second one derived a
-  // different way (see the doc comment on varietyTrendDirection below).
-  const diversityTrend: VarietyTrendDirection | null = useMemo(() => {
-    if (!diversity || diversity.previous == null) return null;
-    if (diversity.current === diversity.previous) return "stable";
-    return diversity.current > diversity.previous ? "increasing" : "decreasing";
-  }, [diversity]);
   const hasCoreGaps = priorities.missing.length > 0;
   const repetition = useMemo(
     () => repetitionInsights(ranked, mealInstancesList, priorities.groupStates, hasCoreGaps, 20),
@@ -257,14 +228,13 @@ export function FoodDashboard() {
 
   const rangeLabel = span && range ? (range.start === span.start && range.end === span.end ? "all time" : `${range.start} – ${range.end}`) : "";
 
-  // Spell out the groups whose name alone ("Other veg", "Other fruit") does
-  // not tell the reader what's in them — a few examples inline, right where
-  // the gap is named.
-  const gaps = priorities.missing.map((b) => {
-    if (!b.group || !/^Other\b/.test(b.label)) return b.label;
-    const eg = NUTRITION_GROUP_EXAMPLES[b.group].split(", ").slice(0, 3).join(", ");
-    return `${b.label} (${eg})`;
-  });
+  // The named gaps for the headline. For the groups whose name alone ("other
+  // veg", "other fruit") doesn't say what's in them, spell out a few members
+  // inline; every group name renders as a lowercase italic term.
+  const gapTerms = priorities.missing.slice(0, 2).map((b) => ({
+    label: b.label,
+    eg: b.group && /^Other\b/.test(b.label) ? NUTRITION_GROUP_EXAMPLES[b.group].split(", ").slice(0, 3).join(", ") : null,
+  }));
   const foodInsight = priorities.insufficientData
     ? {
         label: "Food",
@@ -272,22 +242,44 @@ export function FoodDashboard() {
         detail: "Widen the range or keep logging, and this page's recommendations fill in.",
         tone: "neutral" as const,
       }
-    : gaps.length > 0
+    : priorities.missing.length > 0
       ? {
           label: "Worth noticing",
-          headline: `${gaps.slice(0, 2).join(" and ")} could use more attention this range.`,
-          detail: gaps.length > 2 ? `Plus ${gaps.length - 2} more in "What you're missing" below.` : null,
+          headline: (
+            <>
+              {gapTerms.map((g, i) => (
+                <span key={g.label}>
+                  {i > 0 && " and "}
+                  <CatTerm>{g.label}</CatTerm>
+                  {g.eg && ` (${g.eg})`}
+                </span>
+              ))}
+              {" could use more attention this range."}
+            </>
+          ),
+          detail: priorities.missing.length > 2 ? `Plus ${priorities.missing.length - 2} more in "What you're missing" below.` : null,
           tone: "attention" as const,
         }
       : {
           label: "Going well",
           headline: "Your intake looks balanced across the tracked food groups this range.",
-          detail: priorities.doingWell.length > 0 ? `${priorities.doingWell.slice(0, 2).map((b) => b.label).join(" and ")} especially.` : null,
+          detail:
+            priorities.doingWell.length > 0 ? (
+              <>
+                {priorities.doingWell.slice(0, 2).map((b, i) => (
+                  <span key={b.label}>
+                    {i > 0 && " and "}
+                    <CatTerm>{b.label}</CatTerm>
+                  </span>
+                ))}
+                {" especially."}
+              </>
+            ) : null,
           tone: "good" as const,
         };
 
   return (
-    <div ref={contentRef} className="flex flex-col gap-2">
+    <div className="flex flex-col gap-2">
       <div>
         <DashboardHeader accent={TYPE_ACCENT.food}>Food</DashboardHeader>
       </div>
@@ -306,11 +298,36 @@ export function FoodDashboard() {
         <Insight label={foodInsight.label} headline={foodInsight.headline} detail={foodInsight.detail} tone={foodInsight.tone} />
       </div>
 
-      {/* SectionNav and the sections it jumps to share one parent so its
-          `position: sticky` has room to actually stick while you scroll. */}
-      <div className="mt-3 flex flex-col gap-2">
-      <SectionNav items={SECTION_NAV_ITEMS} activeId={activeSection} onSelect={jumpToSection} accent={SECTION_NAV_ACCENT} />
-      <PageSection id="overview" headingLabel="Overview">
+      {/* The one headline variety number, above the section menu so it's
+          always in view regardless of which section is open. */}
+      {!priorities.insufficientData && diversity && (
+        <p className="mt-3 text-sm" style={{ color: "var(--text-secondary)" }}>
+          <span className="font-semibold tabular-nums" style={{ color: "var(--text-primary)" }}>
+            {diversity.current}
+          </span>{" "}
+          unique ingredient{diversity.current === 1 ? "" : "s"} logged this range
+          {diversity.previous != null && diversity.current !== diversity.previous && (
+            <>
+              {" · "}
+              <span
+                className="font-medium tabular-nums"
+                style={{ color: diversity.current > diversity.previous ? "var(--status-good)" : "var(--status-warning)" }}
+              >
+                {diversity.current > diversity.previous ? "+" : ""}
+                {diversity.current - diversity.previous}
+              </span>{" "}
+              vs. the previous {rangeLengthDays} days
+            </>
+          )}
+        </p>
+      )}
+
+      {/* The sticky section tabs and the section they render share one
+          parent, so the tabs have room to stay pinned while a long section
+          scrolls. `scroll-mt` clears the app header on jump. */}
+      <div ref={contentRef} className="mt-1 flex scroll-mt-16 flex-col gap-2 lg:scroll-mt-8">
+      <SectionNav items={SECTION_NAV_ITEMS} activeId={activeSection} onSelect={selectSection} accent={SECTION_NAV_ACCENT} />
+      <PageSection id="overview" activeId={activeSection} headingLabel="Overview">
         {priorities.insufficientData ? (
           <Card tier="supporting">
             <CardTitle subtitle="This page needs a bit more logged history before its recommendations are trustworthy.">
@@ -323,20 +340,6 @@ export function FoodDashboard() {
           </Card>
         ) : (
           <>
-            <div className="grid grid-cols-2 gap-3">
-              <StatTile
-                label="Ingredients"
-                value={String(priorities.variety.totalUniqueFoods)}
-                detail="unique in range"
-                accent={TYPE_ACCENT.food}
-              />
-              <StatTile
-                label="Variety trend"
-                value={diversityTrend ? `${TREND_DISPLAY[diversityTrend].arrow} ${TREND_DISPLAY[diversityTrend].label}` : "—"}
-                detail={diversityTrend ? `vs. previous ${rangeLengthDays} days` : "not enough earlier history"}
-              />
-            </div>
-
             <Card tier="raw">
               <CardTitle size="sm" subtitle="How consistently each food group shows up in what you log">
                 Diet balance
@@ -363,6 +366,7 @@ export function FoodDashboard() {
                   tone="var(--status-good)"
                   bullets={priorities.doingWell.slice(0, 5)}
                   emptyText="Nothing stands out as strongly consistent yet."
+                  termLabels
                 />
               </Card>
               <Card tier="raw">
@@ -371,6 +375,7 @@ export function FoodDashboard() {
                   tone="var(--status-warning)"
                   bullets={priorities.missing.slice(0, 5)}
                   emptyText="Nothing appears unusually infrequent right now."
+                  termLabels
                 />
               </Card>
             </div>
@@ -378,41 +383,20 @@ export function FoodDashboard() {
         )}
       </PageSection>
 
-      <PageSection id="variety" headingLabel="Variety">
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:items-start">
-          <Card tier="raw">
-            <CardTitle size="sm" subtitle="Distinct ingredients logged in this range">
-              Ingredient diversity
-            </CardTitle>
-            <div className="grid grid-cols-2 gap-3">
-              <StatTile label="Unique ingredients" value={String(diversity?.current ?? 0)} />
-              {diversity?.previous != null ? (
-                <StatTile
-                  label={`Vs. previous ${rangeLengthDays} days`}
-                  value={diversity.current === diversity.previous ? "No change" : diversity.current > diversity.previous ? `+${diversity.current - diversity.previous}` : `${diversity.current - diversity.previous}`}
-                  detail={`was ${diversity.previous}`}
-                  accent={diversity.current >= diversity.previous ? "var(--status-good)" : "var(--status-warning)"}
-                />
-              ) : (
-                <StatTile label={`Vs. previous ${rangeLengthDays} days`} value="—" detail="not enough earlier history" />
-              )}
-            </div>
-          </Card>
-
-          <Card tier="raw">
-            <CardTitle
-              size="sm"
-              subtitle={isThisWeek ? "What you ate most this week" : "Most frequently tracked foods in this range"}
-            >
-              Top ingredients
-            </CardTitle>
-            {topFoods.length > 0 ? (
-              <RankedBarChart data={topFoods} color={TYPE_ACCENT.food} />
-            ) : (
-              <p className="text-sm" style={{ color: "var(--text-muted)" }}>No data.</p>
-            )}
-          </Card>
-        </div>
+      <PageSection id="variety" activeId={activeSection} headingLabel="Variety">
+        <Card tier="raw">
+          <CardTitle
+            size="sm"
+            subtitle={isThisWeek ? "What you ate most this week" : "Most frequently tracked foods in this range"}
+          >
+            Top ingredients
+          </CardTitle>
+          {topFoods.length > 0 ? (
+            <RankedBarChart data={topFoods} color={TYPE_ACCENT.food} />
+          ) : (
+            <p className="text-sm" style={{ color: "var(--text-muted)" }}>No data.</p>
+          )}
+        </Card>
 
         <Card tier="raw">
           <CardTitle size="sm" subtitle="Days logged in this range, per food group — not servings or grams.">
@@ -449,19 +433,19 @@ export function FoodDashboard() {
         </Card>
       </PageSection>
 
-      <PageSection id="repetition" headingLabel="Repetition">
+      <PageSection id="repetition" activeId={activeSection} headingLabel="Repetition">
         <RepetitionSection repetition={repetition} expanded={showAllRepetition} onToggle={() => setShowAllRepetition((v) => !v)} />
       </PageSection>
 
-      <PageSection id="meal-patterns" headingLabel="Meal patterns">
+      <PageSection id="meal-patterns" activeId={activeSection} headingLabel="Meal patterns">
         <MealTypePatternsSection rows={mealBreakdown} mealInstanceCount={mealInstanceCount} />
       </PageSection>
 
-      <PageSection id="combinations" headingLabel="Combinations">
+      <PageSection id="combinations" activeId={activeSection} headingLabel="Combinations">
         <FavoriteCombosByMeal combos={combos} mealInstanceCount={mealInstanceCount} />
       </PageSection>
 
-      <PageSection id="ingredients" headingLabel="Ingredients">
+      <PageSection id="ingredients" activeId={activeSection} headingLabel="Ingredients">
         <Card tier="raw">
           <CardTitle size="sm" subtitle="Every tracked ingredient in this range, ranked by occurrences">
             All ingredients

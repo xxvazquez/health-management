@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type ComponentType } from "react";
+import clsx from "clsx";
 import { useVisibleDomains, type TrackedDomain } from "@/lib/visibleDomains";
 import { TYPE_ACCENT } from "@/taxonomy/categories";
 import { TAB_ICON } from "@/components/tabIcons";
@@ -19,8 +20,8 @@ import { TabRail } from "@/components/ui/TabRail";
  * Patterns follows Symptoms since it's built on symptom associations. The
  * dashboard components are unchanged — they still render their own `<h1>`
  * and empty states — they just live under `src/components/analytics/` now. */
-const TABS: { id: string; label: string; domain: TrackedDomain; accent: string; Component: ComponentType }[] = [
-  { id: "food", label: "Food", domain: "food", accent: TYPE_ACCENT.food, Component: FoodDashboard },
+const TABS: { id: string; label: string; domain: TrackedDomain; accent: string; Component: ComponentType; hasSections?: boolean }[] = [
+  { id: "food", label: "Food", domain: "food", accent: TYPE_ACCENT.food, Component: FoodDashboard, hasSections: true },
   { id: "supplements", label: "Supplements", domain: "supplement", accent: TYPE_ACCENT.supplement, Component: SupplementsDashboard },
   { id: "habits", label: "Habits", domain: "habit", accent: TYPE_ACCENT.habit, Component: HabitsDashboard },
   { id: "digestion", label: "Digestion", domain: "stool", accent: "var(--series-indigo)", Component: DigestionDashboard },
@@ -67,11 +68,18 @@ export default function AnalyticsPage() {
 
   return (
     <div className="flex flex-col gap-6">
+      {/* Sticky on mobile for the plain single-scroll dashboards, so the
+          domain switcher stays reachable. On Food it isn't — Food's own
+          section tabs take the sticky slot there instead (two stacked
+          sticky bars would eat half a phone screen). Always sticky on `lg`. */}
       <TabRail
         items={visibleTabs.map((t) => ({ id: t.id, label: t.label, icon: TAB_ICON[t.id], accent: t.accent }))}
         activeId={active.id}
         onSelect={selectTab}
-        className="sticky top-16 z-20 -mx-4 border-b bg-[var(--page-backdrop)] px-4 sm:-mx-6 sm:px-6 lg:top-0 lg:-mx-8 lg:px-8"
+        className={clsx(
+          "-mx-4 border-b bg-[var(--page-backdrop)] px-4 sm:-mx-6 sm:px-6 lg:sticky lg:top-0 lg:z-20 lg:-mx-8 lg:px-8",
+          !active.hasSections && "sticky top-16 z-20",
+        )}
         style={{ borderColor: `color-mix(in oklab, ${active.accent} 22%, var(--border-hairline))` }}
       />
 

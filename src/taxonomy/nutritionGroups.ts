@@ -16,8 +16,12 @@
 export const NUTRITION_GROUPS = [
   "leafy_greens",
   "cruciferous",
+  "red_orange_veg",
+  "alliums",
   "other_vegetables",
+  "starchy_veg",
   "berries",
+  "citrus",
   "other_fruit",
   "legumes",
   "whole_grains",
@@ -42,8 +46,12 @@ export type NutritionGroupId = (typeof NUTRITION_GROUPS)[number];
 export const NUTRITION_GROUP_LABEL: Record<NutritionGroupId, string> = {
   leafy_greens: "Leafy greens",
   cruciferous: "Cruciferous vegetables",
+  red_orange_veg: "Red & orange veg",
+  alliums: "Onion family",
   other_vegetables: "Other veg",
+  starchy_veg: "Starchy veg",
   berries: "Berries",
+  citrus: "Citrus fruit",
   other_fruit: "Other fruit",
   legumes: "Legumes",
   whole_grains: "Whole grains",
@@ -72,9 +80,13 @@ export const NUTRITION_GROUP_LABEL: Record<NutritionGroupId, string> = {
 export const NUTRITION_GROUP_EXAMPLES: Record<NutritionGroupId, string> = {
   leafy_greens: "spinach, kale, lettuce",
   cruciferous: "broccoli, cabbage, cauliflower",
-  other_vegetables: "carrot, pepper, onion, mushroom, courgette",
+  red_orange_veg: "carrot, tomato, sweet potato, red pepper, squash",
+  alliums: "onion, garlic, leek, spring onion",
+  other_vegetables: "cucumber, courgette, mushroom, celery, green beans",
+  starchy_veg: "potato, plantain, cassava",
   berries: "blueberries, raspberries, strawberries",
-  other_fruit: "apple, banana, orange, grapes",
+  citrus: "orange, lemon, grapefruit, mandarin",
+  other_fruit: "apple, banana, grapes, melon, stone fruit",
   legumes: "lentils, chickpeas, beans",
   whole_grains: "oats, quinoa, buckwheat",
   refined_grains: "bread, pasta, white rice",
@@ -111,8 +123,8 @@ export const PILLAR_LABEL: Record<PillarId, string> = {
 };
 
 export const PILLAR_GROUPS: Record<PillarId, NutritionGroupId[]> = {
-  vegetables: ["leafy_greens", "cruciferous", "other_vegetables"],
-  fruit: ["berries", "other_fruit"],
+  vegetables: ["leafy_greens", "cruciferous", "red_orange_veg", "alliums", "other_vegetables", "starchy_veg"],
+  fruit: ["berries", "citrus", "other_fruit"],
   legumes: ["legumes"],
   grains: ["whole_grains", "refined_grains"],
   nuts_seeds: ["nuts", "seeds"],
@@ -131,6 +143,22 @@ export function pillarForGroup(group: NutritionGroupId): PillarId {
 }
 
 /**
+ * Vegetable / fruit groups that count toward "are you eating vegetables and
+ * fruit for health". Excludes starchy_veg — potato and the like are
+ * botanically vegetables (so they sit under the vegetables pillar above)
+ * but nutritionally closer to a starch, and the fruit/veg-for-health
+ * literature keeps them separate.
+ */
+export const CORE_VEGETABLE_GROUPS: NutritionGroupId[] = [
+  "leafy_greens",
+  "cruciferous",
+  "red_orange_veg",
+  "alliums",
+  "other_vegetables",
+];
+export const CORE_FRUIT_GROUPS: NutritionGroupId[] = ["berries", "citrus", "other_fruit"];
+
+/**
  * Groups the priorities engine treats as candidates worth recommending more
  * of. Deliberately narrow (component G: practicality) — informational-only
  * groups (poultry, eggs, dairy, red/processed meat, refined grains,
@@ -140,8 +168,11 @@ export function pillarForGroup(group: NutritionGroupId): PillarId {
 export const PRIORITY_ELIGIBLE_GROUPS: NutritionGroupId[] = [
   "leafy_greens",
   "cruciferous",
+  "red_orange_veg",
+  "alliums",
   "other_vegetables",
   "berries",
+  "citrus",
   "other_fruit",
   "legumes",
   "whole_grains",
@@ -170,22 +201,34 @@ const GROUP_KEYWORDS: Record<string, NutritionGroupId[]> = {
   "brussels sprout": ["cruciferous"], kohlrabi: ["cruciferous"], radish: ["cruciferous"],
   turnip: ["cruciferous"], "bok choy": ["cruciferous"],
 
-  // Other vegetables
+  // Red & orange veg — the main dietary carotenoid sources (α/β-carotene,
+  // lycopene). "pepper" alone stays in other_vegetables (could be green or
+  // chilli); only the named sweet-pepper forms move here.
+  carrot: ["red_orange_veg"], tomato: ["red_orange_veg"], "cherry tomato": ["red_orange_veg"],
+  "sun-dried tomato": ["red_orange_veg"], "sweet potato": ["red_orange_veg"], pumpkin: ["red_orange_veg"],
+  squash: ["red_orange_veg"], "butternut squash": ["red_orange_veg"], "bell pepper": ["red_orange_veg"],
+  "red pepper": ["red_orange_veg"], "yellow pepper": ["red_orange_veg"], "orange pepper": ["red_orange_veg"],
+
+  // Onion family (alliums) — organosulfur compounds.
+  onion: ["alliums"], "red onion": ["alliums"], "spring onion": ["alliums"], "green onion": ["alliums"],
+  scallion: ["alliums"], garlic: ["alliums"], leek: ["alliums"], shallot: ["alliums"], chives: ["alliums"],
+
+  // Starchy veg — botanically vegetables, nutritionally closer to a starch;
+  // kept out of the fruit/veg-for-health rollups (see CORE_VEGETABLE_GROUPS).
+  potato: ["starchy_veg"], potatoes: ["starchy_veg"], plantain: ["starchy_veg"],
+  cassava: ["starchy_veg"], yam: ["starchy_veg"], taro: ["starchy_veg"],
+
+  // Other vegetables — the genuine remainder once the groups above are split off.
   cucumber: ["other_vegetables"], celery: ["other_vegetables"], asparagus: ["other_vegetables"],
-  eggplant: ["other_vegetables"], aubergine: ["other_vegetables"], pumpkin: ["other_vegetables"],
-  squash: ["other_vegetables"], beet: ["other_vegetables"], beetroot: ["other_vegetables"],
+  eggplant: ["other_vegetables"], aubergine: ["other_vegetables"],
+  beet: ["other_vegetables"], beetroot: ["other_vegetables"],
   artichoke: ["other_vegetables"], "jerusalem artichoke": ["other_vegetables"], peas: ["other_vegetables"],
-  tomato: ["other_vegetables"], fennel: ["other_vegetables"], zucchini: ["other_vegetables"],
-  courgette: ["other_vegetables"], parsnip: ["other_vegetables"], chives: ["other_vegetables"],
-  mushroom: ["other_vegetables"], chanterelle: ["other_vegetables"], leek: ["other_vegetables"],
-  celeriac: ["other_vegetables"], "bell pepper": ["other_vegetables"], pepper: ["other_vegetables"],
-  onion: ["other_vegetables"], garlic: ["other_vegetables"], carrot: ["other_vegetables"],
-  ginger: ["other_vegetables"], "sweet potato": ["other_vegetables"], sprouts: ["other_vegetables"],
-  // White potato is starchy and glycaemically closer to a grain than a
-  // vegetable serving — the fruit/veg-for-health literature (and the USDA
-  // "starchy vegetables" subgroup) keeps it separate. Left ungrouped, like
-  // an ambiguous "bread", so it never pads out vegetable coverage.
-  potato: [], potatoes: [],
+  "green beans": ["other_vegetables"], "runner beans": ["other_vegetables"],
+  fennel: ["other_vegetables"], zucchini: ["other_vegetables"],
+  courgette: ["other_vegetables"], parsnip: ["other_vegetables"],
+  mushroom: ["other_vegetables"], chanterelle: ["other_vegetables"],
+  celeriac: ["other_vegetables"], pepper: ["other_vegetables"],
+  ginger: ["other_vegetables"], sprouts: ["other_vegetables"],
 
   // Berries
   blueberry: ["berries"], blueberries: ["berries"], raspberry: ["berries"], raspberries: ["berries"],
@@ -195,14 +238,18 @@ const GROUP_KEYWORDS: Record<string, NutritionGroupId[]> = {
   currant: ["berries"], redcurrant: ["berries"], blackcurrant: ["berries"], aronia: ["berries"],
   chokeberry: ["berries"],
 
-  // Other fruit
-  apple: ["other_fruit"], banana: ["other_fruit"], orange: ["other_fruit"], pear: ["other_fruit"],
-  mandarin: ["other_fruit"], tangerine: ["other_fruit"], clementine: ["other_fruit"],
+  // Citrus — the main dietary source of flavanones (hesperidin, naringenin).
+  orange: ["citrus"], "blood orange": ["citrus"], lemon: ["citrus"], lime: ["citrus"],
+  grapefruit: ["citrus"], mandarin: ["citrus"], tangerine: ["citrus"], clementine: ["citrus"],
+  satsuma: ["citrus"], pomelo: ["citrus"], kumquat: ["citrus"], yuzu: ["citrus"],
+
+  // Other fruit — pome, stone, vine and tropical fruit.
+  apple: ["other_fruit"], banana: ["other_fruit"], pear: ["other_fruit"],
   mango: ["other_fruit"], kiwi: ["other_fruit"], dates: ["other_fruit"], grape: ["other_fruit"],
   melon: ["other_fruit"], watermelon: ["other_fruit"], pineapple: ["other_fruit"],
   cherry: ["other_fruit"], cherries: ["other_fruit"], plum: ["other_fruit"], apricot: ["other_fruit"],
-  fig: ["other_fruit"], papaya: ["other_fruit"], pomegranate: ["other_fruit"], lemon: ["other_fruit"],
-  lime: ["other_fruit"], grapefruit: ["other_fruit"], raisins: ["other_fruit"], lychee: ["other_fruit"],
+  fig: ["other_fruit"], papaya: ["other_fruit"], pomegranate: ["other_fruit"],
+  raisins: ["other_fruit"], lychee: ["other_fruit"],
   passionfruit: ["other_fruit"], guava: ["other_fruit"], rhubarb: ["other_fruit"],
   quince: ["other_fruit"], peach: ["other_fruit"], nectarine: ["other_fruit"],
   "nectarine/peach": ["other_fruit"],
