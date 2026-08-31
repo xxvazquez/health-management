@@ -13,7 +13,7 @@ It works fully offline, syncs to Supabase once you sign in, and installs as a PW
 | **Overview** | `/overview` | The landing page. A cross-domain "needs attention" list grouped by urgency (overdue / today / tomorrow / next 7 days) — reminders, expiring products, doctor follow-ups and appointments — then today's story, a recent-activity feed, a few personal trends, and a weekly/monthly review. |
 | **Log** | `/log` | Tap-to-log entry for the seven tracking domains: Food, Symptoms, Supplements, Habits, Stool, Workout, Cycle. |
 | **Personal** | `/personal` | Journal, private notes, reminders, and product-expiry tracking — the "write once, come back to it" stuff. |
-| **Doctors** | `/doctors` | A history log of doctor appointments already attended: reusable doctors and specialties, per-doctor rating/language, follow-up notes and tasks, and one next-appointment date per specialty. |
+| **Doctors** | `/doctors` | A history log of doctor appointments already attended: reusable doctors and specialties, per-doctor rating/language, follow-up notes and tasks, and one next-appointment date per specialty. A **Log** tab holds dated observations and notes tagged to the specialties they concern, so they're waiting at the next relevant visit. |
 | **Analytics** | `/analytics` | One dashboard per domain (Food, Supplements, Habits, Digestion, Workout, Cycle, Patterns), switched by a tab bar. |
 | **Manage** | `/manage` | Add / rename / archive / delete items and categories, set exercise units, edit reminder lists and doctor types, hide domains you don't track. Searchable across every section. |
 | **Household** | `/home` | The partner-facing versions of notes, reminders, and expiry, plus a shared list of discount codes — once you're linked, either of you can see and edit them. |
@@ -217,7 +217,10 @@ write-local-first outbox — they only mean anything once they're on the server.
   each row can be renamed, archived (`is_archived` — kept out of the picker,
   reversible, history keeps its frozen string), or deleted, all from Manage.
   Follow-up tasks may set an optional `reminder_at` that the reminder cron sends
-  once (phase 2 below).
+  once (phase 2 below). The **Log** tab (`care_entries` + the `care_entry_specialties`
+  join) is a separate dated timeline of *observation* and *note* entries, each
+  tagged to any number of specialties; a specialty's detail view lists the
+  entries tagged to it as "to raise here".
 - **Voice input on Expiration and Codes** is the browser's own Web Speech API, feature-detected — no server, no dependency.
 
 ### PWA shell

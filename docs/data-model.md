@@ -256,6 +256,8 @@ scheduler). One user, standard owner-only RLS, written directly to Supabase.
 erDiagram
     DOCTORS ||--o{ DOCTOR_APPOINTMENTS : "visits"
     DOCTOR_APPOINTMENTS ||--o{ DOCTOR_APPOINTMENT_TASKS : "follow-up tasks"
+    CARE_ENTRIES ||--o{ CARE_ENTRY_SPECIALTIES : "tagged to"
+    DOCTOR_SPECIALTIES ||--o{ CARE_ENTRY_SPECIALTIES : "concerns"
 
     DOCTOR_SPECIALTIES {
         uuid id PK
@@ -263,6 +265,17 @@ erDiagram
         text name_key "generated, unique per user"
         date next_appointment_date "one per specialty, nullable"
         boolean is_archived "hidden from the picker, reversible"
+    }
+    CARE_ENTRIES {
+        uuid id PK
+        date happened_on
+        text kind "observation | note"
+        text title
+        text body "nullable"
+    }
+    CARE_ENTRY_SPECIALTIES {
+        uuid entry_id FK
+        uuid specialty_id FK
     }
     DOCTORS {
         uuid id PK
@@ -305,6 +318,13 @@ history stays accurate after a doctor's specialty is corrected.
 appointment never removes the doctor); `doctor_appointment_tasks →
 doctor_appointments` is `on delete cascade`. A `reminder_at` that has passed
 is sent once by the reminder cron (phase 2).
+
+`care_entries` is a separate dated timeline (the Doctors page's **Log** tab) of
+things to remember between visits — an `observation` you noticed or a plain
+`note`. Each entry is tagged to any number of specialties through the
+`care_entry_specialties` join (both FKs `on delete cascade`), so it reads whole
+or filtered to one specialty's context. `kind` gains `result` and `decision`
+in a later phase, with the extra columns each needs.
 
 ## Reminders → Home
 
