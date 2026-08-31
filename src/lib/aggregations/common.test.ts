@@ -5,6 +5,7 @@ import {
   daysBetween,
   filterByDateRange,
   formatMinutes,
+  formatAxisDate,
   formatMonthYear,
   getDatasetSpan,
   isoWeekStart,
@@ -196,8 +197,17 @@ describe("monthStart", () => {
 });
 
 describe("formatMonthYear", () => {
-  it("formats as 'Mon YY'", () => {
-    expect(formatMonthYear("2026-08-26")).toBe("Aug 26");
+  it("formats as \"Mon 'YY\"", () => {
+    expect(formatMonthYear("2026-08-26")).toBe("Aug '26");
+  });
+});
+
+describe("formatAxisDate", () => {
+  it("shows day and short month, no year, no leading-zero YY-MM-DD", () => {
+    const out = formatAxisDate("2026-08-31");
+    expect(out).toMatch(/\bAug\b/);
+    expect(out).toMatch(/\b31\b/);
+    expect(out).not.toMatch(/2026|26-08/);
   });
 });
 

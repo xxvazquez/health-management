@@ -72,8 +72,9 @@ function deltaDetail(recentPct: number | null, priorPct: number | null): string 
   if (priorPct === null) return "not enough prior data to compare";
   const priorRounded = Math.round(priorPct);
   const diff = Math.round(recentPct) - priorRounded;
-  if (diff === 0) return `${priorRounded}% previous 30 days`;
-  return `${diff > 0 ? "+" : ""}${diff}pp vs ${priorRounded}% previous 30 days`;
+  if (diff === 0) return `no change from the previous 30 days`;
+  const points = Math.abs(diff);
+  return `${diff > 0 ? "up" : "down"} ${points} point${points === 1 ? "" : "s"} from ${priorRounded}% the previous 30 days`;
 }
 
 export function DigestionDashboard() {
@@ -159,7 +160,7 @@ export function DigestionDashboard() {
           monthlyScoreAverage.length > 0 ? (
             <TrendAreaChart
               data={monthlyScoreAverage.map((m) => ({ date: m.monthStart, value: m.avgScore }))}
-              color="var(--series-1)"
+              color={ACCENT}
               valueLabel="Avg Bristol score"
               xTickFormatter={formatMonthYear}
               showEveryTick
@@ -168,7 +169,7 @@ export function DigestionDashboard() {
             <p className="text-sm" style={{ color: "var(--text-muted)" }}>No Bristol data in this range.</p>
           )
         ) : scoreSeries.length > 0 ? (
-          <BristolScoreChart data={scoreSeries} />
+          <BristolScoreChart data={scoreSeries} color={ACCENT} />
         ) : (
           <p className="text-sm" style={{ color: "var(--text-muted)" }}>No Bristol data in this range.</p>
         )}

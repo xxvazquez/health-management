@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { formatAxisDate } from "@/lib/aggregations/common";
 
 export interface Series {
   key: string;
@@ -33,18 +34,16 @@ export function MultiLineChart({
 
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <LineChart data={data} margin={{ top: 8, right: 20, bottom: 28, left: 0 }}>
+      <LineChart data={data} margin={{ top: 8, right: 20, bottom: 8, left: 0 }}>
         <CartesianGrid vertical={false} stroke="var(--gridline)" />
         <XAxis
           dataKey="date"
           tickLine={false}
           axisLine={{ stroke: "var(--baseline)" }}
           tick={{ fill: "var(--text-muted)", fontSize: 11 }}
-          tickFormatter={(d: string) => d.slice(2)}
-          angle={-90}
-          textAnchor="end"
-          height={56}
-          minTickGap={12}
+          tickFormatter={formatAxisDate}
+          tickMargin={8}
+          minTickGap={28}
         />
         <YAxis tickLine={false} axisLine={false} tick={{ fill: "var(--text-muted)", fontSize: 11 }} width={32} />
         <Tooltip

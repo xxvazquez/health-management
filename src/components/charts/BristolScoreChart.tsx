@@ -1,6 +1,7 @@
 "use client";
 
 import { CartesianGrid, Line, LineChart, ReferenceArea, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { formatAxisDate } from "@/lib/aggregations/common";
 
 export interface BristolScoreChartPoint {
   date: string;
@@ -15,10 +16,10 @@ export interface BristolScoreChartPoint {
  * makes the chart show them transparently instead of inventing a merged
  * value.
  */
-export function BristolScoreChart({ data, height = 280 }: { data: BristolScoreChartPoint[]; height?: number }) {
+export function BristolScoreChart({ data, color = "var(--series-1)", height = 280 }: { data: BristolScoreChartPoint[]; color?: string; height?: number }) {
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <LineChart data={data} margin={{ top: 8, right: 20, bottom: 28, left: 0 }}>
+      <LineChart data={data} margin={{ top: 8, right: 20, bottom: 8, left: 0 }}>
         <ReferenceArea y1={3} y2={4} fill="var(--status-good)" fillOpacity={0.12} strokeOpacity={0} />
         <CartesianGrid vertical={false} stroke="var(--gridline)" />
         <XAxis
@@ -26,11 +27,9 @@ export function BristolScoreChart({ data, height = 280 }: { data: BristolScoreCh
           tickLine={false}
           axisLine={{ stroke: "var(--baseline)" }}
           tick={{ fill: "var(--text-muted)", fontSize: 11 }}
-          tickFormatter={(d: string) => d.slice(2)}
-          angle={-90}
-          textAnchor="end"
-          height={60}
-          minTickGap={12}
+          tickFormatter={formatAxisDate}
+          tickMargin={8}
+          minTickGap={28}
         />
         <YAxis
           domain={[1, 5]}
@@ -55,10 +54,10 @@ export function BristolScoreChart({ data, height = 280 }: { data: BristolScoreCh
         <Line
           type="monotone"
           dataKey="value"
-          stroke="var(--series-1)"
+          stroke={color}
           strokeWidth={1.5}
-          dot={{ r: 1.5, fill: "var(--series-1)", strokeWidth: 0 }}
-          activeDot={{ r: 4, fill: "var(--series-1)", strokeWidth: 0 }}
+          dot={{ r: 1.5, fill: color, strokeWidth: 0 }}
+          activeDot={{ r: 4, fill: color, strokeWidth: 0 }}
         />
       </LineChart>
     </ResponsiveContainer>
