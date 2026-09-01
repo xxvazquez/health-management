@@ -18,7 +18,7 @@ It works fully offline, syncs to Supabase once you sign in, and installs as a PW
 | **Manage** | `/manage` | Add / rename / archive / delete items and categories, set exercise units, edit reminder lists and doctor types, hide domains you don't track. Searchable across every section. |
 | **Household** | `/home` | The partner-facing versions of notes, reminders, and expiry, plus a shared list of discount codes — once you're linked, either of you can see and edit them. |
 | **Messages** | `/notes` | Private one-to-one messaging with your linked partner. |
-| **My Drive** | `/my-drive` | Read-only browser for the signed-in Google account's Drive. The nav entry only shows when `NEXT_PUBLIC_GOOGLE_CLIENT_ID` is set; without it the page is just a "not set up" notice. |
+| **My Drive** | `/my-drive` | Read-only browser for the signed-in Google account's Drive. |
 | **Help** | `/help` | Plain-language reference for what each part does. |
 
 ### Behaviour worth knowing
