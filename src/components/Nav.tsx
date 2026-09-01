@@ -264,12 +264,12 @@ function NavSection({
     );
   }
   return (
-    <div className="mt-1 border-t pt-1" style={{ borderColor: "var(--gridline)" }}>
+    <div className="mt-0.5 border-t pt-0.5" style={{ borderColor: "var(--gridline)" }}>
       <button
         type="button"
         onClick={onToggle}
         aria-expanded={open}
-        className="flex w-full items-center justify-between rounded-md px-3 py-1 text-xs font-semibold tracking-[0.12em] uppercase transition-colors hover:bg-[var(--page-plane)]"
+        className="flex w-full items-center justify-between rounded-md px-3 py-0.5 text-xs font-semibold tracking-[0.12em] uppercase transition-colors hover:bg-[var(--page-plane)]"
         style={{ color: "var(--text-muted)" }}
       >
         {label}
@@ -313,7 +313,7 @@ function NavLinkList({
             onClick={onNavigate}
             title={collapsed ? link.label : undefined}
             className={clsx(
-              "relative flex items-center gap-2.5 rounded-lg px-3 py-3 text-sm font-medium whitespace-nowrap transition-colors lg:py-1.5",
+              "tap-target relative flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium whitespace-nowrap transition-colors lg:py-1.5",
               collapsed && "justify-center px-0",
               !active && "hover:bg-[var(--page-plane)]",
             )}
@@ -459,11 +459,11 @@ export function Nav() {
             </span>
           )}
         </Link>
-        <div className={clsx("mt-6 flex items-center gap-2", collapsed ? "flex-col justify-center" : "px-1")}>
+        <div className={clsx("mt-5 flex items-center gap-2", collapsed ? "flex-col justify-center" : "px-1")}>
           <AccountMenuButton collapsed={collapsed} />
           <SignOutButton />
         </div>
-        <div className="mt-6 flex min-h-0 flex-1 flex-col overflow-y-auto">
+        <div className="mt-5 flex min-h-0 flex-1 flex-col overflow-y-auto">
           <NavLinks pathname={pathname} collapsed={collapsed} />
         </div>
         <BugReportButton collapsed={collapsed} onClick={() => setBugReportOpen(true)} />
@@ -506,7 +506,7 @@ export function Nav() {
       />
       <div
         className={clsx(
-          "fixed inset-y-0 left-0 z-40 flex w-72 max-w-[85vw] flex-col border-r px-4 py-6 shadow-xl transition-transform duration-200 ease-out lg:hidden",
+          "fixed inset-y-0 left-0 z-40 flex w-72 max-w-[85vw] flex-col border-r px-4 py-5 shadow-xl transition-transform duration-200 ease-out lg:hidden",
           mobileOpen ? "translate-x-0" : "-translate-x-full",
         )}
         style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}
@@ -527,11 +527,11 @@ export function Nav() {
             </svg>
           </button>
         </div>
-        <div className="mt-6 flex items-center gap-2 px-1">
+        <div className="mt-5 flex items-center gap-2 px-1">
           <AccountMenuButton onOpen={() => setMobileOpen(false)} />
           <SignOutButton />
         </div>
-        <div className="mt-6 flex min-h-0 flex-1 flex-col overflow-y-auto">
+        <div className="mt-5 flex min-h-0 flex-1 flex-col overflow-y-auto">
           <NavLinks pathname={pathname} onNavigate={() => setMobileOpen(false)} />
         </div>
         <BugReportButton onClick={() => setBugReportOpen(true)} />
