@@ -87,6 +87,15 @@ function isHomeTab(v: string): v is Tab {
   return TABS.some((t) => t.id === v);
 }
 
+/** The shared `url` param is the clean case; many apps (and iOS Safari)
+ * instead drop the link into `text`, sometimes prefixed with a title —
+ * so fall back to the first http(s) URL found there. */
+function extractSharedUrl(url: string | null, text: string | null): string | null {
+  if (url && /^https?:\/\//i.test(url.trim())) return url.trim();
+  const match = text?.match(/https?:\/\/\S+/i);
+  return match ? match[0] : null;
+}
+
 /** Reminders -> Home: the same notes/tasks concept as Personal, but shared
  * with a linked partner (household_* tables + is_household_member, see
  * schema.sql) instead of owned outright, plus a product-expiration
@@ -103,13 +112,31 @@ export default function HomePage() {
   const myUserId = isDemo ? DEMO_HOME_ME_ID : accountId;
 
   const [tab, setTab] = useState<Tab>("notes");
+  // A URL shared into the app via the PWA share target (manifest
+  // `share_target` → /home/?url=…|text=…) — routed to the Wishlist tab as a
+  // pre-filled new item. Consumed once by WishlistBoard, then cleared.
+  const [sharedUrl, setSharedUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const shared = extractSharedUrl(params.get("url"), params.get("text"));
+    /* eslint-disable react-hooks/set-state-in-effect */
+    if (shared) {
+      setSharedUrl(shared);
+      setTab("wishlist");
+      window.history.replaceState(null, "", `${window.location.pathname}#wishlist`);
+      return;
+    }
+    const id = window.location.hash.replace("#", "");
+    if (isHomeTab(id)) setTab(id);
+    /* eslint-enable react-hooks/set-state-in-effect */
+  }, []);
 
   useEffect(() => {
     const fromHash = () => {
       const id = window.location.hash.replace("#", "");
       if (isHomeTab(id)) setTab(id);
     };
-    fromHash();
     window.addEventListener("hashchange", fromHash);
     return () => window.removeEventListener("hashchange", fromHash);
   }, []);
@@ -590,6 +617,8 @@ export default function HomePage() {
           accent={ACCENT}
           people={myUserId ? { myUserId, partnerId } : undefined}
           forLabel={completedByLabel}
+          sharedUrl={sharedUrl}
+          onSharedUrlConsumed={() => setSharedUrl(null)}
           onFetchTitle={isDemo ? undefined : (url) => fetchLinkMetadata(url).then((r) => r.title)}
           onCreateCategory={handleCreateWishlistCategory}
           onRenameCategory={handleRenameWishlistCategory}
