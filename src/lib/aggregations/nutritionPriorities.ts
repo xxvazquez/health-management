@@ -122,12 +122,6 @@ export interface DietBalanceRow {
   statusLabel: string;
 }
 
-export interface PatternBuckets {
-  strong: string[];
-  needsVariety: string[];
-  underrepresented: string[];
-}
-
 export interface VarietyMetrics {
   totalUniqueFoods: number;
   uniquePlantFoods: number;
@@ -169,7 +163,6 @@ export interface NutritionPriorities {
   missing: Bullet[];
   coverageTable: CoverageRow[];
   groupStates: GroupState[];
-  pattern: PatternBuckets;
   dietBalance: DietBalanceRow[];
   variety: VarietyMetrics;
   trend: TrendSummary;
@@ -411,7 +404,6 @@ export function computeNutritionPriorities(events: CanonicalEvent[], range: Date
       missing: [],
       coverageTable: [],
       groupStates: [],
-      pattern: { strong: [], needsVariety: [], underrepresented: [] },
       dietBalance: [],
       variety: emptyVariety,
       trend: { available: false, rangeLengthDays: 0, points: [] },
@@ -538,16 +530,6 @@ export function computeNutritionPriorities(events: CanonicalEvent[], range: Date
     rowFor("Fruit (overall)", fruitState),
   ];
 
-  // ---- Eating pattern buckets (item 9) — derived from the same states ----
-  const pattern: PatternBuckets = { strong: [], needsVariety: [], underrepresented: [] };
-  if (!insufficientData) {
-    for (const cand of varietyCandidates) pattern.needsVariety.push(cand.headline);
-    for (const s of allGroupStates) {
-      if (s.status === "strong") pattern.strong.push(s.label);
-      else if (s.status === "priority" || s.status === "increase") pattern.underrepresented.push(s.label);
-    }
-  }
-
   // ---- Diet balance — keyed off the same union-based aggregate state as
   // the coverage table, so this never contradicts what "Worth noticing"
   // says about the same pillar. ----
@@ -645,7 +627,6 @@ export function computeNutritionPriorities(events: CanonicalEvent[], range: Date
     missing,
     coverageTable,
     groupStates: allGroupStates,
-    pattern,
     dietBalance,
     variety,
     trend,
