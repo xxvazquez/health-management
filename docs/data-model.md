@@ -378,7 +378,15 @@ erDiagram
 Same one-off-vs-recurring shape as Personal, plus `last_completed_by` /
 `assigned_to` so the UI can show who did it and who it's for.
 `household_items` is the product-expiration tracker — standalone, no
-relationship to the others. All four tables use the pair RLS shape below.
+relationship to the others. `household_codes` (discount/promo codes, not
+diagrammed above) is another standalone board on the same page.
+
+`wishlist_categories` / `wishlist_items` back the Wishlist board: a
+category is a name, an item is one URL plus a title (fetched by the
+`fetch-link-metadata` Edge Function, or typed) and an optional note.
+`wishlist_items.category_id` cascades on category delete. The per-category
+accent colour is assigned client-side by position, not stored. All the
+household tables use the pair RLS shape below.
 
 ## Infrastructure tables
 
@@ -396,7 +404,7 @@ relationship to the others. All four tables use the pair RLS shape below.
 | `partner_invites` | `auth.uid() = created_by` |
 | `partner_links` | SELECT/DELETE only: `auth.uid() in (user_a_id, user_b_id)` — no INSERT/UPDATE (created via `redeem_partner_invite()`) |
 | `notes` | SELECT/UPDATE: `auth.uid() in (sender_id, recipient_id)`. INSERT: must be yourself, to your actual linked partner, into a thread you're part of. No DELETE. |
-| `household_notes` / `household_tasks` / `household_items` / `household_task_completions` | `auth.uid() = owner_id or is_household_member(owner_id)` — visible and editable by the creator and their one linked partner. INSERT must be as `owner_id = auth.uid()`. |
+| `household_notes` / `household_tasks` / `household_items` / `household_codes` / `household_task_completions` / `wishlist_categories` / `wishlist_items` | `auth.uid() = owner_id or is_household_member(owner_id)` — visible and editable by the creator and their one linked partner. INSERT must be as `owner_id = auth.uid()`; `wishlist_items` also checks the target category is one you can see. |
 
 ## Functions & triggers
 

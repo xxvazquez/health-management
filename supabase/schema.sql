@@ -844,11 +844,44 @@ create table public.household_codes (
   updated_at timestamptz not null default now()
 );
 
+-- Home -> Wishlist: shared lists of saved links both partners can add to,
+-- grouped into user-named categories. An item is one URL plus a title
+-- (fetched from the page by the fetch-link-metadata Edge Function, or
+-- typed by hand) and an optional note. Newest item first within a
+-- category; deleting a category takes its items with it. `owner_id` is
+-- whoever added the row — either partner — with pair visibility via
+-- is_household_member, same "shared, not just visible" rule as the tables
+-- above. The per-category accent colour is assigned client-side by
+-- position, so nothing about it lives here.
+create table public.wishlist_categories (
+  id uuid primary key default gen_random_uuid(),
+  owner_id uuid not null default auth.uid() references auth.users(id),
+  name text not null check (char_length(trim(name)) > 0),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table public.wishlist_items (
+  id uuid primary key default gen_random_uuid(),
+  owner_id uuid not null default auth.uid() references auth.users(id),
+  category_id uuid not null references public.wishlist_categories(id) on delete cascade,
+  url text not null check (char_length(trim(url)) > 0),
+  title text not null check (char_length(trim(title)) > 0),
+  note text,
+  -- Who the item is for — one of the two household members, or null for
+  -- "either / unspecified". Same shape as household_tasks.assigned_to.
+  for_user_id uuid references auth.users(id),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 create index household_notes_owner_updated_idx on public.household_notes (owner_id, updated_at desc);
 create index household_tasks_owner_due_idx on public.household_tasks (owner_id, due_at);
 create index household_task_completions_task_idx on public.household_task_completions (task_id, completed_at desc);
 create index household_items_owner_expires_idx on public.household_items (owner_id, expires_on);
 create index household_codes_owner_created_idx on public.household_codes (owner_id, created_at desc);
+create index wishlist_categories_owner_created_idx on public.wishlist_categories (owner_id, created_at);
+create index wishlist_items_category_created_idx on public.wishlist_items (category_id, created_at desc);
 
 -- Row-level security: every table, same shape — a user can only read or
 -- write rows where user_id matches their own auth.uid().
@@ -892,6 +925,8 @@ alter table public.household_tasks enable row level security;
 alter table public.household_task_completions enable row level security;
 alter table public.household_items enable row level security;
 alter table public.household_codes enable row level security;
+alter table public.wishlist_categories enable row level security;
+alter table public.wishlist_items enable row level security;
 
 create policy "categories_all_own" on public.categories for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "food_items_all_own" on public.food_items for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
@@ -1003,6 +1038,27 @@ create policy "household_codes_select_pair" on public.household_codes for select
 create policy "household_codes_insert_own" on public.household_codes for insert with check (auth.uid() = owner_id);
 create policy "household_codes_update_pair" on public.household_codes for update using (auth.uid() = owner_id or public.is_household_member(owner_id)) with check (auth.uid() = owner_id or public.is_household_member(owner_id));
 create policy "household_codes_delete_pair" on public.household_codes for delete using (auth.uid() = owner_id or public.is_household_member(owner_id));
+
+-- wishlist_categories / wishlist_items: same pair shape as household_* above.
+-- An item's INSERT additionally checks that its category is one the caller
+-- can actually see, so a client can't attach items to an arbitrary
+-- category id. Deleting a category cascades to its items in Postgres, so
+-- there's no separate item cleanup path here.
+create policy "wishlist_categories_select_pair" on public.wishlist_categories for select using (auth.uid() = owner_id or public.is_household_member(owner_id));
+create policy "wishlist_categories_insert_own" on public.wishlist_categories for insert with check (auth.uid() = owner_id);
+create policy "wishlist_categories_update_pair" on public.wishlist_categories for update using (auth.uid() = owner_id or public.is_household_member(owner_id)) with check (auth.uid() = owner_id or public.is_household_member(owner_id));
+create policy "wishlist_categories_delete_pair" on public.wishlist_categories for delete using (auth.uid() = owner_id or public.is_household_member(owner_id));
+
+create policy "wishlist_items_select_pair" on public.wishlist_items for select using (auth.uid() = owner_id or public.is_household_member(owner_id));
+create policy "wishlist_items_insert_own" on public.wishlist_items for insert with check (
+  auth.uid() = owner_id
+  and exists (
+    select 1 from public.wishlist_categories c
+    where c.id = category_id and (auth.uid() = c.owner_id or public.is_household_member(c.owner_id))
+  )
+);
+create policy "wishlist_items_update_pair" on public.wishlist_items for update using (auth.uid() = owner_id or public.is_household_member(owner_id)) with check (auth.uid() = owner_id or public.is_household_member(owner_id));
+create policy "wishlist_items_delete_pair" on public.wishlist_items for delete using (auth.uid() = owner_id or public.is_household_member(owner_id));
 
 -- household_task_completions has no owner_id of its own (it's a log of
 -- who/when, not a thing anyone "owns"), so its policies join back to the
