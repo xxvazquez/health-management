@@ -179,7 +179,7 @@ export function DigestionDashboard() {
         <p className="mb-3 text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
           At a glance — last 30 days
         </p>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-2 gap-3">
           <StatTile
             label="In target range (3–4)"
             value={rangeChange.recentPct !== null ? `${Math.round(rangeChange.recentPct)}%` : "—"}
