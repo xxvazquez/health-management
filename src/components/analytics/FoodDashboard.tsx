@@ -270,7 +270,7 @@ export function FoodDashboard() {
               {" could use more attention this range."}
             </>
           ),
-          detail: priorities.missing.length > 2 ? `Plus ${priorities.missing.length - 2} more in "What you're missing" below.` : null,
+          detail: priorities.missing.length > 2 ? `Plus ${priorities.missing.length - 2} more in "Worth noticing" below.` : null,
           tone: "attention" as const,
         }
       : {
@@ -669,10 +669,14 @@ function FavoriteCombosByMeal({ combos, mealInstanceCount }: { combos: MealCombo
   );
 }
 
+// A verdict on the repetition itself, not on group coverage — kept clear
+// of the "Underrepresented / Well represented" vocabulary the coverage
+// pills use, since a repeated food and a covered food group aren't the
+// same axis.
 const REPETITION_TAG_LABEL: Record<ReturnType<typeof repetitionInsights>[number]["tag"], string> = {
-  beneficial: "Regular & evidence-backed",
-  "worth-noting": "Dominant, worth a look",
-  neutral: "Regularly eaten",
+  beneficial: "Fine to repeat",
+  "worth-noting": "Worth a look",
+  neutral: "Frequent",
 };
 const REPETITION_TAG_COLOR: Record<ReturnType<typeof repetitionInsights>[number]["tag"], string> = {
   beneficial: "var(--status-good)",

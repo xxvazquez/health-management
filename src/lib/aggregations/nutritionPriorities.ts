@@ -30,12 +30,18 @@ const CONSISTENCY_CONSISTENT_CUTOFF = 1.15;
 export type Consistency = "never" | "not-recent" | "rare" | "occasional" | "regular" | "consistent";
 export type GroupStatus = "not-enough-data" | "priority" | "increase" | "good" | "strong";
 
+/** One vocabulary for "how well-represented is this in what you log",
+ * shared with DIET_BALANCE_LABEL below so the per-group coverage table and
+ * the per-pillar diet-balance verdict read in the same voice. The two
+ * scales differ only at the middle rung: a group can be logged too seldom
+ * ("Could log more often"), a pillar can be logged enough but from too few
+ * foods ("Could use more variety"). */
 export const STATUS_LABEL: Record<GroupStatus, string> = {
   "not-enough-data": "Not enough data",
-  priority: "Priority",
-  increase: "Increase",
-  good: "Good",
-  strong: "Strong",
+  priority: "Underrepresented",
+  increase: "Could log more often",
+  good: "Well represented",
+  strong: "Strongly represented",
 };
 
 export type DietBalanceStatus =
@@ -45,6 +51,8 @@ export type DietBalanceStatus =
   | "well-represented"
   | "strongly-represented";
 
+/** Shares its wording with STATUS_LABEL — "Underrepresented" / "Well
+ * represented" / "Strongly represented" mean the same thing on both. */
 export const DIET_BALANCE_LABEL: Record<DietBalanceStatus, string> = {
   "not-enough-data": "Not enough data",
   underrepresented: "Underrepresented",
@@ -540,9 +548,9 @@ export function computeNutritionPriorities(events: CanonicalEvent[], range: Date
     }
   }
 
-  // ---- Diet balance (item 10 vocabulary) — keyed off the same union-based
-  // aggregate state as the coverage table, so this never contradicts what
-  // "What you're missing" says about the same pillar. ----
+  // ---- Diet balance — keyed off the same union-based aggregate state as
+  // the coverage table, so this never contradicts what "Worth noticing"
+  // says about the same pillar. ----
   const aggregateStateByPillar: Partial<Record<PillarId, GroupState>> = {
     vegetables: vegState,
     fruit: fruitState,
@@ -656,7 +664,7 @@ function rowFor(label: string, state: GroupState): CoverageRow {
 /**
  * Keyed off the same union-based aggregate state used for the coverage
  * table (single group for single-subgroup pillars) so this never
- * contradicts "What you're missing" for the same pillar.
+ * contradicts "Worth noticing" for the same pillar.
  */
 function dietBalanceRow(pillar: PillarId, aggregate: GroupState, varietyCandidates: PriorityCandidate[], insufficientData: boolean): DietBalanceRow {
   const label = PILLAR_LABEL[pillar];
