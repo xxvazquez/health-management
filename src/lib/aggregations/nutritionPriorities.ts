@@ -283,17 +283,32 @@ const ADD_PHRASE: Partial<Record<NutritionGroupId, string>> = {
   fatty_fish: "Add fatty fish",
 };
 
+/** "the past 3 weeks" / "the past month" / "the past 6 months" — a plain
+ * reading of the selected range's length, so a sentence can name it
+ * instead of the vague "in this range". */
+function rangeInWords(days: number): string {
+  if (days <= 1) return "the past day";
+  if (days < 14) return `the past ${days} days`;
+  if (days >= 28 && days <= 31) return "the past month";
+  if (days < 84) return `the past ${Math.round(days / 7)} weeks`;
+  if (days < 320) return `the past ${Math.round(days / 30)} months`;
+  if (days < 400) return "the past year";
+  return `the past ${Math.round(days / 365)} years`;
+}
+
 function groupCandidateDetail(state: GroupState): string {
+  const span = rangeInWords(state.rangeLengthDays);
+  const pct = state.rangeLengthDays > 0 ? Math.round((state.daysInRange / state.rangeLengthDays) * 100) : 0;
   const base = (() => {
     switch (state.consistency) {
       case "never":
-        return "Not appearing in your tracked data.";
+        return `Not appearing in your tracked data for ${span}.`;
       case "not-recent":
-        return "Logged before, but not in the selected range.";
+        return `Logged before, but not in ${span}.`;
       case "rare":
-        return `Only appeared on ${state.daysInRange} of ${state.rangeLengthDays} day${state.rangeLengthDays === 1 ? "" : "s"} in this range.`;
+        return `Only appeared on ${state.daysInRange} of ${state.rangeLengthDays} day${state.rangeLengthDays === 1 ? "" : "s"} in ${span} — ${pct}%.`;
       case "occasional":
-        return `Logged on ${state.daysInRange} of ${state.rangeLengthDays} days in this range.`;
+        return `Logged on ${state.daysInRange} of ${state.rangeLengthDays} days in ${span} — ${pct}%.`;
       default:
         return "";
     }
