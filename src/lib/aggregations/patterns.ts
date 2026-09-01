@@ -59,8 +59,8 @@ export type SampleTier = "insufficient" | "exploratory" | "moderate" | "strong";
 export const SAMPLE_TIER_LABEL: Record<SampleTier, string> = {
   insufficient: "Insufficient data",
   exploratory: "Exploratory",
-  moderate: "Moderate confidence",
-  strong: "Stronger descriptive evidence",
+  moderate: "Moderate",
+  strong: "Stronger",
 };
 
 /** Ordering weight for "strongest first" lists — a comparison backed by

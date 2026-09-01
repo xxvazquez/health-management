@@ -42,6 +42,17 @@ function fmtShort(d: string): string {
   return new Date(`${d}T00:00:00`).toLocaleDateString(undefined, { day: "numeric", month: "short" });
 }
 
+/** The label shown on the trigger button — a matching preset's name, or a
+ * plain formatted span. Exported so a page can echo the active range in
+ * prose ("Showing …") using the exact same wording as the control. */
+export function describeDateRange(presets: DateRangePreset[], span: DateRange, value: DateRange): string {
+  const active = presets.find((p) => {
+    const r = presetRange(p, span);
+    return r.start === value.start && r.end === value.end;
+  });
+  return active ? active.label : `${fmtShort(value.start)} – ${fmtShort(value.end)}`;
+}
+
 /**
  * One compact control: a button showing the current range that opens a
  * popover of presets plus a custom start/end. Replaces the old row of six
@@ -95,7 +106,7 @@ export function DateRangeFilter({ span, value, onChange, presets = DEFAULT_PRESE
     const r = presetRange(p, span);
     return r.start === value.start && r.end === value.end;
   });
-  const triggerLabel = activePreset ? activePreset.label : `${fmtShort(value.start)} – ${fmtShort(value.end)}`;
+  const triggerLabel = describeDateRange(presets, span, value);
 
   const fieldStyle = { borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" } as const;
 

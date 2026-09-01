@@ -8,7 +8,7 @@ import { StatTile } from "@/components/ui/StatTile";
 import { Insight } from "@/components/ui/Insight";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { BulletList } from "@/components/ui/BulletList";
-import { DateRangeFilter, type DateRangePreset } from "@/components/ui/DateRangeFilter";
+import { DateRangeFilter, describeDateRange, type DateRangePreset } from "@/components/ui/DateRangeFilter";
 import { Methodology } from "@/components/ui/Methodology";
 import { SectionNav, type SectionNavItem } from "@/components/ui/SectionNav";
 import { DashboardHeader } from "@/components/analytics/DashboardHeader";
@@ -126,6 +126,18 @@ const FOOD_DATE_PRESETS: DateRangePreset[] = [
   { label: "All time", days: "all" },
 ];
 
+/** The preset labels are Title Case for the filter button; these read them
+ * back into the "Showing …" sentence. A custom (non-preset) range falls
+ * through as its formatted date span. */
+const RANGE_PHRASE: Record<string, string> = {
+  "This week": "this week",
+  "2 weeks": "the last 2 weeks",
+  "1 month": "the last month",
+  "6 months": "the last 6 months",
+  "1 year": "the last year",
+  "All time": "all time",
+};
+
 
 const REPETITION_DEFAULT_COUNT = 10;
 const INGREDIENTS_DEFAULT_COUNT = 10;
@@ -226,7 +238,8 @@ export function FoodDashboard() {
 
   const topFoods = ranked.slice(0, 10).map((f) => ({ label: f.item, value: f.count }));
 
-  const rangeLabel = span && range ? (range.start === span.start && range.end === span.end ? "all time" : `${range.start} – ${range.end}`) : "";
+  const rangeDescription = span && range ? describeDateRange(FOOD_DATE_PRESETS, span, range) : "";
+  const rangeLabel = RANGE_PHRASE[rangeDescription] ?? rangeDescription;
 
   // The named gaps for the headline. For the groups whose name alone ("other
   // veg", "other fruit") doesn't say what's in them, spell out a few members
@@ -237,14 +250,14 @@ export function FoodDashboard() {
   }));
   const foodInsight = priorities.insufficientData
     ? {
-        label: "Food",
+        label: "What stands out",
         headline: `Only ${priorities.daysWithFoodTracked} day${priorities.daysWithFoodTracked === 1 ? "" : "s"} of food logged in this range.`,
         detail: "Widen the range or keep logging, and this page's recommendations fill in.",
         tone: "neutral" as const,
       }
     : priorities.missing.length > 0
       ? {
-          label: "Worth noticing",
+          label: "What stands out",
           headline: (
             <>
               {gapTerms.map((g, i) => (
@@ -261,7 +274,7 @@ export function FoodDashboard() {
           tone: "attention" as const,
         }
       : {
-          label: "Going well",
+          label: "What stands out",
           headline: "Your intake looks balanced across the tracked food groups this range.",
           detail:
             priorities.doingWell.length > 0 ? (
