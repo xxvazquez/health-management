@@ -26,7 +26,7 @@ function useSyncDotColor(): string | null {
 
 /** The main menu's account entry — "Log in" when signed out, "Hi, name"
  * when signed in. Both states open the single shared AccountPanel. */
-export function AccountMenuButton({ collapsed }: { collapsed?: boolean }) {
+export function AccountMenuButton({ collapsed, onOpen }: { collapsed?: boolean; onOpen?: () => void }) {
   const { configured, session, loading, openPanel } = useAuth();
   const dotColor = useSyncDotColor();
 
@@ -34,11 +34,16 @@ export function AccountMenuButton({ collapsed }: { collapsed?: boolean }) {
 
   const label = session ? `Hi, ${displayNameFromEmail(session.user.email ?? "")}` : "Log in";
 
+  function handleOpen() {
+    onOpen?.();
+    openPanel();
+  }
+
   if (collapsed) {
     return (
       <button
         type="button"
-        onClick={openPanel}
+        onClick={handleOpen}
         title={label}
         aria-label={label}
         className="relative flex h-9 w-9 items-center justify-center self-center rounded-full border"
@@ -62,7 +67,7 @@ export function AccountMenuButton({ collapsed }: { collapsed?: boolean }) {
   return (
     <button
       type="button"
-      onClick={openPanel}
+      onClick={handleOpen}
       className="flex items-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-medium whitespace-nowrap transition-colors"
       style={{
         borderColor: session ? "var(--border-hairline)" : "var(--series-1)",

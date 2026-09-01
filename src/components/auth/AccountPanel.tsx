@@ -47,14 +47,20 @@ export function AccountPanel() {
   }
 
   return (
-    <div ref={containerRef} className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
+    <div
+      ref={containerRef}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="account-panel-title"
+    >
       <div className="absolute inset-0 bg-black/30" onClick={closePanel} />
       <div
         className="relative flex w-full max-w-sm flex-col gap-4 rounded-xl border p-5 shadow-xl"
         style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}
       >
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
+          <h2 id="account-panel-title" className="text-sm font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
             {session ? "Account" : mode === "signIn" ? "Log in" : "Create account"}
           </h2>
           <button
@@ -131,25 +137,34 @@ export function AccountPanel() {
 
         {configured && !session && (
           <form onSubmit={handleSubmit} className="flex flex-col gap-2.5">
-            <input
-              type="email"
-              required
-              autoFocus
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="email"
-              className="rounded-md border px-3 py-2 text-sm outline-none"
-              style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
-            />
-            <input
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="password"
-              className="rounded-md border px-3 py-2 text-sm outline-none"
-              style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
-            />
+            <label className="flex flex-col gap-1 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
+              Email
+              <input
+                type="email"
+                required
+                autoFocus
+                autoComplete="email"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="rounded-md border px-3 py-2 text-sm outline-none"
+                style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
+              Password
+              <input
+                type="password"
+                required
+                autoComplete={mode === "signIn" ? "current-password" : "new-password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="rounded-md border px-3 py-2 text-sm outline-none"
+                style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
+              />
+            </label>
             <button
               type="submit"
               disabled={submitting}
