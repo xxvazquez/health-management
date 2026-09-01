@@ -57,6 +57,7 @@ import { TAB_ICON } from "@/components/tabIcons";
 import { DuplicateItemDialog } from "@/components/ui/DuplicateItemDialog";
 import { SearchField } from "@/components/ui/SearchField";
 import { TabRail } from "@/components/ui/TabRail";
+import { DemoNotice } from "@/components/ui/DemoNotice";
 import { useOverflowFade } from "@/lib/useOverflowFade";
 import {
   workoutUnitLabel,
@@ -1570,11 +1571,7 @@ export default function LogPage() {
           <h1 className="text-xl font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
             {activeLogTab ? activeLogTab.label : "Log"}
           </h1>
-          {isDemoData && (
-            <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-              Example data — sign in or log something real to replace it.
-            </p>
-          )}
+          {isDemoData && <DemoNotice className="mt-0.5">Example data — log something real to replace it.</DemoNotice>}
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <div className="flex items-center gap-0.5 rounded-md border p-0.5" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>

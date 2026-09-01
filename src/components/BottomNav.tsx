@@ -58,7 +58,7 @@ export function BottomNav() {
                 />
               )}
             </span>
-            <span className="max-w-full text-[11px] leading-tight">{item.label}</span>
+            <span className="max-w-full text-xs leading-tight tracking-tight">{item.label}</span>
             {badge > 0 && <span className="sr-only">{badge} unread</span>}
           </Link>
         );

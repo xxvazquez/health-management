@@ -9,6 +9,7 @@ import { SearchField } from "@/components/ui/SearchField";
 import { ListSkeleton } from "@/components/ui/Skeleton";
 import { InlineEmpty } from "@/components/ui/EmptyState";
 import { PrimaryAction } from "@/components/ui/PrimaryAction";
+import { DemoNotice } from "@/components/ui/DemoNotice";
 
 function formatJournalDate(date: string): string {
   return new Date(`${date}T00:00:00`).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
@@ -181,11 +182,7 @@ export function JournalTab({ isDemoData, accent }: { isDemoData: boolean; accent
 
   return (
     <div className="flex flex-col gap-3">
-      {isDemoData && (
-        <p className="text-xs" style={{ color: accent }}>
-          Example journal entries — nothing here is saved. Sign in to keep your own.
-        </p>
-      )}
+      {isDemoData && <DemoNotice>Example entries — nothing here is saved.</DemoNotice>}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <SearchField value={search} onChange={setSearch} placeholder="Search entries…" />

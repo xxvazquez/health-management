@@ -26,6 +26,7 @@ import { NoteThreadList } from "@/components/notes/NoteThreadList";
 import { NoteThreadView } from "@/components/notes/NoteThreadView";
 import { PageSkeleton } from "@/components/ui/Skeleton";
 import { PrimaryAction } from "@/components/ui/PrimaryAction";
+import { DemoNotice } from "@/components/ui/DemoNotice";
 
 const ACCENT = "var(--series-magenta)";
 // Never the partner's email — that's private data the app shouldn't surface
@@ -245,10 +246,7 @@ export default function NotesPage() {
           onMarkAllRead={() => void demoMarkAllRead()}
           showCompose={!selectedDemoThread}
         />
-        <p className="text-xs" style={{ color: "var(--series-magenta)" }}>
-          Example data — try replying, favouriting, or archiving freely below. None of this is saved anywhere; sign in to connect
-          with your real partner instead.
-        </p>
+        <DemoNotice>Example messages — reply, favourite, or archive freely; nothing here is saved.</DemoNotice>
 
         {selectedDemoThread ? (
           <NoteThreadView
