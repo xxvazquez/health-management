@@ -548,7 +548,7 @@ function VarietySection({ variety }: { variety: ReturnType<typeof computeNutriti
       <CardTitle size="sm" subtitle="Distinct foods logged in the selected range">
         Variety
       </CardTitle>
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatTile label="Food variety" value={String(variety.totalUniqueFoods)} detail="unique foods" />
         <StatTile label="Plant variety" value={String(variety.uniquePlantFoods)} detail="unique plant foods" accent="var(--status-good)" />
         <StatTile
