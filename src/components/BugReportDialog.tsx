@@ -1,9 +1,12 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { usePathname } from "next/navigation";
 import { BUG_TYPES, bugReportingConfigured, submitBugReport, type BugType } from "@/lib/supabase/reportBug";
 import { useDialogA11y } from "@/components/ui/useDialogA11y";
+import { AutoGrowTextarea } from "@/components/ui/AutoGrowTextarea";
+
+const ACCENT = "var(--series-1)";
 
 const PAGE_LABELS: Record<string, string> = {
   "/overview": "Overview",
@@ -61,6 +64,14 @@ export function BugReportDialog({ open, onClose }: { open: boolean; onClose: () 
 
   const containerRef = useDialogA11y(open, onClose);
 
+  // Close on its own a beat after a successful send — the confirmation has
+  // been read by then, and there's nothing left to do in the dialog.
+  useEffect(() => {
+    if (!submitted) return;
+    const id = setTimeout(onClose, 1400);
+    return () => clearTimeout(id);
+  }, [submitted, onClose]);
+
   if (!open) return null;
 
   async function handleSubmit(e: FormEvent) {
@@ -82,14 +93,14 @@ export function BugReportDialog({ open, onClose }: { open: boolean; onClose: () 
   }
 
   return (
-    <div ref={containerRef} className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
+    <div ref={containerRef} className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="bug-report-title">
       <div className="absolute inset-0 bg-black/30" onClick={onClose} />
       <div
         className="relative flex w-full max-w-sm flex-col gap-4 rounded-xl border p-5 shadow-xl"
         style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}
       >
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
+          <h2 id="bug-report-title" className="text-sm font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
             Report a bug
           </h2>
           <button
@@ -117,21 +128,32 @@ export function BugReportDialog({ open, onClose }: { open: boolean; onClose: () 
 
         {bugReportingConfigured && !submitted && (
           <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-            <label className="flex flex-col gap-1 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
-              Type
-              <select
-                value={bugType}
-                onChange={(e) => setBugType(e.target.value as BugType)}
-                className="rounded-md border px-3 py-2 text-sm outline-none"
-                style={inputStyle}
-              >
-                {BUG_TYPES.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <div className="flex flex-col gap-1.5">
+              <span className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
+                Type
+              </span>
+              <div className="flex flex-wrap gap-1.5">
+                {BUG_TYPES.map((t) => {
+                  const active = t === bugType;
+                  return (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => setBugType(t)}
+                      aria-pressed={active}
+                      className="rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors"
+                      style={{
+                        borderColor: active ? ACCENT : "var(--border-hairline)",
+                        background: active ? "color-mix(in oklab, var(--series-1) 12%, var(--surface-1))" : "transparent",
+                        color: active ? ACCENT : "var(--text-secondary)",
+                      }}
+                    >
+                      {t}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
             <label className="flex flex-col gap-1 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
               Location
               <input
@@ -145,10 +167,11 @@ export function BugReportDialog({ open, onClose }: { open: boolean; onClose: () 
             </label>
             <label className="flex flex-col gap-1 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
               Comment (optional)
-              <textarea
+              <AutoGrowTextarea
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
                 rows={3}
+                maxRows={8}
                 placeholder="Anything else that would help"
                 className="resize-none rounded-md border px-3 py-2 text-sm outline-none"
                 style={inputStyle}
@@ -158,7 +181,7 @@ export function BugReportDialog({ open, onClose }: { open: boolean; onClose: () 
               type="submit"
               disabled={submitting}
               className="rounded-md px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
-              style={{ background: "var(--series-1)" }}
+              style={{ background: ACCENT }}
             >
               {submitting ? "Sending…" : "Send report"}
             </button>
