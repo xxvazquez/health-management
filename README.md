@@ -16,7 +16,7 @@ It works fully offline, syncs to Supabase once you sign in, and installs as a PW
 | **Doctors** | `/doctors` | A history log of doctor appointments already attended: reusable doctors and specialties, per-doctor rating/language, follow-up notes and tasks, and one next-appointment date per specialty. A **Log** tab holds dated observations and notes tagged to the specialties they concern, so they're waiting at the next relevant visit. |
 | **Analytics** | `/analytics` | One dashboard per domain (Food, Supplements, Habits, Digestion, Workout, Cycle, Patterns), switched by a tab bar. |
 | **Manage** | `/manage` | Add / rename / archive / delete items and categories, set exercise units, edit reminder lists and doctor types, hide domains you don't track. Searchable across every section. |
-| **Household** | `/home` | The partner-facing versions of notes, reminders, and expiry, plus a shared list of discount codes — once you're linked, either of you can see and edit them. |
+| **Household** | `/home` | The partner-facing versions of notes, reminders, and expiry, a shared list of discount codes, and a **Wishlist** of saved links grouped into lists — once you're linked, either of you can see and edit them. |
 | **Messages** | `/notes` | Private one-to-one messaging with your linked partner. |
 | **My Drive** | `/my-drive` | Read-only browser for the signed-in Google account's Drive. |
 | **Help** | `/help` | Plain-language reference for what each part does. |
@@ -91,7 +91,7 @@ src/
   taxonomy/           category definitions, food classification, naming rules
 supabase/
   schema.sql          full DDL + RLS policies — the source of truth for the data model
-  functions/          Edge Functions (bug-report email; reminder + digest cron)
+  functions/          Edge Functions (bug-report email; reminder + digest cron; wishlist link-title fetch)
   tests/rls.test.sql  automated RLS isolation tests (CI only)
 docs/
   data-model.md       readable map of the schema — grouped ER diagrams, RLS shapes
@@ -198,6 +198,14 @@ write-local-first outbox — they only mean anything once they're on the server.
   whose `expires_on` has passed is deleted client-side by `fetchHouseholdCodes`
   the next time either partner opens the list; codes with no date stay until
   removed.
+- **Wishlist** (`wishlist_categories` + `wishlist_items`, pair-visible) — link
+  lists grouped into user-named categories; an item is one URL plus a title, an
+  optional note, and an optional "who it's for". The title is fetched from the
+  page by the `fetch-link-metadata` Edge Function (the static client can't —
+  CORS), falling back to a typed title. `wishlist_items.category_id` cascades on
+  category delete; the per-category accent colour is assigned client-side by
+  position. The PWA `share_target` (`/home/?url=…`) routes a shared link straight
+  to a pre-filled new item.
 - **Reminder lists** (`reminder_lists`, owner-only) — `personal_tasks.list_id` is
   a composite FK with `on delete set null`, so deleting a list drops its tasks
   back to the default bucket rather than removing them. Lists are managed on the

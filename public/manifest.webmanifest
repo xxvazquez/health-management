@@ -5,6 +5,15 @@
   "start_url": "/log/",
   "scope": "/",
   "display": "standalone",
+  "share_target": {
+    "action": "/home/",
+    "method": "GET",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  },
   "background_color": "#f7faf9",
   "theme_color": "#e6f1f2",
   "icons": [

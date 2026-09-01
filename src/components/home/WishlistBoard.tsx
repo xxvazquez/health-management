@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { PencilIcon, TrashIcon } from "@/components/ui/Notebook";
 import { SearchField } from "@/components/ui/SearchField";
 import { ListSkeleton } from "@/components/ui/Skeleton";
@@ -80,6 +80,7 @@ function ItemForm({
   accent,
   initial,
   presetCategoryId,
+  presetUrl,
   people,
   onFetchTitle,
   onSave,
@@ -89,12 +90,13 @@ function ItemForm({
   accent: string;
   initial?: WishlistItem;
   presetCategoryId?: string;
+  presetUrl?: string;
   people?: WishlistPeople;
   onFetchTitle?: (url: string) => Promise<string | null>;
   onSave: (input: NewWishlistItemInput, newCategoryName: string | null) => Promise<void>;
   onCancel: () => void;
 }) {
-  const [url, setUrl] = useState(initial?.url ?? "");
+  const [url, setUrl] = useState(initial?.url ?? presetUrl ?? "");
   const [title, setTitle] = useState(initial?.title ?? "");
   const [note, setNote] = useState(initial?.note ?? "");
   const [categoryId, setCategoryId] = useState(
@@ -112,7 +114,7 @@ function ItemForm({
     title.trim().length > 0 &&
     (!needsNewCategory || newCategoryName.trim().length > 0);
 
-  async function handleUrlBlur() {
+  async function lookUpTitle() {
     if (!onFetchTitle || !url.trim() || title.trim() || fetching) return;
     setFetching(true);
     try {
@@ -122,6 +124,15 @@ function ItemForm({
       setFetching(false);
     }
   }
+
+  // Shared in from another app with the URL already filled — look its
+  // title up straight away (a one-shot external fetch on mount), since
+  // there's no blur event to wait for.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (presetUrl && !initial) void lookUpTitle();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -161,7 +172,7 @@ function ItemForm({
           required
           value={url}
           onChange={(e) => setUrl(e.target.value)}
-          onBlur={handleUrlBlur}
+          onBlur={lookUpTitle}
           placeholder="https://…"
           inputMode="url"
           maxLength={2000}
@@ -547,7 +558,7 @@ function CategoryDetail({
 type View =
   | { mode: "list" }
   | { mode: "detail"; categoryId: string }
-  | { mode: "item"; categoryId?: string; editing?: WishlistItem; returnTo: "list" | "detail" }
+  | { mode: "item"; categoryId?: string; editing?: WishlistItem; presetUrl?: string; returnTo: "list" | "detail" }
   | { mode: "category"; editing?: WishlistCategory; returnTo: "list" | "detail" };
 
 export function WishlistBoard({
@@ -557,6 +568,8 @@ export function WishlistBoard({
   accent,
   people,
   forLabel,
+  sharedUrl,
+  onSharedUrlConsumed,
   onFetchTitle,
   onCreateCategory,
   onRenameCategory,
@@ -571,6 +584,9 @@ export function WishlistBoard({
   accent: string;
   people?: WishlistPeople;
   forLabel?: (userId: string) => string;
+  /** A URL shared into the app; opens the new-item form pre-filled, once. */
+  sharedUrl?: string | null;
+  onSharedUrlConsumed?: () => void;
   onFetchTitle?: (url: string) => Promise<string | null>;
   onCreateCategory: (name: string) => Promise<WishlistCategory>;
   onRenameCategory: (id: string, name: string) => Promise<void>;
@@ -581,6 +597,17 @@ export function WishlistBoard({
 }) {
   const [search, setSearch] = useState("");
   const [view, setView] = useState<View>({ mode: "list" });
+
+  // A URL shared into the app — jump straight to the new-item form with it
+  // pre-filled, then tell the parent it's been handled so a re-render or
+  // the form's Cancel doesn't reopen it.
+  useEffect(() => {
+    if (!sharedUrl) return;
+    // Opening a form in response to an external event, not a render loop.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setView({ mode: "item", presetUrl: sharedUrl, returnTo: "list" });
+    onSharedUrlConsumed?.();
+  }, [sharedUrl, onSharedUrlConsumed]);
 
   const accentByCategoryId = useMemo(() => {
     const map = new Map<string, string>();
@@ -610,6 +637,7 @@ export function WishlistBoard({
         accent={view.categoryId ? accentByCategoryId.get(view.categoryId) ?? accent : accent}
         initial={view.editing}
         presetCategoryId={view.categoryId}
+        presetUrl={view.presetUrl}
         people={people}
         onFetchTitle={onFetchTitle}
         onSave={async (input, newCategoryName) => {
