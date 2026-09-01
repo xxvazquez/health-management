@@ -18,15 +18,23 @@ function displayNameFromEmail(email: string): string {
  * account button and from the logged-out banner — never duplicated
  * per-page. */
 export function AccountPanel() {
-  const { configured, session, panelOpen, closePanel, error, signIn, signUp, signOut } = useAuth();
+  const { configured, session, panelOpen, closePanel, error, signIn, signUp, signOut, sendPasswordReset } = useAuth();
   const { syncing, lastSyncedAt, isOnline, syncNow, syncState } = useData();
-  const [mode, setMode] = useState<"signIn" | "signUp">("signIn");
+  const [mode, setMode] = useState<"signIn" | "signUp" | "reset">("signIn");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
+  const [resetError, setResetError] = useState<string | null>(null);
   const containerRef = useDialogA11y(panelOpen, closePanel);
 
   if (!panelOpen) return null;
+
+  function goToMode(next: "signIn" | "signUp" | "reset") {
+    setMode(next);
+    setResetSent(false);
+    setResetError(null);
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -37,6 +45,16 @@ export function AccountPanel() {
       await signUp(email, password);
     }
     setSubmitting(false);
+  }
+
+  async function handleResetSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSubmitting(true);
+    setResetError(null);
+    const { error: err } = await sendPasswordReset(email);
+    setSubmitting(false);
+    if (err) setResetError(err);
+    else setResetSent(true);
   }
 
   async function handleSignOut() {
@@ -61,7 +79,7 @@ export function AccountPanel() {
       >
         <div className="flex items-center justify-between">
           <h2 id="account-panel-title" className="text-sm font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
-            {session ? "Account" : mode === "signIn" ? "Log in" : "Create account"}
+            {session ? "Account" : mode === "signIn" ? "Log in" : mode === "signUp" ? "Create account" : "Reset password"}
           </h2>
           <button
             type="button"
@@ -135,7 +153,61 @@ export function AccountPanel() {
           </>
         )}
 
-        {configured && !session && (
+        {configured && !session && mode === "reset" && (
+          <form onSubmit={handleResetSubmit} className="flex flex-col gap-2.5">
+            {resetSent ? (
+              <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
+                If an account exists for <span className="font-medium" style={{ color: "var(--text-primary)" }}>{email}</span>, a
+                link to set a new password is on its way. Check your inbox.
+              </p>
+            ) : (
+              <>
+                <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                  Enter your email and we&apos;ll send a link to set a new password.
+                </p>
+                <label className="flex flex-col gap-1 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
+                  Email
+                  <input
+                    type="email"
+                    required
+                    autoFocus
+                    autoComplete="email"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="rounded-md border px-3 py-2 text-sm outline-none"
+                    style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
+                  />
+                </label>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="rounded-md px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
+                  style={{ background: "var(--series-1)" }}
+                >
+                  {submitting ? "Sending…" : "Send reset link"}
+                </button>
+              </>
+            )}
+            <button
+              type="button"
+              onClick={() => goToMode("signIn")}
+              className="self-start text-xs font-medium underline decoration-dotted"
+              style={{ color: "var(--text-secondary)" }}
+            >
+              back to sign in
+            </button>
+            {resetError && (
+              <span className="text-xs" style={{ color: "var(--status-critical)" }}>
+                {resetError}
+              </span>
+            )}
+          </form>
+        )}
+
+        {configured && !session && mode !== "reset" && (
           <form onSubmit={handleSubmit} className="flex flex-col gap-2.5">
             <label className="flex flex-col gap-1 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
               Email
@@ -173,14 +245,26 @@ export function AccountPanel() {
             >
               {mode === "signIn" ? "Sign in" : "Create account"}
             </button>
-            <button
-              type="button"
-              onClick={() => setMode((m) => (m === "signIn" ? "signUp" : "signIn"))}
-              className="self-start text-xs font-medium underline decoration-dotted"
-              style={{ color: "var(--text-secondary)" }}
-            >
-              {mode === "signIn" ? "new here? create an account" : "have an account? sign in"}
-            </button>
+            <div className="flex items-center justify-between gap-3">
+              <button
+                type="button"
+                onClick={() => goToMode(mode === "signIn" ? "signUp" : "signIn")}
+                className="text-xs font-medium underline decoration-dotted"
+                style={{ color: "var(--text-secondary)" }}
+              >
+                {mode === "signIn" ? "new here? create an account" : "have an account? sign in"}
+              </button>
+              {mode === "signIn" && (
+                <button
+                  type="button"
+                  onClick={() => goToMode("reset")}
+                  className="shrink-0 text-xs font-medium underline decoration-dotted"
+                  style={{ color: "var(--text-secondary)" }}
+                >
+                  forgot your password?
+                </button>
+              )}
+            </div>
             {error && (
               <span className="text-xs" style={{ color: "var(--status-critical)" }}>
                 {error}
