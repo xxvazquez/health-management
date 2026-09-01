@@ -37,10 +37,10 @@ import {
 import { TYPE_ACCENT } from "@/taxonomy/categories";
 import { NUTRITION_GROUP_EXAMPLES } from "@/taxonomy/nutritionGroups";
 
-/** A nutrition-group name shown inside a sentence — lowercase and italic,
- * so "other veg" and "citrus fruit" read as terms rather than proper nouns. */
+/** A nutrition-group name shown inside a sentence — lowercased so
+ * "other veg" and "citrus fruit" read as terms rather than proper nouns. */
 function CatTerm({ children }: { children: ReactNode }) {
-  return <span className="italic lowercase">{children}</span>;
+  return <span className="lowercase">{children}</span>;
 }
 
 const STATUS_COLOR: Record<GroupStatus, string> = {
@@ -243,7 +243,7 @@ export function FoodDashboard() {
 
   // The named gaps for the headline. For the groups whose name alone ("other
   // veg", "other fruit") doesn't say what's in them, spell out a few members
-  // inline; every group name renders as a lowercase italic term.
+  // inline; every group name renders as a lowercase term.
   const gapTerms = priorities.missing.slice(0, 2).map((b) => ({
     label: b.label,
     eg: b.group && /^Other\b/.test(b.label) ? NUTRITION_GROUP_EXAMPLES[b.group].split(", ").slice(0, 3).join(", ") : null,

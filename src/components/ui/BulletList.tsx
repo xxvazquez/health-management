@@ -11,9 +11,9 @@ export function BulletList({
   tone,
   bullets,
   emptyText,
-  /** Render each bullet's label as a lowercase italic term rather than a
-   * bold noun — used on the Food page, where the labels are taxonomy group
-   * names ("other veg", "citrus fruit") read inside a sentence. */
+  /** Render each bullet's label as a lowercase term rather than a bold
+   * noun — used on the Food page, where the labels are taxonomy group
+   * names ("other veg", "citrus fruit") that read inside a sentence. */
   termLabels = false,
 }: {
   title: string;
@@ -41,7 +41,7 @@ export function BulletList({
               <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: dotColor }} />
               <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
                 <span
-                  className={termLabels ? "italic lowercase" : "font-medium"}
+                  className={termLabels ? "lowercase" : "font-medium"}
                   style={{ color: "var(--text-primary)" }}
                 >
                   {b.label}
