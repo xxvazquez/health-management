@@ -129,7 +129,7 @@ export function BugReportDialog({ open, onClose }: { open: boolean; onClose: () 
         {bugReportingConfigured && !submitted && (
           <form onSubmit={handleSubmit} className="flex flex-col gap-3">
             <div className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
+              <span className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>
                 Type
               </span>
               <div className="flex flex-wrap gap-1.5">
@@ -141,7 +141,7 @@ export function BugReportDialog({ open, onClose }: { open: boolean; onClose: () 
                       type="button"
                       onClick={() => setBugType(t)}
                       aria-pressed={active}
-                      className="rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors"
+                      className="rounded-lg border px-2.5 py-1.5 text-sm font-medium transition-colors"
                       style={{
                         borderColor: active ? ACCENT : "var(--border-hairline)",
                         background: active ? "color-mix(in oklab, var(--series-1) 12%, var(--surface-1))" : "transparent",
@@ -154,7 +154,7 @@ export function BugReportDialog({ open, onClose }: { open: boolean; onClose: () 
                 })}
               </div>
             </div>
-            <label className="flex flex-col gap-1 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
+            <label className="flex flex-col gap-1 text-sm font-medium" style={{ color: "var(--text-secondary)" }}>
               Location
               <input
                 required
@@ -165,7 +165,7 @@ export function BugReportDialog({ open, onClose }: { open: boolean; onClose: () 
                 style={inputStyle}
               />
             </label>
-            <label className="flex flex-col gap-1 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
+            <label className="flex flex-col gap-1 text-sm font-medium" style={{ color: "var(--text-secondary)" }}>
               Comment (optional)
               <AutoGrowTextarea
                 value={comment}
