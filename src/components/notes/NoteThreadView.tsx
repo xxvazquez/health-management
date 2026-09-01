@@ -4,6 +4,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { NOTE_CATEGORY_LABEL, type NoteMessage, type NoteThread } from "@/lib/supabase/notes";
 import { ArchiveIcon, CategoryIcon, EnvelopeOpenIcon, ReplyIcon, StarIcon } from "./icons";
 import { formatNoteTimestamp } from "./NoteThreadList";
+import { AutoGrowTextarea } from "@/components/ui/AutoGrowTextarea";
 
 const ACCENT = "var(--series-magenta)";
 
@@ -220,10 +221,11 @@ export function NoteThreadView({
       )}
 
       <form onSubmit={handleReply} className="flex items-end gap-2 border-t pt-4" style={{ borderColor: "var(--gridline)" }}>
-        <textarea
+        <AutoGrowTextarea
           value={replyBody}
           onChange={(e) => setReplyBody(e.target.value)}
           rows={2}
+          maxRows={8}
           placeholder={`Reply to ${partnerLabel}…`}
           className="flex-1 resize-none rounded-md border px-3 py-2 text-sm outline-none"
           style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}

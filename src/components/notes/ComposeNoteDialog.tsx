@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { useDialogA11y } from "@/components/ui/useDialogA11y";
+import { AutoGrowTextarea } from "@/components/ui/AutoGrowTextarea";
 import { NOTE_CATEGORIES, NOTE_CATEGORY_LABEL, type NewNoteInput, type NoteCategory } from "@/lib/supabase/notes";
 import { CategoryIcon } from "./icons";
 
@@ -138,11 +139,12 @@ export function ComposeNoteDialog({
 
           <label className="flex flex-col gap-1 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
             Message
-            <textarea
+            <AutoGrowTextarea
               required
               value={body}
               onChange={(e) => setBody(e.target.value)}
               rows={5}
+              maxRows={10}
               className="resize-none rounded-md border px-3 py-2 text-sm outline-none"
               style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
             />
