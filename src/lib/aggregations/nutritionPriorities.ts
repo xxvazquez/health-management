@@ -82,6 +82,19 @@ export interface GroupState {
   targetPerWeek: number | null;
 }
 
+export interface BulletFrequency {
+  /** Distinct days the group was logged, within the selected range. */
+  daysInRange: number;
+  /** Length of the selected range in days — the denominator. */
+  rangeLengthDays: number;
+  /** `daysInRange / rangeLengthDays`, 0–100, rounded. */
+  percent: number;
+  /** A few member foods, for a muted sub-line under the group name. */
+  examples: string[];
+  /** The group was never logged in the range at all (`daysInRange === 0`). */
+  notTracked: boolean;
+}
+
 export interface Bullet {
   label: string;
   detail: string;
@@ -96,6 +109,10 @@ export interface Bullet {
    * is null, or a group has no evidence record yet — the UI only offers a
    * "Why this is suggested" link when this is non-null. */
   evidenceId: string | null;
+  /** Set for single-group bullets: the numbers behind `detail`, so the UI
+   * can draw a meter row instead of reading the sentence. Absent on
+   * pillar-wide rollups and variety bullets, which have no one figure. */
+  frequency?: BulletFrequency;
 }
 
 export interface PriorityCandidate {
@@ -166,6 +183,9 @@ export interface NutritionPriorities {
   dietBalance: DietBalanceRow[];
   variety: VarietyMetrics;
   trend: TrendSummary;
+  /** The selected range in a couple of words for a card header, e.g.
+   * "11 weeks" / "6 months" — empty when there's not enough data. */
+  rangeLabel: string;
 }
 
 function foodEvents(events: CanonicalEvent[]): CanonicalEvent[] {
@@ -296,6 +316,16 @@ function rangeInWords(days: number): string {
   return `the past ${Math.round(days / 365)} years`;
 }
 
+function bulletFrequency(state: GroupState): BulletFrequency {
+  return {
+    daysInRange: state.daysInRange,
+    rangeLengthDays: state.rangeLengthDays,
+    percent: state.rangeLengthDays > 0 ? Math.round((state.daysInRange / state.rangeLengthDays) * 100) : 0,
+    examples: NUTRITION_GROUP_EXAMPLES[state.group].split(", "),
+    notTracked: state.daysInRange === 0,
+  };
+}
+
 function groupCandidateDetail(state: GroupState): string {
   const span = rangeInWords(state.rangeLengthDays);
   const pct = state.rangeLengthDays > 0 ? Math.round((state.daysInRange / state.rangeLengthDays) * 100) : 0;
@@ -381,6 +411,7 @@ function groupWellSentence(state: GroupState): Bullet {
     action: null,
     group: state.group,
     evidenceId: evidenceForGroup(state.group)?.evidenceId ?? null,
+    frequency: bulletFrequency(state),
   };
 }
 
@@ -422,6 +453,7 @@ export function computeNutritionPriorities(events: CanonicalEvent[], range: Date
       dietBalance: [],
       variety: emptyVariety,
       trend: { available: false, rangeLengthDays: 0, points: [] },
+      rangeLabel: "",
     };
   }
 
@@ -489,13 +521,15 @@ export function computeNutritionPriorities(events: CanonicalEvent[], range: Date
         for (const s of goodOnes) doingWell.push(groupWellSentence(s));
       }
 
-      if (pillar === "fish" && gapOnes.some((s) => s.group === "fatty_fish") && otherSeafoodState.daysInRange >= 4) {
+      const fattyFishGap = gapOnes.find((s) => s.group === "fatty_fish");
+      if (pillar === "fish" && fattyFishGap && otherSeafoodState.daysInRange >= 4) {
         missing.push({
           label: "Fatty fish",
           detail: "You eat fish, but fatty fish specifically isn't regularly represented.",
           action: ADD_PHRASE.fatty_fish ?? null,
           group: "fatty_fish",
           evidenceId: evidenceForGroup("fatty_fish")?.evidenceId ?? null,
+          frequency: bulletFrequency(fattyFishGap),
         });
       } else if (gapOnes.length === subgroups.length && subgroups.length > 1) {
         missing.push({
@@ -514,6 +548,7 @@ export function computeNutritionPriorities(events: CanonicalEvent[], range: Date
             action: ADD_PHRASE[s.group] ?? `Add ${s.label.toLowerCase()}`,
             group: s.group,
             evidenceId: evidenceForGroup(s.group)?.evidenceId ?? null,
+            frequency: bulletFrequency(s),
           });
         }
       }
@@ -645,6 +680,7 @@ export function computeNutritionPriorities(events: CanonicalEvent[], range: Date
     dietBalance,
     variety,
     trend,
+    rangeLabel: rangeInWords(rangeLengthDays).replace(/^the past /, ""),
   };
 }
 
