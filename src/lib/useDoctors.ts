@@ -34,21 +34,12 @@ import {
   type NewFollowUpTaskInput,
 } from "@/lib/supabase/doctors";
 import { buildDemoDoctorAppointments, buildDemoDoctorFollowUpTasks, buildDemoDoctorSpecialties, buildDemoDoctors } from "@/lib/demoDoctors";
-import {
-  createCareEntry,
-  deleteCareEntry,
-  fetchCareEntries,
-  updateCareEntry,
-  type CareEntry,
-  type CareEntryPatch,
-  type NewCareEntryInput,
-} from "@/lib/supabase/careLog";
-import { buildDemoCareEntries } from "@/lib/demoCareLog";
+import { useCareLog } from "@/lib/useCareLog";
 
 /** Survives navigation away from Doctors and back so returning doesn't
  * re-flash "Loading…" — same cross-nav cache pattern as
  * usePersonalReminderBoards. Keyed by user id; cleared on sign-out. */
-let cache: { userId: string; specialties: DoctorSpecialty[]; doctors: Doctor[]; appointments: DoctorAppointment[]; tasks: DoctorFollowUpTask[]; careEntries: CareEntry[] } | null = null;
+let cache: { userId: string; specialties: DoctorSpecialty[]; doctors: Doctor[]; appointments: DoctorAppointment[]; tasks: DoctorFollowUpTask[] } | null = null;
 
 export interface LogAppointmentInput {
   /** Exactly one of these is set. */
@@ -77,25 +68,24 @@ export function useDoctors() {
   const [doctors, setDoctors] = useState<Doctor[]>(() => seed?.doctors ?? buildDemoDoctors());
   const [appointments, setAppointments] = useState<DoctorAppointment[]>(() => seed?.appointments ?? buildDemoDoctorAppointments());
   const [tasks, setTasks] = useState<DoctorFollowUpTask[]>(() => seed?.tasks ?? buildDemoDoctorFollowUpTasks());
-  const [careEntries, setCareEntries] = useState<CareEntry[]>(() => seed?.careEntries ?? buildDemoCareEntries());
   const [loading, setLoading] = useState(seed === null);
   const [error, setError] = useState(false);
+
+  const careLog = useCareLog();
 
   const load = useCallback(async () => {
     setError(false);
     try {
-      const [s, d, a, t, c] = await Promise.all([
+      const [s, d, a, t] = await Promise.all([
         fetchDoctorSpecialties(),
         fetchDoctors(),
         fetchDoctorAppointments(),
         fetchDoctorFollowUpTasks(),
-        fetchCareEntries(),
       ]);
       setSpecialties(s);
       setDoctors(d);
       setAppointments(a);
       setTasks(t);
-      setCareEntries(c);
     } catch (err) {
       console.error("useDoctors load failed", err);
       setError(true);
@@ -109,8 +99,8 @@ export function useDoctors() {
       cache = null;
       return;
     }
-    if (!loading) cache = { userId, specialties, doctors, appointments, tasks, careEntries };
-  }, [userId, isDemo, loading, specialties, doctors, appointments, tasks, careEntries]);
+    if (!loading) cache = { userId, specialties, doctors, appointments, tasks };
+  }, [userId, isDemo, loading, specialties, doctors, appointments, tasks]);
 
   useEffect(() => {
     if (authLoading || isDemo) return;
@@ -347,77 +337,14 @@ export function useDoctors() {
     [isDemo],
   );
 
-  // --- Care log ---
-  const sortCareEntries = (list: CareEntry[]) =>
-    [...list].sort((a, b) => b.happenedOn.localeCompare(a.happenedOn) || b.createdAt.localeCompare(a.createdAt));
-
-  const addCareEntry = useCallback(
-    async (input: NewCareEntryInput) => {
-      if (isDemo) {
-        setCareEntries((prev) =>
-          sortCareEntries([
-            {
-              id: demoId("care"),
-              happenedOn: input.happenedOn,
-              kind: input.kind,
-              title: input.title.trim(),
-              body: input.body.trim() || null,
-              specialtyIds: input.specialtyIds,
-              createdAt: new Date().toISOString(),
-            },
-            ...prev,
-          ]),
-        );
-        return;
-      }
-      const created = await createCareEntry(input);
-      setCareEntries((prev) => sortCareEntries([created, ...prev]));
-    },
-    [isDemo],
-  );
-
-  const editCareEntry = useCallback(
-    async (id: string, patch: CareEntryPatch) => {
-      setCareEntries((prev) =>
-        sortCareEntries(
-          prev.map((e) =>
-            e.id === id
-              ? {
-                  ...e,
-                  happenedOn: patch.happenedOn ?? e.happenedOn,
-                  kind: patch.kind ?? e.kind,
-                  title: patch.title !== undefined ? patch.title.trim() : e.title,
-                  body: patch.body !== undefined ? patch.body.trim() || null : e.body,
-                  specialtyIds: patch.specialtyIds ?? e.specialtyIds,
-                }
-              : e,
-          ),
-        ),
-      );
-      if (!isDemo) {
-        const updated = await updateCareEntry(id, patch);
-        setCareEntries((prev) => sortCareEntries(prev.map((e) => (e.id === id ? updated : e))));
-      }
-    },
-    [isDemo],
-  );
-
-  const removeCareEntry = useCallback(
-    async (id: string) => {
-      setCareEntries((prev) => prev.filter((e) => e.id !== id));
-      if (!isDemo) await deleteCareEntry(id).catch((err) => console.error("deleteCareEntry failed", err));
-    },
-    [isDemo],
-  );
-
   return {
     isDemo,
-    loading: !isDemo && loading,
-    error,
+    loading: (!isDemo && loading) || careLog.loading,
+    error: error || careLog.error,
     specialties: { data: specialties, ensure: ensureSpecialties, create: createSpecialty, rename: renameSpecialty, archive: archiveSpecialty, remove: removeSpecialty, setNextAppointment },
     doctors: { data: doctors, edit: editDoctor, remove: removeDoctor },
     appointments: { data: appointments, log: logAppointment, edit: editAppointment, remove: removeAppointment },
     tasks: { data: tasks, add: addTask, edit: editTask, setComplete: setTaskComplete, remove: removeTask },
-    careLog: { data: careEntries, add: addCareEntry, edit: editCareEntry, remove: removeCareEntry },
+    careLog: { data: careLog.data, add: careLog.add, edit: careLog.edit, remove: careLog.remove },
   };
 }
