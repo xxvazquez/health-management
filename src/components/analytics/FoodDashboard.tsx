@@ -7,7 +7,6 @@ import { PageSkeleton } from "@/components/ui/Skeleton";
 import { StatTile } from "@/components/ui/StatTile";
 import { Insight } from "@/components/ui/Insight";
 import { Card, CardTitle } from "@/components/ui/Card";
-import { BulletList } from "@/components/ui/BulletList";
 import { DateRangeFilter, describeDateRange, type DateRangePreset } from "@/components/ui/DateRangeFilter";
 import { Methodology } from "@/components/ui/Methodology";
 import { SectionNav, type SectionNavItem } from "@/components/ui/SectionNav";
@@ -30,6 +29,7 @@ import {
 } from "@/lib/aggregations/food";
 import {
   computeNutritionPriorities,
+  type Bullet,
   type CoverageRow,
   type GroupStatus,
   type DietBalanceStatus,
@@ -70,6 +70,106 @@ function StatusPill({ status, label, color }: { status: string; label: string; c
     >
       {label}
     </span>
+  );
+}
+
+/** One row of a Going well / Worth noticing card: the group name, its
+ * example foods, and — for a single-group bullet — how often it was logged
+ * as a percentage of the range, with a matching bar. Pillar-wide bullets
+ * (no one figure) fall back to their sentence. */
+function FrequencyRow({ bullet, tone }: { bullet: Bullet; tone: string }) {
+  const f = bullet.frequency;
+  const egText = f ? f.examples.slice(0, 3).join(", ") + (f.examples.length > 3 ? ` +${f.examples.length - 3}` : "") : null;
+  return (
+    <li>
+      <div className="flex items-baseline justify-between gap-3">
+        <span className="min-w-0 flex-1 truncate text-sm lowercase" style={{ color: "var(--text-primary)" }}>
+          {bullet.label}
+        </span>
+        {f &&
+          (f.notTracked ? (
+            <span
+              className="shrink-0 rounded-md px-1.5 py-0.5 text-[11px] font-medium"
+              style={{ color: "var(--text-muted)", background: "var(--page-plane)" }}
+            >
+              Not tracked
+            </span>
+          ) : (
+            <span className="shrink-0 text-sm font-semibold tabular-nums" style={{ color: tone }}>
+              {f.percent}%
+            </span>
+          ))}
+      </div>
+
+      {f ? (
+        <div className="mt-0.5 flex items-baseline justify-between gap-3 text-xs" style={{ color: "var(--text-muted)" }}>
+          <span className="min-w-0 flex-1 truncate">{egText}</span>
+          {!f.notTracked && (
+            <span className="shrink-0 tabular-nums">
+              {f.daysInRange} / {f.rangeLengthDays} days
+            </span>
+          )}
+        </div>
+      ) : (
+        <p className="mt-0.5 text-xs" style={{ color: "var(--text-secondary)" }}>
+          {bullet.detail}
+        </p>
+      )}
+
+      {f && (
+        <div className="mt-1.5 h-1.5 w-full rounded-full" style={{ background: "var(--gridline)" }}>
+          <div
+            className="h-1.5 rounded-full"
+            style={{ width: f.notTracked ? "0%" : `${Math.max(3, f.percent)}%`, background: tone }}
+          />
+        </div>
+      )}
+    </li>
+  );
+}
+
+/** A Going well / Worth noticing card — a small scannable chart of
+ * food-group frequency rather than a stack of sentences. Sorted by how
+ * often each group shows up: `asc` puts the biggest gaps first (Worth
+ * noticing), `desc` the most consistent first (Going well). */
+function FrequencyCard({
+  title,
+  rangeLabel,
+  tone,
+  bullets,
+  emptyText,
+  order,
+}: {
+  title: string;
+  rangeLabel: string;
+  tone: string;
+  bullets: Bullet[];
+  emptyText: string;
+  order: "asc" | "desc";
+}) {
+  const rows = [...bullets].sort((a, b) => {
+    const pa = a.frequency?.percent ?? (order === "asc" ? 101 : -1);
+    const pb = b.frequency?.percent ?? (order === "asc" ? 101 : -1);
+    return order === "asc" ? pa - pb : pb - pa;
+  });
+  return (
+    <Card tier="raw">
+      <p className="mb-3 text-xs font-semibold" style={{ color: tone }}>
+        {title}
+        {rangeLabel && <span style={{ color: "var(--text-muted)" }}> · last {rangeLabel}</span>}
+      </p>
+      {rows.length === 0 ? (
+        <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+          {emptyText}
+        </p>
+      ) : (
+        <ul className="flex flex-col gap-3.5">
+          {rows.map((b) => (
+            <FrequencyRow key={b.label} bullet={b} tone={tone} />
+          ))}
+        </ul>
+      )}
+    </Card>
   );
 }
 
@@ -267,7 +367,7 @@ export function FoodDashboard() {
                   {g.eg && ` (${g.eg})`}
                 </span>
               ))}
-              {" could use more attention this range."}
+              {` could use more attention over the last ${priorities.rangeLabel}.`}
             </>
           ),
           detail: priorities.missing.length > 2 ? `Plus ${priorities.missing.length - 2} more in "Worth noticing" below.` : null,
@@ -275,7 +375,7 @@ export function FoodDashboard() {
         }
       : {
           label: "What stands out",
-          headline: "Your intake looks balanced across the tracked food groups this range.",
+          headline: `Your intake looks balanced across the tracked food groups over the last ${priorities.rangeLabel}.`,
           detail:
             priorities.doingWell.length > 0 ? (
               <>
@@ -373,24 +473,22 @@ export function FoodDashboard() {
              * Overview cards read as one coherent set rather than a
              * structured summary sitting above two loose lists. */}
             <div className="grid grid-cols-1 gap-5 pt-2 sm:grid-cols-2">
-              <Card tier="raw">
-                <BulletList
-                  title="Going well"
-                  tone="var(--status-good)"
-                  bullets={priorities.doingWell.slice(0, 5)}
-                  emptyText="Nothing stands out as strongly consistent yet."
-                  termLabels
-                />
-              </Card>
-              <Card tier="raw">
-                <BulletList
-                  title="Worth noticing"
-                  tone="var(--status-warning)"
-                  bullets={priorities.missing.slice(0, 5)}
-                  emptyText="Nothing appears unusually infrequent right now."
-                  termLabels
-                />
-              </Card>
+              <FrequencyCard
+                title="Going well"
+                rangeLabel={priorities.rangeLabel}
+                tone="var(--status-good)"
+                bullets={priorities.doingWell.slice(0, 5)}
+                emptyText="Nothing stands out as strongly consistent yet."
+                order="desc"
+              />
+              <FrequencyCard
+                title="Worth noticing"
+                rangeLabel={priorities.rangeLabel}
+                tone="var(--status-warning)"
+                bullets={priorities.missing.slice(0, 5)}
+                emptyText="Nothing appears unusually infrequent right now."
+                order="asc"
+              />
             </div>
           </>
         )}
