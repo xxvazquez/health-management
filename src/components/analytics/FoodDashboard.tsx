@@ -384,6 +384,8 @@ export function FoodDashboard() {
       </PageSection>
 
       <PageSection id="variety" activeId={activeSection} headingLabel="Variety">
+        {!priorities.insufficientData && <VarietySection variety={priorities.variety} />}
+
         <Card tier="raw">
           <CardTitle
             size="sm"
@@ -474,12 +476,7 @@ export function FoodDashboard() {
           <RankedBarChart data={distribution.map((d) => ({ label: d.category, value: d.count }))} color={TYPE_ACCENT.food} />
         </Card>
 
-        {!priorities.insufficientData && (
-          <>
-            {priorities.trend.available && <TrendSection trend={priorities.trend} />}
-            <VarietySection variety={priorities.variety} />
-          </>
-        )}
+        {!priorities.insufficientData && priorities.trend.available && <TrendSection trend={priorities.trend} />}
       </PageSection>
       </div>
 
