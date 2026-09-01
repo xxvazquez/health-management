@@ -7,6 +7,7 @@ import { NoteBoard } from "@/components/reminders/NoteBoard";
 import { TaskBoard } from "@/components/reminders/TaskBoard";
 import { ExpirationBoard } from "@/components/home/ExpirationBoard";
 import { BoardPage, type BoardPageTab } from "@/components/ui/BoardPage";
+import { DemoNotice } from "@/components/ui/DemoNotice";
 
 const JOURNAL_ACCENT = "var(--series-other)";
 const NOTES_ACCENT = "var(--series-magenta)";
@@ -87,7 +88,7 @@ export default function PersonalPage() {
       activeTab={active.id}
       onSelectTab={(id) => selectTab(id as PersonalTab)}
       // Journal shows its own "example data" line; the others don't.
-      notice={personal.isDemo && tab !== "journal" ? "Example data — nothing here is saved. Sign in to keep your own." : undefined}
+      notice={personal.isDemo && tab !== "journal" ? <DemoNotice /> : undefined}
     >
       {tab === "journal" && <JournalTab isDemoData={personal.isDemo} accent={JOURNAL_ACCENT} />}
 

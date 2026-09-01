@@ -10,6 +10,7 @@ import { FollowUpsTab } from "@/components/doctors/FollowUpsTab";
 import { CareLogTab } from "@/components/doctors/CareLogTab";
 import { ListSkeleton } from "@/components/ui/Skeleton";
 import { TabRail } from "@/components/ui/TabRail";
+import { DemoNotice } from "@/components/ui/DemoNotice";
 
 const APPOINTMENTS_ACCENT = "var(--series-2)";
 const DOCTORS_ACCENT = "var(--series-1)";
@@ -90,11 +91,7 @@ export default function DoctorsPage() {
         onSelect={selectTab}
       />
 
-      {api.isDemo && (
-        <p className="text-xs" style={{ color: active.accent }}>
-          Example data — nothing here is saved. Sign in to keep your own.
-        </p>
-      )}
+      {api.isDemo && <DemoNotice />}
 
       {api.error ? (
         <p className="py-10 text-center text-sm" style={{ color: "var(--status-critical)" }}>

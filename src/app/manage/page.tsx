@@ -10,6 +10,7 @@ import { SearchField } from "@/components/ui/SearchField";
 import { Card } from "@/components/ui/Card";
 import { ItemNameField, ItemActionButtons, useInlineRename } from "@/components/ui/ItemActions";
 import { DuplicateItemDialog } from "@/components/ui/DuplicateItemDialog";
+import { DemoNotice } from "@/components/ui/DemoNotice";
 import { PushNotificationsToggle } from "@/components/PushNotificationsToggle";
 import { useItemActions, type ManageableItem } from "@/lib/useItemActions";
 import { getAllItems, getAllCategories, getItemIdentitiesWithHistory, withDataLock } from "@/lib/db/indexedDb";
@@ -1491,10 +1492,9 @@ export default function ManagePage() {
           Nutrition evidence →
         </Link>
         {isDemoData && (
-          <p className="mt-2 text-sm" style={{ color: "var(--status-warning)" }}>
-            Example data — try adding, renaming, archiving, and managing categories freely below. None of this is
-            saved anywhere; sign in to manage your real items instead.
-          </p>
+          <DemoNotice className="mt-2">
+            Example data — add, rename, archive, and manage categories freely; nothing here is saved.
+          </DemoNotice>
         )}
         {actionError && (
           <p className="mt-2 text-sm" style={{ color: "var(--status-warning)" }}>

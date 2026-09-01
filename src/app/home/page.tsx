@@ -41,6 +41,7 @@ import { TaskBoard, type TaskFormValues } from "@/components/reminders/TaskBoard
 import { ExpirationBoard } from "@/components/home/ExpirationBoard";
 import { CodeBoard } from "@/components/home/CodeBoard";
 import { BoardPage, type BoardPageTab } from "@/components/ui/BoardPage";
+import { DemoNotice } from "@/components/ui/DemoNotice";
 
 const ACCENT = "var(--series-indigo)";
 // The Expiration board is shared with the personal Log page, which uses
@@ -397,7 +398,7 @@ export default function HomePage() {
       tabs={TABS}
       activeTab={tab}
       onSelectTab={(id) => selectTab(id as Tab)}
-      notice={isDemo ? "Example data — nothing here is saved. Sign in to share it with your real partner." : undefined}
+      notice={isDemo ? <DemoNotice /> : undefined}
     >
       {tab === "notes" && (
         <NoteBoard

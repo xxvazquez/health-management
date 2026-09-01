@@ -22,7 +22,8 @@ interface BoardPageProps {
   tabs: BoardPageTab[];
   activeTab: string;
   onSelectTab: (id: string) => void;
-  /** Optional line under the tab bar, e.g. the "example data" demo notice. */
+  /** Optional element under the tab bar, e.g. a `<DemoNotice />`. Rendered
+   * as-is, so it can bring its own styling. */
   notice?: ReactNode;
   children: ReactNode;
 }
@@ -47,11 +48,7 @@ export function BoardPage({ title, accent, tabs, activeTab, onSelectTab, notice,
         onSelect={onSelectTab}
       />
 
-      {notice && (
-        <p className="text-xs" style={{ color: accent }}>
-          {notice}
-        </p>
-      )}
+      {notice}
 
       {children}
     </div>
