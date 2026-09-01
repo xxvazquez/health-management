@@ -323,8 +323,18 @@ is sent once by the reminder cron (phase 2).
 things to remember between visits — an `observation` you noticed or a plain
 `note`. Each entry is tagged to any number of specialties through the
 `care_entry_specialties` join (both FKs `on delete cascade`), so it reads whole
-or filtered to one specialty's context. `kind` gains `result` and `decision`
-in a later phase, with the extra columns each needs.
+or filtered to one specialty's context. `kind` may gain `decision` in a later
+phase; blood/lab results went their own way (below).
+
+`lab_panels` / `lab_markers` / `lab_results` back the Doctors page's **Results**
+tab — a blood-results tracker. A `lab_marker` is one measurement followed over
+time (TSH, Ferritin); its `unit` and optional `ref_low` / `ref_high` reference
+range live on the marker, and each `lab_result` is one dated `value`. Markers
+group into user-named `lab_panels` (Hormones, Liver…) via `lab_markers.panel_id`
+(composite FK `(user_id, panel_id) → lab_panels(user_id, id)`, `on delete set
+null` — deleting a panel ungroups its markers); `lab_results → lab_markers` is
+`on delete cascade`. Owner-only, plain `auth.uid() = user_id`. Markers and panels
+are also editable on the Manage page.
 
 ## Reminders → Home
 
@@ -400,7 +410,7 @@ household tables use the pair RLS shape below.
 
 | Tables | `using` / `with check` |
 |---|---|
-| All tracked-domain, standalone-log, `personal_*`, `doctor_*`, and infra tables | `auth.uid() = user_id` (SELECT only for `notes_digest_state` — the cron does every write) |
+| All tracked-domain, standalone-log, `personal_*`, `doctor_*`, `care_ent*`, `lab_*`, and infra tables | `auth.uid() = user_id` (SELECT only for `notes_digest_state` — the cron does every write) |
 | `partner_invites` | `auth.uid() = created_by` |
 | `partner_links` | SELECT/DELETE only: `auth.uid() in (user_a_id, user_b_id)` — no INSERT/UPDATE (created via `redeem_partner_invite()`) |
 | `notes` | SELECT/UPDATE: `auth.uid() in (sender_id, recipient_id)`. INSERT: must be yourself, to your actual linked partner, into a thread you're part of. No DELETE. |
