@@ -11,8 +11,12 @@ import { InlineEmpty } from "@/components/ui/EmptyState";
 import { PrimaryAction } from "@/components/ui/PrimaryAction";
 import { DemoNotice } from "@/components/ui/DemoNotice";
 
-function formatJournalDate(date: string): string {
-  return new Date(`${date}T00:00:00`).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+function journalMonthLabel(date: string): string {
+  return new Date(`${date}T00:00:00`).toLocaleDateString(undefined, { month: "long", year: "numeric" });
+}
+
+function journalRowDate(date: string): string {
+  return new Date(`${date}T00:00:00`).toLocaleDateString(undefined, { weekday: "long", day: "numeric" });
 }
 
 function matchesSearch(entry: JournalEntry, query: string): boolean {
@@ -151,6 +155,19 @@ export function JournalTab({ isDemoData, accent }: { isDemoData: boolean; accent
     return sorted;
   }, [entries, search, oldestFirst]);
 
+  // Group the (already sorted) entries by calendar month so the list reads
+  // as a timeline rather than one long undivided stack.
+  const monthGroups = useMemo(() => {
+    const groups: { label: string; entries: JournalEntry[] }[] = [];
+    for (const entry of visibleEntries) {
+      const label = journalMonthLabel(entry.date);
+      const current = groups[groups.length - 1];
+      if (current && current.label === label) current.entries.push(entry);
+      else groups.push({ label, entries: [entry] });
+    }
+    return groups;
+  }, [visibleEntries]);
+
   const editingEntry = editingId ? (entries.find((e) => e.id === editingId) ?? null) : null;
 
   function handleSaved(entry: JournalEntry) {
@@ -210,19 +227,28 @@ export function JournalTab({ isDemoData, accent }: { isDemoData: boolean; accent
           description={entries.length === 0 ? "Tap New entry to write your first one." : "Try a different search term."}
         />
       ) : (
-        <NoteList>
-          {visibleEntries.map((entry) => (
-            <NoteRow
-              key={entry.id}
-              title={entry.title || "Untitled"}
-              meta={formatJournalDate(entry.date)}
-              body={entry.body}
-              metaFirst
-              onOpen={() => setEditingId(entry.id)}
-              onDelete={() => void handleDelete(entry.id)}
-            />
+        <div className="flex flex-col gap-5">
+          {monthGroups.map((group) => (
+            <section key={group.label} className="flex flex-col gap-2">
+              <h3 className="px-0.5 text-xs font-semibold tracking-[0.08em] uppercase" style={{ color: "var(--text-muted)" }}>
+                {group.label}
+              </h3>
+              <NoteList>
+                {group.entries.map((entry) => (
+                  <NoteRow
+                    key={entry.id}
+                    title={entry.title || "Untitled"}
+                    meta={journalRowDate(entry.date)}
+                    body={entry.body}
+                    metaFirst
+                    onOpen={() => setEditingId(entry.id)}
+                    onDelete={() => void handleDelete(entry.id)}
+                  />
+                ))}
+              </NoteList>
+            </section>
           ))}
-        </NoteList>
+        </div>
       )}
     </div>
   );

@@ -3,9 +3,10 @@
 import { useState, type FormEvent, type ReactNode } from "react";
 
 /** Shared surface for the app's free-writing screens — Log's Journal and
- * the Notes boards (personal + Home). Modelled on iOS Notes: a calm,
- * compact list (no cards, no borders, no shadows) and an unadorned editor
- * sheet. Kept in one place so the two screens never drift apart. */
+ * the Notes boards (personal + Home). The list uses the same card row as
+ * the rest of the app (Doctors, Analytics); the editor stays an unadorned
+ * sheet so writing isn't boxed in. Kept in one place so the two screens
+ * never drift apart. */
 
 export function PencilIcon({ size = 15 }: { size?: number }) {
   return (
@@ -66,48 +67,52 @@ export function NoteRow({
   );
 
   return (
-    <li className="group relative flex items-start">
-      <button type="button" onClick={onOpen} className="min-w-0 flex-1 py-3 pr-2 text-left">
-        {metaFirst ? metaEl : titleEl}
-        <span className="mt-0.5 block">{metaFirst ? titleEl : metaEl}</span>
-        <span className="mt-0.5 line-clamp-2 text-xs leading-snug" style={{ color: "var(--text-secondary)" }}>
-          {firstLine(body) || "No additional text"}
-        </span>
-      </button>
+    <li
+      className="rounded-xl border p-4"
+      style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", boxShadow: "var(--shadow-card)" }}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <button type="button" onClick={onOpen} className="min-w-0 flex-1 text-left">
+          {metaFirst ? metaEl : titleEl}
+          <span className="mt-0.5 block">{metaFirst ? titleEl : metaEl}</span>
+          <span className="mt-1.5 line-clamp-2 text-xs leading-snug [overflow-wrap:anywhere]" style={{ color: "var(--text-secondary)" }}>
+            {firstLine(body) || "No additional text"}
+          </span>
+        </button>
 
-      {onDelete && (
-        <div className="flex shrink-0 items-center gap-1 self-center pl-1">
-          {confirmingDelete ? (
-            <>
-              <button type="button" onClick={onDelete} className="rounded-md px-2 py-1.5 text-xs font-semibold" style={{ color: "var(--status-critical)" }}>
-                Delete
-              </button>
-              <button type="button" onClick={() => setConfirmingDelete(false)} className="rounded-md px-2 py-1.5 text-xs font-medium" style={{ color: "var(--text-muted)" }}>
-                Keep
-              </button>
-            </>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setConfirmingDelete(true)}
-              aria-label={`Delete ${title}`}
-              title="Delete"
-              className="tap-target notebook-danger rounded-md p-1.5 transition-colors hover:bg-[var(--page-plane)]"
-              style={{ color: "var(--text-muted)" }}
-            >
-              <TrashIcon size={15} />
-            </button>
-          )}
+        {onDelete && !confirmingDelete && (
+          <button
+            type="button"
+            onClick={() => setConfirmingDelete(true)}
+            aria-label={`Delete ${title}`}
+            title="Delete"
+            className="tap-target notebook-danger -m-1 shrink-0 rounded-md p-1.5 transition-colors hover:bg-[var(--page-plane)]"
+            style={{ color: "var(--text-muted)" }}
+          >
+            <TrashIcon size={15} />
+          </button>
+        )}
+      </div>
+
+      {onDelete && confirmingDelete && (
+        <div className="mt-3 flex items-center gap-2 text-xs">
+          <span style={{ color: "var(--text-secondary)" }}>Delete this?</span>
+          <button type="button" onClick={onDelete} className="rounded-md px-2 py-1 font-semibold" style={{ color: "var(--status-critical)" }}>
+            Delete
+          </button>
+          <button type="button" onClick={() => setConfirmingDelete(false)} className="rounded-md px-2 py-1 font-medium" style={{ color: "var(--text-muted)" }}>
+            Keep
+          </button>
         </div>
       )}
     </li>
   );
 }
 
-/** The list wrapper — hairline dividers, no border/shadow, comfortable
- * horizontal breathing room. */
+/** The list wrapper — a stack of card rows, matching the spacing of the
+ * app's other list screens. */
 export function NoteList({ children }: { children: ReactNode }) {
-  return <ul className="flex flex-col divide-y divide-[color:var(--gridline)] px-0.5 sm:px-1">{children}</ul>;
+  return <ul className="flex flex-col gap-3">{children}</ul>;
 }
 
 /** Create-or-edit editor: a plain sheet, title above body, no field
