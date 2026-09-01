@@ -12,6 +12,14 @@ interface AuthContextValue {
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
+  /** Emails a password-reset link that lands on `/reset`. Resolves with a
+   * message only on a real failure (rate limit, network) — an unknown
+   * address still resolves `{ error: null }`, so the UI can't be used to
+   * probe which emails have accounts. */
+  sendPasswordReset: (email: string) => Promise<{ error: string | null }>;
+  /** Sets a new password for the currently-authenticated user — used by
+   * the `/reset` page once the recovery link has established a session. */
+  updatePassword: (password: string) => Promise<{ error: string | null }>;
   /** Whether the single global account panel (sign in/up form, or account
    * info + sign out once signed in) is open. Shared state so both the main
    * menu's account button and the logged-out banner open the same panel
@@ -75,12 +83,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await supabase.auth.signOut();
   }, []);
 
+  const sendPasswordReset = useCallback(async (email: string) => {
+    if (!supabase) return { error: "Cloud sync isn't set up for this deployment." };
+    const { error: err } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset/`,
+    });
+    return { error: err?.message ?? null };
+  }, []);
+
+  const updatePassword = useCallback(async (password: string) => {
+    if (!supabase) return { error: "Cloud sync isn't set up for this deployment." };
+    const { error: err } = await supabase.auth.updateUser({ password });
+    return { error: err?.message ?? null };
+  }, []);
+
   const openPanel = useCallback(() => setPanelOpen(true), []);
   const closePanel = useCallback(() => setPanelOpen(false), []);
 
   const value = useMemo(
-    () => ({ configured: supabaseConfigured, session, loading, error, signIn, signUp, signOut, panelOpen, openPanel, closePanel }),
-    [session, loading, error, signIn, signUp, signOut, panelOpen, openPanel, closePanel],
+    () => ({
+      configured: supabaseConfigured,
+      session,
+      loading,
+      error,
+      signIn,
+      signUp,
+      signOut,
+      sendPasswordReset,
+      updatePassword,
+      panelOpen,
+      openPanel,
+      closePanel,
+    }),
+    [session, loading, error, signIn, signUp, signOut, sendPasswordReset, updatePassword, panelOpen, openPanel, closePanel],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -303,6 +303,12 @@ bug-report function is unaffected — it mails `BUG_EMAIL`, the account owner.
   OAuth client (Web application type), authorize `http://localhost:3000`, and
   enable the Drive API.
 
+- **Password reset** — the login panel's "forgot your password?" sends a Supabase
+  reset email that lands on `/reset`, where the user picks a new password. The
+  link only works if `https://lauva.pl/reset/` (and `http://localhost:3000/reset/`
+  for local dev) is listed under the Supabase project's Auth → URL Configuration →
+  Redirect URLs.
+
 - **One partner per account** — `redeem_partner_invite` rejects a redemption if
   either side is already linked, and the Household page's `is_household_member()`
   helper is defined directly in terms of the same `partner_links` row. Unlinking
