@@ -473,7 +473,13 @@ export function Nav() {
       {/* Mobile top bar */}
       <header
         className="sticky top-0 z-20 border-b backdrop-blur lg:hidden"
-        style={{ borderColor: "var(--border-hairline)", background: "color-mix(in oklab, var(--surface-1) 96%, transparent)" }}
+        style={{
+          borderColor: "var(--border-hairline)",
+          background: "color-mix(in oklab, var(--surface-1) 96%, transparent)",
+          paddingTop: "env(safe-area-inset-top)",
+          paddingLeft: "env(safe-area-inset-left)",
+          paddingRight: "env(safe-area-inset-right)",
+        }}
       >
         <div className="flex items-center gap-3 px-4 py-3">
           <button
@@ -506,10 +512,16 @@ export function Nav() {
       />
       <div
         className={clsx(
-          "fixed inset-y-0 left-0 z-40 flex w-72 max-w-[85vw] flex-col border-r px-4 py-5 shadow-xl transition-transform duration-200 ease-out lg:hidden",
+          "fixed inset-y-0 left-0 z-40 flex w-72 max-w-[85vw] flex-col border-r px-4 shadow-xl transition-transform duration-200 ease-out lg:hidden",
           mobileOpen ? "translate-x-0" : "-translate-x-full",
         )}
-        style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}
+        style={{
+          borderColor: "var(--border-hairline)",
+          background: "var(--surface-1)",
+          paddingTop: "calc(env(safe-area-inset-top) + 1.25rem)",
+          paddingBottom: "calc(env(safe-area-inset-bottom) + 1.25rem)",
+          paddingLeft: "calc(env(safe-area-inset-left) + 1rem)",
+        }}
       >
         <div className="flex items-center justify-between px-1">
           <Link href="/log" onClick={() => setMobileOpen(false)}>

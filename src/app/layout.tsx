@@ -43,6 +43,11 @@ export const viewport: Viewport = {
   // instead of fixing that.
   width: "device-width",
   initialScale: 1,
+  // Installed on the iOS home screen the app runs edge to edge, so the
+  // bottom tab bar, top bar and drawer pad themselves off the notch and
+  // home indicator with env(safe-area-inset-*). Without cover those insets
+  // are always 0 and the tab bar labels sit under the home indicator.
+  viewportFit: "cover",
 };
 
 export default function RootLayout({

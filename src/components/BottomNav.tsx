@@ -31,6 +31,8 @@ export function BottomNav() {
         backdropFilter: "blur(8px)",
         WebkitBackdropFilter: "blur(8px)",
         paddingBottom: "env(safe-area-inset-bottom)",
+        paddingLeft: "env(safe-area-inset-left)",
+        paddingRight: "env(safe-area-inset-right)",
       }}
     >
       {ITEMS.map((item) => {
