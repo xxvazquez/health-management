@@ -264,7 +264,7 @@ function NavSection({
     );
   }
   return (
-    <div className="mt-2 border-t pt-1.5" style={{ borderColor: "var(--gridline)" }}>
+    <div className="mt-1 border-t pt-1" style={{ borderColor: "var(--gridline)" }}>
       <button
         type="button"
         onClick={onToggle}
