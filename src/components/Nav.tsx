@@ -6,7 +6,6 @@ import { usePathname } from "next/navigation";
 import clsx from "clsx";
 import { useData } from "@/lib/DataContext";
 import { useUnreadNoteCount } from "@/lib/useUnreadNoteCount";
-import { googleDriveConfigured } from "@/lib/googleDrive/config";
 import { Logo } from "@/components/Logo";
 import { AccountMenuButton } from "@/components/auth/AccountMenuButton";
 import { AccountPanel } from "@/components/auth/AccountPanel";
@@ -166,11 +165,8 @@ const PERSONAL_LINKS = [{ href: "/personal", label: "Personal" }];
 const DOCTORS_LINKS = [{ href: "/doctors", label: "Doctors" }];
 const ANALYTICS_LINKS = [{ href: "/analytics", label: "Analytics" }];
 const MANAGE_LINKS = [{ href: "/manage", label: "Manage items" }];
-/** My Drive only appears when a Google client ID is configured — without
- * one the page is just a "not set up" message, so a nav entry to it is
- * dead weight. */
 const TOOLS_LINKS = [
-  ...(googleDriveConfigured ? [{ href: "/my-drive", label: "My Drive" }] : []),
+  { href: "/my-drive", label: "My Drive" },
   { href: "/help", label: "Help" },
 ];
 /** The "you + your linked partner" surface, grouped under "Shared": the
