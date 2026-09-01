@@ -27,6 +27,18 @@ import {
   type NewHouseholdCodeInput,
 } from "@/lib/supabase/household";
 import {
+  createWishlistCategory,
+  createWishlistItem,
+  deleteWishlistCategory,
+  deleteWishlistItem,
+  fetchLinkMetadata,
+  fetchWishlist,
+  renameWishlistCategory,
+  updateWishlistItem,
+  type NewWishlistItemInput,
+  type WishlistCategory,
+} from "@/lib/supabase/wishlist";
+import {
   buildDemoHouseholdCodes,
   buildDemoHouseholdItems,
   buildDemoHouseholdNotes,
@@ -34,12 +46,14 @@ import {
   DEMO_HOME_ME_ID,
   DEMO_HOME_PARTNER_ID,
 } from "@/lib/demoHousehold";
+import { buildDemoWishlist } from "@/lib/demoWishlist";
 import { getPartnerLink } from "@/lib/supabase/partner";
 import { isRecurringTask, nextRecurringDueAt, type ExpirationItem, type TaskItem } from "@/lib/reminders";
 import { NoteBoard } from "@/components/reminders/NoteBoard";
 import { TaskBoard, type TaskFormValues } from "@/components/reminders/TaskBoard";
 import { ExpirationBoard } from "@/components/home/ExpirationBoard";
 import { CodeBoard } from "@/components/home/CodeBoard";
+import { WishlistBoard } from "@/components/home/WishlistBoard";
 import { BoardPage, type BoardPageTab } from "@/components/ui/BoardPage";
 import { DemoNotice } from "@/components/ui/DemoNotice";
 
@@ -51,14 +65,22 @@ const EXPIRATION_ACCENT = "var(--series-2)";
 /** In-memory, per-session cache of the signed-in account's shared boards,
  * so leaving `/home` and coming back doesn't blank to "Loading…" while the
  * refetch runs. Keyed by user id; cleared on sign-out. */
-let homeCache: { userId: string; notes: HouseholdNote[]; tasks: TaskItem[]; items: ExpirationItem[]; codes: HouseholdCode[] } | null = null;
+let homeCache: {
+  userId: string;
+  notes: HouseholdNote[];
+  tasks: TaskItem[];
+  items: ExpirationItem[];
+  codes: HouseholdCode[];
+  wishlist: WishlistCategory[];
+} | null = null;
 
-type Tab = "notes" | "tasks" | "expiration" | "codes";
+type Tab = "notes" | "tasks" | "expiration" | "codes" | "wishlist";
 const TABS: BoardPageTab[] = [
   { id: "notes", label: "Notes", icon: "notes", accent: ACCENT },
   { id: "tasks", label: "Reminders", icon: "reminders", accent: ACCENT },
   { id: "expiration", label: "Expiration", icon: "expiration", accent: ACCENT },
   { id: "codes", label: "Codes", icon: "codes", accent: ACCENT },
+  { id: "wishlist", label: "Wishlist", icon: "wishlist", accent: ACCENT },
 ];
 
 function isHomeTab(v: string): v is Tab {
@@ -116,6 +138,10 @@ export default function HomePage() {
   const [codes, setCodes] = useState<HouseholdCode[]>(() => seed?.codes ?? buildDemoHouseholdCodes());
   const [codesLoading, setCodesLoading] = useState(seed === null);
   const [codesError, setCodesError] = useState(false);
+
+  const [wishlist, setWishlist] = useState<WishlistCategory[]>(() => seed?.wishlist ?? buildDemoWishlist());
+  const [wishlistLoading, setWishlistLoading] = useState(seed === null);
+  const [wishlistError, setWishlistError] = useState(false);
 
   // Null until resolved: for a real account from getPartnerLink, or the
   // fixed demo partner id in demo mode (same reasoning as lastCompletedBy's
@@ -186,15 +212,27 @@ export default function HomePage() {
     }
   }, []);
 
+  const loadWishlist = useCallback(async () => {
+    setWishlistError(false);
+    try {
+      setWishlist(await fetchWishlist());
+    } catch (err) {
+      console.error("fetchWishlist failed", err);
+      setWishlistError(true);
+    } finally {
+      setWishlistLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (isDemo || !accountId) {
       homeCache = null;
       return;
     }
-    if (!notesLoading && !tasksLoading && !itemsLoading && !codesLoading) {
-      homeCache = { userId: accountId, notes, tasks, items, codes };
+    if (!notesLoading && !tasksLoading && !itemsLoading && !codesLoading && !wishlistLoading) {
+      homeCache = { userId: accountId, notes, tasks, items, codes, wishlist };
     }
-  }, [accountId, isDemo, notes, tasks, items, codes, notesLoading, tasksLoading, itemsLoading, codesLoading]);
+  }, [accountId, isDemo, notes, tasks, items, codes, wishlist, notesLoading, tasksLoading, itemsLoading, codesLoading, wishlistLoading]);
 
   useEffect(() => {
     // Wait for auth to resolve first — see reminders/page.tsx's identical
@@ -207,8 +245,9 @@ export default function HomePage() {
     void loadTasks();
     void loadItems();
     void loadCodes();
+    void loadWishlist();
     // `accountId` so an account switch refetches.
-  }, [authLoading, isDemo, accountId, loadNotes, loadTasks, loadItems, loadCodes]);
+  }, [authLoading, isDemo, accountId, loadNotes, loadTasks, loadItems, loadCodes, loadWishlist]);
 
   // Never the partner's email in UI copy — same privacy stance Notes takes
   // (see notes/page.tsx's PARTNER_LABEL) — just "you" vs "your partner"
@@ -391,6 +430,92 @@ export default function HomePage() {
     if (!isDemo) await deleteHouseholdCode(id);
   }
 
+  async function handleCreateWishlistCategory(name: string): Promise<WishlistCategory> {
+    if (isDemo) {
+      const category: WishlistCategory = { id: `demo-${Date.now()}`, name: name.trim(), createdAt: new Date().toISOString(), items: [] };
+      setWishlist((prev) => [...prev, category]);
+      return category;
+    }
+    const created = await createWishlistCategory(name);
+    setWishlist((prev) => [...prev, created]);
+    return created;
+  }
+
+  async function handleRenameWishlistCategory(id: string, name: string) {
+    setWishlist((prev) => prev.map((c) => (c.id === id ? { ...c, name: name.trim() } : c)));
+    if (!isDemo) await renameWishlistCategory(id, name);
+  }
+
+  async function handleDeleteWishlistCategory(id: string) {
+    setWishlist((prev) => prev.filter((c) => c.id !== id));
+    if (!isDemo) await deleteWishlistCategory(id);
+  }
+
+  async function handleCreateWishlistItem(input: NewWishlistItemInput) {
+    if (isDemo) {
+      setWishlist((prev) =>
+        prev.map((c) =>
+          c.id === input.categoryId
+            ? {
+                ...c,
+                items: [
+                  {
+                    id: `demo-${Date.now()}`,
+                    categoryId: c.id,
+                    url: input.url.trim(),
+                    title: input.title.trim(),
+                    note: input.note.trim() || null,
+                    forUserId: input.forUserId,
+                    createdAt: new Date().toISOString(),
+                  },
+                  ...c.items,
+                ],
+              }
+            : c,
+        ),
+      );
+      return;
+    }
+    await createWishlistItem(input);
+    await loadWishlist();
+  }
+
+  async function handleUpdateWishlistItem(id: string, input: NewWishlistItemInput) {
+    if (isDemo) {
+      setWishlist((prev) =>
+        prev.map((c) => {
+          const withoutItem = c.items.filter((i) => i.id !== id);
+          if (c.id === input.categoryId) {
+            return {
+              ...c,
+              items: [
+                {
+                  id,
+                  categoryId: c.id,
+                  url: input.url.trim(),
+                  title: input.title.trim(),
+                  note: input.note.trim() || null,
+                  forUserId: input.forUserId,
+                  createdAt: new Date().toISOString(),
+                },
+                ...withoutItem,
+              ],
+            };
+          }
+          return { ...c, items: withoutItem };
+        }),
+      );
+      return;
+    }
+    await updateWishlistItem(id, input);
+    await loadWishlist();
+  }
+
+  async function handleDeleteWishlistItem(id: string) {
+    setWishlist((prev) => prev.map((c) => ({ ...c, items: c.items.filter((i) => i.id !== id) })));
+    if (!isDemo) await deleteWishlistItem(id);
+  }
+
   return (
     <BoardPage
       title="Household"
@@ -454,6 +579,24 @@ export default function HomePage() {
           onCreate={handleCreateCode}
           onEdit={handleEditCode}
           onDelete={handleDeleteCode}
+        />
+      )}
+
+      {tab === "wishlist" && (
+        <WishlistBoard
+          categories={wishlist}
+          loading={!isDemo && wishlistLoading}
+          error={wishlistError}
+          accent={ACCENT}
+          people={myUserId ? { myUserId, partnerId } : undefined}
+          forLabel={completedByLabel}
+          onFetchTitle={isDemo ? undefined : (url) => fetchLinkMetadata(url).then((r) => r.title)}
+          onCreateCategory={handleCreateWishlistCategory}
+          onRenameCategory={handleRenameWishlistCategory}
+          onDeleteCategory={handleDeleteWishlistCategory}
+          onCreateItem={handleCreateWishlistItem}
+          onUpdateItem={handleUpdateWishlistItem}
+          onDeleteItem={handleDeleteWishlistItem}
         />
       )}
     </BoardPage>

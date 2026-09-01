@@ -119,6 +119,11 @@ export const TAB_ICON: Record<string, ReactNode> = {
       <path d="M3.4 10h13.2" />
     </TabIconWrap>
   ),
+  wishlist: (
+    <TabIconWrap>
+      <path d="M10 16.5S4 12.8 4 8.6A3.1 3.1 0 0 1 10 7a3.1 3.1 0 0 1 6 1.6c0 4.2-6 7.9-6 7.9Z" />
+    </TabIconWrap>
+  ),
   appointments: (
     <TabIconWrap>
       <rect x="4" y="5.4" width="12" height="10.2" rx="1.3" />
