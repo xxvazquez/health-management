@@ -25,6 +25,7 @@
 *.pem
 /.claude/
 /CLAUDE.md
+/PLAN.md
 
 # debug
 npm-debug.log*

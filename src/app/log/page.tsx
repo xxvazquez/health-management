@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import Link from "next/link";
 import clsx from "clsx";
 import { useData } from "@/lib/DataContext";
+import { useCareLog } from "@/lib/useCareLog";
 import { useVisibleDomains, type TrackedDomain } from "@/lib/visibleDomains";
 import { useAuth } from "@/lib/supabase/AuthContext";
 import {
@@ -382,8 +383,9 @@ export default function LogPage() {
   const { refresh, isDemoData, status } = useData();
   const { isHidden } = useVisibleDomains();
   const { openPanel } = useAuth();
-  // Personal notes / reminders / expiration — self-contained state + Supabase
-  // wiring, rendered by the three tabs after Journal.
+  // Observation-type care-log entries (from the Doctors page) — surfaced on
+  // the Symptoms tab as one-offs that aren't tracked day to day.
+  const careLog = useCareLog();
   const today = useMemo(() => todayLocalISODate(), []);
   const [date, setDate] = useState(today);
   const [tab, setTab] = useState<LogTab>("food");
@@ -391,6 +393,7 @@ export default function LogPage() {
   const [newItemCategory, setNewItemCategory] = useState("");
   const [duplicateConflict, setDuplicateConflict] = useState<RawItem | null>(null);
   const [picksOpen, setPicksOpen] = useState(false);
+  const [isolatedOpen, setIsolatedOpen] = useState(false);
   // Filters the category grid below by name — cleared on tab switch since
   // each tab's items are a different set (see selectTab).
   const [search, setSearch] = useState("");
@@ -530,6 +533,11 @@ export default function LogPage() {
   const counts = useMemo(() => loggedCountsForDate(effective.logs, date), [effective, date]);
 
   const tabConfig = TABS.find((t) => t.type === tab);
+
+  const isolatedObservations = useMemo(
+    () => careLog.data.filter((e) => e.kind === "observation"),
+    [careLog.data],
+  );
 
   // The whole tab bar as data — the seven tracking domains, each dropping
   // out when hidden from Manage. (Journal / private notes / reminders /
@@ -1987,6 +1995,70 @@ export default function LogPage() {
                 </div>
               ) : (
                 renderTrackerList()
+              )}
+
+              {tab === "outcome" && isolatedObservations.length > 0 && (
+                <div className="flex flex-col gap-2 rounded-lg border p-3" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
+                  <button
+                    type="button"
+                    onClick={() => setIsolatedOpen((v) => !v)}
+                    className="flex items-center justify-between gap-2 text-left"
+                  >
+                    <span className="text-xs font-semibold" style={{ color: "var(--text-primary)" }}>
+                      Isolated symptoms
+                      <span className="ml-1.5 font-normal" style={{ color: "var(--text-secondary)" }}>
+                        · {isolatedObservations.length} noted in your care log
+                      </span>
+                    </span>
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 20 20"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="shrink-0 transition-transform"
+                      style={{ color: "var(--text-secondary)", transform: isolatedOpen ? "rotate(180deg)" : "none" }}
+                    >
+                      <path d="M5 7.5 10 12.5 15 7.5" />
+                    </svg>
+                  </button>
+                  {isolatedOpen && (
+                    <>
+                      <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                        One-off things you noticed and logged on the Doctors page — not tracked day to day.
+                      </p>
+                      <ul className="flex flex-col divide-y divide-[color:var(--gridline)]">
+                        {isolatedObservations.map((e) => (
+                          <li key={e.id} className="py-2">
+                            <Link href="/doctors/#carelog" className="block">
+                              <span className="text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>
+                                {formatDateLabel(e.happenedOn, today)}
+                              </span>
+                              <span className="mt-0.5 block text-sm font-medium" style={{ color: "var(--text-primary)" }}>
+                                {e.title}
+                              </span>
+                              {e.body && (
+                                <span className="mt-0.5 line-clamp-2 block text-xs leading-snug" style={{ color: "var(--text-secondary)" }}>
+                                  {e.body}
+                                </span>
+                              )}
+                            </Link>
+                          </li>
+                        ))}
+                      </ul>
+                      <Link
+                        href="/doctors/#carelog"
+                        className="self-start text-xs font-medium underline decoration-dotted"
+                        style={{ color: "var(--text-secondary)" }}
+                      >
+                        Add or edit in the care log
+                      </Link>
+                    </>
+                  )}
+                </div>
               )}
 
               {groupedByCategory.length === 0 && (
