@@ -641,8 +641,7 @@ function PhoneSetup({ share, accent, onBack }: { share: WishlistShareToPhone; ac
   const busy = state !== "ready";
   const keyedEndpoint = token ? `${share.endpoint}?token=${encodeURIComponent(token.token)}&for=either` : "";
   const curl =
-    keyedEndpoint &&
-    `curl -X POST '${keyedEndpoint}' -H 'Authorization: ${share.authHeader}' -H 'Content-Type: application/json' -d '{"url":"https://example.com"}'`;
+    keyedEndpoint && `curl -X POST '${keyedEndpoint}&url=https://example.com' -H 'Authorization: ${share.authHeader}'`;
 
   return (
     <div className="flex flex-col gap-4">
@@ -704,17 +703,14 @@ function PhoneSetup({ share, accent, onBack }: { share: WishlistShareToPhone; ac
                 In <strong>Search Actions</strong>, add <strong>Get Contents of URL</strong>.
               </li>
               <li>
-                Tap the blue <code>URL</code> → paste the <strong>Endpoint</strong> above (your key is already in it). Tap
-                the small <strong>⌄</strong> → set <strong>Method</strong> to <strong>POST</strong>.
+                Tap the blue <code>URL</code> → paste the <strong>Endpoint</strong> above, then type <code>&url=</code> right
+                after it and tap <strong>Shortcut Input</strong> in the strip above the keyboard so a blue token lands at the
+                very end. (URL field, not the body — variables always take here.)
               </li>
               <li>
+                Tap the small <strong>⌄</strong> → set <strong>Method</strong> to <strong>POST</strong>, then{" "}
                 <strong>Headers</strong> → <strong>Add new header</strong> → <code>Authorization</code> = the string above.
-              </li>
-              <li>
-                <strong>Request Body</strong> → <strong>JSON</strong> → <strong>Add new field</strong>, type{" "}
-                <strong>Text</strong>: key <code>url</code>, and for the value tap the box then tap{" "}
-                <strong>Shortcut Input</strong> in the strip above the keyboard. Tap it once — don’t open its settings or set
-                a “Type”.
+                Leave Request Body empty.
               </li>
               <li>Tap <strong>‹</strong> (top left) to save.</li>
             </ol>
@@ -792,6 +788,7 @@ export function WishlistBoard({
   sharedUrl,
   onSharedUrlConsumed,
   shareToPhone,
+  onRefresh,
   onFetchTitle,
   onCreateCategory,
   onRenameCategory,
@@ -811,6 +808,8 @@ export function WishlistBoard({
   onSharedUrlConsumed?: () => void;
   /** Present only for a signed-in user on a cloud deployment. */
   shareToPhone?: WishlistShareToPhone;
+  /** Re-pulls the wishlist — for links added from a phone shortcut while the app was open. */
+  onRefresh?: () => Promise<void> | void;
   onFetchTitle?: (url: string) => Promise<string | null>;
   onCreateCategory: (name: string) => Promise<WishlistCategory>;
   onRenameCategory: (id: string, name: string) => Promise<void>;
@@ -821,6 +820,17 @@ export function WishlistBoard({
 }) {
   const [search, setSearch] = useState("");
   const [view, setView] = useState<View>({ mode: "list" });
+  const [refreshing, setRefreshing] = useState(false);
+
+  const refresh = async () => {
+    if (!onRefresh || refreshing) return;
+    setRefreshing(true);
+    try {
+      await onRefresh();
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   // A URL shared into the app — jump straight to the new-item form with it
   // pre-filled, then tell the parent it's been handled so a re-render or
@@ -945,6 +955,33 @@ export function WishlistBoard({
               style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-secondary)" }}
             >
               From phone
+            </button>
+          )}
+          {onRefresh && (
+            <button
+              type="button"
+              onClick={() => void refresh()}
+              disabled={refreshing}
+              aria-label="Refresh wishlist"
+              title="Refresh — picks up links added from your phone"
+              className="tap-target shrink-0 rounded-md border p-1.5 transition-colors disabled:opacity-60"
+              style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-secondary)" }}
+            >
+              <svg
+                width="15"
+                height="15"
+                viewBox="0 0 20 20"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+                className={refreshing ? "animate-spin" : undefined}
+              >
+                <path d="M16.5 5.5a7 7 0 1 0 1.2 5" />
+                <path d="M17 3v4h-4" />
+              </svg>
             </button>
           )}
         </div>

@@ -624,6 +624,7 @@ export default function HomePage() {
           forLabel={completedByLabel}
           sharedUrl={sharedUrl}
           onSharedUrlConsumed={() => setSharedUrl(null)}
+          onRefresh={isDemo ? undefined : loadWishlist}
           shareToPhone={
             !isDemo && wishlistShareEndpoint() && wishlistShareAuthHeader()
               ? {
