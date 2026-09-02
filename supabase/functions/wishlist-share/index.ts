@@ -110,7 +110,9 @@ async function handle(req: Request): Promise<Response> {
   if (!token) return json({ error: "token is required" }, 400);
 
   const url = cleanUrl(parsed.url) ?? cleanUrl(bodyText) ?? cleanUrl(query.get("url"));
-  if (!url) return json({ error: "A valid http(s) url is required" }, 400);
+  if (!url) {
+    return json({ error: "A valid http(s) url is required", received: bodyText.slice(0, 300) || "(empty body)" }, 400);
+  }
 
   const forRaw = query.get("for") ?? parsed.for;
   const forWhom = forRaw === "me" || forRaw === "partner" ? forRaw : "either";
