@@ -697,12 +697,14 @@ function PhoneSetup({ share, accent, onBack }: { share: WishlistShareToPhone; ac
                 it <strong>Save to Lauva</strong>.
               </li>
               <li>
-                In the <strong>Search Actions</strong> box, find <strong>Get Contents of URL</strong> and tap it to add it.
+                In the <strong>Search Actions</strong> box, add <strong>Get Text from Input</strong> — set its input to the{" "}
+                <strong>Shortcut Input</strong> variable. (Chrome shares a page as a bundle, not a plain link; this pulls the
+                text out.)
               </li>
               <li>
-                In that action, tap the blue <code>URL</code> and paste the <strong>Endpoint</strong> shown above. Tap the
-                small <strong>⌄</strong> next to it to show its options, then set <strong>Method</strong> to{" "}
-                <strong>POST</strong>.
+                Add <strong>Get Contents of URL</strong> below it. Tap the blue <code>URL</code>, paste the{" "}
+                <strong>Endpoint</strong> shown above, then tap the small <strong>⌄</strong> next to it and set{" "}
+                <strong>Method</strong> to <strong>POST</strong>.
               </li>
               <li>
                 Under <strong>Headers</strong>, tap <strong>Add new header</strong> — key <code>Authorization</code>, value =
@@ -716,7 +718,8 @@ function PhoneSetup({ share, accent, onBack }: { share: WishlistShareToPhone; ac
                     <code>token</code> → your phone key shown above
                   </li>
                   <li>
-                    <code>url</code> → tap the value box, pick the <strong>Shortcut Input</strong> variable
+                    <code>url</code> → tap the value box, pick the <strong>Text</strong> variable from the “Get Text from
+                    Input” step
                   </li>
                   <li>
                     <code>for</code> → <code>me</code>, <code>partner</code> or <code>either</code>

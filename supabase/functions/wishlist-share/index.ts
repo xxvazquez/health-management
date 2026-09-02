@@ -32,16 +32,16 @@ const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
 function cleanUrl(raw: unknown): string | null {
-  // Shortcuts' "Get URLs from Input" produces a list, which reaches us as
-  // an array, a bracketed string, or several space-separated links — and a
-  // plain page share can arrive as "Title https://…". Pull the first
-  // http(s) token out of whatever shape it is.
+  // A phone share can hand over almost any shape: a bare string, a list
+  // from "Get URLs from Input", or (Chrome on iOS) a dictionary like
+  // {"public.url": "https://…", …}. Flatten to text and pull the first
+  // http(s) token out of it.
   let candidate = "";
   if (typeof raw === "string") candidate = raw;
-  else if (Array.isArray(raw)) candidate = raw.find((v) => typeof v === "string") ?? "";
-  else if (raw != null) candidate = String(raw);
+  else if (Array.isArray(raw)) candidate = raw.map((v) => (typeof v === "string" ? v : JSON.stringify(v))).join(" ");
+  else if (raw != null) candidate = typeof raw === "object" ? JSON.stringify(raw) : String(raw);
 
-  const match = candidate.match(/https?:\/\/[^\s"'\]]+/i);
+  const match = candidate.match(/https?:\/\/[^\s"'}\],]+/i);
   candidate = (match ? match[0] : candidate).trim();
   try {
     const u = new URL(candidate);
