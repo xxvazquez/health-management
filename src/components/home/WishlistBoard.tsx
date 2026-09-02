@@ -639,9 +639,10 @@ function PhoneSetup({ share, accent, onBack }: { share: WishlistShareToPhone; ac
   };
 
   const busy = state !== "ready";
+  const keyedEndpoint = token ? `${share.endpoint}?token=${encodeURIComponent(token.token)}&for=either` : "";
   const curl =
-    token &&
-    `curl -X POST '${share.endpoint}' -H 'Authorization: ${share.authHeader}' -H 'Content-Type: application/json' -d '{"token":"${token.token}","url":"https://example.com","for":"either"}'`;
+    keyedEndpoint &&
+    `curl -X POST '${keyedEndpoint}' -H 'Authorization: ${share.authHeader}' -H 'Content-Type: application/json' -d '{"url":"https://example.com"}'`;
 
   return (
     <div className="flex flex-col gap-4">
@@ -682,9 +683,8 @@ function PhoneSetup({ share, accent, onBack }: { share: WishlistShareToPhone; ac
       ) : (
         <>
           <div className="flex flex-col gap-3 rounded-xl border p-3" style={{ borderColor: "var(--border-hairline)", background: "var(--page-plane)" }}>
-            <CopyRow label="Endpoint (POST)" value={share.endpoint} />
+            <CopyRow label="Endpoint — has your key, keep private" value={keyedEndpoint} />
             <CopyRow label="Header — Authorization" value={share.authHeader} />
-            <CopyRow label="Your phone key (keep private)" value={token.token} />
           </div>
 
           <div className="text-sm" style={{ color: "var(--text-secondary)" }}>
@@ -693,54 +693,35 @@ function PhoneSetup({ share, accent, onBack }: { share: WishlistShareToPhone; ac
             </p>
             <ol className="mt-1 list-decimal space-y-2 pl-5">
               <li>
-                Open the <strong>Shortcuts</strong> app → <strong>+</strong> (top right). Tap the name at the top and rename
-                it <strong>Save to Lauva</strong>.
-              </li>
-              <li>
-                In the <strong>Search Actions</strong> box, add <strong>Get Text from Input</strong> — set its input to the{" "}
-                <strong>Shortcut Input</strong> variable. (Chrome shares a page as a bundle, not a plain link; this pulls the
-                text out.)
-              </li>
-              <li>
-                Add <strong>Get Contents of URL</strong> below it. Tap the blue <code>URL</code>, paste the{" "}
-                <strong>Endpoint</strong> shown above, then tap the small <strong>⌄</strong> next to it and set{" "}
-                <strong>Method</strong> to <strong>POST</strong>.
-              </li>
-              <li>
-                Under <strong>Headers</strong>, tap <strong>Add new header</strong> — key <code>Authorization</code>, value =
-                the <strong>Authorization</strong> string shown above.
-              </li>
-              <li>
-                Set <strong>Request Body</strong> to <strong>JSON</strong> and add three <strong>Text</strong> fields. Keys
-                must be lowercase, exactly:
-                <ul className="mt-1 list-disc pl-5">
-                  <li>
-                    <code>token</code> → your phone key shown above
-                  </li>
-                  <li>
-                    <code>url</code> → tap the value box, pick the <strong>Text</strong> variable from the “Get Text from
-                    Input” step
-                  </li>
-                  <li>
-                    <code>for</code> → <code>me</code>, <code>partner</code> or <code>either</code>
-                  </li>
-                </ul>
+                <strong>Shortcuts</strong> app → <strong>+</strong> (top right) → tap the name, rename it{" "}
+                <strong>Save to Lauva</strong>.
               </li>
               <li>
                 Tap the <strong>ⓘ</strong> in the bottom toolbar → turn on <strong>Show in Share Sheet</strong>. A “Receive …
-                from Share Sheet” bar appears at the top — tap its blue type and choose <strong>URLs</strong> and{" "}
-                <strong>Safari web pages</strong>.
+                from Share Sheet” bar appears at the top — tap its blue type and leave only <strong>URLs</strong> on.
               </li>
               <li>
-                Optional: add <strong>Show Notification</strong> and set its text to the <strong>Contents of URL</strong>{" "}
-                variable, so you see the result.
+                In <strong>Search Actions</strong>, add <strong>Get Contents of URL</strong>.
+              </li>
+              <li>
+                Tap the blue <code>URL</code> → paste the <strong>Endpoint</strong> above (your key is already in it). Tap
+                the small <strong>⌄</strong> → set <strong>Method</strong> to <strong>POST</strong>.
+              </li>
+              <li>
+                <strong>Headers</strong> → <strong>Add new header</strong> → <code>Authorization</code> = the string above.
+              </li>
+              <li>
+                <strong>Request Body</strong> → <strong>JSON</strong> → <strong>Add new field</strong>, type{" "}
+                <strong>Text</strong>: key <code>url</code>, and for the value tap the box then tap{" "}
+                <strong>Shortcut Input</strong> in the strip above the keyboard. Tap it once — don’t open its settings or set
+                a “Type”.
               </li>
               <li>Tap <strong>‹</strong> (top left) to save.</li>
             </ol>
             <p className="mt-2" style={{ color: "var(--text-muted)" }}>
-              To use it: open a page in any browser → <strong>Share</strong> → <strong>Save to Lauva</strong>. Links land in
-              a “Saved from phone” list. Andrzej sets the same shortcut up from his own account; the <code>for</code> value
-              decides whose wish each link is.
+              Use it: any browser → <strong>Share</strong> → <strong>Save to Lauva</strong>. Links land in a “Saved from
+              phone” list. For a wish that’s for your partner, change <code>for=either</code> to <code>for=partner</code> in
+              the endpoint; Andrzej can set the shortcut up from his own account too.
             </p>
           </div>
 

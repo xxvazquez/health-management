@@ -78,25 +78,33 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
 
-  let raw: Record<string, unknown>;
+  // `token` and `for` may come from the query string (so a Share Sheet
+  // shortcut can bake them into the endpoint and keep its body to just the
+  // link). The body may be JSON `{ url, token?, for? }`, or just the raw
+  // shared text/dictionary — take the whole request as text and pull a
+  // link out of whatever shape it is.
+  const query = new URL(req.url).searchParams;
+  const bodyText = await req.text();
+
+  let parsed: Record<string, unknown> = {};
   try {
-    raw = await req.json();
+    const j = JSON.parse(bodyText);
+    if (j && typeof j === "object" && !Array.isArray(j)) {
+      // Shortcuts capitalises the first letter of a JSON field name.
+      for (const [k, v] of Object.entries(j)) parsed[k.toLowerCase()] = v;
+    }
   } catch {
-    return json({ error: "Invalid JSON" }, 400);
+    parsed = {};
   }
 
-  // Shortcuts capitalises the first letter of a JSON field name by
-  // default, so accept `Token` / `URL` / `For` too.
-  const body: Record<string, unknown> = {};
-  for (const [k, v] of Object.entries(raw)) body[k.toLowerCase()] = v;
-
-  const token = typeof body.token === "string" ? body.token.trim() : "";
+  const token = (query.get("token") ?? (typeof parsed.token === "string" ? parsed.token : "")).trim();
   if (!token) return json({ error: "token is required" }, 400);
 
-  const url = cleanUrl(body.url);
+  const url = cleanUrl(parsed.url) ?? cleanUrl(bodyText) ?? cleanUrl(query.get("url"));
   if (!url) return json({ error: "A valid http(s) url is required" }, 400);
 
-  const forWhom = body.for === "me" || body.for === "partner" ? body.for : "either";
+  const forRaw = query.get("for") ?? parsed.for;
+  const forWhom = forRaw === "me" || forRaw === "partner" ? forRaw : "either";
 
   const { data: tok, error: tokErr } = await admin
     .from("wishlist_share_tokens")
