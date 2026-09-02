@@ -5,10 +5,11 @@ import clsx from "clsx";
 import type { ReactNode } from "react";
 
 /** Most pages read comfortably at the app's default measure (max-w-4xl).
- * The Analytics dashboards are dense (charts, tables, paired cards) and
- * genuinely benefit from more desktop width — this is the one opt-in point
- * for that, keyed off the route so every other page's width is untouched. */
-const WIDE_ROUTES = ["/analytics"];
+ * The Analytics dashboards and the Overview page are dense (charts, tables,
+ * paired cards, a two-column desktop layout) and genuinely benefit from
+ * more desktop width — this is the one opt-in point for that, keyed off the
+ * route so every other page's width is untouched. */
+const WIDE_ROUTES = ["/analytics", "/overview"];
 
 export function ContentContainer({ children }: { children: ReactNode }) {
   const pathname = usePathname();
