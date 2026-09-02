@@ -59,7 +59,9 @@ function noteToActivityEntry(t: NoteThread): ActivityEntry {
 
 /**
  * Lauva's home/overview page — Today → Recent Activity → Personal Trends →
- * Weekly/Monthly Review, most useful information first. Every section reads
+ * Weekly/Monthly Review, most useful information first (one column on
+ * mobile; on `lg` the Attention band stays full-width and the rest splits
+ * into Today + Recent activity | Personal trends + Review). Every section reads
  * data that already exists elsewhere in the app (DataContext's
  * events/workoutLogs/periodLogs, plus partner notes fetched the same way
  * the Notes page does) — nothing here is a second copy of that data or a
@@ -232,16 +234,22 @@ export default function OverviewPage() {
 
       <AttentionBand items={attentionItems} />
 
-      <TodaySnapshot events={events} workoutLogs={workoutLogs} periodLogs={periodLogs} todayNotes={todayNotes} yesterdayNotes={yesterdayNotes} today={today} />
+      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
+        <div className="flex flex-col gap-6">
+          <TodaySnapshot events={events} workoutLogs={workoutLogs} periodLogs={periodLogs} todayNotes={todayNotes} yesterdayNotes={yesterdayNotes} today={today} />
 
-      <Card tier="supporting">
-        <CardTitle>Recent activity</CardTitle>
-        <ActivityFeed entries={activityFeed} showFilter initialLimit={12} pageSize={30} emptyText="Nothing logged yet." />
-      </Card>
+          <Card tier="supporting">
+            <CardTitle>Recent activity</CardTitle>
+            <ActivityFeed entries={activityFeed} showFilter initialLimit={12} pageSize={30} emptyText="Nothing logged yet." />
+          </Card>
+        </div>
 
-      <PersonalTrendsSection trends={trends} findings={findings} />
+        <div className="flex flex-col gap-6">
+          <PersonalTrendsSection trends={trends} findings={findings} />
 
-      <PeriodReviewSection events={events} workoutLogs={workoutLogs} periodLogs={periodLogs} today={today} notesInRange={notesInRange} />
+          <PeriodReviewSection events={events} workoutLogs={workoutLogs} periodLogs={periodLogs} today={today} notesInRange={notesInRange} />
+        </div>
+      </div>
     </div>
   );
 }
