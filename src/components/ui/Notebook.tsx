@@ -2,11 +2,11 @@
 
 import { useState, type FormEvent, type ReactNode } from "react";
 
-/** Shared surface for the app's free-writing screens — Log's Journal and
- * the Notes boards (personal + Home). The list uses the same card row as
- * the rest of the app (Doctors, Analytics); the editor stays an unadorned
- * sheet so writing isn't boxed in. Kept in one place so the two screens
- * never drift apart. */
+/** Shared surface for the app's writing screens — Log's Journal and the
+ * Notes boards (personal + Home). The list (`NoteList` / `NoteRow`) uses
+ * the same card row as the rest of the app and is shared by all three.
+ * `NotebookForm` is Journal's editor only — an unadorned sheet so writing
+ * isn't boxed in; the Notes boards use a titled form (see NoteBoard). */
 
 export function PencilIcon({ size = 15 }: { size?: number }) {
   return (
