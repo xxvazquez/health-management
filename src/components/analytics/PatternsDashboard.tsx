@@ -74,7 +74,7 @@ export function PatternsDashboard() {
       )}
 
       {coverage && (
-        <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+        <p className="max-w-3xl text-xs" style={{ color: "var(--text-muted)" }}>
           {coverage.totalTrackedDays} of {coverage.totalCalendarDays} days in this range have at least one entry
           ({coverage.coveragePct}%). Days with nothing logged are excluded from every percentage on this page,
           never counted as &quot;nothing happened&quot;.
@@ -137,9 +137,15 @@ export function PatternsDashboard() {
           What might be worth adjusting?
         </CardTitle>
         {insights.length > 0 ? (
-          <ul className="flex flex-col gap-3">
+          <ul className={`grid gap-3 ${insights.length > 1 ? "sm:grid-cols-2" : ""}`}>
             {insights.map((insight, i) => (
-              <li key={i} className="rounded-lg border p-3.5" style={{ borderColor: "var(--gridline)" }}>
+              <li
+                key={i}
+                className={`rounded-lg border p-3.5 ${
+                  insights.length % 2 === 1 && i === insights.length - 1 ? "sm:col-span-2" : ""
+                }`}
+                style={{ borderColor: "var(--gridline)" }}
+              >
                 <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
                   {insight.title}
                 </p>
