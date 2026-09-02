@@ -203,9 +203,11 @@ write-local-first outbox — they only mean anything once they're on the server.
   optional note, and an optional "who it's for". The title is fetched from the
   page by the `fetch-link-metadata` Edge Function (the static client can't —
   CORS), falling back to a typed title. `wishlist_items.category_id` cascades on
-  category delete; the per-category accent colour is assigned client-side by
-  position. On Android the PWA `share_target` (`/home/?url=…`) routes a shared
-  link straight to a pre-filled new item; iOS has no share target, so the
+  category delete. Each list can be given an icon and a colour from the category
+  form (`wishlist_categories.icon` / `color`); left unset it falls back to a
+  heart glyph and a position-keyed accent. On Android the PWA `share_target`
+  (`/home/?url=…`) routes a shared link straight to a pre-filled new item; iOS
+  has no share target, so the
   Wishlist tab's "Add from your phone" panel issues a per-account capture token
   (`wishlist_share_tokens`) for a Share Sheet shortcut that POSTs to the
   `wishlist-share` Edge Function — links land in a "Saved from phone" list.

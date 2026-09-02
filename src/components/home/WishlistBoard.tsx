@@ -6,25 +6,29 @@ import { SearchField } from "@/components/ui/SearchField";
 import { ListSkeleton } from "@/components/ui/Skeleton";
 import { InlineEmpty } from "@/components/ui/EmptyState";
 import { PrimaryAction } from "@/components/ui/PrimaryAction";
-import type { NewWishlistItemInput, WishlistCategory, WishlistItem, WishlistShareToken } from "@/lib/supabase/wishlist";
+import type {
+  NewWishlistItemInput,
+  WishlistCategory,
+  WishlistCategoryAppearance,
+  WishlistCategoryPatch,
+  WishlistItem,
+  WishlistShareToken,
+} from "@/lib/supabase/wishlist";
+import {
+  WishlistCategoryIcon,
+  WISHLIST_COLOR_CHOICES,
+  WISHLIST_ICON_KEYS,
+  wishlistColorValue,
+} from "./wishlistIcons";
 
-/** Stable per-category accent, keyed off the category's position in the
- * (oldest-first) list — see fetchWishlist. Brand series hues only. */
-const WISHLIST_ACCENTS = [
-  "var(--series-1)",
-  "var(--series-2)",
-  "var(--series-8)",
-  "var(--series-3)",
-  "var(--series-6)",
-  "var(--series-4)",
-  "var(--series-indigo)",
-  "var(--series-magenta)",
-  "var(--series-berry)",
-  "var(--series-slate)",
-];
+/** Fallback per-category accent, keyed off the category's position in the
+ * (oldest-first) list — see fetchWishlist. Used when the category has no
+ * colour of its own. */
+const WISHLIST_ACCENTS = WISHLIST_COLOR_CHOICES.map((c) => c.value);
 
-function accentForIndex(index: number): string {
-  return WISHLIST_ACCENTS[index % WISHLIST_ACCENTS.length];
+/** A category's own colour if it set one, else the position fallback. */
+function accentForCategory(category: WishlistCategory, index: number): string {
+  return wishlistColorValue(category.color) ?? WISHLIST_ACCENTS[index % WISHLIST_ACCENTS.length];
 }
 
 /** Prepend a scheme so a pasted "example.com/thing" is still a working
@@ -54,23 +58,15 @@ export interface WishlistPeople {
   partnerId: string | null;
 }
 
-function HeartIcon({ size = 15 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M10 16.5S4 12.8 4 8.6A3.1 3.1 0 0 1 10 7a3.1 3.1 0 0 1 6 1.6c0 4.2-6 7.9-6 7.9Z" />
-    </svg>
-  );
-}
-
-/** iOS-list-app flourish: the list's colour carried in a soft rounded
- * square, so a wall of categories reads at a glance. */
-function CategoryGlyph({ accent, size = 34 }: { accent: string; size?: number }) {
+/** iOS-list-app flourish: the list's icon in its colour, carried in a soft
+ * rounded square, so a wall of categories reads at a glance. */
+function CategoryGlyph({ accent, icon = null, size = 34 }: { accent: string; icon?: string | null; size?: number }) {
   return (
     <span
       className="flex shrink-0 items-center justify-center rounded-[9px]"
       style={{ width: size, height: size, background: `color-mix(in oklab, ${accent} 16%, var(--surface-1))`, color: accent }}
     >
-      <HeartIcon size={Math.round(size * 0.5)} />
+      <WishlistCategoryIcon icon={icon} size={Math.round(size * 0.5)} />
     </span>
   );
 }
@@ -261,20 +257,30 @@ function ItemForm({
   );
 }
 
-function CategoryNameForm({
-  accent,
+interface CategoryFormValues {
+  name: string;
+  icon: string | null;
+  color: string | null;
+}
+
+function CategoryForm({
+  fallbackAccent,
   initial,
   onSave,
   onCancel,
 }: {
-  accent: string;
+  fallbackAccent: string;
   initial?: WishlistCategory;
-  onSave: (name: string) => Promise<void>;
+  onSave: (values: CategoryFormValues) => Promise<void>;
   onCancel: () => void;
 }) {
   const [name, setName] = useState(initial?.name ?? "");
+  const [icon, setIcon] = useState<string | null>(initial?.icon ?? null);
+  const [color, setColor] = useState<string | null>(initial?.color ?? null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const accent = wishlistColorValue(color) ?? fallbackAccent;
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -282,7 +288,7 @@ function CategoryNameForm({
     setSaving(true);
     setError(null);
     try {
-      await onSave(name);
+      await onSave({ name, icon, color });
     } catch (err) {
       console.error("wishlist category save failed", err);
       setError("Couldn't save that — try again in a moment.");
@@ -291,25 +297,82 @@ function CategoryNameForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <div className="flex items-center justify-end">
         <button type="button" onClick={onCancel} className="text-xs font-medium underline decoration-dotted" style={{ color: "var(--text-muted)" }}>
           Cancel
         </button>
       </div>
-      <input
-        autoFocus
-        required
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        placeholder="Category name"
-        maxLength={80}
-        className={FIELD_CLS}
-        style={FIELD_STYLE}
-      />
+
+      <div className="flex items-center gap-3">
+        <CategoryGlyph accent={accent} icon={icon} size={40} />
+        <input
+          autoFocus
+          required
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="List name"
+          maxLength={80}
+          className={`${FIELD_CLS} min-w-0 flex-1 font-medium`}
+          style={FIELD_STYLE}
+        />
+      </div>
+
+      <fieldset className="flex flex-col gap-1.5">
+        <legend className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
+          Icon
+        </legend>
+        <div className="flex flex-wrap gap-1.5">
+          {WISHLIST_ICON_KEYS.map((key) => {
+            const selected = (icon ?? "heart") === key;
+            return (
+              <button
+                key={key}
+                type="button"
+                aria-pressed={selected}
+                aria-label={key}
+                onClick={() => setIcon(key === "heart" ? null : key)}
+                className="tap-target flex h-9 w-9 items-center justify-center rounded-lg border transition-colors"
+                style={{
+                  borderColor: selected ? accent : "var(--border-hairline)",
+                  background: selected ? `color-mix(in oklab, ${accent} 14%, var(--surface-1))` : "var(--surface-1)",
+                  color: selected ? accent : "var(--text-muted)",
+                }}
+              >
+                <WishlistCategoryIcon icon={key} size={17} />
+              </button>
+            );
+          })}
+        </div>
+      </fieldset>
+
+      <fieldset className="flex flex-col gap-1.5">
+        <legend className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
+          Colour
+        </legend>
+        <div className="flex flex-wrap gap-2">
+          {WISHLIST_COLOR_CHOICES.map((choice) => {
+            const selected = color === choice.key;
+            return (
+              <button
+                key={choice.key}
+                type="button"
+                aria-pressed={selected}
+                aria-label={choice.key}
+                onClick={() => setColor(selected ? null : choice.key)}
+                className="tap-target flex h-7 w-7 items-center justify-center rounded-full"
+                style={{ boxShadow: selected ? `0 0 0 2px var(--surface-1), 0 0 0 4px ${choice.value}` : "none" }}
+              >
+                <span className="h-5 w-5 rounded-full" style={{ background: choice.value }} />
+              </button>
+            );
+          })}
+        </div>
+      </fieldset>
+
       <div className="flex items-center gap-3">
         <button type="submit" disabled={!name.trim() || saving} className="rounded-md px-4 py-2 text-sm font-medium text-white disabled:opacity-50" style={{ background: accent }}>
-          {saving ? "Saving…" : initial ? "Rename" : "Add category"}
+          {saving ? "Saving…" : initial ? "Save changes" : "Add list"}
         </button>
         {error && (
           <span className="text-xs" style={{ color: "var(--status-critical)" }}>
@@ -429,7 +492,7 @@ function CategoryRow({
       className="flex w-full items-center gap-3 rounded-xl border px-3 py-3 text-left transition-colors hover:bg-[var(--page-plane)]"
       style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}
     >
-      <CategoryGlyph accent={accent} />
+      <CategoryGlyph accent={accent} icon={category.icon} />
       <div className="flex min-w-0 flex-1 flex-col">
         <span className="truncate text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
           {category.name}
@@ -483,7 +546,7 @@ function CategoryDetail({
       </button>
 
       <div className="flex items-center gap-3">
-        <CategoryGlyph accent={accent} size={38} />
+        <CategoryGlyph accent={accent} icon={category.icon} size={38} />
         <h2 className="min-w-0 flex-1 truncate text-lg font-semibold" style={{ color: "var(--text-primary)" }}>
           {category.name}
         </h2>
@@ -791,7 +854,7 @@ export function WishlistBoard({
   onRefresh,
   onFetchTitle,
   onCreateCategory,
-  onRenameCategory,
+  onUpdateCategory,
   onDeleteCategory,
   onCreateItem,
   onUpdateItem,
@@ -811,8 +874,8 @@ export function WishlistBoard({
   /** Re-pulls the wishlist — for links added from a phone shortcut while the app was open. */
   onRefresh?: () => Promise<void> | void;
   onFetchTitle?: (url: string) => Promise<string | null>;
-  onCreateCategory: (name: string) => Promise<WishlistCategory>;
-  onRenameCategory: (id: string, name: string) => Promise<void>;
+  onCreateCategory: (name: string, appearance?: WishlistCategoryAppearance) => Promise<WishlistCategory>;
+  onUpdateCategory: (id: string, patch: WishlistCategoryPatch) => Promise<void>;
   onDeleteCategory: (id: string) => Promise<void>;
   onCreateItem: (input: NewWishlistItemInput) => Promise<void>;
   onUpdateItem: (id: string, input: NewWishlistItemInput) => Promise<void>;
@@ -845,7 +908,7 @@ export function WishlistBoard({
 
   const accentByCategoryId = useMemo(() => {
     const map = new Map<string, string>();
-    categories.forEach((c, i) => map.set(c.id, accentForIndex(i)));
+    categories.forEach((c, i) => map.set(c.id, accentForCategory(c, i)));
     return map;
   }, [categories]);
 
@@ -894,16 +957,17 @@ export function WishlistBoard({
   if (view.mode === "category") {
     const back = () =>
       setView(view.returnTo === "detail" && view.editing ? { mode: "detail", categoryId: view.editing.id } : { mode: "list" });
+    const editing = view.editing;
     return (
-      <CategoryNameForm
-        accent={view.editing ? accentByCategoryId.get(view.editing.id) ?? accent : accent}
-        initial={view.editing}
-        onSave={async (name) => {
-          if (view.editing) {
-            await onRenameCategory(view.editing.id, name);
-            setView(view.returnTo === "detail" ? { mode: "detail", categoryId: view.editing.id } : { mode: "list" });
+      <CategoryForm
+        fallbackAccent={accent}
+        initial={editing}
+        onSave={async ({ name, icon, color }) => {
+          if (editing) {
+            await onUpdateCategory(editing.id, { name, icon, color });
+            setView(view.returnTo === "detail" ? { mode: "detail", categoryId: editing.id } : { mode: "list" });
           } else {
-            const created = await onCreateCategory(name);
+            const created = await onCreateCategory(name, { icon, color });
             setView({ mode: "detail", categoryId: created.id });
           }
         }}

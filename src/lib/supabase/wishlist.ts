@@ -18,9 +18,18 @@ export interface WishlistItem {
 export interface WishlistCategory {
   id: string;
   name: string;
+  /** Icon key from the fixed set in wishlistIcons; null → heart. */
+  icon: string | null;
+  /** Brand-hue key from WISHLIST_COLOR_CHOICES; null → position accent. */
+  color: string | null;
   createdAt: string;
   /** Newest first. */
   items: WishlistItem[];
+}
+
+export interface WishlistCategoryAppearance {
+  icon: string | null;
+  color: string | null;
 }
 
 interface ItemRow {
@@ -36,12 +45,14 @@ interface ItemRow {
 interface CategoryRow {
   id: string;
   name: string;
+  icon: string | null;
+  color: string | null;
   created_at: string;
   wishlist_items: ItemRow[] | null;
 }
 
 const ITEM_COLUMNS = "id, category_id, url, title, note, for_user_id, created_at";
-const CATEGORY_COLUMNS = `id, name, created_at, wishlist_items(${ITEM_COLUMNS})`;
+const CATEGORY_COLUMNS = `id, name, icon, color, created_at, wishlist_items(${ITEM_COLUMNS})`;
 
 function toItem(row: ItemRow): WishlistItem {
   return {
@@ -59,6 +70,8 @@ function toCategory(row: CategoryRow): WishlistCategory {
   return {
     id: row.id,
     name: row.name,
+    icon: row.icon,
+    color: row.color,
     createdAt: row.created_at,
     items: (row.wishlist_items ?? []).map(toItem).sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
   };
@@ -89,25 +102,40 @@ export async function fetchWishlist(): Promise<WishlistCategory[]> {
   return (data as CategoryRow[]).map(toCategory);
 }
 
-export async function createWishlistCategory(name: string): Promise<WishlistCategory> {
+export async function createWishlistCategory(
+  name: string,
+  appearance?: WishlistCategoryAppearance,
+): Promise<WishlistCategory> {
   if (!supabase) throw notConfigured();
   const myUserId = await currentUserId();
   if (!myUserId) throw new Error("Sign in first.");
   const { data, error } = await supabase
     .from("wishlist_categories")
-    .insert({ owner_id: myUserId, name: name.trim() })
+    .insert({
+      owner_id: myUserId,
+      name: name.trim(),
+      icon: appearance?.icon ?? null,
+      color: appearance?.color ?? null,
+    })
     .select(CATEGORY_COLUMNS)
     .single();
   if (error) throw error;
   return toCategory(data as CategoryRow);
 }
 
-export async function renameWishlistCategory(id: string, name: string): Promise<void> {
+export interface WishlistCategoryPatch {
+  name?: string;
+  icon?: string | null;
+  color?: string | null;
+}
+
+export async function updateWishlistCategory(id: string, patch: WishlistCategoryPatch): Promise<void> {
   if (!supabase) throw notConfigured();
-  const { error } = await supabase
-    .from("wishlist_categories")
-    .update({ name: name.trim(), updated_at: new Date().toISOString() })
-    .eq("id", id);
+  const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  if (patch.name !== undefined) update.name = patch.name.trim();
+  if (patch.icon !== undefined) update.icon = patch.icon;
+  if (patch.color !== undefined) update.color = patch.color;
+  const { error } = await supabase.from("wishlist_categories").update(update).eq("id", id);
   if (error) throw error;
 }
 

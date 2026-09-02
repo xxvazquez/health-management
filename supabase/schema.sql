@@ -900,12 +900,16 @@ create table public.household_codes (
 -- category; deleting a category takes its items with it. `owner_id` is
 -- whoever added the row — either partner — with pair visibility via
 -- is_household_member, same "shared, not just visible" rule as the tables
--- above. The per-category accent colour is assigned client-side by
--- position, so nothing about it lives here.
+-- above. `icon` / `color` are an optional per-category look set from the
+-- category form (icon key + brand-hue key, both from fixed client-side
+-- sets); left null they fall back to a heart glyph and a position-keyed
+-- accent.
 create table public.wishlist_categories (
   id uuid primary key default gen_random_uuid(),
   owner_id uuid not null default auth.uid() references auth.users(id),
   name text not null check (char_length(trim(name)) > 0),
+  icon text,
+  color text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
