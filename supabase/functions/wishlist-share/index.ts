@@ -32,11 +32,20 @@ const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
 function cleanUrl(raw: unknown): string | null {
-  if (typeof raw !== "string") return null;
-  const trimmed = raw.trim();
+  // Shortcuts' "Get URLs from Input" produces a list, which reaches us as
+  // an array, a bracketed string, or several space-separated links — and a
+  // plain page share can arrive as "Title https://…". Pull the first
+  // http(s) token out of whatever shape it is.
+  let candidate = "";
+  if (typeof raw === "string") candidate = raw;
+  else if (Array.isArray(raw)) candidate = raw.find((v) => typeof v === "string") ?? "";
+  else if (raw != null) candidate = String(raw);
+
+  const match = candidate.match(/https?:\/\/[^\s"'\]]+/i);
+  candidate = (match ? match[0] : candidate).trim();
   try {
-    const u = new URL(trimmed);
-    return u.protocol === "http:" || u.protocol === "https:" ? trimmed : null;
+    const u = new URL(candidate);
+    return u.protocol === "http:" || u.protocol === "https:" ? candidate : null;
   } catch {
     return null;
   }
