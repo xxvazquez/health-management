@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { NOTE_CATEGORY_LABEL, type NoteMessage, type NoteThread } from "@/lib/supabase/notes";
-import { ArchiveIcon, CategoryIcon, EnvelopeOpenIcon, ReplyIcon, StarIcon } from "./icons";
+import { ArchiveIcon, CategoryIcon, EyeOffIcon, ReplyIcon, StarIcon } from "./icons";
 import { formatNoteTimestamp } from "./NoteThreadList";
 import { AutoGrowTextarea } from "@/components/ui/AutoGrowTextarea";
 
@@ -166,7 +166,7 @@ export function NoteThreadView({
             <StarIcon filled={thread.isFavouritedByMe} />
           </ActionButton>
           <ActionButton onClick={() => void markUnread()} label="Mark as unread" disabled={busy}>
-            <EnvelopeOpenIcon />
+            <EyeOffIcon />
           </ActionButton>
           <ActionButton onClick={() => void toggleArchive()} active={thread.isArchivedByMe} label={thread.isArchivedByMe ? "Unarchive" : "Archive"} disabled={busy}>
             <ArchiveIcon />

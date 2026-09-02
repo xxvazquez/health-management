@@ -90,20 +90,21 @@ export function ArchiveIcon({ size = 15 }: { size?: number }) {
   );
 }
 
-export function EnvelopeOpenIcon({ size = 15 }: { size?: number }) {
+export function EyeIcon({ size = 15 }: { size?: number }) {
   return (
     <IconWrap size={size}>
-      <path d="M3.5 8.2 10 12l6.5-3.8" />
-      <path d="M3.5 8.2V15c0 .7.6 1.3 1.3 1.3h10.4c.7 0 1.3-.6 1.3-1.3V8.2L10 3.5 3.5 8.2Z" />
+      <path d="M2.5 10S5 5.5 10 5.5 17.5 10 17.5 10 15 14.5 10 14.5 2.5 10 2.5 10Z" />
+      <circle cx="10" cy="10" r="2.2" />
     </IconWrap>
   );
 }
 
-export function EnvelopeClosedIcon({ size = 15 }: { size?: number }) {
+export function EyeOffIcon({ size = 15 }: { size?: number }) {
   return (
     <IconWrap size={size}>
-      <rect x="3.3" y="4.8" width="13.4" height="10.4" rx="1.3" />
-      <path d="M3.7 5.6 10 10.4 16.3 5.6" />
+      <path d="M7.3 5.9A7.4 7.4 0 0 1 10 5.5c5 0 7.5 4.5 7.5 4.5a13 13 0 0 1-2.2 2.7M4.7 7.3A13 13 0 0 0 2.5 10S5 14.5 10 14.5a7.4 7.4 0 0 0 2.8-.5" />
+      <path d="M8.4 8.4a2.2 2.2 0 0 0 3.1 3.1" />
+      <path d="M3.5 3.5 16.5 16.5" />
     </IconWrap>
   );
 }

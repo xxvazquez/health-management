@@ -1,13 +1,28 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { ArchiveIcon, CategoryIcon, EnvelopeClosedIcon, EnvelopeOpenIcon, StarIcon } from "./icons";
+import { ArchiveIcon, CategoryIcon, EyeIcon, EyeOffIcon, StarIcon } from "./icons";
 import { NOTE_CATEGORY_LABEL, type NoteThread, type NoteView } from "@/lib/supabase/notes";
 
 const ACCENT = "var(--series-magenta)";
 
 export function formatNoteTimestamp(iso: string): string {
   return new Date(iso).toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+}
+
+/** Compact, context-relative stamp for the inbox rows, where width is
+ * tight: today → time, this week → weekday, this year → day + month,
+ * older → short numeric date. The full form above still backs the thread
+ * view. */
+export function formatNoteTimestampShort(iso: string): string {
+  const d = new Date(iso);
+  const now = new Date();
+  const dayStart = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const daysAgo = Math.round((dayStart(now) - dayStart(d)) / 86_400_000);
+  if (daysAgo <= 0) return d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+  if (daysAgo < 7) return d.toLocaleDateString(undefined, { weekday: "short" });
+  if (d.getFullYear() === now.getFullYear()) return d.toLocaleDateString(undefined, { day: "numeric", month: "short" });
+  return d.toLocaleDateString(undefined, { day: "2-digit", month: "2-digit", year: "2-digit" });
 }
 
 const VIEW_EMPTY_COPY: Record<NoteView, { title: string; description: string }> = {
@@ -39,7 +54,7 @@ function RowAction({
       disabled={disabled}
       aria-label={label}
       title={label}
-      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-[var(--surface-1)] disabled:opacity-40"
+      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-[var(--surface-1)] disabled:opacity-40"
       style={{ color: active ? ACCENT : "var(--text-muted)" }}
     >
       {children}
@@ -145,10 +160,13 @@ export function NoteThreadList({
               </span>
               <span className="min-w-0 flex-1">
                 <span className="flex items-center gap-1.5">
-                  <span className="truncate text-sm" style={{ fontWeight: t.isUnreadForMe ? 600 : 500, color: "var(--text-primary)" }}>
+                  <span className="min-w-0 flex-1 truncate text-sm" style={{ fontWeight: t.isUnreadForMe ? 600 : 500, color: "var(--text-primary)" }}>
                     {t.subject || t.body.slice(0, 60)}
                   </span>
                   {t.isFavouritedByMe && <StarIcon filled size={12} />}
+                  <span className="shrink-0 text-[11px] whitespace-nowrap tabular-nums" style={{ color: "var(--text-muted)" }}>
+                    {formatNoteTimestampShort(t.lastMessageAt)}
+                  </span>
                 </span>
                 <span className="mt-0.5 block truncate text-xs" style={{ color: "var(--text-muted)" }}>
                   {t.isMine ? `To ${partnerLabel}` : `From ${partnerLabel}`} · {NOTE_CATEGORY_LABEL[t.category]}
@@ -156,11 +174,7 @@ export function NoteThreadList({
               </span>
             </button>
 
-            <span className="shrink-0 text-xs whitespace-nowrap tabular-nums" style={{ color: "var(--text-muted)" }}>
-              {formatNoteTimestamp(t.lastMessageAt)}
-            </span>
-
-            <div className="flex shrink-0 items-center gap-0.5">
+            <div className="flex shrink-0 items-center gap-0 sm:gap-1">
               <RowAction
                 onClick={() => void run(t.id, () => onToggleFavourite(t.id, t.isMine, !t.isFavouritedByMe))}
                 active={t.isFavouritedByMe}
@@ -171,11 +185,11 @@ export function NoteThreadList({
               </RowAction>
               {t.isUnreadForMe ? (
                 <RowAction onClick={() => void run(t.id, () => onMarkRead(t.id, t.isMine))} label="Mark as read" disabled={busy}>
-                  <EnvelopeClosedIcon size={14} />
+                  <EyeIcon size={15} />
                 </RowAction>
               ) : (
                 <RowAction onClick={() => void run(t.id, () => onMarkUnread(t.id, t.isMine))} label="Mark as unread" disabled={busy}>
-                  <EnvelopeOpenIcon size={14} />
+                  <EyeOffIcon size={15} />
                 </RowAction>
               )}
               <RowAction
