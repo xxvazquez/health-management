@@ -497,30 +497,34 @@ export function FoodDashboard() {
       <PageSection id="variety" activeId={activeSection} headingLabel="Variety">
         {!priorities.insufficientData && <VarietySection variety={priorities.variety} />}
 
-        <Card tier="raw">
-          <CardTitle
-            size="sm"
-            subtitle={isThisWeek ? "What you ate most this week" : "Most frequently tracked foods in this range"}
-          >
-            Top ingredients
-          </CardTitle>
-          {topFoods.length > 0 ? (
-            <RankedBarChart data={topFoods} color={TYPE_ACCENT.food} />
-          ) : (
-            <p className="text-sm" style={{ color: "var(--text-muted)" }}>No data.</p>
-          )}
-        </Card>
+        {/* The two ranking cards pair up on a wide screen — a grid row so
+            they stay the same height rather than leaving a ragged edge. */}
+        <div className="grid gap-4 xl:grid-cols-2">
+          <Card tier="raw">
+            <CardTitle
+              size="sm"
+              subtitle={isThisWeek ? "What you ate most this week" : "Most frequently tracked foods in this range"}
+            >
+              Top ingredients
+            </CardTitle>
+            {topFoods.length > 0 ? (
+              <RankedBarChart data={topFoods} color={TYPE_ACCENT.food} />
+            ) : (
+              <p className="text-sm" style={{ color: "var(--text-muted)" }}>No data.</p>
+            )}
+          </Card>
 
-        <Card tier="raw">
-          <CardTitle size="sm" subtitle="Days logged in this range, per food group — not servings or grams.">
-            Food-group coverage
-          </CardTitle>
-          {priorities.coverageTable.length > 0 ? (
-            <CoverageTableRows rows={priorities.coverageTable} rangeLengthDays={rangeLengthDays} />
-          ) : (
-            <p className="text-sm" style={{ color: "var(--text-muted)" }}>Not enough data yet.</p>
-          )}
-        </Card>
+          <Card tier="raw">
+            <CardTitle size="sm" subtitle="Days logged in this range, per food group — not servings or grams.">
+              Food-group coverage
+            </CardTitle>
+            {priorities.coverageTable.length > 0 ? (
+              <CoverageTableRows rows={priorities.coverageTable} rangeLengthDays={rangeLengthDays} />
+            ) : (
+              <p className="text-sm" style={{ color: "var(--text-muted)" }}>Not enough data yet.</p>
+            )}
+          </Card>
+        </div>
 
         <Card tier="raw">
           <CardTitle size="sm" subtitle="Rolling 7-day and 30-day unique food counts">
