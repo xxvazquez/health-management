@@ -78,6 +78,15 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
 
+  try {
+    return await handle(req);
+  } catch (err) {
+    console.error("wishlist-share: unhandled", err);
+    return json({ error: "Server error" }, 500);
+  }
+});
+
+async function handle(req: Request): Promise<Response> {
   // `token` and `for` may come from the query string (so a Share Sheet
   // shortcut can bake them into the endpoint and keep its body to just the
   // link). The body may be JSON `{ url, token?, for? }`, or just the raw
@@ -136,9 +145,10 @@ Deno.serve(async (req) => {
     .select("id")
     .eq("owner_id", ownerId)
     .eq("name", DEFAULT_LIST)
-    .maybeSingle();
-  if (existing) {
-    listId = existing.id as string;
+    .order("created_at", { ascending: true })
+    .limit(1);
+  if (existing && existing.length > 0) {
+    listId = existing[0].id as string;
   } else {
     const { data: created, error: listErr } = await admin
       .from("wishlist_categories")
@@ -152,7 +162,7 @@ Deno.serve(async (req) => {
     listId = created.id as string;
   }
 
-  const title = await titleFor(url, body.title);
+  const title = await titleFor(url, parsed.title);
 
   const { error: itemErr } = await admin.from("wishlist_items").insert({
     owner_id: ownerId,
@@ -170,4 +180,4 @@ Deno.serve(async (req) => {
   await admin.from("wishlist_share_tokens").update({ last_used_at: new Date().toISOString() }).eq("token", token);
 
   return json({ ok: true, title, list: DEFAULT_LIST });
-});
+}
