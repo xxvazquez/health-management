@@ -11,6 +11,8 @@ export function buildDemoWishlist(): WishlistCategory[] {
     {
       id: "demo-wl-cat-home",
       name: "Home",
+      icon: "home",
+      color: "series-2",
       createdAt: iso(-30 * DAY),
       items: [
         {
@@ -36,6 +38,8 @@ export function buildDemoWishlist(): WishlistCategory[] {
     {
       id: "demo-wl-cat-gifts",
       name: "Gift ideas",
+      icon: "gift",
+      color: "series-magenta",
       createdAt: iso(-18 * DAY),
       items: [
         {
@@ -52,6 +56,8 @@ export function buildDemoWishlist(): WishlistCategory[] {
     {
       id: "demo-wl-cat-trips",
       name: "Trips",
+      icon: "travel",
+      color: "series-3",
       createdAt: iso(-6 * DAY),
       items: [],
     },

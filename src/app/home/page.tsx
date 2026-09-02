@@ -36,12 +36,14 @@ import {
   fetchMyShareToken,
   fetchWishlist,
   regenerateMyShareToken,
-  renameWishlistCategory,
+  updateWishlistCategory,
   updateWishlistItem,
   wishlistShareAuthHeader,
   wishlistShareEndpoint,
   type NewWishlistItemInput,
   type WishlistCategory,
+  type WishlistCategoryAppearance,
+  type WishlistCategoryPatch,
 } from "@/lib/supabase/wishlist";
 import {
   buildDemoHouseholdCodes,
@@ -462,20 +464,41 @@ export default function HomePage() {
     if (!isDemo) await deleteHouseholdCode(id);
   }
 
-  async function handleCreateWishlistCategory(name: string): Promise<WishlistCategory> {
+  async function handleCreateWishlistCategory(
+    name: string,
+    appearance?: WishlistCategoryAppearance,
+  ): Promise<WishlistCategory> {
     if (isDemo) {
-      const category: WishlistCategory = { id: `demo-${Date.now()}`, name: name.trim(), createdAt: new Date().toISOString(), items: [] };
+      const category: WishlistCategory = {
+        id: `demo-${Date.now()}`,
+        name: name.trim(),
+        icon: appearance?.icon ?? null,
+        color: appearance?.color ?? null,
+        createdAt: new Date().toISOString(),
+        items: [],
+      };
       setWishlist((prev) => [...prev, category]);
       return category;
     }
-    const created = await createWishlistCategory(name);
+    const created = await createWishlistCategory(name, appearance);
     setWishlist((prev) => [...prev, created]);
     return created;
   }
 
-  async function handleRenameWishlistCategory(id: string, name: string) {
-    setWishlist((prev) => prev.map((c) => (c.id === id ? { ...c, name: name.trim() } : c)));
-    if (!isDemo) await renameWishlistCategory(id, name);
+  async function handleUpdateWishlistCategory(id: string, patch: WishlistCategoryPatch) {
+    setWishlist((prev) =>
+      prev.map((c) =>
+        c.id === id
+          ? {
+              ...c,
+              ...(patch.name !== undefined ? { name: patch.name.trim() } : {}),
+              ...(patch.icon !== undefined ? { icon: patch.icon } : {}),
+              ...(patch.color !== undefined ? { color: patch.color } : {}),
+            }
+          : c,
+      ),
+    );
+    if (!isDemo) await updateWishlistCategory(id, patch);
   }
 
   async function handleDeleteWishlistCategory(id: string) {
@@ -638,7 +661,7 @@ export default function HomePage() {
           }
           onFetchTitle={isDemo ? undefined : (url) => fetchLinkMetadata(url).then((r) => r.title)}
           onCreateCategory={handleCreateWishlistCategory}
-          onRenameCategory={handleRenameWishlistCategory}
+          onUpdateCategory={handleUpdateWishlistCategory}
           onDeleteCategory={handleDeleteWishlistCategory}
           onCreateItem={handleCreateWishlistItem}
           onUpdateItem={handleUpdateWishlistItem}

@@ -392,11 +392,13 @@ relationship to the others. `household_codes` (discount/promo codes, not
 diagrammed above) is another standalone board on the same page.
 
 `wishlist_categories` / `wishlist_items` back the Wishlist board: a
-category is a name, an item is one URL plus a title (fetched by the
-`fetch-link-metadata` Edge Function, or typed) and an optional note.
-`wishlist_items.category_id` cascades on category delete. The per-category
-accent colour is assigned client-side by position, not stored. All the
-household tables use the pair RLS shape below.
+category is a name plus an optional `icon` / `color` (an icon key and a
+brand-hue key, both from fixed client-side sets — `src/components/home/wishlistIcons.tsx`),
+an item is one URL plus a title (fetched by the `fetch-link-metadata`
+Edge Function, or typed) and an optional note.
+`wishlist_items.category_id` cascades on category delete. A category with
+no `icon` / `color` falls back to a heart glyph and a position-keyed
+accent. All the household tables use the pair RLS shape below.
 
 `wishlist_share_tokens` (one row per account, `unique (owner_id)`) is a
 capture token for a phone Share Sheet shortcut: iOS has no PWA share
