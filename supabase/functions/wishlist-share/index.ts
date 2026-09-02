@@ -31,6 +31,14 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
+function safeDecode(s: string): string {
+  try {
+    return decodeURIComponent(s);
+  } catch {
+    return s;
+  }
+}
+
 function cleanUrl(raw: unknown): string | null {
   // A phone share can hand over almost any shape: a bare string, a list
   // from "Get URLs from Input", or (Chrome on iOS) a dictionary like
@@ -92,8 +100,15 @@ async function handle(req: Request): Promise<Response> {
   // link). The body may be JSON `{ url, token?, for? }`, or just the raw
   // shared text/dictionary — take the whole request as text and pull a
   // link out of whatever shape it is.
-  const query = new URL(req.url).searchParams;
+  const reqUrl = new URL(req.url);
+  const query = reqUrl.searchParams;
   const bodyText = await req.text();
+
+  // Everything after the last `url=` in the raw query string — so an
+  // unencoded link that carries its own `?a=1&b=2` still comes through
+  // whole, which `query.get("url")` would truncate at the first `&`.
+  const urlTailAt = reqUrl.search.lastIndexOf("url=");
+  const urlTail = urlTailAt >= 0 ? reqUrl.search.slice(urlTailAt + 4) : null;
 
   let parsed: Record<string, unknown> = {};
   try {
@@ -109,9 +124,14 @@ async function handle(req: Request): Promise<Response> {
   const token = (query.get("token") ?? (typeof parsed.token === "string" ? parsed.token : "")).trim();
   if (!token) return json({ error: "token is required" }, 400);
 
-  const url = cleanUrl(parsed.url) ?? cleanUrl(bodyText) ?? cleanUrl(query.get("url"));
+  const url =
+    cleanUrl(parsed.url) ??
+    cleanUrl(bodyText) ??
+    cleanUrl(urlTail && safeDecode(urlTail)) ??
+    cleanUrl(query.get("url"));
   if (!url) {
-    return json({ error: "A valid http(s) url is required", received: bodyText.slice(0, 300) || "(empty body)" }, 400);
+    const seen = bodyText.slice(0, 200) || "(empty body)";
+    return json({ error: "A valid http(s) url is required", received: `${seen} | query: ${reqUrl.search.slice(0, 200)}` }, 400);
   }
 
   const forRaw = query.get("for") ?? parsed.for;
