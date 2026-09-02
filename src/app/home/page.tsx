@@ -29,12 +29,17 @@ import {
 import {
   createWishlistCategory,
   createWishlistItem,
+  deleteMyShareToken,
   deleteWishlistCategory,
   deleteWishlistItem,
   fetchLinkMetadata,
+  fetchMyShareToken,
   fetchWishlist,
+  regenerateMyShareToken,
   renameWishlistCategory,
   updateWishlistItem,
+  wishlistShareAuthHeader,
+  wishlistShareEndpoint,
   type NewWishlistItemInput,
   type WishlistCategory,
 } from "@/lib/supabase/wishlist";
@@ -619,6 +624,17 @@ export default function HomePage() {
           forLabel={completedByLabel}
           sharedUrl={sharedUrl}
           onSharedUrlConsumed={() => setSharedUrl(null)}
+          shareToPhone={
+            !isDemo && wishlistShareEndpoint() && wishlistShareAuthHeader()
+              ? {
+                  endpoint: wishlistShareEndpoint() as string,
+                  authHeader: wishlistShareAuthHeader() as string,
+                  getToken: fetchMyShareToken,
+                  regenerate: regenerateMyShareToken,
+                  disable: deleteMyShareToken,
+                }
+              : undefined
+          }
           onFetchTitle={isDemo ? undefined : (url) => fetchLinkMetadata(url).then((r) => r.title)}
           onCreateCategory={handleCreateWishlistCategory}
           onRenameCategory={handleRenameWishlistCategory}

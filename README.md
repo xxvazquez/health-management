@@ -91,7 +91,7 @@ src/
   taxonomy/           category definitions, food classification, naming rules
 supabase/
   schema.sql          full DDL + RLS policies — the source of truth for the data model
-  functions/          Edge Functions (bug-report email; reminder + digest cron; wishlist link-title fetch)
+  functions/          Edge Functions (bug-report email; reminder + digest cron; wishlist link-title fetch; wishlist phone-share)
   tests/rls.test.sql  automated RLS isolation tests (CI only)
 docs/
   data-model.md       readable map of the schema — grouped ER diagrams, RLS shapes
@@ -204,8 +204,11 @@ write-local-first outbox — they only mean anything once they're on the server.
   page by the `fetch-link-metadata` Edge Function (the static client can't —
   CORS), falling back to a typed title. `wishlist_items.category_id` cascades on
   category delete; the per-category accent colour is assigned client-side by
-  position. The PWA `share_target` (`/home/?url=…`) routes a shared link straight
-  to a pre-filled new item.
+  position. On Android the PWA `share_target` (`/home/?url=…`) routes a shared
+  link straight to a pre-filled new item; iOS has no share target, so the
+  Wishlist tab's "Add from your phone" panel issues a per-account capture token
+  (`wishlist_share_tokens`) for a Share Sheet shortcut that POSTs to the
+  `wishlist-share` Edge Function — links land in a "Saved from phone" list.
 - **Reminder lists** (`reminder_lists`, owner-only) — `personal_tasks.list_id` is
   a composite FK with `on delete set null`, so deleting a list drops its tasks
   back to the default bucket rather than removing them. Lists are managed on the

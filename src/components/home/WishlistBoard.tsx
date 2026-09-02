@@ -6,7 +6,7 @@ import { SearchField } from "@/components/ui/SearchField";
 import { ListSkeleton } from "@/components/ui/Skeleton";
 import { InlineEmpty } from "@/components/ui/EmptyState";
 import { PrimaryAction } from "@/components/ui/PrimaryAction";
-import type { NewWishlistItemInput, WishlistCategory, WishlistItem } from "@/lib/supabase/wishlist";
+import type { NewWishlistItemInput, WishlistCategory, WishlistItem, WishlistShareToken } from "@/lib/supabase/wishlist";
 
 /** Stable per-category accent, keyed off the category's position in the
  * (oldest-first) list — see fetchWishlist. Brand series hues only. */
@@ -555,8 +555,210 @@ function CategoryDetail({
   );
 }
 
+/** Everything the "Add from your phone" panel needs. Absent in demo mode
+ * and when cloud sync isn't configured — a token authenticates one real
+ * account, so there's nothing to show. */
+export interface WishlistShareToPhone {
+  endpoint: string;
+  authHeader: string;
+  getToken: () => Promise<WishlistShareToken | null>;
+  regenerate: () => Promise<WishlistShareToken>;
+  disable: () => Promise<void>;
+}
+
+function CopyRow({ label, value }: { label: string; value: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+        {label}
+      </span>
+      <div className="flex items-center gap-2">
+        <code
+          className="min-w-0 flex-1 truncate rounded-md border px-2 py-1.5 text-xs"
+          style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-secondary)" }}
+        >
+          {value}
+        </code>
+        <button
+          type="button"
+          onClick={async () => {
+            try {
+              await navigator.clipboard.writeText(value);
+              setCopied(true);
+              window.setTimeout(() => setCopied(false), 1500);
+            } catch {
+              // Clipboard blocked — the value stays visible to select by hand.
+            }
+          }}
+          className="tap-target shrink-0 rounded-md border px-2.5 py-1.5 text-xs font-medium"
+          style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-secondary)" }}
+        >
+          {copied ? "Copied" : "Copy"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** iOS has no PWA share target, so a link gets into the wishlist from a
+ * phone via a Shortcut that POSTs to the wishlist-share Edge Function,
+ * standing in for a session with a per-account token. Android already has
+ * the PWA share target and needs none of this. */
+function PhoneSetup({ share, accent, onBack }: { share: WishlistShareToPhone; accent: string; onBack: () => void }) {
+  const [token, setToken] = useState<WishlistShareToken | null>(null);
+  const [state, setState] = useState<"loading" | "ready" | "working">("loading");
+
+  useEffect(() => {
+    let active = true;
+    share
+      .getToken()
+      .then((t) => {
+        if (active) {
+          setToken(t);
+          setState("ready");
+        }
+      })
+      .catch(() => {
+        if (active) setState("ready");
+      });
+    return () => {
+      active = false;
+    };
+  }, [share]);
+
+  const act = async (fn: () => Promise<WishlistShareToken | null>) => {
+    setState("working");
+    try {
+      setToken(await fn());
+    } catch (err) {
+      console.error("wishlist share token action failed", err);
+    } finally {
+      setState("ready");
+    }
+  };
+
+  const busy = state !== "ready";
+  const curl =
+    token &&
+    `curl -X POST '${share.endpoint}' -H 'Authorization: ${share.authHeader}' -H 'Content-Type: application/json' -d '{"token":"${token.token}","url":"https://example.com","for":"either"}'`;
+
+  return (
+    <div className="flex flex-col gap-4">
+      <button type="button" onClick={onBack} className="flex items-center gap-1 self-start text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+        <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M12.5 5 7.5 10 12.5 15" />
+        </svg>
+        All lists
+      </button>
+
+      <div>
+        <h2 className="text-lg font-semibold" style={{ color: "var(--text-primary)" }}>
+          Add from your phone
+        </h2>
+        <p className="mt-1 text-sm" style={{ color: "var(--text-secondary)" }}>
+          On <strong>Android</strong>, open a link, tap Share and choose Lauva — it opens the add-item form. iPhone has no
+          share target, so it needs a one-time Shortcut.
+        </p>
+      </div>
+
+      {state === "loading" ? (
+        <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+          Loading…
+        </p>
+      ) : !token ? (
+        <button
+          type="button"
+          onClick={() => act(share.regenerate)}
+          disabled={busy}
+          className="self-start rounded-md px-3.5 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+          style={{ background: accent }}
+        >
+          Create a phone key
+        </button>
+      ) : (
+        <>
+          <div className="flex flex-col gap-3 rounded-xl border p-3" style={{ borderColor: "var(--border-hairline)", background: "var(--page-plane)" }}>
+            <CopyRow label="Endpoint (POST)" value={share.endpoint} />
+            <CopyRow label="Header — Authorization" value={share.authHeader} />
+            <CopyRow label="Your phone key (keep private)" value={token.token} />
+          </div>
+
+          <div className="text-sm" style={{ color: "var(--text-secondary)" }}>
+            <p className="font-medium" style={{ color: "var(--text-primary)" }}>
+              iPhone Shortcut
+            </p>
+            <ol className="mt-1 list-decimal space-y-1.5 pl-5">
+              <li>Shortcuts app → new shortcut, name it “Save to Lauva”.</li>
+              <li>Add <strong>Receive</strong> — accept URLs and Safari web pages from the share sheet.</li>
+              <li>
+                Add <strong>Get Contents of URL</strong>: paste the endpoint, Method <strong>POST</strong>, add a header{" "}
+                <code>Authorization</code> with the value above, Request Body <strong>JSON</strong> with fields{" "}
+                <code>token</code> (your phone key), <code>url</code> (Shortcut Input) and <code>for</code> —{" "}
+                <code>me</code>, <code>partner</code> or <code>either</code>.
+              </li>
+              <li>Add <strong>Show Notification</strong> → “Saved to Lauva”.</li>
+              <li>In the shortcut settings, turn on <strong>Show in Share Sheet</strong>.</li>
+            </ol>
+            <p className="mt-2" style={{ color: "var(--text-muted)" }}>
+              Links land in a “Saved from phone” list. Andrzej sets the same shortcut up from his own account; the{" "}
+              <code>for</code> value decides whose wish each link is.
+            </p>
+          </div>
+
+          {curl && (
+            <div className="flex flex-col gap-1">
+              <span className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+                Test it from a computer
+              </span>
+              <div className="flex items-center gap-2">
+                <code
+                  className="min-w-0 flex-1 truncate rounded-md border px-2 py-1.5 text-xs"
+                  style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-secondary)" }}
+                >
+                  {curl}
+                </code>
+                <button
+                  type="button"
+                  onClick={() => void navigator.clipboard?.writeText(curl).catch(() => {})}
+                  className="tap-target shrink-0 rounded-md border px-2.5 py-1.5 text-xs font-medium"
+                  style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-secondary)" }}
+                >
+                  Copy
+                </button>
+              </div>
+            </div>
+          )}
+
+          <div className="flex items-center gap-4">
+            <button
+              type="button"
+              onClick={() => act(share.regenerate)}
+              disabled={busy}
+              className="text-xs font-medium disabled:opacity-50"
+              style={{ color: "var(--text-secondary)" }}
+            >
+              Regenerate key
+            </button>
+            <button
+              type="button"
+              onClick={() => act(() => share.disable().then(() => null))}
+              disabled={busy}
+              className="text-xs font-medium disabled:opacity-50"
+              style={{ color: "var(--status-critical)" }}
+            >
+              Turn off
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 type View =
   | { mode: "list" }
+  | { mode: "phone" }
   | { mode: "detail"; categoryId: string }
   | { mode: "item"; categoryId?: string; editing?: WishlistItem; presetUrl?: string; returnTo: "list" | "detail" }
   | { mode: "category"; editing?: WishlistCategory; returnTo: "list" | "detail" };
@@ -570,6 +772,7 @@ export function WishlistBoard({
   forLabel,
   sharedUrl,
   onSharedUrlConsumed,
+  shareToPhone,
   onFetchTitle,
   onCreateCategory,
   onRenameCategory,
@@ -587,6 +790,8 @@ export function WishlistBoard({
   /** A URL shared into the app; opens the new-item form pre-filled, once. */
   sharedUrl?: string | null;
   onSharedUrlConsumed?: () => void;
+  /** Present only for a signed-in user on a cloud deployment. */
+  shareToPhone?: WishlistShareToPhone;
   onFetchTitle?: (url: string) => Promise<string | null>;
   onCreateCategory: (name: string) => Promise<WishlistCategory>;
   onRenameCategory: (id: string, name: string) => Promise<void>;
@@ -653,6 +858,10 @@ export function WishlistBoard({
     );
   }
 
+  if (view.mode === "phone" && shareToPhone) {
+    return <PhoneSetup share={shareToPhone} accent={accent} onBack={() => setView({ mode: "list" })} />;
+  }
+
   if (view.mode === "category") {
     const back = () =>
       setView(view.returnTo === "detail" && view.editing ? { mode: "detail", categoryId: view.editing.id } : { mode: "list" });
@@ -709,6 +918,16 @@ export function WishlistBoard({
           >
             New list
           </button>
+          {shareToPhone && (
+            <button
+              type="button"
+              onClick={() => setView({ mode: "phone" })}
+              className="shrink-0 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors"
+              style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-secondary)" }}
+            >
+              From phone
+            </button>
+          )}
         </div>
         <PrimaryAction label="New item" accent={accent} onClick={() => setView({ mode: "item", returnTo: "list" })} />
       </div>

@@ -929,6 +929,22 @@ create index household_tasks_owner_due_idx on public.household_tasks (owner_id, 
 create index household_task_completions_task_idx on public.household_task_completions (task_id, completed_at desc);
 create index household_items_owner_expires_idx on public.household_items (owner_id, expires_on);
 create index household_codes_owner_created_idx on public.household_codes (owner_id, created_at desc);
+-- Home -> Wishlist: a personal capture token so a phone Share Sheet
+-- shortcut can POST a link to the wishlist-share Edge Function without a
+-- Supabase session. One token per person (the app shows it in the Wishlist
+-- tab's "Add from your phone" panel and can regenerate it — rotation is a
+-- delete + insert, so there's no update policy). The Edge Function reads it
+-- with the service-role key, so a token stays private to its owner and
+-- authenticates as exactly that one account. Android adds links through the
+-- PWA share target instead and never needs this.
+create table public.wishlist_share_tokens (
+  token text primary key,
+  owner_id uuid not null default auth.uid() references auth.users(id),
+  created_at timestamptz not null default now(),
+  last_used_at timestamptz,
+  unique (owner_id)
+);
+
 create index wishlist_categories_owner_created_idx on public.wishlist_categories (owner_id, created_at);
 create index wishlist_items_category_created_idx on public.wishlist_items (category_id, created_at desc);
 
@@ -979,6 +995,7 @@ alter table public.household_items enable row level security;
 alter table public.household_codes enable row level security;
 alter table public.wishlist_categories enable row level security;
 alter table public.wishlist_items enable row level security;
+alter table public.wishlist_share_tokens enable row level security;
 
 create policy "categories_all_own" on public.categories for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "food_items_all_own" on public.food_items for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
@@ -1114,6 +1131,13 @@ create policy "wishlist_items_insert_own" on public.wishlist_items for insert wi
 );
 create policy "wishlist_items_update_pair" on public.wishlist_items for update using (auth.uid() = owner_id or public.is_household_member(owner_id)) with check (auth.uid() = owner_id or public.is_household_member(owner_id));
 create policy "wishlist_items_delete_pair" on public.wishlist_items for delete using (auth.uid() = owner_id or public.is_household_member(owner_id));
+
+-- wishlist_share_tokens: strictly personal, never pair-visible — a token
+-- authenticates as one account, so only its owner can read, create or
+-- regenerate it. The Edge Function looks it up with the service-role key.
+create policy "wishlist_share_tokens_select_own" on public.wishlist_share_tokens for select using (auth.uid() = owner_id);
+create policy "wishlist_share_tokens_insert_own" on public.wishlist_share_tokens for insert with check (auth.uid() = owner_id);
+create policy "wishlist_share_tokens_delete_own" on public.wishlist_share_tokens for delete using (auth.uid() = owner_id);
 
 -- household_task_completions has no owner_id of its own (it's a log of
 -- who/when, not a thing anyone "owns"), so its policies join back to the

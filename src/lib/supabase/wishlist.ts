@@ -1,4 +1,4 @@
-import { supabase, supabaseConfigured } from "./client";
+import { supabase, supabaseAnonKey, supabaseConfigured, supabaseUrl } from "./client";
 
 /** Same "is cloud set up" flag as the rest of Household — a wishlist is
  * shared between two real signed-in accounts, no offline/local-only mode. */
@@ -193,4 +193,72 @@ export async function fetchLinkMetadata(url: string): Promise<{ title: string | 
     console.error("fetchLinkMetadata failed", err);
     return { title: null };
   }
+}
+
+/** A phone Share Sheet shortcut (iOS) posts links to the wishlist-share
+ * Edge Function with one of these tokens standing in for a session. One
+ * per account; regenerating replaces the old one. */
+export interface WishlistShareToken {
+  token: string;
+  createdAt: string;
+  lastUsedAt: string | null;
+}
+
+const SHARE_TOKEN_COLUMNS = "token, created_at, last_used_at";
+
+function toShareToken(row: { token: string; created_at: string; last_used_at: string | null }): WishlistShareToken {
+  return { token: row.token, createdAt: row.created_at, lastUsedAt: row.last_used_at };
+}
+
+function randomShareToken(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(24));
+  let binary = "";
+  for (const b of bytes) binary += String.fromCharCode(b);
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+export async function fetchMyShareToken(): Promise<WishlistShareToken | null> {
+  if (!supabase) return null;
+  const myUserId = await currentUserId();
+  if (!myUserId) return null;
+  const { data, error } = await supabase
+    .from("wishlist_share_tokens")
+    .select(SHARE_TOKEN_COLUMNS)
+    .eq("owner_id", myUserId)
+    .maybeSingle();
+  if (error) throw error;
+  return data ? toShareToken(data) : null;
+}
+
+/** Creates a token, replacing any existing one for this account. */
+export async function regenerateMyShareToken(): Promise<WishlistShareToken> {
+  if (!supabase) throw notConfigured();
+  const myUserId = await currentUserId();
+  if (!myUserId) throw new Error("Sign in first.");
+  await supabase.from("wishlist_share_tokens").delete().eq("owner_id", myUserId);
+  const { data, error } = await supabase
+    .from("wishlist_share_tokens")
+    .insert({ owner_id: myUserId, token: randomShareToken() })
+    .select(SHARE_TOKEN_COLUMNS)
+    .single();
+  if (error) throw error;
+  return toShareToken(data);
+}
+
+export async function deleteMyShareToken(): Promise<void> {
+  if (!supabase) return;
+  const myUserId = await currentUserId();
+  if (!myUserId) return;
+  const { error } = await supabase.from("wishlist_share_tokens").delete().eq("owner_id", myUserId);
+  if (error) throw error;
+}
+
+/** The endpoint a Share Sheet shortcut POSTs to, or null when cloud sync
+ * isn't configured for this deployment. */
+export function wishlistShareEndpoint(): string | null {
+  return supabaseUrl ? `${supabaseUrl}/functions/v1/wishlist-share` : null;
+}
+
+export function wishlistShareAuthHeader(): string | null {
+  return supabaseAnonKey ? `Bearer ${supabaseAnonKey}` : null;
 }

@@ -398,6 +398,14 @@ category is a name, an item is one URL plus a title (fetched by the
 accent colour is assigned client-side by position, not stored. All the
 household tables use the pair RLS shape below.
 
+`wishlist_share_tokens` (one row per account, `unique (owner_id)`) is a
+capture token for a phone Share Sheet shortcut: iOS has no PWA share
+target, so the shortcut POSTs a link to the `wishlist-share` Edge
+Function with the token instead of a session. Strictly owner-only RLS —
+the function reads it with the service-role key and inserts the item as
+that owner into a "Saved from phone" category. Regenerating is a delete +
+insert, so there's no UPDATE policy.
+
 ## Infrastructure tables
 
 | Table | Purpose |
@@ -415,6 +423,7 @@ household tables use the pair RLS shape below.
 | `partner_links` | SELECT/DELETE only: `auth.uid() in (user_a_id, user_b_id)` — no INSERT/UPDATE (created via `redeem_partner_invite()`) |
 | `notes` | SELECT/UPDATE: `auth.uid() in (sender_id, recipient_id)`. INSERT: must be yourself, to your actual linked partner, into a thread you're part of. No DELETE. |
 | `household_notes` / `household_tasks` / `household_items` / `household_codes` / `household_task_completions` / `wishlist_categories` / `wishlist_items` | `auth.uid() = owner_id or is_household_member(owner_id)` — visible and editable by the creator and their one linked partner. INSERT must be as `owner_id = auth.uid()`; `wishlist_items` also checks the target category is one you can see. |
+| `wishlist_share_tokens` | SELECT/INSERT/DELETE only, `auth.uid() = owner_id` — personal, never pair-visible. |
 
 ## Functions & triggers
 
