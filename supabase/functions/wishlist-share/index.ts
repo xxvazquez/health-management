@@ -69,12 +69,17 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
 
-  let body: Record<string, unknown>;
+  let raw: Record<string, unknown>;
   try {
-    body = await req.json();
+    raw = await req.json();
   } catch {
     return json({ error: "Invalid JSON" }, 400);
   }
+
+  // Shortcuts capitalises the first letter of a JSON field name by
+  // default, so accept `Token` / `URL` / `For` too.
+  const body: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(raw)) body[k.toLowerCase()] = v;
 
   const token = typeof body.token === "string" ? body.token.trim() : "";
   if (!token) return json({ error: "token is required" }, 400);

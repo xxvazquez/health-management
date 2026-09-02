@@ -657,8 +657,11 @@ function PhoneSetup({ share, accent, onBack }: { share: WishlistShareToPhone; ac
           Add from your phone
         </h2>
         <p className="mt-1 text-sm" style={{ color: "var(--text-secondary)" }}>
-          On <strong>Android</strong>, open a link, tap Share and choose Lauva — it opens the add-item form. iPhone has no
-          share target, so it needs a one-time Shortcut.
+          <strong>Android:</strong> open a link, tap Share, choose Lauva — it opens the add-item form. Nothing to set up.
+        </p>
+        <p className="mt-1 text-sm" style={{ color: "var(--text-secondary)" }}>
+          <strong>iPhone</strong> has no share target, so build this one-time Shortcut. It then works from Safari, Chrome or
+          any app with a Share button.
         </p>
       </div>
 
@@ -686,23 +689,55 @@ function PhoneSetup({ share, accent, onBack }: { share: WishlistShareToPhone; ac
 
           <div className="text-sm" style={{ color: "var(--text-secondary)" }}>
             <p className="font-medium" style={{ color: "var(--text-primary)" }}>
-              iPhone Shortcut
+              iPhone Shortcut (iOS 18–26)
             </p>
-            <ol className="mt-1 list-decimal space-y-1.5 pl-5">
-              <li>Shortcuts app → new shortcut, name it “Save to Lauva”.</li>
-              <li>Add <strong>Receive</strong> — accept URLs and Safari web pages from the share sheet.</li>
+            <ol className="mt-1 list-decimal space-y-2 pl-5">
               <li>
-                Add <strong>Get Contents of URL</strong>: paste the endpoint, Method <strong>POST</strong>, add a header{" "}
-                <code>Authorization</code> with the value above, Request Body <strong>JSON</strong> with fields{" "}
-                <code>token</code> (your phone key), <code>url</code> (Shortcut Input) and <code>for</code> —{" "}
-                <code>me</code>, <code>partner</code> or <code>either</code>.
+                Open the <strong>Shortcuts</strong> app → <strong>+</strong> (top right). Tap the name at the top and rename
+                it <strong>Save to Lauva</strong>.
               </li>
-              <li>Add <strong>Show Notification</strong> → “Saved to Lauva”.</li>
-              <li>In the shortcut settings, turn on <strong>Show in Share Sheet</strong>.</li>
+              <li>
+                In the <strong>Search Actions</strong> box, find <strong>Get Contents of URL</strong> and tap it to add it.
+              </li>
+              <li>
+                In that action, tap the blue <code>URL</code> and paste the <strong>Endpoint</strong> shown above. Tap the
+                small <strong>⌄</strong> next to it to show its options, then set <strong>Method</strong> to{" "}
+                <strong>POST</strong>.
+              </li>
+              <li>
+                Under <strong>Headers</strong>, tap <strong>Add new header</strong> — key <code>Authorization</code>, value =
+                the <strong>Authorization</strong> string shown above.
+              </li>
+              <li>
+                Set <strong>Request Body</strong> to <strong>JSON</strong> and add three <strong>Text</strong> fields. Keys
+                must be lowercase, exactly:
+                <ul className="mt-1 list-disc pl-5">
+                  <li>
+                    <code>token</code> → your phone key shown above
+                  </li>
+                  <li>
+                    <code>url</code> → tap the value box, pick the <strong>Shortcut Input</strong> variable
+                  </li>
+                  <li>
+                    <code>for</code> → <code>me</code>, <code>partner</code> or <code>either</code>
+                  </li>
+                </ul>
+              </li>
+              <li>
+                Tap the <strong>ⓘ</strong> in the bottom toolbar → turn on <strong>Show in Share Sheet</strong>. A “Receive …
+                from Share Sheet” bar appears at the top — tap its blue type and choose <strong>URLs</strong> and{" "}
+                <strong>Safari web pages</strong>.
+              </li>
+              <li>
+                Optional: add <strong>Show Notification</strong> and set its text to the <strong>Contents of URL</strong>{" "}
+                variable, so you see the result.
+              </li>
+              <li>Tap <strong>‹</strong> (top left) to save.</li>
             </ol>
             <p className="mt-2" style={{ color: "var(--text-muted)" }}>
-              Links land in a “Saved from phone” list. Andrzej sets the same shortcut up from his own account; the{" "}
-              <code>for</code> value decides whose wish each link is.
+              To use it: open a page in any browser → <strong>Share</strong> → <strong>Save to Lauva</strong>. Links land in
+              a “Saved from phone” list. Andrzej sets the same shortcut up from his own account; the <code>for</code> value
+              decides whose wish each link is.
             </p>
           </div>
 
