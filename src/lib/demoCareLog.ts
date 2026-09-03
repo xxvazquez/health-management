@@ -1,6 +1,6 @@
 import type { CareEntry } from "@/lib/supabase/careLog";
 
-/** Example care-log entries for the Doctors page when signed out —
+/** Example care-log entries for the Medical page when signed out —
  * interactive, in-memory only, nothing saved. The specialty IDs match the
  * demo rows built by `buildDemoDoctorSpecialties`. */
 const DAY = 24 * 60 * 60 * 1000;

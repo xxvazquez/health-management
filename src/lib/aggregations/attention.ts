@@ -48,7 +48,7 @@ const SOON_DAYS = 7;
 const APPOINTMENT_SOON_DAYS = 14;
 
 /** The forward-looking "next visit" date for one specialty — passed in by
- * Overview from the Doctors data, which lives outside DataContext. */
+ * Overview from the Medical (doctors) data, which lives outside DataContext. */
 export interface UpcomingAppointment {
   id: string;
   label: string;
@@ -169,7 +169,7 @@ function followUpItems(tasks: DoctorFollowUpTask[], today: string, nowMs: number
       hasTime = Boolean(t.reminderAt);
     }
     if (!tier) continue;
-    out.push({ key: `followup:${t.id}`, tier, label: t.description, context: "Follow-up", href: "/doctors#followups", order, hasTime });
+    out.push({ key: `followup:${t.id}`, tier, label: t.description, context: "Follow-up", href: "/medical#followups", order, hasTime });
   }
   return out;
 }
@@ -184,7 +184,7 @@ function appointmentItems(appts: UpcomingAppointment[], today: string): Attentio
       tier: a.date === today ? "today" : "soon",
       label: a.label,
       context: "Appointment",
-      href: "/doctors",
+      href: "/medical",
       order: new Date(`${a.date}T00:00:00`).getTime(),
       hasTime: false,
     });

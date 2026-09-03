@@ -13,7 +13,7 @@ import {
 } from "@/lib/supabase/careLog";
 import { buildDemoCareEntries } from "@/lib/demoCareLog";
 
-/** Standalone so both the Doctors page (via useDoctors) and the Log page's
+/** Standalone so both the Medical page (via useDoctors) and the Log page's
  * Symptoms tab read one shared care-log state. Survives navigation away and
  * back — same cross-nav cache pattern as useDoctors; keyed by user id,
  * cleared on sign-out. */

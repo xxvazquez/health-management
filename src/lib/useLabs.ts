@@ -23,9 +23,9 @@ import {
 } from "@/lib/supabase/labs";
 import { buildDemoLabMarkers, buildDemoLabPanels } from "@/lib/demoLabs";
 
-/** Standalone so both the Doctors → Results tab and the Manage page read
- * one shared lab-results state — same cross-nav cache pattern as
- * useCareLog. Keyed by user id; cleared on sign-out. */
+/** Module-level cache so the Medical → Results tab keeps one shared
+ * lab-results state across client-side navigation — same cross-nav cache
+ * pattern as useCareLog. Keyed by user id; cleared on sign-out. */
 let cache: { userId: string; panels: LabPanel[]; markers: LabMarker[] } | null = null;
 
 function demoId(prefix: string): string {

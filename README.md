@@ -13,7 +13,7 @@ It works fully offline, syncs to Supabase once you sign in, and installs as a PW
 | **Overview** | `/overview` | The landing page. A cross-domain "needs attention" list grouped by urgency (overdue / today / tomorrow / next 7 days) — reminders, expiring products, doctor follow-ups and appointments — then today's story, a recent-activity feed, a few personal trends, and a weekly/monthly review. |
 | **Log** | `/log` | Tap-to-log entry for the seven tracking domains: Food, Symptoms, Supplements, Habits, Stool, Workout, Cycle. |
 | **Personal** | `/personal` | Journal, private notes, reminders, and product-expiry tracking — the "write once, come back to it" stuff. |
-| **Doctors** | `/doctors` | A history log of doctor appointments already attended: reusable doctors and specialties, per-doctor rating/language, follow-up notes and tasks, and one next-appointment date per specialty. A **Log** tab holds dated observations and notes tagged to the specialties they concern, so they're waiting at the next relevant visit. |
+| **Medical** | `/medical` | Everything about doctor visits: a history log of appointments already attended (reusable doctors and specialties, per-doctor rating/language, follow-up notes and tasks, one next-appointment date per specialty), a **Log** tab of dated observations tagged to the specialties they concern, and a **Results** tab of blood/lab markers over time. `/doctors` redirects here. |
 | **Analytics** | `/analytics` | One dashboard per domain (Food, Supplements, Habits, Digestion, Workout, Cycle, Patterns), switched by a tab bar. |
 | **Manage** | `/manage` | Add / rename / archive / delete items and categories, set exercise units, edit reminder lists and doctor types, hide domains you don't track. Searchable across every section. |
 | **Household** | `/home` | The partner-facing versions of notes, reminders, and expiry, a shared list of discount codes, and a **Wishlist** of saved links grouped into lists — once you're linked, either of you can see and edit them. |
@@ -176,7 +176,7 @@ user's data regardless of RLS. `supabase/schema.sql` is authoritative;
 ### Direct-to-Supabase features (no offline mode)
 
 Messages, the Personal page's Journal / Notes / Reminders / Expiration, and the
-Doctors page all talk to Supabase directly rather than through the
+Medical page all talk to Supabase directly rather than through the
 write-local-first outbox — they only mean anything once they're on the server.
 
 - **Messages** (`notes` table) — two accounts become partners by redeeming a
@@ -221,8 +221,11 @@ write-local-first outbox — they only mean anything once they're on the server.
   occurrence, advanced on each completion). Every completion also writes a
   `*_task_completions` row; "Undo" drops the latest one. `reminder_sent_at` is
   the sole idempotency guard for notifications, cleared when `due_at` advances.
-- **Doctors** (`doctor_specialties` / `doctors` / `doctor_appointments` /
-  `doctor_appointment_tasks`, owner-only) — a doctor carries its *current*
+- **Medical** (`doctor_specialties` / `doctors` / `doctor_appointments` /
+  `doctor_appointment_tasks`, owner-only — the page and route are `/medical`, but
+  the code stays under `src/components/doctors/` + `src/lib/supabase/doctors.ts`
+  and the tables keep their `doctor_` prefix; it's a historical name, not renamed
+  to avoid churn) — a doctor carries its *current*
   specialty; each appointment freezes a copy of that specialty when it's logged,
   so correcting a doctor's specialty later never rewrites history. The one
   next-appointment date per specialty lives on `doctor_specialties`, not on any

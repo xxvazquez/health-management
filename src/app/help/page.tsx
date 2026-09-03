@@ -20,8 +20,8 @@ const GROUPS: { title: string; items: Entry[] }[] = [
         body: "Your own journal, plain notes, reminders and product-expiry tracking — the things you write once and come back to.",
       },
       {
-        title: "Doctors",
-        body: "A history log of doctor visits you've already had — not an appointment scheduler. Log the date, reason, follow-up notes and follow-up tasks. Doctors and specialties are reusable and you pick them from a searchable list.",
+        title: "Medical",
+        body: "Everything about doctor visits in one place: a history log of visits you've already had (not a scheduler), a dated care Log of observations, your blood and lab Results, the reusable doctors and specialties behind them, and outstanding follow-ups.",
       },
       {
         title: "Household",
@@ -88,11 +88,11 @@ const GROUPS: { title: string; items: Entry[] }[] = [
     ],
   },
   {
-    title: "Doctors",
+    title: "Medical",
     items: [
       {
-        title: "The four tabs",
-        body: "Appointments is the full log, newest first. Doctors is one page per saved doctor with all their visits. Specialties shows every visit for a type (e.g. all internists), across doctors. Follow-ups gathers every outstanding follow-up task in one list.",
+        title: "The tabs",
+        body: "Appointments is the full visit log, newest first. Log is a dated timeline of observations tagged to a specialty. Results holds your blood and lab markers over time. Doctors is one page per saved doctor with all their visits. Specialties shows every visit for a type (e.g. all internists), across doctors. Follow-ups gathers every outstanding follow-up task in one list.",
       },
       {
         title: "Doctor type, rating and language",

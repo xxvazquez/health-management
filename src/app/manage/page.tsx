@@ -243,7 +243,7 @@ function ReminderListsCard({ isDemoData, searchQuery }: { isDemoData: boolean; s
   );
 }
 
-/** The selectable doctor-type list behind the Doctors page's pickers.
+/** The selectable doctor-type list behind the Medical page's pickers.
  * Built-in defaults show until the user edits one, at which point the whole
  * set is saved as real rows (same "rows win once they exist" rule as item
  * categories). Every type can be renamed, hidden (kept out of the picker,

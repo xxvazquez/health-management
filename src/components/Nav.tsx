@@ -130,7 +130,7 @@ export const ICONS: Record<string, ReactNode> = {
       <path d="M4 5.2h12a1 1 0 0 1 1 1v6.4a1 1 0 0 1-1 1H8l-3.5 2.6V13.6H4a1 1 0 0 1-1-1V6.2a1 1 0 0 1 1-1Z" />
     </IconWrap>
   ),
-  Doctors: (
+  Medical: (
     <IconWrap>
       <path d="M6 3.5v3.6a4 4 0 0 0 8 0V3.5" />
       <path d="M10 11.1v2.4a3 3 0 0 0 6 0v-1.2" />
@@ -160,9 +160,9 @@ const LOG_LINKS = [{ href: "/log", label: "Log" }];
  * come back to it" surface, split off from Log's tracking tabs. The shared
  * (partner) versions of these live under "Shared". */
 const PERSONAL_LINKS = [{ href: "/personal", label: "Personal" }];
-/** A personal history log of doctor appointments already attended — its
- * own top-level page, direct-to-Supabase like Personal. */
-const DOCTORS_LINKS = [{ href: "/doctors", label: "Doctors" }];
+/** Everything medical — doctor visits, care Log, blood Results, follow-ups —
+ * on one top-level page, direct-to-Supabase like Personal. */
+const MEDICAL_LINKS = [{ href: "/medical", label: "Medical" }];
 const ANALYTICS_LINKS = [{ href: "/analytics", label: "Analytics" }];
 const MANAGE_LINKS = [{ href: "/manage", label: "Manage items" }];
 const TOOLS_LINKS = [
@@ -363,7 +363,7 @@ function NavLinks({ pathname, collapsed, onNavigate }: { pathname: string; colla
       <NavLinkList links={OVERVIEW_LINKS} pathname={pathname} collapsed={collapsed} onNavigate={onNavigate} />
       <NavLinkList links={LOG_LINKS} pathname={pathname} collapsed={collapsed} onNavigate={onNavigate} />
       <NavLinkList links={PERSONAL_LINKS} pathname={pathname} collapsed={collapsed} onNavigate={onNavigate} />
-      <NavLinkList links={DOCTORS_LINKS} pathname={pathname} collapsed={collapsed} onNavigate={onNavigate} />
+      <NavLinkList links={MEDICAL_LINKS} pathname={pathname} collapsed={collapsed} onNavigate={onNavigate} />
       <NavLinkList links={ANALYTICS_LINKS} pathname={pathname} collapsed={collapsed} onNavigate={onNavigate} />
       {sections.map((s) => (
         <NavSection

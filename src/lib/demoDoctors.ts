@@ -1,7 +1,7 @@
 import type { Doctor, DoctorAppointment, DoctorFollowUpTask, DoctorSpecialty } from "@/lib/supabase/doctors";
 import { DEFAULT_DOCTOR_SPECIALTIES } from "@/lib/doctors";
 
-/** Example data for the Doctors page when signed out — same idea as
+/** Example data for the Medical page when signed out — same idea as
  * demoPersonalReminders.ts: interactive, in-memory only, nothing saved.
  * Includes a rating-1 doctor so the red "bad doctor" treatment is visible
  * before signing in. */

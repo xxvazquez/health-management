@@ -1,6 +1,6 @@
 import type { LabMarker, LabPanel } from "@/lib/supabase/labs";
 
-/** Example lab-results data for the Doctors → Results tab when signed out —
+/** Example lab-results data for the Medical → Results tab when signed out —
  * interactive, in-memory only, nothing saved. */
 const DAY = 24 * 60 * 60 * 1000;
 const dateOnly = (msOffset: number) => new Date(Date.now() + msOffset).toISOString().slice(0, 10);
