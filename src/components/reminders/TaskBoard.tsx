@@ -18,6 +18,7 @@ import { ListSection, SectionIcon } from "@/components/ui/ListSection";
 import { ListSkeleton } from "@/components/ui/Skeleton";
 import { InlineEmpty } from "@/components/ui/EmptyState";
 import { PrimaryAction } from "@/components/ui/PrimaryAction";
+import { FIELD_CLS as fieldCls, FIELD_STYLE as fieldStyle, LABEL_CLS as labelCls, LABEL_STYLE as labelStyle } from "@/components/ui/formField";
 
 function UndoIcon({ size = 15 }: { size?: number }) {
   return (
@@ -145,11 +146,6 @@ function TaskForm({
       setSaving(false);
     }
   }
-
-  const fieldStyle = { borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" } as const;
-  const fieldCls = "rounded-lg border px-3 py-2 text-sm outline-none focus:border-[color:var(--baseline)]";
-  const labelCls = "text-xs font-medium";
-  const labelStyle = { color: "var(--text-secondary)" } as const;
 
   return (
     <form
