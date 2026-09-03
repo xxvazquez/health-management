@@ -326,9 +326,10 @@ bug-report function is unaffected — it mails `BUG_EMAIL`, the account owner.
 
 - **One partner per account** — `redeem_partner_invite` rejects a redemption if
   either side is already linked, and the Household page's `is_household_member()`
-  helper is defined directly in terms of the same `partner_links` row. Unlinking
-  is supported; there's no "multiple partners" or "family" concept anywhere, by
-  design.
+  helper is defined directly in terms of the same `partner_links` row. There's no
+  "multiple partners" or "family" concept anywhere, by design. Unlinking has no
+  in-app control yet — RLS lets either participant `DELETE` their `partner_links`
+  row directly.
 
 - **Digest sender name** — the digest says "N unread messages from *X*", where
   *X* is a `display_name` from the partner's Supabase auth metadata if set
