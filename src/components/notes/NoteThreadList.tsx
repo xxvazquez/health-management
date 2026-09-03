@@ -144,7 +144,7 @@ export function NoteThreadList({
         return (
           <div
             key={t.id}
-            className="flex items-center gap-1 border-t pr-1 pl-2 transition-colors first:border-t-0 hover:bg-[var(--page-plane)]"
+            className="flex items-start gap-1 border-t pr-1 pl-2 transition-colors first:border-t-0 hover:bg-[var(--page-plane)]"
             style={{ borderColor: "var(--gridline)" }}
           >
             <button
@@ -174,7 +174,7 @@ export function NoteThreadList({
               </span>
             </button>
 
-            <div className="flex shrink-0 items-center gap-0 sm:gap-1">
+            <div className="flex shrink-0 items-center gap-0 pt-2 sm:gap-1">
               <RowAction
                 onClick={() => void run(t.id, () => onToggleFavourite(t.id, t.isMine, !t.isFavouritedByMe))}
                 active={t.isFavouritedByMe}
