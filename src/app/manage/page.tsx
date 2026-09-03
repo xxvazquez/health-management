@@ -192,7 +192,9 @@ function ReminderListsCard({ isDemoData, searchQuery }: { isDemoData: boolean; s
 
   const query = searchQuery.trim().toLowerCase();
   const isSearching = query.length > 0;
-  const visibleLists = isSearching ? lists.filter((l) => l.name.toLowerCase().includes(query)) : lists;
+  const visibleLists = (isSearching ? lists.filter((l) => l.name.toLowerCase().includes(query)) : lists)
+    .slice()
+    .sort((a, b) => a.name.localeCompare(b.name));
   if (isSearching && visibleLists.length === 0) return null;
 
   return (
