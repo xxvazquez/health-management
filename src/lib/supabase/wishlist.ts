@@ -1,8 +1,4 @@
-import { supabase, supabaseAnonKey, supabaseConfigured, supabaseUrl } from "./client";
-
-/** Same "is cloud set up" flag as the rest of Household — a wishlist is
- * shared between two real signed-in accounts, no offline/local-only mode. */
-export const wishlistConfigured = supabaseConfigured;
+import { supabase, supabaseAnonKey, supabaseUrl } from "./client";
 
 export interface WishlistItem {
   id: string;

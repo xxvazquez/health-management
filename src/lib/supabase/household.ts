@@ -1,11 +1,6 @@
-import { supabase, supabaseConfigured } from "./client";
+import { supabase } from "./client";
 import { todayLocalISODate } from "@/lib/aggregations/common";
 import { isRecurringTask, nextRecurringDueAt, type ExpirationItem, type TaskItem } from "@/lib/reminders";
-
-/** Same "is cloud set up" flag as personalReminders/notes/journal — Home
- * has no offline/local-only mode: both people involved have to be real
- * signed-in accounts on the same cloud project. */
-export const householdConfigured = supabaseConfigured;
 
 export interface HouseholdNote {
   id: string;
@@ -273,24 +268,6 @@ export async function completeHouseholdTask(task: TaskItem): Promise<TaskItem> {
   const { error: historyError } = await supabase.from("household_task_completions").insert({ task_id: task.id, completed_by: myUserId, completed_at: now.toISOString() });
   if (historyError) throw historyError;
   return toTask(data as TaskRow);
-}
-
-export interface HouseholdTaskCompletion {
-  id: string;
-  completedBy: string;
-  completedAt: string;
-}
-
-export async function fetchHouseholdTaskCompletionHistory(taskId: string): Promise<HouseholdTaskCompletion[]> {
-  if (!supabase) return [];
-  const { data, error } = await supabase
-    .from("household_task_completions")
-    .select("id, completed_by, completed_at")
-    .eq("task_id", taskId)
-    .order("completed_at", { ascending: false })
-    .limit(20);
-  if (error) throw error;
-  return (data as { id: string; completed_by: string; completed_at: string }[]).map((r) => ({ id: r.id, completedBy: r.completed_by, completedAt: r.completed_at }));
 }
 
 // --- Expiration ------------------------------------------------------------

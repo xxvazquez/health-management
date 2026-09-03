@@ -1,6 +1,6 @@
 import type { CanonicalEvent, RawWorkoutLog } from "@/lib/types";
 import { addDaysToDate, pct, round1, trackedCalendarDates } from "./common";
-import { foodCategoryDistribution, newFoodsOverTime, rankedFoods } from "./food";
+import { foodCategoryDistribution, rankedFoods } from "./food";
 import { supplementStats } from "./supplements";
 import { habitStats } from "./habits";
 import { workoutTrainedDates } from "./workout";
@@ -33,7 +33,7 @@ function dateSetForMatcher(events: CanonicalEvent[], matcher: ItemMatcher): Set<
  * (see `bristolPatterns.ts`), so every remaining outcome item is a plain
  * boolean occurrence and this carve-out no longer applies to anything.
  */
-export function outcomeTrackedDates(events: CanonicalEvent[]): Set<string> {
+function outcomeTrackedDates(events: CanonicalEvent[]): Set<string> {
   return trackedCalendarDates(events);
 }
 
@@ -50,8 +50,6 @@ export interface AssociationResult {
   /** Percentage-point difference, with-minus-without. Positive = more common alongside the cause. */
   diffPct: number;
   sampleTier: SampleTier;
-  /** @deprecated use `sampleTier !== "insufficient"` — kept for callers that only need a boolean gate. */
-  sampleSizeAdequate: boolean;
 }
 
 export type SampleTier = "insufficient" | "exploratory" | "moderate" | "strong";
@@ -147,13 +145,12 @@ export function computeAssociationFromDateSets(
     withoutPct,
     diffPct: round1(withPct - withoutPct),
     sampleTier: sampleTier(withTotal, withoutTotal),
-    sampleSizeAdequate: sampleTier(withTotal, withoutTotal) !== "insufficient",
   };
 }
 
 /** `ItemMatcher`-based convenience wrapper around `computeAssociationFromDateSets`
  * for the common case of "a specific item/category occurred". */
-export function computeAssociation(
+function computeAssociation(
   events: CanonicalEvent[],
   cause: ItemMatcher,
   outcomeCompleted: ItemMatcher,
@@ -361,7 +358,7 @@ export interface ToleratedFoodEntry {
   worstSymptomLabel: string | null;
 }
 
-export function digestiveSymptomItems(events: CanonicalEvent[]): string[] {
+function digestiveSymptomItems(events: CanonicalEvent[]): string[] {
   return Array.from(new Set(events.filter((e) => e.category === "Digestive Symptom").map((e) => e.item)));
 }
 
@@ -375,14 +372,12 @@ interface WorstSymptomResult {
 /**
  * Scans every tracked digestive symptom for the largest same-day
  * percentage-point diff against a single cause, using only symptom pairs
- * with an adequate sample. Shared by the tolerated-foods and new-foods
- * context views below so both use one consistent same-day symptom check.
+ * with an adequate sample. Backs the tolerated-foods view below.
  */
-export function worstSameDaySymptomDiff(
+function worstSameDaySymptomDiff(
   events: CanonicalEvent[],
   symptomItems: string[],
   cause: ItemMatcher,
-  minExposureDays = 0,
 ): WorstSymptomResult {
   let worstDiffPct = -Infinity;
   let worstLabel: string | null = null;
@@ -393,7 +388,7 @@ export function worstSameDaySymptomDiff(
     const outcome = matchItem(symptomName);
     const trackedSet = outcomeTrackedDates(events);
     const assoc = computeAssociation(events, cause, outcome, trackedSet, 0);
-    if (assoc.sampleTier === "insufficient" || assoc.withTotal < minExposureDays) continue;
+    if (assoc.sampleTier === "insufficient") continue;
     anyAdequate = true;
     exposureDays = assoc.withTotal;
     if (assoc.diffPct > worstDiffPct) {
@@ -433,56 +428,4 @@ export function lowSymptomAssociationFoods(events: CanonicalEvent[]): ToleratedF
   }
 
   return results.sort((a, b) => b.exposureDays - a.exposureDays);
-}
-
-const MIN_NEW_FOOD_SYMPTOM_EXPOSURE_DAYS = 10; // matches the "exploratory" sample tier floor
-
-export type NewFoodSymptomReadout = "insufficient-data" | "no-elevated-association" | "elevated-association";
-
-export interface NewFoodContextEntry {
-  item: string;
-  category: string;
-  firstSeenDate: string;
-  /** Total times this food has been logged (including the first occurrence). */
-  timesEatenTotal: number;
-  symptomReadout: NewFoodSymptomReadout;
-  /** e.g. "+22 pts Bloating" — set whenever a same-day comparison was possible, regardless of readout. */
-  symptomDetail: string | null;
-}
-
-/**
- * Enriches the "new foods" list with whether it's been eaten again since,
- * and a same-day symptom check gated by its own (lower) minimum, since a
- * newly-introduced food will rarely have 20-30 exposures yet. Below that
- * minimum, the readout is explicitly "insufficient-data" — absence of an
- * elevated association is never reported as evidence of tolerance here.
- */
-export function recentNewFoodsWithContext(events: CanonicalEvent[], limit = 15): NewFoodContextEntry[] {
-  const newFoods = newFoodsOverTime(events).slice(-limit).reverse();
-  const counts = new Map(rankedFoods(events).map((f) => [f.item, f.count]));
-  const symptomItems = digestiveSymptomItems(events);
-
-  return newFoods.map((f) => {
-    const worst = symptomItems.length
-      ? worstSameDaySymptomDiff(events, symptomItems, matchItem(f.item), MIN_NEW_FOOD_SYMPTOM_EXPOSURE_DAYS)
-      : { anyAdequate: false, exposureDays: 0, worstDiffPct: 0, worstLabel: null };
-
-    let symptomReadout: NewFoodSymptomReadout = "insufficient-data";
-    let symptomDetail: string | null = null;
-    if (worst.anyAdequate) {
-      symptomReadout = worst.worstDiffPct >= MIN_INTERESTING_DIFF_PCT ? "elevated-association" : "no-elevated-association";
-      if (worst.worstLabel) {
-        symptomDetail = `${worst.worstDiffPct > 0 ? "+" : ""}${worst.worstDiffPct} pts ${worst.worstLabel}`;
-      }
-    }
-
-    return {
-      item: f.item,
-      category: f.category,
-      firstSeenDate: f.firstSeenDate,
-      timesEatenTotal: counts.get(f.item) ?? 0,
-      symptomReadout,
-      symptomDetail,
-    };
-  });
 }

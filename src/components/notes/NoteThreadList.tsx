@@ -14,7 +14,7 @@ export function formatNoteTimestamp(iso: string): string {
  * tight: today → time, this week → weekday, this year → day + month,
  * older → short numeric date. The full form above still backs the thread
  * view. */
-export function formatNoteTimestampShort(iso: string): string {
+function formatNoteTimestampShort(iso: string): string {
   const d = new Date(iso);
   const now = new Date();
   const dayStart = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();

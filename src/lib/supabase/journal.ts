@@ -1,10 +1,4 @@
-import { supabase, supabaseConfigured } from "./client";
-
-/** Same "is cloud set up" flag as notes/auth/sync. Journal has no offline/
- * local-only mode (unlike Log's IndexedDB-backed food/supplement/habit
- * logging) — an entry only exists once it's saved to your account, so
- * there's nothing meaningful to do here without the cloud. */
-export const journalConfigured = supabaseConfigured;
+import { supabase } from "./client";
 
 export interface JournalEntry {
   id: string;

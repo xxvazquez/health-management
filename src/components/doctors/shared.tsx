@@ -2,7 +2,6 @@
 
 import { useMemo, useState, type ReactNode } from "react";
 import { DOCTOR_LANGUAGES, DOCTOR_RATINGS, isBadDoctor, type DoctorLanguage } from "@/lib/doctors";
-import type { Doctor } from "@/lib/supabase/doctors";
 
 export { PencilIcon, TrashIcon } from "@/components/ui/Notebook";
 import { FIELD_CLS, FIELD_STYLE, LABEL_CLS, LABEL_STYLE } from "@/components/ui/formField";
@@ -243,8 +242,4 @@ export function NextAppointmentField({ date, onChange, accent }: { date: string 
       )}
     </div>
   );
-}
-
-export function selectableDoctorLabel(doctor: Doctor): ReactNode {
-  return <DoctorName name={doctor.name} rating={doctor.rating} weight="font-normal" />;
 }

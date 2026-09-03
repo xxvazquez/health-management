@@ -1,8 +1,4 @@
-import { supabase, supabaseConfigured } from "./client";
-
-/** Same "is cloud set up" flag as the rest of Doctors — a lab result only
- * exists once it's saved to your account, no offline/local-only mode. */
-export const labsConfigured = supabaseConfigured;
+import { supabase } from "./client";
 
 export interface LabResult {
   id: string;

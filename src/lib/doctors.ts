@@ -40,7 +40,7 @@ export function isBadDoctor(rating: number | null): boolean {
 /** Case-insensitive de-dupe + A–Z sort for a specialty picker built from
  * several sources (saved rows, defaults, specialties already on
  * appointments). */
-export function mergeSpecialtyNames(...groups: string[][]): string[] {
+function mergeSpecialtyNames(...groups: string[][]): string[] {
   const seen = new Map<string, string>();
   for (const group of groups) {
     for (const raw of group) {
