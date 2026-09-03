@@ -1,11 +1,4 @@
-import { supabase, supabaseConfigured } from "./client";
-
-/** Same "is cloud set up" flag as auth/sync/bug-reporting — Connect rides
- * the same Supabase project. Partner-linking and Notes have no offline/
- * local-only mode (unlike Log's IndexedDB-backed personal logging): both
- * people involved have to be real signed-in accounts talking to the same
- * cloud project, so there's nothing meaningful to do here without it. */
-export const partnerConfigured = supabaseConfigured;
+import { supabase } from "./client";
 
 export interface PartnerLink {
   id: string;
@@ -48,23 +41,6 @@ export async function getPartnerLink(): Promise<PartnerLink | null> {
   const { data, error } = await supabase.from("partner_links").select("id, user_a_id, user_b_id, created_at").maybeSingle();
   if (error) throw error;
   return data ? toPartnerLink(data as PartnerLinkRow, myUserId) : null;
-}
-
-/** The linked partner's email — the only identity Lauva has for them
- * (there's no display-name field anywhere in this schema). `auth.users`
- * isn't queryable by a regular client at all, hence the RPC — see
- * get_partner_email in supabase/schema.sql. Null if no partner is linked. */
-export async function getPartnerEmail(): Promise<string | null> {
-  if (!supabase) return null;
-  const { data, error } = await supabase.rpc("get_partner_email");
-  if (error) throw error;
-  return (data as string | null) ?? null;
-}
-
-export async function unlinkPartner(linkId: string): Promise<void> {
-  if (!supabase) return;
-  const { error } = await supabase.from("partner_links").delete().eq("id", linkId);
-  if (error) throw error;
 }
 
 export interface PartnerInvite {
