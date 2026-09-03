@@ -9,7 +9,7 @@ import type { NoteMessage, NoteThread } from "@/lib/supabase/notes";
  * two, mirroring how a real linked pair only ever has one partner. */
 export const DEMO_ME_ID = "demo-me";
 export const DEMO_PARTNER_ID = "demo-partner";
-export const DEMO_PARTNER_LABEL = "alex@example.com";
+export const DEMO_PARTNER_LABEL = "your partner";
 
 const DAY = 24 * 60 * 60 * 1000;
 const now = () => Date.now();
