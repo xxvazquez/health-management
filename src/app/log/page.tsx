@@ -1376,7 +1376,7 @@ export default function LogPage() {
     setPending(c.key);
     try {
       if (target == null) {
-        // Only clear an existing row — toggleDailyLog would otherwise
+        // Only clear an existing row — toggleDailyLogAndSync would otherwise
         // create one when nothing is there.
         if (wasLogged) await toggleDailyLogAndSync(c.itemIdentity, c.itemType, date);
       } else {

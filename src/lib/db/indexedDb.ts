@@ -195,35 +195,27 @@ export async function getAllLogs(): Promise<RawLog[]> {
   return (await getDb()).getAll("logs");
 }
 
-export async function getLogsForItemOnDate(itemIdentity: string, date: string): Promise<RawLog[]> {
-  const db = await getDb();
-  const all = await db.getAllFromIndex("logs", "itemIdentity", itemIdentity);
-  return all.filter((l) => l.date === date);
-}
-
 /** Raw, unlocked write — see `putItemInternal`. */
 export async function putLogInternal(log: RawLog): Promise<void> {
   const db = await getDb();
   await db.put("logs", log);
 }
 
-export function putLog(log: RawLog): Promise<void> {
-  return withDataLock(() => putLogInternal(log));
-}
-
-/** Raw, unlocked delete — see `putItemInternal`. */
+/** Deletes one specific log entry by its own identity — used to undo a
+ * specific mistaken tap from the day's timeline.
+ *
+ * Raw, unlocked delete — see `putItemInternal`. */
 export async function deleteLogByIdInternal(identity: string): Promise<void> {
   const db = await getDb();
   await db.delete("logs", identity);
 }
 
-/** Deletes one specific log entry by its own identity — used to undo a
- * specific mistaken tap from the day's timeline. */
-export function deleteLogById(identity: string): Promise<void> {
-  return withDataLock(() => deleteLogByIdInternal(identity));
-}
-
-/** Raw, unlocked write — see `putItemInternal`. */
+/** Corrects the meal tag on an already-logged entry — for fixing a mistake
+ * after the fact, not just at the moment of logging. Leaves `updatedAt`
+ * untouched so the entry keeps its original time and timeline position;
+ * only the tag itself changes.
+ *
+ * Raw, unlocked write — see `putItemInternal`. */
 export async function updateLogMealTagInternal(identity: string, mealTag: string | null): Promise<RawLog | null> {
   const db = await getDb();
   const log = await db.get("logs", identity);
@@ -233,15 +225,11 @@ export async function updateLogMealTagInternal(identity: string, mealTag: string
   return updated;
 }
 
-/** Corrects the meal tag on an already-logged entry — for fixing a mistake
- * after the fact, not just at the moment of logging. Leaves `updatedAt`
- * untouched so the entry keeps its original time and timeline position;
- * only the tag itself changes. */
-export function updateLogMealTag(identity: string, mealTag: string | null): Promise<RawLog | null> {
-  return withDataLock(() => updateLogMealTagInternal(identity, mealTag));
-}
-
-/** Raw, unlocked write — see `putItemInternal`. */
+/** Corrects when an entry actually happened — unlike `updateLogMealTagInternal`,
+ * this deliberately rewrites `updatedAt` itself, since that field doubles
+ * as "the moment it was logged" everywhere the timeline reads it.
+ *
+ * Raw, unlocked write — see `putItemInternal`. */
 export async function updateLogTimeInternal(identity: string, updatedAt: string): Promise<RawLog | null> {
   const db = await getDb();
   const log = await db.get("logs", identity);
@@ -251,14 +239,16 @@ export async function updateLogTimeInternal(identity: string, updatedAt: string)
   return updated;
 }
 
-/** Corrects when an entry actually happened — unlike `updateLogMealTag`,
- * this deliberately rewrites `updatedAt` itself, since that field doubles
- * as "the moment it was logged" everywhere the timeline reads it. */
-export function updateLogTime(identity: string, updatedAt: string): Promise<RawLog | null> {
-  return withDataLock(() => updateLogTimeInternal(identity, updatedAt));
-}
-
-/** Raw, unlocked write — see `putItemInternal`. */
+/**
+ * Logs or unlogs an item for a given day, from the Log page. Treats
+ * "logged today" as a single fact regardless of how many rows exist: if any
+ * log already exists for this item on this date, tapping clears all of
+ * them; otherwise it writes one new log. Returns the new logged state
+ * (true = now logged), plus every log identity that was written or removed
+ * — the caller pushes/deletes those same rows in Supabase.
+ *
+ * Raw, unlocked write — see `putItemInternal`.
+ */
 export async function toggleDailyLogInternal(
   itemIdentity: string,
   itemType: ItemType,
@@ -290,22 +280,14 @@ export async function toggleDailyLogInternal(
 }
 
 /**
- * Logs or unlogs an item for a given day, from the Log page. Treats
- * "logged today" as a single fact regardless of how many rows exist: if any
- * log already exists for this item on this date, tapping clears all of
- * them; otherwise it writes one new log. Returns the new logged state
- * (true = now logged), plus every log identity that was written or removed
- * — the caller pushes/deletes those same rows in Supabase.
+ * Adds one more occurrence of an item on a day (e.g. a second banana), as a
+ * new log row — one row = one occurrence, so no aggregation code needs to
+ * know about a "count" field. `mealTag` is set from the Log page's meal
+ * selector, not derived from `updatedAt` — logging breakfast at night still
+ * tags it as breakfast.
+ *
+ * Raw, unlocked write — see `putItemInternal`.
  */
-export function toggleDailyLog(
-  itemIdentity: string,
-  itemType: ItemType,
-  date: string,
-): Promise<{ logged: boolean; added: RawLog | null; removed: RawLog[] }> {
-  return withDataLock(() => toggleDailyLogInternal(itemIdentity, itemType, date));
-}
-
-/** Raw, unlocked write — see `putItemInternal`. */
 export async function incrementDailyLogInternal(
   itemIdentity: string,
   itemType: ItemType,
@@ -327,22 +309,13 @@ export async function incrementDailyLogInternal(
 }
 
 /**
- * Adds one more occurrence of an item on a day (e.g. a second banana), as a
- * new log row — one row = one occurrence, so no aggregation code needs to
- * know about a "count" field. `mealTag` is set from the Log page's meal
- * selector, not derived from `updatedAt` — logging breakfast at night still
- * tags it as breakfast.
+ * Sets (or overwrites) a duration-kind item's value for a day — a plain
+ * magnitude, not an occurrence count, so this upserts one log per item per
+ * day (reusing whatever row already exists for that item+date, if any)
+ * rather than adding a new row each time.
+ *
+ * Raw, unlocked write — see `putItemInternal`.
  */
-export function incrementDailyLog(
-  itemIdentity: string,
-  itemType: ItemType,
-  date: string,
-  mealTag: string | null = null,
-): Promise<RawLog> {
-  return withDataLock(() => incrementDailyLogInternal(itemIdentity, itemType, date, mealTag));
-}
-
-/** Raw, unlocked write — see `putItemInternal`. */
 export async function setDailyDurationInternal(
   itemIdentity: string,
   itemType: ItemType,
@@ -367,21 +340,12 @@ export async function setDailyDurationInternal(
 }
 
 /**
- * Sets (or overwrites) a duration-kind item's value for a day — a plain
- * magnitude, not an occurrence count, so this upserts one log per item per
- * day (reusing whatever row already exists for that item+date, if any)
- * rather than adding a new row each time.
+ * Removes one occurrence of an item on a day. Returns the removed row (so
+ * the caller can delete the same id remotely), or null if there was
+ * nothing left to remove.
+ *
+ * Raw, unlocked write — see `putItemInternal`.
  */
-export function setDailyDuration(
-  itemIdentity: string,
-  itemType: ItemType,
-  date: string,
-  totalMinutes: number,
-): Promise<RawLog> {
-  return withDataLock(() => setDailyDurationInternal(itemIdentity, itemType, date, totalMinutes));
-}
-
-/** Raw, unlocked write — see `putItemInternal`. */
 export async function decrementDailyLogInternal(itemIdentity: string, date: string): Promise<RawLog | null> {
   const db = await getDb();
   const tx = db.transaction("logs", "readwrite");
@@ -397,15 +361,14 @@ export async function decrementDailyLogInternal(itemIdentity: string, date: stri
 }
 
 /**
- * Removes one occurrence of an item on a day. Returns the removed row (so
- * the caller can delete the same id remotely), or null if there was
- * nothing left to remove.
+ * Same as `decrementDailyLogInternal`, but only removes a row tagged with
+ * the given meal — so un-tapping "Milk" while viewing Lunch removes today's
+ * lunch milk, not the breakfast one, when the same food was logged at more
+ * than one meal. Falls back to an untagged row if no exact match exists —
+ * see the comment inside.
+ *
+ * Raw, unlocked write — see `putItemInternal`.
  */
-export function decrementDailyLog(itemIdentity: string, date: string): Promise<RawLog | null> {
-  return withDataLock(() => decrementDailyLogInternal(itemIdentity, date));
-}
-
-/** Raw, unlocked write — see `putItemInternal`. */
 export async function decrementDailyLogForMealInternal(
   itemIdentity: string,
   date: string,
@@ -429,21 +392,6 @@ export async function decrementDailyLogForMealInternal(
   return target;
 }
 
-/**
- * Same as `decrementDailyLog`, but only removes a row tagged with the given
- * meal — so un-tapping "Milk" while viewing Lunch removes today's lunch
- * milk, not the breakfast one, when the same food was logged at more than
- * one meal. Falls back to an untagged row if no exact match exists — see
- * `decrementDailyLogForMealInternal`'s own comment.
- */
-export function decrementDailyLogForMeal(
-  itemIdentity: string,
-  date: string,
-  mealTag: string | null,
-): Promise<RawLog | null> {
-  return withDataLock(() => decrementDailyLogForMealInternal(itemIdentity, date, mealTag));
-}
-
 export async function getAllDiary(): Promise<RawDiaryEntry[]> {
   return (await getDb()).getAll("diary");
 }
@@ -454,11 +402,13 @@ export async function putDiaryEntryInternal(entry: RawDiaryEntry): Promise<void>
   await db.put("diary", entry);
 }
 
-export function putDiaryEntry(entry: RawDiaryEntry): Promise<void> {
-  return withDataLock(() => putDiaryEntryInternal(entry));
-}
-
-/** Raw, unlocked write — see `putItemInternal`. */
+/**
+ * Sets (or clears, with `content: null`) the optional note for one item on
+ * one day — one note per item+day, reusing whatever diary row already
+ * exists for that item+date rather than creating a duplicate.
+ *
+ * Raw, unlocked write — see `putItemInternal`.
+ */
 export async function setDiaryNoteInternal(
   itemIdentity: string,
   itemType: ItemType,
@@ -482,20 +432,6 @@ export async function setDiaryNoteInternal(
   return entry;
 }
 
-/**
- * Sets (or clears, with `content: null`) the optional note for one item on
- * one day — one note per item+day, reusing whatever diary row already
- * exists for that item+date rather than creating a duplicate.
- */
-export function setDiaryNote(
-  itemIdentity: string,
-  itemType: ItemType,
-  date: string,
-  content: string | null,
-): Promise<RawDiaryEntry> {
-  return withDataLock(() => setDiaryNoteInternal(itemIdentity, itemType, date, content));
-}
-
 export async function getAllCategories(): Promise<RawCategory[]> {
   return (await getDb()).getAll("categories");
 }
@@ -504,10 +440,6 @@ export async function getAllCategories(): Promise<RawCategory[]> {
 export async function putCategoryInternal(entry: RawCategory): Promise<void> {
   const db = await getDb();
   await db.put("categories", entry);
-}
-
-export function putCategory(entry: RawCategory): Promise<void> {
-  return withDataLock(() => putCategoryInternal(entry));
 }
 
 /** Raw, unlocked delete — see `putItemInternal`. */
@@ -526,21 +458,17 @@ export async function putStoolLogInternal(log: RawStoolLog): Promise<void> {
   await db.put("stoolLogs", log);
 }
 
-export function putStoolLog(log: RawStoolLog): Promise<void> {
-  return withDataLock(() => putStoolLogInternal(log));
-}
-
 /** Raw, unlocked delete — see `putItemInternal`. */
 export async function deleteStoolLogByIdInternal(id: string): Promise<void> {
   const db = await getDb();
   await db.delete("stoolLogs", id);
 }
 
-export function deleteStoolLogById(id: string): Promise<void> {
-  return withDataLock(() => deleteStoolLogByIdInternal(id));
-}
-
-/** Raw, unlocked write — see `putItemInternal`. */
+/** Corrects when a bowel movement actually happened — same rationale as
+ * `updateLogTimeInternal`, `loggedAt` is the field the Stool tab and
+ * timeline both read for display and ordering.
+ *
+ * Raw, unlocked write — see `putItemInternal`. */
 export async function updateStoolLogTimeInternal(id: string, loggedAt: string): Promise<RawStoolLog | null> {
   const db = await getDb();
   const log = await db.get("stoolLogs", id);
@@ -548,13 +476,6 @@ export async function updateStoolLogTimeInternal(id: string, loggedAt: string): 
   const updated = { ...log, loggedAt };
   await db.put("stoolLogs", updated);
   return updated;
-}
-
-/** Corrects when a bowel movement actually happened — same rationale as
- * `updateLogTime`, `loggedAt` is the field the Stool tab and timeline both
- * read for display and ordering. */
-export function updateStoolLogTime(id: string, loggedAt: string): Promise<RawStoolLog | null> {
-  return withDataLock(() => updateStoolLogTimeInternal(id, loggedAt));
 }
 
 export async function getAllWorkoutLogs(): Promise<RawWorkoutLog[]> {
@@ -567,18 +488,10 @@ export async function putWorkoutLogInternal(log: RawWorkoutLog): Promise<void> {
   await db.put("workoutLogs", log);
 }
 
-export function putWorkoutLog(log: RawWorkoutLog): Promise<void> {
-  return withDataLock(() => putWorkoutLogInternal(log));
-}
-
 /** Raw, unlocked delete — see `putItemInternal`. */
 export async function deleteWorkoutLogByIdInternal(id: string): Promise<void> {
   const db = await getDb();
   await db.delete("workoutLogs", id);
-}
-
-export function deleteWorkoutLogById(id: string): Promise<void> {
-  return withDataLock(() => deleteWorkoutLogByIdInternal(id));
 }
 
 /** Raw, unlocked write — see `putItemInternal`. Cascades a workout item
@@ -624,18 +537,10 @@ export async function putPeriodLogInternal(log: RawPeriodLog): Promise<void> {
   await db.put("periodLogs", log);
 }
 
-export function putPeriodLog(log: RawPeriodLog): Promise<void> {
-  return withDataLock(() => putPeriodLogInternal(log));
-}
-
 /** Raw, unlocked delete — see `putItemInternal`. */
 export async function deletePeriodLogByIdInternal(id: string): Promise<void> {
   const db = await getDb();
   await db.delete("periodLogs", id);
-}
-
-export function deletePeriodLogById(id: string): Promise<void> {
-  return withDataLock(() => deletePeriodLogByIdInternal(id));
 }
 
 export async function hasAnyData(): Promise<boolean> {

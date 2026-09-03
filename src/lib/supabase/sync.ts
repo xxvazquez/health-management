@@ -434,10 +434,8 @@ export function putWorkoutLogAndSync(log: RawWorkoutLog): Promise<void> {
   });
 }
 
-/** Also fixes a pre-outbox redundancy: the old `deleteWorkoutLog` called
- * `deleteWorkoutLogById` a second time on top of the page already having
- * called it directly — this is now the single call site for both the
- * local delete and the sync side. */
+/** The single call site for both the local delete and the sync side of
+ * removing a workout log. */
 export function deleteWorkoutLogAndSync(id: string): Promise<void> {
   return withDataLock(async () => {
     await deleteWorkoutLogByIdInternal(id);
