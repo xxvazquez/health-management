@@ -55,7 +55,7 @@ function demoId(prefix: string): string {
   return `demo-${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
 }
 
-/** All state + handlers behind the Doctors page — the direct-to-Supabase
+/** All state + handlers behind the Medical page — the direct-to-Supabase
  * counterpart to usePersonalReminderBoards. Signed out shows interactive
  * example data held only in local state. */
 export function useDoctors() {

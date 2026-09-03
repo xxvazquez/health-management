@@ -91,7 +91,7 @@ describe("buildAttentionItems", () => {
       { today: TODAY, now: NOW },
     );
     expect(items.map((i) => i.label)).toEqual(["Overdue scan"]);
-    expect(items[0].href).toBe("/doctors#followups");
+    expect(items[0].href).toBe("/medical#followups");
   });
 
   it("surfaces a follow-up once its reminder has fired, even past the due window", () => {
@@ -120,7 +120,7 @@ describe("buildAttentionItems", () => {
       { today: TODAY, now: NOW },
     );
     expect(items.map((i) => `${i.tier}:${i.label}`)).toEqual(["today:Today appointment", "soon:Dentist appointment"]);
-    expect(items[0].href).toBe("/doctors");
+    expect(items[0].href).toBe("/medical");
   });
 
   it("files each row into an urgency group with scannable timing", () => {

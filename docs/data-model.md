@@ -319,14 +319,14 @@ appointment never removes the doctor); `doctor_appointment_tasks →
 doctor_appointments` is `on delete cascade`. A `reminder_at` that has passed
 is sent once by the reminder cron (phase 2).
 
-`care_entries` is a separate dated timeline (the Doctors page's **Log** tab) of
+`care_entries` is a separate dated timeline (the Medical page's **Log** tab) of
 things to remember between visits — an `observation` you noticed or a plain
 `note`. Each entry is tagged to any number of specialties through the
 `care_entry_specialties` join (both FKs `on delete cascade`), so it reads whole
 or filtered to one specialty's context. `kind` may gain `decision` in a later
 phase; blood/lab results went their own way (below).
 
-`lab_panels` / `lab_markers` / `lab_results` back the Doctors page's **Results**
+`lab_panels` / `lab_markers` / `lab_results` back the Medical page's **Results**
 tab — a blood-results tracker. A `lab_marker` is one measurement followed over
 time (TSH, Ferritin); its `unit` and optional `ref_low` / `ref_high` reference
 range live on the marker, and each `lab_result` is one dated `value`. Markers
@@ -334,7 +334,7 @@ group into user-named `lab_panels` (Hormones, Liver…) via `lab_markers.panel_i
 (composite FK `(user_id, panel_id) → lab_panels(user_id, id)`, `on delete set
 null` — deleting a panel ungroups its markers); `lab_results → lab_markers` is
 `on delete cascade`. Owner-only, plain `auth.uid() = user_id`. Markers and panels
-are also editable on the Manage page.
+are managed from the Results tab itself.
 
 ## Reminders → Home
 
