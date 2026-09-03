@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/lib/supabase/AuthContext";
 import {
   completePersonalTask,
@@ -170,6 +170,10 @@ export function usePersonalReminderBoards() {
   );
 
   // --- Lists ---
+  // Alphabetical everywhere they show (tab chips, list pickers) — there's no
+  // manual reorder UI, and it keeps Log in step with the Manage page.
+  const sortedLists = useMemo(() => [...lists].sort((a, b) => a.name.localeCompare(b.name)), [lists]);
+
   const createList = useCallback(
     async (name: string): Promise<string> => {
       const trimmed = name.trim();
@@ -345,6 +349,6 @@ export function usePersonalReminderBoards() {
       remove: deleteTask,
     },
     items: { data: items, loading: itemsLoading, error: itemsError, create: createItem, edit: editItem, remove: deleteItem },
-    lists: { data: lists, create: createList, rename: renameList, remove: deleteList },
+    lists: { data: sortedLists, create: createList, rename: renameList, remove: deleteList },
   };
 }

@@ -109,7 +109,6 @@ export async function fetchReminderLists(): Promise<ReminderList[]> {
     .from("reminder_lists")
     .select(LIST_COLUMNS)
     .eq("user_id", myUserId)
-    .order("sort_order", { ascending: true })
     .order("name", { ascending: true });
   if (error) throw error;
   return (data as ListRow[]).map(toList);
