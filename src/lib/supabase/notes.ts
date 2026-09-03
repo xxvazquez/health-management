@@ -216,6 +216,14 @@ export async function fetchThreadMessages(rootId: string): Promise<NoteMessage[]
   }));
 }
 
+/** Fire-and-forget push to the recipient's device(s) that a message
+ * arrived. Never awaited and never throws — a failed or slow send must not
+ * hold up (or fail) the message itself, which is already saved. Anyone
+ * without push enabled still gets the daily unread-messages digest. */
+function notifyRecipient(noteId: string): void {
+  void supabase?.functions.invoke("notify-note", { body: { noteId } }).catch(() => {});
+}
+
 export interface NewNoteInput {
   recipientId: string;
   category: NoteCategory;
@@ -239,6 +247,7 @@ export async function sendNote(input: NewNoteInput): Promise<string> {
     .select("id")
     .single();
   if (error) throw error;
+  notifyRecipient(data.id);
   return data.id;
 }
 
@@ -254,6 +263,7 @@ export async function replyToNote(rootId: string, recipientId: string, body: str
     .select("id")
     .single();
   if (error) throw error;
+  notifyRecipient(data.id);
   return data.id;
 }
 

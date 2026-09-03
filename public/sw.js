@@ -71,8 +71,9 @@ self.addEventListener("fetch", (event) => {
   );
 });
 
-// Breakfast reminder (the only thing that sends a push right now) — shows
-// whatever title/body the breakfast-reminder-cron Edge Function sent.
+// Shows whatever title/body the sending Edge Function passed (reminder-cron
+// for reminders, notify-note for messages). An optional `url` deep-links the
+// notification tap to a specific page.
 self.addEventListener("push", (event) => {
   let data = { title: "Lauva", body: "" };
   try {
@@ -86,18 +87,25 @@ self.addEventListener("push", (event) => {
       icon: "/icons/icon-192.png",
       badge: "/icons/icon-192.png",
       tag: data.tag,
+      data: { url: data.url || null },
     })
   );
 });
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
+  const targetUrl = event.notification.data && event.notification.data.url;
   event.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
       for (const client of clients) {
-        if ("focus" in client) return client.focus();
+        if ("focus" in client) {
+          // Only steer an open tab when the notification named a destination —
+          // reminder pushes carry none and should just bring the app forward.
+          if (targetUrl && "navigate" in client) return client.navigate(targetUrl).then((c) => (c || client).focus());
+          return client.focus();
+        }
       }
-      if (self.clients.openWindow) return self.clients.openWindow("/log");
+      if (self.clients.openWindow) return self.clients.openWindow(targetUrl || "/log");
     })
   );
 });
