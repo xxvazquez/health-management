@@ -1,9 +1,5 @@
-import { supabase, supabaseConfigured } from "./client";
+import { supabase } from "./client";
 import { isRecurringTask, nextRecurringDueAt, type TaskItem } from "@/lib/reminders";
-
-/** Same "is cloud set up" flag as journal/notes — no offline/local-only
- * mode, an entry only exists once it's saved to your account. */
-export const personalRemindersConfigured = supabaseConfigured;
 
 export interface PersonalNote {
   id: string;
@@ -363,21 +359,4 @@ export async function completePersonalTask(task: TaskItem): Promise<TaskItem> {
   const { error: historyError } = await supabase.from("personal_task_completions").insert({ task_id: task.id, user_id: myUserId, completed_at: now.toISOString() });
   if (historyError) throw historyError;
   return toTask(data as TaskRow);
-}
-
-export interface TaskCompletion {
-  id: string;
-  completedAt: string;
-}
-
-export async function fetchTaskCompletionHistory(taskId: string): Promise<TaskCompletion[]> {
-  if (!supabase) return [];
-  const { data, error } = await supabase
-    .from("personal_task_completions")
-    .select("id, completed_at")
-    .eq("task_id", taskId)
-    .order("completed_at", { ascending: false })
-    .limit(20);
-  if (error) throw error;
-  return (data as { id: string; completed_at: string }[]).map((r) => ({ id: r.id, completedAt: r.completed_at }));
 }

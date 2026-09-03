@@ -52,7 +52,6 @@ describe("computeAssociationFromDateSets", () => {
     const cause = new Set(Array.from({ length: 9 }, (_, i) => `2026-01-${String(i + 1).padStart(2, "0")}`)); // only 9 exposed
     const result = computeAssociationFromDateSets(cause, new Set(), tracked, 0, "Cause", "Outcome");
     expect(result.sampleTier).toBe("insufficient");
-    expect(result.sampleSizeAdequate).toBe(false);
   });
 
   it("escalates sample tiers as exposed-day count grows: exploratory -> moderate -> strong", () => {

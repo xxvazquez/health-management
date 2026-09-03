@@ -1,10 +1,5 @@
-import { supabase, supabaseConfigured } from "./client";
+import { supabase } from "./client";
 import { DEFAULT_DOCTOR_SPECIALTIES, type DoctorLanguage } from "@/lib/doctors";
-
-/** Same "is cloud set up" flag as journal/notes/personalReminders — Doctors
- * has no offline/local-only mode, an appointment only exists once it's
- * saved to your account. */
-export const doctorsConfigured = supabaseConfigured;
 
 export interface DoctorSpecialty {
   id: string;

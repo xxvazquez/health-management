@@ -2,7 +2,7 @@
  * `Skeleton` is one grey bar; `PageSkeleton` is a header + a few cards,
  * the shape most of the app's pages settle into once data arrives. */
 
-export function Skeleton({ className = "" }: { className?: string }) {
+function Skeleton({ className = "" }: { className?: string }) {
   return <div className={`animate-pulse rounded-md ${className}`} style={{ background: "var(--gridline)" }} />;
 }
 
