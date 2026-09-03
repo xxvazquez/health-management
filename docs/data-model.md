@@ -439,7 +439,10 @@ insert, so there's no UPDATE policy.
 
 Email goes out only from the `reminder-cron` Edge Function
 (service role): due reminders, and a once-a-day unread-notes digest gated by
-`notes_digest_state`. Notes no longer send a mail per message.
+`notes_digest_state`. Notes never send a mail per message — a sent message
+instead triggers an immediate web push to the recipient via the `notify-note`
+Edge Function (client-invoked on send); the digest is the fallback for users
+without push.
 
 ## Not in Postgres
 

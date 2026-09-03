@@ -64,7 +64,7 @@ list with explanations in `.env.local.example`.
 | Variable | Enables |
 |---|---|
 | `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Cloud sync and sign-in |
-| `NEXT_PUBLIC_VAPID_PUBLIC_KEY` | Reminder push notifications (also needs `VAPID_PRIVATE_KEY` as a Supabase secret) |
+| `NEXT_PUBLIC_VAPID_PUBLIC_KEY` | Push notifications — reminders and message arrivals (also needs `VAPID_PRIVATE_KEY` as a Supabase secret) |
 | `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | My Drive |
 
 ### Commands
@@ -91,7 +91,7 @@ src/
   taxonomy/           category definitions, food classification, naming rules
 supabase/
   schema.sql          full DDL + RLS policies — the source of truth for the data model
-  functions/          Edge Functions (bug-report email; reminder + digest cron; wishlist link-title fetch; wishlist phone-share)
+  functions/          Edge Functions (bug-report email; reminder + digest cron; message-arrival push; wishlist link-title fetch; wishlist phone-share)
   tests/rls.test.sql  automated RLS isolation tests (CI only)
 docs/
   data-model.md       readable map of the schema — grouped ER diagrams, RLS shapes
@@ -123,6 +123,7 @@ flowchart LR
     pg -->|"pull: sign-in / focus / reconnect / 60s"| idb
     ui --> auth
     ui -.->|"Messages, Journal, Reminders<br/>(direct, no offline)"| pg
+    ui -.->|"notify-note (on send)"| ef
     ef -->|"reminder + digest cron"| pg
     ef --> resend["Resend (email)"]
     ef --> push["Web Push"]
@@ -277,6 +278,12 @@ every 15 minutes by Supabase's `pg_cron` / `pg_net` (setup SQL is in
    and doctor follow-up tasks with a `reminder_at` that has passed → push + email.
 3. After 09:00 Europe/Warsaw, one "N unread messages from …" email + push per
    linked user, at most once a day (`notes_digest_state`).
+
+Sending a message also fires an immediate push to the recipient via the
+`notify-note` function — the client invokes it fire-and-forget right after the
+row saves (`src/lib/supabase/notes.ts`). Push only, no per-message email, and no
+content in the payload — just "*X* sent you a message", tapping through to the
+thread. The daily digest above is the fallback for anyone without push enabled.
 
 A second, independent `pg_cron` job (`cron-job-run-details-cleanup`, setup SQL
 in `schema.sql`) trims `cron.job_run_details` to the last 7 days so pg_cron's
