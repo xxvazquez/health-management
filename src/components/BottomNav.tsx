@@ -9,12 +9,15 @@ import { useUnreadNoteCount } from "@/lib/useUnreadNoteCount";
 /** The primary destinations, one tap away on mobile. Everything else
  * (Manage, My Drive, Help, account, bug report) stays in the drawer behind
  * the top-bar menu. Desktop hides this entirely — the sidebar covers it. */
-const ITEMS: { href: string; label: string }[] = [
-  { href: "/overview", label: "Overview" },
-  { href: "/log", label: "Log" },
-  { href: "/personal", label: "Personal" },
-  { href: "/analytics", label: "Analytics" },
-  { href: "/home", label: "Household" },
+// Shorter labels than the desktop sidebar (Nav.tsx) — the phone tab bar is
+// tight. `iconKey` maps to the shared ICONS map, which is keyed by the
+// sidebar's wording.
+const ITEMS: { href: string; label: string; iconKey: string }[] = [
+  { href: "/overview", label: "Main", iconKey: "Overview" },
+  { href: "/log", label: "Log", iconKey: "Log" },
+  { href: "/personal", label: "Personal", iconKey: "Personal" },
+  { href: "/analytics", label: "Analytics", iconKey: "Analytics" },
+  { href: "/home", label: "Home", iconKey: "Household" },
 ];
 
 export function BottomNav() {
@@ -51,7 +54,7 @@ export function BottomNav() {
               className={clsx("relative flex h-7 w-11 items-center justify-center rounded-full transition-colors")}
               style={{ background: active ? "var(--page-plane)" : "transparent" }}
             >
-              {ICONS[item.label]}
+              {ICONS[item.iconKey]}
               {badge > 0 && (
                 <span
                   className="absolute top-0.5 right-2 h-2 w-2 rounded-full"
