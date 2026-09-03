@@ -6,11 +6,7 @@ import { SearchField } from "@/components/ui/SearchField";
 import { ListSkeleton } from "@/components/ui/Skeleton";
 import { InlineEmpty } from "@/components/ui/EmptyState";
 import { PrimaryAction } from "@/components/ui/PrimaryAction";
-
-const FIELD_CLS = "rounded-lg border px-3 py-2 text-sm outline-none focus:border-[color:var(--baseline)]";
-const FIELD_STYLE = { borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" } as const;
-const LABEL_CLS = "text-xs font-medium";
-const LABEL_STYLE = { color: "var(--text-secondary)" } as const;
+import { FIELD_CLS, FIELD_STYLE, LABEL_CLS, LABEL_STYLE } from "@/components/ui/formField";
 
 /** Create-or-edit a note: the same titled-form treatment as the reminder
  * tab next to it (card surface, labelled fields), not Journal's bare

@@ -6,6 +6,7 @@ import { SearchField } from "@/components/ui/SearchField";
 import { ListSkeleton } from "@/components/ui/Skeleton";
 import { InlineEmpty } from "@/components/ui/EmptyState";
 import { PrimaryAction } from "@/components/ui/PrimaryAction";
+import { FIELD_CLS, FIELD_STYLE } from "@/components/ui/formField";
 import type {
   NewWishlistItemInput,
   WishlistCategory,
@@ -46,9 +47,6 @@ function hostFromUrl(url: string): string | null {
     return null;
   }
 }
-
-const FIELD_CLS = "rounded-md border px-3 py-2 text-sm outline-none";
-const FIELD_STYLE = { borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" } as const;
 
 const NEW_CATEGORY = "__new__";
 const FOR_ANYONE = "";

@@ -5,13 +5,8 @@ import { DOCTOR_LANGUAGES, DOCTOR_RATINGS, isBadDoctor, type DoctorLanguage } fr
 import type { Doctor } from "@/lib/supabase/doctors";
 
 export { PencilIcon, TrashIcon } from "@/components/ui/Notebook";
-
-/** Shared field styling — same tokens as reminders/TaskBoard's TaskForm so
- * the appointment form reads identically to the rest of the app. */
-export const FIELD_STYLE = { borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" } as const;
-export const FIELD_CLS = "rounded-lg border px-3 py-2 text-sm outline-none focus:border-[color:var(--baseline)]";
-export const LABEL_CLS = "text-xs font-medium";
-export const LABEL_STYLE = { color: "var(--text-secondary)" } as const;
+import { FIELD_CLS, FIELD_STYLE, LABEL_CLS, LABEL_STYLE } from "@/components/ui/formField";
+export { FIELD_CLS, FIELD_STYLE, LABEL_CLS, LABEL_STYLE };
 
 export function formatDateTime(iso: string): string {
   return new Date(iso).toLocaleString(undefined, { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
