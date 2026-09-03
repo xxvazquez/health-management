@@ -9,6 +9,7 @@ import { PageSkeleton } from "@/components/ui/Skeleton";
 import { SearchField } from "@/components/ui/SearchField";
 import { Card } from "@/components/ui/Card";
 import { ItemNameField, ItemActionButtons, useInlineRename } from "@/components/ui/ItemActions";
+import { ManageRow } from "@/components/ui/ManageRow";
 import { DuplicateItemDialog } from "@/components/ui/DuplicateItemDialog";
 import { DemoNotice } from "@/components/ui/DemoNotice";
 import { PushNotificationsToggle } from "@/components/PushNotificationsToggle";
@@ -36,7 +37,6 @@ import {
 } from "@/lib/supabase/doctors";
 import { buildDemoDoctorSpecialties } from "@/lib/demoDoctors";
 import { DEFAULT_DOCTOR_SPECIALTIES } from "@/lib/doctors";
-import { PencilIcon, TrashIcon } from "@/components/ui/Notebook";
 
 // Log tab order — Food, Symptoms, Supplements, Habits, Stool, Workout,
 // Cycle — so the toggle list reads left-to-right the same way the tabs
@@ -143,9 +143,6 @@ function ReminderListsCard({ isDemoData, searchQuery }: { isDemoData: boolean; s
   const [lists, setLists] = useState<ReminderList[]>(() => (isDemoData ? buildDemoReminderLists() : []));
   const [loading, setLoading] = useState(!isDemoData);
   const [newName, setNewName] = useState("");
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editingName, setEditingName] = useState("");
-  const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
 
   useEffect(() => {
     if (isDemoData) return;
@@ -176,16 +173,14 @@ function ReminderListsCard({ isDemoData, searchQuery }: { isDemoData: boolean; s
     }
   }
 
-  async function handleRename(id: string) {
-    const name = editingName.trim();
-    setEditingId(null);
-    if (!name) return;
-    setLists((prev) => prev.map((l) => (l.id === id ? { ...l, name } : l)));
-    if (!isDemoData) await renameReminderList(id, name).catch((err) => console.error("renameReminderList failed", err));
+  async function handleRename(id: string, name: string) {
+    const next = name.trim();
+    if (!next) return;
+    setLists((prev) => prev.map((l) => (l.id === id ? { ...l, name: next } : l)));
+    if (!isDemoData) await renameReminderList(id, next).catch((err) => console.error("renameReminderList failed", err));
   }
 
   async function handleDelete(id: string) {
-    setConfirmingDeleteId(null);
     setLists((prev) => prev.filter((l) => l.id !== id));
     if (!isDemoData) await deleteReminderList(id).catch((err) => console.error("deleteReminderList failed", err));
   }
@@ -234,69 +229,13 @@ function ReminderListsCard({ isDemoData, searchQuery }: { isDemoData: boolean; s
             </li>
           )}
           {visibleLists.map((l) => (
-            <li key={l.id} className="flex items-center gap-2 py-2">
-              {editingId === l.id ? (
-                <form
-                  className="flex flex-1 items-center gap-2"
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    void handleRename(l.id);
-                  }}
-                >
-                  <input
-                    autoFocus
-                    value={editingName}
-                    onChange={(e) => setEditingName(e.target.value)}
-                    onFocus={(e) => e.target.select()}
-                    onBlur={() => void handleRename(l.id)}
-                    maxLength={40}
-                    className="flex-1 rounded-md border px-2 py-1 text-sm outline-none"
-                    style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
-                  />
-                </form>
-              ) : (
-                <span className="flex-1 truncate text-sm" style={{ color: "var(--text-primary)" }}>
-                  {l.name}
-                </span>
-              )}
-
-              {confirmingDeleteId === l.id ? (
-                <span className="flex shrink-0 items-center gap-1">
-                  <button type="button" onClick={() => void handleDelete(l.id)} className="rounded-md px-2 py-1 text-xs font-semibold" style={{ color: "var(--status-critical)" }}>
-                    Delete
-                  </button>
-                  <button type="button" onClick={() => setConfirmingDeleteId(null)} className="rounded-md px-2 py-1 text-xs font-medium" style={{ color: "var(--text-muted)" }}>
-                    Keep
-                  </button>
-                </span>
-              ) : (
-                <span className="flex shrink-0 items-center gap-0.5">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setEditingId(l.id);
-                      setEditingName(l.name);
-                    }}
-                    aria-label={`Rename ${l.name}`}
-                    title="Rename"
-                    className="rounded-md p-1.5 transition-colors hover:bg-[var(--page-plane)]"
-                    style={{ color: "var(--text-muted)" }}
-                  >
-                    <PencilIcon size={15} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setConfirmingDeleteId(l.id)}
-                    aria-label={`Delete ${l.name}`}
-                    title="Delete"
-                    className="notebook-danger rounded-md p-1.5 transition-colors hover:bg-[var(--page-plane)]"
-                    style={{ color: "var(--text-muted)" }}
-                  >
-                    <TrashIcon size={15} />
-                  </button>
-                </span>
-              )}
-            </li>
+            <ManageRow
+              key={l.id}
+              name={l.name}
+              maxLength={40}
+              onRename={(next) => void handleRename(l.id, next)}
+              onDelete={() => void handleDelete(l.id)}
+            />
           ))}
         </ul>
       )}
@@ -315,9 +254,6 @@ function DoctorSpecialtiesCard({ isDemoData, searchQuery }: { isDemoData: boolea
   const [loading, setLoading] = useState(!isDemoData);
   const [busy, setBusy] = useState(false);
   const [newName, setNewName] = useState("");
-  const [editingKey, setEditingKey] = useState<string | null>(null);
-  const [editingName, setEditingName] = useState("");
-  const [confirmingDeleteKey, setConfirmingDeleteKey] = useState<string | null>(null);
   const [hiddenOpen, setHiddenOpen] = useState(false);
 
   useEffect(() => {
@@ -394,9 +330,8 @@ function DoctorSpecialtiesCard({ isDemoData, searchQuery }: { isDemoData: boolea
     });
   }
 
-  async function handleRename(name: string) {
-    const next = editingName.trim();
-    setEditingKey(null);
+  async function handleRename(name: string, nextName: string) {
+    const next = nextName.trim();
     if (!next || next.toLowerCase() === name.toLowerCase()) return;
     if (isDemoData) {
       setRows((prev) => prev.map((r) => (r.name.toLowerCase() === name.toLowerCase() ? { ...r, name: next } : r)));
@@ -424,7 +359,6 @@ function DoctorSpecialtiesCard({ isDemoData, searchQuery }: { isDemoData: boolea
   }
 
   async function handleDelete(name: string) {
-    setConfirmingDeleteKey(null);
     if (isDemoData) {
       setRows((prev) => prev.filter((r) => r.name.toLowerCase() !== name.toLowerCase()));
       return;
@@ -438,78 +372,15 @@ function DoctorSpecialtiesCard({ isDemoData, searchQuery }: { isDemoData: boolea
   }
 
   const rowEl = (e: { key: string; name: string; isArchived: boolean }) => (
-    <li key={e.key} className="flex items-center gap-2 py-2">
-      {editingKey === e.key ? (
-        <form
-          className="flex flex-1 items-center gap-2"
-          onSubmit={(ev) => {
-            ev.preventDefault();
-            void handleRename(e.name);
-          }}
-        >
-          <input
-            autoFocus
-            value={editingName}
-            onChange={(ev) => setEditingName(ev.target.value)}
-            onFocus={(ev) => ev.target.select()}
-            onBlur={() => void handleRename(e.name)}
-            maxLength={60}
-            className="flex-1 rounded-md border px-2 py-1 text-sm outline-none"
-            style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
-          />
-        </form>
-      ) : (
-        <span className="flex-1 truncate text-sm" style={{ color: e.isArchived ? "var(--text-muted)" : "var(--text-primary)" }}>
-          {e.name}
-        </span>
-      )}
-
-      {confirmingDeleteKey === e.key ? (
-        <span className="flex shrink-0 items-center gap-1">
-          <button type="button" onClick={() => void handleDelete(e.name)} className="rounded-md px-2 py-1 text-xs font-semibold" style={{ color: "var(--status-critical)" }}>
-            Delete
-          </button>
-          <button type="button" onClick={() => setConfirmingDeleteKey(null)} className="rounded-md px-2 py-1 text-xs font-medium" style={{ color: "var(--text-muted)" }}>
-            Keep
-          </button>
-        </span>
-      ) : (
-        <span className="flex shrink-0 items-center gap-0.5">
-          <button
-            type="button"
-            onClick={() => {
-              setEditingKey(e.key);
-              setEditingName(e.name);
-            }}
-            aria-label={`Rename ${e.name}`}
-            title="Rename"
-            className="rounded-md p-1.5 transition-colors hover:bg-[var(--page-plane)]"
-            style={{ color: "var(--text-muted)" }}
-          >
-            <PencilIcon size={15} />
-          </button>
-          <button
-            type="button"
-            onClick={() => void handleArchive(e.name, !e.isArchived)}
-            disabled={busy}
-            className="rounded-md px-1.5 py-1 text-xs font-medium transition-colors hover:bg-[var(--page-plane)] disabled:opacity-40"
-            style={{ color: "var(--text-muted)" }}
-          >
-            {e.isArchived ? "Show" : "Hide"}
-          </button>
-          <button
-            type="button"
-            onClick={() => setConfirmingDeleteKey(e.key)}
-            aria-label={`Delete ${e.name}`}
-            title="Delete"
-            className="notebook-danger rounded-md p-1.5 transition-colors hover:bg-[var(--page-plane)]"
-            style={{ color: "var(--text-muted)" }}
-          >
-            <TrashIcon size={15} />
-          </button>
-        </span>
-      )}
-    </li>
+    <ManageRow
+      key={e.key}
+      name={e.name}
+      isArchived={e.isArchived}
+      busy={busy}
+      onRename={(next) => void handleRename(e.name, next)}
+      onToggleHide={() => void handleArchive(e.name, !e.isArchived)}
+      onDelete={() => void handleDelete(e.name)}
+    />
   );
 
   const totalActive = entries.filter((e) => !e.isArchived).length;
