@@ -311,6 +311,7 @@ function NavLinkList({
             key={link.href}
             href={link.href}
             onClick={onNavigate}
+            aria-current={active ? "page" : undefined}
             title={collapsed ? link.label : undefined}
             className={clsx(
               "tap-target relative flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium whitespace-nowrap transition-colors lg:py-1.5",
