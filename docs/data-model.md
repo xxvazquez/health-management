@@ -336,7 +336,9 @@ null` — deleting a panel ungroups its markers); `lab_results → lab_markers` 
 `on delete cascade`. Owner-only, plain `auth.uid() = user_id`. Markers and panels
 are managed from the Results tab itself; values are entered one at a time from a
 marker's detail or a whole blood draw at once from its **Add results** batch view
-(one date and lab, a value per marker, one multi-row insert).
+(one date and lab, a value per marker, one multi-row insert). Analytics' **Blood**
+tab reads the same rows (through `useLabs`, no extra query) for the headline grid,
+flagged-value list, per-panel trend charts and the compare overlay.
 
 ## Reminders → Home
 

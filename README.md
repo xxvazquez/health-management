@@ -14,7 +14,7 @@ It works fully offline, syncs to Supabase once you sign in, and installs as a PW
 | **Log** | `/log` | Tap-to-log entry for the seven tracking domains: Food, Symptoms, Supplements, Habits, Stool, Workout, Cycle. |
 | **Personal** | `/personal` | Journal, private notes, reminders, and product-expiry tracking — the "write once, come back to it" stuff. |
 | **Medical** | `/medical` | Everything about doctor visits: a history log of appointments already attended (reusable doctors and specialties, per-doctor rating/language, follow-up notes and tasks, one next-appointment date per specialty), a **Log** tab of dated observations tagged to the specialties they concern, and a **Results** tab of blood/lab markers over time, with one-off or whole-draw batch value entry. `/doctors` redirects here. |
-| **Analytics** | `/analytics` | One dashboard per domain (Food, Supplements, Habits, Digestion, Workout, Cycle, Patterns), switched by a tab bar. |
+| **Analytics** | `/analytics` | One dashboard per domain (Food, Supplements, Habits, Digestion, Workout, Cycle, Patterns), switched by a tab bar, plus **Blood** — trends, flagged values and a compare overlay for the Medical → Results lab markers. |
 | **Manage** | `/manage` | Add / rename / archive / delete items and categories, set exercise units, edit reminder lists and doctor types, hide domains you don't track. Searchable across every section. |
 | **Household** | `/home` | The partner-facing versions of notes, reminders, and expiry, a shared list of discount codes, and a **Wishlist** of saved links grouped into lists — once you're linked, either of you can see and edit them. |
 | **Messages** | `/notes` | Private one-to-one messaging with your linked partner. |
@@ -29,7 +29,7 @@ It works fully offline, syncs to Supabase once you sign in, and installs as a PW
 - **Time is editable per entry** — the per-tab time control stays collapsed as a small "now · change" link (it opens on its own once you pick a past day), and the day stepper has a tap-a-date calendar, so you can log at 9pm something that happened at 10am.
 - **Cycle stores only flagged period days.** Cycle length, cycle day, and next-period predictions are all derived on the fly from a recent-cycles window, never stored.
 - **"Not logged" always means only that** — never "didn't happen". Days with nothing logged are excluded from every percentage, not counted as zero.
-- **Hiding a domain from Manage** removes it from Log *and* its Analytics dashboard, on that device only (it's a local preference, not synced data).
+- **Hiding a domain from Manage** removes it from Log *and* its Analytics dashboard, on that device only (it's a local preference, not synced data). The Analytics **Blood** tab has no Log domain, so it's always shown.
 
 ## Tech stack
 
