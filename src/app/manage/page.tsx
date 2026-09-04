@@ -7,6 +7,7 @@ import { useVisibleDomains, DOMAIN_LABELS, type TrackedDomain } from "@/lib/visi
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageSkeleton } from "@/components/ui/Skeleton";
 import { SearchField } from "@/components/ui/SearchField";
+import { CloseIcon } from "@/components/ui/icons";
 import { Card } from "@/components/ui/Card";
 import { ItemNameField, ItemActionButtons, useInlineRename } from "@/components/ui/ItemActions";
 import { ManageRow } from "@/components/ui/ManageRow";
@@ -584,10 +585,9 @@ function CategoryManager({
               type="button"
               onClick={() => void onRemoveCategory(c)}
               aria-label={`Remove category ${c}`}
-              className="leading-none"
               style={{ color: "var(--text-muted)" }}
             >
-              ✕
+              <CloseIcon size={11} />
             </button>
           </span>
         ))}
@@ -785,10 +785,10 @@ function ItemRow({
                 onClick={() => onSetReminderTime(null)}
                 disabled={busy}
                 aria-label={`Clear reminder for ${item.item}`}
-                className="text-xs leading-none disabled:opacity-40"
+                className="disabled:opacity-40"
                 style={{ color: "var(--text-muted)" }}
               >
-                ✕
+                <CloseIcon size={11} />
               </button>
             )}
           </span>

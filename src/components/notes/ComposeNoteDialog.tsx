@@ -5,16 +5,9 @@ import { useDialogA11y } from "@/components/ui/useDialogA11y";
 import { AutoGrowTextarea } from "@/components/ui/AutoGrowTextarea";
 import { NOTE_CATEGORIES, NOTE_CATEGORY_LABEL, type NewNoteInput, type NoteCategory } from "@/lib/supabase/notes";
 import { CategoryIcon } from "./icons";
+import { CloseIcon } from "@/components/ui/icons";
 
 const ACCENT = "var(--series-magenta)";
-
-function CloseIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-      <path d="M5 5l10 10M15 5L5 15" />
-    </svg>
-  );
-}
 
 /** New top-level note only — replying happens inline in the thread view
  * (see NoteThreadView), which needs no category/subject picker since a

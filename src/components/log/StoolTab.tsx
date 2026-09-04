@@ -2,6 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import { BristolIcon } from "@/components/icons/BristolIcons";
+import { CloseIcon } from "@/components/ui/icons";
 import { defaultLogTimeValue, toTimeInputValue } from "@/lib/logCandidates";
 import {
   STOOL_COLORS,
@@ -607,10 +608,10 @@ export function StoolTab({
                       onClick={() => void onDelete(entry.id)}
                       disabled={busy}
                       aria-label="Delete entry"
-                      className="text-xs leading-none disabled:opacity-40"
+                      className="disabled:opacity-40"
                       style={{ color: "var(--text-secondary)" }}
                     >
-                      ✕
+                      <CloseIcon size={12} />
                     </button>
                   </div>
                 )}

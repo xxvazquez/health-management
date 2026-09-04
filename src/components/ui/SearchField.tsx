@@ -1,8 +1,10 @@
 "use client";
 
+import { CloseIcon } from "@/components/ui/icons";
+
 /** The one search box used across every filterable list — Journal, Notes,
  * Expiration, Codes, Manage, and the Log page's per-tab item search. A
- * magnifier inside the field on the left, a clear "✕" on the right once
+ * magnifier inside the field on the left, a clear button on the right once
  * there's a value. Footprint is controlled by `className` on the wrapper
  * (defaults to the compact stepped width the list screens use); pass
  * `"w-full"` for the full-width bars on Manage and Log. */
@@ -47,10 +49,10 @@ export function SearchField({
           type="button"
           onClick={() => onChange("")}
           aria-label="Clear search"
-          className="absolute top-1/2 right-2.5 -translate-y-1/2 text-xs"
+          className="absolute top-1/2 right-2.5 -translate-y-1/2"
           style={{ color: "var(--text-muted)" }}
         >
-          ✕
+          <CloseIcon size={12} />
         </button>
       )}
     </div>

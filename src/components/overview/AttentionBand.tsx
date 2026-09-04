@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { attentionSummary, type AttentionGroup, type AttentionItem } from "@/lib/aggregations/attention";
+import { CloseIcon } from "@/components/ui/icons";
 
 const GROUP_ORDER: AttentionGroup[] = ["overdue", "today", "tomorrow", "week", "later"];
 
@@ -149,10 +150,10 @@ export function AttentionBand({ items }: { items: AttentionItem[] }) {
                         type="button"
                         onClick={() => setDismissed((prev) => new Set(prev).add(item.key))}
                         aria-label={`Dismiss ${item.label}`}
-                        className="shrink-0 rounded p-1 text-xs leading-none opacity-60 transition-opacity hover:opacity-100"
+                        className="shrink-0 rounded p-1 opacity-60 transition-opacity hover:opacity-100"
                         style={{ color: "var(--text-muted)" }}
                       >
-                        ✕
+                        <CloseIcon size={12} />
                       </button>
                     </li>
                   ))}

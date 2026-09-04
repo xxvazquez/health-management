@@ -6,6 +6,7 @@ import { Card, CardTitle } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ListSkeleton } from "@/components/ui/Skeleton";
 import { driveFileIcon, DriveFolderIcon } from "@/components/icons/DriveFileIcons";
+import { CloseIcon } from "@/components/ui/icons";
 import { useGoogleDriveAuth } from "@/lib/googleDrive/useGoogleDriveAuth";
 import { listFolder, searchDrive, isFolder, DriveApiError, type DriveFile } from "@/lib/googleDrive/api";
 import { useAuth } from "@/lib/supabase/AuthContext";
@@ -354,10 +355,10 @@ export default function MyDrivePage() {
                 type="button"
                 onClick={clearSearch}
                 aria-label="Clear search"
-                className="absolute top-1/2 right-3 -translate-y-1/2 text-xs"
+                className="absolute top-1/2 right-3 -translate-y-1/2"
                 style={{ color: "var(--text-muted)" }}
               >
-                ✕
+                <CloseIcon size={12} />
               </button>
             )}
           </form>

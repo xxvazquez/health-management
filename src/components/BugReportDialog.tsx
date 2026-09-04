@@ -6,16 +6,9 @@ import { BUG_TYPES, bugReportingConfigured, submitBugReport, type BugType } from
 import { useDialogA11y } from "@/components/ui/useDialogA11y";
 import { AutoGrowTextarea } from "@/components/ui/AutoGrowTextarea";
 import { NAV_LABEL } from "@/components/navLabels";
+import { CloseIcon } from "@/components/ui/icons";
 
 const ACCENT = "var(--series-1)";
-
-function CloseIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-      <path d="M5 5l10 10M15 5L5 15" />
-    </svg>
-  );
-}
 
 const inputStyle = { borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" };
 
