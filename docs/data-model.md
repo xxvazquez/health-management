@@ -334,7 +334,9 @@ group into user-named `lab_panels` (Hormones, Liver…) via `lab_markers.panel_i
 (composite FK `(user_id, panel_id) → lab_panels(user_id, id)`, `on delete set
 null` — deleting a panel ungroups its markers); `lab_results → lab_markers` is
 `on delete cascade`. Owner-only, plain `auth.uid() = user_id`. Markers and panels
-are managed from the Results tab itself.
+are managed from the Results tab itself; values are entered one at a time from a
+marker's detail or a whole blood draw at once from its **Add results** batch view
+(one date and lab, a value per marker, one multi-row insert).
 
 ## Reminders → Home
 

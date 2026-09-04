@@ -253,6 +253,30 @@ export async function createLabResult(input: NewLabResultInput): Promise<LabResu
   return toResult(data as ResultRow);
 }
 
+/** Insert a whole blood draw at once — one round trip, `user_id` set
+ * explicitly per row. Returns the created results in input order. */
+export async function createLabResults(inputs: NewLabResultInput[]): Promise<LabResult[]> {
+  if (!supabase) throw notConfigured();
+  if (inputs.length === 0) return [];
+  const myUserId = await currentUserId();
+  if (!myUserId) throw new Error("Sign in first.");
+  const { data, error } = await supabase
+    .from("lab_results")
+    .insert(
+      inputs.map((input) => ({
+        user_id: myUserId,
+        marker_id: input.markerId,
+        measured_on: input.measuredOn,
+        value: input.value,
+        lab: input.lab.trim() || null,
+        note: input.note.trim() || null,
+      })),
+    )
+    .select(RESULT_COLUMNS);
+  if (error) throw error;
+  return (data as ResultRow[]).map(toResult);
+}
+
 export interface LabResultPatch {
   measuredOn?: string;
   value?: number;
