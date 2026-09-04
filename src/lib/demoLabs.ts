@@ -9,6 +9,7 @@ export function buildDemoLabPanels(): LabPanel[] {
   return [
     { id: "demo-lab-panel-thyroid", name: "Thyroid", sortOrder: 0 },
     { id: "demo-lab-panel-iron", name: "Iron studies", sortOrder: 1 },
+    { id: "demo-lab-panel-cbc", name: "Blood count", sortOrder: 2 },
   ];
 }
 
@@ -53,6 +54,33 @@ export function buildDemoLabMarkers(): LabMarker[] {
         { id: "demo-lab-ferritin-1", markerId: "demo-lab-ferritin", measuredOn: dateOnly(-250 * DAY), value: 14, lab: "Diagnostyka", note: "Started iron supplement." },
         { id: "demo-lab-ferritin-2", markerId: "demo-lab-ferritin", measuredOn: dateOnly(-90 * DAY), value: 28, lab: "Diagnostyka", note: null },
         { id: "demo-lab-ferritin-3", markerId: "demo-lab-ferritin", measuredOn: dateOnly(-14 * DAY), value: 41, lab: "Diagnostyka", note: null },
+      ],
+    },
+    {
+      id: "demo-lab-hgb",
+      panelId: "demo-lab-panel-cbc",
+      name: "Hemoglobin (HGB)",
+      unit: "g/dL",
+      refLow: 12,
+      refHigh: 16,
+      sortOrder: 0,
+      results: [
+        { id: "demo-lab-hgb-1", markerId: "demo-lab-hgb", measuredOn: dateOnly(-250 * DAY), value: 11.4, lab: "Diagnostyka", note: null },
+        { id: "demo-lab-hgb-2", markerId: "demo-lab-hgb", measuredOn: dateOnly(-90 * DAY), value: 12.1, lab: "Diagnostyka", note: null },
+        { id: "demo-lab-hgb-3", markerId: "demo-lab-hgb", measuredOn: dateOnly(-14 * DAY), value: 13.0, lab: "Diagnostyka", note: null },
+      ],
+    },
+    {
+      id: "demo-lab-crp",
+      panelId: "demo-lab-panel-cbc",
+      name: "CRP",
+      unit: "mg/L",
+      refLow: 0,
+      refHigh: 5,
+      sortOrder: 1,
+      results: [
+        { id: "demo-lab-crp-1", markerId: "demo-lab-crp", measuredOn: dateOnly(-250 * DAY), value: 2.1, lab: "Diagnostyka", note: null },
+        { id: "demo-lab-crp-2", markerId: "demo-lab-crp", measuredOn: dateOnly(-14 * DAY), value: 1.4, lab: "Diagnostyka", note: null },
       ],
     },
     {

@@ -12,6 +12,7 @@ import { DigestionDashboard } from "@/components/analytics/DigestionDashboard";
 import { WorkoutDashboard } from "@/components/analytics/WorkoutDashboard";
 import { CycleDashboard } from "@/components/analytics/CycleDashboard";
 import { PatternsDashboard } from "@/components/analytics/PatternsDashboard";
+import { LabsDashboard } from "@/components/analytics/LabsDashboard";
 import { TabRail } from "@/components/ui/TabRail";
 
 /** One page for every analytics dashboard, switched by a Log-style tab bar
@@ -20,7 +21,10 @@ import { TabRail } from "@/components/ui/TabRail";
  * Patterns follows Symptoms since it's built on symptom associations. The
  * dashboard components are unchanged — they still render their own `<h1>`
  * and empty states — they just live under `src/components/analytics/` now. */
-const TABS: { id: string; label: string; domain: TrackedDomain; accent: string; Component: ComponentType; hasSections?: boolean }[] = [
+// Most tabs mirror a Log tracking domain and follow its Manage hide/show
+// toggle; "Blood" has no Log domain — it reads the Medical → Results tab —
+// so it has no `domain` and is always shown.
+const TABS: { id: string; label: string; domain?: TrackedDomain; accent: string; Component: ComponentType; hasSections?: boolean }[] = [
   { id: "food", label: "Food", domain: "food", accent: TYPE_ACCENT.food, Component: FoodDashboard, hasSections: true },
   { id: "supplements", label: "Supplements", domain: "supplement", accent: TYPE_ACCENT.supplement, Component: SupplementsDashboard },
   { id: "habits", label: "Habits", domain: "habit", accent: TYPE_ACCENT.habit, Component: HabitsDashboard },
@@ -28,11 +32,12 @@ const TABS: { id: string; label: string; domain: TrackedDomain; accent: string; 
   { id: "workout", label: "Workout", domain: "workout", accent: TYPE_ACCENT.workout, Component: WorkoutDashboard },
   { id: "cycle", label: "Cycle", domain: "cycle", accent: "var(--series-4)", Component: CycleDashboard },
   { id: "patterns", label: "Patterns", domain: "outcome", accent: "var(--series-berry)", Component: PatternsDashboard },
+  { id: "labs", label: "Blood", accent: "var(--series-6)", Component: LabsDashboard },
 ];
 
 export default function AnalyticsPage() {
   const { isHidden } = useVisibleDomains();
-  const visibleTabs = useMemo(() => TABS.filter((t) => !isHidden(t.domain)), [isHidden]);
+  const visibleTabs = useMemo(() => TABS.filter((t) => !t.domain || !isHidden(t.domain)), [isHidden]);
 
   // Starts at "food" for a match with the statically-rendered HTML, then
   // syncs to the URL hash on mount (and on every back/forward) — reading
