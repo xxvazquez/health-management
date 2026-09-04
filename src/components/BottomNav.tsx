@@ -4,20 +4,20 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import clsx from "clsx";
 import { ICONS, isActiveHref } from "@/components/Nav";
+import { NAV_LABEL } from "@/components/navLabels";
 import { useUnreadNoteCount } from "@/lib/useUnreadNoteCount";
 
 /** The primary destinations, one tap away on mobile. Everything else
  * (Manage, My Drive, Help, account, bug report) stays in the drawer behind
  * the top-bar menu. Desktop hides this entirely — the sidebar covers it. */
-// Shorter labels than the desktop sidebar (Nav.tsx) — the phone tab bar is
-// tight. `iconKey` maps to the shared ICONS map, which is keyed by the
-// sidebar's wording.
-const ITEMS: { href: string; label: string; iconKey: string }[] = [
-  { href: "/overview", label: "Main", iconKey: "Overview" },
-  { href: "/log", label: "Log", iconKey: "Log" },
-  { href: "/personal", label: "Personal", iconKey: "Personal" },
-  { href: "/analytics", label: "Analytics", iconKey: "Analytics" },
-  { href: "/home", label: "Home", iconKey: "Household" },
+// Same wording as the desktop sidebar (via NAV_LABEL). `iconKey` also keys
+// the shared ICONS map.
+const ITEMS: { href: string; iconKey: string }[] = [
+  { href: "/overview", iconKey: "Overview" },
+  { href: "/log", iconKey: "Log" },
+  { href: "/personal", iconKey: "Personal" },
+  { href: "/analytics", iconKey: "Analytics" },
+  { href: "/home", iconKey: "Household" },
 ];
 
 export function BottomNav() {
@@ -63,7 +63,7 @@ export function BottomNav() {
                 />
               )}
             </span>
-            <span className="max-w-full text-xs leading-tight tracking-tight">{item.label}</span>
+            <span className="max-w-full text-xs leading-tight tracking-tight">{NAV_LABEL[item.href]}</span>
             {badge > 0 && <span className="sr-only">{badge} unread</span>}
           </Link>
         );
