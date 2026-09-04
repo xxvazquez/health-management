@@ -25,7 +25,7 @@ const VITALS_ACCENT = "var(--series-magenta)";
 type MedicalTabId = "appointments" | "carelog" | "results" | "vitals" | "doctors" | "specialties" | "followups";
 const TABS: { id: MedicalTabId; label: string; accent: string }[] = [
   { id: "appointments", label: "Appointments", accent: APPOINTMENTS_ACCENT },
-  { id: "carelog", label: "Log", accent: CARELOG_ACCENT },
+  { id: "carelog", label: "Care log", accent: CARELOG_ACCENT },
   { id: "results", label: "Results", accent: RESULTS_ACCENT },
   { id: "vitals", label: "Vitals", accent: VITALS_ACCENT },
   { id: "doctors", label: "Doctors", accent: DOCTORS_ACCENT },
