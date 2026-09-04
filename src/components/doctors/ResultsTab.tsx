@@ -11,6 +11,7 @@ import { PrimaryAction } from "@/components/ui/PrimaryAction";
 import { FIELD_CLS, FIELD_STYLE, IconAction, LABEL_CLS, LABEL_STYLE, PencilIcon, TrashIcon, formatDate } from "./shared";
 import { parseNum, rangeStatus, statusColor } from "./labStatus";
 import { BatchResultsView } from "./BatchResultsView";
+import { DetailPlaceholder, MedicalSplit, useIsDesktop } from "./MedicalSplit";
 
 const NEW_PANEL = "__new__";
 const NO_PANEL = "";
@@ -222,6 +223,7 @@ function MarkerDetail({
   accent,
   marker,
   onBack,
+  onDelete,
   onAddValue,
   onEditMarker,
   onEditResult,
@@ -229,7 +231,11 @@ function MarkerDetail({
   labs: ReturnType<typeof useLabs>;
   accent: string;
   marker: LabMarker;
-  onBack: () => void;
+  /** Omitted on the desktop split, where the list rail beside this pane
+   * already makes a "back" link redundant — still called after a delete,
+   * via `onDelete`, regardless. */
+  onBack?: () => void;
+  onDelete: () => void;
   onAddValue: () => void;
   onEditMarker: () => void;
   onEditResult: (result: LabResult) => void;
@@ -244,9 +250,11 @@ function MarkerDetail({
 
   return (
     <div className="flex flex-col gap-3">
-      <button type="button" onClick={onBack} className="self-start text-xs font-medium" style={{ color: "var(--text-muted)" }}>
-        ← All results
-      </button>
+      {onBack && (
+        <button type="button" onClick={onBack} className="self-start text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+          ← All results
+        </button>
+      )}
 
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
@@ -260,7 +268,7 @@ function MarkerDetail({
         <div className="flex shrink-0 items-center gap-3">
           {confirmingDelete ? (
             <>
-              <button type="button" onClick={() => void labs.markers.remove(marker.id).then(onBack)} className="text-xs font-semibold" style={{ color: "var(--status-critical)" }}>
+              <button type="button" onClick={() => void labs.markers.remove(marker.id).then(onDelete)} className="text-xs font-semibold" style={{ color: "var(--status-critical)" }}>
                 Delete{marker.results.length > 0 ? ` (${marker.results.length})` : ""}
               </button>
               <button type="button" onClick={() => setConfirmingDelete(false)} className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
@@ -353,11 +361,17 @@ function MarkerDetail({
 
 // --- Marker row (list) ----------------------------------------------
 
-function MarkerRow({ marker, onOpen }: { marker: LabMarker; onOpen: () => void }) {
+function MarkerRow({ marker, accent, active, onOpen }: { marker: LabMarker; accent: string; active: boolean; onOpen: () => void }) {
   const latest = marker.results[marker.results.length - 1] ?? null;
   const status = latest ? rangeStatus(latest.value, marker.refLow, marker.refHigh) : null;
   return (
-    <button type="button" onClick={onOpen} className="flex w-full items-center gap-3 border-t py-2.5 text-left first:border-t-0" style={{ borderColor: "var(--gridline)" }}>
+    <button
+      type="button"
+      onClick={onOpen}
+      aria-current={active ? "true" : undefined}
+      className="flex w-full items-center gap-3 border-t border-l-2 py-2.5 pl-2 text-left first:border-t-0 transition-colors"
+      style={{ borderTopColor: "var(--gridline)", borderLeftColor: active ? accent : "transparent", background: active ? "var(--page-plane)" : undefined }}
+    >
       <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: statusColor(status) }} aria-hidden="true" />
       <span className="min-w-0 flex-1 truncate text-sm font-medium" style={{ color: "var(--text-primary)" }}>
         {marker.name}
@@ -380,6 +394,7 @@ function PanelSection({
   markers,
   accent,
   editable,
+  activeMarkerId,
   onOpenMarker,
   onRename,
   onDelete,
@@ -388,6 +403,7 @@ function PanelSection({
   markers: LabMarker[];
   accent: string;
   editable: boolean;
+  activeMarkerId?: string | null;
   onOpenMarker: (m: LabMarker) => void;
   onRename?: () => void;
   onDelete?: () => void;
@@ -420,7 +436,7 @@ function PanelSection({
         {markers.length === 0 ? (
           <p className="py-3 text-xs" style={{ color: "var(--text-muted)" }}>No markers here yet.</p>
         ) : (
-          markers.map((m) => <MarkerRow key={m.id} marker={m} onOpen={() => onOpenMarker(m)} />)
+          markers.map((m) => <MarkerRow key={m.id} marker={m} accent={accent} active={m.id === activeMarkerId} onOpen={() => onOpenMarker(m)} />)
         )}
       </div>
     </section>
@@ -469,6 +485,7 @@ type View =
 
 export function ResultsTab({ accent }: { accent: string }) {
   const labs = useLabs();
+  const desktop = useIsDesktop();
   const [view, setView] = useState<View>({ mode: "list" });
   const [flash, setFlash] = useState<string | null>(null);
 
@@ -491,44 +508,72 @@ export function ResultsTab({ accent }: { accent: string }) {
 
   const findMarker = (id: string) => labs.markers.data.find((m) => m.id === id) ?? null;
 
+  const listPane = renderList();
+  const placeholder = <DetailPlaceholder text="Pick a marker to see its trend and values." />;
+  // "Back to the plain list" — used whenever a mode's target (a deleted
+  // marker, a stale id) no longer exists, so a stray URL/state never shows
+  // a blank detail pane.
+  const plainList = <MedicalSplit selected={false} list={listPane} detail={null} placeholder={placeholder} />;
+
   if (view.mode === "marker-form") {
     return (
-      <MarkerForm
-        labs={labs}
-        accent={accent}
-        initial={view.markerId ? findMarker(view.markerId) ?? undefined : undefined}
-        onSaved={(markerId) => setView({ mode: "marker", markerId })}
-        onCancel={() => setView(view.markerId ? { mode: "marker", markerId: view.markerId } : { mode: "list" })}
+      <MedicalSplit
+        selected
+        list={listPane}
+        placeholder={placeholder}
+        detail={
+          <MarkerForm
+            labs={labs}
+            accent={accent}
+            initial={view.markerId ? findMarker(view.markerId) ?? undefined : undefined}
+            onSaved={(markerId) => setView({ mode: "marker", markerId })}
+            onCancel={() => setView(view.markerId ? { mode: "marker", markerId: view.markerId } : { mode: "list" })}
+          />
+        }
       />
     );
   }
 
   if (view.mode === "result-form") {
     const marker = findMarker(view.markerId);
-    if (!marker) return fallbackToList();
+    if (!marker) return plainList;
     return (
-      <ResultForm
-        labs={labs}
-        accent={accent}
-        marker={marker}
-        initial={view.resultId ? marker.results.find((r) => r.id === view.resultId) : undefined}
-        onDone={() => setView({ mode: "marker", markerId: marker.id })}
-        onCancel={() => setView({ mode: "marker", markerId: marker.id })}
+      <MedicalSplit
+        selected
+        list={listPane}
+        placeholder={placeholder}
+        detail={
+          <ResultForm
+            labs={labs}
+            accent={accent}
+            marker={marker}
+            initial={view.resultId ? marker.results.find((r) => r.id === view.resultId) : undefined}
+            onDone={() => setView({ mode: "marker", markerId: marker.id })}
+            onCancel={() => setView({ mode: "marker", markerId: marker.id })}
+          />
+        }
       />
     );
   }
 
   if (view.mode === "batch") {
     return (
-      <BatchResultsView
-        labs={labs}
-        accent={accent}
-        onDone={(summary) => {
-          if (summary) {
-            setFlash(`${summary.count} ${summary.count === 1 ? "value" : "values"} added · ${formatDate(summary.date)}`);
-          }
-          setView({ mode: "list" });
-        }}
+      <MedicalSplit
+        selected
+        list={listPane}
+        placeholder={placeholder}
+        detail={
+          <BatchResultsView
+            labs={labs}
+            accent={accent}
+            onDone={(summary) => {
+              if (summary) {
+                setFlash(`${summary.count} ${summary.count === 1 ? "value" : "values"} added · ${formatDate(summary.date)}`);
+              }
+              setView({ mode: "list" });
+            }}
+          />
+        }
       />
     );
   }
@@ -536,40 +581,57 @@ export function ResultsTab({ accent }: { accent: string }) {
   if (view.mode === "panel-form") {
     const panel = view.panelId ? labs.panels.data.find((p) => p.id === view.panelId) : undefined;
     return (
-      <PanelNameForm
-        accent={accent}
-        initialName={panel?.name}
-        onSave={async (name) => {
-          if (panel) await labs.panels.rename(panel.id, name);
-          else await labs.panels.create(name);
-          setView({ mode: "list" });
-        }}
-        onCancel={() => setView({ mode: "list" })}
+      <MedicalSplit
+        selected
+        list={listPane}
+        placeholder={placeholder}
+        detail={
+          <PanelNameForm
+            accent={accent}
+            initialName={panel?.name}
+            onSave={async (name) => {
+              if (panel) await labs.panels.rename(panel.id, name);
+              else await labs.panels.create(name);
+              setView({ mode: "list" });
+            }}
+            onCancel={() => setView({ mode: "list" })}
+          />
+        }
       />
     );
   }
 
   if (view.mode === "marker") {
     const marker = findMarker(view.markerId);
-    if (!marker) return fallbackToList();
+    if (!marker) return plainList;
     return (
-      <MarkerDetail
-        labs={labs}
-        accent={accent}
-        marker={marker}
-        onBack={() => setView({ mode: "list" })}
-        onAddValue={() => setView({ mode: "result-form", markerId: marker.id })}
-        onEditMarker={() => setView({ mode: "marker-form", markerId: marker.id })}
-        onEditResult={(r) => setView({ mode: "result-form", markerId: marker.id, resultId: r.id })}
+      <MedicalSplit
+        selected
+        list={listPane}
+        placeholder={placeholder}
+        detail={
+          <MarkerDetail
+            labs={labs}
+            accent={accent}
+            marker={marker}
+            onBack={desktop ? undefined : () => setView({ mode: "list" })}
+            onDelete={() => setView({ mode: "list" })}
+            onAddValue={() => setView({ mode: "result-form", markerId: marker.id })}
+            onEditMarker={() => setView({ mode: "marker-form", markerId: marker.id })}
+            onEditResult={(r) => setView({ mode: "result-form", markerId: marker.id, resultId: r.id })}
+          />
+        }
       />
     );
   }
 
-  return fallbackToList();
+  return plainList;
 
-  function fallbackToList() {
+  function renderList() {
     const hasAny = labs.markers.data.length > 0 || labs.panels.data.length > 0;
     const hasMarkers = labs.markers.data.length > 0;
+    const activeMarkerId =
+      view.mode === "marker" || view.mode === "result-form" ? view.markerId : view.mode === "marker-form" ? (view.markerId ?? null) : null;
     return (
       <div className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -625,6 +687,7 @@ export function ResultsTab({ accent }: { accent: string }) {
                 markers={s.markers}
                 accent={accent}
                 editable
+                activeMarkerId={activeMarkerId}
                 onOpenMarker={(m) => setView({ mode: "marker", markerId: m.id })}
                 onRename={() => setView({ mode: "panel-form", panelId: s.id })}
                 onDelete={() => void labs.panels.remove(s.id)}
@@ -636,6 +699,7 @@ export function ResultsTab({ accent }: { accent: string }) {
                 markers={grouped.ungrouped}
                 accent={accent}
                 editable={false}
+                activeMarkerId={activeMarkerId}
                 onOpenMarker={(m) => setView({ mode: "marker", markerId: m.id })}
               />
             )}
