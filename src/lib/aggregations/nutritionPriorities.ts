@@ -141,15 +141,32 @@ interface DietBalanceRow {
 
 /** One row of the Food Overview's balance card: a per-pillar verdict with
  * the frequency numbers behind it. The card lists all six core pillars
- * worst-represented first. */
+ * worst-represented first.
+ *
+ * `percentOfTarget` — not a raw "days logged / days in range" figure — is
+ * `rateInRangePerWeek / targetPerWeek`, the same ratio `status` is derived
+ * from (see `bandConsistency`). Pillars have very different weekly targets
+ * (fatty fish 2×/week, whole grains 7×/week, …), so a raw day-coverage
+ * percentage and the verdict can look unrelated at a glance — e.g. fish
+ * logged on 30 of 76 days (39% of days) is genuinely "strongly
+ * represented" against its lower target, while grains at a higher 53% of
+ * days is still "underrepresented" against a daily target. Showing
+ * progress-toward-target instead keeps the number and the verdict reading
+ * the same way for every pillar. */
 export interface PillarRow {
   pillar: PillarId;
   label: string;
   /** Distinct days any core group in the pillar was logged, within range. */
   daysInRange: number;
   rangeLengthDays: number;
-  /** `daysInRange / rangeLengthDays`, 0–100, rounded. */
-  percent: number;
+  /** This pillar's average weekly rate within the range. */
+  rateInRangePerWeek: number;
+  /** The pillar's own weekly target this rate is judged against. */
+  targetPerWeek: number;
+  /** `rateInRangePerWeek / targetPerWeek`, 0–100+, rounded — see this
+   * interface's own doc comment for why it's target-relative, not a raw
+   * day-coverage percentage. */
+  percentOfTarget: number;
   status: DietBalanceStatus;
   statusLabel: string;
   /** Nothing from this pillar logged in the range (`daysInRange === 0`). */
@@ -637,7 +654,7 @@ export function computeNutritionPriorities(
   };
   const pillars: PillarRow[] = CORE_PILLARS.map((pillar) =>
     pillarRow(pillar, aggregateStateByPillar[pillar]!, varietyCandidates, insufficientData),
-  ).sort((a, b) => PILLAR_SEVERITY[a.status] - PILLAR_SEVERITY[b.status] || a.percent - b.percent);
+  ).sort((a, b) => PILLAR_SEVERITY[a.status] - PILLAR_SEVERITY[b.status] || a.percentOfTarget - b.percentOfTarget);
 
   // ---- Variety metrics: distinct foods within the selected range ----
   const plantItems = new Set<string>();
@@ -768,13 +785,18 @@ function dietBalanceRow(pillar: PillarId, aggregate: GroupState, varietyCandidat
 /** `dietBalanceRow` plus the frequency numbers behind the verdict. */
 function pillarRow(pillar: PillarId, aggregate: GroupState, varietyCandidates: PriorityCandidate[], insufficientData: boolean): PillarRow {
   const verdict = dietBalanceRow(pillar, aggregate, varietyCandidates, insufficientData);
-  const percent = aggregate.rangeLengthDays > 0 ? Math.round((aggregate.daysInRange / aggregate.rangeLengthDays) * 100) : 0;
+  // Every core pillar has a real weekly target in practice (see this
+  // interface's own doc comment) — the fallback only guards the type.
+  const targetPerWeek = aggregate.targetPerWeek ?? 7;
+  const percentOfTarget = Math.round((aggregate.rateInRangePerWeek / targetPerWeek) * 100);
   return {
     pillar,
     label: verdict.label,
     daysInRange: aggregate.daysInRange,
     rangeLengthDays: aggregate.rangeLengthDays,
-    percent,
+    rateInRangePerWeek: aggregate.rateInRangePerWeek,
+    targetPerWeek,
+    percentOfTarget,
     status: verdict.status,
     statusLabel: verdict.statusLabel,
     notTracked: aggregate.daysInRange === 0,
