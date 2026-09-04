@@ -26,6 +26,8 @@ const TABLE_LABEL: Record<string, string> = {
   journal_entries: "journal entry",
   personal_notes: "note",
   personal_items: "expiring item",
+  blood_pressure: "blood pressure reading",
+  weight_logs: "weight reading",
 };
 
 function friendlyTable(table: string): string {

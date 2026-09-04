@@ -1,4 +1,6 @@
 import { supabase } from "./client";
+import { createTimeOrderedId } from "@/lib/sortableId";
+import { deleteDirect, upsertDirect } from "./directWrite";
 
 export interface BloodPressureReading {
   id: string;
@@ -33,6 +35,8 @@ interface WeightRow {
   note: string | null;
 }
 
+const BP_TABLE = "blood_pressure";
+const WEIGHT_TABLE = "weight_logs";
 const BP_COLUMNS = "id, measured_at, systolic, diastolic, pulse, note";
 const WEIGHT_COLUMNS = "id, measured_at, kg, note";
 
@@ -64,10 +68,6 @@ async function currentUserId(): Promise<string | null> {
   return session?.user.id ?? null;
 }
 
-function notConfigured(): Error {
-  return new Error("Cloud sync isn't set up for this deployment.");
-}
-
 // --- Blood pressure --------------------------------------------------
 
 export async function fetchBloodPressure(): Promise<BloodPressureReading[]> {
@@ -91,51 +91,34 @@ export interface NewBloodPressureInput {
   note: string;
 }
 
+/** Creates a blood-pressure reading, or — offline / mid-outage — queues it
+ * and returns the same row immediately; see directWrite.ts. The id is
+ * generated here (not by the database) so the local record and the
+ * eventual synced row are always the same one. */
 export async function createBloodPressure(input: NewBloodPressureInput): Promise<BloodPressureReading> {
-  if (!supabase) throw notConfigured();
   const myUserId = await currentUserId();
   if (!myUserId) throw new Error("Sign in first.");
-  const { data, error } = await supabase
-    .from("blood_pressure")
-    .insert({
-      user_id: myUserId,
-      measured_at: input.measuredAt,
-      systolic: input.systolic,
-      diastolic: input.diastolic,
-      pulse: input.pulse,
-      note: input.note.trim() || null,
-    })
-    .select(BP_COLUMNS)
-    .single();
-  if (error) throw error;
-  return toBp(data as BpRow);
+  const row: BpRow = { id: createTimeOrderedId(), measured_at: input.measuredAt, systolic: input.systolic, diastolic: input.diastolic, pulse: input.pulse, note: input.note.trim() || null };
+  await upsertDirect(myUserId, BP_TABLE, row.id, { ...row, user_id: myUserId });
+  return toBp(row);
 }
 
-export interface BloodPressurePatch {
-  measuredAt?: string;
-  systolic?: number;
-  diastolic?: number;
-  pulse?: number | null;
-  note?: string;
-}
-
-export async function updateBloodPressure(id: string, patch: BloodPressurePatch): Promise<BloodPressureReading> {
-  if (!supabase) throw notConfigured();
-  const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
-  if (patch.measuredAt !== undefined) update.measured_at = patch.measuredAt;
-  if (patch.systolic !== undefined) update.systolic = patch.systolic;
-  if (patch.diastolic !== undefined) update.diastolic = patch.diastolic;
-  if (patch.pulse !== undefined) update.pulse = patch.pulse;
-  if (patch.note !== undefined) update.note = patch.note.trim() || null;
-  const { data, error } = await supabase.from("blood_pressure").update(update).eq("id", id).select(BP_COLUMNS).single();
-  if (error) throw error;
-  return toBp(data as BpRow);
+/** Updates a blood-pressure reading. `created_at` is left out of the
+ * payload entirely rather than guessed, so an upsert against an existing
+ * row never touches it — only a genuine offline-created-then-never-synced
+ * row would fall back to the column default. */
+export async function updateBloodPressure(id: string, input: NewBloodPressureInput): Promise<BloodPressureReading> {
+  const myUserId = await currentUserId();
+  if (!myUserId) throw new Error("Sign in first.");
+  const row: BpRow = { id, measured_at: input.measuredAt, systolic: input.systolic, diastolic: input.diastolic, pulse: input.pulse, note: input.note.trim() || null };
+  await upsertDirect(myUserId, BP_TABLE, id, { ...row, user_id: myUserId, updated_at: new Date().toISOString() });
+  return toBp(row);
 }
 
 export async function deleteBloodPressure(id: string): Promise<void> {
-  if (!supabase) return;
-  const { error } = await supabase.from("blood_pressure").delete().eq("id", id);
-  if (error) throw error;
+  const myUserId = await currentUserId();
+  if (!myUserId) throw new Error("Sign in first.");
+  await deleteDirect(myUserId, BP_TABLE, id);
 }
 
 // --- Weight --------------------------------------------------------
@@ -159,38 +142,32 @@ export interface NewWeightInput {
   note: string;
 }
 
+/** Creates a weight reading, or — offline / mid-outage — queues it and
+ * returns the same row immediately; see directWrite.ts. The id is
+ * generated here (not by the database) so the local record and the
+ * eventual synced row are always the same one. */
 export async function createWeight(input: NewWeightInput): Promise<WeightReading> {
-  if (!supabase) throw notConfigured();
   const myUserId = await currentUserId();
   if (!myUserId) throw new Error("Sign in first.");
-  const { data, error } = await supabase
-    .from("weight_logs")
-    .insert({ user_id: myUserId, measured_at: input.measuredAt, kg: input.kg, note: input.note.trim() || null })
-    .select(WEIGHT_COLUMNS)
-    .single();
-  if (error) throw error;
-  return toWeight(data as WeightRow);
+  const row: WeightRow = { id: createTimeOrderedId(), measured_at: input.measuredAt, kg: input.kg, note: input.note.trim() || null };
+  await upsertDirect(myUserId, WEIGHT_TABLE, row.id, { ...row, user_id: myUserId });
+  return toWeight(row);
 }
 
-export interface WeightPatch {
-  measuredAt?: string;
-  kg?: number;
-  note?: string;
-}
-
-export async function updateWeight(id: string, patch: WeightPatch): Promise<WeightReading> {
-  if (!supabase) throw notConfigured();
-  const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
-  if (patch.measuredAt !== undefined) update.measured_at = patch.measuredAt;
-  if (patch.kg !== undefined) update.kg = patch.kg;
-  if (patch.note !== undefined) update.note = patch.note.trim() || null;
-  const { data, error } = await supabase.from("weight_logs").update(update).eq("id", id).select(WEIGHT_COLUMNS).single();
-  if (error) throw error;
-  return toWeight(data as WeightRow);
+/** Updates a weight reading. `created_at` is left out of the payload
+ * entirely rather than guessed, so an upsert against an existing row
+ * never touches it — only a genuine offline-created-then-never-synced row
+ * would fall back to the column default. */
+export async function updateWeight(id: string, input: NewWeightInput): Promise<WeightReading> {
+  const myUserId = await currentUserId();
+  if (!myUserId) throw new Error("Sign in first.");
+  const row: WeightRow = { id, measured_at: input.measuredAt, kg: input.kg, note: input.note.trim() || null };
+  await upsertDirect(myUserId, WEIGHT_TABLE, id, { ...row, user_id: myUserId, updated_at: new Date().toISOString() });
+  return toWeight(row);
 }
 
 export async function deleteWeight(id: string): Promise<void> {
-  if (!supabase) return;
-  const { error } = await supabase.from("weight_logs").delete().eq("id", id);
-  if (error) throw error;
+  const myUserId = await currentUserId();
+  if (!myUserId) throw new Error("Sign in first.");
+  await deleteDirect(myUserId, WEIGHT_TABLE, id);
 }
