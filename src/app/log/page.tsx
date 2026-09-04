@@ -41,7 +41,8 @@ import {
 import { buildCanonicalEvents } from "@/lib/canonical/buildCanonicalEvents";
 import { createTimeOrderedId } from "@/lib/sortableId";
 import { ensureCategoryId, ensureDefaultWorkoutItems } from "@/lib/categoryResolution";
-import { seasonalPicksForMonth, weeklyCategoryPriority } from "@/lib/aggregations/seasonal";
+import { hiddenPicksForMonth, seasonalPicksForMonth, weeklyCategoryPriority } from "@/lib/aggregations/seasonal";
+import { useHiddenSeasonalPicks } from "@/lib/useHiddenSeasonalPicks";
 import { formatMinutes, todayLocalISODate } from "@/lib/aggregations/common";
 import { buildDemoDataset } from "@/lib/demoData";
 import { normalizeName, titleCaseFallback } from "@/taxonomy/normalizeName";
@@ -806,9 +807,10 @@ export default function LogPage() {
     () => new Date(2000, currentMonth - 1, 1).toLocaleDateString(undefined, { month: "long" }),
     [currentMonth],
   );
+  const { hidden: hiddenSeasonalPicks, hide: hideSeasonalPick, unhide: unhideSeasonalPick } = useHiddenSeasonalPicks();
   const seasonalPicks = useMemo(
-    () => seasonalPicksForMonth(seasonalCanonical, currentMonth, today),
-    [seasonalCanonical, currentMonth, today],
+    () => seasonalPicksForMonth(seasonalCanonical, currentMonth, today, hiddenSeasonalPicks),
+    [seasonalCanonical, currentMonth, today, hiddenSeasonalPicks],
   );
   // Ranked by neglect for the underlying priority logic, but shown A–Z —
   // scanning a long chip row is easier alphabetically than by a number
@@ -817,6 +819,11 @@ export default function LogPage() {
     () => [...seasonalPicks].sort((a, b) => a.item.localeCompare(b.item)),
     [seasonalPicks],
   );
+  const hiddenThisMonth = useMemo(
+    () => hiddenPicksForMonth(currentMonth, hiddenSeasonalPicks),
+    [currentMonth, hiddenSeasonalPicks],
+  );
+  const [hiddenPicksOpen, setHiddenPicksOpen] = useState(false);
   const weeklyPriority = useMemo(
     () => weeklyCategoryPriority(seasonalCanonical, today),
     [seasonalCanonical, today],
@@ -1685,7 +1692,7 @@ export default function LogPage() {
         )
       ) : (
         <>
-          {tab === "food" && dataReady && seasonalPicks.length > 0 && (
+          {tab === "food" && dataReady && (seasonalPicks.length > 0 || hiddenThisMonth.length > 0) && (
             <div className="flex flex-col gap-2 rounded-lg border p-3" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
               <button
                 type="button"
@@ -1715,32 +1722,75 @@ export default function LogPage() {
               </button>
               {picksOpen && (
                 <>
-                  <div className="flex flex-wrap gap-1.5">
-                    {seasonalPicksSorted.map((pick) => (
-                      <button
-                        key={pick.item}
-                        type="button"
-                        onClick={() => void handleQuickLogSeasonal(pick.item)}
-                        disabled={pending === `seasonal:${normalizeName(pick.item)}`}
-                        className="rounded-md border px-2.5 py-1 text-xs font-medium whitespace-nowrap disabled:opacity-50"
-                        style={{ borderColor: "var(--border-hairline)", color: "var(--text-secondary)", background: "var(--surface-1)" }}
-                      >
-                        {pick.item}
-                        <span className="ml-1" style={{ color: "var(--text-muted)" }}>
-                          {pick.weeksSinceLastEaten === null
-                            ? "· never"
-                            : pick.weeksSinceLastEaten === 0
-                              ? "· this week"
-                              : `· ${pick.weeksSinceLastEaten}w ago`}
+                  {seasonalPicksSorted.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {seasonalPicksSorted.map((pick) => (
+                        <span
+                          key={pick.item}
+                          className="inline-flex items-center gap-0.5 rounded-md border py-1 pr-1 pl-2.5 text-xs font-medium whitespace-nowrap"
+                          style={{ borderColor: "var(--border-hairline)", color: "var(--text-secondary)", background: "var(--surface-1)" }}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => void handleQuickLogSeasonal(pick.item)}
+                            disabled={pending === `seasonal:${normalizeName(pick.item)}`}
+                            className="disabled:opacity-50"
+                          >
+                            {pick.item}
+                            <span className="ml-1" style={{ color: "var(--text-muted)" }}>
+                              {pick.weeksSinceLastEaten === null
+                                ? "· never"
+                                : pick.weeksSinceLastEaten === 0
+                                  ? "· this week"
+                                  : `· ${pick.weeksSinceLastEaten}w ago`}
+                            </span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => hideSeasonalPick(pick.item)}
+                            aria-label={`Don't show ${pick.item} in seasonal picks`}
+                            title="Don't show this again"
+                            className="tap-target shrink-0 rounded p-1 transition-colors hover:bg-[var(--page-plane)]"
+                            style={{ color: "var(--text-muted)" }}
+                          >
+                            <CloseIcon size={10} />
+                          </button>
                         </span>
-                      </button>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  )}
                   {leastTrackedCategory && (
                     <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
                       This week&apos;s priority: <strong style={{ color: "var(--text-primary)" }}>{leastTrackedCategory.category}</strong> — logged{" "}
                       {leastTrackedCategory.countThisWeek} time{leastTrackedCategory.countThisWeek === 1 ? "" : "s"} so far.
                     </p>
+                  )}
+                  {hiddenThisMonth.length > 0 && (
+                    <div>
+                      <button
+                        type="button"
+                        onClick={() => setHiddenPicksOpen((v) => !v)}
+                        className="text-xs underline decoration-dotted"
+                        style={{ color: "var(--text-muted)" }}
+                      >
+                        {hiddenThisMonth.length} hidden
+                      </button>
+                      {hiddenPicksOpen && (
+                        <div className="mt-1.5 flex flex-wrap gap-1.5">
+                          {hiddenThisMonth.map((item) => (
+                            <button
+                              key={item}
+                              type="button"
+                              onClick={() => unhideSeasonalPick(item)}
+                              className="rounded-md border px-2.5 py-1 text-xs font-medium whitespace-nowrap"
+                              style={{ borderColor: "var(--border-hairline)", color: "var(--text-muted)", background: "var(--page-plane)" }}
+                            >
+                              {item} <span style={{ color: "var(--text-secondary)" }}>· show again</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   )}
                 </>
               )}

@@ -14,13 +14,17 @@ export interface SeasonalPick {
  * items rank above ones eaten a while back, which rank above recent ones).
  * Matches by normalized name against the person's own food log, so it
  * reflects what they actually call things, not just an exact string match.
+ * `hidden` (normalized names, see useHiddenSeasonalPicks) drops produce the
+ * person doesn't want surfaced — filtered here rather than at render, so
+ * the "N in season" count callers show is already the real shown count.
  */
 export function seasonalPicksForMonth(
   events: CanonicalEvent[],
   month: number,
   referenceDate: string,
+  hidden: Set<string> = new Set(),
 ): SeasonalPick[] {
-  const items = POLAND_SEASONAL_PRODUCE[month] ?? [];
+  const items = (POLAND_SEASONAL_PRODUCE[month] ?? []).filter((item) => !hidden.has(normalizeName(item)));
   const lastEatenByNorm = new Map<string, string>();
   for (const e of events) {
     if (e.itemType !== "food" || !e.completed) continue;
@@ -38,6 +42,13 @@ export function seasonalPicksForMonth(
   });
 
   return picks.sort((a, b) => (b.weeksSinceLastEaten ?? Infinity) - (a.weeksSinceLastEaten ?? Infinity));
+}
+
+/** The month's full produce list, filtered down to the items currently
+ * hidden — for an "N hidden — unhide" affordance next to the picks card,
+ * without recomputing eaten-history for the rest of the list. */
+export function hiddenPicksForMonth(month: number, hidden: Set<string>): string[] {
+  return (POLAND_SEASONAL_PRODUCE[month] ?? []).filter((item) => hidden.has(normalizeName(item)));
 }
 
 export interface WeeklyCategoryStat {

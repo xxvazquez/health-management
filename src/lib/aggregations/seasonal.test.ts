@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { seasonalPicksForMonth, weeklyCategoryPriority } from "./seasonal";
+import { hiddenPicksForMonth, seasonalPicksForMonth, weeklyCategoryPriority } from "./seasonal";
 import { makeEvent } from "@/lib/testFixtures";
 
 describe("seasonalPicksForMonth", () => {
@@ -48,6 +48,35 @@ describe("seasonalPicksForMonth", () => {
 
   it("returns an empty array for a month with no configured produce", () => {
     expect(seasonalPicksForMonth([], 999, "2026-01-15")).toEqual([]);
+  });
+
+  it("drops a hidden item, matching by normalized name", () => {
+    // January's list includes "Apple" (see seasonalProduce.ts); the hidden
+    // set holds normalized names, same as useHiddenSeasonalPicks writes.
+    const picks = seasonalPicksForMonth([], 1, "2026-01-15", new Set(["apple"]));
+    expect(picks.some((p) => p.item === "Apple")).toBe(false);
+  });
+
+  it("keeps everything when nothing is hidden", () => {
+    const withDefault = seasonalPicksForMonth([], 1, "2026-01-15");
+    const withEmptySet = seasonalPicksForMonth([], 1, "2026-01-15", new Set());
+    expect(withEmptySet).toEqual(withDefault);
+  });
+});
+
+describe("hiddenPicksForMonth", () => {
+  it("returns only the month's items that are actually hidden", () => {
+    // January's list includes Apple and Pear but not, say, Asparagus.
+    const hidden = hiddenPicksForMonth(1, new Set(["apple", "asparagus"]));
+    expect(hidden).toEqual(["Apple"]);
+  });
+
+  it("returns an empty array when nothing for that month is hidden", () => {
+    expect(hiddenPicksForMonth(1, new Set())).toEqual([]);
+  });
+
+  it("returns an empty array for a month with no configured produce", () => {
+    expect(hiddenPicksForMonth(999, new Set(["apple"]))).toEqual([]);
   });
 });
 
