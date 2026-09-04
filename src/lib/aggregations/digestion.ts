@@ -345,7 +345,7 @@ const SYMPTOM_RATE_DRIFT_PP = 15;
 const TARGET_RANGE_NOTABLE_DIFF_PP = 10;
 
 /**
- * "Current pattern" — the primary Digestion-page insight. Leads with the
+ * "What stands out" — the primary Digestion-page insight. Leads with the
  * quantified last-30-days-vs-previous-30-days share of entries in the 3–4
  * target range (the actual question this page exists to answer — "how
  * often am I in my desired range, and is that changing"), then adds

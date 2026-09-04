@@ -70,7 +70,7 @@ export function HabitsDashboard() {
         </div>
       )}
 
-      <Insight label="What changed" headline={insight.headline} detail={insight.detail} tone="neutral" />
+      <Insight label="What stands out" headline={insight.headline} detail={insight.detail} tone="neutral" />
 
       {!insight.insufficientData && insight.changed.length > 0 && (
         <BulletList title="Running differently than usual" tone="var(--text-muted)" bullets={insight.changed} />

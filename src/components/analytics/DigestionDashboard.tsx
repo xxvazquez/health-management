@@ -133,7 +133,7 @@ export function DigestionDashboard() {
         Digestion
       </DashboardHeader>
 
-      <Insight label="Current pattern" headline={insight.headline} detail={insight.detail} tone={insight.tone} />
+      <Insight label="What stands out" headline={insight.headline} detail={insight.detail} tone={insight.tone} />
 
       {!insight.insufficientData && insight.changed.length > 0 && (
         <BulletList title="What changed" tone="var(--text-muted)" bullets={insight.changed} />
@@ -386,7 +386,7 @@ export function DigestionDashboard() {
 
       <Methodology className="lg:col-span-2">
         This page never diagnoses anything — it only describes what&apos;s in your own tracked data. The Bristol
-        score line plots each reading (1–7) chronologically. &quot;Current pattern&quot; and &quot;At a
+        score line plots each reading (1–7) chronologically. &quot;What stands out&quot; and &quot;At a
         glance&quot; compare the last 30 days&apos; share of readings in the 3–4 target range against the 30 days
         before that, and need at least 4 entries in the most recent window to say anything. Bristol
         banding groups readings into Hard (1–2), Normal (3–4), and Loose (5–7) for a quicker read — a standard

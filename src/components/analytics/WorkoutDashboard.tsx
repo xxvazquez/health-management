@@ -394,7 +394,7 @@ export function WorkoutDashboard() {
 
       {insight && (
         <div className="lg:col-span-2">
-          <Insight label="What's happening" headline={insight.headline} detail={insight.detail} tone={insight.tone} />
+          <Insight label="What stands out" headline={insight.headline} detail={insight.detail} tone={insight.tone} />
         </div>
       )}
 
