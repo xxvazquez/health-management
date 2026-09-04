@@ -217,7 +217,7 @@ export function ingredientDiversity(filtered: CanonicalEvent[], range: DateRange
   return { current, previous: new Set(prevFoods.map((e) => e.item)).size };
 }
 
-export type RepetitionTag = "beneficial" | "worth-noting" | "neutral";
+type RepetitionTag = "beneficial" | "worth-noting" | "neutral";
 
 export interface RepetitionEntry {
   item: string;
@@ -268,7 +268,7 @@ export function repetitionInsights(
   });
 }
 
-export type MealTypeClassification = "exclusive" | "cross-meal" | "spread";
+type MealTypeClassification = "exclusive" | "cross-meal" | "spread";
 
 export interface MealTypeBreakdownRow {
   item: string;

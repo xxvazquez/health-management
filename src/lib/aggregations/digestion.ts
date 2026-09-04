@@ -33,7 +33,7 @@ function flattenedBristolScores(stoolLogs: RawStoolLog[]): { id: string; date: s
   return stoolLogs.flatMap((s) => s.bristolScores.map((score) => ({ id: s.id, date: s.date, loggedAt: s.loggedAt, score })));
 }
 
-export type BristolBand = "Hard (1–2)" | "Normal (3–4)" | "Loose (5–7)";
+type BristolBand = "Hard (1–2)" | "Normal (3–4)" | "Loose (5–7)";
 
 /** Standard Bristol banding (1–2 harder/constipated, 3–4 normal, 5–7
  * looser/diarrhea) — display-only grouping computed here at render time,

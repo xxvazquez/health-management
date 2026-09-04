@@ -3,12 +3,12 @@ import type { DoctorFollowUpTask } from "@/lib/supabase/doctors";
 import { addDaysToDate, daysBetween, todayLocalISODate } from "@/lib/aggregations/common";
 
 /** How outstanding something is — the sort key, coarser than `group`. */
-export type AttentionTier = "overdue" | "today" | "soon";
+type AttentionTier = "overdue" | "today" | "soon";
 
 /** The urgency band a row is filed under in the UI. */
 export type AttentionGroup = "overdue" | "today" | "tomorrow" | "week" | "later";
 
-export type AttentionContext = "Reminder" | "Expiry" | "Follow-up" | "Appointment" | "Message";
+type AttentionContext = "Reminder" | "Expiry" | "Follow-up" | "Appointment" | "Message";
 
 export interface AttentionItem {
   key: string;
@@ -49,7 +49,7 @@ const APPOINTMENT_SOON_DAYS = 14;
 
 /** The forward-looking "next visit" date for one specialty — passed in by
  * Overview from the Medical (doctors) data, which lives outside DataContext. */
-export interface UpcomingAppointment {
+interface UpcomingAppointment {
   id: string;
   label: string;
   date: string;

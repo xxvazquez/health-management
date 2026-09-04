@@ -27,7 +27,7 @@ const CONSISTENCY_RARE_CUTOFF = 0.34;
 const CONSISTENCY_OCCASIONAL_CUTOFF = 0.7;
 const CONSISTENCY_CONSISTENT_CUTOFF = 1.15;
 
-export type Consistency = "never" | "not-recent" | "rare" | "occasional" | "regular" | "consistent";
+type Consistency = "never" | "not-recent" | "rare" | "occasional" | "regular" | "consistent";
 export type GroupStatus = "not-enough-data" | "priority" | "increase" | "good" | "strong";
 
 /** One vocabulary for "how well-represented is this in what you log",
@@ -82,7 +82,7 @@ export interface GroupState {
   targetPerWeek: number | null;
 }
 
-export interface BulletFrequency {
+interface BulletFrequency {
   /** Distinct days the group was logged, within the selected range. */
   daysInRange: number;
   /** Length of the selected range in days — the denominator. */
@@ -95,7 +95,7 @@ export interface BulletFrequency {
   notTracked: boolean;
 }
 
-export interface Bullet {
+interface Bullet {
   label: string;
   detail: string;
   /** Short suggestion phrase (e.g. "Add a legume") — null for a pillar-wide
@@ -115,7 +115,7 @@ export interface Bullet {
   frequency?: BulletFrequency;
 }
 
-export interface PriorityCandidate {
+interface PriorityCandidate {
   kind: "group" | "variety";
   headline: string;
   action: string;
@@ -165,7 +165,7 @@ const PILLAR_SEVERITY: Record<DietBalanceStatus, number> = {
   "not-enough-data": 4,
 };
 
-export interface VarietyMetrics {
+interface VarietyMetrics {
   totalUniqueFoods: number;
   uniquePlantFoods: number;
   plantGroupsRepresented: number;
@@ -177,13 +177,13 @@ export interface VarietyMetrics {
   plantFamiliesRepresented: number;
 }
 
-export interface TrendPoint {
+interface TrendPoint {
   label: string;
   current: number;
   previous: number;
 }
 
-export interface TrendSummary {
+interface TrendSummary {
   available: boolean;
   /** Length of the selected range (= the prior comparison window too) —
    * lets the UI say "vs. the N days before" without hardcoding a number. */

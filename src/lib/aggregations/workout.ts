@@ -191,7 +191,7 @@ export function formatWorkoutDateShort(date: string): string {
   });
 }
 
-export interface WorkoutEntry {
+interface WorkoutEntry {
   id: string;
   date: string;
   weightKg: number;

@@ -1,7 +1,7 @@
 import type { CanonicalEvent, RawWorkoutLog, RawPeriodLog } from "@/lib/types";
 import { filterByDateRange, type DateRange } from "./common";
 
-export interface PeriodReviewTotals {
+interface PeriodReviewTotals {
   foodLogs: number;
   uniqueFoods: number;
   /** Distinct trained dates, not a raw set count — same "session" definition workout.ts's own consistency summary uses. */

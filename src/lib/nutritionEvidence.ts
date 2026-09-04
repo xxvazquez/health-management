@@ -31,7 +31,7 @@ import type { NutritionGroupId } from "@/taxonomy/nutritionGroups";
  *  - nuts: ≥5x/week, the threshold used in the large nut-cohort literature
  *  - fatty fish: ≥2x/week per the AHA seafood science advisory
  */
-export type EvidenceTier = "Strong" | "Moderate";
+type EvidenceTier = "Strong" | "Moderate";
 
 export interface GroupEvidence {
   tier: EvidenceTier;

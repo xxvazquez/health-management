@@ -383,30 +383,6 @@ $$;
 revoke all on function public.redeem_partner_invite(text) from public;
 grant execute on function public.redeem_partner_invite(text) to authenticated;
 
--- `auth.users` isn't queryable by a regular signed-in client at all (no
--- RLS story on it applies here — it's simply not exposed), so this is the
--- only way the Notes UI can show "who am I talking to" (an email, since
--- that's the only identity Lauva has for anyone). Security definer, same
--- reasoning as redeem_partner_invite above, deliberately returns nothing
--- but this one field — never anything else from auth.users. Null when the
--- caller has no linked partner.
-create or replace function public.get_partner_email()
-returns text
-language sql
-security definer
-set search_path = public
-stable
-as $$
-  select u.email
-  from public.partner_links pl
-  join auth.users u on u.id = (case when pl.user_a_id = auth.uid() then pl.user_b_id else pl.user_a_id end)
-  where auth.uid() in (pl.user_a_id, pl.user_b_id)
-  limit 1;
-$$;
-
-revoke all on function public.get_partner_email() from public;
-grant execute on function public.get_partner_email() to authenticated;
-
 -- Every note AND every reply is a row here — a reply is just a note with
 -- `thread_root_id` set to the top-level note's id (and sender/recipient
 -- flipped), so threading needs no separate table. The columns below the

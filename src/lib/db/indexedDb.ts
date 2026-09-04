@@ -12,7 +12,7 @@ import { createTimeOrderedId } from "@/lib/sortableId";
 // represented here — see sync.ts's *AndSync functions (where entries are
 // created) and outbox.ts (where they're drained).
 export type OutboxOperation = "upsert" | "delete";
-export type OutboxStatus = "pending" | "dead-letter";
+type OutboxStatus = "pending" | "dead-letter";
 
 export interface OutboxEntry {
   id: string;

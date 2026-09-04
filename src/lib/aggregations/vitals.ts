@@ -1,7 +1,7 @@
 /** Blood-pressure classification and small vitals helpers — pure, shared
  * by the Medical → Vitals tab and the Blood analytics dashboard. */
 
-export type BpCategory = "normal" | "elevated" | "stage1" | "stage2" | "crisis";
+type BpCategory = "normal" | "elevated" | "stage1" | "stage2" | "crisis";
 
 export interface BpCategoryInfo {
   id: BpCategory;
