@@ -5,7 +5,7 @@
  */
 export function Logo({ size = 28 }: { size?: number }) {
   return (
-    <svg width={size} height={size * (800 / 800)} viewBox="0 0 800 800" aria-hidden="true">
+    <svg width={size} height={size} viewBox="0 0 800 800" aria-hidden="true">
       <path
         d="M 382 470 C 330 425, 306 360, 330 284 C 350 221, 405 158, 478 104 C 492 184, 476 263, 431 324 C 411 351, 394 374, 382 405 C 374 426, 375 449, 382 470 Z"
         fill="#5C8A7A"
