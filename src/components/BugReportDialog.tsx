@@ -5,19 +5,9 @@ import { usePathname } from "next/navigation";
 import { BUG_TYPES, bugReportingConfigured, submitBugReport, type BugType } from "@/lib/supabase/reportBug";
 import { useDialogA11y } from "@/components/ui/useDialogA11y";
 import { AutoGrowTextarea } from "@/components/ui/AutoGrowTextarea";
+import { NAV_LABEL } from "@/components/navLabels";
 
 const ACCENT = "var(--series-1)";
-
-const PAGE_LABELS: Record<string, string> = {
-  "/overview": "Overview",
-  "/log": "Log",
-  "/analytics": "Analytics",
-  "/home": "Home",
-  "/notes": "Notes",
-  "/my-drive": "My Drive",
-  "/help": "Help",
-  "/manage": "Manage items",
-};
 
 function CloseIcon() {
   return (
@@ -55,7 +45,7 @@ export function BugReportDialog({ open, onClose }: { open: boolean; onClose: () 
     if (open) {
       setBugType(BUG_TYPES[0]);
       const normalized = pathname.length > 1 ? pathname.replace(/\/$/, "") : pathname;
-      setLocation(PAGE_LABELS[normalized] ?? pathname);
+      setLocation(NAV_LABEL[normalized] ?? pathname);
       setComment("");
       setSubmitted(false);
       setError(null);

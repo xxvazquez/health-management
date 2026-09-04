@@ -12,6 +12,7 @@ import { AccountPanel } from "@/components/auth/AccountPanel";
 import { SignOutButton } from "@/components/auth/SignOutButton";
 import { BugReportButton } from "@/components/BugReportButton";
 import { BugReportDialog } from "@/components/BugReportDialog";
+import { NAV_LABEL } from "@/components/navLabels";
 
 function IconWrap({ children }: { children: ReactNode }) {
   return (
@@ -150,24 +151,24 @@ export const ICONS: Record<string, ReactNode> = {
  * the Weekly/Monthly Review in one place. Its own top-level entry (not an
  * Analytics tab) since it's cross-domain, the landing point for "what's
  * going on" before drilling into a dashboard. */
-const OVERVIEW_LINKS = [{ href: "/overview", label: "Overview" }];
+const OVERVIEW_LINKS = [{ href: "/overview", label: NAV_LABEL["/overview"] }];
 /** Log (enter data) and Analytics (read it back) — the two halves the whole
  * app is organized around, both top-level. Analytics is a single page with
  * a Log-style tab bar for every dashboard (`/analytics#food` …), so hiding
  * a domain from Manage just drops its tab, not a whole nav entry. */
-const LOG_LINKS = [{ href: "/log", label: "Log" }];
+const LOG_LINKS = [{ href: "/log", label: NAV_LABEL["/log"] }];
 /** Journal, private notes, reminders, product-expiry — the "write it once,
  * come back to it" surface, split off from Log's tracking tabs. The shared
  * (partner) versions of these live under "Shared". */
-const PERSONAL_LINKS = [{ href: "/personal", label: "Personal" }];
+const PERSONAL_LINKS = [{ href: "/personal", label: NAV_LABEL["/personal"] }];
 /** Everything medical — doctor visits, care Log, blood Results, follow-ups —
  * on one top-level page, direct-to-Supabase like Personal. */
-const MEDICAL_LINKS = [{ href: "/medical", label: "Medical" }];
-const ANALYTICS_LINKS = [{ href: "/analytics", label: "Analytics" }];
-const MANAGE_LINKS = [{ href: "/manage", label: "Manage items" }];
+const MEDICAL_LINKS = [{ href: "/medical", label: NAV_LABEL["/medical"] }];
+const ANALYTICS_LINKS = [{ href: "/analytics", label: NAV_LABEL["/analytics"] }];
+const MANAGE_LINKS = [{ href: "/manage", label: NAV_LABEL["/manage"] }];
 const TOOLS_LINKS = [
-  { href: "/my-drive", label: "My Drive" },
-  { href: "/help", label: "Help" },
+  { href: "/my-drive", label: NAV_LABEL["/my-drive"] },
+  { href: "/help", label: NAV_LABEL["/help"] },
 ];
 /** The "you + your linked partner" surface, grouped under "Shared": the
  * shared board of reminders/tasks/expiration (`/home`) and partner
@@ -175,8 +176,8 @@ const TOOLS_LINKS = [
  * (Your *private* notes/reminders/expiration live as tabs on the Log
  * page — the "Shared" grouping is what keeps the two apart.) */
 const SHARED_LINKS = [
-  { href: "/home", label: "Household" },
-  { href: "/notes", label: "Messages" },
+  { href: "/home", label: NAV_LABEL["/home"] },
+  { href: "/notes", label: NAV_LABEL["/notes"] },
 ];
 
 const NAV_SECTIONS_KEY = "lauva-nav-collapsed-sections";
