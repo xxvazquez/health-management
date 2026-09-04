@@ -1,4 +1,6 @@
 import { supabase } from "./client";
+import { createTimeOrderedId } from "@/lib/sortableId";
+import { deleteDirect, upsertDirect } from "./directWrite";
 
 export interface JournalEntry {
   id: string;
@@ -38,6 +40,7 @@ async function currentUserId(): Promise<string | null> {
 }
 
 const ENTRY_COLUMNS = "id, date, title, body, created_at, updated_at";
+const TABLE = "journal_entries";
 
 /** Every entry for the signed-in user, most recent date first — small
  * enough at this app's scale (a personal journal, not a shared inbox) to
@@ -47,7 +50,7 @@ export async function fetchJournalEntries(): Promise<JournalEntry[]> {
   const myUserId = await currentUserId();
   if (!myUserId) return [];
   const { data, error } = await supabase
-    .from("journal_entries")
+    .from(TABLE)
     .select(ENTRY_COLUMNS)
     .eq("user_id", myUserId)
     .order("date", { ascending: false })
@@ -62,22 +65,24 @@ export interface NewJournalEntryInput {
   body: string;
 }
 
+/** Creates an entry, or — offline / mid-outage — queues it and returns
+ * the same row immediately; see directWrite.ts. The id is generated here
+ * (not by the database) so the local record and the eventual synced row
+ * are always the same one. */
 export async function createJournalEntry(input: NewJournalEntryInput): Promise<JournalEntry> {
-  if (!supabase) throw new Error("Cloud sync isn't set up for this deployment.");
   const myUserId = await currentUserId();
   if (!myUserId) throw new Error("Sign in first.");
-  const { data, error } = await supabase
-    .from("journal_entries")
-    .insert({
-      user_id: myUserId,
-      date: input.date,
-      title: input.title.trim() || null,
-      body: input.body.trim(),
-    })
-    .select(ENTRY_COLUMNS)
-    .single();
-  if (error) throw error;
-  return toEntry(data as JournalRow);
+  const nowIso = new Date().toISOString();
+  const row: JournalRow = {
+    id: createTimeOrderedId(),
+    date: input.date,
+    title: input.title.trim() || null,
+    body: input.body.trim(),
+    created_at: nowIso,
+    updated_at: nowIso,
+  };
+  await upsertDirect(myUserId, TABLE, row.id, { ...row, user_id: myUserId });
+  return toEntry(row);
 }
 
 export interface JournalEntryPatch {
@@ -86,19 +91,26 @@ export interface JournalEntryPatch {
   body?: string;
 }
 
-export async function updateJournalEntry(id: string, patch: JournalEntryPatch): Promise<JournalEntry> {
-  if (!supabase) throw new Error("Cloud sync isn't set up for this deployment.");
-  const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
-  if (patch.date !== undefined) update.date = patch.date;
-  if (patch.title !== undefined) update.title = patch.title.trim() || null;
-  if (patch.body !== undefined) update.body = patch.body.trim();
-  const { data, error } = await supabase.from("journal_entries").update(update).eq("id", id).select(ENTRY_COLUMNS).single();
-  if (error) throw error;
-  return toEntry(data as JournalRow);
+/** Updates an entry. Takes the full current entry (not just the id) so an
+ * offline save can still upsert a complete row — a bare column patch
+ * can't stand in for a row that may not have reached Supabase yet. */
+export async function updateJournalEntry(entry: JournalEntry, patch: JournalEntryPatch): Promise<JournalEntry> {
+  const myUserId = await currentUserId();
+  if (!myUserId) throw new Error("Sign in first.");
+  const row: JournalRow = {
+    id: entry.id,
+    date: patch.date ?? entry.date,
+    title: patch.title !== undefined ? patch.title.trim() || null : entry.title,
+    body: patch.body !== undefined ? patch.body.trim() : entry.body,
+    created_at: entry.createdAt,
+    updated_at: new Date().toISOString(),
+  };
+  await upsertDirect(myUserId, TABLE, row.id, { ...row, user_id: myUserId });
+  return toEntry(row);
 }
 
 export async function deleteJournalEntry(id: string): Promise<void> {
-  if (!supabase) throw new Error("Cloud sync isn't set up for this deployment.");
-  const { error } = await supabase.from("journal_entries").delete().eq("id", id);
-  if (error) throw error;
+  const myUserId = await currentUserId();
+  if (!myUserId) throw new Error("Sign in first.");
+  await deleteDirect(myUserId, TABLE, id);
 }

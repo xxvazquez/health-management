@@ -122,7 +122,8 @@ flowchart LR
     outbox -->|"drain, retry/backoff"| pg
     pg -->|"pull: sign-in / focus / reconnect / 60s"| idb
     ui --> auth
-    ui -.->|"Messages, Journal, Reminders<br/>(direct, no offline)"| pg
+    ui -.->|"Messages, Reminders, …<br/>(direct, no offline)"| pg
+    ui -.->|"Journal<br/>(direct, falls back to outbox offline)"| outbox
     ui -.->|"notify-note (on send)"| ef
     ef -->|"reminder + digest cron"| pg
     ef --> resend["Resend (email)"]
@@ -179,9 +180,22 @@ user's data regardless of RLS. `supabase/schema.sql` is authoritative;
 
 ### Direct-to-Supabase features (no offline mode)
 
-Messages, the Personal page's Journal / Notes / Reminders / Expiration, and the
-Medical page all talk to Supabase directly rather than through the
-write-local-first outbox — they only mean anything once they're on the server.
+Messages, the Personal page's Notes / Reminders / Expiration, and the Medical page
+all talk to Supabase directly rather than through the write-local-first outbox —
+they only mean anything once they're on the server, and a write made offline is
+lost (the form still has what you typed until you navigate away).
+
+**Journal is the first of these features with offline fallback** (`src/lib/
+supabase/directWrite.ts`): a create/update/delete still tries Supabase directly
+first (same instant feel, no local mirror to keep in sync), but a write that can't
+reach the server — offline, a dropped connection, a transient 5xx — is queued in
+the *same* outbox the tracking domains use, instead of throwing. The id is
+generated client-side (`createTimeOrderedId`) so the optimistic local entry and
+the eventual synced row are the same record, and `SyncStatusBanner` (already
+table-agnostic) picks up a stuck Journal write with no extra UI work. A write
+Postgres itself rejects (a real validation error) still throws normally. The
+same `upsertDirect`/`deleteDirect` pair is meant for the rest of this list as
+they're wired up one at a time.
 
 - **Messages** (`notes` table) — two accounts become partners by redeeming a
   short-lived invite code into a `partner_links` row (`redeem_partner_invite`, a

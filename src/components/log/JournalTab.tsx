@@ -108,7 +108,7 @@ export function JournalTab({ isDemoData, accent }: { isDemoData: boolean; accent
         ? { ...editing, date, title: title.trim() || null, body: body.trim(), updatedAt: nowIso }
         : { id: `demo-journal-${Date.now()}`, date, title: title.trim() || null, body: body.trim(), createdAt: nowIso, updatedAt: nowIso };
     }
-    return editing ? updateJournalEntry(editing.id, { date, title, body }) : createJournalEntry({ date, title, body });
+    return editing ? updateJournalEntry(editing, { date, title, body }) : createJournalEntry({ date, title, body });
   }
 
   async function handleDelete(id: string) {
