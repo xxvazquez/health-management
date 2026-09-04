@@ -11,6 +11,7 @@ import { CloseIcon } from "@/components/ui/icons";
 import { Card } from "@/components/ui/Card";
 import { ItemNameField, ItemActionButtons, useInlineRename } from "@/components/ui/ItemActions";
 import { ManageRow } from "@/components/ui/ManageRow";
+import { customColorValue } from "@/components/ui/customIcons";
 import { DuplicateItemDialog } from "@/components/ui/DuplicateItemDialog";
 import { DemoNotice } from "@/components/ui/DemoNotice";
 import { PushNotificationsToggle } from "@/components/PushNotificationsToggle";
@@ -164,7 +165,7 @@ function ReminderListsCard({ isDemoData, searchQuery }: { isDemoData: boolean; s
     if (!name) return;
     setNewName("");
     if (isDemoData) {
-      setLists((prev) => [...prev, { id: `demo-list-${Date.now()}`, name, sortOrder: prev.length }]);
+      setLists((prev) => [...prev, { id: `demo-list-${Date.now()}`, name, sortOrder: prev.length, icon: null, color: null }]);
       return;
     }
     try {
@@ -179,7 +180,12 @@ function ReminderListsCard({ isDemoData, searchQuery }: { isDemoData: boolean; s
     const next = name.trim();
     if (!next) return;
     setLists((prev) => prev.map((l) => (l.id === id ? { ...l, name: next } : l)));
-    if (!isDemoData) await renameReminderList(id, next).catch((err) => console.error("renameReminderList failed", err));
+    if (!isDemoData) await renameReminderList(id, { name: next }).catch((err) => console.error("renameReminderList failed", err));
+  }
+
+  async function handleAppearance(id: string, patch: { icon?: string | null; color?: string | null }) {
+    setLists((prev) => prev.map((l) => (l.id === id ? { ...l, ...patch } : l)));
+    if (!isDemoData) await renameReminderList(id, patch).catch((err) => console.error("renameReminderList failed", err));
   }
 
   async function handleDelete(id: string) {
@@ -235,6 +241,13 @@ function ReminderListsCard({ isDemoData, searchQuery }: { isDemoData: boolean; s
               key={l.id}
               name={l.name}
               maxLength={40}
+              appearance={{
+                icon: l.icon,
+                color: l.color,
+                accent: customColorValue(l.color) ?? "var(--series-berry)",
+                onIconChange: (icon) => void handleAppearance(l.id, { icon }),
+                onColorChange: (color) => void handleAppearance(l.id, { color }),
+              }}
               onRename={(next) => void handleRename(l.id, next)}
               onDelete={() => void handleDelete(l.id)}
             />
@@ -272,8 +285,8 @@ function DoctorSpecialtiesCard({ isDemoData, searchQuery }: { isDemoData: boolea
 
   const entries =
     rows.length > 0
-      ? rows.map((r) => ({ key: r.name.toLowerCase(), name: r.name, isArchived: r.isArchived }))
-      : DEFAULT_DOCTOR_SPECIALTIES.map((name) => ({ key: name.toLowerCase(), name, isArchived: false }));
+      ? rows.map((r) => ({ key: r.name.toLowerCase(), name: r.name, isArchived: r.isArchived, icon: r.icon, color: r.color }))
+      : DEFAULT_DOCTOR_SPECIALTIES.map((name) => ({ key: name.toLowerCase(), name, isArchived: false, icon: null, color: null }));
 
   const query = searchQuery.trim().toLowerCase();
   const isSearching = query.length > 0;
@@ -314,7 +327,7 @@ function DoctorSpecialtiesCard({ isDemoData, searchQuery }: { isDemoData: boolea
       setRows((prev) => {
         const existing = findRow(prev, name);
         if (existing) return prev.map((r) => (r.id === existing.id ? { ...r, isArchived: false } : r));
-        return [...prev, { id: `demo-spec-${Date.now()}`, name, nextAppointmentDate: null, isArchived: false }];
+        return [...prev, { id: `demo-spec-${Date.now()}`, name, nextAppointmentDate: null, isArchived: false, icon: null, color: null }];
       });
       return;
     }
@@ -342,7 +355,20 @@ function DoctorSpecialtiesCard({ isDemoData, searchQuery }: { isDemoData: boolea
     await run(async (fresh) => {
       const row = findRow(fresh, name);
       if (!row) return;
-      const updated = await renameDoctorSpecialty(row.id, next);
+      const updated = await renameDoctorSpecialty(row.id, { name: next });
+      setRows((prev) => prev.map((r) => (r.id === row.id ? updated : r)));
+    });
+  }
+
+  async function handleAppearance(name: string, patch: { icon?: string | null; color?: string | null }) {
+    if (isDemoData) {
+      setRows((prev) => prev.map((r) => (r.name.toLowerCase() === name.toLowerCase() ? { ...r, ...patch } : r)));
+      return;
+    }
+    await run(async (fresh) => {
+      const row = findRow(fresh, name);
+      if (!row) return;
+      const updated = await renameDoctorSpecialty(row.id, patch);
       setRows((prev) => prev.map((r) => (r.id === row.id ? updated : r)));
     });
   }
@@ -373,12 +399,19 @@ function DoctorSpecialtiesCard({ isDemoData, searchQuery }: { isDemoData: boolea
     });
   }
 
-  const rowEl = (e: { key: string; name: string; isArchived: boolean }) => (
+  const rowEl = (e: { key: string; name: string; isArchived: boolean; icon: string | null; color: string | null }) => (
     <ManageRow
       key={e.key}
       name={e.name}
       isArchived={e.isArchived}
       busy={busy}
+      appearance={{
+        icon: e.icon,
+        color: e.color,
+        accent: customColorValue(e.color) ?? "var(--series-3)",
+        onIconChange: (icon) => void handleAppearance(e.name, { icon }),
+        onColorChange: (color) => void handleAppearance(e.name, { color }),
+      }}
       onRename={(next) => void handleRename(e.name, next)}
       onToggleHide={() => void handleArchive(e.name, !e.isArchived)}
       onDelete={() => void handleDelete(e.name)}

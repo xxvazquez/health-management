@@ -6,6 +6,10 @@ export interface DoctorSpecialty {
   name: string;
   nextAppointmentDate: string | null;
   isArchived: boolean;
+  /** Custom appearance from ui/customIcons — both null falls back to the
+   * page's existing hardcoded look. */
+  icon: string | null;
+  color: string | null;
 }
 
 export interface Doctor {
@@ -43,6 +47,8 @@ interface SpecialtyRow {
   name: string;
   next_appointment_date: string | null;
   is_archived: boolean;
+  icon: string | null;
+  color: string | null;
 }
 interface DoctorRow {
   id: string;
@@ -70,13 +76,13 @@ interface TaskRow {
   completed_at: string | null;
 }
 
-const SPECIALTY_COLUMNS = "id, name, next_appointment_date, is_archived";
+const SPECIALTY_COLUMNS = "id, name, next_appointment_date, is_archived, icon, color";
 const DOCTOR_COLUMNS = "id, name, specialty, rating, language, created_at";
 const APPOINTMENT_COLUMNS = "id, doctor_id, specialty, appointment_at, reason, follow_up_notes, created_at";
 const TASK_COLUMNS = "id, appointment_id, description, due_date, reminder_at, completed_at";
 
 function toSpecialty(row: SpecialtyRow): DoctorSpecialty {
-  return { id: row.id, name: row.name, nextAppointmentDate: row.next_appointment_date, isArchived: row.is_archived };
+  return { id: row.id, name: row.name, nextAppointmentDate: row.next_appointment_date, isArchived: row.is_archived, icon: row.icon, color: row.color };
 }
 function toDoctor(row: DoctorRow): Doctor {
   return { id: row.id, name: row.name, specialty: row.specialty, rating: row.rating, language: (row.language as DoctorLanguage | null) ?? null, createdAt: row.created_at };
@@ -128,14 +134,19 @@ export async function createDoctorSpecialty(name: string): Promise<DoctorSpecial
   return toSpecialty(data as SpecialtyRow);
 }
 
-export async function renameDoctorSpecialty(id: string, name: string): Promise<DoctorSpecialty> {
+export interface DoctorSpecialtyPatch {
+  name?: string;
+  icon?: string | null;
+  color?: string | null;
+}
+
+export async function renameDoctorSpecialty(id: string, patch: DoctorSpecialtyPatch): Promise<DoctorSpecialty> {
   if (!supabase) throw notConfigured();
-  const { data, error } = await supabase
-    .from("doctor_specialties")
-    .update({ name: name.trim(), updated_at: new Date().toISOString() })
-    .eq("id", id)
-    .select(SPECIALTY_COLUMNS)
-    .single();
+  const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  if (patch.name !== undefined) update.name = patch.name.trim();
+  if (patch.icon !== undefined) update.icon = patch.icon;
+  if (patch.color !== undefined) update.color = patch.color;
+  const { data, error } = await supabase.from("doctor_specialties").update(update).eq("id", id).select(SPECIALTY_COLUMNS).single();
   if (error) throw error;
   return toSpecialty(data as SpecialtyRow);
 }

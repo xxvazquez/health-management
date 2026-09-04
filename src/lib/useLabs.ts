@@ -18,10 +18,12 @@ import {
   type LabMarker,
   type LabMarkerPatch,
   type LabPanel,
+  type LabPanelPatch,
   type LabResultPatch,
   type NewLabMarkerInput,
   type NewLabResultInput,
 } from "@/lib/supabase/labs";
+import type { CustomAppearance } from "@/components/ui/customIcons";
 import { buildDemoLabMarkers, buildDemoLabPanels } from "@/lib/demoLabs";
 
 /** Module-level cache so the Medical → Results tab keeps one shared
@@ -78,14 +80,14 @@ export function useLabs() {
 
   // --- Panels ---
   const createPanel = useCallback(
-    async (name: string): Promise<LabPanel> => {
+    async (name: string, appearance?: CustomAppearance): Promise<LabPanel> => {
       const sortOrder = panels.reduce((max, p) => Math.max(max, p.sortOrder), -1) + 1;
       if (isDemo) {
-        const panel: LabPanel = { id: demoId("panel"), name: name.trim(), sortOrder };
+        const panel: LabPanel = { id: demoId("panel"), name: name.trim(), sortOrder, icon: appearance?.icon ?? null, color: appearance?.color ?? null };
         setPanels((prev) => [...prev, panel]);
         return panel;
       }
-      const created = await createLabPanel(name, sortOrder);
+      const created = await createLabPanel(name, sortOrder, appearance);
       setPanels((prev) => [...prev, created]);
       return created;
     },
@@ -93,9 +95,20 @@ export function useLabs() {
   );
 
   const renamePanel = useCallback(
-    async (id: string, name: string) => {
-      setPanels((prev) => prev.map((p) => (p.id === id ? { ...p, name: name.trim() } : p)));
-      if (!isDemo) await updateLabPanel(id, { name }).catch((err) => console.error("updateLabPanel failed", err));
+    async (id: string, patch: LabPanelPatch) => {
+      setPanels((prev) =>
+        prev.map((p) =>
+          p.id === id
+            ? {
+                ...p,
+                name: patch.name !== undefined ? patch.name.trim() : p.name,
+                icon: patch.icon !== undefined ? patch.icon : p.icon,
+                color: patch.color !== undefined ? patch.color : p.color,
+              }
+            : p,
+        ),
+      );
+      if (!isDemo) await updateLabPanel(id, patch).catch((err) => console.error("updateLabPanel failed", err));
     },
     [isDemo],
   );

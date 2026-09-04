@@ -28,6 +28,8 @@ export function buildDemoDoctorSpecialties(): DoctorSpecialty[] {
     name,
     nextAppointmentDate: nextDates[name] ?? null,
     isArchived: false,
+    icon: null,
+    color: null,
   }));
 }
 

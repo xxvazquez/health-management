@@ -1,4 +1,5 @@
 import { supabase } from "./client";
+import type { CustomAppearance } from "@/components/ui/customIcons";
 
 export interface LabResult {
   id: string;
@@ -27,6 +28,10 @@ export interface LabPanel {
   id: string;
   name: string;
   sortOrder: number;
+  /** Custom appearance from ui/customIcons — both null falls back to the
+   * page's existing hardcoded look. */
+  icon: string | null;
+  color: string | null;
 }
 
 interface ResultRow {
@@ -53,11 +58,13 @@ interface PanelRow {
   id: string;
   name: string;
   sort_order: number;
+  icon: string | null;
+  color: string | null;
 }
 
 const RESULT_COLUMNS = "id, marker_id, measured_on, value, lab, note";
 const MARKER_COLUMNS = `id, panel_id, name, unit, ref_low, ref_high, sort_order, lab_results(${RESULT_COLUMNS})`;
-const PANEL_COLUMNS = "id, name, sort_order";
+const PANEL_COLUMNS = "id, name, sort_order, icon, color";
 
 /** Postgres `numeric` comes back as a string over the wire. */
 function num(v: number | string | null): number | null {
@@ -84,7 +91,7 @@ function toMarker(row: MarkerRow): LabMarker {
 }
 
 function toPanel(row: PanelRow): LabPanel {
-  return { id: row.id, name: row.name, sortOrder: row.sort_order };
+  return { id: row.id, name: row.name, sortOrder: row.sort_order, icon: row.icon, color: row.color };
 }
 
 async function currentUserId(): Promise<string | null> {
@@ -115,13 +122,13 @@ export async function fetchLabPanels(): Promise<LabPanel[]> {
   return (data as PanelRow[]).map(toPanel);
 }
 
-export async function createLabPanel(name: string, sortOrder: number): Promise<LabPanel> {
+export async function createLabPanel(name: string, sortOrder: number, appearance?: CustomAppearance): Promise<LabPanel> {
   if (!supabase) throw notConfigured();
   const myUserId = await currentUserId();
   if (!myUserId) throw new Error("Sign in first.");
   const { data, error } = await supabase
     .from("lab_panels")
-    .insert({ user_id: myUserId, name: name.trim(), sort_order: sortOrder })
+    .insert({ user_id: myUserId, name: name.trim(), sort_order: sortOrder, icon: appearance?.icon ?? null, color: appearance?.color ?? null })
     .select(PANEL_COLUMNS)
     .single();
   if (error) throw error;
@@ -131,6 +138,8 @@ export async function createLabPanel(name: string, sortOrder: number): Promise<L
 export interface LabPanelPatch {
   name?: string;
   sortOrder?: number;
+  icon?: string | null;
+  color?: string | null;
 }
 
 export async function updateLabPanel(id: string, patch: LabPanelPatch): Promise<void> {
@@ -138,6 +147,8 @@ export async function updateLabPanel(id: string, patch: LabPanelPatch): Promise<
   const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (patch.name !== undefined) update.name = patch.name.trim();
   if (patch.sortOrder !== undefined) update.sort_order = patch.sortOrder;
+  if (patch.icon !== undefined) update.icon = patch.icon;
+  if (patch.color !== undefined) update.color = patch.color;
   const { error } = await supabase.from("lab_panels").update(update).eq("id", id);
   if (error) throw error;
 }

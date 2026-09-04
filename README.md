@@ -222,9 +222,12 @@ wired up one at a time.
   optional note, and an optional "who it's for". The title is fetched from the
   page by the `fetch-link-metadata` Edge Function (the static client can't —
   CORS), falling back to a typed title. `wishlist_items.category_id` cascades on
-  category delete. Each list can be given an icon and a colour from the category
-  form (`wishlist_categories.icon` / `color`); left unset it falls back to a
-  heart glyph and a position-keyed accent. On Android the PWA `share_target`
+  category delete. Each list can be given an icon and a colour from the shared
+  picker (`components/ui/IconColorPicker.tsx` + `customIcons.tsx`,
+  `wishlist_categories.icon` / `color`); left unset it falls back to a heart
+  glyph and a position-keyed accent — the same picker and columns now back
+  reminder lists, doctor specialties and lab panels too (see below). On
+  Android the PWA `share_target`
   (`/home/?url=…`) routes a shared link straight to a pre-filled new item; iOS
   has no share target, so the
   Wishlist tab's "Add from your phone" panel issues a per-account capture token
@@ -233,7 +236,8 @@ wired up one at a time.
 - **Reminder lists** (`reminder_lists`, owner-only) — `personal_tasks.list_id` is
   a composite FK with `on delete set null`, so deleting a list drops its tasks
   back to the default bucket rather than removing them. Lists are managed on the
-  Manage page, not the Reminders tab. Household reminders have no lists.
+  Manage page, not the Reminders tab, each with its own optional icon/colour.
+  Household reminders have no lists.
 - **Tasks** — one `*_tasks` table covers both a one-off deadline and a recurring
   chore. `recurrence_days` null = one-off; set = recurring (`due_at` is the next
   occurrence, advanced on each completion). Every completion also writes a
@@ -250,7 +254,9 @@ wired up one at a time.
   doctor or appointment. `doctor_specialties` is the picker list (built-in
   defaults in `src/lib/doctors.ts` until the user edits one, then the rows win);
   each row can be renamed, archived (`is_archived` — kept out of the picker,
-  reversible, history keeps its frozen string), or deleted, all from Manage.
+  reversible, history keeps its frozen string), given an icon/colour, or
+  deleted, all from Manage. Lab panels (Medical → Results) get the same
+  icon/colour picker from their own rename form.
   Follow-up tasks may set an optional `reminder_at` that the reminder cron sends
   once (phase 2 below). The **Care log** tab (`care_entries` + the `care_entry_specialties`
   join) is a separate dated timeline of *observation* and *note* entries, each

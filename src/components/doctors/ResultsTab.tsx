@@ -12,6 +12,8 @@ import { FIELD_CLS, FIELD_STYLE, IconAction, LABEL_CLS, LABEL_STYLE, PencilIcon,
 import { parseNum, rangeStatus, statusColor } from "./labStatus";
 import { BatchResultsView } from "./BatchResultsView";
 import { DetailPlaceholder, MedicalSplit, useIsDesktop } from "./MedicalSplit";
+import { CustomIcon, customColorValue } from "@/components/ui/customIcons";
+import { IconColorPicker } from "@/components/ui/IconColorPicker";
 
 const NEW_PANEL = "__new__";
 const NO_PANEL = "";
@@ -391,6 +393,8 @@ function MarkerRow({ marker, accent, active, onOpen }: { marker: LabMarker; acce
 
 function PanelSection({
   title,
+  icon = null,
+  color = null,
   markers,
   accent,
   editable,
@@ -400,6 +404,8 @@ function PanelSection({
   onDelete,
 }: {
   title: string;
+  icon?: string | null;
+  color?: string | null;
   markers: LabMarker[];
   accent: string;
   editable: boolean;
@@ -409,10 +415,16 @@ function PanelSection({
   onDelete?: () => void;
 }) {
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const sectionAccent = customColorValue(color) ?? accent;
   return (
     <section className="flex flex-col rounded-lg border" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
       <div className="flex items-center gap-1.5 border-b px-3 py-2" style={{ borderColor: "var(--border-hairline)" }}>
-        <h3 className="min-w-0 flex-1 truncate text-xs font-semibold" style={{ color: accent }}>
+        {icon && (
+          <span className="shrink-0" style={{ color: sectionAccent }}>
+            <CustomIcon icon={icon} size={14} />
+          </span>
+        )}
+        <h3 className="min-w-0 flex-1 truncate text-xs font-semibold" style={{ color: sectionAccent }}>
           {title}
         </h3>
         <span className="text-xs font-medium tabular-nums" style={{ color: "var(--text-muted)" }}>{markers.length}</span>
@@ -445,9 +457,26 @@ function PanelSection({
 
 // --- Small name form (panel rename / new) -------------------------
 
-function PanelNameForm({ accent, initialName, onSave, onCancel }: { accent: string; initialName?: string; onSave: (name: string) => Promise<void>; onCancel: () => void }) {
+function PanelNameForm({
+  accent,
+  initialName,
+  initialIcon = null,
+  initialColor = null,
+  onSave,
+  onCancel,
+}: {
+  accent: string;
+  initialName?: string;
+  initialIcon?: string | null;
+  initialColor?: string | null;
+  onSave: (name: string, icon: string | null, color: string | null) => Promise<void>;
+  onCancel: () => void;
+}) {
   const [name, setName] = useState(initialName ?? "");
+  const [icon, setIcon] = useState(initialIcon);
+  const [color, setColor] = useState(initialColor);
   const [saving, setSaving] = useState(false);
+  const rowAccent = customColorValue(color) ?? accent;
   return (
     <form
       onSubmit={async (e) => {
@@ -455,7 +484,7 @@ function PanelNameForm({ accent, initialName, onSave, onCancel }: { accent: stri
         if (!name.trim() || saving) return;
         setSaving(true);
         try {
-          await onSave(name);
+          await onSave(name, icon, color);
         } catch {
           setSaving(false);
         }
@@ -466,8 +495,9 @@ function PanelNameForm({ accent, initialName, onSave, onCancel }: { accent: stri
         <button type="button" onClick={onCancel} className="text-xs font-medium underline decoration-dotted" style={{ color: "var(--text-muted)" }}>Cancel</button>
       </div>
       <input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="Panel name" maxLength={60} className={FIELD_CLS} style={FIELD_STYLE} />
+      <IconColorPicker icon={icon} color={color} onIconChange={setIcon} onColorChange={setColor} accent={rowAccent} />
       <button type="submit" disabled={!name.trim() || saving} className="self-start rounded-md px-4 py-2 text-sm font-medium text-white disabled:opacity-50" style={{ background: accent }}>
-        {saving ? "Saving…" : initialName ? "Rename" : "Add panel"}
+        {saving ? "Saving…" : initialName ? "Save changes" : "Add panel"}
       </button>
     </form>
   );
@@ -501,7 +531,7 @@ export function ResultsTab({ accent }: { accent: string }) {
       const key = m.panelId ?? "";
       byPanel.set(key, [...(byPanel.get(key) ?? []), m]);
     }
-    const sections = labs.panels.data.map((p) => ({ id: p.id, name: p.name, markers: byPanel.get(p.id) ?? [] }));
+    const sections = labs.panels.data.map((p) => ({ id: p.id, name: p.name, icon: p.icon, color: p.color, markers: byPanel.get(p.id) ?? [] }));
     const ungrouped = byPanel.get("") ?? [];
     return { sections, ungrouped };
   }, [labs.markers.data, labs.panels.data]);
@@ -589,9 +619,11 @@ export function ResultsTab({ accent }: { accent: string }) {
           <PanelNameForm
             accent={accent}
             initialName={panel?.name}
-            onSave={async (name) => {
-              if (panel) await labs.panels.rename(panel.id, name);
-              else await labs.panels.create(name);
+            initialIcon={panel?.icon ?? null}
+            initialColor={panel?.color ?? null}
+            onSave={async (name, icon, color) => {
+              if (panel) await labs.panels.rename(panel.id, { name, icon, color });
+              else await labs.panels.create(name, { icon, color });
               setView({ mode: "list" });
             }}
             onCancel={() => setView({ mode: "list" })}
@@ -684,6 +716,8 @@ export function ResultsTab({ accent }: { accent: string }) {
               <PanelSection
                 key={s.id}
                 title={s.name}
+                icon={s.icon}
+                color={s.color}
                 markers={s.markers}
                 accent={accent}
                 editable

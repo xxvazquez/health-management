@@ -7,9 +7,9 @@ const dateOnly = (msOffset: number) => new Date(Date.now() + msOffset).toISOStri
 
 export function buildDemoLabPanels(): LabPanel[] {
   return [
-    { id: "demo-lab-panel-thyroid", name: "Thyroid", sortOrder: 0 },
-    { id: "demo-lab-panel-iron", name: "Iron studies", sortOrder: 1 },
-    { id: "demo-lab-panel-cbc", name: "Blood count", sortOrder: 2 },
+    { id: "demo-lab-panel-thyroid", name: "Thyroid", sortOrder: 0, icon: "flask", color: "series-6" },
+    { id: "demo-lab-panel-iron", name: "Iron studies", sortOrder: 1, icon: null, color: null },
+    { id: "demo-lab-panel-cbc", name: "Blood count", sortOrder: 2, icon: null, color: null },
   ];
 }
 

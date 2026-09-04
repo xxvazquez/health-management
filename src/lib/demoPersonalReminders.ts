@@ -38,9 +38,9 @@ const DEMO_LIST_BATHROOM = "demo-list-bathroom";
 
 export function buildDemoReminderLists(): ReminderList[] {
   return [
-    { id: DEMO_LIST_TODO, name: "To Do", sortOrder: 0 },
-    { id: DEMO_LIST_TOBUY, name: "To Buy", sortOrder: 1 },
-    { id: DEMO_LIST_BATHROOM, name: "Bathroom", sortOrder: 2 },
+    { id: DEMO_LIST_TODO, name: "To Do", sortOrder: 0, icon: null, color: null },
+    { id: DEMO_LIST_TOBUY, name: "To Buy", sortOrder: 1, icon: "cart", color: "series-2" },
+    { id: DEMO_LIST_BATHROOM, name: "Bathroom", sortOrder: 2, icon: null, color: null },
   ];
 }
 
