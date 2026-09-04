@@ -223,11 +223,16 @@ function foodEvents(events: CanonicalEvent[]): CanonicalEvent[] {
   return events.filter((e) => e.itemType === "food" && e.completed && e.category !== "Spices");
 }
 
+// `currentOverrides` and `groupCache` are reset at the top of every
+// computeNutritionPriorities call (its own doc comment explains why) — safe
+// because every other function in this file is a private helper only ever
+// called synchronously, within one such call, never re-entrantly.
+let currentOverrides: Record<string, NutritionGroupId> = {};
 const groupCache = new Map<string, NutritionGroupId[]>();
 function groupsFor(item: string): NutritionGroupId[] {
   let g = groupCache.get(item);
   if (!g) {
-    g = nutritionGroupsForFood(item);
+    g = nutritionGroupsForFood(item, currentOverrides);
     groupCache.set(item, g);
   }
   return g;
@@ -463,8 +468,19 @@ const emptyVariety: VarietyMetrics = {
  * days, 90 days, a year, or a custom span recalculates everything, not just
  * the charts underneath. The one deliberate exception is `totalLogsAllTime`
  * inside each `GroupState` (see `computeAggregateState`'s own comment).
+ *
+ * `overrides` (from useFoodNutritionGroupOverrides, keyed by normalized
+ * item name) corrects a food's nutrition group before every group-based
+ * metric below is computed from it — see nutritionGroupsForFood's own
+ * comment for how an override interacts with the keyword lookup.
  */
-export function computeNutritionPriorities(events: CanonicalEvent[], range: DateRange | null): NutritionPriorities {
+export function computeNutritionPriorities(
+  events: CanonicalEvent[],
+  range: DateRange | null,
+  overrides: Record<string, NutritionGroupId> = {},
+): NutritionPriorities {
+  currentOverrides = overrides;
+  groupCache.clear();
   const span = getDatasetSpan(events);
   const foods = foodEvents(events);
 

@@ -1,6 +1,6 @@
 import type { CanonicalEvent } from "@/lib/types";
 import { addDaysToDate, daysBetween, getDatasetSpan, pct, type DateRange } from "./common";
-import { nutritionGroupsForFood } from "@/taxonomy/nutritionGroups";
+import { nutritionGroupsForFood, type NutritionGroupId } from "@/taxonomy/nutritionGroups";
 import type { GroupState } from "./nutritionPriorities";
 
 function foodEvents(events: CanonicalEvent[]): CanonicalEvent[] {
@@ -247,6 +247,7 @@ export function repetitionInsights(
   groupStates: GroupState[],
   hasCoreGaps: boolean,
   topN = 8,
+  overrides: Record<string, NutritionGroupId> = {},
 ): RepetitionEntry[] {
   const totalOccurrences = ranked.reduce((sum, r) => sum + r.count, 0);
   const statusByGroup = new Map(groupStates.map((s) => [s.group, s.status]));
@@ -254,7 +255,7 @@ export function repetitionInsights(
   return ranked.slice(0, topN).map((r) => {
     const shareOfOccurrences = pct(r.count, totalOccurrences);
     const mealInstanceCount = instances.filter((i) => i.items.includes(r.item)).length;
-    const groups = nutritionGroupsForFood(r.item);
+    const groups = nutritionGroupsForFood(r.item, overrides);
     const beneficial = groups.some((g) => {
       const status = statusByGroup.get(g);
       return status === "good" || status === "strong";

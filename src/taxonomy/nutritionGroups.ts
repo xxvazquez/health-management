@@ -324,13 +324,19 @@ function normalize(name: string): string {
 }
 
 /**
- * Nutrition group(s) for a canonical food item name. Returns an empty array
- * when the food can't be reliably placed — that's a valid, expected result
- * for herbs, condiments, plant-milks, and other items with no clean fit;
- * callers must not guess a group in that case.
+ * Nutrition group(s) for a canonical food item name. `overrides` (a
+ * per-user correction map from Manage, keyed by normalized item name —
+ * see food_nutrition_groups in the data model) is consulted first and, if
+ * present, wins outright: it replaces the keyword lookup for that item
+ * rather than merging with it. Falling through to the keyword table,
+ * returns an empty array when the food can't be reliably placed — that's a
+ * valid, expected result for herbs, condiments, plant-milks, and other
+ * items with no clean fit; callers must not guess a group in that case.
  */
-export function nutritionGroupsForFood(canonicalItemName: string): NutritionGroupId[] {
+export function nutritionGroupsForFood(canonicalItemName: string, overrides?: Record<string, NutritionGroupId>): NutritionGroupId[] {
   const norm = normalize(canonicalItemName);
+  const override = overrides?.[norm];
+  if (override) return [override];
   for (const [keyword, groups] of KEYWORD_ENTRIES) {
     if (norm === keyword || norm.includes(keyword)) return groups;
   }

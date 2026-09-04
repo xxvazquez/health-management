@@ -976,6 +976,22 @@ create table public.wishlist_share_tokens (
 create index wishlist_categories_owner_created_idx on public.wishlist_categories (owner_id, created_at);
 create index wishlist_items_category_created_idx on public.wishlist_items (category_id, created_at desc);
 
+-- Per-user correction for the Food dashboard's nutrition-group keyword
+-- matching (src/taxonomy/nutritionGroups.ts) — one row means "classify
+-- this item as exactly this group, skip the keyword lookup entirely" for
+-- the food named `item` (case/whitespace as typed; the app normalizes both
+-- sides the same way it normalizes for the keyword match). No row means
+-- automatic classification still applies. `item` rather than a foreign key
+-- to `food_items` because the override should survive a rename/re-add of
+-- the item and is keyed the same way `nutritionGroupsForFood` already is.
+create table public.food_nutrition_groups (
+  user_id uuid not null default auth.uid() references auth.users(id),
+  item text not null,
+  group_id text not null,
+  updated_at timestamptz not null default now(),
+  primary key (user_id, item)
+);
+
 -- Row-level security: every table, same shape — a user can only read or
 -- write rows where user_id matches their own auth.uid().
 alter table public.categories enable row level security;
@@ -1026,6 +1042,7 @@ alter table public.household_codes enable row level security;
 alter table public.wishlist_categories enable row level security;
 alter table public.wishlist_items enable row level security;
 alter table public.wishlist_share_tokens enable row level security;
+alter table public.food_nutrition_groups enable row level security;
 
 create policy "categories_all_own" on public.categories for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "food_items_all_own" on public.food_items for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
@@ -1170,6 +1187,7 @@ create policy "wishlist_items_delete_pair" on public.wishlist_items for delete u
 create policy "wishlist_share_tokens_select_own" on public.wishlist_share_tokens for select using (auth.uid() = owner_id);
 create policy "wishlist_share_tokens_insert_own" on public.wishlist_share_tokens for insert with check (auth.uid() = owner_id);
 create policy "wishlist_share_tokens_delete_own" on public.wishlist_share_tokens for delete using (auth.uid() = owner_id);
+create policy "food_nutrition_groups_all_own" on public.food_nutrition_groups for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 -- household_task_completions has no owner_id of its own (it's a log of
 -- who/when, not a thing anyone "owns"), so its policies join back to the
