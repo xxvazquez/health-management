@@ -5,11 +5,13 @@ import clsx from "clsx";
 import type { ReactNode } from "react";
 
 /** Most pages read comfortably at the app's default measure (max-w-4xl).
- * The Analytics dashboards and the Overview page are dense (charts, tables,
- * paired cards, a two-column desktop layout) and genuinely benefit from
- * more desktop width — this is the one opt-in point for that, keyed off the
- * route so every other page's width is untouched. */
-const WIDE_ROUTES = ["/analytics", "/overview"];
+ * The dense pages opt into a wider measure here, keyed off the route:
+ * Analytics and Overview (charts, paired cards, two-column layouts), and
+ * the list pages Personal and Household — their Notes / Reminders /
+ * Expiration / Codes tabs lay their grouped cards out two-up on `xl`, so
+ * the width is used rather than stranded (Journal and Wishlist stay a
+ * single narrow column and cap themselves). */
+const WIDE_ROUTES = ["/analytics", "/overview", "/personal", "/home"];
 
 export function ContentContainer({ children }: { children: ReactNode }) {
   const pathname = usePathname();

@@ -233,7 +233,7 @@ export function JournalTab({ isDemoData, accent }: { isDemoData: boolean; accent
               <h3 className="px-0.5 text-xs font-semibold tracking-[0.08em] uppercase" style={{ color: "var(--text-muted)" }}>
                 {group.label}
               </h3>
-              <NoteList>
+              <NoteList wide>
                 {group.entries.map((entry) => (
                   <NoteRow
                     key={entry.id}

@@ -233,7 +233,7 @@ export function NoteBoard({
           description={notes.length === 0 ? emptyDescription : "Try a different search term."}
         />
       ) : (
-        <NoteList>
+        <NoteList wide>
           {visibleNotes.map((note) => (
             <NoteRow
               key={note.id}

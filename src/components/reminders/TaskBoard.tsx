@@ -645,22 +645,24 @@ export function TaskBoard({
         />
       ) : (
         <div className="flex flex-col gap-3">
-          {timeGroups.map(({ bucket, tasks }) => (
-            <ListSection
-              key={bucket}
-              label={TASK_TIME_BUCKET_LABEL[bucket]}
-              count={tasks.length}
-              accent={bucket === "overdue" ? SOFT_OVERDUE : bucket === "today" ? "var(--status-serious)" : undefined}
-              icon={
-                <SectionIcon>
-                  <circle cx="10" cy="11" r="6.2" />
-                  <path d="M10 7.6V11l2.4 1.6M10 2.6V4" />
-                </SectionIcon>
-              }
-            >
-              <div className="flex flex-col">{tasks.map(activeListRow)}</div>
-            </ListSection>
-          ))}
+          <div className="flex flex-col gap-3 xl:grid xl:grid-cols-2 xl:items-start">
+            {timeGroups.map(({ bucket, tasks }) => (
+              <ListSection
+                key={bucket}
+                label={TASK_TIME_BUCKET_LABEL[bucket]}
+                count={tasks.length}
+                accent={bucket === "overdue" ? SOFT_OVERDUE : bucket === "today" ? "var(--status-serious)" : undefined}
+                icon={
+                  <SectionIcon>
+                    <circle cx="10" cy="11" r="6.2" />
+                    <path d="M10 7.6V11l2.4 1.6M10 2.6V4" />
+                  </SectionIcon>
+                }
+              >
+                <div className="flex flex-col">{tasks.map(activeListRow)}</div>
+              </ListSection>
+            ))}
+          </div>
 
           {done.length > 0 && (
             <CollapsibleGroup title="Done" count={done.length}>

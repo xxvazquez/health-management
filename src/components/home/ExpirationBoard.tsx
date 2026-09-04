@@ -312,7 +312,7 @@ export function ExpirationBoard({
       ) : !anyMatch ? (
         <InlineEmpty title="Nothing matches that search" description="Try a different search term." />
       ) : (
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-3 xl:grid xl:grid-cols-2 xl:items-start">
           {EXPIRATION_BUCKET_ORDER.filter((bucket) => (grouped.get(bucket)?.length ?? 0) > 0).map((bucket) => {
             const emphatic = bucket === "expired" || bucket === "this_week";
             return (
