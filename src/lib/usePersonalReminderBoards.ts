@@ -155,10 +155,14 @@ export function usePersonalReminderBoards() {
         setNotes((prev) => prev.map((n) => (n.id === id ? { ...n, title: title.trim() || null, body: body.trim(), updatedAt: new Date().toISOString() } : n)));
         return;
       }
-      const updated = await updatePersonalNote(id, title, body);
+      // updatePersonalNote needs the full current row (not just id) so an
+      // offline save can still upsert a complete record.
+      const existing = notes.find((n) => n.id === id);
+      if (!existing) return;
+      const updated = await updatePersonalNote(existing, title, body);
       setNotes((prev) => prev.map((n) => (n.id === id ? updated : n)));
     },
-    [isDemo],
+    [isDemo, notes],
   );
 
   const deleteNote = useCallback(

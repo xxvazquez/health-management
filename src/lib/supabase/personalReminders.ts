@@ -1,5 +1,7 @@
 import { supabase } from "./client";
 import { isRecurringTask, nextRecurringDueAt, type TaskItem } from "@/lib/reminders";
+import { createTimeOrderedId } from "@/lib/sortableId";
+import { deleteDirect, upsertDirect } from "./directWrite";
 
 export interface PersonalNote {
   id: string;
@@ -147,35 +149,36 @@ export async function fetchPersonalNotes(): Promise<PersonalNote[]> {
   return (data as NoteRow[]).map(toNote);
 }
 
+const NOTES_TABLE = "personal_notes";
+
+/** Creates a note, or — offline / mid-outage — queues it and returns the
+ * same row immediately; see directWrite.ts. The id is generated here (not
+ * by the database) so the local record and the eventual synced row are
+ * always the same one. */
 export async function createPersonalNote(title: string, body: string): Promise<PersonalNote> {
-  if (!supabase) throw new Error("Cloud sync isn't set up for this deployment.");
   const myUserId = await currentUserId();
   if (!myUserId) throw new Error("Sign in first.");
-  const { data, error } = await supabase
-    .from("personal_notes")
-    .insert({ user_id: myUserId, title: title.trim() || null, body: body.trim() })
-    .select(NOTE_COLUMNS)
-    .single();
-  if (error) throw error;
-  return toNote(data as NoteRow);
+  const nowIso = new Date().toISOString();
+  const row: NoteRow = { id: createTimeOrderedId(), title: title.trim() || null, body: body.trim(), created_at: nowIso, updated_at: nowIso };
+  await upsertDirect(myUserId, NOTES_TABLE, row.id, { ...row, user_id: myUserId });
+  return toNote(row);
 }
 
-export async function updatePersonalNote(id: string, title: string, body: string): Promise<PersonalNote> {
-  if (!supabase) throw new Error("Cloud sync isn't set up for this deployment.");
-  const { data, error } = await supabase
-    .from("personal_notes")
-    .update({ title: title.trim() || null, body: body.trim(), updated_at: new Date().toISOString() })
-    .eq("id", id)
-    .select(NOTE_COLUMNS)
-    .single();
-  if (error) throw error;
-  return toNote(data as NoteRow);
+/** Updates a note. Takes the full current entry (not just the id) so an
+ * offline save can still upsert a complete row — a bare column patch
+ * can't stand in for a row that may not have reached Supabase yet. */
+export async function updatePersonalNote(entry: PersonalNote, title: string, body: string): Promise<PersonalNote> {
+  const myUserId = await currentUserId();
+  if (!myUserId) throw new Error("Sign in first.");
+  const row: NoteRow = { id: entry.id, title: title.trim() || null, body: body.trim(), created_at: entry.createdAt, updated_at: new Date().toISOString() };
+  await upsertDirect(myUserId, NOTES_TABLE, row.id, { ...row, user_id: myUserId });
+  return toNote(row);
 }
 
 export async function deletePersonalNote(id: string): Promise<void> {
-  if (!supabase) return;
-  const { error } = await supabase.from("personal_notes").delete().eq("id", id);
-  if (error) throw error;
+  const myUserId = await currentUserId();
+  if (!myUserId) throw new Error("Sign in first.");
+  await deleteDirect(myUserId, NOTES_TABLE, id);
 }
 
 /** Both one-off and recurring tasks, newest-due first (nulls — no
