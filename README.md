@@ -15,7 +15,7 @@ It works fully offline, syncs to Supabase once you sign in, and installs as a PW
 | **Personal** | `/personal` | Journal, private notes, reminders, and product-expiry tracking — the "write once, come back to it" stuff. |
 | **Medical** | `/medical` | Everything about doctor visits: a history log of appointments already attended (reusable doctors and specialties, per-doctor rating/language, follow-up notes and tasks, one next-appointment date per specialty), a **Log** tab of dated observations tagged to the specialties they concern, a **Results** tab of blood/lab markers over time (one-off or whole-draw batch value entry), and a **Vitals** tab for blood pressure and weight with trend charts and ACC/AHA blood-pressure categories. `/doctors` redirects here. |
 | **Analytics** | `/analytics` | One dashboard per domain (Food, Supplements, Habits, Digestion, Workout, Cycle, Patterns), switched by a tab bar, plus **Blood** — trends, flagged values and a compare overlay for the Medical → Results lab markers, and a summary of the latest blood pressure and weight from Vitals. |
-| **Manage** | `/manage` | Add / rename / archive / delete items and categories, set exercise units, edit reminder lists and doctor types, hide domains you don't track. Searchable across every section. |
+| **Manage** | `/manage` | Add / rename / archive / delete items and categories, set exercise units, edit reminder lists and doctor types, hide domains you don't track, and export every row this account owns as one JSON file. Searchable across every section. |
 | **Household** | `/home` | The partner-facing versions of notes, reminders, and expiry, a shared list of discount codes, and a **Wishlist** of saved links grouped into lists — once you're linked, either of you can see and edit them. |
 | **Messages** | `/notes` | Private one-to-one messaging with your linked partner. |
 | **My Drive** | `/my-drive` | Read-only browser for the signed-in Google account's Drive. |
@@ -145,6 +145,9 @@ flowchart LR
   risk — only its cloud copy is stuck.
 - One write lock (`withDataLock` in `indexedDb.ts`) stops a cloud pull from ever
   landing in the middle of a local write.
+- Manage → "Your data" builds a full JSON export straight from Supabase
+  (`src/lib/exportData.ts`) — every owned row across the schema, paged, each table
+  scoped by its own ownership column. Signed-in only; partner messages are left out.
 
 ### Data shapes
 

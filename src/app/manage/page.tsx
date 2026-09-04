@@ -13,6 +13,7 @@ import { ManageRow } from "@/components/ui/ManageRow";
 import { DuplicateItemDialog } from "@/components/ui/DuplicateItemDialog";
 import { DemoNotice } from "@/components/ui/DemoNotice";
 import { PushNotificationsToggle } from "@/components/PushNotificationsToggle";
+import { DataExportCard } from "@/components/manage/DataExportCard";
 import { useItemActions, type ManageableItem } from "@/lib/useItemActions";
 import { getAllItems, getAllCategories, getItemIdentitiesWithHistory, withDataLock } from "@/lib/db/indexedDb";
 import { putItemAndSync, deleteCategoryAndSync } from "@/lib/supabase/sync";
@@ -1419,6 +1420,8 @@ export default function ManagePage() {
           onDelete={(item) => (isDemoData ? demoDeleteItem(item) : void handleDelete(item))}
         />
       ))}
+
+      <DataExportCard isDemoData={isDemoData} />
 
       {duplicateConflict && (
         <DuplicateItemDialog
