@@ -31,7 +31,6 @@ const FOOD_CATEGORIES = [
   "Spices",
   "Misc",
 ] as const;
-export type FoodCategory = (typeof FOOD_CATEGORIES)[number];
 
 // Unlike food, the source app tags virtually all of these with one flat
 // "Supplements" tag (plus a separate "Creams" tag for the one topical
