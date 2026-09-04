@@ -23,6 +23,7 @@ const TABLE_LABEL: Record<string, string> = {
   stool_logs: "stool entry",
   workout_logs: "workout entry",
   period_logs: "period entry",
+  journal_entries: "journal entry",
 };
 
 function friendlyTable(table: string): string {
@@ -41,7 +42,9 @@ function describeRecord(entry: OutboxEntry): string {
   if (payload && typeof payload === "object") {
     const p = payload as Record<string, unknown>;
     if (typeof p.name === "string" && p.name.trim()) return p.name;
+    if (typeof p.title === "string" && p.title.trim()) return p.title;
     if (typeof p.content === "string" && p.content.trim()) return p.content.length > 40 ? `${p.content.slice(0, 40)}…` : p.content;
+    if (typeof p.body === "string" && p.body.trim()) return p.body.length > 40 ? `${p.body.slice(0, 40)}…` : p.body;
     if (typeof p.date === "string" && p.date.trim()) return p.date;
   }
   return entry.dedupeKey.split(":").at(-1)?.slice(0, 8) ?? "unknown";
