@@ -237,7 +237,7 @@ export function JournalTab({ isDemoData, accent }: { isDemoData: boolean; accent
                 {group.entries.map((entry) => (
                   <NoteRow
                     key={entry.id}
-                    title={entry.title || "Untitled"}
+                    title={entry.title}
                     meta={journalRowDate(entry.date)}
                     body={entry.body}
                     metaFirst
