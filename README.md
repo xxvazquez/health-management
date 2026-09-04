@@ -123,7 +123,7 @@ flowchart LR
     pg -->|"pull: sign-in / focus / reconnect / 60s"| idb
     ui --> auth
     ui -.->|"Messages, Reminders, …<br/>(direct, no offline)"| pg
-    ui -.->|"Journal, Personal Notes<br/>(direct, falls back to outbox offline)"| outbox
+    ui -.->|"Journal, Personal Notes/Expiration<br/>(direct, falls back to outbox offline)"| outbox
     ui -.->|"notify-note (on send)"| ef
     ef -->|"reminder + digest cron"| pg
     ef --> resend["Resend (email)"]
@@ -180,12 +180,12 @@ user's data regardless of RLS. `supabase/schema.sql` is authoritative;
 
 ### Direct-to-Supabase features (no offline mode)
 
-Messages, the Personal page's Reminders / Expiration, and the Medical page
-all talk to Supabase directly rather than through the write-local-first outbox —
-they only mean anything once they're on the server, and a write made offline is
-lost (the form still has what you typed until you navigate away).
+Messages, the Personal page's Reminders, and the Medical page all talk to
+Supabase directly rather than through the write-local-first outbox — they only
+mean anything once they're on the server, and a write made offline is lost (the
+form still has what you typed until you navigate away).
 
-**Journal and Personal Notes have offline fallback** (`src/lib/
+**Journal, Personal Notes and Personal Expiration have offline fallback** (`src/lib/
 supabase/directWrite.ts`): a create/update/delete still tries Supabase directly
 first (same instant feel, no local mirror to keep in sync), but a write that can't
 reach the server — offline, a dropped connection, a transient 5xx — is queued in

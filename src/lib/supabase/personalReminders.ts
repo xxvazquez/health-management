@@ -310,35 +310,36 @@ export interface NewPersonalItemInput {
   remindDaysBefore: number;
 }
 
+const ITEMS_TABLE = "personal_items";
+
+/** Creates an expiration item, or — offline / mid-outage — queues it and
+ * returns the same row immediately; see directWrite.ts. The id is
+ * generated here (not by the database) so the local record and the
+ * eventual synced row are always the same one. */
 export async function createPersonalItem(input: NewPersonalItemInput): Promise<PersonalItem> {
-  if (!supabase) throw new Error("Cloud sync isn't set up for this deployment.");
   const myUserId = await currentUserId();
   if (!myUserId) throw new Error("Sign in first.");
-  const { data, error } = await supabase
-    .from("personal_items")
-    .insert({ user_id: myUserId, name: input.name.trim(), expires_on: input.expiresOn, remind_days_before: input.remindDaysBefore })
-    .select(ITEM_COLUMNS)
-    .single();
-  if (error) throw error;
-  return toItem(data as ItemRow);
+  const row: ItemRow = { id: createTimeOrderedId(), name: input.name.trim(), expires_on: input.expiresOn, remind_days_before: input.remindDaysBefore };
+  await upsertDirect(myUserId, ITEMS_TABLE, row.id, { ...row, user_id: myUserId, reminder_sent_at: null });
+  return toItem(row);
 }
 
+/** Updates an expiration item. `reminder_sent_at` always resets to null
+ * (any edit should let the reminder fire again) — `created_at` is left
+ * out of the payload entirely rather than guessed, so an upsert against
+ * an existing row never touches it. */
 export async function updatePersonalItem(id: string, input: NewPersonalItemInput): Promise<PersonalItem> {
-  if (!supabase) throw new Error("Cloud sync isn't set up for this deployment.");
-  const { data, error } = await supabase
-    .from("personal_items")
-    .update({ name: input.name.trim(), expires_on: input.expiresOn, remind_days_before: input.remindDaysBefore, reminder_sent_at: null, updated_at: new Date().toISOString() })
-    .eq("id", id)
-    .select(ITEM_COLUMNS)
-    .single();
-  if (error) throw error;
-  return toItem(data as ItemRow);
+  const myUserId = await currentUserId();
+  if (!myUserId) throw new Error("Sign in first.");
+  const row: ItemRow = { id, name: input.name.trim(), expires_on: input.expiresOn, remind_days_before: input.remindDaysBefore };
+  await upsertDirect(myUserId, ITEMS_TABLE, id, { ...row, user_id: myUserId, reminder_sent_at: null, updated_at: new Date().toISOString() });
+  return toItem(row);
 }
 
 export async function deletePersonalItem(id: string): Promise<void> {
-  if (!supabase) return;
-  const { error } = await supabase.from("personal_items").delete().eq("id", id);
-  if (error) throw error;
+  const myUserId = await currentUserId();
+  if (!myUserId) throw new Error("Sign in first.");
+  await deleteDirect(myUserId, ITEMS_TABLE, id);
 }
 
 /** Marks a task done "for this cycle": a one-off task is simply done; a
