@@ -6,11 +6,12 @@ import type { Doctor } from "@/lib/supabase/doctors";
 import { resolveSpecialtyNames } from "@/lib/doctors";
 import { ComboBox, DoctorName, FIELD_CLS, FIELD_STYLE, LanguageChips, NextAppointmentField, PencilIcon, RatingChips } from "./shared";
 import { AppointmentList } from "./AppointmentList";
+import { DetailPlaceholder, MedicalSplit, useIsDesktop } from "./MedicalSplit";
 import { InlineEmpty } from "@/components/ui/EmptyState";
 
 type DoctorsApi = ReturnType<typeof useDoctors>;
 
-function DoctorHistory({ api, doctor, accent, onBack }: { api: DoctorsApi; doctor: Doctor; accent: string; onBack: () => void }) {
+function DoctorHistory({ api, doctor, accent, onBack }: { api: DoctorsApi; doctor: Doctor; accent: string; onBack?: () => void }) {
   const { appointments, specialties, doctors } = api;
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -39,7 +40,7 @@ function DoctorHistory({ api, doctor, accent, onBack }: { api: DoctorsApi; docto
   async function handleDelete() {
     try {
       await doctors.remove(doctor.id);
-      onBack();
+      onBack?.();
     } catch {
       setDeleteError("This doctor has appointments — delete those first.");
       setConfirmDelete(false);
@@ -48,9 +49,11 @@ function DoctorHistory({ api, doctor, accent, onBack }: { api: DoctorsApi; docto
 
   return (
     <div className="flex flex-col gap-4">
-      <button type="button" onClick={onBack} className="self-start text-xs font-medium" style={{ color: "var(--text-muted)" }}>
-        ← All doctors
-      </button>
+      {onBack && (
+        <button type="button" onClick={onBack} className="self-start text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+          ← All doctors
+        </button>
+      )}
 
       <div className="rounded-xl border p-4" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", boxShadow: "var(--shadow-card)" }}>
         {editingDetails ? (
@@ -141,22 +144,29 @@ function DoctorHistory({ api, doctor, accent, onBack }: { api: DoctorsApi; docto
 
 export function DoctorsTab({ api, accent }: { api: DoctorsApi; accent: string }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const desktop = useIsDesktop();
   const { doctors, appointments } = api;
-
-  const selected = selectedId ? doctors.data.find((d) => d.id === selectedId) : null;
-  if (selected) return <DoctorHistory api={api} doctor={selected} accent={accent} onBack={() => setSelectedId(null)} />;
 
   if (doctors.data.length === 0) {
     return <InlineEmpty title="No doctors yet" description="Add one while logging an appointment — they're saved here for reuse." />;
   }
 
-  return (
+  const selected = selectedId ? doctors.data.find((d) => d.id === selectedId) ?? null : null;
+
+  const list = (
     <ul className="flex flex-col divide-y rounded-xl border" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
       {doctors.data.map((doctor) => {
         const count = appointments.data.filter((a) => a.doctorId === doctor.id).length;
+        const active = doctor.id === selectedId;
         return (
           <li key={doctor.id} style={{ borderColor: "var(--gridline)" }}>
-            <button type="button" onClick={() => setSelectedId(doctor.id)} className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-[var(--page-plane)]">
+            <button
+              type="button"
+              onClick={() => setSelectedId(doctor.id)}
+              aria-current={active ? "true" : undefined}
+              className="flex w-full items-center justify-between gap-3 border-l-2 px-4 py-3 text-left transition-colors hover:bg-[var(--page-plane)]"
+              style={{ borderLeftColor: active ? accent : "transparent", background: active ? "var(--page-plane)" : undefined }}
+            >
               <span className="min-w-0">
                 <DoctorName name={doctor.name} rating={doctor.rating} className="text-sm" />
                 <span className="ml-2 text-xs" style={{ color: "var(--text-muted)" }}>
@@ -171,5 +181,14 @@ export function DoctorsTab({ api, accent }: { api: DoctorsApi; accent: string })
         );
       })}
     </ul>
+  );
+
+  return (
+    <MedicalSplit
+      selected={!!selected}
+      list={list}
+      detail={selected ? <DoctorHistory api={api} doctor={selected} accent={accent} onBack={desktop ? undefined : () => setSelectedId(null)} /> : null}
+      placeholder={<DetailPlaceholder text="Pick a doctor to see their details and visit history." />}
+    />
   );
 }

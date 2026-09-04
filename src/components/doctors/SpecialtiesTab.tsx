@@ -5,10 +5,11 @@ import type { useDoctors } from "@/lib/useDoctors";
 import { resolveSpecialtyNames } from "@/lib/doctors";
 import { formatDate, NextAppointmentField } from "./shared";
 import { AppointmentList } from "./AppointmentList";
+import { DetailPlaceholder, MedicalSplit, useIsDesktop } from "./MedicalSplit";
 
 type DoctorsApi = ReturnType<typeof useDoctors>;
 
-function SpecialtyHistory({ api, name, accent, onBack }: { api: DoctorsApi; name: string; accent: string; onBack: () => void }) {
+function SpecialtyHistory({ api, name, accent, onBack }: { api: DoctorsApi; name: string; accent: string; onBack?: () => void }) {
   const key = name.toLowerCase();
   const specialty = api.specialties.data.find((s) => s.name.toLowerCase() === key);
   const nextAppt = specialty?.nextAppointmentDate ?? null;
@@ -17,9 +18,11 @@ function SpecialtyHistory({ api, name, accent, onBack }: { api: DoctorsApi; name
 
   return (
     <div className="flex flex-col gap-4">
-      <button type="button" onClick={onBack} className="self-start text-xs font-medium" style={{ color: "var(--text-muted)" }}>
-        ← All specialties
-      </button>
+      {onBack && (
+        <button type="button" onClick={onBack} className="self-start text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+          ← All specialties
+        </button>
+      )}
 
       <div className="rounded-xl border p-4" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", boxShadow: "var(--shadow-card)" }}>
         <h2 className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>
@@ -65,6 +68,7 @@ function SpecialtyHistory({ api, name, accent, onBack }: { api: DoctorsApi; name
 
 export function SpecialtiesTab({ api, accent }: { api: DoctorsApi; accent: string }) {
   const [selected, setSelected] = useState<string | null>(null);
+  const desktop = useIsDesktop();
 
   const rows = useMemo(() => {
     const names = resolveSpecialtyNames(
@@ -84,38 +88,45 @@ export function SpecialtiesTab({ api, accent }: { api: DoctorsApi; accent: strin
     });
   }, [api.specialties.data, api.appointments.data, api.doctors.data, api.careLog.data]);
 
-  if (selected) return <SpecialtyHistory api={api} name={selected} accent={accent} onBack={() => setSelected(null)} />;
-
   // Specialties with history, log entries, or a next-appointment date first,
   // then the rest.
   const withActivity = rows.filter((r) => r.count > 0 || r.entryCount > 0 || r.nextAppointmentDate);
   const rest = rows.filter((r) => r.count === 0 && r.entryCount === 0 && !r.nextAppointmentDate);
 
-  return (
+  const list = (
     <div className="flex flex-col gap-4">
       {withActivity.length > 0 && (
         <ul className="flex flex-col divide-y rounded-xl border" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
-          {withActivity.map((row) => (
-            <li key={row.name} style={{ borderColor: "var(--gridline)" }}>
-              <button type="button" onClick={() => setSelected(row.name)} className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-[var(--page-plane)]">
-                <span className="min-w-0">
-                  <span className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
-                    {row.name}
-                  </span>
-                  {row.nextAppointmentDate && (
-                    <span className="ml-2 text-xs" style={{ color: accent }}>
-                      next {formatDate(row.nextAppointmentDate)}
+          {withActivity.map((row) => {
+            const active = row.name === selected;
+            return (
+              <li key={row.name} style={{ borderColor: "var(--gridline)" }}>
+                <button
+                  type="button"
+                  onClick={() => setSelected(row.name)}
+                  aria-current={active ? "true" : undefined}
+                  className="flex w-full items-center justify-between gap-3 border-l-2 px-4 py-3 text-left transition-colors hover:bg-[var(--page-plane)]"
+                  style={{ borderLeftColor: active ? accent : "transparent", background: active ? "var(--page-plane)" : undefined }}
+                >
+                  <span className="min-w-0">
+                    <span className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
+                      {row.name}
                     </span>
-                  )}
-                </span>
-                <span className="shrink-0 text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>
-                  {row.count > 0 && `${row.count} visit${row.count === 1 ? "" : "s"}`}
-                  {row.count > 0 && row.entryCount > 0 && " · "}
-                  {row.entryCount > 0 && `${row.entryCount} to raise`}
-                </span>
-              </button>
-            </li>
-          ))}
+                    {row.nextAppointmentDate && (
+                      <span className="ml-2 text-xs" style={{ color: accent }}>
+                        next {formatDate(row.nextAppointmentDate)}
+                      </span>
+                    )}
+                  </span>
+                  <span className="shrink-0 text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>
+                    {row.count > 0 && `${row.count} visit${row.count === 1 ? "" : "s"}`}
+                    {row.count > 0 && row.entryCount > 0 && " · "}
+                    {row.entryCount > 0 && `${row.entryCount} to raise`}
+                  </span>
+                </button>
+              </li>
+            );
+          })}
         </ul>
       )}
 
@@ -124,15 +135,33 @@ export function SpecialtiesTab({ api, accent }: { api: DoctorsApi; accent: strin
           All specialties ({rest.length})
         </summary>
         <ul className="flex flex-col divide-y border-t" style={{ borderColor: "var(--gridline)" }}>
-          {rest.map((row) => (
-            <li key={row.name} style={{ borderColor: "var(--gridline)" }}>
-              <button type="button" onClick={() => setSelected(row.name)} className="flex w-full items-center px-4 py-2.5 text-left text-sm transition-colors hover:bg-[var(--page-plane)]" style={{ color: "var(--text-primary)" }}>
-                {row.name}
-              </button>
-            </li>
-          ))}
+          {rest.map((row) => {
+            const active = row.name === selected;
+            return (
+              <li key={row.name} style={{ borderColor: "var(--gridline)" }}>
+                <button
+                  type="button"
+                  onClick={() => setSelected(row.name)}
+                  aria-current={active ? "true" : undefined}
+                  className="flex w-full items-center border-l-2 px-4 py-2.5 text-left text-sm transition-colors hover:bg-[var(--page-plane)]"
+                  style={{ color: "var(--text-primary)", borderLeftColor: active ? accent : "transparent", background: active ? "var(--page-plane)" : undefined }}
+                >
+                  {row.name}
+                </button>
+              </li>
+            );
+          })}
         </ul>
       </details>
     </div>
+  );
+
+  return (
+    <MedicalSplit
+      selected={selected != null}
+      list={list}
+      detail={selected != null ? <SpecialtyHistory api={api} name={selected} accent={accent} onBack={desktop ? undefined : () => setSelected(null)} /> : null}
+      placeholder={<DetailPlaceholder text="Pick a specialty to see its next appointment, points to raise, and visit history." />}
+    />
   );
 }
