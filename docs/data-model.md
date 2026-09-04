@@ -319,7 +319,7 @@ appointment never removes the doctor); `doctor_appointment_tasks →
 doctor_appointments` is `on delete cascade`. A `reminder_at` that has passed
 is sent once by the reminder cron (phase 2).
 
-`care_entries` is a separate dated timeline (the Medical page's **Log** tab) of
+`care_entries` is a separate dated timeline (the Medical page's **Care log** tab) of
 things to remember between visits — an `observation` you noticed or a plain
 `note`. Each entry is tagged to any number of specialties through the
 `care_entry_specialties` join (both FKs `on delete cascade`), so it reads whole
