@@ -92,7 +92,7 @@ const GROUPS: { title: string; items: Entry[] }[] = [
     items: [
       {
         title: "The tabs",
-        body: "Appointments is the full visit log, newest first. Log is a dated timeline of observations tagged to a specialty. Results holds your blood and lab markers over time. Doctors is one page per saved doctor with all their visits. Specialties shows every visit for a type (e.g. all internists), across doctors. Follow-ups gathers every outstanding follow-up task in one list.",
+        body: "Appointments is the full visit log, newest first. Log is a dated timeline of observations tagged to a specialty. Results holds your blood and lab markers over time. Vitals tracks blood pressure and weight, with the trend and blood-pressure category. Doctors is one page per saved doctor with all their visits. Specialties shows every visit for a type (e.g. all internists), across doctors. Follow-ups gathers every outstanding follow-up task in one list.",
       },
       {
         title: "Doctor type, rating and language",

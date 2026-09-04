@@ -340,6 +340,16 @@ marker's detail or a whole blood draw at once from its **Add results** batch vie
 tab reads the same rows (through `useLabs`, no extra query) for the headline grid,
 flagged-value list, per-panel trend charts and the compare overlay.
 
+`blood_pressure` / `weight_logs` back the Medical page's **Vitals** tab. Unlike lab
+results these are taken more than once a day, so the timestamp is `measured_at
+timestamptz`, not a `date`. A `blood_pressure` row is one paired reading —
+`systolic`, `diastolic`, optional `pulse` — with a single `note`; a `weight_logs`
+row is one `kg` value with a `note`. Two purpose-named tables rather than a generic
+`vitals(kind, value)` — they read differently and are never queried together.
+Owner-only, direct-to-Supabase, same class as `care_entries` / `lab_*`. The Vitals
+tab classifies each blood-pressure reading with the ACC/AHA 2017 categories
+(Normal / Elevated / Stage 1 / Stage 2), shown for reference only.
+
 ## Reminders → Home
 
 The same three concepts, shared with a linked partner. Reuses Connect's
