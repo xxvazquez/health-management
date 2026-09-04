@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import type { useDoctors } from "@/lib/useDoctors";
 import { resolveSpecialtyNames } from "@/lib/doctors";
+import { CustomIcon, customColorValue } from "@/components/ui/customIcons";
 import { formatDate, NextAppointmentField } from "./shared";
 import { AppointmentList } from "./AppointmentList";
 import { DetailPlaceholder, MedicalSplit, useIsDesktop } from "./MedicalSplit";
@@ -15,6 +16,7 @@ function SpecialtyHistory({ api, name, accent, onBack }: { api: DoctorsApi; name
   const nextAppt = specialty?.nextAppointmentDate ?? null;
   const theirAppointments = api.appointments.data.filter((a) => a.specialty.toLowerCase() === key);
   const theirEntries = specialty ? api.careLog.data.filter((e) => e.specialtyIds.includes(specialty.id)) : [];
+  const rowAccent = (specialty && customColorValue(specialty.color)) ?? accent;
 
   return (
     <div className="flex flex-col gap-4">
@@ -25,7 +27,12 @@ function SpecialtyHistory({ api, name, accent, onBack }: { api: DoctorsApi; name
       )}
 
       <div className="rounded-xl border p-4" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", boxShadow: "var(--shadow-card)" }}>
-        <h2 className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>
+        <h2 className="flex items-center gap-2 text-base font-semibold" style={{ color: "var(--text-primary)" }}>
+          {specialty?.icon && (
+            <span style={{ color: rowAccent }}>
+              <CustomIcon icon={specialty.icon} size={16} />
+            </span>
+          )}
           {name}
         </h2>
         <div className="mt-3 border-t pt-3" style={{ borderColor: "var(--gridline)" }}>
@@ -84,6 +91,8 @@ export function SpecialtiesTab({ api, accent }: { api: DoctorsApi; accent: strin
         count: api.appointments.data.filter((a) => a.specialty.toLowerCase() === key).length,
         entryCount: specialty ? api.careLog.data.filter((e) => e.specialtyIds.includes(specialty.id)).length : 0,
         nextAppointmentDate: specialty?.nextAppointmentDate ?? null,
+        icon: specialty?.icon ?? null,
+        color: specialty?.color ?? null,
       };
     });
   }, [api.specialties.data, api.appointments.data, api.doctors.data, api.careLog.data]);
@@ -108,7 +117,12 @@ export function SpecialtiesTab({ api, accent }: { api: DoctorsApi; accent: strin
                   className="flex w-full items-center justify-between gap-3 border-l-2 px-4 py-3 text-left transition-colors hover:bg-[var(--page-plane)]"
                   style={{ borderLeftColor: active ? accent : "transparent", background: active ? "var(--page-plane)" : undefined }}
                 >
-                  <span className="min-w-0">
+                  <span className="flex min-w-0 items-center gap-1.5">
+                    {row.icon && (
+                      <span className="shrink-0" style={{ color: customColorValue(row.color) ?? accent }}>
+                        <CustomIcon icon={row.icon} size={14} />
+                      </span>
+                    )}
                     <span className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
                       {row.name}
                     </span>
@@ -143,9 +157,14 @@ export function SpecialtiesTab({ api, accent }: { api: DoctorsApi; accent: strin
                   type="button"
                   onClick={() => setSelected(row.name)}
                   aria-current={active ? "true" : undefined}
-                  className="flex w-full items-center border-l-2 px-4 py-2.5 text-left text-sm transition-colors hover:bg-[var(--page-plane)]"
+                  className="flex w-full items-center gap-1.5 border-l-2 px-4 py-2.5 text-left text-sm transition-colors hover:bg-[var(--page-plane)]"
                   style={{ color: "var(--text-primary)", borderLeftColor: active ? accent : "transparent", background: active ? "var(--page-plane)" : undefined }}
                 >
+                  {row.icon && (
+                    <span className="shrink-0" style={{ color: customColorValue(row.color) ?? accent }}>
+                      <CustomIcon icon={row.icon} size={14} />
+                    </span>
+                  )}
                   {row.name}
                 </button>
               </li>

@@ -125,7 +125,7 @@ export function useDoctors() {
   const createSpecialty = useCallback(
     async (name: string) => {
       if (isDemo) {
-        setSpecialties((prev) => [...prev, { id: demoId("spec"), name: name.trim(), nextAppointmentDate: null, isArchived: false }].sort((a, b) => a.name.localeCompare(b.name)));
+        setSpecialties((prev) => [...prev, { id: demoId("spec"), name: name.trim(), nextAppointmentDate: null, isArchived: false, icon: null, color: null }].sort((a, b) => a.name.localeCompare(b.name)));
         return;
       }
       const created = await createDoctorSpecialty(name);
@@ -137,7 +137,7 @@ export function useDoctors() {
   const renameSpecialty = useCallback(
     async (id: string, name: string) => {
       setSpecialties((prev) => prev.map((s) => (s.id === id ? { ...s, name: name.trim() } : s)).sort((a, b) => a.name.localeCompare(b.name)));
-      if (!isDemo) await renameDoctorSpecialty(id, name).catch((err) => console.error("renameDoctorSpecialty failed", err));
+      if (!isDemo) await renameDoctorSpecialty(id, { name }).catch((err) => console.error("renameDoctorSpecialty failed", err));
     },
     [isDemo],
   );
@@ -166,7 +166,7 @@ export function useDoctors() {
           if (prev.some((s) => s.name.toLowerCase() === key)) {
             return prev.map((s) => (s.name.toLowerCase() === key ? { ...s, nextAppointmentDate: date } : s));
           }
-          return [...prev, { id: demoId("spec"), name: specialtyName.trim(), nextAppointmentDate: date, isArchived: false }].sort((a, b) => a.name.localeCompare(b.name));
+          return [...prev, { id: demoId("spec"), name: specialtyName.trim(), nextAppointmentDate: date, isArchived: false, icon: null, color: null }].sort((a, b) => a.name.localeCompare(b.name));
         });
         return;
       }

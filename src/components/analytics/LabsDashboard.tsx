@@ -28,6 +28,7 @@ import { Methodology } from "@/components/ui/Methodology";
 import { SearchField } from "@/components/ui/SearchField";
 import { LabMarkerChart, LabMiniChart, LabSparkline } from "@/components/charts/LabMarkerChart";
 import { MultiLineChart } from "@/components/charts/MultiLineChart";
+import { CustomIcon, customColorValue } from "@/components/ui/customIcons";
 
 const ACCENT = "var(--series-6)";
 const MAX_COMPARE = 4;
@@ -93,10 +94,10 @@ export function LabsDashboard() {
       byPanel.set(key, [...(byPanel.get(key) ?? []), m]);
     }
     const sections = labs.panels.data
-      .map((p) => ({ id: p.id, name: p.name, markers: byPanel.get(p.id) ?? [] }))
+      .map((p) => ({ id: p.id, name: p.name, icon: p.icon, color: p.color, markers: byPanel.get(p.id) ?? [] }))
       .filter((s) => s.markers.length > 0);
     const other = byPanel.get("") ?? [];
-    if (other.length > 0) sections.push({ id: "__other__", name: sections.length > 0 ? "Other" : "Markers", markers: other });
+    if (other.length > 0) sections.push({ id: "__other__", name: sections.length > 0 ? "Other" : "Markers", icon: null, color: null, markers: other });
     return sections;
   }, [inRange, labs.panels.data]);
 
@@ -247,7 +248,14 @@ export function LabsDashboard() {
         const expandedMarker = s.markers.find((m) => m.id === expanded);
         return (
           <Card key={s.id} tier="raw" className="lg:col-span-2">
-            <CardTitle size="sm">{s.name}</CardTitle>
+            <div className="mb-3 flex items-center gap-1.5">
+              {s.icon && (
+                <span style={{ color: customColorValue(s.color) ?? ACCENT }}>
+                  <CustomIcon icon={s.icon} size={15} />
+                </span>
+              )}
+              <h3 className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>{s.name}</h3>
+            </div>
             {expandedMarker ? (
               <div className="flex flex-col gap-3">
                 <button

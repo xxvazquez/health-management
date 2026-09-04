@@ -183,7 +183,7 @@ export function usePersonalReminderBoards() {
       const trimmed = name.trim();
       if (isDemo) {
         const id = `demo-list-${Date.now()}`;
-        setLists((prev) => [...prev, { id, name: trimmed, sortOrder: prev.length }]);
+        setLists((prev) => [...prev, { id, name: trimmed, sortOrder: prev.length, icon: null, color: null }]);
         return id;
       }
       const created = await createReminderList(trimmed, lists.length);
@@ -197,7 +197,7 @@ export function usePersonalReminderBoards() {
     async (id: string, name: string) => {
       const trimmed = name.trim();
       setLists((prev) => prev.map((l) => (l.id === id ? { ...l, name: trimmed } : l)));
-      if (!isDemo) await renameReminderList(id, trimmed);
+      if (!isDemo) await renameReminderList(id, { name: trimmed });
     },
     [isDemo],
   );

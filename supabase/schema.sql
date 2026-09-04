@@ -595,6 +595,11 @@ create table public.reminder_lists (
   user_id uuid not null default auth.uid() references auth.users(id),
   name text not null check (char_length(trim(name)) > 0),
   sort_order int not null default 0,
+  -- Custom appearance from ui/customIcons; both null falls back to the
+  -- page's existing hardcoded look. Same columns as wishlist_categories,
+  -- doctor_specialties, lab_panels.
+  icon text,
+  color text,
   created_at timestamptz not null default now(),
   unique (user_id, id)
 );
@@ -673,6 +678,10 @@ create table public.doctor_specialties (
   -- keeps its own frozen specialty string, so hiding one never loses
   -- history. Toggled from the Manage page, same idea as an archived item.
   is_archived boolean not null default false,
+  -- Custom appearance from ui/customIcons; both null falls back to the
+  -- page's existing hardcoded look.
+  icon text,
+  color text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   unique (user_id, name_key),
@@ -775,6 +784,10 @@ create table public.lab_panels (
   user_id uuid not null default auth.uid() references auth.users(id),
   name text not null check (char_length(trim(name)) > 0),
   sort_order int not null default 0,
+  -- Custom appearance from ui/customIcons; both null falls back to the
+  -- page's existing hardcoded look.
+  icon text,
+  color text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   unique (user_id, id)

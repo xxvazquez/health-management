@@ -2,6 +2,7 @@ import { supabase } from "./client";
 import { isRecurringTask, nextRecurringDueAt, type TaskItem } from "@/lib/reminders";
 import { createTimeOrderedId } from "@/lib/sortableId";
 import { deleteDirect, upsertDirect } from "./directWrite";
+import type { CustomAppearance } from "@/components/ui/customIcons";
 
 export interface PersonalNote {
   id: string;
@@ -78,7 +79,7 @@ async function currentUserId(): Promise<string | null> {
 const NOTE_COLUMNS = "id, title, body, created_at, updated_at";
 const TASK_COLUMNS = "id, title, notes, due_at, recurrence_days, last_completed_at, is_archived, list_id";
 const ITEM_COLUMNS = "id, name, expires_on, remind_days_before";
-const LIST_COLUMNS = "id, name, sort_order";
+const LIST_COLUMNS = "id, name, sort_order, icon, color";
 
 /** A user-owned reminder list ("To Do", "To Buy", "Bathroom", …). Real
  * rows so a list can be empty, renamed, and deleted independently of the
@@ -87,16 +88,22 @@ export interface ReminderList {
   id: string;
   name: string;
   sortOrder: number;
+  /** Custom appearance from ui/customIcons — both null falls back to the
+   * list's existing hardcoded look. */
+  icon: string | null;
+  color: string | null;
 }
 
 interface ListRow {
   id: string;
   name: string;
   sort_order: number;
+  icon: string | null;
+  color: string | null;
 }
 
 function toList(row: ListRow): ReminderList {
-  return { id: row.id, name: row.name, sortOrder: row.sort_order };
+  return { id: row.id, name: row.name, sortOrder: row.sort_order, icon: row.icon, color: row.color };
 }
 
 export async function fetchReminderLists(): Promise<ReminderList[]> {
@@ -112,22 +119,32 @@ export async function fetchReminderLists(): Promise<ReminderList[]> {
   return (data as ListRow[]).map(toList);
 }
 
-export async function createReminderList(name: string, sortOrder: number): Promise<ReminderList> {
+export async function createReminderList(name: string, sortOrder: number, appearance?: CustomAppearance): Promise<ReminderList> {
   if (!supabase) throw new Error("Cloud sync isn't set up for this deployment.");
   const myUserId = await currentUserId();
   if (!myUserId) throw new Error("Sign in first.");
   const { data, error } = await supabase
     .from("reminder_lists")
-    .insert({ user_id: myUserId, name: name.trim(), sort_order: sortOrder })
+    .insert({ user_id: myUserId, name: name.trim(), sort_order: sortOrder, icon: appearance?.icon ?? null, color: appearance?.color ?? null })
     .select(LIST_COLUMNS)
     .single();
   if (error) throw error;
   return toList(data as ListRow);
 }
 
-export async function renameReminderList(id: string, name: string): Promise<ReminderList> {
+export interface ReminderListPatch {
+  name?: string;
+  icon?: string | null;
+  color?: string | null;
+}
+
+export async function renameReminderList(id: string, patch: ReminderListPatch): Promise<ReminderList> {
   if (!supabase) throw new Error("Cloud sync isn't set up for this deployment.");
-  const { data, error } = await supabase.from("reminder_lists").update({ name: name.trim() }).eq("id", id).select(LIST_COLUMNS).single();
+  const update: Record<string, unknown> = {};
+  if (patch.name !== undefined) update.name = patch.name.trim();
+  if (patch.icon !== undefined) update.icon = patch.icon;
+  if (patch.color !== undefined) update.color = patch.color;
+  const { data, error } = await supabase.from("reminder_lists").update(update).eq("id", id).select(LIST_COLUMNS).single();
   if (error) throw error;
   return toList(data as ListRow);
 }

@@ -15,21 +15,17 @@ import type {
   WishlistItem,
   WishlistShareToken,
 } from "@/lib/supabase/wishlist";
-import {
-  WishlistCategoryIcon,
-  WISHLIST_COLOR_CHOICES,
-  WISHLIST_ICON_KEYS,
-  wishlistColorValue,
-} from "./wishlistIcons";
+import { CustomIcon, CUSTOM_COLOR_CHOICES, customColorValue } from "@/components/ui/customIcons";
+import { IconColorPicker } from "@/components/ui/IconColorPicker";
 
 /** Fallback per-category accent, keyed off the category's position in the
  * (oldest-first) list — see fetchWishlist. Used when the category has no
  * colour of its own. */
-const WISHLIST_ACCENTS = WISHLIST_COLOR_CHOICES.map((c) => c.value);
+const WISHLIST_ACCENTS = CUSTOM_COLOR_CHOICES.map((c) => c.value);
 
 /** A category's own colour if it set one, else the position fallback. */
 function accentForCategory(category: WishlistCategory, index: number): string {
-  return wishlistColorValue(category.color) ?? WISHLIST_ACCENTS[index % WISHLIST_ACCENTS.length];
+  return customColorValue(category.color) ?? WISHLIST_ACCENTS[index % WISHLIST_ACCENTS.length];
 }
 
 /** Prepend a scheme so a pasted "example.com/thing" is still a working
@@ -64,7 +60,7 @@ function CategoryGlyph({ accent, icon = null, size = 34 }: { accent: string; ico
       className="flex shrink-0 items-center justify-center rounded-[9px]"
       style={{ width: size, height: size, background: `color-mix(in oklab, ${accent} 16%, var(--surface-1))`, color: accent }}
     >
-      <WishlistCategoryIcon icon={icon} size={Math.round(size * 0.5)} />
+      <CustomIcon icon={icon} size={Math.round(size * 0.5)} />
     </span>
   );
 }
@@ -278,7 +274,7 @@ function CategoryForm({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const accent = wishlistColorValue(color) ?? fallbackAccent;
+  const accent = customColorValue(color) ?? fallbackAccent;
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -316,57 +312,7 @@ function CategoryForm({
         />
       </div>
 
-      <fieldset className="flex flex-col gap-1.5">
-        <legend className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
-          Icon
-        </legend>
-        <div className="flex flex-wrap gap-1.5">
-          {WISHLIST_ICON_KEYS.map((key) => {
-            const selected = (icon ?? "heart") === key;
-            return (
-              <button
-                key={key}
-                type="button"
-                aria-pressed={selected}
-                aria-label={key}
-                onClick={() => setIcon(key === "heart" ? null : key)}
-                className="tap-target flex h-9 w-9 items-center justify-center rounded-lg border transition-colors"
-                style={{
-                  borderColor: selected ? accent : "var(--border-hairline)",
-                  background: selected ? `color-mix(in oklab, ${accent} 14%, var(--surface-1))` : "var(--surface-1)",
-                  color: selected ? accent : "var(--text-muted)",
-                }}
-              >
-                <WishlistCategoryIcon icon={key} size={17} />
-              </button>
-            );
-          })}
-        </div>
-      </fieldset>
-
-      <fieldset className="flex flex-col gap-1.5">
-        <legend className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
-          Colour
-        </legend>
-        <div className="flex flex-wrap gap-2">
-          {WISHLIST_COLOR_CHOICES.map((choice) => {
-            const selected = color === choice.key;
-            return (
-              <button
-                key={choice.key}
-                type="button"
-                aria-pressed={selected}
-                aria-label={choice.key}
-                onClick={() => setColor(selected ? null : choice.key)}
-                className="tap-target flex h-7 w-7 items-center justify-center rounded-full"
-                style={{ boxShadow: selected ? `0 0 0 2px var(--surface-1), 0 0 0 4px ${choice.value}` : "none" }}
-              >
-                <span className="h-5 w-5 rounded-full" style={{ background: choice.value }} />
-              </button>
-            );
-          })}
-        </div>
-      </fieldset>
+      <IconColorPicker icon={icon} color={color} onIconChange={setIcon} onColorChange={setColor} accent={accent} />
 
       <div className="flex items-center gap-3">
         <button type="submit" disabled={!name.trim() || saving} className="rounded-md px-4 py-2 text-sm font-medium text-white disabled:opacity-50" style={{ background: accent }}>

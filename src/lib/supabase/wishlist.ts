@@ -14,9 +14,9 @@ export interface WishlistItem {
 export interface WishlistCategory {
   id: string;
   name: string;
-  /** Icon key from the fixed set in wishlistIcons; null → heart. */
+  /** Icon key from the fixed set in ui/customIcons; null → heart. */
   icon: string | null;
-  /** Brand-hue key from WISHLIST_COLOR_CHOICES; null → position accent. */
+  /** Brand-hue key from CUSTOM_COLOR_CHOICES; null → position accent. */
   color: string | null;
   createdAt: string;
   /** Newest first. */

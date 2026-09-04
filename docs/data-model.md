@@ -407,12 +407,20 @@ diagrammed above) is another standalone board on the same page.
 
 `wishlist_categories` / `wishlist_items` back the Wishlist board: a
 category is a name plus an optional `icon` / `color` (an icon key and a
-brand-hue key, both from fixed client-side sets — `src/components/home/wishlistIcons.tsx`),
-an item is one URL plus a title (fetched by the `fetch-link-metadata`
-Edge Function, or typed) and an optional note.
-`wishlist_items.category_id` cascades on category delete. A category with
-no `icon` / `color` falls back to a heart glyph and a position-keyed
-accent. All the household tables use the pair RLS shape below.
+brand-hue key, both from the fixed client-side sets in
+`src/components/ui/customIcons.tsx`), an item is one URL plus a title
+(fetched by the `fetch-link-metadata` Edge Function, or typed) and an
+optional note. `wishlist_items.category_id` cascades on category delete.
+A category with no `icon` / `color` falls back to a heart glyph and a
+position-keyed accent. All the household tables use the pair RLS shape
+below.
+
+The same `icon` / `color` pair — same fixed sets, same "both null falls
+back to the page's hardcoded look" rule — also lives on `reminder_lists`,
+`doctor_specialties` and `lab_panels`, set from their own Manage /
+Medical row via the shared `ui/IconColorPicker.tsx`. `categories` (the
+tracking-domain groupings) doesn't have it yet — the biggest, most
+invasive slice of this feature, deliberately deferred.
 
 `wishlist_share_tokens` (one row per account, `unique (owner_id)`) is a
 capture token for a phone Share Sheet shortcut: iOS has no PWA share
