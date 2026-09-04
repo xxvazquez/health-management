@@ -135,7 +135,7 @@ export function AccountPanel() {
                 </button>
               </div>
               {syncState.pending > 0 && (
-                <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>
+                <span className="text-xs" style={{ color: "var(--text-muted)" }}>
                   {syncState.pending} {syncState.pending === 1 ? "change" : "changes"} saved on this device{isOnline ? ", uploading…" : " — will upload when you're back online"}
                 </span>
               )}

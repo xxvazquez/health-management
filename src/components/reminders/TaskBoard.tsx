@@ -584,7 +584,7 @@ export function TaskBoard({
             )}
             {recurring && (
               <span
-                className="rounded px-1.5 py-0.5 text-[11px] font-semibold"
+                className="rounded px-1.5 py-0.5 text-xs font-semibold"
                 style={{ background: `color-mix(in oklab, ${accent} 14%, transparent)`, color: accent }}
               >
                 every {task.recurrenceDays}d

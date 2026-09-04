@@ -180,7 +180,7 @@ function CareEntryRow({ entry, specialtyNames, accent, onEdit, onDelete }: { ent
       <button type="button" onClick={onEdit} className="min-w-0 flex-1 text-left">
         <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs" style={{ color: "var(--text-muted)" }}>
           <span
-            className="rounded px-1.5 py-0.5 text-[10px] font-semibold tracking-wide uppercase"
+            className="rounded px-1.5 py-0.5 text-xs font-semibold tracking-wide uppercase"
             style={{ background: `color-mix(in oklab, ${accent} 14%, transparent)`, color: accent }}
           >
             {KIND_LABEL[entry.kind]}
@@ -198,7 +198,7 @@ function CareEntryRow({ entry, specialtyNames, accent, onEdit, onDelete }: { ent
         {specialtyNames.length > 0 && (
           <span className="mt-1.5 flex flex-wrap gap-1">
             {specialtyNames.map((name) => (
-              <span key={name} className="rounded-full border px-2 py-0.5 text-[11px]" style={{ borderColor: "var(--border-hairline)", color: "var(--text-muted)" }}>
+              <span key={name} className="rounded-full border px-2 py-0.5 text-xs" style={{ borderColor: "var(--border-hairline)", color: "var(--text-muted)" }}>
                 {name}
               </span>
             ))}
