@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useLabs } from "@/lib/useLabs";
 import { todayLocalISODate } from "@/lib/aggregations/common";
 import type { LabMarker, LabResult } from "@/lib/supabase/labs";
@@ -9,24 +9,11 @@ import { ListSkeleton } from "@/components/ui/Skeleton";
 import { InlineEmpty } from "@/components/ui/EmptyState";
 import { PrimaryAction } from "@/components/ui/PrimaryAction";
 import { FIELD_CLS, FIELD_STYLE, IconAction, LABEL_CLS, LABEL_STYLE, PencilIcon, TrashIcon, formatDate } from "./shared";
+import { parseNum, rangeStatus, statusColor } from "./labStatus";
+import { BatchResultsView } from "./BatchResultsView";
 
 const NEW_PANEL = "__new__";
 const NO_PANEL = "";
-
-type RangeStatus = "low" | "in" | "high" | null;
-
-function rangeStatus(value: number, low: number | null, high: number | null): RangeStatus {
-  if (low == null && high == null) return null;
-  if (low != null && value < low) return "low";
-  if (high != null && value > high) return "high";
-  return "in";
-}
-
-function statusColor(status: RangeStatus): string {
-  if (status === "in") return "var(--status-good)";
-  if (status === "low" || status === "high") return "var(--status-warning)";
-  return "var(--text-muted)";
-}
 
 function refRangeLabel(low: number | null, high: number | null, unit: string | null): string | null {
   if (low == null && high == null) return null;
@@ -34,11 +21,6 @@ function refRangeLabel(low: number | null, high: number | null, unit: string | n
   if (low != null && high != null) return `Ref ${low}–${high}${u}`;
   if (low != null) return `Ref ≥ ${low}${u}`;
   return `Ref ≤ ${high}${u}`;
-}
-
-function parseNum(raw: string): number | null {
-  const n = Number(raw.replace(",", ".").trim());
-  return raw.trim() !== "" && Number.isFinite(n) ? n : null;
 }
 
 // --- Marker form -------------------------------------------------------
@@ -479,6 +461,7 @@ function PanelNameForm({ accent, initialName, onSave, onCancel }: { accent: stri
 
 type View =
   | { mode: "list" }
+  | { mode: "batch" }
   | { mode: "marker"; markerId: string }
   | { mode: "marker-form"; markerId?: string }
   | { mode: "result-form"; markerId: string; resultId?: string }
@@ -487,6 +470,13 @@ type View =
 export function ResultsTab({ accent }: { accent: string }) {
   const labs = useLabs();
   const [view, setView] = useState<View>({ mode: "list" });
+  const [flash, setFlash] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!flash) return;
+    const t = setTimeout(() => setFlash(null), 6000);
+    return () => clearTimeout(t);
+  }, [flash]);
 
   const grouped = useMemo(() => {
     const byPanel = new Map<string, LabMarker[]>();
@@ -528,6 +518,21 @@ export function ResultsTab({ accent }: { accent: string }) {
     );
   }
 
+  if (view.mode === "batch") {
+    return (
+      <BatchResultsView
+        labs={labs}
+        accent={accent}
+        onDone={(summary) => {
+          if (summary) {
+            setFlash(`${summary.count} ${summary.count === 1 ? "value" : "values"} added · ${formatDate(summary.date)}`);
+          }
+          setView({ mode: "list" });
+        }}
+      />
+    );
+  }
+
   if (view.mode === "panel-form") {
     const panel = view.panelId ? labs.panels.data.find((p) => p.id === view.panelId) : undefined;
     return (
@@ -564,19 +569,41 @@ export function ResultsTab({ accent }: { accent: string }) {
 
   function fallbackToList() {
     const hasAny = labs.markers.data.length > 0 || labs.panels.data.length > 0;
+    const hasMarkers = labs.markers.data.length > 0;
     return (
       <div className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <button
-            type="button"
-            onClick={() => setView({ mode: "panel-form" })}
-            className="shrink-0 rounded-md border px-2.5 py-1.5 text-xs font-medium"
-            style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-secondary)" }}
-          >
-            New panel
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setView({ mode: "panel-form" })}
+              className="shrink-0 rounded-md border px-2.5 py-1.5 text-xs font-medium"
+              style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-secondary)" }}
+            >
+              New panel
+            </button>
+            {hasMarkers && (
+              <button
+                type="button"
+                onClick={() => setView({ mode: "batch" })}
+                className="shrink-0 rounded-md border px-2.5 py-1.5 text-xs font-medium"
+                style={{ borderColor: accent, background: `color-mix(in oklab, ${accent} 12%, var(--surface-1))`, color: accent }}
+              >
+                Add results
+              </button>
+            )}
+          </div>
           <PrimaryAction label="New marker" accent={accent} onClick={() => setView({ mode: "marker-form" })} />
         </div>
+
+        {flash && (
+          <p
+            className="rounded-lg border px-3 py-2 text-xs font-medium"
+            style={{ borderColor: accent, background: `color-mix(in oklab, ${accent} 10%, var(--surface-1))`, color: "var(--text-secondary)" }}
+          >
+            {flash}
+          </p>
+        )}
 
         {labs.loading ? (
           <ListSkeleton />

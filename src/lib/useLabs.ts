@@ -6,6 +6,7 @@ import {
   createLabMarker,
   createLabPanel,
   createLabResult,
+  createLabResults,
   deleteLabMarker,
   deleteLabPanel,
   deleteLabResult,
@@ -205,6 +206,45 @@ export function useLabs() {
     [isDemo],
   );
 
+  const addManyResults = useCallback(
+    async (inputs: NewLabResultInput[]) => {
+      if (inputs.length === 0) return;
+      if (isDemo) {
+        setMarkers((prev) =>
+          prev.map((m) => {
+            const mine = inputs.filter((i) => i.markerId === m.id);
+            if (mine.length === 0) return m;
+            return {
+              ...m,
+              results: sortResults([
+                ...m.results,
+                ...mine.map((input) => ({
+                  id: demoId("result"),
+                  markerId: m.id,
+                  measuredOn: input.measuredOn,
+                  value: input.value,
+                  lab: input.lab.trim() || null,
+                  note: input.note.trim() || null,
+                })),
+              ]),
+            };
+          }),
+        );
+        return;
+      }
+      const created = await createLabResults(inputs);
+      const byMarker = new Map<string, typeof created>();
+      for (const r of created) byMarker.set(r.markerId, [...(byMarker.get(r.markerId) ?? []), r]);
+      setMarkers((prev) =>
+        prev.map((m) => {
+          const add = byMarker.get(m.id);
+          return add ? { ...m, results: sortResults([...m.results, ...add]) } : m;
+        }),
+      );
+    },
+    [isDemo],
+  );
+
   const editResult = useCallback(
     async (markerId: string, id: string, patch: LabResultPatch) => {
       setMarkers((prev) =>
@@ -255,6 +295,6 @@ export function useLabs() {
     error,
     panels: { data: panels, create: createPanel, rename: renamePanel, remove: removePanel },
     markers: { data: markers, create: createMarker, edit: editMarker, remove: removeMarker },
-    results: { add: addResult, edit: editResult, remove: removeResult },
+    results: { add: addResult, addMany: addManyResults, edit: editResult, remove: removeResult },
   };
 }
