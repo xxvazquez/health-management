@@ -29,13 +29,12 @@ import {
 } from "@/lib/aggregations/food";
 import {
   computeNutritionPriorities,
-  type Bullet,
   type CoverageRow,
   type GroupStatus,
   type DietBalanceStatus,
+  type PillarRow as PillarStat,
 } from "@/lib/aggregations/nutritionPriorities";
 import { TYPE_ACCENT } from "@/taxonomy/categories";
-import { NUTRITION_GROUP_EXAMPLES } from "@/taxonomy/nutritionGroups";
 
 /** A nutrition-group name shown inside a sentence — lowercased so
  * "other veg" and "citrus fruit" read as terms rather than proper nouns. */
@@ -73,103 +72,49 @@ function StatusPill({ status, label, color }: { status: string; label: string; c
   );
 }
 
-/** One row of a Going well / Worth noticing card: the group name, its
- * example foods, and — for a single-group bullet — how often it was logged
- * as a percentage of the range, with a matching bar. Pillar-wide bullets
- * (no one figure) fall back to their sentence. */
-function FrequencyRow({ bullet, tone }: { bullet: Bullet; tone: string }) {
-  const f = bullet.frequency;
-  const egText = f ? f.examples.slice(0, 3).join(", ") + (f.examples.length > 3 ? ` +${f.examples.length - 3}` : "") : null;
+/** One pillar's row in the Overview balance card: the pillar name, how
+ * often any of its core groups was logged as a percentage of the range,
+ * the verdict, and a matching bar. The card lists all six pillars
+ * worst-first, so this is the whole "how balanced is what I eat" picture
+ * in one place. */
+function PillarStatRow({ row }: { row: PillarStat }) {
+  const tone = DIET_BALANCE_COLOR[row.status];
   return (
     <li>
       <div className="flex items-baseline justify-between gap-3">
-        <span className="min-w-0 flex-1 truncate text-sm lowercase" style={{ color: "var(--text-primary)" }}>
-          {bullet.label}
+        <span className="min-w-0 flex-1 truncate text-sm" style={{ color: "var(--text-primary)" }}>
+          {row.label}
         </span>
-        {f &&
-          (f.notTracked ? (
-            <span
-              className="shrink-0 rounded-md px-1.5 py-0.5 text-xs font-medium"
-              style={{ color: "var(--text-muted)", background: "var(--page-plane)" }}
-            >
-              Not tracked
-            </span>
-          ) : (
-            <span className="shrink-0 text-sm font-semibold tabular-nums" style={{ color: tone }}>
-              {f.percent}%
-            </span>
-          ))}
+        {row.notTracked ? (
+          <span
+            className="shrink-0 rounded-md px-1.5 py-0.5 text-xs font-medium"
+            style={{ color: "var(--text-muted)", background: "var(--page-plane)" }}
+          >
+            Not tracked
+          </span>
+        ) : (
+          <span className="shrink-0 text-sm font-semibold tabular-nums" style={{ color: tone }}>
+            {row.percent}%
+          </span>
+        )}
       </div>
 
-      {f ? (
-        <div className="mt-0.5 flex items-baseline justify-between gap-3 text-xs" style={{ color: "var(--text-muted)" }}>
-          <span className="min-w-0 flex-1 truncate">{egText}</span>
-          {!f.notTracked && (
-            <span className="shrink-0 tabular-nums">
-              {f.daysInRange} / {f.rangeLengthDays} days
-            </span>
-          )}
-        </div>
-      ) : (
-        <p className="mt-0.5 text-xs" style={{ color: "var(--text-secondary)" }}>
-          {bullet.detail}
-        </p>
-      )}
+      <div className="mt-0.5 flex items-baseline justify-between gap-3 text-xs" style={{ color: "var(--text-muted)" }}>
+        <span className="min-w-0 flex-1 truncate">{row.statusLabel}</span>
+        {!row.notTracked && (
+          <span className="shrink-0 tabular-nums">
+            {row.daysInRange} / {row.rangeLengthDays} days
+          </span>
+        )}
+      </div>
 
-      {f && (
-        <div className="mt-1.5 h-1.5 w-full rounded-full" style={{ background: "var(--gridline)" }}>
-          <div
-            className="h-1.5 rounded-full"
-            style={{ width: f.notTracked ? "0%" : `${Math.max(3, f.percent)}%`, background: tone }}
-          />
-        </div>
-      )}
+      <div className="mt-1.5 h-1.5 w-full rounded-full" style={{ background: "var(--gridline)" }}>
+        <div
+          className="h-1.5 rounded-full"
+          style={{ width: row.notTracked ? "0%" : `${Math.max(3, row.percent)}%`, background: tone }}
+        />
+      </div>
     </li>
-  );
-}
-
-/** A Going well / Worth noticing card — a small scannable chart of
- * food-group frequency rather than a stack of sentences. Sorted by how
- * often each group shows up: `asc` puts the biggest gaps first (Worth
- * noticing), `desc` the most consistent first (Going well). */
-function FrequencyCard({
-  title,
-  rangeLabel,
-  tone,
-  bullets,
-  emptyText,
-  order,
-}: {
-  title: string;
-  rangeLabel: string;
-  tone: string;
-  bullets: Bullet[];
-  emptyText: string;
-  order: "asc" | "desc";
-}) {
-  const rows = [...bullets].sort((a, b) => {
-    const pa = a.frequency?.percent ?? (order === "asc" ? 101 : -1);
-    const pb = b.frequency?.percent ?? (order === "asc" ? 101 : -1);
-    return order === "asc" ? pa - pb : pb - pa;
-  });
-  return (
-    <Card tier="raw">
-      <p className="mb-3 text-xs font-semibold" style={{ color: tone }}>
-        {title}
-        {rangeLabel && <span style={{ color: "var(--text-muted)" }}> · last {rangeLabel}</span>}
-      </p>
-      {rows.length === 0 ? (
-        <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-          {emptyText}
-        </p>
-      ) : (
-        <ul className="flex flex-col gap-3.5">
-          {rows.map((b) => (
-            <FrequencyRow key={b.label} bullet={b} tone={tone} />
-          ))}
-        </ul>
-      )}
-    </Card>
   );
 }
 
@@ -341,13 +286,10 @@ export function FoodDashboard() {
   const rangeDescription = span && range ? describeDateRange(FOOD_DATE_PRESETS, span, range) : "";
   const rangeLabel = RANGE_PHRASE[rangeDescription] ?? rangeDescription;
 
-  // The named gaps for the headline. For the groups whose name alone ("other
-  // veg", "other fruit") doesn't say what's in them, spell out a few members
-  // inline; every group name renders as a lowercase term.
-  const gapTerms = priorities.missing.slice(0, 2).map((b) => ({
-    label: b.label,
-    eg: b.group && /^Other\b/.test(b.label) ? NUTRITION_GROUP_EXAMPLES[b.group].split(", ").slice(0, 3).join(", ") : null,
-  }));
+  // Pillars logged least often — the headline names these rather than the
+  // finer group gaps (which the balance card and coverage table carry).
+  const underPillars = priorities.pillars.filter((p) => p.status === "underrepresented");
+  const rangeSuffix = priorities.rangeLabel ? ` over the last ${priorities.rangeLabel}` : "";
   const foodInsight = priorities.insufficientData
     ? {
         label: "What stands out",
@@ -355,41 +297,44 @@ export function FoodDashboard() {
         detail: "Widen the range or keep logging, and this page's recommendations fill in.",
         tone: "neutral" as const,
       }
-    : priorities.missing.length > 0
+    : underPillars.length > 0
       ? {
           label: "What stands out",
-          headline: (
-            <>
-              {gapTerms.map((g, i) => (
-                <span key={g.label}>
-                  {i > 0 && " and "}
-                  <CatTerm>{g.label}</CatTerm>
-                  {g.eg && ` (${g.eg})`}
-                </span>
-              ))}
-              {` could use more attention over the last ${priorities.rangeLabel}.`}
-            </>
-          ),
-          detail: priorities.missing.length > 2 ? `Plus ${priorities.missing.length - 2} more in "Worth noticing" below.` : null,
+          headline: `${underPillars.slice(0, 2).map((p) => p.label).join(" and ")} ${
+            underPillars.length === 1 ? "is" : "are"
+          } logged least often${rangeSuffix}.`,
+          detail:
+            underPillars.length > 2
+              ? `Plus ${underPillars.length - 2} more in the balance card below.`
+              : priorities.missing.length > underPillars.length
+                ? "A few specific groups are also lighter than they could be — see the coverage table."
+                : null,
           tone: "attention" as const,
         }
-      : {
-          label: "What stands out",
-          headline: `Your intake looks balanced across the tracked food groups over the last ${priorities.rangeLabel}.`,
-          detail:
-            priorities.doingWell.length > 0 ? (
-              <>
-                {priorities.doingWell.slice(0, 2).map((b, i) => (
-                  <span key={b.label}>
-                    {i > 0 && " and "}
-                    <CatTerm>{b.label}</CatTerm>
-                  </span>
-                ))}
-                {" especially."}
-              </>
-            ) : null,
-          tone: "good" as const,
-        };
+      : priorities.missing.length > 0
+        ? {
+            label: "What stands out",
+            headline: `Your pillars look balanced${rangeSuffix}, but a few specific groups could show up more often.`,
+            detail: "The coverage table on the Variety tab lists each one.",
+            tone: "attention" as const,
+          }
+        : {
+            label: "What stands out",
+            headline: `Your intake looks balanced across the tracked food groups${rangeSuffix}.`,
+            detail:
+              priorities.doingWell.length > 0 ? (
+                <>
+                  {priorities.doingWell.slice(0, 2).map((b, i) => (
+                    <span key={b.label}>
+                      {i > 0 && " and "}
+                      <CatTerm>{b.label}</CatTerm>
+                    </span>
+                  ))}
+                  {" especially."}
+                </>
+              ) : null,
+            tone: "good" as const,
+          };
 
   return (
     <div className="flex flex-col gap-2">
@@ -452,45 +397,19 @@ export function FoodDashboard() {
             </p>
           </Card>
         ) : (
-          <>
-            <Card tier="raw">
-              <CardTitle size="sm" subtitle="How consistently each food group shows up in what you log">
-                Diet balance
-              </CardTitle>
-              <div className="grid grid-cols-1 gap-x-8 gap-y-3 sm:grid-cols-2">
-                {priorities.dietBalance.map((row) => (
-                  <div key={row.pillar} className="flex items-center justify-between gap-3">
-                    <span className="text-sm" style={{ color: "var(--text-primary)" }}>
-                      {row.label}
-                    </span>
-                    <StatusPill status={row.status} label={row.statusLabel} color={DIET_BALANCE_COLOR[row.status]} />
-                  </div>
-                ))}
-              </div>
-            </Card>
-
-            {/* Same "raw" card tier as Diet balance above, so all three
-             * Overview cards read as one coherent set rather than a
-             * structured summary sitting above two loose lists. */}
-            <div className="grid grid-cols-1 gap-5 pt-2 sm:grid-cols-2">
-              <FrequencyCard
-                title="Going well"
-                rangeLabel={priorities.rangeLabel}
-                tone="var(--status-good)"
-                bullets={priorities.doingWell.slice(0, 5)}
-                emptyText="Nothing stands out as strongly consistent yet."
-                order="desc"
-              />
-              <FrequencyCard
-                title="Worth noticing"
-                rangeLabel={priorities.rangeLabel}
-                tone="var(--status-warning)"
-                bullets={priorities.missing.slice(0, 5)}
-                emptyText="Nothing appears unusually infrequent right now."
-                order="asc"
-              />
-            </div>
-          </>
+          <Card tier="raw">
+            <CardTitle
+              size="sm"
+              subtitle={`How consistently each food-group pillar shows up in what you log${priorities.rangeLabel ? ` over the last ${priorities.rangeLabel}` : ""} — least represented first`}
+            >
+              Diet balance
+            </CardTitle>
+            <ul className="mt-1 grid grid-cols-1 gap-x-10 gap-y-4 sm:grid-cols-2">
+              {priorities.pillars.map((row) => (
+                <PillarStatRow key={row.pillar} row={row} />
+              ))}
+            </ul>
+          </Card>
         )}
       </PageSection>
 

@@ -132,12 +132,38 @@ export interface CoverageRow {
   statusLabel: string;
 }
 
-export interface DietBalanceRow {
+interface DietBalanceRow {
   pillar: PillarId;
   label: string;
   status: DietBalanceStatus;
   statusLabel: string;
 }
+
+/** One row of the Food Overview's balance card: a per-pillar verdict with
+ * the frequency numbers behind it. The card lists all six core pillars
+ * worst-represented first. */
+export interface PillarRow {
+  pillar: PillarId;
+  label: string;
+  /** Distinct days any core group in the pillar was logged, within range. */
+  daysInRange: number;
+  rangeLengthDays: number;
+  /** `daysInRange / rangeLengthDays`, 0–100, rounded. */
+  percent: number;
+  status: DietBalanceStatus;
+  statusLabel: string;
+  /** Nothing from this pillar logged in the range (`daysInRange === 0`). */
+  notTracked: boolean;
+}
+
+/** Worst first, so the pillar card sorts the same way it's meant to read. */
+const PILLAR_SEVERITY: Record<DietBalanceStatus, number> = {
+  underrepresented: 0,
+  "could-use-more-variety": 1,
+  "well-represented": 2,
+  "strongly-represented": 3,
+  "not-enough-data": 4,
+};
 
 export interface VarietyMetrics {
   totalUniqueFoods: number;
@@ -180,7 +206,9 @@ export interface NutritionPriorities {
   missing: Bullet[];
   coverageTable: CoverageRow[];
   groupStates: GroupState[];
-  dietBalance: DietBalanceRow[];
+  /** The six core pillars, worst-represented first — the Food Overview's
+   * one balance card. */
+  pillars: PillarRow[];
   variety: VarietyMetrics;
   trend: TrendSummary;
   /** The selected range in a couple of words for a card header, e.g.
@@ -450,7 +478,7 @@ export function computeNutritionPriorities(events: CanonicalEvent[], range: Date
       missing: [],
       coverageTable: [],
       groupStates: [],
-      dietBalance: [],
+      pillars: [],
       variety: emptyVariety,
       trend: { available: false, rangeLengthDays: 0, points: [] },
       rangeLabel: "",
@@ -580,9 +608,9 @@ export function computeNutritionPriorities(events: CanonicalEvent[], range: Date
     rowFor("Fruit (overall)", fruitState),
   ];
 
-  // ---- Diet balance — keyed off the same union-based aggregate state as
-  // the coverage table, so this never contradicts what "Worth noticing"
-  // says about the same pillar. ----
+  // ---- Pillar balance — keyed off the same union-based aggregate state as
+  // the coverage table, so the Overview card never contradicts what the
+  // coverage table says about the same pillar. ----
   const aggregateStateByPillar: Partial<Record<PillarId, GroupState>> = {
     vegetables: vegState,
     fruit: fruitState,
@@ -591,7 +619,9 @@ export function computeNutritionPriorities(events: CanonicalEvent[], range: Date
     nuts_seeds: nutsSeedsState,
     fish: byGroup.get("fatty_fish"),
   };
-  const dietBalance: DietBalanceRow[] = CORE_PILLARS.map((pillar) => dietBalanceRow(pillar, aggregateStateByPillar[pillar]!, varietyCandidates, insufficientData));
+  const pillars: PillarRow[] = CORE_PILLARS.map((pillar) =>
+    pillarRow(pillar, aggregateStateByPillar[pillar]!, varietyCandidates, insufficientData),
+  ).sort((a, b) => PILLAR_SEVERITY[a.status] - PILLAR_SEVERITY[b.status] || a.percent - b.percent);
 
   // ---- Variety metrics: distinct foods within the selected range ----
   const plantItems = new Set<string>();
@@ -677,7 +707,7 @@ export function computeNutritionPriorities(events: CanonicalEvent[], range: Date
     missing,
     coverageTable,
     groupStates: allGroupStates,
-    dietBalance,
+    pillars,
     variety,
     trend,
     rangeLabel: rangeInWords(rangeLengthDays).replace(/^the past /, ""),
@@ -695,8 +725,8 @@ function rowFor(label: string, state: GroupState): CoverageRow {
 
 /**
  * Keyed off the same union-based aggregate state used for the coverage
- * table (single group for single-subgroup pillars) so this never
- * contradicts "Worth noticing" for the same pillar.
+ * table (single group for single-subgroup pillars) so the pillar card and
+ * the coverage table never contradict each other for the same pillar.
  */
 function dietBalanceRow(pillar: PillarId, aggregate: GroupState, varietyCandidates: PriorityCandidate[], insufficientData: boolean): DietBalanceRow {
   const label = PILLAR_LABEL[pillar];
@@ -717,4 +747,20 @@ function dietBalanceRow(pillar: PillarId, aggregate: GroupState, varietyCandidat
   }
 
   return { pillar, label, status, statusLabel: DIET_BALANCE_LABEL[status] };
+}
+
+/** `dietBalanceRow` plus the frequency numbers behind the verdict. */
+function pillarRow(pillar: PillarId, aggregate: GroupState, varietyCandidates: PriorityCandidate[], insufficientData: boolean): PillarRow {
+  const verdict = dietBalanceRow(pillar, aggregate, varietyCandidates, insufficientData);
+  const percent = aggregate.rangeLengthDays > 0 ? Math.round((aggregate.daysInRange / aggregate.rangeLengthDays) * 100) : 0;
+  return {
+    pillar,
+    label: verdict.label,
+    daysInRange: aggregate.daysInRange,
+    rangeLengthDays: aggregate.rangeLengthDays,
+    percent,
+    status: verdict.status,
+    statusLabel: verdict.statusLabel,
+    notTracked: aggregate.daysInRange === 0,
+  };
 }
