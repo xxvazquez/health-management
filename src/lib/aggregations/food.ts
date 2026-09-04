@@ -332,3 +332,85 @@ export function varietyTrendDirection(series: DailyVarietyPoint[], sampleSize = 
   if (diff < -threshold) return "decreasing";
   return "stable";
 }
+
+export interface StapleEntry {
+  item: string;
+  /** Distinct days logged within the selected range. */
+  daysInRange: number;
+  rangeLengthDays: number;
+  /** `daysInRange / rangeLengthDays`, 0–100, rounded. */
+  percent: number;
+}
+
+export interface FallenOutEntry {
+  item: string;
+  /** Distinct days logged in the equal-length period immediately before
+   * the selected range. */
+  daysBefore: number;
+  /** Distinct days logged within the selected range — near-zero, by
+   * definition, for anything in this list. */
+  daysInRange: number;
+}
+
+const STAPLE_MIN_PERCENT = 30;
+const FALLEN_OUT_MIN_DAYS_BEFORE = 3;
+const FALLEN_OUT_MAX_DAYS_IN_RANGE = 1;
+
+/**
+ * Ingredient-level consistency — the finer-grained, no-taxonomy counterpart
+ * to the Overview's pillar-level "Diet balance" card. **Staples** are foods
+ * logged on a real share of days within the selected range. Foods that have
+ * **fallen out of rotation** were logged regularly in the equal-length
+ * period immediately before the range but are now rarely or never logged —
+ * the "I used to eat this and stopped" angle the pillar/group-level view
+ * can't surface. Same before/after-range comparison
+ * computeNutritionPriorities's `trend` section already uses, applied per
+ * ingredient instead of per nutrition group. `fallenOutOfRotation` is empty
+ * when the dataset doesn't extend back far enough for that comparison
+ * (never fabricated), same guard as `trend`.
+ */
+export function ingredientRotation(
+  events: CanonicalEvent[],
+  range: DateRange,
+  staplesTopN = 8,
+  fallenOutTopN = 8,
+): { staples: StapleEntry[]; fallenOutOfRotation: FallenOutEntry[] } {
+  const foods = foodEvents(events);
+  const rangeLengthDays = daysBetween(range.start, range.end) + 1;
+  const inRangeFoods = foods.filter((e) => e.date >= range.start && e.date <= range.end);
+
+  const daysByItem = (list: CanonicalEvent[]) => {
+    const byItem = new Map<string, Set<string>>();
+    for (const e of list) {
+      const set = byItem.get(e.item) ?? new Set<string>();
+      set.add(e.date);
+      byItem.set(e.item, set);
+    }
+    return byItem;
+  };
+
+  const daysInRangeByItem = daysByItem(inRangeFoods);
+
+  const staples: StapleEntry[] = Array.from(daysInRangeByItem.entries())
+    .map(([item, days]) => ({ item, daysInRange: days.size, rangeLengthDays, percent: pct(days.size, rangeLengthDays) }))
+    .filter((s) => s.percent >= STAPLE_MIN_PERCENT)
+    .sort((a, b) => b.percent - a.percent || a.item.localeCompare(b.item))
+    .slice(0, staplesTopN);
+
+  const span = getDatasetSpan(events);
+  const prevEnd = addDaysToDate(range.start, -1);
+  const prevStart = addDaysToDate(prevEnd, -(rangeLengthDays - 1));
+  const trendAvailable = span !== null && prevStart >= span.start;
+
+  let fallenOutOfRotation: FallenOutEntry[] = [];
+  if (trendAvailable) {
+    const beforeFoods = foods.filter((e) => e.date >= prevStart && e.date <= prevEnd);
+    fallenOutOfRotation = Array.from(daysByItem(beforeFoods).entries())
+      .map(([item, days]) => ({ item, daysBefore: days.size, daysInRange: daysInRangeByItem.get(item)?.size ?? 0 }))
+      .filter((f) => f.daysBefore >= FALLEN_OUT_MIN_DAYS_BEFORE && f.daysInRange <= FALLEN_OUT_MAX_DAYS_IN_RANGE)
+      .sort((a, b) => b.daysBefore - a.daysBefore || a.item.localeCompare(b.item))
+      .slice(0, fallenOutTopN);
+  }
+
+  return { staples, fallenOutOfRotation };
+}
