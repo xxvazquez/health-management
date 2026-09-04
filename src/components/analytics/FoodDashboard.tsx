@@ -98,7 +98,7 @@ function PillarStatRow({ row }: { row: PillarStat }) {
           </span>
         ) : (
           <span className="shrink-0 text-sm font-semibold tabular-nums" style={{ color: tone }}>
-            {row.percent}%
+            {row.percentOfTarget}%
           </span>
         )}
       </div>
@@ -107,7 +107,7 @@ function PillarStatRow({ row }: { row: PillarStat }) {
         <span className="min-w-0 flex-1 truncate">{row.statusLabel}</span>
         {!row.notTracked && (
           <span className="shrink-0 tabular-nums">
-            {row.daysInRange} / {row.rangeLengthDays} days
+            {row.rateInRangePerWeek.toFixed(1)}×/week · target {row.targetPerWeek}×/week
           </span>
         )}
       </div>
@@ -115,7 +115,7 @@ function PillarStatRow({ row }: { row: PillarStat }) {
       <div className="mt-1.5 h-1.5 w-full rounded-full" style={{ background: "var(--gridline)" }}>
         <div
           className="h-1.5 rounded-full"
-          style={{ width: row.notTracked ? "0%" : `${Math.max(3, row.percent)}%`, background: tone }}
+          style={{ width: row.notTracked ? "0%" : `${Math.min(100, Math.max(3, row.percentOfTarget))}%`, background: tone }}
         />
       </div>
     </li>
@@ -449,7 +449,7 @@ export function FoodDashboard() {
             <Card tier="raw">
               <CardTitle
                 size="sm"
-                subtitle={`How consistently each food-group pillar shows up in what you log${priorities.rangeLabel ? ` over the last ${priorities.rangeLabel}` : ""} — least represented first`}
+                subtitle={`How each food-group pillar's weekly rate compares to its own target${priorities.rangeLabel ? ` over the last ${priorities.rangeLabel}` : ""} — least represented first`}
               >
                 Diet balance
               </CardTitle>

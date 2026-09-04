@@ -58,12 +58,26 @@ describe("computeNutritionPriorities", () => {
     const veg = pillars.find((p) => p.pillar === "vegetables")!;
     expect(veg.daysInRange).toBe(20);
     expect(veg.rangeLengthDays).toBe(20);
-    expect(veg.percent).toBe(100);
+    expect(veg.percentOfTarget).toBe(100); // 7/week rate against a 7/week target
     expect(veg.notTracked).toBe(false);
 
     const legumes = pillars.find((p) => p.pillar === "legumes")!;
     expect(legumes.notTracked).toBe(true);
-    expect(legumes.percent).toBe(0);
+    expect(legumes.percentOfTarget).toBe(0);
+  });
+
+  it("shows progress toward each pillar's own weekly target, not a raw day-coverage percentage", () => {
+    // Salmon (fatty fish, target 2x/week) logged 30 of 76 days — well
+    // above its target rate — should read far higher than its ~39% of
+    // days would suggest, and higher than a pillar with a daily target
+    // logged on a larger share of days.
+    const events = Array.from({ length: 30 }, (_, i) => makeEvent({ item: "Salmon", category: "Fish", date: `2026-01-${String(i + 1).padStart(2, "0")}` })); // Jan 1-30
+    const range = { start: "2026-01-01", end: "2026-03-17" }; // 76 days
+    const { pillars } = computeNutritionPriorities(events, range);
+    const fish = pillars.find((p) => p.pillar === "fish")!;
+    expect(fish.targetPerWeek).toBe(2);
+    expect(fish.percentOfTarget).toBeGreaterThan(100);
+    expect(fish.status).toBe("strongly-represented");
   });
 
   it("applies an override before classifying, changing which pillar a food counts toward", () => {
