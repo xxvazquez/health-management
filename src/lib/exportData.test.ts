@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { buildExport } from "./exportData";
+import { buildExport, EXPORT_SECTIONS, rowsToCsv } from "./exportData";
 
 // The TABLES list is module-private; reach it through the module source so
 // the test guards the actual data without exporting internals.
@@ -31,6 +31,31 @@ describe("export table list", () => {
     for (const { owner } of entries) {
       expect(["user_id", "owner_id", "completed_by"]).toContain(owner);
     }
+  });
+});
+
+describe("EXPORT_SECTIONS", () => {
+  it("covers every export table exactly once", () => {
+    const sectioned = EXPORT_SECTIONS.flatMap((s) => s.tables);
+    expect(new Set(sectioned).size).toBe(sectioned.length);
+    expect([...sectioned].sort()).toEqual([...entries.map((e) => e.table)].sort());
+  });
+});
+
+describe("rowsToCsv", () => {
+  it("returns an empty string for no rows", () => {
+    expect(rowsToCsv([])).toBe("");
+  });
+
+  it("unions keys across rows and quotes cells that need it", () => {
+    const csv = rowsToCsv([
+      { a: 1, b: "x" },
+      { a: 2, c: 'has "quote", comma' },
+    ]);
+    const [header, r1, r2] = csv.trimEnd().split("\n");
+    expect(header).toBe("a,b,c");
+    expect(r1).toBe("1,x,");
+    expect(r2).toBe('2,,"has ""quote"", comma"');
   });
 });
 

@@ -54,6 +54,36 @@ const TABLES: { table: string; owner: string }[] = [
   { table: "household_codes", owner: "owner_id" },
 ];
 
+/** The same tables grouped into the sections the app presents, for the
+ * per-section CSV picker. Every table in `TABLES` appears exactly once
+ * here (guarded by a test). */
+export const EXPORT_SECTIONS: { label: string; tables: string[] }[] = [
+  { label: "Food", tables: ["food_items", "food_logs", "food_diary"] },
+  { label: "Symptoms", tables: ["symptom_items", "symptom_logs", "symptom_diary"] },
+  { label: "Supplements", tables: ["supplement_items", "supplement_logs", "supplement_diary"] },
+  { label: "Habits", tables: ["habit_items", "habit_logs", "habit_diary"] },
+  { label: "Workout", tables: ["workout_items", "workout_logs", "workout_diary"] },
+  { label: "Stool", tables: ["stool_logs"] },
+  { label: "Cycle", tables: ["period_logs"] },
+  { label: "Categories", tables: ["categories"] },
+  { label: "Journal", tables: ["journal_entries"] },
+  {
+    label: "Personal notes & reminders",
+    tables: ["personal_notes", "reminder_lists", "personal_tasks", "personal_task_completions", "personal_items"],
+  },
+  {
+    label: "Medical",
+    tables: ["doctor_specialties", "doctors", "doctor_appointments", "doctor_appointment_tasks", "care_entries", "care_entry_specialties"],
+  },
+  { label: "Labs", tables: ["lab_panels", "lab_markers", "lab_results"] },
+  { label: "Vitals", tables: ["blood_pressure", "weight_logs"] },
+  { label: "Wishlist", tables: ["wishlist_categories", "wishlist_items"] },
+  {
+    label: "Household",
+    tables: ["household_notes", "household_tasks", "household_task_completions", "household_items", "household_codes"],
+  },
+];
+
 async function fetchAll(table: string, owner: string, userId: string): Promise<unknown[]> {
   if (!supabase) return [];
   const rows: unknown[] = [];
@@ -86,15 +116,53 @@ export async function buildExport(userId: string): Promise<ExportBundle> {
   return { exportedAt: new Date().toISOString(), userId, tables, totalRows };
 }
 
-/** Hands the bundle to the browser as a downloaded .json file. */
-export function downloadExport(bundle: ExportBundle): void {
-  const blob = new Blob([JSON.stringify(bundle, null, 2)], { type: "application/json" });
+function triggerDownload(filename: string, blob: Blob): void {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `lauva-export-${bundle.exportedAt.slice(0, 10)}.json`;
+  a.download = filename;
   document.body.appendChild(a);
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/** Hands the whole bundle to the browser as a downloaded .json file. */
+export function downloadExport(bundle: ExportBundle): void {
+  triggerDownload(
+    `lauva-export-${bundle.exportedAt.slice(0, 10)}.json`,
+    new Blob([JSON.stringify(bundle, null, 2)], { type: "application/json" }),
+  );
+}
+
+function csvCell(value: unknown): string {
+  if (value == null) return "";
+  const s = typeof value === "object" ? JSON.stringify(value) : String(value);
+  return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
+/** Flattens a table's rows to CSV — header is the union of every row's
+ * keys, so a nullable column that's set on only some rows still gets a
+ * column. */
+export function rowsToCsv(rows: Record<string, unknown>[]): string {
+  if (rows.length === 0) return "";
+  const cols = [...new Set(rows.flatMap((r) => Object.keys(r)))];
+  const lines = [cols.map(csvCell).join(",")];
+  for (const row of rows) lines.push(cols.map((c) => csvCell(row[c])).join(","));
+  return lines.join("\n") + "\n";
+}
+
+/** Downloads one section's tables. A section with a single table is one
+ * file; a multi-table section (Medical, Labs, …) downloads each table in
+ * turn. */
+export function downloadSectionCsv(bundle: ExportBundle, section: { label: string; tables: string[] }): void {
+  const date = bundle.exportedAt.slice(0, 10);
+  section.tables.forEach((table, i) => {
+    const rows = (bundle.tables[table] ?? []) as Record<string, unknown>[];
+    if (rows.length === 0) return;
+    const go = () => triggerDownload(`lauva-${table}-${date}.csv`, new Blob([rowsToCsv(rows)], { type: "text/csv;charset=utf-8" }));
+    // Stagger multi-file sections so the browser doesn't drop later downloads.
+    if (i === 0) go();
+    else setTimeout(go, i * 400);
+  });
 }
