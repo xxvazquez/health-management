@@ -33,6 +33,27 @@ function firstLine(body: string, max = 160): string {
   return flat.length > max ? `${flat.slice(0, max)}…` : flat;
 }
 
+/** The bold line + preview a row shows. With a real title it's title +
+ * body start; with no title the body leads — its first line, or the first
+ * sentence of a single paragraph — becomes the heading and the rest is the
+ * preview (the iOS Notes model), so untitled rows still say something
+ * instead of a wall of "Untitled". */
+export function headingAndPreview(title: string | null, body: string): { heading: string; preview: string } {
+  const trimmedTitle = (title ?? "").trim();
+  if (trimmedTitle) return { heading: trimmedTitle, preview: firstLine(body) };
+
+  const lines = body.split("\n").map((line) => line.trim()).filter(Boolean);
+  if (lines.length === 0) return { heading: "Untitled", preview: "" };
+  if (lines.length > 1) return { heading: firstLine(lines[0], 120), preview: firstLine(lines.slice(1).join(" ")) };
+
+  // One paragraph — break after the first sentence, else at a word boundary.
+  const only = lines[0];
+  const sentence = only.search(/[.!?]\s/);
+  const wordBreak = only.lastIndexOf(" ", 80);
+  const cut = sentence > 0 && sentence < 90 ? sentence + 1 : only.length > 80 && wordBreak > 0 ? wordBreak : only.length;
+  return { heading: firstLine(only.slice(0, cut), 120), preview: firstLine(only.slice(cut)) };
+}
+
 /** One row in the notes / journal list. The whole row opens the entry
  * (there is no separate "expand" — the editor is the reading view, same as
  * iOS Notes), so the only trailing action is delete, always with a confirm
@@ -46,7 +67,7 @@ export function NoteRow({
   onOpen,
   onDelete,
 }: {
-  title: string;
+  title: string | null;
   meta: string;
   body: string;
   metaFirst?: boolean;
@@ -54,10 +75,11 @@ export function NoteRow({
   onDelete?: () => void;
 }) {
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const { heading, preview } = headingAndPreview(title, body);
 
   const titleEl = (
     <span className="block truncate text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-      {title}
+      {heading}
     </span>
   );
   const metaEl = (
@@ -76,7 +98,7 @@ export function NoteRow({
           {metaFirst ? metaEl : titleEl}
           <span className="mt-0.5 block">{metaFirst ? titleEl : metaEl}</span>
           <span className="mt-1.5 line-clamp-2 text-xs leading-snug [overflow-wrap:anywhere]" style={{ color: "var(--text-secondary)" }}>
-            {firstLine(body) || "No additional text"}
+            {preview || "No additional text"}
           </span>
         </button>
 
@@ -84,7 +106,7 @@ export function NoteRow({
           <button
             type="button"
             onClick={() => setConfirmingDelete(true)}
-            aria-label={`Delete ${title}`}
+            aria-label={`Delete ${heading}`}
             title="Delete"
             className="tap-target notebook-danger -m-1 shrink-0 rounded-md p-1.5 transition-colors hover:bg-[var(--page-plane)]"
             style={{ color: "var(--text-muted)" }}
@@ -115,7 +137,7 @@ export function NoteRow({
  * wide page. Journal keeps the default single column under its month
  * headers. */
 export function NoteList({ children, wide = false }: { children: ReactNode; wide?: boolean }) {
-  return <ul className={wide ? "grid gap-3 xl:grid-cols-2 xl:items-start" : "flex flex-col gap-3"}>{children}</ul>;
+  return <ul className={`flex flex-col gap-3${wide ? " xl:grid xl:grid-cols-2 xl:items-start" : ""}`}>{children}</ul>;
 }
 
 /** Create-or-edit editor: a plain sheet, title above body, no field

@@ -237,7 +237,7 @@ export function NoteBoard({
           {visibleNotes.map((note) => (
             <NoteRow
               key={note.id}
-              title={note.title || "Untitled"}
+              title={note.title}
               meta={formatUpdatedAt(note.updatedAt)}
               body={note.body}
               onOpen={() => setEditingId(note.id)}
