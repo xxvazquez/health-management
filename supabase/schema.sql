@@ -811,6 +811,41 @@ create table public.lab_results (
 create index lab_markers_user_panel_idx on public.lab_markers (user_id, panel_id, sort_order);
 create index lab_results_user_marker_idx on public.lab_results (user_id, marker_id, measured_on);
 
+-- Medical -> Vitals: blood pressure and weight over time. Unlike lab
+-- results these are taken more than once a day, so the timestamp is a
+-- `measured_at timestamptz`, not a `date`. Blood pressure is one paired
+-- reading (systolic/diastolic, optional pulse) with a single free-text
+-- note; weight is one number. Two purpose-named tables rather than a
+-- generic `vitals(kind, value)` — they read differently and never need to
+-- be queried together. Owner-only, direct-to-Supabase, same class as
+-- care_entries / lab_*.
+create table public.blood_pressure (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id),
+  measured_at timestamptz not null default now(),
+  systolic int not null check (systolic between 40 and 300),
+  diastolic int not null check (diastolic between 20 and 200),
+  pulse int check (pulse between 20 and 300),
+  note text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (user_id, id)
+);
+
+create table public.weight_logs (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id),
+  measured_at timestamptz not null default now(),
+  kg numeric not null check (kg between 10 and 500),
+  note text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (user_id, id)
+);
+
+create index blood_pressure_user_time_idx on public.blood_pressure (user_id, measured_at desc);
+create index weight_logs_user_time_idx on public.weight_logs (user_id, measured_at desc);
+
 -- Reminders -> Home: the same three concepts as Personal above, but shared
 -- with a linked partner (see partner_links, defined earlier) instead of
 -- owned outright. `owner_id` is whoever created the row; visibility/edit
@@ -992,6 +1027,8 @@ alter table public.care_entry_specialties enable row level security;
 alter table public.lab_panels enable row level security;
 alter table public.lab_markers enable row level security;
 alter table public.lab_results enable row level security;
+alter table public.blood_pressure enable row level security;
+alter table public.weight_logs enable row level security;
 alter table public.household_notes enable row level security;
 alter table public.household_tasks enable row level security;
 alter table public.household_task_completions enable row level security;
@@ -1038,6 +1075,8 @@ create policy "care_entry_specialties_all_own" on public.care_entry_specialties 
 create policy "lab_panels_all_own" on public.lab_panels for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "lab_markers_all_own" on public.lab_markers for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "lab_results_all_own" on public.lab_results for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "blood_pressure_all_own" on public.blood_pressure for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "weight_logs_all_own" on public.weight_logs for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 -- partner_invites: only the creator can see/manage their own pending
 -- invite (e.g. to show "your code is still waiting"). Redemption by the

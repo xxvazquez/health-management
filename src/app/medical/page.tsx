@@ -9,6 +9,7 @@ import { SpecialtiesTab } from "@/components/doctors/SpecialtiesTab";
 import { FollowUpsTab } from "@/components/doctors/FollowUpsTab";
 import { CareLogTab } from "@/components/doctors/CareLogTab";
 import { ResultsTab } from "@/components/doctors/ResultsTab";
+import { VitalsTab } from "@/components/doctors/VitalsTab";
 import { ListSkeleton } from "@/components/ui/Skeleton";
 import { TabRail } from "@/components/ui/TabRail";
 import { DemoNotice } from "@/components/ui/DemoNotice";
@@ -19,12 +20,14 @@ const SPECIALTIES_ACCENT = "var(--series-3)";
 const FOLLOWUPS_ACCENT = "var(--series-berry)";
 const CARELOG_ACCENT = "var(--series-indigo)";
 const RESULTS_ACCENT = "var(--series-6)";
+const VITALS_ACCENT = "var(--series-magenta)";
 
-type MedicalTabId = "appointments" | "carelog" | "results" | "doctors" | "specialties" | "followups";
+type MedicalTabId = "appointments" | "carelog" | "results" | "vitals" | "doctors" | "specialties" | "followups";
 const TABS: { id: MedicalTabId; label: string; accent: string }[] = [
   { id: "appointments", label: "Appointments", accent: APPOINTMENTS_ACCENT },
   { id: "carelog", label: "Log", accent: CARELOG_ACCENT },
   { id: "results", label: "Results", accent: RESULTS_ACCENT },
+  { id: "vitals", label: "Vitals", accent: VITALS_ACCENT },
   { id: "doctors", label: "Doctors", accent: DOCTORS_ACCENT },
   { id: "specialties", label: "Specialties", accent: SPECIALTIES_ACCENT },
   { id: "followups", label: "Follow-ups", accent: FOLLOWUPS_ACCENT },
@@ -110,6 +113,7 @@ export default function MedicalPage() {
           {tab === "appointments" && <AppointmentsTab api={api} accent={APPOINTMENTS_ACCENT} />}
           {tab === "carelog" && <CareLogTab api={api} accent={CARELOG_ACCENT} />}
           {tab === "results" && <ResultsTab accent={RESULTS_ACCENT} />}
+          {tab === "vitals" && <VitalsTab accent={VITALS_ACCENT} />}
           {tab === "doctors" && <DoctorsTab api={api} accent={DOCTORS_ACCENT} />}
           {tab === "specialties" && <SpecialtiesTab api={api} accent={SPECIALTIES_ACCENT} />}
           {tab === "followups" && <FollowUpsTab api={api} accent={FOLLOWUPS_ACCENT} />}
