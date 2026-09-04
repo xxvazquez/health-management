@@ -120,12 +120,12 @@ export function AttentionBand({ items }: { items: AttentionItem[] }) {
                 className="flex w-full items-center gap-1.5 px-4 pt-2 pb-1 text-left"
               >
                 <span
-                  className="text-[10px] font-semibold tracking-wide uppercase"
+                  className="text-xs font-semibold tracking-wide uppercase"
                   style={{ color: group === "overdue" ? OVERDUE_INK : "var(--text-muted)" }}
                 >
                   {GROUP_LABEL[group]}
                 </span>
-                <span className="text-[10px] tabular-nums" style={{ color: "var(--text-muted)" }}>
+                <span className="text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>
                   {rows.length}
                 </span>
                 <span className="ml-auto">
@@ -141,7 +141,7 @@ export function AttentionBand({ items }: { items: AttentionItem[] }) {
                         {item.label}
                       </Link>
                       {item.when && (
-                        <span className="shrink-0 text-[11px] whitespace-nowrap" style={{ color: TIMING_COLOR[item.group] }}>
+                        <span className="shrink-0 text-xs whitespace-nowrap" style={{ color: TIMING_COLOR[item.group] }}>
                           {item.when}
                         </span>
                       )}
@@ -149,7 +149,7 @@ export function AttentionBand({ items }: { items: AttentionItem[] }) {
                         type="button"
                         onClick={() => setDismissed((prev) => new Set(prev).add(item.key))}
                         aria-label={`Dismiss ${item.label}`}
-                        className="shrink-0 rounded p-1 text-[11px] leading-none opacity-60 transition-opacity hover:opacity-100"
+                        className="shrink-0 rounded p-1 text-xs leading-none opacity-60 transition-opacity hover:opacity-100"
                         style={{ color: "var(--text-muted)" }}
                       >
                         ✕

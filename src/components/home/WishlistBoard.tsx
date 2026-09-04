@@ -419,7 +419,7 @@ function ItemRow({
           )}
           {item.forUserId && forLabel && (
             <span
-              className="rounded px-1.5 py-0.5 text-[11px] font-medium"
+              className="rounded px-1.5 py-0.5 text-xs font-medium"
               style={{ background: `color-mix(in oklab, ${accent} 12%, transparent)`, color: accent }}
             >
               For {forLabel(item.forUserId)}

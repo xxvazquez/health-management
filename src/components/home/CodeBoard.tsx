@@ -236,7 +236,7 @@ function CodeItem({ code, accent, onEdit, onDelete }: { code: HouseholdCode; acc
           <span className="truncate font-mono text-[13px] tracking-wide" style={{ color: accent }}>
             {code.code}
           </span>
-          <span className="shrink-0 text-[11px] font-medium" style={{ color: copied ? "var(--status-good)" : accent }}>
+          <span className="shrink-0 text-xs font-medium" style={{ color: copied ? "var(--status-good)" : accent }}>
             {copied ? "Copied ✓" : "Copy"}
           </span>
         </button>

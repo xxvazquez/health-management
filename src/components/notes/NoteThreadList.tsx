@@ -164,7 +164,7 @@ export function NoteThreadList({
                     {t.subject || t.body.slice(0, 60)}
                   </span>
                   {t.isFavouritedByMe && <StarIcon filled size={12} />}
-                  <span className="shrink-0 text-[11px] whitespace-nowrap tabular-nums" style={{ color: "var(--text-muted)" }}>
+                  <span className="shrink-0 text-xs whitespace-nowrap tabular-nums" style={{ color: "var(--text-muted)" }}>
                     {formatNoteTimestampShort(t.lastMessageAt)}
                   </span>
                 </span>

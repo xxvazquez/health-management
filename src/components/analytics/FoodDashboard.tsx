@@ -89,7 +89,7 @@ function FrequencyRow({ bullet, tone }: { bullet: Bullet; tone: string }) {
         {f &&
           (f.notTracked ? (
             <span
-              className="shrink-0 rounded-md px-1.5 py-0.5 text-[11px] font-medium"
+              className="shrink-0 rounded-md px-1.5 py-0.5 text-xs font-medium"
               style={{ color: "var(--text-muted)", background: "var(--page-plane)" }}
             >
               Not tracked
