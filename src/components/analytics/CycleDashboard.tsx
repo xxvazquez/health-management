@@ -77,7 +77,7 @@ export function CycleDashboard() {
 
       {delayDays !== null && (
         <Insight
-          label="What's happening"
+          label="What stands out"
           headline={`Your period is ${delayDays} day${delayDays === 1 ? "" : "s"} late`}
           detail={`Expected around ${formatShortDate(nextPredictions[0].expectedStart)}, based on your recent cycle length. Cycles vary — this isn't a diagnosis.`}
           tone="attention"

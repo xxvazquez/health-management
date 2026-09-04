@@ -34,7 +34,7 @@ export function habitsByCategory(events: CanonicalEvent[]): HabitGroup[] {
 }
 
 /**
- * "What changed" — the primary Habits-page insight: which tracked habits
+ * "What stands out" — the primary Habits-page insight: which tracked habits
  * are running above/below their own usual pace recently. Purely personal
  * longitudinal information — habits here have no explicit user-defined
  * target/frequency, so there's no basis to call a change "good" or "needs

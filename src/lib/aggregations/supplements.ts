@@ -34,7 +34,7 @@ export function supplementsByCategory(events: CanonicalEvent[]): SupplementGroup
 }
 
 /**
- * "What changed" — the primary Supplements-page insight. Purely personal
+ * "What stands out" — the primary Supplements-page insight. Purely personal
  * longitudinal information: this app doesn't track an explicit dosage
  * regimen, so there's no basis to call any supplement's adherence "good"
  * or "in need of attention" — only to describe how it compares to its own
