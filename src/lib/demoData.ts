@@ -5,7 +5,7 @@ import type { ItemType } from "@/taxonomy/categories";
 /** Every demo item/log identity starts with this — purely in-memory,
  * never written to IndexedDB or Supabase, so it can never mix with real
  * data or leak into a signed-in sync. */
-export const DEMO_ID_PREFIX = "demo:";
+const DEMO_ID_PREFIX = "demo:";
 
 // [name, category] tuples — explicit now that there's no more name-matched
 // classification to infer a category from. Category is a real column on

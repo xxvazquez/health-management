@@ -36,7 +36,7 @@ export type GroupStatus = "not-enough-data" | "priority" | "increase" | "good" |
  * scales differ only at the middle rung: a group can be logged too seldom
  * ("Could log more often"), a pillar can be logged enough but from too few
  * foods ("Could use more variety"). */
-export const STATUS_LABEL: Record<GroupStatus, string> = {
+const STATUS_LABEL: Record<GroupStatus, string> = {
   "not-enough-data": "Not enough data",
   priority: "Underrepresented",
   increase: "Could log more often",
@@ -53,7 +53,7 @@ export type DietBalanceStatus =
 
 /** Shares its wording with STATUS_LABEL — "Underrepresented" / "Well
  * represented" / "Strongly represented" mean the same thing on both. */
-export const DIET_BALANCE_LABEL: Record<DietBalanceStatus, string> = {
+const DIET_BALANCE_LABEL: Record<DietBalanceStatus, string> = {
   "not-enough-data": "Not enough data",
   underrepresented: "Underrepresented",
   "could-use-more-variety": "Could use more variety",

@@ -106,7 +106,7 @@ export const NUTRITION_GROUP_EXAMPLES: Record<NutritionGroupId, string> = {
 };
 
 /** Broad dietary "pillars" — the level most insight copy is written at. */
-export const PILLARS = ["vegetables", "fruit", "legumes", "grains", "nuts_seeds", "fish", "protein_other", "fats", "dairy", "discretionary"] as const;
+const PILLARS = ["vegetables", "fruit", "legumes", "grains", "nuts_seeds", "fish", "protein_other", "fats", "dairy", "discretionary"] as const;
 export type PillarId = (typeof PILLARS)[number];
 
 export const PILLAR_LABEL: Record<PillarId, string> = {
@@ -122,7 +122,7 @@ export const PILLAR_LABEL: Record<PillarId, string> = {
   discretionary: "Discretionary foods",
 };
 
-export const PILLAR_GROUPS: Record<PillarId, NutritionGroupId[]> = {
+const PILLAR_GROUPS: Record<PillarId, NutritionGroupId[]> = {
   vegetables: ["leafy_greens", "cruciferous", "red_orange_veg", "alliums", "other_vegetables", "starchy_veg"],
   fruit: ["berries", "citrus", "other_fruit"],
   legumes: ["legumes"],

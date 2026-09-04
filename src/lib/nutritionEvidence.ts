@@ -45,7 +45,7 @@ export interface GroupEvidence {
   evidenceId: string;
 }
 
-export const GROUP_EVIDENCE: Partial<Record<NutritionGroupId, GroupEvidence>> = {
+const GROUP_EVIDENCE: Partial<Record<NutritionGroupId, GroupEvidence>> = {
   leafy_greens: { tier: "Strong", weight: 1.0, targetPerWeek: 4, exampleFoods: ["spinach", "kale", "lettuce"], evidenceId: "leafy_greens_evidence" },
   cruciferous: { tier: "Strong", weight: 1.0, targetPerWeek: 3, exampleFoods: ["broccoli", "cauliflower", "cabbage"], evidenceId: "cruciferous_evidence" },
   red_orange_veg: { tier: "Moderate", weight: 0.8, targetPerWeek: 4, exampleFoods: ["carrot", "sweet potato", "tomato"], evidenceId: "red_orange_veg_evidence" },

@@ -32,9 +32,9 @@ export function buildDemoPersonalNotes(): PersonalNote[] {
   ];
 }
 
-export const DEMO_LIST_TODO = "demo-list-todo";
-export const DEMO_LIST_TOBUY = "demo-list-tobuy";
-export const DEMO_LIST_BATHROOM = "demo-list-bathroom";
+const DEMO_LIST_TODO = "demo-list-todo";
+const DEMO_LIST_TOBUY = "demo-list-tobuy";
+const DEMO_LIST_BATHROOM = "demo-list-bathroom";
 
 export function buildDemoReminderLists(): ReminderList[] {
   return [

@@ -8,7 +8,7 @@ const dateOnly = (msOffset: number) => new Date(Date.now() + msOffset).toISOStri
 const iso = (msOffset: number) => new Date(Date.now() + msOffset).toISOString();
 
 /** Mirrors `demo-spec-${name.toLowerCase().replace(/[^a-z]+/g, "-")}` from demoDoctors.ts. */
-export function demoSpecialtyId(name: string): string {
+function demoSpecialtyId(name: string): string {
   return `demo-spec-${name.toLowerCase().replace(/[^a-z]+/g, "-")}`;
 }
 

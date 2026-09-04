@@ -17,7 +17,7 @@ export type ItemType = "food" | "supplement" | "outcome" | "habit" | "workout";
 // their own bucket so seasonings can be logged without skewing the
 // nutrition-priority engine (which ignores the Spices category entirely).
 // Don't add a category here speculatively; add it when a real tracked item needs it.
-export const FOOD_CATEGORIES = [
+const FOOD_CATEGORIES = [
   "Veggies",
   "Fruit",
   "Legumes",
@@ -55,7 +55,7 @@ export const SUPPLEMENT_CATEGORIES = [
 // Stool used to live here as a category with a "Bristol Scale"/"Stool
 // Quality" subcategory hack — it's now its own first-class log type
 // (`stool_logs`, `src/lib/types.ts`), not an outcome/symptom at all.
-export const OUTCOME_CATEGORIES = [
+const OUTCOME_CATEGORIES = [
   "Digestive Symptom",
   "Other Symptom",
 ] as const;
@@ -73,7 +73,7 @@ export const HABIT_CATEGORIES = ["Food", "Body", "Daily"] as const;
 // from the start (matching examples like running, swimming, yoga, pilates)
 // even though nothing's filed under them yet — same "materialize on first
 // touch" rule as every other type, not a claim that these are exhaustive.
-export const WORKOUT_CATEGORIES = ["Strength Training", "Cardio", "Flexibility & Mind-Body"] as const;
+const WORKOUT_CATEGORIES = ["Strength Training", "Cardio", "Flexibility & Mind-Body"] as const;
 
 export const CATEGORIES_BY_TYPE: Record<ItemType, readonly string[]> = {
   food: FOOD_CATEGORIES,
@@ -126,7 +126,7 @@ export const TYPE_ACCENT: Record<ItemType, string> = {
  * anyway. Keyed by category identity so a category always gets the same
  * color regardless of which categories happen to be in view.
  */
-export const CATEGORY_SLOT: Record<string, string> = {
+const CATEGORY_SLOT: Record<string, string> = {
   Fruit: "var(--series-1)", // green
   Dairy: "var(--series-2)", // blue
   Meat: "var(--series-3)", // purple
@@ -138,7 +138,7 @@ export const CATEGORY_SLOT: Record<string, string> = {
   Legumes: "var(--series-berry)", // rose/plum blend
   "Dairy Alternatives": "var(--series-slate)", // grey
 };
-export const CATEGORY_SLOT_OTHER = "var(--series-other)";
+const CATEGORY_SLOT_OTHER = "var(--series-other)";
 
 export function colorForCategorySlot(category: string): string {
   return CATEGORY_SLOT[category] ?? CATEGORY_SLOT_OTHER;

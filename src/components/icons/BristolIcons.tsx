@@ -16,7 +16,7 @@ function IconWrap({ children }: { children: ReactNode }) {
   );
 }
 
-export const BRISTOL_ICON: Record<number, ReactNode> = {
+const BRISTOL_ICON: Record<number, ReactNode> = {
   1: (
     <IconWrap>
       <circle cx="8" cy="12" r="2.6" />

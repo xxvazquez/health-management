@@ -299,8 +299,3 @@ export const EVIDENCE_RECORDS: Record<string, EvidenceRecord> = {
     reviewedDate: REVIEWED,
   },
 };
-
-export function evidenceRecordById(id: string | null | undefined): EvidenceRecord | null {
-  if (!id) return null;
-  return EVIDENCE_RECORDS[id] ?? null;
-}
