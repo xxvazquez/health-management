@@ -235,7 +235,7 @@ const DOMINANT_SHARE_THRESHOLD = 15;
  * (repetition is fine, full stop) whenever any of its nutrition groups is
  * already "good"/"strong" in `groupStates`, regardless of what else is
  * happening elsewhere in the diet — that's a separate, already-surfaced
- * concern ("Worth noticing" on the dashboard), not this item's
+ * concern (the Overview balance card), not this item's
  * fault. Only an item with no such backing, that also dominates total
  * occurrences, gets "worth-noting" — and only when `hasCoreGaps` is true
  * (some other core-pillar group is actually missing), so a dominant but

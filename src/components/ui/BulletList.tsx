@@ -1,10 +1,10 @@
 import type { Bullet } from "@/lib/aggregations/insights";
 
 /**
- * A plain, unbordered list of short observations (Going well / Worth
- * noticing / What changed) — deliberately not wrapped in its own card.
- * Sits directly on the page as CONTEXT beneath the primary Insight, so a
- * page isn't just a stack of identical white rectangles.
+ * A plain, unbordered list of short observations ("What changed" /
+ * "Running differently than usual") — deliberately not wrapped in its own
+ * card. Sits directly on the page as CONTEXT beneath the primary Insight,
+ * so a page isn't just a stack of identical white rectangles.
  */
 export function BulletList({
   title,
@@ -12,8 +12,7 @@ export function BulletList({
   bullets,
   emptyText,
   /** Render each bullet's label as a lowercase term rather than a bold
-   * noun — used on the Food page, where the labels are taxonomy group
-   * names ("other veg", "citrus fruit") that read inside a sentence. */
+   * noun, for labels that read inside a sentence. */
   termLabels = false,
 }: {
   title: string;

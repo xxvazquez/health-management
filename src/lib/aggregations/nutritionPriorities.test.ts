@@ -42,6 +42,30 @@ describe("computeNutritionPriorities", () => {
     expect(leafyGreens.consistency).toBe("not-recent");
   });
 
+  it("builds the six pillars worst-represented first, with the frequency behind each verdict", () => {
+    // Spinach (leafy greens) every day of a 20-day range; nothing else.
+    const events = Array.from({ length: 20 }, (_, i) =>
+      makeEvent({ itemType: "food", item: "Spinach", category: "Veggies", date: `2026-01-${String(i + 1).padStart(2, "0")}`, completed: true }),
+    );
+    const range = { start: "2026-01-01", end: "2026-01-20" };
+    const { pillars } = computeNutritionPriorities(events, range);
+
+    expect(pillars.map((p) => p.pillar)).toHaveLength(6);
+    // Worst first: the five empty pillars lead, vegetables last.
+    expect(pillars[pillars.length - 1].pillar).toBe("vegetables");
+    expect(pillars[0].status).toBe("underrepresented");
+
+    const veg = pillars.find((p) => p.pillar === "vegetables")!;
+    expect(veg.daysInRange).toBe(20);
+    expect(veg.rangeLengthDays).toBe(20);
+    expect(veg.percent).toBe(100);
+    expect(veg.notTracked).toBe(false);
+
+    const legumes = pillars.find((p) => p.pillar === "legumes")!;
+    expect(legumes.notTracked).toBe(true);
+    expect(legumes.percent).toBe(0);
+  });
+
   it("excludes the Spices category from variety and coverage entirely", () => {
     const base = Array.from({ length: 12 }, (_, i) =>
       makeEvent({ itemType: "food", item: "Rice", category: "Grains", date: `2026-01-${String(i + 1).padStart(2, "0")}`, completed: true }),
