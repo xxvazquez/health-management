@@ -44,6 +44,22 @@ describe("nutritionGroupsForFood", () => {
     expect(nutritionGroupsForFood("Oregano")).toEqual([]);
     expect(nutritionGroupsForFood("Sparkling water")).toEqual([]);
   });
+
+  it("lets an override correct an item the keyword lookup gets wrong or misses", () => {
+    // "Carrot" would normally match red_orange_veg; the override replaces
+    // that outright rather than adding to it.
+    expect(nutritionGroupsForFood("Carrot", { carrot: "starchy_veg" })).toEqual(["starchy_veg"]);
+    // "Oregano" has no keyword match at all — an override still applies.
+    expect(nutritionGroupsForFood("Oregano", { oregano: "other_vegetables" })).toEqual(["other_vegetables"]);
+  });
+
+  it("falls through to the keyword lookup when no override matches", () => {
+    expect(nutritionGroupsForFood("Carrot", { onion: "alliums" })).toEqual(["red_orange_veg"]);
+  });
+
+  it("matches an override by normalized name, ignoring case and whitespace", () => {
+    expect(nutritionGroupsForFood("  Carrot  ", { carrot: "starchy_veg" })).toEqual(["starchy_veg"]);
+  });
 });
 
 describe("NUTRITION_GROUP_EXAMPLES", () => {

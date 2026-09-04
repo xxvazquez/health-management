@@ -24,6 +24,8 @@ import { lookupFoodCategory } from "@/taxonomy/classify";
 import { POLAND_FOOD_CATALOG } from "@/taxonomy/polandFoodCatalog";
 import { normalizeName, titleCaseFallback } from "@/taxonomy/normalizeName";
 import { CATEGORIES_BY_TYPE, type ItemType } from "@/taxonomy/categories";
+import { NUTRITION_GROUPS, NUTRITION_GROUP_LABEL, nutritionGroupsForFood, type NutritionGroupId } from "@/taxonomy/nutritionGroups";
+import { useFoodNutritionGroupOverrides } from "@/lib/useFoodNutritionGroupOverrides";
 import { todayLocalISODate } from "@/lib/aggregations/common";
 import { buildDemoDataset } from "@/lib/demoData";
 import { WORKOUT_UNITS, workoutUnitLabel, defaultWorkoutUnitForCategory, type RawItem, type RawCategory, type WorkoutUnit } from "@/lib/types";
@@ -754,6 +756,47 @@ function UnitSelect({
   );
 }
 
+/** Corrects the Food dashboard's automatic nutrition-group classification
+ * (src/taxonomy/nutritionGroups.ts) for one food — for the occasional case
+ * where the keyword match misses an ingredient entirely or picks the wrong
+ * group. "Auto" clears the override and reverts to the keyword lookup,
+ * shown here so the current automatic result is visible before deciding
+ * whether to override it. */
+function NutritionGroupSelect({
+  itemName,
+  override,
+  busy,
+  onSetNutritionGroup,
+}: {
+  itemName: string;
+  override: NutritionGroupId | undefined;
+  busy: boolean;
+  onSetNutritionGroup: (groupId: NutritionGroupId | null) => void;
+}) {
+  const autoGroups = useMemo(() => nutritionGroupsForFood(itemName), [itemName]);
+  const autoLabel = autoGroups.length > 0 ? autoGroups.map((g) => NUTRITION_GROUP_LABEL[g]).join(", ") : "unclassified";
+
+  return (
+    <select
+      value={override ?? ""}
+      disabled={busy}
+      onChange={(e) => onSetNutritionGroup(e.target.value ? (e.target.value as NutritionGroupId) : null)}
+      aria-label={`Nutrition group for ${itemName}`}
+      // See the matching comment on ItemRow's category <select> — same
+      // native-chrome-plus-inherited-line-height blowup on iOS without this.
+      className="appearance-none rounded-md border px-2 py-1 text-xs leading-4 disabled:opacity-40"
+      style={{ borderColor: override ? "var(--series-1)" : "var(--border-hairline)", background: "var(--page-plane)", color: "var(--text-secondary)" }}
+    >
+      <option value="">Auto ({autoLabel})</option>
+      {NUTRITION_GROUPS.map((g) => (
+        <option key={g} value={g}>
+          {NUTRITION_GROUP_LABEL[g]}
+        </option>
+      ))}
+    </select>
+  );
+}
+
 function ItemRow({
   item,
   itemType,
@@ -766,6 +809,8 @@ function ItemRow({
   onSetReminderTime,
   onSetUnit,
   knownUnits,
+  nutritionGroupOverride,
+  onSetNutritionGroup,
   onDelete,
 }: {
   item: ManageableItem;
@@ -779,6 +824,10 @@ function ItemRow({
   onSetReminderTime?: (time: string | null) => void;
   onSetUnit?: (unit: WorkoutUnit) => void;
   knownUnits?: WorkoutUnit[];
+  /** Food only — the current per-user override, if any (undefined means
+   * automatic keyword classification). */
+  nutritionGroupOverride?: NutritionGroupId;
+  onSetNutritionGroup?: (groupId: NutritionGroupId | null) => void;
   onDelete?: () => void;
 }) {
   const renameState = useInlineRename(item, onRename);
@@ -787,6 +836,7 @@ function ItemRow({
   }
   const canRemind = onSetReminderTime && (itemType === "supplement" || itemType === "habit");
   const canSetUnit = onSetUnit && itemType === "workout";
+  const canSetNutritionGroup = onSetNutritionGroup && itemType === "food";
   // Delete is only ever offered for an item with zero logged history — see
   // ManageableItem.hasHistory's doc comment for why (an item with any
   // history can't be hard-deleted, only archived).
@@ -827,6 +877,9 @@ function ItemRow({
           </span>
         )}
         {canSetUnit && <UnitSelect unit={item.unit ?? "kg"} knownUnits={knownUnits ?? []} busy={busy} onSetUnit={onSetUnit} itemName={item.item} />}
+        {canSetNutritionGroup && (
+          <NutritionGroupSelect itemName={item.item} override={nutritionGroupOverride} busy={busy} onSetNutritionGroup={onSetNutritionGroup} />
+        )}
         {categories && onChangeCategory ? (
           <select
             value={item.category}
@@ -878,6 +931,8 @@ function ItemSection({
   onHideCatalogFood,
   onSetReminderTime,
   onSetUnit,
+  nutritionGroupOverrides,
+  onSetNutritionGroup,
   onDelete,
 }: {
   itemType: ItemType;
@@ -904,6 +959,10 @@ function ItemSection({
   /** Workout only — set from the Manage page, absent everywhere else,
    * gated inside ItemRow. */
   onSetUnit?: (item: ManageableItem, unit: WorkoutUnit) => void;
+  /** Food only — current overrides keyed by normalized item name, and the
+   * setter (`null` clears back to automatic), both gated inside ItemRow. */
+  nutritionGroupOverrides?: Record<string, NutritionGroupId>;
+  onSetNutritionGroup?: (item: ManageableItem, groupId: NutritionGroupId | null) => void;
   onDelete: (item: ManageableItem) => void;
 }) {
   const [archivedOpen, setArchivedOpen] = useState(false);
@@ -979,6 +1038,8 @@ function ItemSection({
                   onSetReminderTime={onSetReminderTime ? (time) => onSetReminderTime(item, time) : undefined}
                   onSetUnit={onSetUnit ? (unit) => onSetUnit(item, unit) : undefined}
                   knownUnits={knownUnits}
+                  nutritionGroupOverride={nutritionGroupOverrides?.[normalizeName(item.item)]}
+                  onSetNutritionGroup={onSetNutritionGroup ? (groupId) => onSetNutritionGroup(item, groupId) : undefined}
                   onDelete={() => onDelete(item)}
                 />
               ))}
@@ -1010,6 +1071,8 @@ function ItemSection({
                       onChangeCategory={(category) => onChangeCategory(item, category)}
                       onSetReminderTime={onSetReminderTime ? (time) => onSetReminderTime(item, time) : undefined}
                       onSetUnit={onSetUnit ? (unit) => onSetUnit(item, unit) : undefined}
+                      nutritionGroupOverride={nutritionGroupOverrides?.[normalizeName(item.item)]}
+                      onSetNutritionGroup={onSetNutritionGroup ? (groupId) => onSetNutritionGroup(item, groupId) : undefined}
                       onDelete={() => onDelete(item)}
                     />
                   ))}
@@ -1109,6 +1172,12 @@ export default function ManagePage() {
     setUnit: realSetUnit,
     deleteItem: realDeleteItem,
   } = useItemActions(refresh);
+
+  const {
+    overrides: nutritionGroupOverrides,
+    setOverride: realSetNutritionGroup,
+    clearOverride: realClearNutritionGroup,
+  } = useFoodNutritionGroupOverrides();
 
   const itemsByType = useMemo(() => {
     const map: Record<ItemType, ManageableItem[]> = { food: [], supplement: [], outcome: [], habit: [], workout: [] };
@@ -1450,6 +1519,15 @@ export default function ManagePage() {
           // never do anything — see PushNotificationsToggle above.
           onSetReminderTime={isDemoData ? undefined : (item, time) => void realSetReminderTime(item, time)}
           onSetUnit={(item, unit) => (isDemoData ? demoSetUnit(item, unit) : void realSetUnit(item, unit))}
+          // Food only, and — same reasoning as the reminder toggle above —
+          // not offered in demo mode, since there's nothing real to save it
+          // against.
+          nutritionGroupOverrides={section.type === "food" ? nutritionGroupOverrides : undefined}
+          onSetNutritionGroup={
+            section.type === "food" && !isDemoData
+              ? (item, groupId) => void (groupId ? realSetNutritionGroup(item.item, groupId) : realClearNutritionGroup(item.item))
+              : undefined
+          }
           onDelete={(item) => (isDemoData ? demoDeleteItem(item) : void handleDelete(item))}
         />
       ))}

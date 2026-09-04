@@ -85,6 +85,17 @@ table and a diary table but its logs live in `workout_logs` (next
 section), which stores a denormalised exercise name rather than only an
 `item_id`.
 
+`food_nutrition_groups` (`user_id, item, group_id`, primary key `(user_id,
+item)`) is a small, separate, direct-to-Supabase table — not part of the
+outbox-mirrored shape above. One row overrides `nutritionGroupsForFood`'s
+keyword classification (`src/taxonomy/nutritionGroups.ts`) for that exact
+food name, skipping the keyword lookup entirely for it; no row means
+automatic classification still applies. Keyed by the food's name text
+(normalized the same way as the keyword match) rather than a FK to
+`food_items`, so the override survives a rename or a delete-and-re-add.
+Owner-only, one group per override (an override replaces every
+keyword-derived group for that item, it doesn't merge with them).
+
 ## Standalone logs (Stool, Workout sets, Cycle)
 
 These don't fit the item/log/diary shape — a bowel movement or a lift

@@ -66,6 +66,20 @@ describe("computeNutritionPriorities", () => {
     expect(legumes.percent).toBe(0);
   });
 
+  it("applies an override before classifying, changing which pillar a food counts toward", () => {
+    // "Zorbleflax" matches no keyword, so it's normally unclassified.
+    const events = Array.from({ length: 15 }, (_, i) =>
+      makeEvent({ itemType: "food", item: "Zorbleflax", category: "Misc", date: `2026-01-${String(i + 1).padStart(2, "0")}`, completed: true }),
+    );
+    const range = { start: "2026-01-01", end: "2026-01-15" };
+
+    const withoutOverride = computeNutritionPriorities(events, range);
+    expect(withoutOverride.pillars.find((p) => p.pillar === "legumes")!.daysInRange).toBe(0);
+
+    const withOverride = computeNutritionPriorities(events, range, { zorbleflax: "legumes" });
+    expect(withOverride.pillars.find((p) => p.pillar === "legumes")!.daysInRange).toBe(15);
+  });
+
   it("excludes the Spices category from variety and coverage entirely", () => {
     const base = Array.from({ length: 12 }, (_, i) =>
       makeEvent({ itemType: "food", item: "Rice", category: "Grains", date: `2026-01-${String(i + 1).padStart(2, "0")}`, completed: true }),

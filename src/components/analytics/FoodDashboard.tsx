@@ -14,6 +14,7 @@ import { DashboardHeader } from "@/components/analytics/DashboardHeader";
 import { RankedBarChart } from "@/components/charts/RankedBarChart";
 import { MultiLineChart } from "@/components/charts/MultiLineChart";
 import { useDateRangeFilter } from "@/lib/useDateRangeFilter";
+import { useFoodNutritionGroupOverrides } from "@/lib/useFoodNutritionGroupOverrides";
 import { daysBetween } from "@/lib/aggregations/common";
 import {
   favoriteCombosByMeal,
@@ -227,6 +228,7 @@ const MEAL_ORDER = ["Breakfast", "Lunch", "Dinner", "Snack"];
 export function FoodDashboard() {
   const { status, events } = useData();
   const { span, range, setRange, filtered } = useDateRangeFilter(events);
+  const { overrides: nutritionGroupOverrides } = useFoodNutritionGroupOverrides();
   // One section at a time, like the Log page — SectionNav swaps which
   // section renders rather than scrolling to it, so reaching "Repetition"
   // or "Ingredients" never means scrolling past everything above.
@@ -255,7 +257,10 @@ export function FoodDashboard() {
   // coverage, doing-well/missing, pattern, trend, variety) — is scoped to
   // the selected range, so switching the date-range control recalculates
   // everything on this page, not just the charts.
-  const priorities = useMemo(() => computeNutritionPriorities(events, range ?? null), [events, range]);
+  const priorities = useMemo(
+    () => computeNutritionPriorities(events, range ?? null, nutritionGroupOverrides),
+    [events, range, nutritionGroupOverrides],
+  );
 
   const distribution = useMemo(() => foodCategoryDistribution(filtered), [filtered]);
   const varietySeries = useMemo(() => foodVarietyOverTime(filtered), [filtered]);
@@ -266,8 +271,8 @@ export function FoodDashboard() {
   const diversity = useMemo(() => (range ? ingredientDiversity(filtered, range, events) : null), [filtered, range, events]);
   const hasCoreGaps = priorities.missing.length > 0;
   const repetition = useMemo(
-    () => repetitionInsights(ranked, mealInstancesList, priorities.groupStates, hasCoreGaps, 20),
-    [ranked, mealInstancesList, priorities.groupStates, hasCoreGaps],
+    () => repetitionInsights(ranked, mealInstancesList, priorities.groupStates, hasCoreGaps, 20, nutritionGroupOverrides),
+    [ranked, mealInstancesList, priorities.groupStates, hasCoreGaps, nutritionGroupOverrides],
   );
   const mealBreakdown = useMemo(
     () => mealTypeIngredientBreakdown(mealInstancesList, ranked.slice(0, 8).map((r) => r.item)),
