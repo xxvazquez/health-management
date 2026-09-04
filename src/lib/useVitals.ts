@@ -11,11 +11,9 @@ import {
   fetchWeight,
   updateBloodPressure,
   updateWeight,
-  type BloodPressurePatch,
   type BloodPressureReading,
   type NewBloodPressureInput,
   type NewWeightInput,
-  type WeightPatch,
   type WeightReading,
 } from "@/lib/supabase/vitals";
 import { buildDemoBloodPressure, buildDemoWeight } from "@/lib/demoVitals";
@@ -91,25 +89,11 @@ export function useVitals() {
   );
 
   const editBp = useCallback(
-    async (id: string, patch: BloodPressurePatch) => {
-      setBp((prev) =>
-        byNewest(
-          prev.map((r) =>
-            r.id === id
-              ? {
-                  ...r,
-                  measuredAt: patch.measuredAt ?? r.measuredAt,
-                  systolic: patch.systolic ?? r.systolic,
-                  diastolic: patch.diastolic ?? r.diastolic,
-                  pulse: patch.pulse !== undefined ? patch.pulse : r.pulse,
-                  note: patch.note !== undefined ? patch.note.trim() || null : r.note,
-                }
-              : r,
-          ),
-        ),
-      );
+    async (id: string, input: NewBloodPressureInput) => {
+      const optimistic: BloodPressureReading = { id, measuredAt: input.measuredAt, systolic: input.systolic, diastolic: input.diastolic, pulse: input.pulse, note: input.note.trim() || null };
+      setBp((prev) => byNewest(prev.map((r) => (r.id === id ? optimistic : r))));
       if (!isDemo) {
-        const updated = await updateBloodPressure(id, patch);
+        const updated = await updateBloodPressure(id, input);
         setBp((prev) => byNewest(prev.map((r) => (r.id === id ? updated : r))));
       }
     },
@@ -140,23 +124,11 @@ export function useVitals() {
   );
 
   const editWeight = useCallback(
-    async (id: string, patch: WeightPatch) => {
-      setWeight((prev) =>
-        byNewest(
-          prev.map((r) =>
-            r.id === id
-              ? {
-                  ...r,
-                  measuredAt: patch.measuredAt ?? r.measuredAt,
-                  kg: patch.kg ?? r.kg,
-                  note: patch.note !== undefined ? patch.note.trim() || null : r.note,
-                }
-              : r,
-          ),
-        ),
-      );
+    async (id: string, input: NewWeightInput) => {
+      const optimistic: WeightReading = { id, measuredAt: input.measuredAt, kg: input.kg, note: input.note.trim() || null };
+      setWeight((prev) => byNewest(prev.map((r) => (r.id === id ? optimistic : r))));
       if (!isDemo) {
-        const updated = await updateWeight(id, patch);
+        const updated = await updateWeight(id, input);
         setWeight((prev) => byNewest(prev.map((r) => (r.id === id ? updated : r))));
       }
     },

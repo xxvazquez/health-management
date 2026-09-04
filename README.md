@@ -123,7 +123,7 @@ flowchart LR
     pg -->|"pull: sign-in / focus / reconnect / 60s"| idb
     ui --> auth
     ui -.->|"Messages, Reminders, …<br/>(direct, no offline)"| pg
-    ui -.->|"Journal, Personal Notes/Expiration<br/>(direct, falls back to outbox offline)"| outbox
+    ui -.->|"Journal, Personal Notes/Expiration, Vitals<br/>(direct, falls back to outbox offline)"| outbox
     ui -.->|"notify-note (on send)"| ef
     ef -->|"reminder + digest cron"| pg
     ef --> resend["Resend (email)"]
@@ -180,17 +180,18 @@ user's data regardless of RLS. `supabase/schema.sql` is authoritative;
 
 ### Direct-to-Supabase features (no offline mode)
 
-Messages, the Personal page's Reminders, and the Medical page all talk to
-Supabase directly rather than through the write-local-first outbox — they only
-mean anything once they're on the server, and a write made offline is lost (the
-form still has what you typed until you navigate away).
+Messages, the Personal page's Reminders, and most of the Medical page (Doctors,
+appointments, Care Log, Results/Labs) talk to Supabase directly rather than
+through the write-local-first outbox — they only mean anything once they're on
+the server, and a write made offline is lost (the form still has what you typed
+until you navigate away).
 
-**Journal, Personal Notes and Personal Expiration have offline fallback** (`src/lib/
-supabase/directWrite.ts`): a create/update/delete still tries Supabase directly
-first (same instant feel, no local mirror to keep in sync), but a write that can't
-reach the server — offline, a dropped connection, a transient 5xx — is queued in
-the *same* outbox the tracking domains use, instead of throwing. The id is
-generated client-side (`createTimeOrderedId`) so the optimistic local entry and
+**Journal, Personal Notes, Personal Expiration and Vitals have offline fallback**
+(`src/lib/supabase/directWrite.ts`): a create/update/delete still tries Supabase
+directly first (same instant feel, no local mirror to keep in sync), but a write
+that can't reach the server — offline, a dropped connection, a transient 5xx — is
+queued in the *same* outbox the tracking domains use, instead of throwing. The id
+is generated client-side (`createTimeOrderedId`) so the optimistic local entry and
 the eventual synced row are the same record, and `SyncStatusBanner` (already
 table-agnostic) picks up a stuck write with no extra UI work. A write Postgres
 itself rejects (a real validation error) still throws normally. The same

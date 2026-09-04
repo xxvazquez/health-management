@@ -346,9 +346,10 @@ timestamptz`, not a `date`. A `blood_pressure` row is one paired reading —
 `systolic`, `diastolic`, optional `pulse` — with a single `note`; a `weight_logs`
 row is one `kg` value with a `note`. Two purpose-named tables rather than a generic
 `vitals(kind, value)` — they read differently and are never queried together.
-Owner-only, direct-to-Supabase, same class as `care_entries` / `lab_*`. The Vitals
-tab classifies each blood-pressure reading with the ACC/AHA 2017 categories
-(Normal / Elevated / Stage 1 / Stage 2), shown for reference only.
+Owner-only, direct-to-Supabase, same class as `care_entries` / `lab_*` except it
+has the offline write fallback described in the README (`directWrite.ts`). The
+Vitals tab classifies each blood-pressure reading with the ACC/AHA 2017
+categories (Normal / Elevated / Stage 1 / Stage 2), shown for reference only.
 
 ## Reminders → Home
 
