@@ -21,12 +21,15 @@ import {
   foodCategoryDistribution,
   foodVarietyOverTime,
   ingredientDiversity,
+  ingredientRotation,
   mealInstances,
   mealTypeIngredientBreakdown,
   rankedFoods,
   repetitionInsights,
   varietyTrendDirection,
+  type FallenOutEntry,
   type MealComboEntry,
+  type StapleEntry,
 } from "@/lib/aggregations/food";
 import {
   computeNutritionPriorities,
@@ -115,6 +118,42 @@ function PillarStatRow({ row }: { row: PillarStat }) {
           style={{ width: row.notTracked ? "0%" : `${Math.max(3, row.percent)}%`, background: tone }}
         />
       </div>
+    </li>
+  );
+}
+
+const STAPLE_TONE = "var(--status-good)";
+
+function StapleRow({ entry }: { entry: StapleEntry }) {
+  return (
+    <li>
+      <div className="flex items-baseline justify-between gap-3">
+        <span className="min-w-0 flex-1 truncate text-sm" style={{ color: "var(--text-primary)" }}>
+          {entry.item}
+        </span>
+        <span className="shrink-0 text-sm font-semibold tabular-nums" style={{ color: STAPLE_TONE }}>
+          {entry.percent}%
+        </span>
+      </div>
+      <div className="mt-0.5 text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>
+        {entry.daysInRange} / {entry.rangeLengthDays} days
+      </div>
+      <div className="mt-1.5 h-1.5 w-full rounded-full" style={{ background: "var(--gridline)" }}>
+        <div className="h-1.5 rounded-full" style={{ width: `${Math.max(3, entry.percent)}%`, background: STAPLE_TONE }} />
+      </div>
+    </li>
+  );
+}
+
+function FallenOutRow({ entry }: { entry: FallenOutEntry }) {
+  return (
+    <li className="flex items-baseline justify-between gap-3">
+      <span className="min-w-0 flex-1 truncate text-sm" style={{ color: "var(--text-primary)" }}>
+        {entry.item}
+      </span>
+      <span className="shrink-0 text-xs" style={{ color: "var(--text-muted)" }}>
+        {entry.daysBefore} day{entry.daysBefore === 1 ? "" : "s"} before, {entry.daysInRange > 0 ? `${entry.daysInRange} now` : "none since"}
+      </span>
     </li>
   );
 }
@@ -261,6 +300,10 @@ export function FoodDashboard() {
     () => computeNutritionPriorities(events, range ?? null, nutritionGroupOverrides),
     [events, range, nutritionGroupOverrides],
   );
+  const rotation = useMemo(
+    () => (range ? ingredientRotation(events, range) : { staples: [], fallenOutOfRotation: [] }),
+    [events, range],
+  );
 
   const distribution = useMemo(() => foodCategoryDistribution(filtered), [filtered]);
   const varietySeries = useMemo(() => foodVarietyOverTime(filtered), [filtered]);
@@ -402,19 +445,64 @@ export function FoodDashboard() {
             </p>
           </Card>
         ) : (
-          <Card tier="raw">
-            <CardTitle
-              size="sm"
-              subtitle={`How consistently each food-group pillar shows up in what you log${priorities.rangeLabel ? ` over the last ${priorities.rangeLabel}` : ""} — least represented first`}
-            >
-              Diet balance
-            </CardTitle>
-            <ul className="mt-1 grid grid-cols-1 gap-x-10 gap-y-4 sm:grid-cols-2">
-              {priorities.pillars.map((row) => (
-                <PillarStatRow key={row.pillar} row={row} />
-              ))}
-            </ul>
-          </Card>
+          <>
+            <Card tier="raw">
+              <CardTitle
+                size="sm"
+                subtitle={`How consistently each food-group pillar shows up in what you log${priorities.rangeLabel ? ` over the last ${priorities.rangeLabel}` : ""} — least represented first`}
+              >
+                Diet balance
+              </CardTitle>
+              <ul className="mt-1 grid grid-cols-1 gap-x-10 gap-y-4 sm:grid-cols-2">
+                {priorities.pillars.map((row) => (
+                  <PillarStatRow key={row.pillar} row={row} />
+                ))}
+              </ul>
+            </Card>
+
+            <Card tier="raw">
+              <CardTitle
+                size="sm"
+                subtitle={`What's become a staple, and what's dropped off, over the last ${priorities.rangeLabel || "selected range"} — concrete ingredients, not groups`}
+              >
+                Ingredient rotation
+              </CardTitle>
+              <div className="mt-1 grid grid-cols-1 gap-x-10 gap-y-4 sm:grid-cols-2">
+                <div>
+                  <h3 className="text-xs font-semibold" style={{ color: STAPLE_TONE }}>
+                    Staples
+                  </h3>
+                  {rotation.staples.length === 0 ? (
+                    <p className="mt-2 text-xs" style={{ color: "var(--text-muted)" }}>
+                      Nothing logged consistently enough yet.
+                    </p>
+                  ) : (
+                    <ul className="mt-2 flex flex-col gap-3">
+                      {rotation.staples.map((s) => (
+                        <StapleRow key={s.item} entry={s} />
+                      ))}
+                    </ul>
+                  )}
+                </div>
+                <div>
+                  <h3 className="text-xs font-semibold" style={{ color: "var(--status-warning)" }}>
+                    Fallen out of rotation
+                  </h3>
+                  {rotation.fallenOutOfRotation.length === 0 ? (
+                    <p className="mt-2 text-xs" style={{ color: "var(--text-muted)" }}>
+                      Nothing you used to eat regularly has dropped off.
+                    </p>
+                  ) : (
+                    <ul className="mt-2 flex flex-col gap-2.5">
+                      {rotation.fallenOutOfRotation.map((f) => (
+                        <FallenOutRow key={f.item} entry={f} />
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </div>
+            </Card>
+          </>
         )}
       </PageSection>
 
