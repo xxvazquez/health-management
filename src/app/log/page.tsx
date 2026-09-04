@@ -57,6 +57,7 @@ import { CycleTab } from "@/components/log/CycleTab";
 import { TAB_ICON } from "@/components/tabIcons";
 import { DuplicateItemDialog } from "@/components/ui/DuplicateItemDialog";
 import { SearchField } from "@/components/ui/SearchField";
+import { ChevronIcon, CloseIcon } from "@/components/ui/icons";
 import { TabRail } from "@/components/ui/TabRail";
 import { DemoNotice } from "@/components/ui/DemoNotice";
 import { useOverflowFade } from "@/lib/useOverflowFade";
@@ -1586,11 +1587,11 @@ export default function LogPage() {
             <button
               type="button"
               onClick={() => setDate((d) => addDaysLocal(d, -1))}
-              className="flex h-9 w-9 items-center justify-center rounded text-base font-medium"
+              className="flex h-9 w-9 items-center justify-center rounded"
               style={{ color: "var(--text-secondary)" }}
               aria-label="Previous day"
             >
-              ‹
+              <ChevronIcon dir="left" size={18} />
             </button>
             <label className="relative flex min-w-24 cursor-pointer items-center justify-center rounded px-1.5 py-1.5">
               <span className="text-sm font-semibold whitespace-nowrap" style={{ color: "var(--text-primary)" }}>
@@ -1610,11 +1611,11 @@ export default function LogPage() {
               type="button"
               onClick={() => setDate((d) => (d < today ? addDaysLocal(d, 1) : d))}
               disabled={date >= today}
-              className="flex h-9 w-9 items-center justify-center rounded text-base font-medium disabled:opacity-30"
+              className="flex h-9 w-9 items-center justify-center rounded disabled:opacity-30"
               style={{ color: "var(--text-secondary)" }}
               aria-label="Next day"
             >
-              ›
+              <ChevronIcon dir="right" size={18} />
             </button>
           </div>
         </div>
@@ -2128,10 +2129,10 @@ export default function LogPage() {
                           onClick={() => void handleDeleteEntry(entry)}
                           disabled={busy}
                           aria-label={`Delete ${entry.item} at ${entry.time}`}
-                          className="shrink-0 text-xs leading-none disabled:opacity-40"
+                          className="shrink-0 disabled:opacity-40"
                           style={{ color: "var(--text-secondary)" }}
                         >
-                          ✕
+                          <CloseIcon size={12} />
                         </button>
                       )}
                     </div>

@@ -3,6 +3,7 @@
 import { useMemo, useState, type ReactNode } from "react";
 import clsx from "clsx";
 import { addDaysToDate, monthStart } from "@/lib/aggregations/common";
+import { ChevronIcon } from "@/components/ui/icons";
 import { groupIntoPeriodRuns, currentCycleStatus, predictUpcomingPeriods } from "@/lib/aggregations/cycle";
 import { PERIOD_INTENSITIES, COLLECTION_METHODS, type RawPeriodLog, type PeriodIntensity, type CollectionMethod } from "@/lib/types";
 
@@ -330,11 +331,11 @@ export function CycleTab({
           <button
             type="button"
             onClick={() => setCalendarMonth((m) => shiftMonth(m, -1))}
-            className="flex h-7 w-7 items-center justify-center rounded-md text-sm font-medium"
+            className="flex h-7 w-7 items-center justify-center rounded-md"
             style={{ color: "var(--text-secondary)" }}
             aria-label="Previous month"
           >
-            ‹
+            <ChevronIcon dir="left" size={15} />
           </button>
           <p className="text-xs font-semibold" style={{ color: "var(--text-secondary)" }}>
             Period calendar
@@ -342,11 +343,11 @@ export function CycleTab({
           <button
             type="button"
             onClick={() => setCalendarMonth((m) => shiftMonth(m, 1))}
-            className="flex h-7 w-7 items-center justify-center rounded-md text-sm font-medium"
+            className="flex h-7 w-7 items-center justify-center rounded-md"
             style={{ color: "var(--text-secondary)" }}
             aria-label="Next month"
           >
-            ›
+            <ChevronIcon dir="right" size={15} />
           </button>
         </div>
 

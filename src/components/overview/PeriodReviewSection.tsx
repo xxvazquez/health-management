@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Card, CardTitle } from "@/components/ui/Card";
+import { ChevronIcon } from "@/components/ui/icons";
 import { addDaysToDate, isoWeekStart, monthStart } from "@/lib/aggregations/common";
 import { buildPeriodReview } from "@/lib/aggregations/periodReview";
 import type { CanonicalEvent, RawWorkoutLog, RawPeriodLog } from "@/lib/types";
@@ -107,20 +108,20 @@ export function PeriodReviewSection({
             type="button"
             onClick={() => setAnchor((a) => shiftAnchor(period, a, -1))}
             aria-label="Previous period"
-            className="flex h-6 w-6 items-center justify-center rounded-md text-sm"
+            className="flex h-6 w-6 items-center justify-center rounded-md"
             style={{ color: "var(--text-secondary)" }}
           >
-            ‹
+            <ChevronIcon dir="left" size={14} />
           </button>
           <button
             type="button"
             onClick={() => setAnchor((a) => shiftAnchor(period, a, 1))}
             disabled={isCurrent}
             aria-label="Next period"
-            className="flex h-6 w-6 items-center justify-center rounded-md text-sm disabled:opacity-30"
+            className="flex h-6 w-6 items-center justify-center rounded-md disabled:opacity-30"
             style={{ color: "var(--text-secondary)" }}
           >
-            ›
+            <ChevronIcon dir="right" size={14} />
           </button>
         </div>
       </div>
