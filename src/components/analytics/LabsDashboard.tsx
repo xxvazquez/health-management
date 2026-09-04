@@ -17,6 +17,9 @@ import {
   type LabRangeOption,
 } from "@/lib/aggregations/labs";
 import type { LabMarker } from "@/lib/supabase/labs";
+import { useVitals } from "@/lib/useVitals";
+import type { BloodPressureReading, WeightReading } from "@/lib/supabase/vitals";
+import { bpCategory, bpElevated } from "@/lib/aggregations/vitals";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageSkeleton } from "@/components/ui/Skeleton";
 import { DashboardHeader } from "@/components/analytics/DashboardHeader";
@@ -53,6 +56,7 @@ function statusTone(status: HeadlineMarker["status"]): string {
 
 export function LabsDashboard() {
   const labs = useLabs();
+  const vitals = useVitals();
   const [rangeId, setRangeId] = useState<LabRangeOption["id"]>("all");
   const [expanded, setExpanded] = useState<string | null>(null);
   const [compare, setCompare] = useState<string[]>([]);
@@ -69,6 +73,18 @@ export function LabsDashboard() {
   );
   const headline = useMemo(() => headlineMarkers(inRange, DEFAULT_LAB_PINS), [inRange]);
   const flagged = useMemo(() => flaggedReadings(inRange), [inRange]);
+
+  const cutoff = rangeCutoff(rangeOption, today);
+  // Newest first (useVitals sorts that way); clipped to the range control.
+  const bpShown = useMemo(
+    () => (cutoff ? vitals.bp.data.filter((r) => r.measuredAt >= cutoff) : vitals.bp.data),
+    [vitals.bp.data, cutoff],
+  );
+  const weightShown = useMemo(
+    () => (cutoff ? vitals.weight.data.filter((r) => r.measuredAt >= cutoff) : vitals.weight.data),
+    [vitals.weight.data, cutoff],
+  );
+  const hasVitals = vitals.bp.data.length > 0 || vitals.weight.data.length > 0;
 
   const panelSections = useMemo(() => {
     const byPanel = new Map<string, LabMarker[]>();
@@ -189,6 +205,8 @@ export function LabsDashboard() {
           </div>
         </div>
       )}
+
+      {hasVitals && <VitalsBlock bp={bpShown} weight={weightShown} />}
 
       <Card tier="raw" className="lg:col-span-2">
         <CardTitle size="sm" subtitle="Markers whose most recent value sits outside its reference range">
@@ -353,8 +371,69 @@ export function LabsDashboard() {
         outside the reference low/high stored on that marker — those ranges are lab- and sometimes age-specific, so
         treat a flag as a prompt to look, not a diagnosis. Change vs previous compares the latest value with the one
         before it. The compare chart puts unrelated markers on one scale so their shapes can be read together; the
-        numbers on its axis are not clinically meaningful.
+        numbers on its axis are not clinically meaningful. Blood-pressure categories are the ACC/AHA 2017 bands,
+        shown for reference.
       </Methodology>
     </div>
+  );
+}
+
+function VitalsBlock({ bp, weight }: { bp: BloodPressureReading[]; weight: WeightReading[] }) {
+  const latestBp = bp[0] ?? null;
+  const bpCat = latestBp ? bpCategory(latestBp.systolic, latestBp.diastolic) : null;
+  const latestWeight = weight[0] ?? null;
+  const weightDelta =
+    weight.length >= 2 ? Math.round((weight[0].kg - weight[weight.length - 1].kg) * 10) / 10 : null;
+  const anyElevated = bp.some((r) => bpElevated(r.systolic, r.diastolic));
+
+  return (
+    <Card tier="raw" className="lg:col-span-2">
+      <CardTitle size="sm" subtitle="Blood pressure and weight from the Medical → Vitals tab">
+        Vitals
+      </CardTitle>
+      <div className="grid gap-4 sm:grid-cols-2">
+        {latestBp && bpCat && (
+          <div className="flex flex-col gap-1">
+            <p className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>Blood pressure</p>
+            <p className="text-lg font-semibold tabular-nums" style={{ color: bpCat.color }}>
+              {latestBp.systolic}/{latestBp.diastolic}
+              <span className="ml-1 text-xs font-normal" style={{ color: "var(--text-muted)" }}>mmHg</span>
+            </p>
+            <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+              {bpCat.label} · {fmtDate(latestBp.measuredAt.slice(0, 10))}
+            </p>
+            {bp.length >= 2 && (
+              <div className="mt-0.5">
+                <LabSparkline values={[...bp].reverse().map((r) => r.systolic)} refLow={null} refHigh={null} width={112} height={24} />
+              </div>
+            )}
+          </div>
+        )}
+        {latestWeight && (
+          <div className="flex flex-col gap-1">
+            <p className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>Weight</p>
+            <p className="text-lg font-semibold tabular-nums" style={{ color: "var(--text-primary)" }}>
+              {latestWeight.kg}
+              <span className="ml-1 text-xs font-normal" style={{ color: "var(--text-muted)" }}>kg</span>
+            </p>
+            <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+              {weightDelta != null && weightDelta !== 0 ? `${weightDelta > 0 ? "+" : ""}${weightDelta} kg over this range · ` : ""}
+              {fmtDate(latestWeight.measuredAt.slice(0, 10))}
+            </p>
+            {weight.length >= 2 && (
+              <div className="mt-0.5">
+                <LabSparkline values={[...weight].reverse().map((r) => r.kg)} refLow={null} refHigh={null} width={112} height={24} />
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+      {anyElevated && (
+        <p className="mt-3 text-xs" style={{ color: "var(--status-warning)" }}>
+          <span className="mr-1.5 inline-block h-2 w-2 rounded-full align-middle" style={{ background: "var(--status-warning)" }} aria-hidden="true" />
+          Some blood-pressure readings in this range are Stage 1 or higher.
+        </p>
+      )}
+    </Card>
   );
 }
