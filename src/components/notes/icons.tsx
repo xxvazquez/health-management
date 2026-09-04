@@ -60,7 +60,7 @@ function QuestionIcon(props: { size?: number }) {
   );
 }
 
-export const CATEGORY_ICON: Record<NoteCategory, (props: { size?: number }) => ReactNode> = {
+const CATEGORY_ICON: Record<NoteCategory, (props: { size?: number }) => ReactNode> = {
   note: NoteIcon,
   reminder: ReminderIcon,
   appreciation: AppreciationIcon,

@@ -24,7 +24,7 @@ const MAX_BRISTOL_PATTERNS = 12;
  * "worse"/"good"/"bad".
  */
 const BRISTOL_COMPARISON_TYPES = [3, 4];
-export const BRISTOL_COMPARISON_LABEL = "Bristol 3–4";
+const BRISTOL_COMPARISON_LABEL = "Bristol 3–4";
 
 /**
  * Single-cause, single-outcome cross-domain scan against Bristol: for every

@@ -10,13 +10,13 @@ const now = () => Date.now();
 const iso = (msOffset: number) => new Date(now() + msOffset).toISOString();
 const dateOnly = (msOffset: number) => new Date(now() + msOffset).toISOString().slice(0, 10);
 
-export const DEMO_DOCTOR_KOWALSKA = "demo-doctor-kowalska";
-export const DEMO_DOCTOR_NOWAK = "demo-doctor-nowak";
-export const DEMO_DOCTOR_GARCIA = "demo-doctor-garcia";
+const DEMO_DOCTOR_KOWALSKA = "demo-doctor-kowalska";
+const DEMO_DOCTOR_NOWAK = "demo-doctor-nowak";
+const DEMO_DOCTOR_GARCIA = "demo-doctor-garcia";
 
-export const DEMO_APPT_TEETH = "demo-appt-teeth";
-export const DEMO_APPT_CHECKUP = "demo-appt-checkup";
-export const DEMO_APPT_USG = "demo-appt-usg";
+const DEMO_APPT_TEETH = "demo-appt-teeth";
+const DEMO_APPT_CHECKUP = "demo-appt-checkup";
+const DEMO_APPT_USG = "demo-appt-usg";
 
 export function buildDemoDoctorSpecialties(): DoctorSpecialty[] {
   const nextDates: Record<string, string> = {
