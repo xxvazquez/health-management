@@ -33,27 +33,30 @@ export const LAB_RANGES: LabRangeOption[] = [
   { id: "1y", label: "1 year", years: 1 },
 ];
 
-/** Markers pinned to the headline grid by default — matched loosely
- * (case, spacing and any parenthetical are ignored) so the Polish import
- * names and the English demo names both land. Anything currently out of
- * range is added on top of these. */
+/** Markers pinned to the headline grid by default. The first block is the
+ * live data's exact marker names (from the blood-history import); the
+ * second is the signed-out demo's English equivalents. Matching ignores
+ * case, spacing and any parenthetical — "Hemoglobina (HGB)" matches
+ * "Hemoglobina" — and anything currently out of range is pinned on top of
+ * these regardless. A per-user editable set is a planned follow-up. */
 export const DEFAULT_LAB_PINS = [
+  // Live data (verified against the import catalogue)
   "Ferrytyna",
-  "Ferritin",
   "Żelazo",
-  "Hemoglobina",
-  "Hemoglobin",
+  "Hemoglobina (HGB)",
   "TSH",
   "FT4",
   "Witamina D",
-  "Vitamin D",
   "Witamina B12",
-  "Vitamin B12",
   "Kwas foliowy",
   "Cholesterol całkowity",
   "HbA1c",
   "Glukoza",
   "CRP",
+  // Demo data
+  "Ferritin",
+  "Hemoglobin (HGB)",
+  "Vitamin D (25-OH)",
 ];
 
 function normalizeName(name: string): string {
