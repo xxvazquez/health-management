@@ -25,9 +25,10 @@ function IconWrap({ children }: { children: ReactNode }) {
 export const ICONS: Record<string, ReactNode> = {
   Overview: (
     <IconWrap>
-      <path d="M3 10.5 10 4l7 6.5" />
-      <path d="M5 9.5V17h10V9.5" />
-      <path d="M8 17v-5h4v5" />
+      <rect x="3.6" y="3.6" width="5.6" height="5.6" rx="1.1" />
+      <rect x="10.8" y="3.6" width="5.6" height="5.6" rx="1.1" />
+      <rect x="3.6" y="10.8" width="5.6" height="5.6" rx="1.1" />
+      <rect x="10.8" y="10.8" width="5.6" height="5.6" rx="1.1" />
     </IconWrap>
   ),
   Log: (
