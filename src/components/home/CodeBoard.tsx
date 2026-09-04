@@ -370,7 +370,7 @@ export function CodeBoard({
           }
         />
       ) : (
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-3 xl:grid xl:grid-cols-2 xl:items-start">
           {groups.map((g) => (
             <ListSection
               key={g.key}

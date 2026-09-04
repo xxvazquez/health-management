@@ -111,8 +111,11 @@ export function NoteRow({
 
 /** The list wrapper — a stack of card rows, matching the spacing of the
  * app's other list screens. */
-export function NoteList({ children }: { children: ReactNode }) {
-  return <ul className="flex flex-col gap-3">{children}</ul>;
+/** `wide` tiles the rows two-up from `xl` — for the flat Notes boards on a
+ * wide page. Journal keeps the default single column under its month
+ * headers. */
+export function NoteList({ children, wide = false }: { children: ReactNode; wide?: boolean }) {
+  return <ul className={wide ? "grid gap-3 xl:grid-cols-2 xl:items-start" : "flex flex-col gap-3"}>{children}</ul>;
 }
 
 /** Create-or-edit editor: a plain sheet, title above body, no field

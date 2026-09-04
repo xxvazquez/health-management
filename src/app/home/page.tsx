@@ -637,36 +637,40 @@ export default function HomePage() {
         />
       )}
 
+      {/* Wishlist keeps its own narrow measure — it has a detail view and
+          forms, not the two-up card lists the other tabs widen into. */}
       {tab === "wishlist" && (
-        <WishlistBoard
-          categories={wishlist}
-          loading={!isDemo && wishlistLoading}
-          error={wishlistError}
-          accent={ACCENT}
-          people={myUserId ? { myUserId, partnerId } : undefined}
-          forLabel={completedByLabel}
-          sharedUrl={sharedUrl}
-          onSharedUrlConsumed={() => setSharedUrl(null)}
-          onRefresh={isDemo ? undefined : loadWishlist}
-          shareToPhone={
-            !isDemo && wishlistShareEndpoint() && wishlistShareAuthHeader()
-              ? {
-                  endpoint: wishlistShareEndpoint() as string,
-                  authHeader: wishlistShareAuthHeader() as string,
-                  getToken: fetchMyShareToken,
-                  regenerate: regenerateMyShareToken,
-                  disable: deleteMyShareToken,
-                }
-              : undefined
-          }
-          onFetchTitle={isDemo ? undefined : (url) => fetchLinkMetadata(url).then((r) => r.title)}
-          onCreateCategory={handleCreateWishlistCategory}
-          onUpdateCategory={handleUpdateWishlistCategory}
-          onDeleteCategory={handleDeleteWishlistCategory}
-          onCreateItem={handleCreateWishlistItem}
-          onUpdateItem={handleUpdateWishlistItem}
-          onDeleteItem={handleDeleteWishlistItem}
-        />
+        <div className="max-w-4xl">
+          <WishlistBoard
+            categories={wishlist}
+            loading={!isDemo && wishlistLoading}
+            error={wishlistError}
+            accent={ACCENT}
+            people={myUserId ? { myUserId, partnerId } : undefined}
+            forLabel={completedByLabel}
+            sharedUrl={sharedUrl}
+            onSharedUrlConsumed={() => setSharedUrl(null)}
+            onRefresh={isDemo ? undefined : loadWishlist}
+            shareToPhone={
+              !isDemo && wishlistShareEndpoint() && wishlistShareAuthHeader()
+                ? {
+                    endpoint: wishlistShareEndpoint() as string,
+                    authHeader: wishlistShareAuthHeader() as string,
+                    getToken: fetchMyShareToken,
+                    regenerate: regenerateMyShareToken,
+                    disable: deleteMyShareToken,
+                  }
+                : undefined
+            }
+            onFetchTitle={isDemo ? undefined : (url) => fetchLinkMetadata(url).then((r) => r.title)}
+            onCreateCategory={handleCreateWishlistCategory}
+            onUpdateCategory={handleUpdateWishlistCategory}
+            onDeleteCategory={handleDeleteWishlistCategory}
+            onCreateItem={handleCreateWishlistItem}
+            onUpdateItem={handleUpdateWishlistItem}
+            onDeleteItem={handleDeleteWishlistItem}
+          />
+        </div>
       )}
     </BoardPage>
   );
