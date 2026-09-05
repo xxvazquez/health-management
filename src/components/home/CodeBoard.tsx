@@ -9,6 +9,7 @@ import { ListSection, SectionIcon } from "@/components/ui/ListSection";
 import { ListSkeleton } from "@/components/ui/Skeleton";
 import { InlineEmpty } from "@/components/ui/EmptyState";
 import { PrimaryAction } from "@/components/ui/PrimaryAction";
+import { Button } from "@/components/ui/Button";
 import type { HouseholdCode, NewHouseholdCodeInput } from "@/lib/supabase/household";
 
 type SortMode = "shop" | "expiry";
@@ -161,9 +162,9 @@ function CodeForm({
         <span style={{ color: "var(--text-muted)" }}>optional</span>
       </label>
       <div className="flex items-center gap-3">
-        <button type="submit" disabled={saving || !canSave} className="rounded-md px-4 py-2 text-sm font-medium text-white disabled:opacity-50" style={{ background: accent }}>
+        <Button type="submit" size="lg" accent={accent} disabled={saving || !canSave}>
           {saving ? "Saving…" : initial ? "Save changes" : "Save"}
-        </button>
+        </Button>
         {error && (
           <span className="text-xs" style={{ color: "var(--status-critical)" }}>
             {error}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type FormEvent, type ReactNode } from "react";
+import { Button } from "./Button";
 
 /** Shared surface for the app's writing screens — Log's Journal and the
  * Notes boards (personal + Home). The list (`NoteList` / `NoteRow`) uses
@@ -238,14 +239,9 @@ export function NotebookForm({
       </div>
 
       <div className="flex items-center gap-3">
-        <button
-          type="submit"
-          disabled={saving || !body.trim()}
-          className="rounded-md px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
-          style={{ background: accent }}
-        >
+        <Button type="submit" size="lg" accent={accent} disabled={saving || !body.trim()}>
           {saving ? "Saving…" : submitLabel}
-        </button>
+        </Button>
         {error && (
           <span className="text-xs" style={{ color: "var(--status-critical)" }}>
             {error}

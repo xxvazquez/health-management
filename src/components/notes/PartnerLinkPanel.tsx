@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { Card, CardTitle } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
 import { createPartnerInvite, redeemPartnerInvite, type PartnerInvite } from "@/lib/supabase/partner";
 
 const ACCENT = "var(--series-magenta)";
@@ -99,14 +100,9 @@ export function PartnerLinkPanel({ onLinked }: { onLinked: () => void }) {
             className="flex-1 rounded-md border px-3 py-2 text-sm tracking-[0.15em] uppercase outline-none"
             style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
           />
-          <button
-            type="submit"
-            disabled={redeeming || !codeInput.trim()}
-            className="shrink-0 rounded-md px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
-            style={{ background: ACCENT }}
-          >
+          <Button type="submit" size="lg" accent={ACCENT} disabled={redeeming || !codeInput.trim()} className="shrink-0">
             {redeeming ? "Linking…" : "Link"}
-          </button>
+          </Button>
         </form>
         {redeemError && (
           <p className="mt-2 text-xs" style={{ color: "var(--status-critical)" }}>

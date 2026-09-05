@@ -3,6 +3,7 @@
 import { useState, type ReactNode } from "react";
 import { BristolIcon } from "@/components/icons/BristolIcons";
 import { CloseIcon } from "@/components/ui/icons";
+import { Button } from "@/components/ui/Button";
 import { defaultLogTimeValue, toTimeInputValue } from "@/lib/logCandidates";
 import {
   STOOL_COLORS,
@@ -537,15 +538,9 @@ export function StoolTab({
         )}
       </div>
 
-      <button
-        type="button"
-        onClick={() => void handleSave()}
-        disabled={!canSave || saving || isDemoData}
-        className="self-start rounded-md px-3.5 py-1.5 text-sm font-medium text-white disabled:opacity-40"
-        style={{ background: accent }}
-      >
+      <Button type="button" size="sm" onClick={() => void handleSave()} disabled={!canSave || saving || isDemoData} accent={accent} className="self-start">
         {isDemoData ? "Sign in to log" : saving ? "Saving…" : editingId ? "Update entry" : "Save entry"}
-      </button>
+      </Button>
 
       {entries.length > 0 && (
         <div className="flex flex-col gap-2">

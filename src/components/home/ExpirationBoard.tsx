@@ -10,6 +10,7 @@ import { SearchField } from "@/components/ui/SearchField";
 import { ListSkeleton } from "@/components/ui/Skeleton";
 import { InlineEmpty } from "@/components/ui/EmptyState";
 import { PrimaryAction } from "@/components/ui/PrimaryAction";
+import { Button } from "@/components/ui/Button";
 
 // Emphasis only where it earns its keep — Expired and this week read as
 // urgent; everything further out is the same quiet muted tone.
@@ -140,9 +141,9 @@ function ItemForm({
         days before
       </label>
       <div className="flex items-center gap-3">
-        <button type="submit" disabled={saving || !name.trim()} className="rounded-md px-4 py-2 text-sm font-medium text-white disabled:opacity-50" style={{ background: accent }}>
+        <Button type="submit" size="lg" accent={accent} disabled={saving || !name.trim()}>
           {saving ? "Saving…" : initial ? "Save changes" : "Save"}
-        </button>
+        </Button>
         {error && (
           <span className="text-xs" style={{ color: "var(--status-critical)" }}>
             {error}

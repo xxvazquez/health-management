@@ -9,6 +9,7 @@ import { PageSkeleton } from "@/components/ui/Skeleton";
 import { SearchField } from "@/components/ui/SearchField";
 import { CloseIcon } from "@/components/ui/icons";
 import { Card } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
 import { ItemNameField, ItemActionButtons, useInlineRename } from "@/components/ui/ItemActions";
 import { ManageRow } from "@/components/ui/ManageRow";
 import { customColorValue } from "@/components/ui/customIcons";
@@ -568,14 +569,9 @@ function AddItemForm({
           ))}
         </select>
       )}
-      <button
-        type="submit"
-        disabled={!trimmed || busy}
-        className="rounded-md px-3 py-1.5 text-sm font-medium text-white disabled:opacity-40"
-        style={{ background: "var(--series-1)" }}
-      >
+      <Button type="submit" size="sm" disabled={!trimmed || busy}>
         {busy ? "Adding…" : "Add"}
-      </button>
+      </Button>
     </form>
   );
 }

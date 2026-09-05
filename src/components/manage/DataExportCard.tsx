@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useAuth } from "@/lib/supabase/AuthContext";
 import { Card } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
 import { FIELD_CLS, FIELD_STYLE } from "@/components/ui/formField";
 import { buildExport, downloadExport, downloadSectionCsv, EXPORT_SECTIONS, type ExportBundle } from "@/lib/exportData";
 
@@ -75,15 +76,9 @@ export function DataExportCard({ isDemoData }: { isDemoData: boolean }) {
       </p>
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          onClick={exportJson}
-          disabled={busy}
-          className="rounded-md px-3.5 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
-          style={{ background: "var(--series-1)" }}
-        >
+        <Button type="button" onClick={exportJson} disabled={busy} className="transition-opacity hover:opacity-90">
           {json === "working" ? "Gathering…" : "Download JSON"}
-        </button>
+        </Button>
       </div>
 
       <div className="mt-2 flex flex-wrap items-center gap-2">

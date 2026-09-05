@@ -17,7 +17,7 @@ export default function NotFound() {
       <p className="mt-2 max-w-sm text-sm" style={{ color: "var(--text-secondary)" }}>
         This page doesn&apos;t exist, or moved. Nothing was lost — your data lives on the pages below.
       </p>
-      <Button href="/log" size="lg" className="mt-6">
+      <Button href="/log" size="xl" className="mt-6">
         Back to Log
       </Button>
     </div>
