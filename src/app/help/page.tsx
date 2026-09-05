@@ -1,3 +1,5 @@
+import { PageHeading } from "@/components/ui/PageHeading";
+
 type Entry = { title: string; body: string };
 
 /** Plain documentation: topic groups, each a stack of entries that start
@@ -171,11 +173,7 @@ function Chevron() {
 export default function HelpPage() {
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
-          Help
-        </h1>
-      </div>
+      <PageHeading>Help</PageHeading>
 
       {GROUPS.map((group) => (
         <section key={group.title} className="flex flex-col gap-2">

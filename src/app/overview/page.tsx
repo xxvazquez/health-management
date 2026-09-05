@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useData } from "@/lib/DataContext";
 import { useAuth } from "@/lib/supabase/AuthContext";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { PageHeading } from "@/components/ui/PageHeading";
 import { PageSkeleton } from "@/components/ui/Skeleton";
 import { addDaysToDate, todayLocalISODate, type DateRange } from "@/lib/aggregations/common";
 import { buildActivityFeed, type ActivityEntry } from "@/lib/aggregations/activity";
@@ -228,9 +229,7 @@ export default function OverviewPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-xl font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
-        Overview
-      </h1>
+      <PageHeading>Overview</PageHeading>
 
       <AttentionBand items={attentionItems} />
 

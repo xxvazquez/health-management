@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useData } from "@/lib/DataContext";
+import { Disclosure } from "@/components/ui/Disclosure";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageSkeleton } from "@/components/ui/Skeleton";
 import { DashboardHeader } from "@/components/analytics/DashboardHeader";
@@ -26,7 +27,6 @@ export function HabitsDashboard() {
   const { status, events, refresh } = useData();
   const { span, range, setRange, filtered } = useDateRangeFilter(events);
   const { busyIdentity, toggleArchive, rename } = useItemActions(refresh);
-  const [archivedOpen, setArchivedOpen] = useState(false);
 
   // The insight always reads the full history (recent-vs-usual needs a
   // stable baseline) — independent of whatever range the detail charts
@@ -129,19 +129,7 @@ export function HabitsDashboard() {
 
       {archived.length > 0 && (
         <Card tier="raw" className="lg:col-span-2">
-          <button
-            type="button"
-            onClick={() => setArchivedOpen((v) => !v)}
-            className="flex w-full items-center justify-between gap-2 text-left"
-          >
-            <span className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>
-              Archived ({archived.length})
-            </span>
-            <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-              {archivedOpen ? "Hide" : "Show"}
-            </span>
-          </button>
-          {archivedOpen && (
+          <Disclosure label="Archived" count={archived.length}>
             <ul className="mt-3 flex flex-col gap-2">
               {archived.map((item) => (
                 <li
@@ -162,7 +150,7 @@ export function HabitsDashboard() {
                 </li>
               ))}
             </ul>
-          )}
+          </Disclosure>
         </Card>
       )}
 
