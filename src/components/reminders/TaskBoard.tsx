@@ -553,8 +553,8 @@ export function TaskBoard({
           type="button"
           onClick={() => void onComplete(task)}
           aria-label={recurring ? "Mark done for this cycle" : "Mark done"}
-          className="mt-0.5 flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full border"
-          style={{ borderColor: "var(--baseline)", background: "transparent" }}
+          className="mt-0.5 flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full border transition-colors hover:border-[var(--status-good)] hover:bg-[var(--page-plane)]"
+          style={{ borderColor: "var(--text-secondary)", background: "transparent" }}
         />
         <div className="min-w-0 flex-1">
           <span className="block truncate text-sm font-medium" style={{ color: "var(--text-primary)" }}>
