@@ -9,7 +9,7 @@ import { ListSkeleton } from "@/components/ui/Skeleton";
 import { InlineEmpty } from "@/components/ui/EmptyState";
 import { PrimaryAction } from "@/components/ui/PrimaryAction";
 import { Button } from "@/components/ui/Button";
-import { FIELD_CLS, FIELD_STYLE, IconAction, LABEL_CLS, LABEL_STYLE, PencilIcon, TrashIcon, formatDate } from "./shared";
+import { ComboBox, FIELD_CLS, FIELD_STYLE, IconAction, LABEL_CLS, LABEL_STYLE, PencilIcon, TrashIcon, formatDate } from "./shared";
 import { parseNum, rangeStatus, statusColor } from "./labStatus";
 import { BatchResultsView } from "./BatchResultsView";
 import { DetailPlaceholder, MedicalSplit, useIsDesktop } from "./MedicalSplit";
@@ -53,6 +53,7 @@ function MarkerForm({
   const [error, setError] = useState<string | null>(null);
 
   const needsNewPanel = panelId === NEW_PANEL;
+  const markerNameOptions = useMemo(() => labs.markers.data.map((m) => m.name), [labs.markers.data]);
 
   // Default the Unit field to whatever a marker of the same name already
   // uses, so a brand-new marker doesn't start blank when its unit is
@@ -107,10 +108,10 @@ function MarkerForm({
         </button>
       </div>
 
-      <label className="flex flex-col gap-1">
+      <div className="flex flex-col gap-1">
         <span className={LABEL_CLS} style={LABEL_STYLE}>Marker</span>
-        <input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. TSH, Ferritin" maxLength={80} className={`${FIELD_CLS} font-medium`} style={FIELD_STYLE} />
-      </label>
+        <ComboBox value={name} onChange={setName} options={markerNameOptions} placeholder="Search or add a marker…" accent={accent} />
+      </div>
 
       <div className="flex flex-wrap gap-3">
         <label className="flex min-w-28 flex-1 flex-col gap-1">
