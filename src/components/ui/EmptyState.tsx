@@ -1,5 +1,5 @@
-import Link from "next/link";
 import { Logo } from "@/components/Logo";
+import { Button } from "@/components/ui/Button";
 
 /** The in-page "nothing here" state — for a section inside a page that
  * already has its own heading, tabs and add button, where the full-page
@@ -43,13 +43,9 @@ export function EmptyState({
         {description}
       </p>
       {showLogLink && (
-        <Link
-          href="/log"
-          className="mt-5 rounded-md px-4 py-2 text-sm font-medium text-white"
-          style={{ background: "var(--series-1)" }}
-        >
+        <Button href="/log" className="mt-5">
           Go to Log
-        </Link>
+        </Button>
       )}
     </div>
   );

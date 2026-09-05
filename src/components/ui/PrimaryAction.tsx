@@ -2,6 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
+import { Button } from "./Button";
 
 // Hydration-safe "are we on the client yet" — the server snapshot is
 // false, the client's is true, so the portal below only renders after
@@ -33,15 +34,16 @@ export function PrimaryAction({
 
   return (
     <>
-      <button
+      <Button
         type="button"
+        size="sm"
+        accent={accent}
         onClick={onClick}
         disabled={disabled}
-        className="hidden shrink-0 rounded-md px-3 py-1.5 text-sm font-medium whitespace-nowrap text-white transition-opacity hover:opacity-90 disabled:opacity-50 lg:inline-flex"
-        style={{ background: accent }}
+        className="hidden shrink-0 transition-opacity hover:opacity-90 lg:inline-flex"
       >
         + {label}
-      </button>
+      </Button>
 
       {isClient &&
         createPortal(

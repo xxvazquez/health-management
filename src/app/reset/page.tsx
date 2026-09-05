@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import Link from "next/link";
 import { useAuth } from "@/lib/supabase/AuthContext";
 import { Card } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
 
 const INPUT_STYLE = { borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" };
 
@@ -61,13 +61,9 @@ export default function ResetPasswordPage() {
             <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
               Your password&apos;s been updated and you&apos;re signed in.
             </p>
-            <Link
-              href="/log/"
-              className="self-start rounded-md px-3 py-2 text-sm font-medium text-white"
-              style={{ background: "var(--series-1)" }}
-            >
+            <Button href="/log/" className="self-start">
               Go to Lauva
-            </Link>
+            </Button>
           </>
         ) : loading || (!session && grace) ? (
           <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
@@ -78,13 +74,9 @@ export default function ResetPasswordPage() {
             <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
               This reset link is invalid or has expired. Open the log-in screen and request a new one.
             </p>
-            <Link
-              href="/log/"
-              className="self-start rounded-md border px-3 py-2 text-sm font-medium"
-              style={{ borderColor: "var(--border-hairline)", color: "var(--text-secondary)" }}
-            >
+            <Button href="/log/" variant="outline" className="self-start">
               Back to Lauva
-            </Link>
+            </Button>
           </>
         ) : (
           <form onSubmit={handleSubmit} className="flex flex-col gap-2.5">
@@ -113,14 +105,9 @@ export default function ResetPasswordPage() {
                 style={INPUT_STYLE}
               />
             </label>
-            <button
-              type="submit"
-              disabled={submitting}
-              className="rounded-md px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
-              style={{ background: "var(--series-1)" }}
-            >
+            <Button type="submit" disabled={submitting}>
               {submitting ? "Saving…" : "Set new password"}
-            </button>
+            </Button>
             {error && (
               <span className="text-xs" style={{ color: "var(--status-critical)" }}>
                 {error}

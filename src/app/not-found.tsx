@@ -1,5 +1,5 @@
-import Link from "next/link";
 import { Logo } from "@/components/Logo";
+import { Button } from "@/components/ui/Button";
 
 export default function NotFound() {
   return (
@@ -17,13 +17,9 @@ export default function NotFound() {
       <p className="mt-2 max-w-sm text-sm" style={{ color: "var(--text-secondary)" }}>
         This page doesn&apos;t exist, or moved. Nothing was lost — your data lives on the pages below.
       </p>
-      <Link
-        href="/log"
-        className="mt-6 rounded-md px-5 py-2 text-sm font-medium whitespace-nowrap text-white"
-        style={{ background: "var(--series-1)" }}
-      >
+      <Button href="/log" size="lg" className="mt-6">
         Back to Log
-      </Link>
+      </Button>
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { useAuth } from "@/lib/supabase/AuthContext";
 import { useData } from "@/lib/DataContext";
 import { relativeTime } from "@/lib/relativeTime";
 import { useDialogA11y } from "@/components/ui/useDialogA11y";
+import { Button } from "@/components/ui/Button";
 
 /** Derived from the email local-part — sign-in is email/password only, no
  * profile/name field exists to pull a real display name from. */
@@ -141,15 +142,9 @@ export function AccountPanel() {
               )}
             </div>
 
-            <button
-              type="button"
-              onClick={() => void handleSignOut()}
-              disabled={submitting}
-              className="self-start rounded-md border px-3 py-1.5 text-sm font-medium disabled:opacity-50"
-              style={{ borderColor: "var(--border-hairline)", color: "var(--text-secondary)" }}
-            >
+            <Button type="button" variant="outline" size="sm" onClick={() => void handleSignOut()} disabled={submitting} className="self-start">
               Sign out
-            </button>
+            </Button>
           </>
         )}
 
@@ -181,14 +176,9 @@ export function AccountPanel() {
                     style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
                   />
                 </label>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="rounded-md px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
-                  style={{ background: "var(--series-1)" }}
-                >
+                <Button type="submit" disabled={submitting}>
                   {submitting ? "Sending…" : "Send reset link"}
-                </button>
+                </Button>
               </>
             )}
             <button
@@ -237,14 +227,9 @@ export function AccountPanel() {
                 style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
               />
             </label>
-            <button
-              type="submit"
-              disabled={submitting}
-              className="rounded-md px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
-              style={{ background: "var(--series-1)" }}
-            >
+            <Button type="submit" disabled={submitting}>
               {mode === "signIn" ? "Sign in" : "Create account"}
-            </button>
+            </Button>
             <div className="flex items-center justify-between gap-3">
               <button
                 type="button"
