@@ -6,6 +6,7 @@ import { AutoGrowTextarea } from "@/components/ui/AutoGrowTextarea";
 import { NOTE_CATEGORIES, NOTE_CATEGORY_LABEL, type NewNoteInput, type NoteCategory } from "@/lib/supabase/notes";
 import { CategoryIcon } from "./icons";
 import { CloseIcon } from "@/components/ui/icons";
+import { Button } from "@/components/ui/Button";
 
 const ACCENT = "var(--series-magenta)";
 
@@ -143,14 +144,9 @@ export function ComposeNoteDialog({
             />
           </label>
 
-          <button
-            type="submit"
-            disabled={sending || !body.trim()}
-            className="rounded-md px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
-            style={{ background: ACCENT }}
-          >
+          <Button type="submit" accent={ACCENT} disabled={sending || !body.trim()}>
             {sending ? "Sending…" : "Send"}
-          </button>
+          </Button>
           {error && (
             <span className="text-xs" style={{ color: "var(--status-critical)" }}>
               {error}

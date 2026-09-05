@@ -9,6 +9,7 @@ import { BloodPressureChart } from "@/components/charts/BloodPressureChart";
 import { ListSkeleton } from "@/components/ui/Skeleton";
 import { InlineEmpty } from "@/components/ui/EmptyState";
 import { PrimaryAction } from "@/components/ui/PrimaryAction";
+import { Button } from "@/components/ui/Button";
 import { FIELD_CLS, FIELD_STYLE, IconAction, LABEL_CLS, LABEL_STYLE, PencilIcon, TrashIcon, formatDateTime, toLocalInput } from "./shared";
 
 type Kind = "bp" | "weight";
@@ -117,9 +118,9 @@ function BpForm({
       </label>
 
       <div className="flex items-center gap-3">
-        <button type="submit" disabled={!canSave || saving} className="rounded-md px-4 py-2 text-sm font-medium text-white disabled:opacity-50" style={{ background: accent }}>
+        <Button type="submit" size="lg" accent={accent} disabled={!canSave || saving}>
           {saving ? "Saving…" : initial ? "Save changes" : "Add reading"}
-        </button>
+        </Button>
         {error && <span className="text-xs" style={{ color: "var(--status-critical)" }}>{error}</span>}
       </div>
     </form>
@@ -187,9 +188,9 @@ function WeightForm({
       </label>
 
       <div className="flex items-center gap-3">
-        <button type="submit" disabled={!canSave || saving} className="rounded-md px-4 py-2 text-sm font-medium text-white disabled:opacity-50" style={{ background: accent }}>
+        <Button type="submit" size="lg" accent={accent} disabled={!canSave || saving}>
           {saving ? "Saving…" : initial ? "Save changes" : "Add reading"}
-        </button>
+        </Button>
         {error && <span className="text-xs" style={{ color: "var(--status-critical)" }}>{error}</span>}
       </div>
     </form>

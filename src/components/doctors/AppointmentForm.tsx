@@ -5,6 +5,7 @@ import type { Doctor, DoctorAppointment } from "@/lib/supabase/doctors";
 import type { DoctorLanguage } from "@/lib/doctors";
 import type { LogAppointmentInput } from "@/lib/useDoctors";
 import { ComboBox, DoctorName, FIELD_CLS, FIELD_STYLE, LABEL_CLS, LABEL_STYLE, LanguageChips, RatingChips, TrashIcon, toLocalInput } from "./shared";
+import { Button } from "@/components/ui/Button";
 
 interface TaskDraft {
   description: string;
@@ -237,9 +238,9 @@ export function AppointmentForm({
       )}
 
       <div className="flex items-center gap-3 pt-1">
-        <button type="submit" disabled={saving} className="rounded-lg px-4 py-2 text-sm font-medium text-white disabled:opacity-50" style={{ background: accent }}>
+        <Button type="submit" size="lg" accent={accent} disabled={saving}>
           {saving ? "Saving…" : editing ? "Save changes" : "Save appointment"}
-        </button>
+        </Button>
         {error && (
           <span className="text-xs" style={{ color: "var(--status-critical)" }}>
             {error}

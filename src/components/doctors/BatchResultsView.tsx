@@ -5,6 +5,7 @@ import { useLabs } from "@/lib/useLabs";
 import { todayLocalISODate } from "@/lib/aggregations/common";
 import type { LabMarker, NewLabResultInput } from "@/lib/supabase/labs";
 import { FIELD_CLS, FIELD_STYLE, LABEL_CLS, LABEL_STYLE } from "./shared";
+import { Button } from "@/components/ui/Button";
 import { parseNum, rangeStatus, statusColor } from "./labStatus";
 
 const ALL = "all";
@@ -95,19 +96,13 @@ export function BatchResultsView({
   ];
 
   const saveButton = (
-    <button
-      type="button"
-      onClick={save}
-      disabled={!canSave}
-      className="rounded-md px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
-      style={{ background: accent }}
-    >
+    <Button type="button" size="lg" onClick={save} disabled={!canSave} accent={accent} className="transition-opacity hover:opacity-90">
       {saving
         ? "Saving…"
         : inputs.length === 0
           ? "Save"
           : `Save ${inputs.length} ${inputs.length === 1 ? "value" : "values"}`}
-    </button>
+    </Button>
   );
 
   return (

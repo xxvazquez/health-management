@@ -8,6 +8,7 @@ import { LabMarkerChart, LabSparkline } from "@/components/charts/LabMarkerChart
 import { ListSkeleton } from "@/components/ui/Skeleton";
 import { InlineEmpty } from "@/components/ui/EmptyState";
 import { PrimaryAction } from "@/components/ui/PrimaryAction";
+import { Button } from "@/components/ui/Button";
 import { FIELD_CLS, FIELD_STYLE, IconAction, LABEL_CLS, LABEL_STYLE, PencilIcon, TrashIcon, formatDate } from "./shared";
 import { parseNum, rangeStatus, statusColor } from "./labStatus";
 import { BatchResultsView } from "./BatchResultsView";
@@ -119,9 +120,9 @@ function MarkerForm({
       </label>
 
       <div className="flex items-center gap-3">
-        <button type="submit" disabled={!canSave || saving} className="rounded-md px-4 py-2 text-sm font-medium text-white disabled:opacity-50" style={{ background: accent }}>
+        <Button type="submit" size="lg" accent={accent} disabled={!canSave || saving}>
           {saving ? "Saving…" : initial ? "Save changes" : "Add marker"}
-        </button>
+        </Button>
         {error && <span className="text-xs" style={{ color: "var(--status-critical)" }}>{error}</span>}
       </div>
     </form>
@@ -209,9 +210,9 @@ function ResultForm({
       </label>
 
       <div className="flex items-center gap-3">
-        <button type="submit" disabled={!canSave || saving} className="rounded-md px-4 py-2 text-sm font-medium text-white disabled:opacity-50" style={{ background: accent }}>
+        <Button type="submit" size="lg" accent={accent} disabled={!canSave || saving}>
           {saving ? "Saving…" : initial ? "Save changes" : "Add value"}
-        </button>
+        </Button>
         {error && <span className="text-xs" style={{ color: "var(--status-critical)" }}>{error}</span>}
       </div>
     </form>
@@ -349,14 +350,9 @@ function MarkerDetail({
         })}
       </ul>
 
-      <button
-        type="button"
-        onClick={onAddValue}
-        className="self-start rounded-md px-3.5 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
-        style={{ background: accent }}
-      >
+      <Button type="button" onClick={onAddValue} accent={accent} className="self-start transition-opacity hover:opacity-90">
         + Add value
-      </button>
+      </Button>
     </div>
   );
 }
@@ -496,9 +492,9 @@ function PanelNameForm({
       </div>
       <input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="Panel name" maxLength={60} className={FIELD_CLS} style={FIELD_STYLE} />
       <IconColorPicker icon={icon} color={color} onIconChange={setIcon} onColorChange={setColor} accent={rowAccent} />
-      <button type="submit" disabled={!name.trim() || saving} className="self-start rounded-md px-4 py-2 text-sm font-medium text-white disabled:opacity-50" style={{ background: accent }}>
+      <Button type="submit" size="lg" accent={accent} disabled={!name.trim() || saving} className="self-start">
         {saving ? "Saving…" : initialName ? "Save changes" : "Add panel"}
-      </button>
+      </Button>
     </form>
   );
 }

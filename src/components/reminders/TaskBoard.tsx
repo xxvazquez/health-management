@@ -18,6 +18,7 @@ import { ListSection, SectionIcon } from "@/components/ui/ListSection";
 import { ListSkeleton } from "@/components/ui/Skeleton";
 import { InlineEmpty } from "@/components/ui/EmptyState";
 import { PrimaryAction } from "@/components/ui/PrimaryAction";
+import { Button } from "@/components/ui/Button";
 import { FIELD_CLS as fieldCls, FIELD_STYLE as fieldStyle, LABEL_CLS as labelCls, LABEL_STYLE as labelStyle } from "@/components/ui/formField";
 
 function UndoIcon({ size = 15 }: { size?: number }) {
@@ -260,14 +261,9 @@ function TaskForm({
       </div>
 
       <div className="flex items-center gap-3 pt-1">
-        <button
-          type="submit"
-          disabled={saving || !title.trim()}
-          className="rounded-lg px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
-          style={{ background: accent }}
-        >
+        <Button type="submit" size="lg" accent={accent} disabled={saving || !title.trim()}>
           {saving ? "Saving…" : initial ? "Save changes" : "Save reminder"}
-        </button>
+        </Button>
         {error && (
           <span className="text-xs" style={{ color: "var(--status-critical)" }}>
             {error}

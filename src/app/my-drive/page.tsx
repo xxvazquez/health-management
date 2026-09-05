@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } fro
 import clsx from "clsx";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { Button } from "@/components/ui/Button";
 import { ListSkeleton } from "@/components/ui/Skeleton";
 import { driveFileIcon, DriveFolderIcon } from "@/components/icons/DriveFileIcons";
 import { CloseIcon } from "@/components/ui/icons";
@@ -175,15 +176,9 @@ function ConnectCard({
           ? "Your Google Drive session expired. Reconnect to keep browsing."
           : "Connect your Google Drive to access your files and folders here."}
       </p>
-      <button
-        type="button"
-        onClick={onConnect}
-        disabled={status === "connecting"}
-        className="mt-5 rounded-md px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
-        style={{ background: "var(--series-1)" }}
-      >
+      <Button type="button" size="lg" onClick={onConnect} disabled={status === "connecting"} className="mt-5">
         {status === "connecting" ? "Connecting…" : expired ? "Reconnect Google Drive" : "Connect Google Drive"}
-      </button>
+      </Button>
       {errorMessage && (
         <p className="mt-3 max-w-sm text-xs" style={{ color: "var(--status-critical)" }}>
           {errorMessage}

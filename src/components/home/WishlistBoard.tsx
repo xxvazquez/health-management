@@ -6,6 +6,7 @@ import { SearchField } from "@/components/ui/SearchField";
 import { ListSkeleton } from "@/components/ui/Skeleton";
 import { InlineEmpty } from "@/components/ui/EmptyState";
 import { PrimaryAction } from "@/components/ui/PrimaryAction";
+import { Button } from "@/components/ui/Button";
 import { FIELD_CLS, FIELD_STYLE } from "@/components/ui/formField";
 import type {
   NewWishlistItemInput,
@@ -238,9 +239,9 @@ function ItemForm({
       </div>
 
       <div className="flex items-center gap-3">
-        <button type="submit" disabled={!canSave || saving} className="rounded-md px-4 py-2 text-sm font-medium text-white disabled:opacity-50" style={{ background: accent }}>
+        <Button type="submit" size="lg" accent={accent} disabled={!canSave || saving}>
           {saving ? "Saving…" : initial ? "Save changes" : "Add to wishlist"}
-        </button>
+        </Button>
         {error && (
           <span className="text-xs" style={{ color: "var(--status-critical)" }}>
             {error}
@@ -315,9 +316,9 @@ function CategoryForm({
       <IconColorPicker icon={icon} color={color} onIconChange={setIcon} onColorChange={setColor} accent={accent} />
 
       <div className="flex items-center gap-3">
-        <button type="submit" disabled={!name.trim() || saving} className="rounded-md px-4 py-2 text-sm font-medium text-white disabled:opacity-50" style={{ background: accent }}>
+        <Button type="submit" size="lg" accent={accent} disabled={!name.trim() || saving}>
           {saving ? "Saving…" : initial ? "Save changes" : "Add list"}
-        </button>
+        </Button>
         {error && (
           <span className="text-xs" style={{ color: "var(--status-critical)" }}>
             {error}
@@ -550,14 +551,9 @@ function CategoryDetail({
         )}
       </div>
 
-      <button
-        type="button"
-        onClick={onAddItem}
-        className="self-start rounded-md px-3.5 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
-        style={{ background: accent }}
-      >
+      <Button type="button" onClick={onAddItem} accent={accent} className="self-start transition-opacity hover:opacity-90">
         + Add link
-      </button>
+      </Button>
     </div>
   );
 }
@@ -677,15 +673,9 @@ function PhoneSetup({ share, accent, onBack }: { share: WishlistShareToPhone; ac
           Loading…
         </p>
       ) : !token ? (
-        <button
-          type="button"
-          onClick={() => act(share.regenerate)}
-          disabled={busy}
-          className="self-start rounded-md px-3.5 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
-          style={{ background: accent }}
-        >
+        <Button type="button" onClick={() => act(share.regenerate)} disabled={busy} accent={accent} className="self-start transition-opacity hover:opacity-90">
           Create a phone key
-        </button>
+        </Button>
       ) : (
         <>
           <div className="flex flex-col gap-3 rounded-xl border p-3" style={{ borderColor: "var(--border-hairline)", background: "var(--page-plane)" }}>

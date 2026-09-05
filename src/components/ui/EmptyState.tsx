@@ -43,7 +43,7 @@ export function EmptyState({
         {description}
       </p>
       {showLogLink && (
-        <Button href="/log" className="mt-5">
+        <Button href="/log" size="lg" className="mt-5">
           Go to Log
         </Button>
       )}

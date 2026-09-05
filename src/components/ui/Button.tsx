@@ -3,12 +3,18 @@ import Link from "next/link";
 import clsx from "clsx";
 
 type ButtonVariant = "primary" | "outline" | "quiet";
-type ButtonSize = "sm" | "md" | "lg";
+type ButtonSize = "sm" | "md" | "lg" | "xl";
 
+// md and lg read close in isolation but serve different contexts: md is
+// the compact dialog-submit size (AccountPanel, BugReportDialog, reset),
+// lg is the standalone board-form submit size (ExpirationBoard, Wishlist,
+// Care Log, Vitals, Results). xl is the one-off hero-CTA size (404, empty
+// states).
 const SIZE_CLS: Record<ButtonSize, string> = {
   sm: "px-3 py-1.5 text-sm",
   md: "px-3 py-2 text-sm",
-  lg: "px-5 py-2 text-sm",
+  lg: "px-4 py-2 text-sm",
+  xl: "px-5 py-2 text-sm",
 };
 
 const BASE_CLS = "inline-flex items-center justify-center gap-1.5 rounded-md font-medium whitespace-nowrap transition-colors disabled:opacity-50";
