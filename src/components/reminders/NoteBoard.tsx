@@ -7,7 +7,8 @@ import { ListSkeleton } from "@/components/ui/Skeleton";
 import { ErrorState, InlineEmpty } from "@/components/ui/EmptyState";
 import { PrimaryAction } from "@/components/ui/PrimaryAction";
 import { Button } from "@/components/ui/Button";
-import { FIELD_CLS, FIELD_STYLE, LABEL_CLS, LABEL_STYLE } from "@/components/ui/formField";
+import { Field } from "@/components/ui/Field";
+import { FIELD_CLS, FIELD_STYLE } from "@/components/ui/formField";
 
 /** Create-or-edit a note: the same titled-form treatment as the reminder
  * tab next to it (card surface, labelled fields), not Journal's bare
@@ -82,10 +83,7 @@ function NoteForm({
         </div>
       </div>
 
-      <div className="flex flex-col gap-1.5">
-        <label className={LABEL_CLS} style={LABEL_STYLE}>
-          Title <span style={{ color: "var(--text-muted)" }}>· optional</span>
-        </label>
+      <Field label={<>Title <span style={{ color: "var(--text-muted)" }}>· optional</span></>}>
         <input
           autoFocus
           value={title}
@@ -95,12 +93,9 @@ function NoteForm({
           className={`${FIELD_CLS} font-medium`}
           style={FIELD_STYLE}
         />
-      </div>
+      </Field>
 
-      <div className="flex flex-col gap-1.5">
-        <label className={LABEL_CLS} style={LABEL_STYLE}>
-          Note
-        </label>
+      <Field label="Note">
         <textarea
           required
           value={body}
@@ -110,7 +105,7 @@ function NoteForm({
           className={`${FIELD_CLS} resize-y leading-relaxed`}
           style={FIELD_STYLE}
         />
-      </div>
+      </Field>
 
       <div className="flex items-center gap-3">
         <Button type="submit" size="lg" accent={accent} disabled={saving || !body.trim()}>

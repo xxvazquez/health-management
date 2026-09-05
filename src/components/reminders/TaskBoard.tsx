@@ -17,6 +17,7 @@ import { ArchiveIcon } from "@/components/notes/icons";
 import { ListSection, SectionIcon } from "@/components/ui/ListSection";
 import { ListSkeleton } from "@/components/ui/Skeleton";
 import { Disclosure } from "@/components/ui/Disclosure";
+import { Field } from "@/components/ui/Field";
 import { ErrorState, InlineEmpty } from "@/components/ui/EmptyState";
 import { PrimaryAction } from "@/components/ui/PrimaryAction";
 import { Button } from "@/components/ui/Button";
@@ -164,10 +165,7 @@ function TaskForm({
         </button>
       </div>
 
-      <div className="flex flex-col gap-1.5">
-        <label className={labelCls} style={labelStyle}>
-          What needs doing?
-        </label>
+      <Field label="What needs doing?">
         <input
           required
           autoFocus
@@ -178,12 +176,9 @@ function TaskForm({
           className={`${fieldCls} font-medium`}
           style={fieldStyle}
         />
-      </div>
+      </Field>
 
-      <div className="flex flex-col gap-1.5">
-        <label className={labelCls} style={labelStyle}>
-          Notes <span style={{ color: "var(--text-muted)" }}>· optional</span>
-        </label>
+      <Field label={<>Notes <span style={{ color: "var(--text-muted)" }}>· optional</span></>}>
         <textarea
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
@@ -192,7 +187,7 @@ function TaskForm({
           className={`${fieldCls} resize-y leading-relaxed`}
           style={fieldStyle}
         />
-      </div>
+      </Field>
 
       {recurrenceMode === "optional" && (
         <label className="flex items-center gap-2 text-xs font-medium" style={labelStyle}>
