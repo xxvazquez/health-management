@@ -386,7 +386,7 @@ export function StoolTab({
         <p className="border-b pb-2 text-xs font-semibold" style={{ color: accent, borderColor: "var(--border-hairline)" }}>
           Bristol type — tap all that apply
         </p>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="grid grid-cols-4 gap-2 sm:grid-cols-7">
           {BRISTOL_SCORES.map((score) => {
             const active = draft.bristolScores.includes(score);
             return (

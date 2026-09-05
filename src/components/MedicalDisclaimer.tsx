@@ -14,7 +14,7 @@ export function MedicalDisclaimer() {
   if (!SHOW_ON.some((p) => path === p || path.startsWith(`${p}/`))) return null;
 
   return (
-    <footer className="mt-8 w-full text-center text-xs" style={{ color: "var(--text-muted)" }}>
+    <footer className="mt-8 w-full text-xs" style={{ color: "var(--text-muted)" }}>
       Personal data insights, not medical advice.
     </footer>
   );
