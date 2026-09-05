@@ -45,12 +45,28 @@ export function IconAction({ onClick, label, tone = "muted", disabled, children 
 
 /** A doctor's name, in the critical red whenever their rating is 1 — the
  * one visual cue the user asked for, shared by every list, picker and
- * history header. */
+ * history header. The colour is paired with a small warning glyph (plus a
+ * screen-reader-only note) so the signal isn't lost to colour-blind users
+ * or read as plain text everywhere else. */
 export function DoctorName({ name, rating, className = "", weight = "font-medium" }: { name: string; rating: number | null; className?: string; weight?: string }) {
   const bad = isBadDoctor(rating);
   return (
-    <span className={`${weight} ${className}`} style={{ color: bad ? "var(--status-critical)" : "var(--text-primary)" }} title={bad ? "Rated 1 — avoid" : undefined}>
+    <span
+      className={`inline-flex items-center gap-1 ${weight} ${className}`}
+      style={{ color: bad ? "var(--status-critical)" : "var(--text-primary)" }}
+      title={bad ? "Rated 1 — avoid" : undefined}
+    >
       {name}
+      {bad && (
+        <>
+          <svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="shrink-0">
+            <path d="M10 3.2 18 16.8H2Z" />
+            <path d="M10 8.2v3.6" />
+            <circle cx="10" cy="14.2" r="0.9" fill="currentColor" stroke="none" />
+          </svg>
+          <span className="sr-only">(rated 1 — avoid)</span>
+        </>
+      )}
     </span>
   );
 }
