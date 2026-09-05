@@ -1,13 +1,15 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { buildDayStory } from "@/lib/aggregations/myDay";
 import { groupIntoPeriodRuns, currentCycleStatus } from "@/lib/aggregations/cycle";
 import { addDaysToDate } from "@/lib/aggregations/common";
+import { getAllItems, withDataLock } from "@/lib/db/indexedDb";
+import { useData } from "@/lib/DataContext";
 import { buildSnapshotEntries, DayTimeline, type DayNoteSummary } from "./daySnapshot";
-import type { CanonicalEvent, RawWorkoutLog, RawPeriodLog } from "@/lib/types";
+import type { CanonicalEvent, RawWorkoutLog, RawPeriodLog, WorkoutUnit } from "@/lib/types";
 
 export type { DayNoteSummary };
 
@@ -48,12 +50,35 @@ export function TodaySnapshot({
 }) {
   const yesterday = addDaysToDate(today, -1);
 
+  // `RawWorkoutLog` has no unit of its own — its exercise's configured unit
+  // lives on the workout_items row, read here the same way WorkoutDashboard
+  // reads it for its own charts.
+  const { status } = useData();
+  const [unitByExercise, setUnitByExercise] = useState<Map<string, WorkoutUnit>>(new Map());
+  useEffect(() => {
+    if (status === "loading") return;
+    let cancelled = false;
+    void withDataLock(() => getAllItems()).then((items) => {
+      if (cancelled) return;
+      setUnitByExercise(new Map(items.filter((i) => i.itemType === "workout").map((i) => [i.rawName, i.unit ?? "kg"])));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [status]);
+
   const todayEntries = useMemo(
-    () => buildSnapshotEntries(events, workoutLogs, periodLogs, todayNotes, today),
-    [events, workoutLogs, periodLogs, todayNotes, today],
+    () => buildSnapshotEntries(events, workoutLogs, periodLogs, todayNotes, today, unitByExercise),
+    [events, workoutLogs, periodLogs, todayNotes, today, unitByExercise],
   );
-  const todayStory = useMemo(() => buildDayStory(events, workoutLogs, today), [events, workoutLogs, today]);
-  const yesterdayStory = useMemo(() => buildDayStory(events, workoutLogs, yesterday), [events, workoutLogs, yesterday]);
+  const todayStory = useMemo(
+    () => buildDayStory(events, workoutLogs, today, unitByExercise),
+    [events, workoutLogs, today, unitByExercise],
+  );
+  const yesterdayStory = useMemo(
+    () => buildDayStory(events, workoutLogs, yesterday, unitByExercise),
+    [events, workoutLogs, yesterday, unitByExercise],
+  );
   const yesterdayCycle = useMemo(
     () => currentCycleStatus(groupIntoPeriodRuns(periodLogs), yesterday),
     [periodLogs, yesterday],

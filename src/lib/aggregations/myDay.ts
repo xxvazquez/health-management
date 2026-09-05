@@ -1,4 +1,5 @@
-import type { CanonicalEvent, RawWorkoutLog } from "@/lib/types";
+import type { CanonicalEvent, RawWorkoutLog, WorkoutUnit } from "@/lib/types";
+import { workoutUnitLabel } from "@/lib/types";
 import { addDaysToDate } from "./common";
 
 export interface DayStoryEntry {
@@ -42,7 +43,12 @@ function naturalJoin(items: string[]): string {
  * page's job). Built from the same `CanonicalEvent`/`RawWorkoutLog` shapes
  * every other dashboard already reads, not a parallel data path.
  */
-export function buildDayStory(events: CanonicalEvent[], workoutLogs: RawWorkoutLog[], date: string): DayStory {
+export function buildDayStory(
+  events: CanonicalEvent[],
+  workoutLogs: RawWorkoutLog[],
+  date: string,
+  unitByExercise: Map<string, WorkoutUnit> = new Map(),
+): DayStory {
   const todayEvents = events.filter((e) => e.date === date && e.completed);
   const entries: DayStoryEntry[] = [];
 
@@ -73,8 +79,8 @@ export function buildDayStory(events: CanonicalEvent[], workoutLogs: RawWorkoutL
   // Exercise — one entry per lift/session, not grouped, so a 3-exercise
   // gym day still reads as 3 distinct moments rather than one merged blob.
   // `RawWorkoutLog` doesn't carry its own configured unit (that lives on
-  // the workout_items row, which this summary doesn't otherwise need) —
-  // same simplification the Workout dashboard's own charts already make.
+  // the workout_items row) — callers pass `unitByExercise` sourced from
+  // there, same as the Workout dashboard's own charts.
   for (const w of workoutLogs) {
     if (w.date !== date) continue;
     entries.push({
@@ -83,7 +89,7 @@ export function buildDayStory(events: CanonicalEvent[], workoutLogs: RawWorkoutL
       sortKey: new Date(w.updatedAt).toISOString(),
       kind: "exercise",
       label: "Exercise",
-      description: `${w.exercise} — ${w.weightKg} kg`,
+      description: `${w.exercise} — ${w.weightKg} ${workoutUnitLabel(unitByExercise.get(w.exercise) ?? "kg")}`,
     });
   }
 

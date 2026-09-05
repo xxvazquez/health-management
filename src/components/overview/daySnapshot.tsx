@@ -1,7 +1,7 @@
 import { buildDayStory, type DayStoryEntry } from "@/lib/aggregations/myDay";
 import { groupIntoPeriodRuns, currentCycleStatus } from "@/lib/aggregations/cycle";
 import { DOMAIN_ACCENT } from "./domainStyle";
-import type { CanonicalEvent, RawWorkoutLog, RawPeriodLog } from "@/lib/types";
+import type { CanonicalEvent, RawWorkoutLog, RawPeriodLog, WorkoutUnit } from "@/lib/types";
 import type { ActivityDomain } from "@/lib/aggregations/activity";
 
 /** A note reduced to just what a day's timeline needs to show it inline
@@ -42,8 +42,9 @@ export function buildSnapshotEntries(
   periodLogs: RawPeriodLog[],
   notes: DayNoteSummary[],
   date: string,
+  unitByExercise: Map<string, WorkoutUnit> = new Map(),
 ): SnapshotEntry[] {
-  const story = buildDayStory(events, workoutLogs, date);
+  const story = buildDayStory(events, workoutLogs, date, unitByExercise);
   const cycle = currentCycleStatus(groupIntoPeriodRuns(periodLogs), date);
 
   const list: SnapshotEntry[] = story.entries.map((e) => ({
