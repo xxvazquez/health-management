@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { PencilIcon, TrashIcon } from "@/components/ui/Notebook";
 import { SearchField } from "@/components/ui/SearchField";
 import { ListSkeleton } from "@/components/ui/Skeleton";
-import { InlineEmpty } from "@/components/ui/EmptyState";
+import { ErrorState, InlineEmpty } from "@/components/ui/EmptyState";
 import { PrimaryAction } from "@/components/ui/PrimaryAction";
 import { Button } from "@/components/ui/Button";
 import { FIELD_CLS, FIELD_STYLE } from "@/components/ui/formField";
@@ -383,7 +383,7 @@ function ItemRow({
         {confirmingDelete ? (
           <>
             <button type="button" onClick={onDelete} className="rounded-md px-2 py-1 text-xs font-semibold" style={{ color: "var(--status-critical)" }}>
-              Remove
+              Delete
             </button>
             <button type="button" onClick={() => setConfirmingDelete(false)} className="rounded-md px-2 py-1 text-xs font-medium" style={{ color: "var(--text-muted)" }}>
               Keep
@@ -404,8 +404,8 @@ function ItemRow({
             <button
               type="button"
               onClick={() => setConfirmingDelete(true)}
-              aria-label={`Remove ${item.title}`}
-              title="Remove"
+              aria-label={`Delete ${item.title}`}
+              title="Delete"
               className="tap-target notebook-danger rounded-md p-1.5 transition-colors hover:bg-[var(--page-plane)]"
               style={{ color: "var(--text-muted)" }}
             >
@@ -989,9 +989,7 @@ export function WishlistBoard({
       {loading ? (
         <ListSkeleton />
       ) : error ? (
-        <p className="py-10 text-center text-sm" style={{ color: "var(--status-critical)" }}>
-          Couldn&apos;t load your wishlist — try again in a moment.
-        </p>
+        <ErrorState what="your wishlist" />
       ) : categories.length === 0 ? (
         <InlineEmpty title="Nothing saved yet" description="Tap New item to save a link you both might want — group it under a list as you go." />
       ) : shownCategories.length === 0 ? (

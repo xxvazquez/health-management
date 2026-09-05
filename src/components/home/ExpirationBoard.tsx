@@ -8,7 +8,7 @@ import { PencilIcon, TrashIcon } from "@/components/ui/Notebook";
 import { ListSection, SectionIcon } from "@/components/ui/ListSection";
 import { SearchField } from "@/components/ui/SearchField";
 import { ListSkeleton } from "@/components/ui/Skeleton";
-import { InlineEmpty } from "@/components/ui/EmptyState";
+import { ErrorState, InlineEmpty } from "@/components/ui/EmptyState";
 import { PrimaryAction } from "@/components/ui/PrimaryAction";
 import { Button } from "@/components/ui/Button";
 
@@ -205,7 +205,7 @@ function ExpirationRow({
         {confirmingDelete ? (
           <>
             <button type="button" onClick={onDelete} className="rounded-md px-2 py-1.5 text-xs font-semibold" style={{ color: "var(--status-critical)" }}>
-              Remove
+              Delete
             </button>
             <button type="button" onClick={() => setConfirmingDelete(false)} className="rounded-md px-2 py-1.5 text-xs font-medium" style={{ color: "var(--text-muted)" }}>
               Keep
@@ -226,8 +226,8 @@ function ExpirationRow({
             <button
               type="button"
               onClick={() => setConfirmingDelete(true)}
-              aria-label="Remove product"
-              title="Remove product"
+              aria-label="Delete product"
+              title="Delete product"
               className="tap-target notebook-danger rounded-md p-1.5 transition-colors hover:bg-[var(--page-plane)]"
               style={{ color: "var(--text-muted)" }}
             >
@@ -305,9 +305,7 @@ export function ExpirationBoard({
       {loading ? (
         <ListSkeleton />
       ) : error ? (
-        <p className="py-10 text-center text-sm" style={{ color: "var(--status-critical)" }}>
-          Couldn&apos;t load products — try again in a moment.
-        </p>
+        <ErrorState what="products" />
       ) : items.length === 0 ? (
         <InlineEmpty title="No products tracked yet" description="Tap New product to track its expiration date." />
       ) : !anyMatch ? (

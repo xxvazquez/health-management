@@ -119,7 +119,6 @@ export function NoteRow({
 
       {onDelete && confirmingDelete && (
         <div className="mt-3 flex items-center gap-2 text-xs">
-          <span style={{ color: "var(--text-secondary)" }}>Delete this?</span>
           <button type="button" onClick={onDelete} className="rounded-md px-2 py-1 font-semibold" style={{ color: "var(--status-critical)" }}>
             Delete
           </button>

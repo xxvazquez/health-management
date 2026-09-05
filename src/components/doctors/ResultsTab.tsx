@@ -6,7 +6,7 @@ import { todayLocalISODate } from "@/lib/aggregations/common";
 import type { LabMarker, LabResult } from "@/lib/supabase/labs";
 import { LabMarkerChart, LabSparkline } from "@/components/charts/LabMarkerChart";
 import { ListSkeleton } from "@/components/ui/Skeleton";
-import { InlineEmpty } from "@/components/ui/EmptyState";
+import { ErrorState, InlineEmpty } from "@/components/ui/EmptyState";
 import { PrimaryAction } from "@/components/ui/PrimaryAction";
 import { Button } from "@/components/ui/Button";
 import { ComboBox, FIELD_CLS, FIELD_STYLE, IconAction, LABEL_CLS, LABEL_STYLE, PencilIcon, TrashIcon, formatDate } from "./shared";
@@ -758,9 +758,7 @@ export function ResultsTab({ accent }: { accent: string }) {
         {labs.loading ? (
           <ListSkeleton />
         ) : labs.error ? (
-          <p className="py-10 text-center text-sm" style={{ color: "var(--status-critical)" }}>
-            Couldn&apos;t load your results — try again in a moment.
-          </p>
+          <ErrorState what="your results" />
         ) : !hasAny ? (
           <InlineEmpty
             title="No results tracked yet"

@@ -7,7 +7,7 @@ import { buildDemoJournalEntries } from "@/lib/demoJournal";
 import { NoteList, NoteRow, NotebookForm } from "@/components/ui/Notebook";
 import { SearchField } from "@/components/ui/SearchField";
 import { ListSkeleton } from "@/components/ui/Skeleton";
-import { InlineEmpty } from "@/components/ui/EmptyState";
+import { ErrorState, InlineEmpty } from "@/components/ui/EmptyState";
 import { PrimaryAction } from "@/components/ui/PrimaryAction";
 import { DemoNotice } from "@/components/ui/DemoNotice";
 
@@ -218,9 +218,7 @@ export function JournalTab({ isDemoData, accent }: { isDemoData: boolean; accent
       {loading ? (
         <ListSkeleton />
       ) : loadError ? (
-        <p className="py-10 text-center text-sm" style={{ color: "var(--status-critical)" }}>
-          Couldn&apos;t load your journal — try again in a moment.
-        </p>
+        <ErrorState what="your journal" />
       ) : visibleEntries.length === 0 ? (
         <InlineEmpty
           title={entries.length === 0 ? "No entries yet" : "Nothing matches that search"}
