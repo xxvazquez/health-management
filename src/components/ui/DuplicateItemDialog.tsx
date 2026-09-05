@@ -1,6 +1,7 @@
 "use client";
 
 import { useDialogA11y } from "./useDialogA11y";
+import { Button } from "./Button";
 
 /** Shown instead of silently creating a duplicate when adding an item
  * matches an existing one's name (case/whitespace-insensitive) — an active
@@ -41,24 +42,13 @@ export function DuplicateItemDialog({
             : "It's already in your active list under this name."}
         </p>
         <div className="mt-1 flex justify-end gap-2">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-md px-3 py-1.5 text-sm font-medium"
-            style={{ color: "var(--text-secondary)" }}
-          >
+          <Button type="button" variant="quiet" size="sm" onClick={onClose}>
             {isArchived ? "Cancel" : "OK"}
-          </button>
+          </Button>
           {isArchived && (
-            <button
-              type="button"
-              onClick={onUnarchive}
-              disabled={busy}
-              className="rounded-md px-3 py-1.5 text-sm font-medium text-white disabled:opacity-40"
-              style={{ background: "var(--series-1)" }}
-            >
+            <Button type="button" size="sm" onClick={onUnarchive} disabled={busy}>
               Unarchive
-            </button>
+            </Button>
           )}
         </div>
       </div>

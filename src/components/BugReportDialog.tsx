@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { BUG_TYPES, bugReportingConfigured, submitBugReport, type BugType } from "@/lib/supabase/reportBug";
 import { useDialogA11y } from "@/components/ui/useDialogA11y";
 import { AutoGrowTextarea } from "@/components/ui/AutoGrowTextarea";
+import { Button } from "@/components/ui/Button";
 import { NAV_LABEL } from "@/components/navLabels";
 import { CloseIcon } from "@/components/ui/icons";
 
@@ -160,14 +161,9 @@ export function BugReportDialog({ open, onClose }: { open: boolean; onClose: () 
                 style={inputStyle}
               />
             </label>
-            <button
-              type="submit"
-              disabled={submitting}
-              className="rounded-md px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
-              style={{ background: ACCENT }}
-            >
+            <Button type="submit" disabled={submitting} accent={ACCENT}>
               {submitting ? "Sending…" : "Send report"}
-            </button>
+            </Button>
             {error && (
               <span className="text-xs" style={{ color: "var(--status-critical)" }}>
                 {error}
