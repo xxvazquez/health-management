@@ -98,6 +98,7 @@ export default function MedicalPage() {
         items={TABS.map((t) => ({ ...t, icon: TAB_ICON[t.id] }))}
         activeId={tab}
         onSelect={selectTab}
+        iconOnly
       />
 
       {api.isDemo && <DemoNotice />}

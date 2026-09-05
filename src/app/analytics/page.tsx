@@ -81,6 +81,7 @@ export default function AnalyticsPage() {
         items={visibleTabs.map((t) => ({ id: t.id, label: t.label, icon: TAB_ICON[t.id], accent: t.accent }))}
         activeId={active.id}
         onSelect={selectTab}
+        iconOnly
         className={clsx(
           "-mx-4 border-b bg-[var(--page-backdrop)] px-4 sm:-mx-6 sm:px-6 lg:sticky lg:top-0 lg:z-20 lg:-mx-8 lg:px-8",
           !active.hasSections && "sticky top-16 z-20",
