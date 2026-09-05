@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useData } from "@/lib/DataContext";
+import { ChevronIcon } from "@/components/ui/icons";
 import type { OutboxEntry } from "@/lib/db/indexedDb";
 
 const TABLE_LABEL: Record<string, string> = {
@@ -149,8 +150,9 @@ export function SyncStatusBanner() {
             {syncState.deadLetter} {syncState.deadLetter === 1 ? "change" : "changes"} failed to back up to the cloud — still saved
             on this device
           </span>
-          <span className="ml-auto shrink-0 text-xs underline decoration-dotted" style={{ color: "var(--text-muted)" }}>
+          <span className="ml-auto flex shrink-0 items-center gap-1 text-xs" style={{ color: "var(--text-muted)" }}>
             {expanded ? "Hide" : "Details"}
+            <ChevronIcon dir={expanded ? "up" : "down"} size={12} />
           </span>
         </button>
         {expanded && (

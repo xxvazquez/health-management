@@ -7,11 +7,12 @@ import { useVisibleDomains, DOMAIN_LABELS, type TrackedDomain } from "@/lib/visi
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageSkeleton } from "@/components/ui/Skeleton";
 import { SearchField } from "@/components/ui/SearchField";
-import { CloseIcon } from "@/components/ui/icons";
+import { ChevronIcon, CloseIcon } from "@/components/ui/icons";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { ItemNameField, ItemActionButtons, useInlineRename } from "@/components/ui/ItemActions";
 import { ManageRow } from "@/components/ui/ManageRow";
+import { PageHeading } from "@/components/ui/PageHeading";
 import { customColorValue } from "@/components/ui/customIcons";
 import { DuplicateItemDialog } from "@/components/ui/DuplicateItemDialog";
 import { DemoNotice } from "@/components/ui/DemoNotice";
@@ -88,8 +89,8 @@ function CollapsibleManageCard({
           )}
         </div>
         {!forceOpen && (
-          <span className="shrink-0 text-xs font-medium underline decoration-dotted" style={{ color: "var(--text-secondary)" }}>
-            {open ? "Hide" : "Show"}
+          <span className="shrink-0" style={{ color: "var(--text-muted)" }}>
+            <ChevronIcon dir={shown ? "up" : "down"} size={16} />
           </span>
         )}
       </button>
@@ -1000,8 +1001,8 @@ function ItemSection({
           </p>
         </div>
         {!isSearching && (
-          <span className="shrink-0 text-xs font-medium underline decoration-dotted" style={{ color: "var(--text-secondary)" }}>
-            {sectionOpen ? "Hide" : "Show"}
+          <span className="shrink-0" style={{ color: "var(--text-muted)" }}>
+            <ChevronIcon dir={sectionOpen ? "up" : "down"} size={16} />
           </span>
         )}
       </button>
@@ -1454,15 +1455,7 @@ export default function ManagePage() {
   return (
     <div className="flex flex-col gap-5">
       <div>
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <h1 className="text-xl font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
-            Manage items
-          </h1>
-          {!isDemoData && <PushNotificationsToggle />}
-        </div>
-        <Link href="/manage/nutrition-evidence" className="mt-1 inline-block text-sm underline decoration-dotted" style={{ color: "var(--series-2)" }}>
-          Nutrition evidence →
-        </Link>
+        <PageHeading actions={!isDemoData && <PushNotificationsToggle />}>Manage items</PageHeading>
         {isDemoData && (
           <DemoNotice className="mt-2">
             Example data — add, rename, archive, and manage categories freely; nothing here is saved.
@@ -1529,6 +1522,14 @@ export default function ManagePage() {
       ))}
 
       <DataExportCard isDemoData={isDemoData} />
+
+      <Link
+        href="/manage/nutrition-evidence"
+        className="text-sm underline decoration-dotted"
+        style={{ color: "var(--text-muted)" }}
+      >
+        Nutrition evidence — the research behind Food Analytics
+      </Link>
 
       {duplicateConflict && (
         <DuplicateItemDialog

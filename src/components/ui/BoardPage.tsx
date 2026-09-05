@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { TAB_ICON } from "@/components/tabIcons";
+import { PageHeading } from "@/components/ui/PageHeading";
 import { TabRail } from "@/components/ui/TabRail";
 
 export interface BoardPageTab {
@@ -36,11 +37,7 @@ interface BoardPageProps {
 export function BoardPage({ title, accent, tabs, activeTab, onSelectTab, notice, children }: BoardPageProps) {
   return (
     <div className="flex flex-col gap-4">
-      <div className="border-l-[3px] pl-2.5" style={{ borderColor: accent }}>
-        <h1 className="text-xl font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
-          {title}
-        </h1>
-      </div>
+      <PageHeading accent={accent}>{title}</PageHeading>
 
       <TabRail
         items={tabs.map((t) => ({ id: t.id, label: t.label, icon: TAB_ICON[t.icon], accent: t.accent }))}

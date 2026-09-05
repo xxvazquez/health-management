@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } fro
 import clsx from "clsx";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { PageHeading } from "@/components/ui/PageHeading";
 import { Button } from "@/components/ui/Button";
 import { ListSkeleton } from "@/components/ui/Skeleton";
 import { driveFileIcon, DriveFolderIcon } from "@/components/icons/DriveFileIcons";
@@ -313,14 +314,7 @@ export default function MyDrivePage() {
           accents in its corners). */}
       <div className="absolute inset-0" style={{ background: "rgba(255,255,255,0.6)" }} />
       <div className="relative flex flex-col gap-5 p-4 sm:p-6">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
-            My Drive
-          </h1>
-          <p className="mt-1 text-sm" style={{ color: "var(--text-secondary)" }}>
-            Browse your Google Drive files and folders — read-only.
-          </p>
-        </div>
+        <PageHeading subtitle="Browse your Google Drive files and folders — read-only.">My Drive</PageHeading>
 
       {!configured && (
         <Card tier="supporting">

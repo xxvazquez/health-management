@@ -16,7 +16,8 @@ import { PencilIcon, TrashIcon } from "@/components/ui/Notebook";
 import { ArchiveIcon } from "@/components/notes/icons";
 import { ListSection, SectionIcon } from "@/components/ui/ListSection";
 import { ListSkeleton } from "@/components/ui/Skeleton";
-import { InlineEmpty } from "@/components/ui/EmptyState";
+import { Disclosure } from "@/components/ui/Disclosure";
+import { ErrorState, InlineEmpty } from "@/components/ui/EmptyState";
 import { PrimaryAction } from "@/components/ui/PrimaryAction";
 import { Button } from "@/components/ui/Button";
 import { FIELD_CLS as fieldCls, FIELD_STYLE as fieldStyle, LABEL_CLS as labelCls, LABEL_STYLE as labelStyle } from "@/components/ui/formField";
@@ -291,22 +292,11 @@ function taskToFormValues(task: TaskItem, overrides: Partial<TaskFormValues>): T
 
 
 function CollapsibleGroup({ title, count, children }: { title: string; count: number; children: ReactNode }) {
-  const [open, setOpen] = useState(false);
   return (
-    <div className="border-t pt-2" style={{ borderColor: "var(--gridline)" }}>
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-        className="flex w-full items-center gap-1.5 px-2 py-1 text-xs font-semibold tracking-wide uppercase"
-        style={{ color: "var(--text-muted)" }}
-      >
-        <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={open ? "" : "-rotate-90"} aria-hidden="true">
-          <path d="M2.5 4.5 6 8l3.5-3.5" />
-        </svg>
-        {title} ({count})
-      </button>
-      {open && <div className="mt-1 flex flex-col">{children}</div>}
+    <div className="border-t px-2 pt-2" style={{ borderColor: "var(--gridline)" }}>
+      <Disclosure label={title} count={count}>
+        <div className="mt-1 flex flex-col">{children}</div>
+      </Disclosure>
     </div>
   );
 }
@@ -631,9 +621,7 @@ export function TaskBoard({
       {loading ? (
         <ListSkeleton />
       ) : error ? (
-        <p className="py-10 text-center text-sm" style={{ color: "var(--status-critical)" }}>
-          Couldn&apos;t load tasks — try again in a moment.
-        </p>
+        <ErrorState what="tasks" />
       ) : nothing ? (
         <InlineEmpty
           title={selectedList === "all" ? emptyTitle : `Nothing in ${listName(selectedList === "all" ? null : selectedList)}`}
