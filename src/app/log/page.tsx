@@ -1579,7 +1579,7 @@ export default function LogPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="flex flex-col items-start gap-3 sm:flex-row sm:flex-wrap sm:justify-between">
         <div
           className="min-w-0 flex-1 border-l-[3px] pl-2.5"
           style={{ borderColor: activeLogTab ? activeLogTab.accent : "var(--baseline)" }}
