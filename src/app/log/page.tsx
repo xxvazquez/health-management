@@ -64,6 +64,7 @@ import { DemoNotice } from "@/components/ui/DemoNotice";
 import { useOverflowFade } from "@/lib/useOverflowFade";
 import {
   workoutUnitLabel,
+  defaultWorkoutUnitForCategory,
   type RawLog,
   type RawItem,
   type RawDiaryEntry,
@@ -1066,7 +1067,7 @@ export default function LogPage() {
       isArchived: false,
       createdDate: date,
       reminderTime: null,
-      unit: null,
+      unit: tabConfig.type === "workout" ? defaultWorkoutUnitForCategory(category) : null,
     };
     await putItemAndSync(item);
     if (tabConfig.countable) {
