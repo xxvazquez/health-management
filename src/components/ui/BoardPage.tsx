@@ -43,7 +43,6 @@ export function BoardPage({ title, accent, tabs, activeTab, onSelectTab, notice,
         items={tabs.map((t) => ({ id: t.id, label: t.label, icon: TAB_ICON[t.icon], accent: t.accent }))}
         activeId={activeTab}
         onSelect={onSelectTab}
-        iconOnly
       />
 
       {notice}

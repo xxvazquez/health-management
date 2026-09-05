@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import clsx from "clsx";
 import { useData } from "@/lib/DataContext";
 import { useUnreadNoteCount } from "@/lib/useUnreadNoteCount";
+import { usePartnerLinked } from "@/lib/usePartnerLinked";
 import { Logo } from "@/components/Logo";
 import { AccountMenuButton } from "@/components/auth/AccountMenuButton";
 import { AccountPanel } from "@/components/auth/AccountPanel";
@@ -148,139 +149,30 @@ export const ICONS: Record<string, ReactNode> = {
   ),
 };
 
-/** The app's home/at-a-glance page — Today, Recent Activity, Trends, and
- * the Weekly/Monthly Review in one place. Its own top-level entry (not an
- * Analytics tab) since it's cross-domain, the landing point for "what's
- * going on" before drilling into a dashboard. */
-const OVERVIEW_LINKS = [{ href: "/overview", label: NAV_LABEL["/overview"] }];
-/** Log (enter data) and Analytics (read it back) — the two halves the whole
- * app is organized around, both top-level. Analytics is a single page with
- * a Log-style tab bar for every dashboard (`/analytics#food` …), so hiding
- * a domain from Manage just drops its tab, not a whole nav entry. */
-const LOG_LINKS = [{ href: "/log", label: NAV_LABEL["/log"] }];
-/** Journal, private notes, reminders, product-expiry — the "write it once,
- * come back to it" surface, split off from Log's tracking tabs. The shared
- * (partner) versions of these live under "Shared". */
-const PERSONAL_LINKS = [{ href: "/personal", label: NAV_LABEL["/personal"] }];
-/** Everything medical — doctor visits, care Log, blood Results, follow-ups —
- * on one top-level page, direct-to-Supabase like Personal. */
-const MEDICAL_LINKS = [{ href: "/medical", label: NAV_LABEL["/medical"] }];
-const ANALYTICS_LINKS = [{ href: "/analytics", label: NAV_LABEL["/analytics"] }];
-const MANAGE_LINKS = [{ href: "/manage", label: NAV_LABEL["/manage"] }];
-const TOOLS_LINKS = [
-  { href: "/my-drive", label: NAV_LABEL["/my-drive"] },
-  { href: "/help", label: NAV_LABEL["/help"] },
-];
-/** The "you + your linked partner" surface, grouped under "Shared": the
- * shared board of reminders/tasks/expiration (`/home`) and partner
- * messaging (`/notes`). Both only mean anything once a partner is linked.
- * (Your *private* notes/reminders/expiration live as tabs on the Log
- * page — the "Shared" grouping is what keeps the two apart.) */
-const SHARED_LINKS = [
-  { href: "/home", label: NAV_LABEL["/home"] },
-  { href: "/notes", label: NAV_LABEL["/notes"] },
-];
-
-const NAV_SECTIONS_KEY = "lauva-nav-collapsed-sections";
-
-/** Which nav sections the user has collapsed — a local, per-device
- * preference (localStorage), same "this is about how I use this device,
- * not synced data" reasoning as visibleDomains. Starts all-expanded. */
-function useCollapsedSections() {
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
-
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(NAV_SECTIONS_KEY);
-      // External read on mount, not a state-sync loop — same shape the rest
-      // of the app uses for localStorage/Supabase hydration.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      if (raw) setCollapsed(JSON.parse(raw));
-    } catch {
-      // Malformed/blocked storage — just stay expanded.
-    }
-  }, []);
-
-  const toggle = useCallback((key: string) => {
-    setCollapsed((prev) => {
-      const next = { ...prev, [key]: !prev[key] };
-      try {
-        localStorage.setItem(NAV_SECTIONS_KEY, JSON.stringify(next));
-      } catch {
-        // Storage blocked — the toggle still works for this session.
-      }
-      return next;
-    });
-  }, []);
-
-  return { collapsed, toggle };
-}
-
-function SectionChevron({ open }: { open: boolean }) {
-  return (
-    <svg
-      width="10"
-      height="10"
-      viewBox="0 0 12 12"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={clsx("shrink-0 transition-transform duration-150", !open && "-rotate-90")}
-      aria-hidden="true"
-    >
-      <path d="M2.5 4.5 6 8l3.5-3.5" />
-    </svg>
-  );
-}
-
-/** A labelled, collapsible group of nav links. On the icon-only rail
- * there's no room for a header, so it degrades to a divider + the icons
- * (always shown — collapsing is a labelled-sidebar affordance only). */
-function NavSection({
-  label,
-  links,
-  pathname,
-  collapsed,
-  onNavigate,
-  badges,
-  open,
-  onToggle,
-}: {
+export interface NavItem {
+  href: string;
   label: string;
-  links: { href: string; label: string }[];
-  pathname: string;
-  collapsed?: boolean;
-  onNavigate?: () => void;
-  badges?: Record<string, number>;
-  open: boolean;
-  onToggle: () => void;
-}) {
-  if (collapsed) {
-    return (
-      <>
-        <div className="mx-auto my-2 h-px w-6" style={{ background: "var(--gridline)" }} />
-        <NavLinkList links={links} pathname={pathname} collapsed onNavigate={onNavigate} badges={badges} />
-      </>
-    );
-  }
-  return (
-    <div className="mt-0.5 border-t pt-0.5" style={{ borderColor: "var(--gridline)" }}>
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-expanded={open}
-        className="flex w-full items-center justify-between rounded-md px-3 py-0.5 text-xs font-semibold tracking-[0.12em] uppercase transition-colors hover:bg-[var(--page-plane)]"
-        style={{ color: "var(--text-muted)" }}
-      >
-        {label}
-        <SectionChevron open={open} />
-      </button>
-      {open && <NavLinkList links={links} pathname={pathname} onNavigate={onNavigate} badges={badges} />}
-    </div>
-  );
+  /** Key into the shared `ICONS` map. */
+  iconKey: string;
 }
+
+/** The primary areas — one flat list, no sub-groups, identical on the
+ * desktop sidebar and the mobile bottom bar (BottomNav reads the same
+ * order). Routes keep their old URLs through the restructure; only the
+ * display names moved (Overview→Agenda, Analytics→Trends, Medical→Health,
+ * Personal→Notes). Manage / Help / My Drive dropped out of here into the
+ * account menu. */
+const PRIMARY_LINKS: NavItem[] = [
+  { href: "/log", label: NAV_LABEL["/log"], iconKey: "Log" },
+  { href: "/overview", label: NAV_LABEL["/overview"], iconKey: "Reminders" },
+  { href: "/analytics", label: NAV_LABEL["/analytics"], iconKey: "Analytics" },
+  { href: "/medical", label: NAV_LABEL["/medical"], iconKey: "Medical" },
+  { href: "/personal", label: NAV_LABEL["/personal"], iconKey: "Personal" },
+];
+
+/** Partner messaging — only appears in the nav once a partner is linked
+ * (the feature does nothing without one). */
+const MESSAGES_LINK: NavItem = { href: "/notes", label: NAV_LABEL["/notes"], iconKey: "Messages" };
 
 /** `next.config.ts` sets `trailingSlash: true`, so `usePathname()` returns
  * `/log/` while our link hrefs are `/log` — compare without the slash. */
@@ -289,13 +181,13 @@ export function isActiveHref(pathname: string, href: string): boolean {
 }
 
 function NavLinkList({
-  links,
+  items,
   pathname,
   collapsed,
   onNavigate,
   badges,
 }: {
-  links: { href: string; label: string }[];
+  items: NavItem[];
   pathname: string;
   collapsed?: boolean;
   onNavigate?: () => void;
@@ -305,16 +197,16 @@ function NavLinkList({
 }) {
   return (
     <>
-      {links.map((link) => {
-        const active = isActiveHref(pathname, link.href);
-        const badge = badges?.[link.href] ?? 0;
+      {items.map((item) => {
+        const active = isActiveHref(pathname, item.href);
+        const badge = badges?.[item.href] ?? 0;
         return (
           <Link
-            key={link.href}
-            href={link.href}
+            key={item.href}
+            href={item.href}
             onClick={onNavigate}
             aria-current={active ? "page" : undefined}
-            title={collapsed ? link.label : undefined}
+            title={collapsed ? item.label : undefined}
             className={clsx(
               "tap-target relative flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium whitespace-nowrap transition-colors lg:py-1.5",
               collapsed && "justify-center px-0",
@@ -325,8 +217,8 @@ function NavLinkList({
               color: active ? "var(--text-primary)" : "var(--text-secondary)",
             }}
           >
-            {ICONS[link.label]}
-            {!collapsed && link.label}
+            {ICONS[item.iconKey]}
+            {!collapsed && item.label}
             {badge > 0 &&
               (collapsed ? (
                 <span
@@ -351,39 +243,13 @@ function NavLinkList({
 
 function NavLinks({ pathname, collapsed, onNavigate }: { pathname: string; collapsed?: boolean; onNavigate?: () => void }) {
   const unreadNotes = useUnreadNoteCount(pathname);
-  const { collapsed: sectionCollapsed, toggle } = useCollapsedSections();
+  const partnerLinked = usePartnerLinked();
 
-  const sections: { label: string; links: { href: string; label: string }[]; badges?: Record<string, number> }[] = [
-    { label: "Shared", links: SHARED_LINKS, badges: { "/notes": unreadNotes } },
-    { label: "Manage", links: MANAGE_LINKS },
-    { label: "Tools", links: TOOLS_LINKS },
-  ];
+  const items = partnerLinked ? [...PRIMARY_LINKS, MESSAGES_LINK] : PRIMARY_LINKS;
 
   return (
     <nav className="flex flex-1 flex-col gap-0.5">
-      {/* No section label above these — each is a single top-level page you
-       * either use or don't, so a heading would just repeat the label. */}
-      <NavLinkList links={OVERVIEW_LINKS} pathname={pathname} collapsed={collapsed} onNavigate={onNavigate} />
-      <NavLinkList links={LOG_LINKS} pathname={pathname} collapsed={collapsed} onNavigate={onNavigate} />
-      <NavLinkList links={PERSONAL_LINKS} pathname={pathname} collapsed={collapsed} onNavigate={onNavigate} />
-      <NavLinkList links={MEDICAL_LINKS} pathname={pathname} collapsed={collapsed} onNavigate={onNavigate} />
-      <NavLinkList links={ANALYTICS_LINKS} pathname={pathname} collapsed={collapsed} onNavigate={onNavigate} />
-      {sections.map((s) => (
-        <NavSection
-          key={s.label}
-          label={s.label}
-          links={s.links}
-          pathname={pathname}
-          collapsed={collapsed}
-          onNavigate={onNavigate}
-          badges={s.badges}
-          // The section holding the current page stays open regardless of
-          // the stored preference — collapsing away the page you're on
-          // would just be confusing.
-          open={s.links.some((l) => isActiveHref(pathname, l.href)) || !sectionCollapsed[s.label]}
-          onToggle={() => toggle(s.label)}
-        />
-      ))}
+      <NavLinkList items={items} pathname={pathname} collapsed={collapsed} onNavigate={onNavigate} badges={{ "/notes": unreadNotes }} />
     </nav>
   );
 }

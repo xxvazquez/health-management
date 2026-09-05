@@ -1,11 +1,27 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useAuth } from "@/lib/supabase/AuthContext";
 import { useData } from "@/lib/DataContext";
+import { usePartnerLinked } from "@/lib/usePartnerLinked";
 import { relativeTime } from "@/lib/relativeTime";
 import { useDialogA11y } from "@/components/ui/useDialogA11y";
 import { Button } from "@/components/ui/Button";
+
+/** A row in the account menu's utility list. */
+function MenuLink({ href, onClick, children }: { href: string; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <Link
+      href={href}
+      onClick={onClick}
+      className="-mx-1 flex items-center rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-[var(--page-plane)]"
+      style={{ color: "var(--text-secondary)" }}
+    >
+      {children}
+    </Link>
+  );
+}
 
 /** Derived from the email local-part — sign-in is email/password only, no
  * profile/name field exists to pull a real display name from. */
@@ -21,6 +37,7 @@ function displayNameFromEmail(email: string): string {
 export function AccountPanel() {
   const { configured, session, panelOpen, closePanel, error, signIn, signUp, signOut, sendPasswordReset } = useAuth();
   const { syncing, lastSyncedAt, isOnline, syncNow, syncState } = useData();
+  const partnerLinked = usePartnerLinked();
   const [mode, setMode] = useState<"signIn" | "signUp" | "reset">("signIn");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -94,6 +111,28 @@ export function AccountPanel() {
             </svg>
           </button>
         </div>
+
+        <nav className="flex flex-col gap-0.5 border-b pb-3" style={{ borderColor: "var(--border-hairline)" }}>
+          <MenuLink href="/manage" onClick={closePanel}>
+            Settings
+          </MenuLink>
+          <MenuLink href="/help" onClick={closePanel}>
+            Help
+          </MenuLink>
+          {session && (
+            <MenuLink href="/my-drive" onClick={closePanel}>
+              Google Drive
+            </MenuLink>
+          )}
+          {partnerLinked && (
+            // Transitional — Household folds into Notes in Step 3; kept
+            // reachable here so a linked partner doesn't lose their shared
+            // boards in the meantime.
+            <MenuLink href="/home" onClick={closePanel}>
+              Household (shared)
+            </MenuLink>
+          )}
+        </nav>
 
         {!configured && (
           <p className="text-sm" style={{ color: "var(--text-secondary)" }}>

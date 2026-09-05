@@ -14,6 +14,7 @@ import { CycleDashboard } from "@/components/analytics/CycleDashboard";
 import { PatternsDashboard } from "@/components/analytics/PatternsDashboard";
 import { LabsDashboard } from "@/components/analytics/LabsDashboard";
 import { TabRail } from "@/components/ui/TabRail";
+import { PageHeading } from "@/components/ui/PageHeading";
 
 /** One page for every analytics dashboard, switched by a Log-style tab bar
  * (`/analytics#food`) instead of one sidebar entry each. Each tab is gated
@@ -73,6 +74,8 @@ export default function AnalyticsPage() {
 
   return (
     <div className="flex flex-col gap-6">
+      <PageHeading accent={active.accent}>Trends</PageHeading>
+
       {/* Sticky on mobile for the plain single-scroll dashboards, so the
           domain switcher stays reachable. On Food it isn't — Food's own
           section tabs take the sticky slot there instead (two stacked
@@ -81,7 +84,6 @@ export default function AnalyticsPage() {
         items={visibleTabs.map((t) => ({ id: t.id, label: t.label, icon: TAB_ICON[t.id], accent: t.accent }))}
         activeId={active.id}
         onSelect={selectTab}
-        iconOnly
         className={clsx(
           "-mx-4 border-b bg-[var(--page-backdrop)] px-4 sm:-mx-6 sm:px-6 lg:sticky lg:top-0 lg:z-20 lg:-mx-8 lg:px-8",
           !active.hasSections && "sticky top-16 z-20",

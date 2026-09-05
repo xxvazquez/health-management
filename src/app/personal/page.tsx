@@ -82,7 +82,7 @@ export default function PersonalPage() {
 
   return (
     <BoardPage
-      title={active.label}
+      title="Notes"
       accent={active.accent}
       tabs={TABS}
       activeTab={active.id}

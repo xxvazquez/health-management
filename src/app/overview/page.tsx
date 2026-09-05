@@ -229,7 +229,7 @@ export default function OverviewPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeading>Overview</PageHeading>
+      <PageHeading>Agenda</PageHeading>
 
       <AttentionBand items={attentionItems} />
 
