@@ -1463,7 +1463,7 @@ export default function LogPage() {
         <span className="mr-1 flex-1" style={{ fontWeight: current != null ? 500 : 400 }}>
           {c.item}
         </span>
-        <DurationStepper totalMinutes={current ?? DURATION_DEFAULT_MINUTES[c.item] ?? 0} onChange={(m) => void handleSetDuration(c, m)} />
+        <DurationStepper totalMinutes={current ?? DURATION_DEFAULT_MINUTES[c.item] ?? 0} onChange={(m) => void handleSetDuration(c, m)} accent={accent} />
       </li>
     );
   }
