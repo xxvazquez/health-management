@@ -3,6 +3,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { DateRange } from "@/lib/aggregations/common";
 import { addDaysToDate } from "@/lib/aggregations/common";
+import { useDialogA11y } from "./useDialogA11y";
 
 export interface DateRangePreset {
   label: string;
@@ -73,6 +74,7 @@ export function DateRangeFilter({ span, value, onChange, presets = DEFAULT_PRESE
   const [alignLeft, setAlignLeft] = useState(false);
   const POPOVER_WIDTH = 224;
   const rootRef = useRef<HTMLDivElement>(null);
+  const panelRef = useDialogA11y(open, () => setOpen(false));
 
   useLayoutEffect(() => {
     if (!open || !rootRef.current) return;
@@ -80,6 +82,8 @@ export function DateRangeFilter({ span, value, onChange, presets = DEFAULT_PRESE
     setAlignLeft(rect.right < POPOVER_WIDTH + 8);
   }, [open]);
 
+  // Escape and Tab-trapping are handled by useDialogA11y (via panelRef) —
+  // this only needs the outside-click-to-close behavior it doesn't cover.
   useEffect(() => {
     if (!open) return;
     const onPointerDown = (e: PointerEvent) => {
@@ -91,14 +95,9 @@ export function DateRangeFilter({ span, value, onChange, presets = DEFAULT_PRESE
       if (root.contains(e.target as Node) || root.contains(document.activeElement)) return;
       setOpen(false);
     };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
-    };
     document.addEventListener("pointerdown", onPointerDown);
-    document.addEventListener("keydown", onKey);
     return () => {
       document.removeEventListener("pointerdown", onPointerDown);
-      document.removeEventListener("keydown", onKey);
     };
   }, [open]);
 
@@ -143,7 +142,9 @@ export function DateRangeFilter({ span, value, onChange, presets = DEFAULT_PRESE
 
       {open && (
         <div
+          ref={panelRef}
           role="dialog"
+          aria-modal="true"
           aria-label="Date range"
           className={`absolute z-30 mt-1.5 w-56 rounded-lg border p-1.5 ${alignLeft ? "left-0" : "right-0"}`}
           style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", boxShadow: "var(--shadow-card)" }}
