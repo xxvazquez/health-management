@@ -63,6 +63,12 @@ describe("buildDayStory", () => {
     expect(story.entries.map((e) => e.label)).toEqual(["Lunch", "Symptom", "Exercise", "Dinner"]);
   });
 
+  it("labels an exercise's logged value with its configured unit, not always kg", () => {
+    const workoutLogs = [makeWorkoutLog({ exercise: "Walking", weightKg: 45 })];
+    const story = buildDayStory([], workoutLogs, "2026-01-15", new Map([["Walking", "minutes"]]));
+    expect(story.entries[0].description).toBe("Walking — 45 min");
+  });
+
   it("keeps supplements and habits out of the timeline, as a name list instead", () => {
     const events = [
       makeEvent({ item: "Vitamin D", itemType: "supplement", mealTag: null }),
