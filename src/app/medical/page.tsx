@@ -91,16 +91,11 @@ export default function MedicalPage() {
     <div className="flex flex-col gap-5">
       <div className="border-l-[3px] pl-2.5" style={{ borderColor: active.accent }}>
         <h1 className="text-xl font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
-          {active.label}
+          Health
         </h1>
       </div>
 
-      <TabRail
-        items={TABS.map((t) => ({ ...t, icon: TAB_ICON[t.id] }))}
-        activeId={tab}
-        onSelect={selectTab}
-        iconOnly
-      />
+      <TabRail items={TABS.map((t) => ({ ...t, icon: TAB_ICON[t.id] }))} activeId={tab} onSelect={selectTab} />
 
       {api.isDemo && <DemoNotice />}
 

@@ -1639,7 +1639,6 @@ export default function LogPage() {
           items={logTabs.map((t) => ({ id: t.id, label: t.label, icon: TAB_ICON[t.id], accent: t.accent }))}
           activeId={tab}
           onSelect={selectTab}
-          iconOnly
           className="w-full min-w-0 sm:flex-1"
         />
         <div className="flex w-full items-center gap-3 sm:w-auto">
@@ -1885,14 +1884,21 @@ export default function LogPage() {
               )}
 
               {!addingNew ? (
-                <button
-                  type="button"
-                  onClick={() => (isDemoData ? openPanel() : setAddingNew(true))}
-                  className="self-start rounded-md border border-dashed px-2.5 py-1 text-xs font-medium whitespace-nowrap"
-                  style={{ borderColor: "var(--border-hairline)", color: "var(--text-secondary)" }}
-                >
-                  {isDemoData ? "+ Can't find it? Sign in to add it" : "+ Can't find it? Add it"}
-                </button>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <button
+                    type="button"
+                    onClick={() => (isDemoData ? openPanel() : setAddingNew(true))}
+                    className="rounded-md border border-dashed px-2.5 py-1 text-xs font-medium whitespace-nowrap"
+                    style={{ borderColor: "var(--border-hairline)", color: "var(--text-secondary)" }}
+                  >
+                    {isDemoData ? "+ Can't find it? Sign in to add it" : "+ Can't find it? Add it"}
+                  </button>
+                  {!isDemoData && (
+                    <Link href="/manage" className="text-xs font-medium underline decoration-dotted" style={{ color: "var(--text-muted)" }}>
+                      Manage items
+                    </Link>
+                  )}
+                </div>
               ) : (
                 <form
                   onSubmit={(e) => {

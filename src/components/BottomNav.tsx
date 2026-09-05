@@ -6,30 +6,28 @@ import clsx from "clsx";
 import { ICONS, isActiveHref } from "@/components/Nav";
 import { NAV_LABEL } from "@/components/navLabels";
 import { useUnreadNoteCount } from "@/lib/useUnreadNoteCount";
+import { usePartnerLinked } from "@/lib/usePartnerLinked";
 
-/** The primary destinations, one tap away on mobile. Everything else
- * (Manage, My Drive, Help, account, bug report) stays in the drawer behind
- * the top-bar menu. Desktop hides this entirely — the sidebar covers it. */
-// Same wording as the desktop sidebar (via NAV_LABEL). `iconKey` also keys
-// the shared ICONS map.
+/** The primary areas, one tap away on mobile — the same set and order as
+ * the desktop sidebar. Messages joins only when a partner is linked (as in
+ * the sidebar). Everything else (Settings, Help, Drive, account) lives in
+ * the account menu behind the top-bar. Desktop hides this entirely. */
 const ITEMS: { href: string; iconKey: string }[] = [
-  { href: "/overview", iconKey: "Overview" },
   { href: "/log", iconKey: "Log" },
-  { href: "/personal", iconKey: "Personal" },
+  { href: "/overview", iconKey: "Reminders" },
   { href: "/analytics", iconKey: "Analytics" },
-  { href: "/home", iconKey: "Household" },
+  { href: "/medical", iconKey: "Medical" },
+  { href: "/personal", iconKey: "Personal" },
 ];
 
-// The phone tab bar is tighter than the desktop sidebar — "Household"
-// doesn't fit as comfortably as it does there, so /home keeps its own
-// shorter label here. Everything else matches NAV_LABEL.
-const MOBILE_LABEL: Partial<Record<string, string>> = {
-  "/home": "Home",
-};
+const MESSAGES_ITEM = { href: "/notes", iconKey: "Messages" };
 
 export function BottomNav() {
   const pathname = usePathname();
   const unread = useUnreadNoteCount(pathname);
+  const partnerLinked = usePartnerLinked();
+
+  const items = partnerLinked ? [...ITEMS, MESSAGES_ITEM] : ITEMS;
 
   return (
     <nav
@@ -45,10 +43,9 @@ export function BottomNav() {
         paddingRight: "env(safe-area-inset-right)",
       }}
     >
-      {ITEMS.map((item) => {
-        // "Household" is active for either shared page (/home, /notes).
-        const active = isActiveHref(pathname, item.href) || (item.href === "/home" && isActiveHref(pathname, "/notes"));
-        const badge = item.href === "/home" ? unread : 0;
+      {items.map((item) => {
+        const active = isActiveHref(pathname, item.href);
+        const badge = item.href === "/notes" ? unread : 0;
         return (
           <Link
             key={item.href}
@@ -70,7 +67,7 @@ export function BottomNav() {
                 />
               )}
             </span>
-            <span className="max-w-full text-xs leading-tight tracking-tight">{MOBILE_LABEL[item.href] ?? NAV_LABEL[item.href]}</span>
+            <span className="max-w-full truncate text-xs leading-tight tracking-tight">{NAV_LABEL[item.href]}</span>
             {badge > 0 && <span className="sr-only">{badge} unread</span>}
           </Link>
         );

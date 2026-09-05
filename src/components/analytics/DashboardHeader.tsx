@@ -17,7 +17,7 @@ export function DashboardHeader({
   children: ReactNode;
 }) {
   return (
-    <PageHeading accent={accent} className={className} subtitle={subtitle}>
+    <PageHeading as="h2" accent={accent} className={className} subtitle={subtitle}>
       {children}
     </PageHeading>
   );

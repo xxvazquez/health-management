@@ -17,19 +17,23 @@ export function PageHeading({
   accent = "var(--text-muted)",
   actions,
   className,
+  as: Heading = "h1",
 }: {
   children: ReactNode;
   subtitle?: ReactNode;
   accent?: string;
   actions?: ReactNode;
   className?: string;
+  /** `h2` for a heading nested under a page-level `<h1>` (a dashboard tab
+   * inside the "Trends" page). Same size, still the area's rule. */
+  as?: "h1" | "h2";
 }) {
   return (
     <div className={clsx("border-l-[3px] pl-2.5", className)} style={{ borderColor: accent }}>
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <h1 className="text-xl font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
+        <Heading className="text-xl font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
           {children}
-        </h1>
+        </Heading>
         {actions}
       </div>
       {subtitle && (

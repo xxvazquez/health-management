@@ -8,18 +8,24 @@ It works fully offline, syncs to Supabase once you sign in, and installs as a PW
 
 ## Pages
 
-| Page | Route | What it's for |
+The primary navigation is mid-restructure into five areas — **Log · Agenda · Trends ·
+Health · Notes** (plus **Messages** when a partner is linked). Only the display names
+have moved so far; routes still carry their original names, and the pages still render
+their pre-restructure content. Settings (was Manage), Help and Google Drive moved into
+the account menu.
+
+| Area | Route | What it's for |
 |---|---|---|
-| **Overview** | `/overview` | The landing page. A cross-domain "needs attention" list grouped by urgency (overdue / today / tomorrow / next 7 days) — reminders, expiring products, doctor follow-ups and appointments — then today's story, a recent-activity feed, a few personal trends, and a weekly/monthly review. |
 | **Log** | `/log` | Tap-to-log entry for the seven tracking domains: Food, Symptoms, Supplements, Habits, Stool, Workout, Cycle. |
-| **Personal** | `/personal` | Journal, private notes, reminders, and product-expiry tracking — the "write once, come back to it" stuff. |
-| **Medical** | `/medical` | Everything about doctor visits: a history log of appointments already attended (reusable doctors and specialties, per-doctor rating/language, follow-up notes and tasks, one next-appointment date per specialty), a **Care log** tab of dated observations tagged to the specialties they concern, a **Results** tab of blood/lab markers over time (one-off or whole-draw batch value entry), and a **Vitals** tab for blood pressure and weight with trend charts and ACC/AHA blood-pressure categories. `/doctors` redirects here. |
-| **Analytics** | `/analytics` | One dashboard per domain (Food, Supplements, Habits, Digestion, Workout, Cycle, Patterns), switched by a tab bar, plus **Blood** — trends, flagged values and a compare overlay for the Medical → Results lab markers, and a summary of the latest blood pressure and weight from Vitals. |
-| **Manage** | `/manage` | Add / rename / archive / delete items and categories, set exercise units, correct a food's automatic nutrition-group classification, edit reminder lists and doctor types, hide domains you don't track, and export your data (whole account as JSON, or one section at a time as CSV). Searchable across every section. |
-| **Household** | `/home` | The partner-facing versions of notes, reminders, and expiry, a shared list of discount codes, and a **Wishlist** of saved links grouped into lists — once you're linked, either of you can see and edit them. |
-| **Messages** | `/notes` | Private one-to-one messaging with your linked partner. |
-| **My Drive** | `/my-drive` | Read-only browser for the signed-in Google account's Drive. |
-| **Help** | `/help` | Plain-language reference for what each part does. |
+| **Agenda** | `/overview` | The landing page. A cross-domain "needs attention" list grouped by urgency (overdue / today / tomorrow / next 7 days) — reminders, expiring products, doctor follow-ups and appointments — then today's story, a recent-activity feed, a few personal trends, and a weekly/monthly review. |
+| **Trends** | `/analytics` | One dashboard per domain (Food, Supplements, Habits, Digestion, Workout, Cycle, Patterns), switched by a tab bar, plus **Blood** — trends, flagged values and a compare overlay for the Health → Results lab markers, and a summary of the latest blood pressure and weight from Vitals. |
+| **Health** | `/medical` | Everything about doctor visits: a history log of appointments already attended (reusable doctors and specialties, per-doctor rating/language, follow-up notes and tasks, one next-appointment date per specialty), a **Care log** tab of dated observations tagged to the specialties they concern, a **Results** tab of blood/lab markers over time (one-off or whole-draw batch value entry), and a **Vitals** tab for blood pressure and weight with trend charts and ACC/AHA blood-pressure categories. `/doctors` redirects here. |
+| **Notes** | `/personal` | Journal, private notes, reminders, and product-expiry tracking — the "write once, come back to it" stuff. |
+| **Messages** | `/notes` | Private one-to-one messaging with your linked partner. Only in the nav once a partner is linked. |
+| Settings | `/manage` | (Account menu.) Add / rename / archive / delete items and categories, set exercise units, correct a food's automatic nutrition-group classification, edit reminder lists and doctor types, hide domains you don't track, and export your data (whole account as JSON, or one section at a time as CSV). Searchable across every section. Also linked from Log's inline "add item". |
+| Household | `/home` | (Account menu, transitional — folding into Notes.) The partner-facing versions of notes, reminders, and expiry, a shared list of discount codes, and a **Wishlist** of saved links grouped into lists. |
+| Google Drive | `/my-drive` | (Account menu.) Read-only browser for the signed-in Google account's Drive. |
+| Help | `/help` | (Account menu.) Plain-language reference for what each part does. |
 
 ### Behaviour worth knowing
 
@@ -29,7 +35,7 @@ It works fully offline, syncs to Supabase once you sign in, and installs as a PW
 - **Time is editable per entry** — the per-tab time control stays collapsed as a small "now · change" link (it opens on its own once you pick a past day), and the day stepper has a tap-a-date calendar, so you can log at 9pm something that happened at 10am.
 - **Cycle stores only flagged period days.** Cycle length, cycle day, and next-period predictions are all derived on the fly from a recent-cycles window, never stored.
 - **"Not logged" always means only that** — never "didn't happen". Days with nothing logged are excluded from every percentage, not counted as zero.
-- **Hiding a domain from Manage** removes it from Log *and* its Analytics dashboard, on that device only (it's a local preference, not synced data). The Analytics **Blood** tab has no Log domain, so it's always shown.
+- **Hiding a domain from Settings** removes it from Log *and* its Trends dashboard, on that device only (it's a local preference, not synced data). The Trends **Blood** tab has no Log domain, so it's always shown.
 
 ## Tech stack
 
