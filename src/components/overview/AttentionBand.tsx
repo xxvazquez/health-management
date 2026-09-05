@@ -3,7 +3,15 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { attentionSummary, type AttentionGroup, type AttentionItem } from "@/lib/aggregations/attention";
+import { useDismissedAttentionItems } from "@/lib/useDismissedAttentionItems";
 import { CloseIcon } from "@/components/ui/icons";
+
+// "messages:unread" is one static key shared by every unread-count state —
+// dismissing it can't be persisted like the others (a per-instance
+// reminder/expiry/follow-up/appointment key), or a brand-new message later
+// would still match the old dismissal and never surface. It stays a plain
+// link with no dismiss control instead.
+const UNDISMISSABLE_KEY = "messages:unread";
 
 const GROUP_ORDER: AttentionGroup[] = ["overdue", "today", "tomorrow", "week", "later"];
 
@@ -57,12 +65,14 @@ function Chevron({ open, size = 14 }: { open: boolean; size?: number }) {
  * The one cross-domain list of everything outstanding, at the top of the
  * Overview page — grouped by how soon it needs dealing with (overdue,
  * today, tomorrow, the next week, later) rather than by item type. Each row
- * deep-links to where it's handled and can be dismissed for the session;
- * the whole band and each urgency group collapse independently, and when
- * nothing is outstanding it's just one calm sentence.
+ * deep-links to where it's handled and can be dismissed (persisted locally,
+ * see `useDismissedAttentionItems`), except the unread-messages row, which
+ * has no stable per-instance identity to dismiss against; the whole band
+ * and each urgency group collapse independently, and when nothing is
+ * outstanding it's just one calm sentence.
  */
 export function AttentionBand({ items }: { items: AttentionItem[] }) {
-  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
+  const { dismissed, dismiss } = useDismissedAttentionItems();
   const [open, setOpen] = useState(true);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<AttentionGroup>>(new Set());
   const visible = useMemo(() => items.filter((i) => !dismissed.has(i.key)), [items, dismissed]);
@@ -146,15 +156,17 @@ export function AttentionBand({ items }: { items: AttentionItem[] }) {
                           {item.when}
                         </span>
                       )}
-                      <button
-                        type="button"
-                        onClick={() => setDismissed((prev) => new Set(prev).add(item.key))}
-                        aria-label={`Dismiss ${item.label}`}
-                        className="shrink-0 rounded p-1 opacity-60 transition-opacity hover:opacity-100"
-                        style={{ color: "var(--text-muted)" }}
-                      >
-                        <CloseIcon size={12} />
-                      </button>
+                      {item.key !== UNDISMISSABLE_KEY && (
+                        <button
+                          type="button"
+                          onClick={() => dismiss(item.key)}
+                          aria-label={`Dismiss ${item.label}`}
+                          className="shrink-0 rounded p-1 opacity-60 transition-opacity hover:opacity-100"
+                          style={{ color: "var(--text-muted)" }}
+                        >
+                          <CloseIcon size={12} />
+                        </button>
+                      )}
                     </li>
                   ))}
                 </ul>
