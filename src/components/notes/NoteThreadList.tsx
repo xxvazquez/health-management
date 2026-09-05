@@ -2,6 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import { ArchiveIcon, CategoryIcon, EyeIcon, EyeOffIcon, StarIcon } from "./icons";
+import { ErrorState } from "@/components/ui/EmptyState";
 import { NOTE_CATEGORY_LABEL, type NoteThread, type NoteView } from "@/lib/supabase/notes";
 
 const ACCENT = "var(--series-magenta)";
@@ -113,11 +114,7 @@ export function NoteThreadList({
   }
 
   if (error) {
-    return (
-      <p className="py-10 text-center text-sm" style={{ color: "var(--status-critical)" }}>
-        Couldn&apos;t load your notes — try again in a moment.
-      </p>
-    );
+    return <ErrorState what="your notes" />;
   }
 
   if (threads.length === 0) {

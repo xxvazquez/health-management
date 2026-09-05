@@ -7,7 +7,7 @@ import { PencilIcon, TrashIcon } from "@/components/ui/Notebook";
 import { SearchField } from "@/components/ui/SearchField";
 import { ListSection, SectionIcon } from "@/components/ui/ListSection";
 import { ListSkeleton } from "@/components/ui/Skeleton";
-import { InlineEmpty } from "@/components/ui/EmptyState";
+import { ErrorState, InlineEmpty } from "@/components/ui/EmptyState";
 import { PrimaryAction } from "@/components/ui/PrimaryAction";
 import { Button } from "@/components/ui/Button";
 import type { HouseholdCode, NewHouseholdCodeInput } from "@/lib/supabase/household";
@@ -358,9 +358,7 @@ export function CodeBoard({
       {loading ? (
         <ListSkeleton />
       ) : error ? (
-        <p className="py-10 text-center text-sm" style={{ color: "var(--status-critical)" }}>
-          Couldn&apos;t load codes — try again in a moment.
-        </p>
+        <ErrorState what="codes" />
       ) : groups.length === 0 ? (
         <InlineEmpty
           title={codes.length === 0 ? "No codes yet" : "Nothing matches that search"}

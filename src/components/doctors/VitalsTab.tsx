@@ -7,7 +7,7 @@ import { bpCategory, BP_CATEGORIES } from "@/lib/aggregations/vitals";
 import { LabMarkerChart } from "@/components/charts/LabMarkerChart";
 import { BloodPressureChart } from "@/components/charts/BloodPressureChart";
 import { ListSkeleton } from "@/components/ui/Skeleton";
-import { InlineEmpty } from "@/components/ui/EmptyState";
+import { ErrorState, InlineEmpty } from "@/components/ui/EmptyState";
 import { PrimaryAction } from "@/components/ui/PrimaryAction";
 import { Button } from "@/components/ui/Button";
 import { FIELD_CLS, FIELD_STYLE, IconAction, LABEL_CLS, LABEL_STYLE, PencilIcon, TrashIcon, formatDateTime, toLocalInput } from "./shared";
@@ -352,9 +352,7 @@ export function VitalsTab({ accent }: { accent: string }) {
       {vitals.loading ? (
         <ListSkeleton />
       ) : vitals.error ? (
-        <p className="py-10 text-center text-sm" style={{ color: "var(--status-critical)" }}>
-          Couldn&apos;t load your vitals — try again in a moment.
-        </p>
+        <ErrorState what="your vitals" />
       ) : kind === "bp" ? (
         vitals.bp.data.length === 0 ? (
           <InlineEmpty

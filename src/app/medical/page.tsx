@@ -10,6 +10,7 @@ import { FollowUpsTab } from "@/components/doctors/FollowUpsTab";
 import { CareLogTab } from "@/components/doctors/CareLogTab";
 import { ResultsTab } from "@/components/doctors/ResultsTab";
 import { VitalsTab } from "@/components/doctors/VitalsTab";
+import { ErrorState } from "@/components/ui/EmptyState";
 import { ListSkeleton } from "@/components/ui/Skeleton";
 import { TabRail } from "@/components/ui/TabRail";
 import { DemoNotice } from "@/components/ui/DemoNotice";
@@ -104,9 +105,7 @@ export default function MedicalPage() {
       {api.isDemo && <DemoNotice />}
 
       {api.error ? (
-        <p className="py-10 text-center text-sm" style={{ color: "var(--status-critical)" }}>
-          Couldn&apos;t load your doctors — try again in a moment.
-        </p>
+        <ErrorState what="your doctors" />
       ) : api.loading ? (
         <ListSkeleton />
       ) : (

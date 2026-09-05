@@ -20,7 +20,7 @@ import type { LabMarker } from "@/lib/supabase/labs";
 import { useVitals } from "@/lib/useVitals";
 import type { BloodPressureReading, WeightReading } from "@/lib/supabase/vitals";
 import { bpCategory, bpElevated } from "@/lib/aggregations/vitals";
-import { EmptyState } from "@/components/ui/EmptyState";
+import { EmptyState, ErrorState } from "@/components/ui/EmptyState";
 import { PageSkeleton } from "@/components/ui/Skeleton";
 import { DashboardHeader } from "@/components/analytics/DashboardHeader";
 import { Card, CardTitle } from "@/components/ui/Card";
@@ -119,11 +119,7 @@ export function LabsDashboard() {
 
   if (labs.loading) return <PageSkeleton />;
   if (labs.error) {
-    return (
-      <p className="py-10 text-center text-sm" style={{ color: "var(--status-critical)" }}>
-        Couldn&apos;t load your results — try again in a moment.
-      </p>
-    );
+    return <ErrorState what="your results" />;
   }
   if (allMarkers.length === 0) {
     return (

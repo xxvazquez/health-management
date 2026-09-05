@@ -19,6 +19,18 @@ export function InlineEmpty({ title, description }: { title: string; description
   );
 }
 
+/** Full-panel "couldn't load" message for a board or dashboard whose data
+ * fetch failed. Pair with `<ListSkeleton />` for loading and
+ * `<InlineEmpty />` for the no-data state. `what` names the data, e.g.
+ * "your wishlist", "tasks". */
+export function ErrorState({ what }: { what: string }) {
+  return (
+    <p className="py-10 text-center text-sm" style={{ color: "var(--status-critical)" }}>
+      Couldn&apos;t load {what} — try again in a moment.
+    </p>
+  );
+}
+
 export function EmptyState({
   title = "Nothing logged yet",
   description = "Start logging on the Log page and this fills in. Signed in on another device? It syncs down automatically.",

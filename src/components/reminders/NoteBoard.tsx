@@ -4,7 +4,7 @@ import { useMemo, useState, type FormEvent } from "react";
 import { NoteList, NoteRow } from "@/components/ui/Notebook";
 import { SearchField } from "@/components/ui/SearchField";
 import { ListSkeleton } from "@/components/ui/Skeleton";
-import { InlineEmpty } from "@/components/ui/EmptyState";
+import { ErrorState, InlineEmpty } from "@/components/ui/EmptyState";
 import { PrimaryAction } from "@/components/ui/PrimaryAction";
 import { Button } from "@/components/ui/Button";
 import { FIELD_CLS, FIELD_STYLE, LABEL_CLS, LABEL_STYLE } from "@/components/ui/formField";
@@ -220,9 +220,7 @@ export function NoteBoard({
       {loading ? (
         <ListSkeleton />
       ) : error ? (
-        <p className="py-10 text-center text-sm" style={{ color: "var(--status-critical)" }}>
-          Couldn&apos;t load notes — try again in a moment.
-        </p>
+        <ErrorState what="notes" />
       ) : visibleNotes.length === 0 ? (
         <InlineEmpty
           title={notes.length === 0 ? emptyTitle : "Nothing matches that search"}
