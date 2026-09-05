@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { DOMAIN_ACCENT, DOMAIN_ICON, DOMAIN_LABEL, ALL_DOMAINS } from "./domainStyle";
+import { ShowMore } from "@/components/ui/ShowMore";
 import type { ActivityDomain, ActivityEntry } from "@/lib/aggregations/activity";
 
 function formatDateHeader(date: string): string {
@@ -133,16 +134,7 @@ export function ActivityFeed({
         </div>
       )}
 
-      {filtered.length > limit && (
-        <button
-          type="button"
-          onClick={() => setLimit((l) => l + pageSize)}
-          className="self-start text-xs font-medium underline decoration-dotted"
-          style={{ color: "var(--text-secondary)" }}
-        >
-          Show more
-        </button>
-      )}
+      <ShowMore hiddenCount={filtered.length - limit} onClick={() => setLimit((l) => l + pageSize)} />
     </div>
   );
 }
