@@ -70,8 +70,8 @@ export function FollowUpTaskRow({
         type="button"
         onClick={() => onToggle(!done)}
         aria-label={done ? "Mark not done" : "Mark done"}
-        className="mt-0.5 flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full border"
-        style={{ borderColor: done ? "var(--status-good)" : "var(--baseline)", background: done ? "var(--status-good)" : "transparent" }}
+        className={`mt-0.5 flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full border transition-colors ${done ? "" : "hover:border-[var(--status-good)] hover:bg-[var(--page-plane)]"}`}
+        style={{ borderColor: done ? "var(--status-good)" : "var(--text-secondary)", background: done ? "var(--status-good)" : "transparent" }}
       >
         {done && (
           <svg width="10" height="10" viewBox="0 0 20 20" fill="none" stroke="white" strokeWidth="2.6" strokeLinecap="round">
