@@ -10,6 +10,7 @@ import { Card, CardTitle } from "@/components/ui/Card";
 import { DateRangeFilter, describeDateRange, type DateRangePreset } from "@/components/ui/DateRangeFilter";
 import { Methodology } from "@/components/ui/Methodology";
 import { SectionNav, type SectionNavItem } from "@/components/ui/SectionNav";
+import { ShowMore } from "@/components/ui/ShowMore";
 import { DashboardHeader } from "@/components/analytics/DashboardHeader";
 import { RankedBarChart } from "@/components/charts/RankedBarChart";
 import { MultiLineChart } from "@/components/charts/MultiLineChart";
@@ -226,22 +227,6 @@ const RANGE_PHRASE: Record<string, string> = {
 
 const REPETITION_DEFAULT_COUNT = 10;
 const INGREDIENTS_DEFAULT_COUNT = 10;
-
-/** Small "show N more" toggle, shared shape across the three lists on this
- * page that need one — no hidden info, just progressive disclosure. */
-function ShowMoreButton({ hiddenCount, expanded, onClick }: { hiddenCount: number; expanded: boolean; onClick: () => void }) {
-  if (hiddenCount <= 0 && !expanded) return null;
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="mt-2 self-start text-xs font-medium underline decoration-dotted"
-      style={{ color: "var(--series-2)" }}
-    >
-      {expanded ? "Show less" : `Show ${hiddenCount} more`}
-    </button>
-  );
-}
 
 const SECTION_NAV_ITEMS: SectionNavItem[] = [
   { id: "overview", label: "Overview" },
@@ -585,7 +570,7 @@ export function FoodDashboard() {
                 data={(showAllIngredients ? ranked : ranked.slice(0, INGREDIENTS_DEFAULT_COUNT)).map((f) => ({ label: f.item, value: f.count }))}
                 color={TYPE_ACCENT.food}
               />
-              <ShowMoreButton
+              <ShowMore className="mt-2"
                 hiddenCount={ranked.length - INGREDIENTS_DEFAULT_COUNT}
                 expanded={showAllIngredients}
                 onClick={() => setShowAllIngredients((v) => !v)}
@@ -842,7 +827,7 @@ function RepetitionSection({
             </li>
           ))}
         </ul>
-        <ShowMoreButton hiddenCount={repetition.length - REPETITION_DEFAULT_COUNT} expanded={expanded} onClick={onToggle} />
+        <ShowMore className="mt-2" hiddenCount={repetition.length - REPETITION_DEFAULT_COUNT} expanded={expanded} onClick={onToggle} />
         </>
       ) : (
         <p className="text-sm" style={{ color: "var(--text-muted)" }}>No data.</p>
