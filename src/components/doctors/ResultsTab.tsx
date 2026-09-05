@@ -44,6 +44,7 @@ function MarkerForm({
 }) {
   const [name, setName] = useState(initial?.name ?? "");
   const [unit, setUnit] = useState(initial?.unit ?? "");
+  const [unitTouched, setUnitTouched] = useState(false);
   const [refLow, setRefLow] = useState(initial?.refLow != null ? String(initial.refLow) : "");
   const [refHigh, setRefHigh] = useState(initial?.refHigh != null ? String(initial.refHigh) : "");
   const [panelId, setPanelId] = useState(initial?.panelId ?? NO_PANEL);
@@ -52,6 +53,20 @@ function MarkerForm({
   const [error, setError] = useState<string | null>(null);
 
   const needsNewPanel = panelId === NEW_PANEL;
+
+  // Default the Unit field to whatever a marker of the same name already
+  // uses, so a brand-new marker doesn't start blank when its unit is
+  // already known — a derived fallback, not synced state, so it never
+  // fights typing. `unitTouched` (not "is unit empty") gates the fallback,
+  // so backspacing the suggestion all the way to blank actually stays blank
+  // instead of snapping back to the match on every keystroke.
+  const matchedUnit = useMemo(() => {
+    if (initial) return null;
+    const match = labs.markers.data.find((m) => m.name.trim().toLowerCase() === name.trim().toLowerCase());
+    return match?.unit || null;
+  }, [name, initial, labs.markers.data]);
+  const effectiveUnit = unitTouched ? unit : (matchedUnit ?? unit);
+
   const canSave = name.trim().length > 0 && (!needsNewPanel || newPanelName.trim().length > 0);
 
   async function handleSubmit(e: FormEvent) {
@@ -62,7 +77,7 @@ function MarkerForm({
     try {
       let resolvedPanelId: string | null = panelId === NO_PANEL || needsNewPanel ? null : panelId;
       if (needsNewPanel) resolvedPanelId = (await labs.panels.create(newPanelName)).id;
-      const patch = { panelId: resolvedPanelId, name, unit, refLow: parseNum(refLow), refHigh: parseNum(refHigh) };
+      const patch = { panelId: resolvedPanelId, name, unit: effectiveUnit, refLow: parseNum(refLow), refHigh: parseNum(refHigh) };
       if (initial) {
         await labs.markers.edit(initial.id, patch);
         onSaved(initial.id);
@@ -78,9 +93,16 @@ function MarkerForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-      <div className="flex items-center justify-end">
-        <button type="button" onClick={onCancel} className="text-xs font-medium underline decoration-dotted" style={{ color: "var(--text-muted)" }}>
+    <form
+      onSubmit={handleSubmit}
+      className="flex flex-col gap-4 rounded-xl border p-4"
+      style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", boxShadow: "var(--shadow-card)" }}
+    >
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+          {initial ? "Edit marker" : "New marker"}
+        </h3>
+        <button type="button" onClick={onCancel} className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
           Cancel
         </button>
       </div>
@@ -93,7 +115,17 @@ function MarkerForm({
       <div className="flex flex-wrap gap-3">
         <label className="flex min-w-28 flex-1 flex-col gap-1">
           <span className={LABEL_CLS} style={LABEL_STYLE}>Unit</span>
-          <input value={unit} onChange={(e) => setUnit(e.target.value)} placeholder="mIU/L" maxLength={20} className={FIELD_CLS} style={FIELD_STYLE} />
+          <input
+            value={effectiveUnit}
+            onChange={(e) => {
+              setUnitTouched(true);
+              setUnit(e.target.value);
+            }}
+            placeholder="mIU/L"
+            maxLength={20}
+            className={FIELD_CLS}
+            style={FIELD_STYLE}
+          />
         </label>
         <label className="flex min-w-24 flex-1 flex-col gap-1">
           <span className={LABEL_CLS} style={LABEL_STYLE}>Ref. low</span>
@@ -176,17 +208,20 @@ function ResultForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-      <div className="flex items-center justify-end">
-        <button type="button" onClick={onCancel} className="text-xs font-medium underline decoration-dotted" style={{ color: "var(--text-muted)" }}>
+    <form
+      onSubmit={handleSubmit}
+      className="flex flex-col gap-4 rounded-xl border p-4"
+      style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", boxShadow: "var(--shadow-card)" }}
+    >
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+          {marker.name}
+          {marker.unit && <span className="ml-1 font-normal" style={{ color: "var(--text-muted)" }}>({marker.unit})</span>}
+        </h3>
+        <button type="button" onClick={onCancel} className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
           Cancel
         </button>
       </div>
-
-      <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
-        {marker.name}
-        {marker.unit && <span className="ml-1 font-normal" style={{ color: "var(--text-muted)" }}>({marker.unit})</span>}
-      </p>
 
       <div className="flex flex-wrap gap-3">
         <label className="flex min-w-28 flex-1 flex-col gap-1">
@@ -411,19 +446,37 @@ function PanelSection({
   onDelete?: () => void;
 }) {
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [open, setOpen] = useState(true);
   const sectionAccent = customColorValue(color) ?? accent;
   return (
     <section className="flex flex-col rounded-lg border" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
       <div className="flex items-center gap-1.5 border-b px-3 py-2" style={{ borderColor: "var(--border-hairline)" }}>
-        {icon && (
-          <span className="shrink-0" style={{ color: sectionAccent }}>
-            <CustomIcon icon={icon} size={14} />
-          </span>
-        )}
-        <h3 className="min-w-0 flex-1 truncate text-xs font-semibold" style={{ color: sectionAccent }}>
-          {title}
-        </h3>
-        <span className="text-xs font-medium tabular-nums" style={{ color: "var(--text-muted)" }}>{markers.length}</span>
+        <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} className="flex min-w-0 flex-1 items-center gap-1.5 text-left">
+          {icon && (
+            <span className="shrink-0" style={{ color: sectionAccent }}>
+              <CustomIcon icon={icon} size={14} />
+            </span>
+          )}
+          <h3 className="min-w-0 flex-1 truncate text-xs font-semibold" style={{ color: sectionAccent }}>
+            {title}
+          </h3>
+          <span className="text-xs font-medium tabular-nums" style={{ color: "var(--text-muted)" }}>{markers.length}</span>
+          <svg
+            width="10"
+            height="10"
+            viewBox="0 0 12 12"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className={`shrink-0 transition-transform ${open ? "" : "-rotate-90"}`}
+            style={{ color: "var(--text-muted)" }}
+            aria-hidden="true"
+          >
+            <path d="M2.5 4.5 6 8l3.5-3.5" />
+          </svg>
+        </button>
         {editable && (
           <div className="ml-2 flex shrink-0 items-center gap-2">
             {confirmingDelete ? (
@@ -440,13 +493,15 @@ function PanelSection({
           </div>
         )}
       </div>
-      <div className="px-3">
-        {markers.length === 0 ? (
-          <p className="py-3 text-xs" style={{ color: "var(--text-muted)" }}>No markers here yet.</p>
-        ) : (
-          markers.map((m) => <MarkerRow key={m.id} marker={m} accent={accent} active={m.id === activeMarkerId} onOpen={() => onOpenMarker(m)} />)
-        )}
-      </div>
+      {open && (
+        <div className="px-3">
+          {markers.length === 0 ? (
+            <p className="py-3 text-xs" style={{ color: "var(--text-muted)" }}>No markers here yet.</p>
+          ) : (
+            markers.map((m) => <MarkerRow key={m.id} marker={m} accent={accent} active={m.id === activeMarkerId} onOpen={() => onOpenMarker(m)} />)
+          )}
+        </div>
+      )}
     </section>
   );
 }
@@ -485,10 +540,14 @@ function PanelNameForm({
           setSaving(false);
         }
       }}
-      className="flex flex-col gap-3"
+      className="flex flex-col gap-4 rounded-xl border p-4"
+      style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", boxShadow: "var(--shadow-card)" }}
     >
-      <div className="flex items-center justify-end">
-        <button type="button" onClick={onCancel} className="text-xs font-medium underline decoration-dotted" style={{ color: "var(--text-muted)" }}>Cancel</button>
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+          {initialName ? "Edit panel" : "New panel"}
+        </h3>
+        <button type="button" onClick={onCancel} className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>Cancel</button>
       </div>
       <input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="Panel name" maxLength={60} className={FIELD_CLS} style={FIELD_STYLE} />
       <IconColorPicker icon={icon} color={color} onIconChange={setIcon} onColorChange={setColor} accent={rowAccent} />
