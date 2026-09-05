@@ -1639,6 +1639,7 @@ export default function LogPage() {
           items={logTabs.map((t) => ({ id: t.id, label: t.label, icon: TAB_ICON[t.id], accent: t.accent }))}
           activeId={tab}
           onSelect={selectTab}
+          iconOnly
           className="w-full min-w-0 sm:flex-1"
         />
         <div className="flex w-full items-center gap-3 sm:w-auto">
