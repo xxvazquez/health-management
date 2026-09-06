@@ -147,18 +147,20 @@ export function useDoctors() {
 
   const renameSpecialty = useCallback(
     async (id: string, name: string) => {
+      const current = specialties.find((s) => s.id === id);
       setSpecialties((prev) => prev.map((s) => (s.id === id ? { ...s, name: name.trim() } : s)).sort((a, b) => a.name.localeCompare(b.name)));
-      if (!isDemo) await renameDoctorSpecialty(id, { name }).catch((err) => console.error("renameDoctorSpecialty failed", err));
+      if (!isDemo && current) await renameDoctorSpecialty(current, { name }).catch((err) => console.error("renameDoctorSpecialty failed", err));
     },
-    [isDemo],
+    [isDemo, specialties],
   );
 
   const archiveSpecialty = useCallback(
     async (id: string, archived: boolean) => {
+      const current = specialties.find((s) => s.id === id);
       setSpecialties((prev) => prev.map((s) => (s.id === id ? { ...s, isArchived: archived } : s)));
-      if (!isDemo) await setDoctorSpecialtyArchived(id, archived).catch((err) => console.error("setDoctorSpecialtyArchived failed", err));
+      if (!isDemo && current) await setDoctorSpecialtyArchived(current, archived).catch((err) => console.error("setDoctorSpecialtyArchived failed", err));
     },
-    [isDemo],
+    [isDemo, specialties],
   );
 
   const removeSpecialty = useCallback(
@@ -189,13 +191,14 @@ export function useDoctors() {
   // --- Doctors ---
   const editDoctor = useCallback(
     async (id: string, patch: DoctorPatch) => {
+      const current = doctors.find((d) => d.id === id);
       setDoctors((prev) => prev.map((d) => (d.id === id ? { ...d, ...patch } : d)).sort((a, b) => a.name.localeCompare(b.name)));
-      if (!isDemo) {
-        const updated = await updateDoctor(id, patch);
+      if (!isDemo && current) {
+        const updated = await updateDoctor(current, patch);
         setDoctors((prev) => prev.map((d) => (d.id === id ? updated : d)).sort((a, b) => a.name.localeCompare(b.name)));
       }
     },
-    [isDemo],
+    [isDemo, doctors],
   );
 
   const removeDoctor = useCallback(
@@ -204,10 +207,14 @@ export function useDoctors() {
         setDoctors((prev) => prev.filter((d) => d.id !== id));
         return;
       }
+      // The `on delete restrict` FK from doctor_appointments can't be
+      // checked once the delete is queued offline — catch it here (the UI
+      // already only offers Delete for a doctor with no appointments).
+      if (appointments.some((a) => a.doctorId === id)) throw new Error("Delete this doctor's appointments first.");
       await deleteDoctor(id);
       setDoctors((prev) => prev.filter((d) => d.id !== id));
     },
-    [isDemo],
+    [isDemo, appointments],
   );
 
   // --- Appointments ---
