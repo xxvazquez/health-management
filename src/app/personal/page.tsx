@@ -17,17 +17,17 @@ import { WishlistBoard } from "@/components/home/WishlistBoard";
 import { BoardPage, type BoardPageTab } from "@/components/ui/BoardPage";
 import { DemoNotice } from "@/components/ui/DemoNotice";
 
-const JOURNAL_ACCENT = "var(--series-other)";
-const NOTES_ACCENT = "var(--series-magenta)";
-const WISHLIST_ACCENT = "var(--series-indigo)";
-const CODES_ACCENT = "var(--series-indigo)";
+// One hue for the whole Notes section (h1 rule, tab bar, every tab's add
+// button) — its tabs aren't colour-coded concepts, so recolouring per tab
+// just made moving between them feel like four apps.
+const NOTES_ACCENT = "var(--series-indigo)";
 
 type NotesTab = "journal" | "quicknotes" | "wishlist" | "codes";
 const TABS: BoardPageTab[] = [
-  { id: "journal", label: "Journal", icon: "journal", accent: JOURNAL_ACCENT },
+  { id: "journal", label: "Journal", icon: "journal", accent: NOTES_ACCENT },
   { id: "quicknotes", label: "Quick notes", icon: "notes", accent: NOTES_ACCENT },
-  { id: "wishlist", label: "Wishlist", icon: "wishlist", accent: WISHLIST_ACCENT },
-  { id: "codes", label: "Codes", icon: "codes", accent: CODES_ACCENT },
+  { id: "wishlist", label: "Wishlist", icon: "wishlist", accent: NOTES_ACCENT },
+  { id: "codes", label: "Codes", icon: "codes", accent: NOTES_ACCENT },
 ];
 
 const TAB_STORAGE_KEY = "lauva-notes-tab";
@@ -111,7 +111,7 @@ export default function NotesPage() {
       onSelectTab={(id) => selectTab(id as NotesTab)}
       notice={keep.isDemo && tab !== "journal" ? <DemoNotice /> : undefined}
     >
-      {tab === "journal" && <JournalTab isDemoData={keep.isDemo} accent={JOURNAL_ACCENT} />}
+      {tab === "journal" && <JournalTab isDemoData={keep.isDemo} accent={NOTES_ACCENT} />}
 
       {tab === "quicknotes" && (
         <NoteBoard
@@ -135,7 +135,7 @@ export default function NotesPage() {
             categories={keep.wishlist.data}
             loading={!keep.isDemo && keep.wishlist.loading}
             error={keep.wishlist.error}
-            accent={WISHLIST_ACCENT}
+            accent={NOTES_ACCENT}
             people={keep.myUserId ? { myUserId: keep.myUserId, partnerId: keep.partnerId } : undefined}
             forLabel={completedByLabel}
             sharedUrl={sharedUrl}
@@ -168,7 +168,7 @@ export default function NotesPage() {
           codes={keep.codes.data}
           loading={!keep.isDemo && keep.codes.loading}
           error={keep.codes.error}
-          accent={CODES_ACCENT}
+          accent={NOTES_ACCENT}
           onCreate={keep.codes.create}
           onEdit={keep.codes.edit}
           onDelete={keep.codes.remove}

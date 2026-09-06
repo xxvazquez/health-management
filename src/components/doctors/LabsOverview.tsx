@@ -29,7 +29,7 @@ import { LabMarkerChart, LabMiniChart, LabSparkline } from "@/components/charts/
 import { MultiLineChart } from "@/components/charts/MultiLineChart";
 import { CustomIcon, customColorValue } from "@/components/ui/customIcons";
 
-const ACCENT = "var(--series-6)";
+const ACCENT = "var(--series-1)";
 const MAX_COMPARE = 4;
 const COMPARE_COLORS = ["var(--series-1)", "var(--series-2)", "var(--series-4)", "var(--series-berry)"];
 
