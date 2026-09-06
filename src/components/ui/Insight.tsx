@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
+import clsx from "clsx";
 import type { InsightTone } from "@/lib/aggregations/insights";
-import { Card } from "./Card";
 
 const TONE_COLOR: Record<InsightTone, string> = {
   good: "var(--status-good)",
@@ -10,35 +10,37 @@ const TONE_COLOR: Record<InsightTone, string> = {
 };
 
 /**
- * The synthesized insight for a page — DECISION before CONTEXT before
- * DATA. A plain card with a coloured kicker rather than a heavy panel:
- * the tone label and its position at the top of the page carry the
- * emphasis. Never stacked more than once per page.
+ * The synthesized lead finding for a dashboard — DECISION before CONTEXT
+ * before DATA, at the top of the page. A plain block, not a card: the
+ * coloured kicker and its position carry the emphasis, and a boxed
+ * one-liner reads as heavier than it is. Never stacked more than once.
  */
 export function Insight({
   label,
   headline,
   detail,
   tone = "neutral",
+  className,
 }: {
   label: string;
   headline: ReactNode;
   detail?: ReactNode | null;
   tone?: InsightTone;
+  className?: string;
 }) {
   return (
-    <Card tier="supporting" padded={false} className="px-4 py-3.5">
+    <div className={clsx("flex flex-col gap-1", className)}>
       <p className="text-xs font-semibold tracking-wide uppercase" style={{ color: TONE_COLOR[tone] }}>
         {label}
       </p>
-      <p className="mt-1 text-sm leading-snug" style={{ color: "var(--text-primary)" }}>
+      <p className="max-w-[62ch] text-base leading-snug" style={{ color: "var(--text-primary)" }}>
         {headline}
       </p>
       {detail && (
-        <p className="mt-1 text-xs" style={{ color: "var(--text-secondary)" }}>
+        <p className="max-w-[62ch] text-sm" style={{ color: "var(--text-secondary)" }}>
           {detail}
         </p>
       )}
-    </Card>
+    </div>
   );
 }
