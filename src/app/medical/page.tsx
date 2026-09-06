@@ -3,11 +3,8 @@
 import { useEffect, useState } from "react";
 import { useDoctors } from "@/lib/useDoctors";
 import { TAB_ICON } from "@/components/tabIcons";
-import { AppointmentsTab } from "@/components/doctors/AppointmentsTab";
+import { VisitsTab } from "@/components/doctors/VisitsTab";
 import { DoctorsTab } from "@/components/doctors/DoctorsTab";
-import { SpecialtiesTab } from "@/components/doctors/SpecialtiesTab";
-import { FollowUpsTab } from "@/components/doctors/FollowUpsTab";
-import { CareLogTab } from "@/components/doctors/CareLogTab";
 import { ResultsTab } from "@/components/doctors/ResultsTab";
 import { VitalsTab } from "@/components/doctors/VitalsTab";
 import { ErrorState } from "@/components/ui/EmptyState";
@@ -15,51 +12,55 @@ import { ListSkeleton } from "@/components/ui/Skeleton";
 import { TabRail } from "@/components/ui/TabRail";
 import { DemoNotice } from "@/components/ui/DemoNotice";
 
-const APPOINTMENTS_ACCENT = "var(--series-2)";
-const DOCTORS_ACCENT = "var(--series-1)";
-const SPECIALTIES_ACCENT = "var(--series-3)";
-const FOLLOWUPS_ACCENT = "var(--series-berry)";
-const CARELOG_ACCENT = "var(--series-indigo)";
+const VISITS_ACCENT = "var(--series-2)";
 const RESULTS_ACCENT = "var(--series-6)";
 const VITALS_ACCENT = "var(--series-magenta)";
+const DOCTORS_ACCENT = "var(--series-1)";
 
-type MedicalTabId = "appointments" | "carelog" | "results" | "vitals" | "doctors" | "specialties" | "followups";
+type MedicalTabId = "visits" | "results" | "vitals" | "doctors";
 const TABS: { id: MedicalTabId; label: string; accent: string }[] = [
-  { id: "appointments", label: "Appointments", accent: APPOINTMENTS_ACCENT },
-  { id: "carelog", label: "Care log", accent: CARELOG_ACCENT },
+  { id: "visits", label: "Visits", accent: VISITS_ACCENT },
   { id: "results", label: "Results", accent: RESULTS_ACCENT },
   { id: "vitals", label: "Vitals", accent: VITALS_ACCENT },
   { id: "doctors", label: "Doctors", accent: DOCTORS_ACCENT },
-  { id: "specialties", label: "Specialties", accent: SPECIALTIES_ACCENT },
-  { id: "followups", label: "Follow-ups", accent: FOLLOWUPS_ACCENT },
 ];
 
 // Historical key — the page was "Doctors" before it became "Medical"; kept
 // so the rename doesn't reset everyone's last-open tab.
 const TAB_STORAGE_KEY = "lauva-doctors-tab";
 
-function isMedicalTab(v: string): v is MedicalTabId {
-  return TABS.some((t) => t.id === v);
+// Old tab ids (Appointments / Care log / Follow-ups / Specialties) all
+// land on Visits now — the two-section spine that absorbed them.
+const LEGACY_TAB: Record<string, MedicalTabId> = {
+  appointments: "visits",
+  carelog: "visits",
+  followups: "visits",
+  specialties: "visits",
+};
+
+function resolveTab(v: string): MedicalTabId | null {
+  if (TABS.some((t) => t.id === v)) return v as MedicalTabId;
+  return LEGACY_TAB[v] ?? null;
 }
 
-/** The Medical page — everything about doctor visits and results in one
- * place: appointments already attended, a dated care Log, blood/lab
- * Results, the reusable doctors and specialties behind them, and
- * follow-ups. Direct-to-Supabase, like the Personal page. */
+/** The Health page — everything about doctor visits and results: Visits
+ * (upcoming prep + past appointments), blood/lab Results, self-measured
+ * Vitals, and the reusable Doctors behind it all. Direct-to-Supabase. */
 export default function MedicalPage() {
   const api = useDoctors();
-  const [tab, setTab] = useState<MedicalTabId>("appointments");
+  const [tab, setTab] = useState<MedicalTabId>("visits");
 
   useEffect(() => {
     /* eslint-disable react-hooks/set-state-in-effect */
-    const hash = window.location.hash.replace("#", "");
-    if (isMedicalTab(hash)) {
-      setTab(hash);
+    const fromHash = resolveTab(window.location.hash.replace("#", ""));
+    if (fromHash) {
+      setTab(fromHash);
       return;
     }
     try {
       const saved = localStorage.getItem(TAB_STORAGE_KEY);
-      if (saved && isMedicalTab(saved)) setTab(saved);
+      const fromSaved = saved ? resolveTab(saved) : null;
+      if (fromSaved) setTab(fromSaved);
     } catch {
       // Storage blocked — stay on the default.
     }
@@ -68,8 +69,8 @@ export default function MedicalPage() {
 
   useEffect(() => {
     const fromHash = () => {
-      const id = window.location.hash.replace("#", "");
-      if (isMedicalTab(id)) setTab(id);
+      const id = resolveTab(window.location.hash.replace("#", ""));
+      if (id) setTab(id);
     };
     window.addEventListener("hashchange", fromHash);
     return () => window.removeEventListener("hashchange", fromHash);
@@ -105,13 +106,10 @@ export default function MedicalPage() {
         <ListSkeleton />
       ) : (
         <>
-          {tab === "appointments" && <AppointmentsTab api={api} accent={APPOINTMENTS_ACCENT} />}
-          {tab === "carelog" && <CareLogTab api={api} accent={CARELOG_ACCENT} />}
+          {tab === "visits" && <VisitsTab api={api} accent={VISITS_ACCENT} />}
           {tab === "results" && <ResultsTab accent={RESULTS_ACCENT} />}
           {tab === "vitals" && <VitalsTab accent={VITALS_ACCENT} />}
           {tab === "doctors" && <DoctorsTab api={api} accent={DOCTORS_ACCENT} />}
-          {tab === "specialties" && <SpecialtiesTab api={api} accent={SPECIALTIES_ACCENT} />}
-          {tab === "followups" && <FollowUpsTab api={api} accent={FOLLOWUPS_ACCENT} />}
         </>
       )}
     </div>

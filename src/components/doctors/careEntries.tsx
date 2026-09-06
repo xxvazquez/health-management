@@ -4,21 +4,19 @@ import { useMemo, useState, type FormEvent } from "react";
 import type { useDoctors } from "@/lib/useDoctors";
 import { todayLocalISODate } from "@/lib/aggregations/common";
 import type { CareEntry, CareEntryKind, NewCareEntryInput } from "@/lib/supabase/careLog";
-import { PrimaryAction } from "@/components/ui/PrimaryAction";
-import { InlineEmpty } from "@/components/ui/EmptyState";
 import { Button } from "@/components/ui/Button";
 import { FIELD_CLS, FIELD_STYLE, IconAction, LABEL_CLS, LABEL_STYLE, PencilIcon, TrashIcon, formatDate } from "./shared";
 
 type DoctorsApi = ReturnType<typeof useDoctors>;
 
-const KIND_LABEL: Record<CareEntryKind, string> = { observation: "Observation", note: "Note" };
+export const CARE_KIND_LABEL: Record<CareEntryKind, string> = { observation: "Observation", note: "Note" };
 const KIND_HINT: Record<CareEntryKind, string> = {
   observation: "Something you noticed — a symptom, a change in how you feel.",
   note: "A reminder to ask, a piece of context, anything else.",
 };
 
 /** Turn a list of specialty IDs into their names, in the picker's order. */
-function useSpecialtyNames(api: DoctorsApi) {
+export function useSpecialtyNames(api: DoctorsApi) {
   return useMemo(() => {
     const byId = new Map(api.specialties.data.map((s) => [s.id, s.name]));
     return (ids: string[]) => ids.map((id) => byId.get(id)).filter((n): n is string => Boolean(n));
@@ -55,7 +53,7 @@ function SpecialtyPicker({ api, selected, onToggle, accent }: { api: DoctorsApi;
   );
 }
 
-function CareEntryForm({
+export function CareEntryForm({
   api,
   accent,
   initial,
@@ -114,7 +112,7 @@ function CareEntryForm({
               color: kind === k ? accent : "var(--text-secondary)",
             }}
           >
-            {KIND_LABEL[k]}
+            {CARE_KIND_LABEL[k]}
           </button>
         ))}
       </div>
@@ -174,7 +172,7 @@ function CareEntryForm({
   );
 }
 
-function CareEntryRow({ entry, specialtyNames, accent, onEdit, onDelete }: { entry: CareEntry; specialtyNames: string[]; accent: string; onEdit: () => void; onDelete: () => void }) {
+export function CareEntryRow({ entry, specialtyNames, accent, onEdit, onDelete }: { entry: CareEntry; specialtyNames: string[]; accent: string; onEdit: () => void; onDelete: () => void }) {
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   return (
     <li className="flex items-start gap-3 py-3">
@@ -184,7 +182,7 @@ function CareEntryRow({ entry, specialtyNames, accent, onEdit, onDelete }: { ent
             className="rounded px-1.5 py-0.5 text-xs font-semibold tracking-wide uppercase"
             style={{ background: `color-mix(in oklab, ${accent} 14%, transparent)`, color: accent }}
           >
-            {KIND_LABEL[entry.kind]}
+            {CARE_KIND_LABEL[entry.kind]}
           </span>
           <span className="tabular-nums">{formatDate(entry.happenedOn)}</span>
         </span>
@@ -229,91 +227,5 @@ function CareEntryRow({ entry, specialtyNames, accent, onEdit, onDelete }: { ent
         )}
       </div>
     </li>
-  );
-}
-
-export function CareLogTab({ api, accent }: { api: DoctorsApi; accent: string }) {
-  const [composing, setComposing] = useState(false);
-  const [editing, setEditing] = useState<CareEntry | null>(null);
-  const [filterSpecialty, setFilterSpecialty] = useState<string>("");
-  const namesFor = useSpecialtyNames(api);
-
-  const entries = api.careLog.data;
-  const shown = filterSpecialty ? entries.filter((e) => e.specialtyIds.includes(filterSpecialty)) : entries;
-
-  const specialtiesWithEntries = useMemo(() => {
-    const ids = new Set(entries.flatMap((e) => e.specialtyIds));
-    return api.specialties.data.filter((s) => ids.has(s.id)).sort((a, b) => a.name.localeCompare(b.name));
-  }, [entries, api.specialties.data]);
-
-  if (composing || editing) {
-    return (
-      <CareEntryForm
-        api={api}
-        accent={accent}
-        initial={editing ?? undefined}
-        onSave={async (input) => {
-          if (editing) await api.careLog.edit(editing.id, input);
-          else await api.careLog.add(input);
-          setComposing(false);
-          setEditing(null);
-        }}
-        onCancel={() => {
-          setComposing(false);
-          setEditing(null);
-        }}
-      />
-    );
-  }
-
-  return (
-    <div className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        {specialtiesWithEntries.length > 0 ? (
-          <select
-            value={filterSpecialty}
-            onChange={(e) => setFilterSpecialty(e.target.value)}
-            className="rounded-md border px-2 py-1.5 text-xs"
-            style={FIELD_STYLE}
-          >
-            <option value="">All entries</option>
-            {specialtiesWithEntries.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </select>
-        ) : (
-          <span />
-        )}
-        <div className="hidden justify-end lg:flex">
-          <PrimaryAction label="New entry" accent={accent} onClick={() => setComposing(true)} />
-        </div>
-      </div>
-
-      {shown.length === 0 ? (
-        <InlineEmpty
-          title={entries.length === 0 ? "Nothing in your care log yet" : "No entries tagged there"}
-          description={
-            entries.length === 0
-              ? "Jot down a symptom you've noticed or a question to raise — tag it to the specialties it concerns, and it'll be waiting at your next visit."
-              : "Try a different specialty, or clear the filter."
-          }
-        />
-      ) : (
-        <ul className="flex flex-col divide-y px-0.5" style={{ borderColor: "var(--gridline)" }}>
-          {shown.map((entry) => (
-            <CareEntryRow
-              key={entry.id}
-              entry={entry}
-              specialtyNames={namesFor(entry.specialtyIds)}
-              accent={accent}
-              onEdit={() => setEditing(entry)}
-              onDelete={() => void api.careLog.remove(entry.id)}
-            />
-          ))}
-        </ul>
-      )}
-    </div>
   );
 }
