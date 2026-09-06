@@ -123,10 +123,11 @@ export function usePersonalReminderBoards() {
   const renameList = useCallback(
     async (id: string, name: string) => {
       const trimmed = name.trim();
+      const current = lists.find((l) => l.id === id);
       setLists((prev) => prev.map((l) => (l.id === id ? { ...l, name: trimmed } : l)));
-      if (!isDemo) await renameReminderList(id, { name: trimmed });
+      if (!isDemo && current) await renameReminderList(current, { name: trimmed });
     },
-    [isDemo],
+    [isDemo, lists],
   );
 
   const deleteList = useCallback(
@@ -173,10 +174,12 @@ export function usePersonalReminderBoards() {
         );
         return;
       }
-      const updated = await updatePersonalTask(id, { title: v.title, notes: v.notes, dueAt: v.dueAt, recurrenceDays: v.recurrenceDays, listId: v.listId });
+      const current = tasks.find((t) => t.id === id);
+      if (!current) return;
+      const updated = await updatePersonalTask(current, { title: v.title, notes: v.notes, dueAt: v.dueAt, recurrenceDays: v.recurrenceDays, listId: v.listId });
       setTasks((prev) => prev.map((t) => (t.id === id ? updated : t)));
     },
-    [isDemo],
+    [isDemo, tasks],
   );
 
   const completeTask = useCallback(
@@ -218,10 +221,12 @@ export function usePersonalReminderBoards() {
         setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, isArchived: archived } : t)));
         return;
       }
-      const updated = await setPersonalTaskArchived(id, archived);
+      const current = tasks.find((t) => t.id === id);
+      if (!current) return;
+      const updated = await setPersonalTaskArchived(current, archived);
       setTasks((prev) => prev.map((t) => (t.id === id ? updated : t)));
     },
-    [isDemo],
+    [isDemo, tasks],
   );
 
   const deleteTask = useCallback(

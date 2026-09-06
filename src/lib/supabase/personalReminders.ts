@@ -119,17 +119,18 @@ export async function fetchReminderLists(): Promise<ReminderList[]> {
   return (data as ListRow[]).map(toList);
 }
 
+const LISTS_TABLE = "reminder_lists";
+
+function listPayload(l: ReminderList, userId: string): Record<string, unknown> {
+  return { id: l.id, user_id: userId, name: l.name.trim(), sort_order: l.sortOrder, icon: l.icon, color: l.color };
+}
+
 export async function createReminderList(name: string, sortOrder: number, appearance?: CustomAppearance): Promise<ReminderList> {
-  if (!supabase) throw new Error("Cloud sync isn't set up for this deployment.");
   const myUserId = await currentUserId();
   if (!myUserId) throw new Error("Sign in first.");
-  const { data, error } = await supabase
-    .from("reminder_lists")
-    .insert({ user_id: myUserId, name: name.trim(), sort_order: sortOrder, icon: appearance?.icon ?? null, color: appearance?.color ?? null })
-    .select(LIST_COLUMNS)
-    .single();
-  if (error) throw error;
-  return toList(data as ListRow);
+  const list: ReminderList = { id: createTimeOrderedId(), name: name.trim(), sortOrder, icon: appearance?.icon ?? null, color: appearance?.color ?? null };
+  await upsertDirect(myUserId, LISTS_TABLE, list.id, listPayload(list, myUserId));
+  return list;
 }
 
 export interface ReminderListPatch {
@@ -138,23 +139,27 @@ export interface ReminderListPatch {
   color?: string | null;
 }
 
-export async function renameReminderList(id: string, patch: ReminderListPatch): Promise<ReminderList> {
-  if (!supabase) throw new Error("Cloud sync isn't set up for this deployment.");
-  const update: Record<string, unknown> = {};
-  if (patch.name !== undefined) update.name = patch.name.trim();
-  if (patch.icon !== undefined) update.icon = patch.icon;
-  if (patch.color !== undefined) update.color = patch.color;
-  const { data, error } = await supabase.from("reminder_lists").update(update).eq("id", id).select(LIST_COLUMNS).single();
-  if (error) throw error;
-  return toList(data as ListRow);
+/** Takes the full current list (not just its id) so an offline save can
+ * upsert a complete row. */
+export async function renameReminderList(list: ReminderList, patch: ReminderListPatch): Promise<ReminderList> {
+  const myUserId = await currentUserId();
+  if (!myUserId) throw new Error("Sign in first.");
+  const next: ReminderList = {
+    ...list,
+    name: patch.name !== undefined ? patch.name.trim() : list.name,
+    icon: patch.icon !== undefined ? patch.icon : list.icon,
+    color: patch.color !== undefined ? patch.color : list.color,
+  };
+  await upsertDirect(myUserId, LISTS_TABLE, next.id, listPayload(next, myUserId));
+  return next;
 }
 
 /** The FK is `on delete set null`, so tasks in a deleted list fall back to
  * the default "Reminders" bucket rather than vanishing. */
 export async function deleteReminderList(id: string): Promise<void> {
-  if (!supabase) return;
-  const { error } = await supabase.from("reminder_lists").delete().eq("id", id);
-  if (error) throw error;
+  const myUserId = await currentUserId();
+  if (!myUserId) return;
+  await deleteDirect(myUserId, LISTS_TABLE, id);
 }
 
 export async function fetchPersonalNotes(): Promise<PersonalNote[]> {
@@ -222,58 +227,64 @@ export interface NewPersonalTaskInput {
   listId: string | null;
 }
 
+const TASKS_TABLE = "personal_tasks";
+
+/** Every column personal_tasks holds for a task's own state — completion
+ * history lives in personal_task_completions and isn't touched here. */
+function taskPayload(t: TaskItem, userId: string): Record<string, unknown> {
+  return {
+    id: t.id,
+    user_id: userId,
+    title: t.title.trim(),
+    notes: t.notes,
+    due_at: t.dueAt,
+    recurrence_days: t.recurrenceDays,
+    last_completed_at: t.lastCompletedAt,
+    is_archived: t.isArchived,
+    list_id: t.listId,
+    updated_at: new Date().toISOString(),
+  };
+}
+
+function taskFromInput(id: string, input: NewPersonalTaskInput, base?: TaskItem): TaskItem {
+  return {
+    id,
+    title: input.title.trim(),
+    notes: input.notes.trim() || null,
+    dueAt: input.dueAt,
+    recurrenceDays: input.recurrenceDays,
+    lastCompletedAt: base?.lastCompletedAt ?? null,
+    lastCompletedBy: null,
+    assignedTo: null,
+    isArchived: base?.isArchived ?? false,
+    listId: input.listId,
+  };
+}
+
 export async function createPersonalTask(input: NewPersonalTaskInput): Promise<TaskItem> {
-  if (!supabase) throw new Error("Cloud sync isn't set up for this deployment.");
   const myUserId = await currentUserId();
   if (!myUserId) throw new Error("Sign in first.");
-  const { data, error } = await supabase
-    .from("personal_tasks")
-    .insert({
-      user_id: myUserId,
-      title: input.title.trim(),
-      notes: input.notes.trim() || null,
-      due_at: input.dueAt,
-      recurrence_days: input.recurrenceDays,
-      list_id: input.listId,
-    })
-    .select(TASK_COLUMNS)
-    .single();
-  if (error) throw error;
-  return toTask(data as TaskRow);
+  const task = taskFromInput(createTimeOrderedId(), input);
+  await upsertDirect(myUserId, TASKS_TABLE, task.id, taskPayload(task, myUserId));
+  return task;
 }
 
-/** Edits a task's own fields (not its completion state). `dueAt`/
- * `recurrenceDays` are recomputed by the caller the same way create does,
- * so switching a task between one-off and recurring just works. */
-export async function updatePersonalTask(id: string, input: NewPersonalTaskInput): Promise<TaskItem> {
-  if (!supabase) throw new Error("Cloud sync isn't set up for this deployment.");
-  const { data, error } = await supabase
-    .from("personal_tasks")
-    .update({
-      title: input.title.trim(),
-      notes: input.notes.trim() || null,
-      due_at: input.dueAt,
-      recurrence_days: input.recurrenceDays,
-      list_id: input.listId,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", id)
-    .select(TASK_COLUMNS)
-    .single();
-  if (error) throw error;
-  return toTask(data as TaskRow);
+/** Edits a task's own fields (not its completion state). Takes the full
+ * current task so an offline save can upsert a complete row. */
+export async function updatePersonalTask(task: TaskItem, input: NewPersonalTaskInput): Promise<TaskItem> {
+  const myUserId = await currentUserId();
+  if (!myUserId) throw new Error("Sign in first.");
+  const next = taskFromInput(task.id, input, task);
+  await upsertDirect(myUserId, TASKS_TABLE, next.id, taskPayload(next, myUserId));
+  return next;
 }
 
-export async function setPersonalTaskArchived(id: string, archived: boolean): Promise<TaskItem> {
-  if (!supabase) throw new Error("Cloud sync isn't set up for this deployment.");
-  const { data, error } = await supabase
-    .from("personal_tasks")
-    .update({ is_archived: archived, updated_at: new Date().toISOString() })
-    .eq("id", id)
-    .select(TASK_COLUMNS)
-    .single();
-  if (error) throw error;
-  return toTask(data as TaskRow);
+export async function setPersonalTaskArchived(task: TaskItem, archived: boolean): Promise<TaskItem> {
+  const myUserId = await currentUserId();
+  if (!myUserId) throw new Error("Sign in first.");
+  const next = { ...task, isArchived: archived };
+  await upsertDirect(myUserId, TASKS_TABLE, next.id, taskPayload(next, myUserId));
+  return next;
 }
 
 /** Undoes the most recent completion: clears `last_completed_at`, drops
@@ -304,9 +315,9 @@ export async function uncompletePersonalTask(task: TaskItem): Promise<TaskItem> 
 }
 
 export async function deletePersonalTask(id: string): Promise<void> {
-  if (!supabase) return;
-  const { error } = await supabase.from("personal_tasks").delete().eq("id", id);
-  if (error) throw error;
+  const myUserId = await currentUserId();
+  if (!myUserId) throw new Error("Sign in first.");
+  await deleteDirect(myUserId, TASKS_TABLE, id);
 }
 
 // --- Expiration (private) -------------------------------------------------

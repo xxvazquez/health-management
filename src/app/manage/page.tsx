@@ -184,13 +184,15 @@ function ReminderListsCard({ isDemoData, searchQuery }: { isDemoData: boolean; s
   async function handleRename(id: string, name: string) {
     const next = name.trim();
     if (!next) return;
+    const current = lists.find((l) => l.id === id);
     setLists((prev) => prev.map((l) => (l.id === id ? { ...l, name: next } : l)));
-    if (!isDemoData) await renameReminderList(id, { name: next }).catch((err) => console.error("renameReminderList failed", err));
+    if (!isDemoData && current) await renameReminderList(current, { name: next }).catch((err) => console.error("renameReminderList failed", err));
   }
 
   async function handleAppearance(id: string, patch: { icon?: string | null; color?: string | null }) {
+    const current = lists.find((l) => l.id === id);
     setLists((prev) => prev.map((l) => (l.id === id ? { ...l, ...patch } : l)));
-    if (!isDemoData) await renameReminderList(id, patch).catch((err) => console.error("renameReminderList failed", err));
+    if (!isDemoData && current) await renameReminderList(current, patch).catch((err) => console.error("renameReminderList failed", err));
   }
 
   async function handleDelete(id: string) {
