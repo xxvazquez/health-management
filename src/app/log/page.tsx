@@ -2127,7 +2127,7 @@ export default function LogPage() {
               )}
 
               <Link href="/manage/" className="self-start text-xs font-medium underline decoration-dotted" style={{ color: "var(--text-secondary)" }}>
-                Don&apos;t see what you&apos;re looking for? Archive or add items on the Manage page
+                Don&apos;t see what you&apos;re looking for? Archive or add items in Settings
               </Link>
             </div>
           )}

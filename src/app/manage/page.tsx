@@ -112,7 +112,7 @@ function VisibleSectionsCard() {
         Visible sections
       </p>
       <p className="mt-0.5 mb-3 text-xs" style={{ color: "var(--text-secondary)" }}>
-        Hide anything you don&apos;t track — it disappears from the Log page&apos;s tabs (and its Analytics page, if it
+        Hide anything you don&apos;t track — it disappears from the Log page&apos;s tabs (and its Trends dashboard, if it
         has one) on this device. Nothing underneath is deleted or archived.
       </p>
       <div className="flex flex-wrap gap-1.5">
@@ -1455,7 +1455,7 @@ export default function ManagePage() {
   return (
     <div className="flex flex-col gap-5">
       <div>
-        <PageHeading actions={!isDemoData && <PushNotificationsToggle />}>Manage items</PageHeading>
+        <PageHeading actions={!isDemoData && <PushNotificationsToggle />}>Settings</PageHeading>
         {isDemoData && (
           <DemoNotice className="mt-2">
             Example data — add, rename, archive, and manage categories freely; nothing here is saved.

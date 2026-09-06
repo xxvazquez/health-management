@@ -597,8 +597,8 @@ export function FoodDashboard() {
           Suggestions combine your logged intake with research-informed evidence, weighted by how well-established
           that evidence is and how well-covered the food group already is in what you&apos;ve logged. Eating an
           evidence-backed food often is never treated as a problem on its own — only actual gaps, or a food dominating
-          intake while other food groups are missing, get surfaced. The underlying research is at Manage → Nutrition
-          evidence, kept separate from this page. &quot;Not logged&quot; only ever means not logged, never &quot;not
+          intake while other food groups are missing, get surfaced. The underlying research is on the Nutrition
+          evidence page (linked from Settings), kept separate from this page. &quot;Not logged&quot; only ever means not logged, never &quot;not
           eaten&quot; — this reflects logging frequency, not quantity or what you actually ate.
         </Methodology>
       </div>
