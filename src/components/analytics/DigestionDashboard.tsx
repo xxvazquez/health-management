@@ -133,7 +133,7 @@ export function DigestionDashboard() {
         Stool
       </DashboardHeader>
 
-      <Insight label="What stands out" headline={insight.headline} detail={insight.detail} tone={insight.tone} />
+      <Insight label="What stands out" headline={insight.headline} detail={insight.detail} tone={insight.tone} className="lg:col-span-2" />
 
       {!insight.insufficientData && insight.changed.length > 0 && (
         <BulletList title="What changed" tone="var(--text-muted)" bullets={insight.changed} />
