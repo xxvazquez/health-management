@@ -26,7 +26,7 @@ shared notes, codes and wishlist folded into the Notes area — `/home` redirect
 | **Messages** | `/notes` | Primary nav, partner-linked only (an icon + unread badge in the mobile top bar, never the bottom bar). Private one-to-one messaging with your linked partner. |
 | Settings | `/manage` | (Account menu.) Add / rename / archive / delete items and categories, set exercise units, correct a food's automatic nutrition-group classification, edit reminder lists and doctor types, hide domains you don't track, and export your data (whole account as JSON, or one section at a time as CSV). Searchable across every section. Also linked from Log's inline "add item". |
 | Google Drive | `/my-drive` | (Account menu.) Read-only browser for the signed-in Google account's Drive. |
-| Help | `/help` | (Account menu.) Plain-language reference for what each part does. |
+| Help | `/help` | (Account menu.) Plain-language reference for what each part does — grouped, collapsed, with a search box that filters entries. |
 
 ### Behaviour worth knowing
 
