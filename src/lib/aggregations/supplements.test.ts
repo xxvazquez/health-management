@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { supplementStats, supplementsAtAGlance, supplementsByCategory } from "./supplements";
+import { supplementStats, supplementStatsRanked, supplementsAtAGlance } from "./supplements";
 import { makeEvent } from "@/lib/testFixtures";
 
 describe("supplementStats", () => {
@@ -9,15 +9,13 @@ describe("supplementStats", () => {
   });
 });
 
-describe("supplementsByCategory", () => {
-  it("appends an unrecognized custom category alphabetically after the known ones", () => {
+describe("supplementStatsRanked", () => {
+  it("returns one flat list and leaves Fiber out", () => {
     const events = [
-      makeEvent({ itemType: "supplement", item: "Custom Blend", category: "Zzz Custom" }),
       makeEvent({ itemType: "supplement", item: "Fish Oil", category: "Omega" }),
+      makeEvent({ itemType: "supplement", item: "Psyllium", category: "Fiber" }),
     ];
-    const groups = supplementsByCategory(events);
-    // Whatever the exact known-category order is, an unrecognized one always lands last.
-    expect(groups[groups.length - 1].category).toBe("Zzz Custom");
+    expect(supplementStatsRanked(events).map((s) => s.item)).toEqual(["Fish Oil"]);
   });
 });
 

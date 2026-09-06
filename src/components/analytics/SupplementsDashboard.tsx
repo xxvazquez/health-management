@@ -5,7 +5,7 @@ import { useData } from "@/lib/DataContext";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageSkeleton } from "@/components/ui/Skeleton";
 import { DashboardHeader } from "@/components/analytics/DashboardHeader";
-import { Card, CardTitle } from "@/components/ui/Card";
+import { Card } from "@/components/ui/Card";
 import { StatTile } from "@/components/ui/StatTile";
 import { DateRangeFilter } from "@/components/ui/DateRangeFilter";
 import { Insight } from "@/components/ui/Insight";
@@ -15,7 +15,7 @@ import { AdherenceStrip } from "@/components/charts/AdherenceStrip";
 import { useDateRangeFilter } from "@/lib/useDateRangeFilter";
 import { addDaysToDate } from "@/lib/aggregations/common";
 import { buildStateByDate } from "@/lib/aggregations/adherence";
-import { supplementsAtAGlance, supplementsByCategory, supplementsInsight } from "@/lib/aggregations/supplements";
+import { supplementsAtAGlance, supplementStatsRanked, supplementsInsight } from "@/lib/aggregations/supplements";
 import { TYPE_ACCENT } from "@/taxonomy/categories";
 
 const STRIP_WINDOW_DAYS = 90;
@@ -24,16 +24,11 @@ export function SupplementsDashboard() {
   const { status, events } = useData();
   const { span, range, setRange, filtered } = useDateRangeFilter(events);
 
-  // Fiber is logged here (it's something taken, not an outcome) but tracked
-  // for its digestive relevance — its stats live on the Digestion page
-  // instead of cluttering the general supplement-adherence view here.
-  const filteredNoFiber = useMemo(
-    () => filtered.filter((e) => !(e.itemType === "supplement" && e.category === "Fiber")),
-    [filtered],
-  );
   const insight = useMemo(() => supplementsInsight(events), [events]);
   const glance = useMemo(() => supplementsAtAGlance(events), [events]);
-  const groups = useMemo(() => supplementsByCategory(filteredNoFiber), [filteredNoFiber]);
+  // Fiber is logged here but tracked for its digestive relevance — its
+  // stats live on the Stool dashboard (`supplementStatsRanked` drops it).
+  const ranked = useMemo(() => supplementStatsRanked(filtered), [filtered]);
 
   if (status === "loading") return <PageSkeleton />;
   if (status === "empty") return <EmptyState />;
@@ -71,27 +66,41 @@ export function SupplementsDashboard() {
       <Insight label="What stands out" headline={insight.headline} detail={insight.detail} tone="neutral" className="lg:col-span-2" />
 
       {!insight.insufficientData && insight.changed.length > 0 && (
-        <BulletList title="Running differently than usual" tone="var(--text-muted)" bullets={insight.changed} />
+        <BulletList title="Running differently than usual" tone="var(--text-muted)" bullets={insight.changed} className="lg:col-span-2" />
       )}
 
       <div className="flex items-center justify-between gap-3 lg:col-span-2">
         <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-          Details
+          Every supplement, biggest change first
         </p>
         {span && range && <DateRangeFilter span={span} value={range} onChange={setRange} accent={TYPE_ACCENT.supplement} />}
       </div>
 
-      {groups.map((group) => (
-        <Card key={group.category} tier="raw">
-          <CardTitle size="sm" subtitle={`${group.items.length} item${group.items.length === 1 ? "" : "s"}`}>
-            {group.category}
-          </CardTitle>
-          <div className="flex flex-col gap-4">
-            {group.items.map((item) => (
-              <div key={item.item} className="flex flex-col gap-2 border-b pb-4 last:border-0 last:pb-0" style={{ borderColor: "var(--gridline)" }}>
-                <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <span className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
-                    {item.item}
+      {ranked.length > 0 && (
+        <Card tier="raw" className="lg:col-span-2">
+          <div className="flex flex-col">
+            {ranked.map((item) => (
+              <div
+                key={item.item}
+                className="flex flex-col gap-2 border-b py-3.5 first:pt-0 last:border-0 last:pb-0"
+                style={{ borderColor: "var(--gridline)" }}
+              >
+                <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                  <span className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                    <span className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
+                      {item.item}
+                    </span>
+                    <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+                      {item.category}
+                    </span>
+                    {item.shiftPp !== null && Math.abs(item.shiftPp) >= 15 && (
+                      <span
+                        className="text-xs font-medium tabular-nums"
+                        style={{ color: item.shiftPp > 0 ? "var(--status-good)" : "var(--status-warning)" }}
+                      >
+                        {item.shiftPp > 0 ? "▲" : "▼"} {Math.abs(item.shiftPp)}pp vs usual
+                      </span>
+                    )}
                   </span>
                   <span className="flex gap-4 text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>
                     <span>
@@ -106,17 +115,13 @@ export function SupplementsDashboard() {
                   </span>
                 </div>
                 {clampedStripStart && (
-                  <AdherenceStrip
-                    startDate={clampedStripStart}
-                    endDate={stripEnd}
-                    stateByDate={buildStateByDate(filtered, item.item)}
-                  />
+                  <AdherenceStrip startDate={clampedStripStart} endDate={stripEnd} stateByDate={buildStateByDate(filtered, item.item)} />
                 )}
               </div>
             ))}
           </div>
         </Card>
-      ))}
+      )}
 
       <Methodology className="lg:col-span-2">
         This compares each supplement&apos;s consistency over the last 14 tracked days against its own overall
