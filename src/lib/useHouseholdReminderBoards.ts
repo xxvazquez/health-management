@@ -19,10 +19,13 @@ import { getPartnerLink } from "@/lib/supabase/partner";
 import { buildDemoHouseholdItems, buildDemoHouseholdTasks, DEMO_HOME_ME_ID, DEMO_HOME_PARTNER_ID } from "@/lib/demoHousehold";
 import { isRecurringTask, nextRecurringDueAt, type ExpirationItem, type TaskItem } from "@/lib/reminders";
 import type { TaskFormValues } from "@/components/reminders/TaskBoard";
+import { useSnapshotCache } from "@/lib/useSnapshotCache";
 
 /** Survives navigation, keyed by user id — same pattern as
  * `usePersonalReminderBoards` and the old `homeCache`. */
 let cache: { userId: string; tasks: TaskItem[]; items: ExpirationItem[] } | null = null;
+
+const HOUSEHOLD_REMINDER_TABLES = ["household_tasks", "household_items", "household_task_completions"] as const;
 
 /**
  * The tasks + expiry slice of the household (`household_*`) boards, in the
@@ -49,29 +52,31 @@ export function useHouseholdReminderBoards() {
   const [resolvedPartnerId, setResolvedPartnerId] = useState<string | null>(null);
   const partnerId = isDemo ? DEMO_HOME_PARTNER_ID : resolvedPartnerId;
 
-  const loadTasks = useCallback(async () => {
-    setTasksError(false);
-    try {
-      setTasks(await fetchHouseholdTasks());
-    } catch (err) {
-      console.error("fetchHouseholdTasks failed", err);
-      setTasksError(true);
-    } finally {
+  const { persist } = useSnapshotCache<{ tasks: TaskItem[]; items: ExpirationItem[] }>({
+    feature: "householdReminders",
+    tables: HOUSEHOLD_REMINDER_TABLES,
+    userId: accountId,
+    isDemo: isDemo || authLoading,
+    seeded: seed !== null,
+    fetcher: async () => {
+      const [t, i] = await Promise.all([fetchHouseholdTasks(), fetchHouseholdItems()]);
+      return { tasks: t, items: i };
+    },
+    apply: ({ tasks: t, items: i }) => {
+      setTasks(t);
+      setItems(i);
+      setTasksError(false);
+      setItemsError(false);
+    },
+    onSettled: () => {
       setTasksLoading(false);
-    }
-  }, []);
-
-  const loadItems = useCallback(async () => {
-    setItemsError(false);
-    try {
-      setItems(await fetchHouseholdItems());
-    } catch (err) {
-      console.error("fetchHouseholdItems failed", err);
-      setItemsError(true);
-    } finally {
       setItemsLoading(false);
-    }
-  }, []);
+    },
+    onError: () => {
+      setTasksError(true);
+      setItemsError(true);
+    },
+  });
 
   useEffect(() => {
     if (isDemo || !accountId) return;
@@ -87,16 +92,9 @@ export function useHouseholdReminderBoards() {
     }
     if (!tasksLoading && !itemsLoading) {
       cache = { userId: accountId, tasks, items };
+      persist({ tasks, items });
     }
-  }, [accountId, isDemo, tasks, items, tasksLoading, itemsLoading]);
-
-  useEffect(() => {
-    if (authLoading || isDemo) return;
-    // External read on mount, not a state-sync loop.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    void loadTasks();
-    void loadItems();
-  }, [authLoading, isDemo, accountId, loadTasks, loadItems]);
+  }, [accountId, isDemo, tasks, items, tasksLoading, itemsLoading, persist]);
 
   // --- Tasks ---
   const createTask = useCallback(

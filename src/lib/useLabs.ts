@@ -25,11 +25,14 @@ import {
 } from "@/lib/supabase/labs";
 import type { CustomAppearance } from "@/components/ui/customIcons";
 import { buildDemoLabMarkers, buildDemoLabPanels } from "@/lib/demoLabs";
+import { useSnapshotCache } from "@/lib/useSnapshotCache";
 
 /** Module-level cache so the Medical → Results tab keeps one shared
  * lab-results state across client-side navigation — same cross-nav cache
  * pattern as useCareLog. Keyed by user id; cleared on sign-out. */
 let cache: { userId: string; panels: LabPanel[]; markers: LabMarker[] } | null = null;
+
+const LABS_TABLES = ["lab_panels", "lab_markers", "lab_results"] as const;
 
 function demoId(prefix: string): string {
   return `demo-${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
@@ -49,34 +52,35 @@ export function useLabs() {
   const [loading, setLoading] = useState(seed === null);
   const [error, setError] = useState(false);
 
-  const load = useCallback(async () => {
-    setError(false);
-    try {
+  const { persist } = useSnapshotCache<{ panels: LabPanel[]; markers: LabMarker[] }>({
+    feature: "labs",
+    tables: LABS_TABLES,
+    userId,
+    isDemo: isDemo || authLoading,
+    seeded: seed !== null,
+    fetcher: async () => {
       const [p, m] = await Promise.all([fetchLabPanels(), fetchLabMarkers()]);
+      return { panels: p, markers: m };
+    },
+    apply: ({ panels: p, markers: m }) => {
       setPanels(p);
-      setMarkers(m);
-    } catch (err) {
-      console.error("useLabs load failed", err);
-      setError(true);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+      setMarkers(sortMarkers(m));
+      setError(false);
+    },
+    onSettled: () => setLoading(false),
+    onError: () => setError(true),
+  });
 
   useEffect(() => {
     if (isDemo || !userId) {
       cache = null;
       return;
     }
-    if (!loading) cache = { userId, panels, markers };
-  }, [userId, isDemo, loading, panels, markers]);
-
-  useEffect(() => {
-    if (authLoading || isDemo) return;
-    // External read on mount, not a state-sync loop.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    void load();
-  }, [authLoading, isDemo, userId, load]);
+    if (!loading) {
+      cache = { userId, panels, markers };
+      persist({ panels, markers });
+    }
+  }, [userId, isDemo, loading, panels, markers, persist]);
 
   // --- Panels ---
   const createPanel = useCallback(

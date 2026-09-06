@@ -12,12 +12,15 @@ import {
   type NewCareEntryInput,
 } from "@/lib/supabase/careLog";
 import { buildDemoCareEntries } from "@/lib/demoCareLog";
+import { useSnapshotCache } from "@/lib/useSnapshotCache";
 
 /** Standalone so both the Medical page (via useDoctors) and the Log page's
  * Symptoms tab read one shared care-log state. Survives navigation away and
  * back — same cross-nav cache pattern as useDoctors; keyed by user id,
  * cleared on sign-out. */
 let cache: { userId: string; entries: CareEntry[] } | null = null;
+
+const CARE_LOG_TABLES = ["care_entries", "care_entry_specialties"] as const;
 
 function demoId(prefix: string): string {
   return `demo-${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
@@ -36,32 +39,31 @@ export function useCareLog() {
   const [loading, setLoading] = useState(seed === null);
   const [error, setError] = useState(false);
 
-  const load = useCallback(async () => {
-    setError(false);
-    try {
-      setEntries(await fetchCareEntries());
-    } catch (err) {
-      console.error("useCareLog load failed", err);
-      setError(true);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const { persist } = useSnapshotCache<CareEntry[]>({
+    feature: "careLog",
+    tables: CARE_LOG_TABLES,
+    userId,
+    isDemo: isDemo || authLoading,
+    seeded: seed !== null,
+    fetcher: fetchCareEntries,
+    apply: (list) => {
+      setEntries(sortEntries(list));
+      setError(false);
+    },
+    onSettled: () => setLoading(false),
+    onError: () => setError(true),
+  });
 
   useEffect(() => {
     if (isDemo || !userId) {
       cache = null;
       return;
     }
-    if (!loading) cache = { userId, entries };
-  }, [userId, isDemo, loading, entries]);
-
-  useEffect(() => {
-    if (authLoading || isDemo) return;
-    // External read on mount, not a state-sync loop.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    void load();
-  }, [authLoading, isDemo, userId, load]);
+    if (!loading) {
+      cache = { userId, entries };
+      persist(entries);
+    }
+  }, [userId, isDemo, loading, entries, persist]);
 
   const add = useCallback(
     async (input: NewCareEntryInput) => {

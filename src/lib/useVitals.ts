@@ -17,11 +17,14 @@ import {
   type WeightReading,
 } from "@/lib/supabase/vitals";
 import { buildDemoBloodPressure, buildDemoWeight } from "@/lib/demoVitals";
+import { useSnapshotCache } from "@/lib/useSnapshotCache";
 
 /** Module-level cache so the Health → Vitals tab and the Results tab's
  * overview share one vitals state across client-side navigation — same
  * pattern as useLabs / useCareLog. Keyed by user id, cleared on sign-out. */
 let cache: { userId: string; bp: BloodPressureReading[]; weight: WeightReading[] } | null = null;
+
+const VITALS_TABLES = ["blood_pressure", "weight_logs"] as const;
 
 function demoId(prefix: string): string {
   return `demo-${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
@@ -41,34 +44,35 @@ export function useVitals() {
   const [loading, setLoading] = useState(seed === null);
   const [error, setError] = useState(false);
 
-  const load = useCallback(async () => {
-    setError(false);
-    try {
+  const { persist } = useSnapshotCache<{ bp: BloodPressureReading[]; weight: WeightReading[] }>({
+    feature: "vitals",
+    tables: VITALS_TABLES,
+    userId,
+    isDemo: isDemo || authLoading,
+    seeded: seed !== null,
+    fetcher: async () => {
       const [b, w] = await Promise.all([fetchBloodPressure(), fetchWeight()]);
-      setBp(b);
-      setWeight(w);
-    } catch (err) {
-      console.error("useVitals load failed", err);
-      setError(true);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+      return { bp: b, weight: w };
+    },
+    apply: ({ bp: b, weight: w }) => {
+      setBp(byNewest(b));
+      setWeight(byNewest(w));
+      setError(false);
+    },
+    onSettled: () => setLoading(false),
+    onError: () => setError(true),
+  });
 
   useEffect(() => {
     if (isDemo || !userId) {
       cache = null;
       return;
     }
-    if (!loading) cache = { userId, bp, weight };
-  }, [userId, isDemo, loading, bp, weight]);
-
-  useEffect(() => {
-    if (authLoading || isDemo) return;
-    // External read on mount, not a state-sync loop.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    void load();
-  }, [authLoading, isDemo, userId, load]);
+    if (!loading) {
+      cache = { userId, bp, weight };
+      persist({ bp, weight });
+    }
+  }, [userId, isDemo, loading, bp, weight, persist]);
 
   // --- Blood pressure ---
   const addBp = useCallback(

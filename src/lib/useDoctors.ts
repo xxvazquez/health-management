@@ -35,6 +35,16 @@ import {
 } from "@/lib/supabase/doctors";
 import { buildDemoDoctorAppointments, buildDemoDoctorFollowUpTasks, buildDemoDoctorSpecialties, buildDemoDoctors } from "@/lib/demoDoctors";
 import { useCareLog } from "@/lib/useCareLog";
+import { useSnapshotCache } from "@/lib/useSnapshotCache";
+
+const DOCTORS_TABLES = ["doctor_specialties", "doctors", "doctor_appointments", "doctor_appointment_tasks"] as const;
+
+interface DoctorsBundle {
+  specialties: DoctorSpecialty[];
+  doctors: Doctor[];
+  appointments: DoctorAppointment[];
+  tasks: DoctorFollowUpTask[];
+}
 
 /** Survives navigation away from Doctors and back so returning doesn't
  * re-flash "Loading…" — same cross-nav cache pattern as
@@ -73,41 +83,42 @@ export function useDoctors() {
 
   const careLog = useCareLog();
 
-  const load = useCallback(async () => {
-    setError(false);
-    try {
+  const { persist } = useSnapshotCache<DoctorsBundle>({
+    feature: "doctors",
+    tables: DOCTORS_TABLES,
+    userId,
+    isDemo: isDemo || authLoading,
+    seeded: seed !== null,
+    fetcher: async () => {
       const [s, d, a, t] = await Promise.all([
         fetchDoctorSpecialties(),
         fetchDoctors(),
         fetchDoctorAppointments(),
         fetchDoctorFollowUpTasks(),
       ]);
+      return { specialties: s, doctors: d, appointments: a, tasks: t };
+    },
+    apply: ({ specialties: s, doctors: d, appointments: a, tasks: t }) => {
       setSpecialties(s);
       setDoctors(d);
       setAppointments(a);
       setTasks(t);
-    } catch (err) {
-      console.error("useDoctors load failed", err);
-      setError(true);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+      setError(false);
+    },
+    onSettled: () => setLoading(false),
+    onError: () => setError(true),
+  });
 
   useEffect(() => {
     if (isDemo || !userId) {
       cache = null;
       return;
     }
-    if (!loading) cache = { userId, specialties, doctors, appointments, tasks };
-  }, [userId, isDemo, loading, specialties, doctors, appointments, tasks]);
-
-  useEffect(() => {
-    if (authLoading || isDemo) return;
-    // External read on mount, not a state-sync loop.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    void load();
-  }, [authLoading, isDemo, userId, load]);
+    if (!loading) {
+      cache = { userId, specialties, doctors, appointments, tasks };
+      persist({ specialties, doctors, appointments, tasks });
+    }
+  }, [userId, isDemo, loading, specialties, doctors, appointments, tasks, persist]);
 
   // --- Specialties ---
   const ensureSpecialties = useCallback(

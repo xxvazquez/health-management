@@ -489,3 +489,8 @@ without push.
   person using this device, not about the data.
 - **The PWA app-shell cache** (`public/sw.js`) is separate from both
   Supabase and the IndexedDB data cache.
+- **The direct-feature read snapshots** (`snapshots` store in the
+  `health-analytics` IndexedDB db) — one row per hook holding its
+  last-fetched shaped result, so Medical / Agenda / Wishlist / Notes /
+  Messages render offline. A cache of Supabase data, never a source of
+  truth; keyed by `${userId}:${feature}`, cleared on sign-out.

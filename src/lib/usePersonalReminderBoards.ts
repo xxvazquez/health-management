@@ -24,6 +24,15 @@ import {
 import { buildDemoPersonalItems, buildDemoPersonalTasks, buildDemoReminderLists } from "@/lib/demoPersonalReminders";
 import { isRecurringTask, nextRecurringDueAt, type TaskItem } from "@/lib/reminders";
 import type { TaskFormValues } from "@/components/reminders/TaskBoard";
+import { useSnapshotCache } from "@/lib/useSnapshotCache";
+
+const PERSONAL_REMINDER_TABLES = ["personal_tasks", "personal_items", "reminder_lists", "personal_task_completions"] as const;
+
+interface PersonalReminderBundle {
+  tasks: TaskItem[];
+  items: PersonalItem[];
+  lists: ReminderList[];
+}
 
 /** Survives navigation away from Log and back, so returning doesn't
  * re-flash "Loading…" — the fetch still re-runs in the background to stay
@@ -51,40 +60,32 @@ export function usePersonalReminderBoards() {
 
   const [lists, setLists] = useState<ReminderList[]>(() => seed?.lists ?? buildDemoReminderLists());
 
-  // The load* functions never set *Loading true — the initial state already
-  // reflects "loading iff nothing cached", and a background refresh must
-  // not blank a screen that already has content.
-  const loadTasks = useCallback(async () => {
-    setTasksError(false);
-    try {
-      setTasks(await fetchPersonalTasks());
-    } catch (err) {
-      console.error("fetchPersonalTasks failed", err);
-      setTasksError(true);
-    } finally {
+  const { persist } = useSnapshotCache<PersonalReminderBundle>({
+    feature: "personalReminders",
+    tables: PERSONAL_REMINDER_TABLES,
+    userId,
+    isDemo: isDemo || authLoading,
+    seeded: seed !== null,
+    fetcher: async () => {
+      const [t, i, l] = await Promise.all([fetchPersonalTasks(), fetchPersonalItems(), fetchReminderLists()]);
+      return { tasks: t, items: i, lists: l };
+    },
+    apply: ({ tasks: t, items: i, lists: l }) => {
+      setTasks(t);
+      setItems(i);
+      setLists(l);
+      setTasksError(false);
+      setItemsError(false);
+    },
+    onSettled: () => {
       setTasksLoading(false);
-    }
-  }, []);
-
-  const loadItems = useCallback(async () => {
-    setItemsError(false);
-    try {
-      setItems(await fetchPersonalItems());
-    } catch (err) {
-      console.error("fetchPersonalItems failed", err);
-      setItemsError(true);
-    } finally {
       setItemsLoading(false);
-    }
-  }, []);
-
-  const loadLists = useCallback(async () => {
-    try {
-      setLists(await fetchReminderLists());
-    } catch (err) {
-      console.error("fetchReminderLists failed", err);
-    }
-  }, []);
+    },
+    onError: () => {
+      setTasksError(true);
+      setItemsError(true);
+    },
+  });
 
   // Keep the cross-navigation cache in step with whatever's currently
   // settled on screen (fetches and local edits alike); drop it on sign-out.
@@ -95,22 +96,9 @@ export function usePersonalReminderBoards() {
     }
     if (!tasksLoading && !itemsLoading) {
       cache = { userId, tasks, items, lists };
+      persist({ tasks, items, lists });
     }
-  }, [userId, isDemo, tasks, items, lists, tasksLoading, itemsLoading]);
-
-  useEffect(() => {
-    // Wait for auth to resolve — otherwise this fires while authLoading is
-    // still true (isDemo reads false then too) and overwrites the seeded
-    // demo data with an empty fetch. Same guard as the old Personal page.
-    if (authLoading || isDemo) return;
-    // External read on mount, not a state-sync loop.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    void loadTasks();
-    void loadItems();
-    void loadLists();
-    // `userId` in the deps so an account switch refetches (isDemo alone
-    // stays false across one signed-in user swapping for another).
-  }, [authLoading, isDemo, userId, loadTasks, loadItems, loadLists]);
+  }, [userId, isDemo, tasks, items, lists, tasksLoading, itemsLoading, persist]);
 
   // --- Lists ---
   // Alphabetical everywhere they show (tab chips, list pickers) — there's no
