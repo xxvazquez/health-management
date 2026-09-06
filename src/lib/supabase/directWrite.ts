@@ -1,6 +1,6 @@
 import { supabase } from "./client";
 import { classifySupabaseError } from "./outbox";
-import { enqueueOutbox } from "@/lib/db/indexedDb";
+import { enqueueOutbox, type OutboxOperation } from "@/lib/db/indexedDb";
 
 function notConfigured(): Error {
   return new Error("Cloud sync isn't set up for this deployment.");
@@ -27,13 +27,22 @@ function notConfigured(): Error {
  * already surfaces pending/failed entries for any table, so nothing else
  * needs to know this happened.
  */
-async function attemptOrQueue(userId: string, table: string, id: string, op: "upsert" | "delete", payload: Record<string, unknown>): Promise<void> {
+async function attemptOrQueue(userId: string, table: string, id: string, op: OutboxOperation, payload: Record<string, unknown>): Promise<void> {
   if (!supabase) throw notConfigured();
   let serverError: { code?: string; message: string } | null = null;
   let unreachable = false;
   try {
     const query = supabase.from(table);
-    const { error } = op === "upsert" ? await query.upsert(payload) : await query.delete().eq("id", id);
+    let error;
+    if (op === "upsert") {
+      ({ error } = await query.upsert(payload));
+    } else if (op === "update") {
+      const rest = { ...payload };
+      delete rest.id;
+      ({ error } = await query.update(rest).eq("id", id));
+    } else {
+      ({ error } = await query.delete().eq("id", id));
+    }
     if (error) serverError = error;
   } catch {
     // Never actually reached the server — offline, a dropped connection,
@@ -52,6 +61,19 @@ async function attemptOrQueue(userId: string, table: string, id: string, op: "up
 
 export function upsertDirect(userId: string, table: string, id: string, payload: Record<string, unknown>): Promise<void> {
   return attemptOrQueue(userId, table, id, "upsert", payload);
+}
+
+/**
+ * An edit sent as `update … where id = …` rather than an upsert — for the
+ * pair-visible tables (`household_*`, `wishlist_*`), where the row may be
+ * owned by the linked partner and an upsert's INSERT with-check
+ * (`owner_id = auth.uid()`) would reject it. `fullRow` is the complete row
+ * (same as `upsertDirect` takes) so an offline edit still merges cleanly
+ * into a still-unsent create for the same record. Creates on these tables
+ * stay on `upsertDirect` — a create is always your own row.
+ */
+export function updateDirect(userId: string, table: string, id: string, fullRow: Record<string, unknown>): Promise<void> {
+  return attemptOrQueue(userId, table, id, "update", { ...fullRow, id });
 }
 
 export function deleteDirect(userId: string, table: string, id: string): Promise<void> {

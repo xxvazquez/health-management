@@ -46,10 +46,15 @@ export async function sendOutboxEntry(entry: OutboxEntry): Promise<SendResult> {
   if (!supabase) return { outcome: "retryable", message: "Supabase not configured" };
   try {
     const query = supabase.from(entry.table);
-    const { error } =
-      entry.op === "upsert"
-        ? await query.upsert(entry.payload as Record<string, unknown>)
-        : await query.delete().eq("id", (entry.payload as { id: string }).id);
+    let error;
+    if (entry.op === "upsert") {
+      ({ error } = await query.upsert(entry.payload as Record<string, unknown>));
+    } else if (entry.op === "update") {
+      const { id, ...rest } = entry.payload as Record<string, unknown> & { id: string };
+      ({ error } = await query.update(rest).eq("id", id));
+    } else {
+      ({ error } = await query.delete().eq("id", (entry.payload as { id: string }).id));
+    }
     if (!error) return { outcome: "success" };
     return classifySupabaseError(error);
   } catch (err) {

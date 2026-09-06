@@ -13,9 +13,10 @@ function unique(label: string): { userId: string; dedupeKey: string } {
 // server.
 let upsertResult: { error: { code?: string; message: string } | null } = { error: null };
 let deleteResult: { error: { code?: string; message: string } | null } = { error: null };
+let updateResult: { error: { code?: string; message: string } | null } = { error: null };
 let thrown: Error | null = null;
 let currentSessionUserId: string | null = "user-1";
-const sentCalls: { table: string; op: string }[] = [];
+const sentCalls: { table: string; op: string; payload?: unknown; id?: unknown }[] = [];
 
 vi.mock("./client", () => ({
   get supabase() {
@@ -30,6 +31,13 @@ vi.mock("./client", () => ({
             if (thrown) throw thrown;
             return upsertResult;
           },
+          update: (payload: unknown) => ({
+            eq: async (_col: string, id: unknown) => {
+              sentCalls.push({ table, op: "update", payload, id });
+              if (thrown) throw thrown;
+              return updateResult;
+            },
+          }),
           delete: () => ({
             eq: async () => {
               sentCalls.push({ table, op: "delete" });
@@ -47,6 +55,7 @@ vi.mock("./client", () => ({
 beforeEach(() => {
   upsertResult = { error: null };
   deleteResult = { error: null };
+  updateResult = { error: null };
   thrown = null;
   currentSessionUserId = "user-1";
   sentCalls.length = 0;
@@ -155,6 +164,24 @@ describe("sendOutboxEntry", () => {
       status: "pending",
     });
     expect(sentCalls).toEqual([{ table: "stool_logs", op: "delete" }]);
+  });
+
+  it("sends an update as .update(payload without id).eq(\"id\", ...) against the entry's table", async () => {
+    const { sendOutboxEntry } = await import("./outbox");
+    const result = await sendOutboxEntry({
+      id: "e1",
+      userId: "user-1",
+      dedupeKey: "household_notes:n1",
+      table: "household_notes",
+      op: "update",
+      payload: { id: "n1", owner_id: "partner", title: "T", body: "B" },
+      attempts: 0,
+      createdAt: Date.now(),
+      nextAttemptAt: Date.now(),
+      status: "pending",
+    });
+    expect(result).toMatchObject({ outcome: "success" });
+    expect(sentCalls).toEqual([{ table: "household_notes", op: "update", payload: { owner_id: "partner", title: "T", body: "B" }, id: "n1" }]);
   });
 });
 

@@ -127,6 +127,38 @@ describe("enqueueOutbox — dedup rules", () => {
     const matching = (await getAllOutboxEntries()).filter((e) => e.dedupeKey === dedupeKey);
     expect(matching).toHaveLength(0);
   });
+
+  it("merges an update into a pending unattempted upsert, keeping it an upsert (an offline create-then-edit collapses to one write)", async () => {
+    const { userId, dedupeKey } = unique("update-into-upsert");
+    await enqueueOutbox({ userId, dedupeKey, table: "wishlist_items", op: "upsert", payload: { id: "a", owner_id: "me", title: "v1", note: null } });
+    await enqueueOutbox({ userId, dedupeKey, table: "wishlist_items", op: "update", payload: { id: "a", owner_id: "me", title: "v2", note: "added" } });
+
+    const matching = (await getAllOutboxEntries()).filter((e) => e.dedupeKey === dedupeKey);
+    expect(matching).toHaveLength(1);
+    expect(matching[0].op).toBe("upsert");
+    expect(matching[0].payload).toMatchObject({ id: "a", title: "v2", note: "added" });
+  });
+
+  it("merges two unattempted updates for the same record into one", async () => {
+    const { userId, dedupeKey } = unique("update-into-update");
+    await enqueueOutbox({ userId, dedupeKey, table: "household_notes", op: "update", payload: { id: "a", title: "t1", body: "b1" } });
+    await enqueueOutbox({ userId, dedupeKey, table: "household_notes", op: "update", payload: { id: "a", title: "t1", body: "b2" } });
+
+    const matching = (await getAllOutboxEntries()).filter((e) => e.dedupeKey === dedupeKey);
+    expect(matching).toHaveLength(1);
+    expect(matching[0].op).toBe("update");
+    expect(matching[0].payload).toMatchObject({ id: "a", body: "b2" });
+  });
+
+  it("drops a moot pending update but still queues the delete after it", async () => {
+    const { userId, dedupeKey } = unique("delete-after-update");
+    await enqueueOutbox({ userId, dedupeKey, table: "household_notes", op: "update", payload: { id: "a", body: "edited" } });
+    await enqueueOutbox({ userId, dedupeKey, table: "household_notes", op: "delete", payload: { id: "a" } });
+
+    const matching = (await getAllOutboxEntries()).filter((e) => e.dedupeKey === dedupeKey);
+    expect(matching).toHaveLength(1);
+    expect(matching[0].op).toBe("delete");
+  });
 });
 
 describe("getEligibleOutboxEntries", () => {
