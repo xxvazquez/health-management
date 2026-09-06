@@ -9,10 +9,10 @@ It works fully offline, syncs to Supabase once you sign in, and installs as a PW
 ## Pages
 
 The primary navigation is mid-restructure into five areas — **Log · Agenda · Trends ·
-Health · Notes** (plus **Messages** when a partner is linked). Only the display names
-have moved so far; routes still carry their original names, and the pages still render
-their pre-restructure content. Settings (was Manage), Help and Google Drive moved into
-the account menu.
+Health · Notes** — plus a transitional 6th, **Household**, shown once a partner is linked
+(it folds into Notes in a later step). Only the display names have moved so far; routes
+still carry their original names, and the pages still render their pre-restructure
+content. Settings (was Manage), Messages, Help and Google Drive live in the account menu.
 
 | Area | Route | What it's for |
 |---|---|---|
@@ -21,9 +21,9 @@ the account menu.
 | **Trends** | `/analytics` | One dashboard per domain (Food, Supplements, Habits, Digestion, Workout, Cycle, Patterns), switched by a tab bar, plus **Blood** — trends, flagged values and a compare overlay for the Health → Results lab markers, and a summary of the latest blood pressure and weight from Vitals. |
 | **Health** | `/medical` | Everything about doctor visits: a history log of appointments already attended (reusable doctors and specialties, per-doctor rating/language, follow-up notes and tasks, one next-appointment date per specialty), a **Care log** tab of dated observations tagged to the specialties they concern, a **Results** tab of blood/lab markers over time (one-off or whole-draw batch value entry), and a **Vitals** tab for blood pressure and weight with trend charts and ACC/AHA blood-pressure categories. `/doctors` redirects here. |
 | **Notes** | `/personal` | Journal, private notes, reminders, and product-expiry tracking — the "write once, come back to it" stuff. |
-| **Messages** | `/notes` | Private one-to-one messaging with your linked partner. Only in the nav once a partner is linked. |
+| **Household** | `/home` | (Transitional 6th nav item, partner-linked only — labelled "Shared" on the mobile bar; folds into Notes later.) The partner-facing versions of notes, reminders, and expiry, a shared list of discount codes, and a **Wishlist** of saved links grouped into lists. |
+| Messages | `/notes` | (Account menu, with an unread count. Returns to the primary nav when Household merges into Notes.) Private one-to-one messaging with your linked partner. |
 | Settings | `/manage` | (Account menu.) Add / rename / archive / delete items and categories, set exercise units, correct a food's automatic nutrition-group classification, edit reminder lists and doctor types, hide domains you don't track, and export your data (whole account as JSON, or one section at a time as CSV). Searchable across every section. Also linked from Log's inline "add item". |
-| Household | `/home` | (Account menu, transitional — folding into Notes.) The partner-facing versions of notes, reminders, and expiry, a shared list of discount codes, and a **Wishlist** of saved links grouped into lists. |
 | Google Drive | `/my-drive` | (Account menu.) Read-only browser for the signed-in Google account's Drive. |
 | Help | `/help` | (Account menu.) Plain-language reference for what each part does. |
 

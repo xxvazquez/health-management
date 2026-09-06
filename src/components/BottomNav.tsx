@@ -5,13 +5,15 @@ import { usePathname } from "next/navigation";
 import clsx from "clsx";
 import { ICONS, isActiveHref } from "@/components/Nav";
 import { NAV_LABEL } from "@/components/navLabels";
-import { useUnreadNoteCount } from "@/lib/useUnreadNoteCount";
 import { usePartnerLinked } from "@/lib/usePartnerLinked";
 
 /** The primary areas, one tap away on mobile — the same set and order as
- * the desktop sidebar. Messages joins only when a partner is linked (as in
- * the sidebar). Everything else (Settings, Help, Drive, account) lives in
- * the account menu behind the top-bar. Desktop hides this entirely. */
+ * the desktop sidebar. Household joins only when a partner is linked (as in
+ * the sidebar). Messages, Settings, Help, Drive and the account live in the
+ * account menu behind the top-bar. Desktop hides this entirely.
+ *
+ * Transitional: Household folds into Notes in Step 3, and Messages takes
+ * this slot back then. */
 const ITEMS: { href: string; iconKey: string }[] = [
   { href: "/log", iconKey: "Log" },
   { href: "/overview", iconKey: "Reminders" },
@@ -20,14 +22,18 @@ const ITEMS: { href: string; iconKey: string }[] = [
   { href: "/personal", iconKey: "Personal" },
 ];
 
-const MESSAGES_ITEM = { href: "/notes", iconKey: "Messages" };
+const HOUSEHOLD_ITEM = { href: "/home", iconKey: "Household" };
+
+// The tab bar is tighter than the sidebar — "Household" doesn't fit next to
+// six siblings at 375px, so /home keeps a shorter label here. Everything
+// else matches NAV_LABEL.
+const MOBILE_LABEL: Partial<Record<string, string>> = { "/home": "Shared" };
 
 export function BottomNav() {
   const pathname = usePathname();
-  const unread = useUnreadNoteCount(pathname);
   const partnerLinked = usePartnerLinked();
 
-  const items = partnerLinked ? [...ITEMS, MESSAGES_ITEM] : ITEMS;
+  const items = partnerLinked ? [...ITEMS, HOUSEHOLD_ITEM] : ITEMS;
 
   return (
     <nav
@@ -45,7 +51,6 @@ export function BottomNav() {
     >
       {items.map((item) => {
         const active = isActiveHref(pathname, item.href);
-        const badge = item.href === "/notes" ? unread : 0;
         return (
           <Link
             key={item.href}
@@ -59,16 +64,8 @@ export function BottomNav() {
               style={{ background: active ? "var(--page-plane)" : "transparent" }}
             >
               {ICONS[item.iconKey]}
-              {badge > 0 && (
-                <span
-                  className="absolute top-0.5 right-2 h-2 w-2 rounded-full"
-                  style={{ background: "var(--series-magenta)" }}
-                  aria-hidden="true"
-                />
-              )}
             </span>
-            <span className="max-w-full truncate text-xs leading-tight tracking-tight">{NAV_LABEL[item.href]}</span>
-            {badge > 0 && <span className="sr-only">{badge} unread</span>}
+            <span className="max-w-full truncate text-xs leading-tight tracking-tight">{MOBILE_LABEL[item.href] ?? NAV_LABEL[item.href]}</span>
           </Link>
         );
       })}
