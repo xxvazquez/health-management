@@ -1,36 +1,35 @@
 import type { CanonicalEvent } from "@/lib/types";
-import { SUPPLEMENT_CATEGORIES } from "@/taxonomy/categories";
 import { computeItemStatsForFilter, computeItemTrends, type ItemStats } from "./itemStats";
 import { trackedCalendarDates } from "./common";
 import { buildPersonalChangeSummary, summarizeDrift, type DriftSummary, type PersonalChangeSummary } from "./insights";
-
-export interface SupplementGroup {
-  category: string;
-  items: ItemStats[];
-}
 
 export function supplementStats(events: CanonicalEvent[]): ItemStats[] {
   return computeItemStatsForFilter(events, (e) => e.itemType === "supplement");
 }
 
 /**
- * Grouped by whatever categories actually appear in the data, not just the
- * built-in list — a supplement filed under a category a user added
- * themselves (never known to this file) still needs its own group here
- * rather than being silently dropped. Known categories keep their curated
- * order; anything else is appended alphabetically after.
+ * One flat list of supplements, most-shifted-from-usual first — same
+ * treatment as `habitStatsRanked`. Fiber is left out (it's tracked for
+ * its digestive relevance and lives on the Stool dashboard).
  */
-export function supplementsByCategory(events: CanonicalEvent[]): SupplementGroup[] {
-  const stats = supplementStats(events);
-  const present = new Set(stats.map((s) => s.category));
-  const known = SUPPLEMENT_CATEGORIES.filter((c) => present.has(c));
-  const extra = Array.from(present)
-    .filter((c) => !(SUPPLEMENT_CATEGORIES as readonly string[]).includes(c))
-    .sort((a, b) => a.localeCompare(b));
-  return [...known, ...extra].map((category) => ({
-    category,
-    items: stats.filter((s) => s.category === category),
-  }));
+export function supplementStatsRanked(events: CanonicalEvent[]): (ItemStats & { shiftPp: number | null })[] {
+  const noFiber = events.filter((e) => !(e.itemType === "supplement" && e.category === "Fiber"));
+  const trendByItem = new Map(supplementTrends(events).map((t) => [t.item, t]));
+  return supplementStats(noFiber)
+    .map((s) => {
+      const t = trendByItem.get(s.item);
+      const shiftPp =
+        t && t.recentConsistencyPct !== null && t.overallTrackedDays >= 10 && t.recentTrackedDays >= 5
+          ? Math.round(t.recentConsistencyPct - t.overallConsistencyPct)
+          : null;
+      return { ...s, shiftPp };
+    })
+    .sort((a, b) => {
+      const am = a.shiftPp === null ? -1 : Math.abs(a.shiftPp);
+      const bm = b.shiftPp === null ? -1 : Math.abs(b.shiftPp);
+      if (am !== bm) return bm - am;
+      return b.consistencyPct - a.consistencyPct;
+    });
 }
 
 /**

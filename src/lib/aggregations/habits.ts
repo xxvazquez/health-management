@@ -1,36 +1,36 @@
 import type { CanonicalEvent } from "@/lib/types";
-import { HABIT_CATEGORIES } from "@/taxonomy/categories";
 import { computeItemStatsForFilter, computeItemTrends, type ItemStats } from "./itemStats";
 import { trackedCalendarDates } from "./common";
 import { buildPersonalChangeSummary, summarizeDrift, type DriftSummary, type PersonalChangeSummary } from "./insights";
-
-export interface HabitGroup {
-  category: string;
-  items: ItemStats[];
-}
 
 export function habitStats(events: CanonicalEvent[]): ItemStats[] {
   return computeItemStatsForFilter(events, (e) => e.itemType === "habit");
 }
 
 /**
- * Grouped by whatever categories actually appear in the data, not just the
- * built-in list — a habit filed under a category a user added themselves
- * (never known to this file) still needs its own group here rather than
- * being silently dropped. Known categories keep their curated order;
- * anything else is appended alphabetically after.
+ * One flat list of habits, most-shifted-from-usual first — the recent
+ * 14-day consistency vs the item's own baseline, biggest swing (either
+ * direction) at the top. Items without enough recent history to judge a
+ * shift sort by raw consistency, after the ones that do. The category
+ * stays on each row as a label rather than becoming a card grouping.
  */
-export function habitsByCategory(events: CanonicalEvent[]): HabitGroup[] {
-  const stats = habitStats(events);
-  const present = new Set(stats.map((s) => s.category));
-  const known = HABIT_CATEGORIES.filter((c) => present.has(c));
-  const extra = Array.from(present)
-    .filter((c) => !(HABIT_CATEGORIES as readonly string[]).includes(c))
-    .sort((a, b) => a.localeCompare(b));
-  return [...known, ...extra].map((category) => ({
-    category,
-    items: stats.filter((s) => s.category === category),
-  }));
+export function habitStatsRanked(events: CanonicalEvent[]): (ItemStats & { shiftPp: number | null })[] {
+  const trendByItem = new Map(habitTrends(events).map((t) => [t.item, t]));
+  return habitStats(events)
+    .map((s) => {
+      const t = trendByItem.get(s.item);
+      const shiftPp =
+        t && t.recentConsistencyPct !== null && t.overallTrackedDays >= 10 && t.recentTrackedDays >= 5
+          ? Math.round(t.recentConsistencyPct - t.overallConsistencyPct)
+          : null;
+      return { ...s, shiftPp };
+    })
+    .sort((a, b) => {
+      const am = a.shiftPp === null ? -1 : Math.abs(a.shiftPp);
+      const bm = b.shiftPp === null ? -1 : Math.abs(b.shiftPp);
+      if (am !== bm) return bm - am;
+      return b.consistencyPct - a.consistencyPct;
+    });
 }
 
 /**

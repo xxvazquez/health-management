@@ -1,3 +1,4 @@
+import clsx from "clsx";
 import type { Bullet } from "@/lib/aggregations/insights";
 
 /**
@@ -11,15 +12,17 @@ export function BulletList({
   tone,
   bullets,
   emptyText,
+  className,
 }: {
   title: string;
   tone?: string;
   bullets: Bullet[];
   emptyText?: string;
+  className?: string;
 }) {
   const dotColor = tone ?? "var(--text-muted)";
   return (
-    <div>
+    <div className={clsx(className)}>
       <p className="mb-2 text-xs font-semibold" style={{ color: dotColor }}>
         {title}
       </p>
