@@ -344,12 +344,12 @@ range live on the marker, and each `lab_result` is one dated `value`. Markers
 group into user-named `lab_panels` (Hormones, Liver…) via `lab_markers.panel_id`
 (composite FK `(user_id, panel_id) → lab_panels(user_id, id)`, `on delete set
 null` — deleting a panel ungroups its markers); `lab_results → lab_markers` is
-`on delete cascade`. Owner-only, plain `auth.uid() = user_id`. Markers and panels
-are managed from the Results tab itself; values are entered one at a time from a
+`on delete cascade`. Owner-only, plain `auth.uid() = user_id`. The Results tab has an **Overview**
+(headline grid, flagged-value list, per-panel small-multiples, compare overlay —
+`LabsOverview`, all `useLabs` with no extra query) and a **Manage** view where
+markers and panels are added/renamed; values are entered one at a time from a
 marker's detail or a whole blood draw at once from its **Add results** batch view
-(one date and lab, a value per marker, one multi-row insert). Analytics' **Blood**
-tab reads the same rows (through `useLabs`, no extra query) for the headline grid,
-flagged-value list, per-panel trend charts and the compare overlay.
+(one date and lab, a value per marker, one multi-row insert).
 
 `blood_pressure` / `weight_logs` back the Medical page's **Vitals** tab. Unlike lab
 results these are taken more than once a day, so the timestamp is `measured_at

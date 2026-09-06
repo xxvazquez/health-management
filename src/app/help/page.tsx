@@ -90,7 +90,7 @@ const GROUPS: { title: string; items: Entry[] }[] = [
     items: [
       {
         title: "The tabs",
-        body: "Visits has two parts: \"To raise next time\" is your upcoming appointment dates plus the observations and notes you've tagged for a visit; \"Past visits\" is the full log of appointments you've had, newest first, each with its follow-up tasks. Results holds your blood and lab markers over time. Vitals tracks blood pressure and weight, with the trend and blood-pressure category. Doctors lists your saved doctors — tap one to see their details and every visit.",
+        body: "Visits has two parts: \"To raise next time\" is your upcoming appointment dates plus the observations and notes you've tagged for a visit; \"Past visits\" is the full log of appointments you've had, newest first, each with its follow-up tasks. Results has an Overview (headline markers, anything out of range, per-panel trends, a compare overlay) and a Manage view for adding markers and values. Vitals tracks blood pressure and weight, with the trend and blood-pressure category. Doctors lists your saved doctors — tap one to see their details and every visit.",
       },
       {
         title: "Doctor type, rating and language",

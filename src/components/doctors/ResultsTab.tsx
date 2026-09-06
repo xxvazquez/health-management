@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/Button";
 import { ComboBox, FIELD_CLS, FIELD_STYLE, IconAction, LABEL_CLS, LABEL_STYLE, PencilIcon, TrashIcon, formatDate } from "./shared";
 import { parseNum, rangeStatus, statusColor } from "./labStatus";
 import { BatchResultsView } from "./BatchResultsView";
+import { LabsOverview } from "./LabsOverview";
 import { DetailPlaceholder, MedicalSplit, useIsDesktop } from "./MedicalSplit";
 import { CustomIcon, customColorValue } from "@/components/ui/customIcons";
 import { IconColorPicker } from "@/components/ui/IconColorPicker";
@@ -569,9 +570,32 @@ type View =
   | { mode: "result-form"; markerId: string; resultId?: string }
   | { mode: "panel-form"; panelId?: string };
 
+function SectionToggle({ value, onChange, accent }: { value: "overview" | "manage"; onChange: (v: "overview" | "manage") => void; accent: string }) {
+  return (
+    <div className="inline-flex rounded-md border p-0.5" style={{ borderColor: "var(--border-hairline)" }}>
+      {(["overview", "manage"] as const).map((v) => (
+        <button
+          key={v}
+          type="button"
+          onClick={() => onChange(v)}
+          aria-pressed={value === v}
+          className="rounded px-2.5 py-1 text-xs font-medium capitalize transition-colors"
+          style={{
+            background: value === v ? `color-mix(in oklab, ${accent} 14%, var(--surface-1))` : "transparent",
+            color: value === v ? accent : "var(--text-muted)",
+          }}
+        >
+          {v}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function ResultsTab({ accent }: { accent: string }) {
   const labs = useLabs();
   const desktop = useIsDesktop();
+  const [section, setSection] = useState<"overview" | "manage">("overview");
   const [view, setView] = useState<View>({ mode: "list" });
   const [flash, setFlash] = useState<string | null>(null);
 
@@ -593,6 +617,15 @@ export function ResultsTab({ accent }: { accent: string }) {
   }, [labs.markers.data, labs.panels.data]);
 
   const findMarker = (id: string) => labs.markers.data.find((m) => m.id === id) ?? null;
+
+  if (section === "overview" && view.mode === "list") {
+    return (
+      <div className="flex flex-col gap-4">
+        <SectionToggle value={section} onChange={setSection} accent={accent} />
+        <LabsOverview onManage={() => setSection("manage")} />
+      </div>
+    );
+  }
 
   const listPane = renderList();
   const placeholder = <DetailPlaceholder text="Pick a marker to see its trend and values." />;
@@ -722,6 +755,7 @@ export function ResultsTab({ accent }: { accent: string }) {
       view.mode === "marker" || view.mode === "result-form" ? view.markerId : view.mode === "marker-form" ? (view.markerId ?? null) : null;
     return (
       <div className="flex flex-col gap-3">
+        <SectionToggle value={section} onChange={setSection} accent={accent} />
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap items-center gap-2">
             <button

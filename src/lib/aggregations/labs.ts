@@ -18,7 +18,7 @@ export function parseNum(raw: string): number | null {
   return raw.trim() !== "" && Number.isFinite(n) ? n : null;
 }
 
-// --- Blood dashboard ------------------------------------------------
+// --- Results overview (lab analysis) ------------------------------------------------
 
 export interface LabRangeOption {
   id: "all" | "5y" | "2y" | "1y";

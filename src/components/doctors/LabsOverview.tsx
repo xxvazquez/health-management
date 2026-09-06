@@ -20,9 +20,8 @@ import type { LabMarker } from "@/lib/supabase/labs";
 import { useVitals } from "@/lib/useVitals";
 import type { BloodPressureReading, WeightReading } from "@/lib/supabase/vitals";
 import { bpCategory, bpElevated } from "@/lib/aggregations/vitals";
-import { EmptyState, ErrorState } from "@/components/ui/EmptyState";
-import { PageSkeleton } from "@/components/ui/Skeleton";
-import { DashboardHeader } from "@/components/analytics/DashboardHeader";
+import { InlineEmpty, ErrorState } from "@/components/ui/EmptyState";
+import { ListSkeleton } from "@/components/ui/Skeleton";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { Methodology } from "@/components/ui/Methodology";
 import { SearchField } from "@/components/ui/SearchField";
@@ -55,7 +54,11 @@ function statusTone(status: HeadlineMarker["status"]): string {
   return "var(--text-muted)";
 }
 
-export function LabsDashboard() {
+/** The read/analysis view of the Health → Results tab — flagged-first,
+ * per-panel small-multiples, and a normalized compare overlay. Was the
+ * Analytics "Blood" dashboard; folded in here so lab data lives in one
+ * place. The Results tab's Manage view does the CRUD. */
+export function LabsOverview({ onManage }: { onManage?: () => void }) {
   const labs = useLabs();
   const vitals = useVitals();
   const [rangeId, setRangeId] = useState<LabRangeOption["id"]>("all");
@@ -117,17 +120,28 @@ export function LabsDashboard() {
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [inRange, compareQuery]);
 
-  if (labs.loading) return <PageSkeleton />;
+  if (labs.loading) return <ListSkeleton />;
   if (labs.error) {
     return <ErrorState what="your results" />;
   }
   if (allMarkers.length === 0) {
     return (
-      <EmptyState
-        title="No blood results yet"
-        description="Add markers and values on the Health → Results tab and this dashboard fills in."
-        showLogLink={false}
-      />
+      <div className="flex flex-col items-center gap-3">
+        <InlineEmpty
+          title="No blood results yet"
+          description="Add a marker (TSH, Ferritin, …) with its unit and reference range, then log values as you get them — the trend builds up over time."
+        />
+        {onManage && (
+          <button
+            type="button"
+            onClick={onManage}
+            className="rounded-md border px-3 py-1.5 text-xs font-medium"
+            style={{ borderColor: ACCENT, background: `color-mix(in oklab, ${ACCENT} 12%, var(--surface-1))`, color: ACCENT }}
+          >
+            Add a marker
+          </button>
+        )}
+      </div>
     );
   }
 
@@ -139,13 +153,9 @@ export function LabsDashboard() {
 
   return (
     <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-2">
-      <DashboardHeader
-        accent={ACCENT}
-        className="lg:col-span-2"
-        subtitle={[`${allMarkers.length} markers`, yearSpan].filter(Boolean).join(" · ")}
-      >
-        Blood
-      </DashboardHeader>
+      <p className="text-xs lg:col-span-2" style={{ color: "var(--text-muted)" }}>
+        {[`${allMarkers.length} markers`, yearSpan].filter(Boolean).join(" · ")}
+      </p>
 
       <div className="flex flex-wrap gap-1.5 lg:col-span-2">
         {LAB_RANGES.map((r) => {
