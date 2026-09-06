@@ -8,6 +8,8 @@ import { usePartnerLinked } from "@/lib/usePartnerLinked";
 import { relativeTime } from "@/lib/relativeTime";
 import { useDialogA11y } from "@/components/ui/useDialogA11y";
 import { Button } from "@/components/ui/Button";
+import { Logo } from "@/components/Logo";
+import { FIELD_CLS, FIELD_STYLE, LABEL_CLS, LABEL_STYLE } from "@/components/ui/formField";
 
 /** A row in the account menu's utility list. */
 function MenuLink({ href, onClick, children }: { href: string; onClick: () => void; children: React.ReactNode }) {
@@ -95,15 +97,29 @@ export function AccountPanel() {
         className="relative flex w-full max-w-sm flex-col gap-4 rounded-xl border p-5 shadow-xl"
         style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}
       >
-        <div className="flex items-center justify-between">
-          <h2 id="account-panel-title" className="text-sm font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
-            {session ? "Account" : mode === "signIn" ? "Log in" : mode === "signUp" ? "Create account" : "Reset password"}
-          </h2>
+        <div className="flex items-start justify-between gap-3">
+          {session ? (
+            <h2 id="account-panel-title" className="text-sm font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
+              Account
+            </h2>
+          ) : (
+            <div className="flex flex-col gap-1">
+              <span className="flex items-center gap-2">
+                <Logo size={22} />
+                <span id="account-panel-title" className="text-base font-semibold tracking-[0.18em]" style={{ color: "var(--text-primary)" }}>
+                  LAUVA
+                </span>
+              </span>
+              <p className="text-xs leading-snug" style={{ color: "var(--text-secondary)" }}>
+                Private tracking for food, symptoms, supplements, habits and your cycle — with the trends afterwards.
+              </p>
+            </div>
+          )}
           <button
             type="button"
             onClick={closePanel}
             aria-label="Close"
-            className="flex h-7 w-7 items-center justify-center rounded-full"
+            className="-mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full"
             style={{ color: "var(--text-secondary)", background: "var(--page-plane)" }}
           >
             <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
@@ -112,26 +128,26 @@ export function AccountPanel() {
           </button>
         </div>
 
-        <nav className="flex flex-col gap-0.5 border-b pb-3" style={{ borderColor: "var(--border-hairline)" }}>
-          {session && !partnerLinked && (
-            // The one place a solo user can reach the partner-link flow —
-            // Messages only enters the nav once a partner is linked.
-            <MenuLink href="/notes" onClick={closePanel}>
-              Link a partner
+        {session && (
+          <nav className="flex flex-col gap-0.5 border-b pb-3" style={{ borderColor: "var(--border-hairline)" }}>
+            {!partnerLinked && (
+              // The one place a solo user can reach the partner-link flow —
+              // Messages only enters the nav once a partner is linked.
+              <MenuLink href="/notes" onClick={closePanel}>
+                Link a partner
+              </MenuLink>
+            )}
+            <MenuLink href="/manage" onClick={closePanel}>
+              Settings
             </MenuLink>
-          )}
-          <MenuLink href="/manage" onClick={closePanel}>
-            Settings
-          </MenuLink>
-          <MenuLink href="/help" onClick={closePanel}>
-            Help
-          </MenuLink>
-          {session && (
+            <MenuLink href="/help" onClick={closePanel}>
+              Help
+            </MenuLink>
             <MenuLink href="/my-drive" onClick={closePanel}>
               Google Drive
             </MenuLink>
-          )}
-        </nav>
+          </nav>
+        )}
 
         {!configured && (
           <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
@@ -198,7 +214,7 @@ export function AccountPanel() {
                 <p className="text-xs" style={{ color: "var(--text-muted)" }}>
                   Enter your email and we&apos;ll send a link to set a new password.
                 </p>
-                <label className="flex flex-col gap-1 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
+                <label className={`flex flex-col gap-1 ${LABEL_CLS}`} style={LABEL_STYLE}>
                   Email
                   <input
                     type="email"
@@ -210,11 +226,11 @@ export function AccountPanel() {
                     spellCheck={false}
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="rounded-md border px-3 py-2 text-sm outline-none"
-                    style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
+                    className={FIELD_CLS}
+                    style={FIELD_STYLE}
                   />
                 </label>
-                <Button type="submit" disabled={submitting}>
+                <Button type="submit" disabled={submitting} className="w-full">
                   {submitting ? "Sending…" : "Send reset link"}
                 </Button>
               </>
@@ -222,10 +238,10 @@ export function AccountPanel() {
             <button
               type="button"
               onClick={() => goToMode("signIn")}
-              className="self-start text-xs font-medium underline decoration-dotted"
+              className="self-center text-xs font-medium underline decoration-dotted"
               style={{ color: "var(--text-secondary)" }}
             >
-              back to sign in
+              Back to sign in
             </button>
             {resetError && (
               <span className="text-xs" style={{ color: "var(--status-critical)" }}>
@@ -236,8 +252,8 @@ export function AccountPanel() {
         )}
 
         {configured && !session && mode !== "reset" && (
-          <form onSubmit={handleSubmit} className="flex flex-col gap-2.5">
-            <label className="flex flex-col gap-1 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
+          <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+            <label className={`flex flex-col gap-1 ${LABEL_CLS}`} style={LABEL_STYLE}>
               Email
               <input
                 type="email"
@@ -249,51 +265,63 @@ export function AccountPanel() {
                 spellCheck={false}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="rounded-md border px-3 py-2 text-sm outline-none"
-                style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
+                className={FIELD_CLS}
+                style={FIELD_STYLE}
               />
             </label>
-            <label className="flex flex-col gap-1 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
-              Password
+            <label className={`flex flex-col gap-1 ${LABEL_CLS}`} style={LABEL_STYLE}>
+              <span className="flex items-center justify-between gap-2">
+                Password
+                {mode === "signIn" && (
+                  <button
+                    type="button"
+                    onClick={() => goToMode("reset")}
+                    className="font-medium underline decoration-dotted"
+                    style={{ color: "var(--text-muted)" }}
+                  >
+                    Forgot?
+                  </button>
+                )}
+              </span>
               <input
                 type="password"
                 required
                 autoComplete={mode === "signIn" ? "current-password" : "new-password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="rounded-md border px-3 py-2 text-sm outline-none"
-                style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
+                className={FIELD_CLS}
+                style={FIELD_STYLE}
               />
             </label>
-            <Button type="submit" disabled={submitting}>
-              {mode === "signIn" ? "Sign in" : "Create account"}
-            </Button>
-            <div className="flex items-center justify-between gap-3">
-              <button
-                type="button"
-                onClick={() => goToMode(mode === "signIn" ? "signUp" : "signIn")}
-                className="text-xs font-medium underline decoration-dotted"
-                style={{ color: "var(--text-secondary)" }}
-              >
-                {mode === "signIn" ? "new here? create an account" : "have an account? sign in"}
-              </button>
-              {mode === "signIn" && (
-                <button
-                  type="button"
-                  onClick={() => goToMode("reset")}
-                  className="shrink-0 text-xs font-medium underline decoration-dotted"
-                  style={{ color: "var(--text-secondary)" }}
-                >
-                  forgot your password?
-                </button>
-              )}
-            </div>
             {error && (
               <span className="text-xs" style={{ color: "var(--status-critical)" }}>
                 {error}
               </span>
             )}
+            <Button type="submit" disabled={submitting} className="w-full">
+              {mode === "signIn" ? "Sign in" : "Create account"}
+            </Button>
+            <p className="text-center text-xs" style={{ color: "var(--text-secondary)" }}>
+              {mode === "signIn" ? "New here? " : "Have an account? "}
+              <button
+                type="button"
+                onClick={() => goToMode(mode === "signIn" ? "signUp" : "signIn")}
+                className="font-medium underline decoration-dotted"
+                style={{ color: "var(--text-primary)" }}
+              >
+                {mode === "signIn" ? "Create an account" : "Sign in"}
+              </button>
+            </p>
           </form>
+        )}
+
+        {configured && !session && (
+          <p className="border-t pt-3 text-center text-xs" style={{ borderColor: "var(--border-hairline)", color: "var(--text-muted)" }}>
+            You can look around without an account — nothing is saved until you sign in.{" "}
+            <Link href="/help" onClick={closePanel} className="font-medium underline decoration-dotted" style={{ color: "var(--text-secondary)" }}>
+              What is Lauva?
+            </Link>
+          </p>
         )}
       </div>
     </div>
