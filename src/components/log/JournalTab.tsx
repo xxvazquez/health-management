@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { todayLocalISODate } from "@/lib/aggregations/common";
 import { createJournalEntry, deleteJournalEntry, fetchJournalEntries, updateJournalEntry, type JournalEntry } from "@/lib/supabase/journal";
 import { buildDemoJournalEntries } from "@/lib/demoJournal";
+import { useAuth } from "@/lib/supabase/AuthContext";
+import { useSnapshotCache } from "@/lib/useSnapshotCache";
 import { NoteList, NoteRow, NotebookForm } from "@/components/ui/Notebook";
 import { SearchField } from "@/components/ui/SearchField";
 import { ListSkeleton } from "@/components/ui/Skeleton";
@@ -81,7 +83,11 @@ function JournalEntryForm({
   );
 }
 
+const JOURNAL_TABLES = ["journal_entries"] as const;
+
 export function JournalTab({ isDemoData, accent }: { isDemoData: boolean; accent: string }) {
+  const { session } = useAuth();
+  const userId = session?.user?.id ?? null;
   const [entries, setEntries] = useState<JournalEntry[]>(() => (isDemoData ? buildDemoJournalEntries() : []));
   const [loading, setLoading] = useState(() => !isDemoData);
   const [loadError, setLoadError] = useState(false);
@@ -127,24 +133,24 @@ export function JournalTab({ isDemoData, accent }: { isDemoData: boolean; accent
     }
   }
 
+  const { persist } = useSnapshotCache<JournalEntry[]>({
+    feature: "journal",
+    tables: JOURNAL_TABLES,
+    userId,
+    isDemo: isDemoData,
+    seeded: false,
+    fetcher: fetchJournalEntries,
+    apply: (rows) => {
+      setEntries(rows);
+      setLoadError(false);
+    },
+    onSettled: () => setLoading(false),
+    onError: () => setLoadError(true),
+  });
+
   useEffect(() => {
-    if (isDemoData) return;
-    let cancelled = false;
-    fetchJournalEntries()
-      .then((rows) => {
-        if (!cancelled) setEntries(rows);
-      })
-      .catch((err) => {
-        console.error("fetchJournalEntries failed", err);
-        if (!cancelled) setLoadError(true);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [isDemoData]);
+    if (!isDemoData && userId && !loading) persist(entries);
+  }, [entries, isDemoData, userId, loading, persist]);
 
   const visibleEntries = useMemo(() => {
     const filtered = entries.filter((e) => matchesSearch(e, search));

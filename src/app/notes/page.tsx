@@ -20,6 +20,8 @@ import {
   type NoteView,
 } from "@/lib/supabase/notes";
 import { buildDemoMessages, buildDemoThreads, DEMO_ME_ID, DEMO_PARTNER_ID, DEMO_PARTNER_LABEL } from "@/lib/demoNotes";
+import { hasOutboxEntriesForTables, readSnapshot, writeSnapshot } from "@/lib/db/indexedDb";
+import { onCloudRefresh } from "@/lib/cloudRefresh";
 import { PartnerLinkPanel } from "@/components/notes/PartnerLinkPanel";
 import { ComposeNoteDialog } from "@/components/notes/ComposeNoteDialog";
 import { NoteThreadList } from "@/components/notes/NoteThreadList";
@@ -39,6 +41,8 @@ const VIEWS: { id: NoteView; label: string }[] = [
   { id: "favourites", label: "Favourites" },
   { id: "archived", label: "Archived" },
 ];
+
+const NOTES_TABLES = ["notes"] as const;
 
 /** Per-session cache of the resolved partner link, keyed by user id — so
  * navigating back to Notes skips the full-page loading wall. Cleared on
@@ -113,21 +117,28 @@ export default function NotesPage() {
     setThreadsLoading(true);
     setThreadsError(false);
     try {
-      setThreads(await fetchNoteThreads(view));
+      const fresh = await fetchNoteThreads(view);
+      // Don't let a server list step on a not-yet-synced local change
+      // (relevant once Messages writes go through the outbox).
+      if (accountId && (await hasOutboxEntriesForTables(accountId, NOTES_TABLES))) return;
+      setThreads(fresh);
+      if (accountId) void writeSnapshot(accountId, `notes:${view}`, fresh);
     } catch (err) {
       console.error("fetchNoteThreads failed", err);
-      setThreadsError(true);
+      const snap = accountId ? await readSnapshot(accountId, `notes:${view}`).catch(() => undefined) : undefined;
+      if (snap) setThreads(snap.payload as NoteThread[]);
+      else setThreadsError(true);
     } finally {
       setThreadsLoading(false);
     }
-  }, [view]);
+  }, [view, accountId]);
 
   useEffect(() => {
-    if (partnerState === "linked") {
-      // Same reasoning as the loadPartner effect above.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      void loadThreads();
-    }
+    if (partnerState !== "linked") return;
+    // Same reasoning as the loadPartner effect above.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadThreads();
+    return onCloudRefresh(() => void loadThreads());
   }, [partnerState, loadThreads]);
 
   const handleMarkAllRead = useCallback(async () => {

@@ -33,6 +33,29 @@ export interface OutboxEntry {
 
 export type NewOutboxEntry = Pick<OutboxEntry, "userId" | "dedupeKey" | "table" | "op" | "payload">;
 
+// ---------------------------------------------------------------------------
+// Snapshot cache
+// ---------------------------------------------------------------------------
+// A read-through cache for the direct-to-Supabase features (Medical, Agenda,
+// Wishlist, Notes, Messages). Those hooks fetch their whole table set and
+// shape/join/sort it in JavaScript — they never query a local store — so the
+// cache holds one row per hook containing the already-shaped result it
+// renders. Not a mirror: it stores what comes out of the transformers, which
+// is why it needs no per-feature schema and absorbs every join for free.
+// See src/lib/snapshotCache.ts for the typed helpers and the guard.
+export interface SnapshotRow {
+  /** `${userId}:${feature}` */
+  key: string;
+  userId: string;
+  /** Exactly what the feature's fetch* returned, post-transform. Plain
+   * JSON-compatible data only (structured-clone safe). */
+  payload: unknown;
+  /** Epoch ms this row was last written — a fetch result or a local
+   * optimistic edit, whichever was most recent. Not "last successful
+   * sync" (use DataContext's `lastSyncedAt` for that). */
+  cachedAt: number;
+}
+
 interface HealthDbSchema extends DBSchema {
   items: { key: string; value: RawItem; indexes: { itemType: string } };
   logs: { key: string; value: RawLog; indexes: { itemIdentity: string; itemType: string } };
@@ -42,10 +65,11 @@ interface HealthDbSchema extends DBSchema {
   workoutLogs: { key: string; value: RawWorkoutLog };
   periodLogs: { key: string; value: RawPeriodLog };
   outbox: { key: string; value: OutboxEntry; indexes: { userId: string; status: string; nextAttemptAt: number; dedupeKey: string } };
+  snapshots: { key: string; value: SnapshotRow; indexes: { userId: string } };
 }
 
 const DB_NAME = "health-analytics";
-const DB_VERSION = 9;
+const DB_VERSION = 10;
 
 let dbPromise: Promise<IDBPDatabase<HealthDbSchema>> | null = null;
 
@@ -87,6 +111,10 @@ function getDb(): Promise<IDBPDatabase<HealthDbSchema>> {
           outbox.createIndex("status", "status");
           outbox.createIndex("nextAttemptAt", "nextAttemptAt");
           outbox.createIndex("dedupeKey", "dedupeKey");
+        }
+        if (!db.objectStoreNames.contains("snapshots")) {
+          const snapshots = db.createObjectStore("snapshots", { keyPath: "key" });
+          snapshots.createIndex("userId", "userId");
         }
         // Stale stores from the pre-redesign schema (single shared
         // items/logs/diary tables, name-matched classification via
@@ -714,4 +742,48 @@ export function deleteOutboxEntryById(id: string): Promise<void> {
     const db = await getDb();
     await db.delete("outbox", id);
   });
+}
+
+/** True if the outbox holds any entry (any status — pending or already
+ * dead-lettered) for the current user touching one of `tables`. A caller
+ * uses this to hold off applying a server fetch that would undo a local
+ * change that hasn't reached Supabase yet — including resurrecting a row
+ * the user deleted offline. */
+export async function hasOutboxEntriesForTables(userId: string, tables: readonly string[]): Promise<boolean> {
+  const set = new Set(tables);
+  const all = await getAllOutboxEntries();
+  return all.some((e) => e.userId === userId && set.has(e.table));
+}
+
+// ---------------------------------------------------------------------------
+// Snapshot cache CRUD
+// ---------------------------------------------------------------------------
+// Raw/unlocked: a snapshot write races nothing (its own store, last-write-
+// wins by design), and it must not block on the tracking-domain data lock.
+
+function snapshotKey(userId: string, feature: string): string {
+  return `${userId}:${feature}`;
+}
+
+export async function readSnapshot(userId: string, feature: string): Promise<SnapshotRow | undefined> {
+  const db = await getDb();
+  return db.get("snapshots", snapshotKey(userId, feature));
+}
+
+export async function writeSnapshot(userId: string, feature: string, payload: unknown): Promise<void> {
+  const db = await getDb();
+  await db.put("snapshots", { key: snapshotKey(userId, feature), userId, payload, cachedAt: Date.now() });
+}
+
+/** Drops every snapshot for one user, or (no argument) all of them —
+ * called on sign-out and on "clear my data". */
+export async function clearSnapshots(userId?: string): Promise<void> {
+  const db = await getDb();
+  if (userId === undefined) {
+    await db.clear("snapshots");
+    return;
+  }
+  const keys = await db.getAllKeysFromIndex("snapshots", "userId", userId);
+  const tx = db.transaction("snapshots", "readwrite");
+  await Promise.all([...keys.map((k) => tx.store.delete(k)), tx.done]);
 }

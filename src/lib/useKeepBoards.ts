@@ -41,6 +41,7 @@ import { buildDemoPersonalNotes } from "@/lib/demoPersonalReminders";
 import { buildDemoHouseholdCodes, DEMO_HOME_ME_ID, DEMO_HOME_PARTNER_ID } from "@/lib/demoHousehold";
 import { buildDemoHouseholdNotes } from "@/lib/demoHousehold";
 import { buildDemoWishlist } from "@/lib/demoWishlist";
+import { useSnapshotCache } from "@/lib/useSnapshotCache";
 
 /** A note tagged with which table backs it — `mine` = `personal_notes`
  * (owner-only), `shared` = `household_notes` (visible to a linked partner).
@@ -65,6 +66,15 @@ let cache: {
   codes: HouseholdCode[];
   wishlist: WishlistCategory[];
 } | null = null;
+
+const KEEP_BOARDS_TABLES = ["personal_notes", "household_notes", "household_codes", "wishlist_categories", "wishlist_items"] as const;
+
+interface KeepBoardsBundle {
+  mine: PersonalNote[];
+  shared: HouseholdNote[];
+  codes: HouseholdCode[];
+  wishlist: WishlistCategory[];
+}
 
 /**
  * All the state + handlers behind the Notes area's Quick notes / Wishlist /
@@ -106,32 +116,6 @@ export function useKeepBoards() {
     [mine, shared],
   );
 
-  const loadNotes = useCallback(async () => {
-    setNotesError(false);
-    try {
-      const [p, h] = await Promise.all([fetchPersonalNotes(), fetchHouseholdNotes()]);
-      setMine(p);
-      setShared(h);
-    } catch (err) {
-      console.error("fetch notes failed", err);
-      setNotesError(true);
-    } finally {
-      setNotesLoading(false);
-    }
-  }, []);
-
-  const loadCodes = useCallback(async () => {
-    setCodesError(false);
-    try {
-      setCodes(await fetchHouseholdCodes());
-    } catch (err) {
-      console.error("fetchHouseholdCodes failed", err);
-      setCodesError(true);
-    } finally {
-      setCodesLoading(false);
-    }
-  }, []);
-
   const loadWishlist = useCallback(async () => {
     setWishlistError(false);
     try {
@@ -143,6 +127,37 @@ export function useKeepBoards() {
       setWishlistLoading(false);
     }
   }, []);
+
+  const { persist } = useSnapshotCache<KeepBoardsBundle>({
+    feature: "keepBoards",
+    tables: KEEP_BOARDS_TABLES,
+    userId: accountId,
+    isDemo: isDemo || authLoading,
+    seeded: seed !== null,
+    fetcher: async () => {
+      const [p, h, c, w] = await Promise.all([fetchPersonalNotes(), fetchHouseholdNotes(), fetchHouseholdCodes(), fetchWishlist()]);
+      return { mine: p, shared: h, codes: c, wishlist: w };
+    },
+    apply: ({ mine: p, shared: h, codes: c, wishlist: w }) => {
+      setMine(p);
+      setShared(h);
+      setCodes(c);
+      setWishlist(w);
+      setNotesError(false);
+      setCodesError(false);
+      setWishlistError(false);
+    },
+    onSettled: () => {
+      setNotesLoading(false);
+      setCodesLoading(false);
+      setWishlistLoading(false);
+    },
+    onError: () => {
+      setNotesError(true);
+      setCodesError(true);
+      setWishlistError(true);
+    },
+  });
 
   useEffect(() => {
     if (isDemo || !accountId) return;
@@ -158,17 +173,9 @@ export function useKeepBoards() {
     }
     if (!notesLoading && !codesLoading && !wishlistLoading) {
       cache = { userId: accountId, mine, shared, codes, wishlist };
+      persist({ mine, shared, codes, wishlist });
     }
-  }, [accountId, isDemo, mine, shared, codes, wishlist, notesLoading, codesLoading, wishlistLoading]);
-
-  useEffect(() => {
-    if (authLoading || isDemo) return;
-    // External reads on mount, not a state-sync loop.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    void loadNotes();
-    void loadCodes();
-    void loadWishlist();
-  }, [authLoading, isDemo, accountId, loadNotes, loadCodes, loadWishlist]);
+  }, [accountId, isDemo, mine, shared, codes, wishlist, notesLoading, codesLoading, wishlistLoading, persist]);
 
   // --- Quick notes ---
   const createNote = useCallback(

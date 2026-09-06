@@ -3,8 +3,9 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { CanonicalEvent, RawWorkoutLog, RawStoolLog, RawPeriodLog } from "@/lib/types";
 import { buildCanonicalEvents } from "@/lib/canonical/buildCanonicalEvents";
-import { clearAllData, getAllDiary, getAllLogs, getAllItems, getAllStoolLogs, getAllWorkoutLogs, getAllPeriodLogs, hasAnyData, withDataLock, type OutboxEntry } from "@/lib/db/indexedDb";
+import { clearAllData, clearSnapshots, getAllDiary, getAllLogs, getAllItems, getAllStoolLogs, getAllWorkoutLogs, getAllPeriodLogs, hasAnyData, withDataLock, type OutboxEntry } from "@/lib/db/indexedDb";
 import { pullFromCloud, resetInitialPullState, retryDeadLetterEntry } from "@/lib/supabase/sync";
+import { emitCloudRefresh } from "@/lib/cloudRefresh";
 import { discardDeadLetterEntry, getDeadLetterEntries, getOutboxSyncState } from "@/lib/supabase/outbox";
 import { ANALYTICS_START_DATE } from "@/lib/config";
 import { buildDemoDataset } from "@/lib/demoData";
@@ -205,6 +206,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const clearData = useCallback(async () => {
     await clearAllData();
+    await clearSnapshots();
     await refresh();
   }, [refresh]);
 
@@ -223,6 +225,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       await pullFromCloud();
       await refresh();
       await refreshSyncState();
+      // Direct-to-Supabase hooks don't ride pullFromCloud — nudge them to
+      // re-fetch and re-cache their own tables on the same beat.
+      emitCloudRefresh();
       const now = Date.now();
       setLastSyncedAt(now);
       try {
@@ -274,7 +279,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         // yet" (see waitForInitialPull's own doc comment); resetting here
         // stops it from reusing this session's already-resolved gate.
         resetInitialPullState();
-        void clearAllData().then(() => refresh());
+        void Promise.all([clearAllData(), clearSnapshots()]).then(() => refresh());
       }
       return;
     }

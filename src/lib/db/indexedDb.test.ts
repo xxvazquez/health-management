@@ -9,10 +9,14 @@ import {
   deleteItemLocalInternal,
   enqueueOutboxInternal,
   hasOutboxEntriesSinceInternal,
+  hasOutboxEntriesForTables,
   putWorkoutLogInternal,
   getAllWorkoutLogs,
   renameWorkoutLogsExerciseInternal,
   decrementDailyLogForMealInternal,
+  readSnapshot,
+  writeSnapshot,
+  clearSnapshots,
 } from "./indexedDb";
 import type { RawItem, RawLog, RawWorkoutLog } from "@/lib/types";
 
@@ -284,5 +288,61 @@ describe("decrementDailyLogForMealInternal", () => {
   it("returns null when there's nothing for that item/date at all", async () => {
     const removed = await decrementDailyLogForMealInternal("supp-nonexistent", "2026-01-01", "Morning");
     expect(removed).toBeNull();
+  });
+});
+
+describe("snapshot cache", () => {
+  it("round-trips a payload for one user + feature", async () => {
+    await writeSnapshot("user-snap-1", "doctors", { doctors: [{ id: "d1", name: "Dr A" }] });
+    const snap = await readSnapshot("user-snap-1", "doctors");
+    expect(snap?.payload).toEqual({ doctors: [{ id: "d1", name: "Dr A" }] });
+    expect(typeof snap?.cachedAt).toBe("number");
+  });
+
+  it("overwrites in place — one row per user + feature", async () => {
+    await writeSnapshot("user-snap-2", "labs", { markers: [] });
+    await writeSnapshot("user-snap-2", "labs", { markers: [{ id: "m1" }] });
+    const snap = await readSnapshot("user-snap-2", "labs");
+    expect(snap?.payload).toEqual({ markers: [{ id: "m1" }] });
+  });
+
+  it("keys are per-user — one user's snapshot never reads as another's", async () => {
+    await writeSnapshot("user-snap-a", "vitals", { bp: ["a"] });
+    await writeSnapshot("user-snap-b", "vitals", { bp: ["b"] });
+    expect((await readSnapshot("user-snap-a", "vitals"))?.payload).toEqual({ bp: ["a"] });
+    expect((await readSnapshot("user-snap-b", "vitals"))?.payload).toEqual({ bp: ["b"] });
+  });
+
+  it("clearSnapshots(userId) drops only that user's rows", async () => {
+    await writeSnapshot("user-snap-keep", "careLog", { entries: [] });
+    await writeSnapshot("user-snap-drop", "careLog", { entries: [] });
+    await writeSnapshot("user-snap-drop", "labs", { markers: [] });
+    await clearSnapshots("user-snap-drop");
+    expect(await readSnapshot("user-snap-drop", "careLog")).toBeUndefined();
+    expect(await readSnapshot("user-snap-drop", "labs")).toBeUndefined();
+    expect(await readSnapshot("user-snap-keep", "careLog")).toBeDefined();
+  });
+
+  it("clearSnapshots() with no argument drops everything", async () => {
+    await writeSnapshot("user-snap-all-1", "doctors", {});
+    await writeSnapshot("user-snap-all-2", "doctors", {});
+    await clearSnapshots();
+    expect(await readSnapshot("user-snap-all-1", "doctors")).toBeUndefined();
+    expect(await readSnapshot("user-snap-all-2", "doctors")).toBeUndefined();
+  });
+});
+
+describe("hasOutboxEntriesForTables", () => {
+  it("is true only when an entry for one of the given tables exists for that user", async () => {
+    await enqueueOutboxInternal({
+      userId: "user-obt-1",
+      dedupeKey: "care_entries:e1",
+      table: "care_entries",
+      op: "upsert",
+      payload: { id: "e1" },
+    });
+    expect(await hasOutboxEntriesForTables("user-obt-1", ["care_entries", "care_entry_specialties"])).toBe(true);
+    expect(await hasOutboxEntriesForTables("user-obt-1", ["lab_results"])).toBe(false);
+    expect(await hasOutboxEntriesForTables("user-obt-other", ["care_entries"])).toBe(false);
   });
 });

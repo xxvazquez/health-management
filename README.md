@@ -116,7 +116,7 @@ docs/
 flowchart LR
     subgraph browser["Browser — Next.js PWA (static export)"]
         ui["React UI"]
-        idb[("IndexedDB<br/>item/log/diary cache")]
+        idb[("IndexedDB<br/>item/log/diary cache + feature snapshots")]
         outbox["Outbox<br/>(queued writes)"]
         ui --> idb
         ui --> outbox
@@ -129,8 +129,9 @@ flowchart LR
     outbox -->|"drain, retry/backoff"| pg
     pg -->|"pull: sign-in / focus / reconnect / 60s"| idb
     ui --> auth
-    ui -.->|"Messages, Reminders, …<br/>(direct, no offline)"| pg
+    ui -.->|"Messages, Medical, Reminders, Wishlist<br/>(direct writes; reads cached as snapshots)"| pg
     ui -.->|"Journal, Personal Notes/Expiration, Vitals<br/>(direct, falls back to outbox offline)"| outbox
+    idb -.->|"snapshot: instant read, then revalidate"| ui
     ui -.->|"notify-note (on send)"| ef
     ef -->|"reminder + digest cron"| pg
     ef --> resend["Resend (email)"]
@@ -185,13 +186,26 @@ behaves *lately* rather than an average smoothed over years.
 user's data regardless of RLS. `supabase/schema.sql` is authoritative;
 [`docs/data-model.md`](docs/data-model.md) is the readable map.
 
-### Direct-to-Supabase features (no offline mode)
+### Direct-to-Supabase features
 
 Messages, Agenda's reminders and expiry, and most of the Medical page (Doctors,
 appointments, Care Log, Results/Labs) talk to Supabase directly rather than
-through the write-local-first outbox — they only mean anything once they're on
-the server, and a write made offline is lost (the form still has what you typed
-until you navigate away).
+through the write-local-first outbox.
+
+**Reads work offline** via a snapshot cache (`src/lib/db/indexedDb.ts`'s
+`snapshots` store + `src/lib/useSnapshotCache.ts`). Each of these hooks caches
+its already-shaped result (joins resolved) keyed by `${userId}:${feature}`;
+on mount it renders that instantly, then re-fetches and overwrites. A fetch that
+fails with a snapshot to fall back on is not an error. `cloudRefresh.ts` re-runs
+those fetches on the same beats as a tracking-domain pull (sign-in, focus,
+reconnect, the 60 s tick, "Sync now"). A fetch result is never applied while the
+outbox still holds a write for that feature's tables — the server copy is stale
+then, and could otherwise resurrect a row deleted offline.
+
+**Writes** are still online-only for most of these (a write made offline throws;
+the form keeps what you typed until you navigate away). Journal, Personal Notes,
+Personal Expiration and Vitals are the exceptions — see below. The rest are being
+moved onto the same fallback one feature group at a time.
 
 **Journal, Personal Notes, Personal Expiration and Vitals have offline fallback**
 (`src/lib/supabase/directWrite.ts`): a create/update/delete still tries Supabase
