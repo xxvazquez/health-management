@@ -1,4 +1,6 @@
 import { supabase, supabaseAnonKey, supabaseUrl } from "./client";
+import { createTimeOrderedId } from "@/lib/sortableId";
+import { deleteDirect, updateDirect, upsertDirect } from "./directWrite";
 
 export interface WishlistItem {
   id: string;
@@ -98,25 +100,42 @@ export async function fetchWishlist(): Promise<WishlistCategory[]> {
   return (data as CategoryRow[]).map(toCategory);
 }
 
+const CATEGORIES_TABLE = "wishlist_categories";
+const ITEMS_TABLE = "wishlist_items";
+
+function categoryPayload(c: WishlistCategory, ownerId: string): Record<string, unknown> {
+  return { id: c.id, owner_id: ownerId, name: c.name.trim(), icon: c.icon, color: c.color, created_at: c.createdAt };
+}
+
+function itemPayload(i: WishlistItem, ownerId: string): Record<string, unknown> {
+  return {
+    id: i.id,
+    owner_id: ownerId,
+    category_id: i.categoryId,
+    url: i.url.trim(),
+    title: i.title.trim(),
+    note: i.note,
+    for_user_id: i.forUserId,
+    created_at: i.createdAt,
+  };
+}
+
 export async function createWishlistCategory(
   name: string,
   appearance?: WishlistCategoryAppearance,
 ): Promise<WishlistCategory> {
-  if (!supabase) throw notConfigured();
   const myUserId = await currentUserId();
   if (!myUserId) throw new Error("Sign in first.");
-  const { data, error } = await supabase
-    .from("wishlist_categories")
-    .insert({
-      owner_id: myUserId,
-      name: name.trim(),
-      icon: appearance?.icon ?? null,
-      color: appearance?.color ?? null,
-    })
-    .select(CATEGORY_COLUMNS)
-    .single();
-  if (error) throw error;
-  return toCategory(data as CategoryRow);
+  const c: WishlistCategory = {
+    id: createTimeOrderedId(),
+    name: name.trim(),
+    icon: appearance?.icon ?? null,
+    color: appearance?.color ?? null,
+    createdAt: new Date().toISOString(),
+    items: [],
+  };
+  await upsertDirect(myUserId, CATEGORIES_TABLE, c.id, categoryPayload(c, myUserId));
+  return c;
 }
 
 export interface WishlistCategoryPatch {
@@ -125,20 +144,25 @@ export interface WishlistCategoryPatch {
   color?: string | null;
 }
 
-export async function updateWishlistCategory(id: string, patch: WishlistCategoryPatch): Promise<void> {
-  if (!supabase) throw notConfigured();
-  const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
-  if (patch.name !== undefined) update.name = patch.name.trim();
-  if (patch.icon !== undefined) update.icon = patch.icon;
-  if (patch.color !== undefined) update.color = patch.color;
-  const { error } = await supabase.from("wishlist_categories").update(update).eq("id", id);
-  if (error) throw error;
+/** Takes the full current category (a pair-visible row that may be the
+ * partner's) so the edit goes out as a plain update, not an upsert — see
+ * directWrite.updateDirect. */
+export async function updateWishlistCategory(category: WishlistCategory, patch: WishlistCategoryPatch): Promise<void> {
+  const myUserId = await currentUserId();
+  if (!myUserId) throw new Error("Sign in first.");
+  const next: WishlistCategory = {
+    ...category,
+    name: patch.name !== undefined ? patch.name.trim() : category.name,
+    icon: patch.icon !== undefined ? patch.icon : category.icon,
+    color: patch.color !== undefined ? patch.color : category.color,
+  };
+  await updateDirect(myUserId, CATEGORIES_TABLE, next.id, categoryPayload(next, myUserId));
 }
 
 export async function deleteWishlistCategory(id: string): Promise<void> {
-  if (!supabase) return;
-  const { error } = await supabase.from("wishlist_categories").delete().eq("id", id);
-  if (error) throw error;
+  const myUserId = await currentUserId();
+  if (!myUserId) return;
+  await deleteDirect(myUserId, CATEGORIES_TABLE, id);
 }
 
 export interface NewWishlistItemInput {
@@ -150,23 +174,19 @@ export interface NewWishlistItemInput {
 }
 
 export async function createWishlistItem(input: NewWishlistItemInput): Promise<WishlistItem> {
-  if (!supabase) throw notConfigured();
   const myUserId = await currentUserId();
   if (!myUserId) throw new Error("Sign in first.");
-  const { data, error } = await supabase
-    .from("wishlist_items")
-    .insert({
-      owner_id: myUserId,
-      category_id: input.categoryId,
-      url: input.url.trim(),
-      title: input.title.trim(),
-      note: input.note.trim() || null,
-      for_user_id: input.forUserId,
-    })
-    .select(ITEM_COLUMNS)
-    .single();
-  if (error) throw error;
-  return toItem(data as ItemRow);
+  const item: WishlistItem = {
+    id: createTimeOrderedId(),
+    categoryId: input.categoryId,
+    url: input.url.trim(),
+    title: input.title.trim(),
+    note: input.note.trim() || null,
+    forUserId: input.forUserId,
+    createdAt: new Date().toISOString(),
+  };
+  await upsertDirect(myUserId, ITEMS_TABLE, item.id, itemPayload(item, myUserId));
+  return item;
 }
 
 export interface WishlistItemPatch {
@@ -177,28 +197,26 @@ export interface WishlistItemPatch {
   forUserId?: string | null;
 }
 
-export async function updateWishlistItem(id: string, patch: WishlistItemPatch): Promise<WishlistItem> {
-  if (!supabase) throw notConfigured();
-  const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
-  if (patch.categoryId !== undefined) update.category_id = patch.categoryId;
-  if (patch.url !== undefined) update.url = patch.url.trim();
-  if (patch.title !== undefined) update.title = patch.title.trim();
-  if (patch.note !== undefined) update.note = patch.note.trim() || null;
-  if (patch.forUserId !== undefined) update.for_user_id = patch.forUserId;
-  const { data, error } = await supabase
-    .from("wishlist_items")
-    .update(update)
-    .eq("id", id)
-    .select(ITEM_COLUMNS)
-    .single();
-  if (error) throw error;
-  return toItem(data as ItemRow);
+/** Takes the full current item (see `updateWishlistCategory`). */
+export async function updateWishlistItem(item: WishlistItem, patch: WishlistItemPatch): Promise<WishlistItem> {
+  const myUserId = await currentUserId();
+  if (!myUserId) throw new Error("Sign in first.");
+  const next: WishlistItem = {
+    ...item,
+    categoryId: patch.categoryId !== undefined ? patch.categoryId : item.categoryId,
+    url: patch.url !== undefined ? patch.url.trim() : item.url,
+    title: patch.title !== undefined ? patch.title.trim() : item.title,
+    note: patch.note !== undefined ? patch.note.trim() || null : item.note,
+    forUserId: patch.forUserId !== undefined ? patch.forUserId : item.forUserId,
+  };
+  await updateDirect(myUserId, ITEMS_TABLE, next.id, itemPayload(next, myUserId));
+  return next;
 }
 
 export async function deleteWishlistItem(id: string): Promise<void> {
-  if (!supabase) return;
-  const { error } = await supabase.from("wishlist_items").delete().eq("id", id);
-  if (error) throw error;
+  const myUserId = await currentUserId();
+  if (!myUserId) return;
+  await deleteDirect(myUserId, ITEMS_TABLE, id);
 }
 
 /** Asks the fetch-link-metadata Edge Function for a page's title — the
