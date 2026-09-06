@@ -3,25 +3,14 @@
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/lib/supabase/AuthContext";
 import {
-  completeHouseholdTask,
   createHouseholdCode,
-  createHouseholdItem,
   createHouseholdNote,
-  createHouseholdTask,
   deleteHouseholdCode,
-  deleteHouseholdItem,
   deleteHouseholdNote,
-  deleteHouseholdTask,
   fetchHouseholdCodes,
-  fetchHouseholdItems,
   fetchHouseholdNotes,
-  fetchHouseholdTasks,
-  setHouseholdTaskArchived,
-  uncompleteHouseholdTask,
   updateHouseholdCode,
-  updateHouseholdItem,
   updateHouseholdNote,
-  updateHouseholdTask,
   type HouseholdCode,
   type HouseholdNote,
   type NewHouseholdCodeInput,
@@ -45,29 +34,16 @@ import {
   type WishlistCategoryAppearance,
   type WishlistCategoryPatch,
 } from "@/lib/supabase/wishlist";
-import {
-  buildDemoHouseholdCodes,
-  buildDemoHouseholdItems,
-  buildDemoHouseholdNotes,
-  buildDemoHouseholdTasks,
-  DEMO_HOME_ME_ID,
-  DEMO_HOME_PARTNER_ID,
-} from "@/lib/demoHousehold";
+import { buildDemoHouseholdCodes, buildDemoHouseholdNotes, DEMO_HOME_ME_ID, DEMO_HOME_PARTNER_ID } from "@/lib/demoHousehold";
 import { buildDemoWishlist } from "@/lib/demoWishlist";
 import { getPartnerLink } from "@/lib/supabase/partner";
-import { isRecurringTask, nextRecurringDueAt, type ExpirationItem, type TaskItem } from "@/lib/reminders";
 import { NoteBoard } from "@/components/reminders/NoteBoard";
-import { TaskBoard, type TaskFormValues } from "@/components/reminders/TaskBoard";
-import { ExpirationBoard } from "@/components/home/ExpirationBoard";
 import { CodeBoard } from "@/components/home/CodeBoard";
 import { WishlistBoard } from "@/components/home/WishlistBoard";
 import { BoardPage, type BoardPageTab } from "@/components/ui/BoardPage";
 import { DemoNotice } from "@/components/ui/DemoNotice";
 
 const ACCENT = "var(--series-indigo)";
-// The Expiration board is shared with the personal Log page, which uses
-// this hue for it — kept in sync here so the two look identical.
-const EXPIRATION_ACCENT = "var(--series-2)";
 
 /** In-memory, per-session cache of the signed-in account's shared boards,
  * so leaving `/home` and coming back doesn't blank to "Loading…" while the
@@ -75,17 +51,13 @@ const EXPIRATION_ACCENT = "var(--series-2)";
 let homeCache: {
   userId: string;
   notes: HouseholdNote[];
-  tasks: TaskItem[];
-  items: ExpirationItem[];
   codes: HouseholdCode[];
   wishlist: WishlistCategory[];
 } | null = null;
 
-type Tab = "notes" | "tasks" | "expiration" | "codes" | "wishlist";
+type Tab = "notes" | "codes" | "wishlist";
 const TABS: BoardPageTab[] = [
   { id: "notes", label: "Notes", icon: "notes", accent: ACCENT },
-  { id: "tasks", label: "Reminders", icon: "reminders", accent: ACCENT },
-  { id: "expiration", label: "Expiration", icon: "expiration", accent: ACCENT },
   { id: "codes", label: "Codes", icon: "codes", accent: ACCENT },
   { id: "wishlist", label: "Wishlist", icon: "wishlist", accent: ACCENT },
 ];
@@ -161,14 +133,6 @@ export default function HomePage() {
   const [notesLoading, setNotesLoading] = useState(seed === null);
   const [notesError, setNotesError] = useState(false);
 
-  const [tasks, setTasks] = useState<TaskItem[]>(() => seed?.tasks ?? buildDemoHouseholdTasks());
-  const [tasksLoading, setTasksLoading] = useState(seed === null);
-  const [tasksError, setTasksError] = useState(false);
-
-  const [items, setItems] = useState<ExpirationItem[]>(() => seed?.items ?? buildDemoHouseholdItems());
-  const [itemsLoading, setItemsLoading] = useState(seed === null);
-  const [itemsError, setItemsError] = useState(false);
-
   const [codes, setCodes] = useState<HouseholdCode[]>(() => seed?.codes ?? buildDemoHouseholdCodes());
   const [codesLoading, setCodesLoading] = useState(seed === null);
   const [codesError, setCodesError] = useState(false);
@@ -210,30 +174,6 @@ export default function HomePage() {
     }
   }, []);
 
-  const loadTasks = useCallback(async () => {
-    setTasksError(false);
-    try {
-      setTasks(await fetchHouseholdTasks());
-    } catch (err) {
-      console.error("fetchHouseholdTasks failed", err);
-      setTasksError(true);
-    } finally {
-      setTasksLoading(false);
-    }
-  }, []);
-
-  const loadItems = useCallback(async () => {
-    setItemsError(false);
-    try {
-      setItems(await fetchHouseholdItems());
-    } catch (err) {
-      console.error("fetchHouseholdItems failed", err);
-      setItemsError(true);
-    } finally {
-      setItemsLoading(false);
-    }
-  }, []);
-
   const loadCodes = useCallback(async () => {
     setCodesError(false);
     try {
@@ -263,10 +203,10 @@ export default function HomePage() {
       homeCache = null;
       return;
     }
-    if (!notesLoading && !tasksLoading && !itemsLoading && !codesLoading && !wishlistLoading) {
-      homeCache = { userId: accountId, notes, tasks, items, codes, wishlist };
+    if (!notesLoading && !codesLoading && !wishlistLoading) {
+      homeCache = { userId: accountId, notes, codes, wishlist };
     }
-  }, [accountId, isDemo, notes, tasks, items, codes, wishlist, notesLoading, tasksLoading, itemsLoading, codesLoading, wishlistLoading]);
+  }, [accountId, isDemo, notes, codes, wishlist, notesLoading, codesLoading, wishlistLoading]);
 
   useEffect(() => {
     // Wait for auth to resolve first — see reminders/page.tsx's identical
@@ -276,12 +216,10 @@ export default function HomePage() {
     // React-state sync loop, same reasoning as notes/page.tsx's loadThreads.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadNotes();
-    void loadTasks();
-    void loadItems();
     void loadCodes();
     void loadWishlist();
     // `accountId` so an account switch refetches.
-  }, [authLoading, isDemo, accountId, loadNotes, loadTasks, loadItems, loadCodes, loadWishlist]);
+  }, [authLoading, isDemo, accountId, loadNotes, loadCodes, loadWishlist]);
 
   // Never the partner's email in UI copy — same privacy stance Notes takes
   // (see notes/page.tsx's PARTNER_LABEL) — just "you" vs "your partner"
@@ -310,117 +248,6 @@ export default function HomePage() {
   async function handleDeleteNote(id: string) {
     setNotes((prev) => prev.filter((n) => n.id !== id));
     if (!isDemo) await deleteHouseholdNote(id);
-  }
-
-  async function handleCreateTask(values: TaskFormValues) {
-    if (isDemo) {
-      setTasks((prev) => [
-        ...prev,
-        {
-          id: `demo-${Date.now()}`,
-          title: values.title.trim(),
-          notes: values.notes.trim() || null,
-          dueAt: values.dueAt,
-          recurrenceDays: values.recurrenceDays,
-          lastCompletedAt: null,
-          lastCompletedBy: null,
-          assignedTo: values.assignedTo,
-          isArchived: false,
-          listId: null,
-        },
-      ]);
-      return;
-    }
-    const created = await createHouseholdTask(values);
-    setTasks((prev) => [...prev, created]);
-  }
-
-  async function handleEditTask(id: string, values: TaskFormValues) {
-    if (isDemo) {
-      setTasks((prev) =>
-        prev.map((t) =>
-          t.id === id
-            ? { ...t, title: values.title.trim(), notes: values.notes.trim() || null, dueAt: values.dueAt, recurrenceDays: values.recurrenceDays, assignedTo: values.assignedTo }
-            : t,
-        ),
-      );
-      return;
-    }
-    const updated = await updateHouseholdTask(id, values);
-    setTasks((prev) => prev.map((t) => (t.id === id ? updated : t)));
-  }
-
-  async function handleCompleteTask(task: TaskItem) {
-    if (isDemo) {
-      const now = new Date();
-      setTasks((prev) =>
-        prev.map((t) =>
-          t.id === task.id
-            ? {
-                ...t,
-                lastCompletedAt: now.toISOString(),
-                lastCompletedBy: myUserId,
-                dueAt: isRecurringTask(t) ? nextRecurringDueAt(t.recurrenceDays as number, now) : t.dueAt,
-              }
-            : t,
-        ),
-      );
-      return;
-    }
-    const updated = await completeHouseholdTask(task);
-    setTasks((prev) => prev.map((t) => (t.id === task.id ? updated : t)));
-  }
-
-  async function handleUncompleteTask(task: TaskItem) {
-    if (isDemo) {
-      setTasks((prev) =>
-        prev.map((t) =>
-          t.id === task.id
-            ? { ...t, lastCompletedAt: null, lastCompletedBy: null, dueAt: isRecurringTask(t) ? (t.lastCompletedAt ?? t.dueAt) : t.dueAt }
-            : t,
-        ),
-      );
-      return;
-    }
-    const updated = await uncompleteHouseholdTask(task);
-    setTasks((prev) => prev.map((t) => (t.id === task.id ? updated : t)));
-  }
-
-  async function handleArchiveTask(id: string, archived: boolean) {
-    if (isDemo) {
-      setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, isArchived: archived } : t)));
-      return;
-    }
-    const updated = await setHouseholdTaskArchived(id, archived);
-    setTasks((prev) => prev.map((t) => (t.id === id ? updated : t)));
-  }
-
-  async function handleDeleteTask(id: string) {
-    setTasks((prev) => prev.filter((t) => t.id !== id));
-    if (!isDemo) await deleteHouseholdTask(id);
-  }
-
-  async function handleCreateItem(name: string, expiresOn: string, remindDaysBefore: number) {
-    if (isDemo) {
-      setItems((prev) => [...prev, { id: `demo-${Date.now()}`, name: name.trim(), expiresOn, remindDaysBefore }]);
-      return;
-    }
-    const created = await createHouseholdItem({ name, expiresOn, remindDaysBefore });
-    setItems((prev) => [...prev, created]);
-  }
-
-  async function handleEditItem(id: string, name: string, expiresOn: string, remindDaysBefore: number) {
-    if (isDemo) {
-      setItems((prev) => prev.map((i) => (i.id === id ? { ...i, name: name.trim(), expiresOn, remindDaysBefore } : i)));
-      return;
-    }
-    const updated = await updateHouseholdItem(id, { name, expiresOn, remindDaysBefore });
-    setItems((prev) => prev.map((i) => (i.id === id ? updated : i)));
-  }
-
-  async function handleDeleteItem(id: string) {
-    setItems((prev) => prev.filter((i) => i.id !== id));
-    if (!isDemo) await deleteHouseholdItem(id);
   }
 
   async function handleCreateCode(input: NewHouseholdCodeInput) {
@@ -593,37 +420,6 @@ export default function HomePage() {
         />
       )}
 
-      {tab === "tasks" && (
-        <TaskBoard
-          tasks={tasks}
-          loading={!isDemo && tasksLoading}
-          error={tasksError}
-          accent={ACCENT}
-          mode="all"
-          assignable={myUserId ? { myUserId, partnerId } : undefined}
-          emptyTitle="No shared reminders yet"
-          emptyDescription="Tap New reminder for a one-off task or a recurring chore — either of you can complete it."
-          completedByLabel={completedByLabel}
-          onCreate={handleCreateTask}
-          onEdit={handleEditTask}
-          onComplete={handleCompleteTask}
-          onUncomplete={handleUncompleteTask}
-          onArchive={handleArchiveTask}
-          onDelete={handleDeleteTask}
-        />
-      )}
-
-      {tab === "expiration" && (
-        <ExpirationBoard
-          items={items}
-          loading={!isDemo && itemsLoading}
-          error={itemsError}
-          accent={EXPIRATION_ACCENT}
-          onCreate={handleCreateItem}
-          onEdit={handleEditItem}
-          onDelete={handleDeleteItem}
-        />
-      )}
 
       {tab === "codes" && (
         <CodeBoard

@@ -86,8 +86,9 @@ function toLocalInput(iso: string): string {
 }
 
 /** Create OR edit form. `initial` (edit mode) pre-fills every field and
- * switches the button to "Save changes". */
-function TaskForm({
+ * switches the button to "Save changes". Exported so Agenda can reuse it
+ * for adding / editing a reminder in either scope. */
+export function TaskForm({
   accent,
   recurrenceMode,
   assignable,

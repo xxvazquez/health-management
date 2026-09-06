@@ -34,16 +34,14 @@ export function PrimaryAction({
 
   return (
     <>
-      <Button
-        type="button"
-        size="sm"
-        accent={accent}
-        onClick={onClick}
-        disabled={disabled}
-        className="hidden shrink-0 transition-opacity hover:opacity-90 lg:inline-flex"
-      >
-        + {label}
-      </Button>
+      {/* Wrapper carries the `hidden` — a plain element with no competing
+          `display` utility, so it actually hides on mobile (Button's own
+          `inline-flex` otherwise wins the cascade in Tailwind v4). */}
+      <span className="hidden lg:inline-flex">
+        <Button type="button" size="sm" accent={accent} onClick={onClick} disabled={disabled} className="shrink-0 transition-opacity hover:opacity-90">
+          + {label}
+        </Button>
+      </span>
 
       {isClient &&
         createPortal(

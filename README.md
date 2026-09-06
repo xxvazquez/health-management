@@ -10,18 +10,20 @@ It works fully offline, syncs to Supabase once you sign in, and installs as a PW
 
 The primary navigation is mid-restructure into five areas — **Log · Agenda · Trends ·
 Health · Notes** — plus a transitional 6th, **Household**, shown once a partner is linked
-(it folds into Notes in a later step). Only the display names have moved so far; routes
-still carry their original names, and the pages still render their pre-restructure
-content. Settings (was Manage), Messages, Help and Google Drive live in the account menu.
+(it folds into Notes in a later step). Most routes still carry their original names and
+render their pre-restructure content; the exceptions are Agenda (moved to `/agenda`, with
+`/overview` redirecting) and the reminder / product-expiry boards, which have left both
+Notes and Household to live on Agenda. Settings (was Manage), Messages, Help and Google
+Drive live in the account menu.
 
 | Area | Route | What it's for |
 |---|---|---|
 | **Log** | `/log` | Tap-to-log entry for the seven tracking domains: Food, Symptoms, Supplements, Habits, Stool, Workout, Cycle. |
-| **Agenda** | `/overview` | The landing page. A cross-domain "needs attention" list grouped by urgency (overdue / today / tomorrow / next 7 days) — reminders, expiring products, doctor follow-ups and appointments — then today's story, a recent-activity feed, a few personal trends, and a weekly/monthly review. |
+| **Agenda** | `/agenda` | The landing page. One urgency-first list that answers "what needs my attention?" — reminders (mine + shared), expiring products, doctor follow-ups and appointments, interleaved by *when they matter* into Overdue / Today / Tomorrow / Next 7 days / Later / No date / Done. Type, scope and list are filter chips, never the grouping. Below it, a secondary block: today's story, a few personal trends, and a weekly/monthly review. `/overview` redirects here. |
 | **Trends** | `/analytics` | One dashboard per domain (Food, Supplements, Habits, Digestion, Workout, Cycle, Patterns), switched by a tab bar, plus **Blood** — trends, flagged values and a compare overlay for the Health → Results lab markers, and a summary of the latest blood pressure and weight from Vitals. |
 | **Health** | `/medical` | Everything about doctor visits: a history log of appointments already attended (reusable doctors and specialties, per-doctor rating/language, follow-up notes and tasks, one next-appointment date per specialty), a **Care log** tab of dated observations tagged to the specialties they concern, a **Results** tab of blood/lab markers over time (one-off or whole-draw batch value entry), and a **Vitals** tab for blood pressure and weight with trend charts and ACC/AHA blood-pressure categories. `/doctors` redirects here. |
-| **Notes** | `/personal` | Journal, private notes, reminders, and product-expiry tracking — the "write once, come back to it" stuff. |
-| **Household** | `/home` | (Transitional 6th nav item, partner-linked only — labelled "Shared" on the mobile bar; folds into Notes later.) The partner-facing versions of notes, reminders, and expiry, a shared list of discount codes, and a **Wishlist** of saved links grouped into lists. |
+| **Notes** | `/personal` | Journal and private notes — the "write once, come back to it" stuff. (Reminders and product-expiry moved to Agenda.) |
+| **Household** | `/home` | (Transitional 6th nav item, partner-linked only — labelled "Shared" on the mobile bar; folds into Notes later.) Partner-facing shared notes, a shared list of discount codes, and a **Wishlist** of saved links grouped into lists. (Shared reminders and expiry moved to Agenda.) |
 | Messages | `/notes` | (Account menu, with an unread count. Returns to the primary nav when Household merges into Notes.) Private one-to-one messaging with your linked partner. |
 | Settings | `/manage` | (Account menu.) Add / rename / archive / delete items and categories, set exercise units, correct a food's automatic nutrition-group classification, edit reminder lists and doctor types, hide domains you don't track, and export your data (whole account as JSON, or one section at a time as CSV). Searchable across every section. Also linked from Log's inline "add item". |
 | Google Drive | `/my-drive` | (Account menu.) Read-only browser for the signed-in Google account's Drive. |
@@ -186,7 +188,7 @@ user's data regardless of RLS. `supabase/schema.sql` is authoritative;
 
 ### Direct-to-Supabase features (no offline mode)
 
-Messages, the Personal page's Reminders, and most of the Medical page (Doctors,
+Messages, Agenda's reminders and expiry, and most of the Medical page (Doctors,
 appointments, Care Log, Results/Labs) talk to Supabase directly rather than
 through the write-local-first outbox — they only mean anything once they're on
 the server, and a write made offline is lost (the form still has what you typed
@@ -214,11 +216,13 @@ wired up one at a time.
 - **Personal vs Household** — `personal_notes` / `personal_tasks` / `personal_items`
   are owner-only; the `household_*` tables reuse the same `partner_links` pairing
   via an `is_household_member()` SQL helper, so a row is visible to its creator
-  *and* their one linked partner with no "share this" step. Both sides reuse the
-  exact same `NoteBoard` / `TaskBoard` / `ExpirationBoard` components, inside the
-  same `BoardPage` shell (title rule + underlined tab bar). (The Household page
-  labels its `TaskBoard` tab "Reminders" to match Personal; the table is still
-  `household_tasks`.)
+  *and* their one linked partner with no "share this" step. The notes boards
+  (Notes / Household) reuse the same `NoteBoard` inside the `BoardPage` shell.
+  Reminders (`*_tasks`) and expiry (`*_items`) are no longer board tabs — both
+  scopes surface together on **Agenda** via `AgendaBoard`, which reuses
+  `TaskBoard`'s `TaskForm` for editing. `usePersonalReminderBoards` /
+  `useHouseholdReminderBoards` are the matching data hooks; scope is chosen at
+  creation (which table the row lands in) and isn't changed afterwards.
 - **Shared codes** (`household_codes`, pair-visible) — discount/promo codes with a
   code, name, optional comment and optional `expires_on`. There's no cron: a code
   whose `expires_on` has passed is deleted client-side by `fetchHouseholdCodes`
@@ -243,8 +247,8 @@ wired up one at a time.
 - **Reminder lists** (`reminder_lists`, owner-only) — `personal_tasks.list_id` is
   a composite FK with `on delete set null`, so deleting a list drops its tasks
   back to the default bucket rather than removing them. Lists are managed on the
-  Manage page, not the Reminders tab, each with its own optional icon/colour.
-  Household reminders have no lists.
+  Manage page, each with its own optional icon/colour, and appear as a filter
+  chip on Agenda. Household reminders have no lists.
 - **Tasks** — one `*_tasks` table covers both a one-off deadline and a recurring
   chore. `recurrence_days` null = one-off; set = recurring (`due_at` is the next
   occurrence, advanced on each completion). Every completion also writes a

@@ -16,7 +16,7 @@ import { usePartnerLinked } from "@/lib/usePartnerLinked";
  * this slot back then. */
 const ITEMS: { href: string; iconKey: string }[] = [
   { href: "/log", iconKey: "Log" },
-  { href: "/overview", iconKey: "Reminders" },
+  { href: "/agenda", iconKey: "Reminders" },
   { href: "/analytics", iconKey: "Analytics" },
   { href: "/medical", iconKey: "Medical" },
   { href: "/personal", iconKey: "Personal" },
