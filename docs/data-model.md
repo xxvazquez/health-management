@@ -365,15 +365,25 @@ categories (Normal / Elevated / Stage 1 / Stage 2), shown for reference only.
 
 These have no full IndexedDB mirror. Reads are cached as per-hook snapshots
 (`snapshots` store); writes fall back to the shared outbox via
-`src/lib/supabase/directWrite.ts` — `upsertDirect` for a create, `deleteDirect`
-for a delete, and `updateDirect` for an edit of a pair-visible row
-(`household_*`, `wishlist_*`), which the split `insert_own` / `update_pair` RLS
-needs sent as a plain `update` (a new `"update"` outbox op) rather than an
-upsert. Wired: `journal_entries`, `personal_notes` / `personal_items` /
-`personal_tasks`, `reminder_lists`, `blood_pressure` / `weight_logs`, `doctors` /
-`doctor_specialties`, `wishlist_*`, `household_*`. Still online-only:
-`doctor_appointments` (+ tasks), `care_entries`, `lab_*`, `notes`, and the
-`*_task_completions` history tables.
+`src/lib/supabase/directWrite.ts`:
+
+- `upsertDirect` — a create, or an edit of an owner-only row.
+- `updateDirect` — an edit of a pair-visible row (`household_*`, `wishlist_*`):
+  a plain `update`, queued as an `"update"` outbox op, because the split
+  `insert_own` / `update_pair` RLS rejects an upsert of the partner's row.
+- `deleteDirect` / `deleteWhereDirect` — a delete by id, or by a column match
+  for a join / history row with no surrogate id (`care_entry_specialties` keyed
+  on `(entry_id, specialty_id)`, `*_task_completions` on `(task_id,
+  completed_at)`).
+
+Parent-and-children creates (an appointment + its tasks, a care entry + its
+specialty tags) enqueue the parent first — the outbox drains oldest-first, so
+the FK holds. Wired: `journal_entries`, `personal_notes` / `personal_items` /
+`personal_tasks` / `personal_task_completions`, `reminder_lists`,
+`blood_pressure` / `weight_logs`, `doctors` / `doctor_specialties` /
+`doctor_appointments` / `doctor_appointment_tasks`, `care_entries` /
+`care_entry_specialties`, `wishlist_*`, `household_*`. Still online-only:
+`lab_*` and `notes`.
 
 ## Reminders → Home
 

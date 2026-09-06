@@ -1,7 +1,7 @@
 import { supabase } from "./client";
 import { isRecurringTask, nextRecurringDueAt, type TaskItem } from "@/lib/reminders";
 import { createTimeOrderedId } from "@/lib/sortableId";
-import { deleteDirect, upsertDirect } from "./directWrite";
+import { deleteDirect, deleteWhereDirect, upsertDirect } from "./directWrite";
 import type { CustomAppearance } from "@/components/ui/customIcons";
 
 export interface PersonalNote {
@@ -229,9 +229,11 @@ export interface NewPersonalTaskInput {
 
 const TASKS_TABLE = "personal_tasks";
 
-/** Every column personal_tasks holds for a task's own state — completion
- * history lives in personal_task_completions and isn't touched here. */
-function taskPayload(t: TaskItem, userId: string): Record<string, unknown> {
+const COMPLETIONS_TABLE = "personal_task_completions";
+
+/** Every column personal_tasks holds for a task's own state. The
+ * completion-history rows live in personal_task_completions. */
+function taskPayload(t: TaskItem, userId: string, extra?: Record<string, unknown>): Record<string, unknown> {
   return {
     id: t.id,
     user_id: userId,
@@ -243,6 +245,7 @@ function taskPayload(t: TaskItem, userId: string): Record<string, unknown> {
     is_archived: t.isArchived,
     list_id: t.listId,
     updated_at: new Date().toISOString(),
+    ...extra,
   };
 }
 
@@ -294,24 +297,21 @@ export async function setPersonalTaskArchived(task: TaskItem, archived: boolean)
  * prior `due_at` for a task completed early isn't tracked — edit the date
  * if that matters. */
 export async function uncompletePersonalTask(task: TaskItem): Promise<TaskItem> {
-  if (!supabase) throw new Error("Cloud sync isn't set up for this deployment.");
-  const now = new Date().toISOString();
-  const update: Record<string, unknown> = { last_completed_at: null, updated_at: now };
-  if (isRecurringTask(task)) {
-    update.due_at = task.lastCompletedAt ?? task.dueAt;
-    update.reminder_sent_at = null;
+  const myUserId = await currentUserId();
+  if (!myUserId) throw new Error("Sign in first.");
+  const recurring = isRecurringTask(task);
+  const next: TaskItem = {
+    ...task,
+    lastCompletedAt: null,
+    dueAt: recurring ? task.lastCompletedAt ?? task.dueAt : task.dueAt,
+  };
+  await upsertDirect(myUserId, TASKS_TABLE, next.id, taskPayload(next, myUserId, recurring ? { reminder_sent_at: null } : undefined));
+  // The completion row shares the task's old last_completed_at timestamp
+  // (both were written together), which identifies the newest one.
+  if (task.lastCompletedAt) {
+    await deleteWhereDirect(myUserId, COMPLETIONS_TABLE, { task_id: task.id, completed_at: task.lastCompletedAt });
   }
-  const { data, error } = await supabase.from("personal_tasks").update(update).eq("id", task.id).select(TASK_COLUMNS).single();
-  if (error) throw error;
-  const { data: latest } = await supabase
-    .from("personal_task_completions")
-    .select("id")
-    .eq("task_id", task.id)
-    .order("completed_at", { ascending: false })
-    .limit(1);
-  const latestId = (latest as { id: string }[] | null)?.[0]?.id;
-  if (latestId) await supabase.from("personal_task_completions").delete().eq("id", latestId);
-  return toTask(data as TaskRow);
+  return next;
 }
 
 export async function deletePersonalTask(id: string): Promise<void> {
@@ -377,18 +377,17 @@ export async function deletePersonalItem(id: string): Promise<void> {
  * a row in personal_task_completions recording it — kept alongside the
  * denormalized last_completed_at on the task itself for fast list display. */
 export async function completePersonalTask(task: TaskItem): Promise<TaskItem> {
-  if (!supabase) throw new Error("Cloud sync isn't set up for this deployment.");
   const myUserId = await currentUserId();
   if (!myUserId) throw new Error("Sign in first.");
-  const now = new Date();
-  const update: Record<string, unknown> = { last_completed_at: now.toISOString(), updated_at: now.toISOString() };
-  if (isRecurringTask(task)) {
-    update.due_at = nextRecurringDueAt(task.recurrenceDays as number, now);
-    update.reminder_sent_at = null;
-  }
-  const { data, error } = await supabase.from("personal_tasks").update(update).eq("id", task.id).select(TASK_COLUMNS).single();
-  if (error) throw error;
-  const { error: historyError } = await supabase.from("personal_task_completions").insert({ task_id: task.id, user_id: myUserId, completed_at: now.toISOString() });
-  if (historyError) throw historyError;
-  return toTask(data as TaskRow);
+  const nowIso = new Date().toISOString();
+  const recurring = isRecurringTask(task);
+  const next: TaskItem = {
+    ...task,
+    lastCompletedAt: nowIso,
+    dueAt: recurring ? nextRecurringDueAt(task.recurrenceDays as number, new Date(nowIso)) : task.dueAt,
+  };
+  await upsertDirect(myUserId, TASKS_TABLE, next.id, taskPayload(next, myUserId, recurring ? { reminder_sent_at: null } : undefined));
+  const completionId = createTimeOrderedId();
+  await upsertDirect(myUserId, COMPLETIONS_TABLE, completionId, { id: completionId, task_id: task.id, user_id: myUserId, completed_at: nowIso });
+  return next;
 }
