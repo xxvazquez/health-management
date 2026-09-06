@@ -170,11 +170,11 @@ const PRIMARY_LINKS: NavItem[] = [
   { href: "/personal", label: NAV_LABEL["/personal"], iconKey: "Personal" },
 ];
 
-/** The shared boards with a linked partner — only in the nav once a
- * partner is linked (nothing to share otherwise). Transitional: Household
- * folds into Notes in Step 3, and Messages takes this nav slot back then.
- * Until then Messages lives in the account menu (with its unread count). */
-const HOUSEHOLD_LINK: NavItem = { href: "/home", label: NAV_LABEL["/home"], iconKey: "Household" };
+/** Partner messaging — only in the nav once a partner is linked (the
+ * feature doesn't exist solo). Carries the unread-message badge. On mobile
+ * it's an icon in the top bar, never the bottom bar, so the bar stays
+ * stable for everyone. */
+const MESSAGES_LINK: NavItem = { href: "/notes", label: NAV_LABEL["/notes"], iconKey: "Messages" };
 
 /** `next.config.ts` sets `trailingSlash: true`, so `usePathname()` returns
  * `/log/` while our link hrefs are `/log` — compare without the slash. */
@@ -245,12 +245,19 @@ function NavLinkList({
 
 function NavLinks({ pathname, collapsed, onNavigate }: { pathname: string; collapsed?: boolean; onNavigate?: () => void }) {
   const partnerLinked = usePartnerLinked();
+  const unread = useUnreadNoteCount(pathname);
 
-  const items = partnerLinked ? [...PRIMARY_LINKS, HOUSEHOLD_LINK] : PRIMARY_LINKS;
+  const items = partnerLinked ? [...PRIMARY_LINKS, MESSAGES_LINK] : PRIMARY_LINKS;
 
   return (
     <nav className="flex flex-1 flex-col gap-0.5">
-      <NavLinkList items={items} pathname={pathname} collapsed={collapsed} onNavigate={onNavigate} />
+      <NavLinkList
+        items={items}
+        pathname={pathname}
+        collapsed={collapsed}
+        onNavigate={onNavigate}
+        badges={{ [MESSAGES_LINK.href]: unread }}
+      />
     </nav>
   );
 }
@@ -299,8 +306,8 @@ export function Nav() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [bugReportOpen, setBugReportOpen] = useState(false);
-  // Messages sits in the account menu during the restructure — a dot on
-  // the menu button keeps an unread partner message visible on mobile.
+  const partnerLinked = usePartnerLinked();
+  // Drives the Messages icon in the mobile top bar (paired users only).
   const unread = useUnreadNoteCount(pathname);
 
   return (
@@ -357,9 +364,9 @@ export function Nav() {
         <div className="flex items-center gap-3 px-4 py-3">
           <button
             type="button"
-            aria-label={unread > 0 ? `Open menu, ${unread} unread message${unread === 1 ? "" : "s"}` : "Open menu"}
+            aria-label="Open menu"
             onClick={() => setMobileOpen(true)}
-            className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full"
             style={{ background: "var(--page-plane)", color: "var(--text-primary)" }}
           >
             <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
@@ -367,17 +374,28 @@ export function Nav() {
               <path d="M3 10h14" />
               <path d="M3 14h14" />
             </svg>
-            {unread > 0 && (
-              <span
-                className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full ring-2"
-                style={{ background: "var(--series-magenta)", ["--tw-ring-color" as string]: "var(--surface-1)" }}
-                aria-hidden="true"
-              />
-            )}
           </button>
           <Link href="/log" onClick={() => setMobileOpen(false)}>
             <Wordmark />
           </Link>
+          {partnerLinked && (
+            <Link
+              href="/notes"
+              aria-label={unread > 0 ? `Messages, ${unread} unread` : "Messages"}
+              className="relative ml-auto flex h-11 w-11 shrink-0 items-center justify-center rounded-full"
+              style={{ background: "var(--page-plane)", color: "var(--text-primary)" }}
+            >
+              {ICONS.Messages}
+              {unread > 0 && (
+                <span
+                  className="absolute top-1.5 right-1.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-semibold text-white tabular-nums ring-2"
+                  style={{ background: "var(--series-magenta)", ["--tw-ring-color" as string]: "var(--surface-1)" }}
+                >
+                  {unread > 9 ? "9+" : unread}
+                </span>
+              )}
+            </Link>
+          )}
         </div>
       </header>
 

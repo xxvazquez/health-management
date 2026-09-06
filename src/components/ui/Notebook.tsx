@@ -65,6 +65,7 @@ export function NoteRow({
   meta,
   body,
   metaFirst = false,
+  badge,
   onOpen,
   onDelete,
 }: {
@@ -72,6 +73,8 @@ export function NoteRow({
   meta: string;
   body: string;
   metaFirst?: boolean;
+  /** A small trailing glyph on the heading line — e.g. a "shared" marker. */
+  badge?: ReactNode;
   onOpen: () => void;
   onDelete?: () => void;
 }) {
@@ -79,8 +82,9 @@ export function NoteRow({
   const { heading, preview } = headingAndPreview(title, body);
 
   const titleEl = (
-    <span className="block truncate text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-      {heading}
+    <span className="flex items-center gap-1.5 text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+      <span className="truncate">{heading}</span>
+      {badge}
     </span>
   );
   const metaEl = (
