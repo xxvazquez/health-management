@@ -206,7 +206,7 @@ export function useKeepBoards() {
         const updated = await updatePersonalNote(current, title, body);
         setMine((prev) => prev.map((n) => (n.id === id ? updated : n)));
       } else {
-        const updated = await updateHouseholdNote(id, title, body);
+        const updated = await updateHouseholdNote(current, title, body);
         setShared((prev) => prev.map((n) => (n.id === id ? updated : n)));
       }
     },
@@ -299,10 +299,12 @@ export function useKeepBoards() {
         );
         return;
       }
-      const updated = await updateHouseholdCode(id, input);
+      const current = codes.find((c) => c.id === id);
+      if (!current) return;
+      const updated = await updateHouseholdCode(current, input);
       setCodes((prev) => prev.map((c) => (c.id === id ? updated : c)));
     },
-    [isDemo],
+    [isDemo, codes],
   );
 
   const deleteCode = useCallback(
@@ -337,6 +339,7 @@ export function useKeepBoards() {
 
   const updateCategory = useCallback(
     async (id: string, patch: WishlistCategoryPatch) => {
+      const current = wishlist.find((c) => c.id === id);
       setWishlist((prev) =>
         prev.map((c) =>
           c.id === id
@@ -349,9 +352,9 @@ export function useKeepBoards() {
             : c,
         ),
       );
-      if (!isDemo) await updateWishlistCategory(id, patch);
+      if (!isDemo && current) await updateWishlistCategory(current, patch);
     },
-    [isDemo],
+    [isDemo, wishlist],
   );
 
   const deleteCategory = useCallback(
@@ -388,10 +391,10 @@ export function useKeepBoards() {
         );
         return;
       }
-      await createWishlistItem(input);
-      await loadWishlist();
+      const created = await createWishlistItem(input);
+      setWishlist((prev) => prev.map((c) => (c.id === created.categoryId ? { ...c, items: [created, ...c.items] } : c)));
     },
-    [isDemo, loadWishlist],
+    [isDemo],
   );
 
   const updateItem = useCallback(
@@ -422,10 +425,17 @@ export function useKeepBoards() {
         );
         return;
       }
-      await updateWishlistItem(id, input);
-      await loadWishlist();
+      const current = wishlist.flatMap((c) => c.items).find((i) => i.id === id);
+      if (!current) return;
+      const updated = await updateWishlistItem(current, input);
+      setWishlist((prev) =>
+        prev.map((c) => {
+          const without = c.items.filter((i) => i.id !== id);
+          return c.id === updated.categoryId ? { ...c, items: [updated, ...without] } : { ...c, items: without };
+        }),
+      );
     },
-    [isDemo, loadWishlist],
+    [isDemo, wishlist],
   );
 
   const deleteItem = useCallback(
