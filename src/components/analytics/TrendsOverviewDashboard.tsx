@@ -11,7 +11,6 @@ import { buildDemoThreads } from "@/lib/demoNotes";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageSkeleton } from "@/components/ui/Skeleton";
 import { DashboardHeader } from "@/components/analytics/DashboardHeader";
-import { Card, CardTitle } from "@/components/ui/Card";
 import { TodaySnapshot, type DayNoteSummary } from "@/components/overview/TodaySnapshot";
 import { PersonalTrendsSection } from "@/components/overview/PersonalTrendsSection";
 import { PeriodReviewSection } from "@/components/overview/PeriodReviewSection";
@@ -97,17 +96,14 @@ export function TrendsOverviewDashboard() {
     <div className="flex flex-col gap-6">
       <DashboardHeader subtitle="Today's story, what stands out across every domain, and a week or month at a time.">Overview</DashboardHeader>
 
-      <Card tier="raw">
-        <CardTitle size="sm">Today so far</CardTitle>
-        <TodaySnapshot
-          events={events}
-          workoutLogs={workoutLogs}
-          periodLogs={periodLogs}
-          todayNotes={todayNotes}
-          yesterdayNotes={yesterdayNotes}
-          today={today}
-        />
-      </Card>
+      <TodaySnapshot
+        events={events}
+        workoutLogs={workoutLogs}
+        periodLogs={periodLogs}
+        todayNotes={todayNotes}
+        yesterdayNotes={yesterdayNotes}
+        today={today}
+      />
 
       <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
         <PersonalTrendsSection trends={trends} findings={findings} />
