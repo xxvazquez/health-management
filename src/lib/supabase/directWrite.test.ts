@@ -3,8 +3,9 @@ import { getAllOutboxEntries } from "@/lib/db/indexedDb";
 
 let upsertResult: { error: { code?: string; message: string } | null } = { error: null };
 let deleteResult: { error: { code?: string; message: string } | null } = { error: null };
+let updateResult: { error: { code?: string; message: string } | null } = { error: null };
 let thrown: Error | null = null;
-const sentCalls: { table: string; op: string }[] = [];
+const sentCalls: { table: string; op: string; payload?: unknown }[] = [];
 
 vi.mock("./client", () => ({
   get supabase() {
@@ -16,6 +17,13 @@ vi.mock("./client", () => ({
             if (thrown) throw thrown;
             return upsertResult;
           },
+          update: (payload: unknown) => ({
+            eq: async () => {
+              sentCalls.push({ table, op: "update", payload });
+              if (thrown) throw thrown;
+              return updateResult;
+            },
+          }),
           delete: () => ({
             eq: async () => {
               sentCalls.push({ table, op: "delete" });
@@ -42,6 +50,7 @@ async function entriesFor(dedupeKey: string) {
 beforeEach(() => {
   upsertResult = { error: null };
   deleteResult = { error: null };
+  updateResult = { error: null };
   thrown = null;
   sentCalls.length = 0;
 });
@@ -103,5 +112,25 @@ describe("deleteDirect", () => {
     const entries = await entriesFor(`journal_entries:${id}`);
     expect(entries).toHaveLength(1);
     expect(entries[0]).toMatchObject({ op: "delete", payload: { id } });
+  });
+});
+
+describe("updateDirect", () => {
+  it("sends a plain update (not an upsert) and queues nothing on success", async () => {
+    const id = uniqueId();
+    const { updateDirect } = await import("./directWrite");
+    await updateDirect("user-7", "household_notes", id, { id, owner_id: "partner", title: "T", body: "B" });
+    expect(sentCalls).toEqual([{ table: "household_notes", op: "update", payload: { owner_id: "partner", title: "T", body: "B" } }]);
+    expect(await entriesFor(`household_notes:${id}`)).toHaveLength(0);
+  });
+
+  it("queues the full row as an update when offline", async () => {
+    thrown = new TypeError("Failed to fetch");
+    const id = uniqueId();
+    const { updateDirect } = await import("./directWrite");
+    await updateDirect("user-8", "wishlist_items", id, { id, owner_id: "partner", title: "shelf" });
+    const entries = await entriesFor(`wishlist_items:${id}`);
+    expect(entries).toHaveLength(1);
+    expect(entries[0]).toMatchObject({ op: "update", payload: { id, owner_id: "partner", title: "shelf" } });
   });
 });

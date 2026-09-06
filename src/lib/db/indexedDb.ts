@@ -11,7 +11,14 @@ import { createTimeOrderedId } from "@/lib/sortableId";
 // write is only "safe" once it's either landed on Supabase or is durably
 // represented here — see sync.ts's *AndSync functions (where entries are
 // created) and outbox.ts (where they're drained).
-export type OutboxOperation = "upsert" | "delete";
+// "update" is for the pair-visible tables (household_*, wishlist_*), where
+// a row can be owned by the partner: those have a split
+// insert_own / update_pair RLS shape, so an `upsert` (INSERT … ON CONFLICT
+// DO UPDATE) fails the INSERT with-check when editing the partner's row.
+// "update" sends a plain `update … where id = …`, which only needs the
+// update_pair policy. Its payload is a complete row (like "upsert"), so it
+// merges cleanly into a still-unsent create for the same record.
+export type OutboxOperation = "upsert" | "update" | "delete";
 type OutboxStatus = "pending" | "dead-letter";
 
 export interface OutboxEntry {
@@ -610,11 +617,14 @@ export function clearAllData(): Promise<void> {
  *    at least once is left alone — it might already be in flight or
  *    partially processed remotely, so a new entry is queued behind it
  *    instead of being merged into it.
+ *  - A new "update" (a full row, from directWrite.updateDirect) merges its
+ *    payload into a pending, unattempted "upsert" or "update" for the same
+ *    record — an offline create-then-edit collapses to one write.
  *  - A new "delete" cancels (removes outright, not marks) an existing
  *    PENDING, UNATTEMPTED "upsert" for the same record: since that create
- *    was never sent, there's nothing remote to delete — sending a
- *    create-then-delete pair for a record that never left the device would
- *    be pure waste.
+ *    was never sent, there's nothing remote to delete. Against a pending
+ *    unattempted "update" it drops the update (now moot) but still queues
+ *    the delete — that row is already on the server.
  *  - Every other combination (an attempted upsert followed by a delete, a
  *    delete followed by a new upsert, two deletes, etc.) is appended as a
  *    new entry and drained in order — collapsing those could change
@@ -631,9 +641,26 @@ export async function enqueueOutboxInternal(entry: NewOutboxEntry): Promise<void
     await db.put("outbox", updated);
     return;
   }
+  // A new "update" carries a full row, so it merges into a still-unsent
+  // create ("upsert") or an earlier still-unsent edit ("update") for the
+  // same record. Merging into an "upsert" keeps it an "upsert" — that row
+  // is the user's own, freshly created, so the drain's `.upsert()` is
+  // fine; merging into an "update" stays an "update".
+  if (entry.op === "update" && (pendingUnattempted?.op === "upsert" || pendingUnattempted?.op === "update")) {
+    const merged = { ...(pendingUnattempted.payload as Record<string, unknown>), ...(entry.payload as Record<string, unknown>) };
+    await db.put("outbox", { ...pendingUnattempted, payload: merged, createdAt: Date.now(), nextAttemptAt: Date.now() });
+    return;
+  }
   if (entry.op === "delete" && pendingUnattempted?.op === "upsert") {
     await db.delete("outbox", pendingUnattempted.id);
     return;
+  }
+  if (entry.op === "delete" && pendingUnattempted?.op === "update") {
+    // A standalone unsent "update" means the row is already on the server
+    // (an unsent update for an unsent create would have merged above), so
+    // the delete still has to go out — just drop the now-moot edit and
+    // fall through to append the delete.
+    await db.delete("outbox", pendingUnattempted.id);
   }
 
   // A dead-lettered entry is a CONFIRMED terminal failure — unlike
@@ -661,9 +688,26 @@ export async function enqueueOutboxInternal(entry: NewOutboxEntry): Promise<void
     await db.put("outbox", updated);
     return;
   }
+  if (deadLetter && entry.op === "update" && (deadLetter.op === "upsert" || deadLetter.op === "update")) {
+    const merged = { ...(deadLetter.payload as Record<string, unknown>), ...(entry.payload as Record<string, unknown>) };
+    await db.put("outbox", {
+      ...deadLetter,
+      payload: merged,
+      status: "pending",
+      attempts: 0,
+      createdAt: Date.now(),
+      nextAttemptAt: Date.now(),
+      lastError: undefined,
+      lastErrorCode: undefined,
+    });
+    return;
+  }
   if (deadLetter && entry.op === "delete" && deadLetter.op === "upsert") {
     await db.delete("outbox", deadLetter.id);
     return;
+  }
+  if (deadLetter && entry.op === "delete" && deadLetter.op === "update") {
+    await db.delete("outbox", deadLetter.id);
   }
 
   const row: OutboxEntry = {

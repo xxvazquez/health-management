@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useData } from "@/lib/DataContext";
 import { ChevronIcon } from "@/components/ui/icons";
-import type { OutboxEntry } from "@/lib/db/indexedDb";
+import type { OutboxEntry, OutboxOperation } from "@/lib/db/indexedDb";
 
 const TABLE_LABEL: Record<string, string> = {
   food_items: "food item",
@@ -73,7 +73,7 @@ function describeRecord(entry: OutboxEntry): string {
  * exact same name collision every time (see discardDeadLetterEntry's own
  * doc comment in outbox.ts) — so that one is honest about needing either a
  * rename or a Discard, never a claim that retrying alone will resolve it. */
-function friendlyReason(code: string | undefined, op: "upsert" | "delete", table: string): { reason: string; action: string } {
+function friendlyReason(code: string | undefined, op: OutboxOperation, table: string): { reason: string; action: string } {
   switch (code) {
     case "23503":
       if (op === "delete") return { reason: "something else still refers to it", action: "Move whatever's still using it elsewhere first, then retry." };
