@@ -1,6 +1,8 @@
 import { supabase } from "./client";
 import { todayLocalISODate } from "@/lib/aggregations/common";
 import { isRecurringTask, nextRecurringDueAt, type ExpirationItem, type TaskItem } from "@/lib/reminders";
+import { createTimeOrderedId } from "@/lib/sortableId";
+import { deleteDirect, updateDirect, upsertDirect } from "./directWrite";
 
 export interface HouseholdNote {
   id: string;
@@ -119,35 +121,38 @@ export async function fetchHouseholdNotes(): Promise<HouseholdNote[]> {
   return (data as NoteRow[]).map(toNote);
 }
 
-export async function createHouseholdNote(title: string, body: string): Promise<HouseholdNote> {
-  if (!supabase) throw new Error("Cloud sync isn't set up for this deployment.");
-  const myUserId = await currentUserId();
-  if (!myUserId) throw new Error("Sign in first.");
-  const { data, error } = await supabase
-    .from("household_notes")
-    .insert({ owner_id: myUserId, title: title.trim() || null, body: body.trim() })
-    .select(NOTE_COLUMNS)
-    .single();
-  if (error) throw error;
-  return toNote(data as NoteRow);
+// Every household_* table is pair-visible (split insert_own / update_pair /
+// delete_pair RLS), so a create is an upsert of your own row, an edit goes
+// out as a plain update (may be the partner's row), and a delete is a
+// delete — all via directWrite so they queue offline. See directWrite.ts.
+
+function notePayload(n: HouseholdNote, ownerId: string): Record<string, unknown> {
+  return { id: n.id, owner_id: ownerId, title: n.title, body: n.body, created_at: n.createdAt, updated_at: new Date().toISOString() };
 }
 
-export async function updateHouseholdNote(id: string, title: string, body: string): Promise<HouseholdNote> {
-  if (!supabase) throw new Error("Cloud sync isn't set up for this deployment.");
-  const { data, error } = await supabase
-    .from("household_notes")
-    .update({ title: title.trim() || null, body: body.trim(), updated_at: new Date().toISOString() })
-    .eq("id", id)
-    .select(NOTE_COLUMNS)
-    .single();
-  if (error) throw error;
-  return toNote(data as NoteRow);
+export async function createHouseholdNote(title: string, body: string): Promise<HouseholdNote> {
+  const myUserId = await currentUserId();
+  if (!myUserId) throw new Error("Sign in first.");
+  const nowIso = new Date().toISOString();
+  const n: HouseholdNote = { id: createTimeOrderedId(), title: title.trim() || null, body: body.trim(), createdAt: nowIso, updatedAt: nowIso };
+  await upsertDirect(myUserId, "household_notes", n.id, notePayload(n, myUserId));
+  return n;
+}
+
+/** Takes the full current note so the edit can go out as a plain update
+ * (the row may be the partner's). */
+export async function updateHouseholdNote(note: HouseholdNote, title: string, body: string): Promise<HouseholdNote> {
+  const myUserId = await currentUserId();
+  if (!myUserId) throw new Error("Sign in first.");
+  const next: HouseholdNote = { ...note, title: title.trim() || null, body: body.trim(), updatedAt: new Date().toISOString() };
+  await updateDirect(myUserId, "household_notes", next.id, notePayload(next, myUserId));
+  return next;
 }
 
 export async function deleteHouseholdNote(id: string): Promise<void> {
-  if (!supabase) return;
-  const { error } = await supabase.from("household_notes").delete().eq("id", id);
-  if (error) throw error;
+  const myUserId = await currentUserId();
+  if (!myUserId) return;
+  await deleteDirect(myUserId, "household_notes", id);
 }
 
 // --- Tasks ---------------------------------------------------------------
@@ -167,57 +172,61 @@ export interface NewHouseholdTaskInput {
   assignedTo: string | null;
 }
 
+function taskPayload(t: TaskItem, ownerId: string): Record<string, unknown> {
+  return {
+    id: t.id,
+    owner_id: ownerId,
+    title: t.title.trim(),
+    notes: t.notes,
+    due_at: t.dueAt,
+    recurrence_days: t.recurrenceDays,
+    last_completed_at: t.lastCompletedAt,
+    last_completed_by: t.lastCompletedBy,
+    assigned_to: t.assignedTo,
+    is_archived: t.isArchived,
+    updated_at: new Date().toISOString(),
+  };
+}
+
+function taskFromInput(id: string, input: NewHouseholdTaskInput, base?: TaskItem): TaskItem {
+  return {
+    id,
+    title: input.title.trim(),
+    notes: input.notes.trim() || null,
+    dueAt: input.dueAt,
+    recurrenceDays: input.recurrenceDays,
+    lastCompletedAt: base?.lastCompletedAt ?? null,
+    lastCompletedBy: base?.lastCompletedBy ?? null,
+    assignedTo: input.assignedTo,
+    isArchived: base?.isArchived ?? false,
+    listId: null,
+  };
+}
+
 export async function createHouseholdTask(input: NewHouseholdTaskInput): Promise<TaskItem> {
-  if (!supabase) throw new Error("Cloud sync isn't set up for this deployment.");
   const myUserId = await currentUserId();
   if (!myUserId) throw new Error("Sign in first.");
-  const { data, error } = await supabase
-    .from("household_tasks")
-    .insert({
-      owner_id: myUserId,
-      title: input.title.trim(),
-      notes: input.notes.trim() || null,
-      due_at: input.dueAt,
-      recurrence_days: input.recurrenceDays,
-      assigned_to: input.assignedTo,
-    })
-    .select(TASK_COLUMNS)
-    .single();
-  if (error) throw error;
-  return toTask(data as TaskRow);
+  const t = taskFromInput(createTimeOrderedId(), input);
+  await upsertDirect(myUserId, "household_tasks", t.id, taskPayload(t, myUserId));
+  return t;
 }
 
 /** Edits a task's own fields (title/notes/schedule/assignee), not its
- * completion state. Same shape as `updatePersonalTask`. */
-export async function updateHouseholdTask(id: string, input: NewHouseholdTaskInput): Promise<TaskItem> {
-  if (!supabase) throw new Error("Cloud sync isn't set up for this deployment.");
-  const { data, error } = await supabase
-    .from("household_tasks")
-    .update({
-      title: input.title.trim(),
-      notes: input.notes.trim() || null,
-      due_at: input.dueAt,
-      recurrence_days: input.recurrenceDays,
-      assigned_to: input.assignedTo,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", id)
-    .select(TASK_COLUMNS)
-    .single();
-  if (error) throw error;
-  return toTask(data as TaskRow);
+ * completion state. Takes the full current task (may be the partner's). */
+export async function updateHouseholdTask(task: TaskItem, input: NewHouseholdTaskInput): Promise<TaskItem> {
+  const myUserId = await currentUserId();
+  if (!myUserId) throw new Error("Sign in first.");
+  const next = taskFromInput(task.id, input, task);
+  await updateDirect(myUserId, "household_tasks", next.id, taskPayload(next, myUserId));
+  return next;
 }
 
-export async function setHouseholdTaskArchived(id: string, archived: boolean): Promise<TaskItem> {
-  if (!supabase) throw new Error("Cloud sync isn't set up for this deployment.");
-  const { data, error } = await supabase
-    .from("household_tasks")
-    .update({ is_archived: archived, updated_at: new Date().toISOString() })
-    .eq("id", id)
-    .select(TASK_COLUMNS)
-    .single();
-  if (error) throw error;
-  return toTask(data as TaskRow);
+export async function setHouseholdTaskArchived(task: TaskItem, archived: boolean): Promise<TaskItem> {
+  const myUserId = await currentUserId();
+  if (!myUserId) throw new Error("Sign in first.");
+  const next = { ...task, isArchived: archived };
+  await updateDirect(myUserId, "household_tasks", next.id, taskPayload(next, myUserId));
+  return next;
 }
 
 /** Undoes the most recent completion — see `uncompletePersonalTask` for
@@ -244,9 +253,9 @@ export async function uncompleteHouseholdTask(task: TaskItem): Promise<TaskItem>
 }
 
 export async function deleteHouseholdTask(id: string): Promise<void> {
-  if (!supabase) return;
-  const { error } = await supabase.from("household_tasks").delete().eq("id", id);
-  if (error) throw error;
+  const myUserId = await currentUserId();
+  if (!myUserId) return;
+  await deleteDirect(myUserId, "household_tasks", id);
 }
 
 /** Same "for this cycle" completion logic as `completePersonalTask`, plus
@@ -285,42 +294,31 @@ export interface NewHouseholdItemInput {
   remindDaysBefore: number;
 }
 
+function itemPayload(i: ExpirationItem, ownerId: string, extra?: Record<string, unknown>): Record<string, unknown> {
+  return { id: i.id, owner_id: ownerId, name: i.name.trim(), expires_on: i.expiresOn, remind_days_before: i.remindDaysBefore, updated_at: new Date().toISOString(), ...extra };
+}
+
 export async function createHouseholdItem(input: NewHouseholdItemInput): Promise<ExpirationItem> {
-  if (!supabase) throw new Error("Cloud sync isn't set up for this deployment.");
   const myUserId = await currentUserId();
   if (!myUserId) throw new Error("Sign in first.");
-  const { data, error } = await supabase
-    .from("household_items")
-    .insert({ owner_id: myUserId, name: input.name.trim(), expires_on: input.expiresOn, remind_days_before: input.remindDaysBefore })
-    .select(ITEM_COLUMNS)
-    .single();
-  if (error) throw error;
-  return toItem(data as ItemRow);
+  const i: ExpirationItem = { id: createTimeOrderedId(), name: input.name.trim(), expiresOn: input.expiresOn, remindDaysBefore: input.remindDaysBefore };
+  await upsertDirect(myUserId, "household_items", i.id, itemPayload(i, myUserId));
+  return i;
 }
 
 export async function updateHouseholdItem(id: string, input: NewHouseholdItemInput): Promise<ExpirationItem> {
-  if (!supabase) throw new Error("Cloud sync isn't set up for this deployment.");
-  const { data, error } = await supabase
-    .from("household_items")
-    .update({
-      name: input.name.trim(),
-      expires_on: input.expiresOn,
-      remind_days_before: input.remindDaysBefore,
-      // Editing the date re-arms the reminder for the new window.
-      reminder_sent_at: null,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", id)
-    .select(ITEM_COLUMNS)
-    .single();
-  if (error) throw error;
-  return toItem(data as ItemRow);
+  const myUserId = await currentUserId();
+  if (!myUserId) throw new Error("Sign in first.");
+  const next: ExpirationItem = { id, name: input.name.trim(), expiresOn: input.expiresOn, remindDaysBefore: input.remindDaysBefore };
+  // Editing the date re-arms the reminder for the new window.
+  await updateDirect(myUserId, "household_items", id, itemPayload(next, myUserId, { reminder_sent_at: null }));
+  return next;
 }
 
 export async function deleteHouseholdItem(id: string): Promise<void> {
-  if (!supabase) return;
-  const { error } = await supabase.from("household_items").delete().eq("id", id);
-  if (error) throw error;
+  const myUserId = await currentUserId();
+  if (!myUserId) return;
+  await deleteDirect(myUserId, "household_items", id);
 }
 
 // --- Codes ----------------------------------------------------------------
@@ -354,45 +352,54 @@ export interface NewHouseholdCodeInput {
   expiresOn: string | null;
 }
 
-export async function createHouseholdCode(input: NewHouseholdCodeInput): Promise<HouseholdCode> {
-  if (!supabase) throw new Error("Cloud sync isn't set up for this deployment.");
-  const myUserId = await currentUserId();
-  if (!myUserId) throw new Error("Sign in first.");
-  const { data, error } = await supabase
-    .from("household_codes")
-    .insert({
-      owner_id: myUserId,
-      code: input.code.trim(),
-      name: input.name.trim(),
-      comment: input.comment.trim() || null,
-      expires_on: input.expiresOn,
-    })
-    .select(CODE_COLUMNS)
-    .single();
-  if (error) throw error;
-  return toCode(data as CodeRow);
+function codePayload(c: HouseholdCode, ownerId: string): Record<string, unknown> {
+  return {
+    id: c.id,
+    owner_id: ownerId,
+    code: c.code.trim(),
+    name: c.name.trim(),
+    comment: c.comment,
+    expires_on: c.expiresOn,
+    created_at: c.createdAt,
+    updated_at: new Date().toISOString(),
+  };
 }
 
-export async function updateHouseholdCode(id: string, input: NewHouseholdCodeInput): Promise<HouseholdCode> {
-  if (!supabase) throw new Error("Cloud sync isn't set up for this deployment.");
-  const { data, error } = await supabase
-    .from("household_codes")
-    .update({
-      code: input.code.trim(),
-      name: input.name.trim(),
-      comment: input.comment.trim() || null,
-      expires_on: input.expiresOn,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", id)
-    .select(CODE_COLUMNS)
-    .single();
-  if (error) throw error;
-  return toCode(data as CodeRow);
+export async function createHouseholdCode(input: NewHouseholdCodeInput): Promise<HouseholdCode> {
+  const myUserId = await currentUserId();
+  if (!myUserId) throw new Error("Sign in first.");
+  const nowIso = new Date().toISOString();
+  const c: HouseholdCode = {
+    id: createTimeOrderedId(),
+    code: input.code.trim(),
+    name: input.name.trim(),
+    comment: input.comment.trim() || null,
+    expiresOn: input.expiresOn,
+    createdAt: nowIso,
+    updatedAt: nowIso,
+  };
+  await upsertDirect(myUserId, "household_codes", c.id, codePayload(c, myUserId));
+  return c;
+}
+
+/** Takes the full current code (may be the partner's). */
+export async function updateHouseholdCode(code: HouseholdCode, input: NewHouseholdCodeInput): Promise<HouseholdCode> {
+  const myUserId = await currentUserId();
+  if (!myUserId) throw new Error("Sign in first.");
+  const next: HouseholdCode = {
+    ...code,
+    code: input.code.trim(),
+    name: input.name.trim(),
+    comment: input.comment.trim() || null,
+    expiresOn: input.expiresOn,
+    updatedAt: new Date().toISOString(),
+  };
+  await updateDirect(myUserId, "household_codes", next.id, codePayload(next, myUserId));
+  return next;
 }
 
 export async function deleteHouseholdCode(id: string): Promise<void> {
-  if (!supabase) return;
-  const { error } = await supabase.from("household_codes").delete().eq("id", id);
-  if (error) throw error;
+  const myUserId = await currentUserId();
+  if (!myUserId) return;
+  await deleteDirect(myUserId, "household_codes", id);
 }

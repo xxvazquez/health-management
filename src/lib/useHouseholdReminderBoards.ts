@@ -133,10 +133,12 @@ export function useHouseholdReminderBoards() {
         );
         return;
       }
-      const updated = await updateHouseholdTask(id, { title: v.title, notes: v.notes, dueAt: v.dueAt, recurrenceDays: v.recurrenceDays, assignedTo: v.assignedTo });
+      const current = tasks.find((t) => t.id === id);
+      if (!current) return;
+      const updated = await updateHouseholdTask(current, { title: v.title, notes: v.notes, dueAt: v.dueAt, recurrenceDays: v.recurrenceDays, assignedTo: v.assignedTo });
       setTasks((prev) => prev.map((t) => (t.id === id ? updated : t)));
     },
-    [isDemo],
+    [isDemo, tasks],
   );
 
   const completeTask = useCallback(
@@ -185,10 +187,12 @@ export function useHouseholdReminderBoards() {
         setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, isArchived: archived } : t)));
         return;
       }
-      const updated = await setHouseholdTaskArchived(id, archived);
+      const current = tasks.find((t) => t.id === id);
+      if (!current) return;
+      const updated = await setHouseholdTaskArchived(current, archived);
       setTasks((prev) => prev.map((t) => (t.id === id ? updated : t)));
     },
-    [isDemo],
+    [isDemo, tasks],
   );
 
   const deleteTask = useCallback(
