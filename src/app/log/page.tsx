@@ -386,7 +386,7 @@ export default function LogPage() {
   const { refresh, isDemoData, status } = useData();
   const { isHidden } = useVisibleDomains();
   const { openPanel } = useAuth();
-  // Observation-type care-log entries (from the Medical page) — surfaced on
+  // Observation-type care-log entries (Health → Visits) — surfaced on
   // the Symptoms tab as one-offs that aren't tracked day to day.
   const careLog = useCareLog();
   const today = useMemo(() => todayLocalISODate(), []);
@@ -2083,12 +2083,12 @@ export default function LogPage() {
                   {isolatedOpen && (
                     <>
                       <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-                        One-off things you noticed and logged on the Medical page — not tracked day to day.
+                        One-off things you noticed and logged for a doctor&apos;s visit — not tracked day to day.
                       </p>
                       <ul className="flex flex-col divide-y divide-[color:var(--gridline)]">
                         {isolatedObservations.map((e) => (
                           <li key={e.id} className="py-2">
-                            <Link href="/medical/#carelog" className="block">
+                            <Link href="/medical/#visits" className="block">
                               <span className="text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>
                                 {formatDateLabel(e.happenedOn, today)}
                               </span>

@@ -46,7 +46,7 @@ function TotalTile({ label, value }: { label: string; value: number }) {
 }
 
 /**
- * Overview's Weekly/Monthly Review — plain totals plus a couple of
+ * The Trends → Overview tab's week / month review — plain totals plus a couple of
  * descriptive highlights for whichever week or month is selected, reusing
  * `buildPeriodReview`. Never a causal or medical claim, matching the
  * request this section was built against — a count or a "most X" fact,

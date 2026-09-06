@@ -142,7 +142,7 @@ function VisibleSectionsCard() {
 }
 
 /** Reminder lists (the "To Do" / "To Buy" buckets on Log → Reminders) —
- * created, renamed and deleted here rather than on the Reminders tab
+ * created, renamed and deleted here; on Agenda a list is just a filter chip
  * itself, so that tab stays a plain list switcher. Deleting a list drops
  * its tasks back to the default "Reminders" bucket (DB `on delete set
  * null`), it never removes them. */

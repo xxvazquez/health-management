@@ -28,7 +28,7 @@ function recapPhrase(counts: { label: string; count: number }[]): string {
 }
 
 /**
- * Overview's first, most prominent section — what happened today (a full
+ * The Trends → Overview tab's "today so far" — what happened today (a full
  * chronological story, built by `buildSnapshotEntries`) plus a compact
  * one-line recap of yesterday, so "what's going on right now" never
  * requires a second glance at the Log page.
