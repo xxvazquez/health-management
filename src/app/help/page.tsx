@@ -23,7 +23,7 @@ const GROUPS: { title: string; items: Entry[] }[] = [
       },
       {
         title: "Health",
-        body: "Everything about doctor visits in one place: a history log of visits you've already had (not a scheduler), a dated care Log of observations, your blood and lab Results, the reusable doctors and specialties behind them, and outstanding follow-ups.",
+        body: "Everything about doctor visits in one place: what to raise at your next appointment and a log of the visits you've already had, your blood and lab Results, self-measured Vitals, and the reusable doctors behind it all.",
       },
       {
         title: "Trends",
@@ -90,19 +90,19 @@ const GROUPS: { title: string; items: Entry[] }[] = [
     items: [
       {
         title: "The tabs",
-        body: "Appointments is the full visit log, newest first. Care log is a dated timeline of observations tagged to a specialty. Results holds your blood and lab markers over time. Vitals tracks blood pressure and weight, with the trend and blood-pressure category. Doctors is one page per saved doctor with all their visits. Specialties shows every visit for a type (e.g. all internists), across doctors. Follow-ups gathers every outstanding follow-up task in one list.",
+        body: "Visits has two parts: \"To raise next time\" is your upcoming appointment dates plus the observations and notes you've tagged for a visit; \"Past visits\" is the full log of appointments you've had, newest first, each with its follow-up tasks. Results holds your blood and lab markers over time. Vitals tracks blood pressure and weight, with the trend and blood-pressure category. Doctors lists your saved doctors — tap one to see their details and every visit.",
       },
       {
         title: "Doctor type, rating and language",
-        body: "These belong to the doctor, not to a single visit. Set them when you first add a doctor and change them any time from that doctor's page. A doctor rated 1 shows in red everywhere their name appears.",
+        body: "These belong to the doctor, not to a single visit. Set them when you first add a doctor and change them any time from that doctor's row. A doctor rated 1 shows in red everywhere their name appears.",
       },
       {
         title: "Follow-ups: notes vs tasks",
-        body: "Notes are free text about what was discussed. Tasks are concrete actions — 'do the CT scan' — each with an optional due date and an optional one-off reminder. Completed tasks stay under their appointment but move out of the outstanding list.",
+        body: "Notes are free text about what was discussed. Tasks are concrete actions — 'do the CT scan' — each with an optional due date and an optional one-off reminder. A task shows under its appointment and, if it has a date, on Agenda under the Medical filter. Completed tasks stay under their appointment.",
       },
       {
         title: "Next appointment",
-        body: "One date per specialty, not per doctor. Set it with the calendar on a specialty's page (or a doctor's page); it's the same shared date. It's a plain reminder of when you next need that type of doctor, not a booking.",
+        body: "One date per specialty, not per doctor. Set it from \"To raise next time\" on the Visits tab or from a doctor's row; it's the same shared date. It's a plain reminder of when you next need that type of doctor, not a booking.",
       },
       {
         title: "Doctor types",

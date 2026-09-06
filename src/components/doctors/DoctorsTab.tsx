@@ -6,7 +6,6 @@ import type { Doctor } from "@/lib/supabase/doctors";
 import { resolveSpecialtyNames } from "@/lib/doctors";
 import { ComboBox, DoctorName, FIELD_CLS, FIELD_STYLE, LanguageChips, NextAppointmentField, PencilIcon, RatingChips } from "./shared";
 import { AppointmentList } from "./AppointmentList";
-import { DetailPlaceholder, MedicalSplit, useIsDesktop } from "./MedicalSplit";
 import { InlineEmpty } from "@/components/ui/EmptyState";
 
 type DoctorsApi = ReturnType<typeof useDoctors>;
@@ -143,29 +142,26 @@ function DoctorHistory({ api, doctor, accent, onBack }: { api: DoctorsApi; docto
 }
 
 export function DoctorsTab({ api, accent }: { api: DoctorsApi; accent: string }) {
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const desktop = useIsDesktop();
+  const [openId, setOpenId] = useState<string | null>(null);
   const { doctors, appointments } = api;
 
   if (doctors.data.length === 0) {
     return <InlineEmpty title="No doctors yet" description="Add one while logging an appointment — they're saved here for reuse." />;
   }
 
-  const selected = selectedId ? doctors.data.find((d) => d.id === selectedId) ?? null : null;
-
-  const list = (
+  return (
     <ul className="flex flex-col divide-y rounded-xl border" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
       {doctors.data.map((doctor) => {
         const count = appointments.data.filter((a) => a.doctorId === doctor.id).length;
-        const active = doctor.id === selectedId;
+        const open = doctor.id === openId;
         return (
           <li key={doctor.id} style={{ borderColor: "var(--gridline)" }}>
             <button
               type="button"
-              onClick={() => setSelectedId(doctor.id)}
-              aria-current={active ? "true" : undefined}
+              onClick={() => setOpenId(open ? null : doctor.id)}
+              aria-expanded={open}
               className="flex w-full items-center justify-between gap-3 border-l-2 px-4 py-3 text-left transition-colors hover:bg-[var(--page-plane)]"
-              style={{ borderLeftColor: active ? accent : "transparent", background: active ? "var(--page-plane)" : undefined }}
+              style={{ borderLeftColor: open ? accent : "transparent", background: open ? "var(--page-plane)" : undefined }}
             >
               <span className="min-w-0">
                 <DoctorName name={doctor.name} rating={doctor.rating} className="text-sm" />
@@ -177,18 +173,14 @@ export function DoctorsTab({ api, accent }: { api: DoctorsApi; accent: string })
                 {count} visit{count === 1 ? "" : "s"}
               </span>
             </button>
+            {open && (
+              <div className="border-t px-4 py-4" style={{ borderColor: "var(--gridline)", background: "var(--page-plane)" }}>
+                <DoctorHistory api={api} doctor={doctor} accent={accent} />
+              </div>
+            )}
           </li>
         );
       })}
     </ul>
-  );
-
-  return (
-    <MedicalSplit
-      selected={!!selected}
-      list={list}
-      detail={selected ? <DoctorHistory api={api} doctor={selected} accent={accent} onBack={desktop ? undefined : () => setSelectedId(null)} /> : null}
-      placeholder={<DetailPlaceholder text="Pick a doctor to see their details and visit history." />}
-    />
   );
 }

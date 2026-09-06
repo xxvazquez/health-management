@@ -21,7 +21,7 @@ shared notes, codes and wishlist folded into the Notes area — `/home` redirect
 | **Log** | `/log` | Tap-to-log entry for the seven tracking domains: Food, Symptoms, Supplements, Habits, Stool, Workout, Cycle. |
 | **Agenda** | `/agenda` | The landing page. One urgency-first list that answers "what needs my attention?" — reminders (mine + shared), expiring products, doctor follow-ups and appointments, interleaved by *when they matter* into Overdue / Today / Tomorrow / Next 7 days / Later / No date / Done. Type, scope and list are filter chips, never the grouping. Below it, a secondary block: today's story, a few personal trends, and a weekly/monthly review. `/overview` redirects here. |
 | **Trends** | `/analytics` | One dashboard per domain (Food, Supplements, Habits, Digestion, Workout, Cycle, Patterns), switched by a tab bar, plus **Blood** — trends, flagged values and a compare overlay for the Health → Results lab markers, and a summary of the latest blood pressure and weight from Vitals. |
-| **Health** | `/medical` | Everything about doctor visits: a history log of appointments already attended (reusable doctors and specialties, per-doctor rating/language, follow-up notes and tasks, one next-appointment date per specialty), a **Care log** tab of dated observations tagged to the specialties they concern, a **Results** tab of blood/lab markers over time (one-off or whole-draw batch value entry), and a **Vitals** tab for blood pressure and weight with trend charts and ACC/AHA blood-pressure categories. `/doctors` redirects here. |
+| **Health** | `/medical` | Four tabs. **Visits** — two sections: "To raise next time" (upcoming appointment dates + the dated observations/notes waiting for a visit, filterable by specialty) and "Past visits" (appointments already attended, each with its follow-up tasks inline). **Results** — blood/lab markers over time (one-off or whole-draw batch entry). **Vitals** — blood pressure and weight with trend charts and ACC/AHA categories. **Doctors** — the reusable doctors (rating/language/specialty), expand-in-place for each one's details and visit history. Specialty rename/archive lives in Settings. `/doctors` redirects here; old tab hashes (`#appointments`, `#carelog`, `#followups`, `#specialties`) land on Visits. |
 | **Notes** | `/personal` | Things you keep, no deadline — four tabs: **Journal**, **Quick notes** (private by default; each can be shared with a linked partner, a two-person glyph marks the shared ones, and a Mine / Shared filter appears once something is shared), **Wishlist** (saved links grouped into lists), **Codes** (shared discount codes). `/home` redirects here. (Reminders and product-expiry moved to Agenda.) |
 | **Messages** | `/notes` | Primary nav, partner-linked only (an icon + unread badge in the mobile top bar, never the bottom bar). Private one-to-one messaging with your linked partner. |
 | Settings | `/manage` | (Account menu.) Add / rename / archive / delete items and categories, set exercise units, correct a food's automatic nutrition-group classification, edit reminder lists and doctor types, hide domains you don't track, and export your data (whole account as JSON, or one section at a time as CSV). Searchable across every section. Also linked from Log's inline "add item". |
@@ -276,10 +276,11 @@ wired up one at a time.
   deleted, all from Manage. Lab panels (Medical → Results) get the same
   icon/colour picker from their own rename form.
   Follow-up tasks may set an optional `reminder_at` that the reminder cron sends
-  once (phase 2 below). The **Care log** tab (`care_entries` + the `care_entry_specialties`
-  join) is a separate dated timeline of *observation* and *note* entries, each
-  tagged to any number of specialties; a specialty's detail view lists the
-  entries tagged to it as "to raise here".
+  once (phase 2 below); they show inline on their appointment and, via Agenda's
+  "Medical" filter, in the one urgency list. `care_entries` + the
+  `care_entry_specialties` join is a dated timeline of *observation* and *note*
+  entries, each tagged to any number of specialties — surfaced in Visits' "To
+  raise next time" section, filterable by specialty.
 - **Voice input on Expiration and Codes** is the browser's own Web Speech API, feature-detected — no server, no dependency.
 
 ### PWA shell
