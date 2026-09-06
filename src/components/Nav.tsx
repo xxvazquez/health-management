@@ -164,7 +164,7 @@ export interface NavItem {
  * account menu. */
 const PRIMARY_LINKS: NavItem[] = [
   { href: "/log", label: NAV_LABEL["/log"], iconKey: "Log" },
-  { href: "/overview", label: NAV_LABEL["/overview"], iconKey: "Reminders" },
+  { href: "/agenda", label: NAV_LABEL["/agenda"], iconKey: "Reminders" },
   { href: "/analytics", label: NAV_LABEL["/analytics"], iconKey: "Analytics" },
   { href: "/medical", label: NAV_LABEL["/medical"], iconKey: "Medical" },
   { href: "/personal", label: NAV_LABEL["/personal"], iconKey: "Personal" },
