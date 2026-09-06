@@ -1,7 +1,9 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/supabase/AuthContext";
 import { useData } from "@/lib/DataContext";
+import { useUnreadNoteCount } from "@/lib/useUnreadNoteCount";
 import { displayNameFromEmail } from "@/components/auth/AccountPanel";
 
 function PersonIcon() {
@@ -29,9 +31,16 @@ function useSyncDotColor(): string | null {
 export function AccountMenuButton({ collapsed, onOpen }: { collapsed?: boolean; onOpen?: () => void }) {
   const { configured, session, loading, openPanel } = useAuth();
   const dotColor = useSyncDotColor();
+  const pathname = usePathname();
+  const unread = useUnreadNoteCount(pathname);
 
   if (!configured || loading) return null;
 
+  // Messages moved into the account menu during the restructure — surface
+  // an unread partner message on the account button's dot, ahead of the
+  // routine sync status. (Reverts when Messages returns to the nav.)
+  const hasUnread = !!session && unread > 0;
+  const dot = hasUnread ? "var(--series-magenta)" : dotColor;
   const label = session ? `Hi, ${displayNameFromEmail(session.user.email ?? "")}` : "Log in";
 
   function handleOpen() {
@@ -44,8 +53,8 @@ export function AccountMenuButton({ collapsed, onOpen }: { collapsed?: boolean; 
       <button
         type="button"
         onClick={handleOpen}
-        title={label}
-        aria-label={label}
+        title={hasUnread ? `${label} — ${unread} unread message${unread === 1 ? "" : "s"}` : label}
+        aria-label={hasUnread ? `${label}, ${unread} unread message${unread === 1 ? "" : "s"}` : label}
         className="relative flex h-9 w-9 items-center justify-center self-center rounded-full border"
         style={{
           borderColor: session ? "var(--border-hairline)" : "var(--series-1)",
@@ -57,7 +66,7 @@ export function AccountMenuButton({ collapsed, onOpen }: { collapsed?: boolean; 
         {session && (
           <span
             className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full ring-2"
-            style={{ background: dotColor ?? "transparent", ["--tw-ring-color" as string]: "var(--page-backdrop)" }}
+            style={{ background: dot ?? "transparent", ["--tw-ring-color" as string]: "var(--page-backdrop)" }}
           />
         )}
       </button>
@@ -77,7 +86,7 @@ export function AccountMenuButton({ collapsed, onOpen }: { collapsed?: boolean; 
     >
       <PersonIcon />
       {label}
-      {session && <span className="ml-auto h-2 w-2 shrink-0 rounded-full" style={{ background: dotColor ?? "transparent" }} />}
+      {session && <span className="ml-auto h-2 w-2 shrink-0 rounded-full" style={{ background: dot ?? "transparent" }} />}
     </button>
   );
 }

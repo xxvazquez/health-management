@@ -5,8 +5,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import clsx from "clsx";
 import { useData } from "@/lib/DataContext";
-import { useUnreadNoteCount } from "@/lib/useUnreadNoteCount";
 import { usePartnerLinked } from "@/lib/usePartnerLinked";
+import { useUnreadNoteCount } from "@/lib/useUnreadNoteCount";
 import { Logo } from "@/components/Logo";
 import { AccountMenuButton } from "@/components/auth/AccountMenuButton";
 import { AccountPanel } from "@/components/auth/AccountPanel";
@@ -170,9 +170,11 @@ const PRIMARY_LINKS: NavItem[] = [
   { href: "/personal", label: NAV_LABEL["/personal"], iconKey: "Personal" },
 ];
 
-/** Partner messaging — only appears in the nav once a partner is linked
- * (the feature does nothing without one). */
-const MESSAGES_LINK: NavItem = { href: "/notes", label: NAV_LABEL["/notes"], iconKey: "Messages" };
+/** The shared boards with a linked partner — only in the nav once a
+ * partner is linked (nothing to share otherwise). Transitional: Household
+ * folds into Notes in Step 3, and Messages takes this nav slot back then.
+ * Until then Messages lives in the account menu (with its unread count). */
+const HOUSEHOLD_LINK: NavItem = { href: "/home", label: NAV_LABEL["/home"], iconKey: "Household" };
 
 /** `next.config.ts` sets `trailingSlash: true`, so `usePathname()` returns
  * `/log/` while our link hrefs are `/log` — compare without the slash. */
@@ -242,14 +244,13 @@ function NavLinkList({
 }
 
 function NavLinks({ pathname, collapsed, onNavigate }: { pathname: string; collapsed?: boolean; onNavigate?: () => void }) {
-  const unreadNotes = useUnreadNoteCount(pathname);
   const partnerLinked = usePartnerLinked();
 
-  const items = partnerLinked ? [...PRIMARY_LINKS, MESSAGES_LINK] : PRIMARY_LINKS;
+  const items = partnerLinked ? [...PRIMARY_LINKS, HOUSEHOLD_LINK] : PRIMARY_LINKS;
 
   return (
     <nav className="flex flex-1 flex-col gap-0.5">
-      <NavLinkList items={items} pathname={pathname} collapsed={collapsed} onNavigate={onNavigate} badges={{ "/notes": unreadNotes }} />
+      <NavLinkList items={items} pathname={pathname} collapsed={collapsed} onNavigate={onNavigate} />
     </nav>
   );
 }
@@ -298,6 +299,9 @@ export function Nav() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [bugReportOpen, setBugReportOpen] = useState(false);
+  // Messages sits in the account menu during the restructure — a dot on
+  // the menu button keeps an unread partner message visible on mobile.
+  const unread = useUnreadNoteCount(pathname);
 
   return (
     <>
@@ -353,9 +357,9 @@ export function Nav() {
         <div className="flex items-center gap-3 px-4 py-3">
           <button
             type="button"
-            aria-label="Open menu"
+            aria-label={unread > 0 ? `Open menu, ${unread} unread message${unread === 1 ? "" : "s"}` : "Open menu"}
             onClick={() => setMobileOpen(true)}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full"
+            className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full"
             style={{ background: "var(--page-plane)", color: "var(--text-primary)" }}
           >
             <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
@@ -363,6 +367,13 @@ export function Nav() {
               <path d="M3 10h14" />
               <path d="M3 14h14" />
             </svg>
+            {unread > 0 && (
+              <span
+                className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full ring-2"
+                style={{ background: "var(--series-magenta)", ["--tw-ring-color" as string]: "var(--surface-1)" }}
+                aria-hidden="true"
+              />
+            )}
           </button>
           <Link href="/log" onClick={() => setMobileOpen(false)}>
             <Wordmark />
