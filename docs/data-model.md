@@ -357,10 +357,23 @@ timestamptz`, not a `date`. A `blood_pressure` row is one paired reading —
 `systolic`, `diastolic`, optional `pulse` — with a single `note`; a `weight_logs`
 row is one `kg` value with a `note`. Two purpose-named tables rather than a generic
 `vitals(kind, value)` — they read differently and are never queried together.
-Owner-only, direct-to-Supabase, same class as `care_entries` / `lab_*` except it
-has the offline write fallback described in the README (`directWrite.ts`). The
+Owner-only, direct-to-Supabase, same class as `care_entries` / `lab_*`. The
 Vitals tab classifies each blood-pressure reading with the ACC/AHA 2017
 categories (Normal / Elevated / Stage 1 / Stage 2), shown for reference only.
+
+### Offline for the direct-to-Supabase tables
+
+These have no full IndexedDB mirror. Reads are cached as per-hook snapshots
+(`snapshots` store); writes fall back to the shared outbox via
+`src/lib/supabase/directWrite.ts` — `upsertDirect` for a create, `deleteDirect`
+for a delete, and `updateDirect` for an edit of a pair-visible row
+(`household_*`, `wishlist_*`), which the split `insert_own` / `update_pair` RLS
+needs sent as a plain `update` (a new `"update"` outbox op) rather than an
+upsert. Wired: `journal_entries`, `personal_notes` / `personal_items` /
+`personal_tasks`, `reminder_lists`, `blood_pressure` / `weight_logs`, `doctors` /
+`doctor_specialties`, `wishlist_*`, `household_*`. Still online-only:
+`doctor_appointments` (+ tasks), `care_entries`, `lab_*`, `notes`, and the
+`*_task_completions` history tables.
 
 ## Reminders → Home
 

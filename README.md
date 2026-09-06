@@ -129,8 +129,8 @@ flowchart LR
     outbox -->|"drain, retry/backoff"| pg
     pg -->|"pull: sign-in / focus / reconnect / 60s"| idb
     ui --> auth
-    ui -.->|"Messages, Medical, Reminders, Wishlist<br/>(direct writes; reads cached as snapshots)"| pg
-    ui -.->|"Journal, Personal Notes/Expiration, Vitals<br/>(direct, falls back to outbox offline)"| outbox
+    ui -.->|"Appointments, Care Log, Labs, Messages<br/>(direct writes; reads cached as snapshots)"| pg
+    ui -.->|"Journal, Vitals, Doctors, Reminders, Wishlist, Household<br/>(direct, falls back to outbox offline)"| outbox
     idb -.->|"snapshot: instant read, then revalidate"| ui
     ui -.->|"notify-note (on send)"| ef
     ef -->|"reminder + digest cron"| pg
@@ -188,9 +188,9 @@ user's data regardless of RLS. `supabase/schema.sql` is authoritative;
 
 ### Direct-to-Supabase features
 
-Messages, Agenda's reminders and expiry, and most of the Medical page (Doctors,
+Messages, Agenda's reminders and expiry, and the Medical page (Doctors,
 appointments, Care Log, Results/Labs) talk to Supabase directly rather than
-through the write-local-first outbox.
+through a full write-local-first IndexedDB mirror.
 
 **Reads work offline** via a snapshot cache (`src/lib/db/indexedDb.ts`'s
 `snapshots` store + `src/lib/useSnapshotCache.ts`). Each of these hooks caches
@@ -202,10 +202,19 @@ reconnect, the 60 s tick, "Sync now"). A fetch result is never applied while the
 outbox still holds a write for that feature's tables — the server copy is stale
 then, and could otherwise resurrect a row deleted offline.
 
-**Writes** are still online-only for most of these (a write made offline throws;
-the form keeps what you typed until you navigate away). Journal, Personal Notes,
-Personal Expiration and Vitals are the exceptions — see below. The rest are being
-moved onto the same fallback one feature group at a time.
+**Writes** fall back to the outbox for most of these now: Journal, Personal
+Notes/Expiration, Vitals, Doctors + specialties, reminder lists, personal tasks,
+Wishlist, and all the household boards (notes, reminders, expiry, codes). Each
+`create*` generates the row id client-side and the write goes through
+`directWrite.ts` (`upsertDirect` / `updateDirect` / `deleteDirect` → the shared
+outbox on failure). Still online-only: doctor appointments and follow-up tasks,
+Care Log, Results/Labs, Messages, and recurring-task completion history — these
+have joins, batch inserts or triggers and are being wired next.
+
+`updateDirect` (a plain `update … where id = …`, queued as an `"update"` outbox
+op) exists because the household/wishlist tables are pair-visible with split
+`insert_own` / `update_pair` RLS: an upsert would fail the INSERT with-check when
+you edit the partner's row.
 
 **Journal, Personal Notes, Personal Expiration and Vitals have offline fallback**
 (`src/lib/supabase/directWrite.ts`): a create/update/delete still tries Supabase
