@@ -38,18 +38,18 @@ export function SupplementsDashboard() {
   const clampedStripStart = span && stripStart < span.start ? span.start : stripStart;
 
   return (
-    <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-2">
-      <DashboardHeader className="lg:col-span-2">Supplements</DashboardHeader>
+    <div className="flex flex-col gap-5">
+      <DashboardHeader>Supplements</DashboardHeader>
 
       {span && range && (
-        <div className="flex justify-end lg:col-span-2">
+        <div className="flex justify-end">
           <DateRangeFilter span={span} value={range} onChange={setRange} accent={TYPE_ACCENT.supplement} />
         </div>
       )}
 
       {glance.trackedCount > 0 && (
         <div
-          className={`grid grid-cols-2 gap-3 lg:col-span-2 ${glance.increasedCount > 0 || glance.decreasedCount > 0 ? "sm:grid-cols-4" : "sm:grid-cols-2"}`}
+          className={`grid grid-cols-2 gap-3 ${glance.increasedCount > 0 || glance.decreasedCount > 0 ? "sm:grid-cols-4" : "sm:grid-cols-2"}`}
         >
           <StatTile
             label="Average consistency"
@@ -67,18 +67,18 @@ export function SupplementsDashboard() {
         </div>
       )}
 
-      <Insight label="What stands out" headline={insight.headline} detail={insight.detail} tone="neutral" className="lg:col-span-2" />
+      <Insight label="What stands out" headline={insight.headline} detail={insight.detail} tone="neutral" />
 
       {!insight.insufficientData && insight.changed.length > 0 && (
-        <BulletList title="Running differently than usual" tone="var(--text-muted)" bullets={insight.changed} className="lg:col-span-2" />
+        <BulletList title="Running differently than usual" tone="var(--text-muted)" bullets={insight.changed} />
       )}
 
-      <p className="text-sm font-semibold lg:col-span-2" style={{ color: "var(--text-primary)" }}>
+      <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
         Every supplement, biggest change first
       </p>
 
       {ranked.length > 0 && (
-        <Card tier="raw" className="lg:col-span-2">
+        <Card tier="raw">
           <div className="flex flex-col">
             {ranked.map((item) => (
               <div
@@ -124,7 +124,7 @@ export function SupplementsDashboard() {
         </Card>
       )}
 
-      <Methodology className="lg:col-span-2">
+      <Methodology>
         This compares each supplement&apos;s consistency over the last 14 tracked days against its own overall
         consistency since it was first logged — never a fixed target, never a recommendation to take more or less
         of anything, and never ranked against a different supplement&apos;s consistency. A supplement needs at
