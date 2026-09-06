@@ -2,7 +2,7 @@ import { supabase } from "./client";
 import { todayLocalISODate } from "@/lib/aggregations/common";
 import { isRecurringTask, nextRecurringDueAt, type ExpirationItem, type TaskItem } from "@/lib/reminders";
 import { createTimeOrderedId } from "@/lib/sortableId";
-import { deleteDirect, updateDirect, upsertDirect } from "./directWrite";
+import { deleteDirect, deleteWhereDirect, updateDirect, upsertDirect } from "./directWrite";
 
 export interface HouseholdNote {
   id: string;
@@ -172,7 +172,7 @@ export interface NewHouseholdTaskInput {
   assignedTo: string | null;
 }
 
-function taskPayload(t: TaskItem, ownerId: string): Record<string, unknown> {
+function taskPayload(t: TaskItem, ownerId: string, extra?: Record<string, unknown>): Record<string, unknown> {
   return {
     id: t.id,
     owner_id: ownerId,
@@ -185,6 +185,7 @@ function taskPayload(t: TaskItem, ownerId: string): Record<string, unknown> {
     assigned_to: t.assignedTo,
     is_archived: t.isArchived,
     updated_at: new Date().toISOString(),
+    ...extra,
   };
 }
 
@@ -232,24 +233,20 @@ export async function setHouseholdTaskArchived(task: TaskItem, archived: boolean
 /** Undoes the most recent completion — see `uncompletePersonalTask` for
  * the full rationale. Also clears `last_completed_by`. */
 export async function uncompleteHouseholdTask(task: TaskItem): Promise<TaskItem> {
-  if (!supabase) throw new Error("Cloud sync isn't set up for this deployment.");
-  const now = new Date().toISOString();
-  const update: Record<string, unknown> = { last_completed_at: null, last_completed_by: null, updated_at: now };
-  if (isRecurringTask(task)) {
-    update.due_at = task.lastCompletedAt ?? task.dueAt;
-    update.reminder_sent_at = null;
+  const myUserId = await currentUserId();
+  if (!myUserId) throw new Error("Sign in first.");
+  const recurring = isRecurringTask(task);
+  const next: TaskItem = {
+    ...task,
+    lastCompletedAt: null,
+    lastCompletedBy: null,
+    dueAt: recurring ? task.lastCompletedAt ?? task.dueAt : task.dueAt,
+  };
+  await updateDirect(myUserId, "household_tasks", next.id, taskPayload(next, myUserId, recurring ? { reminder_sent_at: null } : undefined));
+  if (task.lastCompletedAt) {
+    await deleteWhereDirect(myUserId, "household_task_completions", { task_id: task.id, completed_at: task.lastCompletedAt });
   }
-  const { data, error } = await supabase.from("household_tasks").update(update).eq("id", task.id).select(TASK_COLUMNS).single();
-  if (error) throw error;
-  const { data: latest } = await supabase
-    .from("household_task_completions")
-    .select("id")
-    .eq("task_id", task.id)
-    .order("completed_at", { ascending: false })
-    .limit(1);
-  const latestId = (latest as { id: string }[] | null)?.[0]?.id;
-  if (latestId) await supabase.from("household_task_completions").delete().eq("id", latestId);
-  return toTask(data as TaskRow);
+  return next;
 }
 
 export async function deleteHouseholdTask(id: string): Promise<void> {
@@ -263,20 +260,20 @@ export async function deleteHouseholdTask(id: string): Promise<void> {
  * partner" — either linked partner can complete either side's task (see
  * household_tasks_update_pair), so this isn't necessarily the task's owner. */
 export async function completeHouseholdTask(task: TaskItem): Promise<TaskItem> {
-  if (!supabase) throw new Error("Cloud sync isn't set up for this deployment.");
   const myUserId = await currentUserId();
   if (!myUserId) throw new Error("Sign in first.");
-  const now = new Date();
-  const update: Record<string, unknown> = { last_completed_at: now.toISOString(), last_completed_by: myUserId, updated_at: now.toISOString() };
-  if (isRecurringTask(task)) {
-    update.due_at = nextRecurringDueAt(task.recurrenceDays as number, now);
-    update.reminder_sent_at = null;
-  }
-  const { data, error } = await supabase.from("household_tasks").update(update).eq("id", task.id).select(TASK_COLUMNS).single();
-  if (error) throw error;
-  const { error: historyError } = await supabase.from("household_task_completions").insert({ task_id: task.id, completed_by: myUserId, completed_at: now.toISOString() });
-  if (historyError) throw historyError;
-  return toTask(data as TaskRow);
+  const nowIso = new Date().toISOString();
+  const recurring = isRecurringTask(task);
+  const next: TaskItem = {
+    ...task,
+    lastCompletedAt: nowIso,
+    lastCompletedBy: myUserId,
+    dueAt: recurring ? nextRecurringDueAt(task.recurrenceDays as number, new Date(nowIso)) : task.dueAt,
+  };
+  await updateDirect(myUserId, "household_tasks", next.id, taskPayload(next, myUserId, recurring ? { reminder_sent_at: null } : undefined));
+  const completionId = createTimeOrderedId();
+  await upsertDirect(myUserId, "household_task_completions", completionId, { id: completionId, task_id: task.id, completed_by: myUserId, completed_at: nowIso });
+  return next;
 }
 
 // --- Expiration ------------------------------------------------------------

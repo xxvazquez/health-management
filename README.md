@@ -129,8 +129,8 @@ flowchart LR
     outbox -->|"drain, retry/backoff"| pg
     pg -->|"pull: sign-in / focus / reconnect / 60s"| idb
     ui --> auth
-    ui -.->|"Appointments, Care Log, Labs, Messages<br/>(direct writes; reads cached as snapshots)"| pg
-    ui -.->|"Journal, Vitals, Doctors, Reminders, Wishlist, Household<br/>(direct, falls back to outbox offline)"| outbox
+    ui -.->|"Labs, Messages<br/>(direct writes; reads cached as snapshots)"| pg
+    ui -.->|"Journal, Vitals, Medical, Reminders, Care Log, Wishlist, Household<br/>(direct, falls back to outbox offline)"| outbox
     idb -.->|"snapshot: instant read, then revalidate"| ui
     ui -.->|"notify-note (on send)"| ef
     ef -->|"reminder + digest cron"| pg
@@ -202,19 +202,25 @@ reconnect, the 60 s tick, "Sync now"). A fetch result is never applied while the
 outbox still holds a write for that feature's tables — the server copy is stale
 then, and could otherwise resurrect a row deleted offline.
 
-**Writes** fall back to the outbox for most of these now: Journal, Personal
-Notes/Expiration, Vitals, Doctors + specialties, reminder lists, personal tasks,
-Wishlist, and all the household boards (notes, reminders, expiry, codes). Each
-`create*` generates the row id client-side and the write goes through
-`directWrite.ts` (`upsertDirect` / `updateDirect` / `deleteDirect` → the shared
-outbox on failure). Still online-only: doctor appointments and follow-up tasks,
-Care Log, Results/Labs, Messages, and recurring-task completion history — these
-have joins, batch inserts or triggers and are being wired next.
+**Writes** fall back to the outbox for nearly all of these now — Journal, Personal
+Notes/Expiration, Vitals, Doctors + specialties + appointments + follow-up tasks,
+Care Log, reminder lists, personal/household tasks (including recurring-task
+completion history), Wishlist, and the household boards (notes, reminders, expiry,
+codes). Each `create*` generates the row id client-side and the write goes
+through `directWrite.ts` on the way to the shared outbox:
 
-`updateDirect` (a plain `update … where id = …`, queued as an `"update"` outbox
-op) exists because the household/wishlist tables are pair-visible with split
-`insert_own` / `update_pair` RLS: an upsert would fail the INSERT with-check when
-you edit the partner's row.
+- `upsertDirect` — a create, or an edit of an owner-only row.
+- `updateDirect` — an edit of a pair-visible row (`household_*`, `wishlist_*`),
+  sent as a plain `update … where id = …` and queued as an `"update"` op; a
+  straight upsert there fails the split `insert_own` / `update_pair` RLS when the
+  row is the partner's.
+- `deleteDirect` / `deleteWhereDirect` — a delete by id, or by a column match for
+  a join / history row with no id of its own (`care_entry_specialties`,
+  `*_task_completions`).
+
+Parent-and-children writes (an appointment with follow-up tasks, a care entry
+with specialty tags) enqueue the parent first; the outbox drains oldest-first so
+the FK holds. Still online-only: **Results/Labs** and **Messages**.
 
 **Journal, Personal Notes, Personal Expiration and Vitals have offline fallback**
 (`src/lib/supabase/directWrite.ts`): a create/update/delete still tries Supabase
