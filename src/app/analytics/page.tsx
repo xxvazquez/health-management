@@ -18,7 +18,7 @@ import { PageHeading } from "@/components/ui/PageHeading";
 
 /** One page for every analytics dashboard, switched by a Log-style tab bar
  * (`/analytics#food`) instead of one sidebar entry each. Each tab is gated
- * by the same Manage hide/show toggle its Log tab uses (`isHidden`);
+ * by the same Manage visibility rule its Log tab uses (`isVisible`);
  * Patterns follows Symptoms since it's built on symptom associations. The
  * dashboard components are unchanged — they still render their own `<h1>`
  * and empty states — they just live under `src/components/analytics/` now.
@@ -37,8 +37,8 @@ const TABS: { id: string; label: string; domain?: TrackedDomain; accent: string;
 ];
 
 export default function AnalyticsPage() {
-  const { isHidden } = useVisibleDomains();
-  const visibleTabs = useMemo(() => TABS.filter((t) => !t.domain || !isHidden(t.domain)), [isHidden]);
+  const { isVisible } = useVisibleDomains();
+  const visibleTabs = useMemo(() => TABS.filter((t) => !t.domain || isVisible(t.domain)), [isVisible]);
 
   // Starts at "overview" for a match with the statically-rendered HTML,
   // then syncs to the URL hash on mount (and on every back/forward) —
