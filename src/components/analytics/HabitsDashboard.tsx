@@ -57,7 +57,9 @@ export function HabitsDashboard() {
       </DashboardHeader>
 
       {glance.trackedCount > 0 && (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:col-span-2">
+        <div
+          className={`grid grid-cols-2 gap-3 lg:col-span-2 ${glance.increasedCount > 0 || glance.decreasedCount > 0 ? "sm:grid-cols-4" : "sm:grid-cols-2"}`}
+        >
           <StatTile
             label="Average consistency"
             value={glance.avgConsistencyPct !== null ? `${Math.round(glance.avgConsistencyPct)}%` : "—"}
@@ -65,8 +67,12 @@ export function HabitsDashboard() {
             accent={TYPE_ACCENT.habit}
           />
           <StatTile label="Tracked" value={String(glance.trackedCount)} detail={glance.trackedCount === 1 ? "habit" : "habits"} />
-          <StatTile label="Running above usual" value={String(glance.increasedCount)} detail="last 14 tracked days" />
-          <StatTile label="Running below usual" value={String(glance.decreasedCount)} detail="last 14 tracked days" />
+          {(glance.increasedCount > 0 || glance.decreasedCount > 0) && (
+            <>
+              <StatTile label="Running above usual" value={String(glance.increasedCount)} detail="last 14 tracked days" />
+              <StatTile label="Running below usual" value={String(glance.decreasedCount)} detail="last 14 tracked days" />
+            </>
+          )}
         </div>
       )}
 
