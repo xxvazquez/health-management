@@ -64,9 +64,12 @@ export default function AnalyticsPage() {
 
   if (!active) {
     return (
-      <p className="py-10 text-center text-sm" style={{ color: "var(--text-muted)" }}>
-        Every analytics section is hidden — turn one back on from Manage.
-      </p>
+      <div className="flex flex-col gap-6">
+        <PageHeading>Trends</PageHeading>
+        <p className="py-10 text-center text-sm" style={{ color: "var(--text-muted)" }}>
+          Every section is hidden — turn one back on from Settings.
+        </p>
+      </div>
     );
   }
 

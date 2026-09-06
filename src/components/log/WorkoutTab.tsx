@@ -172,7 +172,7 @@ export interface NewWorkoutEntry {
  * — kg/minutes read fine starting around 20, reps read better starting
  * lower. Only ever used once (nothing to prefill from yet); every later
  * log starts from the last value instead (see `lastValue`). Falls back to
- * DEFAULT_FOR_UNKNOWN_UNIT for a custom unit typed on the Manage page
+ * DEFAULT_FOR_UNKNOWN_UNIT for a custom unit typed in Settings
  * (units are free text, so this can never be exhaustive). */
 const DEFAULT_VALUE_BY_UNIT: Record<WorkoutUnit, number> = { kg: 20, minutes: 20, hours: 1, reps: 10 };
 const DEFAULT_FOR_UNKNOWN_UNIT = 10;
@@ -201,7 +201,7 @@ function ExerciseRow({
   onLog: (value: number) => Promise<void>;
 }) {
   const unit: WorkoutUnit = item.unit ?? "kg";
-  // A custom unit typed on the Manage page has no tuned preset/default —
+  // A custom unit typed in Settings has no tuned preset/default —
   // fall back to the minutes/reps-style whole-number preset rather than
   // leaving `value` undefined (which broke the +/- buttons into NaN).
   const preset = UNIT_STEP_PRESETS[unit] ?? UNIT_STEP_PRESETS.minutes;
@@ -298,7 +298,7 @@ export function WorkoutTab({
 
       {groups.length === 0 ? (
         <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-          No exercises yet — add one on the Manage page.
+          No exercises yet — add one in Settings.
         </p>
       ) : (
         groups.map((group) => (
@@ -325,7 +325,7 @@ export function WorkoutTab({
 
       <div className="flex flex-wrap gap-x-4 gap-y-1">
         <Link href="/manage/" className="self-start text-xs font-medium underline decoration-dotted" style={{ color: "var(--text-secondary)" }}>
-          Add, archive, or set units for exercises on the Manage page
+          Add, archive, or set units for exercises in Settings
         </Link>
         <Link href="/workout/" className="self-start text-xs font-medium underline decoration-dotted" style={{ color: "var(--text-secondary)" }}>
           See charts and progression on the Workout page

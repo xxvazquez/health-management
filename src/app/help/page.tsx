@@ -14,28 +14,28 @@ const GROUPS: { title: string; items: Entry[] }[] = [
         body: "The tap-to-record screen. Pick a category, tap an item to log it, tap again to remove it. Covers food, symptoms, supplements, habits, stool, workout and cycle. Nothing here is a form — the entry time and date are editable, and the day stepper has a calendar for backdating.",
       },
       {
-        title: "Overview",
+        title: "Agenda",
         body: "The daily read-back. Today's summary at the top, then a recent-activity feed, a few personal trends, anything expiring soon, and a weekly or monthly review.",
       },
       {
-        title: "Personal",
+        title: "Notes",
         body: "Your own journal, plain notes, reminders and product-expiry tracking — the things you write once and come back to.",
       },
       {
-        title: "Medical",
+        title: "Health",
         body: "Everything about doctor visits in one place: a history log of visits you've already had (not a scheduler), a dated care Log of observations, your blood and lab Results, the reusable doctors and specialties behind them, and outstanding follow-ups.",
       },
       {
         title: "Household",
-        body: "The same notes, reminders and expiry, plus a shared list of discount codes, kept with a linked partner. Once linked, everything here is visible to both of you and either can act on it.",
+        body: "The same notes, reminders and expiry, plus a shared list of discount codes, kept with a linked partner. Once linked, everything here is visible to both of you and either can act on it. Reached from the account menu.",
       },
       {
-        title: "Analytics",
+        title: "Trends",
         body: "One dashboard per area — Food, Supplements, Habits, Digestion, Workout, Cycle, Patterns — built automatically from your Log entries. Charts, streaks and patterns over time.",
       },
       {
-        title: "Manage items",
-        body: "Add, rename, archive or hide the specific foods, exercises and products offered when logging. Also where you edit reminder lists and doctor types, set exercise units, and choose which Log tabs and Analytics sections appear. Archiving hides an item from Log but keeps its history in every dashboard. The search box at the top filters every section at once, matching part of a name.",
+        title: "Settings",
+        body: "In the account menu. Add, rename, archive or hide the specific foods, exercises and products offered when logging. Also where you edit reminder lists and doctor types, set exercise units, and choose which Log tabs and Trends sections appear. Archiving hides an item from Log but keeps its history in every dashboard. The search box at the top filters every section at once, matching part of a name.",
       },
       {
         title: "Messages",
@@ -73,7 +73,7 @@ const GROUPS: { title: string; items: Entry[] }[] = [
     items: [
       {
         title: "Reminder lists",
-        body: "Reminders are grouped into named lists. The tabs on the Reminders screen switch between them; each reminder row has a small dropdown to move it to another list. Create, rename and delete lists on the Manage page.",
+        body: "Reminders are grouped into named lists. The tabs on the Reminders screen switch between them; each reminder row has a small dropdown to move it to another list. Create, rename and delete lists in Settings.",
       },
       {
         title: "One-off vs recurring",
@@ -90,11 +90,11 @@ const GROUPS: { title: string; items: Entry[] }[] = [
     ],
   },
   {
-    title: "Medical",
+    title: "Health",
     items: [
       {
         title: "The tabs",
-        body: "Appointments is the full visit log, newest first. Log is a dated timeline of observations tagged to a specialty. Results holds your blood and lab markers over time. Vitals tracks blood pressure and weight, with the trend and blood-pressure category. Doctors is one page per saved doctor with all their visits. Specialties shows every visit for a type (e.g. all internists), across doctors. Follow-ups gathers every outstanding follow-up task in one list.",
+        body: "Appointments is the full visit log, newest first. Care log is a dated timeline of observations tagged to a specialty. Results holds your blood and lab markers over time. Vitals tracks blood pressure and weight, with the trend and blood-pressure category. Doctors is one page per saved doctor with all their visits. Specialties shows every visit for a type (e.g. all internists), across doctors. Follow-ups gathers every outstanding follow-up task in one list.",
       },
       {
         title: "Doctor type, rating and language",
@@ -110,7 +110,7 @@ const GROUPS: { title: string; items: Entry[] }[] = [
       },
       {
         title: "Doctor types",
-        body: "The type list comes with common specialties built in. On the Manage page you can rename any of them, add your own, hide the ones you don't use (they drop out of the picker but come back in one tap), or delete them. Appointments you've already logged keep the type they were logged under no matter what you change.",
+        body: "The type list comes with common specialties built in. In Settings you can rename any of them, add your own, hide the ones you don't use (they drop out of the picker but come back in one tap), or delete them. Appointments you've already logged keep the type they were logged under no matter what you change.",
       },
     ],
   },
@@ -119,7 +119,7 @@ const GROUPS: { title: string; items: Entry[] }[] = [
     items: [
       {
         title: "Product expiry",
-        body: "Track a product by its expiry date and set 'remind N days before'. A bell on the row shows a reminder is set; a due item also appears under Expiring soon on Overview and, with notifications on, sends a push and an email. The list has its own search.",
+        body: "Track a product by its expiry date and set 'remind N days before'. A bell on the row shows a reminder is set; a due item also appears under Expiring soon on Agenda and, with notifications on, sends a push and an email. The list has its own search.",
       },
       {
         title: "Shared codes",
@@ -136,7 +136,7 @@ const GROUPS: { title: string; items: Entry[] }[] = [
       },
       {
         title: "Notifications",
-        body: "Turn them on from the Manage page. Reminders and due expiry items then send a push and, where configured, an email.",
+        body: "Turn them on from Settings. Reminders and due expiry items then send a push and, where configured, an email.",
       },
       {
         title: "“Not logged”",

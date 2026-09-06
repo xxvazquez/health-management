@@ -314,7 +314,7 @@ export default function MyDrivePage() {
           accents in its corners). */}
       <div className="absolute inset-0" style={{ background: "rgba(255,255,255,0.6)" }} />
       <div className="relative flex flex-col gap-5 p-4 sm:p-6">
-        <PageHeading subtitle="Browse your Google Drive files and folders — read-only.">My Drive</PageHeading>
+        <PageHeading subtitle="Browse your Google Drive files and folders — read-only.">Google Drive</PageHeading>
 
       {!configured && (
         <Card tier="supporting">

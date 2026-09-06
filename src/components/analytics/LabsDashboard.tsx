@@ -125,7 +125,7 @@ export function LabsDashboard() {
     return (
       <EmptyState
         title="No blood results yet"
-        description="Add markers and values on the Medical → Results tab and this dashboard fills in."
+        description="Add markers and values on the Health → Results tab and this dashboard fills in."
         showLogLink={false}
       />
     );
@@ -392,7 +392,7 @@ function VitalsBlock({ bp, weight }: { bp: BloodPressureReading[]; weight: Weigh
 
   return (
     <Card tier="raw" className="lg:col-span-2">
-      <CardTitle size="sm" subtitle="Blood pressure and weight from the Medical → Vitals tab">
+      <CardTitle size="sm" subtitle="Blood pressure and weight from the Health → Vitals tab">
         Vitals
       </CardTitle>
       <div className="grid gap-4 sm:grid-cols-2">

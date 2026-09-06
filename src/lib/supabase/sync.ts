@@ -176,7 +176,7 @@ function buildStoolLogRow(log: RawStoolLog, userId: string): Record<string, unkn
 async function buildWorkoutLogRow(log: RawWorkoutLog, userId: string): Promise<Record<string, unknown>> {
   const items = await getAllItems();
   const match = items.find((item) => item.itemType === "workout" && normalizeName(item.rawName) === normalizeName(log.exercise));
-  if (!match) throw new Error(`No workout item found for exercise "${log.exercise}" — add it in Manage before logging.`);
+  if (!match) throw new Error(`No workout item found for exercise "${log.exercise}" — add it in Settings before logging.`);
   return {
     id: log.id,
     user_id: userId,
