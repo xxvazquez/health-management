@@ -1584,7 +1584,7 @@ export default function LogPage() {
           <h1 className="text-xl font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
             Log
           </h1>
-          {isDemoData && <DemoNotice className="mt-0.5">Example data — log something real to replace it.</DemoNotice>}
+          {isDemoData && <DemoNotice className="mt-0.5" />}
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <div className="flex items-center gap-0.5 rounded-md border p-0.5" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
@@ -2105,11 +2105,11 @@ export default function LogPage() {
                         ))}
                       </ul>
                       <Link
-                        href="/medical/#carelog"
+                        href="/medical/#visits"
                         className="self-start text-xs font-medium underline decoration-dotted"
                         style={{ color: "var(--text-secondary)" }}
                       >
-                        Add or edit in the care log
+                        Add or edit under Health → Visits
                       </Link>
                     </>
                   )}
@@ -2121,10 +2121,6 @@ export default function LogPage() {
                   Nothing tracked here yet — add your first {tabConfig.label.toLowerCase().replace(/s$/, "")} below.
                 </p>
               )}
-
-              <Link href="/manage/" className="self-start text-xs font-medium underline decoration-dotted" style={{ color: "var(--text-secondary)" }}>
-                Don&apos;t see what you&apos;re looking for? Archive or add items in Settings
-              </Link>
             </div>
           )}
         </>

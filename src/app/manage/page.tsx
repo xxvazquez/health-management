@@ -1456,11 +1456,7 @@ export default function ManagePage() {
     <div className="flex flex-col gap-5">
       <div>
         <PageHeading actions={!isDemoData && <PushNotificationsToggle />}>Settings</PageHeading>
-        {isDemoData && (
-          <DemoNotice className="mt-2">
-            Example data — add, rename, archive, and manage categories freely; nothing here is saved.
-          </DemoNotice>
-        )}
+        {isDemoData && <DemoNotice className="mt-2" />}
         {actionError && (
           <p className="mt-2 text-sm" style={{ color: "var(--status-warning)" }}>
             {actionError}

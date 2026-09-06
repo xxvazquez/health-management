@@ -246,7 +246,7 @@ export default function NotesPage() {
           onMarkAllRead={() => void demoMarkAllRead()}
           showCompose={!selectedDemoThread}
         />
-        <DemoNotice>Example messages — reply, favourite, or archive freely; nothing here is saved.</DemoNotice>
+        <DemoNotice />
 
         {selectedDemoThread ? (
           <NoteThreadView

@@ -199,7 +199,7 @@ export function JournalTab({ isDemoData, accent }: { isDemoData: boolean; accent
 
   return (
     <div className="flex flex-col gap-3">
-      {isDemoData && <DemoNotice>Example entries — nothing here is saved.</DemoNotice>}
+      {isDemoData && <DemoNotice />}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <SearchField value={search} onChange={setSearch} placeholder="Search entries…" />
