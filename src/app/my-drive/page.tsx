@@ -306,15 +306,8 @@ export default function MyDrivePage() {
   }
 
   return (
-    <div className="relative overflow-hidden rounded-xl border" style={{ borderColor: "var(--border-hairline)" }}>
-      <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: "url(/background.png)" }} />
-      {/* Semi-transparent wash over the artwork so text and controls keep
-          full contrast — the image itself is calibrated for --surface-1's
-          dark text, not guaranteed everywhere (e.g. the leaf/circle
-          accents in its corners). */}
-      <div className="absolute inset-0" style={{ background: "rgba(255,255,255,0.6)" }} />
-      <div className="relative flex flex-col gap-5 p-4 sm:p-6">
-        <PageHeading subtitle="Browse your Google Drive files and folders — read-only.">Google Drive</PageHeading>
+    <div className="flex flex-col gap-5">
+      <PageHeading subtitle="Browse your Google Drive files and folders — read-only.">Google Drive</PageHeading>
 
       {!configured && (
         <Card tier="supporting">
@@ -427,7 +420,6 @@ export default function MyDrivePage() {
           </button>
         </>
       )}
-      </div>
     </div>
   );
 }
