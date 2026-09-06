@@ -4,8 +4,8 @@ import { Button } from "@/components/ui/Button";
 export default function NotFound() {
   return (
     <div
-      className="flex min-h-[70vh] flex-col items-center justify-center rounded-xl border px-6 py-16 text-center"
-      style={{ borderColor: "var(--border-hairline)", backgroundColor: "var(--surface-1)" }}
+      className="flex min-h-[70vh] flex-col items-center justify-center rounded-xl border bg-cover bg-center px-6 py-16 text-center"
+      style={{ borderColor: "var(--border-hairline)", backgroundColor: "var(--surface-1)", backgroundImage: "url(/background.webp)" }}
     >
       <Logo size={48} />
       <p className="mt-6 text-sm font-semibold tracking-[0.3em]" style={{ color: "var(--text-muted)" }}>
