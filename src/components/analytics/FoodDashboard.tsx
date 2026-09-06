@@ -369,54 +369,52 @@ export function FoodDashboard() {
             tone: "good" as const,
           };
 
+  const ingredientDelta =
+    diversity && diversity.previous != null && diversity.current !== diversity.previous ? diversity.current - diversity.previous : null;
+
   return (
-    <div className="flex flex-col gap-2">
-      <div>
-        <DashboardHeader>Food</DashboardHeader>
-      </div>
-
-      {span && range && (
-        <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
-          <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-            Showing <span style={{ color: "var(--text-secondary)" }}>{rangeLabel}</span> — every metric and chart below is
-            calculated for this range
-          </p>
-          <DateRangeFilter span={span} value={range} onChange={setRange} presets={FOOD_DATE_PRESETS} accent={TYPE_ACCENT.food} />
-        </div>
-      )}
-
-      <div className="mt-3">
-        <Insight label={foodInsight.label} headline={foodInsight.headline} detail={foodInsight.detail} tone={foodInsight.tone} />
-      </div>
-
-      {/* The one headline variety number, above the section menu so it's
-          always in view regardless of which section is open. */}
-      {!priorities.insufficientData && diversity && (
-        <p className="mt-3 text-sm" style={{ color: "var(--text-secondary)" }}>
-          <span className="font-semibold tabular-nums" style={{ color: "var(--text-primary)" }}>
-            {diversity.current}
-          </span>{" "}
-          unique ingredient{diversity.current === 1 ? "" : "s"} logged this range
-          {diversity.previous != null && diversity.current !== diversity.previous && (
-            <>
-              {" · "}
-              <span
-                className="font-medium tabular-nums"
-                style={{ color: diversity.current > diversity.previous ? "var(--status-good)" : "var(--status-warning)" }}
-              >
-                {diversity.current > diversity.previous ? "+" : ""}
-                {diversity.current - diversity.previous}
-              </span>{" "}
-              vs. the previous {rangeLengthDays} days
-            </>
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
+        <DashboardHeader>
+          Food
+          {span && range && (
+            <span className="ml-2.5 text-sm font-normal" style={{ color: "var(--text-muted)" }}>
+              {rangeLabel}
+            </span>
           )}
-        </p>
+        </DashboardHeader>
+        {span && range && (
+          <DateRangeFilter span={span} value={range} onChange={setRange} presets={FOOD_DATE_PRESETS} accent={TYPE_ACCENT.food} />
+        )}
+      </div>
+
+
+      <Insight label={foodInsight.label} headline={foodInsight.headline} detail={foodInsight.detail} tone={foodInsight.tone} />
+
+      {!priorities.insufficientData && diversity && (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <StatTile
+            label="Unique ingredients"
+            value={String(diversity.current)}
+            detail={
+              ingredientDelta != null
+                ? `${ingredientDelta > 0 ? "+" : ""}${ingredientDelta} vs previous ${rangeLengthDays} days`
+                : "logged this range"
+            }
+            accent={TYPE_ACCENT.food}
+          />
+          <StatTile
+            label="Days with food logged"
+            value={String(priorities.daysWithFoodTracked)}
+            detail={`of ${rangeLengthDays} in range`}
+          />
+        </div>
       )}
 
       {/* The sticky section tabs and the section they render share one
           parent, so the tabs have room to stay pinned while a long section
           scrolls. `scroll-mt` clears the app header on jump. */}
-      <div ref={contentRef} className="mt-1 flex scroll-mt-16 flex-col gap-2 lg:scroll-mt-8">
+      <div ref={contentRef} className="flex scroll-mt-16 flex-col gap-2 lg:scroll-mt-8">
       <SectionNav items={SECTION_NAV_ITEMS} activeId={activeSection} onSelect={selectSection} accent={SECTION_NAV_ACCENT} />
       <PageSection id="overview" activeId={activeSection} headingLabel="Overview">
         {priorities.insufficientData ? (
