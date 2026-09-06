@@ -129,20 +129,18 @@ export function DigestionDashboard() {
 
   return (
     <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-2">
-      <DashboardHeader className="lg:col-span-2">
-        Stool
-      </DashboardHeader>
+      <DashboardHeader className="lg:col-span-2">Stool</DashboardHeader>
+
+      {span && range && (
+        <div className="flex justify-end lg:col-span-2">
+          <DateRangeFilter span={span} value={range} onChange={setRange} accent={ACCENT} />
+        </div>
+      )}
 
       <Insight label="What stands out" headline={insight.headline} detail={insight.detail} tone={insight.tone} className="lg:col-span-2" />
 
       {!insight.insufficientData && insight.changed.length > 0 && (
-        <BulletList title="What changed" tone="var(--text-muted)" bullets={insight.changed} />
-      )}
-
-      {span && range && (
-        <div className="lg:col-span-2">
-          <DateRangeFilter span={span} value={range} onChange={setRange} accent={ACCENT} />
-        </div>
+        <BulletList title="What changed" tone="var(--text-muted)" bullets={insight.changed} className="lg:col-span-2" />
       )}
 
       <Card tier="raw" className="lg:col-span-2">
