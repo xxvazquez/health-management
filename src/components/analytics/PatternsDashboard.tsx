@@ -48,10 +48,7 @@ export function PatternsDashboard() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
-        <DashboardHeader
-          accent="var(--series-berry)"
-          subtitle="For when you want to dig deeper — associations and correlations in your own data. Descriptive only, never causal."
-        >
+        <DashboardHeader subtitle="For when you want to dig deeper — associations and correlations in your own data. Descriptive only, never causal.">
           Patterns
         </DashboardHeader>
         {span && range && <DateRangeFilter span={span} value={range} onChange={setRange} />}

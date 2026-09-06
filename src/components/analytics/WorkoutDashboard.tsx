@@ -373,7 +373,6 @@ export function WorkoutDashboard() {
   return (
     <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
       <DashboardHeader
-        accent="var(--series-6)"
         className="lg:col-span-2"
         subtitle={
           <>

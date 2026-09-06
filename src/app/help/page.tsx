@@ -27,7 +27,7 @@ const GROUPS: { title: string; items: Entry[] }[] = [
       },
       {
         title: "Trends",
-        body: "One dashboard per area — Food, Supplements, Habits, Digestion, Workout, Cycle, Patterns — built automatically from your Log entries. Charts, streaks and patterns over time.",
+        body: "One dashboard per Log area — Food, Supplements, Habits, Stool, Workout, Cycle — plus Patterns, all built automatically from your Log entries. Charts, streaks and patterns over time.",
       },
       {
         title: "Settings",
