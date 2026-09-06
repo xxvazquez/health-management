@@ -101,23 +101,24 @@ function CollapsibleManageCard({
 
 /** Turns a tracked type on/off everywhere it appears — its Log tab and,
  * for Food/Workout/Cycle, its Analytics dashboard link — without deleting
- * or archiving anything underneath. Purely a local display preference
- * (see visibleDomains.tsx), not synced: "I don't track this on this
- * device" rather than a change to the account's actual data. */
+ * or archiving anything underneath. Sections show up on their own once
+ * they have data; these toggles override that in either direction. Purely
+ * a local display preference (see visibleDomains.tsx), not synced. */
 function VisibleSectionsCard() {
-  const { hidden, toggle } = useVisibleDomains();
+  const { isVisible, toggle } = useVisibleDomains();
   return (
     <Card tier="supporting">
       <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
         Visible sections
       </p>
       <p className="mt-0.5 mb-3 text-xs" style={{ color: "var(--text-secondary)" }}>
-        Hide anything you don&apos;t track — it disappears from the Log page&apos;s tabs (and its Trends dashboard, if it
-        has one) on this device. Nothing underneath is deleted or archived.
+        Each section appears on the Log page&apos;s tabs (and its Trends dashboard, if it has one) once you&apos;ve
+        logged something in it. Turn one on to start tracking it before then, or off to hide it even once it has
+        data — on this device only. Nothing underneath is deleted or archived.
       </p>
       <div className="flex flex-wrap gap-1.5">
         {DOMAIN_TOGGLE_ORDER.map((domain) => {
-          const isHidden = hidden.has(domain);
+          const isHidden = !isVisible(domain);
           return (
             <button
               key={domain}

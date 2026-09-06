@@ -384,7 +384,7 @@ interface Snapshot {
 
 export default function LogPage() {
   const { refresh, isDemoData, status } = useData();
-  const { isHidden } = useVisibleDomains();
+  const { isVisible } = useVisibleDomains();
   const { openPanel } = useAuth();
   // Observation-type care-log entries (Health → Visits) — surfaced on
   // the Symptoms tab as one-offs that aren't tracked day to day.
@@ -456,11 +456,11 @@ export default function LogPage() {
   // jump to the first tab that's still visible rather than rendering a
   // tab nobody can reach via the nav bar anymore.
   useEffect(() => {
-    if (!isHidden(tab)) return;
-    const fallback = ([...TABS.map((t) => t.type), "stool", "workout", "cycle"] as TrackedDomain[]).find((t) => !isHidden(t));
+    if (isVisible(tab)) return;
+    const fallback = ([...TABS.map((t) => t.type), "stool", "workout", "cycle"] as TrackedDomain[]).find((t) => isVisible(t));
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (fallback) setTab(fallback);
-  }, [tab, isHidden]);
+  }, [tab, isVisible]);
   // Which stool timeline cards have their extra details (color, floatation,
   // characteristics, paper cleanliness, time on toilet) expanded — collapsed
   // by default since a 144px-wide card has no room to show them all at once.
@@ -552,8 +552,8 @@ export default function LogPage() {
       { id: "workout", label: "Workout", accent: WORKOUT_ACCENT, domain: "workout" },
       { id: "cycle", label: "Cycle", accent: CYCLE_ACCENT, domain: "cycle" },
     ];
-    return all.filter((t) => !t.domain || !isHidden(t.domain));
-  }, [isHidden]);
+    return all.filter((t) => !t.domain || isVisible(t.domain));
+  }, [isVisible]);
   const tabAccent = logTabs.find((t) => t.id === tab)?.accent ?? "var(--baseline)";
 
   // For the Food tab specifically, a chip's checkmark reflects whether it

@@ -480,7 +480,10 @@ without push.
 
 ## Not in Postgres
 
-- **Which tracked domains are visible** is a per-device localStorage
+- **Which tracked domains are visible** in the Log and Trends tab rails is
+  automatic — a section shows once it has logged data (and every section
+  shows while the account is empty). Manage → Visible sections overrides
+  this per domain either way; those overrides are a per-device localStorage
   preference ([`src/lib/visibleDomains.tsx`](../src/lib/visibleDomains.tsx)),
   deliberately not synced — "I don't track this" is a statement about the
   person using this device, not about the data.
