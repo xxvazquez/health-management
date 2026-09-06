@@ -45,18 +45,18 @@ export function HabitsDashboard() {
   const clampedStripStart = span && stripStart < span.start ? span.start : stripStart;
 
   return (
-    <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-2">
-      <DashboardHeader className="lg:col-span-2">Habits</DashboardHeader>
+    <div className="flex flex-col gap-5">
+      <DashboardHeader>Habits</DashboardHeader>
 
       {span && range && (
-        <div className="flex justify-end lg:col-span-2">
+        <div className="flex justify-end">
           <DateRangeFilter span={span} value={range} onChange={setRange} accent={TYPE_ACCENT.habit} />
         </div>
       )}
 
       {glance.trackedCount > 0 && (
         <div
-          className={`grid grid-cols-2 gap-3 lg:col-span-2 ${glance.increasedCount > 0 || glance.decreasedCount > 0 ? "sm:grid-cols-4" : "sm:grid-cols-2"}`}
+          className={`grid grid-cols-2 gap-3 ${glance.increasedCount > 0 || glance.decreasedCount > 0 ? "sm:grid-cols-4" : "sm:grid-cols-2"}`}
         >
           <StatTile
             label="Average consistency"
@@ -74,18 +74,18 @@ export function HabitsDashboard() {
         </div>
       )}
 
-      <Insight label="What stands out" headline={insight.headline} detail={insight.detail} tone="neutral" className="lg:col-span-2" />
+      <Insight label="What stands out" headline={insight.headline} detail={insight.detail} tone="neutral" />
 
       {!insight.insufficientData && insight.changed.length > 0 && (
-        <BulletList title="Running differently than usual" tone="var(--text-muted)" bullets={insight.changed} className="lg:col-span-2" />
+        <BulletList title="Running differently than usual" tone="var(--text-muted)" bullets={insight.changed} />
       )}
 
-      <p className="text-sm font-semibold lg:col-span-2" style={{ color: "var(--text-primary)" }}>
+      <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
         Every habit, biggest change first
       </p>
 
       {ranked.length > 0 && (
-        <Card tier="raw" className="lg:col-span-2">
+        <Card tier="raw">
           <div className="flex flex-col">
             {ranked.map((item) => (
               <div
@@ -135,7 +135,7 @@ export function HabitsDashboard() {
       )}
 
       {archived.length > 0 && (
-        <Card tier="raw" className="lg:col-span-2">
+        <Card tier="raw">
           <Disclosure label="Archived" count={archived.length}>
             <ul className="mt-3 flex flex-col gap-2">
               {archived.map((item) => (
@@ -161,7 +161,7 @@ export function HabitsDashboard() {
         </Card>
       )}
 
-      <Methodology className="lg:col-span-2">
+      <Methodology>
         This compares each habit&apos;s consistency over the last 14 tracked days against its own overall
         consistency since it was first logged — never a fixed target, and never a judgment of whether that&apos;s
         good. A habit needs at least 10 overall tracked days and 5 recent tracked days before it&apos;s described
