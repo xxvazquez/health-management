@@ -26,8 +26,8 @@ vi.mock("./client", () => ({
       },
       from(table: string) {
         return {
-          upsert: async () => {
-            sentCalls.push({ table, op: "upsert" });
+          upsert: async (_payload: unknown, options?: { ignoreDuplicates?: boolean }) => {
+            sentCalls.push({ table, op: options?.ignoreDuplicates ? "insert" : "upsert" });
             if (thrown) throw thrown;
             return upsertResult;
           },
@@ -187,6 +187,24 @@ describe("sendOutboxEntry", () => {
     });
     expect(result).toMatchObject({ outcome: "success" });
     expect(sentCalls).toEqual([{ table: "household_notes", op: "update", payload: { owner_id: "partner", title: "T", body: "B" }, id: "n1" }]);
+  });
+
+  it("sends an insert op as an ignore-duplicates upsert (ON CONFLICT DO NOTHING)", async () => {
+    const { sendOutboxEntry } = await import("./outbox");
+    const result = await sendOutboxEntry({
+      id: "e1",
+      userId: "user-1",
+      dedupeKey: "personal_task_completions:completed_at=x&task_id=t1",
+      table: "personal_task_completions",
+      op: "insert",
+      payload: { id: "c1", task_id: "t1", user_id: "user-1", completed_at: "x" },
+      attempts: 0,
+      createdAt: Date.now(),
+      nextAttemptAt: Date.now(),
+      status: "pending",
+    });
+    expect(result).toMatchObject({ outcome: "success" });
+    expect(sentCalls).toEqual([{ table: "personal_task_completions", op: "insert" }]);
   });
 
   it("sends a match-delete as .delete().match(...) when the payload has no id", async () => {

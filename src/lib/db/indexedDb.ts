@@ -11,14 +11,18 @@ import { createTimeOrderedId } from "@/lib/sortableId";
 // write is only "safe" once it's either landed on Supabase or is durably
 // represented here — see sync.ts's *AndSync functions (where entries are
 // created) and outbox.ts (where they're drained).
-// "update" is for the pair-visible tables (household_*, wishlist_*), where
-// a row can be owned by the partner: those have a split
-// insert_own / update_pair RLS shape, so an `upsert` (INSERT … ON CONFLICT
-// DO UPDATE) fails the INSERT with-check when editing the partner's row.
-// "update" sends a plain `update … where id = …`, which only needs the
-// update_pair policy. Its payload is a complete row (like "upsert"), so it
-// merges cleanly into a still-unsent create for the same record.
-export type OutboxOperation = "upsert" | "update" | "delete";
+// Beyond the tracking domains' "upsert" / "delete":
+//  - "update" — a plain `update … where id = …`, for the pair-visible
+//    tables (household_*, wishlist_*) whose split insert_own / update_pair
+//    RLS rejects an upsert (INSERT … ON CONFLICT DO UPDATE) of the
+//    partner's row. Payload is a complete row, so it merges into a
+//    still-unsent create for the same record.
+//  - "insert" — an insert that's a no-op on conflict (ON CONFLICT DO
+//    NOTHING), for write-once rows: pure join rows (care_entry_specialties)
+//    and the immutable *_task_completions log, whose tables have no update
+//    policy at all, so a plain upsert's DO UPDATE path would fail and a
+//    redelivered send would spuriously dead-letter.
+export type OutboxOperation = "upsert" | "update" | "insert" | "delete";
 type OutboxStatus = "pending" | "dead-letter";
 
 export interface OutboxEntry {
@@ -620,6 +624,9 @@ export function clearAllData(): Promise<void> {
  *  - A new "update" (a full row, from directWrite.updateDirect) merges its
  *    payload into a pending, unattempted "upsert" or "update" for the same
  *    record — an offline create-then-edit collapses to one write.
+ *  - A new "insert" replaces a pending, unattempted "insert" for the same
+ *    record (write-once rows, so only the latest payload matters); a
+ *    "delete" cancels one outright, same as it cancels an "upsert".
  *  - A new "delete" cancels (removes outright, not marks) an existing
  *    PENDING, UNATTEMPTED "upsert" for the same record: since that create
  *    was never sent, there's nothing remote to delete. Against a pending
@@ -651,7 +658,13 @@ export async function enqueueOutboxInternal(entry: NewOutboxEntry): Promise<void
     await db.put("outbox", { ...pendingUnattempted, payload: merged, createdAt: Date.now(), nextAttemptAt: Date.now() });
     return;
   }
-  if (entry.op === "delete" && pendingUnattempted?.op === "upsert") {
+  // "insert" is write-once: a second one for the same key just replaces the
+  // still-unsent payload, same as "upsert".
+  if (entry.op === "insert" && pendingUnattempted?.op === "insert") {
+    await db.put("outbox", { ...pendingUnattempted, payload: entry.payload, createdAt: Date.now(), nextAttemptAt: Date.now() });
+    return;
+  }
+  if (entry.op === "delete" && (pendingUnattempted?.op === "upsert" || pendingUnattempted?.op === "insert")) {
     await db.delete("outbox", pendingUnattempted.id);
     return;
   }
@@ -702,7 +715,20 @@ export async function enqueueOutboxInternal(entry: NewOutboxEntry): Promise<void
     });
     return;
   }
-  if (deadLetter && entry.op === "delete" && deadLetter.op === "upsert") {
+  if (deadLetter && entry.op === "insert" && deadLetter.op === "insert") {
+    await db.put("outbox", {
+      ...deadLetter,
+      payload: entry.payload,
+      status: "pending",
+      attempts: 0,
+      createdAt: Date.now(),
+      nextAttemptAt: Date.now(),
+      lastError: undefined,
+      lastErrorCode: undefined,
+    });
+    return;
+  }
+  if (deadLetter && entry.op === "delete" && (deadLetter.op === "upsert" || deadLetter.op === "insert")) {
     await db.delete("outbox", deadLetter.id);
     return;
   }
