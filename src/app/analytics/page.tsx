@@ -12,6 +12,7 @@ import { DigestionDashboard } from "@/components/analytics/DigestionDashboard";
 import { WorkoutDashboard } from "@/components/analytics/WorkoutDashboard";
 import { CycleDashboard } from "@/components/analytics/CycleDashboard";
 import { PatternsDashboard } from "@/components/analytics/PatternsDashboard";
+import { TrendsOverviewDashboard } from "@/components/analytics/TrendsOverviewDashboard";
 import { TabRail } from "@/components/ui/TabRail";
 import { PageHeading } from "@/components/ui/PageHeading";
 
@@ -21,9 +22,11 @@ import { PageHeading } from "@/components/ui/PageHeading";
  * Patterns follows Symptoms since it's built on symptom associations. The
  * dashboard components are unchanged — they still render their own `<h1>`
  * and empty states — they just live under `src/components/analytics/` now.
- * Every tab mirrors a Log tracking domain; blood/lab analysis lives on
- * Health → Results, not here. */
+ * The first tab is a cross-domain Overview (today's story + what stands out
+ * + a week/month review, moved off Agenda); the rest mirror a Log tracking
+ * domain. Blood/lab analysis lives on Health → Results, not here. */
 const TABS: { id: string; label: string; domain?: TrackedDomain; accent: string; Component: ComponentType; hasSections?: boolean }[] = [
+  { id: "overview", label: "Overview", accent: "var(--text-muted)", Component: TrendsOverviewDashboard },
   { id: "food", label: "Food", domain: "food", accent: TYPE_ACCENT.food, Component: FoodDashboard, hasSections: true },
   { id: "supplements", label: "Supplements", domain: "supplement", accent: TYPE_ACCENT.supplement, Component: SupplementsDashboard },
   { id: "habits", label: "Habits", domain: "habit", accent: TYPE_ACCENT.habit, Component: HabitsDashboard },
@@ -37,10 +40,10 @@ export default function AnalyticsPage() {
   const { isHidden } = useVisibleDomains();
   const visibleTabs = useMemo(() => TABS.filter((t) => !t.domain || !isHidden(t.domain)), [isHidden]);
 
-  // Starts at "food" for a match with the statically-rendered HTML, then
-  // syncs to the URL hash on mount (and on every back/forward) — reading
-  // `location` in the initializer would be a hydration mismatch.
-  const [tabId, setTabId] = useState<string>("food");
+  // Starts at "overview" for a match with the statically-rendered HTML,
+  // then syncs to the URL hash on mount (and on every back/forward) —
+  // reading `location` in the initializer would be a hydration mismatch.
+  const [tabId, setTabId] = useState<string>("overview");
 
   useEffect(() => {
     const fromHash = () => {
