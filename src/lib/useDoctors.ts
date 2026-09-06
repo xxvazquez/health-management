@@ -286,17 +286,18 @@ export function useDoctors() {
 
   const editAppointment = useCallback(
     async (id: string, patch: AppointmentPatch) => {
+      const current = appointments.find((a) => a.id === id);
       setAppointments((prev) =>
         prev
           .map((a) => (a.id === id ? { ...a, appointmentAt: patch.appointmentAt ?? a.appointmentAt, reason: patch.reason ?? a.reason, followUpNotes: patch.followUpNotes ?? a.followUpNotes } : a))
           .sort((x, y) => y.appointmentAt.localeCompare(x.appointmentAt)),
       );
-      if (!isDemo) {
-        const updated = await updateDoctorAppointment(id, patch);
+      if (!isDemo && current) {
+        const updated = await updateDoctorAppointment(current, patch);
         setAppointments((prev) => prev.map((a) => (a.id === id ? updated : a)).sort((x, y) => y.appointmentAt.localeCompare(x.appointmentAt)));
       }
     },
-    [isDemo],
+    [isDemo, appointments],
   );
 
   const removeAppointment = useCallback(
@@ -323,28 +324,30 @@ export function useDoctors() {
 
   const editTask = useCallback(
     async (id: string, patch: FollowUpTaskPatch) => {
+      const current = tasks.find((t) => t.id === id);
       setTasks((prev) =>
         prev.map((t) =>
           t.id === id ? { ...t, description: patch.description ?? t.description, dueDate: patch.dueDate === undefined ? t.dueDate : patch.dueDate, reminderAt: patch.reminderAt === undefined ? t.reminderAt : patch.reminderAt } : t,
         ),
       );
-      if (!isDemo) {
-        const updated = await updateDoctorFollowUpTask(id, patch);
+      if (!isDemo && current) {
+        const updated = await updateDoctorFollowUpTask(current, patch);
         setTasks((prev) => prev.map((t) => (t.id === id ? updated : t)));
       }
     },
-    [isDemo],
+    [isDemo, tasks],
   );
 
   const setTaskComplete = useCallback(
     async (id: string, done: boolean) => {
+      const current = tasks.find((t) => t.id === id);
       setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, completedAt: done ? new Date().toISOString() : null } : t)));
-      if (!isDemo) {
-        const updated = await setDoctorFollowUpTaskComplete(id, done);
+      if (!isDemo && current) {
+        const updated = await setDoctorFollowUpTaskComplete(current, done);
         setTasks((prev) => prev.map((t) => (t.id === id ? updated : t)));
       }
     },
-    [isDemo],
+    [isDemo, tasks],
   );
 
   const removeTask = useCallback(

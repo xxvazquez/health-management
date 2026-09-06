@@ -327,24 +327,34 @@ export interface NewAppointmentInput {
   followUpNotes: string;
 }
 
+function appointmentPayload(a: DoctorAppointment, userId: string): Record<string, unknown> {
+  return {
+    id: a.id,
+    user_id: userId,
+    doctor_id: a.doctorId,
+    specialty: a.specialty.trim(),
+    appointment_at: a.appointmentAt,
+    reason: a.reason,
+    follow_up_notes: a.followUpNotes,
+    created_at: a.createdAt,
+    updated_at: new Date().toISOString(),
+  };
+}
+
 export async function createDoctorAppointment(input: NewAppointmentInput): Promise<DoctorAppointment> {
-  if (!supabase) throw notConfigured();
   const myUserId = await currentUserId();
   if (!myUserId) throw new Error("Sign in first.");
-  const { data, error } = await supabase
-    .from("doctor_appointments")
-    .insert({
-      user_id: myUserId,
-      doctor_id: input.doctorId,
-      specialty: input.specialty.trim(),
-      appointment_at: input.appointmentAt,
-      reason: input.reason.trim() || null,
-      follow_up_notes: input.followUpNotes.trim() || null,
-    })
-    .select(APPOINTMENT_COLUMNS)
-    .single();
-  if (error) throw error;
-  return toAppointment(data as AppointmentRow);
+  const a: DoctorAppointment = {
+    id: createTimeOrderedId(),
+    doctorId: input.doctorId,
+    specialty: input.specialty.trim(),
+    appointmentAt: input.appointmentAt,
+    reason: input.reason.trim() || null,
+    followUpNotes: input.followUpNotes.trim() || null,
+    createdAt: new Date().toISOString(),
+  };
+  await upsertDirect(myUserId, "doctor_appointments", a.id, appointmentPayload(a, myUserId));
+  return a;
 }
 
 export interface AppointmentPatch {
@@ -353,21 +363,24 @@ export interface AppointmentPatch {
   followUpNotes?: string;
 }
 
-export async function updateDoctorAppointment(id: string, patch: AppointmentPatch): Promise<DoctorAppointment> {
-  if (!supabase) throw notConfigured();
-  const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
-  if (patch.appointmentAt !== undefined) update.appointment_at = patch.appointmentAt;
-  if (patch.reason !== undefined) update.reason = patch.reason.trim() || null;
-  if (patch.followUpNotes !== undefined) update.follow_up_notes = patch.followUpNotes.trim() || null;
-  const { data, error } = await supabase.from("doctor_appointments").update(update).eq("id", id).select(APPOINTMENT_COLUMNS).single();
-  if (error) throw error;
-  return toAppointment(data as AppointmentRow);
+export async function updateDoctorAppointment(appointment: DoctorAppointment, patch: AppointmentPatch): Promise<DoctorAppointment> {
+  const myUserId = await currentUserId();
+  if (!myUserId) throw new Error("Sign in first.");
+  const next: DoctorAppointment = {
+    ...appointment,
+    appointmentAt: patch.appointmentAt ?? appointment.appointmentAt,
+    reason: patch.reason !== undefined ? patch.reason.trim() || null : appointment.reason,
+    followUpNotes: patch.followUpNotes !== undefined ? patch.followUpNotes.trim() || null : appointment.followUpNotes,
+  };
+  await upsertDirect(myUserId, "doctor_appointments", next.id, appointmentPayload(next, myUserId));
+  return next;
 }
 
 export async function deleteDoctorAppointment(id: string): Promise<void> {
-  if (!supabase) return;
-  const { error } = await supabase.from("doctor_appointments").delete().eq("id", id);
-  if (error) throw error;
+  const myUserId = await currentUserId();
+  if (!myUserId) return;
+  // doctor_appointment_tasks cascade on the appointment delete.
+  await deleteDirect(myUserId, "doctor_appointments", id);
 }
 
 // --- Follow-up tasks ----------------------------------------------
@@ -387,17 +400,33 @@ export interface NewFollowUpTaskInput {
   reminderAt: string | null;
 }
 
+function followUpTaskPayload(t: DoctorFollowUpTask, userId: string, extra?: Record<string, unknown>): Record<string, unknown> {
+  return {
+    id: t.id,
+    user_id: userId,
+    appointment_id: t.appointmentId,
+    description: t.description.trim(),
+    due_date: t.dueDate,
+    reminder_at: t.reminderAt,
+    completed_at: t.completedAt,
+    updated_at: new Date().toISOString(),
+    ...extra,
+  };
+}
+
 export async function createDoctorFollowUpTask(appointmentId: string, input: NewFollowUpTaskInput): Promise<DoctorFollowUpTask> {
-  if (!supabase) throw notConfigured();
   const myUserId = await currentUserId();
   if (!myUserId) throw new Error("Sign in first.");
-  const { data, error } = await supabase
-    .from("doctor_appointment_tasks")
-    .insert({ user_id: myUserId, appointment_id: appointmentId, description: input.description.trim(), due_date: input.dueDate, reminder_at: input.reminderAt })
-    .select(TASK_COLUMNS)
-    .single();
-  if (error) throw error;
-  return toTask(data as TaskRow);
+  const t: DoctorFollowUpTask = {
+    id: createTimeOrderedId(),
+    appointmentId,
+    description: input.description.trim(),
+    dueDate: input.dueDate,
+    reminderAt: input.reminderAt,
+    completedAt: null,
+  };
+  await upsertDirect(myUserId, "doctor_appointment_tasks", t.id, followUpTaskPayload(t, myUserId));
+  return t;
 }
 
 export interface FollowUpTaskPatch {
@@ -406,35 +435,31 @@ export interface FollowUpTaskPatch {
   reminderAt?: string | null;
 }
 
-export async function updateDoctorFollowUpTask(id: string, patch: FollowUpTaskPatch): Promise<DoctorFollowUpTask> {
-  if (!supabase) throw notConfigured();
-  const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
-  if (patch.description !== undefined) update.description = patch.description.trim();
-  if (patch.dueDate !== undefined) update.due_date = patch.dueDate;
-  if (patch.reminderAt !== undefined) {
-    update.reminder_at = patch.reminderAt;
-    // A changed reminder time re-arms the cron for the new moment.
-    update.reminder_sent_at = null;
-  }
-  const { data, error } = await supabase.from("doctor_appointment_tasks").update(update).eq("id", id).select(TASK_COLUMNS).single();
-  if (error) throw error;
-  return toTask(data as TaskRow);
+export async function updateDoctorFollowUpTask(task: DoctorFollowUpTask, patch: FollowUpTaskPatch): Promise<DoctorFollowUpTask> {
+  const myUserId = await currentUserId();
+  if (!myUserId) throw new Error("Sign in first.");
+  const next: DoctorFollowUpTask = {
+    ...task,
+    description: patch.description !== undefined ? patch.description.trim() : task.description,
+    dueDate: patch.dueDate !== undefined ? patch.dueDate : task.dueDate,
+    reminderAt: patch.reminderAt !== undefined ? patch.reminderAt : task.reminderAt,
+  };
+  // A changed reminder time re-arms the cron for the new moment.
+  const extra = patch.reminderAt !== undefined ? { reminder_sent_at: null } : undefined;
+  await upsertDirect(myUserId, "doctor_appointment_tasks", next.id, followUpTaskPayload(next, myUserId, extra));
+  return next;
 }
 
-export async function setDoctorFollowUpTaskComplete(id: string, done: boolean): Promise<DoctorFollowUpTask> {
-  if (!supabase) throw notConfigured();
-  const { data, error } = await supabase
-    .from("doctor_appointment_tasks")
-    .update({ completed_at: done ? new Date().toISOString() : null, updated_at: new Date().toISOString() })
-    .eq("id", id)
-    .select(TASK_COLUMNS)
-    .single();
-  if (error) throw error;
-  return toTask(data as TaskRow);
+export async function setDoctorFollowUpTaskComplete(task: DoctorFollowUpTask, done: boolean): Promise<DoctorFollowUpTask> {
+  const myUserId = await currentUserId();
+  if (!myUserId) throw new Error("Sign in first.");
+  const next = { ...task, completedAt: done ? new Date().toISOString() : null };
+  await upsertDirect(myUserId, "doctor_appointment_tasks", next.id, followUpTaskPayload(next, myUserId));
+  return next;
 }
 
 export async function deleteDoctorFollowUpTask(id: string): Promise<void> {
-  if (!supabase) return;
-  const { error } = await supabase.from("doctor_appointment_tasks").delete().eq("id", id);
-  if (error) throw error;
+  const myUserId = await currentUserId();
+  if (!myUserId) return;
+  await deleteDirect(myUserId, "doctor_appointment_tasks", id);
 }
