@@ -1,5 +1,7 @@
 import { supabase } from "./client";
 import { DEFAULT_DOCTOR_SPECIALTIES, type DoctorLanguage } from "@/lib/doctors";
+import { createTimeOrderedId } from "@/lib/sortableId";
+import { deleteDirect, upsertDirect } from "./directWrite";
 
 export interface DoctorSpecialty {
   id: string;
@@ -125,13 +127,27 @@ export async function fetchDoctorSpecialties(): Promise<DoctorSpecialty[]> {
   return (data as SpecialtyRow[]).map(toSpecialty);
 }
 
+/** Row-to-payload for an upsert — every column, so an offline create and a
+ * later edit of the same still-unsynced row merge into one complete row. */
+function specialtyPayload(s: DoctorSpecialty, userId: string): Record<string, unknown> {
+  return {
+    id: s.id,
+    user_id: userId,
+    name: s.name.trim(),
+    next_appointment_date: s.nextAppointmentDate,
+    is_archived: s.isArchived,
+    icon: s.icon,
+    color: s.color,
+    updated_at: new Date().toISOString(),
+  };
+}
+
 export async function createDoctorSpecialty(name: string): Promise<DoctorSpecialty> {
-  if (!supabase) throw notConfigured();
   const myUserId = await currentUserId();
   if (!myUserId) throw new Error("Sign in first.");
-  const { data, error } = await supabase.from("doctor_specialties").insert({ user_id: myUserId, name: name.trim() }).select(SPECIALTY_COLUMNS).single();
-  if (error) throw error;
-  return toSpecialty(data as SpecialtyRow);
+  const s: DoctorSpecialty = { id: createTimeOrderedId(), name: name.trim(), nextAppointmentDate: null, isArchived: false, icon: null, color: null };
+  await upsertDirect(myUserId, "doctor_specialties", s.id, specialtyPayload(s, myUserId));
+  return s;
 }
 
 export interface DoctorSpecialtyPatch {
@@ -140,33 +156,34 @@ export interface DoctorSpecialtyPatch {
   color?: string | null;
 }
 
-export async function renameDoctorSpecialty(id: string, patch: DoctorSpecialtyPatch): Promise<DoctorSpecialty> {
-  if (!supabase) throw notConfigured();
-  const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
-  if (patch.name !== undefined) update.name = patch.name.trim();
-  if (patch.icon !== undefined) update.icon = patch.icon;
-  if (patch.color !== undefined) update.color = patch.color;
-  const { data, error } = await supabase.from("doctor_specialties").update(update).eq("id", id).select(SPECIALTY_COLUMNS).single();
-  if (error) throw error;
-  return toSpecialty(data as SpecialtyRow);
+/** Takes the full current specialty (not just its id) so an offline save
+ * can upsert a complete row — a bare patch can't stand in for a row that
+ * may not have reached Supabase yet. */
+export async function renameDoctorSpecialty(specialty: DoctorSpecialty, patch: DoctorSpecialtyPatch): Promise<DoctorSpecialty> {
+  const myUserId = await currentUserId();
+  if (!myUserId) throw new Error("Sign in first.");
+  const next: DoctorSpecialty = {
+    ...specialty,
+    name: patch.name !== undefined ? patch.name.trim() : specialty.name,
+    icon: patch.icon !== undefined ? patch.icon : specialty.icon,
+    color: patch.color !== undefined ? patch.color : specialty.color,
+  };
+  await upsertDirect(myUserId, "doctor_specialties", next.id, specialtyPayload(next, myUserId));
+  return next;
 }
 
-export async function setDoctorSpecialtyArchived(id: string, archived: boolean): Promise<DoctorSpecialty> {
-  if (!supabase) throw notConfigured();
-  const { data, error } = await supabase
-    .from("doctor_specialties")
-    .update({ is_archived: archived, updated_at: new Date().toISOString() })
-    .eq("id", id)
-    .select(SPECIALTY_COLUMNS)
-    .single();
-  if (error) throw error;
-  return toSpecialty(data as SpecialtyRow);
+export async function setDoctorSpecialtyArchived(specialty: DoctorSpecialty, archived: boolean): Promise<DoctorSpecialty> {
+  const myUserId = await currentUserId();
+  if (!myUserId) throw new Error("Sign in first.");
+  const next = { ...specialty, isArchived: archived };
+  await upsertDirect(myUserId, "doctor_specialties", next.id, specialtyPayload(next, myUserId));
+  return next;
 }
 
 export async function deleteDoctorSpecialty(id: string): Promise<void> {
-  if (!supabase) return;
-  const { error } = await supabase.from("doctor_specialties").delete().eq("id", id);
-  if (error) throw error;
+  const myUserId = await currentUserId();
+  if (!myUserId) return;
+  await deleteDirect(myUserId, "doctor_specialties", id);
 }
 
 /** Materializes a real row for every default specialty plus any requested
@@ -226,17 +243,32 @@ export interface NewDoctorInput {
   language: DoctorLanguage | null;
 }
 
+function doctorPayload(d: Doctor, userId: string): Record<string, unknown> {
+  return {
+    id: d.id,
+    user_id: userId,
+    name: d.name.trim(),
+    specialty: d.specialty.trim(),
+    rating: d.rating,
+    language: d.language,
+    created_at: d.createdAt,
+    updated_at: new Date().toISOString(),
+  };
+}
+
 export async function createDoctor(input: NewDoctorInput): Promise<Doctor> {
-  if (!supabase) throw notConfigured();
   const myUserId = await currentUserId();
   if (!myUserId) throw new Error("Sign in first.");
-  const { data, error } = await supabase
-    .from("doctors")
-    .insert({ user_id: myUserId, name: input.name.trim(), specialty: input.specialty.trim(), rating: input.rating, language: input.language })
-    .select(DOCTOR_COLUMNS)
-    .single();
-  if (error) throw error;
-  return toDoctor(data as DoctorRow);
+  const d: Doctor = {
+    id: createTimeOrderedId(),
+    name: input.name.trim(),
+    specialty: input.specialty.trim(),
+    rating: input.rating,
+    language: input.language,
+    createdAt: new Date().toISOString(),
+  };
+  await upsertDirect(myUserId, "doctors", d.id, doctorPayload(d, myUserId));
+  return d;
 }
 
 export interface DoctorPatch {
@@ -246,24 +278,29 @@ export interface DoctorPatch {
   language?: DoctorLanguage | null;
 }
 
-export async function updateDoctor(id: string, patch: DoctorPatch): Promise<Doctor> {
-  if (!supabase) throw notConfigured();
-  const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
-  if (patch.name !== undefined) update.name = patch.name.trim();
-  if (patch.specialty !== undefined) update.specialty = patch.specialty.trim();
-  if (patch.rating !== undefined) update.rating = patch.rating;
-  if (patch.language !== undefined) update.language = patch.language;
-  const { data, error } = await supabase.from("doctors").update(update).eq("id", id).select(DOCTOR_COLUMNS).single();
-  if (error) throw error;
-  return toDoctor(data as DoctorRow);
+/** Takes the full current doctor so an offline save can upsert a complete
+ * row (see `renameDoctorSpecialty`). */
+export async function updateDoctor(doctor: Doctor, patch: DoctorPatch): Promise<Doctor> {
+  const myUserId = await currentUserId();
+  if (!myUserId) throw new Error("Sign in first.");
+  const next: Doctor = {
+    ...doctor,
+    name: patch.name !== undefined ? patch.name.trim() : doctor.name,
+    specialty: patch.specialty !== undefined ? patch.specialty.trim() : doctor.specialty,
+    rating: patch.rating !== undefined ? patch.rating : doctor.rating,
+    language: patch.language !== undefined ? patch.language : doctor.language,
+  };
+  await upsertDirect(myUserId, "doctors", next.id, doctorPayload(next, myUserId));
+  return next;
 }
 
-/** Only succeeds for a doctor with no appointments — the `on delete
- * restrict` FK blocks the rest, surfaced to the caller. */
+/** Only offered in the UI for a doctor with no appointments — the `on
+ * delete restrict` FK blocks the rest (surfaced as a dead-letter if it
+ * somehow slips through while queued offline). */
 export async function deleteDoctor(id: string): Promise<void> {
-  if (!supabase) return;
-  const { error } = await supabase.from("doctors").delete().eq("id", id);
-  if (error) throw error;
+  const myUserId = await currentUserId();
+  if (!myUserId) return;
+  await deleteDirect(myUserId, "doctors", id);
 }
 
 // --- Appointments ---------------------------------------------------

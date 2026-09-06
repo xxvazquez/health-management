@@ -340,7 +340,7 @@ function DoctorSpecialtiesCard({ isDemoData, searchQuery }: { isDemoData: boolea
       const existing = findRow(fresh, name);
       if (existing) {
         if (existing.isArchived) {
-          const updated = await setDoctorSpecialtyArchived(existing.id, false);
+          const updated = await setDoctorSpecialtyArchived(existing, false);
           setRows((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
         }
         return;
@@ -360,7 +360,7 @@ function DoctorSpecialtiesCard({ isDemoData, searchQuery }: { isDemoData: boolea
     await run(async (fresh) => {
       const row = findRow(fresh, name);
       if (!row) return;
-      const updated = await renameDoctorSpecialty(row.id, { name: next });
+      const updated = await renameDoctorSpecialty(row, { name: next });
       setRows((prev) => prev.map((r) => (r.id === row.id ? updated : r)));
     });
   }
@@ -373,7 +373,7 @@ function DoctorSpecialtiesCard({ isDemoData, searchQuery }: { isDemoData: boolea
     await run(async (fresh) => {
       const row = findRow(fresh, name);
       if (!row) return;
-      const updated = await renameDoctorSpecialty(row.id, patch);
+      const updated = await renameDoctorSpecialty(row, patch);
       setRows((prev) => prev.map((r) => (r.id === row.id ? updated : r)));
     });
   }
@@ -386,7 +386,7 @@ function DoctorSpecialtiesCard({ isDemoData, searchQuery }: { isDemoData: boolea
     await run(async (fresh) => {
       const row = findRow(fresh, name);
       if (!row) return;
-      const updated = await setDoctorSpecialtyArchived(row.id, archived);
+      const updated = await setDoctorSpecialtyArchived(row, archived);
       setRows((prev) => prev.map((r) => (r.id === row.id ? updated : r)));
     });
   }
