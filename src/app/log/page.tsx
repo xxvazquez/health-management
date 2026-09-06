@@ -543,8 +543,8 @@ export default function LogPage() {
   );
 
   // The whole tab bar as data — the seven tracking domains, each dropping
-  // out when hidden from Manage. (Journal / private notes / reminders /
-  // expiry moved to their own /personal page.)
+  // out when hidden from Settings. (Journal and private notes are their own
+  // Notes area; reminders and expiry are on Agenda.)
   const logTabs = useMemo(() => {
     const all: { id: LogTab; label: string; accent: string; domain?: TrackedDomain }[] = [
       ...TABS.map((t) => ({ id: t.type as LogTab, label: t.label, accent: TYPE_ACCENT[t.type], domain: t.type })),
@@ -554,6 +554,7 @@ export default function LogPage() {
     ];
     return all.filter((t) => !t.domain || !isHidden(t.domain));
   }, [isHidden]);
+  const tabAccent = logTabs.find((t) => t.id === tab)?.accent ?? "var(--baseline)";
 
   // For the Food tab specifically, a chip's checkmark reflects whether it
   // was logged for the *currently selected meal*, not the whole day — so
@@ -1809,7 +1810,7 @@ export default function LogPage() {
                     onClick={(e) => e.currentTarget.showPicker?.()}
                     className="h-7 rounded-md border px-2.5 text-xs font-medium tabular-nums outline-none transition-colors"
                     style={{
-                      borderColor: timeIsExplicit ? "var(--series-2)" : "var(--border-hairline)",
+                      borderColor: timeIsExplicit ? tabAccent : "var(--border-hairline)",
                       background: "var(--surface-1)",
                       color: "var(--text-primary)",
                     }}
@@ -2231,7 +2232,7 @@ export default function LogPage() {
                         entry.mealTag && (
                           <span
                             className="self-start rounded px-1.5 py-0.5 text-xs font-medium whitespace-nowrap"
-                            style={{ background: "color-mix(in oklab, var(--series-2) 14%, var(--surface-1))", color: "var(--series-2)" }}
+                            style={{ background: `color-mix(in oklab, ${accent} 14%, var(--surface-1))`, color: accent }}
                           >
                             {entry.mealTag}
                           </span>
@@ -2242,7 +2243,7 @@ export default function LogPage() {
                           disabled={busy}
                           onChange={(e) => void handleChangeEntryMeal(entry, e.target.value)}
                           className="w-full rounded px-1.5 py-0.5 text-xs font-medium whitespace-nowrap outline-none disabled:opacity-40"
-                          style={{ background: "color-mix(in oklab, var(--series-2) 14%, var(--surface-1))", color: "var(--series-2)", border: "none" }}
+                          style={{ background: `color-mix(in oklab, ${accent} 14%, var(--surface-1))`, color: accent, border: "none" }}
                         >
                           <option value="" disabled>
                             {entry.itemType === "supplement" ? "set time" : "set meal"}
