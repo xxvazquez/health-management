@@ -1,7 +1,7 @@
 import type { WishlistCategory } from "@/lib/supabase/wishlist";
 import { DEMO_HOME_ME_ID, DEMO_HOME_PARTNER_ID } from "@/lib/demoHousehold";
 
-/** Example wishlist for the Household page when signed out — interactive,
+/** Example wishlist for the Notes area's Wishlist tab when signed out — interactive,
  * in-memory only, nothing saved. Same idea as demoHousehold.ts. */
 const DAY = 24 * 60 * 60 * 1000;
 const iso = (msOffset: number) => new Date(Date.now() + msOffset).toISOString();

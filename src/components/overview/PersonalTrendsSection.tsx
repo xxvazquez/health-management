@@ -14,7 +14,7 @@ function lagPhrase(lagDays: number): string {
 }
 
 /**
- * Overview's "Personal Trends" — a short, descriptive list of what's
+ * The Trends → Overview tab's cross-domain summary — a short, descriptive list of what's
  * changed recently across every domain (`trends`) and what stands out
  * cross-domain (`findings`). Deliberately no charts here — a handful of
  * sentences, capped short by the aggregations themselves, never a dashboard.

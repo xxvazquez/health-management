@@ -8,7 +8,7 @@ import clsx from "clsx";
  * pages (Overview, Manage, Help, My Drive) take the neutral default. The
  * rule spans the whole block so the subtitle lines up under the heading.
  *
- * `DashboardHeader` (analytics) and `BoardPage` (Personal/Household) render
+ * `DashboardHeader` (Trends) and `BoardPage` (Notes) render
  * this same block — keep the three in step.
  */
 export function PageHeading({

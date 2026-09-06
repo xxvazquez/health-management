@@ -21,7 +21,7 @@ const EVIDENCE_TYPE_LABEL: Record<EvidenceType, string> = {
 };
 
 /**
- * The research behind Food Analytics' recommendations, moved here so the
+ * The research behind the Food dashboard's recommendations, moved here so the
  * analytics page itself stays citation-free — this is the one place PubMed
  * IDs, DOIs, and study details are meant to be read. Reuses the same
  * EVIDENCE_RECORDS the recommendation engine's `evidenceId` fields point

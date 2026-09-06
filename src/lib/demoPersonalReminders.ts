@@ -1,7 +1,7 @@
 import type { ExpirationItem, TaskItem } from "@/lib/reminders";
 import type { PersonalNote, ReminderList } from "@/lib/supabase/personalReminders";
 
-/** Example data for the Personal Reminders page when signed out — same
+/** Example data for Agenda's personal reminders / expiry when signed out — same
  * idea as demoNotes.ts, scoped to this one page (no offline/local-only
  * mode, so there's nothing real to show until you're signed in). */
 const DAY = 24 * 60 * 60 * 1000;

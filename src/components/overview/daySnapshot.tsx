@@ -1,12 +1,11 @@
 import { buildDayStory, type DayStoryEntry } from "@/lib/aggregations/myDay";
 import { groupIntoPeriodRuns, currentCycleStatus } from "@/lib/aggregations/cycle";
-import { DOMAIN_ACCENT } from "./domainStyle";
+import { DOMAIN_ACCENT, type ActivityDomain } from "./domainStyle";
 import type { CanonicalEvent, RawWorkoutLog, RawPeriodLog, WorkoutUnit } from "@/lib/types";
-import type { ActivityDomain } from "@/lib/aggregations/activity";
 
 /** A note reduced to just what a day's timeline needs to show it inline
- * alongside meals/exercise/symptoms — built by the Overview page from
- * whatever note threads it already fetched, so nothing in this module (or
+ * alongside meals/exercise/symptoms — built by the Trends Overview tab
+ * from whatever note threads it already fetched, so nothing in this module (or
  * myDay.ts underneath it) has to know Notes lives in Supabase, not the
  * offline cache. */
 export interface DayNoteSummary {

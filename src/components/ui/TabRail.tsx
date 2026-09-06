@@ -19,7 +19,7 @@ export interface TabRailItem<T extends string = string> {
 const LONG_PRESS_MS = 500;
 
 /** The app's one secondary-navigation shape: underlined text tabs that swap
- * the surface below (Log's domains, the Personal/Household boards, the
+ * the surface below (Log's domains, the Notes boards, the
  * Doctors sections, the Analytics domain and section switchers).
  *
  * By default wraps to more rows on a narrow screen so no tab is hidden

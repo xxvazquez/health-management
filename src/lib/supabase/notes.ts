@@ -151,10 +151,9 @@ export async function fetchNoteThreads(view: NoteView): Promise<NoteThread[]> {
 }
 
 /** One specific thread by its root id, regardless of which of the four
- * tabs it'd normally show up under — for a deep link (e.g. Overview's
- * Partner Notes preview links straight to `/notes?thread=<id>`) that has
- * to resolve a thread without knowing or caring whether it's currently in
- * Inbox, Sent, Favourites, or Archived. RLS still applies as normal (only
+ * tabs it'd normally show up under — for a deep link (`/notes?thread=<id>`)
+ * that has to resolve a thread without knowing or caring whether it's
+ * currently in Inbox, Sent, Favourites, or Archived. RLS still applies as normal (only
  * a participant's own query returns anything), so this can't leak a
  * thread that `fetchNoteThreads` wouldn't eventually surface anyway. */
 export async function fetchNoteThread(id: string): Promise<NoteThread | null> {

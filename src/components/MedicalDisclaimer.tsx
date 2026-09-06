@@ -3,10 +3,10 @@
 import { usePathname } from "next/navigation";
 
 /** The "not medical advice" line — shown only where the app is actually
- * interpreting data (Overview, Analytics), not on data-entry or utility
- * pages where it's just perpetual noise. Client component so it can read
- * the route. */
-const SHOW_ON = ["/overview", "/analytics"];
+ * interpreting data for you (Trends and Health, where markers get flagged
+ * and patterns get named), not on data-entry or utility pages where it's
+ * just perpetual noise. Client component so it can read the route. */
+const SHOW_ON = ["/analytics", "/medical"];
 
 export function MedicalDisclaimer() {
   const pathname = usePathname();

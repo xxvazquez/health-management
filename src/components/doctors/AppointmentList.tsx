@@ -10,7 +10,7 @@ import { AppointmentForm } from "./AppointmentForm";
 type DoctorsApi = ReturnType<typeof useDoctors>;
 
 /** A history list of appointment cards with a shared inline edit form —
- * used by the Appointments tab and by both history views. */
+ * used by Visits and by both doctor / specialty history views. */
 export function AppointmentList({
   api,
   appointments,
