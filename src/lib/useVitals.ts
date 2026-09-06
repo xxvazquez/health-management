@@ -18,8 +18,8 @@ import {
 } from "@/lib/supabase/vitals";
 import { buildDemoBloodPressure, buildDemoWeight } from "@/lib/demoVitals";
 
-/** Module-level cache so the Medical → Vitals tab and the Blood analytics
- * dashboard share one vitals state across client-side navigation — same
+/** Module-level cache so the Health → Vitals tab and the Results tab's
+ * overview share one vitals state across client-side navigation — same
  * pattern as useLabs / useCareLog. Keyed by user id, cleared on sign-out. */
 let cache: { userId: string; bp: BloodPressureReading[]; weight: WeightReading[] } | null = null;
 

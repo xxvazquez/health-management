@@ -152,12 +152,4 @@ export const TAB_ICON: Record<string, ReactNode> = {
       <path d="M2.5 10.5h3.2l1.6-3.8 2.6 6.6 1.9-4.4 1.1 2h4.6" />
     </TabIconWrap>
   ),
-  // Analytics "Blood" tab — a drop over a trend, distinct from the Medical
-  // "Results" tab's plain trend line.
-  labs: (
-    <TabIconWrap>
-      <path d="M10 3.4c-2.4 3.6-4.4 6-4.4 8.2a4.4 4.4 0 0 0 8.8 0c0-.9-.3-1.9-.9-3" />
-      <path d="M9 15.5 12 12l1.8 1.5 3.2-3.5" />
-    </TabIconWrap>
-  ),
 };

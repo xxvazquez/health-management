@@ -1,6 +1,6 @@
 import type { BloodPressureReading, WeightReading } from "@/lib/supabase/vitals";
 
-/** Example vitals for the Medical → Vitals tab and the Blood dashboard
+/** Example vitals for the Health → Vitals tab and the Results overview
  * when signed out — interactive, in-memory only, nothing saved. */
 const DAY = 24 * 60 * 60 * 1000;
 const at = (daysAgo: number, hour = 8) => {

@@ -1,5 +1,5 @@
 /** Blood-pressure classification and small vitals helpers — pure, shared
- * by the Medical → Vitals tab and the Blood analytics dashboard. */
+ * by the Health → Vitals tab and the Results tab's overview. */
 
 type BpCategory = "normal" | "elevated" | "stage1" | "stage2" | "crisis";
 
