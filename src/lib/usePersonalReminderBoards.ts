@@ -5,28 +5,23 @@ import { useAuth } from "@/lib/supabase/AuthContext";
 import {
   completePersonalTask,
   createPersonalItem,
-  createPersonalNote,
   createPersonalTask,
   createReminderList,
   deletePersonalItem,
-  deletePersonalNote,
   deletePersonalTask,
   deleteReminderList,
   fetchPersonalItems,
-  fetchPersonalNotes,
   fetchPersonalTasks,
   fetchReminderLists,
   renameReminderList,
   setPersonalTaskArchived,
   uncompletePersonalTask,
   updatePersonalItem,
-  updatePersonalNote,
   updatePersonalTask,
   type PersonalItem,
-  type PersonalNote,
   type ReminderList,
 } from "@/lib/supabase/personalReminders";
-import { buildDemoPersonalItems, buildDemoPersonalNotes, buildDemoPersonalTasks, buildDemoReminderLists } from "@/lib/demoPersonalReminders";
+import { buildDemoPersonalItems, buildDemoPersonalTasks, buildDemoReminderLists } from "@/lib/demoPersonalReminders";
 import { isRecurringTask, nextRecurringDueAt, type TaskItem } from "@/lib/reminders";
 import type { TaskFormValues } from "@/components/reminders/TaskBoard";
 
@@ -34,22 +29,17 @@ import type { TaskFormValues } from "@/components/reminders/TaskBoard";
  * re-flash "Loading…" — the fetch still re-runs in the background to stay
  * fresh, it just doesn't blank what's already on screen. Keyed by user id
  * so an account switch starts clean; cleared on sign-out. */
-let cache: { userId: string; notes: PersonalNote[]; tasks: TaskItem[]; items: PersonalItem[]; lists: ReminderList[] } | null = null;
+let cache: { userId: string; tasks: TaskItem[]; items: PersonalItem[]; lists: ReminderList[] } | null = null;
 
-/** All the state + handlers behind the Log page's Notes / Reminders /
- * Expiration tabs — the private counterpart to Home's own (inline)
- * household board wiring. Signed out shows interactive example data that
- * lives only in local state (nothing is saved), same stance every other
- * signed-out surface in the app takes. */
+/** All the state + handlers behind Agenda's personal reminders and
+ * product-expiry (the private counterpart to `useHouseholdReminderBoards`).
+ * Signed out shows interactive example data that lives only in local state
+ * (nothing is saved), same stance every other signed-out surface takes. */
 export function usePersonalReminderBoards() {
   const { session, loading: authLoading } = useAuth();
   const userId = session?.user?.id ?? null;
   const isDemo = !authLoading && !session;
   const seed = cache && cache.userId === userId ? cache : null;
-
-  const [notes, setNotes] = useState<PersonalNote[]>(() => seed?.notes ?? buildDemoPersonalNotes());
-  const [notesLoading, setNotesLoading] = useState(seed === null);
-  const [notesError, setNotesError] = useState(false);
 
   const [tasks, setTasks] = useState<TaskItem[]>(() => seed?.tasks ?? buildDemoPersonalTasks());
   const [tasksLoading, setTasksLoading] = useState(seed === null);
@@ -64,18 +54,6 @@ export function usePersonalReminderBoards() {
   // The load* functions never set *Loading true — the initial state already
   // reflects "loading iff nothing cached", and a background refresh must
   // not blank a screen that already has content.
-  const loadNotes = useCallback(async () => {
-    setNotesError(false);
-    try {
-      setNotes(await fetchPersonalNotes());
-    } catch (err) {
-      console.error("fetchPersonalNotes failed", err);
-      setNotesError(true);
-    } finally {
-      setNotesLoading(false);
-    }
-  }, []);
-
   const loadTasks = useCallback(async () => {
     setTasksError(false);
     try {
@@ -115,10 +93,10 @@ export function usePersonalReminderBoards() {
       cache = null;
       return;
     }
-    if (!notesLoading && !tasksLoading && !itemsLoading) {
-      cache = { userId, notes, tasks, items, lists };
+    if (!tasksLoading && !itemsLoading) {
+      cache = { userId, tasks, items, lists };
     }
-  }, [userId, isDemo, notes, tasks, items, lists, notesLoading, tasksLoading, itemsLoading]);
+  }, [userId, isDemo, tasks, items, lists, tasksLoading, itemsLoading]);
 
   useEffect(() => {
     // Wait for auth to resolve — otherwise this fires while authLoading is
@@ -127,51 +105,12 @@ export function usePersonalReminderBoards() {
     if (authLoading || isDemo) return;
     // External read on mount, not a state-sync loop.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    void loadNotes();
     void loadTasks();
     void loadItems();
     void loadLists();
     // `userId` in the deps so an account switch refetches (isDemo alone
     // stays false across one signed-in user swapping for another).
-  }, [authLoading, isDemo, userId, loadNotes, loadTasks, loadItems, loadLists]);
-
-  // --- Notes ---
-  const createNote = useCallback(
-    async (title: string, body: string) => {
-      if (isDemo) {
-        const now = new Date().toISOString();
-        setNotes((prev) => [{ id: `demo-${Date.now()}`, title: title.trim() || null, body: body.trim(), createdAt: now, updatedAt: now }, ...prev]);
-        return;
-      }
-      const created = await createPersonalNote(title, body);
-      setNotes((prev) => [created, ...prev]);
-    },
-    [isDemo],
-  );
-
-  const updateNote = useCallback(
-    async (id: string, title: string, body: string) => {
-      if (isDemo) {
-        setNotes((prev) => prev.map((n) => (n.id === id ? { ...n, title: title.trim() || null, body: body.trim(), updatedAt: new Date().toISOString() } : n)));
-        return;
-      }
-      // updatePersonalNote needs the full current row (not just id) so an
-      // offline save can still upsert a complete record.
-      const existing = notes.find((n) => n.id === id);
-      if (!existing) return;
-      const updated = await updatePersonalNote(existing, title, body);
-      setNotes((prev) => prev.map((n) => (n.id === id ? updated : n)));
-    },
-    [isDemo, notes],
-  );
-
-  const deleteNote = useCallback(
-    async (id: string) => {
-      setNotes((prev) => prev.filter((n) => n.id !== id));
-      if (!isDemo) await deletePersonalNote(id);
-    },
-    [isDemo],
-  );
+  }, [authLoading, isDemo, userId, loadTasks, loadItems, loadLists]);
 
   // --- Lists ---
   // Alphabetical everywhere they show (tab chips, list pickers) — there's no
@@ -340,7 +279,6 @@ export function usePersonalReminderBoards() {
 
   return {
     isDemo,
-    notes: { data: notes, loading: notesLoading, error: notesError, create: createNote, update: updateNote, remove: deleteNote },
     tasks: {
       data: tasks,
       loading: tasksLoading,

@@ -6,7 +6,7 @@
   "scope": "/",
   "display": "standalone",
   "share_target": {
-    "action": "/home/",
+    "action": "/personal/",
     "method": "GET",
     "params": {
       "title": "title",

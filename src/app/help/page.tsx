@@ -15,19 +15,15 @@ const GROUPS: { title: string; items: Entry[] }[] = [
       },
       {
         title: "Agenda",
-        body: "The daily read-back. Today's summary at the top, then a recent-activity feed, a few personal trends, anything expiring soon, and a weekly or monthly review.",
+        body: "What needs your attention, ordered by when it matters — Overdue, Today, Tomorrow, the next 7 days, then later. Reminders, expiring products and upcoming appointments sit together; type, scope and list are filters. A short read-back of today and a weekly or monthly review sit below.",
       },
       {
         title: "Notes",
-        body: "Your own journal, plain notes, reminders and product-expiry tracking — the things you write once and come back to.",
+        body: "The things you write once and come back to: a journal, quick notes, a wishlist of saved links, and a shared list of discount codes. A quick note is private until you share it with a linked partner.",
       },
       {
         title: "Health",
         body: "Everything about doctor visits in one place: a history log of visits you've already had (not a scheduler), a dated care Log of observations, your blood and lab Results, the reusable doctors and specialties behind them, and outstanding follow-ups.",
-      },
-      {
-        title: "Household",
-        body: "The same notes, reminders and expiry, plus a shared list of discount codes, kept with a linked partner. Once linked, everything here is visible to both of you and either can act on it. Reached from the account menu.",
       },
       {
         title: "Trends",
@@ -39,7 +35,7 @@ const GROUPS: { title: string; items: Entry[] }[] = [
       },
       {
         title: "Messages",
-        body: "Private one-to-one messaging with your linked partner. Star a thread to favourite it for both of you.",
+        body: "Private one-to-one messaging with your linked partner. Appears in the navigation once a partner is linked. Star a thread to favourite it for both of you.",
       },
     ],
   },
@@ -123,7 +119,7 @@ const GROUPS: { title: string; items: Entry[] }[] = [
       },
       {
         title: "Shared codes",
-        body: "A Household list of discount and promo codes — the code, a shop or short name, an optional comment, an optional expiry date. Add by typing or by voice, tap a code to copy it, search and sort. A code with an expiry date drops off on its own once that date passes.",
+        body: "The Codes tab under Notes — discount and promo codes with the code, a shop or short name, an optional comment, an optional expiry date. Shared with a linked partner. Add by typing or by voice, tap a code to copy it, search and sort. A code with an expiry date drops off on its own once that date passes.",
       },
     ],
   },
@@ -132,7 +128,7 @@ const GROUPS: { title: string; items: Entry[] }[] = [
     items: [
       {
         title: "Linking with a partner",
-        body: "Open Messages, then either generate an invite code to send your partner or enter one they sent you. Only one of you needs to. Everything under Household then becomes shared.",
+        body: "Open the account menu and choose \"Link a partner\", then either generate an invite code to send your partner or enter one they sent you. Only one of you needs to. Messages then appears in the navigation, and you can share individual quick notes; the wishlist and codes lists become shared too.",
       },
       {
         title: "Notifications",

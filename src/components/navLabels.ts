@@ -4,9 +4,10 @@
  *
  * Most routes keep their old URLs through the restructure and only the
  * display name changes (`/analytics` → "Trends", `/medical` → "Health",
- * `/personal` → "Notes"). Agenda is the exception — it lives at `/agenda`,
- * with `/overview` redirecting. `/home` (Household) and the account-menu
- * utilities keep their names until their step. */
+ * `/personal` → "Notes"). Agenda lives at `/agenda` (`/overview`
+ * redirects); the Notes area lives at `/personal` and absorbs `/home`
+ * (which redirects). Messages (`/notes`) is a primary nav item, shown only
+ * when a partner is linked. */
 export const NAV_LABEL: Record<string, string> = {
   "/log": "Log",
   "/agenda": "Agenda",
@@ -14,8 +15,8 @@ export const NAV_LABEL: Record<string, string> = {
   "/analytics": "Trends",
   "/medical": "Health",
   "/personal": "Notes",
+  "/home": "Notes",
   "/notes": "Messages",
-  "/home": "Household",
   "/manage": "Settings",
   "/my-drive": "Google Drive",
   "/help": "Help",

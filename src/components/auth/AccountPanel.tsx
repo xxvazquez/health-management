@@ -2,17 +2,15 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/supabase/AuthContext";
 import { useData } from "@/lib/DataContext";
 import { usePartnerLinked } from "@/lib/usePartnerLinked";
-import { useUnreadNoteCount } from "@/lib/useUnreadNoteCount";
 import { relativeTime } from "@/lib/relativeTime";
 import { useDialogA11y } from "@/components/ui/useDialogA11y";
 import { Button } from "@/components/ui/Button";
 
-/** A row in the account menu's utility list, with an optional trailing count. */
-function MenuLink({ href, onClick, badge, children }: { href: string; onClick: () => void; badge?: number; children: React.ReactNode }) {
+/** A row in the account menu's utility list. */
+function MenuLink({ href, onClick, children }: { href: string; onClick: () => void; children: React.ReactNode }) {
   return (
     <Link
       href={href}
@@ -21,14 +19,6 @@ function MenuLink({ href, onClick, badge, children }: { href: string; onClick: (
       style={{ color: "var(--text-secondary)" }}
     >
       {children}
-      {badge != null && badge > 0 && (
-        <span
-          className="ml-auto flex h-4.5 min-w-4.5 items-center justify-center rounded-full px-1 text-xs font-semibold text-white tabular-nums"
-          style={{ background: "var(--series-magenta)" }}
-        >
-          {badge > 99 ? "99+" : badge}
-        </span>
-      )}
     </Link>
   );
 }
@@ -48,8 +38,6 @@ export function AccountPanel() {
   const { configured, session, panelOpen, closePanel, error, signIn, signUp, signOut, sendPasswordReset } = useAuth();
   const { syncing, lastSyncedAt, isOnline, syncNow, syncState } = useData();
   const partnerLinked = usePartnerLinked();
-  const pathname = usePathname();
-  const unread = useUnreadNoteCount(pathname);
   const [mode, setMode] = useState<"signIn" | "signUp" | "reset">("signIn");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -125,11 +113,11 @@ export function AccountPanel() {
         </div>
 
         <nav className="flex flex-col gap-0.5 border-b pb-3" style={{ borderColor: "var(--border-hairline)" }}>
-          {partnerLinked && (
-            // Transitional — Messages returns to the primary nav in Step 3
-            // (once Household folds into Notes and frees its slot).
-            <MenuLink href="/notes" onClick={closePanel} badge={unread}>
-              Messages
+          {session && !partnerLinked && (
+            // The one place a solo user can reach the partner-link flow —
+            // Messages only enters the nav once a partner is linked.
+            <MenuLink href="/notes" onClick={closePanel}>
+              Link a partner
             </MenuLink>
           )}
           <MenuLink href="/manage" onClick={closePanel}>
