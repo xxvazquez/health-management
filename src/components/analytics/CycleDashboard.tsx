@@ -54,7 +54,6 @@ export function CycleDashboard() {
   return (
     <div className="flex flex-col gap-6">
       <DashboardHeader
-        accent="var(--series-4)"
         subtitle={
           <>
             Patterns from what you&apos;ve logged — head to the{" "}

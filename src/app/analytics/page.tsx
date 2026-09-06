@@ -27,7 +27,7 @@ const TABS: { id: string; label: string; domain?: TrackedDomain; accent: string;
   { id: "food", label: "Food", domain: "food", accent: TYPE_ACCENT.food, Component: FoodDashboard, hasSections: true },
   { id: "supplements", label: "Supplements", domain: "supplement", accent: TYPE_ACCENT.supplement, Component: SupplementsDashboard },
   { id: "habits", label: "Habits", domain: "habit", accent: TYPE_ACCENT.habit, Component: HabitsDashboard },
-  { id: "digestion", label: "Digestion", domain: "stool", accent: "var(--series-indigo)", Component: DigestionDashboard },
+  { id: "digestion", label: "Stool", domain: "stool", accent: "var(--series-indigo)", Component: DigestionDashboard },
   { id: "workout", label: "Workout", domain: "workout", accent: TYPE_ACCENT.workout, Component: WorkoutDashboard },
   { id: "cycle", label: "Cycle", domain: "cycle", accent: "var(--series-4)", Component: CycleDashboard },
   { id: "patterns", label: "Patterns", domain: "outcome", accent: "var(--series-berry)", Component: PatternsDashboard },

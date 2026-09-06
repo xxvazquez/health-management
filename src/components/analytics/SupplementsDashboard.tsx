@@ -44,7 +44,7 @@ export function SupplementsDashboard() {
 
   return (
     <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-2">
-      <DashboardHeader accent="var(--series-2)" className="lg:col-span-2">
+      <DashboardHeader className="lg:col-span-2">
         Supplements
       </DashboardHeader>
 

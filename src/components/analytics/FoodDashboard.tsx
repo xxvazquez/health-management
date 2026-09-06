@@ -372,7 +372,7 @@ export function FoodDashboard() {
   return (
     <div className="flex flex-col gap-2">
       <div>
-        <DashboardHeader accent={TYPE_ACCENT.food}>Food</DashboardHeader>
+        <DashboardHeader>Food</DashboardHeader>
       </div>
 
       {span && range && (
