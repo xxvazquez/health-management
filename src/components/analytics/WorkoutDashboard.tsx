@@ -401,20 +401,15 @@ export function WorkoutDashboard() {
 
       {stats.length > 0 && <ProgressSection sortedStats={sortedStats} selectedStats={selectedStats} onSelect={setCompareExercise} />}
 
-      <div className="lg:col-span-2">
+      <div className="flex flex-wrap items-center justify-between gap-3 lg:col-span-2">
         <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
           Training patterns
+          <span className="ml-2 text-xs font-normal" style={{ color: "var(--text-muted)" }}>
+            {rangeLabel}
+          </span>
         </p>
+        {span && range && <DateRangeFilter span={span} value={range} onChange={setRange} accent={ACCENT} />}
       </div>
-
-      {span && range && (
-        <div className="flex flex-wrap items-center justify-between gap-3 lg:col-span-2">
-          <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-            Showing <span style={{ color: "var(--text-secondary)" }}>{rangeLabel}</span> — affects the two charts below only
-          </p>
-          <DateRangeFilter span={span} value={range} onChange={setRange} accent={ACCENT} />
-        </div>
-      )}
 
       <Card tier="raw">
         <CardTitle size="sm" subtitle="Any day at least one lift was logged, by month, in this range">Training frequency</CardTitle>

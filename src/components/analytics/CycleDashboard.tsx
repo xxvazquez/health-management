@@ -94,31 +94,23 @@ export function CycleDashboard() {
       ) : (
         <>
           {span && range && (
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-                Showing <span style={{ color: "var(--text-secondary)" }}>{rangeLabel}</span> — affects everything below
-              </p>
+            <div className="flex justify-end">
               <DateRangeFilter span={span} value={range} onChange={setRange} accent={ACCENT} />
             </div>
           )}
 
-          <Card tier="raw">
-            <CardTitle size="sm" subtitle={`Based on your last ${analysis.cyclesAnalyzed || 0} recorded cycle${analysis.cyclesAnalyzed === 1 ? "" : "s"} in this range — an estimate, not a guarantee`}>
-              Cycle statistics
-            </CardTitle>
-            {analysis.cyclesAnalyzed === 0 ? (
-              <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-                Record at least two periods in this range to see cycle statistics.
-              </p>
-            ) : (
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                <StatTile label="Last cycle" value={String(analysis.lastCycleLength)} detail="days" />
-                <StatTile label="Average cycle" value={String(analysis.averageCycleLength)} detail="days" />
-                <StatTile label="Cycle variation" value={`± ${analysis.cycleLengthVariation ?? 0}`} detail="days" />
-                <StatTile label="Average period" value={String(analysis.averagePeriodLength)} detail="days" />
-              </div>
-            )}
-          </Card>
+          {analysis.cyclesAnalyzed === 0 ? (
+            <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+              Record at least two periods in {rangeLabel === "all time" ? "your history" : "this range"} to see cycle statistics.
+            </p>
+          ) : (
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <StatTile label="Last cycle" value={String(analysis.lastCycleLength)} detail="days" accent={ACCENT} />
+              <StatTile label="Average cycle" value={String(analysis.averageCycleLength)} detail="days" />
+              <StatTile label="Cycle variation" value={`± ${analysis.cycleLengthVariation ?? 0}`} detail="days" />
+              <StatTile label="Average period" value={String(analysis.averagePeriodLength)} detail="days" />
+            </div>
+          )}
 
           <Card tier="raw">
             <CardTitle size="sm" subtitle="Days between one period's start and the next, over time">

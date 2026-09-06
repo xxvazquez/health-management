@@ -39,9 +39,13 @@ export function SupplementsDashboard() {
 
   return (
     <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-2">
-      <DashboardHeader className="lg:col-span-2">
-        Supplements
-      </DashboardHeader>
+      <DashboardHeader className="lg:col-span-2">Supplements</DashboardHeader>
+
+      {span && range && (
+        <div className="flex justify-end lg:col-span-2">
+          <DateRangeFilter span={span} value={range} onChange={setRange} accent={TYPE_ACCENT.supplement} />
+        </div>
+      )}
 
       {glance.trackedCount > 0 && (
         <div
@@ -69,12 +73,9 @@ export function SupplementsDashboard() {
         <BulletList title="Running differently than usual" tone="var(--text-muted)" bullets={insight.changed} className="lg:col-span-2" />
       )}
 
-      <div className="flex items-center justify-between gap-3 lg:col-span-2">
-        <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-          Every supplement, biggest change first
-        </p>
-        {span && range && <DateRangeFilter span={span} value={range} onChange={setRange} accent={TYPE_ACCENT.supplement} />}
-      </div>
+      <p className="text-sm font-semibold lg:col-span-2" style={{ color: "var(--text-primary)" }}>
+        Every supplement, biggest change first
+      </p>
 
       {ranked.length > 0 && (
         <Card tier="raw" className="lg:col-span-2">
