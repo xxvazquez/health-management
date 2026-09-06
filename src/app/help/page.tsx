@@ -15,7 +15,7 @@ const GROUPS: { title: string; items: Entry[] }[] = [
       },
       {
         title: "Agenda",
-        body: "What needs your attention, ordered by when it matters — Overdue, Today, Tomorrow, the next 7 days, then later. Reminders, expiring products and upcoming appointments sit together; type, scope and list are filters. A short read-back of today and a weekly or monthly review sit below.",
+        body: "What needs your attention, ordered by when it matters — Overdue, Today, Tomorrow, the next 7 days, then later. Reminders, expiring products and upcoming appointments sit together; type, scope and list are filters. Nothing else — the read-back of your day and trends moved to Trends → Overview.",
       },
       {
         title: "Notes",
@@ -27,7 +27,7 @@ const GROUPS: { title: string; items: Entry[] }[] = [
       },
       {
         title: "Trends",
-        body: "One dashboard per Log area — Food, Supplements, Habits, Stool, Workout, Cycle — plus Patterns, all built automatically from your Log entries. Charts, streaks and patterns over time.",
+        body: "An Overview tab with today's story, what stands out across every domain, and a week/month review, then one dashboard per Log area — Food, Supplements, Habits, Stool, Workout, Cycle — plus Patterns. Built automatically from your Log entries.",
       },
       {
         title: "Settings",

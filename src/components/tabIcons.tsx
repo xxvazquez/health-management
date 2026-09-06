@@ -22,6 +22,16 @@ function TabIconWrap({ children }: { children: ReactNode }) {
 }
 
 export const TAB_ICON: Record<string, ReactNode> = {
+  // Trends "Overview" tab — a 2×2 grid, the same at-a-glance cue the app
+  // used for the old Overview page.
+  overview: (
+    <TabIconWrap>
+      <rect x="3.6" y="3.6" width="5.6" height="5.6" rx="1.1" />
+      <rect x="10.8" y="3.6" width="5.6" height="5.6" rx="1.1" />
+      <rect x="3.6" y="10.8" width="5.6" height="5.6" rx="1.1" />
+      <rect x="10.8" y="10.8" width="5.6" height="5.6" rx="1.1" />
+    </TabIconWrap>
+  ),
   food: (
     <TabIconWrap>
       <path d="M10 8.2A4.8 4.8 0 1 1 10 17.8 4.8 4.8 0 0 1 10 8.2Z" />
