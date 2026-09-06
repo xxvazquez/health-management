@@ -68,10 +68,16 @@ export function CycleDashboard() {
       </DashboardHeader>
 
       {(currentStatus.onPeriod || currentStatus.cycleDay !== null) && (
-        <p className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>
-          {currentStatus.onPeriod ? `Day ${currentStatus.periodDay} of your period` : `Day ${currentStatus.cycleDay} of your cycle`}
-          {daysUntilNext !== null && ` · ${daysUntilNext} day${daysUntilNext === 1 ? "" : "s"} left until your period`}
-        </p>
+        <div className="flex flex-col gap-0.5">
+          <p className="text-2xl font-semibold tracking-tight" style={{ color: ACCENT }}>
+            {currentStatus.onPeriod ? `Day ${currentStatus.periodDay} of your period` : `Day ${currentStatus.cycleDay} of your cycle`}
+          </p>
+          {daysUntilNext !== null && (
+            <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
+              {daysUntilNext} day{daysUntilNext === 1 ? "" : "s"} left until your period
+            </p>
+          )}
+        </div>
       )}
 
       {delayDays !== null && (
