@@ -82,7 +82,11 @@ export default function AnalyticsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeading accent={active.accent}>Trends</PageHeading>
+      {/* Stable neutral rule on the page heading — the per-domain colour
+          lives on the tab rail and the charts (the Log↔Trends mirror),
+          not on the page chrome, which shouldn't flip through eight hues
+          as you switch tabs. */}
+      <PageHeading>Trends</PageHeading>
 
       {/* Sticky on mobile for the plain single-scroll dashboards, so the
           domain switcher stays reachable. On Food it isn't — Food's own
@@ -93,10 +97,9 @@ export default function AnalyticsPage() {
         activeId={active.id}
         onSelect={selectTab}
         className={clsx(
-          "-mx-4 border-b bg-[var(--page-backdrop)] px-4 sm:-mx-6 sm:px-6 lg:sticky lg:top-0 lg:z-20 lg:-mx-8 lg:px-8",
+          "-mx-4 border-b border-[color:var(--border-hairline)] bg-[var(--page-backdrop)] px-4 sm:-mx-6 sm:px-6 lg:sticky lg:top-0 lg:z-20 lg:-mx-8 lg:px-8",
           !active.hasSections && "sticky top-16 z-20",
         )}
-        style={{ borderColor: `color-mix(in oklab, ${active.accent} 22%, var(--border-hairline))` }}
       />
 
       <ActiveDashboard />

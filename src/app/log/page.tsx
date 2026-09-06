@@ -554,7 +554,6 @@ export default function LogPage() {
     ];
     return all.filter((t) => !t.domain || !isHidden(t.domain));
   }, [isHidden]);
-  const activeLogTab = logTabs.find((t) => t.id === tab);
 
   // For the Food tab specifically, a chip's checkmark reflects whether it
   // was logged for the *currently selected meal*, not the whole day — so
@@ -1581,12 +1580,9 @@ export default function LogPage() {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col items-start gap-3 sm:flex-row sm:flex-wrap sm:justify-between">
-        <div
-          className="min-w-0 flex-1 border-l-[3px] pl-2.5"
-          style={{ borderColor: activeLogTab ? activeLogTab.accent : "var(--baseline)" }}
-        >
+        <div className="min-w-0 flex-1 border-l-[3px] pl-2.5" style={{ borderColor: "var(--baseline)" }}>
           <h1 className="text-xl font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
-            {activeLogTab ? activeLogTab.label : "Log"}
+            Log
           </h1>
           {isDemoData && <DemoNotice className="mt-0.5">Example data — log something real to replace it.</DemoNotice>}
         </div>

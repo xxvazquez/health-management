@@ -12,17 +12,18 @@ import { ListSkeleton } from "@/components/ui/Skeleton";
 import { TabRail } from "@/components/ui/TabRail";
 import { DemoNotice } from "@/components/ui/DemoNotice";
 
-const VISITS_ACCENT = "var(--series-2)";
-const RESULTS_ACCENT = "var(--series-6)";
-const VITALS_ACCENT = "var(--series-magenta)";
-const DOCTORS_ACCENT = "var(--series-1)";
+// One hue for the whole Health section — the h1 rule, the tab bar, and
+// every tab's own charts / forms / add button. The tabs here aren't
+// colour-coded concepts the way Log's domains are, so recolouring the
+// page chrome per tab just made it feel like four separate pages.
+const HEALTH_ACCENT = "var(--series-1)";
 
 type MedicalTabId = "visits" | "results" | "vitals" | "doctors";
-const TABS: { id: MedicalTabId; label: string; accent: string }[] = [
-  { id: "visits", label: "Visits", accent: VISITS_ACCENT },
-  { id: "results", label: "Results", accent: RESULTS_ACCENT },
-  { id: "vitals", label: "Vitals", accent: VITALS_ACCENT },
-  { id: "doctors", label: "Doctors", accent: DOCTORS_ACCENT },
+const TABS: { id: MedicalTabId; label: string }[] = [
+  { id: "visits", label: "Visits" },
+  { id: "results", label: "Results" },
+  { id: "vitals", label: "Vitals" },
+  { id: "doctors", label: "Doctors" },
 ];
 
 // Historical key — the page was "Doctors" before it became "Medical"; kept
@@ -86,17 +87,15 @@ export default function MedicalPage() {
     }
   }
 
-  const active = TABS.find((t) => t.id === tab) ?? TABS[0];
-
   return (
     <div className="flex flex-col gap-5">
-      <div className="border-l-[3px] pl-2.5" style={{ borderColor: active.accent }}>
+      <div className="border-l-[3px] pl-2.5" style={{ borderColor: HEALTH_ACCENT }}>
         <h1 className="text-xl font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
           Health
         </h1>
       </div>
 
-      <TabRail items={TABS.map((t) => ({ ...t, icon: TAB_ICON[t.id] }))} activeId={tab} onSelect={selectTab} />
+      <TabRail items={TABS.map((t) => ({ ...t, icon: TAB_ICON[t.id], accent: HEALTH_ACCENT }))} activeId={tab} onSelect={selectTab} />
 
       {api.isDemo && <DemoNotice />}
 
@@ -106,10 +105,10 @@ export default function MedicalPage() {
         <ListSkeleton />
       ) : (
         <>
-          {tab === "visits" && <VisitsTab api={api} accent={VISITS_ACCENT} />}
-          {tab === "results" && <ResultsTab accent={RESULTS_ACCENT} />}
-          {tab === "vitals" && <VitalsTab accent={VITALS_ACCENT} />}
-          {tab === "doctors" && <DoctorsTab api={api} accent={DOCTORS_ACCENT} />}
+          {tab === "visits" && <VisitsTab api={api} accent={HEALTH_ACCENT} />}
+          {tab === "results" && <ResultsTab accent={HEALTH_ACCENT} />}
+          {tab === "vitals" && <VitalsTab accent={HEALTH_ACCENT} />}
+          {tab === "doctors" && <DoctorsTab api={api} accent={HEALTH_ACCENT} />}
         </>
       )}
     </div>
