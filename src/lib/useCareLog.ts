@@ -92,6 +92,7 @@ export function useCareLog() {
 
   const edit = useCallback(
     async (id: string, patch: CareEntryPatch) => {
+      const current = entries.find((e) => e.id === id);
       setEntries((prev) =>
         sortEntries(
           prev.map((e) =>
@@ -108,12 +109,12 @@ export function useCareLog() {
           ),
         ),
       );
-      if (!isDemo) {
-        const updated = await updateCareEntry(id, patch);
+      if (!isDemo && current) {
+        const updated = await updateCareEntry(current, patch);
         setEntries((prev) => sortEntries(prev.map((e) => (e.id === id ? updated : e))));
       }
     },
-    [isDemo],
+    [isDemo, entries],
   );
 
   const remove = useCallback(

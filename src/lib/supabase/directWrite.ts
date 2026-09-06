@@ -41,7 +41,8 @@ async function attemptOrQueue(userId: string, table: string, id: string, op: Out
       delete rest.id;
       ({ error } = await query.update(rest).eq("id", id));
     } else {
-      ({ error } = await query.delete().eq("id", id));
+      const match = (payload as { match?: Record<string, unknown> }).match;
+      ({ error } = match ? await query.delete().match(match) : await query.delete().eq("id", id));
     }
     if (error) serverError = error;
   } catch {
@@ -78,4 +79,19 @@ export function updateDirect(userId: string, table: string, id: string, fullRow:
 
 export function deleteDirect(userId: string, table: string, id: string): Promise<void> {
   return attemptOrQueue(userId, table, id, "delete", { id });
+}
+
+/**
+ * Delete by a column match instead of an id — for a pure join row
+ * (`care_entry_specialties`) that has no surrogate id of its own, only a
+ * composite natural key the caller always knows. The dedupe key is derived
+ * from the match so an offline add-then-remove of the same join row still
+ * cancels out.
+ */
+export function deleteWhereDirect(userId: string, table: string, match: Record<string, string>): Promise<void> {
+  const key = Object.keys(match)
+    .sort()
+    .map((k) => `${k}=${match[k]}`)
+    .join("&");
+  return attemptOrQueue(userId, table, key, "delete", { match });
 }

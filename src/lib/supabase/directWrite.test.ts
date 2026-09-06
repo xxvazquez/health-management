@@ -30,6 +30,11 @@ vi.mock("./client", () => ({
               if (thrown) throw thrown;
               return deleteResult;
             },
+            match: async (m: unknown) => {
+              sentCalls.push({ table, op: "delete", payload: m });
+              if (thrown) throw thrown;
+              return deleteResult;
+            },
           }),
         };
       },
@@ -132,5 +137,22 @@ describe("updateDirect", () => {
     const entries = await entriesFor(`wishlist_items:${id}`);
     expect(entries).toHaveLength(1);
     expect(entries[0]).toMatchObject({ op: "update", payload: { id, owner_id: "partner", title: "shelf" } });
+  });
+});
+
+describe("deleteWhereDirect", () => {
+  it("deletes by a column match and derives a stable dedupe key", async () => {
+    const { deleteWhereDirect } = await import("./directWrite");
+    await deleteWhereDirect("user-9", "care_entry_specialties", { entry_id: "e1", specialty_id: "s1" });
+    expect(sentCalls).toEqual([{ table: "care_entry_specialties", op: "delete", payload: { entry_id: "e1", specialty_id: "s1" } }]);
+    expect(await entriesFor("care_entry_specialties:entry_id=e1&specialty_id=s1")).toHaveLength(0);
+  });
+
+  it("cancels a still-unsent matching join-row insert instead of queuing the delete", async () => {
+    thrown = new TypeError("Failed to fetch");
+    const { upsertDirect, deleteWhereDirect } = await import("./directWrite");
+    await upsertDirect("user-10", "care_entry_specialties", "entry_id=e2&specialty_id=s2", { user_id: "user-10", entry_id: "e2", specialty_id: "s2" });
+    await deleteWhereDirect("user-10", "care_entry_specialties", { entry_id: "e2", specialty_id: "s2" });
+    expect(await entriesFor("care_entry_specialties:entry_id=e2&specialty_id=s2")).toHaveLength(0);
   });
 });
