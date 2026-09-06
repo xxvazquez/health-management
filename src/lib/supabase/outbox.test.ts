@@ -44,6 +44,11 @@ vi.mock("./client", () => ({
               if (thrown) throw thrown;
               return deleteResult;
             },
+            match: async (m: unknown) => {
+              sentCalls.push({ table, op: "delete", payload: m });
+              if (thrown) throw thrown;
+              return deleteResult;
+            },
           }),
         };
       },
@@ -182,6 +187,23 @@ describe("sendOutboxEntry", () => {
     });
     expect(result).toMatchObject({ outcome: "success" });
     expect(sentCalls).toEqual([{ table: "household_notes", op: "update", payload: { owner_id: "partner", title: "T", body: "B" }, id: "n1" }]);
+  });
+
+  it("sends a match-delete as .delete().match(...) when the payload has no id", async () => {
+    const { sendOutboxEntry } = await import("./outbox");
+    await sendOutboxEntry({
+      id: "e1",
+      userId: "user-1",
+      dedupeKey: "care_entry_specialties:entry_id=e1&specialty_id=s1",
+      table: "care_entry_specialties",
+      op: "delete",
+      payload: { match: { entry_id: "e1", specialty_id: "s1" } },
+      attempts: 0,
+      createdAt: Date.now(),
+      nextAttemptAt: Date.now(),
+      status: "pending",
+    });
+    expect(sentCalls).toEqual([{ table: "care_entry_specialties", op: "delete", payload: { entry_id: "e1", specialty_id: "s1" } }]);
   });
 });
 

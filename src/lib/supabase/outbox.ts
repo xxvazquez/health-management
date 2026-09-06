@@ -53,7 +53,8 @@ export async function sendOutboxEntry(entry: OutboxEntry): Promise<SendResult> {
       const { id, ...rest } = entry.payload as Record<string, unknown> & { id: string };
       ({ error } = await query.update(rest).eq("id", id));
     } else {
-      ({ error } = await query.delete().eq("id", (entry.payload as { id: string }).id));
+      const p = entry.payload as { id?: string; match?: Record<string, unknown> };
+      ({ error } = p.match ? await query.delete().match(p.match) : await query.delete().eq("id", p.id as string));
     }
     if (!error) return { outcome: "success" };
     return classifySupabaseError(error);

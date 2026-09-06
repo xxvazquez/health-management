@@ -1,4 +1,6 @@
 import { supabase } from "./client";
+import { createTimeOrderedId } from "@/lib/sortableId";
+import { deleteDirect, deleteWhereDirect, upsertDirect } from "./directWrite";
 
 export type CareEntryKind = "observation" | "note";
 
@@ -46,10 +48,6 @@ async function currentUserId(): Promise<string | null> {
   return session?.user.id ?? null;
 }
 
-function notConfigured(): Error {
-  return new Error("Cloud sync isn't set up for this deployment.");
-}
-
 export async function fetchCareEntries(): Promise<CareEntry[]> {
   if (!supabase) return [];
   const myUserId = await currentUserId();
@@ -72,38 +70,52 @@ export interface NewCareEntryInput {
   specialtyIds: string[];
 }
 
-async function replaceEntrySpecialties(userId: string, entryId: string, specialtyIds: string[]): Promise<void> {
-  if (!supabase) return;
-  const { error: delErr } = await supabase.from("care_entry_specialties").delete().eq("entry_id", entryId);
-  if (delErr) throw delErr;
-  if (specialtyIds.length === 0) return;
-  const { error: insErr } = await supabase
-    .from("care_entry_specialties")
-    .insert(specialtyIds.map((specialty_id) => ({ user_id: userId, entry_id: entryId, specialty_id })));
-  if (insErr) throw insErr;
+const ENTRIES_TABLE = "care_entries";
+const SPECIALTIES_TABLE = "care_entry_specialties";
+
+function entryPayload(e: CareEntry, userId: string): Record<string, unknown> {
+  return {
+    id: e.id,
+    user_id: userId,
+    happened_on: e.happenedOn,
+    kind: e.kind,
+    title: e.title.trim(),
+    body: e.body,
+    created_at: e.createdAt,
+    updated_at: new Date().toISOString(),
+  };
+}
+
+/** care_entry_specialties has no surrogate id — its natural key is
+ * `(entry_id, specialty_id)`. The dedupe id doubles as that key so an
+ * offline add-then-remove of the same tag cancels. */
+function tagKey(entryId: string, specialtyId: string): string {
+  return `entry_id=${entryId}&specialty_id=${specialtyId}`;
+}
+
+async function addTag(userId: string, entryId: string, specialtyId: string): Promise<void> {
+  await upsertDirect(userId, SPECIALTIES_TABLE, tagKey(entryId, specialtyId), { user_id: userId, entry_id: entryId, specialty_id: specialtyId });
+}
+
+async function removeTag(userId: string, entryId: string, specialtyId: string): Promise<void> {
+  await deleteWhereDirect(userId, SPECIALTIES_TABLE, { entry_id: entryId, specialty_id: specialtyId });
 }
 
 export async function createCareEntry(input: NewCareEntryInput): Promise<CareEntry> {
-  if (!supabase) throw notConfigured();
   const myUserId = await currentUserId();
   if (!myUserId) throw new Error("Sign in first.");
-  const { data, error } = await supabase
-    .from("care_entries")
-    .insert({
-      user_id: myUserId,
-      happened_on: input.happenedOn,
-      kind: input.kind,
-      title: input.title.trim(),
-      body: input.body.trim() || null,
-    })
-    .select("id")
-    .single();
-  if (error) throw error;
-  const id = (data as { id: string }).id;
-  await replaceEntrySpecialties(myUserId, id, input.specialtyIds);
-  const { data: full, error: readErr } = await supabase.from("care_entries").select(ENTRY_COLUMNS).eq("id", id).single();
-  if (readErr) throw readErr;
-  return toEntry(full as CareEntryRow);
+  const entry: CareEntry = {
+    id: createTimeOrderedId(),
+    happenedOn: input.happenedOn,
+    kind: input.kind,
+    title: input.title.trim(),
+    body: input.body.trim() || null,
+    specialtyIds: input.specialtyIds,
+    createdAt: new Date().toISOString(),
+  };
+  await upsertDirect(myUserId, ENTRIES_TABLE, entry.id, entryPayload(entry, myUserId));
+  for (const sid of input.specialtyIds) await addTag(myUserId, entry.id, sid);
+  return entry;
 }
 
 export interface CareEntryPatch {
@@ -114,25 +126,30 @@ export interface CareEntryPatch {
   specialtyIds?: string[];
 }
 
-export async function updateCareEntry(id: string, patch: CareEntryPatch): Promise<CareEntry> {
-  if (!supabase) throw notConfigured();
+/** Takes the full current entry so the edit upserts a complete row and can
+ * diff its specialty tags. */
+export async function updateCareEntry(entry: CareEntry, patch: CareEntryPatch): Promise<CareEntry> {
   const myUserId = await currentUserId();
   if (!myUserId) throw new Error("Sign in first.");
-  const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
-  if (patch.happenedOn !== undefined) update.happened_on = patch.happenedOn;
-  if (patch.kind !== undefined) update.kind = patch.kind;
-  if (patch.title !== undefined) update.title = patch.title.trim();
-  if (patch.body !== undefined) update.body = patch.body.trim() || null;
-  const { error } = await supabase.from("care_entries").update(update).eq("id", id);
-  if (error) throw error;
-  if (patch.specialtyIds !== undefined) await replaceEntrySpecialties(myUserId, id, patch.specialtyIds);
-  const { data, error: readErr } = await supabase.from("care_entries").select(ENTRY_COLUMNS).eq("id", id).single();
-  if (readErr) throw readErr;
-  return toEntry(data as CareEntryRow);
+  const next: CareEntry = {
+    ...entry,
+    happenedOn: patch.happenedOn ?? entry.happenedOn,
+    kind: patch.kind ?? entry.kind,
+    title: patch.title !== undefined ? patch.title.trim() : entry.title,
+    body: patch.body !== undefined ? patch.body.trim() || null : entry.body,
+    specialtyIds: patch.specialtyIds ?? entry.specialtyIds,
+  };
+  await upsertDirect(myUserId, ENTRIES_TABLE, next.id, entryPayload(next, myUserId));
+  if (patch.specialtyIds !== undefined) {
+    for (const sid of entry.specialtyIds.filter((s) => !patch.specialtyIds!.includes(s))) await removeTag(myUserId, entry.id, sid);
+    for (const sid of patch.specialtyIds.filter((s) => !entry.specialtyIds.includes(s))) await addTag(myUserId, entry.id, sid);
+  }
+  return next;
 }
 
 export async function deleteCareEntry(id: string): Promise<void> {
-  if (!supabase) return;
-  const { error } = await supabase.from("care_entries").delete().eq("id", id);
-  if (error) throw error;
+  const myUserId = await currentUserId();
+  if (!myUserId) return;
+  // care_entry_specialties rows cascade on the entry delete.
+  await deleteDirect(myUserId, ENTRIES_TABLE, id);
 }
