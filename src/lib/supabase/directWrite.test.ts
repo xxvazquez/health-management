@@ -12,8 +12,8 @@ vi.mock("./client", () => ({
     return {
       from(table: string) {
         return {
-          upsert: async () => {
-            sentCalls.push({ table, op: "upsert" });
+          upsert: async (_payload: unknown, options?: { ignoreDuplicates?: boolean }) => {
+            sentCalls.push({ table, op: options?.ignoreDuplicates ? "insert" : "upsert" });
             if (thrown) throw thrown;
             return upsertResult;
           },
@@ -148,11 +148,29 @@ describe("deleteWhereDirect", () => {
     expect(await entriesFor("care_entry_specialties:entry_id=e1&specialty_id=s1")).toHaveLength(0);
   });
 
-  it("cancels a still-unsent matching join-row insert instead of queuing the delete", async () => {
+  it("cancels a still-unsent matching insertDirect instead of queuing the delete", async () => {
     thrown = new TypeError("Failed to fetch");
-    const { upsertDirect, deleteWhereDirect } = await import("./directWrite");
-    await upsertDirect("user-10", "care_entry_specialties", "entry_id=e2&specialty_id=s2", { user_id: "user-10", entry_id: "e2", specialty_id: "s2" });
+    const { insertDirect, deleteWhereDirect } = await import("./directWrite");
+    await insertDirect("user-10", "care_entry_specialties", { specialty_id: "s2", entry_id: "e2" }, { user_id: "user-10", entry_id: "e2", specialty_id: "s2" });
     await deleteWhereDirect("user-10", "care_entry_specialties", { entry_id: "e2", specialty_id: "s2" });
     expect(await entriesFor("care_entry_specialties:entry_id=e2&specialty_id=s2")).toHaveLength(0);
+  });
+});
+
+describe("insertDirect", () => {
+  it("sends an ignore-duplicates upsert (ON CONFLICT DO NOTHING)", async () => {
+    const { insertDirect } = await import("./directWrite");
+    await insertDirect("user-11", "personal_task_completions", { task_id: "t1", completed_at: "2026-09-06T10:00:00Z" }, { id: "c1", task_id: "t1", user_id: "user-11", completed_at: "2026-09-06T10:00:00Z" });
+    expect(sentCalls).toEqual([{ table: "personal_task_completions", op: "insert" }]);
+    expect(await entriesFor("personal_task_completions:completed_at=2026-09-06T10:00:00Z&task_id=t1")).toHaveLength(0);
+  });
+
+  it("queues the row as an insert op when offline", async () => {
+    thrown = new TypeError("Failed to fetch");
+    const { insertDirect } = await import("./directWrite");
+    await insertDirect("user-12", "care_entry_specialties", { entry_id: "e3", specialty_id: "s3" }, { user_id: "user-12", entry_id: "e3", specialty_id: "s3" });
+    const entries = await entriesFor("care_entry_specialties:entry_id=e3&specialty_id=s3");
+    expect(entries).toHaveLength(1);
+    expect(entries[0]).toMatchObject({ op: "insert", payload: { entry_id: "e3", specialty_id: "s3" } });
   });
 });

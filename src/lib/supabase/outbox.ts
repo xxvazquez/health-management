@@ -49,6 +49,8 @@ export async function sendOutboxEntry(entry: OutboxEntry): Promise<SendResult> {
     let error;
     if (entry.op === "upsert") {
       ({ error } = await query.upsert(entry.payload as Record<string, unknown>));
+    } else if (entry.op === "insert") {
+      ({ error } = await query.upsert(entry.payload as Record<string, unknown>, { ignoreDuplicates: true }));
     } else if (entry.op === "update") {
       const { id, ...rest } = entry.payload as Record<string, unknown> & { id: string };
       ({ error } = await query.update(rest).eq("id", id));

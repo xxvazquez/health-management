@@ -371,10 +371,13 @@ These have no full IndexedDB mirror. Reads are cached as per-hook snapshots
 - `updateDirect` — an edit of a pair-visible row (`household_*`, `wishlist_*`):
   a plain `update`, queued as an `"update"` outbox op, because the split
   `insert_own` / `update_pair` RLS rejects an upsert of the partner's row.
+- `insertDirect` — a write-once row on a table with no update policy
+  (`care_entry_specialties`, `*_task_completions`): `ON CONFLICT DO NOTHING`
+  (`"insert"` op), so a redelivered send is a no-op, not a dead-letter.
 - `deleteDirect` / `deleteWhereDirect` — a delete by id, or by a column match
-  for a join / history row with no surrogate id (`care_entry_specialties` keyed
-  on `(entry_id, specialty_id)`, `*_task_completions` on `(task_id,
-  completed_at)`).
+  for a row with no surrogate id (`care_entry_specialties` keyed on
+  `(entry_id, specialty_id)`, `*_task_completions` on `(task_id, completed_at)`
+  — the same key `insertDirect` uses, so an offline add-then-remove cancels).
 
 Parent-and-children creates (an appointment + its tasks, a care entry + its
 specialty tags) enqueue the parent first — the outbox drains oldest-first, so

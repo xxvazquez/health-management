@@ -214,9 +214,12 @@ through `directWrite.ts` on the way to the shared outbox:
   sent as a plain `update … where id = …` and queued as an `"update"` op; a
   straight upsert there fails the split `insert_own` / `update_pair` RLS when the
   row is the partner's.
+- `insertDirect` — a write-once row with no update policy
+  (`care_entry_specialties`, `*_task_completions`): `ON CONFLICT DO NOTHING`, so a
+  redelivered send after a lost ack is a no-op rather than a dead-letter.
 - `deleteDirect` / `deleteWhereDirect` — a delete by id, or by a column match for
-  a join / history row with no id of its own (`care_entry_specialties`,
-  `*_task_completions`).
+  a row with no id of its own (keyed the same way as `insertDirect`, so an
+  offline add-then-remove cancels).
 
 Parent-and-children writes (an appointment with follow-up tasks, a care entry
 with specialty tags) enqueue the parent first; the outbox drains oldest-first so

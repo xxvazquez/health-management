@@ -36,6 +36,8 @@ async function attemptOrQueue(userId: string, table: string, id: string, op: Out
     let error;
     if (op === "upsert") {
       ({ error } = await query.upsert(payload));
+    } else if (op === "insert") {
+      ({ error } = await query.upsert(payload, { ignoreDuplicates: true }));
     } else if (op === "update") {
       const rest = { ...payload };
       delete rest.id;
@@ -81,17 +83,33 @@ export function deleteDirect(userId: string, table: string, id: string): Promise
   return attemptOrQueue(userId, table, id, "delete", { id });
 }
 
-/**
- * Delete by a column match instead of an id — for a pure join row
- * (`care_entry_specialties`) that has no surrogate id of its own, only a
- * composite natural key the caller always knows. The dedupe key is derived
- * from the match so an offline add-then-remove of the same join row still
- * cancels out.
- */
-export function deleteWhereDirect(userId: string, table: string, match: Record<string, string>): Promise<void> {
-  const key = Object.keys(match)
+/** A stable dedupe id for a row addressed by a composite natural key, so
+ * `insertDirect` and `deleteWhereDirect` for the same row agree. */
+function matchKey(match: Record<string, string>): string {
+  return Object.keys(match)
     .sort()
     .map((k) => `${k}=${match[k]}`)
     .join("&");
-  return attemptOrQueue(userId, table, key, "delete", { match });
+}
+
+/**
+ * An insert that's a no-op on conflict (`ON CONFLICT DO NOTHING`) — for a
+ * write-once row: a pure join row (`care_entry_specialties`) or an
+ * immutable log row (`*_task_completions`). Those tables have no update
+ * policy, so a plain `upsertDirect` would fail its DO UPDATE path, and a
+ * redelivered send after a lost success-ack would spuriously dead-letter.
+ * `match` is the row's natural key; it also keys the outbox entry so an
+ * offline add-then-remove of the same row cancels against `deleteWhereDirect`.
+ */
+export function insertDirect(userId: string, table: string, match: Record<string, string>, payload: Record<string, unknown>): Promise<void> {
+  return attemptOrQueue(userId, table, matchKey(match), "insert", payload);
+}
+
+/**
+ * Delete by a column match instead of an id — for a pure join / log row
+ * with no surrogate id of its own, only a composite natural key the caller
+ * always knows. Keyed the same way `insertDirect` keys its entry.
+ */
+export function deleteWhereDirect(userId: string, table: string, match: Record<string, string>): Promise<void> {
+  return attemptOrQueue(userId, table, matchKey(match), "delete", { match });
 }

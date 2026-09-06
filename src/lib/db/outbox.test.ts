@@ -159,6 +159,21 @@ describe("enqueueOutbox — dedup rules", () => {
     expect(matching).toHaveLength(1);
     expect(matching[0].op).toBe("delete");
   });
+
+  it("replaces an unattempted insert with a newer one, and a delete cancels it outright", async () => {
+    const a = unique("insert-replace");
+    await enqueueOutbox({ userId: a.userId, dedupeKey: a.dedupeKey, table: "care_entry_specialties", op: "insert", payload: { entry_id: "e", specialty_id: "s", user_id: "v1" } });
+    await enqueueOutbox({ userId: a.userId, dedupeKey: a.dedupeKey, table: "care_entry_specialties", op: "insert", payload: { entry_id: "e", specialty_id: "s", user_id: "v2" } });
+    let matching = (await getAllOutboxEntries()).filter((e) => e.dedupeKey === a.dedupeKey);
+    expect(matching).toHaveLength(1);
+    expect(matching[0].payload).toMatchObject({ user_id: "v2" });
+
+    const b = unique("insert-cancel");
+    await enqueueOutbox({ userId: b.userId, dedupeKey: b.dedupeKey, table: "care_entry_specialties", op: "insert", payload: { entry_id: "e2", specialty_id: "s2" } });
+    await enqueueOutbox({ userId: b.userId, dedupeKey: b.dedupeKey, table: "care_entry_specialties", op: "delete", payload: { match: { entry_id: "e2", specialty_id: "s2" } } });
+    matching = (await getAllOutboxEntries()).filter((e) => e.dedupeKey === b.dedupeKey);
+    expect(matching).toHaveLength(0);
+  });
 });
 
 describe("getEligibleOutboxEntries", () => {

@@ -1,7 +1,7 @@
 import { supabase } from "./client";
 import { isRecurringTask, nextRecurringDueAt, type TaskItem } from "@/lib/reminders";
 import { createTimeOrderedId } from "@/lib/sortableId";
-import { deleteDirect, deleteWhereDirect, upsertDirect } from "./directWrite";
+import { deleteDirect, deleteWhereDirect, insertDirect, upsertDirect } from "./directWrite";
 import type { CustomAppearance } from "@/components/ui/customIcons";
 
 export interface PersonalNote {
@@ -387,7 +387,6 @@ export async function completePersonalTask(task: TaskItem): Promise<TaskItem> {
     dueAt: recurring ? nextRecurringDueAt(task.recurrenceDays as number, new Date(nowIso)) : task.dueAt,
   };
   await upsertDirect(myUserId, TASKS_TABLE, next.id, taskPayload(next, myUserId, recurring ? { reminder_sent_at: null } : undefined));
-  const completionId = createTimeOrderedId();
-  await upsertDirect(myUserId, COMPLETIONS_TABLE, completionId, { id: completionId, task_id: task.id, user_id: myUserId, completed_at: nowIso });
+  await insertDirect(myUserId, COMPLETIONS_TABLE, { task_id: task.id, completed_at: nowIso }, { id: createTimeOrderedId(), task_id: task.id, user_id: myUserId, completed_at: nowIso });
   return next;
 }

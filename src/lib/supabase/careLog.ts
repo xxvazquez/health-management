@@ -1,6 +1,6 @@
 import { supabase } from "./client";
 import { createTimeOrderedId } from "@/lib/sortableId";
-import { deleteDirect, deleteWhereDirect, upsertDirect } from "./directWrite";
+import { deleteDirect, deleteWhereDirect, insertDirect, upsertDirect } from "./directWrite";
 
 export type CareEntryKind = "observation" | "note";
 
@@ -86,15 +86,12 @@ function entryPayload(e: CareEntry, userId: string): Record<string, unknown> {
   };
 }
 
-/** care_entry_specialties has no surrogate id — its natural key is
- * `(entry_id, specialty_id)`. The dedupe id doubles as that key so an
- * offline add-then-remove of the same tag cancels. */
-function tagKey(entryId: string, specialtyId: string): string {
-  return `entry_id=${entryId}&specialty_id=${specialtyId}`;
-}
-
+// care_entry_specialties has no surrogate id — its natural key is
+// (entry_id, specialty_id). A tag is write-once, so insert/delete it by
+// that key; the two agree on the outbox dedupe key (see directWrite).
 async function addTag(userId: string, entryId: string, specialtyId: string): Promise<void> {
-  await upsertDirect(userId, SPECIALTIES_TABLE, tagKey(entryId, specialtyId), { user_id: userId, entry_id: entryId, specialty_id: specialtyId });
+  const match = { entry_id: entryId, specialty_id: specialtyId };
+  await insertDirect(userId, SPECIALTIES_TABLE, match, { user_id: userId, ...match });
 }
 
 async function removeTag(userId: string, entryId: string, specialtyId: string): Promise<void> {
