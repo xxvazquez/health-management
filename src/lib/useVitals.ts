@@ -3,28 +3,32 @@
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/lib/supabase/AuthContext";
 import {
+  clearWeightTarget,
   createBloodPressure,
   createWeight,
   deleteBloodPressure,
   deleteWeight,
   fetchBloodPressure,
   fetchWeight,
+  fetchWeightTarget,
+  setWeightTarget,
   updateBloodPressure,
   updateWeight,
   type BloodPressureReading,
   type NewBloodPressureInput,
   type NewWeightInput,
   type WeightReading,
+  type WeightTarget,
 } from "@/lib/supabase/vitals";
-import { buildDemoBloodPressure, buildDemoWeight } from "@/lib/demoVitals";
+import { buildDemoBloodPressure, buildDemoWeight, buildDemoWeightTarget } from "@/lib/demoVitals";
 import { useSnapshotCache } from "@/lib/useSnapshotCache";
 
 /** Module-level cache so the Health → Vitals tab and the Results tab's
  * overview share one vitals state across client-side navigation — same
  * pattern as useLabs / useCareLog. Keyed by user id, cleared on sign-out. */
-let cache: { userId: string; bp: BloodPressureReading[]; weight: WeightReading[] } | null = null;
+let cache: { userId: string; bp: BloodPressureReading[]; weight: WeightReading[]; target: WeightTarget | null } | null = null;
 
-const VITALS_TABLES = ["blood_pressure", "weight_logs"] as const;
+const VITALS_TABLES = ["blood_pressure", "weight_logs", "weight_target"] as const;
 
 function demoId(prefix: string): string {
   return `demo-${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
@@ -41,22 +45,24 @@ export function useVitals() {
 
   const [bp, setBp] = useState<BloodPressureReading[]>(() => seed?.bp ?? buildDemoBloodPressure());
   const [weight, setWeight] = useState<WeightReading[]>(() => seed?.weight ?? buildDemoWeight());
+  const [target, setTarget] = useState<WeightTarget | null>(() => (seed ? seed.target : buildDemoWeightTarget()));
   const [loading, setLoading] = useState(seed === null);
   const [error, setError] = useState(false);
 
-  const { persist } = useSnapshotCache<{ bp: BloodPressureReading[]; weight: WeightReading[] }>({
+  const { persist } = useSnapshotCache<{ bp: BloodPressureReading[]; weight: WeightReading[]; target: WeightTarget | null }>({
     feature: "vitals",
     tables: VITALS_TABLES,
     userId,
     isDemo: isDemo || authLoading,
     seeded: seed !== null,
     fetcher: async () => {
-      const [b, w] = await Promise.all([fetchBloodPressure(), fetchWeight()]);
-      return { bp: b, weight: w };
+      const [b, w, t] = await Promise.all([fetchBloodPressure(), fetchWeight(), fetchWeightTarget()]);
+      return { bp: b, weight: w, target: t };
     },
-    apply: ({ bp: b, weight: w }) => {
+    apply: ({ bp: b, weight: w, target: t }) => {
       setBp(byNewest(b));
       setWeight(byNewest(w));
+      setTarget(t ?? null);
       setError(false);
     },
     onSettled: () => setLoading(false),
@@ -69,10 +75,10 @@ export function useVitals() {
       return;
     }
     if (!loading) {
-      cache = { userId, bp, weight };
-      persist({ bp, weight });
+      cache = { userId, bp, weight, target };
+      persist({ bp, weight, target });
     }
-  }, [userId, isDemo, loading, bp, weight, persist]);
+  }, [userId, isDemo, loading, bp, weight, target, persist]);
 
   // --- Blood pressure ---
   const addBp = useCallback(
@@ -147,11 +153,25 @@ export function useVitals() {
     [isDemo],
   );
 
+  // --- Weight target ---
+  const saveTarget = useCallback(
+    async (next: WeightTarget) => {
+      setTarget(next);
+      if (!isDemo) await setWeightTarget(next);
+    },
+    [isDemo],
+  );
+
+  const removeTarget = useCallback(async () => {
+    setTarget(null);
+    if (!isDemo) await clearWeightTarget().catch((err) => console.error("clearWeightTarget failed", err));
+  }, [isDemo]);
+
   return {
     isDemo,
     loading: !isDemo && loading,
     error,
     bp: { data: bp, add: addBp, edit: editBp, remove: removeBp },
-    weight: { data: weight, add: addWeight, edit: editWeight, remove: removeWeight },
+    weight: { data: weight, add: addWeight, edit: editWeight, remove: removeWeight, target, setTarget: saveTarget, clearTarget: removeTarget },
   };
 }

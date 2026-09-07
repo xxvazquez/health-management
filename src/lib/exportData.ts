@@ -46,6 +46,7 @@ const TABLES: { table: string; owner: string }[] = [
   { table: "lab_results", owner: "user_id" },
   { table: "blood_pressure", owner: "user_id" },
   { table: "weight_logs", owner: "user_id" },
+  { table: "weight_target", owner: "user_id" },
   { table: "wishlist_categories", owner: "owner_id" },
   { table: "wishlist_items", owner: "owner_id" },
   { table: "household_notes", owner: "owner_id" },
@@ -78,7 +79,7 @@ export const EXPORT_SECTIONS: { label: string; tables: string[] }[] = [
     tables: ["doctor_specialties", "doctors", "doctor_appointments", "doctor_appointment_tasks", "care_entries", "care_entry_specialties"],
   },
   { label: "Labs", tables: ["lab_panels", "lab_markers", "lab_results"] },
-  { label: "Vitals", tables: ["blood_pressure", "weight_logs"] },
+  { label: "Vitals", tables: ["blood_pressure", "weight_logs", "weight_target"] },
   { label: "Wishlist", tables: ["wishlist_categories", "wishlist_items"] },
   {
     label: "Household",

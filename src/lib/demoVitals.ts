@@ -1,4 +1,4 @@
-import type { BloodPressureReading, WeightReading } from "@/lib/supabase/vitals";
+import type { BloodPressureReading, WeightReading, WeightTarget } from "@/lib/supabase/vitals";
 
 /** Example vitals for the Health → Vitals tab and the Results overview
  * when signed out — interactive, in-memory only, nothing saved. */
@@ -36,4 +36,8 @@ export function buildDemoWeight(): WeightReading[] {
   return raw
     .map(([d, kg, note], i) => ({ id: `demo-weight-${i}`, measuredAt: at(d, 7), kg, note }))
     .sort((a, b) => b.measuredAt.localeCompare(a.measuredAt));
+}
+
+export function buildDemoWeightTarget(): WeightTarget {
+  return { lowKg: 64, highKg: 66 };
 }

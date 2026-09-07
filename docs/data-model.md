@@ -372,6 +372,9 @@ row is one `kg` value with a `note`. Two purpose-named tables rather than a gene
 Owner-only, direct-to-Supabase, same class as `care_entries` / `lab_*`. The
 Vitals tab classifies each blood-pressure reading with the ACC/AHA 2017
 categories (Normal / Elevated / Stage 1 / Stage 2), shown for reference only.
+`weight_target` is one optional goal range per user (`user_id` primary key —
+the client upserts on it, deletes by it) with `low_kg` / `high_kg`; it shades
+a band on the weight chart, nothing more.
 
 ### Offline for the direct-to-Supabase tables
 
@@ -397,7 +400,7 @@ Parent-and-children creates (an appointment + its tasks, a care entry + its
 specialty tags) enqueue the parent first — the outbox drains oldest-first, so
 the FK holds. Wired: `journal_entries`, `personal_notes` / `personal_items` /
 `personal_tasks` / `personal_task_completions`, `reminder_lists`,
-`blood_pressure` / `weight_logs`, `doctors` / `doctor_specialties` /
+`blood_pressure` / `weight_logs` / `weight_target`, `doctors` / `doctor_specialties` /
 `doctor_appointments` / `doctor_appointment_tasks`, `care_entries` /
 `care_entry_specialties`, `lab_panels` / `lab_markers` / `lab_results`,
 `wishlist_*`, `household_*`, `notes`. Messages toggles send only my own
@@ -505,7 +508,7 @@ phone"). Regenerating is a delete + insert, so there's no UPDATE policy.
 
 | Tables | `using` / `with check` |
 |---|---|
-| All tracked-domain, standalone-log, `personal_*`, `doctor_*`, `care_ent*`, `lab_*`, and infra tables | `auth.uid() = user_id` (SELECT only for `notes_digest_state` — the cron does every write) |
+| All tracked-domain, standalone-log, `personal_*`, `doctor_*`, `care_ent*`, `lab_*`, vitals (`blood_pressure` / `weight_logs` / `weight_target`), and infra tables | `auth.uid() = user_id` (SELECT only for `notes_digest_state` — the cron does every write) |
 | `partner_invites` | `auth.uid() = created_by` |
 | `partner_links` | SELECT/DELETE only: `auth.uid() in (user_a_id, user_b_id)` — no INSERT/UPDATE (created via `redeem_partner_invite()`) |
 | `notes` | SELECT/UPDATE: `auth.uid() in (sender_id, recipient_id)`. INSERT: must be yourself, to your actual linked partner, into a thread you're part of. No DELETE. |

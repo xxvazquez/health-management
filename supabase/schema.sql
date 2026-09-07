@@ -852,6 +852,16 @@ create table public.weight_logs (
 create index blood_pressure_user_time_idx on public.blood_pressure (user_id, measured_at desc);
 create index weight_logs_user_time_idx on public.weight_logs (user_id, measured_at desc);
 
+-- One optional weight-goal range per user — shaded as a reference band on
+-- the Vitals weight chart. `user_id` is the primary key (one row per user);
+-- the client upserts on it and deletes by it. Owner-only, direct-to-Supabase.
+create table public.weight_target (
+  user_id uuid primary key default auth.uid() references auth.users(id),
+  low_kg numeric(5, 1) not null check (low_kg > 0),
+  high_kg numeric(5, 1) not null check (high_kg >= low_kg),
+  updated_at timestamptz not null default now()
+);
+
 -- Reminders -> Home: the same three concepts as Personal above, but shared
 -- with a linked partner (see partner_links, defined earlier) instead of
 -- owned outright. `owner_id` is whoever created the row; visibility/edit
@@ -1051,6 +1061,7 @@ alter table public.lab_markers enable row level security;
 alter table public.lab_results enable row level security;
 alter table public.blood_pressure enable row level security;
 alter table public.weight_logs enable row level security;
+alter table public.weight_target enable row level security;
 alter table public.household_notes enable row level security;
 alter table public.household_tasks enable row level security;
 alter table public.household_task_completions enable row level security;
@@ -1100,6 +1111,7 @@ create policy "lab_markers_all_own" on public.lab_markers for all using (auth.ui
 create policy "lab_results_all_own" on public.lab_results for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "blood_pressure_all_own" on public.blood_pressure for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "weight_logs_all_own" on public.weight_logs for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "weight_target_all_own" on public.weight_target for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 -- partner_invites: only the creator can see/manage their own pending
 -- invite (e.g. to show "your code is still waiting"). Redemption by the
