@@ -1820,9 +1820,35 @@ export default function LogPage() {
         )
       ) : (
         <>
-          {tabConfig &&
-            (showTimeField || timeIsExplicit ? (
-              <div className="flex flex-wrap items-center gap-3">
+          {tabConfig && (
+            <div className="flex flex-wrap items-center gap-3">
+              {/* The meal tag stays visible — the auto-pick is by time of
+               * day and is often wrong (breakfast logged at 11pm), so
+               * changing it can't cost a tap. The time, which is right
+               * ~all the time, collapses to a "now · change" link. */}
+              {tabConfig.countable && (
+                <div className="inline-flex rounded-md border p-0.5" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
+                  {tagOptionsForType(tab).map((m) => {
+                    const active = m === meal;
+                    return (
+                      <button
+                        key={m}
+                        type="button"
+                        onClick={() => setMeal(m)}
+                        aria-pressed={active}
+                        className="rounded px-2.5 py-1 text-xs font-semibold whitespace-nowrap transition-colors"
+                        style={{
+                          background: active ? `color-mix(in oklab, ${TYPE_ACCENT[tabConfig.type]} 16%, var(--surface-1))` : "transparent",
+                          color: active ? TYPE_ACCENT[tabConfig.type] : "var(--text-secondary)",
+                        }}
+                      >
+                        {m}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              {showTimeField || timeIsExplicit ? (
                 <label className="flex items-center gap-1.5" style={{ color: "var(--text-secondary)" }}>
                   <span className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
                     Time
@@ -1854,48 +1880,19 @@ export default function LogPage() {
                     </button>
                   )}
                 </label>
-                {tabConfig.countable && (
-                  <div className="inline-flex rounded-md border p-0.5" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
-                    {tagOptionsForType(tab).map((m) => {
-                      const active = m === meal;
-                      return (
-                        <button
-                          key={m}
-                          type="button"
-                          onClick={() => setMeal(m)}
-                          aria-pressed={active}
-                          className="rounded px-2.5 py-1 text-xs font-semibold whitespace-nowrap transition-colors"
-                          style={{
-                            background: active ? `color-mix(in oklab, ${TYPE_ACCENT[tabConfig.type]} 16%, var(--surface-1))` : "transparent",
-                            color: active ? TYPE_ACCENT[tabConfig.type] : "var(--text-secondary)",
-                          }}
-                        >
-                          {m}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            ) : (
-              // Collapsed: the auto-picked meal (countable tabs) and time
-              // sit on one quiet line — tap to open the pickers, same as
-              // the time control has always done on its own.
-              <button
-                type="button"
-                onClick={() => setShowTimeField(true)}
-                className="self-start text-xs font-medium"
-                style={{ color: "var(--text-muted)" }}
-              >
-                {tabConfig.countable ? (
-                  <span style={{ color: "var(--text-secondary)" }}>{meal} · </span>
-                ) : (
-                  "Time: "
-                )}
-                <span style={{ color: "var(--text-secondary)" }}>now</span>
-                <span className="ml-1 underline decoration-dotted">change</span>
-              </button>
-            ))}
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowTimeField(true)}
+                  className="text-xs font-medium"
+                  style={{ color: "var(--text-muted)" }}
+                >
+                  Time: <span style={{ color: "var(--text-secondary)" }}>now</span>
+                  <span className="ml-1 underline decoration-dotted">change</span>
+                </button>
+              )}
+            </div>
+          )}
 
           {!dataReady || !tabConfig ? (
             <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
