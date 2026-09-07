@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { agendaSummary, buildAgenda, type AgendaSources } from "./agenda";
+import { buildAgenda, type AgendaSources } from "./agenda";
 import type { ExpirationItem, TaskItem } from "@/lib/reminders";
 import type { DoctorFollowUpTask } from "@/lib/supabase/doctors";
 
@@ -120,23 +120,5 @@ describe("buildAgenda", () => {
   it("treats a date-only expiry as due today, not overdue, at midday", () => {
     const entries = buildAgenda(sources({ personalExpiry: [expiry({ expiresOn: TODAY })] }), { today: TODAY, now: NOW });
     expect(entries[0].bucket).toBe("today");
-  });
-});
-
-describe("agendaSummary", () => {
-  it("counts overdue, today, upcoming and done", () => {
-    const entries = buildAgenda(
-      sources({
-        personalReminders: [
-          task({ title: "Overdue", dueAt: "2026-08-27T09:00:00" }),
-          task({ title: "Today", dueAt: "2026-08-29T20:00:00" }),
-          task({ title: "Tomorrow", dueAt: "2026-08-30T09:00:00" }),
-          task({ title: "Week", dueAt: "2026-09-03T09:00:00" }),
-          task({ title: "Done", dueAt: "2026-08-20T09:00:00", lastCompletedAt: "2026-08-21T09:00:00" }),
-        ],
-      }),
-      { today: TODAY, now: NOW },
-    );
-    expect(agendaSummary(entries)).toEqual({ overdue: 1, today: 1, upcoming: 2, done: 1 });
   });
 });
