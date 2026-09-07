@@ -322,7 +322,10 @@ export function FoodDashboard() {
   // Pillars logged least often — the headline names these rather than the
   // finer group gaps (which the balance card and coverage table carry).
   const underPillars = priorities.pillars.filter((p) => p.status === "underrepresented");
-  const rangeSuffix = priorities.rangeLabel ? ` over the last ${priorities.rangeLabel}` : "";
+  // Always the picker's own wording ("the last 6 months"), never the
+  // clamped actual span, so the prose can't disagree with the filter and
+  // the header above it.
+  const rangeSuffix = rangeLabel ? ` over ${rangeLabel}` : "";
   const foodInsight = priorities.insufficientData
     ? {
         label: "What stands out",
@@ -432,7 +435,7 @@ export function FoodDashboard() {
             <Card tier="raw">
               <CardTitle
                 size="sm"
-                subtitle={`How each food-group pillar's weekly rate compares to its own target${priorities.rangeLabel ? ` over the last ${priorities.rangeLabel}` : ""} — least represented first`}
+                subtitle={`How each food-group pillar's weekly rate compares to its own target${rangeSuffix} — least represented first`}
               >
                 Diet balance
               </CardTitle>
@@ -446,7 +449,7 @@ export function FoodDashboard() {
             <Card tier="raw">
               <CardTitle
                 size="sm"
-                subtitle={`What's become a staple, and what's dropped off, over the last ${priorities.rangeLabel || "selected range"} — concrete ingredients, not groups`}
+                subtitle={`What's become a staple, and what's dropped off,${rangeSuffix || " over the selected range"} — concrete ingredients, not groups`}
               >
                 Ingredient rotation
               </CardTitle>
