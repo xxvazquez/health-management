@@ -168,8 +168,9 @@ Symptom, and Workout. An *item* (what you track, with a category) has many *logs
 (one per occurrence) and an optional *diary* entry per day. A type with no custom
 categories falls back to the built-in defaults in `taxonomy/categories.ts`; once
 a real category row exists, the database wins from then on. Each category can be
-given a custom icon/colour in Settings (`categories.icon` / `color`, shown on the
-chip there only — Log and Trends keep their built-in colours). Archiving hides an
+given a custom icon/colour in Settings (`categories.icon` / `color`); where set, it
+tints that category's header on the Log page, otherwise the built-in look stands
+(Trends is untouched). Archiving hides an
 item without touching its history; deleting is only allowed once it has zero
 logged history (every `*_logs` / `*_diary` FK is `on delete restrict`).
 
