@@ -28,6 +28,7 @@ import { NoteThreadList } from "@/components/notes/NoteThreadList";
 import { NoteThreadView } from "@/components/notes/NoteThreadView";
 import { PageSkeleton } from "@/components/ui/Skeleton";
 import { PrimaryAction } from "@/components/ui/PrimaryAction";
+import { PageHeading } from "@/components/ui/PageHeading";
 import { DemoNotice } from "@/components/ui/DemoNotice";
 
 const ACCENT = "var(--series-magenta)";
@@ -441,27 +442,24 @@ function NotesHeader({
   showCompose?: boolean;
 }) {
   return (
-    <div className="flex flex-wrap items-start justify-between gap-3">
-      <div
-        className="border-l-[3px] pl-2.5"
-        style={{ borderColor: ACCENT }}
-      >
-        <h1 className="text-xl font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
-          Messages
-        </h1>
-      </div>
-      <div className="flex shrink-0 items-center gap-2">
-        <button
-          type="button"
-          onClick={onMarkAllRead}
-          className="rounded-md border px-3 py-1.5 text-sm font-medium"
-          style={{ borderColor: "var(--border-hairline)", color: "var(--text-secondary)" }}
-        >
-          Mark all as read
-        </button>
-        {showCompose && <PrimaryAction label="New message" accent={ACCENT} onClick={onCompose} />}
-      </div>
-    </div>
+    <PageHeading
+      accent={ACCENT}
+      actions={
+        <div className="flex shrink-0 items-center gap-2">
+          <button
+            type="button"
+            onClick={onMarkAllRead}
+            className="rounded-md border px-3 py-1.5 text-sm font-medium"
+            style={{ borderColor: "var(--border-hairline)", color: "var(--text-secondary)" }}
+          >
+            Mark all as read
+          </button>
+          {showCompose && <PrimaryAction label="New message" accent={ACCENT} onClick={onCompose} />}
+        </div>
+      }
+    >
+      Messages
+    </PageHeading>
   );
 }
 

@@ -16,6 +16,7 @@ import { ListSkeleton } from "@/components/ui/Skeleton";
 import { PrimaryAction } from "@/components/ui/PrimaryAction";
 import { Button } from "@/components/ui/Button";
 import { FormShell } from "@/components/ui/FormShell";
+import { ChoicePanel } from "@/components/ui/ChoicePanel";
 import { PencilIcon, TrashIcon } from "@/components/ui/Notebook";
 import { ChevronIcon } from "@/components/ui/icons";
 import { FIELD_CLS, FIELD_STYLE } from "@/components/ui/formField";
@@ -243,34 +244,16 @@ export function AgendaBoard(props: AgendaBoardProps) {
       </div>
 
       {add?.mode === "choose" && (
-        <div className="flex flex-col gap-2 rounded-xl border p-4" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", boxShadow: "var(--shadow-card)" }}>
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-              Add to your agenda
-            </span>
-            <button type="button" onClick={() => setAdd(null)} className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
-              Cancel
-            </button>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button size="sm" variant="outline" onClick={() => setAdd({ mode: "reminder", scope: "mine" })}>
-              {partnerLinked ? "My reminder" : "Reminder"}
-            </Button>
-            {partnerLinked && (
-              <Button size="sm" variant="outline" onClick={() => setAdd({ mode: "reminder", scope: "shared" })}>
-                Shared reminder
-              </Button>
-            )}
-            <Button size="sm" variant="outline" onClick={() => setAdd({ mode: "expiry", scope: "mine" })}>
-              {partnerLinked ? "My expiry product" : "Expiry product"}
-            </Button>
-            {partnerLinked && (
-              <Button size="sm" variant="outline" onClick={() => setAdd({ mode: "expiry", scope: "shared" })}>
-                Shared expiry product
-              </Button>
-            )}
-          </div>
-        </div>
+        <ChoicePanel
+          title="Add to your agenda"
+          onCancel={() => setAdd(null)}
+          options={[
+            { label: partnerLinked ? "My reminder" : "Reminder", onClick: () => setAdd({ mode: "reminder", scope: "mine" }) },
+            ...(partnerLinked ? [{ label: "Shared reminder", onClick: () => setAdd({ mode: "reminder" as const, scope: "shared" as const }) }] : []),
+            { label: partnerLinked ? "My expiry product" : "Expiry product", onClick: () => setAdd({ mode: "expiry", scope: "mine" }) },
+            ...(partnerLinked ? [{ label: "Shared expiry product", onClick: () => setAdd({ mode: "expiry" as const, scope: "shared" as const }) }] : []),
+          ]}
+        />
       )}
 
       {loading ? (
