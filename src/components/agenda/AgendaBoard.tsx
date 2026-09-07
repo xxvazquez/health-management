@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent, type ReactNode } from "react";
 import Link from "next/link";
 import clsx from "clsx";
 import { AGENDA_BUCKET_LABEL, AGENDA_BUCKET_ORDER, type AgendaBucket, type AgendaEntry, type AgendaKind, type AgendaScope } from "@/lib/aggregations/agenda";
@@ -51,6 +51,145 @@ function Chip({ active, onClick, children }: { active: boolean; onClick: () => v
 
 const SCOPE_LABEL: Record<"all" | AgendaScope, string> = { all: "All", mine: "Mine", shared: "Shared", medical: "Medical" };
 const TYPE_LABEL: Record<"all" | AgendaKind, string> = { all: "All", reminder: "Reminders", expiry: "Expiring", followup: "Follow-ups", appointment: "Appointments" };
+
+function FunnelIcon({ size = 13 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M3.5 4.5h13l-5 6.2V16l-3 1.4v-6.7Z" />
+    </svg>
+  );
+}
+
+function FilterRow({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      <span className="w-11 shrink-0 text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+        {label}
+      </span>
+      {children}
+    </div>
+  );
+}
+
+/** One compact "Filter" toggle that opens the type / scope / list chip
+ * groups on demand, with any active filters shown as removable pills while
+ * collapsed — so the default view is a single row, not three of chips. */
+function FilterBar({
+  partnerLinked,
+  showList,
+  lists,
+  typeFilter,
+  setTypeFilter,
+  scopeFilter,
+  setScopeFilter,
+  listFilter,
+  setListFilter,
+}: {
+  partnerLinked: boolean;
+  showList: boolean;
+  lists: ReminderList[];
+  typeFilter: "all" | AgendaKind;
+  setTypeFilter: (v: "all" | AgendaKind) => void;
+  scopeFilter: "all" | AgendaScope;
+  setScopeFilter: (v: "all" | AgendaScope) => void;
+  listFilter: string | "all";
+  setListFilter: (v: string | "all") => void;
+}) {
+  const [open, setOpen] = useState(false);
+
+  const listName = listFilter === "__default__" ? "Reminders" : (lists.find((l) => l.id === listFilter)?.name ?? "List");
+  const active: { label: string; clear: () => void }[] = [
+    ...(typeFilter !== "all" ? [{ label: TYPE_LABEL[typeFilter], clear: () => setTypeFilter("all") }] : []),
+    ...(scopeFilter !== "all" ? [{ label: SCOPE_LABEL[scopeFilter], clear: () => setScopeFilter("all") }] : []),
+    ...(listFilter !== "all" ? [{ label: listName, clear: () => setListFilter("all") }] : []),
+  ];
+  const listShown = showList && (typeFilter === "all" || typeFilter === "reminder");
+  const lit = open || active.length > 0;
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex flex-wrap items-center gap-1.5">
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          aria-expanded={open}
+          className="flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-medium transition-colors"
+          style={{
+            borderColor: lit ? ACCENT : "var(--border-hairline)",
+            background: lit ? `color-mix(in oklab, ${ACCENT} 12%, var(--surface-1))` : "transparent",
+            color: lit ? ACCENT : "var(--text-secondary)",
+          }}
+        >
+          <FunnelIcon />
+          Filter
+          {active.length > 0 && (
+            <span
+              className="flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-semibold tabular-nums"
+              style={{ background: ACCENT, color: "var(--surface-1)" }}
+            >
+              {active.length}
+            </span>
+          )}
+        </button>
+        {!open &&
+          active.map((a) => (
+            <button
+              key={a.label}
+              type="button"
+              onClick={a.clear}
+              aria-label={`Clear ${a.label} filter`}
+              className="flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium transition-colors"
+              style={{ borderColor: "var(--border-hairline)", color: "var(--text-secondary)" }}
+            >
+              {a.label}
+              <span aria-hidden="true" style={{ color: "var(--text-muted)" }}>
+                ✕
+              </span>
+            </button>
+          ))}
+      </div>
+
+      {open && (
+        <div
+          className="flex flex-col gap-2 rounded-lg border p-2.5"
+          style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}
+        >
+          <FilterRow label="Show">
+            {(["all", "reminder", "expiry", "appointment"] as const).map((t) => (
+              <Chip key={t} active={typeFilter === t} onClick={() => setTypeFilter(t)}>
+                {TYPE_LABEL[t]}
+              </Chip>
+            ))}
+          </FilterRow>
+          {partnerLinked && (
+            <FilterRow label="Scope">
+              {(["all", "mine", "shared", "medical"] as const).map((s) => (
+                <Chip key={s} active={scopeFilter === s} onClick={() => setScopeFilter(s)}>
+                  {SCOPE_LABEL[s]}
+                </Chip>
+              ))}
+            </FilterRow>
+          )}
+          {listShown && (
+            <FilterRow label="List">
+              <Chip active={listFilter === "all"} onClick={() => setListFilter("all")}>
+                All lists
+              </Chip>
+              <Chip active={listFilter === "__default__"} onClick={() => setListFilter("__default__")}>
+                Reminders
+              </Chip>
+              {lists.map((l) => (
+                <Chip key={l.id} active={listFilter === l.id} onClick={() => setListFilter(l.id)}>
+                  {l.name}
+                </Chip>
+              ))}
+            </FilterRow>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 /** Expiry product create / edit form — name, date, remind-days-before. */
 function ExpiryForm({
@@ -206,39 +345,17 @@ export function AgendaBoard(props: AgendaBoardProps) {
     <div className="flex flex-col gap-4">
       {/* Filters + add */}
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex flex-col gap-2">
-          <div className="flex flex-wrap gap-1.5">
-            {(["all", "reminder", "expiry", "appointment"] as const).map((t) => (
-              <Chip key={t} active={typeFilter === t} onClick={() => setTypeFilter(t)}>
-                {TYPE_LABEL[t]}
-              </Chip>
-            ))}
-          </div>
-          {partnerLinked && (
-            <div className="flex flex-wrap gap-1.5">
-              {(["all", "mine", "shared", "medical"] as const).map((s) => (
-                <Chip key={s} active={scopeFilter === s} onClick={() => setScopeFilter(s)}>
-                  {SCOPE_LABEL[s]}
-                </Chip>
-              ))}
-            </div>
-          )}
-          {showList && (typeFilter === "all" || typeFilter === "reminder") && (
-            <div className="flex flex-wrap gap-1.5">
-              <Chip active={listFilter === "all"} onClick={() => setListFilter("all")}>
-                All lists
-              </Chip>
-              <Chip active={listFilter === "__default__"} onClick={() => setListFilter("__default__")}>
-                Reminders
-              </Chip>
-              {lists.map((l) => (
-                <Chip key={l.id} active={listFilter === l.id} onClick={() => setListFilter(l.id)}>
-                  {l.name}
-                </Chip>
-              ))}
-            </div>
-          )}
-        </div>
+        <FilterBar
+          partnerLinked={partnerLinked}
+          showList={showList}
+          lists={lists}
+          typeFilter={typeFilter}
+          setTypeFilter={setTypeFilter}
+          scopeFilter={scopeFilter}
+          setScopeFilter={setScopeFilter}
+          listFilter={listFilter}
+          setListFilter={setListFilter}
+        />
 
         <PrimaryAction label="Add" accent={ACCENT} onClick={() => setAdd({ mode: "choose" })} />
       </div>
@@ -331,9 +448,14 @@ function AgendaRow({
 }) {
   const e = entry;
   const done = e.bucket === "done";
+  const overdue = e.bucket === "overdue";
   const isReminder = e.kind === "reminder";
   const readOnly = e.kind === "followup" || e.kind === "appointment";
   const recurring = e.reminder ? isRecurringTask(e.reminder) : false;
+  // Reminders always toggle done. An expired product has no "done" state,
+  // but once it's overdue a checkbox to clear it from the list (a delete)
+  // is more useful than a dead bullet.
+  const checkable = isReminder || (e.kind === "expiry" && overdue);
 
   const meta = (
     <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs" style={{ color: "var(--text-muted)" }}>
@@ -344,20 +466,29 @@ function AgendaRow({
         </span>
       )}
       {e.scope === "shared" && <span>· shared</span>}
-      {e.when && <span>· {e.when}</span>}
+      {e.when &&
+        (overdue ? (
+          <span className="font-semibold" style={{ color: "var(--status-critical)" }}>
+            {e.when}
+          </span>
+        ) : (
+          <span>· {e.when}</span>
+        ))}
     </span>
   );
 
   const inner = (
     <>
-      {isReminder ? (
+      {checkable ? (
         <button
           type="button"
-          onClick={done ? onUncomplete : onComplete}
-          aria-label={done ? "Mark not done" : recurring ? "Mark done for this cycle" : "Mark done"}
+          onClick={isReminder ? (done ? onUncomplete : onComplete) : onConfirmDelete}
+          aria-label={
+            isReminder ? (done ? "Mark not done" : recurring ? "Mark done for this cycle" : "Mark done") : "Clear this expired item"
+          }
           className="mt-0.5 flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full border transition-colors hover:border-[var(--status-good)] hover:bg-[var(--page-plane)]"
           style={{
-            borderColor: done ? "var(--status-good)" : "var(--text-secondary)",
+            borderColor: done ? "var(--status-good)" : overdue ? "var(--status-critical)" : "var(--text-secondary)",
             background: done ? "var(--status-good)" : "transparent",
           }}
         >
@@ -368,7 +499,7 @@ function AgendaRow({
           )}
         </button>
       ) : (
-        <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: e.bucket === "overdue" ? "var(--status-critical)" : "var(--text-muted)" }} aria-hidden="true" />
+        <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: overdue ? "var(--status-critical)" : "var(--text-muted)" }} aria-hidden="true" />
       )}
       <div className="min-w-0 flex-1">
         <span className={clsx("block truncate text-sm", done && "line-through")} style={{ color: done ? "var(--text-muted)" : "var(--text-primary)", fontWeight: 500 }}>
