@@ -717,17 +717,17 @@ create index doctor_appointment_tasks_due_idx on public.doctor_appointment_tasks
 
 -- Care log: a dated timeline of things to remember about your medical care
 -- between appointments — an `observation` you noticed (a symptom, a change
--- in how you feel) or a plain `note`. Each entry is tagged to one or more
--- specialties via care_entry_specialties, so it can be read whole ("what's
--- been going on") or filtered to one specialty's context before a visit.
--- Direct-to-Supabase, owner-only, same class as doctor_appointments above.
--- (`kind` will gain 'result' and 'decision' in a later migration, along
--- with the extra columns each needs.)
+-- in how you feel), a `decision` you made about your care (a dose change, a
+-- treatment you started or stopped — the "why" goes in the body), or a plain
+-- `note`. Each entry is tagged to one or more specialties via
+-- care_entry_specialties, so it can be read whole ("what's been going on")
+-- or filtered to one specialty's context before a visit. Direct-to-Supabase,
+-- owner-only, same class as doctor_appointments above.
 create table public.care_entries (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null default auth.uid() references auth.users(id),
   happened_on date not null default current_date,
-  kind text not null check (kind in ('observation', 'note')),
+  kind text not null check (kind in ('observation', 'note', 'decision')),
   title text not null check (char_length(trim(title)) > 0),
   body text,
   created_at timestamptz not null default now(),

@@ -315,9 +315,9 @@ wired up one at a time.
   Follow-up tasks may set an optional `reminder_at` that the reminder cron sends
   once (phase 2 below); they show inline on their appointment and, via Agenda's
   "Medical" filter, in the one urgency list. `care_entries` + the
-  `care_entry_specialties` join is a dated timeline of *observation* and *note*
-  entries, each tagged to any number of specialties — surfaced in Visits' "To
-  raise next time" section, filterable by specialty.
+  `care_entry_specialties` join is a dated timeline of *observation*, *decision*
+  and *note* entries, each tagged to any number of specialties — surfaced in
+  Visits' "To raise next time" section, filterable by specialty.
 - **Voice input on Expiration and Codes** is the browser's own Web Speech API, feature-detected — no server, no dependency.
 
 ### PWA shell

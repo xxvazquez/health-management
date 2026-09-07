@@ -2,7 +2,7 @@ import { supabase } from "./client";
 import { createTimeOrderedId } from "@/lib/sortableId";
 import { deleteDirect, deleteWhereDirect, insertDirect, upsertDirect } from "./directWrite";
 
-export type CareEntryKind = "observation" | "note";
+export type CareEntryKind = "observation" | "note" | "decision";
 
 export interface CareEntry {
   id: string;
