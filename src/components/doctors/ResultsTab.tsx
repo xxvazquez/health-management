@@ -8,6 +8,7 @@ import { LabMarkerChart, LabSparkline } from "@/components/charts/LabMarkerChart
 import { ListSkeleton } from "@/components/ui/Skeleton";
 import { ErrorState, InlineEmpty } from "@/components/ui/EmptyState";
 import { PrimaryAction } from "@/components/ui/PrimaryAction";
+import { SearchField } from "@/components/ui/SearchField";
 import { Button } from "@/components/ui/Button";
 import { ComboBox, FIELD_CLS, FIELD_STYLE, IconAction, LABEL_CLS, LABEL_STYLE, PencilIcon, TrashIcon, formatDate } from "./shared";
 import { parseNum, rangeStatus, statusColor } from "./labStatus";
@@ -432,6 +433,7 @@ function PanelSection({
   accent,
   editable,
   activeMarkerId,
+  forceOpen = false,
   onOpenMarker,
   onRename,
   onDelete,
@@ -443,17 +445,25 @@ function PanelSection({
   accent: string;
   editable: boolean;
   activeMarkerId?: string | null;
+  forceOpen?: boolean;
   onOpenMarker: (m: LabMarker) => void;
   onRename?: () => void;
   onDelete?: () => void;
 }) {
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [open, setOpen] = useState(true);
+  const shown = forceOpen || open;
   const sectionAccent = customColorValue(color) ?? accent;
   return (
     <section className="flex flex-col rounded-lg border" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
       <div className="flex items-center gap-1.5 border-b px-3 py-2" style={{ borderColor: "var(--border-hairline)" }}>
-        <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} className="flex min-w-0 flex-1 items-center gap-1.5 text-left">
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          aria-expanded={shown}
+          disabled={forceOpen}
+          className="flex min-w-0 flex-1 items-center gap-1.5 text-left disabled:cursor-default"
+        >
           {icon && (
             <span className="shrink-0" style={{ color: sectionAccent }}>
               <CustomIcon icon={icon} size={14} />
@@ -463,21 +473,23 @@ function PanelSection({
             {title}
           </h3>
           <span className="text-xs font-medium tabular-nums" style={{ color: "var(--text-muted)" }}>{markers.length}</span>
-          <svg
-            width="10"
-            height="10"
-            viewBox="0 0 12 12"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.8"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className={`shrink-0 transition-transform ${open ? "" : "-rotate-90"}`}
-            style={{ color: "var(--text-muted)" }}
-            aria-hidden="true"
-          >
-            <path d="M2.5 4.5 6 8l3.5-3.5" />
-          </svg>
+          {!forceOpen && (
+            <svg
+              width="10"
+              height="10"
+              viewBox="0 0 12 12"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className={`shrink-0 transition-transform ${open ? "" : "-rotate-90"}`}
+              style={{ color: "var(--text-muted)" }}
+              aria-hidden="true"
+            >
+              <path d="M2.5 4.5 6 8l3.5-3.5" />
+            </svg>
+          )}
         </button>
         {editable && (
           <div className="ml-2 flex shrink-0 items-center gap-2">
@@ -495,7 +507,7 @@ function PanelSection({
           </div>
         )}
       </div>
-      {open && (
+      {shown && (
         <div className="px-3">
           {markers.length === 0 ? (
             <p className="py-3 text-xs" style={{ color: "var(--text-muted)" }}>No markers here yet.</p>
@@ -598,6 +610,7 @@ export function ResultsTab({ accent }: { accent: string }) {
   const [section, setSection] = useState<"overview" | "manage">("overview");
   const [view, setView] = useState<View>({ mode: "list" });
   const [flash, setFlash] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
     if (!flash) return;
@@ -605,16 +618,24 @@ export function ResultsTab({ accent }: { accent: string }) {
     return () => clearTimeout(t);
   }, [flash]);
 
+  const query = search.trim().toLowerCase();
+  const isSearching = query.length > 0;
+
   const grouped = useMemo(() => {
+    const match = (m: LabMarker) => !isSearching || m.name.toLowerCase().includes(query);
     const byPanel = new Map<string, LabMarker[]>();
     for (const m of labs.markers.data) {
+      if (!match(m)) continue;
       const key = m.panelId ?? "";
       byPanel.set(key, [...(byPanel.get(key) ?? []), m]);
     }
-    const sections = labs.panels.data.map((p) => ({ id: p.id, name: p.name, icon: p.icon, color: p.color, markers: byPanel.get(p.id) ?? [] }));
+    const sections = labs.panels.data
+      .map((p) => ({ id: p.id, name: p.name, icon: p.icon, color: p.color, markers: byPanel.get(p.id) ?? [] }))
+      .filter((s) => !isSearching || s.markers.length > 0);
     const ungrouped = byPanel.get("") ?? [];
-    return { sections, ungrouped };
-  }, [labs.markers.data, labs.panels.data]);
+    const matchCount = sections.reduce((n, s) => n + s.markers.length, 0) + ungrouped.length;
+    return { sections, ungrouped, matchCount };
+  }, [labs.markers.data, labs.panels.data, isSearching, query]);
 
   const findMarker = (id: string) => labs.markers.data.find((m) => m.id === id) ?? null;
 
@@ -780,6 +801,10 @@ export function ResultsTab({ accent }: { accent: string }) {
           <PrimaryAction label="New marker" accent={accent} onClick={() => setView({ mode: "marker-form" })} />
         </div>
 
+        {hasMarkers && (
+          <SearchField value={search} onChange={setSearch} placeholder="Search markers…" className="w-full" />
+        )}
+
         {flash && (
           <p
             className="rounded-lg border px-3 py-2 text-xs font-medium"
@@ -798,6 +823,8 @@ export function ResultsTab({ accent }: { accent: string }) {
             title="No results tracked yet"
             description="Add a marker (TSH, Ferritin, …) with its unit and reference range, then log each value as you get it — the trend builds up over time."
           />
+        ) : isSearching && grouped.matchCount === 0 ? (
+          <p className="py-3 text-xs" style={{ color: "var(--text-muted)" }}>No markers match &ldquo;{search.trim()}&rdquo;.</p>
         ) : (
           <div className="flex flex-col gap-3">
             {grouped.sections.map((s) => (
@@ -808,8 +835,9 @@ export function ResultsTab({ accent }: { accent: string }) {
                 color={s.color}
                 markers={s.markers}
                 accent={accent}
-                editable
+                editable={!isSearching}
                 activeMarkerId={activeMarkerId}
+                forceOpen={isSearching}
                 onOpenMarker={(m) => setView({ mode: "marker", markerId: m.id })}
                 onRename={() => setView({ mode: "panel-form", panelId: s.id })}
                 onDelete={() => void labs.panels.remove(s.id)}
@@ -822,6 +850,7 @@ export function ResultsTab({ accent }: { accent: string }) {
                 accent={accent}
                 editable={false}
                 activeMarkerId={activeMarkerId}
+                forceOpen={isSearching}
                 onOpenMarker={(m) => setView({ mode: "marker", markerId: m.id })}
               />
             )}
