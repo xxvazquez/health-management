@@ -18,7 +18,7 @@ import {
 import { getPartnerLink } from "@/lib/supabase/partner";
 import { buildDemoHouseholdItems, buildDemoHouseholdTasks, DEMO_HOME_ME_ID, DEMO_HOME_PARTNER_ID } from "@/lib/demoHousehold";
 import { isRecurringTask, nextRecurringDueAt, type ExpirationItem, type TaskItem } from "@/lib/reminders";
-import type { TaskFormValues } from "@/components/reminders/TaskBoard";
+import type { TaskFormValues } from "@/components/reminders/TaskForm";
 import { useSnapshotCache } from "@/lib/useSnapshotCache";
 
 /** Survives navigation, keyed by user id — same pattern as

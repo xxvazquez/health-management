@@ -121,7 +121,7 @@ export function ComposeNoteDialog({
           </div>
 
           <label className="flex flex-col gap-1 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
-            Subject (optional)
+            <span>Subject <span style={{ color: "var(--text-muted)" }}>· optional</span></span>
             <input
               value={subject}
               onChange={(e) => setSubject(e.target.value)}

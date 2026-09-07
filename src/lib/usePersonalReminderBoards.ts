@@ -23,7 +23,7 @@ import {
 } from "@/lib/supabase/personalReminders";
 import { buildDemoPersonalItems, buildDemoPersonalTasks, buildDemoReminderLists } from "@/lib/demoPersonalReminders";
 import { isRecurringTask, nextRecurringDueAt, type TaskItem } from "@/lib/reminders";
-import type { TaskFormValues } from "@/components/reminders/TaskBoard";
+import type { TaskFormValues } from "@/components/reminders/TaskForm";
 import { useSnapshotCache } from "@/lib/useSnapshotCache";
 
 const PERSONAL_REMINDER_TABLES = ["personal_tasks", "personal_items", "reminder_lists", "personal_task_completions"] as const;

@@ -7,7 +7,7 @@ import { AGENDA_BUCKET_LABEL, AGENDA_BUCKET_ORDER, agendaSummary, type AgendaBuc
 import { isRecurringTask } from "@/lib/reminders";
 import { todayLocalISODate } from "@/lib/aggregations/common";
 import type { ReminderList } from "@/lib/supabase/personalReminders";
-import { TaskForm, type TaskFormValues } from "@/components/reminders/TaskBoard";
+import { TaskForm, type TaskFormValues } from "@/components/reminders/TaskForm";
 import { Disclosure } from "@/components/ui/Disclosure";
 import { Field } from "@/components/ui/Field";
 import { StatusRow } from "@/components/ui/StatusRow";
@@ -15,6 +15,7 @@ import { ErrorState, InlineEmpty } from "@/components/ui/EmptyState";
 import { ListSkeleton } from "@/components/ui/Skeleton";
 import { PrimaryAction } from "@/components/ui/PrimaryAction";
 import { Button } from "@/components/ui/Button";
+import { FormShell } from "@/components/ui/FormShell";
 import { PencilIcon, TrashIcon } from "@/components/ui/Notebook";
 import { ChevronIcon } from "@/components/ui/icons";
 import { FIELD_CLS, FIELD_STYLE } from "@/components/ui/formField";
@@ -50,9 +51,7 @@ function Chip({ active, onClick, children }: { active: boolean; onClick: () => v
 const SCOPE_LABEL: Record<"all" | AgendaScope, string> = { all: "All", mine: "Mine", shared: "Shared", medical: "Medical" };
 const TYPE_LABEL: Record<"all" | AgendaKind, string> = { all: "All", reminder: "Reminders", expiry: "Expiring", followup: "Follow-ups", appointment: "Appointments" };
 
-/** Small expiry create / edit form — name, date, remind-days. (The full
- * ExpirationBoard form with voice input stays on its own page; Agenda's is
- * the compact version.) */
+/** Expiry product create / edit form — name, date, remind-days-before. */
 function ExpiryForm({
   initial,
   onSave,
@@ -83,15 +82,7 @@ function ExpiryForm({
   }
 
   return (
-    <form onSubmit={submit} className="flex flex-col gap-4 rounded-xl border p-4" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", boxShadow: "var(--shadow-card)" }}>
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-          {initial ? "Edit product" : "New product"}
-        </h3>
-        <button type="button" onClick={onCancel} className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
-          Cancel
-        </button>
-      </div>
+    <FormShell title={initial ? "Edit product" : "New product"} onSubmit={submit} onCancel={onCancel}>
       <Field label="Product">
         <input autoFocus required value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Sunscreen" maxLength={150} className={`${FIELD_CLS} font-medium`} style={FIELD_STYLE} />
       </Field>
@@ -103,13 +94,13 @@ function ExpiryForm({
           <input type="number" min={0} value={remind} onChange={(e) => setRemind(e.target.value)} className={`${FIELD_CLS} w-24`} style={FIELD_STYLE} />
         </Field>
       </div>
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <Button type="submit" size="lg" accent="var(--series-2)" disabled={saving || !name.trim()}>
           {saving ? "Saving…" : initial ? "Save changes" : "Save product"}
         </Button>
         {error && <span className="text-xs" style={{ color: "var(--status-critical)" }}>{error}</span>}
       </div>
-    </form>
+    </FormShell>
   );
 }
 

@@ -7,9 +7,9 @@ type ButtonSize = "sm" | "md" | "lg" | "xl";
 
 // md and lg read close in isolation but serve different contexts: md is
 // the compact dialog-submit size (AccountPanel, BugReportDialog, reset),
-// lg is the standalone board-form submit size (ExpirationBoard, Wishlist,
-// Care Log, Vitals, Results). xl is the one-off hero-CTA size (404, empty
-// states).
+// lg is the standalone board-form submit size (the FormShell forms —
+// reminders, notes, wishlist, care log, vitals, appointments). xl is the
+// one-off hero-CTA size (404, empty states).
 const SIZE_CLS: Record<ButtonSize, string> = {
   sm: "px-3 py-1.5 text-sm",
   md: "px-3 py-2 text-sm",

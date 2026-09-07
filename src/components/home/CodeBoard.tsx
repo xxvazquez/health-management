@@ -10,6 +10,9 @@ import { ListSkeleton } from "@/components/ui/Skeleton";
 import { ErrorState, InlineEmpty } from "@/components/ui/EmptyState";
 import { PrimaryAction } from "@/components/ui/PrimaryAction";
 import { Button } from "@/components/ui/Button";
+import { FormShell } from "@/components/ui/FormShell";
+import { Field } from "@/components/ui/Field";
+import { FIELD_CLS, FIELD_STYLE, LABEL_CLS, LABEL_STYLE } from "@/components/ui/formField";
 import type { HouseholdCode, NewHouseholdCodeInput } from "@/lib/supabase/household";
 
 type SortMode = "shop" | "expiry";
@@ -104,66 +107,72 @@ function CodeForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-      <div className="flex items-center justify-end">
-        <button type="button" onClick={onCancel} className="text-xs font-medium underline decoration-dotted" style={{ color: "var(--text-muted)" }}>
-          Cancel
-        </button>
+    <FormShell title={initial ? "Edit code" : "New code"} onSubmit={handleSubmit} onCancel={onCancel}>
+      <div className="flex flex-col gap-1.5">
+        <span className={LABEL_CLS} style={LABEL_STYLE}>
+          Code
+        </span>
+        <div className="flex items-center gap-2">
+          <input
+            ref={codeInputRef}
+            required
+            autoFocus
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            placeholder="e.g. SUMMER20"
+            maxLength={200}
+            className={`${FIELD_CLS} min-w-0 flex-1 font-mono`}
+            style={FIELD_STYLE}
+          />
+          <MicButton
+            onStart={focusCodeEnd}
+            onText={(text) => {
+              setCode(text.trim());
+              // Re-assert focus + caret after the result so the field is ready
+              // to edit straight away, no tap needed.
+              requestAnimationFrame(focusCodeEnd);
+            }}
+          />
+        </div>
       </div>
-      <div className="flex items-center gap-2">
+
+      <Field label="Shop or name">
         <input
-          ref={codeInputRef}
           required
-          autoFocus
-          value={code}
-          onChange={(e) => setCode(e.target.value)}
-          placeholder="Code"
-          maxLength={200}
-          className="min-w-0 flex-1 rounded-md border px-3 py-2 font-mono text-sm outline-none"
-          style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Where it works"
+          maxLength={150}
+          className={`${FIELD_CLS} font-medium`}
+          style={FIELD_STYLE}
         />
-        <MicButton
-          onStart={focusCodeEnd}
-          onText={(text) => {
-            setCode(text.trim());
-            // Re-assert focus + caret after the result so the field is ready
-            // to edit straight away, no tap needed.
-            requestAnimationFrame(focusCodeEnd);
-          }}
+      </Field>
+
+      <Field label={<>Comment <span style={{ color: "var(--text-muted)" }}>· optional</span></>}>
+        <input
+          value={comment}
+          onChange={(e) => setComment(e.target.value)}
+          placeholder="What it's for, any conditions"
+          maxLength={300}
+          className={FIELD_CLS}
+          style={FIELD_STYLE}
         />
-      </div>
-      <input
-        required
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        placeholder="Shop or name"
-        maxLength={150}
-        className="rounded-md border px-3 py-2 text-sm font-medium outline-none"
-        style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
-      />
-      <input
-        value={comment}
-        onChange={(e) => setComment(e.target.value)}
-        placeholder="Comment (optional)"
-        maxLength={300}
-        className="rounded-md border px-3 py-2 text-sm outline-none"
-        style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
-      />
-      <label className="flex items-center gap-2 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
-        Expires on
+      </Field>
+
+      <Field label={<>Expires on <span style={{ color: "var(--text-muted)" }}>· optional</span></>}>
         <input
           type="date"
           value={expiresOn}
           onChange={(e) => setExpiresOn(e.target.value)}
           min={todayLocalISODate()}
-          className="rounded-md border px-2 py-1 text-sm"
-          style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
+          className={FIELD_CLS}
+          style={FIELD_STYLE}
         />
-        <span style={{ color: "var(--text-muted)" }}>optional</span>
-      </label>
-      <div className="flex items-center gap-3">
+      </Field>
+
+      <div className="flex flex-wrap items-center gap-3">
         <Button type="submit" size="lg" accent={accent} disabled={saving || !canSave}>
-          {saving ? "Saving…" : initial ? "Save changes" : "Save"}
+          {saving ? "Saving…" : initial ? "Save changes" : "Save code"}
         </Button>
         {error && (
           <span className="text-xs" style={{ color: "var(--status-critical)" }}>
@@ -171,7 +180,7 @@ function CodeForm({
           </span>
         )}
       </div>
-    </form>
+    </FormShell>
   );
 }
 

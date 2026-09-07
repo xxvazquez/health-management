@@ -25,8 +25,8 @@ export function toLocalInput(iso: string): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-/** Always-visible low-contrast row action — same language as TaskBoard's
- * IconAction. */
+/** Always-visible low-contrast row action — the muted icon-button used
+ * for edit / archive / delete on list rows across the app. */
 export function IconAction({ onClick, label, tone = "muted", disabled, children }: { onClick: () => void; label: string; tone?: "muted" | "critical"; disabled?: boolean; children: ReactNode }) {
   return (
     <button

@@ -12,7 +12,7 @@ import { PageHeading } from "@/components/ui/PageHeading";
 import { PageShell } from "@/components/ui/PageShell";
 import { ListSkeleton } from "@/components/ui/Skeleton";
 import { AgendaBoard, AgendaCounts } from "@/components/agenda/AgendaBoard";
-import type { TaskFormValues } from "@/components/reminders/TaskBoard";
+import type { TaskFormValues } from "@/components/reminders/TaskForm";
 
 /**
  * Agenda — the one "what needs my attention?" surface. Reminders (mine +

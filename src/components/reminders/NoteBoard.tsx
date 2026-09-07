@@ -7,6 +7,7 @@ import { ListSkeleton } from "@/components/ui/Skeleton";
 import { ErrorState, InlineEmpty } from "@/components/ui/EmptyState";
 import { PrimaryAction } from "@/components/ui/PrimaryAction";
 import { Button } from "@/components/ui/Button";
+import { FormShell } from "@/components/ui/FormShell";
 import { Field } from "@/components/ui/Field";
 import { FIELD_CLS, FIELD_STYLE } from "@/components/ui/formField";
 
@@ -106,37 +107,28 @@ function NoteForm({
   }
 
   return (
-    <form
+    <FormShell
+      title={isEdit ? "Edit note" : "New note"}
       onSubmit={handleSubmit}
-      className="flex flex-col gap-4 rounded-xl border p-4"
-      style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", boxShadow: "var(--shadow-card)" }}
-    >
-      <div className="flex items-center justify-between gap-3">
-        <h3 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-          {isEdit ? "Edit note" : "New note"}
-        </h3>
-        <div className="flex items-center gap-3">
-          {onDelete &&
-            (confirmingDelete ? (
-              <>
-                <button type="button" onClick={onDelete} className="text-xs font-semibold" style={{ color: "var(--status-critical)" }}>
-                  Delete
-                </button>
-                <button type="button" onClick={() => setConfirmingDelete(false)} className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
-                  Keep
-                </button>
-              </>
-            ) : (
-              <button type="button" onClick={() => setConfirmingDelete(true)} className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
-                Delete
-              </button>
-            ))}
-          <button type="button" onClick={onCancel} className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
-            Cancel
+      onCancel={onCancel}
+      headerActions={
+        onDelete &&
+        (confirmingDelete ? (
+          <>
+            <button type="button" onClick={onDelete} className="text-xs font-semibold" style={{ color: "var(--status-critical)" }}>
+              Delete
+            </button>
+            <button type="button" onClick={() => setConfirmingDelete(false)} className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+              Keep
+            </button>
+          </>
+        ) : (
+          <button type="button" onClick={() => setConfirmingDelete(true)} className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+            Delete
           </button>
-        </div>
-      </div>
-
+        ))
+      }
+    >
       <Field label={<>Title <span style={{ color: "var(--text-muted)" }}>· optional</span></>}>
         <input
           autoFocus
@@ -194,7 +186,7 @@ function NoteForm({
           </span>
         )}
       </div>
-    </form>
+    </FormShell>
   );
 }
 
