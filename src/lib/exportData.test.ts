@@ -35,10 +35,17 @@ describe("export table list", () => {
 });
 
 describe("EXPORT_SECTIONS", () => {
-  it("covers every export table exactly once", () => {
-    const sectioned = EXPORT_SECTIONS.flatMap((s) => s.tables);
+  const realSections = EXPORT_SECTIONS.filter((s) => s.label !== "Everything");
+
+  it("real sections cover every export table exactly once", () => {
+    const sectioned = realSections.flatMap((s) => s.tables);
     expect(new Set(sectioned).size).toBe(sectioned.length);
     expect([...sectioned].sort()).toEqual([...entries.map((e) => e.table)].sort());
+  });
+
+  it('the "Everything" section is the full table list', () => {
+    const everything = EXPORT_SECTIONS.find((s) => s.label === "Everything")!;
+    expect([...everything.tables].sort()).toEqual([...entries.map((e) => e.table)].sort());
   });
 });
 
