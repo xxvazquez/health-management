@@ -349,7 +349,8 @@ null` — deleting a panel ungroups its markers); `lab_results → lab_markers` 
 `LabsOverview`, all `useLabs` with no extra query) and a **Manage** view where
 markers and panels are added/renamed; values are entered one at a time from a
 marker's detail or a whole blood draw at once from its **Add results** batch view
-(one date and lab, a value per marker, one multi-row insert).
+(one date and lab, a value per marker — one `lab_results` row each, written
+through the offline outbox like the rest of the direct features).
 
 `blood_pressure` / `weight_logs` back the Medical page's **Vitals** tab. Unlike lab
 results these are taken more than once a day, so the timestamp is `measured_at
@@ -387,8 +388,8 @@ the FK holds. Wired: `journal_entries`, `personal_notes` / `personal_items` /
 `personal_tasks` / `personal_task_completions`, `reminder_lists`,
 `blood_pressure` / `weight_logs`, `doctors` / `doctor_specialties` /
 `doctor_appointments` / `doctor_appointment_tasks`, `care_entries` /
-`care_entry_specialties`, `wishlist_*`, `household_*`. Still online-only:
-`lab_*` and `notes`.
+`care_entry_specialties`, `lab_panels` / `lab_markers` / `lab_results`,
+`wishlist_*`, `household_*`. Still online-only: `notes` (Messages).
 
 ## Reminders → Home
 

@@ -129,8 +129,8 @@ flowchart LR
     outbox -->|"drain, retry/backoff"| pg
     pg -->|"pull: sign-in / focus / reconnect / 60s"| idb
     ui --> auth
-    ui -.->|"Labs, Messages<br/>(direct writes; reads cached as snapshots)"| pg
-    ui -.->|"Journal, Vitals, Medical, Reminders, Care Log, Wishlist, Household<br/>(direct, falls back to outbox offline)"| outbox
+    ui -.->|"Messages<br/>(direct writes; reads cached as snapshots)"| pg
+    ui -.->|"Journal, Vitals, Medical, Labs, Reminders, Wishlist, Household<br/>(direct, falls back to outbox offline)"| outbox
     idb -.->|"snapshot: instant read, then revalidate"| ui
     ui -.->|"notify-note (on send)"| ef
     ef -->|"reminder + digest cron"| pg
@@ -224,8 +224,8 @@ through `directWrite.ts` on the way to the shared outbox:
   offline add-then-remove cancels).
 
 Parent-and-children writes (an appointment with follow-up tasks, a care entry
-with specialty tags) enqueue the parent first; the outbox drains oldest-first so
-the FK holds. Still online-only: **Results/Labs** and **Messages**.
+with specialty tags, a whole blood draw) enqueue the parent / each row in order;
+the outbox drains oldest-first so the FK holds. Still online-only: **Messages**.
 
 **Journal, Personal Notes, Personal Expiration and Vitals have offline fallback**
 (`src/lib/supabase/directWrite.ts`): a create/update/delete still tries Supabase
