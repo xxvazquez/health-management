@@ -75,10 +75,8 @@ export function TrendsOverviewDashboard() {
     <div className="flex flex-col gap-6">
       <DashboardHeader subtitle="What stands out across every domain, and a week or month at a time.">Overview</DashboardHeader>
 
-      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
-        <PersonalTrendsSection trends={trends} findings={findings} />
-        <PeriodReviewSection events={events} workoutLogs={workoutLogs} periodLogs={periodLogs} today={today} notesInRange={notesInRange} />
-      </div>
+      <PersonalTrendsSection trends={trends} findings={findings} />
+      <PeriodReviewSection events={events} workoutLogs={workoutLogs} periodLogs={periodLogs} today={today} notesInRange={notesInRange} />
     </div>
   );
 }

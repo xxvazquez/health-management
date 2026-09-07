@@ -117,7 +117,7 @@ function PRBadge() {
  * empty just because a narrow range is selected elsewhere on the page. */
 function RecentActivityTimeline({ sessions }: { sessions: WorkoutRecentSession[] }) {
   return (
-    <Card tier="supporting" className="lg:col-span-2">
+    <Card tier="supporting">
       <CardTitle subtitle="Your last few training days, most recent first — full history, not affected by the range filter below">
         Recent activity
       </CardTitle>
@@ -184,7 +184,7 @@ function ProgressSection({
       : "Log an exercise a second time to start tracking a trend. Full history, not affected by the range filter below.";
 
   return (
-    <Card tier="primary" className="lg:col-span-2">
+    <Card tier="primary">
       <CardTitle subtitle={subtitle}>Progress</CardTitle>
       <div className="flex flex-col">
         {sortedStats.map((s) => {
@@ -371,9 +371,8 @@ export function WorkoutDashboard() {
   const rangeLabel = range ? (rangeIsAllTime ? "all time" : `${formatWorkoutDate(range.start)} – ${formatWorkoutDate(range.end)}`) : "";
 
   return (
-    <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
+    <div className="flex flex-col gap-6">
       <DashboardHeader
-        className="lg:col-span-2"
         subtitle={
           <>
             Charts and progression from what you&apos;ve logged — head to the{" "}
@@ -391,17 +390,13 @@ export function WorkoutDashboard() {
         Workout
       </DashboardHeader>
 
-      {insight && (
-        <div className="lg:col-span-2">
-          <Insight label="What stands out" headline={insight.headline} detail={insight.detail} tone={insight.tone} />
-        </div>
-      )}
+      {insight && <Insight label="What stands out" headline={insight.headline} detail={insight.detail} tone={insight.tone} />}
 
       {recentSessions.length > 0 && <RecentActivityTimeline sessions={recentSessions} />}
 
       {stats.length > 0 && <ProgressSection sortedStats={sortedStats} selectedStats={selectedStats} onSelect={setCompareExercise} />}
 
-      <div className="flex flex-wrap items-center justify-between gap-3 lg:col-span-2">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
           Training patterns
           <span className="ml-2 text-xs font-normal" style={{ color: "var(--text-muted)" }}>
