@@ -41,7 +41,12 @@ export function seasonalPicksForMonth(
     return { item, weeksSinceLastEaten: Math.max(0, Math.floor(days / 7)) };
   });
 
-  return picks.sort((a, b) => (b.weeksSinceLastEaten ?? Infinity) - (a.weeksSinceLastEaten ?? Infinity));
+  return picks.sort((a, b) => {
+    if (a.weeksSinceLastEaten === b.weeksSinceLastEaten) return 0;
+    if (a.weeksSinceLastEaten === null) return -1;
+    if (b.weeksSinceLastEaten === null) return 1;
+    return b.weeksSinceLastEaten - a.weeksSinceLastEaten;
+  });
 }
 
 /** The month's full produce list, filtered down to the items currently

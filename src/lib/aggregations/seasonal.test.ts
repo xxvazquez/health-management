@@ -46,6 +46,17 @@ describe("seasonalPicksForMonth", () => {
     expect(neverEatenIndex).toBeLessThan(appleIndex);
   });
 
+  it("keeps every never-eaten item ahead of any eaten one", () => {
+    const events = [
+      makeEvent({ itemType: "food", item: "Apple", date: "2026-01-01", completed: true }),
+      makeEvent({ itemType: "food", item: "Pear", date: "2026-01-10", completed: true }),
+    ];
+    const picks = seasonalPicksForMonth(events, 1, "2026-01-15");
+    const lastNeverEaten = picks.map((p) => p.weeksSinceLastEaten).lastIndexOf(null);
+    const firstEaten = picks.findIndex((p) => p.weeksSinceLastEaten !== null);
+    expect(lastNeverEaten).toBeLessThan(firstEaten);
+  });
+
   it("returns an empty array for a month with no configured produce", () => {
     expect(seasonalPicksForMonth([], 999, "2026-01-15")).toEqual([]);
   });
