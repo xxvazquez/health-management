@@ -371,9 +371,11 @@ These have no full IndexedDB mirror. Reads are cached as per-hook snapshots
 - `updateDirect` — an edit of a pair-visible row (`household_*`, `wishlist_*`):
   a plain `update`, queued as an `"update"` outbox op, because the split
   `insert_own` / `update_pair` RLS rejects an upsert of the partner's row.
-- `insertDirect` — a write-once row on a table with no update policy
-  (`care_entry_specialties`, `*_task_completions`): `ON CONFLICT DO NOTHING`
-  (`"insert"` op), so a redelivered send is a no-op, not a dead-letter.
+- `insertDirect` — a write-once row (`care_entry_specialties`,
+  `*_task_completions`): `ON CONFLICT DO NOTHING` (`"insert"` op), so a
+  redelivered send is a no-op, not a dead-letter. `household_task_completions`
+  has no update policy on purpose (a completion is immutable), so it needs this;
+  the others get the same idempotency for free.
 - `deleteDirect` / `deleteWhereDirect` — a delete by id, or by a column match
   for a row with no surrogate id (`care_entry_specialties` keyed on
   `(entry_id, specialty_id)`, `*_task_completions` on `(task_id, completed_at)`

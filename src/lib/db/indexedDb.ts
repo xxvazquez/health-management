@@ -19,9 +19,12 @@ import { createTimeOrderedId } from "@/lib/sortableId";
 //    still-unsent create for the same record.
 //  - "insert" — an insert that's a no-op on conflict (ON CONFLICT DO
 //    NOTHING), for write-once rows: pure join rows (care_entry_specialties)
-//    and the immutable *_task_completions log, whose tables have no update
-//    policy at all, so a plain upsert's DO UPDATE path would fail and a
-//    redelivered send would spuriously dead-letter.
+//    and the immutable *_task_completions log. `household_task_completions`
+//    is deliberately update-less (a completion is immutable — no editing
+//    history), so a plain upsert's DO UPDATE path fails there and a
+//    redelivered send after a lost ack would spuriously dead-letter; the
+//    other two would only re-set unchanged columns, but DO NOTHING says
+//    what's meant and gives the same idempotency.
 export type OutboxOperation = "upsert" | "update" | "insert" | "delete";
 type OutboxStatus = "pending" | "dead-letter";
 

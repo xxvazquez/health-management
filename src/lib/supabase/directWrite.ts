@@ -95,11 +95,13 @@ function matchKey(match: Record<string, string>): string {
 /**
  * An insert that's a no-op on conflict (`ON CONFLICT DO NOTHING`) — for a
  * write-once row: a pure join row (`care_entry_specialties`) or an
- * immutable log row (`*_task_completions`). Those tables have no update
- * policy, so a plain `upsertDirect` would fail its DO UPDATE path, and a
- * redelivered send after a lost success-ack would spuriously dead-letter.
- * `match` is the row's natural key; it also keys the outbox entry so an
- * offline add-then-remove of the same row cancels against `deleteWhereDirect`.
+ * immutable log row (`*_task_completions`). `household_task_completions`
+ * has no update policy (a completion is immutable), so a plain
+ * `upsertDirect` fails there and a redelivered send after a lost ack would
+ * spuriously dead-letter. The idempotency belongs at the write, not in a
+ * loosened policy. `match` is the row's natural key; it also keys the
+ * outbox entry so an offline add-then-remove of the same row cancels
+ * against `deleteWhereDirect`.
  */
 export function insertDirect(userId: string, table: string, match: Record<string, string>, payload: Record<string, unknown>): Promise<void> {
   return attemptOrQueue(userId, table, matchKey(match), "insert", payload);
