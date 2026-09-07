@@ -1,6 +1,6 @@
 import { supabase } from "./client";
 import { createTimeOrderedId } from "@/lib/sortableId";
-import { deleteDirect, upsertDirect } from "./directWrite";
+import { deleteDirect, deleteWhereDirect, upsertDirect } from "./directWrite";
 
 export interface BloodPressureReading {
   id: string;
@@ -170,4 +170,43 @@ export async function deleteWeight(id: string): Promise<void> {
   const myUserId = await currentUserId();
   if (!myUserId) throw new Error("Sign in first.");
   await deleteDirect(myUserId, WEIGHT_TABLE, id);
+}
+
+// --- Weight target -----------------------------------------------------
+
+export interface WeightTarget {
+  lowKg: number;
+  highKg: number;
+}
+
+const TARGET_TABLE = "weight_target";
+
+export async function fetchWeightTarget(): Promise<WeightTarget | null> {
+  if (!supabase) return null;
+  const myUserId = await currentUserId();
+  if (!myUserId) return null;
+  const { data, error } = await supabase.from(TARGET_TABLE).select("low_kg, high_kg").eq("user_id", myUserId).maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+  return { lowKg: Number(data.low_kg), highKg: Number(data.high_kg) };
+}
+
+/** Sets (or replaces) the weight-goal range — one row per user, keyed by
+ * `user_id`, so this upserts on it. Offline / mid-outage it queues; see
+ * directWrite.ts. */
+export async function setWeightTarget(target: WeightTarget): Promise<void> {
+  const myUserId = await currentUserId();
+  if (!myUserId) throw new Error("Sign in first.");
+  await upsertDirect(myUserId, TARGET_TABLE, myUserId, {
+    user_id: myUserId,
+    low_kg: target.lowKg,
+    high_kg: target.highKg,
+    updated_at: new Date().toISOString(),
+  });
+}
+
+export async function clearWeightTarget(): Promise<void> {
+  const myUserId = await currentUserId();
+  if (!myUserId) throw new Error("Sign in first.");
+  await deleteWhereDirect(myUserId, TARGET_TABLE, { user_id: myUserId });
 }
