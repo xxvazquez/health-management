@@ -731,6 +731,9 @@ create index doctor_appointment_tasks_due_idx on public.doctor_appointment_tasks
 -- An optional `remind_on` date nudges you to come back to the entry (e.g.
 -- "recheck ferritin in 8 weeks"); the reminder cron sends it once when the
 -- date arrives and stamps `reminder_sent_at`, exactly like doctor_appointment_tasks.
+-- A `decision` entry may also point at the `supplement_items` row it explains
+-- ("why am I on this / this dose") — composite FK so it can't cross the user
+-- boundary, `on delete set null` so removing the supplement just unlinks it.
 create table public.care_entries (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null default auth.uid() references auth.users(id),
@@ -740,9 +743,11 @@ create table public.care_entries (
   body text,
   remind_on date,
   reminder_sent_at timestamptz,
+  supplement_item_id uuid,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  unique (user_id, id)
+  unique (user_id, id),
+  foreign key (user_id, supplement_item_id) references public.supplement_items (user_id, id) on delete set null
 );
 
 create table public.care_entry_specialties (

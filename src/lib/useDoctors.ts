@@ -366,6 +366,6 @@ export function useDoctors() {
     doctors: { data: doctors, edit: editDoctor, remove: removeDoctor },
     appointments: { data: appointments, log: logAppointment, edit: editAppointment, remove: removeAppointment },
     tasks: { data: tasks, add: addTask, edit: editTask, setComplete: setTaskComplete, remove: removeTask },
-    careLog: { data: careLog.data, add: careLog.add, edit: careLog.edit, remove: careLog.remove },
+    careLog: { data: careLog.data, supplements: careLog.supplements, add: careLog.add, edit: careLog.edit, remove: careLog.remove },
   };
 }

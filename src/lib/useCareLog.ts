@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/lib/supabase/AuthContext";
 import {
   createCareEntry,
@@ -12,7 +12,16 @@ import {
   type NewCareEntryInput,
 } from "@/lib/supabase/careLog";
 import { buildDemoCareEntries } from "@/lib/demoCareLog";
+import { demoSupplementItems } from "@/lib/demoData";
+import { getAllItems } from "@/lib/db/indexedDb";
 import { useSnapshotCache } from "@/lib/useSnapshotCache";
+
+/** {id, name} for the account's non-archived supplement items — the option
+ * list for a decision entry's "which supplement" picker. */
+export interface SupplementOption {
+  id: string;
+  name: string;
+}
 
 /** Standalone so both the Medical page (via useDoctors) and the Log page's
  * Symptoms tab read one shared care-log state. Survives navigation away and
@@ -38,6 +47,30 @@ export function useCareLog() {
   const [entries, setEntries] = useState<CareEntry[]>(() => seed?.entries ?? buildDemoCareEntries());
   const [loading, setLoading] = useState(seed === null);
   const [error, setError] = useState(false);
+  const [fetchedSupplements, setFetchedSupplements] = useState<SupplementOption[]>([]);
+  const supplements = useMemo(
+    () => (isDemo ? demoSupplementItems() : fetchedSupplements),
+    [isDemo, fetchedSupplements],
+  );
+
+  useEffect(() => {
+    if (isDemo || !userId) return;
+    let active = true;
+    getAllItems()
+      .then((items) => {
+        if (!active) return;
+        setFetchedSupplements(
+          items
+            .filter((i) => i.itemType === "supplement" && !i.isArchived)
+            .map((i) => ({ id: i.identity, name: i.rawName }))
+            .sort((a, b) => a.name.localeCompare(b.name)),
+        );
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [isDemo, userId]);
 
   const { persist } = useSnapshotCache<CareEntry[]>({
     feature: "careLog",
@@ -77,6 +110,7 @@ export function useCareLog() {
               title: input.title.trim(),
               body: input.body.trim() || null,
               remindOn: input.remindOn,
+              supplementItemId: input.kind === "decision" ? input.supplementItemId : null,
               specialtyIds: input.specialtyIds,
               createdAt: new Date().toISOString(),
             },
@@ -105,6 +139,7 @@ export function useCareLog() {
                   title: patch.title !== undefined ? patch.title.trim() : e.title,
                   body: patch.body !== undefined ? patch.body.trim() || null : e.body,
                   remindOn: patch.remindOn !== undefined ? patch.remindOn : e.remindOn,
+                  supplementItemId: patch.supplementItemId !== undefined ? patch.supplementItemId : e.supplementItemId,
                   specialtyIds: patch.specialtyIds ?? e.specialtyIds,
                 }
               : e,
@@ -127,5 +162,5 @@ export function useCareLog() {
     [isDemo],
   );
 
-  return { data: entries, loading: !isDemo && loading, error, isDemo, add, edit, remove };
+  return { data: entries, supplements, loading: !isDemo && loading, error, isDemo, add, edit, remove };
 }

@@ -320,7 +320,9 @@ wired up one at a time.
   `care_entry_specialties` join is a dated timeline of *observation*, *decision*
   and *note* entries, each tagged to any number of specialties — surfaced in
   Visits' "To raise next time" section, filterable by specialty. An entry may
-  carry an optional `remind_on` date that the reminder cron sends once (phase 2).
+  carry an optional `remind_on` date that the reminder cron sends once (phase 2);
+  a *decision* may also link a `supplement_item_id`, surfaced as a "why am I
+  taking this" line on that supplement's Settings row.
 - **Voice input on Expiration and Codes** is the browser's own Web Speech API, feature-detected — no server, no dependency.
 
 ### PWA shell

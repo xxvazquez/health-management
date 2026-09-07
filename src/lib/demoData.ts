@@ -32,6 +32,14 @@ const OCCASIONAL_SUPPLEMENTS: [string, string][] = [
   ["Iron", "Minerals"],
   ["Folate", "Vitamins"],
 ];
+/** {id, name} for every demo supplement — the option list for the care-log
+ * decision picker while signed out. Ids match `buildDemoDataset`'s items. */
+export function demoSupplementItems(): { id: string; name: string }[] {
+  return [...DAILY_SUPPLEMENTS, ...OCCASIONAL_SUPPLEMENTS]
+    .map(([name]) => ({ id: demoItemIdentity(name), name }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
 // Its own category — a stepper-tracked amount, not a yes/no habit. Other
 // measurables (weight, steps, …) would live here too.
 const DAILY_HABIT: [string, string] = ["Sleep", "Measures"];
