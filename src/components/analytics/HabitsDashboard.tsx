@@ -126,7 +126,7 @@ export function HabitsDashboard() {
                   </span>
                 </div>
                 {clampedStripStart && (
-                  <AdherenceStrip startDate={clampedStripStart} endDate={stripEnd} stateByDate={buildStateByDate(filtered, item.item)} />
+                  <AdherenceStrip startDate={clampedStripStart} endDate={stripEnd} stateByDate={buildStateByDate(filtered, item.item)} color={TYPE_ACCENT.habit} />
                 )}
               </div>
             ))}
