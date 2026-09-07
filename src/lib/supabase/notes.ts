@@ -1,4 +1,7 @@
 import { supabase, supabaseConfigured } from "./client";
+import { createTimeOrderedId } from "@/lib/sortableId";
+import { insertDirect, updateDirect } from "./directWrite";
+import { readSnapshot, writeSnapshot } from "@/lib/db/indexedDb";
 
 /** Same "is cloud set up" flag as auth/sync/bug-reporting. Notes has no
  * offline/local-only mode (unlike Log's IndexedDB-backed personal
@@ -195,24 +198,34 @@ export async function unreadNoteCount(): Promise<number> {
 }
 
 /** Every message in one thread (the root plus every reply under it),
- * oldest first — what the thread detail view renders. */
+ * oldest first — what the thread detail view renders. Cached per thread so
+ * a thread you've opened before still reads offline. */
 export async function fetchThreadMessages(rootId: string): Promise<NoteMessage[]> {
   if (!supabase) return [];
   const myUserId = await currentUserId();
   if (!myUserId) return [];
-  const { data, error } = await supabase
-    .from("notes")
-    .select("id, sender_id, body, created_at")
-    .or(`id.eq.${rootId},thread_root_id.eq.${rootId}`)
-    .order("created_at", { ascending: true });
-  if (error) throw error;
-  return (data as { id: string; sender_id: string; body: string; created_at: string }[]).map((row) => ({
-    id: row.id,
-    senderId: row.sender_id,
-    isMine: row.sender_id === myUserId,
-    body: row.body,
-    createdAt: row.created_at,
-  }));
+  const feature = `noteMessages:${rootId}`;
+  try {
+    const { data, error } = await supabase
+      .from("notes")
+      .select("id, sender_id, body, created_at")
+      .or(`id.eq.${rootId},thread_root_id.eq.${rootId}`)
+      .order("created_at", { ascending: true });
+    if (error) throw error;
+    const messages = (data as { id: string; sender_id: string; body: string; created_at: string }[]).map((row) => ({
+      id: row.id,
+      senderId: row.sender_id,
+      isMine: row.sender_id === myUserId,
+      body: row.body,
+      createdAt: row.created_at,
+    }));
+    void writeSnapshot(myUserId, feature, messages);
+    return messages;
+  } catch (err) {
+    const snap = await readSnapshot(myUserId, feature).catch(() => undefined);
+    if (snap) return snap.payload as NoteMessage[];
+    throw err;
+  }
 }
 
 /** Fire-and-forget push to the recipient's device(s) that a message
@@ -230,40 +243,51 @@ export interface NewNoteInput {
   body: string;
 }
 
+/** Sends the root note. The id is generated here so an offline send and
+ * its eventual synced row are one record; the write goes through the
+ * outbox on failure (see directWrite.ts). `notify-note` is fired
+ * best-effort — offline it's a no-op and the daily digest is the
+ * fallback, same as when a recipient has no push subscription. */
 export async function sendNote(input: NewNoteInput): Promise<string> {
-  if (!supabase) throw new Error("Cloud sync isn't set up for this deployment.");
   const myUserId = await currentUserId();
   if (!myUserId) throw new Error("Sign in first.");
-  const { data, error } = await supabase
-    .from("notes")
-    .insert({
-      sender_id: myUserId,
-      recipient_id: input.recipientId,
-      category: input.category,
-      subject: input.subject.trim() || null,
-      body: input.body.trim(),
-    })
-    .select("id")
-    .single();
-  if (error) throw error;
-  notifyRecipient(data.id);
-  return data.id;
+  const id = createTimeOrderedId();
+  const nowIso = new Date().toISOString();
+  await insertDirect(myUserId, "notes", { id }, {
+    id,
+    sender_id: myUserId,
+    recipient_id: input.recipientId,
+    category: input.category,
+    subject: input.subject.trim() || null,
+    body: input.body.trim(),
+    created_at: nowIso,
+    last_message_at: nowIso,
+  });
+  notifyRecipient(id);
+  notifyNotesChanged();
+  return id;
 }
 
 /** A reply always keeps the root's own category — it's a response inside
- * an existing conversation, not a new one to classify. */
-export async function replyToNote(rootId: string, recipientId: string, body: string): Promise<string> {
-  if (!supabase) throw new Error("Cloud sync isn't set up for this deployment.");
+ * an existing conversation, not a new one to classify. Returns the new
+ * message so the caller can render it without a re-fetch. */
+export async function replyToNote(rootId: string, recipientId: string, body: string): Promise<NoteMessage> {
   const myUserId = await currentUserId();
   if (!myUserId) throw new Error("Sign in first.");
-  const { data, error } = await supabase
-    .from("notes")
-    .insert({ sender_id: myUserId, recipient_id: recipientId, thread_root_id: rootId, body: body.trim() })
-    .select("id")
-    .single();
-  if (error) throw error;
-  notifyRecipient(data.id);
-  return data.id;
+  const id = createTimeOrderedId();
+  const nowIso = new Date().toISOString();
+  await insertDirect(myUserId, "notes", { id }, {
+    id,
+    sender_id: myUserId,
+    recipient_id: recipientId,
+    thread_root_id: rootId,
+    body: body.trim(),
+    created_at: nowIso,
+    last_message_at: nowIso,
+  });
+  notifyRecipient(id);
+  notifyNotesChanged();
+  return { id, senderId: myUserId, isMine: true, body: body.trim(), createdAt: nowIso };
 }
 
 async function updateMyThreadState(
@@ -271,8 +295,11 @@ async function updateMyThreadState(
   isMine: boolean,
   patch: { readAt?: string | null; favourited?: boolean; archived?: boolean },
 ): Promise<void> {
-  if (!supabase) return;
-  const update: Record<string, unknown> = {};
+  const myUserId = await currentUserId();
+  if (!myUserId) return;
+  // Only my own read/archive column, or both favourite columns — never an
+  // identity column, so the notes_lock_identity_columns trigger is happy.
+  const update: Record<string, unknown> = { id: threadId };
   if (patch.readAt !== undefined) update[isMine ? "sender_read_at" : "recipient_read_at"] = patch.readAt;
   // Favourite is a shared thread flag — write both sides so it shows under
   // Favourites for both partners and either can clear it (the RLS update
@@ -282,8 +309,7 @@ async function updateMyThreadState(
     update.recipient_favourited = patch.favourited;
   }
   if (patch.archived !== undefined) update[isMine ? "sender_archived" : "recipient_archived"] = patch.archived;
-  const { error } = await supabase.from("notes").update(update).eq("id", threadId);
-  if (error) throw error;
+  await updateDirect(myUserId, "notes", threadId, update);
   // read/unread and archive both change what counts as unread — cheap
   // enough to fire for favourite too rather than threading a "does this
   // actually affect the badge" flag through every call site.
@@ -308,16 +334,24 @@ export function setThreadArchived(threadId: string, isMine: boolean, archived: b
  * they last opened it (sender_read_at). Two bulk updates instead of one
  * because a single row can't be both "my sent thread" and "my inbox
  * thread" at once, so each column only ever needs the caller's own side. */
-export async function markAllThreadsRead(): Promise<void> {
-  if (!supabase) return;
+export async function markAllThreadsRead(loadedThreads: NoteThread[] = []): Promise<void> {
   const myUserId = await currentUserId();
-  if (!myUserId) return;
+  if (!myUserId || !supabase) return;
   const nowIso = new Date().toISOString();
-  const [sent, received] = await Promise.all([
-    supabase.from("notes").update({ sender_read_at: nowIso }).eq("sender_id", myUserId).is("thread_root_id", null),
-    supabase.from("notes").update({ recipient_read_at: nowIso }).eq("recipient_id", myUserId).is("thread_root_id", null),
-  ]);
-  if (sent.error) throw sent.error;
-  if (received.error) throw received.error;
+  try {
+    const [sent, received] = await Promise.all([
+      supabase.from("notes").update({ sender_read_at: nowIso }).eq("sender_id", myUserId).is("thread_root_id", null),
+      supabase.from("notes").update({ recipient_read_at: nowIso }).eq("recipient_id", myUserId).is("thread_root_id", null),
+    ]);
+    if (sent.error) throw sent.error;
+    if (received.error) throw received.error;
+  } catch {
+    // Offline (or a one-off failure) — queue a per-thread read for each
+    // loaded thread instead. Threads not in the current view sync on the
+    // next successful pull.
+    for (const t of loadedThreads) {
+      if (t.isUnreadForMe) await updateMyThreadState(t.id, t.isMine, { readAt: nowIso });
+    }
+  }
   notifyNotesChanged();
 }

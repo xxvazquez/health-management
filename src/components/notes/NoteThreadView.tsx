@@ -65,7 +65,7 @@ export function NoteThreadView({
   onMarkUnread: (threadId: string, isMine: boolean) => Promise<void>;
   onToggleFavourite: (threadId: string, isMine: boolean, next: boolean) => Promise<void>;
   onToggleArchive: (threadId: string, isMine: boolean, next: boolean) => Promise<void>;
-  onReply: (rootId: string, recipientId: string, body: string) => Promise<unknown>;
+  onReply: (rootId: string, recipientId: string, body: string) => Promise<NoteMessage>;
 }) {
   const [messages, setMessages] = useState<NoteMessage[] | null>(null);
   const [loadError, setLoadError] = useState(false);
@@ -106,9 +106,9 @@ export function NoteThreadView({
     setReplyError(null);
     try {
       const recipientId = thread.isMine ? thread.recipientId : thread.senderId;
-      await onReply(thread.id, recipientId, replyBody);
+      const sent = await onReply(thread.id, recipientId, replyBody);
       setReplyBody("");
-      setMessages(await fetchMessages(thread.id));
+      setMessages((prev) => [...(prev ?? []), sent]);
       onChanged();
     } catch (err) {
       console.error("onReply failed", err);
