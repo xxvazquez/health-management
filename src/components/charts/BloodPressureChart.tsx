@@ -17,6 +17,8 @@ export interface BloodPressurePoint {
   at: string;
   systolic: number;
   diastolic: number;
+  /** The reading's own comment, shown in the tooltip when present. */
+  note?: string | null;
 }
 
 function fmtTick(iso: string): string {
@@ -65,8 +67,11 @@ export function BloodPressureChart({ data, height = 240 }: { data: BloodPressure
             fontSize: 12,
             color: "var(--text-primary)",
           }}
-          labelStyle={{ color: "var(--text-secondary)" }}
-          labelFormatter={(label) => fmtTick(String(label))}
+          labelStyle={{ color: "var(--text-secondary)", maxWidth: 200, whiteSpace: "normal" }}
+          labelFormatter={(label, payload) => {
+            const note = (payload?.[0]?.payload as BloodPressurePoint | undefined)?.note;
+            return note ? `${fmtTick(String(label))} — ${note}` : fmtTick(String(label));
+          }}
           formatter={(v, name) => [`${v} mmHg`, name === "systolic" ? "Systolic" : "Diastolic"]}
         />
         <Line
