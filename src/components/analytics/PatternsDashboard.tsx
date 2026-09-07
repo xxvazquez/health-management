@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { useData } from "@/lib/DataContext";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageSkeleton } from "@/components/ui/Skeleton";
@@ -21,6 +21,7 @@ import {
   MULTIPLE_COMPARISONS_NOTE,
 } from "@/lib/aggregations/patterns";
 import { generateInsights, trackingCoverageSummary } from "@/lib/aggregations/recommendations";
+import { colorForCategorySlot } from "@/taxonomy/categories";
 import type { CanonicalEvent, RawWorkoutLog } from "@/lib/types";
 
 /** "the same day as X" / "the day after X" / "2 days after X" */
@@ -28,6 +29,18 @@ function lagPhrase(lagDays: number): string {
   if (lagDays === 0) return "the same day as";
   if (lagDays === 1) return "the day after";
   return `${lagDays} days after`;
+}
+
+/** Inline colour-coded label for the "What might be worth adjusting?" rows. */
+function AdjustTag({ color, children }: { color: string; children: ReactNode }) {
+  return (
+    <span
+      className="mr-1.5 inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold tracking-wide uppercase"
+      style={{ background: `color-mix(in oklab, ${color} 15%, var(--surface-1))`, color }}
+    >
+      {children}
+    </span>
+  );
 }
 
 export function PatternsDashboard() {
@@ -55,12 +68,37 @@ export function PatternsDashboard() {
       </div>
 
       {topPatterns.length > 0 ? (
-        <Insight
-          label="Strongest signal"
-          headline={`${topPatterns[0].outcomeLabel} ${topPatterns[0].diffPct > 0 ? "occurred more often" : "occurred less often"} ${lagPhrase(topPatterns[0].lagDays)} ${topPatterns[0].causeLabel}.`}
-          detail={`Association only, never proof of cause — from ${topPatterns[0].withTotal + topPatterns[0].withoutTotal} days of overlapping tracking.`}
-          tone="neutral"
-        />
+        <Card tier="supporting" className="flex flex-col gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <span
+              className="rounded-md px-2 py-0.5 text-[11px] font-semibold tracking-wide uppercase"
+              style={{ background: "color-mix(in oklab, var(--series-1) 15%, var(--surface-1))", color: "var(--series-1)" }}
+            >
+              Strongest signal
+            </span>
+            <SampleTierBadge tier={topPatterns[0].sampleTier} />
+          </div>
+          <p className="text-base leading-snug" style={{ color: "var(--text-primary)" }}>
+            <strong className="font-semibold">{topPatterns[0].outcomeLabel}</strong>{" "}
+            {topPatterns[0].diffPct > 0 ? "occurred more often" : "occurred less often"} {lagPhrase(topPatterns[0].lagDays)}{" "}
+            <strong className="font-semibold">{topPatterns[0].causeLabel}</strong>.
+          </p>
+          <ComparisonBars
+            withLabel={`With ${topPatterns[0].causeLabel}`}
+            withPct={topPatterns[0].withPct}
+            withCount={topPatterns[0].withCount}
+            withTotal={topPatterns[0].withTotal}
+            withoutLabel={`Without ${topPatterns[0].causeLabel}`}
+            withoutPct={topPatterns[0].withoutPct}
+            withoutCount={topPatterns[0].withoutCount}
+            withoutTotal={topPatterns[0].withoutTotal}
+            direction={topPatterns[0].diffPct > 0 ? "more" : "less"}
+          />
+          <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+            Association only, never proof of cause — from {topPatterns[0].withTotal + topPatterns[0].withoutTotal} days of
+            overlapping tracking.
+          </p>
+        </Card>
       ) : (
         <Insight
           label="Patterns"
@@ -80,13 +118,13 @@ export function PatternsDashboard() {
 
       <Card tier="raw">
         <CardTitle size="sm" subtitle="Each pair shows whichever of 4 lags (same day to +3 days) has the strongest signal.">
-          Notable associations
+          Other associations
         </CardTitle>
-        {topPatterns.length > 0 ? (
+        {topPatterns.length > 1 ? (
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-            {topPatterns.map((p, i) => (
+            {topPatterns.slice(1).map((p, i) => (
               <div key={i} className="rounded-lg border p-3.5" style={{ borderColor: "var(--gridline)" }}>
-                <div className="mb-1 flex items-start justify-between gap-2">
+                <div className="mb-2 flex items-start justify-between gap-2">
                   <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
                     {p.outcomeLabel}{" "}
                     <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>
@@ -107,20 +145,20 @@ export function PatternsDashboard() {
                   withoutTotal={p.withoutTotal}
                   direction={p.diffPct > 0 ? "more" : "less"}
                 />
-                <p className="mt-3 text-xs" style={{ color: "var(--text-muted)" }}>
-                  Association only, not evidence of cause — based on {p.withTotal + p.withoutTotal} days where{" "}
-                  {p.outcomeLabel.toLowerCase()} tracking exists.
-                </p>
               </div>
             ))}
           </div>
         ) : (
           <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-            Not enough data yet to surface a reliable association (each comparison needs at least 10 exposed
-            days and 5 unexposed days, at every lag checked).
+            {topPatterns.length === 1
+              ? "That's the only association that cleared the bar in this range."
+              : "Not enough data yet to surface a reliable association (each comparison needs at least 10 exposed days and 5 unexposed days, at every lag checked)."}
           </p>
         )}
-        <div className="mt-4">
+        <p className="mt-4 text-xs" style={{ color: "var(--text-muted)" }}>
+          Association only, not evidence of cause.
+        </p>
+        <div className="mt-2">
           <Methodology label="Why so few results?">{MULTIPLE_COMPARISONS_NOTE}</Methodology>
         </div>
       </Card>
@@ -138,42 +176,33 @@ export function PatternsDashboard() {
             {insights.map((insight, i) => (
               <li
                 key={i}
-                className={`rounded-lg border p-3.5 ${
+                className={`flex flex-col gap-2.5 rounded-lg border p-3.5 ${
                   insights.length % 2 === 1 && i === insights.length - 1 ? "sm:col-span-2" : ""
                 }`}
                 style={{ borderColor: "var(--gridline)" }}
               >
-                <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
+                <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
                   {insight.title}
                 </p>
-                <dl className="mt-2 flex flex-col gap-1.5 text-xs">
-                  <div>
-                    <dt className="inline font-semibold" style={{ color: "var(--text-secondary)" }}>
-                      Observed:{" "}
-                    </dt>
-                    <dd className="inline" style={{ color: "var(--text-secondary)" }}>
-                      {insight.observed}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="inline font-semibold" style={{ color: "var(--text-secondary)" }}>
-                      Possible interpretation:{" "}
-                    </dt>
-                    <dd className="inline" style={{ color: "var(--text-secondary)" }}>
-                      {insight.interpretation}
-                    </dd>
-                  </div>
+                <div className="flex flex-col gap-2 text-xs" style={{ color: "var(--text-secondary)" }}>
+                  <p>
+                    <AdjustTag color="var(--text-muted)">Observed</AdjustTag>
+                    {insight.observed}
+                  </p>
+                  <p>
+                    <AdjustTag color="var(--series-2)">Reading</AdjustTag>
+                    {insight.interpretation}
+                  </p>
                   {insight.recommendation && (
-                    <div>
-                      <dt className="inline font-semibold" style={{ color: "var(--status-good)" }}>
-                        Recommendation:{" "}
-                      </dt>
-                      <dd className="inline" style={{ color: "var(--text-secondary)" }}>
-                        {insight.recommendation}
-                      </dd>
-                    </div>
+                    <p
+                      className="rounded-md p-2.5"
+                      style={{ background: "color-mix(in oklab, var(--status-good) 10%, var(--surface-1))", color: "var(--text-primary)" }}
+                    >
+                      <AdjustTag color="var(--status-good)">Try</AdjustTag>
+                      {insight.recommendation}
+                    </p>
                   )}
-                </dl>
+                </div>
               </li>
             ))}
           </ul>
@@ -298,45 +327,76 @@ function ToleratedFoods({ events }: { events: CanonicalEvent[] }) {
           data. That&apos;s a real finding worth noting on its own, not an error.
         </p>
       )}
-      {foods.length > 0 && (
-        <div className="overflow-x-auto">
-          <table className="text-sm">
-            <thead>
-              <tr className="text-left text-xs whitespace-nowrap" style={{ color: "var(--text-muted)" }}>
-                <th className="pb-2 pr-8 font-medium">Food</th>
-                <th className="pb-2 pr-8 font-medium">Category</th>
-                <th className="pb-2 pr-6 text-right font-medium">Days eaten</th>
-                <th className="pb-2 text-right font-medium">Largest symptom diff observed</th>
-              </tr>
-            </thead>
-            <tbody>
-              {foods.map((f) => (
-                <tr key={f.item} className="border-t whitespace-nowrap" style={{ borderColor: "var(--gridline)" }}>
-                  <td className="py-2 pr-8" style={{ color: "var(--text-primary)" }}>
-                    {f.item}
-                  </td>
-                  <td className="py-2 pr-8" style={{ color: "var(--text-secondary)" }}>
-                    {f.category}
-                  </td>
-                  <td className="py-2 pr-6 text-right tabular-nums" style={{ color: "var(--text-secondary)" }}>
-                    {f.exposureDays}
-                  </td>
-                  <td className="py-2 text-right tabular-nums" style={{ color: "var(--text-secondary)" }}>
-                    {f.worstSymptomLabel ? (
-                      <>
-                        {f.worstSymptomDiffPct > 0 ? "+" : ""}
-                        {f.worstSymptomDiffPct} pts ({f.worstSymptomLabel})
-                      </>
-                    ) : (
-                      "—"
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      {foods.length > 0 &&
+        (() => {
+          const maxDays = Math.max(...foods.map((f) => f.exposureDays), 1);
+          return (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-xs whitespace-nowrap" style={{ color: "var(--text-muted)" }}>
+                    <th className="pb-2 pr-6 font-medium">Food</th>
+                    <th className="pb-2 pr-6 font-medium">Days eaten</th>
+                    <th className="pb-2 text-right font-medium">Largest symptom diff</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {foods.map((f) => {
+                    const worse = f.worstSymptomLabel != null && f.worstSymptomDiffPct > 0;
+                    return (
+                      <tr key={f.item} className="border-t" style={{ borderColor: "var(--gridline)" }}>
+                        <td className="py-2.5 pr-6">
+                          <span className="flex items-center gap-2">
+                            <span
+                              className="h-2 w-2 shrink-0 rounded-full"
+                              style={{ background: colorForCategorySlot(f.category) }}
+                              aria-hidden="true"
+                            />
+                            <span style={{ color: "var(--text-primary)" }}>{f.item}</span>
+                            <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+                              {f.category}
+                            </span>
+                          </span>
+                        </td>
+                        <td className="py-2.5 pr-6">
+                          <span className="flex items-center gap-2">
+                            <span className="h-1.5 w-16 shrink-0 rounded-full" style={{ background: "var(--page-plane)" }}>
+                              <span
+                                className="block h-1.5 rounded-full"
+                                style={{ width: `${(f.exposureDays / maxDays) * 100}%`, background: "var(--series-1)" }}
+                              />
+                            </span>
+                            <span className="tabular-nums text-xs" style={{ color: "var(--text-secondary)" }}>
+                              {f.exposureDays}
+                            </span>
+                          </span>
+                        </td>
+                        <td className="py-2.5 text-right whitespace-nowrap tabular-nums">
+                          {f.worstSymptomLabel ? (
+                            <>
+                              <span
+                                className="font-medium"
+                                style={{ color: worse ? "var(--status-warning)" : "var(--status-good)" }}
+                              >
+                                {f.worstSymptomDiffPct > 0 ? "+" : ""}
+                                {f.worstSymptomDiffPct} pts
+                              </span>{" "}
+                              <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+                                {f.worstSymptomLabel}
+                              </span>
+                            </>
+                          ) : (
+                            <span style={{ color: "var(--text-muted)" }}>—</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          );
+        })()}
     </Card>
   );
 }
