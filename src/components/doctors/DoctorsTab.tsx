@@ -6,6 +6,7 @@ import type { Doctor } from "@/lib/supabase/doctors";
 import { resolveSpecialtyNames } from "@/lib/doctors";
 import { ComboBox, DoctorName, FIELD_CLS, FIELD_STYLE, LanguageChips, NextAppointmentField, PencilIcon, RatingChips } from "./shared";
 import { AppointmentList } from "./AppointmentList";
+import { DetailPlaceholder, MedicalSplit, useIsDesktop } from "./MedicalSplit";
 import { InlineEmpty } from "@/components/ui/EmptyState";
 
 type DoctorsApi = ReturnType<typeof useDoctors>;
@@ -142,28 +143,31 @@ function DoctorHistory({ api, doctor, accent, onBack }: { api: DoctorsApi; docto
 }
 
 export function DoctorsTab({ api, accent }: { api: DoctorsApi; accent: string }) {
-  const [openId, setOpenId] = useState<string | null>(null);
   const { doctors, appointments } = api;
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const desktop = useIsDesktop();
 
   if (doctors.data.length === 0) {
     return <InlineEmpty title="No doctors yet" description="Add one while logging an appointment — they're saved here for reuse." />;
   }
 
-  return (
+  const selected = doctors.data.find((d) => d.id === selectedId) ?? null;
+
+  const list = (
     <ul className="flex flex-col divide-y rounded-xl border" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
       {doctors.data.map((doctor) => {
         const count = appointments.data.filter((a) => a.doctorId === doctor.id).length;
-        const open = doctor.id === openId;
+        const active = doctor.id === selectedId;
         return (
           <li key={doctor.id} style={{ borderColor: "var(--gridline)" }}>
             <button
               type="button"
-              onClick={() => setOpenId(open ? null : doctor.id)}
-              aria-expanded={open}
-              className="flex w-full items-center justify-between gap-3 border-l-2 px-4 py-3 text-left transition-colors hover:bg-[var(--page-plane)]"
-              style={{ borderLeftColor: open ? accent : "transparent", background: open ? "var(--page-plane)" : undefined }}
+              onClick={() => setSelectedId(active ? null : doctor.id)}
+              aria-current={active ? "true" : undefined}
+              className="flex w-full items-center gap-3 border-l-2 px-4 py-3 text-left transition-colors hover:bg-[var(--page-plane)]"
+              style={{ borderLeftColor: active ? accent : "transparent", background: active ? "var(--page-plane)" : undefined }}
             >
-              <span className="min-w-0">
+              <span className="min-w-0 flex-1">
                 <DoctorName name={doctor.name} rating={doctor.rating} className="text-sm" />
                 <span className="ml-2 text-xs" style={{ color: "var(--text-muted)" }}>
                   {doctor.specialty}
@@ -172,15 +176,22 @@ export function DoctorsTab({ api, accent }: { api: DoctorsApi; accent: string })
               <span className="shrink-0 text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>
                 {count} visit{count === 1 ? "" : "s"}
               </span>
+              <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="shrink-0" style={{ color: "var(--text-muted)" }} aria-hidden="true">
+                <path d="M7.5 5 12.5 10 7.5 15" />
+              </svg>
             </button>
-            {open && (
-              <div className="border-t px-4 py-4" style={{ borderColor: "var(--gridline)", background: "var(--page-plane)" }}>
-                <DoctorHistory api={api} doctor={doctor} accent={accent} />
-              </div>
-            )}
           </li>
         );
       })}
     </ul>
+  );
+
+  return (
+    <MedicalSplit
+      selected={!!selected}
+      list={list}
+      detail={selected && <DoctorHistory api={api} doctor={selected} accent={accent} onBack={desktop ? undefined : () => setSelectedId(null)} />}
+      placeholder={<DetailPlaceholder text="Pick a doctor to see their details and visit history." />}
+    />
   );
 }
