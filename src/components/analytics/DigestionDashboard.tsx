@@ -128,22 +128,22 @@ export function DigestionDashboard() {
   const topSymptomOverall = [...digestiveSymptoms].sort((a, b) => b.daysCompleted - a.daysCompleted)[0];
 
   return (
-    <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-2">
-      <DashboardHeader className="lg:col-span-2">Stool</DashboardHeader>
+    <div className="flex flex-col gap-5">
+      <DashboardHeader>Stool</DashboardHeader>
 
       {span && range && (
-        <div className="flex justify-end lg:col-span-2">
+        <div className="flex justify-end">
           <DateRangeFilter span={span} value={range} onChange={setRange} accent={ACCENT} />
         </div>
       )}
 
-      <Insight label="What stands out" headline={insight.headline} detail={insight.detail} tone={insight.tone} className="lg:col-span-2" />
+      <Insight label="What stands out" headline={insight.headline} detail={insight.detail} tone={insight.tone} />
 
       {!insight.insufficientData && insight.changed.length > 0 && (
-        <BulletList title="What changed" tone="var(--text-muted)" bullets={insight.changed} className="lg:col-span-2" />
+        <BulletList title="What changed" tone="var(--text-muted)" bullets={insight.changed} />
       )}
 
-      <Card tier="raw" className="lg:col-span-2">
+      <Card tier="raw">
         <CardTitle
           size="sm"
           subtitle={
@@ -203,7 +203,7 @@ export function DigestionDashboard() {
         )}
       </Card>
 
-      <Card tier="raw" className="lg:col-span-2">
+      <Card tier="raw">
         <CardTitle
           size="sm"
           subtitle="Each pair shows whichever of 4 lags (same day to +3 days) has the strongest signal. Single factors only, not combinations."
@@ -253,11 +253,11 @@ export function DigestionDashboard() {
         </div>
       </Card>
 
-      <p className="text-sm font-semibold lg:col-span-2" style={{ color: "var(--text-primary)" }}>
+      <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
         Detailed exploration
       </p>
 
-      <Card tier="raw" className="lg:col-span-2">
+      <Card tier="raw">
         <CardTitle size="sm" subtitle="Weekly counts for the most frequent digestive symptoms">Digestive symptom trends</CardTitle>
         {symptomLineData.length > 0 && topSymptomKeys.length > 0 ? (
           <>
@@ -382,7 +382,7 @@ export function DigestionDashboard() {
         </Card>
       )}
 
-      <Methodology className="lg:col-span-2">
+      <Methodology>
         This page never diagnoses anything — it only describes what&apos;s in your own tracked data. The Bristol
         score line plots each reading (1–7) chronologically. &quot;What stands out&quot; and &quot;At a
         glance&quot; compare the last 30 days&apos; share of readings in the 3–4 target range against the 30 days
