@@ -403,13 +403,16 @@ bug-report function is unaffected — it mails `BUG_EMAIL`, the account owner.
   ![Lauva brand palette](docs/palette.svg)
 
 - **Google Drive** uses [Google Identity Services' token client](https://developers.google.com/identity/oauth2/web/guides/use-token-model)
-  — no backend, so no client secret. The token is `drive.metadata.readonly`,
-  lives in memory only, and never touches the Lauva/Supabase account. Signing out
-  of Lauva also disconnects Drive. The read-only scope powers both the `/my-drive`
-  browser and `DriveFilePicker`, which links an existing Drive file to a care
-  entry (a pointer in `care_entry_files`, never a copy). To develop against it:
-  create a Google Cloud OAuth client (Web application type), authorize
-  `http://localhost:3000`, and enable the Drive API.
+  — no backend, so no client secret. Two scopes: `drive.metadata.readonly`
+  (browse the whole Drive, metadata only — the `/my-drive` page and picking an
+  existing file) and `drive.file` (non-sensitive — create/manage only this app's
+  own files, for uploading attachments into a "Lauva attachments" folder). The
+  token lives in memory only and never touches the Lauva/Supabase account;
+  signing out of Lauva disconnects Drive. `DriveFilePicker` attaches a file to a
+  care entry — a pointer in `care_entry_files`, never a copy. To develop against
+  it: create a Google Cloud OAuth client (Web application type), authorize
+  `http://localhost:3000`, add both scopes to the consent screen, and enable the
+  Drive API.
 
 - **Password reset** — the login panel's "forgot your password?" sends a Supabase
   reset email that lands on `/reset`, where the user picks a new password. The

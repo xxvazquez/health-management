@@ -349,7 +349,9 @@ demand) with a count of any older ones. Any entry can also link Google Drive
 files through `care_entry_files` (natural key `(entry_id, drive_file_id)`,
 `on delete cascade`, write-once like the specialty tags) — a pointer plus the
 metadata the UI renders (`name`, `mime_type`, `web_view_link`, `icon_link`),
-never the file itself; picked with the read-only Drive browser, shown on the
+never the file itself. The file comes from either the Drive browser (an
+existing file, `drive.metadata.readonly` scope) or an upload into a "Lauva
+attachments" folder in the user's Drive (`drive.file` scope). Shown on the
 Visits row as chips that open the file in Drive. Blood/lab results went their
 own way (below).
 

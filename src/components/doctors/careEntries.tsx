@@ -257,7 +257,7 @@ export function CareEntryForm({
           className="self-start text-xs font-medium underline decoration-dotted"
           style={{ color: "var(--text-muted)" }}
         >
-          Link a file from Google Drive
+          Attach a Google Drive file
         </button>
       </div>
 

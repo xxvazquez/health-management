@@ -86,3 +86,61 @@ export function listFolder(folderId: string, accessToken: string, pageToken?: st
 export function searchDrive(query: string, accessToken: string, pageToken?: string): Promise<ListResult> {
   return callFilesList(`name contains '${escapeQueryValue(query)}' and trashed = false`, "name_natural", accessToken, pageToken);
 }
+
+const UPLOAD_ENDPOINT = "https://www.googleapis.com/upload/drive/v3/files";
+const UPLOAD_FIELDS = "id,name,mimeType,webViewLink,iconLink";
+export const LAUVA_FOLDER_NAME = "Lauva attachments";
+
+function driveError(status: number): DriveApiError {
+  if (status === 401) return new DriveApiError("Your Google Drive session expired.", true);
+  if (status === 403) return new DriveApiError("Google Drive rejected the upload — reconnect and try again.");
+  return new DriveApiError("The upload didn't go through — try again in a moment.");
+}
+
+/** Find (or create) the app's own folder — with the `drive.file` scope,
+ * `files.list` only returns files this app made, so this reliably reuses
+ * the one folder rather than making a new one each upload. */
+export async function ensureLauvaFolder(accessToken: string): Promise<string> {
+  const q = `name = '${escapeQueryValue(LAUVA_FOLDER_NAME)}' and mimeType = '${FOLDER_MIME_TYPE}' and trashed = false`;
+  const url = new URL(FILES_ENDPOINT);
+  url.searchParams.set("q", q);
+  url.searchParams.set("fields", "files(id)");
+  url.searchParams.set("spaces", "drive");
+  const res = await fetch(url.toString(), { headers: { Authorization: `Bearer ${accessToken}` } });
+  if (!res.ok) throw driveError(res.status);
+  const existing = ((await res.json()) as { files?: { id: string }[] }).files ?? [];
+  if (existing.length > 0) return existing[0].id;
+
+  const create = await fetch(FILES_ENDPOINT, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ name: LAUVA_FOLDER_NAME, mimeType: FOLDER_MIME_TYPE }),
+  });
+  if (!create.ok) throw driveError(create.status);
+  return ((await create.json()) as { id: string }).id;
+}
+
+/** Uploads one file into `parentId` and returns the created Drive file's
+ * metadata. Multipart upload — fine for the report-scan-sized files this is
+ * for; a resumable upload would only matter for very large media. */
+export async function uploadFile(file: File, parentId: string, accessToken: string): Promise<DriveFile> {
+  const boundary = `lauva-${crypto.randomUUID()}`;
+  const metadata = JSON.stringify({ name: file.name, parents: [parentId] });
+  const body = new Blob([
+    `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${metadata}\r\n`,
+    `--${boundary}\r\nContent-Type: ${file.type || "application/octet-stream"}\r\n\r\n`,
+    file,
+    `\r\n--${boundary}--\r\n`,
+  ]);
+
+  const url = new URL(UPLOAD_ENDPOINT);
+  url.searchParams.set("uploadType", "multipart");
+  url.searchParams.set("fields", UPLOAD_FIELDS);
+  const res = await fetch(url.toString(), {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": `multipart/related; boundary=${boundary}` },
+    body,
+  });
+  if (!res.ok) throw driveError(res.status);
+  return (await res.json()) as DriveFile;
+}
