@@ -85,10 +85,7 @@ export function ManageRow({
               onFocus={(e) => e.target.select()}
               onBlur={commit}
               maxLength={maxLength}
-              // pill-field opts this out of the mobile 16px-font rule
-              // (globals.css) — same as the item rows, confirmed on-device not
-              // to trigger iOS's zoom-on-focus.
-              className="pill-field flex-1 rounded-md border px-2 py-1 text-sm leading-5"
+              className="flex-1 rounded-md border px-2 py-1 text-sm leading-5"
               style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
             />
           </form>

@@ -37,10 +37,9 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   themeColor: "#e6f1f2",
   // Explicit (matches Next's own default) rather than disabling zoom
-  // outright — the actual "stuck zoomed in" bug was iOS auto-zooming on
-  // focus of small-font form fields (fixed in globals.css), not the user
-  // pinch-zooming; disabling user-scalable would take away real zoom
-  // instead of fixing that.
+  // outright — pinch-zoom stays available. iOS may zoom in when a form
+  // field under 16px takes focus; that's accepted so fields keep the
+  // 14px/12px scale of the surrounding UI.
   width: "device-width",
   initialScale: 1,
   // Installed on the iOS home screen the app runs edge to edge, so the
