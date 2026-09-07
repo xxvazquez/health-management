@@ -24,7 +24,7 @@ shared notes, codes and wishlist folded into the Notes area — `/home` redirect
 | **Health** | `/medical` | Four tabs. **Visits** — two sections: "To raise next time" (upcoming appointment dates + the dated observations/notes waiting for a visit, filterable by specialty) and "Past visits" (appointments already attended, each with its follow-up tasks inline). **Results** — an Overview (headline markers, flagged-first out-of-range list, per-panel small-multiples, a normalized compare overlay, a latest-BP/weight summary) and a Manage view for markers, panels and value entry (one-off or whole-draw batch), with a marker search that filters the list and expands every panel. Absorbed the old Trends → Blood dashboard. **Vitals** — blood pressure and weight with trend charts and ACC/AHA categories. **Doctors** — the reusable doctors (rating/language/specialty), expand-in-place for each one's details and visit history. Specialty rename/archive lives in Settings. `/doctors` redirects here; old tab hashes (`#appointments`, `#carelog`, `#followups`, `#specialties`) land on Visits. |
 | **Notes** | `/personal` | Things you keep, no deadline — four tabs: **Journal**, **Quick notes** (private by default; each can be shared with a linked partner, a two-person glyph marks the shared ones, and a Mine / Shared filter appears once something is shared), **Wishlist** (saved links grouped into lists), **Codes** (shared discount codes). `/home` redirects here. (Reminders and product-expiry moved to Agenda.) |
 | **Messages** | `/notes` | Primary nav, partner-linked only (an icon + unread badge in the mobile top bar, never the bottom bar). Private one-to-one messaging with your linked partner. |
-| Settings | `/manage` | (Account menu.) Add / rename / archive / delete items and categories, give a category its own icon/colour, set exercise units, correct a food's automatic nutrition-group classification, edit reminder lists and doctor types, show or hide tracked sections (they otherwise appear once they have data), and export your data (whole account as JSON, or one section at a time as CSV). Searchable across every section. Also linked from Log's inline "add item". |
+| Settings | `/manage` | (Account menu.) Add / rename / archive / delete items and categories, give a category its own icon/colour, set exercise units, correct a food's automatic nutrition-group classification, edit reminder lists and doctor types, show or hide tracked sections (they otherwise appear once they have data), and export your data (whole account as JSON, or a section — or everything — as CSV in one file). Searchable across every section. Also linked from Log's inline "add item". |
 | Google Drive | `/my-drive` | (Account menu.) Read-only browser for the signed-in Google account's Drive. |
 | Help | `/help` | (Account menu.) Plain-language reference for what each part does — grouped, collapsed, with a search box that filters entries. |
 
@@ -44,7 +44,7 @@ shared notes, codes and wishlist folded into the Notes area — `/home` redirect
 - **Tailwind CSS 4**
 - **Supabase** — Postgres + Auth + Row-Level Security + Edge Functions, the only backend
 - **IndexedDB** (via `idb`) — the local cache / offline store
-- **Recharts** for charts, **Vitest** for tests
+- **Recharts** for charts, **jszip** for the CSV export bundle, **Vitest** for tests
 
 ## Running it locally
 
@@ -156,8 +156,10 @@ flowchart LR
   landing in the middle of a local write.
 - Manage → "Your data" exports straight from Supabase (`src/lib/exportData.ts`) —
   every owned row across the schema, paged, each table scoped by its own ownership
-  column. JSON is the whole account in one file; the section picker downloads that
-  section's tables as CSV. Signed-in only; partner messages are left out.
+  column. JSON is the whole account in one file; the section picker ("Everything"
+  or one section) downloads its tables as CSV — a single `.csv` for a one-table
+  section, a `.zip` (via `jszip`) when there's more than one. Signed-in only;
+  partner messages are left out.
 
 ### Data shapes
 

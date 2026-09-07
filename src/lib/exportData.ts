@@ -1,3 +1,4 @@
+import JSZip from "jszip";
 import { supabase } from "@/lib/supabase/client";
 
 const PAGE = 1000;
@@ -58,6 +59,7 @@ const TABLES: { table: string; owner: string }[] = [
  * per-section CSV picker. Every table in `TABLES` appears exactly once
  * here (guarded by a test). */
 export const EXPORT_SECTIONS: { label: string; tables: string[] }[] = [
+  { label: "Everything", tables: TABLES.map((t) => t.table) },
   { label: "Food", tables: ["food_items", "food_logs", "food_diary"] },
   { label: "Symptoms", tables: ["symptom_items", "symptom_logs", "symptom_diary"] },
   { label: "Supplements", tables: ["supplement_items", "supplement_logs", "supplement_diary"] },
@@ -152,17 +154,28 @@ export function rowsToCsv(rows: Record<string, unknown>[]): string {
   return lines.join("\n") + "\n";
 }
 
-/** Downloads one section's tables. A section with a single table is one
- * file; a multi-table section (Medical, Labs, …) downloads each table in
- * turn. */
-export function downloadSectionCsv(bundle: ExportBundle, section: { label: string; tables: string[] }): void {
+function slugify(label: string): string {
+  return label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+}
+
+/** Downloads a section's tables as CSV, always as one file: a single-table
+ * section is a plain `.csv`, a multi-table one is a `.zip` of them. Returns
+ * the number of tables written (0 = nothing logged there yet). */
+export async function downloadSectionCsv(bundle: ExportBundle, section: { label: string; tables: string[] }): Promise<number> {
   const date = bundle.exportedAt.slice(0, 10);
-  section.tables.forEach((table, i) => {
-    const rows = (bundle.tables[table] ?? []) as Record<string, unknown>[];
-    if (rows.length === 0) return;
-    const go = () => triggerDownload(`lauva-${table}-${date}.csv`, new Blob([rowsToCsv(rows)], { type: "text/csv;charset=utf-8" }));
-    // Stagger multi-file sections so the browser doesn't drop later downloads.
-    if (i === 0) go();
-    else setTimeout(go, i * 400);
-  });
+  const present = section.tables
+    .map((table) => ({ table, rows: (bundle.tables[table] ?? []) as Record<string, unknown>[] }))
+    .filter(({ rows }) => rows.length > 0);
+  if (present.length === 0) return 0;
+
+  const slug = slugify(section.label);
+  if (present.length === 1) {
+    triggerDownload(`lauva-${slug}-${date}.csv`, new Blob([rowsToCsv(present[0].rows)], { type: "text/csv;charset=utf-8" }));
+    return 1;
+  }
+
+  const zip = new JSZip();
+  for (const { table, rows } of present) zip.file(`${table}.csv`, rowsToCsv(rows));
+  triggerDownload(`lauva-${slug}-${date}.zip`, await zip.generateAsync({ type: "blob" }));
+  return present.length;
 }

@@ -50,13 +50,10 @@ export function DataExportCard({ isDemoData }: { isDemoData: boolean }) {
     try {
       const b = await ensureBundle();
       const section = EXPORT_SECTIONS.find((s) => s.label === sectionLabel)!;
-      const files = section.tables.filter((t) => (b.tables[t] ?? []).length > 0);
-      if (files.length === 0) {
-        setNote(`Nothing logged in ${section.label} yet.`);
-      } else {
-        downloadSectionCsv(b, section);
-        setNote(`${section.label}: ${files.length} CSV ${files.length === 1 ? "file" : "files"}.`);
-      }
+      const count = await downloadSectionCsv(b, section);
+      if (count === 0) setNote(`Nothing logged in ${section.label} yet.`);
+      else if (count === 1) setNote(`${section.label}: one CSV file.`);
+      else setNote(`${section.label}: ${count} CSV files in one .zip.`);
       setCsv("idle");
     } catch (err) {
       console.error("csv export failed", err);
@@ -71,8 +68,8 @@ export function DataExportCard({ isDemoData }: { isDemoData: boolean }) {
       </h2>
       <p className="mt-1 text-xs" style={{ color: "var(--text-secondary)" }}>
         Download everything this account owns — every log, note, appointment, lab result and more. JSON is
-        the whole account in one file; CSV gives you one section at a time for a spreadsheet. Messages with
-        your partner aren&apos;t included.
+        the whole account in one file; CSV gives you a section (or everything) for a spreadsheet, as a single
+        file — a `.zip` when the section has more than one table. Messages with your partner aren&apos;t included.
       </p>
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
