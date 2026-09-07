@@ -22,7 +22,7 @@ shared notes, codes and wishlist folded into the Notes area — `/home` redirect
 | **Agenda** | `/agenda` | The landing page, and nothing but the list: one urgency-first view that answers "what needs my attention?" — reminders (mine + shared), expiring products, doctor follow-ups and appointments, interleaved by *when they matter* into Overdue / Today / Tomorrow / Next 7 days / Later / No date / Done. Type, scope and list are filter chips, never the grouping. `/overview` redirects here. |
 | **Trends** | `/analytics` | An **Overview** tab (what stands out across every domain + a week/month review — moved off Agenda; today's own timeline lives on the Log page) then one dashboard per Log domain: Food, Supplements, Habits, Stool, Workout, Cycle, and **Patterns**. Switched by a tab bar. (Blood/lab analysis moved to Health → Results; `/analytics#labs` redirects there.) |
 | **Health** | `/medical` | Four tabs. **Visits** — two sections: "To raise next time" (upcoming appointment dates + the dated observations/notes waiting for a visit, filterable by specialty) and "Past visits" (appointments already attended, each with its follow-up tasks inline). **Results** — an Overview (headline markers, flagged-first out-of-range list, per-panel small-multiples, a normalized compare overlay, a latest-BP/weight summary) and a Manage view for markers, panels and value entry (one-off or whole-draw batch), with a marker search that filters the list and expands every panel. Absorbed the old Trends → Blood dashboard. **Vitals** — blood pressure and weight with trend charts and ACC/AHA categories, plus an optional weight-goal band on the weight chart. **Doctors** — the reusable doctors (rating/language/specialty); picking one shows its details and visit history in place on mobile, in a side pane on desktop. Specialty rename/archive lives in Settings. `/doctors` redirects here; old tab hashes (`#appointments`, `#carelog`, `#followups`, `#specialties`) land on Visits. |
-| **Notes** | `/personal` | Things you keep, no deadline — four tabs: **Journal**, **Quick notes** (private by default; each can be shared with a linked partner, a two-person glyph marks the shared ones, and a Mine / Shared filter appears once something is shared), **Wishlist** (saved links grouped into lists), **Codes** (shared discount codes). `/home` redirects here. (Reminders and product-expiry moved to Agenda.) |
+| **Notes** | `/personal` | Things you keep, no deadline — three tabs: **Journal** (private dated writing), **Wishlist** (saved links grouped into lists), **Codes** (shared discount codes). `/home` redirects here. (Reminders and product-expiry moved to Agenda.) |
 | **Messages** | `/notes` | Primary nav, partner-linked only (an icon + unread badge in the mobile top bar, never the bottom bar). Private one-to-one messaging with your linked partner. |
 | Settings | `/manage` | (Account menu.) Add / rename / archive / delete items and categories, give a category its own icon/colour, set exercise units, correct a food's automatic nutrition-group classification, edit reminder lists and doctor types, show or hide tracked sections (they otherwise appear once they have data), and export your data (whole account as JSON, or a section — or everything — as CSV in one file). Searchable across every section. Also linked from Log's inline "add item". |
 | Google Drive | `/my-drive` | (Account menu.) Read-only browser for the signed-in Google account's Drive. |
@@ -254,21 +254,15 @@ wired up one at a time.
   is shared (the client writes both `sender_*` and `recipient_*` columns). Sends,
   replies and every toggle queue through `directWrite` like the other direct
   features, and the page's handlers are optimistic, so Messages works offline.
-- **Personal vs Household** — `personal_notes` / `personal_tasks` / `personal_items`
-  are owner-only; the `household_*` tables reuse the same `partner_links` pairing
-  via an `is_household_member()` SQL helper, so a row is visible to its creator
-  *and* their one linked partner with no "share this" step. There is no `is_shared`
-  column — "shared" *is* which table the row is in.
-  - **Quick notes** (Notes area) merges both: `useKeepBoards` fetches
-    `personal_notes` + `household_notes`, tags each row `mine` / `shared`, and
-    `NoteBoard` shows one list. New notes are private; "Share with partner"
-    `INSERT`s a `household_notes` copy and deletes the personal row (and back for
-    "Make private"). A two-person glyph marks shared rows; the Mine / Shared
-    filter shows only when a partner is linked and something is shared. Editing
-    a private note keeps its offline fallback; the share/unshare move itself is
-    online-only (it writes `household_notes` directly).
+- **Personal vs Household** — `personal_tasks` / `personal_items` are owner-only;
+  the `household_*` tables reuse the same `partner_links` pairing via an
+  `is_household_member()` SQL helper, so a row is visible to its creator *and*
+  their one linked partner with no "share this" step. There is no `is_shared`
+  column — "shared" *is* which table the row is in. (The `personal_notes` /
+  `household_notes` tables are dormant — the Quick notes tab was removed; the
+  data still exports.)
   - **Reminders** (`*_tasks`) and **expiry** (`*_items`) surface together on
-    **Agenda** via `AgendaBoard` (reusing `TaskBoard`'s `TaskForm`).
+    **Agenda** via `AgendaBoard` (reusing `reminders/TaskForm`).
     `usePersonalReminderBoards` / `useHouseholdReminderBoards` are the data hooks;
     scope is picked at creation and not changed afterwards.
 - **Shared codes** (`household_codes`, pair-visible) — discount/promo codes with a

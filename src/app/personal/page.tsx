@@ -11,7 +11,6 @@ import {
   wishlistShareEndpoint,
 } from "@/lib/supabase/wishlist";
 import { JournalTab } from "@/components/log/JournalTab";
-import { NoteBoard } from "@/components/reminders/NoteBoard";
 import { CodeBoard } from "@/components/home/CodeBoard";
 import { WishlistBoard } from "@/components/home/WishlistBoard";
 import { BoardPage, type BoardPageTab } from "@/components/ui/BoardPage";
@@ -22,10 +21,9 @@ import { DemoNotice } from "@/components/ui/DemoNotice";
 // just made moving between them feel like four apps.
 const NOTES_ACCENT = "var(--series-indigo)";
 
-type NotesTab = "journal" | "quicknotes" | "wishlist" | "codes";
+type NotesTab = "journal" | "wishlist" | "codes";
 const TABS: BoardPageTab[] = [
   { id: "journal", label: "Journal", icon: "journal", accent: NOTES_ACCENT },
-  { id: "quicknotes", label: "Quick notes", icon: "notes", accent: NOTES_ACCENT },
   { id: "wishlist", label: "Wishlist", icon: "wishlist", accent: NOTES_ACCENT },
   { id: "codes", label: "Codes", icon: "codes", accent: NOTES_ACCENT },
 ];
@@ -45,11 +43,10 @@ function extractSharedUrl(url: string | null, text: string | null): string | nul
   return match ? match[0] : null;
 }
 
-/** The Notes area — the things you keep with no deadline. Journal and Quick
- * notes are private writing (Quick notes can be shared with a linked
- * partner per-note); Wishlist and Codes are shared lists that also work
- * solo. Reminders and product-expiry live on Agenda, organised by *when*.
- * Absorbs the old Household page (`/home` redirects here). */
+/** The Notes area — the things you keep with no deadline. Journal is
+ * private dated writing; Wishlist and Codes are shared lists that also
+ * work solo. Reminders and product-expiry live on Agenda, organised by
+ * *when*. Absorbs the old Household page (`/home` redirects here). */
 export default function NotesPage() {
   const keep = useKeepBoards();
   const [tab, setTab] = useState<NotesTab>("journal");
@@ -112,22 +109,6 @@ export default function NotesPage() {
       notice={keep.isDemo && tab !== "journal" ? <DemoNotice /> : undefined}
     >
       {tab === "journal" && <JournalTab isDemoData={keep.isDemo} accent={NOTES_ACCENT} />}
-
-      {tab === "quicknotes" && (
-        <NoteBoard
-          notes={keep.notes.data}
-          loading={!keep.isDemo && keep.notes.loading}
-          error={keep.notes.error}
-          accent={NOTES_ACCENT}
-          partnerLinked={keep.partnerLinked}
-          emptyDescription="Tap New note to jot something down — a code, a measurement, anything."
-          onCreate={keep.notes.create}
-          onUpdate={keep.notes.update}
-          onDelete={keep.notes.remove}
-          onShare={keep.notes.share}
-          onUnshare={keep.notes.unshare}
-        />
-      )}
 
       {tab === "wishlist" && (
         <div className="max-w-4xl">

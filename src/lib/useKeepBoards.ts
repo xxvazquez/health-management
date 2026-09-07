@@ -1,26 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/lib/supabase/AuthContext";
-import { usePartnerLinked } from "@/lib/usePartnerLinked";
-import {
-  createPersonalNote,
-  deletePersonalNote,
-  fetchPersonalNotes,
-  updatePersonalNote,
-  type PersonalNote,
-} from "@/lib/supabase/personalReminders";
 import {
   createHouseholdCode,
-  createHouseholdNote,
   deleteHouseholdCode,
-  deleteHouseholdNote,
   fetchHouseholdCodes,
-  fetchHouseholdNotes,
   updateHouseholdCode,
-  updateHouseholdNote,
   type HouseholdCode,
-  type HouseholdNote,
   type NewHouseholdCodeInput,
 } from "@/lib/supabase/household";
 import {
@@ -37,50 +24,28 @@ import {
   type WishlistCategoryPatch,
 } from "@/lib/supabase/wishlist";
 import { getPartnerLink } from "@/lib/supabase/partner";
-import { buildDemoPersonalNotes } from "@/lib/demoPersonalReminders";
 import { buildDemoHouseholdCodes, DEMO_HOME_ME_ID, DEMO_HOME_PARTNER_ID } from "@/lib/demoHousehold";
-import { buildDemoHouseholdNotes } from "@/lib/demoHousehold";
 import { buildDemoWishlist } from "@/lib/demoWishlist";
 import { useSnapshotCache } from "@/lib/useSnapshotCache";
 
-/** A note tagged with which table backs it — `mine` = `personal_notes`
- * (owner-only), `shared` = `household_notes` (visible to a linked partner).
- * "Share" / "Make private" move the row between the two; there is no
- * `is_shared` column. */
-export type NoteScope = "mine" | "shared";
-export interface ScopedNote {
-  id: string;
-  title: string | null;
-  body: string;
-  createdAt: string;
-  updatedAt: string;
-  scope: NoteScope;
-}
-
-/** Survives navigation, keyed by user id — same pattern as the old
- * `homeCache` and `usePersonalReminderBoards`. */
+/** Survives navigation, keyed by user id — same pattern as
+ * `usePersonalReminderBoards`. */
 let cache: {
   userId: string;
-  mine: PersonalNote[];
-  shared: HouseholdNote[];
   codes: HouseholdCode[];
   wishlist: WishlistCategory[];
 } | null = null;
 
-const KEEP_BOARDS_TABLES = ["personal_notes", "household_notes", "household_codes", "wishlist_categories", "wishlist_items"] as const;
+const KEEP_BOARDS_TABLES = ["household_codes", "wishlist_categories", "wishlist_items"] as const;
 
 interface KeepBoardsBundle {
-  mine: PersonalNote[];
-  shared: HouseholdNote[];
   codes: HouseholdCode[];
   wishlist: WishlistCategory[];
 }
 
 /**
- * All the state + handlers behind the Notes area's Quick notes / Wishlist /
- * Codes tabs (Journal keeps its own `JournalTab`). Quick notes merges the
- * private `personal_notes` and shared `household_notes` tables into one
- * scoped list; Wishlist and Codes are the shared (`household_*`,
+ * All the state + handlers behind the Notes area's Wishlist and Codes tabs
+ * (Journal keeps its own `JournalTab`). Both are the shared (`household_*`,
  * pair-visible) tables that also work solo. Signed out shows interactive
  * example data that lives only in local state.
  */
@@ -88,14 +53,8 @@ export function useKeepBoards() {
   const { session, loading: authLoading } = useAuth();
   const accountId = session?.user?.id ?? null;
   const isDemo = !authLoading && !session;
-  const partnerLinked = usePartnerLinked();
   const myUserId = isDemo ? DEMO_HOME_ME_ID : accountId;
   const seed = cache && cache.userId === accountId ? cache : null;
-
-  const [mine, setMine] = useState<PersonalNote[]>(() => seed?.mine ?? buildDemoPersonalNotes());
-  const [shared, setShared] = useState<HouseholdNote[]>(() => seed?.shared ?? buildDemoHouseholdNotes());
-  const [notesLoading, setNotesLoading] = useState(seed === null);
-  const [notesError, setNotesError] = useState(false);
 
   const [codes, setCodes] = useState<HouseholdCode[]>(() => seed?.codes ?? buildDemoHouseholdCodes());
   const [codesLoading, setCodesLoading] = useState(seed === null);
@@ -107,14 +66,6 @@ export function useKeepBoards() {
 
   const [resolvedPartnerId, setResolvedPartnerId] = useState<string | null>(null);
   const partnerId = isDemo ? DEMO_HOME_PARTNER_ID : resolvedPartnerId;
-
-  const notes: ScopedNote[] = useMemo(
-    () => [
-      ...mine.map((n) => ({ ...n, scope: "mine" as const })),
-      ...shared.map((n) => ({ ...n, scope: "shared" as const })),
-    ],
-    [mine, shared],
-  );
 
   const loadWishlist = useCallback(async () => {
     setWishlistError(false);
@@ -135,25 +86,20 @@ export function useKeepBoards() {
     isDemo: isDemo || authLoading,
     seeded: seed !== null,
     fetcher: async () => {
-      const [p, h, c, w] = await Promise.all([fetchPersonalNotes(), fetchHouseholdNotes(), fetchHouseholdCodes(), fetchWishlist()]);
-      return { mine: p, shared: h, codes: c, wishlist: w };
+      const [c, w] = await Promise.all([fetchHouseholdCodes(), fetchWishlist()]);
+      return { codes: c, wishlist: w };
     },
-    apply: ({ mine: p, shared: h, codes: c, wishlist: w }) => {
-      setMine(p);
-      setShared(h);
+    apply: ({ codes: c, wishlist: w }) => {
       setCodes(c);
       setWishlist(w);
-      setNotesError(false);
       setCodesError(false);
       setWishlistError(false);
     },
     onSettled: () => {
-      setNotesLoading(false);
       setCodesLoading(false);
       setWishlistLoading(false);
     },
     onError: () => {
-      setNotesError(true);
       setCodesError(true);
       setWishlistError(true);
     },
@@ -171,96 +117,11 @@ export function useKeepBoards() {
       cache = null;
       return;
     }
-    if (!notesLoading && !codesLoading && !wishlistLoading) {
-      cache = { userId: accountId, mine, shared, codes, wishlist };
-      persist({ mine, shared, codes, wishlist });
+    if (!codesLoading && !wishlistLoading) {
+      cache = { userId: accountId, codes, wishlist };
+      persist({ codes, wishlist });
     }
-  }, [accountId, isDemo, mine, shared, codes, wishlist, notesLoading, codesLoading, wishlistLoading, persist]);
-
-  // --- Quick notes ---
-  const createNote = useCallback(
-    async (title: string, body: string) => {
-      if (isDemo) {
-        const nowIso = new Date().toISOString();
-        setMine((prev) => [{ id: `demo-${Date.now()}`, title: title.trim() || null, body: body.trim(), createdAt: nowIso, updatedAt: nowIso }, ...prev]);
-        return;
-      }
-      const created = await createPersonalNote(title, body);
-      setMine((prev) => [created, ...prev]);
-    },
-    [isDemo],
-  );
-
-  const updateNote = useCallback(
-    async (id: string, title: string, body: string) => {
-      const current = notes.find((n) => n.id === id);
-      if (!current) return;
-      if (isDemo) {
-        const patch = { title: title.trim() || null, body: body.trim(), updatedAt: new Date().toISOString() };
-        const apply = (prev: { id: string }[]) => prev.map((n) => (n.id === id ? { ...n, ...patch } : n));
-        if (current.scope === "mine") setMine((prev) => apply(prev) as PersonalNote[]);
-        else setShared((prev) => apply(prev) as HouseholdNote[]);
-        return;
-      }
-      if (current.scope === "mine") {
-        const updated = await updatePersonalNote(current, title, body);
-        setMine((prev) => prev.map((n) => (n.id === id ? updated : n)));
-      } else {
-        const updated = await updateHouseholdNote(current, title, body);
-        setShared((prev) => prev.map((n) => (n.id === id ? updated : n)));
-      }
-    },
-    [isDemo, notes],
-  );
-
-  const deleteNote = useCallback(
-    async (id: string) => {
-      const current = notes.find((n) => n.id === id);
-      if (!current) return;
-      if (current.scope === "mine") {
-        setMine((prev) => prev.filter((n) => n.id !== id));
-        if (!isDemo) await deletePersonalNote(id);
-      } else {
-        setShared((prev) => prev.filter((n) => n.id !== id));
-        if (!isDemo) await deleteHouseholdNote(id);
-      }
-    },
-    [isDemo, notes],
-  );
-
-  const shareNote = useCallback(
-    async (id: string) => {
-      const current = mine.find((n) => n.id === id);
-      if (!current) return;
-      if (isDemo) {
-        setMine((prev) => prev.filter((n) => n.id !== id));
-        setShared((prev) => [{ ...current }, ...prev]);
-        return;
-      }
-      const created = await createHouseholdNote(current.title ?? "", current.body);
-      await deletePersonalNote(id);
-      setMine((prev) => prev.filter((n) => n.id !== id));
-      setShared((prev) => [created, ...prev]);
-    },
-    [isDemo, mine],
-  );
-
-  const unshareNote = useCallback(
-    async (id: string) => {
-      const current = shared.find((n) => n.id === id);
-      if (!current) return;
-      if (isDemo) {
-        setShared((prev) => prev.filter((n) => n.id !== id));
-        setMine((prev) => [{ ...current }, ...prev]);
-        return;
-      }
-      const created = await createPersonalNote(current.title ?? "", current.body);
-      await deleteHouseholdNote(id);
-      setShared((prev) => prev.filter((n) => n.id !== id));
-      setMine((prev) => [created, ...prev]);
-    },
-    [isDemo, shared],
-  );
+  }, [accountId, isDemo, codes, wishlist, codesLoading, wishlistLoading, persist]);
 
   // --- Codes ---
   const createCode = useCallback(
@@ -450,17 +311,6 @@ export function useKeepBoards() {
     isDemo,
     myUserId,
     partnerId,
-    partnerLinked,
-    notes: {
-      data: notes,
-      loading: notesLoading,
-      error: notesError,
-      create: createNote,
-      update: updateNote,
-      remove: deleteNote,
-      share: shareNote,
-      unshare: unshareNote,
-    },
     codes: { data: codes, loading: codesLoading, error: codesError, create: createCode, edit: editCode, remove: deleteCode },
     wishlist: {
       data: wishlist,

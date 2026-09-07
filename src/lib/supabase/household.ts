@@ -4,26 +4,6 @@ import { isRecurringTask, nextRecurringDueAt, type ExpirationItem, type TaskItem
 import { createTimeOrderedId } from "@/lib/sortableId";
 import { deleteDirect, deleteWhereDirect, insertDirect, updateDirect, upsertDirect } from "./directWrite";
 
-export interface HouseholdNote {
-  id: string;
-  title: string | null;
-  body: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-interface NoteRow {
-  id: string;
-  title: string | null;
-  body: string;
-  created_at: string;
-  updated_at: string;
-}
-
-function toNote(row: NoteRow): HouseholdNote {
-  return { id: row.id, title: row.title, body: row.body, createdAt: row.created_at, updatedAt: row.updated_at };
-}
-
 interface TaskRow {
   id: string;
   title: string;
@@ -103,57 +83,14 @@ async function currentUserId(): Promise<string | null> {
   return session?.user.id ?? null;
 }
 
-const NOTE_COLUMNS = "id, title, body, created_at, updated_at";
 const TASK_COLUMNS = "id, title, notes, due_at, recurrence_days, last_completed_at, last_completed_by, assigned_to, is_archived";
 const ITEM_COLUMNS = "id, name, expires_on, remind_days_before";
 const CODE_COLUMNS = "id, code, name, comment, expires_on, created_at, updated_at";
-
-// --- Notes -------------------------------------------------------------
-
-/** RLS already scopes this to rows owned by either you or your linked
- * partner (see household_notes_select_pair in schema.sql), so no explicit
- * owner filter is needed — unlike personalReminders, where user_id has to
- * be passed to match the "own rows" policy shape. */
-export async function fetchHouseholdNotes(): Promise<HouseholdNote[]> {
-  if (!supabase) return [];
-  const { data, error } = await supabase.from("household_notes").select(NOTE_COLUMNS).order("updated_at", { ascending: false });
-  if (error) throw error;
-  return (data as NoteRow[]).map(toNote);
-}
 
 // Every household_* table is pair-visible (split insert_own / update_pair /
 // delete_pair RLS), so a create is an upsert of your own row, an edit goes
 // out as a plain update (may be the partner's row), and a delete is a
 // delete — all via directWrite so they queue offline. See directWrite.ts.
-
-function notePayload(n: HouseholdNote, ownerId: string): Record<string, unknown> {
-  return { id: n.id, owner_id: ownerId, title: n.title, body: n.body, created_at: n.createdAt, updated_at: new Date().toISOString() };
-}
-
-export async function createHouseholdNote(title: string, body: string): Promise<HouseholdNote> {
-  const myUserId = await currentUserId();
-  if (!myUserId) throw new Error("Sign in first.");
-  const nowIso = new Date().toISOString();
-  const n: HouseholdNote = { id: createTimeOrderedId(), title: title.trim() || null, body: body.trim(), createdAt: nowIso, updatedAt: nowIso };
-  await upsertDirect(myUserId, "household_notes", n.id, notePayload(n, myUserId));
-  return n;
-}
-
-/** Takes the full current note so the edit can go out as a plain update
- * (the row may be the partner's). */
-export async function updateHouseholdNote(note: HouseholdNote, title: string, body: string): Promise<HouseholdNote> {
-  const myUserId = await currentUserId();
-  if (!myUserId) throw new Error("Sign in first.");
-  const next: HouseholdNote = { ...note, title: title.trim() || null, body: body.trim(), updatedAt: new Date().toISOString() };
-  await updateDirect(myUserId, "household_notes", next.id, notePayload(next, myUserId));
-  return next;
-}
-
-export async function deleteHouseholdNote(id: string): Promise<void> {
-  const myUserId = await currentUserId();
-  if (!myUserId) return;
-  await deleteDirect(myUserId, "household_notes", id);
-}
 
 // --- Tasks ---------------------------------------------------------------
 

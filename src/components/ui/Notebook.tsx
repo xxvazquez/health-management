@@ -3,11 +3,9 @@
 import { useState, type FormEvent, type ReactNode } from "react";
 import { Button } from "./Button";
 
-/** Shared surface for the app's writing screens — Log's Journal and the
- * Notes boards (personal + Home). The list (`NoteList` / `NoteRow`) uses
- * the same card row as the rest of the app and is shared by all three.
- * `NotebookForm` is Journal's editor only — an unadorned sheet so writing
- * isn't boxed in; the Notes boards use a titled form (see NoteBoard). */
+/** Shared surface for Journal — the list (`NoteList` / `NoteRow`) uses the
+ * same card row as the rest of the app; `NotebookForm` is an unadorned
+ * editing sheet so writing isn't boxed into a form. */
 
 export function PencilIcon({ size = 15 }: { size?: number }) {
   return (
