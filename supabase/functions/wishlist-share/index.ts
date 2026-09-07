@@ -23,8 +23,8 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
-// The list new links land in — one per account, created on first use. The
-// user re-files items into their own lists in the app.
+// The list new links land in when the shortcut doesn't name one — created
+// on first use. The user re-files items into their own lists in the app.
 const DEFAULT_LIST = "Saved from phone";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -95,11 +95,11 @@ Deno.serve(async (req) => {
 });
 
 async function handle(req: Request): Promise<Response> {
-  // `token` and `for` may come from the query string (so a Share Sheet
-  // shortcut can bake them into the endpoint and keep its body to just the
-  // link). The body may be JSON `{ url, token?, for? }`, or just the raw
-  // shared text/dictionary — take the whole request as text and pull a
-  // link out of whatever shape it is.
+  // `token`, `for`, `title` and `list` may come from the query string (so a
+  // Share Sheet shortcut can bake the token into the endpoint and append the
+  // rest from its own prompts). The body may be JSON `{ url, token?, for?,
+  // title?, list? }`, or just the raw shared text/dictionary — take the whole
+  // request as text and pull a link out of whatever shape it is.
   const reqUrl = new URL(req.url);
   const query = reqUrl.searchParams;
   const bodyText = await req.text();
@@ -137,6 +137,9 @@ async function handle(req: Request): Promise<Response> {
   const forRaw = query.get("for") ?? parsed.for;
   const forWhom = forRaw === "me" || forRaw === "partner" ? forRaw : "either";
 
+  const listRaw = query.get("list") ?? parsed.list;
+  const listName = (typeof listRaw === "string" ? listRaw.trim() : "").slice(0, 120) || DEFAULT_LIST;
+
   const { data: tok, error: tokErr } = await admin
     .from("wishlist_share_tokens")
     .select("owner_id")
@@ -161,20 +164,21 @@ async function handle(req: Request): Promise<Response> {
     if (link) forUserId = link.user_a_id === ownerId ? link.user_b_id : link.user_a_id;
   }
 
+  // Match the named list case-insensitively so "Books" from the shortcut
+  // menu lands in an existing "books"; fall back to creating it.
   let listId: string;
-  const { data: existing } = await admin
+  const { data: lists } = await admin
     .from("wishlist_categories")
-    .select("id")
+    .select("id, name")
     .eq("owner_id", ownerId)
-    .eq("name", DEFAULT_LIST)
-    .order("created_at", { ascending: true })
-    .limit(1);
-  if (existing && existing.length > 0) {
-    listId = existing[0].id as string;
+    .order("created_at", { ascending: true });
+  const match = (lists ?? []).find((l) => (l.name as string).trim().toLowerCase() === listName.toLowerCase());
+  if (match) {
+    listId = match.id as string;
   } else {
     const { data: created, error: listErr } = await admin
       .from("wishlist_categories")
-      .insert({ owner_id: ownerId, name: DEFAULT_LIST })
+      .insert({ owner_id: ownerId, name: listName })
       .select("id")
       .single();
     if (listErr || !created) {
@@ -201,5 +205,5 @@ async function handle(req: Request): Promise<Response> {
 
   await admin.from("wishlist_share_tokens").update({ last_used_at: new Date().toISOString() }).eq("token", token);
 
-  return json({ ok: true, title, list: DEFAULT_LIST });
+  return json({ ok: true, title, list: listName });
 }
