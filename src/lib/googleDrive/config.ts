@@ -6,7 +6,12 @@ export const googleDriveConfigured = Boolean(clientId);
 
 export const GOOGLE_CLIENT_ID = clientId;
 
-/** Narrowest scope that covers browsing: file/folder metadata only (name,
- * mimeType, modifiedTime, size, webViewLink, starred, parents) — no file
- * content, no write access. */
-export const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.metadata.readonly";
+/** Two narrow scopes:
+ * - `drive.metadata.readonly` — browse the whole Drive by metadata only
+ *   (name, type, size, webViewLink, …); no file content.
+ * - `drive.file` — create/read/manage only the files this app itself makes
+ *   (the uploaded attachments and the folder they go in). Non-sensitive, no
+ *   Google verification.
+ * Requested together so a linked file can come from either the existing
+ * Drive or a fresh upload. */
+export const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.metadata.readonly https://www.googleapis.com/auth/drive.file";
