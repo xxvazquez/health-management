@@ -82,7 +82,7 @@ export function ensureCategoryId(itemType: ItemType, name: string): Promise<stri
     for (const seedName of toSeed) {
       const id = crypto.randomUUID();
       if (seedName === name) resultId = id;
-      const entry: RawCategory = { id, itemType, name: seedName };
+      const entry: RawCategory = { id, itemType, name: seedName, icon: null, color: null };
       await putCategoryAndSync(entry);
     }
     return resultId;
@@ -95,10 +95,24 @@ export function ensureCategoryId(itemType: ItemType, name: string): Promise<stri
   return result;
 }
 
+/** Sets a category's custom icon/colour, materializing the row first if it
+ * was still a built-in default (same "persist on edit" rule as renaming an
+ * item's category). Display-only — nothing reads these back except the
+ * Settings chip. */
+export async function setCategoryAppearanceAndSync(
+  itemType: ItemType,
+  name: string,
+  appearance: { icon: string | null; color: string | null },
+): Promise<void> {
+  await ensureCategoryId(itemType, name);
+  const row = (await getAllCategories()).find((c) => c.itemType === itemType && normalizeName(c.name) === normalizeName(name));
+  if (row) await putCategoryAndSync({ ...row, icon: appearance.icon, color: appearance.color });
+}
+
 /** Same seeding logic as `ensureCategoryId`, but as plain rows for demo
  * mode's in-memory state instead of writing to IndexedDB/Supabase. */
 export function categoryRowsToSeedForDemo(itemType: ItemType, name: string, existing: RawCategory[]): RawCategory[] {
-  return categoryNamesToSeed(itemType, name, existing).map((seedName) => ({ id: crypto.randomUUID(), itemType, name: seedName }));
+  return categoryNamesToSeed(itemType, name, existing).map((seedName) => ({ id: crypto.randomUUID(), itemType, name: seedName, icon: null, color: null }));
 }
 
 // Serializes ensureDefaultWorkoutItems calls, same reasoning as

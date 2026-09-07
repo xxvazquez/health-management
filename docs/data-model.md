@@ -467,10 +467,12 @@ below.
 
 The same `icon` / `color` pair — same fixed sets, same "both null falls
 back to the page's hardcoded look" rule — also lives on `reminder_lists`,
-`doctor_specialties` and `lab_panels`, set from their own Manage /
-Medical row via the shared `ui/IconColorPicker.tsx`. `categories` (the
-tracking-domain groupings) doesn't have it yet — the biggest, most
-invasive slice of this feature, deliberately deferred.
+`doctor_specialties`, `lab_panels` and `categories`, set from their own
+Manage / Medical row via the shared `ui/IconColorPicker.tsx`. On
+`categories` it is **display-only**: shown on the Settings category chip
+(materializing the row on first edit, like any other category change),
+while the Log and Trends pages keep their built-in per-category colours
+(`colorForCategorySlot`, the monochrome tab headers) unchanged.
 
 `wishlist_share_tokens` (one row per account, `unique (owner_id)`) is a
 capture token for a phone Share Sheet shortcut: iOS has no PWA share

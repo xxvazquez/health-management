@@ -22,6 +22,11 @@ create table public.categories (
   item_type text not null check (item_type in ('food', 'supplement', 'habit', 'symptom', 'workout')),
   name text not null,
   name_key text generated always as (lower(trim(name))) stored,
+  -- Optional per-category icon key / colour key (same customIcons.tsx sets
+  -- the other groupings use). Display only for now — shown on the category
+  -- chip in Settings; Log/Trends keep their built-in look.
+  icon text,
+  color text,
   unique (user_id, item_type, name_key),
   unique (user_id, id, item_type)
 );
