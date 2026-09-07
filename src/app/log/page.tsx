@@ -1599,6 +1599,114 @@ export default function LogPage() {
   const [logHrs, logMins] = logTime.split(":").map(Number);
   const timeIsExplicit = date !== today || Math.abs((logHrs || 0) * 60 + (logMins || 0) - nowMinutes) > 5;
 
+  // A seasonal nudge, not part of the log flow — rendered below the food
+  // list rather than above it.
+  const seasonalPicksCard =
+    tab === "food" && dataReady && (seasonalPicks.length > 0 || hiddenThisMonth.length > 0) ? (
+      <div className="flex flex-col gap-2 rounded-lg border p-3" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
+        <button
+          type="button"
+          onClick={() => setPicksOpen((v) => !v)}
+          className="flex items-center justify-between gap-2 text-left"
+        >
+          <span className="text-xs font-semibold" style={{ color: "var(--text-primary)" }}>
+            {monthName} picks
+            <span className="ml-1.5 font-normal" style={{ color: "var(--text-secondary)" }}>
+              · {seasonalPicks.length} in season
+            </span>
+          </span>
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 20 20"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="shrink-0 transition-transform"
+            style={{ color: "var(--text-secondary)", transform: picksOpen ? "rotate(180deg)" : "none" }}
+          >
+            <path d="M5 7.5 10 12.5 15 7.5" />
+          </svg>
+        </button>
+        {picksOpen && (
+          <>
+            {seasonalPicksSorted.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {seasonalPicksSorted.map((pick) => (
+                  <span
+                    key={pick.item}
+                    className="inline-flex items-center gap-0.5 rounded-md border py-1 pr-1 pl-2.5 text-xs font-medium whitespace-nowrap"
+                    style={{ borderColor: "var(--border-hairline)", color: "var(--text-secondary)", background: "var(--surface-1)" }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => void handleQuickLogSeasonal(pick.item)}
+                      disabled={pending === `seasonal:${normalizeName(pick.item)}`}
+                      className="disabled:opacity-50"
+                    >
+                      {pick.item}
+                      <span className="ml-1" style={{ color: "var(--text-muted)" }}>
+                        {pick.weeksSinceLastEaten === null
+                          ? "· never"
+                          : pick.weeksSinceLastEaten === 0
+                            ? "· this week"
+                            : `· ${pick.weeksSinceLastEaten}w ago`}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => hideSeasonalPick(pick.item)}
+                      aria-label={`Don't show ${pick.item} in seasonal picks`}
+                      title="Don't show this again"
+                      className="tap-target shrink-0 rounded p-1 transition-colors hover:bg-[var(--page-plane)]"
+                      style={{ color: "var(--text-muted)" }}
+                    >
+                      <CloseIcon size={10} />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+            {leastTrackedCategory && (
+              <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
+                This week&apos;s priority: <strong style={{ color: "var(--text-primary)" }}>{leastTrackedCategory.category}</strong> — logged{" "}
+                {leastTrackedCategory.countThisWeek} time{leastTrackedCategory.countThisWeek === 1 ? "" : "s"} so far.
+              </p>
+            )}
+            {hiddenThisMonth.length > 0 && (
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setHiddenPicksOpen((v) => !v)}
+                  className="text-xs underline decoration-dotted"
+                  style={{ color: "var(--text-muted)" }}
+                >
+                  {hiddenThisMonth.length} hidden
+                </button>
+                {hiddenPicksOpen && (
+                  <div className="mt-1.5 flex flex-wrap gap-1.5">
+                    {hiddenThisMonth.map((item) => (
+                      <button
+                        key={item}
+                        type="button"
+                        onClick={() => unhideSeasonalPick(item)}
+                        className="rounded-md border px-2.5 py-1 text-xs font-medium whitespace-nowrap"
+                        style={{ borderColor: "var(--border-hairline)", color: "var(--text-muted)", background: "var(--page-plane)" }}
+                      >
+                        {item} <span style={{ color: "var(--text-secondary)" }}>· show again</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    ) : null;
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col items-start gap-3 sm:flex-row sm:flex-wrap sm:justify-between">
@@ -1712,114 +1820,9 @@ export default function LogPage() {
         )
       ) : (
         <>
-          {tab === "food" && dataReady && (seasonalPicks.length > 0 || hiddenThisMonth.length > 0) && (
-            <div className="flex flex-col gap-2 rounded-lg border p-3" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
-              <button
-                type="button"
-                onClick={() => setPicksOpen((v) => !v)}
-                className="flex items-center justify-between gap-2 text-left"
-              >
-                <span className="text-xs font-semibold" style={{ color: "var(--text-primary)" }}>
-                  {monthName} picks
-                  <span className="ml-1.5 font-normal" style={{ color: "var(--text-secondary)" }}>
-                    · {seasonalPicks.length} in season
-                  </span>
-                </span>
-                <svg
-                  width="14"
-                  height="14"
-                  viewBox="0 0 20 20"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="shrink-0 transition-transform"
-                  style={{ color: "var(--text-secondary)", transform: picksOpen ? "rotate(180deg)" : "none" }}
-                >
-                  <path d="M5 7.5 10 12.5 15 7.5" />
-                </svg>
-              </button>
-              {picksOpen && (
-                <>
-                  {seasonalPicksSorted.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5">
-                      {seasonalPicksSorted.map((pick) => (
-                        <span
-                          key={pick.item}
-                          className="inline-flex items-center gap-0.5 rounded-md border py-1 pr-1 pl-2.5 text-xs font-medium whitespace-nowrap"
-                          style={{ borderColor: "var(--border-hairline)", color: "var(--text-secondary)", background: "var(--surface-1)" }}
-                        >
-                          <button
-                            type="button"
-                            onClick={() => void handleQuickLogSeasonal(pick.item)}
-                            disabled={pending === `seasonal:${normalizeName(pick.item)}`}
-                            className="disabled:opacity-50"
-                          >
-                            {pick.item}
-                            <span className="ml-1" style={{ color: "var(--text-muted)" }}>
-                              {pick.weeksSinceLastEaten === null
-                                ? "· never"
-                                : pick.weeksSinceLastEaten === 0
-                                  ? "· this week"
-                                  : `· ${pick.weeksSinceLastEaten}w ago`}
-                            </span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => hideSeasonalPick(pick.item)}
-                            aria-label={`Don't show ${pick.item} in seasonal picks`}
-                            title="Don't show this again"
-                            className="tap-target shrink-0 rounded p-1 transition-colors hover:bg-[var(--page-plane)]"
-                            style={{ color: "var(--text-muted)" }}
-                          >
-                            <CloseIcon size={10} />
-                          </button>
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                  {leastTrackedCategory && (
-                    <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
-                      This week&apos;s priority: <strong style={{ color: "var(--text-primary)" }}>{leastTrackedCategory.category}</strong> — logged{" "}
-                      {leastTrackedCategory.countThisWeek} time{leastTrackedCategory.countThisWeek === 1 ? "" : "s"} so far.
-                    </p>
-                  )}
-                  {hiddenThisMonth.length > 0 && (
-                    <div>
-                      <button
-                        type="button"
-                        onClick={() => setHiddenPicksOpen((v) => !v)}
-                        className="text-xs underline decoration-dotted"
-                        style={{ color: "var(--text-muted)" }}
-                      >
-                        {hiddenThisMonth.length} hidden
-                      </button>
-                      {hiddenPicksOpen && (
-                        <div className="mt-1.5 flex flex-wrap gap-1.5">
-                          {hiddenThisMonth.map((item) => (
-                            <button
-                              key={item}
-                              type="button"
-                              onClick={() => unhideSeasonalPick(item)}
-                              className="rounded-md border px-2.5 py-1 text-xs font-medium whitespace-nowrap"
-                              style={{ borderColor: "var(--border-hairline)", color: "var(--text-muted)", background: "var(--page-plane)" }}
-                            >
-                              {item} <span style={{ color: "var(--text-secondary)" }}>· show again</span>
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-          )}
-
-          {tabConfig && (
-            <div className="flex flex-wrap items-center gap-3">
-              {showTimeField || timeIsExplicit ? (
+          {tabConfig &&
+            (showTimeField || timeIsExplicit ? (
+              <div className="flex flex-wrap items-center gap-3">
                 <label className="flex items-center gap-1.5" style={{ color: "var(--text-secondary)" }}>
                   <span className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
                     Time
@@ -1851,41 +1854,48 @@ export default function LogPage() {
                     </button>
                   )}
                 </label>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setShowTimeField(true)}
-                  className="text-xs font-medium"
-                  style={{ color: "var(--text-muted)" }}
-                >
-                  Time: <span style={{ color: "var(--text-secondary)" }}>now</span>
-                  <span className="ml-1 underline decoration-dotted">change</span>
-                </button>
-              )}
-              {tabConfig?.countable && (
-                <div className="inline-flex rounded-md border p-0.5" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
-                  {tagOptionsForType(tab).map((m) => {
-                    const active = m === meal;
-                    return (
-                      <button
-                        key={m}
-                        type="button"
-                        onClick={() => setMeal(m)}
-                        aria-pressed={active}
-                        className="rounded px-2.5 py-1 text-xs font-semibold whitespace-nowrap transition-colors"
-                        style={{
-                          background: active ? `color-mix(in oklab, ${TYPE_ACCENT[tabConfig.type]} 16%, var(--surface-1))` : "transparent",
-                          color: active ? TYPE_ACCENT[tabConfig.type] : "var(--text-secondary)",
-                        }}
-                      >
-                        {m}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
+                {tabConfig.countable && (
+                  <div className="inline-flex rounded-md border p-0.5" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
+                    {tagOptionsForType(tab).map((m) => {
+                      const active = m === meal;
+                      return (
+                        <button
+                          key={m}
+                          type="button"
+                          onClick={() => setMeal(m)}
+                          aria-pressed={active}
+                          className="rounded px-2.5 py-1 text-xs font-semibold whitespace-nowrap transition-colors"
+                          style={{
+                            background: active ? `color-mix(in oklab, ${TYPE_ACCENT[tabConfig.type]} 16%, var(--surface-1))` : "transparent",
+                            color: active ? TYPE_ACCENT[tabConfig.type] : "var(--text-secondary)",
+                          }}
+                        >
+                          {m}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            ) : (
+              // Collapsed: the auto-picked meal (countable tabs) and time
+              // sit on one quiet line — tap to open the pickers, same as
+              // the time control has always done on its own.
+              <button
+                type="button"
+                onClick={() => setShowTimeField(true)}
+                className="self-start text-xs font-medium"
+                style={{ color: "var(--text-muted)" }}
+              >
+                {tabConfig.countable ? (
+                  <span style={{ color: "var(--text-secondary)" }}>{meal} · </span>
+                ) : (
+                  "Time: "
+                )}
+                <span style={{ color: "var(--text-secondary)" }}>now</span>
+                <span className="ml-1 underline decoration-dotted">change</span>
+              </button>
+            ))}
 
           {!dataReady || !tabConfig ? (
             <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
@@ -2075,6 +2085,8 @@ export default function LogPage() {
               ) : (
                 renderTrackerList()
               )}
+
+              {seasonalPicksCard}
 
               {tab === "outcome" && isolatedObservations.length > 0 && (
                 <div className="flex flex-col gap-2 rounded-lg border p-3" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
