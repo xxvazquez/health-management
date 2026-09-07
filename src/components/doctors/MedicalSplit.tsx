@@ -38,7 +38,7 @@ export function MedicalSplit({
   if (!desktop) return <>{selected ? detail : list}</>;
 
   return (
-    <div className="grid items-start gap-5" style={{ gridTemplateColumns: "minmax(0, 19rem) minmax(0, 1fr)" }}>
+    <div className="grid items-start gap-6" style={{ gridTemplateColumns: "minmax(0, 20rem) minmax(0, 1fr)" }}>
       <div className="min-w-0">{list}</div>
       <div className="min-w-0">{selected ? detail : placeholder}</div>
     </div>
@@ -48,11 +48,8 @@ export function MedicalSplit({
 /** The right pane before anything is selected. */
 export function DetailPlaceholder({ text }: { text: string }) {
   return (
-    <div
-      className="flex min-h-48 items-center justify-center rounded-xl border border-dashed px-6 py-12 text-center text-sm"
-      style={{ borderColor: "var(--border-hairline)", color: "var(--text-muted)" }}
-    >
+    <p className="px-2 py-6 text-sm" style={{ color: "var(--text-muted)" }}>
       {text}
-    </div>
+    </p>
   );
 }

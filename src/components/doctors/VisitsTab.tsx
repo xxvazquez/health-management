@@ -104,11 +104,7 @@ export function VisitsTab({ api, accent }: { api: DoctorsApi; accent: string }) 
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex justify-end">
-        <PrimaryAction label="Add" accent={accent} onClick={() => setAdd("choose")} />
-      </div>
-
+    <div className="flex flex-col gap-5">
       {add === "choose" && (
         <ChoicePanel
           title="Add to Visits"
@@ -121,12 +117,15 @@ export function VisitsTab({ api, accent }: { api: DoctorsApi; accent: string }) 
       )}
 
       <section className="flex flex-col gap-3">
-        <SectionHeading hint="Upcoming dates, and what you want to bring up.">To raise next time</SectionHeading>
+        <div className="flex items-start justify-between gap-3">
+          <SectionHeading hint="Upcoming dates, and what you want to bring up.">To raise next time</SectionHeading>
+          <PrimaryAction label="Add" accent={accent} onClick={() => setAdd("choose")} />
+        </div>
 
         {upcoming.length > 0 && (
           <ul className="flex flex-col divide-y rounded-xl border" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
             {upcoming.map((s) => (
-              <li key={s.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5" style={{ borderColor: "var(--gridline)" }}>
+              <li key={s.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2.5" style={{ borderColor: "var(--gridline)" }}>
                 <span className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
                   {s.name}
                 </span>
@@ -182,7 +181,7 @@ export function VisitsTab({ api, accent }: { api: DoctorsApi; accent: string }) 
         )}
       </section>
 
-      <section className="flex flex-col gap-3 border-t pt-6" style={{ borderColor: "var(--gridline)" }}>
+      <section className="flex flex-col gap-3 border-t pt-5" style={{ borderColor: "var(--gridline)" }}>
         <SectionHeading hint="Appointments you've already had, with their follow-up tasks.">Past visits</SectionHeading>
         <AppointmentList
           api={api}

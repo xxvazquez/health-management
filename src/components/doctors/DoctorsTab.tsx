@@ -117,7 +117,7 @@ function DoctorHistory({ api, doctor, accent, onBack }: { api: DoctorsApi; docto
           </p>
         )}
 
-        <div className="mt-3 flex flex-col gap-3 border-t pt-3" style={{ borderColor: "var(--gridline)" }}>
+        <div className="mt-3 flex flex-wrap gap-x-10 gap-y-3 border-t pt-3" style={{ borderColor: "var(--gridline)" }}>
           <div className="flex flex-col gap-1.5">
             <span className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
               Rating
@@ -130,7 +130,9 @@ function DoctorHistory({ api, doctor, accent, onBack }: { api: DoctorsApi; docto
             </span>
             <LanguageChips value={doctor.language} onChange={(language) => void doctors.edit(doctor.id, { language })} accent={accent} />
           </div>
-          <NextAppointmentField date={nextAppt} onChange={(date) => void specialties.setNextAppointment(doctor.specialty, date)} accent={accent} />
+          <div className="flex flex-col gap-1.5">
+            <NextAppointmentField date={nextAppt} onChange={(date) => void specialties.setNextAppointment(doctor.specialty, date)} accent={accent} />
+          </div>
         </div>
       </div>
 
@@ -151,13 +153,16 @@ export function DoctorsTab({ api, accent }: { api: DoctorsApi; accent: string })
     return <InlineEmpty title="No doctors yet" description="Add one while logging an appointment — they're saved here for reuse." />;
   }
 
-  const selected = doctors.data.find((d) => d.id === selectedId) ?? null;
+  // Desktop keeps a doctor open at all times so the detail pane is never
+  // an empty placeholder; mobile stays list-first until one is tapped.
+  const activeId = selectedId ?? (desktop ? doctors.data[0].id : null);
+  const selected = doctors.data.find((d) => d.id === activeId) ?? null;
 
   const list = (
     <ul className="flex flex-col divide-y rounded-xl border" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
       {doctors.data.map((doctor) => {
         const count = appointments.data.filter((a) => a.doctorId === doctor.id).length;
-        const active = doctor.id === selectedId;
+        const active = doctor.id === activeId;
         return (
           <li key={doctor.id} style={{ borderColor: "var(--gridline)" }}>
             <button

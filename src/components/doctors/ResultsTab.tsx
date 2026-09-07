@@ -14,7 +14,6 @@ import { ComboBox, FIELD_CLS, FIELD_STYLE, IconAction, LABEL_CLS, LABEL_STYLE, P
 import { parseNum, rangeStatus, statusColor } from "./labStatus";
 import { BatchResultsView } from "./BatchResultsView";
 import { LabsOverview } from "./LabsOverview";
-import { DetailPlaceholder, MedicalSplit, useIsDesktop } from "./MedicalSplit";
 import { CustomIcon, customColorValue } from "@/components/ui/customIcons";
 import { IconColorPicker } from "@/components/ui/IconColorPicker";
 
@@ -405,14 +404,14 @@ function MarkerRow({ marker, accent, active, onOpen }: { marker: LabMarker; acce
       type="button"
       onClick={onOpen}
       aria-current={active ? "true" : undefined}
-      className="flex w-full items-center gap-3 border-t border-l-2 py-2.5 pl-2 text-left first:border-t-0 transition-colors"
+      className="flex w-full items-center gap-3 border-t border-l-2 py-3 pl-2 text-left first:border-t-0 transition-colors"
       style={{ borderTopColor: "var(--gridline)", borderLeftColor: active ? accent : "transparent", background: active ? "var(--page-plane)" : undefined }}
     >
       <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: statusColor(status) }} aria-hidden="true" />
       <span className="min-w-0 flex-1 truncate text-sm font-medium" style={{ color: "var(--text-primary)" }}>
         {marker.name}
       </span>
-      <LabSparkline values={marker.results.map((r) => r.value)} refLow={marker.refLow} refHigh={marker.refHigh} />
+      <LabSparkline values={marker.results.map((r) => r.value)} refLow={marker.refLow} refHigh={marker.refHigh} width={96} height={26} />
       <span className="shrink-0 text-sm tabular-nums" style={{ color: latest ? statusColor(status) : "var(--text-muted)" }}>
         {latest ? `${latest.value}${marker.unit ? ` ${marker.unit}` : ""}` : "—"}
       </span>
@@ -606,7 +605,6 @@ function SectionToggle({ value, onChange, accent }: { value: "overview" | "manag
 
 export function ResultsTab({ accent }: { accent: string }) {
   const labs = useLabs();
-  const desktop = useIsDesktop();
   const [section, setSection] = useState<"overview" | "manage">("overview");
   const [view, setView] = useState<View>({ mode: "list" });
   const [flash, setFlash] = useState<string | null>(null);
@@ -649,71 +647,45 @@ export function ResultsTab({ accent }: { accent: string }) {
   }
 
   const listPane = renderList();
-  const placeholder = <DetailPlaceholder text="Pick a marker to see its trend and values." />;
-  // "Back to the plain list" — used whenever a mode's target (a deleted
-  // marker, a stale id) no longer exists, so a stray URL/state never shows
-  // a blank detail pane.
-  const plainList = <MedicalSplit selected={false} list={listPane} detail={null} placeholder={placeholder} />;
 
   if (view.mode === "marker-form") {
     return (
-      <MedicalSplit
-        selected
-        list={listPane}
-        placeholder={placeholder}
-        detail={
-          <MarkerForm
-            labs={labs}
-            accent={accent}
-            initial={view.markerId ? findMarker(view.markerId) ?? undefined : undefined}
-            onSaved={(markerId) => setView({ mode: "marker", markerId })}
-            onCancel={() => setView(view.markerId ? { mode: "marker", markerId: view.markerId } : { mode: "list" })}
-          />
-        }
+      <MarkerForm
+        labs={labs}
+        accent={accent}
+        initial={view.markerId ? findMarker(view.markerId) ?? undefined : undefined}
+        onSaved={(markerId) => setView({ mode: "marker", markerId })}
+        onCancel={() => setView(view.markerId ? { mode: "marker", markerId: view.markerId } : { mode: "list" })}
       />
     );
   }
 
   if (view.mode === "result-form") {
     const marker = findMarker(view.markerId);
-    if (!marker) return plainList;
+    if (!marker) return listPane;
     return (
-      <MedicalSplit
-        selected
-        list={listPane}
-        placeholder={placeholder}
-        detail={
-          <ResultForm
-            labs={labs}
-            accent={accent}
-            marker={marker}
-            initial={view.resultId ? marker.results.find((r) => r.id === view.resultId) : undefined}
-            onDone={() => setView({ mode: "marker", markerId: marker.id })}
-            onCancel={() => setView({ mode: "marker", markerId: marker.id })}
-          />
-        }
+      <ResultForm
+        labs={labs}
+        accent={accent}
+        marker={marker}
+        initial={view.resultId ? marker.results.find((r) => r.id === view.resultId) : undefined}
+        onDone={() => setView({ mode: "marker", markerId: marker.id })}
+        onCancel={() => setView({ mode: "marker", markerId: marker.id })}
       />
     );
   }
 
   if (view.mode === "batch") {
     return (
-      <MedicalSplit
-        selected
-        list={listPane}
-        placeholder={placeholder}
-        detail={
-          <BatchResultsView
-            labs={labs}
-            accent={accent}
-            onDone={(summary) => {
-              if (summary) {
-                setFlash(`${summary.count} ${summary.count === 1 ? "value" : "values"} added · ${formatDate(summary.date)}`);
-              }
-              setView({ mode: "list" });
-            }}
-          />
-        }
+      <BatchResultsView
+        labs={labs}
+        accent={accent}
+        onDone={(summary) => {
+          if (summary) {
+            setFlash(`${summary.count} ${summary.count === 1 ? "value" : "values"} added · ${formatDate(summary.date)}`);
+          }
+          setView({ mode: "list" });
+        }}
       />
     );
   }
@@ -721,53 +693,39 @@ export function ResultsTab({ accent }: { accent: string }) {
   if (view.mode === "panel-form") {
     const panel = view.panelId ? labs.panels.data.find((p) => p.id === view.panelId) : undefined;
     return (
-      <MedicalSplit
-        selected
-        list={listPane}
-        placeholder={placeholder}
-        detail={
-          <PanelNameForm
-            accent={accent}
-            initialName={panel?.name}
-            initialIcon={panel?.icon ?? null}
-            initialColor={panel?.color ?? null}
-            onSave={async (name, icon, color) => {
-              if (panel) await labs.panels.rename(panel.id, { name, icon, color });
-              else await labs.panels.create(name, { icon, color });
-              setView({ mode: "list" });
-            }}
-            onCancel={() => setView({ mode: "list" })}
-          />
-        }
+      <PanelNameForm
+        accent={accent}
+        initialName={panel?.name}
+        initialIcon={panel?.icon ?? null}
+        initialColor={panel?.color ?? null}
+        onSave={async (name, icon, color) => {
+          if (panel) await labs.panels.rename(panel.id, { name, icon, color });
+          else await labs.panels.create(name, { icon, color });
+          setView({ mode: "list" });
+        }}
+        onCancel={() => setView({ mode: "list" })}
       />
     );
   }
 
   if (view.mode === "marker") {
     const marker = findMarker(view.markerId);
-    if (!marker) return plainList;
+    if (!marker) return listPane;
     return (
-      <MedicalSplit
-        selected
-        list={listPane}
-        placeholder={placeholder}
-        detail={
-          <MarkerDetail
-            labs={labs}
-            accent={accent}
-            marker={marker}
-            onBack={desktop ? undefined : () => setView({ mode: "list" })}
-            onDelete={() => setView({ mode: "list" })}
-            onAddValue={() => setView({ mode: "result-form", markerId: marker.id })}
-            onEditMarker={() => setView({ mode: "marker-form", markerId: marker.id })}
-            onEditResult={(r) => setView({ mode: "result-form", markerId: marker.id, resultId: r.id })}
-          />
-        }
+      <MarkerDetail
+        labs={labs}
+        accent={accent}
+        marker={marker}
+        onBack={() => setView({ mode: "list" })}
+        onDelete={() => setView({ mode: "list" })}
+        onAddValue={() => setView({ mode: "result-form", markerId: marker.id })}
+        onEditMarker={() => setView({ mode: "marker-form", markerId: marker.id })}
+        onEditResult={(r) => setView({ mode: "result-form", markerId: marker.id, resultId: r.id })}
       />
     );
   }
 
-  return plainList;
+  return listPane;
 
   function renderList() {
     const hasAny = labs.markers.data.length > 0 || labs.panels.data.length > 0;
@@ -777,33 +735,36 @@ export function ResultsTab({ accent }: { accent: string }) {
     return (
       <div className="flex flex-col gap-3">
         <SectionToggle value={section} onChange={setSection} accent={accent} />
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setView({ mode: "panel-form" })}
-              className="shrink-0 rounded-md border px-2.5 py-1.5 text-xs font-medium"
-              style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-secondary)" }}
-            >
-              New panel
-            </button>
-            {hasMarkers && (
-              <button
-                type="button"
-                onClick={() => setView({ mode: "batch" })}
-                className="shrink-0 rounded-md border px-2.5 py-1.5 text-xs font-medium"
-                style={{ borderColor: accent, background: `color-mix(in oklab, ${accent} 12%, var(--surface-1))`, color: accent }}
-              >
-                Add results
-              </button>
-            )}
-          </div>
-          <PrimaryAction label="New marker" accent={accent} onClick={() => setView({ mode: "marker-form" })} />
+
+        <div className="flex flex-wrap items-center gap-2">
+          {hasMarkers && (
+            <SearchField value={search} onChange={setSearch} placeholder="Search markers…" className="min-w-48 flex-1" />
+          )}
+          <span className="ml-auto shrink-0">
+            <PrimaryAction label="New marker" accent={accent} onClick={() => setView({ mode: "marker-form" })} />
+          </span>
         </div>
 
-        {hasMarkers && (
-          <SearchField value={search} onChange={setSearch} placeholder="Search markers…" className="w-full" />
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setView({ mode: "panel-form" })}
+            className="shrink-0 rounded-md border px-2.5 py-1.5 text-xs font-medium"
+            style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-secondary)" }}
+          >
+            New panel
+          </button>
+          {hasMarkers && (
+            <button
+              type="button"
+              onClick={() => setView({ mode: "batch" })}
+              className="shrink-0 rounded-md border px-2.5 py-1.5 text-xs font-medium"
+              style={{ borderColor: accent, background: `color-mix(in oklab, ${accent} 12%, var(--surface-1))`, color: accent }}
+            >
+              Add results
+            </button>
+          )}
+        </div>
 
         {flash && (
           <p
