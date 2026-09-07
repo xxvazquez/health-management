@@ -81,6 +81,7 @@ export function CareEntryForm({
   const [kind, setKind] = useState<CareEntryKind>(initial?.kind ?? "observation");
   const [title, setTitle] = useState(initial?.title ?? "");
   const [body, setBody] = useState(initial?.body ?? "");
+  const [remindOn, setRemindOn] = useState(initial?.remindOn ?? "");
   const [specialtyIds, setSpecialtyIds] = useState<string[]>(initial?.specialtyIds ?? []);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -93,7 +94,7 @@ export function CareEntryForm({
     setSaving(true);
     setError(null);
     try {
-      await onSave({ happenedOn, kind, title, body, specialtyIds });
+      await onSave({ happenedOn, kind, title, body, remindOn: remindOn || null, specialtyIds });
     } catch (err) {
       console.error("care entry save failed", err);
       setError("Couldn't save that — try again in a moment.");
@@ -157,6 +158,30 @@ export function CareEntryForm({
         <input type="date" value={happenedOn} max={todayLocalISODate()} onChange={(e) => setHappenedOn(e.target.value)} className={FIELD_CLS} style={FIELD_STYLE} />
       </label>
 
+      <label className="flex flex-col gap-1">
+        <span className={LABEL_CLS} style={LABEL_STYLE}>
+          Remind me to revisit <span style={{ color: "var(--text-muted)" }}>(optional)</span>
+        </span>
+        <div className="flex items-center gap-2">
+          <input
+            type="date"
+            value={remindOn}
+            min={todayLocalISODate()}
+            onChange={(e) => setRemindOn(e.target.value)}
+            className={FIELD_CLS}
+            style={FIELD_STYLE}
+          />
+          {remindOn && (
+            <button type="button" onClick={() => setRemindOn("")} className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+              Clear
+            </button>
+          )}
+        </div>
+        <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+          A push on that date — e.g. to recheck a result or how a change is going.
+        </span>
+      </label>
+
       <div className="flex flex-col gap-1.5">
         <span className={LABEL_CLS} style={LABEL_STYLE}>
           Relevant to
@@ -196,6 +221,11 @@ export function CareEntryRow({ entry, specialtyNames, accent, onEdit, onDelete }
             {CARE_KIND_LABEL[entry.kind]}
           </span>
           <span className="tabular-nums">{formatDate(entry.happenedOn)}</span>
+          {entry.remindOn && (
+            <span className="tabular-nums" style={{ color: accent }}>
+              · revisit {formatDate(entry.remindOn)}
+            </span>
+          )}
         </span>
         <span className="mt-1 block text-sm font-medium" style={{ color: "var(--text-primary)" }}>
           {entry.title}

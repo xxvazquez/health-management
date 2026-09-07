@@ -723,6 +723,9 @@ create index doctor_appointment_tasks_due_idx on public.doctor_appointment_tasks
 -- care_entry_specialties, so it can be read whole ("what's been going on")
 -- or filtered to one specialty's context before a visit. Direct-to-Supabase,
 -- owner-only, same class as doctor_appointments above.
+-- An optional `remind_on` date nudges you to come back to the entry (e.g.
+-- "recheck ferritin in 8 weeks"); the reminder cron sends it once when the
+-- date arrives and stamps `reminder_sent_at`, exactly like doctor_appointment_tasks.
 create table public.care_entries (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null default auth.uid() references auth.users(id),
@@ -730,6 +733,8 @@ create table public.care_entries (
   kind text not null check (kind in ('observation', 'note', 'decision')),
   title text not null check (char_length(trim(title)) > 0),
   body text,
+  remind_on date,
+  reminder_sent_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   unique (user_id, id)
@@ -745,6 +750,8 @@ create table public.care_entry_specialties (
 );
 
 create index care_entries_user_date_idx on public.care_entries (user_id, happened_on desc);
+create index care_entries_remind_idx on public.care_entries (user_id)
+  where remind_on is not null and reminder_sent_at is null;
 create index care_entry_specialties_specialty_idx on public.care_entry_specialties (user_id, specialty_id);
 
 -- Doctors -> Results: a blood/lab-results tracker. A `lab_marker` is one
