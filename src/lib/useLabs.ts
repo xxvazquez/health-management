@@ -112,9 +112,10 @@ export function useLabs() {
             : p,
         ),
       );
-      if (!isDemo) await updateLabPanel(id, patch).catch((err) => console.error("updateLabPanel failed", err));
+      const current = panels.find((p) => p.id === id);
+      if (!isDemo && current) await updateLabPanel(current, patch).catch((err) => console.error("updateLabPanel failed", err));
     },
-    [isDemo],
+    [isDemo, panels],
   );
 
   const removePanel = useCallback(
@@ -171,12 +172,13 @@ export function useLabs() {
           ),
         ),
       );
-      if (!isDemo) {
-        const updated = await updateLabMarker(id, patch);
+      const current = markers.find((m) => m.id === id);
+      if (!isDemo && current) {
+        const updated = await updateLabMarker(current, patch);
         setMarkers((prev) => sortMarkers(prev.map((m) => (m.id === id ? updated : m))));
       }
     },
-    [isDemo],
+    [isDemo, markers],
   );
 
   const removeMarker = useCallback(
@@ -286,8 +288,9 @@ export function useLabs() {
             : m,
         ),
       );
-      if (!isDemo) {
-        const updated = await updateLabResult(id, patch);
+      const current = markers.find((m) => m.id === markerId)?.results.find((r) => r.id === id);
+      if (!isDemo && current) {
+        const updated = await updateLabResult(current, patch);
         setMarkers((prev) =>
           prev.map((m) =>
             m.id === markerId ? { ...m, results: sortResults(m.results.map((r) => (r.id === id ? updated : r))) } : m,
@@ -295,7 +298,7 @@ export function useLabs() {
         );
       }
     },
-    [isDemo],
+    [isDemo, markers],
   );
 
   const removeResult = useCallback(

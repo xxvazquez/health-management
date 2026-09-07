@@ -1,5 +1,7 @@
 import { supabase } from "./client";
 import type { CustomAppearance } from "@/components/ui/customIcons";
+import { createTimeOrderedId } from "@/lib/sortableId";
+import { deleteDirect, upsertDirect } from "./directWrite";
 
 export interface LabResult {
   id: string;
@@ -102,8 +104,32 @@ async function currentUserId(): Promise<string | null> {
   return session?.user.id ?? null;
 }
 
-function notConfigured(): Error {
-  return new Error("Cloud sync isn't set up for this deployment.");
+// The lab_* tables are all owner-only (`for all` RLS), so a whole-row
+// upsert is safe — a create, or an edit, goes through directWrite.
+const PANELS_TABLE = "lab_panels";
+const MARKERS_TABLE = "lab_markers";
+const RESULTS_TABLE = "lab_results";
+
+function panelPayload(p: LabPanel, userId: string): Record<string, unknown> {
+  return { id: p.id, user_id: userId, name: p.name.trim(), sort_order: p.sortOrder, icon: p.icon, color: p.color, updated_at: new Date().toISOString() };
+}
+
+function markerPayload(m: LabMarker, userId: string): Record<string, unknown> {
+  return {
+    id: m.id,
+    user_id: userId,
+    panel_id: m.panelId,
+    name: m.name.trim(),
+    unit: m.unit,
+    ref_low: m.refLow,
+    ref_high: m.refHigh,
+    sort_order: m.sortOrder,
+    updated_at: new Date().toISOString(),
+  };
+}
+
+function resultPayload(r: LabResult, userId: string): Record<string, unknown> {
+  return { id: r.id, user_id: userId, marker_id: r.markerId, measured_on: r.measuredOn, value: r.value, lab: r.lab, note: r.note, updated_at: new Date().toISOString() };
 }
 
 // --- Panels -------------------------------------------------------------
@@ -123,16 +149,11 @@ export async function fetchLabPanels(): Promise<LabPanel[]> {
 }
 
 export async function createLabPanel(name: string, sortOrder: number, appearance?: CustomAppearance): Promise<LabPanel> {
-  if (!supabase) throw notConfigured();
   const myUserId = await currentUserId();
   if (!myUserId) throw new Error("Sign in first.");
-  const { data, error } = await supabase
-    .from("lab_panels")
-    .insert({ user_id: myUserId, name: name.trim(), sort_order: sortOrder, icon: appearance?.icon ?? null, color: appearance?.color ?? null })
-    .select(PANEL_COLUMNS)
-    .single();
-  if (error) throw error;
-  return toPanel(data as PanelRow);
+  const p: LabPanel = { id: createTimeOrderedId(), name: name.trim(), sortOrder, icon: appearance?.icon ?? null, color: appearance?.color ?? null };
+  await upsertDirect(myUserId, PANELS_TABLE, p.id, panelPayload(p, myUserId));
+  return p;
 }
 
 export interface LabPanelPatch {
@@ -142,21 +163,24 @@ export interface LabPanelPatch {
   color?: string | null;
 }
 
-export async function updateLabPanel(id: string, patch: LabPanelPatch): Promise<void> {
-  if (!supabase) throw notConfigured();
-  const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
-  if (patch.name !== undefined) update.name = patch.name.trim();
-  if (patch.sortOrder !== undefined) update.sort_order = patch.sortOrder;
-  if (patch.icon !== undefined) update.icon = patch.icon;
-  if (patch.color !== undefined) update.color = patch.color;
-  const { error } = await supabase.from("lab_panels").update(update).eq("id", id);
-  if (error) throw error;
+/** Takes the full current panel so an offline edit upserts a complete row. */
+export async function updateLabPanel(panel: LabPanel, patch: LabPanelPatch): Promise<void> {
+  const myUserId = await currentUserId();
+  if (!myUserId) throw new Error("Sign in first.");
+  const next: LabPanel = {
+    ...panel,
+    name: patch.name !== undefined ? patch.name.trim() : panel.name,
+    sortOrder: patch.sortOrder !== undefined ? patch.sortOrder : panel.sortOrder,
+    icon: patch.icon !== undefined ? patch.icon : panel.icon,
+    color: patch.color !== undefined ? patch.color : panel.color,
+  };
+  await upsertDirect(myUserId, PANELS_TABLE, next.id, panelPayload(next, myUserId));
 }
 
 export async function deleteLabPanel(id: string): Promise<void> {
-  if (!supabase) return;
-  const { error } = await supabase.from("lab_panels").delete().eq("id", id);
-  if (error) throw error;
+  const myUserId = await currentUserId();
+  if (!myUserId) return;
+  await deleteDirect(myUserId, PANELS_TABLE, id);
 }
 
 // --- Markers -----------------------------------------------------------
@@ -185,24 +209,20 @@ export interface NewLabMarkerInput {
 }
 
 export async function createLabMarker(input: NewLabMarkerInput): Promise<LabMarker> {
-  if (!supabase) throw notConfigured();
   const myUserId = await currentUserId();
   if (!myUserId) throw new Error("Sign in first.");
-  const { data, error } = await supabase
-    .from("lab_markers")
-    .insert({
-      user_id: myUserId,
-      panel_id: input.panelId,
-      name: input.name.trim(),
-      unit: input.unit.trim() || null,
-      ref_low: input.refLow,
-      ref_high: input.refHigh,
-      sort_order: input.sortOrder,
-    })
-    .select(MARKER_COLUMNS)
-    .single();
-  if (error) throw error;
-  return toMarker(data as MarkerRow);
+  const m: LabMarker = {
+    id: createTimeOrderedId(),
+    panelId: input.panelId,
+    name: input.name.trim(),
+    unit: input.unit.trim() || null,
+    refLow: input.refLow,
+    refHigh: input.refHigh,
+    sortOrder: input.sortOrder,
+    results: [],
+  };
+  await upsertDirect(myUserId, MARKERS_TABLE, m.id, markerPayload(m, myUserId));
+  return m;
 }
 
 export interface LabMarkerPatch {
@@ -214,24 +234,28 @@ export interface LabMarkerPatch {
   sortOrder?: number;
 }
 
-export async function updateLabMarker(id: string, patch: LabMarkerPatch): Promise<LabMarker> {
-  if (!supabase) throw notConfigured();
-  const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
-  if (patch.panelId !== undefined) update.panel_id = patch.panelId;
-  if (patch.name !== undefined) update.name = patch.name.trim();
-  if (patch.unit !== undefined) update.unit = patch.unit.trim() || null;
-  if (patch.refLow !== undefined) update.ref_low = patch.refLow;
-  if (patch.refHigh !== undefined) update.ref_high = patch.refHigh;
-  if (patch.sortOrder !== undefined) update.sort_order = patch.sortOrder;
-  const { data, error } = await supabase.from("lab_markers").update(update).eq("id", id).select(MARKER_COLUMNS).single();
-  if (error) throw error;
-  return toMarker(data as MarkerRow);
+/** Takes the full current marker (its `results` are left untouched — those
+ * are their own rows). */
+export async function updateLabMarker(marker: LabMarker, patch: LabMarkerPatch): Promise<LabMarker> {
+  const myUserId = await currentUserId();
+  if (!myUserId) throw new Error("Sign in first.");
+  const next: LabMarker = {
+    ...marker,
+    panelId: patch.panelId !== undefined ? patch.panelId : marker.panelId,
+    name: patch.name !== undefined ? patch.name.trim() : marker.name,
+    unit: patch.unit !== undefined ? patch.unit.trim() || null : marker.unit,
+    refLow: patch.refLow !== undefined ? patch.refLow : marker.refLow,
+    refHigh: patch.refHigh !== undefined ? patch.refHigh : marker.refHigh,
+    sortOrder: patch.sortOrder !== undefined ? patch.sortOrder : marker.sortOrder,
+  };
+  await upsertDirect(myUserId, MARKERS_TABLE, next.id, markerPayload(next, myUserId));
+  return next;
 }
 
 export async function deleteLabMarker(id: string): Promise<void> {
-  if (!supabase) return;
-  const { error } = await supabase.from("lab_markers").delete().eq("id", id);
-  if (error) throw error;
+  const myUserId = await currentUserId();
+  if (!myUserId) return;
+  await deleteDirect(myUserId, MARKERS_TABLE, id);
 }
 
 // --- Results ----------------------------------------------------------
@@ -244,48 +268,35 @@ export interface NewLabResultInput {
   note: string;
 }
 
-export async function createLabResult(input: NewLabResultInput): Promise<LabResult> {
-  if (!supabase) throw notConfigured();
-  const myUserId = await currentUserId();
-  if (!myUserId) throw new Error("Sign in first.");
-  const { data, error } = await supabase
-    .from("lab_results")
-    .insert({
-      user_id: myUserId,
-      marker_id: input.markerId,
-      measured_on: input.measuredOn,
-      value: input.value,
-      lab: input.lab.trim() || null,
-      note: input.note.trim() || null,
-    })
-    .select(RESULT_COLUMNS)
-    .single();
-  if (error) throw error;
-  return toResult(data as ResultRow);
+function resultFromInput(input: NewLabResultInput): LabResult {
+  return {
+    id: createTimeOrderedId(),
+    markerId: input.markerId,
+    measuredOn: input.measuredOn,
+    value: input.value,
+    lab: input.lab.trim() || null,
+    note: input.note.trim() || null,
+  };
 }
 
-/** Insert a whole blood draw at once — one round trip, `user_id` set
- * explicitly per row. Returns the created results in input order. */
+export async function createLabResult(input: NewLabResultInput): Promise<LabResult> {
+  const myUserId = await currentUserId();
+  if (!myUserId) throw new Error("Sign in first.");
+  const r = resultFromInput(input);
+  await upsertDirect(myUserId, RESULTS_TABLE, r.id, resultPayload(r, myUserId));
+  return r;
+}
+
+/** A whole blood draw — one row per marker. Each is its own outbox entry
+ * (the outbox has no batch op), so an offline draw queues as N inserts
+ * that drain in order. Returns the created results in input order. */
 export async function createLabResults(inputs: NewLabResultInput[]): Promise<LabResult[]> {
-  if (!supabase) throw notConfigured();
   if (inputs.length === 0) return [];
   const myUserId = await currentUserId();
   if (!myUserId) throw new Error("Sign in first.");
-  const { data, error } = await supabase
-    .from("lab_results")
-    .insert(
-      inputs.map((input) => ({
-        user_id: myUserId,
-        marker_id: input.markerId,
-        measured_on: input.measuredOn,
-        value: input.value,
-        lab: input.lab.trim() || null,
-        note: input.note.trim() || null,
-      })),
-    )
-    .select(RESULT_COLUMNS);
-  if (error) throw error;
-  return (data as ResultRow[]).map(toResult);
+  const results = inputs.map(resultFromInput);
+  for (const r of results) await upsertDirect(myUserId, RESULTS_TABLE, r.id, resultPayload(r, myUserId));
+  return results;
 }
 
 export interface LabResultPatch {
@@ -295,20 +306,22 @@ export interface LabResultPatch {
   note?: string;
 }
 
-export async function updateLabResult(id: string, patch: LabResultPatch): Promise<LabResult> {
-  if (!supabase) throw notConfigured();
-  const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
-  if (patch.measuredOn !== undefined) update.measured_on = patch.measuredOn;
-  if (patch.value !== undefined) update.value = patch.value;
-  if (patch.lab !== undefined) update.lab = patch.lab.trim() || null;
-  if (patch.note !== undefined) update.note = patch.note.trim() || null;
-  const { data, error } = await supabase.from("lab_results").update(update).eq("id", id).select(RESULT_COLUMNS).single();
-  if (error) throw error;
-  return toResult(data as ResultRow);
+export async function updateLabResult(result: LabResult, patch: LabResultPatch): Promise<LabResult> {
+  const myUserId = await currentUserId();
+  if (!myUserId) throw new Error("Sign in first.");
+  const next: LabResult = {
+    ...result,
+    measuredOn: patch.measuredOn ?? result.measuredOn,
+    value: patch.value ?? result.value,
+    lab: patch.lab !== undefined ? patch.lab.trim() || null : result.lab,
+    note: patch.note !== undefined ? patch.note.trim() || null : result.note,
+  };
+  await upsertDirect(myUserId, RESULTS_TABLE, next.id, resultPayload(next, myUserId));
+  return next;
 }
 
 export async function deleteLabResult(id: string): Promise<void> {
-  if (!supabase) return;
-  const { error } = await supabase.from("lab_results").delete().eq("id", id);
-  if (error) throw error;
+  const myUserId = await currentUserId();
+  if (!myUserId) return;
+  await deleteDirect(myUserId, RESULTS_TABLE, id);
 }
