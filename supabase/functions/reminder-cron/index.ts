@@ -381,6 +381,25 @@ Deno.serve(async (req) => {
     dueSent++;
   }
 
+  // Care-log entries with a `remind_on` date — a one-off "come back to this"
+  // push/email when the date arrives (date-only, so compare against `today`
+  // like the expiration items above). reminder_sent_at is the once-only guard;
+  // editing the date in the app clears it to re-arm.
+  const { data: careEntries } = await supabase
+    .from("care_entries")
+    .select("id, user_id, title, remind_on, reminder_sent_at")
+    .not("remind_on", "is", null)
+    .is("reminder_sent_at", null);
+  for (const entry of (careEntries ?? []) as { id: string; user_id: string; title: string; remind_on: string; reminder_sent_at: string | null }[]) {
+    dueChecked++;
+    if (entry.remind_on > today) continue;
+    const email = await getUserEmail(entry.user_id);
+    if (email) await sendReminderEmail(email, `Revisit: ${entry.title}`, `"${entry.title}" — a care-log entry you wanted to come back to.`);
+    await sendPushToUser(subsByUser, entry.user_id, `Revisit: ${entry.title}`, `care-entry:${entry.id}`);
+    await supabase.from("care_entries").update({ reminder_sent_at: nowDate.toISOString() }).eq("id", entry.id);
+    dueSent++;
+  }
+
   // --- Phase 3: daily unread-notes digest ---------------------------
   // One "you have N unread notes from <partner>" per day, after 09:00 in
   // DIGEST_TIMEZONE — defaults to Europe/Warsaw (this app's users share one

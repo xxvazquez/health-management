@@ -76,6 +76,7 @@ export function useCareLog() {
               kind: input.kind,
               title: input.title.trim(),
               body: input.body.trim() || null,
+              remindOn: input.remindOn,
               specialtyIds: input.specialtyIds,
               createdAt: new Date().toISOString(),
             },
@@ -103,6 +104,7 @@ export function useCareLog() {
                   kind: patch.kind ?? e.kind,
                   title: patch.title !== undefined ? patch.title.trim() : e.title,
                   body: patch.body !== undefined ? patch.body.trim() || null : e.body,
+                  remindOn: patch.remindOn !== undefined ? patch.remindOn : e.remindOn,
                   specialtyIds: patch.specialtyIds ?? e.specialtyIds,
                 }
               : e,

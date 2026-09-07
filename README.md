@@ -317,7 +317,8 @@ wired up one at a time.
   "Medical" filter, in the one urgency list. `care_entries` + the
   `care_entry_specialties` join is a dated timeline of *observation*, *decision*
   and *note* entries, each tagged to any number of specialties — surfaced in
-  Visits' "To raise next time" section, filterable by specialty.
+  Visits' "To raise next time" section, filterable by specialty. An entry may
+  carry an optional `remind_on` date that the reminder cron sends once (phase 2).
 - **Voice input on Expiration and Codes** is the browser's own Web Speech API, feature-detected — no server, no dependency.
 
 ### PWA shell
@@ -358,7 +359,8 @@ every 15 minutes by Supabase's `pg_cron` / `pg_net` (setup SQL is in
    it's passed and not logged today.
 2. Due tasks (`personal_tasks` / `household_tasks`), due expiry items
    (`personal_items` / `household_items`, `expires_on` minus `remind_days_before`),
-   and doctor follow-up tasks with a `reminder_at` that has passed → push + email.
+   doctor follow-up tasks with a `reminder_at` that has passed, and care-log
+   entries whose `remind_on` date has arrived → push + email.
 3. After 09:00 Europe/Warsaw, one "N unread messages from …" email + push per
    linked user, at most once a day (`notes_digest_state`).
 

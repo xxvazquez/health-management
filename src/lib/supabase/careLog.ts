@@ -11,6 +11,8 @@ export interface CareEntry {
   kind: CareEntryKind;
   title: string;
   body: string | null;
+  /** Optional date to be reminded to revisit this entry, YYYY-MM-DD. */
+  remindOn: string | null;
   /** IDs into doctor_specialties — the specialties this entry concerns. */
   specialtyIds: string[];
   createdAt: string;
@@ -22,11 +24,12 @@ interface CareEntryRow {
   kind: CareEntryKind;
   title: string;
   body: string | null;
+  remind_on: string | null;
   created_at: string;
   care_entry_specialties: { specialty_id: string }[] | null;
 }
 
-const ENTRY_COLUMNS = "id, happened_on, kind, title, body, created_at, care_entry_specialties(specialty_id)";
+const ENTRY_COLUMNS = "id, happened_on, kind, title, body, remind_on, created_at, care_entry_specialties(specialty_id)";
 
 function toEntry(row: CareEntryRow): CareEntry {
   return {
@@ -35,6 +38,7 @@ function toEntry(row: CareEntryRow): CareEntry {
     kind: row.kind,
     title: row.title,
     body: row.body,
+    remindOn: row.remind_on,
     specialtyIds: (row.care_entry_specialties ?? []).map((s) => s.specialty_id),
     createdAt: row.created_at,
   };
@@ -67,13 +71,14 @@ export interface NewCareEntryInput {
   kind: CareEntryKind;
   title: string;
   body: string;
+  remindOn: string | null;
   specialtyIds: string[];
 }
 
 const ENTRIES_TABLE = "care_entries";
 const SPECIALTIES_TABLE = "care_entry_specialties";
 
-function entryPayload(e: CareEntry, userId: string): Record<string, unknown> {
+function entryPayload(e: CareEntry, userId: string, extra?: Record<string, unknown>): Record<string, unknown> {
   return {
     id: e.id,
     user_id: userId,
@@ -81,8 +86,10 @@ function entryPayload(e: CareEntry, userId: string): Record<string, unknown> {
     kind: e.kind,
     title: e.title.trim(),
     body: e.body,
+    remind_on: e.remindOn,
     created_at: e.createdAt,
     updated_at: new Date().toISOString(),
+    ...extra,
   };
 }
 
@@ -107,6 +114,7 @@ export async function createCareEntry(input: NewCareEntryInput): Promise<CareEnt
     kind: input.kind,
     title: input.title.trim(),
     body: input.body.trim() || null,
+    remindOn: input.remindOn,
     specialtyIds: input.specialtyIds,
     createdAt: new Date().toISOString(),
   };
@@ -120,6 +128,7 @@ export interface CareEntryPatch {
   kind?: CareEntryKind;
   title?: string;
   body?: string;
+  remindOn?: string | null;
   specialtyIds?: string[];
 }
 
@@ -134,9 +143,12 @@ export async function updateCareEntry(entry: CareEntry, patch: CareEntryPatch): 
     kind: patch.kind ?? entry.kind,
     title: patch.title !== undefined ? patch.title.trim() : entry.title,
     body: patch.body !== undefined ? patch.body.trim() || null : entry.body,
+    remindOn: patch.remindOn !== undefined ? patch.remindOn : entry.remindOn,
     specialtyIds: patch.specialtyIds ?? entry.specialtyIds,
   };
-  await upsertDirect(myUserId, ENTRIES_TABLE, next.id, entryPayload(next, myUserId));
+  // A changed reminder date re-arms the cron (clears the once-only guard).
+  const remindChanged = patch.remindOn !== undefined && patch.remindOn !== entry.remindOn;
+  await upsertDirect(myUserId, ENTRIES_TABLE, next.id, entryPayload(next, myUserId, remindChanged ? { reminder_sent_at: null } : undefined));
   if (patch.specialtyIds !== undefined) {
     for (const sid of entry.specialtyIds.filter((s) => !patch.specialtyIds!.includes(s))) await removeTag(myUserId, entry.id, sid);
     for (const sid of patch.specialtyIds.filter((s) => !entry.specialtyIds.includes(s))) await addTag(myUserId, entry.id, sid);

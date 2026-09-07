@@ -336,7 +336,11 @@ a `decision` you made about your care (a dose change, a treatment started or
 stopped; the reasoning goes in `body`), or a plain `note`. Each entry is tagged to
 any number of specialties through the `care_entry_specialties` join (both FKs
 `on delete cascade`), so it reads whole or filtered to one specialty's context.
-Blood/lab results went their own way (below).
+An optional `remind_on` date sends a one-off push/email when it arrives (recheck a
+result, see how a change is going) — `reminder_sent_at` is the once-only guard,
+same phase-2 reminder-cron mechanism as `doctor_appointment_tasks`; editing the
+date in the app clears the guard to re-arm it. Blood/lab results went their own
+way (below).
 
 `lab_panels` / `lab_markers` / `lab_results` back the Medical page's **Results**
 tab — a blood-results tracker. A `lab_marker` is one measurement followed over
