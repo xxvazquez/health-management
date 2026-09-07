@@ -59,6 +59,7 @@ import { TAB_ICON } from "@/components/tabIcons";
 import { DuplicateItemDialog } from "@/components/ui/DuplicateItemDialog";
 import { SearchField } from "@/components/ui/SearchField";
 import { ChevronIcon, CloseIcon } from "@/components/ui/icons";
+import { CustomIcon, customColorValue } from "@/components/ui/customIcons";
 import { TabRail } from "@/components/ui/TabRail";
 import { DemoNotice } from "@/components/ui/DemoNotice";
 import { useOverflowFade } from "@/lib/useOverflowFade";
@@ -716,6 +717,22 @@ export default function LogPage() {
     [effective, date],
   );
 
+  // The icon/colour a category was given in Settings, keyed `type:name`.
+  // Used to tint a category header (and show its glyph) only where one is
+  // actually set — everything else keeps its built-in look.
+  const categoryAppearance = useMemo(() => {
+    const map = new Map<string, { icon: string | null; color: string | null }>();
+    for (const c of effective.categories) map.set(`${c.itemType}:${normalizeName(c.name)}`, { icon: c.icon, color: c.color });
+    return map;
+  }, [effective.categories]);
+  const categoryChrome = useCallback(
+    (itemType: ItemType, name: string): { color: string | null; iconKey: string | null } => {
+      const a = categoryAppearance.get(`${itemType}:${normalizeName(name)}`);
+      return { color: a?.color ? customColorValue(a.color) : null, iconKey: a?.icon ?? null };
+    },
+    [categoryAppearance],
+  );
+
   // Every workout item, active or archived — archived ones still need to
   // resolve older timeline entries/notes correctly by name, same reasoning
   // as the Food catalog's `known` set above.
@@ -746,10 +763,10 @@ export default function LogPage() {
     }
     const allCategoryNames = new Set([...categoryNames, ...byCategory.keys()]);
     return Array.from(allCategoryNames)
-      .map((category) => ({ category, items: byCategory.get(category) ?? [] }))
+      .map((category) => ({ category, items: byCategory.get(category) ?? [], chrome: categoryChrome("workout", category) }))
       .filter((group) => group.items.length > 0)
       .sort((a, b) => a.category.localeCompare(b.category));
-  }, [workoutItems, effective.categories]);
+  }, [workoutItems, effective.categories, categoryChrome]);
 
   // Stool and Workout have no item/category of their own the way
   // food/supplements/habits/symptoms do (Workout's `workout_logs` links to
@@ -1534,13 +1551,16 @@ export default function LogPage() {
       <div className="flex flex-col gap-3">
         {plainGroups.length > 0 && (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {plainGroups.map((group) => (
+            {plainGroups.map((group) => {
+              const chrome = categoryChrome(tabConfig.type, group.category);
+              return (
               <div
                 key={group.category}
                 className="flex flex-col gap-1 rounded-lg border p-2.5"
                 style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}
               >
-                <div className="mb-0.5 flex items-center gap-1.5 border-b pb-1.5 text-xs font-semibold" style={{ color: accent, borderColor: "var(--border-hairline)" }}>
+                <div className="mb-0.5 flex items-center gap-1.5 border-b pb-1.5 text-xs font-semibold" style={{ color: chrome.color ?? accent, borderColor: "var(--border-hairline)" }}>
+                  {chrome.iconKey && <CustomIcon icon={chrome.iconKey} size={13} />}
                   {group.category}
                   <span className="ml-auto font-medium" style={{ color: "var(--text-secondary)" }}>
                     {group.items.length}
@@ -1552,7 +1572,8 @@ export default function LogPage() {
                   )}
                 </ul>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
         {measureItems.length > 0 && (
@@ -1997,8 +2018,9 @@ export default function LogPage() {
               {tab === "food" ? (
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   {groupedByCategory.map((group) => {
-                    const accent = colorForCategorySlot(group.category);
-                    const icon = FOOD_CATEGORY_ICON[group.category];
+                    const chrome = categoryChrome("food", group.category);
+                    const accent = chrome.color ?? colorForCategorySlot(group.category);
+                    const icon = chrome.iconKey ? <CustomIcon icon={chrome.iconKey} size={13} /> : FOOD_CATEGORY_ICON[group.category];
                     const items = group.items;
                     if (items.length === 0) return null;
                     // Collapse only actually hides anything on mobile — desktop

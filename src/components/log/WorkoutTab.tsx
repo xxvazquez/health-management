@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { workoutUnitLabel, type RawWorkoutLog, type RawItem, type WorkoutUnit } from "@/lib/types";
 import { UNIT_STEP_PRESETS } from "@/components/ui/NumberStepper";
+import { CustomIcon } from "@/components/ui/customIcons";
 
 /** Vertical drag distance, in px, worth one `step` of value change — tuned
  * so a natural swipe adjusts a useful range without feeling twitchy or
@@ -258,8 +259,9 @@ export function WorkoutTab({
   onSave,
 }: {
   /** Active exercises grouped by category, A-Z within each — see
-   * log/page.tsx's `workoutGroupedByCategory`. */
-  groups: { category: string; items: RawItem[] }[];
+   * log/page.tsx's `workoutGroupedByCategory`. `chrome` carries the
+   * category's custom header colour / icon key, null where unset. */
+  groups: { category: string; items: RawItem[]; chrome: { color: string | null; iconKey: string | null } }[];
   /** Today's already-logged sets — used only for the read-only "Logged
    * today" summary per row; edited/deleted from the shared day timeline. */
   entries: RawWorkoutLog[];
@@ -303,7 +305,8 @@ export function WorkoutTab({
       ) : (
         groups.map((group) => (
           <div key={group.category} className="flex flex-col gap-2">
-            <p className="text-xs font-semibold" style={{ color: accent }}>
+            <p className="flex items-center gap-1.5 text-xs font-semibold" style={{ color: group.chrome.color ?? accent }}>
+              {group.chrome.iconKey && <CustomIcon icon={group.chrome.iconKey} size={13} />}
               {group.category}
             </p>
             <div className="flex flex-col gap-2">
