@@ -25,7 +25,6 @@ const TABLE_LABEL: Record<string, string> = {
   workout_logs: "workout entry",
   period_logs: "period entry",
   journal_entries: "journal entry",
-  personal_notes: "note",
   personal_items: "expiring item",
   blood_pressure: "blood pressure reading",
   weight_logs: "weight reading",

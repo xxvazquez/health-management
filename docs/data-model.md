@@ -250,8 +250,9 @@ in a "Done" section). Set → recurring: `due_at` advances by
 occurrence reminds again, and the task never becomes permanently done.
 `is_archived` moves a task into an "Archived" section without deleting its
 history; "Undo" drops the newest completion row (and rewinds `due_at` for a
-recurring task). `personal_notes` and `personal_items` have no
-relationships — a title+body note, and a name+expiry-date product.
+recurring task). `personal_items` has no relationships — a name+expiry-date
+product. (`personal_notes` / `household_notes` are dormant tables — the Quick
+notes tab was removed; existing rows still export.)
 
 ## Doctors
 
@@ -405,8 +406,8 @@ These have no full IndexedDB mirror. Reads are cached as per-hook snapshots
 
 Parent-and-children creates (an appointment + its tasks, a care entry + its
 specialty tags) enqueue the parent first — the outbox drains oldest-first, so
-the FK holds. Wired: `journal_entries`, `personal_notes` / `personal_items` /
-`personal_tasks` / `personal_task_completions`, `reminder_lists`,
+the FK holds. Wired: `journal_entries`, `personal_items` / `personal_tasks` /
+`personal_task_completions`, `reminder_lists`,
 `blood_pressure` / `weight_logs` / `weight_target`, `doctors` / `doctor_specialties` /
 `doctor_appointments` / `doctor_appointment_tasks`, `care_entries` /
 `care_entry_specialties` / `care_entry_files`, `lab_panels` / `lab_markers` / `lab_results`,

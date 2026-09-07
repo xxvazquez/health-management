@@ -1,5 +1,5 @@
 import type { ExpirationItem, TaskItem } from "@/lib/reminders";
-import type { PersonalNote, ReminderList } from "@/lib/supabase/personalReminders";
+import type { ReminderList } from "@/lib/supabase/personalReminders";
 
 /** Example data for Agenda's personal reminders / expiry when signed out — same
  * idea as demoNotes.ts, scoped to this one page (no offline/local-only
@@ -12,25 +12,6 @@ const isoAtHour = (msOffset: number, hour: number) => {
   d.setHours(hour, 0, 0, 0);
   return d.toISOString();
 };
-
-export function buildDemoPersonalNotes(): PersonalNote[] {
-  return [
-    {
-      id: "demo-note-1",
-      title: "Wifi router reset",
-      body: "Hold the reset button for 10s, wait 2 minutes before reconnecting.",
-      createdAt: iso(-3 * DAY),
-      updatedAt: iso(-3 * DAY),
-    },
-    {
-      id: "demo-note-2",
-      title: null,
-      body: "Book dentist appointment sometime this month.",
-      createdAt: iso(-1 * DAY),
-      updatedAt: iso(-1 * DAY),
-    },
-  ];
-}
 
 const DEMO_LIST_TODO = "demo-list-todo";
 const DEMO_LIST_TOBUY = "demo-list-tobuy";

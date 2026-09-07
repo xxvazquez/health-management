@@ -1,5 +1,5 @@
 import type { ExpirationItem, TaskItem } from "@/lib/reminders";
-import type { HouseholdCode, HouseholdNote } from "@/lib/supabase/household";
+import type { HouseholdCode } from "@/lib/supabase/household";
 
 /** Example data for the Home page when signed out — same idea as
  * demoNotes.ts/demoPersonalReminders.ts. "Me"/"partner" are fixed fake ids
@@ -12,25 +12,6 @@ const DAY = 24 * 60 * 60 * 1000;
 const now = () => Date.now();
 const iso = (msOffset: number) => new Date(now() + msOffset).toISOString();
 const dateOffset = (daysOffset: number) => new Date(now() + daysOffset * DAY).toISOString().slice(0, 10);
-
-export function buildDemoHouseholdNotes(): HouseholdNote[] {
-  return [
-    {
-      id: "demo-home-note-1",
-      title: "Landlord contact",
-      body: "Building manager: Marta, 555-0142 — only for maintenance emergencies.",
-      createdAt: iso(-10 * DAY),
-      updatedAt: iso(-10 * DAY),
-    },
-    {
-      id: "demo-home-note-2",
-      title: null,
-      body: "Guest towels are in the hallway closet, top shelf.",
-      createdAt: iso(-2 * DAY),
-      updatedAt: iso(-2 * DAY),
-    },
-  ];
-}
 
 export function buildDemoHouseholdTasks(): TaskItem[] {
   return [
