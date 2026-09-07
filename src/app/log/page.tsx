@@ -1896,8 +1896,8 @@ export default function LogPage() {
                 <p className="flex items-center gap-1 text-xs" style={{ color: "var(--text-muted)" }}>
                   <span style={{ color: TYPE_ACCENT[tabConfig.type] }}>✓</span>
                   {tab === "outcome"
-                    ? ` marked for ${formatDateLabel(date, today).toLowerCase()} — tap to raise intensity, or clear`
-                    : ` logged ${tabConfig.countable ? `for ${meal.toLowerCase()}` : formatDateLabel(date, today).toLowerCase()} — tap again to remove`}
+                    ? ` = marked for ${formatDateLabel(date, today).toLowerCase()} · tap to raise intensity, or clear`
+                    : ` = logged ${tabConfig.countable ? `for ${meal.toLowerCase()}` : formatDateLabel(date, today).toLowerCase()} · tap again to remove`}
                 </p>
               )}
 
