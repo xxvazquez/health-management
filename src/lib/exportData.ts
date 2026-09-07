@@ -41,6 +41,7 @@ const TABLES: { table: string; owner: string }[] = [
   { table: "doctor_appointment_tasks", owner: "user_id" },
   { table: "care_entries", owner: "user_id" },
   { table: "care_entry_specialties", owner: "user_id" },
+  { table: "care_entry_files", owner: "user_id" },
   { table: "lab_panels", owner: "user_id" },
   { table: "lab_markers", owner: "user_id" },
   { table: "lab_results", owner: "user_id" },
@@ -76,7 +77,7 @@ export const EXPORT_SECTIONS: { label: string; tables: string[] }[] = [
   },
   {
     label: "Medical",
-    tables: ["doctor_specialties", "doctors", "doctor_appointments", "doctor_appointment_tasks", "care_entries", "care_entry_specialties"],
+    tables: ["doctor_specialties", "doctors", "doctor_appointments", "doctor_appointment_tasks", "care_entries", "care_entry_specialties", "care_entry_files"],
   },
   { label: "Labs", tables: ["lab_panels", "lab_markers", "lab_results"] },
   { label: "Vitals", tables: ["blood_pressure", "weight_logs", "weight_target"] },
