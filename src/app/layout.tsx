@@ -11,6 +11,7 @@ import { ContentContainer } from "@/components/ContentContainer";
 import { AuthBanner } from "@/components/auth/AuthBanner";
 import { SyncStatusBanner } from "@/components/SyncStatusBanner";
 import { RegisterServiceWorker } from "@/components/RegisterServiceWorker";
+import { AppLoadingSplash } from "@/components/AppLoadingSplash";
 import { MedicalDisclaimer } from "@/components/MedicalDisclaimer";
 
 const bodyFont = Inter({
@@ -59,6 +60,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col lg:flex-row">
         <RegisterServiceWorker />
         <AuthProvider>
+          <AppLoadingSplash />
           <DataProvider>
             <VisibleDomainsProvider>
               <Nav />
