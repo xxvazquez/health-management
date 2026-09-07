@@ -411,13 +411,11 @@ export function VitalsTab({ accent }: { accent: string }) {
             </button>
           ))}
         </div>
-        <div className="hidden lg:block">
-          <PrimaryAction
-            label={kind === "bp" ? "New reading" : "New weigh-in"}
-            accent={accent}
-            onClick={() => setComposing(true)}
-          />
-        </div>
+        <PrimaryAction
+          label={kind === "bp" ? "New reading" : "New weigh-in"}
+          accent={accent}
+          onClick={() => setComposing(true)}
+        />
       </div>
 
       {vitals.loading ? (
