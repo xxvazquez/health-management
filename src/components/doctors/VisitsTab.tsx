@@ -56,6 +56,10 @@ export function VisitsTab({ api, accent }: { api: DoctorsApi; accent: string }) 
   );
 
   const entries = api.careLog.data;
+  const supplementNameById = useMemo(
+    () => new Map(api.careLog.supplements.map((s) => [s.id, s.name])),
+    [api.careLog.supplements],
+  );
   const shownEntries = filterSpecialty ? entries.filter((e) => e.specialtyIds.includes(filterSpecialty)) : entries;
   const specialtiesWithEntries = useMemo(() => {
     const ids = new Set(entries.flatMap((e) => e.specialtyIds));
@@ -84,6 +88,7 @@ export function VisitsTab({ api, accent }: { api: DoctorsApi; accent: string }) 
         api={api}
         accent={accent}
         initial={editingEntry ?? undefined}
+        supplements={api.careLog.supplements}
         onSave={async (input) => {
           if (editingEntry) await api.careLog.edit(editingEntry.id, input);
           else await api.careLog.add(input);
@@ -177,6 +182,7 @@ export function VisitsTab({ api, accent }: { api: DoctorsApi; accent: string }) 
                 key={entry.id}
                 entry={entry}
                 specialtyNames={namesFor(entry.specialtyIds)}
+                supplementName={entry.supplementItemId ? supplementNameById.get(entry.supplementItemId) : null}
                 accent={accent}
                 onEdit={() => setEditingEntry(entry)}
                 onDelete={() => void api.careLog.remove(entry.id)}

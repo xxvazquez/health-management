@@ -4,6 +4,7 @@ import { useMemo, useState, type FormEvent } from "react";
 import type { useDoctors } from "@/lib/useDoctors";
 import { todayLocalISODate } from "@/lib/aggregations/common";
 import type { CareEntry, CareEntryKind, NewCareEntryInput } from "@/lib/supabase/careLog";
+import type { SupplementOption } from "@/lib/useCareLog";
 import { Button } from "@/components/ui/Button";
 import { FIELD_CLS, FIELD_STYLE, IconAction, LABEL_CLS, LABEL_STYLE, PencilIcon, TrashIcon, formatDate } from "./shared";
 
@@ -68,12 +69,14 @@ export function CareEntryForm({
   api,
   accent,
   initial,
+  supplements,
   onSave,
   onCancel,
 }: {
   api: DoctorsApi;
   accent: string;
   initial?: CareEntry;
+  supplements: SupplementOption[];
   onSave: (input: NewCareEntryInput) => Promise<void>;
   onCancel: () => void;
 }) {
@@ -82,6 +85,7 @@ export function CareEntryForm({
   const [title, setTitle] = useState(initial?.title ?? "");
   const [body, setBody] = useState(initial?.body ?? "");
   const [remindOn, setRemindOn] = useState(initial?.remindOn ?? "");
+  const [supplementItemId, setSupplementItemId] = useState(initial?.supplementItemId ?? "");
   const [specialtyIds, setSpecialtyIds] = useState<string[]>(initial?.specialtyIds ?? []);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -94,7 +98,15 @@ export function CareEntryForm({
     setSaving(true);
     setError(null);
     try {
-      await onSave({ happenedOn, kind, title, body, remindOn: remindOn || null, specialtyIds });
+      await onSave({
+        happenedOn,
+        kind,
+        title,
+        body,
+        remindOn: remindOn || null,
+        supplementItemId: kind === "decision" ? supplementItemId || null : null,
+        specialtyIds,
+      });
     } catch (err) {
       console.error("care entry save failed", err);
       setError("Couldn't save that — try again in a moment.");
@@ -150,6 +162,22 @@ export function CareEntryForm({
         className={`${FIELD_CLS} resize-y`}
         style={FIELD_STYLE}
       />
+
+      {kind === "decision" && supplements.length > 0 && (
+        <label className="flex flex-col gap-1">
+          <span className={LABEL_CLS} style={LABEL_STYLE}>
+            About which supplement? <span style={{ color: "var(--text-muted)" }}>(optional)</span>
+          </span>
+          <select value={supplementItemId} onChange={(e) => setSupplementItemId(e.target.value)} className={FIELD_CLS} style={FIELD_STYLE}>
+            <option value="">None</option>
+            {supplements.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
 
       <label className="flex flex-col gap-1">
         <span className={LABEL_CLS} style={LABEL_STYLE}>
@@ -208,7 +236,21 @@ export function CareEntryForm({
   );
 }
 
-export function CareEntryRow({ entry, specialtyNames, accent, onEdit, onDelete }: { entry: CareEntry; specialtyNames: string[]; accent: string; onEdit: () => void; onDelete: () => void }) {
+export function CareEntryRow({
+  entry,
+  specialtyNames,
+  supplementName,
+  accent,
+  onEdit,
+  onDelete,
+}: {
+  entry: CareEntry;
+  specialtyNames: string[];
+  supplementName?: string | null;
+  accent: string;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   return (
     <li className="flex items-start gap-3 py-3">
@@ -235,8 +277,16 @@ export function CareEntryRow({ entry, specialtyNames, accent, onEdit, onDelete }
             {entry.body}
           </span>
         )}
-        {specialtyNames.length > 0 && (
+        {(specialtyNames.length > 0 || supplementName) && (
           <span className="mt-1.5 flex flex-wrap gap-1">
+            {supplementName && (
+              <span
+                className="rounded-full px-2 py-0.5 text-xs font-medium"
+                style={{ background: `color-mix(in oklab, ${accent} 14%, transparent)`, color: accent }}
+              >
+                {supplementName}
+              </span>
+            )}
             {specialtyNames.map((name) => (
               <span key={name} className="rounded-full border px-2 py-0.5 text-xs" style={{ borderColor: "var(--border-hairline)", color: "var(--text-muted)" }}>
                 {name}

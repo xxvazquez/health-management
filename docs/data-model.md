@@ -339,8 +339,14 @@ any number of specialties through the `care_entry_specialties` join (both FKs
 An optional `remind_on` date sends a one-off push/email when it arrives (recheck a
 result, see how a change is going) — `reminder_sent_at` is the once-only guard,
 same phase-2 reminder-cron mechanism as `doctor_appointment_tasks`; editing the
-date in the app clears the guard to re-arm it. Blood/lab results went their own
-way (below).
+date in the app clears the guard to re-arm it. A `decision` entry may also carry
+`supplement_item_id` — the supplement it explains ("why am I on this / this
+dose"). Composite FK `(user_id, supplement_item_id) → supplement_items(user_id,
+id)` `on delete set null`, so it can't cross the user boundary and removing the
+supplement just unlinks it. Surfaced as a chip on the Visits row and, on the
+supplement's own Settings row, as the latest linked decision's title (body on
+demand) with a count of any older ones. Blood/lab results went their own way
+(below).
 
 `lab_panels` / `lab_markers` / `lab_results` back the Medical page's **Results**
 tab — a blood-results tracker. A `lab_marker` is one measurement followed over

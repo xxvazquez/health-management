@@ -23,6 +23,8 @@ import { useItemActions, type ManageableItem } from "@/lib/useItemActions";
 import { getAllItems, getAllCategories, getItemIdentitiesWithHistory, withDataLock } from "@/lib/db/indexedDb";
 import { putItemAndSync, deleteCategoryAndSync } from "@/lib/supabase/sync";
 import { ensureCategoryId, categoryRowsToSeedForDemo, setCategoryAppearanceAndSync } from "@/lib/categoryResolution";
+import { useCareLog } from "@/lib/useCareLog";
+import type { CareEntry } from "@/lib/supabase/careLog";
 import { lookupFoodCategory } from "@/taxonomy/classify";
 import { POLAND_FOOD_CATALOG } from "@/taxonomy/polandFoodCatalog";
 import { normalizeName, titleCaseFallback } from "@/taxonomy/normalizeName";
@@ -833,6 +835,7 @@ function ItemRow({
   item,
   itemType,
   categories,
+  linkedDecisions,
   busy,
   onArchiveToggle,
   onRename,
@@ -848,6 +851,8 @@ function ItemRow({
   item: ManageableItem;
   itemType: ItemType;
   categories: readonly string[] | null;
+  /** Supplement only — decision entries explaining this item, newest first. */
+  linkedDecisions?: CareEntry[];
   busy: boolean;
   onArchiveToggle: () => void;
   onRename: (newName: string) => void;
@@ -873,70 +878,107 @@ function ItemRow({
   // ManageableItem.hasHistory's doc comment for why (an item with any
   // history can't be hard-deleted, only archived).
   return (
-    <li className="flex flex-wrap items-center justify-between gap-2 py-2">
-      <ItemNameField item={item} state={renameState} />
-      <span className="flex items-center gap-3">
-        <ItemActionButtons
-          item={item}
-          busy={busy}
-          state={renameState}
-          onArchiveToggle={onArchiveToggle}
-          onDelete={item.hasHistory === false ? onDelete : undefined}
-        />
-        {canRemind && (
-          <span className="flex items-center gap-1">
-            <input
-              type="time"
-              value={item.reminderTime ?? ""}
-              disabled={busy}
-              onChange={(e) => onSetReminderTime(e.target.value || null)}
-              aria-label={`Reminder time for ${item.item}`}
-              className="rounded-md border px-1.5 py-1 text-xs outline-none disabled:opacity-40"
-              style={{ borderColor: "var(--border-hairline)", background: "var(--page-plane)", color: "var(--text-secondary)" }}
-            />
-            {item.reminderTime && (
-              <button
-                type="button"
-                onClick={() => onSetReminderTime(null)}
+    <li className="flex flex-col gap-1 py-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <ItemNameField item={item} state={renameState} />
+        <span className="flex items-center gap-3">
+          <ItemActionButtons
+            item={item}
+            busy={busy}
+            state={renameState}
+            onArchiveToggle={onArchiveToggle}
+            onDelete={item.hasHistory === false ? onDelete : undefined}
+          />
+          {canRemind && (
+            <span className="flex items-center gap-1">
+              <input
+                type="time"
+                value={item.reminderTime ?? ""}
                 disabled={busy}
-                aria-label={`Clear reminder for ${item.item}`}
-                className="disabled:opacity-40"
-                style={{ color: "var(--text-muted)" }}
-              >
-                <CloseIcon size={11} />
-              </button>
-            )}
-          </span>
-        )}
-        {canSetUnit && <UnitSelect unit={item.unit ?? "kg"} knownUnits={knownUnits ?? []} busy={busy} onSetUnit={onSetUnit} itemName={item.item} />}
-        {canSetNutritionGroup && (
-          <NutritionGroupSelect itemName={item.item} override={nutritionGroupOverride} busy={busy} onSetNutritionGroup={onSetNutritionGroup} />
-        )}
-        {categories && onChangeCategory ? (
-          <select
-            value={item.category}
-            disabled={busy}
-            onChange={(e) => onChangeCategory(e.target.value)}
-            // appearance-none strips iOS Safari's native control chrome and
-            // leading-4 pins the line-height, so this select stays the same
-            // compact size as the plain category pills next to it.
-            className="appearance-none rounded-md border px-2 py-1 text-xs leading-4 disabled:opacity-40"
-            style={{ borderColor: "var(--border-hairline)", background: "var(--page-plane)", color: "var(--text-secondary)" }}
-          >
-            {!categories.includes(item.category) && <option value={item.category}>{item.category}</option>}
-            {categories.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
-        ) : (
-          <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-            {item.category}
-          </span>
-        )}
-      </span>
+                onChange={(e) => onSetReminderTime(e.target.value || null)}
+                aria-label={`Reminder time for ${item.item}`}
+                className="rounded-md border px-1.5 py-1 text-xs outline-none disabled:opacity-40"
+                style={{ borderColor: "var(--border-hairline)", background: "var(--page-plane)", color: "var(--text-secondary)" }}
+              />
+              {item.reminderTime && (
+                <button
+                  type="button"
+                  onClick={() => onSetReminderTime(null)}
+                  disabled={busy}
+                  aria-label={`Clear reminder for ${item.item}`}
+                  className="disabled:opacity-40"
+                  style={{ color: "var(--text-muted)" }}
+                >
+                  <CloseIcon size={11} />
+                </button>
+              )}
+            </span>
+          )}
+          {canSetUnit && <UnitSelect unit={item.unit ?? "kg"} knownUnits={knownUnits ?? []} busy={busy} onSetUnit={onSetUnit} itemName={item.item} />}
+          {canSetNutritionGroup && (
+            <NutritionGroupSelect itemName={item.item} override={nutritionGroupOverride} busy={busy} onSetNutritionGroup={onSetNutritionGroup} />
+          )}
+          {categories && onChangeCategory ? (
+            <select
+              value={item.category}
+              disabled={busy}
+              onChange={(e) => onChangeCategory(e.target.value)}
+              // appearance-none strips iOS Safari's native control chrome and
+              // leading-4 pins the line-height, so this select stays the same
+              // compact size as the plain category pills next to it.
+              className="appearance-none rounded-md border px-2 py-1 text-xs leading-4 disabled:opacity-40"
+              style={{ borderColor: "var(--border-hairline)", background: "var(--page-plane)", color: "var(--text-secondary)" }}
+            >
+              {!categories.includes(item.category) && <option value={item.category}>{item.category}</option>}
+              {categories.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+              {item.category}
+            </span>
+          )}
+        </span>
+      </div>
+      {linkedDecisions && linkedDecisions.length > 0 && <SupplementWhyLine decisions={linkedDecisions} />}
     </li>
+  );
+}
+
+/** The "why am I taking this" line under a supplement row — the latest
+ * linked care-log decision's title, its reasoning on demand, and a count
+ * of any older ones. Read-only; decisions are edited in Health → Visits. */
+function SupplementWhyLine({ decisions }: { decisions: CareEntry[] }) {
+  const [open, setOpen] = useState(false);
+  const [latest, ...earlier] = decisions;
+  return (
+    <div className="text-xs" style={{ color: "var(--text-muted)" }}>
+      <button
+        type="button"
+        onClick={() => latest.body && setOpen((v) => !v)}
+        className="flex items-start gap-1 text-left"
+        aria-expanded={latest.body ? open : undefined}
+      >
+        <span style={{ color: "var(--text-secondary)" }}>
+          <span style={{ color: "var(--text-muted)" }}>Why: </span>
+          {latest.title}
+        </span>
+        {latest.body && <ChevronIcon dir={open ? "up" : "down"} size={12} />}
+      </button>
+      {open && latest.body && (
+        <p className="mt-0.5" style={{ color: "var(--text-secondary)" }}>
+          {latest.body}
+        </p>
+      )}
+      {earlier.length > 0 && (
+        <span className="mt-0.5 block">
+          +{earlier.length} earlier decision{earlier.length > 1 ? "s" : ""}
+        </span>
+      )}
+    </div>
   );
 }
 
@@ -946,6 +988,7 @@ function ItemSection({
   placeholder,
   items,
   categories,
+  decisionsBySupplementId,
   searchQuery,
   open,
   onToggleOpen,
@@ -970,6 +1013,8 @@ function ItemSection({
   placeholder: string;
   items: ManageableItem[];
   categories: readonly string[];
+  /** Supplement section only — decision care-log entries keyed by supplement id. */
+  decisionsBySupplementId?: Map<string, CareEntry[]>;
   searchQuery: string;
   open: boolean;
   onToggleOpen: () => void;
@@ -1069,6 +1114,7 @@ function ItemSection({
                   item={item}
                   itemType={itemType}
                   categories={categories}
+                  linkedDecisions={decisionsBySupplementId?.get(item.itemIdentity)}
                   busy={item.itemIdentity !== "" && busyIdentity === item.itemIdentity}
                   onArchiveToggle={() => onToggleArchive(item)}
                   onRename={(name) => onRename(item, name)}
@@ -1139,6 +1185,7 @@ function toManageable(item: RawItem, itemsWithHistory: Set<string>): ManageableI
 
 export default function ManagePage() {
   const { status, isDemoData, refresh: refreshShared } = useData();
+  const careLog = useCareLog();
   const [rawItems, setRawItems] = useState<RawItem[] | null>(null);
   const [categoryRows, setCategoryRows] = useState<RawCategory[]>([]);
   // Item identities with at least one log/diary entry — an item in this
@@ -1262,6 +1309,20 @@ export default function ManagePage() {
     }
     return map;
   }, [activeCategoryRows]);
+
+  // Decision care-log entries linked to a supplement, newest-first per
+  // supplement id (careLog.data is already sorted that way). Powers the
+  // "why am I taking this" line on the supplement's row.
+  const decisionsBySupplementId = useMemo(() => {
+    const map = new Map<string, CareEntry[]>();
+    for (const e of careLog.data) {
+      if (e.kind !== "decision" || !e.supplementItemId) continue;
+      const list = map.get(e.supplementItemId);
+      if (list) list.push(e);
+      else map.set(e.supplementItemId, [e]);
+    }
+    return map;
+  }, [careLog.data]);
 
   function toggleSection(type: ItemType) {
     setOpenSections((prev) => {
@@ -1542,6 +1603,7 @@ export default function ManagePage() {
           placeholder={section.placeholder}
           items={itemsByType[section.type]}
           categories={categoryNamesByType[section.type]}
+          decisionsBySupplementId={section.type === "supplement" ? decisionsBySupplementId : undefined}
           searchQuery={searchQuery}
           open={openSections.has(section.type)}
           onToggleOpen={() => toggleSection(section.type)}
