@@ -220,18 +220,3 @@ export function buildAgenda(sources: AgendaSources, opts: { today: string; now?:
     return a.title.localeCompare(b.title);
   });
 }
-
-/** "2 overdue · 1 due today · 4 this week" for the summary strip. */
-export function agendaSummary(entries: AgendaEntry[]): { overdue: number; today: number; upcoming: number; done: number } {
-  let overdue = 0;
-  let today = 0;
-  let upcoming = 0;
-  let done = 0;
-  for (const e of entries) {
-    if (e.bucket === "overdue") overdue += 1;
-    else if (e.bucket === "today") today += 1;
-    else if (e.bucket === "done") done += 1;
-    else if (e.bucket === "tomorrow" || e.bucket === "week") upcoming += 1;
-  }
-  return { overdue, today, upcoming, done };
-}

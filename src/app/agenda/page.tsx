@@ -11,7 +11,7 @@ import { buildAgenda, type AgendaEntry } from "@/lib/aggregations/agenda";
 import { PageHeading } from "@/components/ui/PageHeading";
 import { PageShell } from "@/components/ui/PageShell";
 import { ListSkeleton } from "@/components/ui/Skeleton";
-import { AgendaBoard, AgendaCounts } from "@/components/agenda/AgendaBoard";
+import { AgendaBoard } from "@/components/agenda/AgendaBoard";
 import type { TaskFormValues } from "@/components/reminders/TaskForm";
 
 /**
@@ -72,22 +72,8 @@ export default function AgendaPage() {
   const boardError = personal.tasks.error || household.tasks.error || personal.items.error || household.items.error;
 
   return (
-    <PageShell
-      width="wide"
-      rail={
-        isClient ? (
-          <div className="flex flex-col gap-4 lg:sticky lg:top-8">
-            <div>
-              <h2 className="mb-2 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
-                At a glance
-              </h2>
-              <AgendaCounts entries={entries} />
-            </div>
-          </div>
-        ) : undefined
-      }
-    >
-      <div className="flex flex-col gap-6">
+    <PageShell width="narrow">
+      <div className="flex flex-col gap-5">
         <PageHeading
           subtitle={
             isClient

@@ -3,14 +3,14 @@
 import { useMemo, useState, type FormEvent } from "react";
 import Link from "next/link";
 import clsx from "clsx";
-import { AGENDA_BUCKET_LABEL, AGENDA_BUCKET_ORDER, agendaSummary, type AgendaBucket, type AgendaEntry, type AgendaKind, type AgendaScope } from "@/lib/aggregations/agenda";
+import { AGENDA_BUCKET_LABEL, AGENDA_BUCKET_ORDER, type AgendaBucket, type AgendaEntry, type AgendaKind, type AgendaScope } from "@/lib/aggregations/agenda";
 import { isRecurringTask } from "@/lib/reminders";
 import { todayLocalISODate } from "@/lib/aggregations/common";
 import type { ReminderList } from "@/lib/supabase/personalReminders";
 import { TaskForm, type TaskFormValues } from "@/components/reminders/TaskForm";
 import { Disclosure } from "@/components/ui/Disclosure";
 import { Field } from "@/components/ui/Field";
-import { StatusRow } from "@/components/ui/StatusRow";
+import { ListSection } from "@/components/ui/ListSection";
 import { ErrorState, InlineEmpty } from "@/components/ui/EmptyState";
 import { ListSkeleton } from "@/components/ui/Skeleton";
 import { PrimaryAction } from "@/components/ui/PrimaryAction";
@@ -204,42 +204,42 @@ export function AgendaBoard(props: AgendaBoardProps) {
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Filters */}
-      <div className="flex flex-col gap-2">
-        <div className="flex flex-wrap gap-1.5">
-          {(["all", "reminder", "expiry", "appointment"] as const).map((t) => (
-            <Chip key={t} active={typeFilter === t} onClick={() => setTypeFilter(t)}>
-              {TYPE_LABEL[t]}
-            </Chip>
-          ))}
+      {/* Filters + add */}
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex flex-col gap-2">
+          <div className="flex flex-wrap gap-1.5">
+            {(["all", "reminder", "expiry", "appointment"] as const).map((t) => (
+              <Chip key={t} active={typeFilter === t} onClick={() => setTypeFilter(t)}>
+                {TYPE_LABEL[t]}
+              </Chip>
+            ))}
+          </div>
+          {partnerLinked && (
+            <div className="flex flex-wrap gap-1.5">
+              {(["all", "mine", "shared", "medical"] as const).map((s) => (
+                <Chip key={s} active={scopeFilter === s} onClick={() => setScopeFilter(s)}>
+                  {SCOPE_LABEL[s]}
+                </Chip>
+              ))}
+            </div>
+          )}
+          {showList && (typeFilter === "all" || typeFilter === "reminder") && (
+            <div className="flex flex-wrap gap-1.5">
+              <Chip active={listFilter === "all"} onClick={() => setListFilter("all")}>
+                All lists
+              </Chip>
+              <Chip active={listFilter === "__default__"} onClick={() => setListFilter("__default__")}>
+                Reminders
+              </Chip>
+              {lists.map((l) => (
+                <Chip key={l.id} active={listFilter === l.id} onClick={() => setListFilter(l.id)}>
+                  {l.name}
+                </Chip>
+              ))}
+            </div>
+          )}
         </div>
-        {partnerLinked && (
-          <div className="flex flex-wrap gap-1.5">
-            {(["all", "mine", "shared", "medical"] as const).map((s) => (
-              <Chip key={s} active={scopeFilter === s} onClick={() => setScopeFilter(s)}>
-                {SCOPE_LABEL[s]}
-              </Chip>
-            ))}
-          </div>
-        )}
-        {showList && (typeFilter === "all" || typeFilter === "reminder") && (
-          <div className="flex flex-wrap gap-1.5">
-            <Chip active={listFilter === "all"} onClick={() => setListFilter("all")}>
-              All lists
-            </Chip>
-            <Chip active={listFilter === "__default__"} onClick={() => setListFilter("__default__")}>
-              Reminders
-            </Chip>
-            {lists.map((l) => (
-              <Chip key={l.id} active={listFilter === l.id} onClick={() => setListFilter(l.id)}>
-                {l.name}
-              </Chip>
-            ))}
-          </div>
-        )}
-      </div>
 
-      <div className="flex justify-end">
         <PrimaryAction label="Add" accent={ACCENT} onClick={() => setAdd({ mode: "choose" })} />
       </div>
 
@@ -263,7 +263,7 @@ export function AgendaBoard(props: AgendaBoardProps) {
       ) : filtered.length === 0 ? (
         <InlineEmpty title="Nothing on your agenda" description="Reminders, expiring products and upcoming appointments show up here, soonest first." />
       ) : (
-        <div className="flex flex-col gap-5">
+        <div className="flex flex-col gap-4">
           {AGENDA_BUCKET_ORDER.map((bucket) => {
             const rows = grouped.get(bucket) ?? [];
             if (rows.length === 0) return null;
@@ -291,24 +291,17 @@ export function AgendaBoard(props: AgendaBoardProps) {
             );
             if (collapsed) {
               return (
-                <Disclosure key={bucket} label={AGENDA_BUCKET_LABEL[bucket]} count={rows.length}>
+                <Disclosure key={bucket} className="px-1" label={AGENDA_BUCKET_LABEL[bucket]} count={rows.length}>
                   <div className="mt-1">{body}</div>
                 </Disclosure>
               );
             }
+            const tone =
+              bucket === "overdue" ? "var(--status-critical)" : bucket === "today" ? "var(--status-serious)" : undefined;
             return (
-              <section key={bucket}>
-                <h2
-                  className="mb-1 flex items-center gap-2 text-xs font-semibold tracking-wide uppercase"
-                  style={{ color: bucket === "overdue" ? "var(--status-critical)" : bucket === "today" ? "var(--status-serious)" : "var(--text-muted)" }}
-                >
-                  {AGENDA_BUCKET_LABEL[bucket]}
-                  <span className="tabular-nums" style={{ color: "var(--text-muted)" }}>
-                    {rows.length}
-                  </span>
-                </h2>
+              <ListSection key={bucket} label={AGENDA_BUCKET_LABEL[bucket]} count={rows.length} accent={tone}>
                 {body}
-              </section>
+              </ListSection>
             );
           })}
         </div>
@@ -421,29 +414,6 @@ function AgendaRow({
             </div>
           )}
         </>
-      )}
-    </div>
-  );
-}
-
-/** The compact "overdue / today / upcoming" counts for the desktop rail. */
-export function AgendaCounts({ entries }: { entries: AgendaEntry[] }) {
-  const s = agendaSummary(entries);
-  if (s.overdue + s.today + s.upcoming === 0) {
-    return (
-      <StatusRow tone="good" className="text-xs">
-        Nothing needs attention
-      </StatusRow>
-    );
-  }
-  return (
-    <div className="flex flex-col gap-1.5 text-xs">
-      {s.overdue > 0 && <StatusRow tone="critical">{s.overdue} overdue</StatusRow>}
-      {s.today > 0 && <StatusRow tone="serious">{s.today} due today</StatusRow>}
-      {s.upcoming > 0 && (
-        <span style={{ color: "var(--text-muted)" }} className="font-medium">
-          {s.upcoming} in the next 7 days
-        </span>
       )}
     </div>
   );
