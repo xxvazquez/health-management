@@ -160,7 +160,6 @@ export function NoteThreadList({
                   <span className="min-w-0 flex-1 truncate text-sm" style={{ fontWeight: t.isUnreadForMe ? 600 : 500, color: "var(--text-primary)" }}>
                     {t.subject || t.body.slice(0, 60)}
                   </span>
-                  {t.isFavouritedByMe && <StarIcon filled size={12} />}
                   <span className="shrink-0 text-xs whitespace-nowrap tabular-nums" style={{ color: "var(--text-muted)" }}>
                     {formatNoteTimestampShort(t.lastMessageAt)}
                   </span>
