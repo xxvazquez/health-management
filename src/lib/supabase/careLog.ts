@@ -1,7 +1,9 @@
 import { supabase } from "./client";
 import { createTimeOrderedId } from "@/lib/sortableId";
 import { deleteDirect, deleteWhereDirect, insertDirect, upsertDirect } from "./directWrite";
+import type { DriveAttachment } from "@/lib/googleDrive/api";
 
+export type { DriveAttachment };
 export type CareEntryKind = "observation" | "note" | "decision";
 
 export interface CareEntry {
@@ -18,6 +20,8 @@ export interface CareEntry {
   supplementItemId: string | null;
   /** IDs into doctor_specialties — the specialties this entry concerns. */
   specialtyIds: string[];
+  /** Google Drive files linked to this entry (pointers, not copies). */
+  attachments: DriveAttachment[];
   createdAt: string;
 }
 
@@ -31,10 +35,11 @@ interface CareEntryRow {
   supplement_item_id: string | null;
   created_at: string;
   care_entry_specialties: { specialty_id: string }[] | null;
+  care_entry_files: { drive_file_id: string; name: string; mime_type: string | null; web_view_link: string | null; icon_link: string | null }[] | null;
 }
 
 const ENTRY_COLUMNS =
-  "id, happened_on, kind, title, body, remind_on, supplement_item_id, created_at, care_entry_specialties(specialty_id)";
+  "id, happened_on, kind, title, body, remind_on, supplement_item_id, created_at, care_entry_specialties(specialty_id), care_entry_files(drive_file_id, name, mime_type, web_view_link, icon_link)";
 
 function toEntry(row: CareEntryRow): CareEntry {
   return {
@@ -46,6 +51,13 @@ function toEntry(row: CareEntryRow): CareEntry {
     remindOn: row.remind_on,
     supplementItemId: row.supplement_item_id,
     specialtyIds: (row.care_entry_specialties ?? []).map((s) => s.specialty_id),
+    attachments: (row.care_entry_files ?? []).map((f) => ({
+      driveFileId: f.drive_file_id,
+      name: f.name,
+      mimeType: f.mime_type,
+      webViewLink: f.web_view_link,
+      iconLink: f.icon_link,
+    })),
     createdAt: row.created_at,
   };
 }
@@ -80,10 +92,12 @@ export interface NewCareEntryInput {
   remindOn: string | null;
   supplementItemId: string | null;
   specialtyIds: string[];
+  attachments: DriveAttachment[];
 }
 
 const ENTRIES_TABLE = "care_entries";
 const SPECIALTIES_TABLE = "care_entry_specialties";
+const FILES_TABLE = "care_entry_files";
 
 function entryPayload(e: CareEntry, userId: string, extra?: Record<string, unknown>): Record<string, unknown> {
   return {
@@ -113,6 +127,29 @@ async function removeTag(userId: string, entryId: string, specialtyId: string): 
   await deleteWhereDirect(userId, SPECIALTIES_TABLE, { entry_id: entryId, specialty_id: specialtyId });
 }
 
+// care_entry_files: natural key (entry_id, drive_file_id), write-once —
+// same insert/delete-by-key pattern as the specialty tags above.
+async function addFile(userId: string, entryId: string, file: DriveAttachment): Promise<void> {
+  await insertDirect(
+    userId,
+    FILES_TABLE,
+    { entry_id: entryId, drive_file_id: file.driveFileId },
+    {
+      user_id: userId,
+      entry_id: entryId,
+      drive_file_id: file.driveFileId,
+      name: file.name,
+      mime_type: file.mimeType,
+      web_view_link: file.webViewLink,
+      icon_link: file.iconLink,
+    },
+  );
+}
+
+async function removeFile(userId: string, entryId: string, driveFileId: string): Promise<void> {
+  await deleteWhereDirect(userId, FILES_TABLE, { entry_id: entryId, drive_file_id: driveFileId });
+}
+
 export async function createCareEntry(input: NewCareEntryInput): Promise<CareEntry> {
   const myUserId = await currentUserId();
   if (!myUserId) throw new Error("Sign in first.");
@@ -125,10 +162,12 @@ export async function createCareEntry(input: NewCareEntryInput): Promise<CareEnt
     remindOn: input.remindOn,
     supplementItemId: input.kind === "decision" ? input.supplementItemId : null,
     specialtyIds: input.specialtyIds,
+    attachments: input.attachments,
     createdAt: new Date().toISOString(),
   };
   await upsertDirect(myUserId, ENTRIES_TABLE, entry.id, entryPayload(entry, myUserId));
   for (const sid of input.specialtyIds) await addTag(myUserId, entry.id, sid);
+  for (const file of input.attachments) await addFile(myUserId, entry.id, file);
   return entry;
 }
 
@@ -140,6 +179,7 @@ export interface CareEntryPatch {
   remindOn?: string | null;
   supplementItemId?: string | null;
   specialtyIds?: string[];
+  attachments?: DriveAttachment[];
 }
 
 /** Takes the full current entry so the edit upserts a complete row and can
@@ -156,6 +196,7 @@ export async function updateCareEntry(entry: CareEntry, patch: CareEntryPatch): 
     remindOn: patch.remindOn !== undefined ? patch.remindOn : entry.remindOn,
     supplementItemId: patch.supplementItemId !== undefined ? patch.supplementItemId : entry.supplementItemId,
     specialtyIds: patch.specialtyIds ?? entry.specialtyIds,
+    attachments: patch.attachments ?? entry.attachments,
   };
   // A changed reminder date re-arms the cron (clears the once-only guard).
   const remindChanged = patch.remindOn !== undefined && patch.remindOn !== entry.remindOn;
@@ -164,12 +205,18 @@ export async function updateCareEntry(entry: CareEntry, patch: CareEntryPatch): 
     for (const sid of entry.specialtyIds.filter((s) => !patch.specialtyIds!.includes(s))) await removeTag(myUserId, entry.id, sid);
     for (const sid of patch.specialtyIds.filter((s) => !entry.specialtyIds.includes(s))) await addTag(myUserId, entry.id, sid);
   }
+  if (patch.attachments !== undefined) {
+    const nextIds = new Set(patch.attachments.map((f) => f.driveFileId));
+    const prevIds = new Set(entry.attachments.map((f) => f.driveFileId));
+    for (const f of entry.attachments.filter((f) => !nextIds.has(f.driveFileId))) await removeFile(myUserId, entry.id, f.driveFileId);
+    for (const f of patch.attachments.filter((f) => !prevIds.has(f.driveFileId))) await addFile(myUserId, entry.id, f);
+  }
   return next;
 }
 
 export async function deleteCareEntry(id: string): Promise<void> {
   const myUserId = await currentUserId();
   if (!myUserId) return;
-  // care_entry_specialties rows cascade on the entry delete.
+  // care_entry_specialties / care_entry_files rows cascade on the entry delete.
   await deleteDirect(myUserId, ENTRIES_TABLE, id);
 }

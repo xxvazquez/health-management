@@ -5,7 +5,10 @@ import type { useDoctors } from "@/lib/useDoctors";
 import { todayLocalISODate } from "@/lib/aggregations/common";
 import type { CareEntry, CareEntryKind, NewCareEntryInput } from "@/lib/supabase/careLog";
 import type { SupplementOption } from "@/lib/useCareLog";
+import type { DriveAttachment } from "@/lib/googleDrive/api";
 import { Button } from "@/components/ui/Button";
+import { DriveFilePicker } from "@/components/googleDrive/DriveFilePicker";
+import { driveFileIcon } from "@/components/icons/DriveFileIcons";
 import { FIELD_CLS, FIELD_STYLE, IconAction, LABEL_CLS, LABEL_STYLE, PencilIcon, TrashIcon, formatDate } from "./shared";
 
 type DoctorsApi = ReturnType<typeof useDoctors>;
@@ -87,6 +90,8 @@ export function CareEntryForm({
   const [remindOn, setRemindOn] = useState(initial?.remindOn ?? "");
   const [supplementItemId, setSupplementItemId] = useState(initial?.supplementItemId ?? "");
   const [specialtyIds, setSpecialtyIds] = useState<string[]>(initial?.specialtyIds ?? []);
+  const [attachments, setAttachments] = useState<DriveAttachment[]>(initial?.attachments ?? []);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -106,6 +111,7 @@ export function CareEntryForm({
         remindOn: remindOn || null,
         supplementItemId: kind === "decision" ? supplementItemId || null : null,
         specialtyIds,
+        attachments,
       });
     } catch (err) {
       console.error("care entry save failed", err);
@@ -222,6 +228,49 @@ export function CareEntryForm({
         />
       </div>
 
+      <div className="flex flex-col gap-1.5">
+        <span className={LABEL_CLS} style={LABEL_STYLE}>
+          Drive files <span style={{ color: "var(--text-muted)" }}>(optional)</span>
+        </span>
+        {attachments.length > 0 && (
+          <ul className="flex flex-col gap-1">
+            {attachments.map((f) => (
+              <li key={f.driveFileId} className="flex items-center gap-2 text-xs">
+                <span className="min-w-0 flex-1 truncate" style={{ color: "var(--text-secondary)" }}>
+                  {f.name}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setAttachments((prev) => prev.filter((x) => x.driveFileId !== f.driveFileId))}
+                  aria-label={`Unlink ${f.name}`}
+                  style={{ color: "var(--text-muted)" }}
+                >
+                  <TrashIcon size={13} />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        <button
+          type="button"
+          onClick={() => setPickerOpen(true)}
+          className="self-start text-xs font-medium underline decoration-dotted"
+          style={{ color: "var(--text-muted)" }}
+        >
+          Link a file from Google Drive
+        </button>
+      </div>
+
+      {pickerOpen && (
+        <DriveFilePicker
+          onClose={() => setPickerOpen(false)}
+          onPick={(file) => {
+            setAttachments((prev) => (prev.some((f) => f.driveFileId === file.driveFileId) ? prev : [...prev, file]));
+            setPickerOpen(false);
+          }}
+        />
+      )}
+
       <div className="flex items-center gap-3">
         <Button type="submit" size="lg" accent={accent} disabled={!canSave || saving}>
           {saving ? "Saving…" : initial ? "Save changes" : "Add to log"}
@@ -253,7 +302,8 @@ export function CareEntryRow({
 }) {
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   return (
-    <li className="flex items-start gap-3 py-3">
+    <li className="flex flex-col gap-1.5 py-3">
+      <div className="flex items-start gap-3">
       <button type="button" onClick={onEdit} className="min-w-0 flex-1 text-left">
         <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs" style={{ color: "var(--text-muted)" }}>
           <span
@@ -317,6 +367,33 @@ export function CareEntryRow({
           </>
         )}
       </div>
+      </div>
+      {entry.attachments.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {entry.attachments.map((f) =>
+            f.webViewLink ? (
+              <a
+                key={f.driveFileId}
+                href={f.webViewLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex max-w-full items-center gap-1 rounded-md border px-2 py-0.5 text-xs"
+                style={{ borderColor: "var(--border-hairline)", color: "var(--text-secondary)" }}
+              >
+                <span className="shrink-0" style={{ color: "var(--text-muted)" }}>
+                  {driveFileIcon(f.mimeType ?? "")}
+                </span>
+                <span className="truncate">{f.name}</span>
+              </a>
+            ) : (
+              <span key={f.driveFileId} className="inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs" style={{ borderColor: "var(--border-hairline)", color: "var(--text-muted)" }}>
+                <span className="shrink-0">{driveFileIcon(f.mimeType ?? "")}</span>
+                <span className="truncate">{f.name}</span>
+              </span>
+            ),
+          )}
+        </div>
+      )}
     </li>
   );
 }

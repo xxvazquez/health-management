@@ -759,6 +759,24 @@ create table public.care_entry_specialties (
   foreign key (user_id, specialty_id) references public.doctor_specialties (user_id, id) on delete cascade
 );
 
+-- Google Drive files linked to a care entry — a pointer, not the file:
+-- `drive_file_id` + the metadata the UI renders (name, type, the Drive
+-- "open" link, the file-type icon). Nothing is uploaded or copied; the file
+-- stays in the user's Drive. Write-once rows, same shape as
+-- care_entry_specialties.
+create table public.care_entry_files (
+  user_id uuid not null default auth.uid() references auth.users(id),
+  entry_id uuid not null,
+  drive_file_id text not null,
+  name text not null,
+  mime_type text,
+  web_view_link text,
+  icon_link text,
+  added_at timestamptz not null default now(),
+  primary key (entry_id, drive_file_id),
+  foreign key (user_id, entry_id) references public.care_entries (user_id, id) on delete cascade
+);
+
 create index care_entries_user_date_idx on public.care_entries (user_id, happened_on desc);
 create index care_entries_remind_idx on public.care_entries (user_id)
   where remind_on is not null and reminder_sent_at is null;
@@ -1056,6 +1074,7 @@ alter table public.doctor_appointments enable row level security;
 alter table public.doctor_appointment_tasks enable row level security;
 alter table public.care_entries enable row level security;
 alter table public.care_entry_specialties enable row level security;
+alter table public.care_entry_files enable row level security;
 alter table public.lab_panels enable row level security;
 alter table public.lab_markers enable row level security;
 alter table public.lab_results enable row level security;
@@ -1106,6 +1125,7 @@ create policy "doctor_appointments_all_own" on public.doctor_appointments for al
 create policy "doctor_appointment_tasks_all_own" on public.doctor_appointment_tasks for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "care_entries_all_own" on public.care_entries for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "care_entry_specialties_all_own" on public.care_entry_specialties for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "care_entry_files_all_own" on public.care_entry_files for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "lab_panels_all_own" on public.lab_panels for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "lab_markers_all_own" on public.lab_markers for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "lab_results_all_own" on public.lab_results for all using (auth.uid() = user_id) with check (auth.uid() = user_id);

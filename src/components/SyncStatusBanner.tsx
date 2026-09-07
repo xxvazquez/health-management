@@ -30,6 +30,7 @@ const TABLE_LABEL: Record<string, string> = {
   blood_pressure: "blood pressure reading",
   weight_logs: "weight reading",
   weight_target: "weight target",
+  care_entry_files: "linked Drive file",
 };
 
 function friendlyTable(table: string): string {

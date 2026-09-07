@@ -29,7 +29,7 @@ export interface SupplementOption {
  * cleared on sign-out. */
 let cache: { userId: string; entries: CareEntry[] } | null = null;
 
-const CARE_LOG_TABLES = ["care_entries", "care_entry_specialties"] as const;
+const CARE_LOG_TABLES = ["care_entries", "care_entry_specialties", "care_entry_files"] as const;
 
 function demoId(prefix: string): string {
   return `demo-${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
@@ -112,6 +112,7 @@ export function useCareLog() {
               remindOn: input.remindOn,
               supplementItemId: input.kind === "decision" ? input.supplementItemId : null,
               specialtyIds: input.specialtyIds,
+              attachments: input.attachments,
               createdAt: new Date().toISOString(),
             },
             ...prev,
@@ -141,6 +142,7 @@ export function useCareLog() {
                   remindOn: patch.remindOn !== undefined ? patch.remindOn : e.remindOn,
                   supplementItemId: patch.supplementItemId !== undefined ? patch.supplementItemId : e.supplementItemId,
                   specialtyIds: patch.specialtyIds ?? e.specialtyIds,
+                  attachments: patch.attachments ?? e.attachments,
                 }
               : e,
           ),

@@ -15,6 +15,26 @@ export function isFolder(file: DriveFile): boolean {
   return file.mimeType === FOLDER_MIME_TYPE;
 }
 
+/** The subset of a Drive file this app stores against a record (e.g. a care
+ * entry) — a pointer, never the file itself. */
+export interface DriveAttachment {
+  driveFileId: string;
+  name: string;
+  mimeType: string | null;
+  webViewLink: string | null;
+  iconLink: string | null;
+}
+
+export function toDriveAttachment(file: DriveFile): DriveAttachment {
+  return {
+    driveFileId: file.id,
+    name: file.name,
+    mimeType: file.mimeType ?? null,
+    webViewLink: file.webViewLink ?? null,
+    iconLink: file.iconLink ?? null,
+  };
+}
+
 export class DriveApiError extends Error {
   /** True for expired/invalid-token responses — the page should drop back
    * to the "reconnect" state rather than showing this as a generic error. */

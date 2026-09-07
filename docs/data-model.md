@@ -345,8 +345,13 @@ dose"). Composite FK `(user_id, supplement_item_id) → supplement_items(user_id
 id)` `on delete set null`, so it can't cross the user boundary and removing the
 supplement just unlinks it. Surfaced as a chip on the Visits row and, on the
 supplement's own Settings row, as the latest linked decision's title (body on
-demand) with a count of any older ones. Blood/lab results went their own way
-(below).
+demand) with a count of any older ones. Any entry can also link Google Drive
+files through `care_entry_files` (natural key `(entry_id, drive_file_id)`,
+`on delete cascade`, write-once like the specialty tags) — a pointer plus the
+metadata the UI renders (`name`, `mime_type`, `web_view_link`, `icon_link`),
+never the file itself; picked with the read-only Drive browser, shown on the
+Visits row as chips that open the file in Drive. Blood/lab results went their
+own way (below).
 
 `lab_panels` / `lab_markers` / `lab_results` back the Medical page's **Results**
 tab — a blood-results tracker. A `lab_marker` is one measurement followed over
@@ -402,7 +407,7 @@ the FK holds. Wired: `journal_entries`, `personal_notes` / `personal_items` /
 `personal_tasks` / `personal_task_completions`, `reminder_lists`,
 `blood_pressure` / `weight_logs` / `weight_target`, `doctors` / `doctor_specialties` /
 `doctor_appointments` / `doctor_appointment_tasks`, `care_entries` /
-`care_entry_specialties`, `lab_panels` / `lab_markers` / `lab_results`,
+`care_entry_specialties` / `care_entry_files`, `lab_panels` / `lab_markers` / `lab_results`,
 `wishlist_*`, `household_*`, `notes`. Messages toggles send only my own
 read/archive state columns (never an identity column, so the
 `notes_lock_identity_columns` trigger stays happy); `fetchThreadMessages` caches

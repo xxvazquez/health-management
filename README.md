@@ -325,7 +325,9 @@ wired up one at a time.
   Visits' "To raise next time" section, filterable by specialty. An entry may
   carry an optional `remind_on` date that the reminder cron sends once (phase 2);
   a *decision* may also link a `supplement_item_id`, surfaced as a "why am I
-  taking this" line on that supplement's Settings row.
+  taking this" line on that supplement's Settings row. Any entry can link
+  existing Google Drive files (`care_entry_files`) — chips on the Visits row
+  that open the file in Drive.
 - **Voice input on Expiration and Codes** is the browser's own Web Speech API, feature-detected — no server, no dependency.
 
 ### PWA shell
@@ -400,12 +402,14 @@ bug-report function is unaffected — it mails `BUG_EMAIL`, the account owner.
 
   ![Lauva brand palette](docs/palette.svg)
 
-- **My Drive** uses [Google Identity Services' token client](https://developers.google.com/identity/oauth2/web/guides/use-token-model)
+- **Google Drive** uses [Google Identity Services' token client](https://developers.google.com/identity/oauth2/web/guides/use-token-model)
   — no backend, so no client secret. The token is `drive.metadata.readonly`,
   lives in memory only, and never touches the Lauva/Supabase account. Signing out
-  of Lauva also disconnects Drive. To develop against it: create a Google Cloud
-  OAuth client (Web application type), authorize `http://localhost:3000`, and
-  enable the Drive API.
+  of Lauva also disconnects Drive. The read-only scope powers both the `/my-drive`
+  browser and `DriveFilePicker`, which links an existing Drive file to a care
+  entry (a pointer in `care_entry_files`, never a copy). To develop against it:
+  create a Google Cloud OAuth client (Web application type), authorize
+  `http://localhost:3000`, and enable the Drive API.
 
 - **Password reset** — the login panel's "forgot your password?" sends a Supabase
   reset email that lands on `/reset`, where the user picks a new password. The
