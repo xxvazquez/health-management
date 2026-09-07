@@ -214,9 +214,11 @@ through `directWrite.ts` on the way to the shared outbox:
   sent as a plain `update … where id = …` and queued as an `"update"` op; a
   straight upsert there fails the split `insert_own` / `update_pair` RLS when the
   row is the partner's.
-- `insertDirect` — a write-once row with no update policy
-  (`care_entry_specialties`, `*_task_completions`): `ON CONFLICT DO NOTHING`, so a
-  redelivered send after a lost ack is a no-op rather than a dead-letter.
+- `insertDirect` — a write-once row (`care_entry_specialties`,
+  `*_task_completions`): `ON CONFLICT DO NOTHING`, so a redelivered send after a
+  lost ack is a no-op rather than a dead-letter. `household_task_completions` is
+  deliberately update-less (a completion is immutable), so it *needs* this;
+  idempotency stays at the write layer rather than loosening the policy.
 - `deleteDirect` / `deleteWhereDirect` — a delete by id, or by a column match for
   a row with no id of its own (keyed the same way as `insertDirect`, so an
   offline add-then-remove cancels).
