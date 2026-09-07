@@ -1709,51 +1709,48 @@ export default function LogPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-col items-start gap-3 sm:flex-row sm:flex-wrap sm:justify-between">
-        <div className="min-w-0 flex-1 border-l-[3px] pl-2.5" style={{ borderColor: "var(--baseline)" }}>
-          <h1 className="text-xl font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
-            Log
-          </h1>
-          {isDemoData && <DemoNotice className="mt-0.5" />}
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <div className="flex items-center gap-0.5 rounded-md border p-0.5" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
-            <button
-              type="button"
-              onClick={() => setDate((d) => addDaysLocal(d, -1))}
-              className="flex h-9 w-9 items-center justify-center rounded"
-              style={{ color: "var(--text-secondary)" }}
-              aria-label="Previous day"
-            >
-              <ChevronIcon dir="left" size={18} />
-            </button>
-            <label className="relative flex min-w-24 cursor-pointer items-center justify-center rounded px-1.5 py-1.5">
-              <span className="text-sm font-semibold whitespace-nowrap" style={{ color: "var(--text-primary)" }}>
-                {formatDateLabel(date, today)}
-              </span>
-              <input
-                type="date"
-                value={date}
-                max={today}
-                onChange={(e) => e.target.value && setDate(e.target.value)}
-                onClick={(e) => e.currentTarget.showPicker?.()}
-                aria-label="Pick a date"
-                className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-              />
-            </label>
-            <button
-              type="button"
-              onClick={() => setDate((d) => (d < today ? addDaysLocal(d, 1) : d))}
-              disabled={date >= today}
-              className="flex h-9 w-9 items-center justify-center rounded disabled:opacity-30"
-              style={{ color: "var(--text-secondary)" }}
-              aria-label="Next day"
-            >
-              <ChevronIcon dir="right" size={18} />
-            </button>
-          </div>
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="min-w-0 flex-1 border-l-[3px] pl-2.5 text-xl font-semibold tracking-tight" style={{ borderColor: "var(--baseline)", color: "var(--text-primary)" }}>
+          Log
+        </h1>
+        <div className="flex shrink-0 items-center gap-0.5 rounded-md border p-0.5" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
+          <button
+            type="button"
+            onClick={() => setDate((d) => addDaysLocal(d, -1))}
+            className="flex h-7 w-7 items-center justify-center rounded"
+            style={{ color: "var(--text-secondary)" }}
+            aria-label="Previous day"
+          >
+            <ChevronIcon dir="left" size={15} />
+          </button>
+          <label className="relative flex min-w-[4.5rem] cursor-pointer items-center justify-center rounded px-1 py-1">
+            <span className="text-xs font-semibold whitespace-nowrap" style={{ color: "var(--text-primary)" }}>
+              {formatDateLabel(date, today)}
+            </span>
+            <input
+              type="date"
+              value={date}
+              max={today}
+              onChange={(e) => e.target.value && setDate(e.target.value)}
+              onClick={(e) => e.currentTarget.showPicker?.()}
+              aria-label="Pick a date"
+              className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+            />
+          </label>
+          <button
+            type="button"
+            onClick={() => setDate((d) => (d < today ? addDaysLocal(d, 1) : d))}
+            disabled={date >= today}
+            className="flex h-7 w-7 items-center justify-center rounded disabled:opacity-30"
+            style={{ color: "var(--text-secondary)" }}
+            aria-label="Next day"
+          >
+            <ChevronIcon dir="right" size={15} />
+          </button>
         </div>
       </div>
+
+      {isDemoData && <DemoNotice className="-mt-2" />}
 
       <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between sm:gap-3">
         {/* An underlined menu, not pills — deliberately a different shape
@@ -1900,15 +1897,6 @@ export default function LogPage() {
             </p>
           ) : (
             <div className="flex flex-col gap-4">
-              {groupedByCategory.length > 0 && (
-                <p className="flex items-center gap-1 text-xs" style={{ color: "var(--text-muted)" }}>
-                  <span style={{ color: TYPE_ACCENT[tabConfig.type] }}>✓</span>
-                  {tab === "outcome"
-                    ? ` = marked for ${formatDateLabel(date, today).toLowerCase()} · tap to raise intensity, or clear`
-                    : ` = logged ${tabConfig.countable ? `for ${meal.toLowerCase()}` : formatDateLabel(date, today).toLowerCase()} · tap again to remove`}
-                </p>
-              )}
-
               {!addingNew ? (
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                   <button
