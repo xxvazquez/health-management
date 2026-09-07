@@ -9,7 +9,7 @@ import { AppointmentList } from "./AppointmentList";
 import { AppointmentForm } from "./AppointmentForm";
 import { NextAppointmentField } from "./shared";
 import { PrimaryAction } from "@/components/ui/PrimaryAction";
-import { Button } from "@/components/ui/Button";
+import { ChoicePanel } from "@/components/ui/ChoicePanel";
 import { InlineEmpty } from "@/components/ui/EmptyState";
 
 type DoctorsApi = ReturnType<typeof useDoctors>;
@@ -110,24 +110,14 @@ export function VisitsTab({ api, accent }: { api: DoctorsApi; accent: string }) 
       </div>
 
       {add === "choose" && (
-        <div className="flex flex-col gap-2 rounded-xl border p-4" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", boxShadow: "var(--shadow-card)" }}>
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-              Add to Visits
-            </span>
-            <button type="button" onClick={() => setAdd(null)} className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
-              Cancel
-            </button>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button size="sm" variant="outline" onClick={() => setAdd("note")}>
-              Something to raise
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => setAdd("appointment")}>
-              Log a past appointment
-            </Button>
-          </div>
-        </div>
+        <ChoicePanel
+          title="Add to Visits"
+          onCancel={() => setAdd(null)}
+          options={[
+            { label: "Something to raise", onClick: () => setAdd("note") },
+            { label: "Log a past appointment", onClick: () => setAdd("appointment") },
+          ]}
+        />
       )}
 
       <section className="flex flex-col gap-3">

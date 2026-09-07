@@ -10,6 +10,7 @@ import { VitalsTab } from "@/components/doctors/VitalsTab";
 import { ErrorState } from "@/components/ui/EmptyState";
 import { ListSkeleton } from "@/components/ui/Skeleton";
 import { TabRail } from "@/components/ui/TabRail";
+import { PageHeading } from "@/components/ui/PageHeading";
 import { DemoNotice } from "@/components/ui/DemoNotice";
 
 // One hue for the whole Health section — the h1 rule, the tab bar, and
@@ -89,11 +90,7 @@ export default function MedicalPage() {
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="border-l-[3px] pl-2.5" style={{ borderColor: HEALTH_ACCENT }}>
-        <h1 className="text-xl font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
-          Health
-        </h1>
-      </div>
+      <PageHeading accent={HEALTH_ACCENT}>Health</PageHeading>
 
       <TabRail items={TABS.map((t) => ({ ...t, icon: TAB_ICON[t.id], accent: HEALTH_ACCENT }))} activeId={tab} onSelect={selectTab} />
 
