@@ -445,7 +445,7 @@ export function VitalsTab({ accent }: { accent: string }) {
           <>
             {bpAsc.length >= 2 && (
               <div className="rounded-xl border p-3" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
-                <BloodPressureChart data={bpAsc.map((r) => ({ at: r.measuredAt, systolic: r.systolic, diastolic: r.diastolic }))} />
+                <BloodPressureChart data={bpAsc.map((r) => ({ at: r.measuredAt, systolic: r.systolic, diastolic: r.diastolic, note: r.note }))} />
                 <div className="mt-2 flex flex-col gap-1 text-xs" style={{ color: "var(--text-muted)" }}>
                   <p className="flex flex-wrap gap-x-3">
                     <span><span className="mr-1 inline-block h-2 w-2 rounded-full align-middle" style={{ background: "var(--series-magenta)" }} aria-hidden="true" />Systolic</span>
