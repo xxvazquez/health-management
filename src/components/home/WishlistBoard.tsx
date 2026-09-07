@@ -716,6 +716,17 @@ function PhoneSetup({ share, accent, onBack }: { share: WishlistShareToPhone; ac
               phone” list. For a wish that’s for your partner, change <code>for=either</code> to <code>for=partner</code> in
               the endpoint; Andrzej can set the shortcut up from his own account too.
             </p>
+            <details className="mt-2">
+              <summary className="cursor-pointer text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
+                Make it ask each time (optional)
+              </summary>
+              <p className="mt-1 text-xs" style={{ color: "var(--text-muted)" }}>
+                Before <strong>Get Contents of URL</strong>, add an <strong>Ask for Input</strong> (Text, “Title?”) and a{" "}
+                <strong>Choose from Menu</strong> listing your list names. Then in the URL, after the endpoint, insert{" "}
+                <code>&list=</code> + the menu result and <code>&title=</code> + the Ask-for-Input result, before{" "}
+                <code>&url=</code> + Shortcut Input. Unknown list names are created; leave a field blank to skip it.
+              </p>
+            </details>
           </div>
 
           {curl && (

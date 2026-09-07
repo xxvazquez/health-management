@@ -477,8 +477,10 @@ capture token for a phone Share Sheet shortcut: iOS has no PWA share
 target, so the shortcut POSTs a link to the `wishlist-share` Edge
 Function with the token instead of a session. Strictly owner-only RLS —
 the function reads it with the service-role key and inserts the item as
-that owner into a "Saved from phone" category. Regenerating is a delete +
-insert, so there's no UPDATE policy.
+that owner. Optional `for` / `title` / `list` query params from the
+shortcut set the recipient, title (else fetched) and target list
+(matched case-insensitively, created if new; defaults to "Saved from
+phone"). Regenerating is a delete + insert, so there's no UPDATE policy.
 
 ## Infrastructure tables
 
