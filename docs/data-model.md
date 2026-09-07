@@ -389,7 +389,11 @@ the FK holds. Wired: `journal_entries`, `personal_notes` / `personal_items` /
 `blood_pressure` / `weight_logs`, `doctors` / `doctor_specialties` /
 `doctor_appointments` / `doctor_appointment_tasks`, `care_entries` /
 `care_entry_specialties`, `lab_panels` / `lab_markers` / `lab_results`,
-`wishlist_*`, `household_*`. Still online-only: `notes` (Messages).
+`wishlist_*`, `household_*`, `notes`. Messages toggles send only my own
+read/archive state columns (never an identity column, so the
+`notes_lock_identity_columns` trigger stays happy); `fetchThreadMessages` caches
+per thread so a thread opened before still reads offline. Every direct feature
+now works offline for reads and writes.
 
 ## Reminders → Home
 

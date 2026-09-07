@@ -129,9 +129,9 @@ flowchart LR
     outbox -->|"drain, retry/backoff"| pg
     pg -->|"pull: sign-in / focus / reconnect / 60s"| idb
     ui --> auth
-    ui -.->|"Messages<br/>(direct writes; reads cached as snapshots)"| pg
-    ui -.->|"Journal, Vitals, Medical, Labs, Reminders, Wishlist, Household<br/>(direct, falls back to outbox offline)"| outbox
-    idb -.->|"snapshot: instant read, then revalidate"| ui
+    ui -.->|"direct features: fetch<br/>(Medical, Labs, Agenda, Wishlist, Household, Messages)"| pg
+    ui -.->|"direct features: write<br/>(falls back to the outbox offline)"| outbox
+    idb -.->|"direct features: snapshot cache — instant read, then revalidate"| ui
     ui -.->|"notify-note (on send)"| ef
     ef -->|"reminder + digest cron"| pg
     ef --> resend["Resend (email)"]
@@ -202,12 +202,12 @@ reconnect, the 60 s tick, "Sync now"). A fetch result is never applied while the
 outbox still holds a write for that feature's tables — the server copy is stale
 then, and could otherwise resurrect a row deleted offline.
 
-**Writes** fall back to the outbox for nearly all of these now — Journal, Personal
+**Writes** fall back to the outbox for all of these — Journal, Personal
 Notes/Expiration, Vitals, Doctors + specialties + appointments + follow-up tasks,
 Care Log, reminder lists, personal/household tasks (including recurring-task
-completion history), Wishlist, and the household boards (notes, reminders, expiry,
-codes). Each `create*` generates the row id client-side and the write goes
-through `directWrite.ts` on the way to the shared outbox:
+completion history), Wishlist, the household boards (notes, reminders, expiry,
+codes) and Messages. Each `create*` generates the row id client-side and the
+write goes through `directWrite.ts` on the way to the shared outbox:
 
 - `upsertDirect` — a create, or an edit of an owner-only row.
 - `updateDirect` — an edit of a pair-visible row (`household_*`, `wishlist_*`),
@@ -224,8 +224,9 @@ through `directWrite.ts` on the way to the shared outbox:
   offline add-then-remove cancels).
 
 Parent-and-children writes (an appointment with follow-up tasks, a care entry
-with specialty tags, a whole blood draw) enqueue the parent / each row in order;
-the outbox drains oldest-first so the FK holds. Still online-only: **Messages**.
+with specialty tags, a whole blood draw, a message reply under its root) enqueue
+the parent / each row in order; the outbox drains oldest-first so the FK holds.
+Every direct feature now reads and writes offline.
 
 **Journal, Personal Notes, Personal Expiration and Vitals have offline fallback**
 (`src/lib/supabase/directWrite.ts`): a create/update/delete still tries Supabase
@@ -245,7 +246,9 @@ wired up one at a time.
   naming a *different* user). A reply is just another `notes` row with
   `thread_root_id` set; a trigger keeps the thread's `last_message_at` and each
   side's read timestamp current. Read state and archive are per-side; favourite
-  is shared (the client writes both `sender_*` and `recipient_*` columns).
+  is shared (the client writes both `sender_*` and `recipient_*` columns). Sends,
+  replies and every toggle queue through `directWrite` like the other direct
+  features, and the page's handlers are optimistic, so Messages works offline.
 - **Personal vs Household** — `personal_notes` / `personal_tasks` / `personal_items`
   are owner-only; the `household_*` tables reuse the same `partner_links` pairing
   via an `is_household_member()` SQL helper, so a row is visible to its creator

@@ -141,14 +141,75 @@ export default function NotesPage() {
     return onCloudRefresh(() => void loadThreads());
   }, [partnerState, loadThreads]);
 
+  // Real-mode handlers, all optimistic: the change lands in local state
+  // immediately and the write queues (directWrite) if it can't reach
+  // Supabase, so Messages works offline the same way the rest of the app
+  // does. `loadThreads`'s own pending-write guard keeps a background
+  // refresh from clobbering an un-drained change.
+  const patchThread = useCallback((threadId: string, patch: Partial<NoteThread>) => {
+    setThreads((prev) => prev.map((t) => (t.id === threadId ? { ...t, ...patch } : t)).filter((t) => matchesView(t, view)));
+    setDirectThread((prev) => (prev && prev.id === threadId ? { ...prev, ...patch } : prev));
+  }, [view]);
+
+  const markRead = useCallback(async (threadId: string, isMine: boolean) => {
+    patchThread(threadId, { isUnreadForMe: false });
+    await markThreadRead(threadId, isMine);
+  }, [patchThread]);
+
+  const markUnread = useCallback(async (threadId: string, isMine: boolean) => {
+    patchThread(threadId, { isUnreadForMe: true });
+    await markThreadUnread(threadId, isMine);
+  }, [patchThread]);
+
+  const toggleFavourite = useCallback(async (threadId: string, isMine: boolean, next: boolean) => {
+    patchThread(threadId, { isFavouritedByMe: next });
+    await setThreadFavourited(threadId, isMine, next);
+  }, [patchThread]);
+
+  const toggleArchive = useCallback(async (threadId: string, isMine: boolean, next: boolean) => {
+    patchThread(threadId, { isArchivedByMe: next });
+    await setThreadArchived(threadId, isMine, next);
+  }, [patchThread]);
+
+  const send = useCallback(async (input: NewNoteInput) => {
+    const id = await sendNote(input);
+    if (accountId && view === "sent") {
+      const nowIso = new Date().toISOString();
+      setThreads((prev) => [
+        {
+          id,
+          senderId: accountId,
+          recipientId: input.recipientId,
+          category: input.category,
+          subject: input.subject.trim() || null,
+          body: input.body.trim(),
+          createdAt: nowIso,
+          lastMessageAt: nowIso,
+          isUnreadForMe: false,
+          isFavouritedByMe: false,
+          isArchivedByMe: false,
+          isMine: true,
+        },
+        ...prev,
+      ]);
+    }
+    return id;
+  }, [accountId, view]);
+
+  const reply = useCallback(async (rootId: string, recipientId: string, body: string): Promise<NoteMessage> => {
+    const msg = await replyToNote(rootId, recipientId, body);
+    patchThread(rootId, { lastMessageAt: msg.createdAt, isUnreadForMe: false });
+    return msg;
+  }, [patchThread]);
+
   const handleMarkAllRead = useCallback(async () => {
+    setThreads((prev) => prev.map((t) => ({ ...t, isUnreadForMe: false })));
     try {
-      await markAllThreadsRead();
-      await loadThreads();
+      await markAllThreadsRead(threads);
     } catch (err) {
       console.error("markAllThreadsRead failed", err);
     }
-  }, [loadThreads]);
+  }, [threads]);
 
   // One-time deep-link resolution: `/notes?thread=<id>` opens that thread
   // directly regardless of which tab it belongs to. Only meaningful once a
@@ -218,10 +279,11 @@ export default function NotesPage() {
     async (threadId: string, _isMine: boolean, next: boolean) => demoSetField(threadId, { isArchivedByMe: next }),
     [demoSetField],
   );
-  const demoReply = useCallback(async (rootId: string, _recipientId: string, body: string) => {
+  const demoReply = useCallback(async (rootId: string, _recipientId: string, body: string): Promise<NoteMessage> => {
     const message: NoteMessage = { id: `demo-reply-${Date.now()}`, senderId: DEMO_ME_ID, isMine: true, body, createdAt: new Date().toISOString() };
     demoRepliesRef.current = { ...demoRepliesRef.current, [rootId]: [...(demoRepliesRef.current[rootId] ?? []), message] };
     demoSetField(rootId, { lastMessageAt: message.createdAt });
+    return message;
   }, [demoSetField]);
   const demoSend = useCallback(async (input: NewNoteInput) => {
     const nowIso = new Date().toISOString();
@@ -332,11 +394,11 @@ export default function NotesPage() {
           }}
           onChanged={() => void loadThreads()}
           fetchMessages={fetchThreadMessages}
-          onMarkRead={markThreadRead}
-          onMarkUnread={markThreadUnread}
-          onToggleFavourite={setThreadFavourited}
-          onToggleArchive={setThreadArchived}
-          onReply={replyToNote}
+          onMarkRead={markRead}
+          onMarkUnread={markUnread}
+          onToggleFavourite={toggleFavourite}
+          onToggleArchive={toggleArchive}
+          onReply={reply}
         />
       ) : (
         <>
@@ -348,10 +410,10 @@ export default function NotesPage() {
             view={view}
             partnerLabel={partnerLabel}
             onOpen={setSelectedThreadId}
-            onToggleFavourite={setThreadFavourited}
-            onToggleArchive={setThreadArchived}
-            onMarkRead={markThreadRead}
-            onMarkUnread={markThreadUnread}
+            onToggleFavourite={toggleFavourite}
+            onToggleArchive={toggleArchive}
+            onMarkRead={markRead}
+            onMarkUnread={markUnread}
             onChanged={() => void loadThreads()}
           />
         </>
@@ -362,7 +424,7 @@ export default function NotesPage() {
         onClose={() => setComposeOpen(false)}
         partnerLabel={partnerLabel}
         partnerId={partnerLink.partnerId}
-        onSend={sendNote}
+        onSend={send}
         onSent={() => void loadThreads()}
       />
     </div>
