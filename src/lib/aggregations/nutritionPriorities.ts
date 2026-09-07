@@ -228,9 +228,6 @@ export interface NutritionPriorities {
   pillars: PillarRow[];
   variety: VarietyMetrics;
   trend: TrendSummary;
-  /** The selected range in a couple of words for a card header, e.g.
-   * "11 weeks" / "6 months" — empty when there's not enough data. */
-  rangeLabel: string;
 }
 
 function foodEvents(events: CanonicalEvent[]): CanonicalEvent[] {
@@ -514,7 +511,6 @@ export function computeNutritionPriorities(
       pillars: [],
       variety: emptyVariety,
       trend: { available: false, rangeLengthDays: 0, points: [] },
-      rangeLabel: "",
     };
   }
 
@@ -743,7 +739,6 @@ export function computeNutritionPriorities(
     pillars,
     variety,
     trend,
-    rangeLabel: rangeInWords(rangeLengthDays).replace(/^the past /, ""),
   };
 }
 
