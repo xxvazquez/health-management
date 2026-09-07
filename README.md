@@ -24,7 +24,7 @@ shared notes, codes and wishlist folded into the Notes area — `/home` redirect
 | **Health** | `/medical` | Four tabs. **Visits** — two sections: "To raise next time" (upcoming appointment dates + the dated observations/notes waiting for a visit, filterable by specialty) and "Past visits" (appointments already attended, each with its follow-up tasks inline). **Results** — an Overview (headline markers, flagged-first out-of-range list, per-panel small-multiples, a normalized compare overlay, a latest-BP/weight summary) and a Manage view for markers, panels and value entry (one-off or whole-draw batch), with a marker search that filters the list and expands every panel. Absorbed the old Trends → Blood dashboard. **Vitals** — blood pressure and weight with trend charts and ACC/AHA categories. **Doctors** — the reusable doctors (rating/language/specialty), expand-in-place for each one's details and visit history. Specialty rename/archive lives in Settings. `/doctors` redirects here; old tab hashes (`#appointments`, `#carelog`, `#followups`, `#specialties`) land on Visits. |
 | **Notes** | `/personal` | Things you keep, no deadline — four tabs: **Journal**, **Quick notes** (private by default; each can be shared with a linked partner, a two-person glyph marks the shared ones, and a Mine / Shared filter appears once something is shared), **Wishlist** (saved links grouped into lists), **Codes** (shared discount codes). `/home` redirects here. (Reminders and product-expiry moved to Agenda.) |
 | **Messages** | `/notes` | Primary nav, partner-linked only (an icon + unread badge in the mobile top bar, never the bottom bar). Private one-to-one messaging with your linked partner. |
-| Settings | `/manage` | (Account menu.) Add / rename / archive / delete items and categories, set exercise units, correct a food's automatic nutrition-group classification, edit reminder lists and doctor types, show or hide tracked sections (they otherwise appear once they have data), and export your data (whole account as JSON, or one section at a time as CSV). Searchable across every section. Also linked from Log's inline "add item". |
+| Settings | `/manage` | (Account menu.) Add / rename / archive / delete items and categories, give a category its own icon/colour, set exercise units, correct a food's automatic nutrition-group classification, edit reminder lists and doctor types, show or hide tracked sections (they otherwise appear once they have data), and export your data (whole account as JSON, or one section at a time as CSV). Searchable across every section. Also linked from Log's inline "add item". |
 | Google Drive | `/my-drive` | (Account menu.) Read-only browser for the signed-in Google account's Drive. |
 | Help | `/help` | (Account menu.) Plain-language reference for what each part does — grouped, collapsed, with a search box that filters entries. |
 
@@ -165,7 +165,9 @@ flowchart LR
 Symptom, and Workout. An *item* (what you track, with a category) has many *logs*
 (one per occurrence) and an optional *diary* entry per day. A type with no custom
 categories falls back to the built-in defaults in `taxonomy/categories.ts`; once
-a real category row exists, the database wins from then on. Archiving hides an
+a real category row exists, the database wins from then on. Each category can be
+given a custom icon/colour in Settings (`categories.icon` / `color`, shown on the
+chip there only — Log and Trends keep their built-in colours). Archiving hides an
 item without touching its history; deleting is only allowed once it has zero
 logged history (every `*_logs` / `*_diary` FK is `on delete restrict`).
 

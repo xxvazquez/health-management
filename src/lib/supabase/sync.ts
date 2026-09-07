@@ -146,7 +146,7 @@ function buildDiaryRow(entry: RawDiaryEntry, userId: string): Record<string, unk
 }
 
 function buildCategoryRow(entry: RawCategory, userId: string): Record<string, unknown> {
-  return { id: entry.id, user_id: userId, item_type: DB_TYPE[entry.itemType], name: entry.name };
+  return { id: entry.id, user_id: userId, item_type: DB_TYPE[entry.itemType], name: entry.name, icon: entry.icon, color: entry.color };
 }
 
 function buildStoolLogRow(log: RawStoolLog, userId: string): Record<string, unknown> {
@@ -499,6 +499,8 @@ interface CategoryRow {
   id: string;
   item_type: string;
   name: string;
+  icon: string | null;
+  color: string | null;
 }
 
 interface StoolLogRow {
@@ -1003,7 +1005,7 @@ export async function pullFromCloud(): Promise<void> {
       await clearAllDataInternal();
 
       for (const entry of categoryRows) {
-        await putCategoryInternal({ id: entry.id, itemType: dbTypeToItemType(entry.item_type), name: entry.name });
+        await putCategoryInternal({ id: entry.id, itemType: dbTypeToItemType(entry.item_type), name: entry.name, icon: entry.icon ?? null, color: entry.color ?? null });
       }
 
       for (let i = 0; i < ITEM_TYPES.length; i++) {

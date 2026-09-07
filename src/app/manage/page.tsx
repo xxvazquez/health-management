@@ -13,7 +13,8 @@ import { Button } from "@/components/ui/Button";
 import { ItemNameField, ItemActionButtons, useInlineRename } from "@/components/ui/ItemActions";
 import { ManageRow } from "@/components/ui/ManageRow";
 import { PageHeading } from "@/components/ui/PageHeading";
-import { customColorValue } from "@/components/ui/customIcons";
+import { IconColorPicker } from "@/components/ui/IconColorPicker";
+import { CustomIcon, customColorValue } from "@/components/ui/customIcons";
 import { DuplicateItemDialog } from "@/components/ui/DuplicateItemDialog";
 import { DemoNotice } from "@/components/ui/DemoNotice";
 import { PushNotificationsToggle } from "@/components/PushNotificationsToggle";
@@ -21,11 +22,11 @@ import { DataExportCard } from "@/components/manage/DataExportCard";
 import { useItemActions, type ManageableItem } from "@/lib/useItemActions";
 import { getAllItems, getAllCategories, getItemIdentitiesWithHistory, withDataLock } from "@/lib/db/indexedDb";
 import { putItemAndSync, deleteCategoryAndSync } from "@/lib/supabase/sync";
-import { ensureCategoryId, categoryRowsToSeedForDemo } from "@/lib/categoryResolution";
+import { ensureCategoryId, categoryRowsToSeedForDemo, setCategoryAppearanceAndSync } from "@/lib/categoryResolution";
 import { lookupFoodCategory } from "@/taxonomy/classify";
 import { POLAND_FOOD_CATALOG } from "@/taxonomy/polandFoodCatalog";
 import { normalizeName, titleCaseFallback } from "@/taxonomy/normalizeName";
-import { CATEGORIES_BY_TYPE, type ItemType } from "@/taxonomy/categories";
+import { CATEGORIES_BY_TYPE, TYPE_ACCENT, type ItemType } from "@/taxonomy/categories";
 import { NUTRITION_GROUPS, NUTRITION_GROUP_LABEL, nutritionGroupsForFood, type NutritionGroupId } from "@/taxonomy/nutritionGroups";
 import { useFoodNutritionGroupOverrides } from "@/lib/useFoodNutritionGroupOverrides";
 import { todayLocalISODate } from "@/lib/aggregations/common";
@@ -578,18 +579,26 @@ function AddItemForm({
   );
 }
 
-/** Add/remove which categories a type offers. */
+/** Add/remove which categories a type offers, and give each one a custom
+ * icon/colour (shown here only — Log and Trends keep their built-in look). */
 function CategoryManager({
   categories,
+  appearanceByName,
+  typeAccent,
   onAddCategory,
   onRemoveCategory,
+  onSetAppearance,
 }: {
   categories: readonly string[];
+  appearanceByName: Map<string, { icon: string | null; color: string | null }>;
+  typeAccent: string;
   onAddCategory: (name: string) => Promise<void>;
   onRemoveCategory: (name: string) => Promise<void>;
+  onSetAppearance: (name: string, appearance: { icon: string | null; color: string | null }) => Promise<void>;
 }) {
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
+  const [expanded, setExpanded] = useState<string | null>(null);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -601,30 +610,61 @@ function CategoryManager({
     setBusy(false);
   }
 
+  const appearanceFor = (c: string) => appearanceByName.get(normalizeName(c)) ?? { icon: null, color: null };
+  const accentFor = (c: string) => customColorValue(appearanceFor(c).color) ?? typeAccent;
+
   return (
     <div className="mb-4 rounded-lg border p-3" style={{ borderColor: "var(--gridline)" }}>
       <p className="mb-2 text-xs font-semibold" style={{ color: "var(--text-secondary)" }}>
         Categories
       </p>
       <div className="flex flex-wrap gap-1.5">
-        {categories.map((c) => (
-          <span
-            key={c}
-            className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs whitespace-nowrap"
-            style={{ background: "var(--page-plane)", color: "var(--text-secondary)" }}
-          >
-            {c}
-            <button
-              type="button"
-              onClick={() => void onRemoveCategory(c)}
-              aria-label={`Remove category ${c}`}
-              style={{ color: "var(--text-muted)" }}
+        {categories.map((c) => {
+          const { icon } = appearanceFor(c);
+          return (
+            <span
+              key={c}
+              className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs whitespace-nowrap"
+              style={{ background: "var(--page-plane)", color: "var(--text-secondary)" }}
             >
-              <CloseIcon size={11} />
-            </button>
-          </span>
-        ))}
+              <button
+                type="button"
+                onClick={() => setExpanded((prev) => (prev === c ? null : c))}
+                aria-label={`Change ${c}'s icon and colour`}
+                aria-pressed={expanded === c}
+                className="tap-target flex h-5 w-5 items-center justify-center rounded transition-colors hover:bg-[var(--surface-1)]"
+                style={{ color: accentFor(c) }}
+              >
+                <CustomIcon icon={icon} size={13} />
+              </button>
+              {c}
+              <button
+                type="button"
+                onClick={() => void onRemoveCategory(c)}
+                aria-label={`Remove category ${c}`}
+                style={{ color: "var(--text-muted)" }}
+              >
+                <CloseIcon size={11} />
+              </button>
+            </span>
+          );
+        })}
       </div>
+
+      {expanded !== null && (
+        <div className="mt-2.5 flex flex-col gap-1.5 rounded-md border p-2.5" style={{ borderColor: "var(--border-hairline)" }}>
+          <p className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
+            {expanded}
+          </p>
+          <IconColorPicker
+            icon={appearanceFor(expanded).icon}
+            color={appearanceFor(expanded).color}
+            onIconChange={(icon) => void onSetAppearance(expanded, { ...appearanceFor(expanded), icon })}
+            onColorChange={(color) => void onSetAppearance(expanded, { ...appearanceFor(expanded), color })}
+            accent={accentFor(expanded)}
+          />
+        </div>
+      )}
       <form onSubmit={handleSubmit} className="mt-2.5 flex items-center gap-2">
         <input
           value={name}
@@ -916,6 +956,8 @@ function ItemSection({
   onAdd,
   onAddCategory,
   onRemoveCategory,
+  onSetCategoryAppearance,
+  categoryAppearanceByName,
   onHideCatalogFood,
   onSetReminderTime,
   onSetUnit,
@@ -938,6 +980,8 @@ function ItemSection({
   onAdd: (name: string, category: string) => Promise<boolean>;
   onAddCategory: (name: string) => Promise<void>;
   onRemoveCategory: (name: string) => Promise<void>;
+  onSetCategoryAppearance: (name: string, appearance: { icon: string | null; color: string | null }) => Promise<void>;
+  categoryAppearanceByName: Map<string, { icon: string | null; color: string | null }>;
   /** Food only — materializes a catalog-only suggestion as a real,
    * archived item so it stops being offered on the Log page. */
   onHideCatalogFood?: (name: string, category: string) => Promise<void>;
@@ -1000,7 +1044,14 @@ function ItemSection({
 
       {sectionOpen && (
         <div className="mt-4">
-          <CategoryManager categories={categories} onAddCategory={onAddCategory} onRemoveCategory={onRemoveCategory} />
+          <CategoryManager
+            categories={categories}
+            appearanceByName={categoryAppearanceByName}
+            typeAccent={TYPE_ACCENT[itemType]}
+            onAddCategory={onAddCategory}
+            onRemoveCategory={onRemoveCategory}
+            onSetAppearance={onSetCategoryAppearance}
+          />
 
           <div className="mb-4">
             <AddItemForm itemType={itemType} placeholder={placeholder} categories={categories} onAdd={onAdd} />
@@ -1203,6 +1254,15 @@ export default function ManagePage() {
     return map;
   }, [activeCategoryRows]);
 
+  const categoryAppearanceByType = useMemo(() => {
+    const map = {} as Record<ItemType, Map<string, { icon: string | null; color: string | null }>>;
+    for (const section of TYPE_SECTIONS) map[section.type] = new Map();
+    for (const row of activeCategoryRows) {
+      map[row.itemType]?.set(normalizeName(row.name), { icon: row.icon, color: row.color });
+    }
+    return map;
+  }, [activeCategoryRows]);
+
   function toggleSection(type: ItemType) {
     setOpenSections((prev) => {
       const next = new Set(prev);
@@ -1267,6 +1327,11 @@ export default function ManagePage() {
     const trimmed = name.trim();
     if (!trimmed) return;
     await ensureCategoryId(itemType, trimmed);
+    await refresh();
+  }
+
+  async function handleSetCategoryAppearance(itemType: ItemType, name: string, appearance: { icon: string | null; color: string | null }) {
+    await setCategoryAppearanceAndSync(itemType, name, appearance);
     await refresh();
   }
 
@@ -1418,6 +1483,12 @@ export default function ManagePage() {
     return Promise.resolve();
   }
 
+  function demoSetCategoryAppearance(itemType: ItemType, name: string, appearance: { icon: string | null; color: string | null }): Promise<void> {
+    const id = demoEnsureCategoryId(itemType, name);
+    setDemoCategoryRows((prev) => prev.map((c) => (c.id === id ? { ...c, ...appearance } : c)));
+    return Promise.resolve();
+  }
+
   function demoRemoveCategory(itemType: ItemType, name: string): Promise<void> {
     setActionError(null);
     if (itemsByType[itemType].some((i) => i.itemIdentity !== "" && i.category === name)) {
@@ -1487,6 +1558,10 @@ export default function ManagePage() {
           onAdd={(name, category) => (isDemoData ? demoHandleAdd(section.type, name, category) : handleAdd(section.type, name, category))}
           onAddCategory={(name) => (isDemoData ? demoAddCategory(section.type, name) : handleAddCategory(section.type, name))}
           onRemoveCategory={(name) => (isDemoData ? demoRemoveCategory(section.type, name) : handleRemoveCategory(section.type, name))}
+          categoryAppearanceByName={categoryAppearanceByType[section.type]}
+          onSetCategoryAppearance={(name, appearance) =>
+            isDemoData ? demoSetCategoryAppearance(section.type, name, appearance) : handleSetCategoryAppearance(section.type, name, appearance)
+          }
           onHideCatalogFood={
             section.type === "food" ? (name, category) => (isDemoData ? demoHideCatalogFood(name, category) : handleHideCatalogFood(name, category)) : undefined
           }

@@ -170,6 +170,10 @@ export interface RawCategory {
   id: string;
   itemType: ItemType;
   name: string;
+  /** Optional custom icon / colour keys (customIcons.tsx). Display-only,
+   * shown on the Settings category chip. */
+  icon: string | null;
+  color: string | null;
 }
 
 /** A free-text note tied to a specific item + day — Supabase's `<type>_diary` tables. */
