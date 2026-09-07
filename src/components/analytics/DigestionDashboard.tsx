@@ -374,7 +374,7 @@ export function DigestionDashboard() {
                   </span>
                 </div>
                 {clampedStripStart && (
-                  <AdherenceStrip startDate={clampedStripStart} endDate={stripEnd} stateByDate={buildStateByDate(filtered, item.item)} />
+                  <AdherenceStrip startDate={clampedStripStart} endDate={stripEnd} stateByDate={buildStateByDate(filtered, item.item)} color={ACCENT} />
                 )}
               </div>
             ))}

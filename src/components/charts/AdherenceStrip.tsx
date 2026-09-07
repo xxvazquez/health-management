@@ -2,39 +2,34 @@
 
 import { listDatesBetween } from "@/lib/aggregations/common";
 
-export type DayState = "completed" | "tracked-not-completed" | "not-tracked";
+export type DayState = "done" | "missed";
 
-// Deliberately 3 distinct intensities, not 2 competing hues: a tracked day
-// that happened is the strongest signal, a tracked-but-missed day is
-// visible but quieter, and a not-tracked day recedes into the background —
-// so the eye reads "what happened" before "what's missing".
-const STATE_COLOR: Record<DayState, string> = {
-  completed: "var(--series-1)",
-  "tracked-not-completed": "color-mix(in oklab, var(--series-4) 55%, var(--page-plane))",
-  "not-tracked": "var(--gridline)",
-};
-
-/** One horizontal strip of day-cells — used as a matrix row (label + strip) for adherence views. */
+/** One horizontal strip of day-cells — a solid accent cell for every day
+ * the item was logged, a faint cell for every day it wasn't. Binary on
+ * purpose: "not logged" covers both a missed day and a day before the item
+ * was ever tracked, so the eye reads the accent pattern and nothing else. */
 export function AdherenceStrip({
   startDate,
   endDate,
   stateByDate,
+  color = "var(--series-1)",
 }: {
   startDate: string;
   endDate: string;
   stateByDate: Map<string, DayState>;
+  color?: string;
 }) {
   const dates = listDatesBetween(startDate, endDate);
   return (
     <div className="flex gap-[2px] overflow-hidden">
       {dates.map((date) => {
-        const state = stateByDate.get(date) ?? "not-tracked";
+        const done = stateByDate.get(date) === "done";
         return (
           <div
             key={date}
-            title={`${date}: ${state === "completed" ? "completed" : state === "tracked-not-completed" ? "tracked, not completed" : "not tracked"}`}
-            className="h-3.5 w-[5px] shrink-0 rounded-[1px]"
-            style={{ background: STATE_COLOR[state] }}
+            title={`${date}: ${done ? "logged" : "not logged"}`}
+            className="h-4 w-[5px] shrink-0 rounded-[1px]"
+            style={{ background: done ? color : "var(--gridline)" }}
           />
         );
       })}
