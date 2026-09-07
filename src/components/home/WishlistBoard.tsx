@@ -7,7 +7,9 @@ import { ListSkeleton } from "@/components/ui/Skeleton";
 import { ErrorState, InlineEmpty } from "@/components/ui/EmptyState";
 import { PrimaryAction } from "@/components/ui/PrimaryAction";
 import { Button } from "@/components/ui/Button";
-import { FIELD_CLS, FIELD_STYLE } from "@/components/ui/formField";
+import { FormShell } from "@/components/ui/FormShell";
+import { Field } from "@/components/ui/Field";
+import { FIELD_CLS, FIELD_STYLE, LABEL_CLS, LABEL_STYLE } from "@/components/ui/formField";
 import type {
   NewWishlistItemInput,
   WishlistCategory,
@@ -149,15 +151,8 @@ function ItemForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-      <div className="flex items-center justify-end">
-        <button type="button" onClick={onCancel} className="text-xs font-medium underline decoration-dotted" style={{ color: "var(--text-muted)" }}>
-          Cancel
-        </button>
-      </div>
-
-      <label className="flex flex-col gap-1 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
-        Link
+    <FormShell title={initial ? "Edit item" : "New item"} onSubmit={handleSubmit} onCancel={onCancel}>
+      <Field label="Link">
         <input
           autoFocus
           required
@@ -170,13 +165,16 @@ function ItemForm({
           className={FIELD_CLS}
           style={FIELD_STYLE}
         />
-      </label>
+      </Field>
 
-      <label className="flex flex-col gap-1 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
-        <span className="flex items-center gap-2">
-          Title
-          {fetching && <span style={{ color: "var(--text-muted)" }}>· fetching…</span>}
-        </span>
+      <Field
+        label={
+          <span className="flex items-center gap-2">
+            Title
+            {fetching && <span style={{ color: "var(--text-muted)" }}>· fetching…</span>}
+          </span>
+        }
+      >
         <input
           required
           value={title}
@@ -186,10 +184,9 @@ function ItemForm({
           className={`${FIELD_CLS} font-medium`}
           style={FIELD_STYLE}
         />
-      </label>
+      </Field>
 
-      <label className="flex flex-col gap-1 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
-        Note (optional)
+      <Field label={<>Note <span style={{ color: "var(--text-muted)" }}>· optional</span></>}>
         <textarea
           value={note}
           onChange={(e) => setNote(e.target.value)}
@@ -199,10 +196,10 @@ function ItemForm({
           className={`${FIELD_CLS} resize-y`}
           style={FIELD_STYLE}
         />
-      </label>
+      </Field>
 
       <div className="flex flex-wrap gap-3">
-        <label className="flex min-w-40 flex-1 flex-col gap-1 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
+        <label className="flex min-w-40 flex-1 flex-col gap-1.5 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
           Category
           {categories.length > 0 && (
             <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className={FIELD_CLS} style={FIELD_STYLE}>
@@ -227,7 +224,7 @@ function ItemForm({
         </label>
 
         {people && (
-          <label className="flex min-w-32 flex-1 flex-col gap-1 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
+          <label className="flex min-w-32 flex-1 flex-col gap-1.5 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
             For
             <select value={forUserId} onChange={(e) => setForUserId(e.target.value)} className={FIELD_CLS} style={FIELD_STYLE}>
               <option value={FOR_ANYONE}>Either of you</option>
@@ -238,9 +235,9 @@ function ItemForm({
         )}
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <Button type="submit" size="lg" accent={accent} disabled={!canSave || saving}>
-          {saving ? "Saving…" : initial ? "Save changes" : "Add to wishlist"}
+          {saving ? "Saving…" : initial ? "Save changes" : "Save item"}
         </Button>
         {error && (
           <span className="text-xs" style={{ color: "var(--status-critical)" }}>
@@ -248,7 +245,7 @@ function ItemForm({
           </span>
         )}
       </div>
-    </form>
+    </FormShell>
   );
 }
 
@@ -292,32 +289,31 @@ function CategoryForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-      <div className="flex items-center justify-end">
-        <button type="button" onClick={onCancel} className="text-xs font-medium underline decoration-dotted" style={{ color: "var(--text-muted)" }}>
-          Cancel
-        </button>
-      </div>
-
-      <div className="flex items-center gap-3">
-        <CategoryGlyph accent={accent} icon={icon} size={40} />
-        <input
-          autoFocus
-          required
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="List name"
-          maxLength={80}
-          className={`${FIELD_CLS} min-w-0 flex-1 font-medium`}
-          style={FIELD_STYLE}
-        />
+    <FormShell title={initial ? "Edit list" : "New list"} onSubmit={handleSubmit} onCancel={onCancel}>
+      <div className="flex flex-col gap-1.5">
+        <span className={LABEL_CLS} style={LABEL_STYLE}>
+          List name
+        </span>
+        <div className="flex items-center gap-3">
+          <CategoryGlyph accent={accent} icon={icon} size={40} />
+          <input
+            autoFocus
+            required
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="e.g. Home, Gifts, Books"
+            maxLength={80}
+            className={`${FIELD_CLS} min-w-0 flex-1 font-medium`}
+            style={FIELD_STYLE}
+          />
+        </div>
       </div>
 
       <IconColorPicker icon={icon} color={color} onIconChange={setIcon} onColorChange={setColor} accent={accent} />
 
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <Button type="submit" size="lg" accent={accent} disabled={!name.trim() || saving}>
-          {saving ? "Saving…" : initial ? "Save changes" : "Add list"}
+          {saving ? "Saving…" : initial ? "Save changes" : "Save list"}
         </Button>
         {error && (
           <span className="text-xs" style={{ color: "var(--status-critical)" }}>
@@ -325,7 +321,7 @@ function CategoryForm({
           </span>
         )}
       </div>
-    </form>
+    </FormShell>
   );
 }
 

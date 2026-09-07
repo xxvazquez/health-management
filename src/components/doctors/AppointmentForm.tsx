@@ -6,6 +6,7 @@ import type { DoctorLanguage } from "@/lib/doctors";
 import type { LogAppointmentInput } from "@/lib/useDoctors";
 import { ComboBox, DoctorName, FIELD_CLS, FIELD_STYLE, LABEL_CLS, LABEL_STYLE, LanguageChips, RatingChips, TrashIcon, toLocalInput } from "./shared";
 import { Button } from "@/components/ui/Button";
+import { FormShell } from "@/components/ui/FormShell";
 
 interface TaskDraft {
   description: string;
@@ -111,16 +112,7 @@ export function AppointmentForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4 rounded-xl border p-4" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", boxShadow: "var(--shadow-card)" }}>
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-          {editing ? "Edit appointment" : "Log appointment"}
-        </h3>
-        <button type="button" onClick={onCancel} className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
-          Cancel
-        </button>
-      </div>
-
+    <FormShell title={editing ? "Edit appointment" : "Log appointment"} onSubmit={handleSubmit} onCancel={onCancel}>
       <div className="flex flex-col gap-1.5">
         <label className={LABEL_CLS} style={LABEL_STYLE}>
           Doctor
@@ -237,7 +229,7 @@ export function AppointmentForm({
         </div>
       )}
 
-      <div className="flex items-center gap-3 pt-1">
+      <div className="flex flex-wrap items-center gap-3 pt-1">
         <Button type="submit" size="lg" accent={accent} disabled={saving}>
           {saving ? "Saving…" : editing ? "Save changes" : "Save appointment"}
         </Button>
@@ -247,6 +239,6 @@ export function AppointmentForm({
           </span>
         )}
       </div>
-    </form>
+    </FormShell>
   );
 }

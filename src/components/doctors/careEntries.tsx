@@ -7,6 +7,8 @@ import type { CareEntry, CareEntryKind, NewCareEntryInput } from "@/lib/supabase
 import type { SupplementOption } from "@/lib/useCareLog";
 import type { DriveAttachment } from "@/lib/googleDrive/api";
 import { Button } from "@/components/ui/Button";
+import { FormShell } from "@/components/ui/FormShell";
+import { Field } from "@/components/ui/Field";
 import { DriveFilePicker } from "@/components/googleDrive/DriveFilePicker";
 import { driveFileIcon } from "@/components/icons/DriveFileIcons";
 import { FIELD_CLS, FIELD_STYLE, IconAction, LABEL_CLS, LABEL_STYLE, PencilIcon, TrashIcon, formatDate } from "./shared";
@@ -121,13 +123,7 @@ export function CareEntryForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-      <div className="flex items-center justify-end">
-        <button type="button" onClick={onCancel} className="text-xs font-medium underline decoration-dotted" style={{ color: "var(--text-muted)" }}>
-          Cancel
-        </button>
-      </div>
-
+    <FormShell title={initial ? "Edit entry" : "New entry"} onSubmit={handleSubmit} onCancel={onCancel}>
       <div className="flex gap-1.5">
         {(["observation", "note", "decision"] as const).map((k) => (
           <button
@@ -150,30 +146,31 @@ export function CareEntryForm({
         {KIND_HINT[kind]}
       </p>
 
-      <input
-        autoFocus
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        placeholder={TITLE_HINT[kind]}
-        maxLength={200}
-        className={`${FIELD_CLS} font-medium`}
-        style={FIELD_STYLE}
-      />
+      <Field label="Title">
+        <input
+          autoFocus
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder={TITLE_HINT[kind]}
+          maxLength={200}
+          className={`${FIELD_CLS} font-medium`}
+          style={FIELD_STYLE}
+        />
+      </Field>
 
-      <textarea
-        value={body}
-        onChange={(e) => setBody(e.target.value)}
-        placeholder={BODY_HINT[kind]}
-        rows={3}
-        className={`${FIELD_CLS} resize-y`}
-        style={FIELD_STYLE}
-      />
+      <Field label={<>Detail <span style={{ color: "var(--text-muted)" }}>· optional</span></>}>
+        <textarea
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+          placeholder={BODY_HINT[kind]}
+          rows={3}
+          className={`${FIELD_CLS} resize-y`}
+          style={FIELD_STYLE}
+        />
+      </Field>
 
       {kind === "decision" && supplements.length > 0 && (
-        <label className="flex flex-col gap-1">
-          <span className={LABEL_CLS} style={LABEL_STYLE}>
-            About which supplement? <span style={{ color: "var(--text-muted)" }}>(optional)</span>
-          </span>
+        <Field label={<>About which supplement? <span style={{ color: "var(--text-muted)" }}>· optional</span></>}>
           <select value={supplementItemId} onChange={(e) => setSupplementItemId(e.target.value)} className={FIELD_CLS} style={FIELD_STYLE}>
             <option value="">None</option>
             {supplements.map((s) => (
@@ -182,19 +179,16 @@ export function CareEntryForm({
               </option>
             ))}
           </select>
-        </label>
+        </Field>
       )}
 
-      <label className="flex flex-col gap-1">
-        <span className={LABEL_CLS} style={LABEL_STYLE}>
-          Date
-        </span>
+      <Field label="Date">
         <input type="date" value={happenedOn} max={todayLocalISODate()} onChange={(e) => setHappenedOn(e.target.value)} className={FIELD_CLS} style={FIELD_STYLE} />
-      </label>
+      </Field>
 
-      <label className="flex flex-col gap-1">
+      <label className="flex flex-col gap-1.5">
         <span className={LABEL_CLS} style={LABEL_STYLE}>
-          Remind me to revisit <span style={{ color: "var(--text-muted)" }}>(optional)</span>
+          Remind me to revisit <span style={{ color: "var(--text-muted)" }}>· optional</span>
         </span>
         <div className="flex items-center gap-2">
           <input
@@ -230,7 +224,7 @@ export function CareEntryForm({
 
       <div className="flex flex-col gap-1.5">
         <span className={LABEL_CLS} style={LABEL_STYLE}>
-          Drive files <span style={{ color: "var(--text-muted)" }}>(optional)</span>
+          Drive files <span style={{ color: "var(--text-muted)" }}>· optional</span>
         </span>
         {attachments.length > 0 && (
           <ul className="flex flex-col gap-1">
@@ -271,9 +265,9 @@ export function CareEntryForm({
         />
       )}
 
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <Button type="submit" size="lg" accent={accent} disabled={!canSave || saving}>
-          {saving ? "Saving…" : initial ? "Save changes" : "Add to log"}
+          {saving ? "Saving…" : initial ? "Save changes" : "Save entry"}
         </Button>
         {error && (
           <span className="text-xs" style={{ color: "var(--status-critical)" }}>
@@ -281,7 +275,7 @@ export function CareEntryForm({
           </span>
         )}
       </div>
-    </form>
+    </FormShell>
   );
 }
 

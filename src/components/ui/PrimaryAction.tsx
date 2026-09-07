@@ -11,8 +11,10 @@ const noopSubscribe = () => () => {};
 const useIsClient = () => useSyncExternalStore(noopSubscribe, () => true, () => false);
 
 /** The one "create something" control — same accent fill and label
- * grammar everywhere it appears. Pass the label as "New <noun>" (or
- * "Log <noun>" for a past event); the "+" is added here.
+ * grammar everywhere it appears. Pass the label as "New <noun>" when it
+ * opens a form directly, "Log <noun>" for a past event, or "Add" when it
+ * opens a small "what kind?" picker first (Agenda, Health → Visits); the
+ * "+" is added here.
  *
  * Desktop shows it inline, right-aligned above a list. Mobile shows it as
  * a fixed bottom-right button that stays reachable however far the list

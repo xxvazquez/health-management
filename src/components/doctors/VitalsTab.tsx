@@ -10,6 +10,7 @@ import { ListSkeleton } from "@/components/ui/Skeleton";
 import { ErrorState, InlineEmpty } from "@/components/ui/EmptyState";
 import { PrimaryAction } from "@/components/ui/PrimaryAction";
 import { Button } from "@/components/ui/Button";
+import { FormShell } from "@/components/ui/FormShell";
 import { FIELD_CLS, FIELD_STYLE, IconAction, LABEL_CLS, LABEL_STYLE, PencilIcon, TrashIcon, formatDateTime, toLocalInput } from "./shared";
 
 type Kind = "bp" | "weight";
@@ -75,13 +76,7 @@ function BpForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-      <div className="flex items-center justify-end">
-        <button type="button" onClick={onCancel} className="text-xs font-medium underline decoration-dotted" style={{ color: "var(--text-muted)" }}>
-          Cancel
-        </button>
-      </div>
-
+    <FormShell title={initial ? "Edit reading" : "New reading"} onSubmit={handleSubmit} onCancel={onCancel}>
       <div className="flex flex-wrap gap-3">
         <label className="flex min-w-24 flex-1 flex-col gap-1">
           <span className={LABEL_CLS} style={LABEL_STYLE}>Systolic</span>
@@ -92,7 +87,7 @@ function BpForm({
           <input value={diastolic} onChange={(e) => setDiastolic(e.target.value)} inputMode="numeric" placeholder="80" className={`${FIELD_CLS} font-medium tabular-nums`} style={FIELD_STYLE} />
         </label>
         <label className="flex min-w-24 flex-1 flex-col gap-1">
-          <span className={LABEL_CLS} style={LABEL_STYLE}>Pulse (optional)</span>
+          <span className={LABEL_CLS} style={LABEL_STYLE}>Pulse <span style={{ color: "var(--text-muted)" }}>· optional</span></span>
           <input value={pulse} onChange={(e) => setPulse(e.target.value)} inputMode="numeric" placeholder="70" className={`${FIELD_CLS} tabular-nums`} style={FIELD_STYLE} />
         </label>
       </div>
@@ -113,17 +108,17 @@ function BpForm({
       </label>
 
       <label className="flex flex-col gap-1">
-        <span className={LABEL_CLS} style={LABEL_STYLE}>Note (optional)</span>
+        <span className={LABEL_CLS} style={LABEL_STYLE}>Note <span style={{ color: "var(--text-muted)" }}>· optional</span></span>
         <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder="Context worth remembering — time of day, after exercise, how you felt…" maxLength={400} className={`${FIELD_CLS} resize-y`} style={FIELD_STYLE} />
       </label>
 
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <Button type="submit" size="lg" accent={accent} disabled={!canSave || saving}>
-          {saving ? "Saving…" : initial ? "Save changes" : "Add reading"}
+          {saving ? "Saving…" : initial ? "Save changes" : "Save reading"}
         </Button>
         {error && <span className="text-xs" style={{ color: "var(--status-critical)" }}>{error}</span>}
       </div>
-    </form>
+    </FormShell>
   );
 }
 
@@ -164,13 +159,7 @@ function WeightForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-      <div className="flex items-center justify-end">
-        <button type="button" onClick={onCancel} className="text-xs font-medium underline decoration-dotted" style={{ color: "var(--text-muted)" }}>
-          Cancel
-        </button>
-      </div>
-
+    <FormShell title={initial ? "Edit weigh-in" : "New weigh-in"} onSubmit={handleSubmit} onCancel={onCancel}>
       <div className="flex flex-wrap gap-3">
         <label className="flex min-w-28 flex-1 flex-col gap-1">
           <span className={LABEL_CLS} style={LABEL_STYLE}>Weight (kg)</span>
@@ -183,17 +172,17 @@ function WeightForm({
       </div>
 
       <label className="flex flex-col gap-1">
-        <span className={LABEL_CLS} style={LABEL_STYLE}>Note (optional)</span>
+        <span className={LABEL_CLS} style={LABEL_STYLE}>Note <span style={{ color: "var(--text-muted)" }}>· optional</span></span>
         <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder="Anything worth remembering alongside this" maxLength={400} className={`${FIELD_CLS} resize-y`} style={FIELD_STYLE} />
       </label>
 
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <Button type="submit" size="lg" accent={accent} disabled={!canSave || saving}>
-          {saving ? "Saving…" : initial ? "Save changes" : "Add reading"}
+          {saving ? "Saving…" : initial ? "Save changes" : "Save weigh-in"}
         </Button>
         {error && <span className="text-xs" style={{ color: "var(--status-critical)" }}>{error}</span>}
       </div>
-    </form>
+    </FormShell>
   );
 }
 
