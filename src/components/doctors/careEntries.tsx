@@ -9,10 +9,21 @@ import { FIELD_CLS, FIELD_STYLE, IconAction, LABEL_CLS, LABEL_STYLE, PencilIcon,
 
 type DoctorsApi = ReturnType<typeof useDoctors>;
 
-export const CARE_KIND_LABEL: Record<CareEntryKind, string> = { observation: "Observation", note: "Note" };
+export const CARE_KIND_LABEL: Record<CareEntryKind, string> = { observation: "Observation", note: "Note", decision: "Decision" };
 const KIND_HINT: Record<CareEntryKind, string> = {
   observation: "Something you noticed — a symptom, a change in how you feel.",
   note: "A reminder to ask, a piece of context, anything else.",
+  decision: "A choice you made about your care — a dose change, a treatment started or stopped. Put the reasoning in the detail.",
+};
+const TITLE_HINT: Record<CareEntryKind, string> = {
+  observation: "e.g. Sharp pain, upper-left molar",
+  note: "e.g. Ask about taking iron with vitamin C",
+  decision: "e.g. Increased magnesium to 400mg at night",
+};
+const BODY_HINT: Record<CareEntryKind, string> = {
+  observation: "Any detail worth remembering — when it started, what makes it better or worse…",
+  note: "Any detail worth remembering…",
+  decision: "Why you made this change, and anything to watch for.",
 };
 
 /** Turn a list of specialty IDs into their names, in the picker's order. */
@@ -99,7 +110,7 @@ export function CareEntryForm({
       </div>
 
       <div className="flex gap-1.5">
-        {(["observation", "note"] as const).map((k) => (
+        {(["observation", "note", "decision"] as const).map((k) => (
           <button
             key={k}
             type="button"
@@ -124,7 +135,7 @@ export function CareEntryForm({
         autoFocus
         value={title}
         onChange={(e) => setTitle(e.target.value)}
-        placeholder={kind === "observation" ? "e.g. Sharp pain, upper-left molar" : "e.g. Ask about taking iron with vitamin C"}
+        placeholder={TITLE_HINT[kind]}
         maxLength={200}
         className={`${FIELD_CLS} font-medium`}
         style={FIELD_STYLE}
@@ -133,7 +144,7 @@ export function CareEntryForm({
       <textarea
         value={body}
         onChange={(e) => setBody(e.target.value)}
-        placeholder="Any detail worth remembering — when it started, what makes it better or worse…"
+        placeholder={BODY_HINT[kind]}
         rows={3}
         className={`${FIELD_CLS} resize-y`}
         style={FIELD_STYLE}

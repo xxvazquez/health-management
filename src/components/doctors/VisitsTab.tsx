@@ -116,7 +116,7 @@ export function VisitsTab({ api, accent }: { api: DoctorsApi; accent: string }) 
           </div>
           <div className="flex flex-wrap gap-2">
             <Button size="sm" variant="outline" onClick={() => setAdd("note")}>
-              Note to raise
+              Something to raise
             </Button>
             <Button size="sm" variant="outline" onClick={() => setAdd("appointment")}>
               Log a past appointment
@@ -166,7 +166,7 @@ export function VisitsTab({ api, accent }: { api: DoctorsApi; accent: string }) 
             title={entries.length === 0 ? "Nothing to raise yet" : "No notes tagged there"}
             description={
               entries.length === 0
-                ? "Jot down a symptom you've noticed or a question to raise — tag it to the specialties it concerns, and it'll be waiting at your next visit."
+                ? "Jot down a symptom you've noticed, a decision you've made, or a question to raise — tag it to the specialties it concerns, and it'll be waiting at your next visit."
                 : "Try a different specialty, or clear the filter."
             }
           />

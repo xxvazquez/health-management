@@ -331,11 +331,12 @@ doctor_appointments` is `on delete cascade`. A `reminder_at` that has passed
 is sent once by the reminder cron (phase 2).
 
 `care_entries` is a separate dated timeline (Health → Visits, the "To raise next
-time" section) of things to remember between visits — an `observation` you noticed
-or a plain `note`. Each entry is tagged to any number of specialties through the
-`care_entry_specialties` join (both FKs `on delete cascade`), so it reads whole
-or filtered to one specialty's context. `kind` may gain `decision` in a later
-phase; blood/lab results went their own way (below).
+time" section) of things to remember between visits — an `observation` you noticed,
+a `decision` you made about your care (a dose change, a treatment started or
+stopped; the reasoning goes in `body`), or a plain `note`. Each entry is tagged to
+any number of specialties through the `care_entry_specialties` join (both FKs
+`on delete cascade`), so it reads whole or filtered to one specialty's context.
+Blood/lab results went their own way (below).
 
 `lab_panels` / `lab_markers` / `lab_results` back the Medical page's **Results**
 tab — a blood-results tracker. A `lab_marker` is one measurement followed over

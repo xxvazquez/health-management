@@ -33,6 +33,15 @@ export function buildDemoCareEntries(): CareEntry[] {
       createdAt: iso(-12 * DAY),
     },
     {
+      id: "demo-care-magnesium",
+      happenedOn: dateOnly(-15 * DAY),
+      kind: "decision",
+      title: "Moved magnesium to 400mg at night",
+      body: "GP suggested trying it in the evening for the 3am waking. Recheck how sleep is going at the next visit.",
+      specialtyIds: [demoSpecialtyId("Internist (GP)")],
+      createdAt: iso(-15 * DAY),
+    },
+    {
       id: "demo-care-sleep",
       happenedOn: dateOnly(-20 * DAY),
       kind: "observation",
