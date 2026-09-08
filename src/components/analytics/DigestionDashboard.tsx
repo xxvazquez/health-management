@@ -5,7 +5,7 @@ import { useData } from "@/lib/DataContext";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageSkeleton } from "@/components/ui/Skeleton";
 import { DashboardHeader } from "@/components/analytics/DashboardHeader";
-import { StatTile } from "@/components/ui/StatTile";
+import { StatChip } from "@/components/ui/StatChip";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { DateRangeFilter } from "@/components/ui/DateRangeFilter";
 import { Insight } from "@/components/ui/Insight";
@@ -69,12 +69,11 @@ const SYMPTOM_LINE_COLORS = ["var(--series-1)", "var(--series-2)", "var(--series
 
 function deltaDetail(recentPct: number | null, priorPct: number | null): string | undefined {
   if (recentPct === null) return undefined;
-  if (priorPct === null) return "not enough prior data to compare";
-  const priorRounded = Math.round(priorPct);
-  const diff = Math.round(recentPct) - priorRounded;
-  if (diff === 0) return `no change from the previous 30 days`;
+  if (priorPct === null) return "no prior data";
+  const diff = Math.round(recentPct) - Math.round(priorPct);
+  if (diff === 0) return "flat vs prior 30d";
   const points = Math.abs(diff);
-  return `${diff > 0 ? "up" : "down"} ${points} point${points === 1 ? "" : "s"} from ${priorRounded}% the previous 30 days`;
+  return `${diff > 0 ? "+" : "−"}${points} pt${points === 1 ? "" : "s"} vs prior 30d`;
 }
 
 export function DigestionDashboard() {
@@ -174,17 +173,17 @@ export function DigestionDashboard() {
       </Card>
 
       <div>
-        <p className="mb-3 text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+        <p className="mb-2 text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
           At a glance — last 30 days
         </p>
-        <div className="grid grid-cols-2 gap-3">
-          <StatTile
+        <div className="flex flex-wrap gap-2">
+          <StatChip
             label="In target range (3–4)"
             value={rangeChange.recentPct !== null ? `${Math.round(rangeChange.recentPct)}%` : "—"}
             detail={deltaDetail(rangeChange.recentPct, rangeChange.priorPct)}
             accent={ACCENT}
           />
-          <StatTile
+          <StatChip
             label="Digestive symptom rate"
             value={symptomRateChange.recentPct !== null ? `${Math.round(symptomRateChange.recentPct)}%` : "—"}
             detail={deltaDetail(symptomRateChange.recentPct, symptomRateChange.priorPct)}
