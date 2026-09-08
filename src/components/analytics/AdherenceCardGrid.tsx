@@ -4,10 +4,10 @@ import { useMemo, useState, type ReactNode } from "react";
 import { Card } from "@/components/ui/Card";
 import { Disclosure } from "@/components/ui/Disclosure";
 import { ItemActions } from "@/components/ui/ItemActions";
+import { ChevronIcon } from "@/components/ui/icons";
 import { HabitGridWeekdays, HabitMonthGrid, HabitYearBars } from "@/components/charts/HabitMonthGrid";
 import { buildStateByDate } from "@/lib/aggregations/adherence";
-import { computeLongestStreak, formatMonthYear, getDatasetSpan, listDatesBetween, monthStart, pct, todayLocalISODate } from "@/lib/aggregations/common";
-import { addDaysToDate } from "@/lib/aggregations/common";
+import { addDaysToDate, computeLongestStreak, getDatasetSpan, listDatesBetween, monthStart, pct, todayLocalISODate } from "@/lib/aggregations/common";
 import type { ItemStats } from "@/lib/aggregations/itemStats";
 import type { CanonicalEvent } from "@/lib/types";
 
@@ -28,19 +28,23 @@ const PALETTE = [
 
 type View = "month" | "year";
 
-function Segmented({ value, onChange, accent }: { value: View; onChange: (v: View) => void; accent: string }) {
+/** Same bordered-group shape as the Log page's day nav. */
+const NAV_GROUP = "flex items-center gap-0.5 rounded-md border p-0.5";
+const NAV_GROUP_STYLE = { borderColor: "var(--border-hairline)", background: "var(--surface-1)" } as const;
+
+function ViewToggle({ value, onChange }: { value: View; onChange: (v: View) => void }) {
   return (
-    <div className="inline-flex rounded-md border p-0.5" style={{ borderColor: "var(--border-hairline)" }}>
+    <div className={NAV_GROUP} style={NAV_GROUP_STYLE}>
       {(["month", "year"] as const).map((v) => (
         <button
           key={v}
           type="button"
           onClick={() => onChange(v)}
           aria-pressed={value === v}
-          className="rounded px-2.5 py-1 text-xs font-medium capitalize transition-colors"
+          className="rounded px-2.5 py-1 text-xs font-semibold capitalize transition-colors"
           style={{
-            background: value === v ? `color-mix(in oklab, ${accent} 14%, var(--surface-1))` : "transparent",
-            color: value === v ? accent : "var(--text-muted)",
+            background: value === v ? "var(--page-plane)" : "transparent",
+            color: value === v ? "var(--text-primary)" : "var(--text-muted)",
           }}
         >
           {v}
@@ -50,39 +54,69 @@ function Segmented({ value, onChange, accent }: { value: View; onChange: (v: Vie
   );
 }
 
-function StepIcon({ dir }: { dir: "prev" | "next" }) {
+function PeriodNav({
+  view,
+  anchor,
+  today,
+  setAnchor,
+  onShift,
+  canPrev,
+  canNext,
+}: {
+  view: View;
+  anchor: string;
+  today: string;
+  setAnchor: (v: string) => void;
+  onShift: (months: number) => void;
+  canPrev: boolean;
+  canNext: boolean;
+}) {
+  const step = view === "month" ? 1 : 12;
+  const label =
+    view === "month"
+      ? new Date(`${anchor}T00:00:00`).toLocaleDateString(undefined, { month: "long", year: "numeric" })
+      : anchor.slice(0, 4);
   return (
-    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d={dir === "prev" ? "M7.5 2.5 4 6l3.5 3.5" : "M4.5 2.5 8 6l-3.5 3.5"} />
-    </svg>
-  );
-}
-
-function Stepper({ label, onPrev, onNext, canPrev, canNext }: { label: string; onPrev: () => void; onNext: () => void; canPrev: boolean; canNext: boolean }) {
-  return (
-    <div className="flex items-center gap-1">
+    <div className={NAV_GROUP} style={NAV_GROUP_STYLE}>
       <button
         type="button"
-        onClick={onPrev}
+        onClick={() => onShift(-step)}
         disabled={!canPrev}
         aria-label="Previous"
-        className="flex h-7 w-7 items-center justify-center rounded-md border transition-colors disabled:opacity-30"
-        style={{ borderColor: "var(--border-hairline)", color: "var(--text-secondary)" }}
+        className="flex h-7 w-7 items-center justify-center rounded disabled:opacity-30"
+        style={{ color: "var(--text-secondary)" }}
       >
-        <StepIcon dir="prev" />
+        <ChevronIcon dir="left" size={15} />
       </button>
-      <span className="min-w-28 text-center text-xs font-medium tabular-nums" style={{ color: "var(--text-primary)" }}>
-        {label}
-      </span>
+      {view === "month" ? (
+        <label className="relative flex min-w-[7.5rem] cursor-pointer items-center justify-center rounded px-1 py-1">
+          <span className="text-xs font-semibold whitespace-nowrap" style={{ color: "var(--text-primary)" }}>
+            {label}
+          </span>
+          <input
+            type="month"
+            value={anchor.slice(0, 7)}
+            max={monthStart(today).slice(0, 7)}
+            onChange={(e) => e.target.value && setAnchor(`${e.target.value}-01`)}
+            onClick={(e) => e.currentTarget.showPicker?.()}
+            aria-label="Pick a month"
+            className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+          />
+        </label>
+      ) : (
+        <span className="flex min-w-[7.5rem] items-center justify-center px-1 py-1 text-xs font-semibold tabular-nums" style={{ color: "var(--text-primary)" }}>
+          {label}
+        </span>
+      )}
       <button
         type="button"
-        onClick={onNext}
+        onClick={() => onShift(step)}
         disabled={!canNext}
         aria-label="Next"
-        className="flex h-7 w-7 items-center justify-center rounded-md border transition-colors disabled:opacity-30"
-        style={{ borderColor: "var(--border-hairline)", color: "var(--text-secondary)" }}
+        className="flex h-7 w-7 items-center justify-center rounded disabled:opacity-30"
+        style={{ color: "var(--text-secondary)" }}
       >
-        <StepIcon dir="next" />
+        <ChevronIcon dir="right" size={15} />
       </button>
     </div>
   );
@@ -206,8 +240,6 @@ export function AdherenceCardGrid({
   if (active.length === 0 && archived.length === 0) return null;
 
   const anchorYear = Number(anchor.slice(0, 4));
-  const stepMonths = view === "month" ? 1 : 12;
-  const stepLabel = view === "month" ? formatMonthYear(anchor) : String(anchorYear);
   const shift = (n: number) => {
     const d = new Date(`${anchor}T00:00:00`);
     d.setMonth(d.getMonth() + n);
@@ -221,8 +253,8 @@ export function AdherenceCardGrid({
       {active.length > 0 && (
         <>
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <Segmented value={view} onChange={setView} accent={accent} />
-            <Stepper label={stepLabel} onPrev={() => shift(-stepMonths)} onNext={() => shift(stepMonths)} canPrev={canPrev} canNext={canNext} />
+            <ViewToggle value={view} onChange={setView} />
+            <PeriodNav view={view} anchor={anchor} today={today} setAnchor={setAnchor} onShift={shift} canPrev={canPrev} canNext={canNext} />
           </div>
 
           {categories.length > 1 && (
@@ -275,7 +307,20 @@ export function AdherenceCardGrid({
                         {it.item}
                       </span>
                     )}
-                    <div className="flex items-center gap-2.5 overflow-hidden whitespace-nowrap">
+
+                    {view === "month" ? (
+                      <div className="flex flex-col gap-1 self-center">
+                        <HabitGridWeekdays />
+                        <HabitMonthGrid monthAnchor={anchor} completedDates={done} firstTrackedDate={it.firstTrackedDate} today={today} color={color} />
+                      </div>
+                    ) : (
+                      <HabitYearBars monthly={monthlyConsistency(anchorYear, done, it.firstTrackedDate, today)} color={color} />
+                    )}
+
+                    <div
+                      className="flex items-center gap-2.5 overflow-hidden border-t pt-2 whitespace-nowrap"
+                      style={{ borderColor: "var(--gridline)" }}
+                    >
                       <Stat icon={<DonutIcon />} label="Consistency">
                         {it.consistencyPct}%
                       </Stat>
@@ -292,15 +337,6 @@ export function AdherenceCardGrid({
                         </Stat>
                       )}
                     </div>
-
-                    {view === "month" ? (
-                      <div className="mt-0.5 flex flex-col gap-1 self-center">
-                        <HabitGridWeekdays />
-                        <HabitMonthGrid monthAnchor={anchor} completedDates={done} firstTrackedDate={it.firstTrackedDate} today={today} color={color} />
-                      </div>
-                    ) : (
-                      <HabitYearBars monthly={monthlyConsistency(anchorYear, done, it.firstTrackedDate, today)} color={color} />
-                    )}
                   </div>
                 );
               })}
