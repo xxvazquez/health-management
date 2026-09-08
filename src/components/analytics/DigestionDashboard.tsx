@@ -128,13 +128,10 @@ export function DigestionDashboard() {
 
   return (
     <div className="flex flex-col gap-5">
-      <DashboardHeader>Stool</DashboardHeader>
-
-      {span && range && (
-        <div className="flex justify-end">
-          <DateRangeFilter span={span} value={range} onChange={setRange} accent={ACCENT} />
-        </div>
-      )}
+      <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
+        <DashboardHeader>Stool</DashboardHeader>
+        {span && range && <DateRangeFilter span={span} value={range} onChange={setRange} accent={ACCENT} />}
+      </div>
 
       <Insight label="What stands out" headline={insight.headline} detail={insight.detail} tone={insight.tone} />
 
