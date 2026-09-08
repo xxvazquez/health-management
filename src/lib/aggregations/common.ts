@@ -83,6 +83,22 @@ export function computeCurrentStreak(trackedDatesAscending: string[], completedD
   return current;
 }
 
+/** Longest run of consecutive *tracked* days that were all completed — the
+ * same not-tracked-doesn't-break-it rule as `computeCurrentStreak`. */
+export function computeLongestStreak(trackedDatesAscending: string[], completedDates: Set<string>): number {
+  let longest = 0;
+  let run = 0;
+  for (const date of trackedDatesAscending) {
+    if (completedDates.has(date)) {
+      run++;
+      if (run > longest) longest = run;
+    } else {
+      run = 0;
+    }
+  }
+  return longest;
+}
+
 export function round1(n: number): number {
   return Math.round(n * 10) / 10;
 }

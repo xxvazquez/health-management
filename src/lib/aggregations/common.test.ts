@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   addDaysToDate,
   computeCurrentStreak,
+  computeLongestStreak,
   daysBetween,
   filterByDateRange,
   formatMinutes,
@@ -151,6 +152,23 @@ describe("computeCurrentStreak", () => {
     const tracked = ["2026-01-01", "2026-01-02", "2026-01-04", "2026-01-05"];
     const completed = new Set(tracked); // completed every tracked day
     expect(computeCurrentStreak(tracked, completed)).toBe(4);
+  });
+});
+
+describe("computeLongestStreak", () => {
+  it("is the longest run of consecutive completed tracked days", () => {
+    const tracked = ["2026-01-01", "2026-01-02", "2026-01-03", "2026-01-04", "2026-01-05", "2026-01-06"];
+    const completed = new Set(["2026-01-01", "2026-01-03", "2026-01-04", "2026-01-05"]);
+    expect(computeLongestStreak(tracked, completed)).toBe(3);
+  });
+
+  it("is 0 when nothing was completed", () => {
+    expect(computeLongestStreak(["2026-01-01", "2026-01-02"], new Set())).toBe(0);
+  });
+
+  it("ignores untracked gaps, like the current streak", () => {
+    const tracked = ["2026-01-01", "2026-01-02", "2026-01-04", "2026-01-05"];
+    expect(computeLongestStreak(tracked, new Set(tracked))).toBe(4);
   });
 });
 
