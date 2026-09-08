@@ -47,7 +47,10 @@ export function BottomNav() {
           >
             <span
               className={clsx("relative flex h-7 w-11 items-center justify-center rounded-full transition-colors")}
-              style={{ background: active ? "var(--page-plane)" : "transparent" }}
+              style={{
+                background: active ? "color-mix(in oklab, var(--series-1) 14%, transparent)" : "transparent",
+                color: active ? "var(--series-1)" : "var(--text-muted)",
+              }}
             >
               {ICONS[item.iconKey]}
             </span>
