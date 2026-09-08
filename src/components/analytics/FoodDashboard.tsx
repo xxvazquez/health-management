@@ -4,7 +4,7 @@ import { useMemo, useRef, useState, type ReactNode } from "react";
 import { useData } from "@/lib/DataContext";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageSkeleton } from "@/components/ui/Skeleton";
-import { StatTile } from "@/components/ui/StatTile";
+import { StatChip } from "@/components/ui/StatChip";
 import { Insight } from "@/components/ui/Insight";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { DateRangeFilter, describeDateRange, type DateRangePreset } from "@/components/ui/DateRangeFilter";
@@ -64,22 +64,6 @@ const DIET_BALANCE_COLOR: Record<DietBalanceStatus, string> = {
   "well-represented": "var(--series-1)",
   "strongly-represented": "var(--status-good)",
 };
-
-/** Compact headline figure — a bordered chip, not a full stat card. */
-function StatChip({ value, label, accent, note }: { value: string; label: string; accent?: string; note?: string }) {
-  return (
-    <span
-      className="inline-flex items-baseline gap-1.5 rounded-md border px-2.5 py-1 text-xs whitespace-nowrap"
-      style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-muted)" }}
-    >
-      <strong className="text-sm font-semibold tabular-nums" style={{ color: accent ?? "var(--text-primary)" }}>
-        {value}
-      </strong>
-      {label}
-      {note && <span style={{ color: "var(--text-muted)" }}>· {note}</span>}
-    </span>
-  );
-}
 
 function StatusPill({ status, label, color }: { status: string; label: string; color: string }) {
   return (
@@ -413,15 +397,12 @@ export function FoodDashboard() {
       {!priorities.insufficientData && diversity && (
         <div className="flex flex-wrap gap-2">
           <StatChip
+            label="Unique ingredients"
             value={String(diversity.current)}
-            label="unique ingredients"
             accent={TYPE_ACCENT.food}
-            note={ingredientDelta != null ? `${ingredientDelta > 0 ? "+" : ""}${ingredientDelta} vs prev.` : undefined}
+            detail={ingredientDelta != null ? `${ingredientDelta > 0 ? "+" : ""}${ingredientDelta} vs prev.` : undefined}
           />
-          <StatChip
-            value={`${priorities.daysWithFoodTracked} / ${rangeLengthDays}`}
-            label="days with food logged"
-          />
+          <StatChip label="Days with food logged" value={`${priorities.daysWithFoodTracked} / ${rangeLengthDays}`} />
         </div>
       )}
 
@@ -659,24 +640,20 @@ function VarietySection({ variety }: { variety: ReturnType<typeof computeNutriti
       <CardTitle size="sm" subtitle="Distinct foods logged in the selected range">
         Variety
       </CardTitle>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <StatTile label="Food variety" value={String(variety.totalUniqueFoods)} detail="unique foods" />
-        <StatTile label="Plant variety" value={String(variety.uniquePlantFoods)} detail="unique plant foods" accent="var(--status-good)" />
-        <StatTile
+      <div className="flex flex-wrap gap-2">
+        <StatChip label="Food variety" value={String(variety.totalUniqueFoods)} detail="unique foods" />
+        <StatChip label="Plant variety" value={String(variety.uniquePlantFoods)} detail="plant foods" accent="var(--status-good)" />
+        <StatChip
           label="Plant-group variety"
           value={`${variety.plantGroupsRepresented} / ${variety.totalPlantGroups}`}
-          detail="plant food groups represented"
+          detail="groups"
         />
-        <StatTile label="Vegetable variety" value={String(variety.uniqueVegetables)} detail="unique vegetables" />
-        <StatTile label="Fruit variety" value={String(variety.uniqueFruit)} detail="unique fruits" />
-        <StatTile label="Legume variety" value={String(variety.uniqueLegumes)} detail="unique legumes" />
-        <StatTile label="Nut/seed variety" value={String(variety.uniqueNutsSeeds)} detail="unique nuts & seeds" />
+        <StatChip label="Vegetables" value={String(variety.uniqueVegetables)} />
+        <StatChip label="Fruit" value={String(variety.uniqueFruit)} />
+        <StatChip label="Legumes" value={String(variety.uniqueLegumes)} />
+        <StatChip label="Nuts & seeds" value={String(variety.uniqueNutsSeeds)} />
         {variety.plantFamiliesRepresented > 0 && (
-          <StatTile
-            label="Plant families"
-            value={String(variety.plantFamiliesRepresented)}
-            detail="best-effort, not exhaustive"
-          />
+          <StatChip label="Plant families" value={String(variety.plantFamiliesRepresented)} />
         )}
       </div>
     </Card>

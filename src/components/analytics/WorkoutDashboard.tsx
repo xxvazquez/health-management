@@ -65,9 +65,9 @@ function trendRank(s: WorkoutExerciseStats): number {
 }
 
 /** Compact label/value block for the Progression card's Started/Current/
- * Best/Change figures — deliberately small (not the app's big hero StatTile
- * treatment), since these are supporting detail for the chart above them,
- * not the page's main point. */
+ * Best/Change figures — a stacked bordered box, since these sit inside a
+ * card as supporting detail for the chart above them rather than as a
+ * top-level stat row. */
 function ProgressionStat({ label, value, detail, accent }: { label: string; value: string; detail?: string; accent?: string }) {
   return (
     <div className="rounded-lg border px-3 py-2" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
