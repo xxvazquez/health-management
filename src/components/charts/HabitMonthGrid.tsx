@@ -89,9 +89,12 @@ export function HabitMonthGrid({
 }
 
 const MONTH_LETTERS = ["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"];
+const YEAR_BAR_AREA = 40;
 
 /** Twelve bars, one per calendar month, height proportional to that
- * month's consistency — a compact read on year-scale seasonality. */
+ * month's consistency — a compact read on year-scale seasonality. A month
+ * with no tracked days has no bar at all (just its letter), so "nothing
+ * logged" and "logged, but rarely" never look alike. */
 export function HabitYearBars({
   monthly,
   color,
@@ -101,24 +104,22 @@ export function HabitYearBars({
   color: string;
 }) {
   return (
-    <div
-      className="flex items-end border-b"
-      style={{ gap: 4, height: 48, borderColor: "var(--gridline)" }}
-    >
+    <div className="flex items-end" style={{ gap: 4 }}>
       {monthly.map((mo, i) => (
-        <div key={i} className="flex flex-1 flex-col items-center gap-1">
-          <div className="flex w-full flex-1 items-end justify-center">
-            {mo.pct == null ? (
-              <span className="w-full rounded-sm" style={{ height: 2, background: "var(--gridline)" }} title="no tracked days" />
-            ) : (
+        <div key={i} className="flex flex-1 flex-col items-center">
+          <div className="flex w-full items-end justify-center" style={{ height: YEAR_BAR_AREA }}>
+            {mo.pct != null && (
               <span
-                className="w-full rounded-sm"
-                style={{ height: `${Math.max(mo.pct, 3)}%`, background: color }}
+                className="w-full rounded-t-sm"
+                style={{ height: Math.max(2, Math.round((mo.pct / 100) * YEAR_BAR_AREA)), background: color }}
                 title={`${MONTH_LETTERS[i]}: ${Math.round(mo.pct)}%`}
               />
             )}
           </div>
-          <span className="text-[9px] font-medium" style={{ color: "var(--text-muted)" }}>
+          <span
+            className="w-full border-t pt-0.5 text-center text-[9px] font-medium"
+            style={{ color: "var(--text-muted)", borderColor: "var(--gridline)" }}
+          >
             {MONTH_LETTERS[i]}
           </span>
         </div>

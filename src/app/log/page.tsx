@@ -520,7 +520,7 @@ export default function LogPage() {
   const effective = useMemo<Snapshot>(
     () =>
       demo
-        ? { items: demo.items, logs: demo.logs, diary: [], categories: [], stoolLogs: demo.stoolLogs, workoutLogs: demo.workoutLogs, periodLogs: demo.periodLogs }
+        ? { items: demo.items, logs: demo.logs, diary: [], categories: demo.categories, stoolLogs: demo.stoolLogs, workoutLogs: demo.workoutLogs, periodLogs: demo.periodLogs }
         : (snapshot ?? { items: [], logs: [], diary: [], categories: [], stoolLogs: [], workoutLogs: [], periodLogs: [] }),
     [demo, snapshot],
   );

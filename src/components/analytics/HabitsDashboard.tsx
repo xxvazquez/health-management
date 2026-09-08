@@ -7,8 +7,6 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { PageSkeleton } from "@/components/ui/Skeleton";
 import { DashboardHeader } from "@/components/analytics/DashboardHeader";
 import { Card } from "@/components/ui/Card";
-import { Insight } from "@/components/ui/Insight";
-import { BulletList } from "@/components/ui/BulletList";
 import { Methodology } from "@/components/ui/Methodology";
 import { StatTile } from "@/components/ui/StatTile";
 import { ItemActions } from "@/components/ui/ItemActions";
@@ -25,7 +23,7 @@ import {
   todayLocalISODate,
 } from "@/lib/aggregations/common";
 import { buildStateByDate } from "@/lib/aggregations/adherence";
-import { habitsAtAGlance, habitsInsight, habitStatsRanked } from "@/lib/aggregations/habits";
+import { habitsAtAGlance, habitStats } from "@/lib/aggregations/habits";
 import { TYPE_ACCENT } from "@/taxonomy/categories";
 
 const ACCENT = TYPE_ACCENT.habit;
@@ -114,20 +112,20 @@ function monthlyConsistency(year: number, doneDates: Set<string>, firstTracked: 
 }
 
 export function HabitsDashboard() {
-  const { status, events, refresh } = useData();
+  const { status, events, refresh, categoryColor } = useData();
   const { busyIdentity, toggleArchive, rename } = useItemActions(refresh);
   const today = useMemo(() => todayLocalISODate(), []);
+  const colorFor = (category: string) => categoryColor("habit", category) ?? ACCENT;
 
   const [view, setView] = useState<View>("month");
   const [anchor, setAnchor] = useState(() => monthStart(todayLocalISODate()));
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
 
-  const insight = useMemo(() => habitsInsight(events), [events]);
   const glance = useMemo(() => habitsAtAGlance(events), [events]);
-  const ranked = useMemo(() => habitStatsRanked(events), [events]);
+  const stats = useMemo(() => habitStats(events), [events]);
 
-  const active = useMemo(() => ranked.filter((s) => !s.isArchived), [ranked]);
-  const archived = useMemo(() => ranked.filter((s) => s.isArchived), [ranked]);
+  const active = useMemo(() => stats.filter((s) => !s.isArchived), [stats]);
+  const archived = useMemo(() => stats.filter((s) => s.isArchived), [stats]);
   const span = useMemo(() => getDatasetSpan(events), [events]);
 
   const categories = useMemo(() => Array.from(new Set(active.map((s) => s.category))).sort(), [active]);
@@ -173,12 +171,6 @@ export function HabitsDashboard() {
         </div>
       )}
 
-      <Insight label="What stands out" headline={insight.headline} detail={insight.detail} tone="neutral" />
-
-      {!insight.insufficientData && insight.changed.length > 0 && (
-        <BulletList title="Running differently than usual" tone="var(--text-muted)" bullets={insight.changed} />
-      )}
-
       {active.length > 0 && (
         <>
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -211,27 +203,18 @@ export function HabitsDashboard() {
             <div className="flex flex-col divide-y" style={{ borderColor: "var(--gridline)" }}>
               {habits.map((h) => {
                 const done = doneByHabit.get(h.item) ?? new Set<string>();
+                const color = colorFor(h.category);
                 const longest =
                   view === "year" ? computeLongestStreak(listDatesBetween(h.firstTrackedDate, today), done) : 0;
                 return (
                   <div key={h.itemIdentity} className="flex flex-col gap-2.5 py-3.5 first:pt-0 last:pb-0 lg:flex-row lg:items-start lg:gap-8">
-                    <div className="min-w-0 lg:w-64 lg:shrink-0">
-                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                        <ItemActions
-                          item={h}
-                          busy={busyIdentity === h.itemIdentity}
-                          onArchiveToggle={() => void toggleArchive(h)}
-                          onRename={(newName) => void rename(h, newName)}
-                        />
-                        {h.shiftPp !== null && Math.abs(h.shiftPp) >= 15 && (
-                          <span
-                            className="text-xs font-medium tabular-nums"
-                            style={{ color: h.shiftPp > 0 ? "var(--status-good)" : "var(--status-warning)" }}
-                          >
-                            {h.shiftPp > 0 ? "▲" : "▼"} {Math.abs(h.shiftPp)}pp vs usual
-                          </span>
-                        )}
-                      </div>
+                    <div className="min-w-0 lg:w-60 lg:shrink-0">
+                      <ItemActions
+                        item={h}
+                        busy={busyIdentity === h.itemIdentity}
+                        onArchiveToggle={() => void toggleArchive(h)}
+                        onRename={(newName) => void rename(h, newName)}
+                      />
                       <div className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>
                         <span>
                           <strong style={{ color: "var(--text-primary)" }}>{h.consistencyPct}%</strong> consistency
@@ -256,11 +239,11 @@ export function HabitsDashboard() {
                       {view === "month" ? (
                         <div className="flex flex-col gap-1">
                           <HabitGridWeekdays />
-                          <HabitMonthGrid monthAnchor={anchor} completedDates={done} firstTrackedDate={h.firstTrackedDate} today={today} color={ACCENT} />
+                          <HabitMonthGrid monthAnchor={anchor} completedDates={done} firstTrackedDate={h.firstTrackedDate} today={today} color={color} />
                         </div>
                       ) : (
                         <div className="w-56">
-                          <HabitYearBars monthly={monthlyConsistency(anchorYear, done, h.firstTrackedDate, today)} color={ACCENT} />
+                          <HabitYearBars monthly={monthlyConsistency(anchorYear, done, h.firstTrackedDate, today)} color={color} />
                         </div>
                       )}
                     </div>

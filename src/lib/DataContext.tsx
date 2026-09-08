@@ -1,9 +1,12 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import type { CanonicalEvent, RawWorkoutLog, RawStoolLog, RawPeriodLog } from "@/lib/types";
+import type { CanonicalEvent, RawCategory, RawWorkoutLog, RawStoolLog, RawPeriodLog } from "@/lib/types";
+import type { ItemType } from "@/taxonomy/categories";
 import { buildCanonicalEvents } from "@/lib/canonical/buildCanonicalEvents";
-import { clearAllData, clearSnapshots, getAllDiary, getAllLogs, getAllItems, getAllStoolLogs, getAllWorkoutLogs, getAllPeriodLogs, hasAnyData, withDataLock, type OutboxEntry } from "@/lib/db/indexedDb";
+import { customColorValue } from "@/components/ui/customIcons";
+import { normalizeName } from "@/taxonomy/normalizeName";
+import { clearAllData, clearSnapshots, getAllCategories, getAllDiary, getAllLogs, getAllItems, getAllStoolLogs, getAllWorkoutLogs, getAllPeriodLogs, hasAnyData, withDataLock, type OutboxEntry } from "@/lib/db/indexedDb";
 import { pullFromCloud, resetInitialPullState, retryDeadLetterEntry } from "@/lib/supabase/sync";
 import { emitCloudRefresh } from "@/lib/cloudRefresh";
 import { discardDeadLetterEntry, getDeadLetterEntries, getOutboxSyncState } from "@/lib/supabase/outbox";
@@ -27,12 +30,27 @@ export interface SyncState {
  * "never". Cleared on sign-out. */
 const LAST_SYNCED_KEY = "lauva.lastSyncedAt";
 
+/** `${itemType}:${normalizeName(name)}` → resolved CSS colour, for
+ * categories a user gave a custom colour in Settings. */
+function buildCategoryColorMap(categories: RawCategory[]): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const c of categories) {
+    const value = customColorValue(c.color);
+    if (value) map.set(`${c.itemType}:${normalizeName(c.name)}`, value);
+  }
+  return map;
+}
+
 interface DataContextValue {
   status: DataStatus;
   events: CanonicalEvent[];
   workoutLogs: RawWorkoutLog[];
   stoolLogs: RawStoolLog[];
   periodLogs: RawPeriodLog[];
+  /** The custom colour a category was given in Settings, or null — for
+   * tinting a category's rows/headers outside the Log page (e.g. the
+   * Trends → Habits grids). */
+  categoryColor: (itemType: ItemType, name: string) => string | null;
   /** True while showing the static, in-memory demo dataset (lib/demoData.ts)
    * instead of anything real — always the case while signed out with no
    * local data logged yet, never once signed in or once something's logged. */
@@ -74,6 +92,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [workoutLogs, setWorkoutLogs] = useState<RawWorkoutLog[]>([]);
   const [stoolLogs, setStoolLogs] = useState<RawStoolLog[]>([]);
   const [periodLogs, setPeriodLogs] = useState<RawPeriodLog[]>([]);
+  const [categoryColors, setCategoryColors] = useState<Map<string, string>>(() => new Map());
   const [isDemoData, setIsDemoData] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [syncState, setSyncState] = useState<SyncState>({ pending: 0, deadLetter: 0 });
@@ -152,8 +171,14 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         // "no data" branch below won't use them) keeps this whole snapshot
         // one consistent shape rather than a union — these are cheap local
         // reads, not worth branching around.
-        const [items, logs, diary, stoolLogsAll] = await Promise.all([getAllItems(), getAllLogs(), getAllDiary(), getAllStoolLogs()]);
-        return { hasData, workoutLogsAll, periodLogsAll, items, logs, diary, stoolLogsAll };
+        const [items, logs, diary, stoolLogsAll, categories] = await Promise.all([
+          getAllItems(),
+          getAllLogs(),
+          getAllDiary(),
+          getAllStoolLogs(),
+          getAllCategories(),
+        ]);
+        return { hasData, workoutLogsAll, periodLogsAll, items, logs, diary, stoolLogsAll, categories };
       });
       const workoutLogsNow = snapshot.workoutLogsAll.filter((g) => g.date >= ANALYTICS_START_DATE);
       const periodLogsNow = snapshot.periodLogsAll;
@@ -167,6 +192,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           const demo = buildDemoDataset();
           const scoped = buildCanonicalEvents(demo.items, demo.logs, []).filter((e) => e.date >= ANALYTICS_START_DATE);
           setEvents(scoped);
+          setCategoryColors(buildCategoryColorMap(demo.categories));
           // Real workout/period logs (if any exist locally already) always
           // win over the demo ones — only fall back to demo data when
           // there's genuinely nothing real to show yet.
@@ -181,6 +207,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         setWorkoutLogs(workoutLogsNow);
         setStoolLogs([]);
         setPeriodLogs(periodLogsNow);
+        setCategoryColors(buildCategoryColorMap(snapshot.categories));
         setIsDemoData(false);
         // Real workout/period data alone is still real data — only the
         // food/symptom/supplement/habit/stool side is empty. Forcing
@@ -193,6 +220,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       const { items, logs, diary, stoolLogsAll } = snapshot;
       const scoped = buildCanonicalEvents(items, logs, diary).filter((e) => e.date >= ANALYTICS_START_DATE);
       setEvents(scoped);
+      setCategoryColors(buildCategoryColorMap(snapshot.categories));
       setWorkoutLogs(workoutLogsNow);
       setStoolLogs(stoolLogsAll.filter((s) => s.date >= ANALYTICS_START_DATE));
       setPeriodLogs(periodLogsNow);
@@ -347,6 +375,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     void refreshSyncState();
   }, [refreshSyncState]);
 
+  const categoryColor = useCallback(
+    (itemType: ItemType, name: string) => categoryColors.get(`${itemType}:${normalizeName(name)}`) ?? null,
+    [categoryColors],
+  );
+
   const value = useMemo(
     () => ({
       status,
@@ -354,6 +387,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       workoutLogs,
       stoolLogs,
       periodLogs,
+      categoryColor,
       isDemoData,
       error,
       syncState,
@@ -367,7 +401,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       refresh,
       clearData,
     }),
-    [status, events, workoutLogs, stoolLogs, periodLogs, isDemoData, error, syncState, syncing, lastSyncedAt, isOnline, syncFromCloud, deadLetterEntries, retrySync, discardSync, refresh, clearData],
+    [status, events, workoutLogs, stoolLogs, periodLogs, categoryColor, isDemoData, error, syncState, syncing, lastSyncedAt, isOnline, syncFromCloud, deadLetterEntries, retrySync, discardSync, refresh, clearData],
   );
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
