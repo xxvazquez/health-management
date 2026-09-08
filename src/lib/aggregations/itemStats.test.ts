@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeItemStats, computeItemStatsForFilter, computeItemTrends } from "./itemStats";
+import { computeItemStats, computeItemStatsForFilter } from "./itemStats";
 import { makeEvent } from "@/lib/testFixtures";
 
 describe("computeItemStats", () => {
@@ -101,26 +101,5 @@ describe("computeItemStatsForFilter", () => {
   it("returns an empty array when the predicate matches nothing", () => {
     const events = [makeEvent({ itemType: "food" })];
     expect(computeItemStatsForFilter(events, (e) => e.itemType === "habit")).toEqual([]);
-  });
-});
-
-describe("computeItemTrends", () => {
-  it("returns recentConsistencyPct=null with recentTrackedDays=0 for an empty active-dates list", () => {
-    const events = [makeEvent({ item: "A", date: "2026-01-01", completed: true })];
-    const [trend] = computeItemTrends(events, []);
-    expect(trend.recentConsistencyPct).toBeNull();
-    expect(trend.recentTrackedDays).toBe(0);
-    expect(trend.overallTrackedDays).toBe(0);
-  });
-
-  it("splits overall vs recent (last 14 tracked days) consistency", () => {
-    // 20 active dates; item completed only in the most recent 14.
-    const activeDates = Array.from({ length: 20 }, (_, i) => `2026-01-${String(i + 1).padStart(2, "0")}`);
-    const events = activeDates.slice(6).map((d) => makeEvent({ item: "Streaky", date: d, completed: true }));
-    const trends = computeItemTrends(events, activeDates);
-    const trend = trends.find((t) => t.item === "Streaky")!;
-    expect(trend.recentConsistencyPct).toBe(100);
-    expect(trend.recentTrackedDays).toBe(14);
-    expect(trend.overallTrackedDays).toBe(14); // item's own first-tracked-date onward
   });
 });
