@@ -176,6 +176,14 @@ const PRIMARY_LINKS: NavItem[] = [
  * stable for everyone. */
 const MESSAGES_LINK: NavItem = { href: "/notes", label: NAV_LABEL["/notes"], iconKey: "Messages" };
 
+/** Utility routes — the always-there control surface and the how-to page.
+ * Pinned below the primary areas, above Report a bug, rather than tucked
+ * only in the account menu (which a signed-out visitor can't open). */
+const SECONDARY_LINKS: NavItem[] = [
+  { href: "/manage", label: NAV_LABEL["/manage"], iconKey: "Manage items" },
+  { href: "/help", label: NAV_LABEL["/help"], iconKey: "Help" },
+];
+
 /** `next.config.ts` sets `trailingSlash: true`, so `usePathname()` returns
  * `/log/` while our link hrefs are `/log` — compare without the slash. */
 export function isActiveHref(pathname: string, href: string): boolean {
@@ -265,6 +273,16 @@ function NavLinks({ pathname, collapsed, onNavigate }: { pathname: string; colla
   );
 }
 
+/** Settings + Help, pinned to the bottom of the sidebar just above Report
+ * a bug. Same link styling as the primary list. */
+function SecondaryNav({ pathname, collapsed, onNavigate }: { pathname: string; collapsed?: boolean; onNavigate?: () => void }) {
+  return (
+    <div className="mt-2 flex flex-col gap-1 border-t pt-3" style={{ borderColor: "var(--gridline)" }}>
+      <NavLinkList items={SECONDARY_LINKS} pathname={pathname} collapsed={collapsed} onNavigate={onNavigate} />
+    </div>
+  );
+}
+
 /** Pure status indicator — data syncs automatically (on sign-in, on every
  * page load, on tab focus), so there's nothing left here to trigger
  * manually. Just says what's currently on screen. */
@@ -349,6 +367,7 @@ export function Nav() {
         <div className="mt-5 flex min-h-0 flex-1 flex-col overflow-y-auto">
           <NavLinks pathname={pathname} collapsed={collapsed} />
         </div>
+        <SecondaryNav pathname={pathname} collapsed={collapsed} />
         <BugReportButton collapsed={collapsed} onClick={() => setBugReportOpen(true)} />
         <SyncFooter collapsed={collapsed} />
       </aside>
@@ -447,6 +466,7 @@ export function Nav() {
         <div className="mt-5 flex min-h-0 flex-1 flex-col overflow-y-auto">
           <NavLinks pathname={pathname} onNavigate={() => setMobileOpen(false)} />
         </div>
+        <SecondaryNav pathname={pathname} onNavigate={() => setMobileOpen(false)} />
         <BugReportButton onClick={() => setBugReportOpen(true)} />
         <SyncFooter />
       </div>

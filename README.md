@@ -14,7 +14,8 @@ Most routes still carry their original names and render their pre-restructure co
 the exceptions are Agenda (moved to `/agenda`, `/overview` redirects), the reminder /
 product-expiry boards (moved to Agenda), and the old Household page (`/home`), whose
 shared notes, codes and wishlist folded into the Notes area — `/home` redirects to
-`/personal`. Settings (was Manage), Help and Google Drive live in the account menu.
+`/personal`. Settings (was Manage) and Help sit at the foot of the sidebar, above
+Report a bug; Google Drive stays in the account menu.
 
 | Area | Route | What it's for |
 |---|---|---|
@@ -24,9 +25,9 @@ shared notes, codes and wishlist folded into the Notes area — `/home` redirect
 | **Health** | `/medical` | Four tabs. **Visits** — two sections: "To raise next time" (upcoming appointment dates + the dated observations/notes waiting for a visit, filterable by specialty) and "Past visits" (appointments already attended, each with its follow-up tasks inline). **Results** — an Overview (headline markers, flagged-first out-of-range list, per-panel small-multiples, a normalized compare overlay, a latest-BP/weight summary) and a Manage view for markers, panels and value entry (one-off or whole-draw batch), with a marker search that filters the list and expands every panel. Absorbed the old Trends → Blood dashboard. **Vitals** — blood pressure and weight with trend charts and ACC/AHA categories, plus an optional weight-goal band on the weight chart. **Doctors** — the reusable doctors (rating/language/specialty); picking one shows its details and visit history in place on mobile, in a side pane on desktop. Specialty rename/archive lives in Settings. `/doctors` redirects here; old tab hashes (`#appointments`, `#carelog`, `#followups`, `#specialties`) land on Visits. |
 | **Notes** | `/personal` | Things you keep, no deadline — three tabs: **Journal** (private dated writing), **Wishlist** (saved links grouped into lists), **Codes** (shared discount codes). `/home` redirects here. (Reminders and product-expiry moved to Agenda.) |
 | **Messages** | `/notes` | Primary nav, partner-linked only (an icon + unread badge in the mobile top bar, never the bottom bar). Private one-to-one messaging with your linked partner. |
-| Settings | `/manage` | (Account menu.) Add / rename / archive / delete items and categories, give a category its own icon/colour, set exercise units, correct a food's automatic nutrition-group classification, edit reminder lists and doctor types, show or hide tracked sections (they otherwise appear once they have data), and export your data (whole account as JSON, or a section — or everything — as CSV in one file). Searchable across every section. Also linked from Log's inline "add item". |
+| Settings | `/manage` | (Sidebar foot.) Add / rename / archive / delete items and categories, give a category its own icon/colour, set exercise units, correct a food's automatic nutrition-group classification, edit reminder lists and doctor types, show or hide tracked sections (they otherwise appear once they have data), and export your data (whole account as JSON, or a section — or everything — as CSV in one file). Searchable across every section. Also linked from Log's inline "add item". |
 | Google Drive | `/my-drive` | (Account menu.) Read-only browser for the signed-in Google account's Drive. |
-| Help | `/help` | (Account menu.) Plain-language reference for what each part does — grouped, collapsed, with a search box that filters entries. |
+| Help | `/help` | (Sidebar foot.) Plain-language reference for what each part does — grouped, collapsed, with a search box that filters entries. |
 
 ### Behaviour worth knowing
 
