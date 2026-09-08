@@ -8,7 +8,6 @@ import { PageSkeleton } from "@/components/ui/Skeleton";
 import { DashboardHeader } from "@/components/analytics/DashboardHeader";
 import { Card } from "@/components/ui/Card";
 import { Methodology } from "@/components/ui/Methodology";
-import { StatTile } from "@/components/ui/StatTile";
 import { ItemActions } from "@/components/ui/ItemActions";
 import { HabitGridWeekdays, HabitMonthGrid, HabitYearBars } from "@/components/charts/HabitMonthGrid";
 import { useItemActions } from "@/lib/useItemActions";
@@ -23,10 +22,25 @@ import {
   todayLocalISODate,
 } from "@/lib/aggregations/common";
 import { buildStateByDate } from "@/lib/aggregations/adherence";
-import { habitsAtAGlance, habitStats } from "@/lib/aggregations/habits";
+import { habitStats } from "@/lib/aggregations/habits";
 import { TYPE_ACCENT } from "@/taxonomy/categories";
 
 const ACCENT = TYPE_ACCENT.habit;
+
+// A spread of palette hues so each habit reads as its own thing at a
+// glance — adjacent entries sit in different colour families.
+const HABIT_PALETTE = [
+  "var(--series-2)",
+  "var(--series-4)",
+  "var(--series-1)",
+  "var(--series-8)",
+  "var(--series-6)",
+  "var(--series-magenta)",
+  "var(--series-indigo)",
+  "var(--series-berry)",
+  "var(--series-3)",
+  "var(--series-slate)",
+];
 
 type View = "month" | "year";
 
@@ -112,16 +126,14 @@ function monthlyConsistency(year: number, doneDates: Set<string>, firstTracked: 
 }
 
 export function HabitsDashboard() {
-  const { status, events, refresh, categoryColor } = useData();
+  const { status, events, refresh } = useData();
   const { busyIdentity, toggleArchive, rename } = useItemActions(refresh);
   const today = useMemo(() => todayLocalISODate(), []);
-  const colorFor = (category: string) => categoryColor("habit", category) ?? ACCENT;
 
   const [view, setView] = useState<View>("month");
   const [anchor, setAnchor] = useState(() => monthStart(todayLocalISODate()));
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
 
-  const glance = useMemo(() => habitsAtAGlance(events), [events]);
   const stats = useMemo(() => habitStats(events), [events]);
 
   const active = useMemo(() => stats.filter((s) => !s.isArchived), [stats]);
@@ -134,6 +146,16 @@ export function HabitsDashboard() {
     const list = categoryFilter === "all" ? active : active.filter((s) => s.category === categoryFilter);
     return [...list].sort((a, b) => a.item.localeCompare(b.item));
   }, [active, categoryFilter]);
+
+  // Colour keyed off the full A–Z habit list, so a habit keeps its colour
+  // when the category filter changes.
+  const colorByHabit = useMemo(() => {
+    const m = new Map<string, string>();
+    [...active]
+      .sort((a, b) => a.item.localeCompare(b.item))
+      .forEach((s, i) => m.set(s.item, HABIT_PALETTE[i % HABIT_PALETTE.length]));
+    return m;
+  }, [active]);
 
   const doneByHabit = useMemo(() => {
     const m = new Map<string, Set<string>>();
@@ -158,18 +180,6 @@ export function HabitsDashboard() {
   return (
     <div className="flex flex-col gap-5">
       <DashboardHeader>Habits</DashboardHeader>
-
-      {glance.trackedCount > 0 && (
-        <div className="grid grid-cols-2 gap-3">
-          <StatTile
-            label="Average consistency"
-            value={glance.avgConsistencyPct !== null ? `${Math.round(glance.avgConsistencyPct)}%` : "—"}
-            detail={`across ${glance.trackedCount} tracked`}
-            accent={ACCENT}
-          />
-          <StatTile label="Tracked" value={String(glance.trackedCount)} detail={glance.trackedCount === 1 ? "habit" : "habits"} />
-        </div>
-      )}
 
       {active.length > 0 && (
         <>
@@ -199,64 +209,66 @@ export function HabitsDashboard() {
             </div>
           )}
 
-          <Card tier="raw">
-            <div className="flex flex-col divide-y" style={{ borderColor: "var(--gridline)" }}>
+          {habits.length === 0 ? (
+            <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+              No habits in this category.
+            </p>
+          ) : (
+            <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(232px, 1fr))" }}>
               {habits.map((h) => {
                 const done = doneByHabit.get(h.item) ?? new Set<string>();
-                const color = colorFor(h.category);
+                const color = colorByHabit.get(h.item) ?? ACCENT;
                 const longest =
                   view === "year" ? computeLongestStreak(listDatesBetween(h.firstTrackedDate, today), done) : 0;
                 return (
-                  <div key={h.itemIdentity} className="flex flex-col gap-2.5 py-3.5 first:pt-0 last:pb-0 lg:flex-row lg:items-start lg:gap-8">
-                    <div className="min-w-0 lg:w-60 lg:shrink-0">
-                      <ItemActions
-                        item={h}
-                        busy={busyIdentity === h.itemIdentity}
-                        onArchiveToggle={() => void toggleArchive(h)}
-                        onRename={(newName) => void rename(h, newName)}
-                      />
-                      <div className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>
-                        <span>
-                          <strong style={{ color: "var(--text-primary)" }}>{h.consistencyPct}%</strong> consistency
-                        </span>
-                        <span>
-                          <strong style={{ color: "var(--text-primary)" }}>{h.currentStreak}</strong>-day streak
-                        </span>
-                        {view === "year" && (
-                          <>
-                            <span>
-                              <strong style={{ color: "var(--text-primary)" }}>{longest}</strong> best
-                            </span>
-                            <span>
-                              <strong style={{ color: "var(--text-primary)" }}>{h.daysCompleted}</strong> days done
-                            </span>
-                          </>
-                        )}
+                  <div
+                    key={h.itemIdentity}
+                    className="flex flex-col gap-2.5 rounded-lg border p-3"
+                    style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}
+                  >
+                    <div className="flex items-start gap-2">
+                      <span className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: color }} aria-hidden="true" />
+                      <div className="min-w-0 flex-1">
+                        <ItemActions
+                          item={h}
+                          busy={busyIdentity === h.itemIdentity}
+                          onArchiveToggle={() => void toggleArchive(h)}
+                          onRename={(newName) => void rename(h, newName)}
+                        />
+                        <div className="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>
+                          <span>
+                            <strong style={{ color: "var(--text-primary)" }}>{h.consistencyPct}%</strong>
+                          </span>
+                          <span>
+                            <strong style={{ color: "var(--text-primary)" }}>{h.currentStreak}</strong>-day streak
+                          </span>
+                          {view === "year" && (
+                            <>
+                              <span>
+                                best <strong style={{ color: "var(--text-primary)" }}>{longest}</strong>
+                              </span>
+                              <span>
+                                <strong style={{ color: "var(--text-primary)" }}>{h.daysCompleted}</strong> done
+                              </span>
+                            </>
+                          )}
+                        </div>
                       </div>
                     </div>
 
-                    <div className="shrink-0">
-                      {view === "month" ? (
-                        <div className="flex flex-col gap-1">
-                          <HabitGridWeekdays />
-                          <HabitMonthGrid monthAnchor={anchor} completedDates={done} firstTrackedDate={h.firstTrackedDate} today={today} color={color} />
-                        </div>
-                      ) : (
-                        <div className="w-56">
-                          <HabitYearBars monthly={monthlyConsistency(anchorYear, done, h.firstTrackedDate, today)} color={color} />
-                        </div>
-                      )}
-                    </div>
+                    {view === "month" ? (
+                      <div className="flex w-full max-w-[248px] flex-col gap-1">
+                        <HabitGridWeekdays />
+                        <HabitMonthGrid monthAnchor={anchor} completedDates={done} firstTrackedDate={h.firstTrackedDate} today={today} color={color} />
+                      </div>
+                    ) : (
+                      <HabitYearBars monthly={monthlyConsistency(anchorYear, done, h.firstTrackedDate, today)} color={color} />
+                    )}
                   </div>
                 );
               })}
-              {habits.length === 0 && (
-                <p className="py-3 text-sm" style={{ color: "var(--text-muted)" }}>
-                  No habits in this category.
-                </p>
-              )}
             </div>
-          </Card>
+          )}
         </>
       )}
 
@@ -289,10 +301,9 @@ export function HabitsDashboard() {
 
       <Methodology>
         A day counts as tracked once the habit has been logged at least once, through to today; gaps count as
-        misses, days before the first log don&apos;t. Consistency is completed days over tracked days. &quot;What
-        stands out&quot; compares the last 14 tracked days with the habit&apos;s own longer-run pace and needs at
-        least 10 overall and 5 recent tracked days before it says anything. Archiving only hides a habit from new
-        logging — its history stays in every view here.
+        misses, days before the first log don&apos;t. Consistency is completed days over tracked days; the streak
+        is consecutive tracked days completed. Archiving only hides a habit from new logging — its history stays
+        in every view here.
       </Methodology>
     </div>
   );
