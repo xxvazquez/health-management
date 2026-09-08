@@ -7,6 +7,15 @@ import { NOTE_CATEGORY_LABEL, type NoteThread, type NoteView } from "@/lib/supab
 
 const ACCENT = "var(--series-magenta)";
 
+/** A muted per-category tint for the inbox row pills — all drawn from the
+ * existing palette so the list stays calm. */
+const CATEGORY_TONE: Record<NoteThread["category"], string> = {
+  note: "var(--text-muted)",
+  reminder: "var(--series-indigo)",
+  appreciation: "var(--series-magenta)",
+  question: "var(--series-2)",
+};
+
 export function formatNoteTimestamp(iso: string): string {
   return new Date(iso).toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 }
@@ -147,13 +156,10 @@ export function NoteThreadList({
             <button
               type="button"
               onClick={() => onOpen(t.id)}
-              className="flex min-w-0 flex-1 items-start gap-3 py-3.5 text-left"
+              className="flex min-w-0 flex-1 items-start gap-2.5 py-3.5 text-left"
             >
               <span className="mt-1.5 flex h-2 w-2 shrink-0 items-center justify-center">
                 {t.isUnreadForMe && <span className="h-2 w-2 rounded-full" style={{ background: ACCENT }} aria-hidden="true" />}
-              </span>
-              <span className="mt-0.5 shrink-0" style={{ color: ACCENT }}>
-                <CategoryIcon category={t.category} />
               </span>
               <span className="min-w-0 flex-1">
                 <span className="flex items-center gap-1.5">
@@ -164,8 +170,18 @@ export function NoteThreadList({
                     {formatNoteTimestampShort(t.lastMessageAt)}
                   </span>
                 </span>
-                <span className="mt-0.5 block truncate text-xs" style={{ color: "var(--text-muted)" }}>
-                  {t.isMine ? `To ${partnerLabel}` : `From ${partnerLabel}`} · {NOTE_CATEGORY_LABEL[t.category]}
+                <span className="mt-1 flex items-center gap-1.5 text-xs" style={{ color: "var(--text-muted)" }}>
+                  <span
+                    className="inline-flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium"
+                    style={{
+                      color: CATEGORY_TONE[t.category],
+                      background: `color-mix(in oklab, ${CATEGORY_TONE[t.category]} 13%, var(--surface-1))`,
+                    }}
+                  >
+                    <CategoryIcon category={t.category} size={11} />
+                    {NOTE_CATEGORY_LABEL[t.category]}
+                  </span>
+                  <span className="truncate">{t.isMine ? `To ${partnerLabel}` : `From ${partnerLabel}`}</span>
                 </span>
               </span>
             </button>
