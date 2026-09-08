@@ -73,31 +73,29 @@ function CollapsibleManageCard({
   const [open, setOpen] = useState(defaultOpen);
   const shown = forceOpen || open;
   return (
-    <Card tier="raw">
+    <Card tier="raw" padded={false}>
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         disabled={forceOpen}
         aria-expanded={shown}
-        className="flex w-full items-center justify-between gap-3 text-left"
+        className="flex w-full items-center gap-2 px-4 py-3 text-left"
       >
-        <div>
-          <h3 className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>
-            {title}
-          </h3>
-          {subtitle && (
-            <p className="mt-0.5 text-xs" style={{ color: "var(--text-muted)" }}>
-              {subtitle}
-            </p>
-          )}
-        </div>
         {!forceOpen && (
           <span className="shrink-0" style={{ color: "var(--text-muted)" }}>
-            <ChevronIcon dir={shown ? "up" : "down"} size={16} />
+            <ChevronIcon dir={shown ? "down" : "right"} size={13} />
+          </span>
+        )}
+        <h3 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+          {title}
+        </h3>
+        {subtitle && (
+          <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+            {subtitle}
           </span>
         )}
       </button>
-      {shown && <div className="mt-4">{children}</div>}
+      {shown && <div className="px-4 pb-4">{children}</div>}
     </Card>
   );
 }
@@ -1070,25 +1068,23 @@ function ItemSection({
   const archivedSectionOpen = isSearching ? archived.length > 0 : archivedOpen;
 
   return (
-    <Card tier="raw">
-      <button type="button" onClick={onToggleOpen} disabled={isSearching} className="flex w-full items-center justify-between gap-3 text-left">
-        <div>
-          <h3 className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>
-            {label}
-          </h3>
-          <p className="mt-0.5 text-xs" style={{ color: "var(--text-muted)" }}>
-            {active.length} active{archived.length > 0 ? ` · ${archived.length} archived` : ""}
-          </p>
-        </div>
+    <Card tier="raw" padded={false}>
+      <button type="button" onClick={onToggleOpen} disabled={isSearching} className="flex w-full items-center gap-2 px-4 py-3 text-left">
         {!isSearching && (
           <span className="shrink-0" style={{ color: "var(--text-muted)" }}>
-            <ChevronIcon dir={sectionOpen ? "up" : "down"} size={16} />
+            <ChevronIcon dir={sectionOpen ? "down" : "right"} size={13} />
           </span>
         )}
+        <h3 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+          {label}
+        </h3>
+        <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+          {active.length} active{archived.length > 0 ? ` · ${archived.length} archived` : ""}
+        </span>
       </button>
 
       {sectionOpen && (
-        <div className="mt-4">
+        <div className="px-4 pb-4">
           <CategoryManager
             categories={categories}
             appearanceByName={categoryAppearanceByName}
