@@ -19,6 +19,7 @@ const WIDTH_BY_PREFIX: { prefix: string; cls: string }[] = [
   { prefix: "/help", cls: "max-w-3xl" },
   { prefix: "/log", cls: "max-w-6xl" },
   { prefix: "/agenda", cls: "max-w-6xl" },
+  { prefix: "/analytics", cls: "max-w-6xl" },
 ];
 
 export function ContentContainer({ children }: { children: ReactNode }) {

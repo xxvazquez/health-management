@@ -1,4 +1,4 @@
-import type { RawItem, RawLog, RawCategory, RawWorkoutLog, RawStoolLog, RawPeriodLog, PeriodIntensity, WorkoutExercise } from "@/lib/types";
+import type { RawItem, RawLog, RawWorkoutLog, RawStoolLog, RawPeriodLog, PeriodIntensity, WorkoutExercise } from "@/lib/types";
 import { COLLECTION_METHODS } from "@/lib/types";
 import type { ItemType } from "@/taxonomy/categories";
 
@@ -84,16 +84,6 @@ const DEMO_SEED = 20260101;
 // is clipped by DataContext anyway.
 const DEMO_WINDOW_DAYS = 250;
 
-// A few habit categories carry a custom colour so the demo shows the
-// per-category tinting (Trends → Habits grids, and Settings). Keyed by
-// `itemType:name`, resolved the same way real `categories` rows are.
-const DEMO_CATEGORY_COLORS: { itemType: ItemType; name: string; color: string }[] = [
-  { itemType: "habit", name: "Body", color: "series-6" },
-  { itemType: "habit", name: "Daily", color: "series-2" },
-  { itemType: "habit", name: "Food", color: "series-4" },
-  { itemType: "habit", name: "Measures", color: "series-8" },
-];
-
 /** A handful of core lifts, each trained roughly weekly with a plausible
  * upward trend — enough for the Strength Progress table and its charts to
  * have something real to show (started/current/best all differ) instead
@@ -129,7 +119,6 @@ function demoItemIdentity(rawName: string): string {
 export interface DemoDataset {
   items: RawItem[];
   logs: RawLog[];
-  categories: RawCategory[];
   workoutLogs: RawWorkoutLog[];
   stoolLogs: RawStoolLog[];
   periodLogs: RawPeriodLog[];
@@ -316,13 +305,5 @@ export function buildDemoDataset(): DemoDataset {
     cycleStart = next;
   }
 
-  const categories: RawCategory[] = DEMO_CATEGORY_COLORS.map((c) => ({
-    id: `${DEMO_ID_PREFIX}cat:${c.itemType}:${c.name.toLowerCase().replace(/\s+/g, "-")}`,
-    itemType: c.itemType,
-    name: c.name,
-    icon: null,
-    color: c.color,
-  }));
-
-  return { items: Array.from(itemsByName.values()), logs, categories, workoutLogs, stoolLogs, periodLogs };
+  return { items: Array.from(itemsByName.values()), logs, workoutLogs, stoolLogs, periodLogs };
 }

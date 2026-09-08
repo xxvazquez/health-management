@@ -2,7 +2,6 @@
 
 import { addDaysToDate, listDatesBetween } from "@/lib/aggregations/common";
 
-const CELL = 15;
 const GAP = 3;
 
 /** Monday-based weekday index (0 = Mon … 6 = Sun) for a YYYY-MM-DD date. */
@@ -10,18 +9,13 @@ function mondayIndex(date: string): number {
   return (new Date(`${date}T00:00:00`).getDay() + 6) % 7;
 }
 
-export const HABIT_GRID_WIDTH = 7 * CELL + 6 * GAP;
-
-/** The seven weekday initials, aligned to a `HabitMonthGrid`'s columns. */
+/** The seven weekday initials, on the same 7-column track as a
+ * `HabitMonthGrid` so they line up above it. */
 export function HabitGridWeekdays() {
   return (
-    <div className="flex" style={{ gap: GAP }}>
+    <div className="grid" style={{ gridTemplateColumns: "repeat(7, 1fr)", gap: GAP }}>
       {["M", "T", "W", "T", "F", "S", "S"].map((d, i) => (
-        <span
-          key={i}
-          className="text-center text-[9px] font-medium"
-          style={{ width: CELL, color: "var(--text-muted)" }}
-        >
+        <span key={i} className="text-center text-[9px] font-medium" style={{ color: "var(--text-muted)" }}>
           {d}
         </span>
       ))}
@@ -30,9 +24,9 @@ export function HabitGridWeekdays() {
 }
 
 /** One month of a habit's history as a calendar grid — a solid accent cell
- * for every completed day, a faint cell for every other day in the month.
- * All grids for the same month share a column layout, so weekday patterns
- * line up when the rows are stacked. */
+ * for every completed day, a faint one for every other day in the month,
+ * fainter still for days outside the habit's tracked window. Cells are
+ * square and flex to the container's width. */
 export function HabitMonthGrid({
   monthAnchor,
   completedDates,
@@ -50,53 +44,42 @@ export function HabitMonthGrid({
   const ym = monthAnchor.slice(0, 7);
   const firstOfMonth = `${ym}-01`;
   const gridStart = addDaysToDate(firstOfMonth, -mondayIndex(firstOfMonth));
-  // Last day of the month: day 0 of the next month.
   const [y, m] = ym.split("-").map(Number);
   const lastOfMonth = new Date(y, m, 0);
   const lastISO = `${ym}-${String(lastOfMonth.getDate()).padStart(2, "0")}`;
   const gridEnd = addDaysToDate(lastISO, 6 - mondayIndex(lastISO));
 
   const days = listDatesBetween(gridStart, gridEnd);
-  const weeks: string[][] = [];
-  for (let i = 0; i < days.length; i += 7) weeks.push(days.slice(i, i + 7));
 
   return (
-    <div className="flex flex-col" style={{ gap: GAP }}>
-      {weeks.map((week) => (
-        <div key={week[0]} className="flex" style={{ gap: GAP }}>
-          {week.map((date) => {
-            const inMonth = date.slice(0, 7) === ym;
-            if (!inMonth) return <span key={date} style={{ width: CELL, height: CELL }} aria-hidden="true" />;
-            const done = completedDates.has(date);
-            // A day the habit could actually have been logged: from its first
-            // ever log up to today. Days outside that window still get a cell
-            // (so the whole month shows) but a fainter one.
-            const inPlay = date <= today && date >= firstTrackedDate;
-            return (
-              <span
-                key={date}
-                title={`${date}: ${done ? "logged" : date > today ? "upcoming" : "not logged"}`}
-                style={{
-                  width: CELL,
-                  height: CELL,
-                  borderRadius: 3,
-                  background: done
-                    ? color
-                    : inPlay
-                      ? "var(--gridline)"
-                      : "color-mix(in oklab, var(--gridline) 38%, transparent)",
-                }}
-              />
-            );
-          })}
-        </div>
-      ))}
+    <div className="grid" style={{ gridTemplateColumns: "repeat(7, 1fr)", gap: GAP }}>
+      {days.map((date) => {
+        const inMonth = date.slice(0, 7) === ym;
+        if (!inMonth) return <span key={date} style={{ aspectRatio: "1" }} aria-hidden="true" />;
+        const done = completedDates.has(date);
+        const inPlay = date <= today && date >= firstTrackedDate;
+        return (
+          <span
+            key={date}
+            title={`${date}: ${done ? "logged" : date > today ? "upcoming" : "not logged"}`}
+            style={{
+              aspectRatio: "1",
+              borderRadius: 3,
+              background: done
+                ? color
+                : inPlay
+                  ? "var(--gridline)"
+                  : "color-mix(in oklab, var(--gridline) 38%, transparent)",
+            }}
+          />
+        );
+      })}
     </div>
   );
 }
 
 const MONTH_LETTERS = ["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"];
-const YEAR_BAR_AREA = 40;
+const YEAR_BAR_AREA = 44;
 
 /** Twelve bars, one per calendar month, height proportional to that
  * month's consistency — a compact read on year-scale seasonality. A month
@@ -111,9 +94,9 @@ export function HabitYearBars({
   color: string;
 }) {
   return (
-    <div className="flex items-end" style={{ gap: 4 }}>
+    <div className="grid items-end" style={{ gridTemplateColumns: "repeat(12, 1fr)", gap: 3 }}>
       {monthly.map((mo, i) => (
-        <div key={i} className="flex flex-1 flex-col items-center">
+        <div key={i} className="flex flex-col items-center">
           <div className="flex w-full items-end justify-center" style={{ height: YEAR_BAR_AREA }}>
             {mo.pct != null && (
               <span
