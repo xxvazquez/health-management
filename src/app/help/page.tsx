@@ -25,7 +25,7 @@ const GROUPS: { title: string; items: Entry[] }[] = [
       },
       {
         title: "Trends",
-        body: "Reading the data back. An Overview tab first — today's story, what stands out across every domain, and a week or month review — then one dashboard per Log area (Food, Supplements, Habits, Stool, Workout, Cycle) plus Patterns. All built automatically from your Log entries.",
+        body: "Reading the data back — one dashboard per Log area (Food, Supplements, Habits, Stool, Workout, Cycle) plus Patterns, switched by a tab bar. All built automatically from your Log entries; nothing to fill in.",
       },
       {
         title: "Health",
@@ -41,7 +41,7 @@ const GROUPS: { title: string; items: Entry[] }[] = [
       },
       {
         title: "Settings",
-        body: "In the account menu — tap your name at the top of the sidebar, or the menu button on mobile. Add, rename, archive or hide the foods, exercises and products offered when logging; edit reminder lists and doctor types; set exercise units; choose which Log tabs and Trends dashboards appear; export your data. One search box filters every section at once.",
+        body: "In the sidebar (and the account menu). Add, rename, archive or hide the foods, exercises and products offered when logging; edit reminder lists and doctor types; set exercise units; choose which Log tabs and Trends dashboards appear; export your data. One search box filters every section at once.",
       },
       {
         title: "My Drive",
