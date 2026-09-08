@@ -29,7 +29,7 @@ const GROUPS: { title: string; items: Entry[] }[] = [
       },
       {
         title: "Health",
-        body: "Everything about doctor visits and results, in four tabs: Visits (what to raise next time and a log of past appointments), Results (blood and lab markers), Vitals (blood pressure and weight), Doctors (the people you see).",
+        body: "Everything about doctor visits and results, in four tabs: Visits (what to prepare before your next appointment, and a log of past ones), Results (blood and lab markers), Vitals (blood pressure and weight), Doctors (the people you see).",
       },
       {
         title: "Notes",
@@ -133,7 +133,7 @@ const GROUPS: { title: string; items: Entry[] }[] = [
     items: [
       {
         title: "Visits",
-        body: "Two sections. \"To raise next time\" holds your upcoming appointment dates (one per specialty, editable here) plus the observations and notes you've tagged for a visit, filterable by specialty. \"Past visits\" is the log of appointments you've had, newest first, each carrying its own follow-up tasks.",
+        body: "Two sections. \"Before your next visit\" holds your upcoming appointment dates (one per specialty, editable here) plus the observations and notes you've tagged for a visit, filterable by specialty. \"Past visits\" is the log of appointments you've had, newest first, each carrying its own follow-up tasks.",
       },
       {
         title: "Results",
