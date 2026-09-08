@@ -31,7 +31,7 @@ function SectionHeading({ children, hint }: { children: React.ReactNode; hint?: 
 }
 
 /** The Visits tab — everything about doctor appointments, in two sections:
- * "To raise next time" (upcoming appointment dates + the care-log
+ * "Before your next visit" (upcoming appointment dates + the care-log
  * observations and notes waiting for a visit) and "Past visits"
  * (appointments already attended, each with its follow-up tasks inline).
  * Not one interleaved feed — prep and history are separate questions. */
@@ -118,7 +118,7 @@ export function VisitsTab({ api, accent }: { api: DoctorsApi; accent: string }) 
 
       <section className="flex flex-col gap-3">
         <div className="flex items-start justify-between gap-3">
-          <SectionHeading hint="Upcoming dates, and what you want to bring up.">To raise next time</SectionHeading>
+          <SectionHeading hint="Upcoming dates, and what you want to bring up.">Before your next visit</SectionHeading>
           <PrimaryAction label="Add" accent={accent} onClick={() => setAdd("choose")} />
         </div>
 
