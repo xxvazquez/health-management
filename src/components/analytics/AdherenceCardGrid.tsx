@@ -12,19 +12,20 @@ import type { ItemStats } from "@/lib/aggregations/itemStats";
 import type { CanonicalEvent } from "@/lib/types";
 
 // A spread of palette hues so each row reads as its own thing at a glance —
-// adjacent entries sit in different colour families.
+// adjacent entries sit in different colour families. Softened toward the
+// surface so a densely-filled calendar reads as a tint, not a slab.
 const PALETTE = [
-  "var(--series-2)",
-  "var(--series-4)",
-  "var(--series-1)",
-  "var(--series-8)",
-  "var(--series-6)",
-  "var(--series-magenta)",
-  "var(--series-indigo)",
-  "var(--series-berry)",
-  "var(--series-3)",
-  "var(--series-slate)",
-];
+  "--series-2",
+  "--series-4",
+  "--series-1",
+  "--series-8",
+  "--series-6",
+  "--series-magenta",
+  "--series-indigo",
+  "--series-berry",
+  "--series-3",
+  "--series-slate",
+].map((h) => `color-mix(in oklab, var(${h}) 52%, var(--surface-1))`);
 
 type View = "month" | "year";
 
