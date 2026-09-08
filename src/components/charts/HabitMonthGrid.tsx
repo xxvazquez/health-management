@@ -2,7 +2,9 @@
 
 import { addDaysToDate, listDatesBetween } from "@/lib/aggregations/common";
 
+const CELL = 13;
 const GAP = 3;
+const TRACK = `repeat(7, ${CELL}px)`;
 
 /** Monday-based weekday index (0 = Mon … 6 = Sun) for a YYYY-MM-DD date. */
 function mondayIndex(date: string): number {
@@ -13,7 +15,7 @@ function mondayIndex(date: string): number {
  * `HabitMonthGrid` so they line up above it. */
 export function HabitGridWeekdays() {
   return (
-    <div className="grid" style={{ gridTemplateColumns: "repeat(7, 1fr)", gap: GAP }}>
+    <div className="grid" style={{ gridTemplateColumns: TRACK, gap: GAP }}>
       {["M", "T", "W", "T", "F", "S", "S"].map((d, i) => (
         <span key={i} className="text-center text-[9px] font-medium" style={{ color: "var(--text-muted)" }}>
           {d}
@@ -23,10 +25,9 @@ export function HabitGridWeekdays() {
   );
 }
 
-/** One month of a habit's history as a calendar grid — a solid accent cell
- * for every completed day, a faint one for every other day in the month,
- * fainter still for days outside the habit's tracked window. Cells are
- * square and flex to the container's width. */
+/** One month of a habit's history as a small calendar grid — a solid
+ * accent cell for every completed day, a faint one for every other day in
+ * the month, fainter still for days outside the habit's tracked window. */
 export function HabitMonthGrid({
   monthAnchor,
   completedDates,
@@ -52,10 +53,10 @@ export function HabitMonthGrid({
   const days = listDatesBetween(gridStart, gridEnd);
 
   return (
-    <div className="grid" style={{ gridTemplateColumns: "repeat(7, 1fr)", gap: GAP }}>
+    <div className="grid" style={{ gridTemplateColumns: TRACK, gap: GAP }}>
       {days.map((date) => {
         const inMonth = date.slice(0, 7) === ym;
-        if (!inMonth) return <span key={date} style={{ aspectRatio: "1" }} aria-hidden="true" />;
+        if (!inMonth) return <span key={date} style={{ width: CELL, height: CELL }} aria-hidden="true" />;
         const done = completedDates.has(date);
         const inPlay = date <= today && date >= firstTrackedDate;
         return (
@@ -63,7 +64,8 @@ export function HabitMonthGrid({
             key={date}
             title={`${date}: ${done ? "logged" : date > today ? "upcoming" : "not logged"}`}
             style={{
-              aspectRatio: "1",
+              width: CELL,
+              height: CELL,
               borderRadius: 3,
               background: done
                 ? color
