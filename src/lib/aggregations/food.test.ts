@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { favoriteCombosByMeal, foodCategoryDistribution, foodVarietyOverTime, ingredientRotation, mealInstances, newFoodsOverTime, rankedFoods } from "./food";
+import { favoriteCombosByMeal, foodCategoryDistribution, foodVarietyOverTime, ingredientMealMatrix, ingredientRotation, mealInstances, newFoodsOverTime, rankedFoods } from "./food";
 import { makeEvent } from "@/lib/testFixtures";
 
 const inRangeDay = (n: number) => `2026-02-${String(n).padStart(2, "0")}`;
@@ -167,6 +167,26 @@ describe("favoriteCombosByMeal", () => {
     ];
     expect(favoriteCombosByMeal(instances, 5)).toEqual([]);
     expect(favoriteCombosByMeal(instances, 3)).toHaveLength(1);
+  });
+});
+
+describe("ingredientMealMatrix", () => {
+  it("counts each ingredient per meal tag and totals it, sorted by total desc", () => {
+    const instances = [
+      { date: "2026-01-01", mealTag: "Breakfast", items: ["Oats", "Apple"] },
+      { date: "2026-01-02", mealTag: "Breakfast", items: ["Oats"] },
+      { date: "2026-01-01", mealTag: "Snack", items: ["Apple"] },
+      { date: "2026-01-02", mealTag: "Snack", items: ["Apple"] },
+    ];
+    const rows = ingredientMealMatrix(instances);
+    expect(rows.map((r) => r.item)).toEqual(["Apple", "Oats"]);
+    expect(rows[0]).toEqual({ item: "Apple", countsByMeal: { Breakfast: 1, Snack: 2 }, total: 3 });
+    expect(rows[1]).toEqual({ item: "Oats", countsByMeal: { Breakfast: 2 }, total: 2 });
+  });
+
+  it("caps the row count at topN", () => {
+    const instances = [{ date: "2026-01-01", mealTag: "Lunch", items: ["A", "B", "C", "D"] }];
+    expect(ingredientMealMatrix(instances, 2)).toHaveLength(2);
   });
 });
 

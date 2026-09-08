@@ -22,13 +22,14 @@ import {
   foodCategoryDistribution,
   foodVarietyOverTime,
   ingredientDiversity,
+  ingredientMealMatrix,
   ingredientRotation,
   mealInstances,
-  mealTypeIngredientBreakdown,
   rankedFoods,
   repetitionInsights,
   varietyTrendDirection,
   type FallenOutEntry,
+  type IngredientMealRow,
   type MealComboEntry,
   type StapleEntry,
 } from "@/lib/aggregations/food";
@@ -302,10 +303,7 @@ export function FoodDashboard() {
     () => repetitionInsights(ranked, mealInstancesList, priorities.groupStates, hasCoreGaps, 20, nutritionGroupOverrides),
     [ranked, mealInstancesList, priorities.groupStates, hasCoreGaps, nutritionGroupOverrides],
   );
-  const mealBreakdown = useMemo(
-    () => mealTypeIngredientBreakdown(mealInstancesList, ranked.slice(0, 8).map((r) => r.item)),
-    [mealInstancesList, ranked],
-  );
+  const mealMatrix = useMemo(() => ingredientMealMatrix(mealInstancesList), [mealInstancesList]);
   // Chart-local trend (rolling-30-day line, recent stretch vs. the stretch
   // before it) — describes the shape of the "Ingredient variety over time"
   // chart specifically, distinct from diversityTrend above.
@@ -545,7 +543,7 @@ export function FoodDashboard() {
       </PageSection>
 
       <PageSection id="meal-patterns" activeId={activeSection} headingLabel="Meal patterns">
-        <MealTypePatternsSection rows={mealBreakdown} mealInstanceCount={mealInstanceCount} />
+        <MealTypePatternsSection matrix={mealMatrix} mealInstanceCount={mealInstanceCount} />
       </PageSection>
 
       <PageSection id="combinations" activeId={activeSection} headingLabel="Combinations">
@@ -827,106 +825,96 @@ function RepetitionSection({
 
 const MEAL_TAG_ORDER = ["Breakfast", "Lunch", "Dinner", "Snack"];
 
-function mealPatternLabel(r: { classification: string; exclusiveMeal: string | null }): string {
-  if (r.classification === "exclusive" && r.exclusiveMeal) return `Mostly ${r.exclusiveMeal.toLowerCase()}`;
-  if (r.classification === "cross-meal") return "Cross-meal";
-  return "Spread out";
+/** One muted hue per meal — the tones settled on in design review:
+ * breakfast blue, lunch green, dinner navy-indigo, snack burgundy. */
+const MEAL_HUE: Record<string, string> = {
+  Breakfast: "#3f77a3",
+  Lunch: "#4f7c50",
+  Dinner: "#414d86",
+  Snack: "#9a4457",
+};
+
+// Four discrete tint steps → % of the meal hue mixed into the surface.
+const MEAL_TINT_STEP = [7, 13, 21, 31];
+const mealTintStep = (n: number) => (n <= 3 ? 0 : n <= 7 ? 1 : n <= 10 ? 2 : 3);
+
+const MEAL_GRID = "80px repeat(4, minmax(0, 1fr)) 30px";
+
+function MealHeatCell({ count, meal }: { count: number; meal: string }) {
+  if (count === 0) return <span />;
+  const hue = MEAL_HUE[meal] ?? "var(--series-slate)";
+  return (
+    <span
+      className="mx-0.5 flex h-[30px] items-center justify-center rounded-lg text-xs font-medium tabular-nums"
+      style={{
+        background: `color-mix(in oklab, ${hue} ${MEAL_TINT_STEP[mealTintStep(count)]}%, var(--surface-1))`,
+        color: `color-mix(in oklab, ${hue} 78%, var(--text-primary))`,
+      }}
+    >
+      {count}
+    </span>
+  );
 }
 
 /**
- * Desktop keeps the compact tinted-cell table (same plain-table idiom as
- * CoverageTableRows). Below `lg`, a 4-column-plus-label table has no room
- * to stay legible without horizontal scroll, so narrow screens get a
- * stacked list instead — one ingredient per row, only its non-zero meals
- * listed inline, same information, no sideways scrolling.
+ * The "By meal" heatmap — one dense row per ingredient. The name is
+ * right-aligned against four wide meal cells that nearly touch; a filled
+ * cell is a soft tint of the meal's colour (four steps by frequency), an
+ * empty cell is nothing. Colour and column both say which meal.
  */
 function MealTypePatternsSection({
-  rows,
+  matrix,
   mealInstanceCount,
 }: {
-  rows: ReturnType<typeof mealTypeIngredientBreakdown>;
+  matrix: IngredientMealRow[];
   mealInstanceCount: number;
 }) {
-  // A top-ranked ingredient can still have zero meal-tagged occurrences
-  // (its logs predate the meal-tag field, or were never tagged) — such a
-  // row has nothing to show in any meal column, which read as a blank,
-  // broken-looking row rather than a real "spread out" pattern. Dropped
-  // here rather than displayed with nothing in it.
-  const taggedRows = rows.filter((r) => r.total > 0);
-  const maxCount = Math.max(1, ...taggedRows.map((r) => Math.max(0, ...Object.values(r.countsByMeal))));
-
   return (
     <Card tier="raw">
-      <CardTitle size="sm" subtitle="Which ingredients cluster around one meal vs. show up across several">
-        Meal-type patterns
+      <CardTitle size="sm" subtitle="Where each ingredient shows up — colour and column are the meal">
+        By meal
       </CardTitle>
-      {mealInstanceCount < MIN_MEAL_INSTANCES_FOR_COMBINATIONS || taggedRows.length === 0 ? (
+      {mealInstanceCount < MIN_MEAL_INSTANCES_FOR_COMBINATIONS || matrix.length === 0 ? (
         <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-          Not enough meals tagged yet to break this down by meal type.
+          Not enough meals tagged yet to break this down by meal.
         </p>
       ) : (
-        <>
-          <div className="hidden overflow-x-auto lg:block">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-xs whitespace-nowrap" style={{ color: "var(--text-muted)" }}>
-                  <th className="pb-2 pr-4 font-medium">Ingredient</th>
-                  {MEAL_TAG_ORDER.map((m) => (
-                    <th key={m} className="pb-2 pr-3 text-center font-medium">{m}</th>
-                  ))}
-                  <th className="pb-2 text-right font-medium">Pattern</th>
-                </tr>
-              </thead>
-              <tbody>
-                {taggedRows.map((r) => (
-                  <tr key={r.item} className="border-t" style={{ borderColor: "var(--gridline)" }}>
-                    <td className="py-2 pr-4 whitespace-nowrap" style={{ color: "var(--text-primary)" }}>{r.item}</td>
-                    {MEAL_TAG_ORDER.map((m) => {
-                      const count = r.countsByMeal[m] ?? 0;
-                      const intensity = count / maxCount;
-                      return (
-                        <td key={m} className="py-1 pr-3 text-center">
-                          <span
-                            className="inline-flex h-6 w-6 items-center justify-center rounded text-xs font-medium tabular-nums"
-                            style={{
-                              // Dark ink throughout, not white — this tint
-                              // range (15-55% of series-1 into white) never
-                              // gets dark enough for white text to clear
-                              // WCAG's 4.5:1 (it measured as low as 1.35:1
-                              // at the pale end with the old 20-75%/white
-                              // combo); text-primary stays comfortably
-                              // readable across the whole range instead.
-                              background: count > 0 ? `color-mix(in oklab, ${TYPE_ACCENT.food} ${Math.round(15 + intensity * 40)}%, var(--surface-1))` : "transparent",
-                              color: count > 0 ? "var(--text-primary)" : "var(--text-muted)",
-                            }}
-                          >
-                            {count > 0 ? count : ""}
-                          </span>
-                        </td>
-                      );
-                    })}
-                    <td className="py-2 text-right text-xs whitespace-nowrap" style={{ color: "var(--text-secondary)" }}>
-                      {mealPatternLabel(r)}
-                    </td>
-                  </tr>
+        <div className="overflow-x-auto">
+          <div className="min-w-[19rem] max-w-[27rem]">
+            <div
+              className="grid items-end border-b pb-1.5 text-[10px]"
+              style={{ gridTemplateColumns: MEAL_GRID, borderColor: "var(--gridline)", color: "var(--text-muted)" }}
+            >
+              <span />
+              {MEAL_TAG_ORDER.map((m) => (
+                <span key={m} className="text-center">
+                  {m.slice(0, 3)}
+                </span>
+              ))}
+              <span className="text-right">Tot</span>
+            </div>
+            {matrix.map((r, i) => (
+              <div
+                key={r.item}
+                className="grid items-center py-1"
+                style={{
+                  gridTemplateColumns: MEAL_GRID,
+                  borderBottom: i < matrix.length - 1 ? "1px solid var(--border-hairline)" : undefined,
+                }}
+              >
+                <span className="truncate pr-2 text-right text-[13px] font-medium" style={{ color: "var(--text-secondary)" }}>
+                  {r.item}
+                </span>
+                {MEAL_TAG_ORDER.map((m) => (
+                  <MealHeatCell key={m} count={r.countsByMeal[m] ?? 0} meal={m} />
                 ))}
-              </tbody>
-            </table>
+                <span className="text-right text-[11px] tabular-nums" style={{ color: "var(--text-muted)" }}>
+                  {r.total}
+                </span>
+              </div>
+            ))}
           </div>
-
-          <ul className="flex flex-col divide-y lg:hidden" style={{ borderColor: "var(--gridline)" }}>
-            {taggedRows.map((r) => {
-              const parts = MEAL_TAG_ORDER.filter((m) => (r.countsByMeal[m] ?? 0) > 0).map((m) => `${m} ${r.countsByMeal[m]}`);
-              return (
-                <li key={r.item} className="flex flex-col gap-0.5 py-2 text-sm">
-                  <span className="font-medium" style={{ color: "var(--text-primary)" }}>{r.item}</span>
-                  <span className="text-xs" style={{ color: "var(--text-secondary)" }}>{parts.join(" · ")}</span>
-                  <span className="text-xs" style={{ color: "var(--text-muted)" }}>{mealPatternLabel(r)}</span>
-                </li>
-              );
-            })}
-          </ul>
-        </>
+        </div>
       )}
     </Card>
   );
