@@ -65,6 +65,22 @@ const DIET_BALANCE_COLOR: Record<DietBalanceStatus, string> = {
   "strongly-represented": "var(--status-good)",
 };
 
+/** Compact headline figure — a bordered chip, not a full stat card. */
+function StatChip({ value, label, accent, note }: { value: string; label: string; accent?: string; note?: string }) {
+  return (
+    <span
+      className="inline-flex items-baseline gap-1.5 rounded-md border px-2.5 py-1 text-xs whitespace-nowrap"
+      style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-muted)" }}
+    >
+      <strong className="text-sm font-semibold tabular-nums" style={{ color: accent ?? "var(--text-primary)" }}>
+        {value}
+      </strong>
+      {label}
+      {note && <span style={{ color: "var(--text-muted)" }}>· {note}</span>}
+    </span>
+  );
+}
+
 function StatusPill({ status, label, color }: { status: string; label: string; color: string }) {
   return (
     <span
@@ -395,21 +411,16 @@ export function FoodDashboard() {
       <Insight label={foodInsight.label} headline={foodInsight.headline} detail={foodInsight.detail} tone={foodInsight.tone} />
 
       {!priorities.insufficientData && diversity && (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          <StatTile
-            label="Unique ingredients"
+        <div className="flex flex-wrap gap-2">
+          <StatChip
             value={String(diversity.current)}
-            detail={
-              ingredientDelta != null
-                ? `${ingredientDelta > 0 ? "+" : ""}${ingredientDelta} vs previous ${rangeLengthDays} days`
-                : "logged this range"
-            }
+            label="unique ingredients"
             accent={TYPE_ACCENT.food}
+            note={ingredientDelta != null ? `${ingredientDelta > 0 ? "+" : ""}${ingredientDelta} vs prev.` : undefined}
           />
-          <StatTile
-            label="Days with food logged"
-            value={String(priorities.daysWithFoodTracked)}
-            detail={`of ${rangeLengthDays} in range`}
+          <StatChip
+            value={`${priorities.daysWithFoodTracked} / ${rangeLengthDays}`}
+            label="days with food logged"
           />
         </div>
       )}

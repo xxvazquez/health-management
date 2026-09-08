@@ -4,16 +4,17 @@ import type { InsightTone } from "@/lib/aggregations/insights";
 
 const TONE_COLOR: Record<InsightTone, string> = {
   good: "var(--status-good)",
-  neutral: "var(--text-muted)",
+  neutral: "var(--text-secondary)",
   attention: "var(--status-warning)",
   serious: "var(--status-serious)",
 };
 
 /**
  * The synthesized lead finding for a dashboard — DECISION before CONTEXT
- * before DATA, at the top of the page. A plain block, not a card: the
- * coloured kicker and its position carry the emphasis, and a boxed
- * one-liner reads as heavier than it is. Never stacked more than once.
+ * before DATA, at the top of the page. A light card with a coloured kicker
+ * chip, matching the Patterns lead card, so the finding reads clearly
+ * against the page instead of blending into it. Never stacked more than
+ * once.
  */
 export function Insight({
   label,
@@ -29,15 +30,21 @@ export function Insight({
   className?: string;
 }) {
   return (
-    <div className={clsx("flex flex-col gap-1", className)}>
-      <p className="text-xs font-semibold tracking-wide uppercase" style={{ color: TONE_COLOR[tone] }}>
+    <div
+      className={clsx("flex flex-col gap-1 rounded-lg border p-3.5", className)}
+      style={{ background: "var(--surface-1)", borderColor: "var(--border-hairline)" }}
+    >
+      <span
+        className="self-start rounded px-1.5 py-0.5 text-[10px] font-semibold tracking-wide uppercase"
+        style={{ color: TONE_COLOR[tone], background: `color-mix(in oklab, ${TONE_COLOR[tone]} 14%, var(--surface-1))` }}
+      >
         {label}
-      </p>
-      <p className="max-w-[62ch] text-base leading-snug" style={{ color: "var(--text-primary)" }}>
+      </span>
+      <p className="max-w-[62ch] text-sm leading-snug" style={{ color: "var(--text-primary)" }}>
         {headline}
       </p>
       {detail && (
-        <p className="max-w-[62ch] text-sm" style={{ color: "var(--text-secondary)" }}>
+        <p className="max-w-[62ch] text-xs" style={{ color: "var(--text-muted)" }}>
           {detail}
         </p>
       )}
