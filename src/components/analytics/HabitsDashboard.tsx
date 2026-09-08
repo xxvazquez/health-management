@@ -214,7 +214,7 @@ export function HabitsDashboard() {
               No habits in this category.
             </p>
           ) : (
-            <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(232px, 1fr))" }}>
+            <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(196px, 1fr))" }}>
               {habits.map((h) => {
                 const done = doneByHabit.get(h.item) ?? new Set<string>();
                 const color = colorByHabit.get(h.item) ?? ACCENT;
@@ -257,7 +257,7 @@ export function HabitsDashboard() {
                     </div>
 
                     {view === "month" ? (
-                      <div className="flex w-full max-w-[248px] flex-col gap-1">
+                      <div className="flex flex-col gap-1">
                         <HabitGridWeekdays />
                         <HabitMonthGrid monthAnchor={anchor} completedDates={done} firstTrackedDate={h.firstTrackedDate} today={today} color={color} />
                       </div>
