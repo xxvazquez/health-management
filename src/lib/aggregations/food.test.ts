@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { favoriteCombosByMeal, foodCategoryDistribution, foodVarietyOverTime, ingredientRotation, mealInstances, newFoodsOverTime, rankedFoods } from "./food";
+import { favoriteCombosByMeal, foodCategoryDistribution, foodVarietyOverTime, ingredientRotation, ingredientsByMeal, mealInstances, newFoodsOverTime, rankedFoods } from "./food";
 import { makeEvent } from "@/lib/testFixtures";
 
 const inRangeDay = (n: number) => `2026-02-${String(n).padStart(2, "0")}`;
@@ -167,6 +167,29 @@ describe("favoriteCombosByMeal", () => {
     ];
     expect(favoriteCombosByMeal(instances, 5)).toEqual([]);
     expect(favoriteCombosByMeal(instances, 3)).toHaveLength(1);
+  });
+});
+
+describe("ingredientsByMeal", () => {
+  it("ranks each meal's ingredients by how many of its instances they appear in", () => {
+    const instances = [
+      { date: "2026-01-01", mealTag: "Breakfast", items: ["Banana", "Oats"] },
+      { date: "2026-01-02", mealTag: "Breakfast", items: ["Banana", "Eggs"] },
+      { date: "2026-01-03", mealTag: "Breakfast", items: ["Banana"] },
+      { date: "2026-01-01", mealTag: "Dinner", items: ["Rice"] },
+    ];
+    const byMeal = ingredientsByMeal(instances);
+    const breakfast = byMeal.find((m) => m.mealTag === "Breakfast")!;
+    expect(breakfast.instances).toBe(3);
+    expect(breakfast.items[0]).toEqual({ item: "Banana", count: 3 });
+    expect(byMeal.find((m) => m.mealTag === "Dinner")!.items).toEqual([{ item: "Rice", count: 1 }]);
+  });
+
+  it("caps each meal's list at topN", () => {
+    const instances = [
+      { date: "2026-01-01", mealTag: "Lunch", items: ["A", "B", "C", "D"] },
+    ];
+    expect(ingredientsByMeal(instances, 2).find((m) => m.mealTag === "Lunch")!.items).toHaveLength(2);
   });
 });
 

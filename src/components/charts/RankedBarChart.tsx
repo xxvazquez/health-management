@@ -13,11 +13,15 @@ export function RankedBarChart({
   color = "var(--series-1)",
   valueFormatter,
   height,
+  labelWidth = 150,
 }: {
   data: RankedBarDatum[];
   color?: string;
   valueFormatter?: (v: number) => string;
   height?: number;
+  /** Width of the category (label) column. Narrow it for a chart sitting
+   * in a half-width grid cell. */
+  labelWidth?: number;
 }) {
   const rowHeight = 28;
   const chartHeight = height ?? Math.max(120, data.length * rowHeight + 20);
@@ -29,7 +33,7 @@ export function RankedBarChart({
         <YAxis
           type="category"
           dataKey="label"
-          width={150}
+          width={labelWidth}
           tickLine={false}
           axisLine={false}
           tick={{ fill: "var(--text-secondary)", fontSize: 12 }}

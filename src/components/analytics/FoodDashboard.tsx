@@ -23,13 +23,14 @@ import {
   foodVarietyOverTime,
   ingredientDiversity,
   ingredientRotation,
+  ingredientsByMeal,
   mealInstances,
-  mealTypeIngredientBreakdown,
   rankedFoods,
   repetitionInsights,
   varietyTrendDirection,
   type FallenOutEntry,
   type MealComboEntry,
+  type MealIngredientRank,
   type StapleEntry,
 } from "@/lib/aggregations/food";
 import {
@@ -302,10 +303,7 @@ export function FoodDashboard() {
     () => repetitionInsights(ranked, mealInstancesList, priorities.groupStates, hasCoreGaps, 20, nutritionGroupOverrides),
     [ranked, mealInstancesList, priorities.groupStates, hasCoreGaps, nutritionGroupOverrides],
   );
-  const mealBreakdown = useMemo(
-    () => mealTypeIngredientBreakdown(mealInstancesList, ranked.slice(0, 8).map((r) => r.item)),
-    [mealInstancesList, ranked],
-  );
+  const mealBreakdown = useMemo(() => ingredientsByMeal(mealInstancesList), [mealInstancesList]);
   // Chart-local trend (rolling-30-day line, recent stretch vs. the stretch
   // before it) — describes the shape of the "Ingredient variety over time"
   // chart specifically, distinct from diversityTrend above.
@@ -545,7 +543,7 @@ export function FoodDashboard() {
       </PageSection>
 
       <PageSection id="meal-patterns" activeId={activeSection} headingLabel="Meal patterns">
-        <MealTypePatternsSection rows={mealBreakdown} mealInstanceCount={mealInstanceCount} />
+        <MealTypePatternsSection byMeal={mealBreakdown} mealInstanceCount={mealInstanceCount} />
       </PageSection>
 
       <PageSection id="combinations" activeId={activeSection} headingLabel="Combinations">
@@ -827,106 +825,50 @@ function RepetitionSection({
 
 const MEAL_TAG_ORDER = ["Breakfast", "Lunch", "Dinner", "Snack"];
 
-function mealPatternLabel(r: { classification: string; exclusiveMeal: string | null }): string {
-  if (r.classification === "exclusive" && r.exclusiveMeal) return `Mostly ${r.exclusiveMeal.toLowerCase()}`;
-  if (r.classification === "cross-meal") return "Cross-meal";
-  return "Spread out";
-}
-
 /**
- * Desktop keeps the compact tinted-cell table (same plain-table idiom as
- * CoverageTableRows). Below `lg`, a 4-column-plus-label table has no room
- * to stay legible without horizontal scroll, so narrow screens get a
- * stacked list instead — one ingredient per row, only its non-zero meals
- * listed inline, same information, no sideways scrolling.
+ * One small ranked bar chart per meal tag — the ingredients logged most
+ * often with breakfast, lunch, dinner and snacks, side by side, so a
+ * routine ("banana every breakfast") reads as the longest bar in that
+ * meal's panel.
  */
 function MealTypePatternsSection({
-  rows,
+  byMeal,
   mealInstanceCount,
 }: {
-  rows: ReturnType<typeof mealTypeIngredientBreakdown>;
+  byMeal: MealIngredientRank[];
   mealInstanceCount: number;
 }) {
-  // A top-ranked ingredient can still have zero meal-tagged occurrences
-  // (its logs predate the meal-tag field, or were never tagged) — such a
-  // row has nothing to show in any meal column, which read as a blank,
-  // broken-looking row rather than a real "spread out" pattern. Dropped
-  // here rather than displayed with nothing in it.
-  const taggedRows = rows.filter((r) => r.total > 0);
-  const maxCount = Math.max(1, ...taggedRows.map((r) => Math.max(0, ...Object.values(r.countsByMeal))));
+  const seen = new Map(byMeal.map((m) => [m.mealTag, m] as const));
+  const ordered = [
+    ...MEAL_TAG_ORDER.filter((m) => seen.has(m)),
+    ...byMeal.map((m) => m.mealTag).filter((m) => !MEAL_TAG_ORDER.includes(m)),
+  ]
+    .map((tag) => seen.get(tag))
+    .filter((m): m is MealIngredientRank => !!m && m.items.length > 0);
 
   return (
     <Card tier="raw">
-      <CardTitle size="sm" subtitle="Which ingredients cluster around one meal vs. show up across several">
-        Meal-type patterns
+      <CardTitle size="sm" subtitle="The ingredients you log most often with each meal">
+        By meal
       </CardTitle>
-      {mealInstanceCount < MIN_MEAL_INSTANCES_FOR_COMBINATIONS || taggedRows.length === 0 ? (
+      {mealInstanceCount < MIN_MEAL_INSTANCES_FOR_COMBINATIONS || ordered.length === 0 ? (
         <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-          Not enough meals tagged yet to break this down by meal type.
+          Not enough meals tagged yet to break this down by meal.
         </p>
       ) : (
-        <>
-          <div className="hidden overflow-x-auto lg:block">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-xs whitespace-nowrap" style={{ color: "var(--text-muted)" }}>
-                  <th className="pb-2 pr-4 font-medium">Ingredient</th>
-                  {MEAL_TAG_ORDER.map((m) => (
-                    <th key={m} className="pb-2 pr-3 text-center font-medium">{m}</th>
-                  ))}
-                  <th className="pb-2 text-right font-medium">Pattern</th>
-                </tr>
-              </thead>
-              <tbody>
-                {taggedRows.map((r) => (
-                  <tr key={r.item} className="border-t" style={{ borderColor: "var(--gridline)" }}>
-                    <td className="py-2 pr-4 whitespace-nowrap" style={{ color: "var(--text-primary)" }}>{r.item}</td>
-                    {MEAL_TAG_ORDER.map((m) => {
-                      const count = r.countsByMeal[m] ?? 0;
-                      const intensity = count / maxCount;
-                      return (
-                        <td key={m} className="py-1 pr-3 text-center">
-                          <span
-                            className="inline-flex h-6 w-6 items-center justify-center rounded text-xs font-medium tabular-nums"
-                            style={{
-                              // Dark ink throughout, not white — this tint
-                              // range (15-55% of series-1 into white) never
-                              // gets dark enough for white text to clear
-                              // WCAG's 4.5:1 (it measured as low as 1.35:1
-                              // at the pale end with the old 20-75%/white
-                              // combo); text-primary stays comfortably
-                              // readable across the whole range instead.
-                              background: count > 0 ? `color-mix(in oklab, ${TYPE_ACCENT.food} ${Math.round(15 + intensity * 40)}%, var(--surface-1))` : "transparent",
-                              color: count > 0 ? "var(--text-primary)" : "var(--text-muted)",
-                            }}
-                          >
-                            {count > 0 ? count : ""}
-                          </span>
-                        </td>
-                      );
-                    })}
-                    <td className="py-2 text-right text-xs whitespace-nowrap" style={{ color: "var(--text-secondary)" }}>
-                      {mealPatternLabel(r)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <ul className="flex flex-col divide-y lg:hidden" style={{ borderColor: "var(--gridline)" }}>
-            {taggedRows.map((r) => {
-              const parts = MEAL_TAG_ORDER.filter((m) => (r.countsByMeal[m] ?? 0) > 0).map((m) => `${m} ${r.countsByMeal[m]}`);
-              return (
-                <li key={r.item} className="flex flex-col gap-0.5 py-2 text-sm">
-                  <span className="font-medium" style={{ color: "var(--text-primary)" }}>{r.item}</span>
-                  <span className="text-xs" style={{ color: "var(--text-secondary)" }}>{parts.join(" · ")}</span>
-                  <span className="text-xs" style={{ color: "var(--text-muted)" }}>{mealPatternLabel(r)}</span>
-                </li>
-              );
-            })}
-          </ul>
-        </>
+        <div className="grid grid-cols-1 gap-x-6 gap-y-5 sm:grid-cols-2">
+          {ordered.map((meal) => (
+            <div key={meal.mealTag}>
+              <p className="mb-1 flex items-baseline justify-between gap-2 text-xs font-semibold" style={{ color: "var(--text-secondary)" }}>
+                {meal.mealTag}
+                <span className="font-normal tabular-nums" style={{ color: "var(--text-muted)" }}>
+                  {meal.instances} logged
+                </span>
+              </p>
+              <RankedBarChart data={meal.items.map((i) => ({ label: i.item, value: i.count }))} color={TYPE_ACCENT.food} labelWidth={96} />
+            </div>
+          ))}
+        </div>
       )}
     </Card>
   );
