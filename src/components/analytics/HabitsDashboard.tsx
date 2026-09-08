@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { useData } from "@/lib/DataContext";
 import { Disclosure } from "@/components/ui/Disclosure";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -104,25 +104,63 @@ function Stepper({ label, onPrev, onNext, canPrev, canNext }: { label: string; o
   );
 }
 
-/** Consistency for each calendar month of `year`, using the same
- * every-tracked-day model as the strip: a day counts once the habit has
- * been logged at least once, and up to today. */
-function monthlyConsistency(year: number, doneDates: Set<string>, firstTracked: string, today: string): { pct: number | null }[] {
+/** Per calendar month of `year`: the consistency %, and how many days the
+ * habit was completed. `pct` is null for a month with no tracked days. */
+function monthlyConsistency(year: number, doneDates: Set<string>, firstTracked: string, today: string): { pct: number | null; done: number }[] {
   return Array.from({ length: 12 }, (_, m) => {
     const prefix = `${year}-${String(m + 1).padStart(2, "0")}`;
     const first = `${prefix}-01`;
     const last = `${prefix}-${String(new Date(year, m + 1, 0).getDate()).padStart(2, "0")}`;
     const start = first < firstTracked ? firstTracked : first;
     const end = last > today ? today : last;
-    if (start > end) return { pct: null };
+    if (start > end) return { pct: null, done: 0 };
     let tracked = 0;
     let done = 0;
     for (let d = start; d <= end; d = addDaysToDate(d, 1)) {
       tracked++;
       if (doneDates.has(d)) done++;
     }
-    return { pct: tracked === 0 ? null : pct(done, tracked) };
+    return { pct: tracked === 0 ? null : pct(done, tracked), done };
   });
+}
+
+function Ico({ children }: { children: ReactNode }) {
+  return (
+    <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="shrink-0">
+      {children}
+    </svg>
+  );
+}
+const DonutIcon = () => (
+  <Ico>
+    <circle cx="8" cy="8" r="5.5" />
+    <path d="M8 2.5A5.5 5.5 0 0 1 13.5 8" strokeWidth="2.4" />
+  </Ico>
+);
+const FlameIcon = () => (
+  <Ico>
+    <path d="M8 1.8c2.4 2.6 3.8 4.6 3.8 6.6a3.8 3.8 0 0 1-7.6 0c0-1 .5-2 1.4-3 .2 1 .8 1.6 1.6 1.8-.5-2 .1-4 1.4-5.4Z" />
+  </Ico>
+);
+const TrophyIcon = () => (
+  <Ico>
+    <path d="M4.5 2.5h7v3a3.5 3.5 0 0 1-7 0Z" />
+    <path d="M4.5 3.5H2.7c0 1.6.8 2.6 2 2.8M11.5 3.5h1.8c0 1.6-.8 2.6-2 2.8M6 13.5h4M8 9v4.5" />
+  </Ico>
+);
+const CheckIcon = () => (
+  <Ico>
+    <path d="M3 8.5 6.5 12 13 4.5" strokeWidth="1.8" />
+  </Ico>
+);
+
+function Stat({ icon, label, children }: { icon: ReactNode; label: string; children: ReactNode }) {
+  return (
+    <span className="inline-flex items-center gap-1" title={label}>
+      <span style={{ color: "var(--text-muted)" }}>{icon}</span>
+      <strong style={{ color: "var(--text-primary)" }}>{children}</strong>
+    </span>
+  );
 }
 
 export function HabitsDashboard() {
@@ -235,21 +273,24 @@ export function HabitsDashboard() {
                           onArchiveToggle={() => void toggleArchive(h)}
                           onRename={(newName) => void rename(h, newName)}
                         />
-                        <div className="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>
-                          <span>
-                            <strong style={{ color: "var(--text-primary)" }}>{h.consistencyPct}%</strong>
-                          </span>
-                          <span>
-                            <strong style={{ color: "var(--text-primary)" }}>{h.currentStreak}</strong>-day streak
-                          </span>
+                        <div
+                          className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs tabular-nums"
+                          style={{ color: "var(--text-secondary)" }}
+                        >
+                          <Stat icon={<DonutIcon />} label="Consistency">
+                            {h.consistencyPct}%
+                          </Stat>
+                          <Stat icon={<FlameIcon />} label="Current streak">
+                            {h.currentStreak}
+                          </Stat>
                           {view === "year" && (
                             <>
-                              <span>
-                                best <strong style={{ color: "var(--text-primary)" }}>{longest}</strong>
-                              </span>
-                              <span>
-                                <strong style={{ color: "var(--text-primary)" }}>{h.daysCompleted}</strong> done
-                              </span>
+                              <Stat icon={<TrophyIcon />} label="Longest streak">
+                                {longest}
+                              </Stat>
+                              <Stat icon={<CheckIcon />} label="Days completed">
+                                {h.daysCompleted}
+                              </Stat>
                             </>
                           )}
                         </div>

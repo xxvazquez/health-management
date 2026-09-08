@@ -84,32 +84,40 @@ const MONTH_LETTERS = ["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D
 const YEAR_BAR_AREA = 44;
 
 /** Twelve bars, one per calendar month, height proportional to that
- * month's consistency — a compact read on year-scale seasonality. A month
- * with no tracked days has no bar at all (just its letter), so "nothing
- * logged" and "logged, but rarely" never look alike. */
+ * month's consistency, with the number of days completed that month sitting
+ * above the bar. A month with no tracked days has no bar at all (just its
+ * letter), so "nothing logged" and "logged, but rarely" never look alike. */
 export function HabitYearBars({
   monthly,
   color,
 }: {
   /** Exactly 12 entries, Jan→Dec; `pct` null for a month with no tracked days. */
-  monthly: { pct: number | null }[];
+  monthly: { pct: number | null; done: number }[];
   color: string;
 }) {
   return (
     <div className="grid items-end" style={{ gridTemplateColumns: "repeat(12, 1fr)", gap: 3 }}>
       {monthly.map((mo, i) => (
         <div key={i} className="flex flex-col items-center">
-          <div className="flex w-full items-end justify-center" style={{ height: YEAR_BAR_AREA }}>
+          <div
+            className="flex w-full flex-col items-center justify-end"
+            style={{ height: YEAR_BAR_AREA + 10 }}
+            title={mo.pct != null ? `${MONTH_LETTERS[i]}: ${mo.done} days, ${Math.round(mo.pct)}%` : undefined}
+          >
+            {mo.pct != null && mo.done > 0 && (
+              <span className="text-[8px] leading-none tabular-nums" style={{ color: "var(--text-muted)" }}>
+                {mo.done}
+              </span>
+            )}
             {mo.pct != null && (
               <span
-                className="w-full rounded-t-sm"
+                className="mt-0.5 w-full rounded-t-sm"
                 style={{ height: Math.max(2, Math.round((mo.pct / 100) * YEAR_BAR_AREA)), background: color }}
-                title={`${MONTH_LETTERS[i]}: ${Math.round(mo.pct)}%`}
               />
             )}
           </div>
           <span
-            className="w-full border-t pt-0.5 text-center text-[9px] font-medium"
+            className="w-full border-t pt-0.5 text-center text-[9px] font-medium leading-none"
             style={{ color: "var(--text-muted)", borderColor: "var(--gridline)" }}
           >
             {MONTH_LETTERS[i]}
