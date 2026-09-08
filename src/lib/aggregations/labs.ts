@@ -11,6 +11,66 @@ export function rangeStatus(value: number, low: number | null, high: number | nu
   return "in";
 }
 
+/** The band a value should be judged against: the marker's own optimal
+ * range where one is set, otherwise the lab reference range. `basis` says
+ * which, so the read-out can word it ("below optimal" vs "below range"). */
+export function effectiveRange(m: {
+  refLow: number | null;
+  refHigh: number | null;
+  optimalLow: number | null;
+  optimalHigh: number | null;
+}): { low: number | null; high: number | null; basis: "optimal" | "reference" | null } {
+  if (m.optimalLow != null || m.optimalHigh != null) return { low: m.optimalLow, high: m.optimalHigh, basis: "optimal" };
+  if (m.refLow != null || m.refHigh != null) return { low: m.refLow, high: m.refHigh, basis: "reference" };
+  return { low: null, high: null, basis: null };
+}
+
+export interface RangeBar {
+  /** The track's numeric ends — the labels under the bar. */
+  trackLow: number;
+  trackHigh: number;
+  /** 0–100, clamped — where the value marker sits on the track. */
+  valuePct: number;
+  /** 0–100 — the optimal band's edges on the track. */
+  bandLeftPct: number;
+  bandRightPct: number;
+  hasBand: boolean;
+}
+
+/** Geometry for the horizontal range bar on the Results overview. The
+ * track spans the lab reference range; with no reference range it falls
+ * back to the optimal range widened by 75% each side. Returns null when
+ * there's nothing to anchor a track to (draw just the value + status). */
+export function rangeBar(
+  value: number,
+  refLow: number | null,
+  refHigh: number | null,
+  optLow: number | null,
+  optHigh: number | null,
+): RangeBar | null {
+  let lo: number;
+  let hi: number;
+  if (refLow != null && refHigh != null && refHigh > refLow) {
+    lo = refLow;
+    hi = refHigh;
+  } else if (optLow != null && optHigh != null && optHigh > optLow) {
+    const pad = (optHigh - optLow) * 0.75;
+    lo = optLow - pad;
+    hi = optHigh + pad;
+  } else {
+    return null;
+  }
+  const clamp = (v: number) => Math.max(0, Math.min(100, ((v - lo) / (hi - lo)) * 100));
+  return {
+    trackLow: lo,
+    trackHigh: hi,
+    valuePct: clamp(value),
+    bandLeftPct: clamp(optLow ?? lo),
+    bandRightPct: clamp(optHigh ?? hi),
+    hasBand: optLow != null || optHigh != null,
+  };
+}
+
 /** Parse a typed measurement — accepts a comma or dot decimal separator,
  * returns null for anything not a finite number. */
 export function parseNum(raw: string): number | null {
@@ -108,6 +168,9 @@ export interface HeadlineMarker {
   latest: number | null;
   measuredOn: string | null;
   status: RangeStatus;
+  /** Whether `status` was read against the optimal range or the lab
+   * reference range (null when the marker has neither). */
+  basis: "optimal" | "reference" | null;
   previous: number | null;
   deltaPct: number | null;
   spark: number[];
@@ -124,7 +187,8 @@ export function headlineMarkers(markers: LabMarker[], pinnedNames: string[]): He
     const sorted = [...m.results].sort((a, b) => a.measuredOn.localeCompare(b.measuredOn));
     const latest = sorted[sorted.length - 1];
     const previous = sorted.length >= 2 ? sorted[sorted.length - 2] : null;
-    const status = rangeStatus(latest.value, m.refLow, m.refHigh);
+    const { low, high, basis } = effectiveRange(m);
+    const status = rangeStatus(latest.value, low, high);
     const isPinned = pins.includes(normalizeName(m.name));
     if (!isPinned && status !== "low" && status !== "high") continue;
     rows.push({
@@ -134,6 +198,7 @@ export function headlineMarkers(markers: LabMarker[], pinnedNames: string[]): He
       latest: latest.value,
       measuredOn: latest.measuredOn,
       status,
+      basis,
       previous: previous?.value ?? null,
       deltaPct:
         previous && previous.value !== 0 ? ((latest.value - previous.value) / Math.abs(previous.value)) * 100 : null,
@@ -158,19 +223,23 @@ export interface FlaggedReading {
   value: number;
   measuredOn: string;
   status: "low" | "high";
-  refLow: number | null;
-  refHigh: number | null;
+  /** The bound the value missed, and which band it came from. */
+  low: number | null;
+  high: number | null;
+  basis: "optimal" | "reference";
 }
 
-/** The latest reading of every marker that is currently out of range,
+/** The latest reading of every marker that is currently outside its
+ * optimal range (or its reference range when no optimal one is set),
  * newest first. */
 export function flaggedReadings(markers: LabMarker[]): FlaggedReading[] {
   const out: FlaggedReading[] = [];
   for (const m of markers) {
     if (m.results.length === 0) continue;
     const latest = [...m.results].sort((a, b) => a.measuredOn.localeCompare(b.measuredOn))[m.results.length - 1];
-    const status = rangeStatus(latest.value, m.refLow, m.refHigh);
-    if (status !== "low" && status !== "high") continue;
+    const { low, high, basis } = effectiveRange(m);
+    const status = rangeStatus(latest.value, low, high);
+    if ((status !== "low" && status !== "high") || basis == null) continue;
     out.push({
       markerId: m.id,
       name: m.name,
@@ -178,8 +247,9 @@ export function flaggedReadings(markers: LabMarker[]): FlaggedReading[] {
       value: latest.value,
       measuredOn: latest.measuredOn,
       status,
-      refLow: m.refLow,
-      refHigh: m.refHigh,
+      low,
+      high,
+      basis,
     });
   }
   return out.sort((a, b) => b.measuredOn.localeCompare(a.measuredOn));

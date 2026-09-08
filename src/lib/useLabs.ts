@@ -140,6 +140,8 @@ export function useLabs() {
           unit: input.unit.trim() || null,
           refLow: input.refLow,
           refHigh: input.refHigh,
+          optimalLow: input.optimalLow,
+          optimalHigh: input.optimalHigh,
           sortOrder,
           results: [],
         };
@@ -166,6 +168,8 @@ export function useLabs() {
                   unit: patch.unit !== undefined ? patch.unit.trim() || null : m.unit,
                   refLow: patch.refLow !== undefined ? patch.refLow : m.refLow,
                   refHigh: patch.refHigh !== undefined ? patch.refHigh : m.refHigh,
+                  optimalLow: patch.optimalLow !== undefined ? patch.optimalLow : m.optimalLow,
+                  optimalHigh: patch.optimalHigh !== undefined ? patch.optimalHigh : m.optimalHigh,
                   sortOrder: patch.sortOrder !== undefined ? patch.sortOrder : m.sortOrder,
                 }
               : m,

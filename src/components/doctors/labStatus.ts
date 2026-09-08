@@ -11,3 +11,12 @@ export function statusColor(status: RangeStatus): string {
   if (status === "low" || status === "high") return "var(--status-warning)";
   return "var(--text-muted)";
 }
+
+/** The Results overview reads values against their optimal band, where
+ * "outside" is a softer signal than a reference-range miss — a muted clay,
+ * never the amber of `statusColor`. */
+export function optimalStatusColor(status: RangeStatus): string {
+  if (status === "in") return "var(--status-good)";
+  if (status === "low" || status === "high") return "var(--status-caution)";
+  return "var(--text-muted)";
+}

@@ -358,14 +358,19 @@ own way (below).
 
 `lab_panels` / `lab_markers` / `lab_results` back the Medical page's **Results**
 tab — a blood-results tracker. A `lab_marker` is one measurement followed over
-time (TSH, Ferritin); its `unit` and optional `ref_low` / `ref_high` reference
-range live on the marker, and each `lab_result` is one dated `value`. Markers
+time (TSH, Ferritin); its `unit`, optional `ref_low` / `ref_high` lab reference
+range, and optional `optimal_low` / `optimal_high` personal target band live on
+the marker, and each `lab_result` is one dated `value`. The Overview reads a
+value against its optimal range where one is set, otherwise the reference range
+(`effectiveRange` in `aggregations/labs`), so "below optimal" surfaces a value
+that clears the lab range but misses the target. Markers
 group into user-named `lab_panels` (Hormones, Liver…) via `lab_markers.panel_id`
 (composite FK `(user_id, panel_id) → lab_panels(user_id, id)`, `on delete set
 null` — deleting a panel ungroups its markers); `lab_results → lab_markers` is
 `on delete cascade`. Owner-only, plain `auth.uid() = user_id`. The Results tab has an **Overview**
-(headline grid, flagged-value list, per-panel small-multiples, compare overlay —
-`LabsOverview`, all `useLabs` with no extra query) and a **Manage** view where
+(headline grid, flagged-value list, per-panel cards where each marker is a
+reference-range bar with the optimal band and the latest reading marked, compare
+overlay — `LabsOverview`, all `useLabs` with no extra query) and a **Manage** view where
 markers and panels are added/renamed; values are entered one at a time from a
 marker's detail or a whole blood draw at once from its **Add results** batch view
 (one date and lab, a value per marker — one `lab_results` row each, written
