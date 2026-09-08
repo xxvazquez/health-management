@@ -1,4 +1,4 @@
-import type { RawItem, RawLog, RawWorkoutLog, RawStoolLog, RawPeriodLog, PeriodIntensity, WorkoutExercise } from "@/lib/types";
+import type { RawItem, RawLog, RawCategory, RawWorkoutLog, RawStoolLog, RawPeriodLog, PeriodIntensity, WorkoutExercise } from "@/lib/types";
 import { COLLECTION_METHODS } from "@/lib/types";
 import type { ItemType } from "@/taxonomy/categories";
 
@@ -43,16 +43,19 @@ export function demoSupplementItems(): { id: string; name: string }[] {
 // Its own category — a stepper-tracked amount, not a yes/no habit. Other
 // measurables (weight, steps, …) would live here too.
 const DAILY_HABIT: [string, string] = ["Sleep", "Measures"];
-const OCCASIONAL_HABITS: [string, string][] = [
-  ["Workout", "Body"],
-  ["Walk", "Body"],
-  ["Physiotherapy", "Body"],
-  ["Stretch", "Body"],
-  ["Take a shower", "Daily"],
-  ["Read", "Daily"],
-  ["Meditate", "Daily"],
-  ["Fasting", "Food"],
-  ["No alcohol", "Food"],
+// Each rolls its own daily chance, so the demo shows a realistic spread of
+// consistencies (and a full history) rather than every habit sitting near
+// the same low number.
+const OCCASIONAL_HABITS: [string, string, number][] = [
+  ["Take a shower", "Daily", 0.82],
+  ["Read", "Daily", 0.64],
+  ["No alcohol", "Food", 0.58],
+  ["Walk", "Body", 0.48],
+  ["Meditate", "Daily", 0.4],
+  ["Stretch", "Body", 0.34],
+  ["Workout", "Body", 0.27],
+  ["Fasting", "Food", 0.19],
+  ["Physiotherapy", "Body", 0.12],
 ];
 const SYMPTOMS: [string, string][] = [
   ["Bloating", "Digestive Symptom"],
@@ -76,7 +79,20 @@ const SIGNATURE_MEALS: { meal: (typeof MEALS)[number]; items: [string, string][]
 ];
 
 const DEMO_SEED = 20260101;
-const DEMO_WINDOW_DAYS = 75;
+// ~8 months so the year-scale views (Trends → Habits "Year", etc.) have a
+// real multi-month history to show. Anything older than ANALYTICS_START_DATE
+// is clipped by DataContext anyway.
+const DEMO_WINDOW_DAYS = 250;
+
+// A few habit categories carry a custom colour so the demo shows the
+// per-category tinting (Trends → Habits grids, and Settings). Keyed by
+// `itemType:name`, resolved the same way real `categories` rows are.
+const DEMO_CATEGORY_COLORS: { itemType: ItemType; name: string; color: string }[] = [
+  { itemType: "habit", name: "Body", color: "series-6" },
+  { itemType: "habit", name: "Daily", color: "series-2" },
+  { itemType: "habit", name: "Food", color: "series-4" },
+  { itemType: "habit", name: "Measures", color: "series-8" },
+];
 
 /** A handful of core lifts, each trained roughly weekly with a plausible
  * upward trend — enough for the Strength Progress table and its charts to
@@ -113,6 +129,7 @@ function demoItemIdentity(rawName: string): string {
 export interface DemoDataset {
   items: RawItem[];
   logs: RawLog[];
+  categories: RawCategory[];
   workoutLogs: RawWorkoutLog[];
   stoolLogs: RawStoolLog[];
   periodLogs: RawPeriodLog[];
@@ -209,9 +226,8 @@ export function buildDemoDataset(): DemoDataset {
       const sleepMinutes = (chance(0.15) ? 315 : 375) + Math.floor(rand() * 9) * 15;
       writeLog(ensureItem("habit", DAILY_HABIT[0], DAILY_HABIT[1]), "habit", date, null, sleepMinutes);
     }
-    if (chance(0.5)) {
-      const [name, category] = pick(OCCASIONAL_HABITS);
-      writeLog(ensureItem("habit", name, category), "habit", date, null);
+    for (const [name, category, freq] of OCCASIONAL_HABITS) {
+      if (chance(freq)) writeLog(ensureItem("habit", name, category), "habit", date, null);
     }
 
     if (chance(0.15)) {
@@ -300,5 +316,13 @@ export function buildDemoDataset(): DemoDataset {
     cycleStart = next;
   }
 
-  return { items: Array.from(itemsByName.values()), logs, workoutLogs, stoolLogs, periodLogs };
+  const categories: RawCategory[] = DEMO_CATEGORY_COLORS.map((c) => ({
+    id: `${DEMO_ID_PREFIX}cat:${c.itemType}:${c.name.toLowerCase().replace(/\s+/g, "-")}`,
+    itemType: c.itemType,
+    name: c.name,
+    icon: null,
+    color: c.color,
+  }));
+
+  return { items: Array.from(itemsByName.values()), logs, categories, workoutLogs, stoolLogs, periodLogs };
 }
