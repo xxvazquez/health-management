@@ -3,7 +3,6 @@
 import { useState, type FormEvent, type ReactNode } from "react";
 import type { ManageableItem } from "@/lib/useItemActions";
 import { PencilIcon, TrashIcon } from "@/components/ui/Notebook";
-import { ArchiveIcon } from "@/components/ui/icons";
 
 /** Shared rename state backing the two pieces below — lets a row put the
  * name on one side and the Edit/Archive (or Save/Cancel, while renaming)
@@ -98,16 +97,12 @@ export function ItemActionButtons({
   state,
   onArchiveToggle,
   onDelete,
-  iconArchive = false,
 }: {
   item: ManageableItem;
   busy: boolean;
   state: InlineRenameState;
   onArchiveToggle: () => void;
   onDelete?: () => void;
-  /** Render Archive/Unarchive as an icon button rather than a text button
-   * — for tight layouts like the Trends adherence cards. */
-  iconArchive?: boolean;
 }) {
   const [confirmingDelete, setConfirmingDelete] = useState(false);
 
@@ -150,56 +145,20 @@ export function ItemActionButtons({
       <RowIcon onClick={state.start} disabled={busy} label="Rename">
         <PencilIcon size={15} />
       </RowIcon>
-      {iconArchive ? (
-        <RowIcon onClick={onArchiveToggle} disabled={busy} label={item.isArchived ? "Unarchive" : "Archive"}>
-          <ArchiveIcon size={15} dir={item.isArchived ? "up" : "down"} />
-        </RowIcon>
-      ) : (
-        <button
-          type="button"
-          onClick={onArchiveToggle}
-          disabled={busy}
-          className="rounded-md px-1.5 py-1 text-xs font-medium transition-colors hover:bg-[var(--page-plane)] disabled:opacity-40"
-          style={{ color: "var(--text-muted)" }}
-        >
-          {item.isArchived ? "Unarchive" : "Archive"}
-        </button>
-      )}
+      <button
+        type="button"
+        onClick={onArchiveToggle}
+        disabled={busy}
+        className="rounded-md px-1.5 py-1 text-xs font-medium transition-colors hover:bg-[var(--page-plane)] disabled:opacity-40"
+        style={{ color: "var(--text-muted)" }}
+      >
+        {item.isArchived ? "Unarchive" : "Archive"}
+      </button>
       {onDelete && (
         <RowIcon onClick={() => setConfirmingDelete(true)} disabled={busy} label="Delete" danger>
           <TrashIcon size={15} />
         </RowIcon>
       )}
-    </span>
-  );
-}
-
-/** Name + Edit/Archive together, inline — for rows with nothing fixed-width
- * to align against (e.g. the Habits page's stat row). */
-export function ItemActions({
-  item,
-  busy,
-  onArchiveToggle,
-  onRename,
-  onDelete,
-  iconArchive = false,
-}: {
-  item: ManageableItem;
-  busy: boolean;
-  onArchiveToggle: () => void;
-  onRename: (newName: string) => void;
-  onDelete?: () => void;
-  iconArchive?: boolean;
-}) {
-  const state = useInlineRename(item, onRename);
-  return (
-    <span className="flex items-center justify-between gap-1.5">
-      <span className="min-w-0 truncate">
-        <ItemNameField item={item} state={state} />
-      </span>
-      <span className="flex shrink-0 items-center">
-        <ItemActionButtons item={item} busy={busy} state={state} onArchiveToggle={onArchiveToggle} onDelete={onDelete} iconArchive={iconArchive} />
-      </span>
     </span>
   );
 }

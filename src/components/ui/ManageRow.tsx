@@ -24,7 +24,7 @@ export interface ManageRowAppearance {
  * inline Delete/Keep confirm. Owns its own edit + confirm state; the
  * parent just supplies the handlers. Used by the Reminder-lists and
  * Doctor-types sections; the item rows have their own richer row (extra
- * per-item controls) built on ItemActions. */
+ * per-item controls) built on ItemActionButtons. */
 export function ManageRow({
   name,
   isArchived = false,
