@@ -269,33 +269,45 @@ export function repetitionInsights(
   });
 }
 
-export interface MealIngredientRank {
-  mealTag: string;
-  /** How many meal instances of this tag were logged in the range. */
-  instances: number;
-  /** Ranked by how many of this meal's instances contained the ingredient
-   * — so `count / instances` is how routine it is. */
-  items: { item: string; count: number }[];
+type MealTypeClassification = "exclusive" | "cross-meal" | "spread";
+
+export interface MealTypeBreakdownRow {
+  item: string;
+  countsByMeal: Record<string, number>;
+  total: number;
+  classification: MealTypeClassification;
+  exclusiveMeal: string | null;
 }
 
-/** Per meal tag, the ingredients logged with it most often — one ranked
- * list per meal, for the "what do I eat for breakfast" small multiples. */
-export function ingredientsByMeal(instances: MealInstance[], topN = 6): MealIngredientRank[] {
-  const byMeal = new Map<string, { instances: number; counts: Map<string, number> }>();
-  for (const inst of instances) {
-    const m = byMeal.get(inst.mealTag) ?? { instances: 0, counts: new Map<string, number>() };
-    m.instances += 1;
-    for (const item of inst.items) m.counts.set(item, (m.counts.get(item) ?? 0) + 1);
-    byMeal.set(inst.mealTag, m);
-  }
-  return Array.from(byMeal.entries()).map(([mealTag, m]) => ({
-    mealTag,
-    instances: m.instances,
-    items: Array.from(m.counts.entries())
-      .map(([item, count]) => ({ item, count }))
-      .sort((a, b) => b.count - a.count || a.item.localeCompare(b.item))
-      .slice(0, topN),
-  }));
+const MEAL_EXCLUSIVE_THRESHOLD = 0.8;
+
+/** Per top ingredient, how its occurrences split across meal tags — feeds
+ * the compact meal-type table. Reuses the already-computed `mealInstances`
+ * list rather than re-deriving anything from raw events. */
+export function mealTypeIngredientBreakdown(instances: MealInstance[], topItems: string[]): MealTypeBreakdownRow[] {
+  return topItems.map((item) => {
+    const countsByMeal: Record<string, number> = {};
+    let total = 0;
+    for (const instance of instances) {
+      if (!instance.items.includes(item)) continue;
+      countsByMeal[instance.mealTag] = (countsByMeal[instance.mealTag] ?? 0) + 1;
+      total++;
+    }
+
+    let classification: MealTypeClassification = "spread";
+    let exclusiveMeal: string | null = null;
+    if (total > 0) {
+      const [topMeal, topCount] = Object.entries(countsByMeal).sort((a, b) => b[1] - a[1])[0];
+      if (topCount / total >= MEAL_EXCLUSIVE_THRESHOLD) {
+        classification = "exclusive";
+        exclusiveMeal = topMeal;
+      } else if (Object.keys(countsByMeal).length >= 2) {
+        classification = "cross-meal";
+      }
+    }
+
+    return { item, countsByMeal, total, classification, exclusiveMeal };
+  });
 }
 
 export type VarietyTrendDirection = "increasing" | "decreasing" | "stable";
