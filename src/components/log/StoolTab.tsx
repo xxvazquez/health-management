@@ -4,6 +4,7 @@ import { useState, type ReactNode } from "react";
 import { BristolIcon } from "@/components/icons/BristolIcons";
 import { CloseIcon } from "@/components/ui/icons";
 import { Button } from "@/components/ui/Button";
+import { TimeField } from "@/components/ui/TimeField";
 import { defaultLogTimeValue, toTimeInputValue } from "@/lib/logCandidates";
 import {
   STOOL_COLORS,
@@ -197,18 +198,21 @@ function Chip({
   onClick,
   accent,
   icon,
+  ariaLabel,
 }: {
   label: string;
   active: boolean;
   onClick: () => void;
   accent: string;
   icon?: ReactNode;
+  ariaLabel?: string;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
       aria-pressed={active}
+      aria-label={ariaLabel}
       className="flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-normal whitespace-nowrap transition-colors"
       style={{
         borderColor: active ? accent : "var(--border-hairline)",
@@ -341,14 +345,6 @@ export function StoolTab({
     (draft.note?.trim() ? 1 : 0) +
     CHARACTERISTIC_FIELDS.filter((f) => draft[f.key]).length;
 
-  // The Time field stays neutral while it reads roughly "now", and only
-  // takes a tinted border once it's set more than a few minutes off — a
-  // quiet "this entry is being timestamped for earlier", matching the Log
-  // page's own Time field.
-  const nowMinutes = new Date().getHours() * 60 + new Date().getMinutes();
-  const [draftHrs, draftMins] = draft.loggedAtTime.split(":").map(Number);
-  const timeIsExplicit = Math.abs((draftHrs || 0) * 60 + (draftMins || 0) - nowMinutes) > 5;
-
   return (
     <div className="flex flex-col gap-3">
       {editingId && (
@@ -360,23 +356,7 @@ export function StoolTab({
         </div>
       )}
 
-      <div className="flex items-center gap-3">
-        <p className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
-          Time
-        </p>
-        <input
-          type="time"
-          value={draft.loggedAtTime}
-          onChange={(e) => setDraft((d) => ({ ...d, loggedAtTime: e.target.value }))}
-          onClick={(e) => e.currentTarget.showPicker?.()}
-          className="h-7 rounded-md border px-2.5 text-xs font-medium tabular-nums transition-colors"
-          style={{
-            borderColor: timeIsExplicit ? "var(--series-2)" : "var(--border-hairline)",
-            background: "var(--surface-1)",
-            color: "var(--text-primary)",
-          }}
-        />
-      </div>
+      <TimeField value={draft.loggedAtTime} onChange={(t) => setDraft((d) => ({ ...d, loggedAtTime: t }))} />
 
       {/* Same card treatment as every other tab's category groups
           (border, rounded-lg, colored header) — Bristol type is this tab's
@@ -386,28 +366,18 @@ export function StoolTab({
         <p className="border-b pb-2 text-xs font-semibold" style={{ color: accent, borderColor: "var(--border-hairline)" }}>
           Bristol type — tap all that apply
         </p>
-        <div className="grid grid-cols-4 gap-2 sm:grid-cols-7">
-          {BRISTOL_SCORES.map((score) => {
-            const active = draft.bristolScores.includes(score);
-            return (
-              <button
-                key={score}
-                type="button"
-                onClick={() => toggleBristol(score)}
-                aria-label={`Bristol ${score}`}
-                aria-pressed={active}
-                className="flex flex-col items-center gap-0.5 rounded-md border px-2 py-1.5 transition-colors"
-                style={{
-                  borderColor: active ? accent : "var(--border-hairline)",
-                  background: active ? `color-mix(in oklab, ${accent} 14%, var(--surface-1))` : "transparent",
-                  color: active ? accent : "var(--text-secondary)",
-                }}
-              >
-                <BristolIcon score={score} />
-                <span className="text-xs font-semibold">{score}</span>
-              </button>
-            );
-          })}
+        <div className="flex flex-wrap gap-1.5">
+          {BRISTOL_SCORES.map((score) => (
+            <Chip
+              key={score}
+              label={String(score)}
+              ariaLabel={`Bristol ${score}`}
+              icon={<BristolIcon score={score} size={16} />}
+              active={draft.bristolScores.includes(score)}
+              onClick={() => toggleBristol(score)}
+              accent={accent}
+            />
+          ))}
         </div>
       </div>
 
