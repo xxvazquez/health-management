@@ -210,16 +210,19 @@ function NavLinkList({
             aria-current={active ? "page" : undefined}
             title={collapsed ? item.label : undefined}
             className={clsx(
-              "tap-target relative flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium whitespace-nowrap transition-colors lg:py-1.5",
+              "tap-target relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm whitespace-nowrap transition-colors lg:py-2",
               collapsed && "justify-center px-0",
               !active && "hover:bg-[var(--page-plane)]",
             )}
             style={{
-              background: active ? "var(--page-plane)" : "transparent",
+              background: active ? "color-mix(in oklab, var(--series-1) 14%, transparent)" : "transparent",
               color: active ? "var(--text-primary)" : "var(--text-secondary)",
+              fontWeight: active ? 600 : 500,
             }}
           >
-            {ICONS[item.iconKey]}
+            <span className="shrink-0" style={{ color: active ? "var(--series-1)" : "var(--text-muted)" }}>
+              {ICONS[item.iconKey]}
+            </span>
             {!collapsed && item.label}
             {badge > 0 &&
               (collapsed ? (
@@ -250,7 +253,7 @@ function NavLinks({ pathname, collapsed, onNavigate }: { pathname: string; colla
   const items = partnerLinked ? [...PRIMARY_LINKS, MESSAGES_LINK] : PRIMARY_LINKS;
 
   return (
-    <nav className="flex flex-1 flex-col gap-0.5">
+    <nav className="flex flex-1 flex-col gap-1">
       <NavLinkList
         items={items}
         pathname={pathname}
