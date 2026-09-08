@@ -1,76 +1,175 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useData } from "@/lib/DataContext";
 import { Disclosure } from "@/components/ui/Disclosure";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageSkeleton } from "@/components/ui/Skeleton";
 import { DashboardHeader } from "@/components/analytics/DashboardHeader";
 import { Card } from "@/components/ui/Card";
-import { DateRangeFilter } from "@/components/ui/DateRangeFilter";
 import { Insight } from "@/components/ui/Insight";
 import { BulletList } from "@/components/ui/BulletList";
 import { Methodology } from "@/components/ui/Methodology";
 import { StatTile } from "@/components/ui/StatTile";
-import { AdherenceStrip } from "@/components/charts/AdherenceStrip";
-import { useDateRangeFilter } from "@/lib/useDateRangeFilter";
-import { addDaysToDate } from "@/lib/aggregations/common";
-import { buildStateByDate } from "@/lib/aggregations/adherence";
-import { habitsAtAGlance, habitsInsight, habitStats, habitStatsRanked } from "@/lib/aggregations/habits";
-import { useItemActions } from "@/lib/useItemActions";
 import { ItemActions } from "@/components/ui/ItemActions";
+import { HabitGridWeekdays, HabitMonthGrid, HabitYearBars } from "@/components/charts/HabitMonthGrid";
+import { useItemActions } from "@/lib/useItemActions";
+import {
+  addDaysToDate,
+  computeLongestStreak,
+  formatMonthYear,
+  getDatasetSpan,
+  listDatesBetween,
+  monthStart,
+  pct,
+  todayLocalISODate,
+} from "@/lib/aggregations/common";
+import { buildStateByDate } from "@/lib/aggregations/adherence";
+import { habitsAtAGlance, habitsInsight, habitStatsRanked } from "@/lib/aggregations/habits";
 import { TYPE_ACCENT } from "@/taxonomy/categories";
 
-const STRIP_WINDOW_DAYS = 90;
+const ACCENT = TYPE_ACCENT.habit;
+
+type View = "month" | "year";
+
+function Segmented({ value, onChange }: { value: View; onChange: (v: View) => void }) {
+  return (
+    <div className="inline-flex rounded-md border p-0.5" style={{ borderColor: "var(--border-hairline)" }}>
+      {(["month", "year"] as const).map((v) => (
+        <button
+          key={v}
+          type="button"
+          onClick={() => onChange(v)}
+          aria-pressed={value === v}
+          className="rounded px-2.5 py-1 text-xs font-medium capitalize transition-colors"
+          style={{
+            background: value === v ? `color-mix(in oklab, ${ACCENT} 14%, var(--surface-1))` : "transparent",
+            color: value === v ? ACCENT : "var(--text-muted)",
+          }}
+        >
+          {v}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function StepIcon({ dir }: { dir: "prev" | "next" }) {
+  return (
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d={dir === "prev" ? "M7.5 2.5 4 6l3.5 3.5" : "M4.5 2.5 8 6l-3.5 3.5"} />
+    </svg>
+  );
+}
+
+function Stepper({ label, onPrev, onNext, canPrev, canNext }: { label: string; onPrev: () => void; onNext: () => void; canPrev: boolean; canNext: boolean }) {
+  return (
+    <div className="flex items-center gap-1">
+      <button
+        type="button"
+        onClick={onPrev}
+        disabled={!canPrev}
+        aria-label="Previous"
+        className="flex h-7 w-7 items-center justify-center rounded-md border transition-colors disabled:opacity-30"
+        style={{ borderColor: "var(--border-hairline)", color: "var(--text-secondary)" }}
+      >
+        <StepIcon dir="prev" />
+      </button>
+      <span className="min-w-28 text-center text-xs font-medium tabular-nums" style={{ color: "var(--text-primary)" }}>
+        {label}
+      </span>
+      <button
+        type="button"
+        onClick={onNext}
+        disabled={!canNext}
+        aria-label="Next"
+        className="flex h-7 w-7 items-center justify-center rounded-md border transition-colors disabled:opacity-30"
+        style={{ borderColor: "var(--border-hairline)", color: "var(--text-secondary)" }}
+      >
+        <StepIcon dir="next" />
+      </button>
+    </div>
+  );
+}
+
+/** Consistency for each calendar month of `year`, using the same
+ * every-tracked-day model as the strip: a day counts once the habit has
+ * been logged at least once, and up to today. */
+function monthlyConsistency(year: number, doneDates: Set<string>, firstTracked: string, today: string): { pct: number | null }[] {
+  return Array.from({ length: 12 }, (_, m) => {
+    const prefix = `${year}-${String(m + 1).padStart(2, "0")}`;
+    const first = `${prefix}-01`;
+    const last = `${prefix}-${String(new Date(year, m + 1, 0).getDate()).padStart(2, "0")}`;
+    const start = first < firstTracked ? firstTracked : first;
+    const end = last > today ? today : last;
+    if (start > end) return { pct: null };
+    let tracked = 0;
+    let done = 0;
+    for (let d = start; d <= end; d = addDaysToDate(d, 1)) {
+      tracked++;
+      if (doneDates.has(d)) done++;
+    }
+    return { pct: tracked === 0 ? null : pct(done, tracked) };
+  });
+}
 
 export function HabitsDashboard() {
   const { status, events, refresh } = useData();
-  const { span, range, setRange, filtered } = useDateRangeFilter(events);
   const { busyIdentity, toggleArchive, rename } = useItemActions(refresh);
+  const today = useMemo(() => todayLocalISODate(), []);
 
-  // The insight always reads the full history (recent-vs-usual needs a
-  // stable baseline) — independent of whatever range the detail charts
-  // below are filtered to.
+  const [view, setView] = useState<View>("month");
+  const [anchor, setAnchor] = useState(() => monthStart(todayLocalISODate()));
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
+
   const insight = useMemo(() => habitsInsight(events), [events]);
   const glance = useMemo(() => habitsAtAGlance(events), [events]);
-  const allStats = useMemo(() => habitStats(filtered), [filtered]);
-  const ranked = useMemo(() => habitStatsRanked(filtered).filter((s) => !s.isArchived), [filtered]);
-  const archived = useMemo(() => allStats.filter((i) => i.isArchived), [allStats]);
+  const ranked = useMemo(() => habitStatsRanked(events), [events]);
+
+  const active = useMemo(() => ranked.filter((s) => !s.isArchived), [ranked]);
+  const archived = useMemo(() => ranked.filter((s) => s.isArchived), [ranked]);
+  const span = useMemo(() => getDatasetSpan(events), [events]);
+
+  const categories = useMemo(() => Array.from(new Set(active.map((s) => s.category))).sort(), [active]);
+
+  const habits = useMemo(() => {
+    const list = categoryFilter === "all" ? active : active.filter((s) => s.category === categoryFilter);
+    return [...list].sort((a, b) => a.item.localeCompare(b.item));
+  }, [active, categoryFilter]);
+
+  const doneByHabit = useMemo(() => {
+    const m = new Map<string, Set<string>>();
+    for (const s of active) m.set(s.item, new Set(buildStateByDate(events, s.item).keys()));
+    return m;
+  }, [events, active]);
 
   if (status === "loading") return <PageSkeleton />;
   if (status === "empty") return <EmptyState />;
 
-  const stripEnd = range?.end ?? span?.end ?? "";
-  const stripStart = stripEnd ? addDaysToDate(stripEnd, -(STRIP_WINDOW_DAYS - 1)) : "";
-  const clampedStripStart = span && stripStart < span.start ? span.start : stripStart;
+  const anchorYear = Number(anchor.slice(0, 4));
+  const stepMonths = view === "month" ? 1 : 12;
+  const stepLabel = view === "month" ? formatMonthYear(anchor) : String(anchorYear);
+  const shift = (n: number) => {
+    const d = new Date(`${anchor}T00:00:00`);
+    d.setMonth(d.getMonth() + n);
+    setAnchor(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`);
+  };
+  const canPrev = span ? anchor > monthStart(span.start) : false;
+  const canNext = view === "month" ? anchor < monthStart(today) : anchorYear < Number(today.slice(0, 4));
 
   return (
     <div className="flex flex-col gap-5">
       <DashboardHeader>Habits</DashboardHeader>
 
-      {span && range && (
-        <div className="flex justify-end">
-          <DateRangeFilter span={span} value={range} onChange={setRange} accent={TYPE_ACCENT.habit} />
-        </div>
-      )}
-
       {glance.trackedCount > 0 && (
-        <div
-          className={`grid grid-cols-2 gap-3 ${glance.increasedCount > 0 || glance.decreasedCount > 0 ? "sm:grid-cols-4" : "sm:grid-cols-2"}`}
-        >
+        <div className="grid grid-cols-2 gap-3">
           <StatTile
             label="Average consistency"
             value={glance.avgConsistencyPct !== null ? `${Math.round(glance.avgConsistencyPct)}%` : "—"}
             detail={`across ${glance.trackedCount} tracked`}
-            accent={TYPE_ACCENT.habit}
+            accent={ACCENT}
           />
           <StatTile label="Tracked" value={String(glance.trackedCount)} detail={glance.trackedCount === 1 ? "habit" : "habits"} />
-          {(glance.increasedCount > 0 || glance.decreasedCount > 0) && (
-            <>
-              <StatTile label="Running above usual" value={String(glance.increasedCount)} detail="last 14 tracked days" />
-              <StatTile label="Running below usual" value={String(glance.decreasedCount)} detail="last 14 tracked days" />
-            </>
-          )}
         </div>
       )}
 
@@ -80,58 +179,102 @@ export function HabitsDashboard() {
         <BulletList title="Running differently than usual" tone="var(--text-muted)" bullets={insight.changed} />
       )}
 
-      <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-        Every habit, biggest change first
-      </p>
-
-      {ranked.length > 0 && (
-        <Card tier="raw">
-          <div className="flex flex-col">
-            {ranked.map((item) => (
-              <div
-                key={item.itemIdentity}
-                className="flex flex-col gap-2 border-b py-3.5 first:pt-0 last:border-0 last:pb-0"
-                style={{ borderColor: "var(--gridline)" }}
-              >
-                <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-                  <span className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                    <ItemActions
-                      item={item}
-                      busy={busyIdentity === item.itemIdentity}
-                      onArchiveToggle={() => void toggleArchive(item)}
-                      onRename={(newName) => void rename(item, newName)}
-                    />
-                    <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-                      {item.category}
-                    </span>
-                    {item.shiftPp !== null && Math.abs(item.shiftPp) >= 15 && (
-                      <span
-                        className="text-xs font-medium tabular-nums"
-                        style={{ color: item.shiftPp > 0 ? "var(--status-good)" : "var(--status-warning)" }}
-                      >
-                        {item.shiftPp > 0 ? "▲" : "▼"} {Math.abs(item.shiftPp)}pp vs usual
-                      </span>
-                    )}
-                  </span>
-                  <span className="flex gap-4 text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>
-                    <span>
-                      <strong style={{ color: "var(--text-primary)" }}>{item.consistencyPct}%</strong> consistency
-                    </span>
-                    <span>
-                      <strong style={{ color: "var(--text-primary)" }}>{item.currentStreak}</strong> current streak
-                    </span>
-                    <span>
-                      {item.daysCompleted}/{item.daysTracked} days tracked
-                    </span>
-                  </span>
-                </div>
-                {clampedStripStart && (
-                  <AdherenceStrip startDate={clampedStripStart} endDate={stripEnd} stateByDate={buildStateByDate(filtered, item.item)} color={TYPE_ACCENT.habit} />
-                )}
-              </div>
-            ))}
+      {active.length > 0 && (
+        <>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <Segmented value={view} onChange={setView} />
+            <Stepper label={stepLabel} onPrev={() => shift(-stepMonths)} onNext={() => shift(stepMonths)} canPrev={canPrev} canNext={canNext} />
           </div>
-        </Card>
+
+          {categories.length > 1 && (
+            <div className="flex flex-wrap gap-1.5">
+              {["all", ...categories].map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => setCategoryFilter(c)}
+                  aria-pressed={categoryFilter === c}
+                  className="rounded-md border px-2.5 py-1 text-xs font-medium capitalize transition-colors"
+                  style={{
+                    borderColor: categoryFilter === c ? ACCENT : "var(--border-hairline)",
+                    background: categoryFilter === c ? `color-mix(in oklab, ${ACCENT} 12%, var(--surface-1))` : "transparent",
+                    color: categoryFilter === c ? ACCENT : "var(--text-muted)",
+                  }}
+                >
+                  {c === "all" ? "All" : c}
+                </button>
+              ))}
+            </div>
+          )}
+
+          <Card tier="raw">
+            <div className="flex flex-col divide-y" style={{ borderColor: "var(--gridline)" }}>
+              {habits.map((h) => {
+                const done = doneByHabit.get(h.item) ?? new Set<string>();
+                const longest =
+                  view === "year" ? computeLongestStreak(listDatesBetween(h.firstTrackedDate, today), done) : 0;
+                return (
+                  <div key={h.itemIdentity} className="flex flex-col gap-2.5 py-3.5 first:pt-0 last:pb-0 lg:flex-row lg:items-start lg:gap-8">
+                    <div className="min-w-0 lg:w-64 lg:shrink-0">
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                        <ItemActions
+                          item={h}
+                          busy={busyIdentity === h.itemIdentity}
+                          onArchiveToggle={() => void toggleArchive(h)}
+                          onRename={(newName) => void rename(h, newName)}
+                        />
+                        {h.shiftPp !== null && Math.abs(h.shiftPp) >= 15 && (
+                          <span
+                            className="text-xs font-medium tabular-nums"
+                            style={{ color: h.shiftPp > 0 ? "var(--status-good)" : "var(--status-warning)" }}
+                          >
+                            {h.shiftPp > 0 ? "▲" : "▼"} {Math.abs(h.shiftPp)}pp vs usual
+                          </span>
+                        )}
+                      </div>
+                      <div className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>
+                        <span>
+                          <strong style={{ color: "var(--text-primary)" }}>{h.consistencyPct}%</strong> consistency
+                        </span>
+                        <span>
+                          <strong style={{ color: "var(--text-primary)" }}>{h.currentStreak}</strong>-day streak
+                        </span>
+                        {view === "year" && (
+                          <>
+                            <span>
+                              <strong style={{ color: "var(--text-primary)" }}>{longest}</strong> best
+                            </span>
+                            <span>
+                              <strong style={{ color: "var(--text-primary)" }}>{h.daysCompleted}</strong> days done
+                            </span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="shrink-0">
+                      {view === "month" ? (
+                        <div className="flex flex-col gap-1">
+                          <HabitGridWeekdays />
+                          <HabitMonthGrid monthAnchor={anchor} completedDates={done} firstTrackedDate={h.firstTrackedDate} today={today} color={ACCENT} />
+                        </div>
+                      ) : (
+                        <div className="w-56">
+                          <HabitYearBars monthly={monthlyConsistency(anchorYear, done, h.firstTrackedDate, today)} color={ACCENT} />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+              {habits.length === 0 && (
+                <p className="py-3 text-sm" style={{ color: "var(--text-muted)" }}>
+                  No habits in this category.
+                </p>
+              )}
+            </div>
+          </Card>
+        </>
       )}
 
       {archived.length > 0 && (
@@ -162,11 +305,11 @@ export function HabitsDashboard() {
       )}
 
       <Methodology>
-        This compares each habit&apos;s consistency over the last 14 tracked days against its own overall
-        consistency since it was first logged — never a fixed target, and never a judgment of whether that&apos;s
-        good. A habit needs at least 10 overall tracked days and 5 recent tracked days before it&apos;s described
-        either way; below that it&apos;s left out rather than guessed at. Archiving a habit only hides it from new
-        logging — its full history stays in every chart and comparison here and elsewhere in the app.
+        A day counts as tracked once the habit has been logged at least once, through to today; gaps count as
+        misses, days before the first log don&apos;t. Consistency is completed days over tracked days. &quot;What
+        stands out&quot; compares the last 14 tracked days with the habit&apos;s own longer-run pace and needs at
+        least 10 overall and 5 recent tracked days before it says anything. Archiving only hides a habit from new
+        logging — its history stays in every view here.
       </Methodology>
     </div>
   );
