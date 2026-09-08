@@ -3,7 +3,6 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { Card } from "@/components/ui/Card";
 import { Disclosure } from "@/components/ui/Disclosure";
-import { ItemActions } from "@/components/ui/ItemActions";
 import { ChevronIcon } from "@/components/ui/icons";
 import { HabitGridWeekdays, HabitMonthGrid, HabitYearBars } from "@/components/charts/HabitMonthGrid";
 import { buildStateByDate } from "@/lib/aggregations/adherence";
@@ -186,17 +185,14 @@ function Stat({ icon, label, children }: { icon: ReactNode; label: string; child
  * The Trends adherence view shared by Habits and Supplements: an A–Z grid
  * of coloured cards, each a month calendar (or, in Year view, a 12-month
  * consistency bar) for one item, with a Month/Year toggle, a period
- * stepper and a category filter. Rename/archive actions are wired when the
- * caller passes handlers.
+ * stepper and a category filter. Review-only — renaming and archiving live
+ * on the Settings page, like every other Trends dashboard.
  */
 export function AdherenceCardGrid({
   stats,
   events,
   accent,
   noun,
-  busyIdentity = null,
-  onArchiveToggle,
-  onRename,
 }: {
   /** Every item, active and archived — split internally. */
   stats: ItemStats[];
@@ -205,9 +201,6 @@ export function AdherenceCardGrid({
   accent: string;
   /** "habit" / "supplement" — used in the empty-category line. */
   noun: string;
-  busyIdentity?: string | null;
-  onArchiveToggle?: (item: ItemStats) => void;
-  onRename?: (item: ItemStats, name: string) => void;
 }) {
   const today = useMemo(() => todayLocalISODate(), []);
   const [view, setView] = useState<View>("month");
@@ -295,19 +288,13 @@ export function AdherenceCardGrid({
                     className="flex flex-col gap-2 rounded-lg border p-2.5"
                     style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}
                   >
-                    {onArchiveToggle && onRename ? (
-                      <ItemActions
-                        item={it}
-                        busy={busyIdentity === it.itemIdentity}
-                        onArchiveToggle={() => onArchiveToggle(it)}
-                        onRename={(newName) => onRename(it, newName)}
-                        iconArchive
-                      />
-                    ) : (
-                      <span className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
-                        {it.item}
-                      </span>
-                    )}
+                    <span
+                      className="line-clamp-2 min-h-10 text-sm leading-snug font-medium"
+                      style={{ color: "var(--text-primary)" }}
+                      title={it.item}
+                    >
+                      {it.item}
+                    </span>
 
                     {view === "month" ? (
                       <div className="flex flex-col gap-1 self-center">
@@ -353,21 +340,10 @@ export function AdherenceCardGrid({
               {archived.map((it) => (
                 <li
                   key={it.itemIdentity}
-                  className="flex items-center justify-between gap-2 border-t pt-2 text-sm"
+                  className="border-t pt-2 text-sm"
                   style={{ borderColor: "var(--gridline)", color: "var(--text-secondary)" }}
                 >
                   {it.item}
-                  {onArchiveToggle && (
-                    <button
-                      type="button"
-                      onClick={() => onArchiveToggle(it)}
-                      disabled={busyIdentity === it.itemIdentity}
-                      className="text-xs font-medium underline decoration-dotted disabled:opacity-40"
-                      style={{ color: "var(--text-secondary)" }}
-                    >
-                      Unarchive
-                    </button>
-                  )}
                 </li>
               ))}
             </ul>
