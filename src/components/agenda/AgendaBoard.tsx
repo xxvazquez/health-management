@@ -465,7 +465,11 @@ function AgendaRow({
           every {e.reminder.recurrenceDays}d
         </span>
       )}
-      {e.scope === "shared" && <span>· shared</span>}
+      {e.scope === "shared" && (
+        <span className="rounded px-1.5 py-0.5 font-medium" style={{ background: "var(--page-plane)", color: "var(--text-secondary)" }}>
+          shared
+        </span>
+      )}
       {e.when &&
         (overdue ? (
           <span className="font-semibold" style={{ color: "var(--status-critical)" }}>
