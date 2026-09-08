@@ -68,7 +68,10 @@ export function HabitMonthGrid({
             const inMonth = date.slice(0, 7) === ym;
             if (!inMonth) return <span key={date} style={{ width: CELL, height: CELL }} aria-hidden="true" />;
             const done = completedDates.has(date);
-            const outOfRange = date > today || date < firstTrackedDate;
+            // A day the habit could actually have been logged: from its first
+            // ever log up to today. Days outside that window still get a cell
+            // (so the whole month shows) but a fainter one.
+            const inPlay = date <= today && date >= firstTrackedDate;
             return (
               <span
                 key={date}
@@ -77,7 +80,11 @@ export function HabitMonthGrid({
                   width: CELL,
                   height: CELL,
                   borderRadius: 3,
-                  background: done ? color : outOfRange ? "transparent" : "var(--gridline)",
+                  background: done
+                    ? color
+                    : inPlay
+                      ? "var(--gridline)"
+                      : "color-mix(in oklab, var(--gridline) 38%, transparent)",
                 }}
               />
             );
