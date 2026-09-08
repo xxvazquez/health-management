@@ -25,7 +25,7 @@ const GROUPS: { title: string; items: Entry[] }[] = [
       },
       {
         title: "Trends",
-        body: "Reading the data back — one dashboard per Log area (Food, Supplements, Habits, Stool, Workout, Cycle) plus Patterns, switched by a tab bar. All built automatically from your Log entries; nothing to fill in.",
+        body: "Reading the data back — one dashboard per Log area (Food, Supplements, Habits, Digestion, Workout, Cycle) plus Patterns, switched by a tab bar. All built automatically from your Log entries; nothing to fill in.",
       },
       {
         title: "Health",

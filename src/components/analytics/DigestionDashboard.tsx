@@ -129,7 +129,7 @@ export function DigestionDashboard() {
   return (
     <div className="flex flex-col gap-5">
       <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
-        <DashboardHeader>Stool</DashboardHeader>
+        <DashboardHeader>Digestion</DashboardHeader>
         {span && range && <DateRangeFilter span={span} value={range} onChange={setRange} accent={ACCENT} />}
       </div>
 
