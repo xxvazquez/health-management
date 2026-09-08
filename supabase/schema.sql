@@ -812,6 +812,8 @@ create table public.lab_markers (
   unit text,
   ref_low numeric,
   ref_high numeric,
+  optimal_low numeric,
+  optimal_high numeric,
   sort_order int not null default 0,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),

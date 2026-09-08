@@ -28,6 +28,13 @@ function refRangeLabel(low: number | null, high: number | null, unit: string | n
   return `Ref ≤ ${high}${u}`;
 }
 
+function optRangeLabel(low: number | null, high: number | null): string | null {
+  if (low == null && high == null) return null;
+  if (low != null && high != null) return `Optimal ${low}–${high}`;
+  if (low != null) return `Optimal ≥ ${low}`;
+  return `Optimal ≤ ${high}`;
+}
+
 // --- Marker form -------------------------------------------------------
 
 function MarkerForm({
@@ -48,6 +55,8 @@ function MarkerForm({
   const [unitTouched, setUnitTouched] = useState(false);
   const [refLow, setRefLow] = useState(initial?.refLow != null ? String(initial.refLow) : "");
   const [refHigh, setRefHigh] = useState(initial?.refHigh != null ? String(initial.refHigh) : "");
+  const [optLow, setOptLow] = useState(initial?.optimalLow != null ? String(initial.optimalLow) : "");
+  const [optHigh, setOptHigh] = useState(initial?.optimalHigh != null ? String(initial.optimalHigh) : "");
   const [panelId, setPanelId] = useState(initial?.panelId ?? NO_PANEL);
   const [newPanelName, setNewPanelName] = useState("");
   const [saving, setSaving] = useState(false);
@@ -79,7 +88,15 @@ function MarkerForm({
     try {
       let resolvedPanelId: string | null = panelId === NO_PANEL || needsNewPanel ? null : panelId;
       if (needsNewPanel) resolvedPanelId = (await labs.panels.create(newPanelName)).id;
-      const patch = { panelId: resolvedPanelId, name, unit: effectiveUnit, refLow: parseNum(refLow), refHigh: parseNum(refHigh) };
+      const patch = {
+        panelId: resolvedPanelId,
+        name,
+        unit: effectiveUnit,
+        refLow: parseNum(refLow),
+        refHigh: parseNum(refHigh),
+        optimalLow: parseNum(optLow),
+        optimalHigh: parseNum(optHigh),
+      };
       if (initial) {
         await labs.markers.edit(initial.id, patch);
         onSaved(initial.id);
@@ -137,6 +154,23 @@ function MarkerForm({
           <span className={LABEL_CLS} style={LABEL_STYLE}>Ref. high</span>
           <input value={refHigh} onChange={(e) => setRefHigh(e.target.value)} inputMode="decimal" placeholder="4.0" className={FIELD_CLS} style={FIELD_STYLE} />
         </label>
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <span className={LABEL_CLS} style={LABEL_STYLE}>Optimal range · optional</span>
+        <div className="flex flex-wrap gap-3">
+          <label className="flex min-w-24 flex-1 flex-col gap-1">
+            <span className="text-xs" style={{ color: "var(--text-muted)" }}>Low</span>
+            <input value={optLow} onChange={(e) => setOptLow(e.target.value)} inputMode="decimal" placeholder="1.0" className={FIELD_CLS} style={FIELD_STYLE} />
+          </label>
+          <label className="flex min-w-24 flex-1 flex-col gap-1">
+            <span className="text-xs" style={{ color: "var(--text-muted)" }}>High</span>
+            <input value={optHigh} onChange={(e) => setOptHigh(e.target.value)} inputMode="decimal" placeholder="2.5" className={FIELD_CLS} style={FIELD_STYLE} />
+          </label>
+        </div>
+        <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+          The band you want to sit in — the Results overview reads values against this, not just the lab range.
+        </span>
       </div>
 
       <label className="flex flex-col gap-1">
@@ -287,6 +321,7 @@ function MarkerDetail({
   const latestStatus = latest ? rangeStatus(latest.value, marker.refLow, marker.refHigh) : null;
   const chartData = marker.results.map((r) => ({ date: r.measuredOn, value: r.value }));
   const refLabel = refRangeLabel(marker.refLow, marker.refHigh, marker.unit);
+  const optLabel = optRangeLabel(marker.optimalLow, marker.optimalHigh);
 
   return (
     <div className="flex flex-col gap-3">
@@ -302,7 +337,7 @@ function MarkerDetail({
             {marker.name}
           </h2>
           <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-            {[marker.unit, refLabel].filter(Boolean).join(" · ") || "No unit or reference range set"}
+            {[marker.unit, refLabel, optLabel].filter(Boolean).join(" · ") || "No unit or reference range set"}
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-3">

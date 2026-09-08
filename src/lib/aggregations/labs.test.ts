@@ -2,11 +2,13 @@ import { describe, expect, it } from "vitest";
 import type { LabMarker } from "@/lib/supabase/labs";
 import {
   clipMarkers,
+  effectiveRange,
   flaggedReadings,
   headlineMarkers,
   labsSpan,
   normalizedSeries,
   parseNum,
+  rangeBar,
   rangeCutoff,
   rangeStatus,
   LAB_RANGES,
@@ -18,6 +20,8 @@ function marker(partial: Partial<LabMarker> & { id: string; name: string }): Lab
     unit: null,
     refLow: null,
     refHigh: null,
+    optimalLow: null,
+    optimalHigh: null,
     sortOrder: 0,
     results: [],
     ...partial,
@@ -40,6 +44,52 @@ describe("rangeStatus", () => {
   it("handles a one-sided range", () => {
     expect(rangeStatus(10, 30, null)).toBe("low");
     expect(rangeStatus(2, null, 4)).toBe("in");
+  });
+});
+
+describe("effectiveRange", () => {
+  it("prefers the optimal range when one is set", () => {
+    expect(effectiveRange({ refLow: 15, refHigh: 150, optimalLow: 50, optimalHigh: 120 })).toEqual({
+      low: 50,
+      high: 120,
+      basis: "optimal",
+    });
+  });
+  it("falls back to the reference range, then to nothing", () => {
+    expect(effectiveRange({ refLow: 0.4, refHigh: 4, optimalLow: null, optimalHigh: null })).toEqual({
+      low: 0.4,
+      high: 4,
+      basis: "reference",
+    });
+    expect(effectiveRange({ refLow: null, refHigh: null, optimalLow: null, optimalHigh: null })).toEqual({
+      low: null,
+      high: null,
+      basis: null,
+    });
+  });
+});
+
+describe("rangeBar", () => {
+  it("puts the value on the reference-range track with the optimal band inside it", () => {
+    const bar = rangeBar(78, 50, 150, 100, 150);
+    expect(bar).not.toBeNull();
+    expect(bar!.valuePct).toBeCloseTo(28);
+    expect(bar!.bandLeftPct).toBeCloseTo(50);
+    expect(bar!.bandRightPct).toBeCloseTo(100);
+    expect(bar!.hasBand).toBe(true);
+  });
+  it("clamps an out-of-range value to the track ends", () => {
+    expect(rangeBar(5, 15, 150, null, null)!.valuePct).toBe(0);
+    expect(rangeBar(400, 15, 150, null, null)!.valuePct).toBe(100);
+  });
+  it("widens the optimal range into a track when there is no reference range", () => {
+    const bar = rangeBar(8, null, null, 5, 8);
+    expect(bar).not.toBeNull();
+    expect(bar!.hasBand).toBe(true);
+    expect(bar!.valuePct).toBeGreaterThan(bar!.bandLeftPct);
+  });
+  it("is null with neither range", () => {
+    expect(rangeBar(5, null, null, null, null)).toBeNull();
   });
 });
 
@@ -105,6 +155,15 @@ describe("headlineMarkers", () => {
     const markers = [marker({ id: "hgb", name: "Hemoglobina (HGB)", results: [result("2025-06-01", 13)] })];
     expect(headlineMarkers(markers, ["hemoglobina"]).map((r) => r.id)).toEqual(["hgb"]);
   });
+  it("reads a value inside the reference range but below optimal as low", () => {
+    const markers = [
+      marker({ id: "fer", name: "Ferritin", refLow: 15, refHigh: 150, optimalLow: 50, optimalHigh: 120, results: [result("2025-06-01", 32)] }),
+    ];
+    const rows = headlineMarkers(markers, []);
+    expect(rows.map((r) => r.id)).toEqual(["fer"]);
+    expect(rows[0].status).toBe("low");
+    expect(rows[0].basis).toBe("optimal");
+  });
 });
 
 describe("flaggedReadings", () => {
@@ -116,6 +175,16 @@ describe("flaggedReadings", () => {
     const flagged = flaggedReadings(markers);
     expect(flagged.map((f) => f.markerId)).toEqual(["b"]);
     expect(flagged[0].status).toBe("high");
+  });
+  it("flags a value that clears the reference range but misses the optimal one", () => {
+    const markers = [
+      marker({ id: "fer", name: "Ferritin", refLow: 15, refHigh: 150, optimalLow: 50, optimalHigh: 120, results: [result("2025-06-01", 32)] }),
+    ];
+    const flagged = flaggedReadings(markers);
+    expect(flagged).toHaveLength(1);
+    expect(flagged[0].status).toBe("low");
+    expect(flagged[0].basis).toBe("optimal");
+    expect(flagged[0].low).toBe(50);
   });
 });
 

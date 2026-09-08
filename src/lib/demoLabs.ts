@@ -22,6 +22,8 @@ export function buildDemoLabMarkers(): LabMarker[] {
       unit: "mIU/L",
       refLow: 0.4,
       refHigh: 4,
+      optimalLow: 0.5,
+      optimalHigh: 2.5,
       sortOrder: 0,
       results: [
         { id: "demo-lab-tsh-1", markerId: "demo-lab-tsh", measuredOn: dateOnly(-320 * DAY), value: 5.8, lab: "Synevo", note: null },
@@ -36,6 +38,8 @@ export function buildDemoLabMarkers(): LabMarker[] {
       unit: "pmol/L",
       refLow: 12,
       refHigh: 22,
+      optimalLow: 15,
+      optimalHigh: 22,
       sortOrder: 1,
       results: [
         { id: "demo-lab-ft4-1", markerId: "demo-lab-ft4", measuredOn: dateOnly(-180 * DAY), value: 13.2, lab: "Synevo", note: null },
@@ -49,6 +53,8 @@ export function buildDemoLabMarkers(): LabMarker[] {
       unit: "ng/mL",
       refLow: 30,
       refHigh: 200,
+      optimalLow: 50,
+      optimalHigh: 120,
       sortOrder: 0,
       results: [
         { id: "demo-lab-ferritin-1", markerId: "demo-lab-ferritin", measuredOn: dateOnly(-250 * DAY), value: 14, lab: "Diagnostyka", note: "Started iron supplement." },
@@ -63,6 +69,8 @@ export function buildDemoLabMarkers(): LabMarker[] {
       unit: "g/dL",
       refLow: 12,
       refHigh: 16,
+      optimalLow: 13,
+      optimalHigh: 15,
       sortOrder: 0,
       results: [
         { id: "demo-lab-hgb-1", markerId: "demo-lab-hgb", measuredOn: dateOnly(-250 * DAY), value: 11.4, lab: "Diagnostyka", note: null },
@@ -77,6 +85,8 @@ export function buildDemoLabMarkers(): LabMarker[] {
       unit: "mg/L",
       refLow: 0,
       refHigh: 5,
+      optimalLow: null,
+      optimalHigh: 1,
       sortOrder: 1,
       results: [
         { id: "demo-lab-crp-1", markerId: "demo-lab-crp", measuredOn: dateOnly(-250 * DAY), value: 2.1, lab: "Diagnostyka", note: null },
@@ -90,6 +100,8 @@ export function buildDemoLabMarkers(): LabMarker[] {
       unit: "ng/mL",
       refLow: 30,
       refHigh: 50,
+      optimalLow: 40,
+      optimalHigh: 60,
       sortOrder: 0,
       results: [
         { id: "demo-lab-vitd-1", markerId: "demo-lab-vitd", measuredOn: dateOnly(-120 * DAY), value: 22, lab: "Diagnostyka", note: null },

@@ -5,10 +5,12 @@ import { useLabs } from "@/lib/useLabs";
 import { todayLocalISODate } from "@/lib/aggregations/common";
 import {
   clipMarkers,
+  effectiveRange,
   flaggedReadings,
   headlineMarkers,
   labsSpan,
   normalizedSeries,
+  rangeBar,
   rangeCutoff,
   rangeStatus,
   DEFAULT_LAB_PINS,
@@ -16,6 +18,7 @@ import {
   type HeadlineMarker,
   type LabRangeOption,
 } from "@/lib/aggregations/labs";
+import { optimalStatusColor } from "./labStatus";
 import type { LabMarker } from "@/lib/supabase/labs";
 import { useVitals } from "@/lib/useVitals";
 import type { BloodPressureReading, WeightReading } from "@/lib/supabase/vitals";
@@ -25,7 +28,7 @@ import { ListSkeleton } from "@/components/ui/Skeleton";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { Methodology } from "@/components/ui/Methodology";
 import { SearchField } from "@/components/ui/SearchField";
-import { LabMarkerChart, LabMiniChart, LabSparkline } from "@/components/charts/LabMarkerChart";
+import { LabMarkerChart, LabSparkline } from "@/components/charts/LabMarkerChart";
 import { MultiLineChart } from "@/components/charts/MultiLineChart";
 import { CustomIcon, customColorValue } from "@/components/ui/customIcons";
 
@@ -41,17 +44,24 @@ function fmtValue(v: number, unit: string | null): string {
   return unit ? `${v} ${unit}` : String(v);
 }
 
-function statusWord(status: HeadlineMarker["status"]): string {
-  if (status === "low") return "below range";
-  if (status === "high") return "above range";
-  if (status === "in") return "in range";
+/** Trim the padding artefacts off a widened track end (2.749999 → 2.7). */
+function fmtNum(v: number): string {
+  const r = Math.round(v * 10) / 10;
+  return Number.isInteger(r) ? String(r) : r.toFixed(1);
+}
+
+type Basis = "optimal" | "reference" | null;
+
+function statusWord(status: HeadlineMarker["status"], basis: Basis): string {
+  const band = basis === "optimal" ? "optimal" : "range";
+  if (status === "low") return `below ${band}`;
+  if (status === "high") return `above ${band}`;
+  if (status === "in") return basis === "optimal" ? "optimal" : "in range";
   return "no range set";
 }
 
 function statusTone(status: HeadlineMarker["status"]): string {
-  if (status === "low" || status === "high") return "var(--status-warning)";
-  if (status === "in") return "var(--status-good)";
-  return "var(--text-muted)";
+  return optimalStatusColor(status);
 }
 
 /** The read/analysis view of the Health → Results tab — flagged-first,
@@ -194,7 +204,7 @@ export function LabsOverview({ onManage }: { onManage?: () => void }) {
                   {h.latest != null ? fmtValue(h.latest, h.unit) : "—"}
                 </p>
                 <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-                  {statusWord(h.status)}
+                  {statusWord(h.status, h.basis)}
                   {h.deltaPct != null && Math.abs(h.deltaPct) >= 1 && (
                     <>
                       {" · "}
@@ -216,28 +226,28 @@ export function LabsOverview({ onManage }: { onManage?: () => void }) {
       {hasVitals && <VitalsBlock bp={bpShown} weight={weightShown} />}
 
       <Card tier="raw" className="lg:col-span-2">
-        <CardTitle size="sm" subtitle="Markers whose most recent value sits outside its reference range">
+        <CardTitle size="sm" subtitle="Markers whose most recent value sits outside its optimal range — or the lab reference range where no optimal one is set">
           Flagged
         </CardTitle>
         {flagged.length === 0 ? (
           <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-            Nothing out of range in this window.
+            Nothing outside range in this window.
           </p>
         ) : (
           <ul className="flex flex-col divide-y" style={{ borderColor: "var(--gridline)" }}>
             {flagged.map((f) => {
-              const bound = f.status === "low" ? f.refLow : f.refHigh;
+              const bound = f.status === "low" ? f.low : f.high;
               return (
                 <li key={f.markerId} className="flex items-center gap-3 py-2">
-                  <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: "var(--status-warning)" }} aria-hidden="true" />
+                  <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: "var(--status-caution)" }} aria-hidden="true" />
                   <span className="min-w-0 flex-1 truncate text-sm font-medium" style={{ color: "var(--text-primary)" }}>
                     {f.name}
                   </span>
-                  <span className="shrink-0 text-sm tabular-nums" style={{ color: "var(--status-warning)" }}>
+                  <span className="shrink-0 text-sm tabular-nums" style={{ color: "var(--status-caution)" }}>
                     {fmtValue(f.value, f.unit)}
                   </span>
                   <span className="hidden shrink-0 text-xs tabular-nums sm:inline" style={{ color: "var(--text-muted)" }}>
-                    {f.status === "low" ? "below" : "above"} {bound} · {fmtDate(f.measuredOn)}
+                    {f.status === "low" ? "below" : "above"} {bound != null ? fmtNum(bound) : ""} {f.basis === "optimal" ? "optimal" : "ref"} · {fmtDate(f.measuredOn)}
                   </span>
                 </li>
               );
@@ -246,88 +256,73 @@ export function LabsOverview({ onManage }: { onManage?: () => void }) {
         )}
       </Card>
 
-      <p className="text-sm font-semibold lg:col-span-2" style={{ color: "var(--text-primary)" }}>
-        By panel
-      </p>
+      <div className="flex flex-col gap-2.5 lg:col-span-2">
+        <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+          By panel
+        </p>
 
-      {panelSections.map((s) => {
-        const expandedMarker = s.markers.find((m) => m.id === expanded);
-        return (
-          <Card key={s.id} tier="raw" className="lg:col-span-2">
-            <div className="mb-3 flex items-center gap-1.5">
-              {s.icon && (
-                <span style={{ color: customColorValue(s.color) ?? ACCENT }}>
-                  <CustomIcon icon={s.icon} size={15} />
-                </span>
-              )}
-              <h3 className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>{s.name}</h3>
-            </div>
-            {expandedMarker ? (
-              <div className="flex flex-col gap-3">
-                <button
-                  type="button"
-                  onClick={() => setExpanded(null)}
-                  className="self-start text-xs font-medium"
-                  style={{ color: "var(--text-muted)" }}
-                >
-                  ← Back to {s.name}
-                </button>
-                <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
-                  {expandedMarker.name}
-                  {expandedMarker.unit && (
-                    <span className="ml-1 font-normal" style={{ color: "var(--text-muted)" }}>({expandedMarker.unit})</span>
-                  )}
-                </p>
-                <LabMarkerChart
-                  data={expandedMarker.results.map((r) => ({ date: r.measuredOn, value: r.value }))}
-                  unit={expandedMarker.unit}
-                  refLow={expandedMarker.refLow}
-                  refHigh={expandedMarker.refHigh}
-                  color={ACCENT}
-                />
-                <ul className="flex flex-col divide-y text-sm" style={{ borderColor: "var(--gridline)" }}>
-                  {[...expandedMarker.results].reverse().slice(0, 12).map((r) => (
-                    <li key={r.id} className="flex items-center justify-between gap-3 py-1.5">
-                      <span className="tabular-nums" style={{ color: "var(--text-primary)" }}>{fmtValue(r.value, expandedMarker.unit)}</span>
-                      <span className="text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>{fmtDate(r.measuredOn)}</span>
-                    </li>
-                  ))}
-                </ul>
+        {panelSections.map((s) => {
+          const expandedMarker = s.markers.find((m) => m.id === expanded);
+          return (
+            <Card key={s.id} tier="raw" padded={false} className="px-3.5 py-2.5">
+              <div className="mb-1.5 flex items-center gap-1.5">
+                {s.icon && (
+                  <span style={{ color: customColorValue(s.color) ?? ACCENT }}>
+                    <CustomIcon icon={s.icon} size={13} />
+                  </span>
+                )}
+                <h3 className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>
+                  {s.name}
+                </h3>
               </div>
-            ) : (
-              <div className="grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2">
-                {s.markers.map((m) => {
-                  const sorted = [...m.results].sort((a, b) => a.measuredOn.localeCompare(b.measuredOn));
-                  const latest = sorted[sorted.length - 1];
-                  const status = latest ? rangeStatus(latest.value, m.refLow, m.refHigh) : null;
-                  return (
-                    <button
+              {expandedMarker ? (
+                <div className="flex flex-col gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setExpanded(null)}
+                    className="self-start text-xs font-medium"
+                    style={{ color: "var(--text-muted)" }}
+                  >
+                    ← Back to {s.name}
+                  </button>
+                  <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
+                    {expandedMarker.name}
+                    {expandedMarker.unit && (
+                      <span className="ml-1 font-normal" style={{ color: "var(--text-muted)" }}>({expandedMarker.unit})</span>
+                    )}
+                  </p>
+                  <LabMarkerChart
+                    data={expandedMarker.results.map((r) => ({ date: r.measuredOn, value: r.value }))}
+                    unit={expandedMarker.unit}
+                    refLow={expandedMarker.refLow}
+                    refHigh={expandedMarker.refHigh}
+                    color={ACCENT}
+                  />
+                  <ul className="flex flex-col divide-y text-sm" style={{ borderColor: "var(--gridline)" }}>
+                    {[...expandedMarker.results].reverse().slice(0, 12).map((r) => (
+                      <li key={r.id} className="flex items-center justify-between gap-3 py-1.5">
+                        <span className="tabular-nums" style={{ color: "var(--text-primary)" }}>{fmtValue(r.value, expandedMarker.unit)}</span>
+                        <span className="text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>{fmtDate(r.measuredOn)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : (
+                <div className="flex flex-col">
+                  {s.markers.map((m, i) => (
+                    <MarkerRangeRow
                       key={m.id}
-                      type="button"
-                      onClick={() => setExpanded(m.id)}
-                      className="flex flex-col gap-1 rounded-lg border p-2.5 text-left transition-colors hover:bg-[var(--page-plane)]"
-                      style={{ borderColor: "var(--gridline)" }}
-                    >
-                      <span className="flex items-baseline justify-between gap-2">
-                        <span className="min-w-0 truncate text-xs font-medium" style={{ color: "var(--text-primary)" }}>{m.name}</span>
-                        <span className="shrink-0 text-xs tabular-nums" style={{ color: statusTone(status) }}>
-                          {latest ? fmtValue(latest.value, m.unit) : "—"}
-                        </span>
-                      </span>
-                      <LabMiniChart
-                        points={sorted.map((r) => ({ measuredOn: r.measuredOn, value: r.value }))}
-                        refLow={m.refLow}
-                        refHigh={m.refHigh}
-                        status={status}
-                      />
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </Card>
-        );
-      })}
+                      marker={m}
+                      last={i === s.markers.length - 1}
+                      onOpen={() => setExpanded(m.id)}
+                    />
+                  ))}
+                </div>
+              )}
+            </Card>
+          );
+        })}
+      </div>
 
       <Card tier="raw" className="lg:col-span-2">
         <CardTitle size="sm" subtitle={`Pick 2–${MAX_COMPARE} markers to overlay on one normalized scale`}>
@@ -381,14 +376,96 @@ export function LabsOverview({ onManage }: { onManage?: () => void }) {
       </Card>
 
       <Methodology className="lg:col-span-2">
-        This dashboard only describes your own recorded results. A value is &quot;out of range&quot; when it falls
-        outside the reference low/high stored on that marker — those ranges are lab- and sometimes age-specific, so
-        treat a flag as a prompt to look, not a diagnosis. Change vs previous compares the latest value with the one
-        before it. The compare chart puts unrelated markers on one scale so their shapes can be read together; the
-        numbers on its axis are not clinically meaningful. Blood-pressure categories are the ACC/AHA 2017 bands,
-        shown for reference.
+        This dashboard only describes your own recorded results. Each value is read against its optimal range where
+        you&rsquo;ve set one, otherwise the lab reference low/high on that marker — both are lab- and sometimes
+        age-specific, so treat a flag as a prompt to look, not a diagnosis. The bar under each value shows where it
+        sits between the reference low and high, with the optimal band highlighted. Change vs previous compares the
+        latest value with the one before it. The compare chart puts unrelated markers on one scale so their shapes
+        can be read together; the numbers on its axis are not clinically meaningful. Blood-pressure categories are
+        the ACC/AHA 2017 bands, shown for reference.
       </Methodology>
     </div>
+  );
+}
+
+/** One marker in a panel card: a compact data block (name + value), a
+ * horizontal range bar carrying reference range + optimal band + the
+ * reading, and the status word. Tap to expand the marker's trend chart. */
+function MarkerRangeRow({ marker, last, onOpen }: { marker: LabMarker; last: boolean; onOpen: () => void }) {
+  const sorted = [...marker.results].sort((a, b) => a.measuredOn.localeCompare(b.measuredOn));
+  const latest = sorted[sorted.length - 1] ?? null;
+  const { low, high, basis } = effectiveRange(marker);
+  const status = latest ? rangeStatus(latest.value, low, high) : null;
+  const bar = latest ? rangeBar(latest.value, marker.refLow, marker.refHigh, marker.optimalLow, marker.optimalHigh) : null;
+  const tone = optimalStatusColor(status);
+
+  let optTxt: string | null = null;
+  if (bar?.hasBand) {
+    if (marker.optimalLow != null && marker.optimalHigh != null) optTxt = `${fmtNum(marker.optimalLow)}–${fmtNum(marker.optimalHigh)}`;
+    else if (marker.optimalLow != null) optTxt = `≥ ${fmtNum(marker.optimalLow)}`;
+    else if (marker.optimalHigh != null) optTxt = `≤ ${fmtNum(marker.optimalHigh)}`;
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      className="grid w-full items-center gap-3 py-2 text-left"
+      style={{
+        gridTemplateColumns: "4.5rem minmax(0,1fr) 3.25rem",
+        borderBottom: last ? undefined : "1px solid var(--border-hairline)",
+      }}
+    >
+      <span className="min-w-0">
+        <span className="block truncate text-xs font-semibold" style={{ color: "var(--text-primary)" }}>
+          {marker.name}
+        </span>
+        <span className="block text-xs font-semibold tabular-nums" style={{ color: "var(--text-primary)" }}>
+          {latest ? fmtNum(latest.value) : "—"}
+          {marker.unit && (
+            <span className="ml-0.5 text-[9px] font-normal" style={{ color: "var(--text-muted)" }}>{marker.unit}</span>
+          )}
+        </span>
+      </span>
+
+      {bar ? (
+        <span className="relative block h-[26px]">
+          <span
+            className="absolute inset-x-0 top-[5px] block h-[5px] rounded-full"
+            style={{ background: "color-mix(in oklab, var(--gridline) 65%, var(--surface-1))" }}
+          />
+          {bar.hasBand && (
+            <span
+              className="absolute top-[3px] block h-[9px] rounded-full"
+              style={{
+                left: `${bar.bandLeftPct}%`,
+                width: `${Math.max(bar.bandRightPct - bar.bandLeftPct, 2)}%`,
+                background: "color-mix(in oklab, var(--status-good) 22%, var(--gridline))",
+              }}
+            />
+          )}
+          <span
+            className="absolute top-[1.5px] block h-[11px] w-[11px] rounded-full"
+            style={{ left: `calc(${bar.valuePct}% - 5.5px)`, background: tone, boxShadow: "0 0 0 2.5px var(--surface-1)" }}
+          />
+          <span className="absolute inset-x-0 top-[15px] flex items-center justify-between gap-1 text-[9px] tabular-nums" style={{ color: "var(--text-muted)" }}>
+            <span>{fmtNum(bar.trackLow)}</span>
+            {optTxt && (
+              <span className="truncate" style={{ color: "color-mix(in oklab, var(--status-good) 70%, var(--text-muted))" }}>
+                optimal {optTxt}
+              </span>
+            )}
+            <span>{fmtNum(bar.trackHigh)}</span>
+          </span>
+        </span>
+      ) : (
+        <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>No range set</span>
+      )}
+
+      <span className="text-right text-[9.5px] leading-tight" style={{ color: tone }}>
+        {latest && basis ? statusWord(status, basis) : ""}
+      </span>
+    </button>
   );
 }
 
