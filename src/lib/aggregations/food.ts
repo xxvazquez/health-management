@@ -269,45 +269,33 @@ export function repetitionInsights(
   });
 }
 
-type MealTypeClassification = "exclusive" | "cross-meal" | "spread";
-
-export interface MealTypeBreakdownRow {
+export interface IngredientMealRow {
   item: string;
+  /** How many meal instances of each tag contained this ingredient. */
   countsByMeal: Record<string, number>;
   total: number;
-  classification: MealTypeClassification;
-  exclusiveMeal: string | null;
 }
 
-const MEAL_EXCLUSIVE_THRESHOLD = 0.8;
-
-/** Per top ingredient, how its occurrences split across meal tags — feeds
- * the compact meal-type table. Reuses the already-computed `mealInstances`
- * list rather than re-deriving anything from raw events. */
-export function mealTypeIngredientBreakdown(instances: MealInstance[], topItems: string[]): MealTypeBreakdownRow[] {
-  return topItems.map((item) => {
-    const countsByMeal: Record<string, number> = {};
-    let total = 0;
-    for (const instance of instances) {
-      if (!instance.items.includes(item)) continue;
-      countsByMeal[instance.mealTag] = (countsByMeal[instance.mealTag] ?? 0) + 1;
-      total++;
+/** The rows of the "By meal" heatmap — per ingredient, its count per meal
+ * tag, sorted by total desc and capped at `topN`. Reuses the
+ * already-computed `mealInstances` list. */
+export function ingredientMealMatrix(instances: MealInstance[], topN = 12): IngredientMealRow[] {
+  const byItem = new Map<string, Record<string, number>>();
+  for (const instance of instances) {
+    for (const item of instance.items) {
+      const counts = byItem.get(item) ?? {};
+      counts[instance.mealTag] = (counts[instance.mealTag] ?? 0) + 1;
+      byItem.set(item, counts);
     }
-
-    let classification: MealTypeClassification = "spread";
-    let exclusiveMeal: string | null = null;
-    if (total > 0) {
-      const [topMeal, topCount] = Object.entries(countsByMeal).sort((a, b) => b[1] - a[1])[0];
-      if (topCount / total >= MEAL_EXCLUSIVE_THRESHOLD) {
-        classification = "exclusive";
-        exclusiveMeal = topMeal;
-      } else if (Object.keys(countsByMeal).length >= 2) {
-        classification = "cross-meal";
-      }
-    }
-
-    return { item, countsByMeal, total, classification, exclusiveMeal };
-  });
+  }
+  return Array.from(byItem.entries())
+    .map(([item, countsByMeal]) => ({
+      item,
+      countsByMeal,
+      total: Object.values(countsByMeal).reduce((a, b) => a + b, 0),
+    }))
+    .sort((a, b) => b.total - a.total || a.item.localeCompare(b.item))
+    .slice(0, topN);
 }
 
 export type VarietyTrendDirection = "increasing" | "decreasing" | "stable";
