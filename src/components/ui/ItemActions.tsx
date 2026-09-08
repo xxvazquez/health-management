@@ -193,9 +193,13 @@ export function ItemActions({
 }) {
   const state = useInlineRename(item, onRename);
   return (
-    <span className="flex flex-wrap items-center gap-1.5">
-      <ItemNameField item={item} state={state} />
-      <ItemActionButtons item={item} busy={busy} state={state} onArchiveToggle={onArchiveToggle} onDelete={onDelete} iconArchive={iconArchive} />
+    <span className="flex items-center justify-between gap-1.5">
+      <span className="min-w-0 truncate">
+        <ItemNameField item={item} state={state} />
+      </span>
+      <span className="flex shrink-0 items-center">
+        <ItemActionButtons item={item} busy={busy} state={state} onArchiveToggle={onArchiveToggle} onDelete={onDelete} iconArchive={iconArchive} />
+      </span>
     </span>
   );
 }

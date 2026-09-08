@@ -138,19 +138,11 @@ const CheckIcon = () => (
   </Ico>
 );
 
-function StatPill({ icon, label, tone, children }: { icon: ReactNode; label: string; tone?: string; children: ReactNode }) {
+function Stat({ icon, label, children }: { icon: ReactNode; label: string; children: ReactNode }) {
   return (
-    <span
-      className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-semibold tabular-nums"
-      title={label}
-      style={
-        tone
-          ? { background: `color-mix(in oklab, ${tone} 14%, var(--surface-1))`, color: tone }
-          : { background: "var(--page-plane)", color: "var(--text-secondary)" }
-      }
-    >
+    <span className="inline-flex items-center gap-1 text-xs tabular-nums" title={label} style={{ color: "var(--text-muted)" }}>
       {icon}
-      {children}
+      <strong style={{ color: "var(--text-primary)" }}>{children}</strong>
     </span>
   );
 }
@@ -283,20 +275,21 @@ export function AdherenceCardGrid({
                         {it.item}
                       </span>
                     )}
-                    <div className="flex flex-wrap gap-1">
-                      <StatPill icon={<DonutIcon />} label="Consistency" tone={color}>
+                    <div className="flex items-center gap-2.5 overflow-hidden whitespace-nowrap">
+                      <Stat icon={<DonutIcon />} label="Consistency">
                         {it.consistencyPct}%
-                      </StatPill>
-                      <StatPill icon={<CheckIcon />} label="Days completed">
+                      </Stat>
+                      <Stat icon={<CheckIcon />} label="Days completed">
                         {it.daysCompleted}
-                      </StatPill>
-                      <StatPill icon={<FlameIcon />} label="Current streak">
-                        {it.currentStreak}
-                      </StatPill>
-                      {view === "year" && (
-                        <StatPill icon={<TrophyIcon />} label="Longest streak">
+                      </Stat>
+                      {view === "month" ? (
+                        <Stat icon={<FlameIcon />} label="Current streak">
+                          {it.currentStreak}
+                        </Stat>
+                      ) : (
+                        <Stat icon={<TrophyIcon />} label="Longest streak">
                           {longest}
-                        </StatPill>
+                        </Stat>
                       )}
                     </div>
 
