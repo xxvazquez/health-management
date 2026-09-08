@@ -61,6 +61,7 @@ import { SearchField } from "@/components/ui/SearchField";
 import { ChevronIcon, CloseIcon } from "@/components/ui/icons";
 import { CustomIcon, customColorValue } from "@/components/ui/customIcons";
 import { TabRail } from "@/components/ui/TabRail";
+import { TimeField } from "@/components/ui/TimeField";
 import { DemoNotice } from "@/components/ui/DemoNotice";
 import { useOverflowFade } from "@/lib/useOverflowFade";
 import {
@@ -555,7 +556,6 @@ export default function LogPage() {
     ];
     return all.filter((t) => !t.domain || isVisible(t.domain));
   }, [isVisible]);
-  const tabAccent = logTabs.find((t) => t.id === tab)?.accent ?? "var(--baseline)";
 
   // For the Food tab specifically, a chip's checkmark reflects whether it
   // was logged for the *currently selected meal*, not the whole day — so
@@ -1846,37 +1846,20 @@ export default function LogPage() {
                 </div>
               )}
               {showTimeField || timeIsExplicit ? (
-                <label className="flex items-center gap-1.5" style={{ color: "var(--text-secondary)" }}>
-                  <span className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
-                    Time
-                  </span>
-                  <input
-                    type="time"
-                    value={logTime}
-                    autoFocus={showTimeField && !timeIsExplicit}
-                    onChange={(e) => setLogTime(e.target.value)}
-                    onClick={(e) => e.currentTarget.showPicker?.()}
-                    className="h-7 rounded-md border px-2.5 text-xs font-medium tabular-nums outline-none transition-colors"
-                    style={{
-                      borderColor: timeIsExplicit ? tabAccent : "var(--border-hairline)",
-                      background: "var(--surface-1)",
-                      color: "var(--text-primary)",
-                    }}
-                  />
-                  {!timeIsExplicit && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setLogTime(defaultLogTimeValue());
-                        setShowTimeField(false);
-                      }}
-                      className="text-xs underline decoration-dotted"
-                      style={{ color: "var(--text-muted)" }}
-                    >
-                      now
-                    </button>
-                  )}
-                </label>
+                <TimeField
+                  value={logTime}
+                  onChange={setLogTime}
+                  explicit={timeIsExplicit}
+                  autoFocus={showTimeField && !timeIsExplicit}
+                  onReset={
+                    timeIsExplicit
+                      ? undefined
+                      : () => {
+                          setLogTime(defaultLogTimeValue());
+                          setShowTimeField(false);
+                        }
+                  }
+                />
               ) : (
                 <button
                   type="button"

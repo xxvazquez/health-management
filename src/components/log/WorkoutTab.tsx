@@ -5,6 +5,7 @@ import Link from "next/link";
 import { workoutUnitLabel, type RawWorkoutLog, type RawItem, type WorkoutUnit } from "@/lib/types";
 import { UNIT_STEP_PRESETS } from "@/components/ui/NumberStepper";
 import { CustomIcon } from "@/components/ui/customIcons";
+import { TimeField } from "@/components/ui/TimeField";
 
 /** Vertical drag distance, in px, worth one `step` of value change — tuned
  * so a natural swipe adjusts a useful range without feeling twitchy or
@@ -279,23 +280,7 @@ export function WorkoutTab({
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-3">
-        <label className="flex items-center gap-1.5" style={{ color: "var(--text-secondary)" }}>
-          <span className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
-            Time
-          </span>
-          <input
-            type="time"
-            value={time}
-            onChange={(e) => onTimeChange(e.target.value)}
-            onClick={(e) => e.currentTarget.showPicker?.()}
-            className="h-7 rounded-md border px-2.5 text-xs font-medium tabular-nums outline-none"
-            style={{
-              borderColor: "var(--series-2)",
-              background: "color-mix(in oklab, var(--series-2) 14%, var(--surface-1))",
-              color: "var(--text-primary)",
-            }}
-          />
-        </label>
+        <TimeField value={time} onChange={onTimeChange} />
       </div>
 
       {groups.length === 0 ? (
