@@ -3,6 +3,7 @@
 import { useState, type FormEvent, type ReactNode } from "react";
 import type { ManageableItem } from "@/lib/useItemActions";
 import { PencilIcon, TrashIcon } from "@/components/ui/Notebook";
+import { ArchiveIcon } from "@/components/ui/icons";
 
 /** Shared rename state backing the two pieces below — lets a row put the
  * name on one side and the Edit/Archive (or Save/Cancel, while renaming)
@@ -85,12 +86,11 @@ function RowIcon({
   );
 }
 
-/** Rename (pencil) + Archive + Delete (trash, with an inline Delete/Keep
- * confirm) for one item row — Save/Cancel while renaming. Delete is only
- * offered for an item with no logged history; Archive stays a plain text
- * button since it's the real "remove from Log" action for everything else.
- * Placeable anywhere relative to `ItemNameField` so a row can pin it next
- * to a fixed-width control instead of drifting with the name's length. */
+/** Rename (pencil) + Archive (tray) + Delete (trash, with an inline
+ * Delete/Keep confirm) for one item row — Save/Cancel while renaming.
+ * Delete is only offered for an item with no logged history. All three are
+ * icon buttons so the cluster is a fixed width and lands in the same place
+ * on every row regardless of the name or category beside it. */
 export function ItemActionButtons({
   item,
   busy,
@@ -145,15 +145,9 @@ export function ItemActionButtons({
       <RowIcon onClick={state.start} disabled={busy} label="Rename">
         <PencilIcon size={15} />
       </RowIcon>
-      <button
-        type="button"
-        onClick={onArchiveToggle}
-        disabled={busy}
-        className="rounded-md px-1.5 py-1 text-xs font-medium transition-colors hover:bg-[var(--page-plane)] disabled:opacity-40"
-        style={{ color: "var(--text-muted)" }}
-      >
-        {item.isArchived ? "Unarchive" : "Archive"}
-      </button>
+      <RowIcon onClick={onArchiveToggle} disabled={busy} label={item.isArchived ? "Unarchive" : "Archive"}>
+        <ArchiveIcon size={15} dir={item.isArchived ? "up" : "down"} />
+      </RowIcon>
       {onDelete && (
         <RowIcon onClick={() => setConfirmingDelete(true)} disabled={busy} label="Delete" danger>
           <TrashIcon size={15} />

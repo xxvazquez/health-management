@@ -877,16 +877,32 @@ function ItemRow({
   // history can't be hard-deleted, only archived).
   return (
     <li className="flex flex-col gap-1 py-2">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <ItemNameField item={item} state={renameState} />
-        <span className="flex items-center gap-3">
-          <ItemActionButtons
-            item={item}
-            busy={busy}
-            state={renameState}
-            onArchiveToggle={onArchiveToggle}
-            onDelete={item.hasHistory === false ? onDelete : undefined}
-          />
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
+          <ItemNameField item={item} state={renameState} />
+          {categories && onChangeCategory ? (
+            <select
+              value={item.category}
+              disabled={busy}
+              onChange={(e) => onChangeCategory(e.target.value)}
+              // appearance-none strips iOS Safari's native control chrome and
+              // leading-4 pins the line-height, so this select stays the same
+              // compact size as the plain category pills next to it.
+              className="appearance-none rounded-md border px-2 py-1 text-xs leading-4 disabled:opacity-40"
+              style={{ borderColor: "var(--border-hairline)", background: "var(--page-plane)", color: "var(--text-secondary)" }}
+            >
+              {!categories.includes(item.category) && <option value={item.category}>{item.category}</option>}
+              {categories.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+              {item.category}
+            </span>
+          )}
           {canRemind && (
             <span className="flex items-center gap-1">
               <input
@@ -916,29 +932,15 @@ function ItemRow({
           {canSetNutritionGroup && (
             <NutritionGroupSelect itemName={item.item} override={nutritionGroupOverride} busy={busy} onSetNutritionGroup={onSetNutritionGroup} />
           )}
-          {categories && onChangeCategory ? (
-            <select
-              value={item.category}
-              disabled={busy}
-              onChange={(e) => onChangeCategory(e.target.value)}
-              // appearance-none strips iOS Safari's native control chrome and
-              // leading-4 pins the line-height, so this select stays the same
-              // compact size as the plain category pills next to it.
-              className="appearance-none rounded-md border px-2 py-1 text-xs leading-4 disabled:opacity-40"
-              style={{ borderColor: "var(--border-hairline)", background: "var(--page-plane)", color: "var(--text-secondary)" }}
-            >
-              {!categories.includes(item.category) && <option value={item.category}>{item.category}</option>}
-              {categories.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
-          ) : (
-            <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-              {item.category}
-            </span>
-          )}
+        </div>
+        <span className="flex shrink-0 items-center gap-1">
+          <ItemActionButtons
+            item={item}
+            busy={busy}
+            state={renameState}
+            onArchiveToggle={onArchiveToggle}
+            onDelete={item.hasHistory === false ? onDelete : undefined}
+          />
         </span>
       </div>
       {linkedDecisions && linkedDecisions.length > 0 && <SupplementWhyLine decisions={linkedDecisions} />}
@@ -1571,27 +1573,15 @@ export default function ManagePage() {
   if (!isDemoData && rawItems === null) return <PageSkeleton cards={4} />;
   if (status === "empty" && !isDemoData) return <EmptyState />;
 
-  return (
-    <div className="flex flex-col gap-5">
-      <div>
-        <PageHeading actions={!isDemoData && <PushNotificationsToggle />}>Settings</PageHeading>
-        {isDemoData && <DemoNotice className="mt-2" />}
-        {actionError && (
-          <p className="mt-2 text-sm" style={{ color: "var(--status-warning)" }}>
-            {actionError}
-          </p>
-        )}
-      </div>
-
-      <VisibleSectionsCard />
-
-      <SearchField value={searchQuery} onChange={setSearchQuery} placeholder="Search every item, in every section…" className="w-full" />
-
-      <ReminderListsCard isDemoData={isDemoData} searchQuery={searchQuery} />
-
-      <DoctorSpecialtiesCard isDemoData={isDemoData} searchQuery={searchQuery} />
-
-      {TYPE_SECTIONS.map((section) => (
+  // Every editable grouping in one A–Z list, so the page is predictable to
+  // scan — reminder lists and doctor types sort in with the tracked-item
+  // sections rather than sitting pinned above them.
+  const orderedManageSections: { label: string; el: ReactNode }[] = [
+    { label: "Reminder lists", el: <ReminderListsCard key="reminder-lists" isDemoData={isDemoData} searchQuery={searchQuery} /> },
+    { label: "Doctor types", el: <DoctorSpecialtiesCard key="doctor-types" isDemoData={isDemoData} searchQuery={searchQuery} /> },
+    ...TYPE_SECTIONS.map((section) => ({
+      label: section.label,
+      el: (
         <ItemSection
           key={section.type}
           itemType={section.type}
@@ -1623,14 +1613,8 @@ export default function ManagePage() {
           onHideCatalogFood={
             section.type === "food" ? (name, category) => (isDemoData ? demoHideCatalogFood(name, category) : handleHideCatalogFood(name, category)) : undefined
           }
-          // Demo/signed-out visitors can't receive push at all, so the
-          // control doesn't render rather than offering a setting that can
-          // never do anything — see PushNotificationsToggle above.
           onSetReminderTime={isDemoData ? undefined : (item, time) => void realSetReminderTime(item, time)}
           onSetUnit={(item, unit) => (isDemoData ? demoSetUnit(item, unit) : void realSetUnit(item, unit))}
-          // Food only, and — same reasoning as the reminder toggle above —
-          // not offered in demo mode, since there's nothing real to save it
-          // against.
           nutritionGroupOverrides={section.type === "food" ? nutritionGroupOverrides : undefined}
           onSetNutritionGroup={
             section.type === "food" && !isDemoData
@@ -1639,7 +1623,27 @@ export default function ManagePage() {
           }
           onDelete={(item) => (isDemoData ? demoDeleteItem(item) : void handleDelete(item))}
         />
-      ))}
+      ),
+    })),
+  ].sort((a, b) => a.label.localeCompare(b.label));
+
+  return (
+    <div className="flex flex-col gap-5">
+      <div>
+        <PageHeading actions={!isDemoData && <PushNotificationsToggle />}>Settings</PageHeading>
+        {isDemoData && <DemoNotice className="mt-2" />}
+        {actionError && (
+          <p className="mt-2 text-sm" style={{ color: "var(--status-warning)" }}>
+            {actionError}
+          </p>
+        )}
+      </div>
+
+      <VisibleSectionsCard />
+
+      <SearchField value={searchQuery} onChange={setSearchQuery} placeholder="Search every item, in every section…" className="w-full" />
+
+      {orderedManageSections.map((s) => s.el)}
 
       <DataExportCard isDemoData={isDemoData} />
 

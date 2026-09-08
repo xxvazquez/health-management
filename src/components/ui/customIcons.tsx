@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
  * (Wishlist categories, reminder lists, lab panels, doctor specialties, …)
  * — same thin-stroke 20×20 language as Nav.tsx and the Log page icons.
  * Keyed by a short string stored on that table's `icon` column; the first
- * key (`heart`) is the fallback for a null or unrecognized one. */
+ * key (`square`) is the neutral fallback for a null or unrecognized one. */
 function Glyph({ children, size }: { children: ReactNode; size: number }) {
   return (
     <svg
@@ -24,6 +24,7 @@ function Glyph({ children, size }: { children: ReactNode; size: number }) {
 }
 
 const PATHS: Record<string, ReactNode> = {
+  square: <rect x="4.5" y="4.5" width="11" height="11" rx="2.2" />,
   heart: <path d="M10 16.5S4 12.8 4 8.6A3.1 3.1 0 0 1 10 7a3.1 3.1 0 0 1 6 1.6c0 4.2-6 7.9-6 7.9Z" />,
   home: (
     <>
@@ -128,7 +129,7 @@ const PATHS: Record<string, ReactNode> = {
 };
 
 export const CUSTOM_ICON_KEYS = Object.keys(PATHS);
-const DEFAULT_ICON_KEY = "heart";
+const DEFAULT_ICON_KEY = "square";
 
 export function CustomIcon({ icon, size = 15 }: { icon: string | null; size?: number }) {
   return <Glyph size={size}>{PATHS[icon ?? ""] ?? PATHS[DEFAULT_ICON_KEY]}</Glyph>;
