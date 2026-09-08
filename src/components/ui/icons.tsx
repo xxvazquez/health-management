@@ -22,6 +22,15 @@ export function ArchiveIcon({ size = 15, dir = "down" }: { size?: number; dir?: 
   );
 }
 
+export function CalendarIcon({ size = 13 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="3.5" y="4.5" width="13" height="12" rx="1.5" />
+      <path d="M3.5 8h13M7 3v3M13 3v3" />
+    </svg>
+  );
+}
+
 const CHEVRON_ROTATION = { right: 0, down: 90, left: 180, up: 270 } as const;
 
 export function ChevronIcon({ dir = "right", size = 16 }: { dir?: keyof typeof CHEVRON_ROTATION; size?: number }) {

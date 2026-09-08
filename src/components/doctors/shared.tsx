@@ -4,6 +4,7 @@ import { useMemo, useState, type ReactNode } from "react";
 import { DOCTOR_LANGUAGES, DOCTOR_RATINGS, isBadDoctor, type DoctorLanguage } from "@/lib/doctors";
 
 export { PencilIcon, TrashIcon } from "@/components/ui/Notebook";
+import { CalendarIcon, CloseIcon } from "@/components/ui/icons";
 import { FIELD_CLS, FIELD_STYLE, LABEL_CLS, LABEL_STYLE } from "@/components/ui/formField";
 export { FIELD_CLS, FIELD_STYLE, LABEL_CLS, LABEL_STYLE };
 
@@ -235,26 +236,58 @@ export function ComboBox({
   );
 }
 
-/** The one editable next-appointment date for a specialty — a plain
- * calendar input with a clear button. Shown in both the Specialty and
- * Doctor history headers; both write the same specialty-level value. */
-export function NextAppointmentField({ date, onChange, accent }: { date: string | null; onChange: (date: string | null) => void; accent: string }) {
+/** The one editable next-appointment date for a specialty — a compact
+ * date pill (accent-tinted once set) with an icon clear button. Shown in
+ * both the Specialty and Doctor history headers; both write the same
+ * specialty-level value. `hideLabel` drops the "Next appointment" caption
+ * where the surrounding section already makes it obvious. */
+export function NextAppointmentField({
+  date,
+  onChange,
+  accent,
+  hideLabel = false,
+}: {
+  date: string | null;
+  onChange: (date: string | null) => void;
+  accent: string;
+  hideLabel?: boolean;
+}) {
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <span className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
-        Next appointment
-      </span>
-      <input
-        type="date"
-        value={date ?? ""}
-        onChange={(e) => onChange(e.target.value || null)}
-        className="rounded-md border px-2 py-1 text-sm outline-none"
-        style={{ borderColor: date ? accent : "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
-      />
+    <div className="flex flex-wrap items-center gap-1.5">
+      {!hideLabel && (
+        <span className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
+          Next appointment
+        </span>
+      )}
+      <label
+        className="relative inline-flex cursor-pointer items-center gap-1.5 rounded-md border px-2 py-1 text-xs font-medium transition-colors"
+        style={{
+          borderColor: date ? accent : "var(--border-hairline)",
+          background: date ? `color-mix(in oklab, ${accent} 12%, var(--surface-1))` : "var(--surface-1)",
+          color: date ? accent : "var(--text-muted)",
+        }}
+      >
+        <CalendarIcon size={13} />
+        <span className="tabular-nums">{date ? formatDate(date) : "Set a date"}</span>
+        <input
+          type="date"
+          value={date ?? ""}
+          onChange={(e) => onChange(e.target.value || null)}
+          onClick={(e) => {
+            try {
+              e.currentTarget.showPicker();
+            } catch {
+              /* not supported — the native click still opens it */
+            }
+          }}
+          aria-label="Next appointment date"
+          className="absolute inset-0 cursor-pointer opacity-0"
+        />
+      </label>
       {date && (
-        <button type="button" onClick={() => onChange(null)} className="text-xs" style={{ color: "var(--text-muted)" }}>
-          clear
-        </button>
+        <IconAction label="Clear next appointment" onClick={() => onChange(null)}>
+          <CloseIcon size={13} />
+        </IconAction>
       )}
     </div>
   );

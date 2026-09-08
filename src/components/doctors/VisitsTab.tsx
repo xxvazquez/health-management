@@ -125,7 +125,7 @@ export function VisitsTab({ api, accent }: { api: DoctorsApi; accent: string }) 
         {upcoming.length > 0 && (
           <ul className="flex flex-col divide-y rounded-xl border" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
             {upcoming.map((s) => (
-              <li key={s.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2.5" style={{ borderColor: "var(--gridline)" }}>
+              <li key={s.id} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-3 py-2" style={{ borderColor: "var(--gridline)" }}>
                 <span className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
                   {s.name}
                 </span>
@@ -133,6 +133,7 @@ export function VisitsTab({ api, accent }: { api: DoctorsApi; accent: string }) 
                   date={s.nextAppointmentDate}
                   onChange={(date) => void api.specialties.setNextAppointment(s.name, date)}
                   accent={accent}
+                  hideLabel
                 />
               </li>
             ))}
