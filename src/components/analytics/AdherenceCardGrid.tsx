@@ -138,11 +138,19 @@ const CheckIcon = () => (
   </Ico>
 );
 
-function Stat({ icon, label, children }: { icon: ReactNode; label: string; children: ReactNode }) {
+function StatPill({ icon, label, tone, children }: { icon: ReactNode; label: string; tone?: string; children: ReactNode }) {
   return (
-    <span className="inline-flex items-center gap-1" title={label}>
-      <span style={{ color: "var(--text-muted)" }}>{icon}</span>
-      <strong style={{ color: "var(--text-primary)" }}>{children}</strong>
+    <span
+      className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-semibold tabular-nums"
+      title={label}
+      style={
+        tone
+          ? { background: `color-mix(in oklab, ${tone} 14%, var(--surface-1))`, color: tone }
+          : { background: "var(--page-plane)", color: "var(--text-secondary)" }
+      }
+    >
+      {icon}
+      {children}
     </span>
   );
 }
@@ -251,7 +259,7 @@ export function AdherenceCardGrid({
               No {noun}s in this category.
             </p>
           ) : (
-            <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(196px, 1fr))" }}>
+            <div className="grid gap-2.5" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(156px, 1fr))" }}>
               {rows.map((it) => {
                 const done = doneByItem.get(it.item) ?? new Set<string>();
                 const color = colorByItem.get(it.item) ?? accent;
@@ -259,47 +267,41 @@ export function AdherenceCardGrid({
                 return (
                   <div
                     key={it.itemIdentity}
-                    className="flex flex-col gap-2.5 rounded-lg border p-3"
+                    className="flex flex-col gap-2 rounded-lg border p-2.5"
                     style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}
                   >
-                    <div className="flex items-start gap-2">
-                      <span className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: color }} aria-hidden="true" />
-                      <div className="min-w-0 flex-1">
-                        {onArchiveToggle && onRename ? (
-                          <ItemActions
-                            item={it}
-                            busy={busyIdentity === it.itemIdentity}
-                            onArchiveToggle={() => onArchiveToggle(it)}
-                            onRename={(newName) => onRename(it, newName)}
-                          />
-                        ) : (
-                          <span className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
-                            {it.item}
-                          </span>
-                        )}
-                        <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs tabular-nums" style={{ color: "var(--text-secondary)" }}>
-                          <Stat icon={<DonutIcon />} label="Consistency">
-                            {it.consistencyPct}%
-                          </Stat>
-                          <Stat icon={<FlameIcon />} label="Current streak">
-                            {it.currentStreak}
-                          </Stat>
-                          {view === "year" && (
-                            <>
-                              <Stat icon={<TrophyIcon />} label="Longest streak">
-                                {longest}
-                              </Stat>
-                              <Stat icon={<CheckIcon />} label="Days completed">
-                                {it.daysCompleted}
-                              </Stat>
-                            </>
-                          )}
-                        </div>
-                      </div>
+                    {onArchiveToggle && onRename ? (
+                      <ItemActions
+                        item={it}
+                        busy={busyIdentity === it.itemIdentity}
+                        onArchiveToggle={() => onArchiveToggle(it)}
+                        onRename={(newName) => onRename(it, newName)}
+                        iconArchive
+                      />
+                    ) : (
+                      <span className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
+                        {it.item}
+                      </span>
+                    )}
+                    <div className="flex flex-wrap gap-1">
+                      <StatPill icon={<DonutIcon />} label="Consistency" tone={color}>
+                        {it.consistencyPct}%
+                      </StatPill>
+                      <StatPill icon={<CheckIcon />} label="Days completed">
+                        {it.daysCompleted}
+                      </StatPill>
+                      <StatPill icon={<FlameIcon />} label="Current streak">
+                        {it.currentStreak}
+                      </StatPill>
+                      {view === "year" && (
+                        <StatPill icon={<TrophyIcon />} label="Longest streak">
+                          {longest}
+                        </StatPill>
+                      )}
                     </div>
 
                     {view === "month" ? (
-                      <div className="flex flex-col gap-1">
+                      <div className="mt-0.5 flex flex-col gap-1 self-center">
                         <HabitGridWeekdays />
                         <HabitMonthGrid monthAnchor={anchor} completedDates={done} firstTrackedDate={it.firstTrackedDate} today={today} color={color} />
                       </div>
