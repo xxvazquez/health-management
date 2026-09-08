@@ -8,6 +8,7 @@ import { PageSkeleton } from "@/components/ui/Skeleton";
 import { DashboardHeader } from "@/components/analytics/DashboardHeader";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { Insight } from "@/components/ui/Insight";
+import { StatChip } from "@/components/ui/StatChip";
 import { DateRangeFilter } from "@/components/ui/DateRangeFilter";
 import { TrendAreaChart } from "@/components/charts/TrendAreaChart";
 import { RankedBarChart } from "@/components/charts/RankedBarChart";
@@ -62,28 +63,6 @@ function signed(n: number): string {
  * rather than reading as "0 kg change". */
 function trendRank(s: WorkoutExerciseStats): number {
   return s.recordsCount >= 2 ? s.changeKg : -Infinity;
-}
-
-/** Compact label/value block for the Progression card's Started/Current/
- * Best/Change figures — a stacked bordered box, since these sit inside a
- * card as supporting detail for the chart above them rather than as a
- * top-level stat row. */
-function ProgressionStat({ label, value, detail, accent }: { label: string; value: string; detail?: string; accent?: string }) {
-  return (
-    <div className="rounded-lg border px-3 py-2" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
-      <p className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
-        {label}
-      </p>
-      <p className="mt-0.5 text-base font-semibold tabular-nums" style={{ color: accent ?? "var(--text-primary)" }}>
-        {value}
-      </p>
-      {detail && (
-        <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
-          {detail}
-        </p>
-      )}
-    </div>
-  );
 }
 
 /** "SQ", "BP", "OP" — a plain two-letter monogram, not an emoji or icon
@@ -248,23 +227,23 @@ function ProgressSection({
 
       {selectedStats && (
         <div className="mt-5 border-t pt-4" style={{ borderColor: "var(--gridline)" }}>
-          <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-            <ProgressionStat
+          <div className="mb-3 flex flex-wrap gap-2">
+            <StatChip
               label="Started"
               value={`${selectedStats.started.weightKg} ${workoutUnitLabel(selectedStats.unit)}`}
               detail={formatWorkoutDate(selectedStats.started.date)}
             />
-            <ProgressionStat
+            <StatChip
               label="Current"
               value={`${selectedStats.current.weightKg} ${workoutUnitLabel(selectedStats.unit)}`}
               detail={formatWorkoutDate(selectedStats.current.date)}
             />
-            <ProgressionStat
+            <StatChip
               label="Best"
               value={`${selectedStats.best.weightKg} ${workoutUnitLabel(selectedStats.unit)}`}
               detail={formatWorkoutDate(selectedStats.best.date)}
             />
-            <ProgressionStat
+            <StatChip
               label="Change"
               value={`${signed(selectedStats.changeKg)} ${workoutUnitLabel(selectedStats.unit)}`}
               detail={selectedStats.changePct !== null ? `${signed(selectedStats.changePct)}%` : undefined}
