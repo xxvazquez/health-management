@@ -53,36 +53,40 @@ export function CycleDashboard() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
-        <DashboardHeader
-          subtitle={
-            <>
-              Patterns from what you&apos;ve logged — head to the{" "}
-              <Link href="/log" className="underline decoration-dotted" style={{ color: "var(--text-secondary)" }}>
-                Log page
-              </Link>{" "}
-              to record or correct a period day.
-            </>
-          }
-        >
-          Cycle
-        </DashboardHeader>
-        {span && range && <DateRangeFilter span={span} value={range} onChange={setRange} accent={ACCENT} />}
-      </div>
+      <DashboardHeader
+        subtitle={
+          <>
+            Patterns from what you&apos;ve logged — head to the{" "}
+            <Link href="/log" className="underline decoration-dotted" style={{ color: "var(--text-secondary)" }}>
+              Log page
+            </Link>{" "}
+            to record or correct a period day.
+          </>
+        }
+      >
+        Cycle
+      </DashboardHeader>
 
-      {(currentStatus.onPeriod || currentStatus.cycleDay !== null) && (
-        <span
-          className="inline-flex flex-wrap items-baseline gap-x-2 gap-y-0.5 self-start rounded-md px-2.5 py-1 text-sm font-semibold"
-          style={{ background: `color-mix(in oklab, ${ACCENT} 13%, var(--surface-1))`, color: ACCENT }}
-        >
-          {currentStatus.onPeriod ? `Day ${currentStatus.periodDay} of your period` : `Day ${currentStatus.cycleDay} of your cycle`}
-          {daysUntilNext !== null && (
-            <span className="font-normal" style={{ color: "var(--text-secondary)" }}>
-              {daysUntilNext} day{daysUntilNext === 1 ? "" : "s"} until your period
-            </span>
-          )}
-        </span>
-      )}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        {(currentStatus.onPeriod || currentStatus.cycleDay !== null) && (
+          <span
+            className="inline-flex flex-wrap items-baseline gap-x-2 gap-y-0.5 rounded-md px-2.5 py-1 text-sm font-semibold"
+            style={{ background: `color-mix(in oklab, ${ACCENT} 13%, var(--surface-1))`, color: ACCENT }}
+          >
+            {currentStatus.onPeriod ? `Day ${currentStatus.periodDay} of your period` : `Day ${currentStatus.cycleDay} of your cycle`}
+            {daysUntilNext !== null && (
+              <span className="font-normal" style={{ color: "var(--text-secondary)" }}>
+                {daysUntilNext} day{daysUntilNext === 1 ? "" : "s"} until your period
+              </span>
+            )}
+          </span>
+        )}
+        {span && range && (
+          <div className="ml-auto">
+            <DateRangeFilter span={span} value={range} onChange={setRange} accent={ACCENT} />
+          </div>
+        )}
+      </div>
 
       {delayDays !== null && (
         <Insight
