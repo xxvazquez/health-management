@@ -1,55 +1,157 @@
 "use client";
 
-import { CartesianGrid, Line, LineChart, ReferenceArea, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { formatAxisDate } from "@/lib/aggregations/common";
+import {
+  CartesianGrid,
+  Line,
+  LineChart,
+  ReferenceArea,
+  ReferenceDot,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 
 export interface LabMarkerChartPoint {
   date: string;
   value: number;
 }
 
-/** One marker's values over time as a single chronological line, with the
- * reference range shaded — same treatment as BristolScoreChart. The Y
- * domain always includes the reference band so an in-range run still shows
- * where it sits relative to the limits. */
+const DAY = 86_400_000;
+
+function toMs(date: string): number {
+  return Date.parse(`${date.slice(0, 10)}T00:00:00Z`);
+}
+
+function monthAxisLabel(ms: number): string {
+  const d = new Date(ms);
+  const mon = d.toLocaleDateString("en-US", { month: "short", timeZone: "UTC" }).toUpperCase();
+  return `${mon} ${String(d.getUTCFullYear()).slice(-2)}`;
+}
+
+function tooltipDate(ms: number): string {
+  return new Date(ms).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+}
+
+/** Ticks for the whole selected window, not just where readings land — one
+ * per month up to ~2.5 years, one per year beyond that. Labels turn
+ * vertical past six ticks, so a 10-year span shows every year without them
+ * overlapping. */
+function windowAxis(minMs: number, maxMs: number): { ticks: number[]; format: (ms: number) => string; vertical: boolean } {
+  const months = (maxMs - minMs) / (DAY * 30.44);
+  const ticks: number[] = [];
+  if (months <= 30) {
+    const d = new Date(minMs);
+    let cur = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1);
+    if (cur < minMs) cur = Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1);
+    while (cur <= maxMs) {
+      ticks.push(cur);
+      const c = new Date(cur);
+      cur = Date.UTC(c.getUTCFullYear(), c.getUTCMonth() + 1, 1);
+    }
+    return { ticks, format: monthAxisLabel, vertical: ticks.length > 6 };
+  }
+  const startYear = new Date(minMs).getUTCFullYear();
+  const endYear = new Date(maxMs).getUTCFullYear();
+  for (let y = startYear; y <= endYear; y++) {
+    const t = Date.UTC(y, 0, 1);
+    if (t >= minMs && t <= maxMs) ticks.push(t);
+  }
+  return { ticks, format: (ms) => String(new Date(ms).getUTCFullYear()), vertical: ticks.length > 6 };
+}
+
+/** One marker's values over time as a single chronological line. The lab
+ * reference range and (where set) the tighter optimal band are shaded
+ * behind it; the most recent reading gets an enlarged dot coloured by its
+ * status. `windowStart` / `windowEnd` pin the x-axis to the selected time
+ * window so it shows every year (or month) in that window even when the
+ * readings are sparse — without them the axis just spans the data. */
 export function LabMarkerChart({
   data,
   unit,
   refLow,
   refHigh,
+  optimalLow = null,
+  optimalHigh = null,
+  windowStart = null,
+  windowEnd = null,
   color = "var(--series-indigo)",
+  endColor,
   height = 240,
 }: {
   data: LabMarkerChartPoint[];
   unit: string | null;
   refLow: number | null;
   refHigh: number | null;
+  optimalLow?: number | null;
+  optimalHigh?: number | null;
+  windowStart?: string | null;
+  windowEnd?: string | null;
   color?: string;
+  endColor?: string;
   height?: number;
 }) {
-  const values = data.map((d) => d.value);
-  const lo = Math.min(...values, refLow ?? Infinity);
-  const hi = Math.max(...values, refHigh ?? -Infinity);
+  const rows = data.map((d) => ({ t: toMs(d.date), value: d.value })).sort((a, b) => a.t - b.t);
+
+  const values = rows.map((r) => r.value);
+  const bounds = [
+    ...values,
+    ...(refLow != null ? [refLow] : []),
+    ...(refHigh != null ? [refHigh] : []),
+    ...(optimalLow != null ? [optimalLow] : []),
+    ...(optimalHigh != null ? [optimalHigh] : []),
+  ];
+  const lo = Math.min(...bounds);
+  const hi = Math.max(...bounds);
   const pad = (hi - lo || Math.abs(hi) || 1) * 0.12;
+  const yFloor = lo >= 0 ? Math.max(0, Math.floor(lo - pad)) : Math.floor(lo - pad);
+  const yCeil = Math.ceil(hi + pad);
+
+  const dataMin = rows.length ? rows[0].t : 0;
+  const dataMax = rows.length ? rows[rows.length - 1].t : 0;
+  let minMs = windowStart ? toMs(windowStart) : dataMin;
+  let maxMs = windowEnd ? toMs(windowEnd) : dataMax;
+  if (maxMs - minMs < DAY * 30) {
+    minMs -= DAY * 15;
+    maxMs += DAY * 15;
+  }
+  const axis = windowAxis(minMs, maxMs);
+  const last = rows[rows.length - 1] ?? null;
 
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <LineChart data={data} margin={{ top: 8, right: 16, bottom: 8, left: 0 }}>
+      <LineChart data={rows} margin={{ top: 8, right: 16, bottom: axis.vertical ? 26 : 8, left: 0 }}>
         {refLow != null && refHigh != null && (
-          <ReferenceArea y1={refLow} y2={refHigh} fill="var(--status-good)" fillOpacity={0.12} strokeOpacity={0} />
+          <ReferenceArea y1={refLow} y2={refHigh} fill="var(--series-2)" fillOpacity={0.07} strokeOpacity={0} />
+        )}
+        {(optimalLow != null || optimalHigh != null) && (
+          <ReferenceArea
+            y1={optimalLow ?? yFloor}
+            y2={optimalHigh ?? yCeil}
+            fill="var(--status-good)"
+            fillOpacity={0.14}
+            strokeOpacity={0}
+          />
         )}
         <CartesianGrid vertical={false} stroke="var(--gridline)" />
         <XAxis
-          dataKey="date"
-          tickLine={false}
+          type="number"
+          dataKey="t"
+          scale="time"
+          domain={[minMs, maxMs]}
+          ticks={axis.ticks}
+          interval={0}
+          tickFormatter={axis.format}
+          tickLine={{ stroke: "var(--baseline)" }}
           axisLine={{ stroke: "var(--baseline)" }}
-          tick={{ fill: "var(--text-muted)", fontSize: 11 }}
-          tickFormatter={formatAxisDate}
-          tickMargin={8}
-          minTickGap={28}
+          tick={{ fill: "var(--text-muted)", fontSize: 10 }}
+          angle={axis.vertical ? -90 : 0}
+          textAnchor={axis.vertical ? "end" : "middle"}
+          height={axis.vertical ? 52 : 22}
+          tickMargin={axis.vertical ? 2 : 8}
         />
         <YAxis
-          domain={[Math.floor(lo - pad), Math.ceil(hi + pad)]}
+          domain={[yFloor, yCeil]}
           tickLine={false}
           axisLine={false}
           tick={{ fill: "var(--text-muted)", fontSize: 11 }}
@@ -64,7 +166,7 @@ export function LabMarkerChart({
             color: "var(--text-primary)",
           }}
           labelStyle={{ color: "var(--text-secondary)" }}
-          labelFormatter={(label) => formatAxisDate(String(label))}
+          labelFormatter={(label) => tooltipDate(Number(label))}
           formatter={(v) => [unit ? `${v} ${unit}` : String(v), "Value"]}
         />
         <Line
@@ -72,9 +174,20 @@ export function LabMarkerChart({
           dataKey="value"
           stroke={color}
           strokeWidth={1.5}
-          dot={{ r: 2, fill: color, strokeWidth: 0 }}
+          dot={{ r: 1.8, fill: color, strokeWidth: 0 }}
           activeDot={{ r: 4, fill: color, strokeWidth: 0 }}
+          isAnimationActive={false}
         />
+        {last && (
+          <ReferenceDot
+            x={last.t}
+            y={last.value}
+            r={4}
+            fill={endColor ?? color}
+            stroke="var(--surface-1)"
+            strokeWidth={1.5}
+          />
+        )}
       </LineChart>
     </ResponsiveContainer>
   );

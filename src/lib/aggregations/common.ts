@@ -137,6 +137,14 @@ export function formatAxisDate(date: string): string {
   return new Date(`${date}T00:00:00Z`).toLocaleDateString(undefined, { day: "numeric", month: "short", timeZone: "UTC" });
 }
 
+/** "14-08-26" — day-month-2digit-year, zero-padded so a column of these
+ * lines up. For the Results history rows and stat read-outs, where the
+ * date is a reference label rather than the headline. */
+export function formatDMY(date: string): string {
+  const [y, m, d] = date.slice(0, 10).split("-");
+  return `${d}-${m}-${y.slice(2)}`;
+}
+
 /** "7h 30m" style — for any minutes-valued observation (currently just
  * sleep duration). Omits the hours/minutes part when it's zero, so a
  * 45-minute nap reads as "45m", not "0h 45m". */

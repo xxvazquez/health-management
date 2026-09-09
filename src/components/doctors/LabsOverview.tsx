@@ -1,58 +1,46 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useLabs } from "@/lib/useLabs";
-import { todayLocalISODate } from "@/lib/aggregations/common";
+import { formatDMY, todayLocalISODate } from "@/lib/aggregations/common";
 import {
   clipMarkers,
   effectiveRange,
-  flaggedReadings,
-  headlineMarkers,
   labsSpan,
-  normalizedSeries,
   rangeBar,
   rangeCutoff,
   rangeStatus,
-  DEFAULT_LAB_PINS,
+  summariseWindow,
   LAB_RANGES,
-  type HeadlineMarker,
   type LabRangeOption,
+  type RangeStatus,
 } from "@/lib/aggregations/labs";
 import { optimalStatusColor } from "./labStatus";
 import type { LabMarker } from "@/lib/supabase/labs";
-import { useVitals } from "@/lib/useVitals";
-import type { BloodPressureReading, WeightReading } from "@/lib/supabase/vitals";
-import { bpCategory, bpElevated } from "@/lib/aggregations/vitals";
 import { InlineEmpty, ErrorState } from "@/components/ui/EmptyState";
 import { ListSkeleton } from "@/components/ui/Skeleton";
-import { Card, CardTitle } from "@/components/ui/Card";
+import { Card } from "@/components/ui/Card";
 import { Methodology } from "@/components/ui/Methodology";
-import { SearchField } from "@/components/ui/SearchField";
-import { LabMarkerChart, LabSparkline } from "@/components/charts/LabMarkerChart";
-import { MultiLineChart } from "@/components/charts/MultiLineChart";
+import { LabMarkerChart } from "@/components/charts/LabMarkerChart";
 import { CustomIcon, customColorValue } from "@/components/ui/customIcons";
 
 const ACCENT = "var(--series-1)";
-const MAX_COMPARE = 4;
-const COMPARE_COLORS = ["var(--series-1)", "var(--series-2)", "var(--series-4)", "var(--series-berry)"];
 
-function fmtDate(iso: string): string {
-  return new Date(`${iso}T00:00:00`).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
-}
+type Mode = "average" | "last";
+type SortKey = "panel" | "name";
+type Basis = "optimal" | "reference" | null;
 
-function fmtValue(v: number, unit: string | null): string {
-  return unit ? `${v} ${unit}` : String(v);
-}
-
-/** Trim the padding artefacts off a widened track end (2.749999 → 2.7). */
+/** Trim padding artefacts off a widened track end (2.749999 → 2.7). */
 function fmtNum(v: number): string {
   const r = Math.round(v * 10) / 10;
   return Number.isInteger(r) ? String(r) : r.toFixed(1);
 }
 
-type Basis = "optimal" | "reference" | null;
+function fmtValue(v: number, unit: string | null): string {
+  return unit ? `${fmtNum(v)} ${unit}` : fmtNum(v);
+}
 
-function statusWord(status: HeadlineMarker["status"], basis: Basis): string {
+function statusWord(status: RangeStatus, basis: Basis): string {
   const band = basis === "optimal" ? "optimal" : "norm";
   if (status === "low") return `below ${band}`;
   if (status === "high") return `above ${band}`;
@@ -69,47 +57,35 @@ function bandLabel(basis: Basis, low: number | null, high: number | null): strin
   return `${noun} ≤ ${fmtNum(high as number)}`;
 }
 
-function statusTone(status: HeadlineMarker["status"]): string {
-  return optimalStatusColor(status);
+function windowWord(option: LabRangeOption): string {
+  return option.years ? `${option.years} year${option.years > 1 ? "s" : ""}` : "all-time";
 }
 
-/** The read/analysis view of the Health → Results tab — flagged-first,
- * per-panel small-multiples, and a normalized compare overlay. Was the
- * Analytics "Blood" dashboard; folded in here so lab data lives in one
- * place. The Results tab's Manage view does the CRUD. */
+/** The read/analysis view of Health → Results: the panel list — every
+ * marker on its reference-range bar with the optimal band marked — grouped
+ * by panel or flat A–Z, with a time-window control that switches each row
+ * between the window average (spread shown as a whisker) and the latest
+ * reading. Tapping a marker opens its trend, window stats and full history.
+ * The Results tab's Manage view does the CRUD. */
 export function LabsOverview({ onManage }: { onManage?: () => void }) {
   const labs = useLabs();
-  const vitals = useVitals();
   const [rangeId, setRangeId] = useState<LabRangeOption["id"]>("all");
-  const [expanded, setExpanded] = useState<string | null>(null);
-  const [compare, setCompare] = useState<string[]>([]);
-  const [compareQuery, setCompareQuery] = useState("");
+  const [mode, setMode] = useState<Mode>("last");
+  const [sort, setSort] = useState<SortKey>("panel");
+  const [openId, setOpenId] = useState<string | null>(null);
 
   const today = todayLocalISODate();
   const rangeOption = LAB_RANGES.find((r) => r.id === rangeId) ?? LAB_RANGES[0];
+  const cutoff = rangeCutoff(rangeOption, today);
 
   const allMarkers = labs.markers.data;
-  const span = useMemo(() => labsSpan(allMarkers), [allMarkers]);
-  const inRange = useMemo(
-    () => clipMarkers(allMarkers, rangeCutoff(rangeOption, today)),
-    [allMarkers, rangeOption, today],
-  );
-  const headline = useMemo(() => headlineMarkers(inRange, DEFAULT_LAB_PINS), [inRange]);
-  const flagged = useMemo(() => flaggedReadings(inRange), [inRange]);
+  const span = labsSpan(allMarkers);
+  const inRange = clipMarkers(allMarkers, cutoff);
 
-  const cutoff = rangeCutoff(rangeOption, today);
-  // Newest first (useVitals sorts that way); clipped to the range control.
-  const bpShown = useMemo(
-    () => (cutoff ? vitals.bp.data.filter((r) => r.measuredAt >= cutoff) : vitals.bp.data),
-    [vitals.bp.data, cutoff],
-  );
-  const weightShown = useMemo(
-    () => (cutoff ? vitals.weight.data.filter((r) => r.measuredAt >= cutoff) : vitals.weight.data),
-    [vitals.weight.data, cutoff],
-  );
-  const hasVitals = vitals.bp.data.length > 0 || vitals.weight.data.length > 0;
+  const panelNameById = new Map(labs.panels.data.map((p) => [p.id, p.name] as const));
+  const panelName = (m: LabMarker) => (m.panelId ? panelNameById.get(m.panelId) ?? null : null);
 
-  const panelSections = useMemo(() => {
+  const panelSections = (() => {
     const byPanel = new Map<string, LabMarker[]>();
     for (const m of inRange) {
       const key = m.panelId ?? "";
@@ -119,30 +95,16 @@ export function LabsOverview({ onManage }: { onManage?: () => void }) {
       .map((p) => ({ id: p.id, name: p.name, icon: p.icon, color: p.color, markers: byPanel.get(p.id) ?? [] }))
       .filter((s) => s.markers.length > 0);
     const other = byPanel.get("") ?? [];
-    if (other.length > 0) sections.push({ id: "__other__", name: sections.length > 0 ? "Other" : "Markers", icon: null, color: null, markers: other });
+    if (other.length > 0)
+      sections.push({ id: "__other__", name: sections.length > 0 ? "Other" : "Markers", icon: null, color: null, markers: other });
     return sections;
-  }, [inRange, labs.panels.data]);
+  })();
 
-  const compareMarkers = useMemo(
-    () => compare.map((id) => inRange.find((m) => m.id === id)).filter((m): m is LabMarker => !!m),
-    [compare, inRange],
-  );
-  const compareSeries = useMemo(
-    () => (compareMarkers.length >= 2 ? normalizedSeries(compareMarkers) : null),
-    [compareMarkers],
-  );
-
-  const compareOptions = useMemo(() => {
-    const q = compareQuery.trim().toLowerCase();
-    return inRange
-      .filter((m) => m.results.length >= 2 && (!q || m.name.toLowerCase().includes(q)))
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }, [inRange, compareQuery]);
+  const flatMarkers = [...inRange].sort((a, b) => a.name.localeCompare(b.name));
 
   if (labs.loading) return <ListSkeleton />;
-  if (labs.error) {
-    return <ErrorState what="your results" />;
-  }
+  if (labs.error) return <ErrorState what="your results" />;
+
   if (allMarkers.length === 0) {
     return (
       <div className="flex flex-col items-center gap-3">
@@ -164,115 +126,62 @@ export function LabsOverview({ onManage }: { onManage?: () => void }) {
     );
   }
 
-  function toggleCompare(id: string) {
-    setCompare((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : prev.length >= MAX_COMPARE ? prev : [...prev, id]));
+  const windowStart = cutoff ?? span?.start ?? today;
+  const openMarker = openId ? inRange.find((m) => m.id === openId) ?? null : null;
+
+  if (openMarker) {
+    return (
+      <MarkerDetailView
+        marker={openMarker}
+        rangeOption={rangeOption}
+        rangeId={rangeId}
+        onRangeChange={setRangeId}
+        windowStart={windowStart}
+        windowEnd={today}
+        onBack={() => setOpenId(null)}
+      />
+    );
   }
 
   const yearSpan = span ? `${span.start.slice(0, 4)}–${span.end.slice(0, 4)}` : null;
+  const win = windowWord(rangeOption);
 
   return (
-    <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-2">
-      <p className="text-xs lg:col-span-2" style={{ color: "var(--text-muted)" }}>
-        {[`${allMarkers.length} markers`, yearSpan].filter(Boolean).join(" · ")}
-      </p>
-
-      <div className="flex flex-wrap gap-1.5 lg:col-span-2">
-        {LAB_RANGES.map((r) => {
-          const active = r.id === rangeId;
-          return (
-            <button
-              key={r.id}
-              type="button"
-              onClick={() => setRangeId(r.id)}
-              aria-pressed={active}
-              className="rounded-md border px-2.5 py-1 text-xs font-medium transition-colors"
-              style={{
-                borderColor: active ? ACCENT : "var(--border-hairline)",
-                background: active ? `color-mix(in oklab, ${ACCENT} 14%, var(--surface-1))` : "transparent",
-                color: active ? ACCENT : "var(--text-muted)",
-              }}
-            >
-              {r.label}
-            </button>
-          );
-        })}
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <Segmented value={rangeId} onChange={setRangeId} options={LAB_RANGES.map((r) => [r.id, r.label] as const)} />
+        <Segmented
+          value={mode}
+          onChange={setMode}
+          options={
+            [
+              ["average", "Average"],
+              ["last", "Last"],
+            ] as const
+          }
+        />
+        <Segmented
+          value={sort}
+          onChange={setSort}
+          options={
+            [
+              ["panel", "Panel"],
+              ["name", "A–Z"],
+            ] as const
+          }
+        />
       </div>
 
-      {headline.length > 0 && (
-        <div className="lg:col-span-2">
-          <p className="mb-3 text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-            Headline markers
-          </p>
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
-            {headline.map((h) => (
-              <Card key={h.id} tier="raw" className="flex flex-col gap-1.5">
-                <p className="truncate text-xs font-medium" style={{ color: "var(--text-secondary)" }} title={h.name}>
-                  {h.name}
-                </p>
-                <p className="text-lg font-semibold tabular-nums" style={{ color: statusTone(h.status) }}>
-                  {h.latest != null ? fmtValue(h.latest, h.unit) : "—"}
-                </p>
-                <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-                  {statusWord(h.status, h.basis)}
-                  {h.deltaPct != null && Math.abs(h.deltaPct) >= 1 && (
-                    <>
-                      {" · "}
-                      {h.deltaPct > 0 ? "▲" : "▼"} {Math.abs(Math.round(h.deltaPct))}%
-                    </>
-                  )}
-                </p>
-                {h.spark.length >= 2 && (
-                  <div className="mt-0.5">
-                    <LabSparkline values={h.spark} refLow={null} refHigh={null} width={96} height={22} />
-                  </div>
-                )}
-              </Card>
-            ))}
-          </div>
-        </div>
-      )}
+      <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+        {mode === "average"
+          ? `Each bar is the mean of every reading ${cutoff ? `in the last ${win}` : "on record"} — the whisker is its lowest-to-highest spread.`
+          : `Each bar is the most recent reading${cutoff ? ` in the last ${win}` : ""}.`}
+        {` · ${allMarkers.length} markers${yearSpan ? ` · ${yearSpan}` : ""}`}
+      </p>
 
-      {hasVitals && <VitalsBlock bp={bpShown} weight={weightShown} />}
-
-      <Card tier="raw" className="lg:col-span-2">
-        <CardTitle size="sm" subtitle="Markers whose most recent value sits outside its optimal range — or the lab reference range where no optimal one is set">
-          Flagged
-        </CardTitle>
-        {flagged.length === 0 ? (
-          <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-            Nothing outside range in this window.
-          </p>
-        ) : (
-          <ul className="flex flex-col divide-y" style={{ borderColor: "var(--gridline)" }}>
-            {flagged.map((f) => {
-              const bound = f.status === "low" ? f.low : f.high;
-              return (
-                <li key={f.markerId} className="flex items-center gap-3 py-2">
-                  <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: "var(--status-critical)" }} aria-hidden="true" />
-                  <span className="min-w-0 flex-1 truncate text-sm font-medium" style={{ color: "var(--text-primary)" }}>
-                    {f.name}
-                  </span>
-                  <span className="shrink-0 text-sm tabular-nums" style={{ color: "var(--status-critical)" }}>
-                    {fmtValue(f.value, f.unit)}
-                  </span>
-                  <span className="hidden shrink-0 text-xs tabular-nums sm:inline" style={{ color: "var(--text-muted)" }}>
-                    {f.status === "low" ? "below" : "above"} {bound != null ? fmtNum(bound) : ""} {f.basis === "optimal" ? "optimal" : "norm"} · {fmtDate(f.measuredOn)}
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </Card>
-
-      <div className="flex flex-col gap-2.5 lg:col-span-2">
-        <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-          By panel
-        </p>
-
-        {panelSections.map((s) => {
-          const expandedMarker = s.markers.find((m) => m.id === expanded);
-          return (
+      {sort === "panel" ? (
+        <div className="flex flex-col gap-2.5">
+          {panelSections.map((s) => (
             <Card key={s.id} tier="raw" padded={false} className="px-3.5 py-2.5">
               <div className="mb-1.5 flex items-center gap-1.5">
                 {s.icon && (
@@ -284,130 +193,110 @@ export function LabsOverview({ onManage }: { onManage?: () => void }) {
                   {s.name}
                 </h3>
               </div>
-              {expandedMarker ? (
-                <div className="flex flex-col gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setExpanded(null)}
-                    className="self-start text-xs font-medium"
-                    style={{ color: "var(--text-muted)" }}
-                  >
-                    ← Back to {s.name}
-                  </button>
-                  <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
-                    {expandedMarker.name}
-                    {expandedMarker.unit && (
-                      <span className="ml-1 font-normal" style={{ color: "var(--text-muted)" }}>({expandedMarker.unit})</span>
-                    )}
-                  </p>
-                  <LabMarkerChart
-                    data={expandedMarker.results.map((r) => ({ date: r.measuredOn, value: r.value }))}
-                    unit={expandedMarker.unit}
-                    refLow={expandedMarker.refLow}
-                    refHigh={expandedMarker.refHigh}
-                    color={ACCENT}
-                  />
-                  <ul className="flex flex-col divide-y text-sm" style={{ borderColor: "var(--gridline)" }}>
-                    {[...expandedMarker.results].reverse().slice(0, 12).map((r) => (
-                      <li key={r.id} className="flex items-center justify-between gap-3 py-1.5">
-                        <span className="tabular-nums" style={{ color: "var(--text-primary)" }}>{fmtValue(r.value, expandedMarker.unit)}</span>
-                        <span className="text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>{fmtDate(r.measuredOn)}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ) : (
-                <div className="flex flex-col">
-                  {s.markers.map((m, i) => (
-                    <MarkerRangeRow
-                      key={m.id}
-                      marker={m}
-                      last={i === s.markers.length - 1}
-                      onOpen={() => setExpanded(m.id)}
-                    />
-                  ))}
-                </div>
-              )}
+              <div className="flex flex-col">
+                {s.markers.map((m, i) => (
+                  <MarkerRow key={m.id} marker={m} mode={mode} last={i === s.markers.length - 1} onOpen={() => setOpenId(m.id)} />
+                ))}
+              </div>
             </Card>
-          );
-        })}
-      </div>
-
-      <Card tier="raw" className="lg:col-span-2">
-        <CardTitle size="sm" subtitle={`Pick 2–${MAX_COMPARE} markers to overlay on one normalized scale`}>
-          Compare
-        </CardTitle>
-        <div className="flex flex-col gap-3">
-          <SearchField value={compareQuery} onChange={setCompareQuery} placeholder="Find a marker" className="w-full" />
-          <div className="flex max-h-44 flex-wrap gap-1.5 overflow-y-auto">
-            {compareOptions.map((m) => {
-              const on = compare.includes(m.id);
-              return (
-                <button
-                  key={m.id}
-                  type="button"
-                  onClick={() => toggleCompare(m.id)}
-                  aria-pressed={on}
-                  disabled={!on && compare.length >= MAX_COMPARE}
-                  className="rounded-md border px-2 py-1 text-xs font-medium transition-colors disabled:opacity-40"
-                  style={{
-                    borderColor: on ? ACCENT : "var(--border-hairline)",
-                    background: on ? `color-mix(in oklab, ${ACCENT} 14%, var(--surface-1))` : "transparent",
-                    color: on ? ACCENT : "var(--text-muted)",
-                  }}
-                >
-                  {m.name}
-                </button>
-              );
-            })}
-            {compareOptions.length === 0 && (
-              <p className="text-xs" style={{ color: "var(--text-muted)" }}>No markers with two or more values here.</p>
-            )}
-          </div>
-          {compareSeries && compareSeries.data.length >= 2 ? (
-            <>
-              <MultiLineChart
-                data={compareSeries.data}
-                series={compareMarkers.map((m, i) => ({ key: m.id, label: m.name, color: COMPARE_COLORS[i % COMPARE_COLORS.length] }))}
-              />
-              <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-                {compareSeries.note === "midpoint"
-                  ? "Each line is a percent of that marker's reference midpoint (100% = mid-range)."
-                  : compareSeries.note === "minmax"
-                    ? "Markers without a reference range are scaled 0–100 across their own history."
-                    : "Markers with a reference range show as a percent of its midpoint; those without are scaled 0–100 across their own history."}
-              </p>
-            </>
-          ) : (
-            <p className="text-sm" style={{ color: "var(--text-muted)" }}>Select at least two markers.</p>
-          )}
+          ))}
         </div>
-      </Card>
+      ) : (
+        <Card tier="raw" padded={false} className="px-3.5">
+          <div className="flex flex-col">
+            {flatMarkers.map((m, i) => (
+              <MarkerRow
+                key={m.id}
+                marker={m}
+                mode={mode}
+                subPrefix={panelName(m)}
+                last={i === flatMarkers.length - 1}
+                onOpen={() => setOpenId(m.id)}
+              />
+            ))}
+          </div>
+        </Card>
+      )}
 
-      <Methodology className="lg:col-span-2">
-        This dashboard only describes your own recorded results. Each value is read against its optimal range where
-        you&rsquo;ve set one, otherwise the lab reference low/high on that marker — both are lab- and sometimes
-        age-specific, so treat a flag as a prompt to look, not a diagnosis. The bar under each value marks where it
-        sits, with that band highlighted in green and the scale ends labelled. Change vs previous compares the
-        latest value with the one before it. The compare chart puts unrelated markers on one scale so their shapes
-        can be read together; the numbers on its axis are not clinically meaningful. Blood-pressure categories are
-        the ACC/AHA 2017 bands, shown for reference.
+      <Methodology>
+        This view only describes your own recorded results. Pick a time window at the top: <strong>Average</strong> reads the
+        mean of every draw in it (the whisker on the bar is the lowest-to-highest spread), <strong>Last</strong> shows only the
+        most recent draw. Each value is read against your optimal range where you&rsquo;ve set one, otherwise the lab reference
+        low/high — both are lab- and sometimes age-specific, so treat a flag as a prompt to look, not a diagnosis. The bar marks
+        where the value sits, with the optimal band in green and the scale ends labelled. Open a marker for its full trend and
+        history.
       </Methodology>
     </div>
   );
 }
 
-/** One marker in a panel card: a compact data block (name + value), a
- * horizontal range bar carrying reference range + optimal band + the
- * reading, and the status word. Tap to expand the marker's trend chart. */
-function MarkerRangeRow({ marker, last, onOpen }: { marker: LabMarker; last: boolean; onOpen: () => void }) {
-  const sorted = [...marker.results].sort((a, b) => a.measuredOn.localeCompare(b.measuredOn));
-  const latest = sorted[sorted.length - 1] ?? null;
+// --- Controls -------------------------------------------------------
+
+function Segmented<T extends string>({
+  value,
+  onChange,
+  options,
+}: {
+  value: T;
+  onChange: (v: T) => void;
+  options: readonly (readonly [T, string])[];
+}) {
+  return (
+    <div className="inline-flex rounded-md border p-0.5" style={{ borderColor: "var(--border-hairline)" }}>
+      {options.map(([v, label]) => (
+        <button
+          key={v}
+          type="button"
+          onClick={() => onChange(v)}
+          aria-pressed={value === v}
+          className="rounded px-2.5 py-1 text-xs font-medium transition-colors"
+          style={{
+            background: value === v ? `color-mix(in oklab, ${ACCENT} 14%, var(--surface-1))` : "transparent",
+            color: value === v ? ACCENT : "var(--text-muted)",
+          }}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// --- Row -----------------------------------------------------------
+
+/** One marker: a compact name + value block, the horizontal range bar
+ * (reference track + optimal band + the reading, plus a spread whisker in
+ * Average mode) and the status word. Tap to open the marker. */
+function MarkerRow({
+  marker,
+  mode,
+  last,
+  subPrefix,
+  onOpen,
+}: {
+  marker: LabMarker;
+  mode: Mode;
+  last: boolean;
+  /** Panel name shown before the sub-label when the list is flat A–Z. */
+  subPrefix?: string | null;
+  onOpen: () => void;
+}) {
+  const summary = summariseWindow(marker.results);
   const { low, high, basis } = effectiveRange(marker);
-  const status = latest ? rangeStatus(latest.value, low, high) : null;
-  const bar = latest ? rangeBar(latest.value, marker.refLow, marker.refHigh, marker.optimalLow, marker.optimalHigh) : null;
+  const reading = summary ? (mode === "average" ? summary.mean : summary.latest) : null;
+  const status = reading != null ? rangeStatus(reading, low, high) : null;
   const tone = optimalStatusColor(status);
+  const bar = reading != null ? rangeBar(reading, marker.refLow, marker.refHigh, marker.optimalLow, marker.optimalHigh) : null;
   const label = bandLabel(basis, low, high);
+
+  const track = bar ? bar.trackHigh - bar.trackLow : 0;
+  const pctOf = (v: number) => (track > 0 ? Math.max(0, Math.min(100, ((v - bar!.trackLow) / track) * 100)) : 0);
+  const showWhisker = mode === "average" && !!bar && !!summary && summary.count >= 2 && summary.max > summary.min;
+  const wLeft = showWhisker ? pctOf(summary!.min) : 0;
+  const wRight = showWhisker ? pctOf(summary!.max) : 0;
+
+  const sub =
+    summary == null ? "—" : mode === "average" ? `avg ×${summary.count}` : formatDMY(summary.latestOn);
 
   return (
     <button
@@ -415,7 +304,7 @@ function MarkerRangeRow({ marker, last, onOpen }: { marker: LabMarker; last: boo
       onClick={onOpen}
       className="grid w-full items-center gap-3 py-2 text-left"
       style={{
-        gridTemplateColumns: "4.5rem minmax(0,1fr) 3.25rem",
+        gridTemplateColumns: "4.75rem minmax(0,1fr) 3rem",
         borderBottom: last ? undefined : "1px solid var(--border-hairline)",
       }}
     >
@@ -425,12 +314,17 @@ function MarkerRangeRow({ marker, last, onOpen }: { marker: LabMarker; last: boo
         </span>
         <span
           className="block text-xs font-semibold tabular-nums"
-          style={{ color: latest && status ? tone : "var(--text-primary)" }}
+          style={{ color: reading != null && status ? tone : "var(--text-primary)" }}
         >
-          {latest ? fmtNum(latest.value) : "—"}
+          {reading != null ? fmtNum(reading) : "—"}
           {marker.unit && (
-            <span className="ml-0.5 text-[9px] font-normal" style={{ color: "var(--text-muted)" }}>{marker.unit}</span>
+            <span className="ml-0.5 text-[9px] font-normal" style={{ color: "var(--text-muted)" }}>
+              {marker.unit}
+            </span>
           )}
+        </span>
+        <span className="block text-[9px] leading-tight tabular-nums" style={{ color: "var(--text-muted)" }}>
+          {subPrefix ? `${subPrefix} · ${sub}` : sub}
         </span>
       </span>
 
@@ -448,6 +342,16 @@ function MarkerRangeRow({ marker, last, onOpen }: { marker: LabMarker; last: boo
               background: "color-mix(in oklab, var(--status-good) 22%, var(--gridline))",
             }}
           />
+          {showWhisker && (
+            <span
+              className="absolute top-[7px] block h-[2px] rounded-full"
+              style={{
+                left: `${wLeft}%`,
+                width: `${Math.max(wRight - wLeft, 1)}%`,
+                background: "color-mix(in oklab, var(--text-secondary) 60%, transparent)",
+              }}
+            />
+          )}
           <span
             className="absolute top-[1.5px] block h-[11px] w-[11px] rounded-full"
             style={{ left: `calc(${bar.valuePct}% - 5.5px)`, background: tone, boxShadow: "0 0 0 2.5px var(--surface-1)" }}
@@ -466,72 +370,177 @@ function MarkerRangeRow({ marker, last, onOpen }: { marker: LabMarker; last: boo
           </span>
         </span>
       ) : (
-        <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>No range set</span>
+        <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>
+          No range set
+        </span>
       )}
 
       <span className="text-right text-[9.5px] leading-tight" style={{ color: tone }}>
-        {latest && basis ? statusWord(status, basis) : ""}
+        {reading != null && basis ? statusWord(status, basis) : ""}
       </span>
     </button>
   );
 }
 
-function VitalsBlock({ bp, weight }: { bp: BloodPressureReading[]; weight: WeightReading[] }) {
-  const latestBp = bp[0] ?? null;
-  const bpCat = latestBp ? bpCategory(latestBp.systolic, latestBp.diastolic) : null;
-  const latestWeight = weight[0] ?? null;
-  const weightDelta =
-    weight.length >= 2 ? Math.round((weight[0].kg - weight[weight.length - 1].kg) * 10) / 10 : null;
-  const anyElevated = bp.some((r) => bpElevated(r.systolic, r.diastolic));
+// --- Detail ------------------------------------------------------
+
+function Stat({ k, v, tone }: { k: string; v: string; tone?: string }) {
+  return (
+    <div>
+      <div className="text-[10px]" style={{ color: "var(--text-muted)" }}>
+        {k}
+      </div>
+      <div className="text-sm font-semibold tabular-nums" style={{ color: tone ?? "var(--text-primary)" }}>
+        {v}
+      </div>
+    </div>
+  );
+}
+
+function MarkerDetailView({
+  marker,
+  rangeOption,
+  rangeId,
+  onRangeChange,
+  windowStart,
+  windowEnd,
+  onBack,
+}: {
+  marker: LabMarker;
+  rangeOption: LabRangeOption;
+  rangeId: LabRangeOption["id"];
+  onRangeChange: (v: LabRangeOption["id"]) => void;
+  windowStart: string;
+  windowEnd: string;
+  onBack: () => void;
+}) {
+  const [showAll, setShowAll] = useState(false);
+
+  const ascending = [...marker.results].sort((a, b) => a.measuredOn.localeCompare(b.measuredOn));
+  const newest = [...ascending].reverse();
+  const summary = summariseWindow(marker.results);
+  const { low, high } = effectiveRange(marker);
+  const status = summary ? rangeStatus(summary.latest, low, high) : null;
+  const tone = optimalStatusColor(status);
+  const deltaPct =
+    summary && summary.previous != null && summary.previous !== 0
+      ? ((summary.latest - summary.previous) / Math.abs(summary.previous)) * 100
+      : null;
+
+  const win = windowWord(rangeOption);
+  const winCap = win.charAt(0).toUpperCase() + win.slice(1);
+
+  const refLabel =
+    marker.refLow != null || marker.refHigh != null
+      ? `range ${fmtNum(marker.refLow ?? 0)}–${marker.refHigh != null ? fmtNum(marker.refHigh) : "∞"}`
+      : null;
+  const optLabel =
+    marker.optimalLow != null || marker.optimalHigh != null
+      ? `optimal ${marker.optimalLow != null ? fmtNum(marker.optimalLow) : "0"}–${
+          marker.optimalHigh != null ? fmtNum(marker.optimalHigh) : "∞"
+        }`
+      : null;
+  const n = summary?.count ?? 0;
+  const drawWord = `${n} draw${n === 1 ? "" : "s"}${win === "all-time" ? "" : ` in the last ${win}`}`;
+
+  const shown = showAll ? newest : newest.slice(0, 12);
 
   return (
-    <Card tier="raw" className="lg:col-span-2">
-      <CardTitle size="sm" subtitle="Blood pressure and weight from the Health → Vitals tab">
-        Vitals
-      </CardTitle>
-      <div className="grid gap-4 sm:grid-cols-2">
-        {latestBp && bpCat && (
-          <div className="flex flex-col gap-1">
-            <p className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>Blood pressure</p>
-            <p className="text-lg font-semibold tabular-nums" style={{ color: bpCat.color }}>
-              {latestBp.systolic}/{latestBp.diastolic}
-              <span className="ml-1 text-xs font-normal" style={{ color: "var(--text-muted)" }}>mmHg</span>
-            </p>
-            <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-              {bpCat.label} · {fmtDate(latestBp.measuredAt.slice(0, 10))}
-            </p>
-            {bp.length >= 2 && (
-              <div className="mt-0.5">
-                <LabSparkline values={[...bp].reverse().map((r) => r.systolic)} refLow={null} refHigh={null} width={112} height={24} />
-              </div>
-            )}
-          </div>
-        )}
-        {latestWeight && (
-          <div className="flex flex-col gap-1">
-            <p className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>Weight</p>
-            <p className="text-lg font-semibold tabular-nums" style={{ color: "var(--text-primary)" }}>
-              {latestWeight.kg}
-              <span className="ml-1 text-xs font-normal" style={{ color: "var(--text-muted)" }}>kg</span>
-            </p>
-            <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-              {weightDelta != null && weightDelta !== 0 ? `${weightDelta > 0 ? "+" : ""}${weightDelta} kg over this range · ` : ""}
-              {fmtDate(latestWeight.measuredAt.slice(0, 10))}
-            </p>
-            {weight.length >= 2 && (
-              <div className="mt-0.5">
-                <LabSparkline values={[...weight].reverse().map((r) => r.kg)} refLow={null} refHigh={null} width={112} height={24} />
-              </div>
-            )}
-          </div>
-        )}
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center justify-between gap-3">
+        <button type="button" onClick={onBack} className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+          ← All results
+        </button>
+        <Segmented value={rangeId} onChange={onRangeChange} options={LAB_RANGES.map((r) => [r.id, r.label] as const)} />
       </div>
-      {anyElevated && (
-        <p className="mt-3 text-xs" style={{ color: "var(--status-warning)" }}>
-          <span className="mr-1.5 inline-block h-2 w-2 rounded-full align-middle" style={{ background: "var(--status-warning)" }} aria-hidden="true" />
-          Some blood-pressure readings in this range are Stage 1 or higher.
+
+      <div>
+        <h2 className="text-lg font-semibold" style={{ color: "var(--text-primary)" }}>
+          {marker.name}
+          {marker.unit && (
+            <span className="ml-1 text-xs font-normal" style={{ color: "var(--text-muted)" }}>
+              {marker.unit}
+            </span>
+          )}
+        </h2>
+        <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+          {[refLabel, optLabel, drawWord].filter(Boolean).join(" · ")}
+        </p>
+      </div>
+
+      {ascending.length >= 2 ? (
+        <Card tier="raw" className="p-3">
+          <LabMarkerChart
+            data={ascending.map((r) => ({ date: r.measuredOn, value: r.value }))}
+            unit={marker.unit}
+            refLow={marker.refLow}
+            refHigh={marker.refHigh}
+            optimalLow={marker.optimalLow}
+            optimalHigh={marker.optimalHigh}
+            windowStart={windowStart}
+            windowEnd={windowEnd}
+            endColor={tone}
+          />
+        </Card>
+      ) : (
+        <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+          Add a second value in this window to see the trend.
         </p>
       )}
-    </Card>
+
+      {summary && (
+        <div className="grid grid-cols-3 gap-x-3 gap-y-3">
+          <Stat k={`Latest · ${formatDMY(summary.latestOn)}`} v={fmtNum(summary.latest)} tone={tone} />
+          <Stat k="Previous" v={summary.previous != null ? fmtNum(summary.previous) : "—"} />
+          <Stat
+            k="Change"
+            v={
+              deltaPct == null
+                ? "—"
+                : `${deltaPct > 0 ? "▲ " : deltaPct < 0 ? "▼ " : ""}${Math.abs(Math.round(deltaPct))}%`
+            }
+            tone={deltaPct != null && status && status !== "in" ? tone : undefined}
+          />
+          <Stat k={`${winCap} average`} v={fmtNum(summary.mean)} />
+          <Stat k={`${winCap} range`} v={summary.count >= 2 ? `${fmtNum(summary.min)}–${fmtNum(summary.max)}` : "—"} />
+          <Stat k="Draws" v={String(summary.count)} />
+        </div>
+      )}
+
+      {newest.length > 0 && (
+        <Card tier="raw" padded={false} className="px-3.5">
+          <ul className="flex flex-col divide-y" style={{ borderColor: "var(--gridline)" }}>
+            {shown.map((r) => {
+              const st = rangeStatus(r.value, low, high);
+              return (
+                <li key={r.id} className="grid gap-x-3 py-2" style={{ gridTemplateColumns: "1fr auto" }}>
+                  <span className="text-sm font-semibold tabular-nums" style={{ color: optimalStatusColor(st) }}>
+                    {fmtValue(r.value, marker.unit)}
+                  </span>
+                  <span className="text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>
+                    {formatDMY(r.measuredOn)}
+                  </span>
+                  {r.note && (
+                    <p className="col-span-2 mt-0.5 text-xs" style={{ color: "var(--text-secondary)" }}>
+                      {r.note}
+                    </p>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+          {newest.length > 12 && (
+            <button
+              type="button"
+              onClick={() => setShowAll((v) => !v)}
+              className="w-full py-2 text-center text-xs font-medium"
+              style={{ color: "var(--text-muted)" }}
+            >
+              {showAll ? "Show less" : `+ ${newest.length - 12} older`}
+            </button>
+          )}
+        </Card>
+      )}
+    </div>
   );
 }

@@ -3,14 +3,12 @@ import type { LabMarker } from "@/lib/supabase/labs";
 import {
   clipMarkers,
   effectiveRange,
-  flaggedReadings,
-  headlineMarkers,
   labsSpan,
-  normalizedSeries,
   parseNum,
   rangeBar,
   rangeCutoff,
   rangeStatus,
+  summariseWindow,
   LAB_RANGES,
 } from "./labs";
 
@@ -152,72 +150,23 @@ describe("clipMarkers", () => {
   });
 });
 
-describe("headlineMarkers", () => {
-  it("includes pinned markers and anything out of range, out-of-range first", () => {
-    const markers = [
-      marker({ id: "tsh", name: "TSH", refLow: 0.4, refHigh: 4, results: [result("2025-01-01", 2), result("2025-06-01", 3)] }),
-      marker({ id: "fer", name: "Ferrytyna", refLow: 13, refHigh: 150, results: [result("2025-01-01", 20), result("2025-06-01", 8)] }),
-      marker({ id: "x", name: "Random", refLow: 0, refHigh: 10, results: [result("2025-06-01", 5)] }),
-    ];
-    const rows = headlineMarkers(markers, ["TSH", "Ferrytyna"]);
-    expect(rows.map((r) => r.id)).toEqual(["fer", "tsh"]);
-    expect(rows[0].status).toBe("low");
-    expect(rows[0].deltaPct).toBeCloseTo(-60);
+describe("summariseWindow", () => {
+  it("is null for an empty window", () => {
+    expect(summariseWindow([])).toBeNull();
   });
-  it("matches pins loosely across parentheticals and case", () => {
-    const markers = [marker({ id: "hgb", name: "Hemoglobina (HGB)", results: [result("2025-06-01", 13)] })];
-    expect(headlineMarkers(markers, ["hemoglobina"]).map((r) => r.id)).toEqual(["hgb"]);
+  it("returns the mean, spread, latest and the reading before it", () => {
+    const s = summariseWindow([result("2025-01-01", 2), result("2025-06-01", 4), result("2025-03-01", 3)])!;
+    expect(s.count).toBe(3);
+    expect(s.mean).toBe(3);
+    expect(s.min).toBe(2);
+    expect(s.max).toBe(4);
+    expect(s.latest).toBe(4);
+    expect(s.latestOn).toBe("2025-06-01");
+    expect(s.previous).toBe(3);
   });
-  it("reads a value inside the reference range but below optimal as low", () => {
-    const markers = [
-      marker({ id: "fer", name: "Ferritin", refLow: 15, refHigh: 150, optimalLow: 50, optimalHigh: 120, results: [result("2025-06-01", 32)] }),
-    ];
-    const rows = headlineMarkers(markers, []);
-    expect(rows.map((r) => r.id)).toEqual(["fer"]);
-    expect(rows[0].status).toBe("low");
-    expect(rows[0].basis).toBe("optimal");
-  });
-});
-
-describe("flaggedReadings", () => {
-  it("returns the latest out-of-range reading per marker, newest first", () => {
-    const markers = [
-      marker({ id: "a", name: "A", refLow: 0, refHigh: 10, results: [result("2025-01-01", 20), result("2025-02-01", 5)] }),
-      marker({ id: "b", name: "B", refLow: 0, refHigh: 10, results: [result("2025-03-01", 15)] }),
-    ];
-    const flagged = flaggedReadings(markers);
-    expect(flagged.map((f) => f.markerId)).toEqual(["b"]);
-    expect(flagged[0].status).toBe("high");
-  });
-  it("flags a value that clears the reference range but misses the optimal one", () => {
-    const markers = [
-      marker({ id: "fer", name: "Ferritin", refLow: 15, refHigh: 150, optimalLow: 50, optimalHigh: 120, results: [result("2025-06-01", 32)] }),
-    ];
-    const flagged = flaggedReadings(markers);
-    expect(flagged).toHaveLength(1);
-    expect(flagged[0].status).toBe("low");
-    expect(flagged[0].basis).toBe("optimal");
-    expect(flagged[0].low).toBe(50);
-  });
-});
-
-describe("normalizedSeries", () => {
-  it("scales to percent of the reference midpoint when a range is set", () => {
-    const markers = [marker({ id: "a", name: "A", refLow: 0, refHigh: 10, results: [result("2025-01-01", 5), result("2025-02-01", 10)] })];
-    const { data, note } = normalizedSeries(markers);
-    expect(note).toBe("midpoint");
-    expect(data[0].a).toBe(100);
-    expect(data[1].a).toBe(200);
-  });
-  it("min–max scales a marker with no range and merges dates", () => {
-    const markers = [
-      marker({ id: "a", name: "A", refLow: 0, refHigh: 10, results: [result("2025-01-01", 5)] }),
-      marker({ id: "b", name: "B", results: [result("2025-01-01", 2), result("2025-02-01", 4)] }),
-    ];
-    const { data, note } = normalizedSeries(markers);
-    expect(note).toBe("mixed");
-    expect(data).toHaveLength(2);
-    expect(data[0].b).toBe(0);
-    expect(data[1].b).toBe(100);
+  it("has no previous with a single reading", () => {
+    const s = summariseWindow([result("2025-01-01", 2)])!;
+    expect(s.mean).toBe(2);
+    expect(s.previous).toBeNull();
   });
 });
