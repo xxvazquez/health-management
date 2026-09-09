@@ -12,7 +12,7 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { ItemNameField, ItemActionButtons, useInlineRename } from "@/components/ui/ItemActions";
 import { ManageRow } from "@/components/ui/ManageRow";
-import { TrashIcon } from "@/components/ui/Notebook";
+import { PencilIcon, TrashIcon } from "@/components/ui/Notebook";
 import { PageHeading } from "@/components/ui/PageHeading";
 import { IconColorPicker } from "@/components/ui/IconColorPicker";
 import { CustomIcon, customColorValue } from "@/components/ui/customIcons";
@@ -41,6 +41,8 @@ import { createWishlistCategory, deleteWishlistCategory, fetchWishlist, updateWi
 import { buildDemoWishlist } from "@/lib/demoWishlist";
 import { clearWeightTarget, fetchWeightTarget, setWeightTarget, type WeightTarget } from "@/lib/supabase/vitals";
 import { buildDemoWeightTarget } from "@/lib/demoVitals";
+import { useLabs } from "@/lib/useLabs";
+import { MarkerForm } from "@/components/doctors/labForms";
 import {
   createDoctorSpecialty,
   deleteDoctorSpecialty,
@@ -393,6 +395,221 @@ function WeightGoalCard({ isDemoData, searchQuery }: { isDemoData: boolean; sear
         <button type="button" onClick={startEditing} className="text-xs font-medium underline decoration-dotted" style={{ color: "var(--text-secondary)" }}>
           Set a target range
         </button>
+      )}
+    </CollapsibleManageCard>
+  );
+}
+
+/** Lab markers and panels behind Health → Results. All definition —
+ * marker name, unit, reference + optimal ranges, panel grouping, panel
+ * name/icon/colour — is edited here; the Results tab keeps only value
+ * entry (a single value or a whole draw) and a slim marker quick-add. */
+function LabResultsCard({ searchQuery }: { searchQuery: string }) {
+  const labs = useLabs();
+  const accent = "var(--series-1)";
+  const [addingMarker, setAddingMarker] = useState(false);
+  const [editingMarkerId, setEditingMarkerId] = useState<string | null>(null);
+  const [confirmingMarker, setConfirmingMarker] = useState<string | null>(null);
+  const [newPanel, setNewPanel] = useState("");
+
+  const query = searchQuery.trim().toLowerCase();
+  const isSearching = query.length > 0;
+  const markers = labs.markers.data;
+  const panels = labs.panels.data;
+  const markerMatches = (name: string) => !isSearching || name.toLowerCase().includes(query);
+  const shownMarkers = markers.filter((m) => markerMatches(m.name));
+  const shownPanels = panels.filter((p) => !isSearching || p.name.toLowerCase().includes(query));
+
+  const groups = [
+    ...panels.map((p) => ({ id: p.id, name: p.name, markers: shownMarkers.filter((m) => m.panelId === p.id) })),
+    { id: "", name: "No panel", markers: shownMarkers.filter((m) => !m.panelId) },
+  ].filter((g) => g.markers.length > 0);
+
+  if (isSearching && shownMarkers.length === 0 && shownPanels.length === 0) return null;
+
+  async function addPanel(e: FormEvent) {
+    e.preventDefault();
+    const name = newPanel.trim();
+    if (!name) return;
+    setNewPanel("");
+    await labs.panels.create(name).catch((err) => console.error("createLabPanel failed", err));
+  }
+
+  return (
+    <CollapsibleManageCard
+      title="Lab results"
+      subtitle={labs.loading ? undefined : `${markers.length} marker${markers.length === 1 ? "" : "s"}${panels.length > 0 ? ` · ${panels.length} panel${panels.length === 1 ? "" : "s"}` : ""}`}
+      forceOpen={isSearching}
+    >
+      <p className="mb-3 text-xs" style={{ color: "var(--text-secondary)" }}>
+        The markers and panels behind Health &rarr; Results. Enter values &mdash; a single reading or a whole blood draw &mdash;
+        on the Results tab.
+      </p>
+
+      {labs.loading ? (
+        <p className="py-3 text-xs" style={{ color: "var(--text-muted)" }}>
+          Loading…
+        </p>
+      ) : labs.error ? (
+        <p className="py-3 text-xs" style={{ color: "var(--status-critical)" }}>
+          Couldn&apos;t load your results.
+        </p>
+      ) : (
+        <div className="flex flex-col gap-5">
+          <div>
+            <p className="mb-2 text-xs font-semibold" style={{ color: "var(--text-secondary)" }}>
+              Panels
+            </p>
+            <form onSubmit={addPanel} className="mb-2 flex items-center gap-2">
+              <input
+                value={newPanel}
+                onChange={(e) => setNewPanel(e.target.value)}
+                placeholder="New panel name"
+                maxLength={60}
+                className="flex-1 rounded-md border px-2.5 py-1.5 text-xs outline-none"
+                style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
+              />
+              <button type="submit" disabled={!newPanel.trim()} className="shrink-0 rounded-md px-3 py-1.5 text-xs font-semibold disabled:opacity-40" style={{ color: accent }}>
+                Add
+              </button>
+            </form>
+            {panels.length === 0 ? (
+              <p className="py-1 text-xs" style={{ color: "var(--text-muted)" }}>
+                No panels yet — markers can stay ungrouped.
+              </p>
+            ) : (
+              <ul className="flex flex-col divide-y divide-[color:var(--gridline)]">
+                {shownPanels.map((p) => (
+                  <ManageRow
+                    key={p.id}
+                    name={p.name}
+                    maxLength={60}
+                    appearance={{
+                      icon: p.icon,
+                      color: p.color,
+                      accent: customColorValue(p.color) ?? accent,
+                      onIconChange: (icon) => void labs.panels.rename(p.id, { icon }),
+                      onColorChange: (color) => void labs.panels.rename(p.id, { color }),
+                    }}
+                    onRename={(next) => void labs.panels.rename(p.id, { name: next })}
+                    onDelete={() => void labs.panels.remove(p.id)}
+                  />
+                ))}
+              </ul>
+            )}
+          </div>
+
+          <div>
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <p className="text-xs font-semibold" style={{ color: "var(--text-secondary)" }}>
+                Markers
+              </p>
+              {!isSearching && !addingMarker && (
+                <button
+                  type="button"
+                  onClick={() => setAddingMarker(true)}
+                  className="rounded-md border px-2 py-1 text-xs font-medium"
+                  style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-secondary)" }}
+                >
+                  + New marker
+                </button>
+              )}
+            </div>
+
+            {addingMarker && (
+              <div className="mb-3">
+                <MarkerForm labs={labs} accent={accent} fields="all" onSaved={() => setAddingMarker(false)} onCancel={() => setAddingMarker(false)} />
+              </div>
+            )}
+
+            {markers.length === 0 && !addingMarker ? (
+              <p className="py-1 text-xs" style={{ color: "var(--text-muted)" }}>
+                No markers yet.
+              </p>
+            ) : (
+              <div className="flex flex-col gap-4">
+                {groups.map((g) => (
+                  <div key={g.id || "__none__"}>
+                    <p className="mb-1 text-[11px] font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
+                      {g.name}
+                    </p>
+                    <ul className="flex flex-col divide-y divide-[color:var(--gridline)]">
+                      {g.markers.map((m) => {
+                        const isEditing = editingMarkerId === m.id;
+                        return (
+                          <li key={m.id} className="py-2">
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => setEditingMarkerId(isEditing ? null : m.id)}
+                                className="min-w-0 flex-1 truncate text-left text-sm"
+                                style={{ color: "var(--text-primary)" }}
+                              >
+                                {m.name}
+                                {m.unit && (
+                                  <span className="ml-1.5 text-xs" style={{ color: "var(--text-muted)" }}>
+                                    {m.unit}
+                                  </span>
+                                )}
+                              </button>
+                              {confirmingMarker === m.id ? (
+                                <span className="flex shrink-0 items-center gap-1.5 text-xs">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setConfirmingMarker(null);
+                                      setEditingMarkerId(null);
+                                      void labs.markers.remove(m.id);
+                                    }}
+                                    className="font-semibold"
+                                    style={{ color: "var(--status-critical)" }}
+                                  >
+                                    Delete{m.results.length > 0 ? ` (${m.results.length})` : ""}
+                                  </button>
+                                  <button type="button" onClick={() => setConfirmingMarker(null)} className="font-medium" style={{ color: "var(--text-muted)" }}>
+                                    Keep
+                                  </button>
+                                </span>
+                              ) : (
+                                <span className="flex shrink-0 items-center gap-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => setEditingMarkerId(isEditing ? null : m.id)}
+                                    aria-label={`Edit ${m.name}`}
+                                    title="Edit"
+                                    className="tap-target rounded-md p-1.5 transition-colors hover:bg-[var(--page-plane)]"
+                                    style={{ color: "var(--text-muted)" }}
+                                  >
+                                    <PencilIcon size={15} />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setConfirmingMarker(m.id)}
+                                    aria-label={`Delete ${m.name}`}
+                                    title="Delete"
+                                    className="notebook-danger tap-target rounded-md p-1.5 transition-colors hover:bg-[var(--page-plane)]"
+                                    style={{ color: "var(--text-muted)" }}
+                                  >
+                                    <TrashIcon size={15} />
+                                  </button>
+                                </span>
+                              )}
+                            </div>
+                            {isEditing && (
+                              <div className="mt-2">
+                                <MarkerForm labs={labs} accent={accent} fields="all" initial={m} onSaved={() => setEditingMarkerId(null)} onCancel={() => setEditingMarkerId(null)} />
+                              </div>
+                            )}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       )}
     </CollapsibleManageCard>
   );
@@ -2416,6 +2633,7 @@ export default function ManagePage() {
     { label: "Reminder lists", el: <ReminderListsCard key="reminder-lists" isDemoData={isDemoData} searchQuery={searchQuery} /> },
     { label: "Doctors", el: <DoctorsCard key="doctors" searchQuery={searchQuery} /> },
     { label: "Doctor types", el: <DoctorSpecialtiesCard key="doctor-types" isDemoData={isDemoData} searchQuery={searchQuery} /> },
+    { label: "Lab results", el: <LabResultsCard key="lab-results" searchQuery={searchQuery} /> },
     { label: "Stool options", el: <StoolOptionsCard key="stool-options" isDemoData={isDemoData} searchQuery={searchQuery} /> },
     { label: "Weight goal", el: <WeightGoalCard key="weight-goal" isDemoData={isDemoData} searchQuery={searchQuery} /> },
     { label: "Wishlist lists", el: <WishlistListsCard key="wishlist-lists" isDemoData={isDemoData} searchQuery={searchQuery} /> },

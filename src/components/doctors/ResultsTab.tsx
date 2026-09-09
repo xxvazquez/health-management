@@ -1,201 +1,17 @@
 "use client";
 
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useLabs } from "@/lib/useLabs";
 import { todayLocalISODate } from "@/lib/aggregations/common";
 import type { LabMarker, LabResult } from "@/lib/supabase/labs";
-import { LabMarkerChart, LabSparkline } from "@/components/charts/LabMarkerChart";
-import { ListSkeleton } from "@/components/ui/Skeleton";
-import { ErrorState, InlineEmpty } from "@/components/ui/EmptyState";
+import { ErrorState } from "@/components/ui/EmptyState";
 import { PrimaryAction } from "@/components/ui/PrimaryAction";
-import { SearchField } from "@/components/ui/SearchField";
 import { Button } from "@/components/ui/Button";
-import { ComboBox, FIELD_CLS, FIELD_STYLE, IconAction, LABEL_CLS, LABEL_STYLE, PencilIcon, TrashIcon, formatDate } from "./shared";
-import { parseNum, rangeStatus, statusColor } from "./labStatus";
+import { FIELD_CLS, FIELD_STYLE, LABEL_CLS, LABEL_STYLE, formatDate } from "./shared";
+import { parseNum } from "./labStatus";
 import { BatchResultsView } from "./BatchResultsView";
 import { LabsOverview } from "./LabsOverview";
-import { CustomIcon, customColorValue } from "@/components/ui/customIcons";
-import { IconColorPicker } from "@/components/ui/IconColorPicker";
-
-const NEW_PANEL = "__new__";
-const NO_PANEL = "";
-
-function refRangeLabel(low: number | null, high: number | null, unit: string | null): string | null {
-  if (low == null && high == null) return null;
-  const u = unit ? ` ${unit}` : "";
-  if (low != null && high != null) return `Ref ${low}–${high}${u}`;
-  if (low != null) return `Ref ≥ ${low}${u}`;
-  return `Ref ≤ ${high}${u}`;
-}
-
-function optRangeLabel(low: number | null, high: number | null): string | null {
-  if (low == null && high == null) return null;
-  if (low != null && high != null) return `Optimal ${low}–${high}`;
-  if (low != null) return `Optimal ≥ ${low}`;
-  return `Optimal ≤ ${high}`;
-}
-
-// --- Marker form -------------------------------------------------------
-
-function MarkerForm({
-  labs,
-  accent,
-  initial,
-  onSaved,
-  onCancel,
-}: {
-  labs: ReturnType<typeof useLabs>;
-  accent: string;
-  initial?: LabMarker;
-  onSaved: (markerId: string) => void;
-  onCancel: () => void;
-}) {
-  const [name, setName] = useState(initial?.name ?? "");
-  const [unit, setUnit] = useState(initial?.unit ?? "");
-  const [unitTouched, setUnitTouched] = useState(false);
-  const [refLow, setRefLow] = useState(initial?.refLow != null ? String(initial.refLow) : "");
-  const [refHigh, setRefHigh] = useState(initial?.refHigh != null ? String(initial.refHigh) : "");
-  const [optLow, setOptLow] = useState(initial?.optimalLow != null ? String(initial.optimalLow) : "");
-  const [optHigh, setOptHigh] = useState(initial?.optimalHigh != null ? String(initial.optimalHigh) : "");
-  const [panelId, setPanelId] = useState(initial?.panelId ?? NO_PANEL);
-  const [newPanelName, setNewPanelName] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const needsNewPanel = panelId === NEW_PANEL;
-  const markerNameOptions = useMemo(() => labs.markers.data.map((m) => m.name), [labs.markers.data]);
-
-  // Default the Unit field to whatever a marker of the same name already
-  // uses, so a brand-new marker doesn't start blank when its unit is
-  // already known — a derived fallback, not synced state, so it never
-  // fights typing. `unitTouched` (not "is unit empty") gates the fallback,
-  // so backspacing the suggestion all the way to blank actually stays blank
-  // instead of snapping back to the match on every keystroke.
-  const matchedUnit = useMemo(() => {
-    if (initial) return null;
-    const match = labs.markers.data.find((m) => m.name.trim().toLowerCase() === name.trim().toLowerCase());
-    return match?.unit || null;
-  }, [name, initial, labs.markers.data]);
-  const effectiveUnit = unitTouched ? unit : (matchedUnit ?? unit);
-
-  const canSave = name.trim().length > 0 && (!needsNewPanel || newPanelName.trim().length > 0);
-
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault();
-    if (!canSave || saving) return;
-    setSaving(true);
-    setError(null);
-    try {
-      let resolvedPanelId: string | null = panelId === NO_PANEL || needsNewPanel ? null : panelId;
-      if (needsNewPanel) resolvedPanelId = (await labs.panels.create(newPanelName)).id;
-      const patch = {
-        panelId: resolvedPanelId,
-        name,
-        unit: effectiveUnit,
-        refLow: parseNum(refLow),
-        refHigh: parseNum(refHigh),
-        optimalLow: parseNum(optLow),
-        optimalHigh: parseNum(optHigh),
-      };
-      if (initial) {
-        await labs.markers.edit(initial.id, patch);
-        onSaved(initial.id);
-      } else {
-        const created = await labs.markers.create(patch);
-        onSaved(created.id);
-      }
-    } catch (err) {
-      console.error("lab marker save failed", err);
-      setError("Couldn't save that — try again in a moment.");
-      setSaving(false);
-    }
-  }
-
-  return (
-    <form
-      onSubmit={handleSubmit}
-      className="flex flex-col gap-4 rounded-xl border p-4"
-      style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", boxShadow: "var(--shadow-card)" }}
-    >
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-          {initial ? "Edit marker" : "New marker"}
-        </h3>
-        <button type="button" onClick={onCancel} className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
-          Cancel
-        </button>
-      </div>
-
-      <div className="flex flex-col gap-1">
-        <span className={LABEL_CLS} style={LABEL_STYLE}>Marker</span>
-        <ComboBox value={name} onChange={setName} options={markerNameOptions} placeholder="Search or add a marker…" accent={accent} />
-      </div>
-
-      <div className="flex flex-wrap gap-3">
-        <label className="flex min-w-28 flex-1 flex-col gap-1">
-          <span className={LABEL_CLS} style={LABEL_STYLE}>Unit</span>
-          <input
-            value={effectiveUnit}
-            onChange={(e) => {
-              setUnitTouched(true);
-              setUnit(e.target.value);
-            }}
-            placeholder="mIU/L"
-            maxLength={20}
-            className={FIELD_CLS}
-            style={FIELD_STYLE}
-          />
-        </label>
-        <label className="flex min-w-24 flex-1 flex-col gap-1">
-          <span className={LABEL_CLS} style={LABEL_STYLE}>Ref. low</span>
-          <input value={refLow} onChange={(e) => setRefLow(e.target.value)} inputMode="decimal" placeholder="0.4" className={FIELD_CLS} style={FIELD_STYLE} />
-        </label>
-        <label className="flex min-w-24 flex-1 flex-col gap-1">
-          <span className={LABEL_CLS} style={LABEL_STYLE}>Ref. high</span>
-          <input value={refHigh} onChange={(e) => setRefHigh(e.target.value)} inputMode="decimal" placeholder="4.0" className={FIELD_CLS} style={FIELD_STYLE} />
-        </label>
-      </div>
-
-      <div className="flex flex-col gap-1">
-        <span className={LABEL_CLS} style={LABEL_STYLE}>Optimal range · optional</span>
-        <div className="flex flex-wrap gap-3">
-          <label className="flex min-w-24 flex-1 flex-col gap-1">
-            <span className="text-xs" style={{ color: "var(--text-muted)" }}>Low</span>
-            <input value={optLow} onChange={(e) => setOptLow(e.target.value)} inputMode="decimal" placeholder="1.0" className={FIELD_CLS} style={FIELD_STYLE} />
-          </label>
-          <label className="flex min-w-24 flex-1 flex-col gap-1">
-            <span className="text-xs" style={{ color: "var(--text-muted)" }}>High</span>
-            <input value={optHigh} onChange={(e) => setOptHigh(e.target.value)} inputMode="decimal" placeholder="2.5" className={FIELD_CLS} style={FIELD_STYLE} />
-          </label>
-        </div>
-        <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-          The band you want to sit in — the Results overview reads values against this, not just the lab range.
-        </span>
-      </div>
-
-      <label className="flex flex-col gap-1">
-        <span className={LABEL_CLS} style={LABEL_STYLE}>Panel</span>
-        <select value={panelId} onChange={(e) => setPanelId(e.target.value)} className={FIELD_CLS} style={FIELD_STYLE}>
-          <option value={NO_PANEL}>No panel</option>
-          {labs.panels.data.map((p) => (
-            <option key={p.id} value={p.id}>{p.name}</option>
-          ))}
-          <option value={NEW_PANEL}>＋ New panel…</option>
-        </select>
-        {needsNewPanel && (
-          <input value={newPanelName} onChange={(e) => setNewPanelName(e.target.value)} placeholder="New panel name" maxLength={60} className={`${FIELD_CLS} mt-1`} style={FIELD_STYLE} />
-        )}
-      </label>
-
-      <div className="flex items-center gap-3">
-        <Button type="submit" size="lg" accent={accent} disabled={!canSave || saving}>
-          {saving ? "Saving…" : initial ? "Save changes" : "Add marker"}
-        </Button>
-        {error && <span className="text-xs" style={{ color: "var(--status-critical)" }}>{error}</span>}
-      </div>
-    </form>
-  );
-}
+import { MarkerForm } from "./labForms";
 
 // --- Result form -----------------------------------------------------
 
@@ -290,360 +106,22 @@ function ResultForm({
   );
 }
 
-// --- Marker detail ---------------------------------------------------
-
-function MarkerDetail({
-  labs,
-  accent,
-  marker,
-  onBack,
-  onDelete,
-  onAddValue,
-  onEditMarker,
-  onEditResult,
-}: {
-  labs: ReturnType<typeof useLabs>;
-  accent: string;
-  marker: LabMarker;
-  /** Omitted on the desktop split, where the list rail beside this pane
-   * already makes a "back" link redundant — still called after a delete,
-   * via `onDelete`, regardless. */
-  onBack?: () => void;
-  onDelete: () => void;
-  onAddValue: () => void;
-  onEditMarker: () => void;
-  onEditResult: (result: LabResult) => void;
-}) {
-  const [confirmingDelete, setConfirmingDelete] = useState(false);
-  const [confirmingResult, setConfirmingResult] = useState<string | null>(null);
-
-  const latest = marker.results[marker.results.length - 1] ?? null;
-  const latestStatus = latest ? rangeStatus(latest.value, marker.refLow, marker.refHigh) : null;
-  const chartData = marker.results.map((r) => ({ date: r.measuredOn, value: r.value }));
-  const refLabel = refRangeLabel(marker.refLow, marker.refHigh, marker.unit);
-  const optLabel = optRangeLabel(marker.optimalLow, marker.optimalHigh);
-
-  return (
-    <div className="flex flex-col gap-3">
-      {onBack && (
-        <button type="button" onClick={onBack} className="self-start text-xs font-medium" style={{ color: "var(--text-muted)" }}>
-          ← All results
-        </button>
-      )}
-
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h2 className="text-lg font-semibold" style={{ color: "var(--text-primary)" }}>
-            {marker.name}
-          </h2>
-          <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-            {[marker.unit, refLabel, optLabel].filter(Boolean).join(" · ") || "No unit or reference range set"}
-          </p>
-        </div>
-        <div className="flex shrink-0 items-center gap-3">
-          {confirmingDelete ? (
-            <>
-              <button type="button" onClick={() => void labs.markers.remove(marker.id).then(onDelete)} className="text-xs font-semibold" style={{ color: "var(--status-critical)" }}>
-                Delete{marker.results.length > 0 ? ` (${marker.results.length})` : ""}
-              </button>
-              <button type="button" onClick={() => setConfirmingDelete(false)} className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
-                Keep
-              </button>
-            </>
-          ) : (
-            <>
-              <IconAction onClick={onEditMarker} label="Edit marker"><PencilIcon size={15} /></IconAction>
-              <IconAction onClick={() => setConfirmingDelete(true)} label="Delete marker" tone="critical"><TrashIcon size={15} /></IconAction>
-            </>
-          )}
-        </div>
-      </div>
-
-      {latest && (
-        <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-          Latest:{" "}
-          <span className="font-semibold tabular-nums" style={{ color: statusColor(latestStatus) }}>
-            {latest.value}
-            {marker.unit ? ` ${marker.unit}` : ""}
-          </span>{" "}
-          <span style={{ color: "var(--text-muted)" }}>· {formatDate(latest.measuredOn)}</span>
-          {latestStatus === "low" && <span style={{ color: "var(--status-warning)" }}> · below range</span>}
-          {latestStatus === "high" && <span style={{ color: "var(--status-warning)" }}> · above range</span>}
-        </p>
-      )}
-
-      {marker.results.length >= 2 ? (
-        <div className="rounded-xl border p-3" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
-          <LabMarkerChart data={chartData} unit={marker.unit} refLow={marker.refLow} refHigh={marker.refHigh} color={accent} />
-        </div>
-      ) : (
-        <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-          Add a second value to see the trend.
-        </p>
-      )}
-
-      <ul className="flex flex-col divide-y" style={{ borderColor: "var(--gridline)" }}>
-        {[...marker.results].reverse().map((r) => {
-          const status = rangeStatus(r.value, marker.refLow, marker.refHigh);
-          return (
-            <li key={r.id} className="flex items-start gap-3 py-2.5">
-              <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full" style={{ background: statusColor(status) }} aria-hidden="true" />
-              <div className="min-w-0 flex-1">
-                <span className="text-sm font-medium tabular-nums" style={{ color: "var(--text-primary)" }}>
-                  {r.value}
-                  {marker.unit ? ` ${marker.unit}` : ""}
-                </span>
-                <span className="ml-2 text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>{formatDate(r.measuredOn)}</span>
-                {(r.lab || r.note) && (
-                  <p className="mt-0.5 text-xs" style={{ color: "var(--text-secondary)" }}>
-                    {[r.lab, r.note].filter(Boolean).join(" — ")}
-                  </p>
-                )}
-              </div>
-              <div className="flex shrink-0 items-center gap-3">
-                {confirmingResult === r.id ? (
-                  <>
-                    <button type="button" onClick={() => void labs.results.remove(marker.id, r.id)} className="text-xs font-semibold" style={{ color: "var(--status-critical)" }}>
-                      Delete
-                    </button>
-                    <button type="button" onClick={() => setConfirmingResult(null)} className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
-                      Keep
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <IconAction onClick={() => onEditResult(r)} label="Edit value"><PencilIcon size={14} /></IconAction>
-                    <IconAction onClick={() => setConfirmingResult(r.id)} label="Delete value" tone="critical"><TrashIcon size={14} /></IconAction>
-                  </>
-                )}
-              </div>
-            </li>
-          );
-        })}
-      </ul>
-
-      <Button type="button" onClick={onAddValue} accent={accent} className="self-start transition-opacity hover:opacity-90">
-        + Add value
-      </Button>
-    </div>
-  );
-}
-
-// --- Marker row (list) ----------------------------------------------
-
-function MarkerRow({ marker, accent, active, onOpen }: { marker: LabMarker; accent: string; active: boolean; onOpen: () => void }) {
-  const latest = marker.results[marker.results.length - 1] ?? null;
-  const status = latest ? rangeStatus(latest.value, marker.refLow, marker.refHigh) : null;
-  return (
-    <button
-      type="button"
-      onClick={onOpen}
-      aria-current={active ? "true" : undefined}
-      className="flex w-full items-center gap-3 border-t border-l-2 py-3 pl-2 text-left first:border-t-0 transition-colors"
-      style={{ borderTopColor: "var(--gridline)", borderLeftColor: active ? accent : "transparent", background: active ? "var(--page-plane)" : undefined }}
-    >
-      <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: statusColor(status) }} aria-hidden="true" />
-      <span className="min-w-0 flex-1 truncate text-sm font-medium" style={{ color: "var(--text-primary)" }}>
-        {marker.name}
-      </span>
-      <LabSparkline values={marker.results.map((r) => r.value)} refLow={marker.refLow} refHigh={marker.refHigh} width={96} height={26} />
-      <span className="shrink-0 text-sm tabular-nums" style={{ color: latest ? statusColor(status) : "var(--text-muted)" }}>
-        {latest ? `${latest.value}${marker.unit ? ` ${marker.unit}` : ""}` : "—"}
-      </span>
-      <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="shrink-0" style={{ color: "var(--text-muted)" }} aria-hidden="true">
-        <path d="M7.5 5 12.5 10 7.5 15" />
-      </svg>
-    </button>
-  );
-}
-
-// --- Section (panel) ----------------------------------------------
-
-function PanelSection({
-  title,
-  icon = null,
-  color = null,
-  markers,
-  accent,
-  editable,
-  activeMarkerId,
-  forceOpen = false,
-  onOpenMarker,
-  onRename,
-  onDelete,
-}: {
-  title: string;
-  icon?: string | null;
-  color?: string | null;
-  markers: LabMarker[];
-  accent: string;
-  editable: boolean;
-  activeMarkerId?: string | null;
-  forceOpen?: boolean;
-  onOpenMarker: (m: LabMarker) => void;
-  onRename?: () => void;
-  onDelete?: () => void;
-}) {
-  const [confirmingDelete, setConfirmingDelete] = useState(false);
-  const [open, setOpen] = useState(true);
-  const shown = forceOpen || open;
-  const sectionAccent = customColorValue(color) ?? accent;
-  return (
-    <section className="flex flex-col rounded-lg border" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
-      <div className="flex items-center gap-1.5 border-b px-3 py-2" style={{ borderColor: "var(--border-hairline)" }}>
-        <button
-          type="button"
-          onClick={() => setOpen((v) => !v)}
-          aria-expanded={shown}
-          disabled={forceOpen}
-          className="flex min-w-0 flex-1 items-center gap-1.5 text-left disabled:cursor-default"
-        >
-          {icon && (
-            <span className="shrink-0" style={{ color: sectionAccent }}>
-              <CustomIcon icon={icon} size={14} />
-            </span>
-          )}
-          <h3 className="min-w-0 flex-1 truncate text-xs font-semibold" style={{ color: sectionAccent }}>
-            {title}
-          </h3>
-          <span className="text-xs font-medium tabular-nums" style={{ color: "var(--text-muted)" }}>{markers.length}</span>
-          {!forceOpen && (
-            <svg
-              width="10"
-              height="10"
-              viewBox="0 0 12 12"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className={`shrink-0 transition-transform ${open ? "" : "-rotate-90"}`}
-              style={{ color: "var(--text-muted)" }}
-              aria-hidden="true"
-            >
-              <path d="M2.5 4.5 6 8l3.5-3.5" />
-            </svg>
-          )}
-        </button>
-        {editable && (
-          <div className="ml-2 flex shrink-0 items-center gap-2">
-            {confirmingDelete ? (
-              <>
-                <button type="button" onClick={onDelete} className="text-xs font-semibold" style={{ color: "var(--status-critical)" }}>Delete</button>
-                <button type="button" onClick={() => setConfirmingDelete(false)} className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>Keep</button>
-              </>
-            ) : (
-              <>
-                <IconAction onClick={() => onRename?.()} label="Rename panel"><PencilIcon size={13} /></IconAction>
-                <IconAction onClick={() => setConfirmingDelete(true)} label="Delete panel" tone="critical"><TrashIcon size={13} /></IconAction>
-              </>
-            )}
-          </div>
-        )}
-      </div>
-      {shown && (
-        <div className="px-3">
-          {markers.length === 0 ? (
-            <p className="py-3 text-xs" style={{ color: "var(--text-muted)" }}>No markers here yet.</p>
-          ) : (
-            markers.map((m) => <MarkerRow key={m.id} marker={m} accent={accent} active={m.id === activeMarkerId} onOpen={() => onOpenMarker(m)} />)
-          )}
-        </div>
-      )}
-    </section>
-  );
-}
-
-// --- Small name form (panel rename / new) -------------------------
-
-function PanelNameForm({
-  accent,
-  initialName,
-  initialIcon = null,
-  initialColor = null,
-  onSave,
-  onCancel,
-}: {
-  accent: string;
-  initialName?: string;
-  initialIcon?: string | null;
-  initialColor?: string | null;
-  onSave: (name: string, icon: string | null, color: string | null) => Promise<void>;
-  onCancel: () => void;
-}) {
-  const [name, setName] = useState(initialName ?? "");
-  const [icon, setIcon] = useState(initialIcon);
-  const [color, setColor] = useState(initialColor);
-  const [saving, setSaving] = useState(false);
-  const rowAccent = customColorValue(color) ?? accent;
-  return (
-    <form
-      onSubmit={async (e) => {
-        e.preventDefault();
-        if (!name.trim() || saving) return;
-        setSaving(true);
-        try {
-          await onSave(name, icon, color);
-        } catch {
-          setSaving(false);
-        }
-      }}
-      className="flex flex-col gap-4 rounded-xl border p-4"
-      style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", boxShadow: "var(--shadow-card)" }}
-    >
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-          {initialName ? "Edit panel" : "New panel"}
-        </h3>
-        <button type="button" onClick={onCancel} className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>Cancel</button>
-      </div>
-      <input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="Panel name" maxLength={60} className={FIELD_CLS} style={FIELD_STYLE} />
-      <IconColorPicker icon={icon} color={color} onIconChange={setIcon} onColorChange={setColor} accent={rowAccent} />
-      <Button type="submit" size="lg" accent={accent} disabled={!name.trim() || saving} className="self-start">
-        {saving ? "Saving…" : initialName ? "Save changes" : "Add panel"}
-      </Button>
-    </form>
-  );
-}
-
-// --- Tab -----------------------------------------------------------
+// --- Tab -------------------------------------------------------------
 
 type View =
   | { mode: "list" }
   | { mode: "batch" }
-  | { mode: "marker"; markerId: string }
-  | { mode: "marker-form"; markerId?: string }
-  | { mode: "result-form"; markerId: string; resultId?: string }
-  | { mode: "panel-form"; panelId?: string };
+  | { mode: "marker-form" }
+  | { mode: "result-form"; markerId: string; resultId?: string };
 
-function SectionToggle({ value, onChange, accent }: { value: "overview" | "manage"; onChange: (v: "overview" | "manage") => void; accent: string }) {
-  return (
-    <div className="inline-flex rounded-md border p-0.5" style={{ borderColor: "var(--border-hairline)" }}>
-      {(["overview", "manage"] as const).map((v) => (
-        <button
-          key={v}
-          type="button"
-          onClick={() => onChange(v)}
-          aria-pressed={value === v}
-          className="rounded px-2.5 py-1 text-xs font-medium capitalize transition-colors"
-          style={{
-            background: value === v ? `color-mix(in oklab, ${accent} 14%, var(--surface-1))` : "transparent",
-            color: value === v ? accent : "var(--text-muted)",
-          }}
-        >
-          {v}
-        </button>
-      ))}
-    </div>
-  );
-}
-
+/** Health → Results: the read/analysis overview (LabsOverview) plus value
+ * entry — a single value, or a whole blood draw at once. Markers get a
+ * quick-add here (name, unit, panel); their reference and optimal ranges,
+ * renames and panels are managed from Settings. */
 export function ResultsTab({ accent }: { accent: string }) {
   const labs = useLabs();
-  const [section, setSection] = useState<"overview" | "manage">("overview");
   const [view, setView] = useState<View>({ mode: "list" });
   const [flash, setFlash] = useState<string | null>(null);
-  const [search, setSearch] = useState("");
 
   useEffect(() => {
     if (!flash) return;
@@ -651,61 +129,18 @@ export function ResultsTab({ accent }: { accent: string }) {
     return () => clearTimeout(t);
   }, [flash]);
 
-  const query = search.trim().toLowerCase();
-  const isSearching = query.length > 0;
-
-  const grouped = useMemo(() => {
-    const match = (m: LabMarker) => !isSearching || m.name.toLowerCase().includes(query);
-    const byPanel = new Map<string, LabMarker[]>();
-    for (const m of labs.markers.data) {
-      if (!match(m)) continue;
-      const key = m.panelId ?? "";
-      byPanel.set(key, [...(byPanel.get(key) ?? []), m]);
-    }
-    const sections = labs.panels.data
-      .map((p) => ({ id: p.id, name: p.name, icon: p.icon, color: p.color, markers: byPanel.get(p.id) ?? [] }))
-      .filter((s) => !isSearching || s.markers.length > 0);
-    const ungrouped = byPanel.get("") ?? [];
-    const matchCount = sections.reduce((n, s) => n + s.markers.length, 0) + ungrouped.length;
-    return { sections, ungrouped, matchCount };
-  }, [labs.markers.data, labs.panels.data, isSearching, query]);
-
   const findMarker = (id: string) => labs.markers.data.find((m) => m.id === id) ?? null;
 
-  if (section === "overview" && view.mode === "list") {
-    return (
-      <div className="flex flex-col gap-4">
-        <SectionToggle value={section} onChange={setSection} accent={accent} />
-        <LabsOverview onManage={() => setSection("manage")} />
-      </div>
-    );
-  }
-
-  const listPane = renderList();
+  if (labs.error) return <ErrorState what="your results" />;
 
   if (view.mode === "marker-form") {
     return (
       <MarkerForm
         labs={labs}
         accent={accent}
-        initial={view.markerId ? findMarker(view.markerId) ?? undefined : undefined}
-        onSaved={(markerId) => setView({ mode: "marker", markerId })}
-        onCancel={() => setView(view.markerId ? { mode: "marker", markerId: view.markerId } : { mode: "list" })}
-      />
-    );
-  }
-
-  if (view.mode === "result-form") {
-    const marker = findMarker(view.markerId);
-    if (!marker) return listPane;
-    return (
-      <ResultForm
-        labs={labs}
-        accent={accent}
-        marker={marker}
-        initial={view.resultId ? marker.results.find((r) => r.id === view.resultId) : undefined}
-        onDone={() => setView({ mode: "marker", markerId: marker.id })}
-        onCancel={() => setView({ mode: "marker", markerId: marker.id })}
+        fields="basic"
+        onSaved={() => setView({ mode: "list" })}
+        onCancel={() => setView({ mode: "list" })}
       />
     );
   }
@@ -725,70 +160,27 @@ export function ResultsTab({ accent }: { accent: string }) {
     );
   }
 
-  if (view.mode === "panel-form") {
-    const panel = view.panelId ? labs.panels.data.find((p) => p.id === view.panelId) : undefined;
+  const editingResultMarker = view.mode === "result-form" ? findMarker(view.markerId) : null;
+  if (view.mode === "result-form" && editingResultMarker) {
     return (
-      <PanelNameForm
+      <ResultForm
+        labs={labs}
         accent={accent}
-        initialName={panel?.name}
-        initialIcon={panel?.icon ?? null}
-        initialColor={panel?.color ?? null}
-        onSave={async (name, icon, color) => {
-          if (panel) await labs.panels.rename(panel.id, { name, icon, color });
-          else await labs.panels.create(name, { icon, color });
-          setView({ mode: "list" });
-        }}
+        marker={editingResultMarker}
+        initial={view.resultId ? editingResultMarker.results.find((r) => r.id === view.resultId) : undefined}
+        onDone={() => setView({ mode: "list" })}
         onCancel={() => setView({ mode: "list" })}
       />
     );
   }
 
-  if (view.mode === "marker") {
-    const marker = findMarker(view.markerId);
-    if (!marker) return listPane;
-    return (
-      <MarkerDetail
-        labs={labs}
-        accent={accent}
-        marker={marker}
-        onBack={() => setView({ mode: "list" })}
-        onDelete={() => setView({ mode: "list" })}
-        onAddValue={() => setView({ mode: "result-form", markerId: marker.id })}
-        onEditMarker={() => setView({ mode: "marker-form", markerId: marker.id })}
-        onEditResult={(r) => setView({ mode: "result-form", markerId: marker.id, resultId: r.id })}
-      />
-    );
-  }
+  const hasMarkers = labs.markers.data.length > 0;
 
-  return listPane;
-
-  function renderList() {
-    const hasAny = labs.markers.data.length > 0 || labs.panels.data.length > 0;
-    const hasMarkers = labs.markers.data.length > 0;
-    const activeMarkerId =
-      view.mode === "marker" || view.mode === "result-form" ? view.markerId : view.mode === "marker-form" ? (view.markerId ?? null) : null;
-    return (
-      <div className="flex flex-col gap-3">
-        <SectionToggle value={section} onChange={setSection} accent={accent} />
-
+  return (
+    <div className="flex flex-col gap-4">
+      {(hasMarkers || labs.panels.data.length > 0) && (
         <div className="flex flex-wrap items-center gap-2">
-          {hasMarkers && (
-            <SearchField value={search} onChange={setSearch} placeholder="Search markers…" className="min-w-48 flex-1" />
-          )}
-          <span className="ml-auto shrink-0">
-            <PrimaryAction label="New marker" accent={accent} onClick={() => setView({ mode: "marker-form" })} />
-          </span>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setView({ mode: "panel-form" })}
-            className="shrink-0 rounded-md border px-2.5 py-1.5 text-xs font-medium"
-            style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-secondary)" }}
-          >
-            New panel
-          </button>
+          <PrimaryAction label="New marker" accent={accent} onClick={() => setView({ mode: "marker-form" })} />
           {hasMarkers && (
             <button
               type="button"
@@ -800,59 +192,23 @@ export function ResultsTab({ accent }: { accent: string }) {
             </button>
           )}
         </div>
+      )}
 
-        {flash && (
-          <p
-            className="rounded-lg border px-3 py-2 text-xs font-medium"
-            style={{ borderColor: accent, background: `color-mix(in oklab, ${accent} 10%, var(--surface-1))`, color: "var(--text-secondary)" }}
-          >
-            {flash}
-          </p>
-        )}
+      {flash && (
+        <p
+          className="rounded-lg border px-3 py-2 text-xs font-medium"
+          style={{ borderColor: accent, background: `color-mix(in oklab, ${accent} 10%, var(--surface-1))`, color: "var(--text-secondary)" }}
+        >
+          {flash}
+        </p>
+      )}
 
-        {labs.loading ? (
-          <ListSkeleton />
-        ) : labs.error ? (
-          <ErrorState what="your results" />
-        ) : !hasAny ? (
-          <InlineEmpty
-            title="No results tracked yet"
-            description="Add a marker (TSH, Ferritin, …) with its unit and reference range, then log each value as you get it — the trend builds up over time."
-          />
-        ) : isSearching && grouped.matchCount === 0 ? (
-          <p className="py-3 text-xs" style={{ color: "var(--text-muted)" }}>No markers match &ldquo;{search.trim()}&rdquo;.</p>
-        ) : (
-          <div className="flex flex-col gap-3">
-            {grouped.sections.map((s) => (
-              <PanelSection
-                key={s.id}
-                title={s.name}
-                icon={s.icon}
-                color={s.color}
-                markers={s.markers}
-                accent={accent}
-                editable={!isSearching}
-                activeMarkerId={activeMarkerId}
-                forceOpen={isSearching}
-                onOpenMarker={(m) => setView({ mode: "marker", markerId: m.id })}
-                onRename={() => setView({ mode: "panel-form", panelId: s.id })}
-                onDelete={() => void labs.panels.remove(s.id)}
-              />
-            ))}
-            {grouped.ungrouped.length > 0 && (
-              <PanelSection
-                title={grouped.sections.length > 0 ? "Other" : "Markers"}
-                markers={grouped.ungrouped}
-                accent={accent}
-                editable={false}
-                activeMarkerId={activeMarkerId}
-                forceOpen={isSearching}
-                onOpenMarker={(m) => setView({ mode: "marker", markerId: m.id })}
-              />
-            )}
-          </div>
-        )}
-      </div>
-    );
-  }
+      <LabsOverview
+        labs={labs}
+        onNewMarker={() => setView({ mode: "marker-form" })}
+        onAddValue={(markerId) => setView({ mode: "result-form", markerId })}
+        onEditValue={(markerId, result) => setView({ mode: "result-form", markerId, resultId: result.id })}
+      />
+    </div>
+  );
 }
