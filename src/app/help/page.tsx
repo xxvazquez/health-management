@@ -137,7 +137,7 @@ const GROUPS: { title: string; items: Entry[] }[] = [
       },
       {
         title: "Results",
-        body: "The marker list — every marker on a reference-range bar, grouped by panel or A–Z, with a time-window control and an Average/Last switch. Tap a marker for its trend, window stats and full history, where you also add or edit its values (a single reading or a whole blood draw at once). A new marker gets a quick-add here; its reference and optimal ranges, renames and panels are managed in Settings.",
+        body: "The marker list — every marker on a reference-range bar, grouped by panel or A–Z, with panel filter chips to jump to one panel, a time-window control and an Average/Last switch. Tap a marker for its trend, window stats and full history, where you also add or edit its values (a single reading or a whole blood draw at once). A new marker gets a quick-add here; its reference and optimal ranges, renames and panels are managed in Settings.",
       },
       {
         title: "Vitals",
