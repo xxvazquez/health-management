@@ -1,12 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { todayLocalISODate } from "@/lib/aggregations/common";
 import { createJournalEntry, deleteJournalEntry, fetchJournalEntries, updateJournalEntry, type JournalEntry } from "@/lib/supabase/journal";
 import { buildDemoJournalEntries } from "@/lib/demoJournal";
 import { useAuth } from "@/lib/supabase/AuthContext";
 import { useSnapshotCache } from "@/lib/useSnapshotCache";
-import { NoteList, NoteRow, NotebookForm } from "@/components/ui/Notebook";
+import { NoteList, NoteRow, PencilIcon, TrashIcon } from "@/components/ui/Notebook";
+import { MarkdownContent, MarkdownField, stripMarkdown } from "@/components/ui/Markdown";
+import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
 import { SearchField } from "@/components/ui/SearchField";
 import { ListSkeleton } from "@/components/ui/Skeleton";
 import { ErrorState, InlineEmpty } from "@/components/ui/EmptyState";
@@ -21,6 +24,10 @@ function journalRowDate(date: string): string {
   return new Date(`${date}T00:00:00`).toLocaleDateString(undefined, { weekday: "long", day: "numeric" });
 }
 
+function journalFullDate(date: string): string {
+  return new Date(`${date}T00:00:00`).toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+}
+
 function matchesSearch(entry: JournalEntry, query: string): boolean {
   if (!query) return true;
   const q = query.toLowerCase();
@@ -28,12 +35,9 @@ function matchesSearch(entry: JournalEntry, query: string): boolean {
 }
 
 /**
- * A blank writing area, not a form with mood/tag pickers — the entire point
- * of Journal (per its own spec) is somewhere that doesn't force a thought
- * into a structured category. Shared between "new entry" and "edit an
- * existing one": `editing` is null for the former, the entry being opened
- * for the latter. Thin wrapper over the shared NotebookForm — it only adds
- * the per-entry date, which the notes boards don't have.
+ * Writing sheet for a Journal entry — a per-entry date, a plain title, and
+ * a markdown body with a formatting toolbar. Shared between "new entry"
+ * (`editing` null) and "edit an existing one".
  */
 function JournalEntryForm({
   editing,
@@ -53,33 +57,163 @@ function JournalEntryForm({
   onCancel: () => void;
 }) {
   const [date, setDate] = useState(editing?.date ?? defaultDate);
+  const [title, setTitle] = useState(editing?.title ?? "");
+  const [body, setBody] = useState(editing?.body ?? "");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    if (!body.trim()) return;
+    setSaving(true);
+    setError(null);
+    try {
+      onSaved(await onSave({ editing, date, title, body }));
+    } catch (err) {
+      console.error("journal save failed", err);
+      setError("Couldn't save that — try again in a moment.");
+      setSaving(false);
+    }
+  }
 
   return (
-    <NotebookForm
-      initialTitle={editing?.title ?? ""}
-      initialBody={editing?.body ?? ""}
-      accent={accent}
-      submitLabel={editing ? "Save changes" : "Save entry"}
-      bodyPlaceholder="Write whatever's on your mind…"
-      bodyRows={12}
-      autoFocusBody={!editing}
-      onDelete={editing ? onDelete : undefined}
-      headerSlot={
+    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <label className="flex items-center gap-1.5 text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+          Date
+          <input
+            type="date"
+            required
+            value={date}
+            max={todayLocalISODate()}
+            onChange={(e) => setDate(e.target.value)}
+            className="border-0 bg-transparent p-0 text-xs font-medium outline-none"
+            style={{ color: "var(--text-secondary)" }}
+          />
+        </label>
+        <div className="flex items-center gap-3">
+          {onDelete &&
+            (confirmingDelete ? (
+              <>
+                <button type="button" onClick={onDelete} className="text-xs font-semibold" style={{ color: "var(--status-critical)" }}>
+                  Delete
+                </button>
+                <button type="button" onClick={() => setConfirmingDelete(false)} className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+                  Keep
+                </button>
+              </>
+            ) : (
+              <button type="button" onClick={() => setConfirmingDelete(true)} className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+                Delete
+              </button>
+            ))}
+          <button type="button" onClick={onCancel} className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+            Cancel
+          </button>
+        </div>
+      </div>
+
+      <Card tier="supporting" padded={false} className="overflow-hidden">
         <input
-          type="date"
-          required
-          value={date}
-          max={todayLocalISODate()}
-          onChange={(e) => setDate(e.target.value)}
-          className="border-0 bg-transparent p-0 text-xs font-medium outline-none"
-          style={{ color: "var(--text-secondary)" }}
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="Title"
+          maxLength={150}
+          className="w-full border-0 bg-transparent px-4 pt-4 pb-3 text-lg font-semibold outline-none"
+          style={{ color: "var(--text-primary)" }}
         />
-      }
-      onSubmit={async (title, body) => {
-        onSaved(await onSave({ editing, date, title, body }));
-      }}
-      onCancel={onCancel}
-    />
+        <MarkdownField value={body} onChange={setBody} placeholder="Write whatever's on your mind…" autoFocus={!editing} />
+      </Card>
+
+      <div className="flex items-center gap-3">
+        <Button type="submit" size="lg" accent={accent} disabled={saving || !body.trim()}>
+          {saving ? "Saving…" : editing ? "Save changes" : "Save entry"}
+        </Button>
+        {error && (
+          <span className="text-xs" style={{ color: "var(--status-critical)" }}>
+            {error}
+          </span>
+        )}
+      </div>
+    </form>
+  );
+}
+
+function HeaderIconButton({ onClick, label, danger, children }: { onClick: () => void; label: string; danger?: boolean; children: ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      title={label}
+      className={`tap-target rounded-md p-1.5 transition-colors hover:bg-[var(--page-plane)]${danger ? " notebook-danger" : ""}`}
+      style={{ color: "var(--text-muted)" }}
+    >
+      {children}
+    </button>
+  );
+}
+
+/** Reading view for one entry — the rendered markdown in a card, with
+ * Edit / Delete in the header. Tapping a row opens this; Edit swaps in the
+ * form. */
+function JournalEntryView({
+  entry,
+  onEdit,
+  onDelete,
+  onBack,
+}: {
+  entry: JournalEntry;
+  onEdit: () => void;
+  onDelete: () => void;
+  onBack: () => void;
+}) {
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center justify-between gap-3">
+        <button type="button" onClick={onBack} className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+          ← All entries
+        </button>
+        <div className="flex items-center gap-1">
+          {confirmingDelete ? (
+            <>
+              <button type="button" onClick={onDelete} className="text-xs font-semibold" style={{ color: "var(--status-critical)" }}>
+                Delete entry
+              </button>
+              <button type="button" onClick={() => setConfirmingDelete(false)} className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+                Keep
+              </button>
+            </>
+          ) : (
+            <>
+              <HeaderIconButton onClick={onEdit} label="Edit entry">
+                <PencilIcon size={15} />
+              </HeaderIconButton>
+              <HeaderIconButton onClick={() => setConfirmingDelete(true)} label="Delete entry" danger>
+                <TrashIcon size={15} />
+              </HeaderIconButton>
+            </>
+          )}
+        </div>
+      </div>
+
+      <Card tier="supporting">
+        <p className="text-xs font-medium tabular-nums" style={{ color: "var(--text-muted)" }}>
+          {journalFullDate(entry.date)}
+        </p>
+        {entry.title && (
+          <h2 className="mt-1 text-lg font-semibold" style={{ color: "var(--text-primary)" }}>
+            {entry.title}
+          </h2>
+        )}
+        <div className="mt-3 border-t pt-4" style={{ borderColor: "var(--gridline)" }}>
+          <MarkdownContent>{entry.body}</MarkdownContent>
+        </div>
+      </Card>
+    </div>
   );
 }
 
@@ -94,6 +228,7 @@ export function JournalTab({ isDemoData, accent }: { isDemoData: boolean; accent
   const [search, setSearch] = useState("");
   const [oldestFirst, setOldestFirst] = useState(false);
   const [composing, setComposing] = useState(false);
+  const [viewingId, setViewingId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
 
   // Reset whenever isDemoData flips (e.g. signing in while example data was
@@ -120,6 +255,7 @@ export function JournalTab({ isDemoData, accent }: { isDemoData: boolean; accent
   async function handleDelete(id: string) {
     setEntries((prev) => prev.filter((e) => e.id !== id));
     setComposing(false);
+    setViewingId(null);
     setEditingId(null);
     if (isDemoData) return;
     try {
@@ -175,6 +311,7 @@ export function JournalTab({ isDemoData, accent }: { isDemoData: boolean; accent
   }, [visibleEntries]);
 
   const editingEntry = editingId ? (entries.find((e) => e.id === editingId) ?? null) : null;
+  const viewingEntry = viewingId ? (entries.find((e) => e.id === viewingId) ?? null) : null;
 
   function handleSaved(entry: JournalEntry) {
     setEntries((prev) => {
@@ -183,6 +320,7 @@ export function JournalTab({ isDemoData, accent }: { isDemoData: boolean; accent
     });
     setComposing(false);
     setEditingId(null);
+    setViewingId(entry.id);
   }
 
   if (composing || editingEntry) {
@@ -199,6 +337,17 @@ export function JournalTab({ isDemoData, accent }: { isDemoData: boolean; accent
           setComposing(false);
           setEditingId(null);
         }}
+      />
+    );
+  }
+
+  if (viewingEntry) {
+    return (
+      <JournalEntryView
+        entry={viewingEntry}
+        onEdit={() => setEditingId(viewingEntry.id)}
+        onDelete={() => void handleDelete(viewingEntry.id)}
+        onBack={() => setViewingId(null)}
       />
     );
   }
@@ -243,9 +392,9 @@ export function JournalTab({ isDemoData, accent }: { isDemoData: boolean; accent
                     key={entry.id}
                     title={entry.title}
                     meta={journalRowDate(entry.date)}
-                    body={entry.body}
+                    body={stripMarkdown(entry.body)}
                     metaFirst
-                    onOpen={() => setEditingId(entry.id)}
+                    onOpen={() => setViewingId(entry.id)}
                     onDelete={() => void handleDelete(entry.id)}
                   />
                 ))}
