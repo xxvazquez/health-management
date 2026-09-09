@@ -254,6 +254,24 @@ button:not(:disabled),
   );
 }
 
+/* iOS inset-grouped list: hairline separators between rows that start past
+   the row's leading content instead of spanning the card edge to edge.
+   Set `--row-inset` on the list to the left offset of the label — e.g.
+   ~2.25rem when rows carry a leading icon; it defaults to 0, which aligns
+   the line with the row's own leading edge. The line is a pseudo-element
+   so it never shifts the row's own layout. */
+.inset-rows > * + * {
+  position: relative;
+}
+.inset-rows > * + *::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: var(--row-inset, 0);
+  right: 0;
+  border-top: 1px solid var(--gridline);
+}
+
 /* Quiet trash button that only warms to the critical tone on hover. */
 .notebook-danger:hover {
   color: var(--status-critical) !important;

@@ -69,17 +69,17 @@ export function DoctorsTab({ api, accent }: { api: DoctorsApi; accent: string })
   const selected = doctors.data.find((d) => d.id === activeId) ?? null;
 
   const list = (
-    <ul className="flex flex-col divide-y rounded-xl border" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
+    <ul className="inset-rows flex flex-col rounded-xl border [--row-inset:1rem]" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
       {doctors.data.map((doctor) => {
         const count = appointments.data.filter((a) => a.doctorId === doctor.id).length;
         const active = doctor.id === activeId;
         return (
-          <li key={doctor.id} style={{ borderColor: "var(--gridline)" }}>
+          <li key={doctor.id}>
             <button
               type="button"
               onClick={() => setSelectedId(active ? null : doctor.id)}
               aria-current={active ? "true" : undefined}
-              className="flex w-full items-center gap-3 border-l-2 px-4 py-3 text-left transition-colors hover:bg-[var(--page-plane)]"
+              className="flex min-h-11 w-full items-center gap-3 border-l-2 px-4 py-3 text-left transition-colors hover:bg-[var(--page-plane)]"
               style={{ borderLeftColor: active ? accent : "transparent", background: active ? "var(--page-plane)" : undefined }}
             >
               <span className="min-w-0 flex-1">

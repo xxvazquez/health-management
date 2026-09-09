@@ -284,7 +284,7 @@ function WishlistListsCard({ isDemoData, searchQuery }: { isDemoData: boolean; s
           Loading…
         </p>
       ) : (
-        <ul className="flex flex-col divide-y divide-[color:var(--gridline)]">
+        <ul className="inset-rows flex flex-col [--row-inset:2.25rem]">
           {!isSearching && lists.length === 0 && (
             <li className="py-2 text-xs" style={{ color: "var(--text-muted)" }}>
               No lists yet — add one above, or from the Wishlist tab while saving a link.
@@ -507,7 +507,7 @@ function LabResultsCard({ searchQuery }: { searchQuery: string }) {
                 No panels yet — markers can stay ungrouped.
               </p>
             ) : (
-              <ul className="flex flex-col divide-y divide-[color:var(--gridline)]">
+              <ul className="inset-rows flex flex-col [--row-inset:2.25rem]">
                 {shownPanels.map((p) => (
                   <ManageRow
                     key={p.id}
@@ -562,11 +562,11 @@ function LabResultsCard({ searchQuery }: { searchQuery: string }) {
                     <p className="mb-1 text-[11px] font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
                       {g.name}
                     </p>
-                    <ul className="flex flex-col divide-y divide-[color:var(--gridline)]">
+                    <ul className="inset-rows flex flex-col">
                       {g.markers.map((m) => {
                         const isEditing = editingMarkerId === m.id;
                         return (
-                          <li key={m.id} className="py-2">
+                          <li key={m.id} className="flex min-h-11 flex-col justify-center py-1.5">
                             <div className="flex items-center gap-2">
                               <button
                                 type="button"
@@ -739,7 +739,7 @@ function ReminderListsCard({ isDemoData, searchQuery }: { isDemoData: boolean; s
           Loading…
         </p>
       ) : (
-        <ul className="flex flex-col divide-y divide-[color:var(--gridline)]">
+        <ul className="inset-rows flex flex-col [--row-inset:2.25rem]">
           {!isSearching && lists.length === 0 && (
             <li className="py-2 text-xs" style={{ color: "var(--text-muted)" }}>
               No custom lists yet — everything sits in the default &ldquo;Reminders&rdquo; list.
@@ -961,7 +961,7 @@ function DoctorSpecialtiesCard({ isDemoData, searchQuery }: { isDemoData: boolea
         </p>
       ) : (
         <>
-          <ul className="flex flex-col divide-y divide-[color:var(--gridline)]">
+          <ul className="inset-rows flex flex-col [--row-inset:2.25rem]">
             {active.length === 0 && !isSearching && (
               <li className="py-2 text-xs" style={{ color: "var(--text-muted)" }}>
                 Every type is hidden — add one above or show one back.
@@ -982,7 +982,7 @@ function DoctorSpecialtiesCard({ isDemoData, searchQuery }: { isDemoData: boolea
                 Hidden ({hidden.length}) — {isSearching || hiddenOpen ? "Hide" : "Show"}
               </button>
               {(isSearching || hiddenOpen) && (
-                <ul className="mt-2 flex flex-col divide-y divide-[color:var(--gridline)] opacity-70">{hidden.map(rowEl)}</ul>
+                <ul className="mt-2 inset-rows flex flex-col opacity-70 [--row-inset:2.25rem]">{hidden.map(rowEl)}</ul>
               )}
             </div>
           )}
@@ -1170,7 +1170,7 @@ function StoolOptionsCard({ isDemoData, searchQuery }: { isDemoData: boolean; se
                   </button>
                 </form>
 
-                <ul className="flex flex-col divide-y divide-[color:var(--gridline)]">
+                <ul className="inset-rows flex flex-col">
                   {active.length === 0 && !isSearching && (
                     <li className="py-2 text-xs" style={{ color: "var(--text-muted)" }}>
                       Every {title.toLowerCase().replace(/s$/, "")} is hidden — add one above or show one back.
@@ -1193,7 +1193,7 @@ function StoolOptionsCard({ isDemoData, searchQuery }: { isDemoData: boolean; se
                       Hidden ({hidden.length}) — {showHidden ? "Hide" : "Show"}
                     </button>
                     {showHidden && (
-                      <ul className="mt-1 flex flex-col divide-y divide-[color:var(--gridline)] opacity-70">
+                      <ul className="mt-1 inset-rows flex flex-col opacity-70">
                         {hidden.map((e) => (
                           <StoolOptionRow key={e.id} option={e} busy={busy} onPatch={(p) => void patch(e, p)} onDelete={() => void removeOption(e)} />
                         ))}
@@ -1232,7 +1232,7 @@ function StoolOptionRow({
   }
 
   return (
-    <li className="flex items-center gap-2 py-2">
+    <li className="flex min-h-11 items-center gap-2 py-1.5">
       {option.kind === "color" && (
         <input
           type="color"
@@ -1417,16 +1417,16 @@ function DoctorsCard({ searchQuery }: { searchQuery: string }) {
           No doctors yet — add one above, or while logging an appointment.
         </p>
       ) : (
-        <ul className="flex flex-col divide-y divide-[color:var(--gridline)]">
+        <ul className="inset-rows flex flex-col">
           {shown.map((doctor) => {
             const visits = api.appointments.data.filter((a) => a.doctorId === doctor.id).length;
             const editing = editingId === doctor.id;
             return (
-              <li key={doctor.id} className="py-2">
+              <li key={doctor.id} className="py-1.5">
                 <button
                   type="button"
                   onClick={() => setEditingId(editing ? null : doctor.id)}
-                  className="flex w-full items-center gap-3 text-left"
+                  className="flex min-h-11 w-full items-center gap-3 text-left"
                 >
                   <span className="min-w-0 flex-1">
                     <DoctorName name={doctor.name} rating={doctor.rating} className="text-sm" />
@@ -1958,7 +1958,7 @@ function ItemRow({
   // ManageableItem.hasHistory's doc comment for why (an item with any
   // history can't be hard-deleted, only archived).
   return (
-    <li className="flex flex-col gap-1 py-2">
+    <li className="flex min-h-11 flex-col justify-center gap-1 py-1.5">
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
           <ItemNameField item={item} state={renameState} />
@@ -2187,7 +2187,7 @@ function ItemSection({
               Nothing tracked yet.
             </p>
           ) : (
-            <ul className="flex flex-col divide-y" style={{ borderColor: "var(--gridline)" }}>
+            <ul className="inset-rows flex flex-col">
               {active.map((item) => (
                 <ItemRow
                   key={item.itemIdentity || `catalog:${item.item}`}
@@ -2223,7 +2223,7 @@ function ItemSection({
                 Archived ({archived.length}) — {archivedSectionOpen ? "Hide" : "Show"}
               </button>
               {archivedSectionOpen && (
-                <ul className="mt-2 flex flex-col divide-y opacity-70" style={{ borderColor: "var(--gridline)" }}>
+                <ul className="mt-2 inset-rows flex flex-col opacity-70">
                   {archived.map((item) => (
                     <ItemRow
                       key={item.itemIdentity}
