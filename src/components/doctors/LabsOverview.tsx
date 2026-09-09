@@ -25,6 +25,7 @@ import { Card } from "@/components/ui/Card";
 import { Methodology } from "@/components/ui/Methodology";
 import { LabMarkerChart } from "@/components/charts/LabMarkerChart";
 import { CustomIcon, customColorValue } from "@/components/ui/customIcons";
+import { Segmented } from "@/components/ui/Segmented";
 
 const ACCENT = "var(--series-1)";
 
@@ -162,10 +163,11 @@ export function LabsOverview({
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-2">
-        <Segmented value={rangeId} onChange={setRangeId} options={LAB_RANGES.map((r) => [r.id, r.label] as const)} />
+        <Segmented value={rangeId} onChange={setRangeId} accent={ACCENT} options={LAB_RANGES.map((r) => [r.id, r.label] as const)} />
         <Segmented
           value={mode}
           onChange={setMode}
+          accent={ACCENT}
           options={
             [
               ["average", "Average"],
@@ -176,6 +178,7 @@ export function LabsOverview({
         <Segmented
           value={sort}
           onChange={setSort}
+          accent={ACCENT}
           options={
             [
               ["panel", "Panel"],
@@ -239,38 +242,6 @@ export function LabsOverview({
         where the value sits, with the optimal band in green and the scale ends labelled. Open a marker for its full trend and
         history.
       </Methodology>
-    </div>
-  );
-}
-
-// --- Controls -------------------------------------------------------
-
-function Segmented<T extends string>({
-  value,
-  onChange,
-  options,
-}: {
-  value: T;
-  onChange: (v: T) => void;
-  options: readonly (readonly [T, string])[];
-}) {
-  return (
-    <div className="inline-flex rounded-md border p-0.5" style={{ borderColor: "var(--border-hairline)" }}>
-      {options.map(([v, label]) => (
-        <button
-          key={v}
-          type="button"
-          onClick={() => onChange(v)}
-          aria-pressed={value === v}
-          className="rounded px-2.5 py-1 text-xs font-medium transition-colors"
-          style={{
-            background: value === v ? `color-mix(in oklab, ${ACCENT} 14%, var(--surface-1))` : "transparent",
-            color: value === v ? ACCENT : "var(--text-muted)",
-          }}
-        >
-          {label}
-        </button>
-      ))}
     </div>
   );
 }
@@ -468,7 +439,7 @@ function MarkerDetailView({
         <button type="button" onClick={onBack} className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
           ← All results
         </button>
-        <Segmented value={rangeId} onChange={onRangeChange} options={LAB_RANGES.map((r) => [r.id, r.label] as const)} />
+        <Segmented value={rangeId} onChange={onRangeChange} accent={ACCENT} options={LAB_RANGES.map((r) => [r.id, r.label] as const)} />
       </div>
 
       <div>

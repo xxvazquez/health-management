@@ -141,7 +141,7 @@ const GROUPS: { title: string; items: Entry[] }[] = [
       },
       {
         title: "Vitals",
-        body: "Blood pressure and weight, entered often. Each has a trend chart; blood pressure also shows its ACC/AHA category. Set a target weight range in Settings and it draws as a band on the weight chart.",
+        body: "Blood pressure and weight, entered often. Each has a trend chart with a time-window control (1m / 3m / 6m / 1y / All) — the x-axis fills every month or year in the window even where readings are sparse. Blood pressure also shows its ACC/AHA category. Set a target weight range in Settings and it draws as a band on the weight chart.",
       },
       {
         title: "Doctors",
