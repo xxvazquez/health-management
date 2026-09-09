@@ -136,10 +136,11 @@ erDiagram
 ```
 
 **Nothing about the cycle is stored** beyond the flagged period days.
-Cycle length, current cycle day, period length, and next-period
-predictions are all derived from `period_logs` dates at the app layer
-([`src/lib/aggregations/cycle.ts`](../src/lib/aggregations/cycle.ts)),
-using a recent-cycles window rather than all history.
+Cycle length, current cycle day, period length, next-period predictions,
+and the fertile-window / ovulation estimate (ovulation ≈ 14 days before
+the predicted next period) are all derived from `period_logs` dates at
+the app layer ([`src/lib/aggregations/cycle.ts`](../src/lib/aggregations/cycle.ts)
+and the Log Cycle tab), using a recent-cycles window rather than all history.
 
 ## Connect → Notes
 
