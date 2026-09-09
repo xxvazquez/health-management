@@ -41,7 +41,7 @@ const GROUPS: { title: string; items: Entry[] }[] = [
       },
       {
         title: "Settings",
-        body: "In the sidebar (and the account menu). Add, rename, archive or hide the foods, exercises and products offered when logging; edit reminder lists, wishlist lists, the Vitals weight goal, doctor types, doctors and stool chips; set exercise units; choose which Log tabs and Trends dashboards appear; export your data. One search box filters every section at once.",
+        body: "In the sidebar (and the account menu). Add, rename, archive or hide the foods, exercises and products offered when logging; edit reminder lists, wishlist lists, the Vitals weight goal, lab markers and panels, doctor types, doctors and stool chips; set exercise units; choose which Log tabs and Trends dashboards appear; export your data. One search box filters every section at once.",
       },
       {
         title: "My Drive",
@@ -137,7 +137,7 @@ const GROUPS: { title: string; items: Entry[] }[] = [
       },
       {
         title: "Results",
-        body: "An Overview — headline markers, anything out of its reference range first, per-panel trend charts and a compare overlay — and a Manage view for adding markers, panels and values. Enter a value on its own or a whole blood draw at once.",
+        body: "The marker list — every marker on a reference-range bar, grouped by panel or A–Z, with a time-window control and an Average/Last switch. Tap a marker for its trend, window stats and full history, where you also add or edit its values (a single reading or a whole blood draw at once). A new marker gets a quick-add here; its reference and optimal ranges, renames and panels are managed in Settings.",
       },
       {
         title: "Vitals",

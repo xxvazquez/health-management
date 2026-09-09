@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useLabs } from "@/lib/useLabs";
+import type { useLabs } from "@/lib/useLabs";
 import { formatDMY, todayLocalISODate } from "@/lib/aggregations/common";
 import {
   clipMarkers,
@@ -16,7 +16,9 @@ import {
   type RangeStatus,
 } from "@/lib/aggregations/labs";
 import { optimalStatusColor } from "./labStatus";
-import type { LabMarker } from "@/lib/supabase/labs";
+import { IconAction, PencilIcon } from "./shared";
+import { Button } from "@/components/ui/Button";
+import type { LabMarker, LabResult } from "@/lib/supabase/labs";
 import { InlineEmpty, ErrorState } from "@/components/ui/EmptyState";
 import { ListSkeleton } from "@/components/ui/Skeleton";
 import { Card } from "@/components/ui/Card";
@@ -65,10 +67,19 @@ function windowWord(option: LabRangeOption): string {
  * marker on its reference-range bar with the optimal band marked — grouped
  * by panel or flat A–Z, with a time-window control that switches each row
  * between the window average (spread shown as a whisker) and the latest
- * reading. Tapping a marker opens its trend, window stats and full history.
- * The Results tab's Manage view does the CRUD. */
-export function LabsOverview({ onManage }: { onManage?: () => void }) {
-  const labs = useLabs();
+ * reading. Tapping a marker opens its trend, window stats and full history,
+ * plus add/edit for its values. Marker and panel config lives in Settings. */
+export function LabsOverview({
+  labs,
+  onNewMarker,
+  onAddValue,
+  onEditValue,
+}: {
+  labs: ReturnType<typeof useLabs>;
+  onNewMarker?: () => void;
+  onAddValue?: (markerId: string) => void;
+  onEditValue?: (markerId: string, result: LabResult) => void;
+}) {
   const [rangeId, setRangeId] = useState<LabRangeOption["id"]>("all");
   const [mode, setMode] = useState<Mode>("last");
   const [sort, setSort] = useState<SortKey>("panel");
@@ -112,10 +123,10 @@ export function LabsOverview({ onManage }: { onManage?: () => void }) {
           title="No blood results yet"
           description="Add a marker (TSH, Ferritin, …) with its unit and reference range, then log values as you get them — the trend builds up over time."
         />
-        {onManage && (
+        {onNewMarker && (
           <button
             type="button"
-            onClick={onManage}
+            onClick={onNewMarker}
             className="rounded-md border px-3 py-1.5 text-xs font-medium"
             style={{ borderColor: ACCENT, background: `color-mix(in oklab, ${ACCENT} 12%, var(--surface-1))`, color: ACCENT }}
           >
@@ -139,6 +150,8 @@ export function LabsOverview({ onManage }: { onManage?: () => void }) {
         windowStart={windowStart}
         windowEnd={today}
         onBack={() => setOpenId(null)}
+        onAddValue={onAddValue ? () => onAddValue(openMarker.id) : undefined}
+        onEditValue={onEditValue ? (r) => onEditValue(openMarker.id, r) : undefined}
       />
     );
   }
@@ -405,6 +418,8 @@ function MarkerDetailView({
   windowStart,
   windowEnd,
   onBack,
+  onAddValue,
+  onEditValue,
 }: {
   marker: LabMarker;
   rangeOption: LabRangeOption;
@@ -413,6 +428,8 @@ function MarkerDetailView({
   windowStart: string;
   windowEnd: string;
   onBack: () => void;
+  onAddValue?: () => void;
+  onEditValue?: (result: LabResult) => void;
 }) {
   const [showAll, setShowAll] = useState(false);
 
@@ -513,15 +530,20 @@ function MarkerDetailView({
             {shown.map((r) => {
               const st = rangeStatus(r.value, low, high);
               return (
-                <li key={r.id} className="grid gap-x-3 py-2" style={{ gridTemplateColumns: "1fr auto" }}>
+                <li key={r.id} className="grid items-center gap-x-3 py-2" style={{ gridTemplateColumns: onEditValue ? "1fr auto auto" : "1fr auto" }}>
                   <span className="text-sm font-semibold tabular-nums" style={{ color: optimalStatusColor(st) }}>
                     {fmtValue(r.value, marker.unit)}
                   </span>
                   <span className="text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>
                     {formatDMY(r.measuredOn)}
                   </span>
+                  {onEditValue && (
+                    <IconAction onClick={() => onEditValue(r)} label="Edit value">
+                      <PencilIcon size={13} />
+                    </IconAction>
+                  )}
                   {r.note && (
-                    <p className="col-span-2 mt-0.5 text-xs" style={{ color: "var(--text-secondary)" }}>
+                    <p className="mt-0.5 text-xs" style={{ gridColumn: "1 / -1", color: "var(--text-secondary)" }}>
                       {r.note}
                     </p>
                   )}
@@ -540,6 +562,12 @@ function MarkerDetailView({
             </button>
           )}
         </Card>
+      )}
+
+      {onAddValue && (
+        <Button type="button" accent={ACCENT} onClick={onAddValue} className="self-start transition-opacity hover:opacity-90">
+          + Add value
+        </Button>
       )}
     </div>
   );

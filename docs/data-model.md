@@ -384,14 +384,18 @@ that clears the lab range but misses the target. Markers
 group into user-named `lab_panels` (Hormones, Liver…) via `lab_markers.panel_id`
 (composite FK `(user_id, panel_id) → lab_panels(user_id, id)`, `on delete set
 null` — deleting a panel ungroups its markers); `lab_results → lab_markers` is
-`on delete cascade`. Owner-only, plain `auth.uid() = user_id`. The Results tab has an **Overview**
-(headline grid, flagged-value list, per-panel cards where each marker is a
-reference-range bar with the optimal band and the latest reading marked, compare
-overlay — `LabsOverview`, all `useLabs` with no extra query) and a **Manage** view where
-markers and panels are added/renamed; values are entered one at a time from a
-marker's detail or a whole blood draw at once from its **Add results** batch view
-(one date and lab, a value per marker — one `lab_results` row each, written
-through the offline outbox like the rest of the direct features).
+`on delete cascade`. Owner-only, plain `auth.uid() = user_id`. The Results tab
+(`LabsOverview`, all `useLabs` with no extra query) is the marker list — each
+marker a reference-range bar with the optimal band marked, grouped by panel or
+A–Z, with a time-window control and an Average/Last switch; a marker's detail
+adds its trend, window stats and history. Values are entered from that detail
+(**+ Add value**) one at a time, or a whole blood draw at once from the **Add
+results** batch view (one date and lab, a value per marker — one `lab_results`
+row each, written through the offline outbox like the rest of the direct
+features). A new marker gets a slim quick-add on the Results tab (`MarkerForm`
+`fields="basic"` — name, unit, panel); marker and panel definition — ranges,
+renames, units, panel icons/colours, grouping, delete — is managed from the
+Settings page's **Lab results** card.
 
 `blood_pressure` / `weight_logs` back the Medical page's **Vitals** tab. Unlike lab
 results these are taken more than once a day, so the timestamp is `measured_at
@@ -507,8 +511,8 @@ below.
 
 The same `icon` / `color` pair — same fixed sets, same "both null falls
 back to the page's hardcoded look" rule — also lives on `reminder_lists`,
-`doctor_specialties`, `lab_panels` and `categories`, set from their own
-Manage / Medical row via the shared `ui/IconColorPicker.tsx` (~36 glyphs,
+`wishlist_categories`, `doctor_specialties`, `lab_panels` and `categories`,
+all set from their own Settings row via the shared `ui/IconColorPicker.tsx` (~36 glyphs,
 filtered by a search box that matches per-glyph synonyms in `ICON_SEARCH`). On
 `categories`, the picker shows on the Settings category chip (materializing
 the row on first edit, like any other category change) **and** tints that
