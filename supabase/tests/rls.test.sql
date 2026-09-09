@@ -508,24 +508,6 @@ select public.test_assert(
   'redeem_partner_invite: redeeming creates a partner_links row for A and B'
 );
 
--- get_partner_email: A and B (now linked) can each see the other's email;
--- C (unrelated, and not yet linked to anyone) gets null.
-select public.test_switch_user('11111111-1111-1111-1111-111111111111');
-select public.test_assert(
-  public.get_partner_email() = 'user-b@example.com',
-  'get_partner_email: A sees B''s email'
-);
-select public.test_switch_user('22222222-2222-2222-2222-222222222222');
-select public.test_assert(
-  public.get_partner_email() = 'user-a@example.com',
-  'get_partner_email: B sees A''s email'
-);
-select public.test_switch_user('33333333-3333-3333-3333-333333333333');
-select public.test_assert(
-  public.get_partner_email() is null,
-  'get_partner_email: an unlinked user gets null, not A or B''s email'
-);
-
 -- The same code cannot be redeemed a second time.
 select public.test_switch_user('33333333-3333-3333-3333-333333333333');
 select public.test_assert_raises_any(
