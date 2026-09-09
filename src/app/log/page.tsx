@@ -56,12 +56,11 @@ import { StoolTab, type NewStoolEntry, characteristicLabels } from "@/components
 import { useStoolOptions } from "@/lib/useStoolOptions";
 import { WorkoutTab, type NewWorkoutEntry } from "@/components/log/WorkoutTab";
 import { CycleTab } from "@/components/log/CycleTab";
-import { TAB_ICON } from "@/components/tabIcons";
 import { DuplicateItemDialog } from "@/components/ui/DuplicateItemDialog";
 import { SearchField } from "@/components/ui/SearchField";
 import { ChevronIcon, CloseIcon } from "@/components/ui/icons";
 import { CustomIcon, customColorValue } from "@/components/ui/customIcons";
-import { TabRail } from "@/components/ui/TabRail";
+import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
 import { TimeField } from "@/components/ui/TimeField";
 import { DemoNotice } from "@/components/ui/DemoNotice";
 import { MobileMenuButton } from "@/components/MobileMenuButton";
@@ -1758,17 +1757,15 @@ export default function LogPage() {
       {isDemoData && <DemoNotice className="-mt-2" />}
 
       <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between sm:gap-3">
-        {/* An underlined menu, not pills — deliberately a different shape
-         * from "Eaten at" below so the two rows read as different kinds of
-         * control: this one switches the whole page's content (primary
-         * navigation), that one just tags optional metadata on a food. On a
-         * narrow screen the search box drops to its own line below. */}
-        <TabRail
-          items={logTabs.map((t) => ({ id: t.id, label: t.label, icon: TAB_ICON[t.id], accent: t.accent }))}
+        {/* The whole-page view switcher — a segmented control (with the
+         * domains past the edge folded into "More"). A different shape from
+         * "Eaten at" below, which just tags optional metadata on a food. */}
+        <SegmentedTabs
+          ariaLabel="Tracking domain"
+          items={logTabs.map((t) => ({ id: t.id, label: t.label, accent: t.accent }))}
           activeId={tab}
           onSelect={selectTab}
-          wrap={false}
-          className="-mx-4 w-full min-w-0 border-b border-[color:var(--border-hairline)] px-4 sm:mx-0 sm:flex-1 sm:px-0"
+          className="w-full min-w-0 sm:flex-1"
         />
         <div className="flex w-full items-center gap-3 sm:w-auto">
           {tabConfig && (

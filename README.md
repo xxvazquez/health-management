@@ -13,6 +13,9 @@ Health · Notes** — plus **Messages** as a 6th item, shown only once a partner
 Desktop has a collapsible left sidebar; mobile has a flat bottom tab bar (the five
 areas) and no top bar — each screen opens with a large title, and a menu button at
 its trailing edge opens the drawer (Settings, Help, My Drive, account, Messages).
+Within a screen, the page-level view switcher is a segmented control
+(`SegmentedTabs`; domains past the edge fold into "More"); section switchers one
+level down stay on the underlined `TabRail`.
 Most routes still carry their original names and render their pre-restructure content;
 the exceptions are Agenda (moved to `/agenda`, `/overview` redirects), the reminder /
 product-expiry boards (moved to Agenda), and the old Household page (`/home`), whose

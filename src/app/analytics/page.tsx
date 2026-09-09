@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState, type ComponentType } from "react";
 import clsx from "clsx";
 import { useVisibleDomains, type TrackedDomain } from "@/lib/visibleDomains";
 import { TYPE_ACCENT } from "@/taxonomy/categories";
-import { TAB_ICON } from "@/components/tabIcons";
 import { FoodDashboard } from "@/components/analytics/FoodDashboard";
 import { SupplementsDashboard } from "@/components/analytics/SupplementsDashboard";
 import { HabitsDashboard } from "@/components/analytics/HabitsDashboard";
@@ -12,7 +11,7 @@ import { DigestionDashboard } from "@/components/analytics/DigestionDashboard";
 import { WorkoutDashboard } from "@/components/analytics/WorkoutDashboard";
 import { CycleDashboard } from "@/components/analytics/CycleDashboard";
 import { PatternsDashboard } from "@/components/analytics/PatternsDashboard";
-import { TabRail } from "@/components/ui/TabRail";
+import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
 import { PageHeading } from "@/components/ui/PageHeading";
 
 /** One page for every analytics dashboard, switched by a Log-style tab bar
@@ -90,13 +89,13 @@ export default function AnalyticsPage() {
           domain switcher stays reachable. On Food it isn't — Food's own
           section tabs take the sticky slot there instead (two stacked
           sticky bars would eat half a phone screen). Always sticky on `lg`. */}
-      <TabRail
-        items={visibleTabs.map((t) => ({ id: t.id, label: t.label, icon: TAB_ICON[t.id], accent: t.accent }))}
+      <SegmentedTabs
+        ariaLabel="Trends dashboard"
+        items={visibleTabs.map((t) => ({ id: t.id, label: t.label, accent: t.accent }))}
         activeId={active.id}
         onSelect={selectTab}
-        wrap={false}
         className={clsx(
-          "-mx-4 border-b border-[color:var(--border-hairline)] bg-[var(--page-backdrop)] px-4 sm:-mx-6 sm:px-6 lg:sticky lg:top-0 lg:z-20 lg:-mx-8 lg:px-8",
+          "-mx-4 bg-[var(--page-backdrop)] px-4 py-1.5 sm:-mx-6 sm:px-6 lg:sticky lg:top-0 lg:z-20 lg:-mx-8 lg:px-8",
           !active.hasSections && "sticky top-0 z-20",
         )}
       />

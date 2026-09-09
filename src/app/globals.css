@@ -29,6 +29,9 @@
   --gridline: #dde8e8;
   --baseline: #c0d0d0;
   --border-hairline: rgba(36, 49, 58, 0.1);
+  /* The segmented-control track — set so the active thumb (`--surface-1`)
+     always reads as raised above it, in either theme. */
+  --segment-track: var(--page-plane);
 
   /* Categorical (fixed order — never cycle). Deepened versions of the
      brand palette, plus the in-between hues below, so 8 series stay
@@ -120,6 +123,7 @@
   --gridline: #2c363b;
   --baseline: #3d4a50;
   --border-hairline: rgba(231, 236, 234, 0.13);
+  --segment-track: #12181b; /* below --surface-1, so the thumb reads raised */
 
   --series-1: #638f80; /* dusty sage */
   --series-2: #5f92bb; /* muted steel blue */
