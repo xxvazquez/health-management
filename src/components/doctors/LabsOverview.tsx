@@ -53,11 +53,20 @@ function fmtNum(v: number): string {
 type Basis = "optimal" | "reference" | null;
 
 function statusWord(status: HeadlineMarker["status"], basis: Basis): string {
-  const band = basis === "optimal" ? "optimal" : "range";
+  const band = basis === "optimal" ? "optimal" : "norm";
   if (status === "low") return `below ${band}`;
   if (status === "high") return `above ${band}`;
-  if (status === "in") return basis === "optimal" ? "optimal" : "in range";
+  if (status === "in") return basis === "optimal" ? "optimal" : "in norm";
   return "no range set";
+}
+
+/** The label for the highlighted band under the bar. */
+function bandLabel(basis: Basis, low: number | null, high: number | null): string | null {
+  if (low == null && high == null) return null;
+  const noun = basis === "optimal" ? "optimal" : "norm";
+  if (low != null && high != null) return `${noun} ${fmtNum(low)}–${fmtNum(high)}`;
+  if (low != null) return `${noun} ≥ ${fmtNum(low)}`;
+  return `${noun} ≤ ${fmtNum(high as number)}`;
 }
 
 function statusTone(status: HeadlineMarker["status"]): string {
@@ -247,7 +256,7 @@ export function LabsOverview({ onManage }: { onManage?: () => void }) {
                     {fmtValue(f.value, f.unit)}
                   </span>
                   <span className="hidden shrink-0 text-xs tabular-nums sm:inline" style={{ color: "var(--text-muted)" }}>
-                    {f.status === "low" ? "below" : "above"} {bound != null ? fmtNum(bound) : ""} {f.basis === "optimal" ? "optimal" : "ref"} · {fmtDate(f.measuredOn)}
+                    {f.status === "low" ? "below" : "above"} {bound != null ? fmtNum(bound) : ""} {f.basis === "optimal" ? "optimal" : "norm"} · {fmtDate(f.measuredOn)}
                   </span>
                 </li>
               );
@@ -398,13 +407,7 @@ function MarkerRangeRow({ marker, last, onOpen }: { marker: LabMarker; last: boo
   const status = latest ? rangeStatus(latest.value, low, high) : null;
   const bar = latest ? rangeBar(latest.value, marker.refLow, marker.refHigh, marker.optimalLow, marker.optimalHigh) : null;
   const tone = optimalStatusColor(status);
-
-  let optTxt: string | null = null;
-  if (bar?.hasBand) {
-    if (marker.optimalLow != null && marker.optimalHigh != null) optTxt = `${fmtNum(marker.optimalLow)}–${fmtNum(marker.optimalHigh)}`;
-    else if (marker.optimalLow != null) optTxt = `≥ ${fmtNum(marker.optimalLow)}`;
-    else if (marker.optimalHigh != null) optTxt = `≤ ${fmtNum(marker.optimalHigh)}`;
-  }
+  const label = bandLabel(basis, low, high);
 
   return (
     <button
@@ -437,28 +440,29 @@ function MarkerRangeRow({ marker, last, onOpen }: { marker: LabMarker; last: boo
             className="absolute inset-x-0 top-[5px] block h-[5px] rounded-full"
             style={{ background: "color-mix(in oklab, var(--gridline) 65%, var(--surface-1))" }}
           />
-          {bar.hasBand && (
-            <span
-              className="absolute top-[3px] block h-[9px] rounded-full"
-              style={{
-                left: `${bar.bandLeftPct}%`,
-                width: `${Math.max(bar.bandRightPct - bar.bandLeftPct, 2)}%`,
-                background: "color-mix(in oklab, var(--status-good) 22%, var(--gridline))",
-              }}
-            />
-          )}
+          <span
+            className="absolute top-[3px] block h-[9px] rounded-full"
+            style={{
+              left: `${bar.bandLeftPct}%`,
+              width: `${Math.max(bar.bandRightPct - bar.bandLeftPct, 2)}%`,
+              background: "color-mix(in oklab, var(--status-good) 22%, var(--gridline))",
+            }}
+          />
           <span
             className="absolute top-[1.5px] block h-[11px] w-[11px] rounded-full"
             style={{ left: `calc(${bar.valuePct}% - 5.5px)`, background: tone, boxShadow: "0 0 0 2.5px var(--surface-1)" }}
           />
-          <span className="absolute inset-x-0 top-[15px] flex items-center justify-between gap-1 text-[9px] tabular-nums" style={{ color: "var(--text-muted)" }}>
-            <span>{fmtNum(bar.trackLow)}</span>
-            {optTxt && (
+          <span
+            className={`absolute inset-x-0 top-[15px] flex items-center gap-1 text-[9px] tabular-nums ${bar.bandInsideTrack ? "justify-between" : "justify-center"}`}
+            style={{ color: "var(--text-muted)" }}
+          >
+            {bar.bandInsideTrack && <span>{fmtNum(bar.trackLow)}</span>}
+            {label && (
               <span className="truncate" style={{ color: "color-mix(in oklab, var(--status-good) 70%, var(--text-muted))" }}>
-                optimal {optTxt}
+                {label}
               </span>
             )}
-            <span>{fmtNum(bar.trackHigh)}</span>
+            {bar.bandInsideTrack && <span>{fmtNum(bar.trackHigh)}</span>}
           </span>
         </span>
       ) : (

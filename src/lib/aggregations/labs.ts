@@ -31,16 +31,21 @@ export interface RangeBar {
   trackHigh: number;
   /** 0–100, clamped — where the value marker sits on the track. */
   valuePct: number;
-  /** 0–100 — the optimal band's edges on the track. */
+  /** 0–100 — the highlighted band's edges on the track. */
   bandLeftPct: number;
   bandRightPct: number;
-  hasBand: boolean;
+  /** True when the band is the optimal range sitting inside a wider lab
+   * reference track; false when the band *is* the whole track (only one
+   * range is known, so the band fills the bar). */
+  bandInsideTrack: boolean;
 }
 
 /** Geometry for the horizontal range bar on the Results overview. The
- * track spans the lab reference range; with no reference range it falls
- * back to the optimal range widened by 75% each side. Returns null when
- * there's nothing to anchor a track to (draw just the value + status). */
+ * highlighted band is the optimal range where one is set, otherwise the
+ * lab reference range. With both, the track is the lab reference range
+ * and the optimal band sits inside it; with only the lab range the band
+ * fills the whole track; with only an optimal range the track is that
+ * range widened by half its width each side. Null when neither is set. */
 export function rangeBar(
   value: number,
   refLow: number | null,
@@ -48,26 +53,40 @@ export function rangeBar(
   optLow: number | null,
   optHigh: number | null,
 ): RangeBar | null {
+  const hasOpt = optLow != null || optHigh != null;
+  const hasRef = refLow != null && refHigh != null && refHigh > refLow;
+  const bandLo = hasOpt ? optLow : hasRef ? refLow : null;
+  const bandHi = hasOpt ? optHigh : hasRef ? refHigh : null;
+  if (bandLo == null && bandHi == null) return null;
+
   let lo: number;
   let hi: number;
-  if (refLow != null && refHigh != null && refHigh > refLow) {
-    lo = refLow;
-    hi = refHigh;
-  } else if (optLow != null && optHigh != null && optHigh > optLow) {
-    const pad = (optHigh - optLow) * 0.75;
-    lo = optLow - pad;
-    hi = optHigh + pad;
+  let bandInsideTrack: boolean;
+  if (hasRef && hasOpt) {
+    lo = Math.min(refLow as number, bandLo ?? (refLow as number));
+    hi = Math.max(refHigh as number, bandHi ?? (refHigh as number));
+    bandInsideTrack = true;
+  } else if (hasRef) {
+    lo = refLow as number;
+    hi = refHigh as number;
+    bandInsideTrack = false;
   } else {
-    return null;
+    const a = bandLo ?? (bandHi as number);
+    const b = bandHi ?? (bandLo as number);
+    const pad = (b - a || Math.abs(b) || 1) * 0.5;
+    lo = a - pad;
+    hi = b + pad;
+    bandInsideTrack = false;
   }
+  if (hi <= lo) return null;
   const clamp = (v: number) => Math.max(0, Math.min(100, ((v - lo) / (hi - lo)) * 100));
   return {
     trackLow: lo,
     trackHigh: hi,
     valuePct: clamp(value),
-    bandLeftPct: clamp(optLow ?? lo),
-    bandRightPct: clamp(optHigh ?? hi),
-    hasBand: optLow != null || optHigh != null,
+    bandLeftPct: clamp(bandLo ?? lo),
+    bandRightPct: clamp(bandHi ?? hi),
+    bandInsideTrack,
   };
 }
 

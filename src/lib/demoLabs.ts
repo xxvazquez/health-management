@@ -38,8 +38,8 @@ export function buildDemoLabMarkers(): LabMarker[] {
       unit: "pmol/L",
       refLow: 12,
       refHigh: 22,
-      optimalLow: 15,
-      optimalHigh: 22,
+      optimalLow: null,
+      optimalHigh: null,
       sortOrder: 1,
       results: [
         { id: "demo-lab-ft4-1", markerId: "demo-lab-ft4", measuredOn: dateOnly(-180 * DAY), value: 13.2, lab: "Synevo", note: null },

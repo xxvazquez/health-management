@@ -76,16 +76,20 @@ describe("rangeBar", () => {
     expect(bar!.valuePct).toBeCloseTo(28);
     expect(bar!.bandLeftPct).toBeCloseTo(50);
     expect(bar!.bandRightPct).toBeCloseTo(100);
-    expect(bar!.hasBand).toBe(true);
+    expect(bar!.bandInsideTrack).toBe(true);
   });
-  it("clamps an out-of-range value to the track ends", () => {
-    expect(rangeBar(5, 15, 150, null, null)!.valuePct).toBe(0);
+  it("makes the band fill the track and clamps the value when only the lab range is set", () => {
+    const bar = rangeBar(5, 15, 150, null, null);
+    expect(bar!.bandInsideTrack).toBe(false);
+    expect(bar!.bandLeftPct).toBe(0);
+    expect(bar!.bandRightPct).toBe(100);
+    expect(bar!.valuePct).toBe(0);
     expect(rangeBar(400, 15, 150, null, null)!.valuePct).toBe(100);
   });
   it("widens the optimal range into a track when there is no reference range", () => {
     const bar = rangeBar(8, null, null, 5, 8);
     expect(bar).not.toBeNull();
-    expect(bar!.hasBand).toBe(true);
+    expect(bar!.bandInsideTrack).toBe(false);
     expect(bar!.valuePct).toBeGreaterThan(bar!.bandLeftPct);
   });
   it("is null with neither range", () => {
