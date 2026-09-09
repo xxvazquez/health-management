@@ -249,14 +249,16 @@ create table public.stool_logs (
   -- typeless one.
   bristol_scores smallint[] not null
     check (cardinality(bristol_scores) > 0 and bristol_scores <@ array[1,2,3,4,5,6,7]::smallint[]),
-  color text check (color in ('Brown', 'Dark Brown', 'Light Brown', 'Green', 'Yellow', 'Black', 'Pale')),
+  -- Free text (like `symptoms` below): the offered chips come from
+  -- stool_options, but an imported or since-hidden value stays intact.
+  color text,
   -- Null means neither observed — a normal sinking stool isn't itself
   -- trackable, only the two notable states are.
-  floatation text check (floatation in ('Partially Floats', 'Floats')),
-  -- Properties of the stool / the act itself, as opposed to symptoms below.
-  is_sticky boolean not null default false,
-  is_smelly boolean not null default false,
-  is_straining boolean not null default false,
+  floatation text,
+  -- Properties of the stool / the act itself, as opposed to symptoms below
+  -- (Smelly / Sticky / Straining by default; editable via stool_options).
+  -- Was three booleans until 2026-09-09.
+  characteristics text[] not null default '{}'::text[],
   -- Paper-cleanliness grade(s) and/or non-paper method(s) as one flat set,
   -- so "Paper – dirty" and "Water and soap" can both apply to one movement.
   -- Replaces the old single-value paper_cleanliness column.
@@ -275,6 +277,30 @@ create table public.stool_logs (
   import_source text,
   updated_at timestamptz not null default now()
 );
+
+-- The chips offered in the Stool tab's colour / symptom / floatation /
+-- characteristic pickers, editable from Settings. When a user has no rows
+-- for a `kind`, the app shows a built-in default list (see
+-- `DEFAULT_STOOL_*` in types.ts); the first edit materializes the whole
+-- default set as rows (like doctor_specialties). Hiding a row keeps it off
+-- the picker without touching any stool_logs that already used its label.
+-- `swatch` is the hex dot for the `color` kind, null for the others.
+-- Owner-only, direct-to-Supabase.
+create table public.stool_options (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id),
+  kind text not null check (kind in ('color', 'symptom', 'floatation', 'characteristic')),
+  label text not null check (char_length(trim(label)) > 0),
+  swatch text,
+  sort_order int not null default 0,
+  is_archived boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (user_id, id),
+  unique (user_id, kind, label)
+);
+
+create index stool_options_user_kind_idx on public.stool_options (user_id, kind, sort_order);
 
 create table public.workout_logs (
   id uuid not null default gen_random_uuid(),
@@ -1057,6 +1083,7 @@ alter table public.habit_diary enable row level security;
 alter table public.symptom_diary enable row level security;
 alter table public.workout_diary enable row level security;
 alter table public.stool_logs enable row level security;
+alter table public.stool_options enable row level security;
 alter table public.workout_logs enable row level security;
 alter table public.period_logs enable row level security;
 alter table public.push_subscriptions enable row level security;
@@ -1109,6 +1136,7 @@ create policy "habit_diary_all_own" on public.habit_diary for all using (auth.ui
 create policy "symptom_diary_all_own" on public.symptom_diary for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "workout_diary_all_own" on public.workout_diary for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "stool_logs_all_own" on public.stool_logs for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "stool_options_all_own" on public.stool_options for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "workout_logs_all_own" on public.workout_logs for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "period_logs_all_own" on public.period_logs for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "push_subscriptions_all_own" on public.push_subscriptions for all using (auth.uid() = user_id) with check (auth.uid() = user_id);

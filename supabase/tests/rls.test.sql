@@ -123,7 +123,7 @@ grant select, insert, update, delete on
   public.categories, public.food_items, public.supplement_items, public.habit_items, public.symptom_items, public.workout_items,
   public.food_logs, public.supplement_logs, public.habit_logs, public.symptom_logs,
   public.food_diary, public.supplement_diary, public.habit_diary, public.symptom_diary, public.workout_diary,
-  public.stool_logs, public.workout_logs, public.period_logs, public.push_subscriptions,
+  public.stool_logs, public.stool_options, public.workout_logs, public.period_logs, public.push_subscriptions,
   public.partner_invites, public.partner_links, public.notes,
   public.doctor_specialties, public.doctors, public.doctor_appointments, public.doctor_appointment_tasks
   to authenticated;
@@ -397,6 +397,34 @@ select public.test_assert_raises(
   $sql$insert into public.stool_logs (id, user_id, date, bristol_scores)
        values ('66600000-0000-0000-0000-000000000666', '11111111-1111-1111-1111-111111111111', '2026-01-01', array[4]::smallint[])$sql$,
   'stool_logs: user_id cannot be spoofed on INSERT'
+);
+
+-- ============================================================================
+-- stool_options (the editable Stool-tab chip lists — standalone, owner-only)
+-- ============================================================================
+
+select public.test_switch_user('11111111-1111-1111-1111-111111111111');
+insert into public.stool_options (id, user_id, kind, label) values ('5a000000-0000-0000-0000-00000000005a', '11111111-1111-1111-1111-111111111111', 'color', 'Grey');
+
+select public.test_switch_user('22222222-2222-2222-2222-222222222222');
+select public.test_assert(
+  (select count(*) from public.stool_options where id = '5a000000-0000-0000-0000-00000000005a') = 0,
+  'stool_options: user B cannot SELECT user A''s chip'
+);
+update public.stool_options set label = 'hijacked' where id = '5a000000-0000-0000-0000-00000000005a';
+delete from public.stool_options where id = '5a000000-0000-0000-0000-00000000005a';
+
+select public.test_switch_user('11111111-1111-1111-1111-111111111111');
+select public.test_assert(
+  (select label from public.stool_options where id = '5a000000-0000-0000-0000-00000000005a') = 'Grey',
+  'stool_options: user A''s chip survives user B''s UPDATE and DELETE attempts, untouched'
+);
+
+select public.test_switch_user('22222222-2222-2222-2222-222222222222');
+select public.test_assert_raises(
+  $sql$insert into public.stool_options (id, user_id, kind, label)
+       values ('5b000000-0000-0000-0000-00000000005b', '11111111-1111-1111-1111-111111111111', 'symptom', 'Spoofed')$sql$,
+  'stool_options: user_id cannot be spoofed on INSERT'
 );
 
 -- ============================================================================

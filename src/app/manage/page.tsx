@@ -12,6 +12,7 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { ItemNameField, ItemActionButtons, useInlineRename } from "@/components/ui/ItemActions";
 import { ManageRow } from "@/components/ui/ManageRow";
+import { TrashIcon } from "@/components/ui/Notebook";
 import { PageHeading } from "@/components/ui/PageHeading";
 import { IconColorPicker } from "@/components/ui/IconColorPicker";
 import { CustomIcon, customColorValue } from "@/components/ui/customIcons";
@@ -33,7 +34,7 @@ import { NUTRITION_GROUPS, NUTRITION_GROUP_LABEL, nutritionGroupsForFood, type N
 import { useFoodNutritionGroupOverrides } from "@/lib/useFoodNutritionGroupOverrides";
 import { todayLocalISODate } from "@/lib/aggregations/common";
 import { buildDemoDataset } from "@/lib/demoData";
-import { WORKOUT_UNITS, workoutUnitLabel, defaultWorkoutUnitForCategory, type RawItem, type RawCategory, type WorkoutUnit } from "@/lib/types";
+import { WORKOUT_UNITS, workoutUnitLabel, defaultWorkoutUnitForCategory, STOOL_COLOR_SWATCH, type RawItem, type RawCategory, type WorkoutUnit, type StoolOptionKind } from "@/lib/types";
 import { createReminderList, deleteReminderList, fetchReminderLists, renameReminderList, type ReminderList } from "@/lib/supabase/personalReminders";
 import { buildDemoReminderLists } from "@/lib/demoPersonalReminders";
 import {
@@ -47,6 +48,16 @@ import {
 } from "@/lib/supabase/doctors";
 import { buildDemoDoctorSpecialties } from "@/lib/demoDoctors";
 import { DEFAULT_DOCTOR_SPECIALTIES } from "@/lib/doctors";
+import {
+  createStoolOption,
+  defaultStoolOptions,
+  deleteStoolOption,
+  ensureStoolOptions,
+  fetchStoolOptions,
+  updateStoolOption,
+  type StoolOption,
+  type StoolOptionPatch,
+} from "@/lib/supabase/stoolOptions";
 
 // Log tab order — Food, Symptoms, Supplements, Habits, Stool, Workout,
 // Cycle — so the toggle list reads left-to-right the same way the tabs
@@ -488,6 +499,334 @@ function DoctorSpecialtiesCard({ isDemoData, searchQuery }: { isDemoData: boolea
         </>
       )}
     </CollapsibleManageCard>
+  );
+}
+
+// --- Stool options ---------------------------------------------------
+
+const STOOL_OPTION_KINDS: { kind: StoolOptionKind; title: string; placeholder: string }[] = [
+  { kind: "color", title: "Colours", placeholder: "e.g. Grey" },
+  { kind: "characteristic", title: "Characteristics", placeholder: "e.g. Greasy" },
+  { kind: "floatation", title: "Floatation", placeholder: "e.g. Sinks fast" },
+  { kind: "symptom", title: "Symptoms", placeholder: "e.g. Rectal itching" },
+];
+
+function demoStoolOptionRows(): StoolOption[] {
+  return STOOL_OPTION_KINDS.flatMap(({ kind }) =>
+    defaultStoolOptions(kind).map<StoolOption>((label, i) => ({
+      id: `demo:${kind}:${label}`,
+      kind,
+      label,
+      swatch: kind === "color" ? (STOOL_COLOR_SWATCH[label] ?? null) : null,
+      sortOrder: i,
+      isArchived: false,
+    })),
+  );
+}
+
+function StoolOptionsCard({ isDemoData, searchQuery }: { isDemoData: boolean; searchQuery: string }) {
+  const [rows, setRows] = useState<StoolOption[]>(() => (isDemoData ? demoStoolOptionRows() : []));
+  const [loading, setLoading] = useState(!isDemoData);
+  const [busy, setBusy] = useState(false);
+  const [newLabels, setNewLabels] = useState<Record<string, string>>({});
+  const [hiddenOpen, setHiddenOpen] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    if (isDemoData) return;
+    let cancelled = false;
+    fetchStoolOptions()
+      .then((data) => !cancelled && setRows(data))
+      .catch((err) => console.error("fetchStoolOptions failed", err))
+      .finally(() => !cancelled && setLoading(false));
+    return () => {
+      cancelled = true;
+    };
+  }, [isDemoData]);
+
+  const query = searchQuery.trim().toLowerCase();
+  const isSearching = query.length > 0;
+
+  /** Materialize the defaults for a kind on first edit, mirroring
+   * DoctorSpecialtiesCard's `realize`. */
+  async function realize(kind: StoolOptionKind): Promise<StoolOption[]> {
+    if (isDemoData || rows.some((r) => r.kind === kind)) return rows;
+    const fresh = await ensureStoolOptions(kind);
+    setRows(fresh);
+    return fresh;
+  }
+
+  async function run(kind: StoolOptionKind, action: (fresh: StoolOption[]) => Promise<void>) {
+    setBusy(true);
+    try {
+      await action(isDemoData ? rows : await realize(kind));
+    } catch (err) {
+      console.error("stool option action failed", err);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function entriesFor(kind: StoolOptionKind) {
+    const mine = rows.filter((r) => r.kind === kind);
+    if (mine.length > 0) return [...mine].sort((a, b) => a.sortOrder - b.sortOrder);
+    return defaultStoolOptions(kind).map<StoolOption>((label, i) => ({
+      id: `default:${kind}:${label}`,
+      kind,
+      label,
+      swatch: kind === "color" ? (STOOL_COLOR_SWATCH[label] ?? null) : null,
+      sortOrder: i,
+      isArchived: false,
+    }));
+  }
+
+  async function addOption(kind: StoolOptionKind) {
+    const label = (newLabels[kind] ?? "").trim();
+    setNewLabels((p) => ({ ...p, [kind]: "" }));
+    if (!label) return;
+    if (isDemoData) {
+      setRows((prev) =>
+        prev.some((r) => r.kind === kind && r.label.toLowerCase() === label.toLowerCase())
+          ? prev
+          : [...prev, { id: `demo-stool-opt-${Date.now()}`, kind, label, swatch: null, sortOrder: 99, isArchived: false }],
+      );
+      return;
+    }
+    await run(kind, async (fresh) => {
+      if (fresh.some((r) => r.kind === kind && r.label.toLowerCase() === label.toLowerCase())) return;
+      const sortOrder = Math.max(-1, ...fresh.filter((r) => r.kind === kind).map((r) => r.sortOrder)) + 1;
+      const created = await createStoolOption(kind, label, sortOrder);
+      setRows((prev) => [...prev, created]);
+    });
+  }
+
+  async function patch(option: StoolOption, p: StoolOptionPatch) {
+    if (isDemoData) {
+      setRows((prev) => prev.map((r) => (r.id === option.id ? { ...r, ...p, label: p.label?.trim() ?? r.label } : r)));
+      return;
+    }
+    await run(option.kind, async (fresh) => {
+      const row = fresh.find((r) => r.kind === option.kind && r.label.toLowerCase() === option.label.toLowerCase()) ?? option;
+      const updated = await updateStoolOption(row, p);
+      setRows((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+    });
+  }
+
+  async function removeOption(option: StoolOption) {
+    if (isDemoData) {
+      setRows((prev) => prev.filter((r) => r.id !== option.id));
+      return;
+    }
+    await run(option.kind, async (fresh) => {
+      const row = fresh.find((r) => r.kind === option.kind && r.label.toLowerCase() === option.label.toLowerCase());
+      if (!row) return;
+      setRows((prev) => prev.filter((r) => r.id !== row.id));
+      await deleteStoolOption(row.id);
+    });
+  }
+
+  const totalActive = STOOL_OPTION_KINDS.reduce((n, k) => n + entriesFor(k.kind).filter((e) => !e.isArchived).length, 0);
+
+  return (
+    <CollapsibleManageCard
+      title="Stool options"
+      subtitle={loading ? undefined : `${totalActive} chips`}
+      forceOpen={isSearching}
+    >
+      <p className="mb-3 text-xs" style={{ color: "var(--text-secondary)" }}>
+        The chips offered in the Log page&apos;s Stool tab. Hide the ones you don&apos;t use or add your own — entries you&apos;ve
+        already logged keep their value either way.
+      </p>
+
+      {loading ? (
+        <p className="py-3 text-xs" style={{ color: "var(--text-muted)" }}>
+          Loading…
+        </p>
+      ) : (
+        <div className="flex flex-col gap-5">
+          {STOOL_OPTION_KINDS.map(({ kind, title, placeholder }) => {
+            const all = entriesFor(kind).filter((e) => !isSearching || e.label.toLowerCase().includes(query));
+            const active = all.filter((e) => !e.isArchived);
+            const hidden = all.filter((e) => e.isArchived);
+            if (isSearching && all.length === 0) return null;
+            const showHidden = isSearching || hiddenOpen[kind];
+            return (
+              <div key={kind}>
+                <p className="mb-2 text-xs font-semibold" style={{ color: "var(--text-secondary)" }}>
+                  {title}
+                </p>
+
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    void addOption(kind);
+                  }}
+                  className="mb-2 flex items-center gap-2"
+                >
+                  <input
+                    value={newLabels[kind] ?? ""}
+                    onChange={(e) => setNewLabels((p) => ({ ...p, [kind]: e.target.value }))}
+                    placeholder={placeholder}
+                    maxLength={60}
+                    className="flex-1 rounded-md border px-2.5 py-1.5 text-xs outline-none"
+                    style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
+                  />
+                  <button
+                    type="submit"
+                    disabled={!(newLabels[kind] ?? "").trim() || busy}
+                    className="shrink-0 rounded-md px-3 py-1.5 text-xs font-semibold disabled:opacity-40"
+                    style={{ color: "var(--series-1)" }}
+                  >
+                    Add
+                  </button>
+                </form>
+
+                <ul className="flex flex-col divide-y divide-[color:var(--gridline)]">
+                  {active.length === 0 && !isSearching && (
+                    <li className="py-2 text-xs" style={{ color: "var(--text-muted)" }}>
+                      Every {title.toLowerCase().replace(/s$/, "")} is hidden — add one above or show one back.
+                    </li>
+                  )}
+                  {active.map((e) => (
+                    <StoolOptionRow key={e.id} option={e} busy={busy} onPatch={(p) => void patch(e, p)} onDelete={() => void removeOption(e)} />
+                  ))}
+                </ul>
+
+                {hidden.length > 0 && (
+                  <div className="mt-2">
+                    <button
+                      type="button"
+                      onClick={() => setHiddenOpen((p) => ({ ...p, [kind]: !p[kind] }))}
+                      disabled={isSearching}
+                      className="text-xs font-medium underline decoration-dotted disabled:opacity-100"
+                      style={{ color: "var(--text-secondary)" }}
+                    >
+                      Hidden ({hidden.length}) — {showHidden ? "Hide" : "Show"}
+                    </button>
+                    {showHidden && (
+                      <ul className="mt-1 flex flex-col divide-y divide-[color:var(--gridline)] opacity-70">
+                        {hidden.map((e) => (
+                          <StoolOptionRow key={e.id} option={e} busy={busy} onPatch={(p) => void patch(e, p)} onDelete={() => void removeOption(e)} />
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </CollapsibleManageCard>
+  );
+}
+
+function StoolOptionRow({
+  option,
+  busy,
+  onPatch,
+  onDelete,
+}: {
+  option: StoolOption;
+  busy: boolean;
+  onPatch: (patch: StoolOptionPatch) => void;
+  onDelete: () => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(option.label);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+
+  function commit() {
+    setEditing(false);
+    const next = draft.trim();
+    if (next && next !== option.label) onPatch({ label: next });
+  }
+
+  return (
+    <li className="flex items-center gap-2 py-2">
+      {option.kind === "color" && (
+        <input
+          type="color"
+          value={option.swatch ?? "#8a5a34"}
+          onChange={(e) => onPatch({ swatch: e.target.value })}
+          disabled={busy}
+          aria-label={`${option.label} colour`}
+          className="h-5 w-5 shrink-0 cursor-pointer rounded border-0 bg-transparent p-0"
+        />
+      )}
+      {editing ? (
+        <form
+          className="flex flex-1 items-center gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            commit();
+          }}
+        >
+          <input
+            autoFocus
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onBlur={commit}
+            maxLength={60}
+            className="min-w-0 flex-1 rounded-md border px-2 py-1 text-sm outline-none"
+            style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
+          />
+        </form>
+      ) : (
+        <button
+          type="button"
+          onClick={() => {
+            setDraft(option.label);
+            setEditing(true);
+          }}
+          className="min-w-0 flex-1 truncate text-left text-sm"
+          style={{ color: option.isArchived ? "var(--text-muted)" : "var(--text-primary)" }}
+        >
+          {option.label}
+        </button>
+      )}
+
+      {!editing &&
+        (confirmingDelete ? (
+          <span className="flex shrink-0 items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => {
+                setConfirmingDelete(false);
+                onDelete();
+              }}
+              className="text-xs font-semibold"
+              style={{ color: "var(--status-critical)" }}
+            >
+              Delete
+            </button>
+            <button type="button" onClick={() => setConfirmingDelete(false)} className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+              Keep
+            </button>
+          </span>
+        ) : (
+          <span className="flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={() => onPatch({ isArchived: !option.isArchived })}
+              disabled={busy}
+              className="text-xs font-medium disabled:opacity-40"
+              style={{ color: "var(--text-secondary)" }}
+            >
+              {option.isArchived ? "Show" : "Hide"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setConfirmingDelete(true)}
+              disabled={busy}
+              aria-label={`Delete ${option.label}`}
+              className="disabled:opacity-40"
+              style={{ color: "var(--text-muted)" }}
+            >
+              <TrashIcon size={14} />
+            </button>
+          </span>
+        ))}
+    </li>
   );
 }
 
@@ -1579,6 +1918,7 @@ export default function ManagePage() {
   const orderedManageSections: { label: string; el: ReactNode }[] = [
     { label: "Reminder lists", el: <ReminderListsCard key="reminder-lists" isDemoData={isDemoData} searchQuery={searchQuery} /> },
     { label: "Doctor types", el: <DoctorSpecialtiesCard key="doctor-types" isDemoData={isDemoData} searchQuery={searchQuery} /> },
+    { label: "Stool options", el: <StoolOptionsCard key="stool-options" isDemoData={isDemoData} searchQuery={searchQuery} /> },
     ...TYPE_SECTIONS.map((section) => ({
       label: section.label,
       el: (

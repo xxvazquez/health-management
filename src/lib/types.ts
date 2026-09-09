@@ -187,19 +187,28 @@ export interface RawDiaryEntry {
   updatedAt: string | null;
 }
 
-export const STOOL_COLORS = ["Brown", "Dark Brown", "Light Brown", "Green", "Yellow", "Black", "Pale"] as const;
-export type StoolColor = (typeof STOOL_COLORS)[number];
+/** The colour / symptom / floatation / characteristic chips a user can
+ * add, rename or hide from Settings live in the `stool_options` table.
+ * These are the built-in lists shown to anyone who hasn't customised the
+ * respective `kind` yet (and the set the first edit materializes). Logged
+ * values are plain strings — a hidden or imported one stays intact. */
+export type StoolOptionKind = "color" | "symptom" | "floatation" | "characteristic";
 
-/** Paper-cleanliness grades plus the non-paper methods — one flat list, so
- * a single movement can record "Paper – dirty" and "Water and soap"
- * together. Replaces the old single-value `paperCleanliness`. */
-export const HYGIENE_OPTIONS = ["Clean", "Slightly Dirty", "Dirty", "Very Dirty", "Water", "Water and soap", "Wet wipes"] as const;
-export type HygieneOption = (typeof HYGIENE_OPTIONS)[number];
+export const DEFAULT_STOOL_COLORS = ["Brown", "Dark Brown", "Light Brown", "Green", "Yellow", "Black", "Pale"];
 
-/** Symptoms that belong to the bowel movement itself (as opposed to the
- * general symptoms tracked on the Symptoms tab). Free list — a value logged
- * elsewhere or imported stays intact even if it isn't offered as a chip. */
-export const STOOL_SYMPTOM_OPTIONS = [
+/** Hex dot shown next to each built-in colour; a custom colour carries its
+ * own `swatch` on the `stool_options` row. */
+export const STOOL_COLOR_SWATCH: Record<string, string> = {
+  Brown: "#8a5a34",
+  "Dark Brown": "#4f3420",
+  "Light Brown": "#b98a58",
+  Green: "#4a7a5c",
+  Yellow: "#d1ab3e",
+  Black: "#2b2b2b",
+  Pale: "#cabfa8",
+};
+
+export const DEFAULT_STOOL_SYMPTOMS = [
   "Abdominal cramps",
   "Anal cramping",
   "Anal pressure",
@@ -211,11 +220,19 @@ export const STOOL_SYMPTOM_OPTIONS = [
   "Tense pelvic floor",
   "Urgency",
   "Visible food particles",
-] as const;
-export type StoolSymptom = (typeof STOOL_SYMPTOM_OPTIONS)[number];
+];
 
-export const STOOL_FLOATATION_OPTIONS = ["Floats", "Partially Floats"] as const;
-export type StoolFloatation = (typeof STOOL_FLOATATION_OPTIONS)[number];
+export const DEFAULT_STOOL_FLOATATIONS = ["Floats", "Partially Floats"];
+
+/** Properties of the stool / the act itself. Was three fixed booleans
+ * (`isSmelly` / `isSticky` / `isStraining`) until 2026-09-09. */
+export const DEFAULT_STOOL_CHARACTERISTICS = ["Smelly", "Sticky", "Straining"];
+
+/** Paper-cleanliness grades plus the non-paper methods — one flat list, so
+ * a single movement can record "Paper – dirty" and "Water and soap"
+ * together. Not user-editable (unlike the four lists above). */
+export const HYGIENE_OPTIONS = ["Clean", "Slightly Dirty", "Dirty", "Very Dirty", "Water", "Water and soap", "Wet wipes"] as const;
+export type HygieneOption = (typeof HYGIENE_OPTIONS)[number];
 
 /**
  * One bowel movement — Supabase's `stool_logs` table. Its own first-class
@@ -232,18 +249,18 @@ export interface RawStoolLog {
    * collapsed to a single value. Always has at least one score: a day with
    * no bowel movement is simply no row, not a typeless one. */
   bristolScores: number[];
-  color: StoolColor | null;
+  color: string | null;
   /** Unset (null) means neither observed — a normal sinking stool isn't
    * itself trackable, only the two notable states are. */
-  floatation: StoolFloatation | null;
-  isSticky: boolean;
-  isSmelly: boolean;
-  isStraining: boolean;
+  floatation: string | null;
+  /** Properties of the stool / the act — "Smelly", "Sticky", "Straining"
+   * by default, editable from Settings. Empty if none logged. */
+  characteristics: string[];
   /** Paper cleanliness grade(s) and/or method(s) used — empty if not logged. */
   hygiene: HygieneOption[];
   /** Symptoms tied to this movement — empty if none logged. General
    * symptoms (bloating, fatigue, …) live on the Symptoms tab instead. */
-  symptoms: StoolSymptom[];
+  symptoms: string[];
   timeOnToiletMinutes: number | null;
   note: string | null;
   updatedAt: string | null;
