@@ -103,44 +103,10 @@ export interface LabRangeOption {
 
 export const LAB_RANGES: LabRangeOption[] = [
   { id: "all", label: "All", years: null },
-  { id: "5y", label: "5 years", years: 5 },
-  { id: "2y", label: "2 years", years: 2 },
-  { id: "1y", label: "1 year", years: 1 },
+  { id: "5y", label: "5y", years: 5 },
+  { id: "2y", label: "2y", years: 2 },
+  { id: "1y", label: "1y", years: 1 },
 ];
-
-/** Markers pinned to the headline grid by default. The first block is the
- * live data's exact marker names (from the blood-history import); the
- * second is the signed-out demo's English equivalents. Matching ignores
- * case, spacing and any parenthetical — "Hemoglobina (HGB)" matches
- * "Hemoglobina" — and anything currently out of range is pinned on top of
- * these regardless. A per-user editable set is a planned follow-up. */
-export const DEFAULT_LAB_PINS = [
-  // Live data (verified against the import catalogue)
-  "Ferrytyna",
-  "Żelazo",
-  "Hemoglobina (HGB)",
-  "TSH",
-  "FT4",
-  "Witamina D",
-  "Witamina B12",
-  "Kwas foliowy",
-  "Cholesterol całkowity",
-  "HbA1c",
-  "Glukoza",
-  "CRP",
-  // Demo data
-  "Ferritin",
-  "Hemoglobin (HGB)",
-  "Vitamin D (25-OH)",
-];
-
-function normalizeName(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/\([^)]*\)/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
-}
 
 /** Oldest and newest measurement across every marker. */
 export function labsSpan(markers: LabMarker[]): { start: string; end: string } | null {
@@ -176,136 +142,39 @@ export function clipMarkers(markers: LabMarker[], cutoff: string | null): LabMar
   return out;
 }
 
-export interface HeadlineMarker {
-  id: string;
-  name: string;
-  unit: string | null;
-  latest: number | null;
-  measuredOn: string | null;
-  status: RangeStatus;
-  /** Whether `status` was read against the optimal range or the lab
-   * reference range (null when the marker has neither). */
-  basis: "optimal" | "reference" | null;
+export interface WindowSummary {
+  /** Readings in the window. */
+  count: number;
+  /** Mean of every reading in the window — the value Average mode reads. */
+  mean: number;
+  min: number;
+  max: number;
+  /** Most recent reading in the window — the value Last mode reads. */
+  latest: number;
+  latestOn: string;
+  /** The reading before the latest, for the change read-out (null when
+   * there's only one in the window). */
   previous: number | null;
-  deltaPct: number | null;
-  spark: number[];
-  pinned: boolean;
 }
 
-/** The headline grid: every pinned marker plus anything whose latest
- * reading is out of range. Out-of-range first, then pin order, then name. */
-export function headlineMarkers(markers: LabMarker[], pinnedNames: string[]): HeadlineMarker[] {
-  const pins = pinnedNames.map(normalizeName);
-  const rows: HeadlineMarker[] = [];
-  for (const m of markers) {
-    if (m.results.length === 0) continue;
-    const sorted = [...m.results].sort((a, b) => a.measuredOn.localeCompare(b.measuredOn));
-    const latest = sorted[sorted.length - 1];
-    const previous = sorted.length >= 2 ? sorted[sorted.length - 2] : null;
-    const { low, high, basis } = effectiveRange(m);
-    const status = rangeStatus(latest.value, low, high);
-    const isPinned = pins.includes(normalizeName(m.name));
-    if (!isPinned && status !== "low" && status !== "high") continue;
-    rows.push({
-      id: m.id,
-      name: m.name,
-      unit: m.unit,
-      latest: latest.value,
-      measuredOn: latest.measuredOn,
-      status,
-      basis,
-      previous: previous?.value ?? null,
-      deltaPct:
-        previous && previous.value !== 0 ? ((latest.value - previous.value) / Math.abs(previous.value)) * 100 : null,
-      spark: sorted.slice(-8).map((r) => r.value),
-      pinned: isPinned,
-    });
-  }
-  const outOfRange = (s: RangeStatus) => s === "low" || s === "high";
-  return rows.sort((a, b) => {
-    if (outOfRange(a.status) !== outOfRange(b.status)) return outOfRange(a.status) ? -1 : 1;
-    const ai = a.pinned ? pins.indexOf(normalizeName(a.name)) : Number.MAX_SAFE_INTEGER;
-    const bi = b.pinned ? pins.indexOf(normalizeName(b.name)) : Number.MAX_SAFE_INTEGER;
-    if (ai !== bi) return ai - bi;
-    return a.name.localeCompare(b.name);
-  });
-}
-
-export interface FlaggedReading {
-  markerId: string;
-  name: string;
-  unit: string | null;
-  value: number;
-  measuredOn: string;
-  status: "low" | "high";
-  /** The bound the value missed, and which band it came from. */
-  low: number | null;
-  high: number | null;
-  basis: "optimal" | "reference";
-}
-
-/** The latest reading of every marker that is currently outside its
- * optimal range (or its reference range when no optimal one is set),
- * newest first. */
-export function flaggedReadings(markers: LabMarker[]): FlaggedReading[] {
-  const out: FlaggedReading[] = [];
-  for (const m of markers) {
-    if (m.results.length === 0) continue;
-    const latest = [...m.results].sort((a, b) => a.measuredOn.localeCompare(b.measuredOn))[m.results.length - 1];
-    const { low, high, basis } = effectiveRange(m);
-    const status = rangeStatus(latest.value, low, high);
-    if ((status !== "low" && status !== "high") || basis == null) continue;
-    out.push({
-      markerId: m.id,
-      name: m.name,
-      unit: m.unit,
-      value: latest.value,
-      measuredOn: latest.measuredOn,
-      status,
-      low,
-      high,
-      basis,
-    });
-  }
-  return out.sort((a, b) => b.measuredOn.localeCompare(a.measuredOn));
-}
-
-export interface NormalizedSeries {
-  data: Record<string, string | number>[];
-  note: "midpoint" | "minmax" | "mixed";
-}
-
-/** Every marker's values put on one 0-around-100 scale so unrelated
- * markers can share an overlay chart: a percent of the reference midpoint
- * where a range is set, otherwise a 0–100 min–max of the marker's own
- * history. */
-export function normalizedSeries(markers: LabMarker[]): NormalizedSeries {
-  const byDate = new Map<string, Record<string, string | number>>();
-  let midpoint = 0;
-  let minmax = 0;
-  for (const m of markers) {
-    const values = m.results.map((r) => r.value);
-    if (values.length === 0) continue;
-    const hasRef = m.refLow != null && m.refHigh != null;
-    let scale: (v: number) => number;
-    if (hasRef) {
-      const mid = ((m.refLow as number) + (m.refHigh as number)) / 2;
-      scale = (v) => (mid !== 0 ? (v / mid) * 100 : v);
-      midpoint++;
-    } else {
-      const lo = Math.min(...values);
-      const hi = Math.max(...values);
-      const span = hi - lo || 1;
-      scale = (v) => ((v - lo) / span) * 100;
-      minmax++;
-    }
-    for (const r of m.results) {
-      const row = byDate.get(r.measuredOn) ?? { date: r.measuredOn };
-      row[m.id] = Math.round(scale(r.value) * 10) / 10;
-      byDate.set(r.measuredOn, row);
-    }
-  }
-  const data = [...byDate.values()].sort((a, b) => String(a.date).localeCompare(String(b.date)));
-  const note: NormalizedSeries["note"] = midpoint > 0 && minmax > 0 ? "mixed" : minmax > 0 ? "minmax" : "midpoint";
-  return { data, note };
+/** Collapse a marker's window-clipped readings into the figures the
+ * Results overview shows: the mean and spread for Average mode, the latest
+ * value and the one before it for Last mode and the change read-out. Null
+ * when the window holds nothing. */
+export function summariseWindow(
+  results: readonly { value: number; measuredOn: string }[],
+): WindowSummary | null {
+  if (results.length === 0) return null;
+  const sorted = [...results].sort((a, b) => a.measuredOn.localeCompare(b.measuredOn));
+  const values = sorted.map((r) => r.value);
+  const latest = sorted[sorted.length - 1];
+  return {
+    count: values.length,
+    mean: values.reduce((sum, v) => sum + v, 0) / values.length,
+    min: Math.min(...values),
+    max: Math.max(...values),
+    latest: latest.value,
+    latestOn: latest.measuredOn,
+    previous: sorted.length >= 2 ? sorted[sorted.length - 2].value : null,
+  };
 }
