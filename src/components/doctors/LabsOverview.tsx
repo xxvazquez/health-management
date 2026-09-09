@@ -239,11 +239,11 @@ export function LabsOverview({ onManage }: { onManage?: () => void }) {
               const bound = f.status === "low" ? f.low : f.high;
               return (
                 <li key={f.markerId} className="flex items-center gap-3 py-2">
-                  <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: "var(--status-caution)" }} aria-hidden="true" />
+                  <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: "var(--status-critical)" }} aria-hidden="true" />
                   <span className="min-w-0 flex-1 truncate text-sm font-medium" style={{ color: "var(--text-primary)" }}>
                     {f.name}
                   </span>
-                  <span className="shrink-0 text-sm tabular-nums" style={{ color: "var(--status-caution)" }}>
+                  <span className="shrink-0 text-sm tabular-nums" style={{ color: "var(--status-critical)" }}>
                     {fmtValue(f.value, f.unit)}
                   </span>
                   <span className="hidden shrink-0 text-xs tabular-nums sm:inline" style={{ color: "var(--text-muted)" }}>
@@ -420,7 +420,10 @@ function MarkerRangeRow({ marker, last, onOpen }: { marker: LabMarker; last: boo
         <span className="block truncate text-xs font-semibold" style={{ color: "var(--text-primary)" }}>
           {marker.name}
         </span>
-        <span className="block text-xs font-semibold tabular-nums" style={{ color: "var(--text-primary)" }}>
+        <span
+          className="block text-xs font-semibold tabular-nums"
+          style={{ color: latest && status ? tone : "var(--text-primary)" }}
+        >
           {latest ? fmtNum(latest.value) : "—"}
           {marker.unit && (
             <span className="ml-0.5 text-[9px] font-normal" style={{ color: "var(--text-muted)" }}>{marker.unit}</span>
