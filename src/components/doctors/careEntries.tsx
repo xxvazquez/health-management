@@ -279,11 +279,94 @@ export function CareEntryForm({
   );
 }
 
-export function CareEntryRow({
+/** Kind badge + date + optional revisit date — the metadata line shared by
+ * the care-log row and its detail view. */
+function CareEntryMeta({ entry, accent }: { entry: CareEntry; accent: string }) {
+  return (
+    <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs" style={{ color: "var(--text-muted)" }}>
+      <span
+        className="rounded px-1.5 py-0.5 text-xs font-semibold tracking-wide uppercase"
+        style={{ background: `color-mix(in oklab, ${accent} 14%, transparent)`, color: accent }}
+      >
+        {CARE_KIND_LABEL[entry.kind]}
+      </span>
+      <span className="tabular-nums">{formatDate(entry.happenedOn)}</span>
+      {entry.remindOn && (
+        <span className="tabular-nums" style={{ color: accent }}>
+          · revisit {formatDate(entry.remindOn)}
+        </span>
+      )}
+    </span>
+  );
+}
+
+/** Supplement + specialty tags — shared by the row and the detail view.
+ * A `<span>` (not `<div>`) so it stays valid inside the row's button. */
+function CareEntryTags({ specialtyNames, supplementName, accent }: { specialtyNames: string[]; supplementName?: string | null; accent: string }) {
+  if (specialtyNames.length === 0 && !supplementName) return null;
+  return (
+    <span className="flex flex-wrap gap-1">
+      {supplementName && (
+        <span className="rounded-full px-2 py-0.5 text-xs font-medium" style={{ background: `color-mix(in oklab, ${accent} 14%, transparent)`, color: accent }}>
+          {supplementName}
+        </span>
+      )}
+      {specialtyNames.map((name) => (
+        <span key={name} className="rounded-full border px-2 py-0.5 text-xs" style={{ borderColor: "var(--border-hairline)", color: "var(--text-muted)" }}>
+          {name}
+        </span>
+      ))}
+    </span>
+  );
+}
+
+function AttachmentChips({ attachments }: { attachments: CareEntry["attachments"] }) {
+  if (attachments.length === 0) return null;
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {attachments.map((f) => {
+        const inner = (
+          <>
+            <span className="shrink-0" style={{ color: "var(--text-muted)" }}>
+              {driveFileIcon(f.mimeType ?? "")}
+            </span>
+            <span className="truncate">{f.name}</span>
+          </>
+        );
+        return f.webViewLink ? (
+          <a
+            key={f.driveFileId}
+            href={f.webViewLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex max-w-full items-center gap-1 rounded-md border px-2 py-0.5 text-xs"
+            style={{ borderColor: "var(--border-hairline)", color: "var(--text-secondary)" }}
+          >
+            {inner}
+          </a>
+        ) : (
+          <span
+            key={f.driveFileId}
+            className="inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs"
+            style={{ borderColor: "var(--border-hairline)", color: "var(--text-muted)" }}
+          >
+            {inner}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
+/** The read view for one care-log entry — opened by tapping a row. Shows
+ * the whole body with its line breaks kept, the tags and any Drive files,
+ * with Edit / Delete in the header. */
+export function CareEntryDetail({
   entry,
   specialtyNames,
   supplementName,
   accent,
+  onBack,
   onEdit,
   onDelete,
 }: {
@@ -291,6 +374,73 @@ export function CareEntryRow({
   specialtyNames: string[];
   supplementName?: string | null;
   accent: string;
+  onBack: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center justify-between gap-3">
+        <button type="button" onClick={onBack} className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+          ← Back
+        </button>
+        <div className="flex items-center gap-3">
+          {confirmingDelete ? (
+            <>
+              <button type="button" onClick={onDelete} className="text-xs font-semibold" style={{ color: "var(--status-critical)" }}>
+                Delete entry
+              </button>
+              <button type="button" onClick={() => setConfirmingDelete(false)} className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+                Keep
+              </button>
+            </>
+          ) : (
+            <>
+              <IconAction onClick={onEdit} label="Edit entry">
+                <PencilIcon size={15} />
+              </IconAction>
+              <IconAction onClick={() => setConfirmingDelete(true)} label="Delete entry" tone="critical">
+                <TrashIcon size={15} />
+              </IconAction>
+            </>
+          )}
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <CareEntryMeta entry={entry} accent={accent} />
+        <h2 className="text-lg font-semibold" style={{ color: "var(--text-primary)" }}>
+          {entry.title}
+        </h2>
+      </div>
+
+      {entry.body && (
+        <p className="text-sm leading-relaxed whitespace-pre-wrap [overflow-wrap:anywhere]" style={{ color: "var(--text-secondary)" }}>
+          {entry.body}
+        </p>
+      )}
+
+      <CareEntryTags specialtyNames={specialtyNames} supplementName={supplementName} accent={accent} />
+      <AttachmentChips attachments={entry.attachments} />
+    </div>
+  );
+}
+
+export function CareEntryRow({
+  entry,
+  specialtyNames,
+  supplementName,
+  accent,
+  onOpen,
+  onEdit,
+  onDelete,
+}: {
+  entry: CareEntry;
+  specialtyNames: string[];
+  supplementName?: string | null;
+  accent: string;
+  onOpen: () => void;
   onEdit: () => void;
   onDelete: () => void;
 }) {
@@ -298,96 +448,42 @@ export function CareEntryRow({
   return (
     <li className="flex flex-col gap-1.5 py-3">
       <div className="flex items-start gap-3">
-      <button type="button" onClick={onEdit} className="min-w-0 flex-1 text-left">
-        <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs" style={{ color: "var(--text-muted)" }}>
-          <span
-            className="rounded px-1.5 py-0.5 text-xs font-semibold tracking-wide uppercase"
-            style={{ background: `color-mix(in oklab, ${accent} 14%, transparent)`, color: accent }}
-          >
-            {CARE_KIND_LABEL[entry.kind]}
+        <button type="button" onClick={onOpen} className="flex min-w-0 flex-1 flex-col gap-1 text-left">
+          <CareEntryMeta entry={entry} accent={accent} />
+          <span className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
+            {entry.title}
           </span>
-          <span className="tabular-nums">{formatDate(entry.happenedOn)}</span>
-          {entry.remindOn && (
-            <span className="tabular-nums" style={{ color: accent }}>
-              · revisit {formatDate(entry.remindOn)}
+          {entry.body && (
+            <span className="line-clamp-2 text-xs leading-snug" style={{ color: "var(--text-secondary)" }}>
+              {entry.body}
             </span>
           )}
-        </span>
-        <span className="mt-1 block text-sm font-medium" style={{ color: "var(--text-primary)" }}>
-          {entry.title}
-        </span>
-        {entry.body && (
-          <span className="mt-0.5 line-clamp-2 text-xs leading-snug" style={{ color: "var(--text-secondary)" }}>
-            {entry.body}
-          </span>
-        )}
-        {(specialtyNames.length > 0 || supplementName) && (
-          <span className="mt-1.5 flex flex-wrap gap-1">
-            {supplementName && (
-              <span
-                className="rounded-full px-2 py-0.5 text-xs font-medium"
-                style={{ background: `color-mix(in oklab, ${accent} 14%, transparent)`, color: accent }}
-              >
-                {supplementName}
-              </span>
-            )}
-            {specialtyNames.map((name) => (
-              <span key={name} className="rounded-full border px-2 py-0.5 text-xs" style={{ borderColor: "var(--border-hairline)", color: "var(--text-muted)" }}>
-                {name}
-              </span>
-            ))}
-          </span>
-        )}
-      </button>
+          <CareEntryTags specialtyNames={specialtyNames} supplementName={supplementName} accent={accent} />
+        </button>
 
-      <div className="flex shrink-0 items-center gap-4 self-center">
-        {confirmingDelete ? (
-          <>
-            <button type="button" onClick={onDelete} className="rounded-md px-2 py-1.5 text-xs font-semibold" style={{ color: "var(--status-critical)" }}>
-              Delete
-            </button>
-            <button type="button" onClick={() => setConfirmingDelete(false)} className="rounded-md px-2 py-1.5 text-xs font-medium" style={{ color: "var(--text-muted)" }}>
-              Keep
-            </button>
-          </>
-        ) : (
-          <>
-            <IconAction onClick={onEdit} label="Edit entry">
-              <PencilIcon size={15} />
-            </IconAction>
-            <IconAction onClick={() => setConfirmingDelete(true)} label="Delete entry" tone="critical">
-              <TrashIcon size={15} />
-            </IconAction>
-          </>
-        )}
-      </div>
-      </div>
-      {entry.attachments.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
-          {entry.attachments.map((f) =>
-            f.webViewLink ? (
-              <a
-                key={f.driveFileId}
-                href={f.webViewLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex max-w-full items-center gap-1 rounded-md border px-2 py-0.5 text-xs"
-                style={{ borderColor: "var(--border-hairline)", color: "var(--text-secondary)" }}
-              >
-                <span className="shrink-0" style={{ color: "var(--text-muted)" }}>
-                  {driveFileIcon(f.mimeType ?? "")}
-                </span>
-                <span className="truncate">{f.name}</span>
-              </a>
-            ) : (
-              <span key={f.driveFileId} className="inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs" style={{ borderColor: "var(--border-hairline)", color: "var(--text-muted)" }}>
-                <span className="shrink-0">{driveFileIcon(f.mimeType ?? "")}</span>
-                <span className="truncate">{f.name}</span>
-              </span>
-            ),
+        <div className="flex shrink-0 items-center gap-4 self-center">
+          {confirmingDelete ? (
+            <>
+              <button type="button" onClick={onDelete} className="rounded-md px-2 py-1.5 text-xs font-semibold" style={{ color: "var(--status-critical)" }}>
+                Delete
+              </button>
+              <button type="button" onClick={() => setConfirmingDelete(false)} className="rounded-md px-2 py-1.5 text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+                Keep
+              </button>
+            </>
+          ) : (
+            <>
+              <IconAction onClick={onEdit} label="Edit entry">
+                <PencilIcon size={15} />
+              </IconAction>
+              <IconAction onClick={() => setConfirmingDelete(true)} label="Delete entry" tone="critical">
+                <TrashIcon size={15} />
+              </IconAction>
+            </>
           )}
         </div>
-      )}
+      </div>
+      <AttachmentChips attachments={entry.attachments} />
     </li>
   );
 }

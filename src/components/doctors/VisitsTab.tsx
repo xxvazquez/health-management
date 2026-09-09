@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import type { useDoctors } from "@/lib/useDoctors";
 import type { CareEntry } from "@/lib/supabase/careLog";
 import { resolveSpecialtyNames } from "@/lib/doctors";
-import { CareEntryForm, CareEntryRow, useSpecialtyNames } from "./careEntries";
+import { CareEntryDetail, CareEntryForm, CareEntryRow, useSpecialtyNames } from "./careEntries";
 import { AppointmentList } from "./AppointmentList";
 import { AppointmentForm } from "./AppointmentForm";
 import { NextAppointmentField } from "./shared";
@@ -38,6 +38,7 @@ function SectionHeading({ children, hint }: { children: React.ReactNode; hint?: 
 export function VisitsTab({ api, accent }: { api: DoctorsApi; accent: string }) {
   const [add, setAdd] = useState<AddMode>(null);
   const [editingEntry, setEditingEntry] = useState<CareEntry | null>(null);
+  const [viewingId, setViewingId] = useState<string | null>(null);
   const [filterSpecialty, setFilterSpecialty] = useState("");
   const namesFor = useSpecialtyNames(api);
 
@@ -61,6 +62,7 @@ export function VisitsTab({ api, accent }: { api: DoctorsApi; accent: string }) 
     [api.careLog.supplements],
   );
   const shownEntries = filterSpecialty ? entries.filter((e) => e.specialtyIds.includes(filterSpecialty)) : entries;
+  const viewing = viewingId ? (entries.find((e) => e.id === viewingId) ?? null) : null;
   const specialtiesWithEntries = useMemo(() => {
     const ids = new Set(entries.flatMap((e) => e.specialtyIds));
     return api.specialties.data.filter((s) => ids.has(s.id)).sort((a, b) => a.name.localeCompare(b.name));
@@ -78,6 +80,23 @@ export function VisitsTab({ api, accent }: { api: DoctorsApi; accent: string }) 
         }}
         onEdit={async () => undefined}
         onCancel={() => setAdd(null)}
+      />
+    );
+  }
+
+  if (viewing && !editingEntry && add !== "note") {
+    return (
+      <CareEntryDetail
+        entry={viewing}
+        specialtyNames={namesFor(viewing.specialtyIds)}
+        supplementName={viewing.supplementItemId ? supplementNameById.get(viewing.supplementItemId) : null}
+        accent={accent}
+        onBack={() => setViewingId(null)}
+        onEdit={() => setEditingEntry(viewing)}
+        onDelete={() => {
+          void api.careLog.remove(viewing.id);
+          setViewingId(null);
+        }}
       />
     );
   }
@@ -174,6 +193,7 @@ export function VisitsTab({ api, accent }: { api: DoctorsApi; accent: string }) 
                 specialtyNames={namesFor(entry.specialtyIds)}
                 supplementName={entry.supplementItemId ? supplementNameById.get(entry.supplementItemId) : null}
                 accent={accent}
+                onOpen={() => setViewingId(entry.id)}
                 onEdit={() => setEditingEntry(entry)}
                 onDelete={() => void api.careLog.remove(entry.id)}
               />
