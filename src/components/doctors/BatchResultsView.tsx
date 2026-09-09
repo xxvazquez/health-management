@@ -119,8 +119,8 @@ export function BatchResultsView({
         <button
           type="button"
           onClick={() => onDone(null)}
-          className="shrink-0 text-xs font-medium underline decoration-dotted"
-          style={{ color: "var(--text-muted)" }}
+          className="shrink-0 text-xs font-medium"
+          style={{ color: "var(--series-1)" }}
         >
           Cancel
         </button>

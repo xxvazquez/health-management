@@ -223,7 +223,7 @@ export function AppointmentForm({
               </div>
             </div>
           ))}
-          <button type="button" onClick={addTaskRow} className="self-start text-xs font-medium underline decoration-dotted" style={{ color: accent }}>
+          <button type="button" onClick={addTaskRow} className="self-start text-xs font-medium" style={{ color: accent }}>
             + Add follow-up task
           </button>
         </div>

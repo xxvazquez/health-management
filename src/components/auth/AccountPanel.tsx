@@ -238,8 +238,8 @@ export function AccountPanel() {
             <button
               type="button"
               onClick={() => goToMode("signIn")}
-              className="self-center text-xs font-medium underline decoration-dotted"
-              style={{ color: "var(--text-secondary)" }}
+              className="self-center text-xs font-medium"
+              style={{ color: "var(--series-1)" }}
             >
               Back to sign in
             </button>
@@ -276,8 +276,8 @@ export function AccountPanel() {
                   <button
                     type="button"
                     onClick={() => goToMode("reset")}
-                    className="font-medium underline decoration-dotted"
-                    style={{ color: "var(--text-muted)" }}
+                    className="font-medium"
+                    style={{ color: "var(--series-1)" }}
                   >
                     Forgot?
                   </button>
@@ -306,8 +306,8 @@ export function AccountPanel() {
               <button
                 type="button"
                 onClick={() => goToMode(mode === "signIn" ? "signUp" : "signIn")}
-                className="font-medium underline decoration-dotted"
-                style={{ color: "var(--text-primary)" }}
+                className="font-medium"
+                style={{ color: "var(--series-1)" }}
               >
                 {mode === "signIn" ? "Create an account" : "Sign in"}
               </button>
@@ -318,7 +318,7 @@ export function AccountPanel() {
         {configured && !session && (
           <p className="border-t pt-3 text-center text-xs" style={{ borderColor: "var(--border-hairline)", color: "var(--text-muted)" }}>
             You can look around without an account — nothing is saved until you sign in.{" "}
-            <Link href="/help" onClick={closePanel} className="font-medium underline decoration-dotted" style={{ color: "var(--text-secondary)" }}>
+            <Link href="/help" onClick={closePanel} className="font-medium underline" style={{ color: "var(--series-1)" }}>
               What is Lauva?
             </Link>
           </p>

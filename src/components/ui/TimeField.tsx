@@ -42,7 +42,7 @@ export function TimeField({
         }}
       />
       {onReset && (
-        <button type="button" onClick={onReset} className="text-xs underline decoration-dotted" style={{ color: "var(--text-muted)" }}>
+        <button type="button" onClick={onReset} className="text-xs font-medium" style={{ color: "var(--series-1)" }}>
           now
         </button>
       )}

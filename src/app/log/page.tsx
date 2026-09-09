@@ -322,8 +322,8 @@ function TimelineNote({
       type="button"
       onClick={() => setEditing(true)}
       disabled={busy}
-      className="self-start text-xs whitespace-nowrap underline decoration-dotted disabled:opacity-40"
-      style={{ color: "var(--text-muted)" }}
+      className="self-start text-xs whitespace-nowrap font-medium disabled:opacity-40"
+      style={{ color: "var(--series-1)" }}
     >
       + note
     </button>
@@ -365,8 +365,8 @@ function TimelineWorkoutValue({
           type="button"
           onClick={() => setEditing(true)}
           disabled={busy}
-          className="whitespace-nowrap underline decoration-dotted disabled:opacity-40"
-          style={{ color: "var(--text-muted)" }}
+          className="whitespace-nowrap font-medium disabled:opacity-40"
+          style={{ color: "var(--series-1)" }}
         >
           Edit
         </button>
@@ -1680,8 +1680,8 @@ export default function LogPage() {
                 <button
                   type="button"
                   onClick={() => setHiddenPicksOpen((v) => !v)}
-                  className="text-xs underline decoration-dotted"
-                  style={{ color: "var(--text-muted)" }}
+                  className="text-xs font-medium"
+                  style={{ color: "var(--series-1)" }}
                 >
                   {hiddenThisMonth.length} hidden
                 </button>
@@ -1871,7 +1871,7 @@ export default function LogPage() {
                   style={{ color: "var(--text-muted)" }}
                 >
                   Time: <span style={{ color: "var(--text-secondary)" }}>now</span>
-                  <span className="ml-1 underline decoration-dotted">change</span>
+                  <span className="ml-1" style={{ color: "var(--series-1)" }}>change</span>
                 </button>
               )}
             </div>
@@ -1894,7 +1894,7 @@ export default function LogPage() {
                     {isDemoData ? "+ Can't find it? Sign in to add it" : "+ Can't find it? Add it"}
                   </button>
                   {!isDemoData && (
-                    <Link href="/manage" className="text-xs font-medium underline decoration-dotted" style={{ color: "var(--text-muted)" }}>
+                    <Link href="/manage" className="text-xs font-medium" style={{ color: "var(--series-1)" }}>
                       Manage items
                     </Link>
                   )}
@@ -1933,7 +1933,7 @@ export default function LogPage() {
                         setNewItemText("");
                         setNewItemCategory("");
                       }}
-                      className="text-sm font-medium underline decoration-dotted"
+                      className="text-sm font-medium"
                       style={{ color: "var(--text-secondary)" }}
                     >
                       cancel
@@ -2113,8 +2113,8 @@ export default function LogPage() {
                       </ul>
                       <Link
                         href="/medical/#visits"
-                        className="self-start text-xs font-medium underline decoration-dotted"
-                        style={{ color: "var(--text-secondary)" }}
+                        className="self-start text-xs font-medium"
+                        style={{ color: "var(--series-1)" }}
                       >
                         Add or edit under Health → Visits
                       </Link>
@@ -2281,8 +2281,8 @@ export default function LogPage() {
                             <button
                               type="button"
                               onClick={() => toggleStoolDetails(full.id)}
-                              className="self-start text-xs font-medium underline decoration-dotted"
-                              style={{ color: "var(--text-muted)" }}
+                              className="self-start text-xs font-medium"
+                              style={{ color: "var(--series-1)" }}
                             >
                               {expanded ? "Hide details" : "More details"}
                             </button>

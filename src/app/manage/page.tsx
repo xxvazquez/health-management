@@ -421,9 +421,9 @@ function WeightGoalCard({ isDemoData, searchQuery }: { isDemoData: boolean; sear
           </button>
         </div>
       ) : (
-        <button type="button" onClick={startEditing} className="text-xs font-medium underline decoration-dotted" style={{ color: "var(--text-secondary)" }}>
+        <Button type="button" variant="tinted" size="xs" onClick={startEditing}>
           Set a target range
-        </button>
+        </Button>
       )}
     </CollapsibleManageCard>
   );
@@ -976,8 +976,8 @@ function DoctorSpecialtiesCard({ isDemoData, searchQuery }: { isDemoData: boolea
                 type="button"
                 onClick={() => setHiddenOpen((v) => !v)}
                 disabled={isSearching}
-                className="text-xs font-medium underline decoration-dotted disabled:opacity-100"
-                style={{ color: "var(--text-secondary)" }}
+                className="text-xs font-medium disabled:opacity-100"
+                style={{ color: "var(--series-1)" }}
               >
                 Hidden ({hidden.length}) — {isSearching || hiddenOpen ? "Hide" : "Show"}
               </button>
@@ -1187,8 +1187,8 @@ function StoolOptionsCard({ isDemoData, searchQuery }: { isDemoData: boolean; se
                       type="button"
                       onClick={() => setHiddenOpen((p) => ({ ...p, [kind]: !p[kind] }))}
                       disabled={isSearching}
-                      className="text-xs font-medium underline decoration-dotted disabled:opacity-100"
-                      style={{ color: "var(--text-secondary)" }}
+                      className="text-xs font-medium disabled:opacity-100"
+                      style={{ color: "var(--series-1)" }}
                     >
                       Hidden ({hidden.length}) — {showHidden ? "Hide" : "Show"}
                     </button>
@@ -1758,8 +1758,8 @@ function CategoryManager({
         <button
           type="submit"
           disabled={!name.trim() || busy}
-          className="text-xs font-medium underline decoration-dotted disabled:opacity-40"
-          style={{ color: "var(--text-secondary)" }}
+          className="text-xs font-medium disabled:opacity-40"
+          style={{ color: "var(--series-1)" }}
         >
           Add
         </button>
@@ -1789,8 +1789,8 @@ function CatalogFoodRow({ item, busy, onHide }: { item: ManageableItem; busy: bo
         type="button"
         onClick={onHide}
         disabled={busy}
-        className="text-xs font-medium underline decoration-dotted disabled:opacity-40"
-        style={{ color: "var(--text-muted)" }}
+        className="text-xs font-medium disabled:opacity-40"
+        style={{ color: "var(--series-1)" }}
       >
         Hide
       </button>
@@ -2217,8 +2217,8 @@ function ItemSection({
                 type="button"
                 onClick={() => setArchivedOpen((v) => !v)}
                 disabled={isSearching}
-                className="text-xs font-medium underline decoration-dotted disabled:opacity-100"
-                style={{ color: "var(--text-secondary)" }}
+                className="text-xs font-medium disabled:opacity-100"
+                style={{ color: "var(--series-1)" }}
               >
                 Archived ({archived.length}) — {archivedSectionOpen ? "Hide" : "Show"}
               </button>
@@ -2738,8 +2738,8 @@ export default function ManagePage() {
 
       <Link
         href="/manage/nutrition-evidence"
-        className="text-sm underline decoration-dotted"
-        style={{ color: "var(--text-muted)" }}
+        className="text-sm font-medium"
+        style={{ color: "var(--series-1)" }}
       >
         Nutrition evidence — the research behind Food Analytics
       </Link>

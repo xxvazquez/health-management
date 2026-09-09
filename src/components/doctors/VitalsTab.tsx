@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import Link from "next/link";
 import { useVitals } from "@/lib/useVitals";
 import { todayLocalISODate } from "@/lib/aggregations/common";
 import { Segmented } from "@/components/ui/Segmented";
@@ -311,9 +310,9 @@ function WeightTargetControl({ target, accent }: { target: WeightTarget | null; 
           "No weight goal set"
         )}
       </span>
-      <Link href="/manage" className="font-medium underline decoration-dotted" style={{ color: "var(--text-muted)" }}>
+      <Button href="/manage" variant="tinted" size="xs" accent={accent} className="shrink-0">
         Edit in Settings
-      </Link>
+      </Button>
     </div>
   );
 }
