@@ -64,6 +64,7 @@ import { CustomIcon, customColorValue } from "@/components/ui/customIcons";
 import { TabRail } from "@/components/ui/TabRail";
 import { TimeField } from "@/components/ui/TimeField";
 import { DemoNotice } from "@/components/ui/DemoNotice";
+import { MobileMenuButton } from "@/components/MobileMenuButton";
 import { useOverflowFade } from "@/lib/useOverflowFade";
 import {
   workoutUnitLabel,
@@ -1709,8 +1710,11 @@ export default function LogPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between gap-3">
-        <h1 className="min-w-0 flex-1 border-l-[3px] pl-2.5 text-xl font-semibold tracking-tight" style={{ borderColor: "var(--baseline)", color: "var(--text-primary)" }}>
+      <div className="flex items-center justify-between gap-2">
+        <h1
+          className="min-w-0 flex-1 border-l-[3px] pl-2.5 text-2xl font-bold tracking-tight lg:text-xl lg:font-semibold"
+          style={{ borderColor: "var(--baseline)", color: "var(--text-primary)" }}
+        >
           Log
         </h1>
         <div className="flex shrink-0 items-center gap-0.5 rounded-md border p-0.5" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
@@ -1748,6 +1752,7 @@ export default function LogPage() {
             <ChevronIcon dir="right" size={15} />
           </button>
         </div>
+        <MobileMenuButton />
       </div>
 
       {isDemoData && <DemoNotice className="-mt-2" />}

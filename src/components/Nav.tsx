@@ -14,6 +14,7 @@ import { SignOutButton } from "@/components/auth/SignOutButton";
 import { BugReportButton } from "@/components/BugReportButton";
 import { BugReportDialog } from "@/components/BugReportDialog";
 import { NAV_LABEL } from "@/components/navLabels";
+import { useMobileMenu } from "@/components/MobileMenuProvider";
 
 function IconWrap({ children }: { children: ReactNode }) {
   return (
@@ -324,12 +325,9 @@ function Wordmark() {
 
 export function Nav() {
   const pathname = usePathname();
-  const [mobileOpen, setMobileOpen] = useState(false);
+  const { isOpen: mobileOpen, close: closeMobile } = useMobileMenu();
   const [collapsed, setCollapsed] = useState(false);
   const [bugReportOpen, setBugReportOpen] = useState(false);
-  const partnerLinked = usePartnerLinked();
-  // Drives the Messages icon in the mobile top bar (paired users only).
-  const unread = useUnreadNoteCount(pathname);
 
   return (
     <>
@@ -372,61 +370,14 @@ export function Nav() {
         <SyncFooter collapsed={collapsed} />
       </aside>
 
-      {/* Mobile top bar */}
-      <header
-        className="sticky top-0 z-20 border-b backdrop-blur lg:hidden"
-        style={{
-          borderColor: "var(--border-hairline)",
-          background: "color-mix(in oklab, var(--surface-1) 96%, transparent)",
-          paddingTop: "env(safe-area-inset-top)",
-          paddingLeft: "env(safe-area-inset-left)",
-          paddingRight: "env(safe-area-inset-right)",
-        }}
-      >
-        <div className="flex items-center gap-3 px-4 py-3">
-          <button
-            type="button"
-            aria-label="Open menu"
-            onClick={() => setMobileOpen(true)}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full"
-            style={{ background: "var(--page-plane)", color: "var(--text-primary)" }}
-          >
-            <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-              <path d="M3 6h14" />
-              <path d="M3 10h14" />
-              <path d="M3 14h14" />
-            </svg>
-          </button>
-          <Link href="/log" onClick={() => setMobileOpen(false)}>
-            <Wordmark />
-          </Link>
-          {partnerLinked && (
-            <Link
-              href="/notes"
-              aria-label={unread > 0 ? `Messages, ${unread} unread` : "Messages"}
-              className="relative ml-auto flex h-11 w-11 shrink-0 items-center justify-center rounded-full"
-              style={{ background: "var(--page-plane)", color: "var(--text-primary)" }}
-            >
-              {ICONS.Messages}
-              {unread > 0 && (
-                <span
-                  className="absolute top-1.5 right-1.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-semibold text-white tabular-nums ring-2"
-                  style={{ background: "var(--series-magenta)", ["--tw-ring-color" as string]: "var(--surface-1)" }}
-                >
-                  {unread > 9 ? "9+" : unread}
-                </span>
-              )}
-            </Link>
-          )}
-        </div>
-      </header>
-
-      {/* Mobile drawer: slides in from the left over the page, never pushes content down */}
+      {/* Mobile menu drawer: slides in from the left over the page (opened
+          by MobileMenuButton in each screen's title row — there's no
+          persistent top bar). */}
       <div
         aria-hidden={!mobileOpen}
-        onClick={() => setMobileOpen(false)}
+        onClick={closeMobile}
         className={clsx(
-          "fixed inset-0 z-30 bg-black/30 transition-opacity duration-200 lg:hidden",
+          "fixed inset-0 z-30 bg-black/40 transition-opacity duration-200 lg:hidden",
           mobileOpen ? "opacity-100" : "pointer-events-none opacity-0",
         )}
       />
@@ -444,13 +395,13 @@ export function Nav() {
         }}
       >
         <div className="flex items-center justify-between px-1">
-          <Link href="/log" onClick={() => setMobileOpen(false)}>
+          <Link href="/log" onClick={closeMobile}>
             <Wordmark />
           </Link>
           <button
             type="button"
             aria-label="Close menu"
-            onClick={() => setMobileOpen(false)}
+            onClick={closeMobile}
             className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full"
             style={{ background: "var(--page-plane)", color: "var(--text-primary)" }}
           >
@@ -460,13 +411,13 @@ export function Nav() {
           </button>
         </div>
         <div className="mt-5 flex items-center gap-2 px-1">
-          <AccountMenuButton onOpen={() => setMobileOpen(false)} />
+          <AccountMenuButton onOpen={closeMobile} />
           <SignOutButton />
         </div>
         <div className="mt-5 flex min-h-0 flex-1 flex-col overflow-y-auto">
-          <NavLinks pathname={pathname} onNavigate={() => setMobileOpen(false)} />
+          <NavLinks pathname={pathname} onNavigate={closeMobile} />
         </div>
-        <SecondaryNav pathname={pathname} onNavigate={() => setMobileOpen(false)} />
+        <SecondaryNav pathname={pathname} onNavigate={closeMobile} />
         <BugReportButton onClick={() => setBugReportOpen(true)} />
         <SyncFooter />
       </div>
