@@ -172,51 +172,58 @@ function ProgressSection({
           const direction = changeDirection(s.changeKg);
           const changeColor = DIRECTION_COLOR[direction];
           const barPct = hasTrend ? Math.max(4, Math.round((Math.abs(s.changeKg) / maxAbsChangeKg) * 100)) : 0;
+          const arrow = direction === "down" ? "↓" : direction === "up" ? "↑" : "→";
+          const unit = workoutUnitLabel(s.unit);
           return (
             <button
               key={s.exercise}
               type="button"
               onClick={() => onSelect(s.exercise)}
-              className="flex w-full items-center gap-4 border-t py-3.5 pr-3 pl-3 text-left transition-colors first:border-t-0"
+              className="flex w-full flex-col gap-2 border-t px-3 py-3 text-left transition-colors first:border-t-0"
               style={{ borderColor: "var(--gridline)", background: active ? "var(--page-plane)" : "transparent" }}
             >
-              <div
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-xs font-semibold"
-                style={{ background: `color-mix(in oklab, ${ACCENT} 14%, var(--surface-1))`, color: ACCENT }}
-              >
-                {monogram(s.exercise)}
-              </div>
+              <div className="flex items-center gap-3">
+                <div
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-xs font-semibold"
+                  style={{ background: `color-mix(in oklab, ${ACCENT} 14%, var(--surface-1))`, color: ACCENT }}
+                >
+                  {monogram(s.exercise)}
+                </div>
 
-              <div className="w-28 shrink-0 sm:w-36">
-                <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-                  {s.exercise}
-                </p>
-                <p className="text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>
-                  {s.started.weightKg} → {s.current.weightKg} {workoutUnitLabel(s.unit)}
-                </p>
-              </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+                    {s.exercise}
+                  </p>
+                  <p className="text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>
+                    {s.started.weightKg} → {s.current.weightKg} {unit}
+                  </p>
+                </div>
 
-              <div className="hidden flex-1 sm:block">
-                <div className="h-1.5 w-full rounded-full" style={{ background: "var(--gridline)" }}>
-                  {hasTrend && <div className="h-1.5 rounded-full" style={{ width: `${barPct}%`, background: changeColor }} />}
+                <div className="shrink-0 text-right">
+                  {hasTrend ? (
+                    <>
+                      <p className="text-sm font-semibold tabular-nums" style={{ color: changeColor }}>
+                        {arrow} {Math.abs(s.changeKg)} {unit}
+                      </p>
+                      {s.changePct !== null && (
+                        <p className="text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>
+                          {signed(Math.round(s.changePct))}%
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+                      First entry
+                    </p>
+                  )}
                 </div>
               </div>
 
-              <div className="ml-auto shrink-0 text-right">
-                {hasTrend ? (
-                  <p className="text-sm font-semibold tabular-nums" style={{ color: changeColor }}>
-                    {s.changeKg >= 0 ? "↑" : "↓"} {signed(s.changeKg)} {workoutUnitLabel(s.unit)}
-                    {s.changePct !== null && <span className="font-normal"> · {signed(s.changePct)}%</span>}
-                  </p>
-                ) : (
-                  <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-                    First entry
-                  </p>
-                )}
-                <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-                  Best {s.best.weightKg} {workoutUnitLabel(s.unit)}
-                </p>
-              </div>
+              {hasTrend && (
+                <div className="h-1 w-full rounded-full" style={{ background: "var(--gridline)" }}>
+                  <div className="h-1 rounded-full" style={{ width: `${barPct}%`, background: changeColor }} />
+                </div>
+              )}
             </button>
           );
         })}
