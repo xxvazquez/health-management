@@ -1,24 +1,19 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { TAB_ICON } from "@/components/tabIcons";
 import { PageHeading } from "@/components/ui/PageHeading";
-import { TabRail } from "@/components/ui/TabRail";
+import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
 
 export interface BoardPageTab {
   id: string;
   label: string;
-  /** Key into `TAB_ICON`. */
-  icon: string;
-  /** Active-state colour for the label and underline. Pass the same value
-   * for every tab for a single-hue page (Household), or a distinct hue per
-   * section (Personal). */
+  /** Active-segment tint. Usually one hue for the whole page. */
   accent: string;
 }
 
 interface BoardPageProps {
   title: string;
-  /** Hero rule and tab-bar underline tint — usually the active tab's accent. */
+  /** The page-heading left-rule tint. */
   accent: string;
   tabs: BoardPageTab[];
   activeTab: string;
@@ -29,18 +24,16 @@ interface BoardPageProps {
   children: ReactNode;
 }
 
-/** Shared shell for the Household and Personal pages: a title with the
- * coloured left rule, an underlined tab bar that wraps to a second row on
- * narrow screens rather than scrolling sideways (so no tab is ever hidden
- * off-edge), and the active board below. Keeps the two pages structurally
- * identical — only the tab set, colours, and board content differ. */
+/** Shared shell for the Notes page: a large title with the coloured left
+ * rule, a segmented control switching the board below. */
 export function BoardPage({ title, accent, tabs, activeTab, onSelectTab, notice, children }: BoardPageProps) {
   return (
     <div className="flex flex-col gap-4">
       <PageHeading accent={accent}>{title}</PageHeading>
 
-      <TabRail
-        items={tabs.map((t) => ({ id: t.id, label: t.label, icon: TAB_ICON[t.icon], accent: t.accent }))}
+      <SegmentedTabs
+        ariaLabel="Sections"
+        items={tabs.map((t) => ({ id: t.id, label: t.label, accent: t.accent }))}
         activeId={activeTab}
         onSelect={onSelectTab}
       />

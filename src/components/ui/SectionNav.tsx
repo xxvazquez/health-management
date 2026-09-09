@@ -40,7 +40,7 @@ export function SectionNav({
       activeId={activeId}
       onSelect={onSelect}
       wrap={false}
-      className="sticky top-16 z-10 -mx-4 border-b border-[color:var(--border-hairline)] bg-[var(--page-backdrop)] px-4 pt-3 sm:-mx-6 sm:px-6 lg:top-8 lg:mx-0 lg:px-0"
+      className="sticky top-0 z-10 -mx-4 border-b border-[color:var(--border-hairline)] bg-[var(--page-backdrop)] px-4 pt-3 sm:-mx-6 sm:px-6 lg:top-8 lg:mx-0 lg:px-0"
     />
   );
 }

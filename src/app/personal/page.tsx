@@ -23,9 +23,9 @@ const NOTES_ACCENT = "var(--series-indigo)";
 
 type NotesTab = "journal" | "wishlist" | "codes";
 const TABS: BoardPageTab[] = [
-  { id: "journal", label: "Journal", icon: "journal", accent: NOTES_ACCENT },
-  { id: "wishlist", label: "Wishlist", icon: "wishlist", accent: NOTES_ACCENT },
-  { id: "codes", label: "Codes", icon: "codes", accent: NOTES_ACCENT },
+  { id: "journal", label: "Journal", accent: NOTES_ACCENT },
+  { id: "wishlist", label: "Wishlist", accent: NOTES_ACCENT },
+  { id: "codes", label: "Codes", accent: NOTES_ACCENT },
 ];
 
 const TAB_STORAGE_KEY = "lauva-notes-tab";

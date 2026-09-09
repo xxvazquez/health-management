@@ -18,9 +18,10 @@ export interface TabRailItem<T extends string = string> {
 
 const LONG_PRESS_MS = 500;
 
-/** The app's one secondary-navigation shape: underlined text tabs that swap
- * the surface below (Log's domains, the Notes boards, the
- * Doctors sections, the Analytics domain and section switchers).
+/** Underlined text tabs that swap the surface below. Now used one level
+ * down only — the analytics dashboards' section switchers (`SectionNav`);
+ * the page-level view switchers (Log, Trends, Health, Notes) moved to
+ * `SegmentedTabs`, the iOS segmented control.
  *
  * By default wraps to more rows on a narrow screen so no tab is hidden
  * off-edge; from `sm` up it's a single row that scrolls with a soft edge

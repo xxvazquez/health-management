@@ -2,14 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { useDoctors } from "@/lib/useDoctors";
-import { TAB_ICON } from "@/components/tabIcons";
 import { VisitsTab } from "@/components/doctors/VisitsTab";
 import { DoctorsTab } from "@/components/doctors/DoctorsTab";
 import { ResultsTab } from "@/components/doctors/ResultsTab";
 import { VitalsTab } from "@/components/doctors/VitalsTab";
 import { ErrorState } from "@/components/ui/EmptyState";
 import { ListSkeleton } from "@/components/ui/Skeleton";
-import { TabRail } from "@/components/ui/TabRail";
+import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
 import { PageHeading } from "@/components/ui/PageHeading";
 import { DemoNotice } from "@/components/ui/DemoNotice";
 
@@ -92,7 +91,12 @@ export default function MedicalPage() {
     <div className="flex flex-col gap-5">
       <PageHeading accent={HEALTH_ACCENT}>Health</PageHeading>
 
-      <TabRail items={TABS.map((t) => ({ ...t, icon: TAB_ICON[t.id], accent: HEALTH_ACCENT }))} activeId={tab} onSelect={selectTab} />
+      <SegmentedTabs
+        ariaLabel="Health sections"
+        items={TABS.map((t) => ({ id: t.id, label: t.label, accent: HEALTH_ACCENT }))}
+        activeId={tab}
+        onSelect={selectTab}
+      />
 
       {api.isDemo && <DemoNotice />}
 
