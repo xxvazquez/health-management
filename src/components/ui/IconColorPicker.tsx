@@ -1,6 +1,8 @@
 "use client";
 
-import { CUSTOM_COLOR_CHOICES, CUSTOM_ICON_KEYS, CustomIcon } from "./customIcons";
+import { useState } from "react";
+import { CUSTOM_COLOR_CHOICES, CUSTOM_ICON_KEYS, CustomIcon, ICON_SEARCH } from "./customIcons";
+import { SearchField } from "./SearchField";
 
 /**
  * The icon + colour picker for any user-named grouping (Wishlist
@@ -23,14 +25,23 @@ export function IconColorPicker({
   accent: string;
 }) {
   const defaultIcon = CUSTOM_ICON_KEYS[0];
+  const [query, setQuery] = useState("");
+  const q = query.trim().toLowerCase();
+  const shown = q ? CUSTOM_ICON_KEYS.filter((k) => (ICON_SEARCH[k] ?? k).includes(q)) : CUSTOM_ICON_KEYS;
   return (
     <>
       <fieldset className="flex flex-col gap-1.5">
         <legend className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
           Icon
         </legend>
-        <div className="flex flex-wrap gap-1.5">
-          {CUSTOM_ICON_KEYS.map((key) => {
+        <SearchField value={query} onChange={setQuery} placeholder="Search icons…" className="w-full sm:w-56" />
+        <div className="flex max-h-44 flex-wrap gap-1.5 overflow-y-auto">
+          {shown.length === 0 && (
+            <p className="py-1 text-xs" style={{ color: "var(--text-muted)" }}>
+              No icons match &ldquo;{query.trim()}&rdquo;.
+            </p>
+          )}
+          {shown.map((key) => {
             const selected = (icon ?? defaultIcon) === key;
             return (
               <button
