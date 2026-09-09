@@ -135,11 +135,10 @@ async function sendPushToUser(subsByUser: Map<string, Subscription>, userId: str
   }
 }
 
-/** The given user's linked partner id, or null — same lookup
- * `get_partner_email` does at the DB layer, done here in JS since this
- * function already holds a service-role client with no RLS to route
- * through. An unassigned Home task (and every Home item) reminds both
- * members, since either can act on it (see household_tasks_update_pair);
+/** The given user's linked partner id, or null — a plain partner_links
+ * lookup, done here with the function's service-role client (no RLS to
+ * route through). An unassigned Home task (and every Home item) reminds
+ * both members, since either can act on it (see household_tasks_update_pair);
  * an assigned task reminds only assigned_to. */
 async function getPartnerId(userId: string): Promise<string | null> {
   const { data } = await supabase.from("partner_links").select("user_a_id, user_b_id").or(`user_a_id.eq.${userId},user_b_id.eq.${userId}`).maybeSingle();
