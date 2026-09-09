@@ -3,6 +3,8 @@
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useVitals } from "@/lib/useVitals";
+import { todayLocalISODate } from "@/lib/aggregations/common";
+import { Segmented } from "@/components/ui/Segmented";
 import type { BloodPressureReading, WeightReading, WeightTarget } from "@/lib/supabase/vitals";
 import { bpCategory, BP_CATEGORIES } from "@/lib/aggregations/vitals";
 import { LabMarkerChart } from "@/components/charts/LabMarkerChart";
@@ -16,8 +18,35 @@ import { FIELD_CLS, FIELD_STYLE, IconAction, LABEL_CLS, LABEL_STYLE, PencilIcon,
 
 type Kind = "bp" | "weight";
 
+const VITALS_WINDOWS = [
+  { id: "1m", label: "1m", months: 1 },
+  { id: "3m", label: "3m", months: 3 },
+  { id: "6m", label: "6m", months: 6 },
+  { id: "1y", label: "1y", months: 12 },
+  { id: "all", label: "All", months: null },
+] as const;
+type VitalsWindowId = (typeof VITALS_WINDOWS)[number]["id"];
+
+/** `today` minus N months as a YYYY-MM-DD lower bound, or null for "all".
+ * Plain UTC math — it's only ever compared lexicographically against a
+ * reading's own date. */
+function windowStartISO(months: number | null, today: string): string | null {
+  if (months == null) return null;
+  const d = new Date(`${today}T00:00:00Z`);
+  d.setUTCMonth(d.getUTCMonth() - months);
+  return d.toISOString().slice(0, 10);
+}
+
 function nowLocalInput(): string {
   return toLocalInput(new Date().toISOString());
+}
+
+function WindowEmpty() {
+  return (
+    <p className="py-10 text-center text-xs" style={{ color: "var(--text-muted)" }}>
+      No readings in this window — widen it above.
+    </p>
+  );
 }
 
 function parseIntOrNull(raw: string): number | null {
@@ -294,6 +323,7 @@ function WeightTargetControl({ target, accent }: { target: WeightTarget | null; 
 export function VitalsTab({ accent }: { accent: string }) {
   const vitals = useVitals();
   const [kind, setKind] = useState<Kind>("bp");
+  const [win, setWin] = useState<VitalsWindowId>("all");
   const [composing, setComposing] = useState(false);
   const [editingBp, setEditingBp] = useState<BloodPressureReading | null>(null);
   const [editingWeight, setEditingWeight] = useState<WeightReading | null>(null);
@@ -336,6 +366,14 @@ export function VitalsTab({ accent }: { accent: string }) {
   const bpAsc = [...vitals.bp.data].slice().reverse();
   const weightAsc = [...vitals.weight.data].slice().reverse();
 
+  const today = todayLocalISODate();
+  const winOption = VITALS_WINDOWS.find((w) => w.id === win) ?? VITALS_WINDOWS[VITALS_WINDOWS.length - 1];
+  const winStart = windowStartISO(winOption.months, today);
+  const inWindow = (measuredAt: string) => !winStart || measuredAt.slice(0, 10) >= winStart;
+  const bpWindowed = bpAsc.filter((r) => inWindow(r.measuredAt));
+  const weightWindowed = weightAsc.filter((r) => inWindow(r.measuredAt));
+  const hasChartData = kind === "bp" ? vitals.bp.data.length > 0 : vitals.weight.data.length > 0;
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -364,6 +402,15 @@ export function VitalsTab({ accent }: { accent: string }) {
         />
       </div>
 
+      {!vitals.loading && !vitals.error && hasChartData && (
+        <Segmented
+          value={win}
+          onChange={setWin}
+          accent={accent}
+          options={VITALS_WINDOWS.map((w) => [w.id, w.label] as const)}
+        />
+      )}
+
       {vitals.loading ? (
         <ListSkeleton />
       ) : vitals.error ? (
@@ -378,7 +425,15 @@ export function VitalsTab({ accent }: { accent: string }) {
           <>
             {bpAsc.length >= 2 && (
               <div className="rounded-xl border p-3" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
-                <BloodPressureChart data={bpAsc.map((r) => ({ at: r.measuredAt, systolic: r.systolic, diastolic: r.diastolic, note: r.note }))} />
+                {bpWindowed.length >= 2 ? (
+                  <BloodPressureChart
+                    data={bpWindowed.map((r) => ({ at: r.measuredAt, systolic: r.systolic, diastolic: r.diastolic, note: r.note }))}
+                    windowStart={winStart}
+                    windowEnd={today}
+                  />
+                ) : (
+                  <WindowEmpty />
+                )}
                 <div className="mt-2 flex flex-col gap-1 text-xs" style={{ color: "var(--text-muted)" }}>
                   <p className="flex flex-wrap gap-x-3">
                     <span><span className="mr-1 inline-block h-2 w-2 rounded-full align-middle" style={{ background: "var(--series-magenta)" }} aria-hidden="true" />Systolic</span>
@@ -412,13 +467,19 @@ export function VitalsTab({ accent }: { accent: string }) {
           <WeightTargetControl target={vitals.weight.target} accent={accent} />
           {weightAsc.length >= 2 && (
             <div className="rounded-xl border p-3" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
-              <LabMarkerChart
-                data={weightAsc.map((r) => ({ date: r.measuredAt.slice(0, 10), value: r.kg }))}
-                unit="kg"
-                refLow={vitals.weight.target?.lowKg ?? null}
-                refHigh={vitals.weight.target?.highKg ?? null}
-                color={accent}
-              />
+              {weightWindowed.length >= 2 ? (
+                <LabMarkerChart
+                  data={weightWindowed.map((r) => ({ date: r.measuredAt.slice(0, 10), value: r.kg }))}
+                  unit="kg"
+                  refLow={vitals.weight.target?.lowKg ?? null}
+                  refHigh={vitals.weight.target?.highKg ?? null}
+                  windowStart={winStart}
+                  windowEnd={today}
+                  color={accent}
+                />
+              ) : (
+                <WindowEmpty />
+              )}
             </div>
           )}
           <ul className="flex flex-col divide-y" style={{ borderColor: "var(--gridline)" }}>
