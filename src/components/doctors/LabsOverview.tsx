@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import type { useLabs } from "@/lib/useLabs";
 import { formatDMY, todayLocalISODate } from "@/lib/aggregations/common";
 import {
@@ -72,11 +72,16 @@ function windowWord(option: LabRangeOption): string {
  * plus add/edit for its values. Marker and panel config lives in Settings. */
 export function LabsOverview({
   labs,
+  actions,
   onNewMarker,
   onAddValue,
   onEditValue,
 }: {
   labs: ReturnType<typeof useLabs>;
+  /** Right-aligned toolbar controls (Add results / New marker) shown on the
+   * same row as the range/mode/sort switches, so they never take a row of
+   * their own. */
+  actions?: ReactNode;
   onNewMarker?: () => void;
   onAddValue?: (markerId: string) => void;
   onEditValue?: (markerId: string, result: LabResult) => void;
@@ -84,6 +89,7 @@ export function LabsOverview({
   const [rangeId, setRangeId] = useState<LabRangeOption["id"]>("all");
   const [mode, setMode] = useState<Mode>("last");
   const [sort, setSort] = useState<SortKey>("panel");
+  const [panelFilter, setPanelFilter] = useState<string | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
 
   const today = todayLocalISODate();
@@ -112,7 +118,15 @@ export function LabsOverview({
     return sections;
   })();
 
-  const flatMarkers = [...inRange].sort((a, b) => a.name.localeCompare(b.name));
+  // A panel filter that no longer matches anything in the current window
+  // falls back to "all" rather than showing an empty list.
+  const effectiveFilter = panelFilter && panelSections.some((s) => s.id === panelFilter) ? panelFilter : null;
+  const inFilter = (m: LabMarker) => (effectiveFilter === "__other__" ? !m.panelId : m.panelId === effectiveFilter);
+  const shownSections = effectiveFilter ? panelSections.filter((s) => s.id === effectiveFilter) : panelSections;
+  const flatMarkers = [...inRange]
+    .filter((m) => !effectiveFilter || inFilter(m))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  const shownCount = effectiveFilter ? shownSections.reduce((n, s) => n + s.markers.length, 0) : allMarkers.length;
 
   if (labs.loading) return <ListSkeleton />;
   if (labs.error) return <ErrorState what="your results" />;
@@ -186,18 +200,33 @@ export function LabsOverview({
             ] as const
           }
         />
+        {actions && <div className="ml-auto flex items-center gap-2">{actions}</div>}
       </div>
+
+      {panelSections.length >= 2 && (
+        <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5">
+          <FilterChip label="All panels" active={!effectiveFilter} onClick={() => setPanelFilter(null)} />
+          {panelSections.map((s) => (
+            <FilterChip
+              key={s.id}
+              label={s.name}
+              active={effectiveFilter === s.id}
+              onClick={() => setPanelFilter(effectiveFilter === s.id ? null : s.id)}
+            />
+          ))}
+        </div>
+      )}
 
       <p className="text-xs" style={{ color: "var(--text-muted)" }}>
         {mode === "average"
           ? `Each bar is the mean of every reading ${cutoff ? `in the last ${win}` : "on record"} — the whisker is its lowest-to-highest spread.`
           : `Each bar is the most recent reading${cutoff ? ` in the last ${win}` : ""}.`}
-        {` · ${allMarkers.length} markers${yearSpan ? ` · ${yearSpan}` : ""}`}
+        {` · ${shownCount} marker${shownCount === 1 ? "" : "s"}${yearSpan ? ` · ${yearSpan}` : ""}`}
       </p>
 
       {sort === "panel" ? (
         <div className="flex flex-col gap-2.5">
-          {panelSections.map((s) => (
+          {shownSections.map((s) => (
             <Card key={s.id} tier="raw" padded={false} className="px-3.5 py-2.5">
               <div className="mb-1.5 flex items-center gap-1.5">
                 {s.icon && (
@@ -243,6 +272,28 @@ export function LabsOverview({
         history.
       </Methodology>
     </div>
+  );
+}
+
+// --- Controls -----------------------------------------------------
+
+/** One pill in the panel filter row — same accent treatment as `Segmented`,
+ * but standalone so the row can scroll sideways on a narrow screen. */
+function FilterChip({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className="shrink-0 rounded-md border px-2.5 py-1 text-xs font-medium whitespace-nowrap transition-colors"
+      style={{
+        borderColor: active ? ACCENT : "var(--border-hairline)",
+        background: active ? `color-mix(in oklab, ${ACCENT} 14%, var(--surface-1))` : "var(--surface-1)",
+        color: active ? ACCENT : "var(--text-secondary)",
+      }}
+    >
+      {label}
+    </button>
   );
 }
 

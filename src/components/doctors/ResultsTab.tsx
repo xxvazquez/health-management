@@ -178,22 +178,6 @@ export function ResultsTab({ accent }: { accent: string }) {
 
   return (
     <div className="flex flex-col gap-4">
-      {(hasMarkers || labs.panels.data.length > 0) && (
-        <div className="flex flex-wrap items-center gap-2">
-          <PrimaryAction label="New marker" accent={accent} onClick={() => setView({ mode: "marker-form" })} />
-          {hasMarkers && (
-            <button
-              type="button"
-              onClick={() => setView({ mode: "batch" })}
-              className="shrink-0 rounded-md border px-2.5 py-1.5 text-xs font-medium"
-              style={{ borderColor: accent, background: `color-mix(in oklab, ${accent} 12%, var(--surface-1))`, color: accent }}
-            >
-              Add results
-            </button>
-          )}
-        </div>
-      )}
-
       {flash && (
         <p
           className="rounded-lg border px-3 py-2 text-xs font-medium"
@@ -205,6 +189,21 @@ export function ResultsTab({ accent }: { accent: string }) {
 
       <LabsOverview
         labs={labs}
+        actions={
+          <>
+            {hasMarkers && (
+              <button
+                type="button"
+                onClick={() => setView({ mode: "batch" })}
+                className="shrink-0 rounded-md border px-2.5 py-1.5 text-xs font-medium"
+                style={{ borderColor: accent, background: `color-mix(in oklab, ${accent} 12%, var(--surface-1))`, color: accent }}
+              >
+                Add results
+              </button>
+            )}
+            <PrimaryAction label="New marker" accent={accent} onClick={() => setView({ mode: "marker-form" })} />
+          </>
+        }
         onNewMarker={() => setView({ mode: "marker-form" })}
         onAddValue={(markerId) => setView({ mode: "result-form", markerId })}
         onEditValue={(markerId, result) => setView({ mode: "result-form", markerId, resultId: result.id })}
