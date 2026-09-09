@@ -27,39 +27,23 @@ function DoctorHistory({ api, doctor, accent, onBack }: { api: DoctorsApi; docto
         </button>
       )}
 
-      <div className="rounded-xl border p-4" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", boxShadow: "var(--shadow-card)" }}>
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <DoctorName name={doctor.name} rating={doctor.rating} className="text-base" />
-            <p className="mt-0.5 text-xs" style={{ color: "var(--text-muted)" }}>
-              {doctor.specialty || "No specialty"}
-            </p>
-          </div>
-          <Link href="/manage" className="shrink-0 text-xs font-medium underline decoration-dotted" style={{ color: "var(--text-muted)" }}>
-            Edit in Settings
-          </Link>
-        </div>
-
-        <dl className="mt-3 flex flex-wrap gap-x-10 gap-y-2 border-t pt-3 text-xs" style={{ borderColor: "var(--gridline)" }}>
-          <div>
-            <dt style={{ color: "var(--text-muted)" }}>Rating</dt>
-            <dd className="mt-0.5 font-medium" style={{ color: "var(--text-primary)" }}>
-              {doctor.rating != null ? `${doctor.rating} / 3` : "Not rated"}
-            </dd>
-          </div>
-          <div>
-            <dt style={{ color: "var(--text-muted)" }}>Language</dt>
-            <dd className="mt-0.5 font-medium" style={{ color: "var(--text-primary)" }}>
-              {doctor.language ?? "—"}
-            </dd>
-          </div>
-          <div>
-            <dt style={{ color: "var(--text-muted)" }}>Next visit</dt>
-            <dd className="mt-0.5 font-medium" style={{ color: "var(--text-primary)" }}>
-              {nextAppt ? formatDate(nextAppt) : "None set"}
-            </dd>
-          </div>
-        </dl>
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 border-b pb-3" style={{ borderColor: "var(--gridline)" }}>
+        <p className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+          <DoctorName name={doctor.name} rating={doctor.rating} className="text-base" />
+          <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+            {[
+              doctor.specialty || "No specialty",
+              doctor.rating != null ? `rated ${doctor.rating}/3` : null,
+              doctor.language,
+              `next visit ${nextAppt ? formatDate(nextAppt) : "not set"}`,
+            ]
+              .filter(Boolean)
+              .join(" · ")}
+          </span>
+        </p>
+        <Link href="/manage" className="shrink-0 text-xs font-medium underline decoration-dotted" style={{ color: "var(--text-muted)" }}>
+          Edit in Settings
+        </Link>
       </div>
 
       <h3 className="text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>

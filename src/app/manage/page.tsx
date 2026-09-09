@@ -1034,17 +1034,19 @@ function DoctorEditRow({
           accent={accent}
         />
       </label>
-      <div className="flex flex-col gap-1">
-        <span className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
-          Rating
-        </span>
-        <RatingChips value={doctor.rating} onChange={(rating) => onEdit({ rating })} accent={accent} />
-      </div>
-      <div className="flex flex-col gap-1">
-        <span className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
-          Language
-        </span>
-        <LanguageChips value={doctor.language} onChange={(language) => onEdit({ language })} accent={accent} />
+      <div className="flex flex-wrap gap-x-8 gap-y-3">
+        <div className="flex flex-col gap-1">
+          <span className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
+            Rating
+          </span>
+          <RatingChips value={doctor.rating} onChange={(rating) => onEdit({ rating })} accent={accent} />
+        </div>
+        <div className="flex flex-col gap-1">
+          <span className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
+            Language
+          </span>
+          <LanguageChips value={doctor.language} onChange={(language) => onEdit({ language })} accent={accent} />
+        </div>
       </div>
       <DoctorDeleteButton
         disabled={!canDelete}
