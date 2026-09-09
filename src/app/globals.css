@@ -100,56 +100,54 @@
   --font-app: -apple-system, BlinkMacSystemFont, var(--font-body), "Segoe UI", Roboto, system-ui, sans-serif;
 }
 
-/* Dark mode — for now it follows the OS setting; a Light / Dark / System
-   control in Settings is the follow-up. Derived from the Lauva palette: a
-   deep teal-slate ground (never pure black), and the categorical + status
-   hues only *just* lifted from their light values with the chroma pulled
-   DOWN, never up — dusty and grey-toned, never a bright/neon accent. Only
-   the tokens change; components keep styling through them. The
-   `:not([data-theme="light"])` guard lets the future toggle force light
-   even under an OS dark preference. */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    color-scheme: dark;
+/* Dark mode. A pre-paint script in layout.tsx resolves the stored Light /
+   Dark / System choice (see src/lib/theme.ts) and stamps `data-theme` on
+   <html>, so this one attribute selector drives everything. Derived from
+   the Lauva palette: a deep teal-slate ground (never pure black), and the
+   categorical + status hues only *just* lifted from their light values
+   with the chroma pulled DOWN, never up — dusty and grey-toned, never a
+   bright/neon accent. Only the tokens change; components keep styling
+   through them. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
 
-    --surface-1: #1e262a;
-    --page-plane: #273035;
-    --page-backdrop: #151b1e;
-    --text-primary: #e7ecea;
-    --text-secondary: #a7b2b1;
-    --text-muted: #8e9a9c;
-    --gridline: #2c363b;
-    --baseline: #3d4a50;
-    --border-hairline: rgba(231, 236, 234, 0.13);
+  --surface-1: #1e262a;
+  --page-plane: #273035;
+  --page-backdrop: #151b1e;
+  --text-primary: #e7ecea;
+  --text-secondary: #a7b2b1;
+  --text-muted: #8e9a9c;
+  --gridline: #2c363b;
+  --baseline: #3d4a50;
+  --border-hairline: rgba(231, 236, 234, 0.13);
 
-    --series-1: #638f80; /* dusty sage */
-    --series-2: #5f92bb; /* muted steel blue */
-    --series-3: #9589c6; /* greyed lavender */
-    --series-4: #c47c92; /* dusty rose */
-    --series-6: #55917b; /* grey teal-green */
-    --series-8: #a87e97; /* greyed plum */
-    --series-other: #8b9799;
-    --series-indigo: #7a83bd; /* muted indigo */
-    --series-magenta: #b07cb4; /* greyed orchid */
-    --series-slate: #8ba0b0;
+  --series-1: #638f80; /* dusty sage */
+  --series-2: #5f92bb; /* muted steel blue */
+  --series-3: #9589c6; /* greyed lavender */
+  --series-4: #c47c92; /* dusty rose */
+  --series-6: #55917b; /* grey teal-green */
+  --series-8: #a87e97; /* greyed plum */
+  --series-other: #8b9799;
+  --series-indigo: #7a83bd; /* muted indigo */
+  --series-magenta: #b07cb4; /* greyed orchid */
+  --series-slate: #8ba0b0;
 
-    --seq-100: #21313c;
-    --seq-200: #2a4657;
-    --seq-300: #345d72;
-    --seq-400: #457f9f;
-    --seq-450: #5f97b6;
-    --seq-500: #7db0cb;
-    --seq-600: #a6ccdf;
-    --seq-700: #cfe4ef;
+  --seq-100: #21313c;
+  --seq-200: #2a4657;
+  --seq-300: #345d72;
+  --seq-400: #457f9f;
+  --seq-450: #5f97b6;
+  --seq-500: #7db0cb;
+  --seq-600: #a6ccdf;
+  --seq-700: #cfe4ef;
 
-    --status-good: #5b9078; /* muted forest, not mint */
-    --status-warning: #bd8b4a;
-    --status-serious: #cc8460;
-    --status-critical: #cf7488;
+  --status-good: #5b9078; /* muted forest, not mint */
+  --status-warning: #bd8b4a;
+  --status-serious: #cc8460;
+  --status-critical: #cf7488;
 
-    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 28px -14px rgba(0, 0, 0, 0.6);
-    --shadow-card-hover: 0 2px 4px rgba(0, 0, 0, 0.45), 0 16px 36px -14px rgba(0, 0, 0, 0.7);
-  }
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 28px -14px rgba(0, 0, 0, 0.6);
+  --shadow-card-hover: 0 2px 4px rgba(0, 0, 0, 0.45), 0 16px 36px -14px rgba(0, 0, 0, 0.7);
 }
 
 @theme inline {

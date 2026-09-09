@@ -41,7 +41,7 @@ const GROUPS: { title: string; items: Entry[] }[] = [
       },
       {
         title: "Settings",
-        body: "In the sidebar (and the account menu). Add, rename, archive or hide the foods, exercises and products offered when logging; edit reminder lists, wishlist lists, the Vitals weight goal, lab markers and panels, doctor types, doctors and stool chips; set exercise units; choose which Log tabs and Trends dashboards appear; export your data. One search box filters every section at once.",
+        body: "In the sidebar (and the account menu). Choose the appearance — Light, Dark, or match your device (per device); add, rename, archive or hide the foods, exercises and products offered when logging; edit reminder lists, wishlist lists, the Vitals weight goal, lab markers and panels, doctor types, doctors and stool chips; set exercise units; choose which Log tabs and Trends dashboards appear; export your data. One search box filters every section at once.",
       },
       {
         title: "My Drive",
