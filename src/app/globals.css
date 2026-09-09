@@ -92,12 +92,18 @@
 
   --background: var(--page-plane);
   --foreground: var(--text-primary);
+
+  /* On Apple devices `-apple-system` / `BlinkMacSystemFont` resolve to the
+     system face (SF Pro) and the app reads as native; those keywords are
+     inert everywhere else, so Windows and Linux fall through to Inter
+     (`--font-body`, loaded but not preloaded — Apple never fetches it). */
+  --font-app: -apple-system, BlinkMacSystemFont, var(--font-body), "Segoe UI", Roboto, system-ui, sans-serif;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-body);
+  --font-sans: var(--font-app);
 }
 
 /* Type scale: base content 14px, captions 12px — Tailwind's own defaults.
@@ -139,7 +145,10 @@ body {
   min-height: 100%;
   background-color: var(--page-backdrop);
   color: var(--foreground);
-  font-family: var(--font-body), system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-family: var(--font-app);
+  /* SF Pro carries Text and Display optical variants — let the browser pick
+     by size instead of always rendering the Text cut. */
+  font-optical-sizing: auto;
 }
 
 /* Tailwind's preflight resets button cursor to `default`, overriding the
