@@ -100,6 +100,58 @@
   --font-app: -apple-system, BlinkMacSystemFont, var(--font-body), "Segoe UI", Roboto, system-ui, sans-serif;
 }
 
+/* Dark mode — for now it follows the OS setting; a Light / Dark / System
+   control in Settings is the follow-up. Derived from the Lauva palette: a
+   deep teal-slate ground (never pure black), and the categorical + status
+   hues only *just* lifted from their light values with the chroma pulled
+   DOWN, never up — dusty and grey-toned, never a bright/neon accent. Only
+   the tokens change; components keep styling through them. The
+   `:not([data-theme="light"])` guard lets the future toggle force light
+   even under an OS dark preference. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+
+    --surface-1: #1e262a;
+    --page-plane: #273035;
+    --page-backdrop: #151b1e;
+    --text-primary: #e7ecea;
+    --text-secondary: #a7b2b1;
+    --text-muted: #8e9a9c;
+    --gridline: #2c363b;
+    --baseline: #3d4a50;
+    --border-hairline: rgba(231, 236, 234, 0.13);
+
+    --series-1: #638f80; /* dusty sage */
+    --series-2: #5f92bb; /* muted steel blue */
+    --series-3: #9589c6; /* greyed lavender */
+    --series-4: #c47c92; /* dusty rose */
+    --series-6: #55917b; /* grey teal-green */
+    --series-8: #a87e97; /* greyed plum */
+    --series-other: #8b9799;
+    --series-indigo: #7a83bd; /* muted indigo */
+    --series-magenta: #b07cb4; /* greyed orchid */
+    --series-slate: #8ba0b0;
+
+    --seq-100: #21313c;
+    --seq-200: #2a4657;
+    --seq-300: #345d72;
+    --seq-400: #457f9f;
+    --seq-450: #5f97b6;
+    --seq-500: #7db0cb;
+    --seq-600: #a6ccdf;
+    --seq-700: #cfe4ef;
+
+    --status-good: #5b9078; /* muted forest, not mint */
+    --status-warning: #bd8b4a;
+    --status-serious: #cc8460;
+    --status-critical: #cf7488;
+
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 28px -14px rgba(0, 0, 0, 0.6);
+    --shadow-card-hover: 0 2px 4px rgba(0, 0, 0, 0.45), 0 16px 36px -14px rgba(0, 0, 0, 0.7);
+  }
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -117,9 +169,6 @@
   --text-sm: 0.875rem;
   --text-sm--line-height: 1.25rem;
 }
-
-/* Deliberately no dark-mode media query — this app always uses the light
-   pastel palette above, regardless of system color-scheme preference. */
 
 * {
   box-sizing: border-box;
@@ -265,7 +314,7 @@ button:not(:disabled),
   font-size: 1rem;
 }
 .md-content a {
-  color: var(--brand-leaf);
+  color: var(--series-1);
   text-decoration: underline;
   text-underline-offset: 2px;
 }
@@ -291,7 +340,7 @@ button:not(:disabled),
 .md-content input[type="checkbox"] {
   margin-right: 0.5em;
   vertical-align: middle;
-  accent-color: var(--brand-leaf);
+  accent-color: var(--series-1);
 }
 .md-content ul.contains-task-list {
   list-style: none;
