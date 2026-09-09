@@ -826,12 +826,13 @@ function RepetitionSection({
 const MEAL_TAG_ORDER = ["Breakfast", "Lunch", "Dinner", "Snack"];
 
 /** One muted hue per meal — the tones settled on in design review:
- * breakfast blue, lunch green, dinner navy-indigo, snack burgundy. */
+ * breakfast blue, lunch green, dinner navy-indigo, snack plum. Drawn from
+ * the shared series tokens so they track the light/dark theme. */
 const MEAL_HUE: Record<string, string> = {
-  Breakfast: "#3f77a3",
-  Lunch: "#4f7c50",
-  Dinner: "#414d86",
-  Snack: "#9a4457",
+  Breakfast: "var(--series-2)",
+  Lunch: "var(--series-1)",
+  Dinner: "var(--series-indigo)",
+  Snack: "var(--series-8)",
 };
 
 // Four discrete tint steps → % of the meal hue mixed into the surface.

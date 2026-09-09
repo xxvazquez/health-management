@@ -40,7 +40,10 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#e6f1f2",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#e6f1f2" },
+    { media: "(prefers-color-scheme: dark)", color: "#151b1e" },
+  ],
   // Explicit (matches Next's own default) rather than disabling zoom
   // outright — pinch-zoom stays available. iOS may zoom in when a form
   // field under 16px takes focus; that's accepted so fields keep the

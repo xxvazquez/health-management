@@ -397,11 +397,15 @@ bug-report function is unaffected — it mails `BUG_EMAIL`, the account owner.
 ## Notes for maintainers
 
 - **Colours / branding** — CSS variables in `src/app/globals.css`. `--brand-*` is
-  the true palette; everything else is a deepened, more legible version for text
-  and charts. Light theme only. One sans-serif family: the system face (SF Pro)
-  on Apple devices via `--font-app`, Inter as the fallback elsewhere. `public/icons/` are PNG
-  renders of `public/logo-mark.svg` — regenerate from the SVG, don't hand-edit
-  the PNGs.
+  the true palette; the rest are deepened, more legible versions for text and
+  charts. Dark mode is a token-only override under
+  `@media (prefers-color-scheme: dark)` (a deep teal-slate ground, the accents
+  only just lifted and pulled low-chroma — never brighter/neon); it follows the
+  OS setting for now, a Light / Dark / System control is the follow-up. Every
+  component styles through the tokens, so keep new colours as `var(--…)`, not
+  literals. One sans-serif family: the system face (SF Pro) on Apple devices via
+  `--font-app`, Inter as the fallback elsewhere. `public/icons/` are PNG renders
+  of `public/logo-mark.svg` — regenerate from the SVG, don't hand-edit the PNGs.
 
   ![Lauva brand palette](docs/palette.svg)
 
