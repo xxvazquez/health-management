@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import clsx from "clsx";
+import { MobileMenuButton } from "@/components/MobileMenuButton";
 
 /**
  * The heading block at the top of a page: an `<h1>` (plus an optional
@@ -30,11 +31,17 @@ export function PageHeading({
 }) {
   return (
     <div className={clsx("border-l-[3px] pl-2.5", className)} style={{ borderColor: accent }}>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <Heading className="text-xl font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
+      <div className="flex items-start justify-between gap-3">
+        <Heading
+          className="min-w-0 text-2xl font-bold tracking-tight text-balance lg:text-xl lg:font-semibold"
+          style={{ color: "var(--text-primary)" }}
+        >
           {children}
         </Heading>
-        {actions}
+        <div className="flex shrink-0 items-center gap-2">
+          {actions}
+          <MobileMenuButton />
+        </div>
       </div>
       {subtitle && (
         <p className="mt-1 text-sm" style={{ color: "var(--text-secondary)" }}>

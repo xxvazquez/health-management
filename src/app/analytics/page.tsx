@@ -97,7 +97,7 @@ export default function AnalyticsPage() {
         wrap={false}
         className={clsx(
           "-mx-4 border-b border-[color:var(--border-hairline)] bg-[var(--page-backdrop)] px-4 sm:-mx-6 sm:px-6 lg:sticky lg:top-0 lg:z-20 lg:-mx-8 lg:px-8",
-          !active.hasSections && "sticky top-16 z-20",
+          !active.hasSections && "sticky top-0 z-20",
         )}
       />
 
