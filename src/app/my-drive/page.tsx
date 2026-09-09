@@ -75,8 +75,8 @@ function Breadcrumbs({ crumbs, onNavigate }: { crumbs: Crumb[]; onNavigate: (ind
               <button
                 type="button"
                 onClick={() => onNavigate(i)}
-                className="underline decoration-dotted"
-                style={{ color: "var(--text-secondary)" }}
+                className="font-medium"
+                style={{ color: "var(--series-1)" }}
               >
                 {crumb.name}
               </button>
@@ -413,8 +413,8 @@ export default function MyDrivePage() {
           <button
             type="button"
             onClick={disconnect}
-            className="self-start text-xs font-medium underline decoration-dotted"
-            style={{ color: "var(--text-muted)" }}
+            className="self-start text-xs font-medium"
+            style={{ color: "var(--series-1)" }}
           >
             Disconnect Google Drive
           </button>

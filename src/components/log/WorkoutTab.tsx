@@ -312,10 +312,10 @@ export function WorkoutTab({
       )}
 
       <div className="flex flex-wrap gap-x-4 gap-y-1">
-        <Link href="/manage/" className="self-start text-xs font-medium underline decoration-dotted" style={{ color: "var(--text-secondary)" }}>
+        <Link href="/manage/" className="self-start text-xs font-medium" style={{ color: "var(--series-1)" }}>
           Add, archive, or set units for exercises in Settings
         </Link>
-        <Link href="/workout/" className="self-start text-xs font-medium underline decoration-dotted" style={{ color: "var(--text-secondary)" }}>
+        <Link href="/workout/" className="self-start text-xs font-medium" style={{ color: "var(--series-1)" }}>
           See charts and progression on the Workout page
         </Link>
       </div>

@@ -2,15 +2,18 @@ import type { AnchorHTMLAttributes, ButtonHTMLAttributes, CSSProperties, ReactNo
 import Link from "next/link";
 import clsx from "clsx";
 
-type ButtonVariant = "primary" | "outline" | "quiet";
-type ButtonSize = "sm" | "md" | "lg" | "xl";
+type ButtonVariant = "primary" | "outline" | "quiet" | "tinted";
+type ButtonSize = "xs" | "sm" | "md" | "lg" | "xl";
 
-// md and lg read close in isolation but serve different contexts: md is
-// the compact dialog-submit size (AccountPanel, BugReportDialog, reset),
-// lg is the standalone board-form submit size (the FormShell forms —
-// reminders, notes, wishlist, care log, vitals, appointments). xl is the
-// one-off hero-CTA size (404, empty states).
+// xs is the inline-affordance size — a small tinted control standing in
+// for what used to be a dotted-underline text link ("change", "Log in",
+// "Edit in Settings"). md and lg read close in isolation but serve
+// different contexts: md is the compact dialog-submit size (AccountPanel,
+// BugReportDialog, reset), lg is the standalone board-form submit size
+// (the FormShell forms — reminders, notes, wishlist, care log, vitals,
+// appointments). xl is the one-off hero-CTA size (404, empty states).
 const SIZE_CLS: Record<ButtonSize, string> = {
+  xs: "px-2.5 py-1 text-xs",
   sm: "px-3 py-1.5 text-sm",
   md: "px-3 py-2 text-sm",
   lg: "px-4 py-2 text-sm",
@@ -36,11 +39,12 @@ type ButtonAsLink = CommonProps & { href: string } & Omit<AnchorHTMLAttributes<H
 function variantStyle(variant: ButtonVariant, accent: string): CSSProperties {
   if (variant === "primary") return { background: accent, color: "#fff" };
   if (variant === "outline") return { borderColor: "var(--border-hairline)", color: "var(--text-secondary)" };
+  if (variant === "tinted") return { background: `color-mix(in oklab, ${accent} 14%, transparent)`, color: accent };
   return { color: "var(--text-secondary)" };
 }
 
 /**
- * The one filled/outline/text button, replacing the hand-rolled
+ * The one filled/outline/tinted/text button, replacing the hand-rolled
  * `rounded-md px-{3,4,5} py-{1.5,2}` combinations that had drifted across
  * dialogs, empty states, and the reset page. Renders a `<Link>` when
  * `href` is given, a `<button>` otherwise — same look either way, since

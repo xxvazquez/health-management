@@ -24,11 +24,11 @@ export function HabitsDashboard() {
         subtitle={
           <>
             Consistency for every habit you&apos;ve logged — head to the{" "}
-            <Link href="/log" className="underline decoration-dotted" style={{ color: "var(--text-secondary)" }}>
+            <Link href="/log" className="underline" style={{ color: "var(--series-1)" }}>
               Log page
             </Link>{" "}
             to check one off, or{" "}
-            <Link href="/manage" className="underline decoration-dotted" style={{ color: "var(--text-secondary)" }}>
+            <Link href="/manage" className="underline" style={{ color: "var(--series-1)" }}>
               Settings
             </Link>{" "}
             to add, rename, or archive habits.

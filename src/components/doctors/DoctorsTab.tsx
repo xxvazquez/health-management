@@ -1,13 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import type { useDoctors } from "@/lib/useDoctors";
 import type { Doctor } from "@/lib/supabase/doctors";
 import { DoctorName, formatDate } from "./shared";
 import { AppointmentList } from "./AppointmentList";
 import { DetailPlaceholder, MedicalSplit, useIsDesktop } from "./MedicalSplit";
 import { InlineEmpty } from "@/components/ui/EmptyState";
+import { Button } from "@/components/ui/Button";
 
 type DoctorsApi = ReturnType<typeof useDoctors>;
 
@@ -41,9 +41,9 @@ function DoctorHistory({ api, doctor, accent, onBack }: { api: DoctorsApi; docto
               .join(" · ")}
           </span>
         </p>
-        <Link href="/manage" className="shrink-0 text-xs font-medium underline decoration-dotted" style={{ color: "var(--text-muted)" }}>
+        <Button href="/manage" variant="tinted" size="xs" accent={accent} className="shrink-0">
           Edit in Settings
-        </Link>
+        </Button>
       </div>
 
       <h3 className="text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>

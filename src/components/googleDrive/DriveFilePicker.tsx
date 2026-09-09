@@ -208,7 +208,7 @@ export function DriveFilePicker({ onPick, onClose }: { onPick: (file: DriveAttac
                         {crumb.name}
                       </span>
                     ) : (
-                      <button type="button" onClick={() => goToCrumb(i)} className="underline decoration-dotted" style={{ color: "var(--text-secondary)" }}>
+                      <button type="button" onClick={() => goToCrumb(i)} className="font-medium" style={{ color: "var(--series-1)" }}>
                         {crumb.name}
                       </button>
                     )}

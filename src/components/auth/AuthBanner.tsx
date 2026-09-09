@@ -1,6 +1,7 @@
 "use client";
 
 import { useAuth } from "@/lib/supabase/AuthContext";
+import { Button } from "@/components/ui/Button";
 
 /** Rendered once in the root layout, above every page's content — the only
  * "you're not signed in" messaging in the app. Points at the main menu's
@@ -19,9 +20,9 @@ export function AuthBanner() {
         <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: "var(--status-warning)" }} />
         You&apos;re not logged in — log in to sync and save your data.
       </span>
-      <button type="button" onClick={openPanel} className="tap-target shrink-0 underline decoration-dotted" style={{ color: "var(--text-primary)" }}>
+      <Button variant="tinted" size="xs" onClick={openPanel} className="shrink-0">
         Log in
-      </button>
+      </Button>
     </div>
   );
 }

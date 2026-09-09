@@ -129,7 +129,7 @@ export function AppointmentCard({
             </button>
           </form>
         ) : (
-          <button type="button" onClick={() => setAddingTask(true)} className="py-2 text-xs font-medium underline decoration-dotted" style={{ color: accent }}>
+          <button type="button" onClick={() => setAddingTask(true)} className="py-2 text-xs font-medium" style={{ color: accent }}>
             + Add follow-up task
           </button>
         )}

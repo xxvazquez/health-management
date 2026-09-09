@@ -24,8 +24,8 @@ export function Methodology({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="text-xs underline decoration-dotted"
-        style={{ color: "var(--text-muted)" }}
+        className="text-xs font-medium"
+        style={{ color: "var(--series-1)" }}
       >
         {open ? "Hide methodology" : label}
       </button>

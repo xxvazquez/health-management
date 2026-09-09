@@ -34,7 +34,7 @@ export default function NutritionEvidencePage() {
     <div className="flex flex-col gap-5">
       <div>
         <div className="flex items-center gap-2 text-sm" style={{ color: "var(--text-muted)" }}>
-          <Link href="/manage" className="underline decoration-dotted">Manage</Link>
+          <Link href="/manage" className="font-medium" style={{ color: "var(--series-1)" }}>Manage</Link>
           <span>→</span>
           <span>Nutrition evidence</span>
         </div>
@@ -84,7 +84,7 @@ export default function NutritionEvidencePage() {
                   href={record.url ?? `https://pubmed.ncbi.nlm.nih.gov/${record.pubmedId}/`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="underline decoration-dotted"
+                  className="underline"
                   style={{ color: "var(--series-2)" }}
                 >
                   PubMed {record.pubmedId}

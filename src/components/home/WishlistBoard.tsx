@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import Link from "next/link";
 import { PencilIcon, TrashIcon } from "@/components/ui/Notebook";
 import { SearchField } from "@/components/ui/SearchField";
 import { ListSkeleton } from "@/components/ui/Skeleton";
@@ -410,13 +409,9 @@ function CategoryDetail({
         <h2 className="min-w-0 flex-1 truncate text-lg font-semibold" style={{ color: "var(--text-primary)" }}>
           {category.name}
         </h2>
-        <Link
-          href="/manage"
-          className="shrink-0 text-xs font-medium underline decoration-dotted"
-          style={{ color: "var(--text-muted)" }}
-        >
+        <Button href="/manage" variant="tinted" size="xs" accent={accent} className="shrink-0">
           Edit in Settings
-        </Link>
+        </Button>
       </div>
 
       <div className="flex flex-col rounded-xl border px-3" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>

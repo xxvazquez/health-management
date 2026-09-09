@@ -248,10 +248,10 @@ export function CareEntryForm({
         <button
           type="button"
           onClick={() => setPickerOpen(true)}
-          className="self-start text-xs font-medium underline decoration-dotted"
-          style={{ color: "var(--text-muted)" }}
+          className="self-start text-xs font-medium"
+          style={{ color: accent }}
         >
-          Attach a Google Drive file
+          + Attach a Google Drive file
         </button>
       </div>
 
