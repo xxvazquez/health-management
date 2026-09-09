@@ -491,7 +491,8 @@ below.
 The same `icon` / `color` pair — same fixed sets, same "both null falls
 back to the page's hardcoded look" rule — also lives on `reminder_lists`,
 `doctor_specialties`, `lab_panels` and `categories`, set from their own
-Manage / Medical row via the shared `ui/IconColorPicker.tsx`. On
+Manage / Medical row via the shared `ui/IconColorPicker.tsx` (~36 glyphs,
+filtered by a search box that matches per-glyph synonyms in `ICON_SEARCH`). On
 `categories`, the picker shows on the Settings category chip (materializing
 the row on first edit, like any other category change) **and** tints that
 category's header on the Log page — the Food grid, the Symptoms / Supplements
