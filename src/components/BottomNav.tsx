@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import clsx from "clsx";
 import { ICONS, isActiveHref } from "@/components/Nav";
 import { NAV_LABEL } from "@/components/navLabels";
 
@@ -37,23 +36,18 @@ export function BottomNav() {
     >
       {ITEMS.map((item) => {
         const active = isActiveHref(pathname, item.href);
+        // Flat, iOS-style: the active tab is the tint colour only — no pill,
+        // no fill, no indicator bar.
+        const tint = active ? "var(--series-1)" : "var(--text-muted)";
         return (
           <Link
             key={item.href}
             href={item.href}
             aria-current={active ? "page" : undefined}
             className="relative flex min-w-0 flex-1 flex-col items-center gap-0.5 px-0.5 pt-2 pb-1 font-medium transition-colors"
-            style={{ color: active ? "var(--text-primary)" : "var(--text-muted)" }}
+            style={{ color: tint }}
           >
-            <span
-              className={clsx("relative flex h-7 w-11 items-center justify-center rounded-full transition-colors")}
-              style={{
-                background: active ? "color-mix(in oklab, var(--series-1) 14%, transparent)" : "transparent",
-                color: active ? "var(--series-1)" : "var(--text-muted)",
-              }}
-            >
-              {ICONS[item.iconKey]}
-            </span>
+            <span className="flex h-7 w-11 items-center justify-center">{ICONS[item.iconKey]}</span>
             <span className="max-w-full truncate text-xs leading-tight tracking-tight">{NAV_LABEL[item.href]}</span>
           </Link>
         );
