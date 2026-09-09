@@ -41,7 +41,7 @@ const GROUPS: { title: string; items: Entry[] }[] = [
       },
       {
         title: "Settings",
-        body: "In the sidebar (and the account menu). Add, rename, archive or hide the foods, exercises and products offered when logging; edit reminder lists, wishlist lists, doctor types, doctors and stool chips; set exercise units; choose which Log tabs and Trends dashboards appear; export your data. One search box filters every section at once.",
+        body: "In the sidebar (and the account menu). Add, rename, archive or hide the foods, exercises and products offered when logging; edit reminder lists, wishlist lists, the Vitals weight goal, doctor types, doctors and stool chips; set exercise units; choose which Log tabs and Trends dashboards appear; export your data. One search box filters every section at once.",
       },
       {
         title: "My Drive",
@@ -141,7 +141,7 @@ const GROUPS: { title: string; items: Entry[] }[] = [
       },
       {
         title: "Vitals",
-        body: "Blood pressure and weight, entered often. Each has a trend chart; blood pressure also shows its ACC/AHA category.",
+        body: "Blood pressure and weight, entered often. Each has a trend chart; blood pressure also shows its ACC/AHA category. Set a target weight range in Settings and it draws as a band on the weight chart.",
       },
       {
         title: "Doctors",

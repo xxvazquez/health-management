@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import Link from "next/link";
 import { useVitals } from "@/lib/useVitals";
 import type { BloodPressureReading, WeightReading, WeightTarget } from "@/lib/supabase/vitals";
 import { bpCategory, BP_CATEGORIES } from "@/lib/aggregations/vitals";
@@ -264,81 +265,26 @@ function RowActions({
 // --- Weight target -----------------------------------------------
 
 /** The optional weight-goal range — shown above the weight chart, where it
- * also draws as a shaded band. Read-only until you tap to edit. */
-function WeightTargetControl({
-  target,
-  accent,
-  onSave,
-  onClear,
-}: {
-  target: WeightTarget | null;
-  accent: string;
-  onSave: (t: WeightTarget) => Promise<void>;
-  onClear: () => Promise<void>;
-}) {
-  const [editing, setEditing] = useState(false);
-  const [low, setLow] = useState(target ? String(target.lowKg) : "");
-  const [high, setHigh] = useState(target ? String(target.highKg) : "");
-
-  const lo = parseNum(low);
-  const hi = parseNum(high);
-  const canSave = lo != null && hi != null && lo > 0 && hi >= lo;
-
-  function startEditing() {
-    setLow(target ? String(target.lowKg) : "");
-    setHigh(target ? String(target.highKg) : "");
-    setEditing(true);
-  }
-
-  if (editing) {
-    return (
-      <div className="flex flex-wrap items-end gap-2 rounded-lg border p-2.5" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
-        <label className="flex flex-col gap-1">
-          <span className={LABEL_CLS} style={LABEL_STYLE}>Target from (kg)</span>
-          <input value={low} onChange={(e) => setLow(e.target.value)} inputMode="decimal" placeholder="64" className={`${FIELD_CLS} w-20 tabular-nums`} style={FIELD_STYLE} />
-        </label>
-        <label className="flex flex-col gap-1">
-          <span className={LABEL_CLS} style={LABEL_STYLE}>to (kg)</span>
-          <input value={high} onChange={(e) => setHigh(e.target.value)} inputMode="decimal" placeholder="66" className={`${FIELD_CLS} w-20 tabular-nums`} style={FIELD_STYLE} />
-        </label>
-        <Button
-          type="button"
-          size="sm"
-          accent={accent}
-          disabled={!canSave}
-          onClick={async () => {
-            await onSave({ lowKg: lo as number, highKg: hi as number });
-            setEditing(false);
-          }}
-        >
-          Save
-        </Button>
-        <button type="button" onClick={() => setEditing(false)} className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
-          Cancel
-        </button>
-      </div>
-    );
-  }
-
-  if (!target) {
-    return (
-      <button type="button" onClick={startEditing} className="self-start text-xs font-medium underline decoration-dotted" style={{ color: "var(--text-muted)" }}>
-        Set a target range
-      </button>
-    );
-  }
-
+ * also draws as a shaded band. Read-only: the range is set and cleared from
+ * Settings, one place for everything editable. */
+function WeightTargetControl({ target, accent }: { target: WeightTarget | null; accent: string }) {
   return (
     <div className="flex items-center gap-3 text-xs" style={{ color: "var(--text-secondary)" }}>
       <span>
-        Target <span className="font-semibold tabular-nums" style={{ color: accent }}>{target.lowKg}–{target.highKg} kg</span>
+        {target ? (
+          <>
+            Target{" "}
+            <span className="font-semibold tabular-nums" style={{ color: accent }}>
+              {target.lowKg}–{target.highKg} kg
+            </span>
+          </>
+        ) : (
+          "No weight goal set"
+        )}
       </span>
-      <IconAction onClick={startEditing} label="Edit target range">
-        <PencilIcon size={14} />
-      </IconAction>
-      <IconAction onClick={() => void onClear()} label="Clear target range" tone="critical">
-        <TrashIcon size={14} />
-      </IconAction>
+      <Link href="/manage" className="font-medium underline decoration-dotted" style={{ color: "var(--text-muted)" }}>
+        Edit in Settings
+      </Link>
     </div>
   );
 }
@@ -458,12 +404,12 @@ export function VitalsTab({ accent }: { accent: string }) {
         )
       ) : vitals.weight.data.length === 0 ? (
         <>
-          <WeightTargetControl target={vitals.weight.target} accent={accent} onSave={vitals.weight.setTarget} onClear={vitals.weight.clearTarget} />
+          <WeightTargetControl target={vitals.weight.target} accent={accent} />
           <InlineEmpty title="No weigh-ins yet" description="Add a weight and the trend line builds up over time." />
         </>
       ) : (
         <>
-          <WeightTargetControl target={vitals.weight.target} accent={accent} onSave={vitals.weight.setTarget} onClear={vitals.weight.clearTarget} />
+          <WeightTargetControl target={vitals.weight.target} accent={accent} />
           {weightAsc.length >= 2 && (
             <div className="rounded-xl border p-3" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
               <LabMarkerChart

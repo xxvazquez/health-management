@@ -39,6 +39,8 @@ import { createReminderList, deleteReminderList, fetchReminderLists, renameRemin
 import { buildDemoReminderLists } from "@/lib/demoPersonalReminders";
 import { createWishlistCategory, deleteWishlistCategory, fetchWishlist, updateWishlistCategory, type WishlistCategory } from "@/lib/supabase/wishlist";
 import { buildDemoWishlist } from "@/lib/demoWishlist";
+import { clearWeightTarget, fetchWeightTarget, setWeightTarget, type WeightTarget } from "@/lib/supabase/vitals";
+import { buildDemoWeightTarget } from "@/lib/demoVitals";
 import {
   createDoctorSpecialty,
   deleteDoctorSpecialty,
@@ -274,6 +276,123 @@ function WishlistListsCard({ isDemoData, searchQuery }: { isDemoData: boolean; s
             />
           ))}
         </ul>
+      )}
+    </CollapsibleManageCard>
+  );
+}
+
+/** The optional weight-goal range — one per user. Health → Vitals draws it
+ * as a shaded band on the weight chart and shows it read-only with an "Edit
+ * in Settings" link; the range is set and cleared here. */
+function WeightGoalCard({ isDemoData, searchQuery }: { isDemoData: boolean; searchQuery: string }) {
+  const [target, setTarget] = useState<WeightTarget | null>(() => (isDemoData ? buildDemoWeightTarget() : null));
+  const [loading, setLoading] = useState(!isDemoData);
+  const [editing, setEditing] = useState(false);
+  const [low, setLow] = useState("");
+  const [high, setHigh] = useState("");
+
+  useEffect(() => {
+    if (isDemoData) return;
+    let cancelled = false;
+    fetchWeightTarget()
+      .then((row) => !cancelled && setTarget(row))
+      .catch((err) => console.error("fetchWeightTarget failed", err))
+      .finally(() => !cancelled && setLoading(false));
+    return () => {
+      cancelled = true;
+    };
+  }, [isDemoData]);
+
+  const query = searchQuery.trim().toLowerCase();
+  const isSearching = query.length > 0;
+  if (isSearching && !"weight goal target range".includes(query)) return null;
+
+  const lo = Number(low.replace(",", "."));
+  const hi = Number(high.replace(",", "."));
+  const canSave = low.trim() !== "" && high.trim() !== "" && Number.isFinite(lo) && Number.isFinite(hi) && lo > 0 && hi >= lo;
+
+  function startEditing() {
+    setLow(target ? String(target.lowKg) : "");
+    setHigh(target ? String(target.highKg) : "");
+    setEditing(true);
+  }
+
+  async function save() {
+    const next = { lowKg: lo, highKg: hi };
+    setTarget(next);
+    setEditing(false);
+    if (!isDemoData) await setWeightTarget(next).catch((err) => console.error("setWeightTarget failed", err));
+  }
+
+  async function clear() {
+    setTarget(null);
+    setEditing(false);
+    if (!isDemoData) await clearWeightTarget().catch((err) => console.error("clearWeightTarget failed", err));
+  }
+
+  return (
+    <CollapsibleManageCard
+      title="Weight goal"
+      subtitle={loading ? undefined : target ? `${target.lowKg}–${target.highKg} kg` : "not set"}
+      forceOpen={isSearching}
+    >
+      <p className="mb-3 text-xs" style={{ color: "var(--text-secondary)" }}>
+        A target weight range, drawn as a shaded band on the weight chart in Health &rarr; Vitals.
+      </p>
+
+      {loading ? (
+        <p className="py-2 text-xs" style={{ color: "var(--text-muted)" }}>
+          Loading…
+        </p>
+      ) : editing ? (
+        <div className="flex flex-wrap items-end gap-2">
+          <label className="flex flex-col gap-1 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
+            From (kg)
+            <input
+              value={low}
+              onChange={(e) => setLow(e.target.value)}
+              inputMode="decimal"
+              placeholder="64"
+              className="w-20 rounded-md border px-2 py-1 text-sm tabular-nums outline-none"
+              style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
+            To (kg)
+            <input
+              value={high}
+              onChange={(e) => setHigh(e.target.value)}
+              inputMode="decimal"
+              placeholder="66"
+              className="w-20 rounded-md border px-2 py-1 text-sm tabular-nums outline-none"
+              style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
+            />
+          </label>
+          <Button type="button" size="sm" disabled={!canSave} onClick={() => void save()}>
+            Save
+          </Button>
+          <button type="button" onClick={() => setEditing(false)} className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+            Cancel
+          </button>
+        </div>
+      ) : target ? (
+        <div className="flex items-center gap-4 text-sm">
+          <span style={{ color: "var(--text-primary)" }}>
+            <span className="font-semibold tabular-nums">
+              {target.lowKg}–{target.highKg} kg
+            </span>
+          </span>
+          <button type="button" onClick={startEditing} className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
+            Edit
+          </button>
+          <button type="button" onClick={() => void clear()} className="text-xs font-medium" style={{ color: "var(--status-critical)" }}>
+            Clear
+          </button>
+        </div>
+      ) : (
+        <button type="button" onClick={startEditing} className="text-xs font-medium underline decoration-dotted" style={{ color: "var(--text-secondary)" }}>
+          Set a target range
+        </button>
       )}
     </CollapsibleManageCard>
   );
@@ -2298,6 +2417,7 @@ export default function ManagePage() {
     { label: "Doctors", el: <DoctorsCard key="doctors" searchQuery={searchQuery} /> },
     { label: "Doctor types", el: <DoctorSpecialtiesCard key="doctor-types" isDemoData={isDemoData} searchQuery={searchQuery} /> },
     { label: "Stool options", el: <StoolOptionsCard key="stool-options" isDemoData={isDemoData} searchQuery={searchQuery} /> },
+    { label: "Weight goal", el: <WeightGoalCard key="weight-goal" isDemoData={isDemoData} searchQuery={searchQuery} /> },
     { label: "Wishlist lists", el: <WishlistListsCard key="wishlist-lists" isDemoData={isDemoData} searchQuery={searchQuery} /> },
     ...TYPE_SECTIONS.map((section) => ({
       label: section.label,
