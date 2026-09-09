@@ -387,8 +387,8 @@ export function LabsOverview({ onManage }: { onManage?: () => void }) {
       <Methodology className="lg:col-span-2">
         This dashboard only describes your own recorded results. Each value is read against its optimal range where
         you&rsquo;ve set one, otherwise the lab reference low/high on that marker — both are lab- and sometimes
-        age-specific, so treat a flag as a prompt to look, not a diagnosis. The bar under each value shows where it
-        sits between the reference low and high, with the optimal band highlighted. Change vs previous compares the
+        age-specific, so treat a flag as a prompt to look, not a diagnosis. The bar under each value marks where it
+        sits, with that band highlighted in green and the scale ends labelled. Change vs previous compares the
         latest value with the one before it. The compare chart puts unrelated markers on one scale so their shapes
         can be read together; the numbers on its axis are not clinically meaningful. Blood-pressure categories are
         the ACC/AHA 2017 bands, shown for reference.
@@ -453,16 +453,16 @@ function MarkerRangeRow({ marker, last, onOpen }: { marker: LabMarker; last: boo
             style={{ left: `calc(${bar.valuePct}% - 5.5px)`, background: tone, boxShadow: "0 0 0 2.5px var(--surface-1)" }}
           />
           <span
-            className={`absolute inset-x-0 top-[15px] flex items-center gap-1 text-[9px] tabular-nums ${bar.bandInsideTrack ? "justify-between" : "justify-center"}`}
+            className="absolute inset-x-0 top-[15px] flex items-center justify-between gap-1 text-[9px] tabular-nums"
             style={{ color: "var(--text-muted)" }}
           >
-            {bar.bandInsideTrack && <span>{fmtNum(bar.trackLow)}</span>}
+            <span>{fmtNum(bar.trackLow)}</span>
             {label && (
               <span className="truncate" style={{ color: "color-mix(in oklab, var(--status-good) 70%, var(--text-muted))" }}>
                 {label}
               </span>
             )}
-            {bar.bandInsideTrack && <span>{fmtNum(bar.trackHigh)}</span>}
+            <span>{fmtNum(bar.trackHigh)}</span>
           </span>
         </span>
       ) : (
