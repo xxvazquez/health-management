@@ -13,6 +13,12 @@ import { SyncStatusBanner } from "@/components/SyncStatusBanner";
 import { RegisterServiceWorker } from "@/components/RegisterServiceWorker";
 import { AppLoadingSplash } from "@/components/AppLoadingSplash";
 import { MedicalDisclaimer } from "@/components/MedicalDisclaimer";
+import { ThemeManager } from "@/components/ThemeManager";
+
+// Runs before first paint: resolves the stored appearance choice (or the OS
+// setting) and stamps `data-theme` on <html> so there's no flash of the
+// wrong theme. Kept in step with `applyThemePref` in src/lib/theme.ts.
+const THEME_INIT = `try{var v=localStorage.getItem("lauva-theme");var d=v==="dark"||(v!=="light"&&matchMedia("(prefers-color-scheme: dark)").matches);document.documentElement.dataset.theme=d?"dark":"light";var m=document.querySelector('meta[name=theme-color]');if(m)m.setAttribute("content",d?"#151b1e":"#e6f1f2");}catch(e){}`;
 
 // Inter is the fallback for non-Apple platforms (Apple devices render the
 // system face, SF Pro — see --font-app in globals.css). Not preloaded, so
@@ -40,10 +46,10 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#e6f1f2" },
-    { media: "(prefers-color-scheme: dark)", color: "#151b1e" },
-  ],
+  // A single tag the pre-paint script and ThemeManager keep in step with the
+  // resolved theme (an in-app Dark choice under an OS Light setting still
+  // needs the browser chrome dark, which a media-query tag can't do).
+  themeColor: "#e6f1f2",
   // Explicit (matches Next's own default) rather than disabling zoom
   // outright — pinch-zoom stays available. iOS may zoom in when a form
   // field under 16px takes focus; that's accepted so fields keep the
@@ -63,9 +69,11 @@ export default function RootLayout({
   children: ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${bodyFont.variable} h-full antialiased`}>
+    <html lang="en" suppressHydrationWarning className={`${bodyFont.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col lg:flex-row">
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT }} />
         <RegisterServiceWorker />
+        <ThemeManager />
         <AuthProvider>
           <AppLoadingSplash />
           <DataProvider>

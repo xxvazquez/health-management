@@ -43,6 +43,8 @@ import { clearWeightTarget, fetchWeightTarget, setWeightTarget, type WeightTarge
 import { buildDemoWeightTarget } from "@/lib/demoVitals";
 import { useLabs } from "@/lib/useLabs";
 import { MarkerForm } from "@/components/doctors/labForms";
+import { Segmented } from "@/components/ui/Segmented";
+import { setThemePref, useThemePref } from "@/lib/theme";
 import {
   createDoctorSpecialty,
   deleteDoctorSpecialty,
@@ -117,6 +119,33 @@ function CollapsibleManageCard({
         )}
       </button>
       {shown && <div className="px-4 pb-4">{children}</div>}
+    </Card>
+  );
+}
+
+/** Light / Dark / System — a per-device choice (localStorage, applied by a
+ * pre-paint script + ThemeManager), not synced. */
+function AppearanceCard() {
+  const pref = useThemePref();
+  return (
+    <Card tier="supporting">
+      <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+        Appearance
+      </p>
+      <p className="mt-0.5 mb-3 text-xs" style={{ color: "var(--text-secondary)" }}>
+        Light, dark, or match your device. This device only.
+      </p>
+      <Segmented
+        value={pref}
+        onChange={setThemePref}
+        options={
+          [
+            ["light", "Light"],
+            ["dark", "Dark"],
+            ["system", "System"],
+          ] as const
+        }
+      />
     </Card>
   );
 }
@@ -2696,6 +2725,8 @@ export default function ManagePage() {
           </p>
         )}
       </div>
+
+      <AppearanceCard />
 
       <VisibleSectionsCard />
 
