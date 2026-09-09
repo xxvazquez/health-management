@@ -135,8 +135,6 @@ export default function NotesPage() {
             }
             onFetchTitle={keep.isDemo ? undefined : (url) => fetchLinkMetadata(url).then((r) => r.title)}
             onCreateCategory={keep.wishlist.createCategory}
-            onUpdateCategory={keep.wishlist.updateCategory}
-            onDeleteCategory={keep.wishlist.deleteCategory}
             onCreateItem={keep.wishlist.createItem}
             onUpdateItem={keep.wishlist.updateItem}
             onDeleteItem={keep.wishlist.deleteItem}

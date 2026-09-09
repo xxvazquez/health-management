@@ -37,6 +37,8 @@ import { buildDemoDataset } from "@/lib/demoData";
 import { WORKOUT_UNITS, workoutUnitLabel, defaultWorkoutUnitForCategory, STOOL_COLOR_SWATCH, type RawItem, type RawCategory, type WorkoutUnit, type StoolOptionKind } from "@/lib/types";
 import { createReminderList, deleteReminderList, fetchReminderLists, renameReminderList, type ReminderList } from "@/lib/supabase/personalReminders";
 import { buildDemoReminderLists } from "@/lib/demoPersonalReminders";
+import { createWishlistCategory, deleteWishlistCategory, fetchWishlist, updateWishlistCategory, type WishlistCategory } from "@/lib/supabase/wishlist";
+import { buildDemoWishlist } from "@/lib/demoWishlist";
 import {
   createDoctorSpecialty,
   deleteDoctorSpecialty,
@@ -155,6 +157,125 @@ function VisibleSectionsCard() {
         })}
       </div>
     </Card>
+  );
+}
+
+/** Wishlist lists (the categories on Notes → Wishlist) — name, icon and
+ * colour are all edited here now; the Wishlist tab shows each list and its
+ * links, with an "Edit in Settings" link. Deleting a list also deletes the
+ * links inside it (DB cascade), so the confirm spells that out. */
+function WishlistListsCard({ isDemoData, searchQuery }: { isDemoData: boolean; searchQuery: string }) {
+  const [lists, setLists] = useState<WishlistCategory[]>(() => (isDemoData ? buildDemoWishlist() : []));
+  const [loading, setLoading] = useState(!isDemoData);
+  const [newName, setNewName] = useState("");
+
+  useEffect(() => {
+    if (isDemoData) return;
+    let cancelled = false;
+    fetchWishlist()
+      .then((rows) => !cancelled && setLists(rows))
+      .catch((err) => console.error("fetchWishlist failed", err))
+      .finally(() => !cancelled && setLoading(false));
+    return () => {
+      cancelled = true;
+    };
+  }, [isDemoData]);
+
+  async function handleAdd(e: FormEvent) {
+    e.preventDefault();
+    const name = newName.trim();
+    if (!name) return;
+    setNewName("");
+    if (isDemoData) {
+      setLists((prev) => [
+        ...prev,
+        { id: `demo-wl-cat-${Date.now()}`, name, icon: null, color: null, createdAt: new Date().toISOString(), items: [] },
+      ]);
+      return;
+    }
+    try {
+      const created = await createWishlistCategory(name);
+      setLists((prev) => [...prev, created]);
+    } catch (err) {
+      console.error("createWishlistCategory failed", err);
+    }
+  }
+
+  async function handlePatch(id: string, patch: { name?: string; icon?: string | null; color?: string | null }) {
+    const current = lists.find((l) => l.id === id);
+    if (!current) return;
+    if (patch.name !== undefined && !patch.name.trim()) return;
+    setLists((prev) => prev.map((l) => (l.id === id ? { ...l, ...patch } : l)));
+    if (!isDemoData) await updateWishlistCategory(current, patch).catch((err) => console.error("updateWishlistCategory failed", err));
+  }
+
+  async function handleDelete(id: string) {
+    setLists((prev) => prev.filter((l) => l.id !== id));
+    if (!isDemoData) await deleteWishlistCategory(id).catch((err) => console.error("deleteWishlistCategory failed", err));
+  }
+
+  const query = searchQuery.trim().toLowerCase();
+  const isSearching = query.length > 0;
+  const visibleLists = (isSearching ? lists.filter((l) => l.name.toLowerCase().includes(query)) : lists)
+    .slice()
+    .sort((a, b) => a.name.localeCompare(b.name));
+  if (isSearching && visibleLists.length === 0) return null;
+
+  return (
+    <CollapsibleManageCard
+      title="Wishlist lists"
+      subtitle={loading ? undefined : `${lists.length} list${lists.length === 1 ? "" : "s"}`}
+      forceOpen={isSearching}
+    >
+      <p className="mb-3 text-xs" style={{ color: "var(--text-secondary)" }}>
+        The lists your saved links are grouped into on Notes &rarr; Wishlist. Deleting a list also deletes the links
+        saved in it.
+      </p>
+
+      <form onSubmit={handleAdd} className="mb-3 flex items-center gap-2">
+        <input
+          value={newName}
+          onChange={(e) => setNewName(e.target.value)}
+          placeholder="New list name"
+          maxLength={40}
+          className="flex-1 rounded-md border px-2.5 py-1.5 text-xs outline-none"
+          style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
+        />
+        <button type="submit" disabled={!newName.trim()} className="shrink-0 rounded-md px-3 py-1.5 text-xs font-semibold disabled:opacity-40" style={{ color: "var(--series-1)" }}>
+          Add list
+        </button>
+      </form>
+
+      {loading ? (
+        <p className="py-3 text-xs" style={{ color: "var(--text-muted)" }}>
+          Loading…
+        </p>
+      ) : (
+        <ul className="flex flex-col divide-y divide-[color:var(--gridline)]">
+          {!isSearching && lists.length === 0 && (
+            <li className="py-2 text-xs" style={{ color: "var(--text-muted)" }}>
+              No lists yet — add one above, or from the Wishlist tab while saving a link.
+            </li>
+          )}
+          {visibleLists.map((l) => (
+            <ManageRow
+              key={l.id}
+              name={l.name}
+              maxLength={40}
+              appearance={{
+                icon: l.icon,
+                color: l.color,
+                accent: customColorValue(l.color) ?? "var(--series-2)",
+                onIconChange: (icon) => void handlePatch(l.id, { icon }),
+                onColorChange: (color) => void handlePatch(l.id, { color }),
+              }}
+              onRename={(next) => void handlePatch(l.id, { name: next })}
+              onDelete={() => void handleDelete(l.id)}
+            />
+          ))}
+        </ul>
+      )}
+    </CollapsibleManageCard>
   );
 }
 
@@ -2177,6 +2298,7 @@ export default function ManagePage() {
     { label: "Doctors", el: <DoctorsCard key="doctors" searchQuery={searchQuery} /> },
     { label: "Doctor types", el: <DoctorSpecialtiesCard key="doctor-types" isDemoData={isDemoData} searchQuery={searchQuery} /> },
     { label: "Stool options", el: <StoolOptionsCard key="stool-options" isDemoData={isDemoData} searchQuery={searchQuery} /> },
+    { label: "Wishlist lists", el: <WishlistListsCard key="wishlist-lists" isDemoData={isDemoData} searchQuery={searchQuery} /> },
     ...TYPE_SECTIONS.map((section) => ({
       label: section.label,
       el: (
