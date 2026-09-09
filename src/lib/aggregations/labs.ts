@@ -26,26 +26,23 @@ export function effectiveRange(m: {
 }
 
 export interface RangeBar {
-  /** The track's numeric ends — the labels under the bar. */
+  /** The track's numeric ends — the scale labels either side of the bar. */
   trackLow: number;
   trackHigh: number;
   /** 0–100, clamped — where the value marker sits on the track. */
   valuePct: number;
-  /** 0–100 — the highlighted band's edges on the track. */
+  /** 0–100 — the highlighted band's edges on the track. Always inset from
+   * at least one end, so the band reads as a segment, never the whole bar. */
   bandLeftPct: number;
   bandRightPct: number;
-  /** True when the band is the optimal range sitting inside a wider lab
-   * reference track; false when the band *is* the whole track (only one
-   * range is known, so the band fills the bar). */
-  bandInsideTrack: boolean;
 }
 
 /** Geometry for the horizontal range bar on the Results overview. The
  * highlighted band is the optimal range where one is set, otherwise the
- * lab reference range. With both, the track is the lab reference range
- * and the optimal band sits inside it; with only the lab range the band
- * fills the whole track; with only an optimal range the track is that
- * range widened by half its width each side. Null when neither is set. */
+ * lab reference range. The track is the lab reference range when the band
+ * sits inside it, otherwise the band widened by ~35% of its width each
+ * side — so there's always visible track (and a scale number) beyond the
+ * band. Null when neither range is set. */
 export function rangeBar(
   value: number,
   refLow: number | null,
@@ -61,22 +58,22 @@ export function rangeBar(
 
   let lo: number;
   let hi: number;
-  let bandInsideTrack: boolean;
-  if (hasRef && hasOpt) {
-    lo = Math.min(refLow as number, bandLo ?? (refLow as number));
-    hi = Math.max(refHigh as number, bandHi ?? (refHigh as number));
-    bandInsideTrack = true;
-  } else if (hasRef) {
+  if (
+    hasRef &&
+    (bandLo == null || (refLow as number) <= bandLo) &&
+    (bandHi == null || (refHigh as number) >= bandHi) &&
+    ((refLow as number) < (bandLo ?? Infinity) || (refHigh as number) > (bandHi ?? -Infinity))
+  ) {
+    // The lab reference range already contains the band with room to spare.
     lo = refLow as number;
     hi = refHigh as number;
-    bandInsideTrack = false;
   } else {
     const a = bandLo ?? (bandHi as number);
     const b = bandHi ?? (bandLo as number);
-    const pad = (b - a || Math.abs(b) || 1) * 0.5;
+    const pad = (b - a || Math.abs(b) || 1) * 0.35;
     lo = a - pad;
     hi = b + pad;
-    bandInsideTrack = false;
+    if ((bandLo ?? 0) >= 0 && lo < 0) lo = 0;
   }
   if (hi <= lo) return null;
   const clamp = (v: number) => Math.max(0, Math.min(100, ((v - lo) / (hi - lo)) * 100));
@@ -86,7 +83,6 @@ export function rangeBar(
     valuePct: clamp(value),
     bandLeftPct: clamp(bandLo ?? lo),
     bandRightPct: clamp(bandHi ?? hi),
-    bandInsideTrack,
   };
 }
 

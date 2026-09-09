@@ -73,24 +73,33 @@ describe("rangeBar", () => {
   it("puts the value on the reference-range track with the optimal band inside it", () => {
     const bar = rangeBar(78, 50, 150, 100, 150);
     expect(bar).not.toBeNull();
+    expect(bar!.trackLow).toBe(50);
+    expect(bar!.trackHigh).toBe(150);
     expect(bar!.valuePct).toBeCloseTo(28);
     expect(bar!.bandLeftPct).toBeCloseTo(50);
     expect(bar!.bandRightPct).toBeCloseTo(100);
-    expect(bar!.bandInsideTrack).toBe(true);
   });
-  it("makes the band fill the track and clamps the value when only the lab range is set", () => {
-    const bar = rangeBar(5, 15, 150, null, null);
-    expect(bar!.bandInsideTrack).toBe(false);
-    expect(bar!.bandLeftPct).toBe(0);
-    expect(bar!.bandRightPct).toBe(100);
-    expect(bar!.valuePct).toBe(0);
-    expect(rangeBar(400, 15, 150, null, null)!.valuePct).toBe(100);
+  it("keeps the band inset from both ends when only the lab range is known", () => {
+    const bar = rangeBar(13.4, 12, 15.5, null, null);
+    expect(bar!.trackLow).toBeLessThan(12);
+    expect(bar!.trackHigh).toBeGreaterThan(15.5);
+    expect(bar!.bandLeftPct).toBeGreaterThan(0);
+    expect(bar!.bandRightPct).toBeLessThan(100);
+  });
+  it("keeps a below-band value low on the track and clamps a wild one to the end", () => {
+    const below = rangeBar(5, 15, 150, null, null)!;
+    expect(below.valuePct).toBeLessThan(below.bandLeftPct);
+    expect(below.valuePct).toBeGreaterThanOrEqual(0);
+    expect(rangeBar(4000, 15, 150, null, null)!.valuePct).toBe(100);
+  });
+  it("does not push the track below zero for a non-negative marker", () => {
+    expect(rangeBar(2, 0, 5, null, null)!.trackLow).toBe(0);
   });
   it("widens the optimal range into a track when there is no reference range", () => {
     const bar = rangeBar(8, null, null, 5, 8);
     expect(bar).not.toBeNull();
-    expect(bar!.bandInsideTrack).toBe(false);
     expect(bar!.valuePct).toBeGreaterThan(bar!.bandLeftPct);
+    expect(bar!.bandRightPct).toBeLessThan(100);
   });
   it("is null with neither range", () => {
     expect(rangeBar(5, null, null, null, null)).toBeNull();
