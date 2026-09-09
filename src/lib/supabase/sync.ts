@@ -40,7 +40,7 @@ import {
   type OutboxEntry,
 } from "@/lib/db/indexedDb";
 import { drainOutbox, retryOutboxEntry } from "./outbox";
-import type { RawDiaryEntry, RawLog, RawItem, RawWorkoutLog, RawCategory, RawStoolLog, RawPeriodLog, StoolColor, StoolFloatation, HygieneOption, StoolSymptom, WorkoutUnit, PeriodIntensity } from "@/lib/types";
+import type { RawDiaryEntry, RawLog, RawItem, RawWorkoutLog, RawCategory, RawStoolLog, RawPeriodLog, HygieneOption, WorkoutUnit, PeriodIntensity } from "@/lib/types";
 import type { ItemType } from "@/taxonomy/categories";
 import { normalizeName } from "@/taxonomy/normalizeName";
 
@@ -158,9 +158,7 @@ function buildStoolLogRow(log: RawStoolLog, userId: string): Record<string, unkn
     bristol_scores: log.bristolScores,
     color: log.color,
     floatation: log.floatation,
-    is_sticky: log.isSticky,
-    is_smelly: log.isSmelly,
-    is_straining: log.isStraining,
+    characteristics: log.characteristics,
     hygiene: log.hygiene,
     symptoms: log.symptoms,
     time_on_toilet_minutes: log.timeOnToiletMinutes,
@@ -510,9 +508,7 @@ interface StoolLogRow {
   bristol_scores: number[] | null;
   color: string | null;
   floatation: string | null;
-  is_sticky: boolean;
-  is_smelly: boolean;
-  is_straining: boolean;
+  characteristics: string[] | null;
   hygiene: string[] | null;
   symptoms: string[] | null;
   time_on_toilet_minutes: number | null;
@@ -1092,13 +1088,11 @@ export async function pullFromCloud(): Promise<void> {
           date: row.date,
           loggedAt: row.logged_at,
           bristolScores: row.bristol_scores ?? [],
-          color: (row.color as StoolColor | null) ?? null,
-          floatation: (row.floatation as StoolFloatation | null) ?? null,
-          isSticky: row.is_sticky,
-          isSmelly: row.is_smelly,
-          isStraining: row.is_straining,
+          color: row.color ?? null,
+          floatation: row.floatation ?? null,
+          characteristics: row.characteristics ?? [],
           hygiene: (row.hygiene as HygieneOption[] | null) ?? [],
-          symptoms: (row.symptoms as StoolSymptom[] | null) ?? [],
+          symptoms: row.symptoms ?? [],
           timeOnToiletMinutes: row.time_on_toilet_minutes,
           note: row.note,
           updatedAt: row.updated_at,

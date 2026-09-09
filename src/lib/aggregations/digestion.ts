@@ -177,24 +177,20 @@ export interface StoolCharacteristicCount {
   sharePct: number;
 }
 
-const CHARACTERISTIC_TESTS: [string, (s: RawStoolLog) => boolean][] = [
-  ["Sticky", (s) => s.isSticky],
-  ["Smelly", (s) => s.isSmelly],
-  ["Straining", (s) => s.isStraining],
-];
-
-/** How often each stool property (sticky, smelly, straining) showed up, out
- * of every logged entry — plain boolean columns on `stool_logs`. Symptoms
- * tied to the movement are counted separately (`stoolSymptomStats`). */
+/** How often each stool property (Sticky, Smelly, Straining by default;
+ * user-editable) showed up, out of every logged entry. Symptoms tied to
+ * the movement are counted separately (`stoolSymptomStats`). */
 export function stoolCharacteristicStats(stoolLogs: RawStoolLog[]): StoolCharacteristicCount[] {
   const total = stoolLogs.length;
   if (total === 0) return [];
-  return CHARACTERISTIC_TESTS.map(([label, test]) => {
-    const count = stoolLogs.filter(test).length;
-    return { label, count, sharePct: pct(count, total) };
-  })
+  const counts = new Map<string, number>();
+  for (const s of stoolLogs) {
+    for (const label of s.characteristics) counts.set(label, (counts.get(label) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .map(([label, count]) => ({ label, count, sharePct: pct(count, total) }))
     .filter((c) => c.count > 0)
-    .sort((a, b) => b.count - a.count);
+    .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
 }
 
 /** How often each movement-level symptom (urgency, mucus, cramps, …) was

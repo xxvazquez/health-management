@@ -157,20 +157,21 @@ describe("bristolMonthlyScoreAverage", () => {
 
 describe("stoolCharacteristicStats", () => {
   it("omits a characteristic with zero occurrences", () => {
-    const logs = [makeStoolLog({ isSticky: false, isSmelly: false })];
+    const logs = [makeStoolLog({ characteristics: [] })];
     expect(stoolCharacteristicStats(logs)).toEqual([]);
   });
 
   it("counts and sorts characteristics by frequency descending", () => {
     const logs = [
-      makeStoolLog({ isSticky: true, isSmelly: false }),
-      makeStoolLog({ isSticky: true, isSmelly: true }),
-      makeStoolLog({ isSticky: false, isSmelly: true }),
+      makeStoolLog({ characteristics: ["Sticky"] }),
+      makeStoolLog({ characteristics: ["Sticky", "Smelly"] }),
+      makeStoolLog({ characteristics: ["Sticky"] }),
+      makeStoolLog({ characteristics: ["Smelly"] }),
     ];
     const stats = stoolCharacteristicStats(logs);
-    expect(stats[0]).toMatchObject({ label: "Sticky", count: 2 });
-    const smelly = stats.find((s) => s.label === "Smelly")!;
-    expect(smelly.count).toBe(2);
+    expect(stats.map((s) => s.label)).toEqual(["Sticky", "Smelly"]);
+    expect(stats[0]).toMatchObject({ label: "Sticky", count: 3 });
+    expect(stats[1]).toMatchObject({ label: "Smelly", count: 2 });
   });
 });
 

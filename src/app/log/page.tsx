@@ -53,6 +53,7 @@ import { BAND_OPTIONS, DURATION_DEFAULT_MINUTES, INPUT_KIND, activeBandValue, ba
 import { DurationStepper } from "@/components/ui/DurationStepper";
 import { NumberStepper, UNIT_STEP_PRESETS } from "@/components/ui/NumberStepper";
 import { StoolTab, type NewStoolEntry, characteristicLabels } from "@/components/log/StoolTab";
+import { useStoolOptions } from "@/lib/useStoolOptions";
 import { WorkoutTab, type NewWorkoutEntry } from "@/components/log/WorkoutTab";
 import { CycleTab } from "@/components/log/CycleTab";
 import { TAB_ICON } from "@/components/tabIcons";
@@ -391,6 +392,7 @@ export default function LogPage() {
   // Observation-type care-log entries (Health → Visits) — surfaced on
   // the Symptoms tab as one-offs that aren't tracked day to day.
   const careLog = useCareLog();
+  const stoolOptions = useStoolOptions();
   const today = useMemo(() => todayLocalISODate(), []);
   const [date, setDate] = useState(today);
   const [tab, setTab] = useState<LogTab>("food");
@@ -1206,9 +1208,7 @@ export default function LogPage() {
       bristolScores: entry.bristolScores,
       color: entry.color,
       floatation: entry.floatation,
-      isSticky: entry.isSticky,
-      isSmelly: entry.isSmelly,
-      isStraining: entry.isStraining,
+      characteristics: entry.characteristics,
       hygiene: entry.hygiene,
       symptoms: entry.symptoms,
       timeOnToiletMinutes: entry.timeOnToiletMinutes,
@@ -1785,6 +1785,7 @@ export default function LogPage() {
         ) : tab === "stool" ? (
           <StoolTab
             entries={stoolEntriesForDate}
+            options={stoolOptions}
             isDemoData={isDemoData}
             pending={pending}
             accent={STOOL_ACCENT}

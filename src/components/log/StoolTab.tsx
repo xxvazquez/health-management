@@ -7,17 +7,8 @@ import { CloseIcon } from "@/components/ui/icons";
 import { Button } from "@/components/ui/Button";
 import { TimeField } from "@/components/ui/TimeField";
 import { defaultLogTimeValue, toTimeInputValue } from "@/lib/logCandidates";
-import {
-  STOOL_COLORS,
-  HYGIENE_OPTIONS,
-  STOOL_SYMPTOM_OPTIONS,
-  STOOL_FLOATATION_OPTIONS,
-  type RawStoolLog,
-  type StoolColor,
-  type StoolFloatation,
-  type HygieneOption,
-  type StoolSymptom,
-} from "@/lib/types";
+import type { ResolvedStoolOptions } from "@/lib/useStoolOptions";
+import { HYGIENE_OPTIONS, type RawStoolLog, type HygieneOption } from "@/lib/types";
 
 const BRISTOL_SCORES = [1, 2, 3, 4, 5, 6, 7];
 
@@ -31,18 +22,13 @@ function ChipIconWrap({ children }: { children: ReactNode }) {
   );
 }
 
-const STOOL_COLOR_SWATCH: Record<StoolColor, string> = {
-  Brown: "#8a5a34",
-  "Dark Brown": "#4f3420",
-  "Light Brown": "#b98a58",
-  Green: "#4a7a5c",
-  Yellow: "#d1ab3e",
-  Black: "#2b2b2b",
-  Pale: "#cabfa8",
-};
-
-function ColorDot({ color }: { color: StoolColor }) {
-  return <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: STOOL_COLOR_SWATCH[color] }} />;
+function ColorDot({ swatch }: { swatch: string | null }) {
+  return (
+    <span
+      className="h-2.5 w-2.5 shrink-0 rounded-full"
+      style={{ background: swatch ?? "transparent", border: swatch ? "none" : "1.5px solid var(--text-muted)" }}
+    />
+  );
 }
 
 function FloatationIcon() {
@@ -54,21 +40,23 @@ function FloatationIcon() {
   );
 }
 
+/** Icons for the three built-in characteristics — a custom one just gets
+ * no icon. */
 const CHARACTERISTIC_ICON: Record<string, ReactNode> = {
-  isSmelly: (
+  Smelly: (
     <ChipIconWrap>
       <path d="M6 4c1.4 1.4 1.4 2.6 0 4s-1.4 2.6 0 4" />
       <path d="M10 4c1.4 1.4 1.4 2.6 0 4s-1.4 2.6 0 4" />
       <path d="M14 4c1.4 1.4 1.4 2.6 0 4s-1.4 2.6 0 4" />
     </ChipIconWrap>
   ),
-  isSticky: (
+  Sticky: (
     <ChipIconWrap>
       <circle cx="7.5" cy="10" r="4" />
       <circle cx="12.5" cy="10" r="4" />
     </ChipIconWrap>
   ),
-  isStraining: (
+  Straining: (
     <ChipIconWrap>
       <circle cx="10" cy="4.2" r="1.8" />
       <path d="M10 6.5v6M6.5 9.5 10 8l3.5 1.5M7 17l3-6.5 3 6.5" />
@@ -130,12 +118,6 @@ function HygieneIcon({ option }: { option: HygieneOption }) {
   );
 }
 
-const CHARACTERISTIC_FIELDS: { key: "isSmelly" | "isSticky" | "isStraining"; label: string }[] = [
-  { key: "isSmelly", label: "Smelly" },
-  { key: "isSticky", label: "Sticky" },
-  { key: "isStraining", label: "Straining" },
-];
-
 /** 5-minute steps up to 50 — tap-to-select, same interaction as every
  * other stool field, instead of a +/- stepper. */
 const TIME_ON_TOILET_OPTIONS = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50] as const;
@@ -146,13 +128,11 @@ function timeOnToiletLabel(minutes: number): string {
 
 export interface NewStoolEntry {
   bristolScores: number[];
-  color: StoolColor | null;
-  floatation: StoolFloatation | null;
-  isSticky: boolean;
-  isSmelly: boolean;
-  isStraining: boolean;
+  color: string | null;
+  floatation: string | null;
+  characteristics: string[];
   hygiene: HygieneOption[];
-  symptoms: StoolSymptom[];
+  symptoms: string[];
   timeOnToiletMinutes: number | null;
   note: string | null;
   /** Local "HH:MM" — defaults to the moment the form was opened, editable
@@ -166,9 +146,7 @@ function blankEntry(): NewStoolEntry {
     bristolScores: [],
     color: null,
     floatation: null,
-    isSticky: false,
-    isSmelly: false,
-    isStraining: false,
+    characteristics: [],
     hygiene: [],
     symptoms: [],
     timeOnToiletMinutes: null,
@@ -182,9 +160,7 @@ function entryToDraft(entry: RawStoolLog): NewStoolEntry {
     bristolScores: entry.bristolScores,
     color: entry.color,
     floatation: entry.floatation,
-    isSticky: entry.isSticky,
-    isSmelly: entry.isSmelly,
-    isStraining: entry.isStraining,
+    characteristics: entry.characteristics,
     hygiene: entry.hygiene,
     symptoms: entry.symptoms,
     timeOnToiletMinutes: entry.timeOnToiletMinutes,
@@ -238,20 +214,14 @@ function Chip({
  * ragging. */
 const CHIP_GRID = "grid grid-cols-2 gap-1.5 min-[400px]:grid-cols-3";
 
-export function characteristicLabels(entry: {
-  isSticky: boolean;
-  isSmelly: boolean;
-  isStraining: boolean;
-}): string[] {
-  const labels: string[] = [];
-  if (entry.isSmelly) labels.push("Smelly");
-  if (entry.isSticky) labels.push("Sticky");
-  if (entry.isStraining) labels.push("Straining");
-  return labels;
+/** The stool properties logged against an entry — "Smelly", "Sticky", … */
+export function characteristicLabels(entry: { characteristics: string[] }): string[] {
+  return entry.characteristics;
 }
 
 export function StoolTab({
   entries,
+  options,
   isDemoData,
   pending,
   accent,
@@ -260,6 +230,7 @@ export function StoolTab({
   onDelete,
 }: {
   entries: RawStoolLog[];
+  options: ResolvedStoolOptions;
   isDemoData: boolean;
   pending: string | null;
   accent: string;
@@ -299,7 +270,7 @@ export function StoolTab({
       entry.symptoms.length > 0 ||
       entry.timeOnToiletMinutes != null ||
       entry.note ||
-      characteristicLabels(entry).length > 0
+      entry.characteristics.length > 0
     ) {
       setDetailsOpen(true);
     }
@@ -318,14 +289,6 @@ export function StoolTab({
     );
   }
 
-  function pickColor(color: StoolColor) {
-    setDraft((d) => ({ ...d, color: d.color === color ? null : color }));
-  }
-
-  function pickFloatation(level: StoolFloatation) {
-    setDraft((d) => ({ ...d, floatation: d.floatation === level ? null : level }));
-  }
-
   function toggleHygiene(option: HygieneOption) {
     setDraft((d) => ({
       ...d,
@@ -333,19 +296,32 @@ export function StoolTab({
     }));
   }
 
-  function toggleSymptom(symptom: StoolSymptom) {
+  function toggleSymptom(symptom: string) {
     setDraft((d) => ({
       ...d,
       symptoms: d.symptoms.includes(symptom) ? d.symptoms.filter((s) => s !== symptom) : [...d.symptoms, symptom],
     }));
   }
 
-  function pickTimeOnToilet(minutes: number) {
-    setDraft((d) => ({ ...d, timeOnToiletMinutes: d.timeOnToiletMinutes === minutes ? null : minutes }));
+  function toggleCharacteristic(label: string) {
+    setDraft((d) => ({
+      ...d,
+      characteristics: d.characteristics.includes(label)
+        ? d.characteristics.filter((c) => c !== label)
+        : [...d.characteristics, label],
+    }));
   }
 
-  function toggleCharacteristic(key: "isSmelly" | "isSticky" | "isStraining") {
-    setDraft((d) => ({ ...d, [key]: !d[key] }));
+  function pickColor(color: string) {
+    setDraft((d) => ({ ...d, color: d.color === color ? null : color }));
+  }
+
+  function pickFloatation(level: string) {
+    setDraft((d) => ({ ...d, floatation: d.floatation === level ? null : level }));
+  }
+
+  function pickTimeOnToilet(minutes: number) {
+    setDraft((d) => ({ ...d, timeOnToiletMinutes: d.timeOnToiletMinutes === minutes ? null : minutes }));
   }
 
   const detailsChosenCount =
@@ -355,7 +331,7 @@ export function StoolTab({
     (draft.symptoms.length > 0 ? 1 : 0) +
     (draft.timeOnToiletMinutes != null ? 1 : 0) +
     (draft.note?.trim() ? 1 : 0) +
-    CHARACTERISTIC_FIELDS.filter((f) => draft[f.key]).length;
+    draft.characteristics.length;
 
   return (
     <div className="flex flex-col gap-3">
@@ -432,8 +408,8 @@ export function StoolTab({
                 Color
               </p>
               <div className={CHIP_GRID}>
-                {STOOL_COLORS.map((c) => (
-                  <Chip key={c} label={c} icon={<ColorDot color={c} />} active={draft.color === c} onClick={() => pickColor(c)} accent={accent} block />
+                {options.color.map((c) => (
+                  <Chip key={c} label={c} icon={<ColorDot swatch={options.swatchFor(c)} />} active={draft.color === c} onClick={() => pickColor(c)} accent={accent} block />
                 ))}
               </div>
             </div>
@@ -443,7 +419,7 @@ export function StoolTab({
                 Floatation
               </p>
               <div className={CHIP_GRID}>
-                {STOOL_FLOATATION_OPTIONS.map((f) => (
+                {options.floatation.map((f) => (
                   <Chip key={f} label={f} icon={<FloatationIcon />} active={draft.floatation === f} onClick={() => pickFloatation(f)} accent={accent} block />
                 ))}
               </div>
@@ -454,13 +430,13 @@ export function StoolTab({
                 Characteristics
               </p>
               <div className={CHIP_GRID}>
-                {CHARACTERISTIC_FIELDS.map((f) => (
+                {options.characteristic.map((c) => (
                   <Chip
-                    key={f.key}
-                    label={f.label}
-                    icon={CHARACTERISTIC_ICON[f.key]}
-                    active={draft[f.key]}
-                    onClick={() => toggleCharacteristic(f.key)}
+                    key={c}
+                    label={c}
+                    icon={CHARACTERISTIC_ICON[c]}
+                    active={draft.characteristics.includes(c)}
+                    onClick={() => toggleCharacteristic(c)}
                     accent={accent}
                     block
                   />
@@ -473,7 +449,7 @@ export function StoolTab({
                 Symptoms
               </p>
               <div className={CHIP_GRID}>
-                {STOOL_SYMPTOM_OPTIONS.map((s) => (
+                {options.symptom.map((s) => (
                   <Chip key={s} label={s} active={draft.symptoms.includes(s)} onClick={() => toggleSymptom(s)} accent={accent} block />
                 ))}
               </div>
@@ -540,7 +516,6 @@ export function StoolTab({
         <div className="flex flex-col gap-2">
           {entries.map((entry) => {
             const busy = pending === entry.id;
-            const labels = characteristicLabels(entry);
             return (
               <div
                 key={entry.id}
@@ -565,9 +540,9 @@ export function StoolTab({
                     {entry.hygiene.length > 0 && ` · ${entry.hygiene.join(", ")}`}
                     {entry.timeOnToiletMinutes != null && ` · ${entry.timeOnToiletMinutes}m on toilet`}
                   </span>
-                  {labels.length > 0 && (
+                  {entry.characteristics.length > 0 && (
                     <span className="text-xs" style={{ color: "var(--text-secondary)" }}>
-                      {labels.join(", ")}
+                      {entry.characteristics.join(", ")}
                     </span>
                   )}
                   {entry.symptoms.length > 0 && (

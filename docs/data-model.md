@@ -115,11 +115,19 @@ erDiagram
         date        date
         timestamptz logged_at
         smallint    bristol_scores "array of 1-7, never empty"
-        text        color "Brown / … / Black / Pale"
+        text        color "free text; chips from stool_options"
+        text        floatation "free text; chips from stool_options"
+        text        characteristics "array (Smelly / Sticky / Straining …)"
         text        hygiene "array: cleanliness grade(s) + method(s)"
         text        symptoms "array: movement-level symptoms"
-        boolean     flags "is_sticky, is_smelly, is_straining"
         text        note
+    }
+    STOOL_OPTIONS {
+        uuid    id PK
+        text    kind "color / symptom / floatation / characteristic"
+        text    label
+        text    swatch "hex dot, color kind only"
+        boolean is_archived "hidden from the picker"
     }
     WORKOUT_LOGS {
         uuid    id PK
@@ -134,6 +142,14 @@ erDiagram
         text collection_methods "array"
     }
 ```
+
+**Stool colour / symptom / floatation / characteristic chips are editable**
+from Settings via `stool_options` (one table, `kind`-tagged). No rows for a
+`kind` → the built-in `DEFAULT_STOOL_*` list; the first edit materializes
+the whole default set as rows (like `doctor_specialties`). A logged value
+is plain text on `stool_logs`, so hiding or renaming a chip never touches
+past entries. `characteristics` replaced the old `is_smelly` / `is_sticky`
+/ `is_straining` booleans on 2026-09-09.
 
 **Nothing about the cycle is stored** beyond the flagged period days.
 Cycle length, current cycle day, period length, next-period predictions,
