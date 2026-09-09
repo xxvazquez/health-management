@@ -41,7 +41,7 @@ const GROUPS: { title: string; items: Entry[] }[] = [
       },
       {
         title: "Settings",
-        body: "In the sidebar (and the account menu). Add, rename, archive or hide the foods, exercises and products offered when logging; edit reminder lists and doctor types; set exercise units; choose which Log tabs and Trends dashboards appear; export your data. One search box filters every section at once.",
+        body: "In the sidebar (and the account menu). Add, rename, archive or hide the foods, exercises and products offered when logging; edit reminder lists, wishlist lists, doctor types, doctors and stool chips; set exercise units; choose which Log tabs and Trends dashboards appear; export your data. One search box filters every section at once.",
       },
       {
         title: "My Drive",
@@ -120,7 +120,7 @@ const GROUPS: { title: string; items: Entry[] }[] = [
       },
       {
         title: "Wishlist",
-        body: "Saved links grouped into your own lists, each with an optional \"who it's for\". The title is fetched from the page automatically. On Android you can share a link straight into Lauva; on iOS the Wishlist tab has an \"Add from your phone\" panel that sets up a Shortcut.",
+        body: "Saved links grouped into your own lists, each with an optional \"who it's for\". The title is fetched from the page automatically. Lists are created, renamed, recoloured and deleted from Settings (deleting a list also deletes its links). On Android you can share a link straight into Lauva; on iOS the Wishlist tab has an \"Add from your phone\" panel that sets up a Shortcut.",
       },
       {
         title: "Codes",

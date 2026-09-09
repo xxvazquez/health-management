@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
+import Link from "next/link";
 import { PencilIcon, TrashIcon } from "@/components/ui/Notebook";
 import { SearchField } from "@/components/ui/SearchField";
 import { ListSkeleton } from "@/components/ui/Skeleton";
@@ -9,17 +10,15 @@ import { PrimaryAction } from "@/components/ui/PrimaryAction";
 import { Button } from "@/components/ui/Button";
 import { FormShell } from "@/components/ui/FormShell";
 import { Field } from "@/components/ui/Field";
-import { FIELD_CLS, FIELD_STYLE, LABEL_CLS, LABEL_STYLE } from "@/components/ui/formField";
+import { FIELD_CLS, FIELD_STYLE } from "@/components/ui/formField";
 import type {
   NewWishlistItemInput,
   WishlistCategory,
   WishlistCategoryAppearance,
-  WishlistCategoryPatch,
   WishlistItem,
   WishlistShareToken,
 } from "@/lib/supabase/wishlist";
 import { CustomIcon, CUSTOM_COLOR_CHOICES, customColorValue } from "@/components/ui/customIcons";
-import { IconColorPicker } from "@/components/ui/IconColorPicker";
 
 /** Fallback per-category accent, keyed off the category's position in the
  * (oldest-first) list — see fetchWishlist. Used when the category has no
@@ -249,81 +248,6 @@ function ItemForm({
   );
 }
 
-interface CategoryFormValues {
-  name: string;
-  icon: string | null;
-  color: string | null;
-}
-
-function CategoryForm({
-  fallbackAccent,
-  initial,
-  onSave,
-  onCancel,
-}: {
-  fallbackAccent: string;
-  initial?: WishlistCategory;
-  onSave: (values: CategoryFormValues) => Promise<void>;
-  onCancel: () => void;
-}) {
-  const [name, setName] = useState(initial?.name ?? "");
-  const [icon, setIcon] = useState<string | null>(initial?.icon ?? null);
-  const [color, setColor] = useState<string | null>(initial?.color ?? null);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const accent = customColorValue(color) ?? fallbackAccent;
-
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault();
-    if (!name.trim() || saving) return;
-    setSaving(true);
-    setError(null);
-    try {
-      await onSave({ name, icon, color });
-    } catch (err) {
-      console.error("wishlist category save failed", err);
-      setError("Couldn't save that — try again in a moment.");
-      setSaving(false);
-    }
-  }
-
-  return (
-    <FormShell title={initial ? "Edit list" : "New list"} onSubmit={handleSubmit} onCancel={onCancel}>
-      <div className="flex flex-col gap-1.5">
-        <span className={LABEL_CLS} style={LABEL_STYLE}>
-          List name
-        </span>
-        <div className="flex items-center gap-3">
-          <CategoryGlyph accent={accent} icon={icon} size={40} />
-          <input
-            autoFocus
-            required
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="e.g. Home, Gifts, Books"
-            maxLength={80}
-            className={`${FIELD_CLS} min-w-0 flex-1 font-medium`}
-            style={FIELD_STYLE}
-          />
-        </div>
-      </div>
-
-      <IconColorPicker icon={icon} color={color} onIconChange={setIcon} onColorChange={setColor} accent={accent} />
-
-      <div className="flex flex-wrap items-center gap-3">
-        <Button type="submit" size="lg" accent={accent} disabled={!name.trim() || saving}>
-          {saving ? "Saving…" : initial ? "Save changes" : "Save list"}
-        </Button>
-        {error && (
-          <span className="text-xs" style={{ color: "var(--status-critical)" }}>
-            {error}
-          </span>
-        )}
-      </div>
-    </FormShell>
-  );
-}
 
 /** One row in a category's item list. */
 function ItemRow({
@@ -453,15 +377,14 @@ function CategoryRow({
 }
 
 /** One category opened full-width: back to the list, the category's own
- * items, rename/delete, and adding links straight into it. */
+ * items, and adding links straight into it. The list's name, icon and
+ * colour are edited from Settings — one place for everything editable. */
 function CategoryDetail({
   category,
   accent,
   forLabel,
   onBack,
   onAddItem,
-  onRename,
-  onDelete,
   onEditItem,
   onDeleteItem,
 }: {
@@ -470,13 +393,9 @@ function CategoryDetail({
   forLabel?: (userId: string) => string;
   onBack: () => void;
   onAddItem: () => void;
-  onRename: () => void;
-  onDelete: () => void;
   onEditItem: (item: WishlistItem) => void;
   onDeleteItem: (id: string) => void;
 }) {
-  const [confirmingDelete, setConfirmingDelete] = useState(false);
-
   return (
     <div className="flex flex-col gap-3">
       <button type="button" onClick={onBack} className="flex items-center gap-1 self-start text-xs font-medium" style={{ color: "var(--text-muted)" }}>
@@ -491,41 +410,13 @@ function CategoryDetail({
         <h2 className="min-w-0 flex-1 truncate text-lg font-semibold" style={{ color: "var(--text-primary)" }}>
           {category.name}
         </h2>
-        <div className="flex shrink-0 items-center gap-3">
-          {confirmingDelete ? (
-            <>
-              <button type="button" onClick={onDelete} className="text-xs font-semibold" style={{ color: "var(--status-critical)" }}>
-                Delete{category.items.length > 0 ? ` (${category.items.length})` : ""}
-              </button>
-              <button type="button" onClick={() => setConfirmingDelete(false)} className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
-                Keep
-              </button>
-            </>
-          ) : (
-            <>
-              <button
-                type="button"
-                onClick={onRename}
-                aria-label={`Rename ${category.name}`}
-                title="Rename list"
-                className="tap-target rounded-md p-1.5 transition-colors hover:bg-[var(--page-plane)]"
-                style={{ color: "var(--text-muted)" }}
-              >
-                <PencilIcon size={15} />
-              </button>
-              <button
-                type="button"
-                onClick={() => setConfirmingDelete(true)}
-                aria-label={`Delete ${category.name}`}
-                title="Delete list"
-                className="tap-target notebook-danger rounded-md p-1.5 transition-colors hover:bg-[var(--page-plane)]"
-                style={{ color: "var(--text-muted)" }}
-              >
-                <TrashIcon size={15} />
-              </button>
-            </>
-          )}
-        </div>
+        <Link
+          href="/manage"
+          className="shrink-0 text-xs font-medium underline decoration-dotted"
+          style={{ color: "var(--text-muted)" }}
+        >
+          Edit in Settings
+        </Link>
       </div>
 
       <div className="flex flex-col rounded-xl border px-3" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
@@ -779,8 +670,7 @@ type View =
   | { mode: "list" }
   | { mode: "phone" }
   | { mode: "detail"; categoryId: string }
-  | { mode: "item"; categoryId?: string; editing?: WishlistItem; presetUrl?: string; returnTo: "list" | "detail" }
-  | { mode: "category"; editing?: WishlistCategory; returnTo: "list" | "detail" };
+  | { mode: "item"; categoryId?: string; editing?: WishlistItem; presetUrl?: string; returnTo: "list" | "detail" };
 
 export function WishlistBoard({
   categories,
@@ -795,8 +685,6 @@ export function WishlistBoard({
   onRefresh,
   onFetchTitle,
   onCreateCategory,
-  onUpdateCategory,
-  onDeleteCategory,
   onCreateItem,
   onUpdateItem,
   onDeleteItem,
@@ -816,8 +704,6 @@ export function WishlistBoard({
   onRefresh?: () => Promise<void> | void;
   onFetchTitle?: (url: string) => Promise<string | null>;
   onCreateCategory: (name: string, appearance?: WishlistCategoryAppearance) => Promise<WishlistCategory>;
-  onUpdateCategory: (id: string, patch: WishlistCategoryPatch) => Promise<void>;
-  onDeleteCategory: (id: string) => Promise<void>;
   onCreateItem: (input: NewWishlistItemInput) => Promise<void>;
   onUpdateItem: (id: string, input: NewWishlistItemInput) => Promise<void>;
   onDeleteItem: (id: string) => Promise<void>;
@@ -895,28 +781,6 @@ export function WishlistBoard({
     return <PhoneSetup share={shareToPhone} accent={accent} onBack={() => setView({ mode: "list" })} />;
   }
 
-  if (view.mode === "category") {
-    const back = () =>
-      setView(view.returnTo === "detail" && view.editing ? { mode: "detail", categoryId: view.editing.id } : { mode: "list" });
-    const editing = view.editing;
-    return (
-      <CategoryForm
-        fallbackAccent={accent}
-        initial={editing}
-        onSave={async ({ name, icon, color }) => {
-          if (editing) {
-            await onUpdateCategory(editing.id, { name, icon, color });
-            setView(view.returnTo === "detail" ? { mode: "detail", categoryId: editing.id } : { mode: "list" });
-          } else {
-            const created = await onCreateCategory(name, { icon, color });
-            setView({ mode: "detail", categoryId: created.id });
-          }
-        }}
-        onCancel={back}
-      />
-    );
-  }
-
   const detailCategory = view.mode === "detail" ? openCategory(view.categoryId) : null;
   if (view.mode === "detail" && detailCategory) {
     const catAccent = accentByCategoryId.get(detailCategory.id) ?? accent;
@@ -927,11 +791,6 @@ export function WishlistBoard({
         forLabel={forLabel}
         onBack={() => setView({ mode: "list" })}
         onAddItem={() => setView({ mode: "item", categoryId: detailCategory.id, returnTo: "detail" })}
-        onRename={() => setView({ mode: "category", editing: detailCategory, returnTo: "detail" })}
-        onDelete={async () => {
-          await onDeleteCategory(detailCategory.id);
-          setView({ mode: "list" });
-        }}
         onEditItem={(item) => setView({ mode: "item", categoryId: detailCategory.id, editing: item, returnTo: "detail" })}
         onDeleteItem={(id) => void onDeleteItem(id)}
       />
@@ -944,14 +803,6 @@ export function WishlistBoard({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <SearchField value={search} onChange={setSearch} placeholder="Search wishlist…" />
-          <button
-            type="button"
-            onClick={() => setView({ mode: "category", returnTo: "list" })}
-            className="shrink-0 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors"
-            style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-secondary)" }}
-          >
-            New list
-          </button>
           {shareToPhone && (
             <button
               type="button"

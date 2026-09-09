@@ -13,15 +13,12 @@ import {
 import {
   createWishlistCategory,
   createWishlistItem,
-  deleteWishlistCategory,
   deleteWishlistItem,
   fetchWishlist,
-  updateWishlistCategory,
   updateWishlistItem,
   type NewWishlistItemInput,
   type WishlistCategory,
   type WishlistCategoryAppearance,
-  type WishlistCategoryPatch,
 } from "@/lib/supabase/wishlist";
 import { getPartnerLink } from "@/lib/supabase/partner";
 import { buildDemoHouseholdCodes, DEMO_HOME_ME_ID, DEMO_HOME_PARTNER_ID } from "@/lib/demoHousehold";
@@ -198,34 +195,6 @@ export function useKeepBoards() {
     [isDemo],
   );
 
-  const updateCategory = useCallback(
-    async (id: string, patch: WishlistCategoryPatch) => {
-      const current = wishlist.find((c) => c.id === id);
-      setWishlist((prev) =>
-        prev.map((c) =>
-          c.id === id
-            ? {
-                ...c,
-                ...(patch.name !== undefined ? { name: patch.name.trim() } : {}),
-                ...(patch.icon !== undefined ? { icon: patch.icon } : {}),
-                ...(patch.color !== undefined ? { color: patch.color } : {}),
-              }
-            : c,
-        ),
-      );
-      if (!isDemo && current) await updateWishlistCategory(current, patch);
-    },
-    [isDemo, wishlist],
-  );
-
-  const deleteCategory = useCallback(
-    async (id: string) => {
-      setWishlist((prev) => prev.filter((c) => c.id !== id));
-      if (!isDemo) await deleteWishlistCategory(id);
-    },
-    [isDemo],
-  );
-
   const createItem = useCallback(
     async (input: NewWishlistItemInput) => {
       if (isDemo) {
@@ -318,8 +287,6 @@ export function useKeepBoards() {
       error: wishlistError,
       refresh: loadWishlist,
       createCategory,
-      updateCategory,
-      deleteCategory,
       createItem,
       updateItem,
       deleteItem,
