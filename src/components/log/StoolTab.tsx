@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
+import clsx from "clsx";
 import { BristolIcon } from "@/components/icons/BristolIcons";
 import { CloseIcon } from "@/components/ui/icons";
 import { Button } from "@/components/ui/Button";
@@ -199,6 +200,7 @@ function Chip({
   accent,
   icon,
   ariaLabel,
+  block = false,
 }: {
   label: string;
   active: boolean;
@@ -206,6 +208,8 @@ function Chip({
   accent: string;
   icon?: ReactNode;
   ariaLabel?: string;
+  /** Fill its grid cell (equal-width pill grid) instead of hugging its label. */
+  block?: boolean;
 }) {
   return (
     <button
@@ -213,7 +217,10 @@ function Chip({
       onClick={onClick}
       aria-pressed={active}
       aria-label={ariaLabel}
-      className="flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-normal whitespace-nowrap transition-colors"
+      className={clsx(
+        "flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-left text-xs font-normal transition-colors",
+        block ? "w-full" : "whitespace-nowrap",
+      )}
       style={{
         borderColor: active ? accent : "var(--border-hairline)",
         background: active ? `color-mix(in oklab, ${accent} 14%, var(--surface-1))` : "transparent",
@@ -221,10 +228,15 @@ function Chip({
       }}
     >
       {icon}
-      {label}
+      <span className={block ? "truncate" : undefined}>{label}</span>
     </button>
   );
 }
+
+/** Equal-width pill grid — two per row on the narrowest phones, three
+ * above — used for every detail field so the chips line up instead of
+ * ragging. */
+const CHIP_GRID = "grid grid-cols-2 gap-1.5 min-[400px]:grid-cols-3";
 
 export function characteristicLabels(entry: {
   isSticky: boolean;
@@ -356,6 +368,8 @@ export function StoolTab({
         </div>
       )}
 
+      {loggedList()}
+
       <TimeField value={draft.loggedAtTime} onChange={(t) => setDraft((d) => ({ ...d, loggedAtTime: t }))} />
 
       {/* Same card treatment as every other tab's category groups
@@ -417,9 +431,9 @@ export function StoolTab({
               <p className="mb-2 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
                 Color
               </p>
-              <div className="flex flex-wrap gap-1.5">
+              <div className={CHIP_GRID}>
                 {STOOL_COLORS.map((c) => (
-                  <Chip key={c} label={c} icon={<ColorDot color={c} />} active={draft.color === c} onClick={() => pickColor(c)} accent={accent} />
+                  <Chip key={c} label={c} icon={<ColorDot color={c} />} active={draft.color === c} onClick={() => pickColor(c)} accent={accent} block />
                 ))}
               </div>
             </div>
@@ -428,9 +442,9 @@ export function StoolTab({
               <p className="mb-2 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
                 Floatation
               </p>
-              <div className="flex flex-wrap gap-1.5">
+              <div className={CHIP_GRID}>
                 {STOOL_FLOATATION_OPTIONS.map((f) => (
-                  <Chip key={f} label={f} icon={<FloatationIcon />} active={draft.floatation === f} onClick={() => pickFloatation(f)} accent={accent} />
+                  <Chip key={f} label={f} icon={<FloatationIcon />} active={draft.floatation === f} onClick={() => pickFloatation(f)} accent={accent} block />
                 ))}
               </div>
             </div>
@@ -439,7 +453,7 @@ export function StoolTab({
               <p className="mb-2 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
                 Characteristics
               </p>
-              <div className="flex flex-wrap gap-1.5">
+              <div className={CHIP_GRID}>
                 {CHARACTERISTIC_FIELDS.map((f) => (
                   <Chip
                     key={f.key}
@@ -448,6 +462,7 @@ export function StoolTab({
                     active={draft[f.key]}
                     onClick={() => toggleCharacteristic(f.key)}
                     accent={accent}
+                    block
                   />
                 ))}
               </div>
@@ -457,9 +472,9 @@ export function StoolTab({
               <p className="mb-2 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
                 Symptoms
               </p>
-              <div className="flex flex-wrap gap-1.5">
+              <div className={CHIP_GRID}>
                 {STOOL_SYMPTOM_OPTIONS.map((s) => (
-                  <Chip key={s} label={s} active={draft.symptoms.includes(s)} onClick={() => toggleSymptom(s)} accent={accent} />
+                  <Chip key={s} label={s} active={draft.symptoms.includes(s)} onClick={() => toggleSymptom(s)} accent={accent} block />
                 ))}
               </div>
             </div>
@@ -468,9 +483,9 @@ export function StoolTab({
               <p className="mb-2 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
                 Hygiene
               </p>
-              <div className="flex flex-wrap gap-1.5">
+              <div className={CHIP_GRID}>
                 {HYGIENE_OPTIONS.map((h) => (
-                  <Chip key={h} label={h} icon={<HygieneIcon option={h} />} active={draft.hygiene.includes(h)} onClick={() => toggleHygiene(h)} accent={accent} />
+                  <Chip key={h} label={h} icon={<HygieneIcon option={h} />} active={draft.hygiene.includes(h)} onClick={() => toggleHygiene(h)} accent={accent} block />
                 ))}
               </div>
             </div>
@@ -479,7 +494,7 @@ export function StoolTab({
               <p className="mb-2 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
                 Time on toilet
               </p>
-              <div className="flex flex-wrap gap-1.5">
+              <div className={CHIP_GRID}>
                 {TIME_ON_TOILET_OPTIONS.map((m) => (
                   <Chip
                     key={m}
@@ -487,6 +502,7 @@ export function StoolTab({
                     active={draft.timeOnToiletMinutes === m}
                     onClick={() => pickTimeOnToilet(m)}
                     accent={accent}
+                    block
                   />
                 ))}
               </div>
@@ -511,8 +527,16 @@ export function StoolTab({
       <Button type="button" size="sm" onClick={() => void handleSave()} disabled={!canSave || saving || isDemoData} accent={accent} className="self-start">
         {isDemoData ? "Sign in to log" : saving ? "Saving…" : editingId ? "Update entry" : "Save entry"}
       </Button>
+    </div>
+  );
 
-      {entries.length > 0 && (
+  function loggedList() {
+    if (entries.length === 0) return null;
+    return (
+      <div className="flex flex-col gap-2">
+        <p className="text-xs font-semibold" style={{ color: "var(--text-secondary)" }}>
+          Logged today
+        </p>
         <div className="flex flex-col gap-2">
           {entries.map((entry) => {
             const busy = pending === entry.id;
@@ -584,7 +608,7 @@ export function StoolTab({
             );
           })}
         </div>
-      )}
-    </div>
-  );
+      </div>
+    );
+  }
 }
