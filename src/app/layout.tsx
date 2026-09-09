@@ -14,9 +14,13 @@ import { RegisterServiceWorker } from "@/components/RegisterServiceWorker";
 import { AppLoadingSplash } from "@/components/AppLoadingSplash";
 import { MedicalDisclaimer } from "@/components/MedicalDisclaimer";
 
+// Inter is the fallback for non-Apple platforms (Apple devices render the
+// system face, SF Pro — see --font-app in globals.css). Not preloaded, so
+// Apple visitors never fetch it.
 const bodyFont = Inter({
   variable: "--font-body",
   subsets: ["latin"],
+  preload: false,
 });
 
 export const metadata: Metadata = {

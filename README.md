@@ -398,7 +398,8 @@ bug-report function is unaffected — it mails `BUG_EMAIL`, the account owner.
 
 - **Colours / branding** — CSS variables in `src/app/globals.css`. `--brand-*` is
   the true palette; everything else is a deepened, more legible version for text
-  and charts. Light theme only, one typeface (Inter). `public/icons/` are PNG
+  and charts. Light theme only. One sans-serif family: the system face (SF Pro)
+  on Apple devices via `--font-app`, Inter as the fallback elsewhere. `public/icons/` are PNG
   renders of `public/logo-mark.svg` — regenerate from the SVG, don't hand-edit
   the PNGs.
 
