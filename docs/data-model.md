@@ -404,7 +404,8 @@ Vitals tab classifies each blood-pressure reading with the ACC/AHA 2017
 categories (Normal / Elevated / Stage 1 / Stage 2), shown for reference only.
 `weight_target` is one optional goal range per user (`user_id` primary key —
 the client upserts on it, deletes by it) with `low_kg` / `high_kg`; it shades
-a band on the weight chart, nothing more.
+a band on the weight chart, nothing more. It is set and cleared from the
+Settings page; the Vitals tab shows it read-only.
 
 ### Offline for the direct-to-Supabase tables
 

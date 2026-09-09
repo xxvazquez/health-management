@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/lib/supabase/AuthContext";
 import {
-  clearWeightTarget,
   createBloodPressure,
   createWeight,
   deleteBloodPressure,
@@ -11,7 +10,6 @@ import {
   fetchBloodPressure,
   fetchWeight,
   fetchWeightTarget,
-  setWeightTarget,
   updateBloodPressure,
   updateWeight,
   type BloodPressureReading,
@@ -153,25 +151,12 @@ export function useVitals() {
     [isDemo],
   );
 
-  // --- Weight target ---
-  const saveTarget = useCallback(
-    async (next: WeightTarget) => {
-      setTarget(next);
-      if (!isDemo) await setWeightTarget(next);
-    },
-    [isDemo],
-  );
-
-  const removeTarget = useCallback(async () => {
-    setTarget(null);
-    if (!isDemo) await clearWeightTarget().catch((err) => console.error("clearWeightTarget failed", err));
-  }, [isDemo]);
-
+  // The weight goal is displayed here but set and cleared from Settings.
   return {
     isDemo,
     loading: !isDemo && loading,
     error,
     bp: { data: bp, add: addBp, edit: editBp, remove: removeBp },
-    weight: { data: weight, add: addWeight, edit: editWeight, remove: removeWeight, target, setTarget: saveTarget, clearTarget: removeTarget },
+    weight: { data: weight, add: addWeight, edit: editWeight, remove: removeWeight, target },
   };
 }
