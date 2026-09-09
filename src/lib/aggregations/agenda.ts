@@ -79,14 +79,14 @@ function timing(bucket: AgendaBucket, dueMs: number | null, hasClock: boolean, t
   if (bucket === "overdue") {
     const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
     const diff = daysBetween(today, iso);
-    if (diff >= 0) return hasClock ? clock : "earlier today";
+    if (diff >= 0) return hasClock ? clock : "earlier";
     if (diff === -1) return "yesterday";
-    return `${-diff} days ago`;
+    return `${-diff}d ago`;
   }
   if (bucket === "today" || bucket === "tomorrow") return hasClock ? clock : "";
   if (bucket === "week") {
     const weekday = d.toLocaleDateString(undefined, { weekday: "short" });
-    return hasClock ? `${weekday} · ${clock}` : weekday;
+    return hasClock ? `${weekday} ${clock}` : weekday;
   }
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }

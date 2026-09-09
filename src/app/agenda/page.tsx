@@ -8,9 +8,7 @@ import { usePartnerLinked } from "@/lib/usePartnerLinked";
 import { todayLocalISODate } from "@/lib/aggregations/common";
 import { useIsClient } from "@/lib/useIsClient";
 import { buildAgenda, type AgendaEntry } from "@/lib/aggregations/agenda";
-import { PageHeading } from "@/components/ui/PageHeading";
 import { PageShell } from "@/components/ui/PageShell";
-import { ListSkeleton } from "@/components/ui/Skeleton";
 import { AgendaBoard } from "@/components/agenda/AgendaBoard";
 import type { TaskFormValues } from "@/components/reminders/TaskForm";
 
@@ -73,38 +71,25 @@ export default function AgendaPage() {
 
   return (
     <PageShell width="narrow">
-      <div className="flex flex-col gap-5">
-        <PageHeading
-          subtitle={
-            isClient
-              ? new Date().toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" })
-              : undefined
-          }
-        >
-          Agenda
-        </PageHeading>
-
-        {!isClient ? (
-          <ListSkeleton rows={6} />
-        ) : (
-          <AgendaBoard
-            entries={entries}
-            lists={personal.lists.data}
-            partnerLinked={partnerLinked}
-            loading={loading}
-            error={boardError}
-            assignable={household.myUserId ? { myUserId: household.myUserId, partnerId: household.partnerId } : undefined}
-            onCompleteReminder={onCompleteReminder}
-            onUncompleteReminder={onUncompleteReminder}
-            onEditReminder={onEditReminder}
-            onDeleteReminder={onDeleteReminder}
-            onCreateReminder={onCreateReminder}
-            onEditExpiry={onEditExpiry}
-            onDeleteExpiry={onDeleteExpiry}
-            onCreateExpiry={onCreateExpiry}
-          />
-        )}
-      </div>
+      <AgendaBoard
+        entries={entries}
+        subtitle={
+          isClient ? new Date().toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" }) : undefined
+        }
+        lists={personal.lists.data}
+        partnerLinked={partnerLinked}
+        loading={loading || !isClient}
+        error={boardError}
+        assignable={household.myUserId ? { myUserId: household.myUserId, partnerId: household.partnerId } : undefined}
+        onCompleteReminder={onCompleteReminder}
+        onUncompleteReminder={onUncompleteReminder}
+        onEditReminder={onEditReminder}
+        onDeleteReminder={onDeleteReminder}
+        onCreateReminder={onCreateReminder}
+        onEditExpiry={onEditExpiry}
+        onDeleteExpiry={onDeleteExpiry}
+        onCreateExpiry={onCreateExpiry}
+      />
     </PageShell>
   );
 }
