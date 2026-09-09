@@ -189,6 +189,27 @@ export function useDoctors() {
   );
 
   // --- Doctors ---
+  const addDoctor = useCallback(
+    async (input: NewDoctorInput): Promise<Doctor> => {
+      if (isDemo) {
+        const d: Doctor = {
+          id: demoId("doctor"),
+          name: input.name.trim(),
+          specialty: input.specialty.trim(),
+          rating: input.rating,
+          language: input.language,
+          createdAt: new Date().toISOString(),
+        };
+        setDoctors((prev) => [...prev, d].sort((a, b) => a.name.localeCompare(b.name)));
+        return d;
+      }
+      const created = await createDoctor(input);
+      setDoctors((prev) => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)));
+      return created;
+    },
+    [isDemo],
+  );
+
   const editDoctor = useCallback(
     async (id: string, patch: DoctorPatch) => {
       const current = doctors.find((d) => d.id === id);
@@ -363,7 +384,7 @@ export function useDoctors() {
     loading: (!isDemo && loading) || careLog.loading,
     error: error || careLog.error,
     specialties: { data: specialties, ensure: ensureSpecialties, create: createSpecialty, rename: renameSpecialty, archive: archiveSpecialty, remove: removeSpecialty, setNextAppointment },
-    doctors: { data: doctors, edit: editDoctor, remove: removeDoctor },
+    doctors: { data: doctors, create: addDoctor, edit: editDoctor, remove: removeDoctor },
     appointments: { data: appointments, log: logAppointment, edit: editAppointment, remove: removeAppointment },
     tasks: { data: tasks, add: addTask, edit: editTask, setComplete: setTaskComplete, remove: removeTask },
     careLog: { data: careLog.data, supplements: careLog.supplements, add: careLog.add, edit: careLog.edit, remove: careLog.remove },

@@ -58,6 +58,10 @@ import {
   type StoolOption,
   type StoolOptionPatch,
 } from "@/lib/supabase/stoolOptions";
+import { useDoctors } from "@/lib/useDoctors";
+import { resolveSpecialtyNames } from "@/lib/doctors";
+import type { Doctor, DoctorPatch } from "@/lib/supabase/doctors";
+import { ComboBox, DoctorName, LanguageChips, RatingChips } from "@/components/doctors/shared";
 
 // Log tab order — Food, Symptoms, Supplements, Habits, Stool, Workout,
 // Cycle — so the toggle list reads left-to-right the same way the tabs
@@ -827,6 +831,257 @@ function StoolOptionRow({
           </span>
         ))}
     </li>
+  );
+}
+
+// --- Doctors -------------------------------------------------------
+
+function DoctorsCard({ searchQuery }: { searchQuery: string }) {
+  const api = useDoctors();
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newSpecialty, setNewSpecialty] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const query = searchQuery.trim().toLowerCase();
+  const isSearching = query.length > 0;
+  const accent = "var(--series-1)";
+
+  const specialtyOptions = resolveSpecialtyNames(
+    api.specialties.data,
+    api.appointments.data.map((a) => a.specialty),
+    api.doctors.data.map((d) => d.specialty),
+  );
+
+  const shown = api.doctors.data.filter((d) => !isSearching || d.name.toLowerCase().includes(query) || d.specialty.toLowerCase().includes(query));
+  if (isSearching && shown.length === 0) return null;
+
+  async function withBusy(fn: () => Promise<void>) {
+    setBusy(true);
+    try {
+      await fn();
+    } catch (err) {
+      console.error("doctor action failed", err);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleAdd(e: FormEvent) {
+    e.preventDefault();
+    const name = newName.trim();
+    if (!name) return;
+    const specialty = newSpecialty.trim();
+    await withBusy(async () => {
+      await api.doctors.create({ name, specialty, rating: null, language: null });
+      if (specialty) await api.specialties.ensure([specialty]);
+    });
+    setNewName("");
+    setNewSpecialty("");
+    setAdding(false);
+  }
+
+  return (
+    <CollapsibleManageCard
+      title="Doctors"
+      subtitle={`${api.doctors.data.length} ${api.doctors.data.length === 1 ? "doctor" : "doctors"}`}
+      forceOpen={isSearching}
+    >
+      <p className="mb-3 text-xs" style={{ color: "var(--text-secondary)" }}>
+        The doctors you can attach an appointment to — name, rating, language and their current specialty. Their visit history
+        lives on Health &rarr; Doctors.
+      </p>
+
+      {!isSearching &&
+        (adding ? (
+          <form onSubmit={handleAdd} className="mb-3 flex flex-col gap-2 rounded-lg border p-2.5" style={{ borderColor: "var(--border-hairline)" }}>
+            <input
+              autoFocus
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              placeholder="Doctor name"
+              maxLength={120}
+              className="rounded-md border px-2.5 py-1.5 text-xs outline-none"
+              style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
+            />
+            <ComboBox value={newSpecialty} onChange={setNewSpecialty} options={specialtyOptions} placeholder="Specialty" accent={accent} />
+            <div className="flex items-center gap-2">
+              <Button type="submit" size="sm" accent={accent} disabled={!newName.trim() || busy}>
+                Add doctor
+              </Button>
+              <button type="button" onClick={() => setAdding(false)} className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+                Cancel
+              </button>
+            </div>
+          </form>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setAdding(true)}
+            className="mb-3 rounded-md border px-2.5 py-1.5 text-xs font-medium"
+            style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-secondary)" }}
+          >
+            + Add doctor
+          </button>
+        ))}
+
+      {api.doctors.data.length === 0 ? (
+        <p className="py-2 text-xs" style={{ color: "var(--text-muted)" }}>
+          No doctors yet — add one above, or while logging an appointment.
+        </p>
+      ) : (
+        <ul className="flex flex-col divide-y divide-[color:var(--gridline)]">
+          {shown.map((doctor) => {
+            const visits = api.appointments.data.filter((a) => a.doctorId === doctor.id).length;
+            const editing = editingId === doctor.id;
+            return (
+              <li key={doctor.id} className="py-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingId(editing ? null : doctor.id)}
+                  className="flex w-full items-center gap-3 text-left"
+                >
+                  <span className="min-w-0 flex-1">
+                    <DoctorName name={doctor.name} rating={doctor.rating} className="text-sm" />
+                    <span className="ml-2 text-xs" style={{ color: "var(--text-muted)" }}>
+                      {doctor.specialty || "No specialty"}
+                    </span>
+                  </span>
+                  <span className="shrink-0 text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>
+                    {visits} visit{visits === 1 ? "" : "s"}
+                  </span>
+                  <ChevronIcon dir={editing ? "down" : "right"} size={13} />
+                </button>
+
+                {editing && (
+                  <DoctorEditRow
+                    doctor={doctor}
+                    specialtyOptions={specialtyOptions}
+                    accent={accent}
+                    canDelete={visits === 0}
+                    onEdit={(patch) => void api.doctors.edit(doctor.id, patch)}
+                    onEnsureSpecialty={(name) => void api.specialties.ensure([name])}
+                    onDelete={() =>
+                      void withBusy(async () => {
+                        await api.doctors.remove(doctor.id);
+                        setEditingId(null);
+                      })
+                    }
+                  />
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </CollapsibleManageCard>
+  );
+}
+
+function DoctorEditRow({
+  doctor,
+  specialtyOptions,
+  accent,
+  canDelete,
+  onEdit,
+  onEnsureSpecialty,
+  onDelete,
+}: {
+  doctor: Doctor;
+  specialtyOptions: string[];
+  accent: string;
+  canDelete: boolean;
+  onEdit: (patch: DoctorPatch) => void;
+  onEnsureSpecialty: (name: string) => void;
+  onDelete: () => void;
+}) {
+  const [nameDraft, setNameDraft] = useState(doctor.name);
+
+  function commitName() {
+    const next = nameDraft.trim();
+    if (next && next !== doctor.name) onEdit({ name: next });
+    else setNameDraft(doctor.name);
+  }
+
+  return (
+    <div className="mt-2.5 flex flex-col gap-3 rounded-lg border p-3" style={{ borderColor: "var(--border-hairline)" }}>
+      <label className="flex flex-col gap-1">
+        <span className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
+          Name
+        </span>
+        <input
+          value={nameDraft}
+          onChange={(e) => setNameDraft(e.target.value)}
+          onBlur={commitName}
+          maxLength={120}
+          className="rounded-md border px-2.5 py-1.5 text-xs outline-none"
+          style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
+        />
+      </label>
+      <label className="flex flex-col gap-1">
+        <span className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
+          Specialty
+        </span>
+        <ComboBox
+          value={doctor.specialty}
+          onChange={(specialty) => {
+            onEdit({ specialty });
+            if (specialty.trim()) onEnsureSpecialty(specialty.trim());
+          }}
+          options={specialtyOptions}
+          placeholder="Specialty"
+          accent={accent}
+        />
+      </label>
+      <div className="flex flex-col gap-1">
+        <span className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
+          Rating
+        </span>
+        <RatingChips value={doctor.rating} onChange={(rating) => onEdit({ rating })} accent={accent} />
+      </div>
+      <div className="flex flex-col gap-1">
+        <span className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
+          Language
+        </span>
+        <LanguageChips value={doctor.language} onChange={(language) => onEdit({ language })} accent={accent} />
+      </div>
+      <DoctorDeleteButton
+        disabled={!canDelete}
+        hint={!canDelete ? "Delete their appointments first" : undefined}
+        onDelete={onDelete}
+      />
+    </div>
+  );
+}
+
+function DoctorDeleteButton({ disabled, hint, onDelete }: { disabled: boolean; hint?: string; onDelete: () => void }) {
+  const [confirming, setConfirming] = useState(false);
+  if (disabled) {
+    return (
+      <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+        {hint}
+      </p>
+    );
+  }
+  return confirming ? (
+    <span className="flex items-center gap-2 text-xs">
+      <button type="button" onClick={onDelete} className="font-semibold" style={{ color: "var(--status-critical)" }}>
+        Delete doctor
+      </button>
+      <button type="button" onClick={() => setConfirming(false)} className="font-medium" style={{ color: "var(--text-muted)" }}>
+        Keep
+      </button>
+    </span>
+  ) : (
+    <button
+      type="button"
+      onClick={() => setConfirming(true)}
+      className="notebook-danger self-start rounded-md text-xs font-medium"
+      style={{ color: "var(--text-muted)" }}
+    >
+      Delete doctor
+    </button>
   );
 }
 
@@ -1917,6 +2172,7 @@ export default function ManagePage() {
   // sections rather than sitting pinned above them.
   const orderedManageSections: { label: string; el: ReactNode }[] = [
     { label: "Reminder lists", el: <ReminderListsCard key="reminder-lists" isDemoData={isDemoData} searchQuery={searchQuery} /> },
+    { label: "Doctors", el: <DoctorsCard key="doctors" searchQuery={searchQuery} /> },
     { label: "Doctor types", el: <DoctorSpecialtiesCard key="doctor-types" isDemoData={isDemoData} searchQuery={searchQuery} /> },
     { label: "Stool options", el: <StoolOptionsCard key="stool-options" isDemoData={isDemoData} searchQuery={searchQuery} /> },
     ...TYPE_SECTIONS.map((section) => ({
