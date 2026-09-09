@@ -111,6 +111,12 @@ function calendarGridDates(monthDate: string): string[] {
 
 const WEEKDAY_LABELS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
 
+// Ovulation lands ~14 days before the next period; the fertile window is
+// the ovulation day plus the five days before it.
+const LUTEAL_PHASE_DAYS = 14;
+const FERTILE_WINDOW_DAYS = 6;
+const FERTILE_FILL = "color-mix(in oklab, var(--brand-wave) 30%, var(--surface-1))";
+
 function shiftMonth(monthDate: string, delta: number): string {
   const d = new Date(`${monthDate}T00:00:00`);
   d.setMonth(d.getMonth() + delta);
@@ -128,6 +134,7 @@ function MonthGrid({
   accent,
   recordedByDate,
   predictedDates,
+  fertileDates,
   onNavigateToDate,
 }: {
   month: string;
@@ -136,6 +143,7 @@ function MonthGrid({
   accent: string;
   recordedByDate: Map<string, RawPeriodLog>;
   predictedDates: Set<string>;
+  fertileDates: Set<string>;
   onNavigateToDate: (date: string) => void;
 }) {
   const grid = useMemo(() => calendarGridDates(month), [month]);
@@ -156,6 +164,7 @@ function MonthGrid({
           const inMonth = d.slice(0, 7) === month.slice(0, 7);
           const recorded = recordedByDate.get(d);
           const predicted = !recorded && predictedDates.has(d);
+          const fertile = !recorded && !predicted && fertileDates.has(d);
           const isToday = d === today;
           const isSelected = d === date;
           return (
@@ -165,15 +174,21 @@ function MonthGrid({
               onClick={() => onNavigateToDate(d)}
               className="flex h-8 w-8 flex-col items-center justify-center rounded-md text-xs font-medium transition-colors"
               style={{
-                background: recorded ? `color-mix(in oklab, ${accent} 55%, var(--surface-1))` : predicted ? `color-mix(in oklab, ${accent} 16%, var(--surface-1))` : "transparent",
+                background: recorded
+                  ? `color-mix(in oklab, ${accent} 55%, var(--surface-1))`
+                  : predicted
+                    ? `color-mix(in oklab, ${accent} 16%, var(--surface-1))`
+                    : fertile
+                      ? FERTILE_FILL
+                      : "transparent",
                 color: recorded ? "#ffffff" : inMonth ? "var(--text-primary)" : "var(--text-muted)",
                 border: isSelected ? `2px solid ${accent}` : isToday ? `1px solid ${accent}` : "1px solid transparent",
                 // Only a bare (untracked) day dims for being outside the
-                // current month — a recorded or predicted day stays at
-                // full strength regardless, so a real period logged in
-                // the trailing/leading days of the grid never gets
-                // mistaken for a dimmer "predicted" one.
-                opacity: !recorded && !predicted && !inMonth ? 0.4 : 1,
+                // current month — a recorded, predicted or fertile day
+                // stays at full strength regardless, so a real period
+                // logged in the trailing/leading days of the grid never
+                // gets mistaken for a dimmer "predicted" one.
+                opacity: !recorded && !predicted && !fertile && !inMonth ? 0.4 : 1,
               }}
             >
               {Number(d.slice(8, 10))}
@@ -235,6 +250,23 @@ export function CycleTab({
     return set;
   }, [predictions]);
 
+  // Fertile window per predicted cycle: ovulation ~14 days before that
+  // period's expected start, plus the five days leading up to it. Same
+  // prediction source as the shaded band above, so it only shows once
+  // there are enough recorded cycles to project from.
+  const fertileDates = useMemo(() => {
+    const set = new Set<string>();
+    for (const p of predictions) {
+      const ovulation = addDaysToDate(p.expectedStart, -LUTEAL_PHASE_DAYS);
+      let d = addDaysToDate(ovulation, -(FERTILE_WINDOW_DAYS - 1));
+      while (d <= ovulation) {
+        set.add(d);
+        d = addDaysToDate(d, 1);
+      }
+    }
+    return set;
+  }, [predictions]);
+
   async function setIntensity(level: PeriodIntensity) {
     if (isDemoData || pending) return;
     setPending(true);
@@ -264,10 +296,19 @@ export function CycleTab({
       {/* ---- 1. Current cycle ---- */}
       <div className="flex flex-col gap-2 rounded-lg border p-3" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
         <div className="flex flex-wrap items-baseline justify-between gap-2 border-b pb-2" style={{ borderColor: "var(--border-hairline)" }}>
-          <div>
-            <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-              {status.onPeriod ? `Day ${status.periodDay} of your period` : status.cycleDay ? `Cycle day ${status.cycleDay}` : "No period recorded yet"}
-            </p>
+          <div className="flex flex-col gap-1">
+            {status.onPeriod || status.cycleDay != null ? (
+              <span
+                className="inline-flex w-fit items-baseline rounded-md px-2.5 py-1 text-sm font-semibold"
+                style={{ background: `color-mix(in oklab, ${accent} 13%, var(--surface-1))`, color: accent }}
+              >
+                {status.onPeriod ? `Day ${status.periodDay} of your period` : `Day ${status.cycleDay} of your cycle`}
+              </span>
+            ) : (
+              <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+                No period recorded yet
+              </p>
+            )}
             <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
               {formatFullDate(date)}
               {date === today && " · Today"}
@@ -356,10 +397,10 @@ export function CycleTab({
          * an extra click to see what's coming. 2-up down to tablet, 3-up on
          * desktop where there's still room to spare; stacks on mobile. */}
         <div className="flex flex-col items-center gap-5 sm:flex-row sm:items-start sm:justify-center sm:gap-8">
-          <MonthGrid month={calendarMonth} today={today} date={date} accent={accent} recordedByDate={recordedByDate} predictedDates={predictedDates} onNavigateToDate={onNavigateToDate} />
-          <MonthGrid month={secondMonth} today={today} date={date} accent={accent} recordedByDate={recordedByDate} predictedDates={predictedDates} onNavigateToDate={onNavigateToDate} />
+          <MonthGrid month={calendarMonth} today={today} date={date} accent={accent} recordedByDate={recordedByDate} predictedDates={predictedDates} fertileDates={fertileDates} onNavigateToDate={onNavigateToDate} />
+          <MonthGrid month={secondMonth} today={today} date={date} accent={accent} recordedByDate={recordedByDate} predictedDates={predictedDates} fertileDates={fertileDates} onNavigateToDate={onNavigateToDate} />
           <div className="hidden lg:block">
-            <MonthGrid month={thirdMonth} today={today} date={date} accent={accent} recordedByDate={recordedByDate} predictedDates={predictedDates} onNavigateToDate={onNavigateToDate} />
+            <MonthGrid month={thirdMonth} today={today} date={date} accent={accent} recordedByDate={recordedByDate} predictedDates={predictedDates} fertileDates={fertileDates} onNavigateToDate={onNavigateToDate} />
           </div>
         </div>
         <div className="flex flex-wrap items-center justify-center gap-3 pt-1 text-xs" style={{ color: "var(--text-secondary)" }}>
@@ -370,6 +411,10 @@ export function CycleTab({
           <span className="flex items-center gap-1.5">
             <span className="h-2.5 w-2.5 rounded-sm" style={{ background: `color-mix(in oklab, ${accent} 16%, var(--surface-1))` }} />
             Predicted
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="h-2.5 w-2.5 rounded-sm" style={{ background: FERTILE_FILL }} />
+            Fertile window
           </span>
           <span className="flex items-center gap-1.5">
             <span className="h-2.5 w-2.5 rounded-sm" style={{ border: `1px solid ${accent}` }} />
