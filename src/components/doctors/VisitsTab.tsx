@@ -142,9 +142,9 @@ export function VisitsTab({ api, accent }: { api: DoctorsApi; accent: string }) 
         </div>
 
         {upcoming.length > 0 && (
-          <ul className="flex flex-col divide-y rounded-xl border" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
+          <ul className="inset-rows flex flex-col rounded-xl border [--row-inset:0.75rem]" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
             {upcoming.map((s) => (
-              <li key={s.id} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-3 py-2" style={{ borderColor: "var(--gridline)" }}>
+              <li key={s.id} className="flex min-h-11 flex-wrap items-center justify-between gap-x-3 gap-y-1 px-3 py-2">
                 <span className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
                   {s.name}
                 </span>

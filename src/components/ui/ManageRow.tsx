@@ -56,8 +56,8 @@ export function ManageRow({
   }
 
   return (
-    <li className="flex flex-col gap-2 py-2">
-      <div className="flex items-center gap-2">
+    <li className="flex min-h-11 flex-col justify-center gap-2 py-1.5">
+      <div className="flex items-center gap-2.5">
         {appearance && (
           <button
             type="button"
