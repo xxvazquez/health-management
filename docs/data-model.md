@@ -532,7 +532,7 @@ phone"). Regenerating is a delete + insert, so there's no UPDATE policy.
 | Table | Purpose |
 |---|---|
 | `push_subscriptions` | One row per user — the Web Push endpoint/keys/timezone for their last device that enabled notifications. Row present = enabled. Read by the reminder cron with the service-role key. |
-| `journal_entries` | Log → Journal: a freeform diary (`date`, optional `title`, `body`). Unrelated to the per-item `*_diary` tables. Written directly to Supabase. |
+| `journal_entries` | Notes → Journal: a freeform diary (`date`, optional `title`, `body` stored as Markdown). Unrelated to the per-item `*_diary` tables. Written directly to Supabase. |
 | `notes_digest_state` | One row per user — `last_sent_date` for the daily unread-notes digest email. Written only by the cron (service role); a client only reads its own row. |
 
 ## RLS shapes

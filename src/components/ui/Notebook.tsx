@@ -1,11 +1,10 @@
 "use client";
 
-import { useState, type FormEvent, type ReactNode } from "react";
-import { Button } from "./Button";
+import { useState, type ReactNode } from "react";
 
-/** Shared surface for Journal — the list (`NoteList` / `NoteRow`) uses the
- * same card row as the rest of the app; `NotebookForm` is an unadorned
- * editing sheet so writing isn't boxed into a form. */
+/** Shared list surface for Journal — `NoteList` / `NoteRow` render the same
+ * card row as the rest of the app. The entry editor and reading view live
+ * in `JournalTab`. */
 
 export function PencilIcon({ size = 15 }: { size?: number }) {
   return (
@@ -53,11 +52,10 @@ export function headingAndPreview(title: string | null, body: string): { heading
   return { heading: firstLine(only.slice(0, cut), 120), preview: firstLine(only.slice(cut)) };
 }
 
-/** One row in the notes / journal list. The whole row opens the entry
- * (there is no separate "expand" — the editor is the reading view, same as
- * iOS Notes), so the only trailing action is delete, always with a confirm
- * step. `metaFirst` flips the stack to meta → title → body, which Journal
- * uses so the date leads each row. */
+/** One row in the notes / journal list. The whole row opens the entry (its
+ * reading view), so the only trailing action is delete, always with a
+ * confirm step. `metaFirst` flips the stack to meta → title → body, which
+ * Journal uses so the date leads each row. */
 export function NoteRow({
   title,
   meta,
@@ -140,115 +138,4 @@ export function NoteRow({
  * headers. */
 export function NoteList({ children, wide = false }: { children: ReactNode; wide?: boolean }) {
   return <ul className={`flex flex-col gap-3${wide ? " xl:grid xl:grid-cols-2 xl:items-start" : ""}`}>{children}</ul>;
-}
-
-/** Create-or-edit editor: a plain sheet, title above body, no field
- * chrome. Owns its own title/body draft and save state; `onSubmit` does
- * the write and the parent unmounts the form on success. */
-export function NotebookForm({
-  initialTitle = "",
-  initialBody = "",
-  accent,
-  submitLabel,
-  headerSlot,
-  bodyPlaceholder,
-  bodyRows = 12,
-  autoFocusBody = false,
-  onSubmit,
-  onCancel,
-  onDelete,
-}: {
-  initialTitle?: string;
-  initialBody?: string;
-  accent: string;
-  submitLabel: string;
-  headerSlot?: ReactNode;
-  bodyPlaceholder: string;
-  bodyRows?: number;
-  autoFocusBody?: boolean;
-  onSubmit: (title: string, body: string) => Promise<void>;
-  onCancel: () => void;
-  onDelete?: () => void;
-}) {
-  const [title, setTitle] = useState(initialTitle);
-  const [body, setBody] = useState(initialBody);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [confirmingDelete, setConfirmingDelete] = useState(false);
-
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault();
-    if (!body.trim()) return;
-    setSaving(true);
-    setError(null);
-    try {
-      await onSubmit(title, body);
-    } catch (err) {
-      console.error("notebook save failed", err);
-      setError("Couldn't save that — try again in a moment.");
-      setSaving(false);
-    }
-  }
-
-  return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="min-w-0 text-xs font-medium" style={{ color: "var(--text-muted)" }}>
-          {headerSlot}
-        </div>
-        <div className="flex items-center gap-3">
-          {onDelete &&
-            (confirmingDelete ? (
-              <>
-                <button type="button" onClick={onDelete} className="text-xs font-semibold" style={{ color: "var(--status-critical)" }}>
-                  Delete
-                </button>
-                <button type="button" onClick={() => setConfirmingDelete(false)} className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
-                  Keep
-                </button>
-              </>
-            ) : (
-              <button type="button" onClick={() => setConfirmingDelete(true)} className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
-                Delete
-              </button>
-            ))}
-          <button type="button" onClick={onCancel} className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
-            Cancel
-          </button>
-        </div>
-      </div>
-
-      <div className="rounded-xl bg-[var(--surface-1)] px-1 sm:px-2">
-        <input
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="Title"
-          maxLength={150}
-          className="w-full border-0 bg-transparent p-0 text-lg font-semibold outline-none"
-          style={{ color: "var(--text-primary)" }}
-        />
-        <textarea
-          required
-          autoFocus={autoFocusBody}
-          value={body}
-          onChange={(e) => setBody(e.target.value)}
-          rows={bodyRows}
-          placeholder={bodyPlaceholder}
-          className="mt-3 w-full resize-y border-0 bg-transparent p-0 text-sm leading-relaxed outline-none"
-          style={{ color: "var(--text-primary)" }}
-        />
-      </div>
-
-      <div className="flex items-center gap-3">
-        <Button type="submit" size="lg" accent={accent} disabled={saving || !body.trim()}>
-          {saving ? "Saving…" : submitLabel}
-        </Button>
-        {error && (
-          <span className="text-xs" style={{ color: "var(--status-critical)" }}>
-            {error}
-          </span>
-        )}
-      </div>
-    </form>
-  );
 }

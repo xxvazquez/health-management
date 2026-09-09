@@ -215,3 +215,121 @@ button:not(:disabled),
   height: 44px;
   transform: translate(-50%, -50%);
 }
+
+/* Rendered Journal entries — a small typographic scale for the markdown
+   a person writes in an entry. Scoped so it never leaks into app chrome. */
+.md-content {
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+.md-content > :first-child {
+  margin-top: 0;
+}
+.md-content > :last-child {
+  margin-bottom: 0;
+}
+.md-content p,
+.md-content ul,
+.md-content ol,
+.md-content blockquote,
+.md-content pre,
+.md-content table {
+  margin: 0.75em 0;
+}
+.md-content h1,
+.md-content h2,
+.md-content h3 {
+  margin: 1.4em 0 0.5em;
+  line-height: 1.3;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.md-content h1 {
+  font-size: 1.25rem;
+}
+.md-content h2 {
+  font-size: 1.1rem;
+}
+.md-content h3 {
+  font-size: 1rem;
+}
+.md-content a {
+  color: var(--brand-leaf);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.md-content strong {
+  font-weight: 600;
+}
+.md-content ul,
+.md-content ol {
+  padding-left: 1.4em;
+}
+.md-content ul {
+  list-style: disc;
+}
+.md-content ol {
+  list-style: decimal;
+}
+.md-content li {
+  margin: 0.25em 0;
+}
+.md-content li::marker {
+  color: var(--text-muted);
+}
+.md-content input[type="checkbox"] {
+  margin-right: 0.5em;
+  vertical-align: middle;
+  accent-color: var(--brand-leaf);
+}
+.md-content ul.contains-task-list {
+  list-style: none;
+  padding-left: 0.2em;
+}
+.md-content li.task-list-item {
+  margin-left: 0;
+}
+.md-content blockquote {
+  padding-left: 0.9em;
+  border-left: 2px solid var(--gridline);
+  color: var(--text-secondary);
+}
+.md-content hr {
+  margin: 1.5em 0;
+  border: 0;
+  border-top: 1px solid var(--gridline);
+}
+.md-content code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.85em;
+  background: var(--page-plane);
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+}
+.md-content pre {
+  background: var(--page-plane);
+  padding: 0.8em 1em;
+  border-radius: 8px;
+  overflow-x: auto;
+}
+.md-content pre code {
+  background: none;
+  padding: 0;
+}
+.md-content table {
+  border-collapse: collapse;
+  display: block;
+  overflow-x: auto;
+}
+.md-content th,
+.md-content td {
+  border: 1px solid var(--gridline);
+  padding: 0.4em 0.7em;
+  text-align: left;
+}
+.md-content th {
+  background: var(--page-plane);
+  font-weight: 600;
+}

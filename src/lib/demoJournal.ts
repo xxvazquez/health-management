@@ -14,32 +14,32 @@ const ENTRIES: { daysAgo: number; title: string | null; body: string }[] = [
   {
     daysAgo: 1,
     title: null,
-    body: "Slept badly again — woke up around 3 and couldn't get back down until it was almost light. Kept the morning slow, long walk after breakfast, felt more human by lunch. Note to self: no coffee after midday this week and see if it helps.",
+    body: "Quiet day and I needed it. Long walk before it got hot, then read on the balcony most of the afternoon. Noticed I wasn't checking my phone every ten minutes for once. Went to bed calm, which hasn't happened much lately.",
   },
   {
-    daysAgo: 3,
-    title: "Physio check-in",
-    body: "Second session with the new exercises. The band work is easier than last week and the pinch when I raise my arm past shoulder height is mostly gone. She added two more moves for the mornings.",
+    daysAgo: 2,
+    title: "Small things that went right",
+    body: "Rough week, so writing down the good bits before I forget them:\n\n- Called Mum and we actually laughed\n- Finished the thing at work I'd been dreading\n- Made a proper dinner instead of toast\n- Said no to the Saturday plan without feeling guilty\n\nNone of it is big. All of it helped.",
   },
   {
-    daysAgo: 6,
-    title: "Good day",
-    body: "Everything just worked today. Cooked properly, got outside twice, stomach was calm. Writing it down so I remember it's possible.",
-  },
-  {
-    daysAgo: 9,
+    daysAgo: 4,
     title: null,
-    body: "Bloating back in the evening after the pasta. Third time this month I've noticed it on a heavy-wheat day. Going to try swapping in the buckwheat one for a couple of weeks and track it properly.",
+    body: "Anxious most of the morning and I can't fully point to why. Deadline is part of it, but it felt bigger than that — that tight, everything-is-too-loud feeling. Went for a walk at lunch and it lifted a bit. Trying to remember that it always passes even when it doesn't feel like it will.",
   },
   {
-    daysAgo: 14,
-    title: "Restart",
-    body: "Fell off the tracking for about ten days over the trip and it's honestly fine. Picking it back up today. The point isn't a perfect streak, it's noticing the patterns.",
+    daysAgo: 7,
+    title: "Weekend at the coast",
+    body: "## Saturday\n\nDrove up with **no plan** and it was the best decision. Walked the whole length of the beach, found the little cafe again, sat for two hours.\n\n## Sunday\n\nWoke up early without an alarm. Swam even though the water was freezing. Came home tired in the good way.\n\n> \"You seem lighter,\" she said in the car. I think she's right.",
   },
   {
-    daysAgo: 20,
-    title: "Appointment notes",
-    body: "Bloods came back normal. Iron is at the low end of the range so worth keeping an eye on it. Follow up in three months, bring the symptom log.",
+    daysAgo: 12,
+    title: "Things I want to remember to do for myself",
+    body: "- [x] Book the eye test I keep putting off\n- [ ] Start the evening wind-down earlier, screens off by ten\n- [ ] Message the old work friends about a catch-up\n- [ ] Say yes to one social thing a week, no more\n- [ ] Stop apologising for resting",
+  },
+  {
+    daysAgo: 18,
+    title: null,
+    body: "Frustrated with myself for snapping at a friend over something small. Apologised properly and it was fine, but it stuck with me all evening. I think I've been running low for weeks and pretending I wasn't. Taking the weekend properly off — no plans, no catching up on anything.",
   },
 ];
 

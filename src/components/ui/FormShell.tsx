@@ -5,9 +5,9 @@ import type { FormEvent, ReactNode } from "react";
  * with a title and a Cancel control, fields passed as children. Keeping
  * the framing in one place is what stops these forms drifting apart.
  *
- * Journal's writing sheet (`NotebookForm`) deliberately opts out of this
- * — a journal entry shouldn't feel like filling in a form. Nothing else
- * should.
+ * Journal's writing sheet (`JournalEntryForm`) deliberately opts out of
+ * this — a journal entry shouldn't feel like filling in a form. Nothing
+ * else should.
  */
 export function FormShell({
   title,

@@ -112,7 +112,7 @@ const GROUPS: { title: string; items: Entry[] }[] = [
     items: [
       {
         title: "Journal",
-        body: "A plain diary — a date, an optional title, a body. Entries have edit and delete, the list is searchable, and it sorts newest or oldest first. Grouped under month headers.",
+        body: "A private diary for how a day went or how you're feeling — a date, an optional title, and a body you write in Markdown. The editor has a formatting toolbar (headings, bold, italic, lists, checklists, quotes, links) and a Preview switch; tapping an entry opens it as formatted text with Edit and Delete. The list is searchable, sorts newest or oldest first, and is grouped under month headers.",
       },
       {
         title: "Quick notes",
