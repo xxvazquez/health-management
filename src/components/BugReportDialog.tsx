@@ -13,10 +13,10 @@ const ACCENT = "var(--series-1)";
 
 const inputStyle = { borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" };
 
-/** The one global "Report a bug" surface — opened from the nav's
- * BugReportButton (desktop rail and mobile drawer both trigger this same
- * instance), same pattern as AccountPanel. Rendered as a direct sibling of
- * the sticky nav rail rather than nested inside it: `position: sticky`
+/** The one global feedback surface — a bug report or an idea, opened from
+ * the nav's BugReportButton (desktop rail and mobile drawer both trigger
+ * this same instance), same pattern as AccountPanel. Rendered as a direct
+ * sibling of the sticky nav rail rather than nested inside it: `position: sticky`
  * establishes its own stacking context, so a `position: fixed` dialog
  * nested inside it would render trapped beneath page content instead of
  * on top of everything, no matter its z-index. */
@@ -85,7 +85,7 @@ export function BugReportDialog({ open, onClose }: { open: boolean; onClose: () 
       >
         <div className="flex items-center justify-between">
           <h2 id="bug-report-title" className="text-sm font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
-            Report a bug
+            Feedback
           </h2>
           <button
             type="button"
@@ -100,13 +100,13 @@ export function BugReportDialog({ open, onClose }: { open: boolean; onClose: () 
 
         {!bugReportingConfigured && (
           <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-            Bug reporting isn&apos;t set up for this deployment yet.
+            Feedback isn&apos;t set up for this deployment yet.
           </p>
         )}
 
         {bugReportingConfigured && submitted && (
           <p className="text-sm" style={{ color: "var(--status-good)" }}>
-            Thanks — your report was sent.
+            Thanks — that&apos;s been sent.
           </p>
         )}
 
@@ -162,7 +162,7 @@ export function BugReportDialog({ open, onClose }: { open: boolean; onClose: () 
               />
             </label>
             <Button type="submit" disabled={submitting} accent={ACCENT}>
-              {submitting ? "Sending…" : "Send report"}
+              {submitting ? "Sending…" : "Send"}
             </Button>
             {error && (
               <span className="text-xs" style={{ color: "var(--status-critical)" }}>

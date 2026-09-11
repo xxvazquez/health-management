@@ -3,7 +3,7 @@
 // RESEND_API_KEY from GitHub Actions secrets into this function's Supabase
 // secrets — neither value is ever part of the static site build.
 
-const BUG_TYPES = new Set(["Wrong data", "Sync issue", "Display / layout", "Crash / error", "Other"]);
+const BUG_TYPES = new Set(["Wrong data", "Sync issue", "Display / layout", "Crash / error", "Idea", "Other"]);
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
