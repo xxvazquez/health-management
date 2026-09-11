@@ -112,32 +112,16 @@ export function BugReportDialog({ open, onClose }: { open: boolean; onClose: () 
 
         {bugReportingConfigured && !submitted && (
           <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-            <div className="flex flex-col gap-1.5">
-              <span className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>
-                Type
-              </span>
-              <div className="flex flex-wrap gap-1.5">
-                {BUG_TYPES.map((t) => {
-                  const active = t === bugType;
-                  return (
-                    <button
-                      key={t}
-                      type="button"
-                      onClick={() => setBugType(t)}
-                      aria-pressed={active}
-                      className="rounded-lg border px-2.5 py-1.5 text-sm font-medium transition-colors"
-                      style={{
-                        borderColor: active ? ACCENT : "var(--border-hairline)",
-                        background: active ? "color-mix(in oklab, var(--series-1) 12%, var(--surface-1))" : "transparent",
-                        color: active ? ACCENT : "var(--text-secondary)",
-                      }}
-                    >
-                      {t}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+            <label className="flex flex-col gap-1 text-sm font-medium" style={{ color: "var(--text-secondary)" }}>
+              Type
+              <select value={bugType} onChange={(e) => setBugType(e.target.value as BugType)} className="rounded-md border px-3 py-2 text-sm outline-none" style={inputStyle}>
+                {BUG_TYPES.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
+            </label>
             <label className="flex flex-col gap-1 text-sm font-medium" style={{ color: "var(--text-secondary)" }}>
               Location
               <input
