@@ -63,8 +63,13 @@ export function SegmentedTabs<T extends string>({
       const moreW = samples[samples.length - 1]?.offsetWidth ?? 60;
       const widths = samples.slice(0, items.length).map((s) => s.offsetWidth);
       const avail = root.clientWidth - 4; // track padding
-      const total = widths.reduce((a, b) => a + b, 0);
-      if (total <= avail) {
+      // When nothing overflows, every segment renders `flex-1` — an equal
+      // share of `avail`, not its own natural width. So "everything fits"
+      // has to mean the longest label still clears that equal share, not
+      // just that the widths sum to less than avail (which let a couple of
+      // long labels among several short ones get squeezed and truncate).
+      const maxWidth = widths.length > 0 ? Math.max(...widths) : 0;
+      if (maxWidth * items.length <= avail) {
         setVisibleCount(items.length);
         return;
       }
