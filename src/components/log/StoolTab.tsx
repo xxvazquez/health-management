@@ -194,8 +194,8 @@ function Chip({
       aria-pressed={active}
       aria-label={ariaLabel}
       className={clsx(
-        "flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-left text-xs font-normal transition-colors",
-        block ? "w-full" : "whitespace-nowrap",
+        "flex gap-1.5 rounded-md border px-2.5 py-1.5 text-left text-xs font-normal transition-colors",
+        block ? "w-full items-start" : "items-center whitespace-nowrap",
       )}
       style={{
         borderColor: active ? accent : "var(--border-hairline)",
@@ -204,7 +204,7 @@ function Chip({
       }}
     >
       {icon}
-      <span className={block ? "truncate" : undefined}>{label}</span>
+      <span>{label}</span>
     </button>
   );
 }
