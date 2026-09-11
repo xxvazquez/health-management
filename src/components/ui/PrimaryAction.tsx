@@ -1,14 +1,4 @@
-"use client";
-
-import { useSyncExternalStore } from "react";
-import { createPortal } from "react-dom";
 import { Button } from "./Button";
-
-// Hydration-safe "are we on the client yet" — the server snapshot is
-// false, the client's is true, so the portal below only renders after
-// hydration with no mismatch and no effect-driven setState.
-const noopSubscribe = () => () => {};
-const useIsClient = () => useSyncExternalStore(noopSubscribe, () => true, () => false);
 
 /** The one "create something" control — same accent fill and label
  * grammar everywhere it appears. Pass the label as "New <noun>" when it
@@ -16,11 +6,11 @@ const useIsClient = () => useSyncExternalStore(noopSubscribe, () => true, () => 
  * opens a small "what kind?" picker first (Agenda, Health → Visits); the
  * "+" is added here.
  *
- * Desktop shows it inline, right-aligned above a list. Mobile shows it as
- * a fixed bottom-right button that stays reachable however far the list
- * has scrolled, sitting just above the bottom nav and below any dialog.
- * The mobile button renders through a portal so it clears any list
- * container that clips or hides its overflow. */
+ * Renders inline wherever it's called — every call site already places it
+ * at the top of its section (a `PageHeading` actions slot, or beside that
+ * section's search/sort row), so there's no separate mobile treatment: a
+ * fixed floating circle used to sit here instead, but it read as an
+ * Android affordance and could cover a scrolled list's last row. */
 export function PrimaryAction({
   label,
   onClick,
@@ -32,33 +22,9 @@ export function PrimaryAction({
   accent: string;
   disabled?: boolean;
 }) {
-  const isClient = useIsClient();
-
   return (
-    <>
-      {/* Wrapper carries the `hidden` — a plain element with no competing
-          `display` utility, so it actually hides on mobile (Button's own
-          `inline-flex` otherwise wins the cascade in Tailwind v4). */}
-      <span className="hidden lg:inline-flex">
-        <Button type="button" size="sm" accent={accent} onClick={onClick} disabled={disabled} className="shrink-0 transition-opacity hover:opacity-90">
-          + {label}
-        </Button>
-      </span>
-
-      {isClient &&
-        createPortal(
-          <button
-            type="button"
-            onClick={onClick}
-            disabled={disabled}
-            aria-label={label}
-            className="fixed right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full text-2xl leading-none text-white shadow-lg transition-opacity hover:opacity-90 disabled:opacity-50 lg:hidden"
-            style={{ background: accent, bottom: "calc(env(safe-area-inset-bottom, 0px) + 5rem)" }}
-          >
-            <span aria-hidden="true">+</span>
-          </button>,
-          document.body,
-        )}
-    </>
+    <Button type="button" size="sm" accent={accent} onClick={onClick} disabled={disabled} className="shrink-0 transition-opacity hover:opacity-90">
+      + {label}
+    </Button>
   );
 }
