@@ -38,7 +38,7 @@ export function BottomNav() {
         const active = isActiveHref(pathname, item.href);
         // Flat, iOS-style: the active tab is the tint colour only — no pill,
         // no fill, no indicator bar.
-        const tint = active ? "var(--series-1)" : "var(--text-muted)";
+        const tint = active ? "var(--ui-accent)" : "var(--text-muted)";
         return (
           <Link
             key={item.href}

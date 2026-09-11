@@ -68,7 +68,7 @@ export function PartnerLinkPanel({ onLinked }: { onLinked: () => void }) {
             <span className="text-lg font-semibold tracking-[0.2em] tabular-nums" style={{ color: "var(--text-primary)" }}>
               {invite.code}
             </span>
-            <button type="button" onClick={handleGenerate} className="text-xs font-medium" style={{ color: "var(--series-1)" }}>
+            <button type="button" onClick={handleGenerate} className="text-xs font-medium" style={{ color: ACCENT }}>
               New code
             </button>
           </div>

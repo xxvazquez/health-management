@@ -25,7 +25,7 @@ export function Methodology({
         type="button"
         onClick={() => setOpen((v) => !v)}
         className="text-xs font-medium"
-        style={{ color: "var(--series-1)" }}
+        style={{ color: "var(--ui-accent)" }}
       >
         {open ? "Hide methodology" : label}
       </button>

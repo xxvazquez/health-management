@@ -208,7 +208,7 @@ export function DriveFilePicker({ onPick, onClose }: { onPick: (file: DriveAttac
                         {crumb.name}
                       </span>
                     ) : (
-                      <button type="button" onClick={() => goToCrumb(i)} className="font-medium" style={{ color: "var(--series-1)" }}>
+                      <button type="button" onClick={() => goToCrumb(i)} className="font-medium" style={{ color: "var(--ui-accent)" }}>
                         {crumb.name}
                       </button>
                     )}
@@ -240,7 +240,7 @@ export function DriveFilePicker({ onPick, onClose }: { onPick: (file: DriveAttac
                         className="flex w-full items-center gap-2.5 border-b px-3 py-2.5 text-left transition-colors last:border-b-0 hover:bg-[var(--page-plane)]"
                         style={{ borderColor: "var(--gridline)" }}
                       >
-                        <span className="shrink-0" style={{ color: isFolder(file) ? "var(--series-1)" : "var(--text-muted)" }}>
+                        <span className="shrink-0" style={{ color: isFolder(file) ? "var(--ui-accent)" : "var(--text-muted)" }}>
                           {isFolder(file) ? DriveFolderIcon : driveFileIcon(file.mimeType)}
                         </span>
                         <span className="min-w-0 flex-1 truncate text-sm" style={{ color: "var(--text-primary)" }}>

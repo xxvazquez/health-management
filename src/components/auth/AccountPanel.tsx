@@ -239,7 +239,7 @@ export function AccountPanel() {
               type="button"
               onClick={() => goToMode("signIn")}
               className="self-center text-xs font-medium"
-              style={{ color: "var(--series-1)" }}
+              style={{ color: "var(--ui-accent)" }}
             >
               Back to sign in
             </button>
@@ -277,7 +277,7 @@ export function AccountPanel() {
                     type="button"
                     onClick={() => goToMode("reset")}
                     className="font-medium"
-                    style={{ color: "var(--series-1)" }}
+                    style={{ color: "var(--ui-accent)" }}
                   >
                     Forgot?
                   </button>
@@ -307,7 +307,7 @@ export function AccountPanel() {
                 type="button"
                 onClick={() => goToMode(mode === "signIn" ? "signUp" : "signIn")}
                 className="font-medium"
-                style={{ color: "var(--series-1)" }}
+                style={{ color: "var(--ui-accent)" }}
               >
                 {mode === "signIn" ? "Create an account" : "Sign in"}
               </button>
@@ -318,7 +318,7 @@ export function AccountPanel() {
         {configured && !session && (
           <p className="border-t pt-3 text-center text-xs" style={{ borderColor: "var(--border-hairline)", color: "var(--text-muted)" }}>
             You can look around without an account — nothing is saved until you sign in.{" "}
-            <Link href="/help" onClick={closePanel} className="font-medium underline" style={{ color: "var(--series-1)" }}>
+            <Link href="/help" onClick={closePanel} className="font-medium underline" style={{ color: "var(--ui-accent)" }}>
               What is Lauva?
             </Link>
           </p>

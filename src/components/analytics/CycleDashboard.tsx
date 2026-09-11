@@ -57,7 +57,7 @@ export function CycleDashboard() {
         subtitle={
           <>
             Patterns from what you&apos;ve logged — head to the{" "}
-            <Link href="/log" className="underline" style={{ color: "var(--series-1)" }}>
+            <Link href="/log" className="underline" style={{ color: "var(--ui-accent)" }}>
               Log page
             </Link>{" "}
             to record or correct a period day.

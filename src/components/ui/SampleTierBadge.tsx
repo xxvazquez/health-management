@@ -7,7 +7,7 @@ import { SAMPLE_TIER_EXPLANATION, SAMPLE_TIER_LABEL, type SampleTier } from "@/l
 const TIER_META: Record<SampleTier, { dots: number; color: string }> = {
   insufficient: { dots: 0, color: "var(--text-muted)" },
   exploratory: { dots: 1, color: "var(--text-muted)" },
-  moderate: { dots: 2, color: "var(--series-1)" },
+  moderate: { dots: 2, color: "var(--ui-accent)" },
   strong: { dots: 3, color: "var(--status-good)" },
 };
 

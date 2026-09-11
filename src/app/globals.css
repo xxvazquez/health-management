@@ -14,21 +14,30 @@
   --brand-dot: #f4a7b8;
   --brand-mint: #e6f1f2;
 
-  /* Chrome & ink. Cards are plain white; the page backdrop is a near-neutral
-     off-white with only the faintest mint whisper — green is an accent
-     color (selected states, positive findings), never the backdrop itself.
-     An earlier version leaned much more mint here and read as a "green
-     wellness app" rather than a calm data product; a saturated backdrop
-     under a pure-white card also read as too much contrast on its own. */
+  /* Chrome & ink — the "Cool Studio White" palette (L3): crisp cool
+     white/grey ground, a wave-blue interactive tint. One of several ground
+     palettes a viewer can pick in Settings → Appearance (see the `l1`/`l4`/
+     `l5` overrides below); this block is simply the light default, so it
+     carries no [data-palette] selector of its own. */
+  --page-backdrop: #f4f6f8;
   --surface-1: #ffffff;
-  --page-plane: var(--brand-mint);
-  --page-backdrop: #f7faf9;
-  --text-primary: #24313a;
-  --text-secondary: #57666d;
-  --text-muted: #65747c;
-  --gridline: #dde8e8;
-  --baseline: #c0d0d0;
-  --border-hairline: rgba(36, 49, 58, 0.1);
+  --page-plane: #eaeef2;
+  --text-primary: #1f2933;
+  --text-secondary: #5b6b76;
+  --text-muted: #7c8a94;
+  --border-hairline: rgba(31, 41, 51, 0.1);
+  /* The one default interactive tint — buttons, tinted text, active-state
+     icons, anything that doesn't have its own domain hue (Food, Workout,
+     Messages, … keep their own `--series-*`). Varies per palette; the
+     categorical `--series-*` set below never does, since Food's identity
+     has to stay Food's identity regardless of which ground palette is
+     active. */
+  --ui-accent: #3a7cb8;
+  /* Gridlines and the chart/date-field baseline are a step in from the
+     surface toward the muted-text tone — derived off the tokens above so
+     every palette gets a correctly-contrasted line for free. */
+  --gridline: color-mix(in oklab, var(--text-muted) 20%, var(--surface-1));
+  --baseline: color-mix(in oklab, var(--text-muted) 45%, var(--surface-1));
   /* The segmented-control track — set so the active thumb (`--surface-1`)
      always reads as raised above it, in either theme. */
   --segment-track: var(--page-plane);
@@ -105,25 +114,28 @@
 
 /* Dark mode. A pre-paint script in layout.tsx resolves the stored Light /
    Dark / System choice (see src/lib/theme.ts) and stamps `data-theme` on
-   <html>, so this one attribute selector drives everything. Derived from
-   the Lauva palette: a deep teal-slate ground (never pure black), and the
-   categorical + status hues only *just* lifted from their light values
-   with the chroma pulled DOWN, never up — dusty and grey-toned, never a
-   bright/neon accent. Only the tokens change; components keep styling
-   through them. */
+   <html>, so this one attribute selector drives everything. This block is
+   the "Midnight Slate" palette (D1), the dark default — a cooler blue-black
+   ground and a clear teal tint, never pure black. `--ui-accent` is the one
+   token that moves per palette (see the `d2`/`d4` overrides below); the
+   categorical `--series-*` set stays fixed so a domain's colour never
+   shifts with the viewer's chosen ground. */
 :root[data-theme="dark"] {
   color-scheme: dark;
 
-  --surface-1: #1e262a;
-  --page-plane: #273035;
-  --page-backdrop: #151b1e;
-  --text-primary: #e7ecea;
-  --text-secondary: #a7b2b1;
-  --text-muted: #8e9a9c;
-  --gridline: #2c363b;
-  --baseline: #3d4a50;
-  --border-hairline: rgba(231, 236, 234, 0.13);
-  --segment-track: #12181b; /* below --surface-1, so the thumb reads raised */
+  --page-backdrop: #12161b;
+  --surface-1: #1a2027;
+  --page-plane: #212932;
+  --text-primary: #eef2f4;
+  --text-secondary: #aab4bb;
+  --text-muted: #7c8790;
+  --border-hairline: rgba(238, 242, 244, 0.1);
+  --ui-accent: #4fb3ab;
+  --gridline: color-mix(in oklab, var(--text-muted) 20%, var(--surface-1));
+  --baseline: color-mix(in oklab, var(--text-muted) 45%, var(--surface-1));
+  /* Below --surface-1 (not derived off it like the light track) so the
+     active thumb reads raised in every dark palette. */
+  --segment-track: color-mix(in oklab, black 35%, var(--surface-1));
 
   --series-1: #638f80; /* dusty sage */
   --series-2: #5f92bb; /* muted steel blue */
@@ -152,6 +164,78 @@
 
   --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 28px -14px rgba(0, 0, 0, 0.6);
   --shadow-card-hover: 0 2px 4px rgba(0, 0, 0, 0.45), 0 16px 36px -14px rgba(0, 0, 0, 0.7);
+}
+
+/* Alternate ground palettes — picked in Settings → Appearance, stored
+   per-mode (`src/lib/theme.ts`) and stamped as `[data-palette]` alongside
+   `[data-theme]`. Only the ground + ink + `--ui-accent` move; `--series-*`,
+   `--status-*` and the shadows stay put (see the comments on the base
+   `:root` / `:root[data-theme="dark"]` blocks above) so charts and domain
+   colours never shift underneath a viewer who's just picking a look. */
+
+/* L1 — "Warm Leaf": the original Lauva ground, a mint-whisper backdrop with
+   a sage tint. */
+:root[data-palette="l1"] {
+  --page-backdrop: #f6faf9;
+  --surface-1: #ffffff;
+  --page-plane: #eef5f3;
+  --text-primary: #202b30;
+  --text-secondary: #55646b;
+  --text-muted: #6b7981;
+  --border-hairline: rgba(32, 43, 48, 0.1);
+  --ui-accent: #3f7d68;
+}
+
+/* L4 — "Soft Lavender": a light lavender-tinted ground, leaning into the
+   brand's lavender note instead of the leaf. */
+:root[data-palette="l4"] {
+  --page-backdrop: #f7f5fb;
+  --surface-1: #ffffff;
+  --page-plane: #efebf7;
+  --text-primary: #2a2733;
+  --text-secondary: #64606f;
+  --text-muted: #837e8d;
+  --border-hairline: rgba(42, 39, 51, 0.1);
+  --ui-accent: #8171b8;
+}
+
+/* L5 — "High-Contrast Editorial": bright white, near-black ink, a bolder
+   accent — a graphic, confident register rather than a soft pastel one. */
+:root[data-palette="l5"] {
+  --page-backdrop: #ffffff;
+  --surface-1: #ffffff;
+  --page-plane: #f0f0f0;
+  --text-primary: #131313;
+  --text-secondary: #46484c;
+  --text-muted: #6b6e73;
+  --border-hairline: rgba(19, 19, 19, 0.15);
+  --ui-accent: #1f7a5c;
+}
+
+/* D2 — "Warm Charcoal": a warm dark neutral ground with a gold-sage tint,
+   instead of D1's cooler slate. */
+:root[data-theme="dark"][data-palette="d2"] {
+  --page-backdrop: #181613;
+  --surface-1: #201d19;
+  --page-plane: #29241f;
+  --text-primary: #f1ece4;
+  --text-secondary: #bdb2a2;
+  --text-muted: #8f8576;
+  --border-hairline: rgba(241, 236, 228, 0.1);
+  --ui-accent: #d3a15a;
+}
+
+/* D4 — "Cool Graphite": a neutral graphite ground with an indigo-blue tint,
+   leaning on the wave/lavender half of the brand rather than leaf-green. */
+:root[data-theme="dark"][data-palette="d4"] {
+  --page-backdrop: #15161c;
+  --surface-1: #1d1f28;
+  --page-plane: #252833;
+  --text-primary: #edeef3;
+  --text-secondary: #a7abbb;
+  --text-muted: #7d8194;
+  --border-hairline: rgba(237, 238, 243, 0.1);
+  --ui-accent: #7c93e0;
 }
 
 @theme inline {

@@ -52,7 +52,7 @@ function variantStyle(variant: ButtonVariant, accent: string): CSSProperties {
  * here. Board forms (`TaskForm`, `NoteForm`, etc.) aren't migrated yet —
  * they have their own submit/cancel pairing and were left for a follow-up.
  */
-export function Button({ variant = "primary", size = "md", accent = "var(--series-1)", className, children, href, ...rest }: ButtonAsButton | ButtonAsLink) {
+export function Button({ variant = "primary", size = "md", accent = "var(--ui-accent)", className, children, href, ...rest }: ButtonAsButton | ButtonAsLink) {
   const cls = clsx(BASE_CLS, SIZE_CLS[size], variant === "outline" && "border", className);
   const style = variantStyle(variant, accent);
 

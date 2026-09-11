@@ -362,11 +362,11 @@ export function WorkoutDashboard() {
         subtitle={
           <>
             Charts and progression from what you&apos;ve logged — head to the{" "}
-            <Link href="/log" className="underline" style={{ color: "var(--series-1)" }}>
+            <Link href="/log" className="underline" style={{ color: "var(--ui-accent)" }}>
               Log page
             </Link>{" "}
             to add a lift, or{" "}
-            <Link href="/manage" className="underline" style={{ color: "var(--series-1)" }}>
+            <Link href="/manage" className="underline" style={{ color: "var(--ui-accent)" }}>
               Manage
             </Link>{" "}
             to add, archive, or set units for exercises.

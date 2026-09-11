@@ -30,11 +30,11 @@ export function SupplementsDashboard() {
         subtitle={
           <>
             Consistency for every supplement you&apos;ve logged — head to the{" "}
-            <Link href="/log" className="underline" style={{ color: "var(--series-1)" }}>
+            <Link href="/log" className="underline" style={{ color: "var(--ui-accent)" }}>
               Log page
             </Link>{" "}
             to check one off, or{" "}
-            <Link href="/manage" className="underline" style={{ color: "var(--series-1)" }}>
+            <Link href="/manage" className="underline" style={{ color: "var(--ui-accent)" }}>
               Settings
             </Link>{" "}
             to add, rename, or archive them.

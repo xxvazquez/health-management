@@ -27,7 +27,7 @@ import { LabMarkerChart } from "@/components/charts/LabMarkerChart";
 import { CustomIcon, customColorValue } from "@/components/ui/customIcons";
 import { Segmented } from "@/components/ui/Segmented";
 
-const ACCENT = "var(--series-1)";
+const ACCENT = "var(--ui-accent)";
 
 type Mode = "average" | "last";
 type SortKey = "panel" | "name";

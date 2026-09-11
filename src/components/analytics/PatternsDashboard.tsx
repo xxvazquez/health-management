@@ -72,7 +72,7 @@ export function PatternsDashboard() {
           <div className="flex flex-wrap items-center gap-2">
             <span
               className="rounded-md px-2 py-0.5 text-[11px] font-semibold tracking-wide uppercase"
-              style={{ background: "color-mix(in oklab, var(--series-1) 15%, var(--surface-1))", color: "var(--series-1)" }}
+              style={{ background: "color-mix(in oklab, var(--ui-accent) 15%, var(--surface-1))", color: "var(--ui-accent)" }}
             >
               Strongest signal
             </span>

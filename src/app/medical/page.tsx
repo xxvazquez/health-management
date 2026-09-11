@@ -16,7 +16,7 @@ import { DemoNotice } from "@/components/ui/DemoNotice";
 // every tab's own charts / forms / add button. The tabs here aren't
 // colour-coded concepts the way Log's domains are, so recolouring the
 // page chrome per tab just made it feel like four separate pages.
-const HEALTH_ACCENT = "var(--series-1)";
+const HEALTH_ACCENT = "var(--ui-accent)";
 
 type MedicalTabId = "visits" | "results" | "vitals" | "doctors";
 const TABS: { id: MedicalTabId; label: string }[] = [

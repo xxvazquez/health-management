@@ -44,7 +44,19 @@ import { buildDemoWeightTarget } from "@/lib/demoVitals";
 import { useLabs } from "@/lib/useLabs";
 import { MarkerForm } from "@/components/doctors/labForms";
 import { Segmented } from "@/components/ui/Segmented";
-import { setThemePref, useThemePref } from "@/lib/theme";
+import {
+  setThemePref,
+  useThemePref,
+  setLightPalette,
+  setDarkPalette,
+  useLightPalette,
+  useDarkPalette,
+  PALETTE_INFO,
+  LIGHT_PALETTES,
+  DARK_PALETTES,
+  type LightPalette,
+  type DarkPalette,
+} from "@/lib/theme";
 import {
   createDoctorSpecialty,
   deleteDoctorSpecialty,
@@ -123,10 +135,40 @@ function CollapsibleManageCard({
   );
 }
 
-/** Light / Dark / System — a per-device choice (localStorage, applied by a
- * pre-paint script + ThemeManager), not synced. */
+/** One ground-palette option — a small two-tone swatch (page background +
+ * accent dot) plus its name, with a ring on the active choice. */
+function PaletteSwatch<T extends string>({ id, active, onClick }: { id: T; active: boolean; onClick: () => void }) {
+  const info = PALETTE_INFO[id as LightPalette | DarkPalette];
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      aria-label={info.name}
+      title={info.name}
+      className="flex flex-col items-center gap-1"
+    >
+      <span
+        className="flex h-9 w-9 items-center justify-center rounded-full border-2 transition-colors"
+        style={{ background: info.bg, borderColor: active ? info.accent : "var(--border-hairline)" }}
+      >
+        <span className="h-3.5 w-3.5 rounded-full" style={{ background: info.accent }} />
+      </span>
+      <span className="max-w-14 truncate text-[11px] font-medium" style={{ color: active ? "var(--text-primary)" : "var(--text-muted)" }}>
+        {info.name}
+      </span>
+    </button>
+  );
+}
+
+/** Light / Dark / System, plus which ground palette each mode uses — all
+ * per-device choices (localStorage, applied by a pre-paint script +
+ * ThemeManager), not synced. The palette rows show every option regardless
+ * of which mode is currently active, since System can resolve to either. */
 function AppearanceCard() {
   const pref = useThemePref();
+  const lightPalette = useLightPalette();
+  const darkPalette = useDarkPalette();
   return (
     <Card tier="supporting">
       <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
@@ -146,6 +188,28 @@ function AppearanceCard() {
           ] as const
         }
       />
+      <div className="mt-4 flex flex-col gap-3">
+        <div className="flex flex-col gap-1.5">
+          <span className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
+            Light palette
+          </span>
+          <div className="flex gap-3">
+            {LIGHT_PALETTES.map((id) => (
+              <PaletteSwatch key={id} id={id} active={id === lightPalette} onClick={() => setLightPalette(id)} />
+            ))}
+          </div>
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <span className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
+            Dark palette
+          </span>
+          <div className="flex gap-3">
+            {DARK_PALETTES.map((id) => (
+              <PaletteSwatch key={id} id={id} active={id === darkPalette} onClick={() => setDarkPalette(id)} />
+            ))}
+          </div>
+        </div>
+      </div>
     </Card>
   );
 }
@@ -178,9 +242,9 @@ function VisibleSectionsCard() {
               aria-pressed={!isHidden}
               className="rounded-md border px-2.5 py-1.5 text-xs font-medium whitespace-nowrap transition-colors"
               style={{
-                borderColor: isHidden ? "var(--border-hairline)" : "var(--series-1)",
-                background: isHidden ? "transparent" : "color-mix(in oklab, var(--series-1) 14%, var(--surface-1))",
-                color: isHidden ? "var(--text-muted)" : "var(--series-1)",
+                borderColor: isHidden ? "var(--border-hairline)" : "var(--ui-accent)",
+                background: isHidden ? "transparent" : "color-mix(in oklab, var(--ui-accent) 14%, var(--surface-1))",
+                color: isHidden ? "var(--text-muted)" : "var(--ui-accent)",
                 textDecoration: isHidden ? "line-through" : "none",
               }}
             >
@@ -274,7 +338,7 @@ function WishlistListsCard({ isDemoData, searchQuery }: { isDemoData: boolean; s
           className="flex-1 rounded-md border px-2.5 py-1.5 text-xs outline-none"
           style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
         />
-        <button type="submit" disabled={!newName.trim()} className="shrink-0 rounded-md px-3 py-1.5 text-xs font-semibold disabled:opacity-40" style={{ color: "var(--series-1)" }}>
+        <button type="submit" disabled={!newName.trim()} className="shrink-0 rounded-md px-3 py-1.5 text-xs font-semibold disabled:opacity-40" style={{ color: "var(--ui-accent)" }}>
           Add list
         </button>
       </form>
@@ -435,7 +499,7 @@ function WeightGoalCard({ isDemoData, searchQuery }: { isDemoData: boolean; sear
  * entry (a single value or a whole draw) and a slim marker quick-add. */
 function LabResultsCard({ searchQuery }: { searchQuery: string }) {
   const labs = useLabs();
-  const accent = "var(--series-1)";
+  const accent = "var(--ui-accent)";
   const [addingMarker, setAddingMarker] = useState(false);
   const [editingMarkerId, setEditingMarkerId] = useState<string | null>(null);
   const [confirmingMarker, setConfirmingMarker] = useState<string | null>(null);
@@ -729,7 +793,7 @@ function ReminderListsCard({ isDemoData, searchQuery }: { isDemoData: boolean; s
           className="flex-1 rounded-md border px-2.5 py-1.5 text-xs outline-none"
           style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
         />
-        <button type="submit" disabled={!newName.trim()} className="shrink-0 rounded-md px-3 py-1.5 text-xs font-semibold disabled:opacity-40" style={{ color: "var(--series-1)" }}>
+        <button type="submit" disabled={!newName.trim()} className="shrink-0 rounded-md px-3 py-1.5 text-xs font-semibold disabled:opacity-40" style={{ color: "var(--ui-accent)" }}>
           Add list
         </button>
       </form>
@@ -950,7 +1014,7 @@ function DoctorSpecialtiesCard({ isDemoData, searchQuery }: { isDemoData: boolea
           className="flex-1 rounded-md border px-2.5 py-1.5 text-xs outline-none"
           style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
         />
-        <button type="submit" disabled={!newName.trim()} className="shrink-0 rounded-md px-3 py-1.5 text-xs font-semibold disabled:opacity-40" style={{ color: "var(--series-1)" }}>
+        <button type="submit" disabled={!newName.trim()} className="shrink-0 rounded-md px-3 py-1.5 text-xs font-semibold disabled:opacity-40" style={{ color: "var(--ui-accent)" }}>
           Add type
         </button>
       </form>
@@ -977,7 +1041,7 @@ function DoctorSpecialtiesCard({ isDemoData, searchQuery }: { isDemoData: boolea
                 onClick={() => setHiddenOpen((v) => !v)}
                 disabled={isSearching}
                 className="text-xs font-medium disabled:opacity-100"
-                style={{ color: "var(--series-1)" }}
+                style={{ color: "var(--ui-accent)" }}
               >
                 Hidden ({hidden.length}) — {isSearching || hiddenOpen ? "Hide" : "Show"}
               </button>
@@ -1164,7 +1228,7 @@ function StoolOptionsCard({ isDemoData, searchQuery }: { isDemoData: boolean; se
                     type="submit"
                     disabled={!(newLabels[kind] ?? "").trim() || busy}
                     className="shrink-0 rounded-md px-3 py-1.5 text-xs font-semibold disabled:opacity-40"
-                    style={{ color: "var(--series-1)" }}
+                    style={{ color: "var(--ui-accent)" }}
                   >
                     Add
                   </button>
@@ -1188,7 +1252,7 @@ function StoolOptionsCard({ isDemoData, searchQuery }: { isDemoData: boolean; se
                       onClick={() => setHiddenOpen((p) => ({ ...p, [kind]: !p[kind] }))}
                       disabled={isSearching}
                       className="text-xs font-medium disabled:opacity-100"
-                      style={{ color: "var(--series-1)" }}
+                      style={{ color: "var(--ui-accent)" }}
                     >
                       Hidden ({hidden.length}) — {showHidden ? "Hide" : "Show"}
                     </button>
@@ -1332,7 +1396,7 @@ function DoctorsCard({ searchQuery }: { searchQuery: string }) {
 
   const query = searchQuery.trim().toLowerCase();
   const isSearching = query.length > 0;
-  const accent = "var(--series-1)";
+  const accent = "var(--ui-accent)";
 
   const specialtyOptions = resolveSpecialtyNames(
     api.specialties.data,
@@ -1759,7 +1823,7 @@ function CategoryManager({
           type="submit"
           disabled={!name.trim() || busy}
           className="text-xs font-medium disabled:opacity-40"
-          style={{ color: "var(--series-1)" }}
+          style={{ color: "var(--ui-accent)" }}
         >
           Add
         </button>
@@ -1790,7 +1854,7 @@ function CatalogFoodRow({ item, busy, onHide }: { item: ManageableItem; busy: bo
         onClick={onHide}
         disabled={busy}
         className="text-xs font-medium disabled:opacity-40"
-        style={{ color: "var(--series-1)" }}
+        style={{ color: "var(--ui-accent)" }}
       >
         Hide
       </button>
@@ -1841,7 +1905,7 @@ function UnitSelect({
         placeholder="e.g. laps"
         aria-label={`Custom unit for ${itemName}`}
         className="w-20 rounded-md border px-2 py-1 text-xs leading-4 outline-none disabled:opacity-40"
-        style={{ borderColor: "var(--series-1)", background: "var(--surface-1)", color: "var(--text-primary)" }}
+        style={{ borderColor: "var(--ui-accent)", background: "var(--surface-1)", color: "var(--text-primary)" }}
       />
     );
   }
@@ -1899,7 +1963,7 @@ function NutritionGroupSelect({
       // See the matching comment on ItemRow's category <select> — same
       // native-chrome-plus-inherited-line-height blowup on iOS without this.
       className="appearance-none rounded-md border px-2 py-1 text-xs leading-4 disabled:opacity-40"
-      style={{ borderColor: override ? "var(--series-1)" : "var(--border-hairline)", background: "var(--page-plane)", color: "var(--text-secondary)" }}
+      style={{ borderColor: override ? "var(--ui-accent)" : "var(--border-hairline)", background: "var(--page-plane)", color: "var(--text-secondary)" }}
     >
       <option value="">Auto ({autoLabel})</option>
       {NUTRITION_GROUPS.map((g) => (
@@ -2218,7 +2282,7 @@ function ItemSection({
                 onClick={() => setArchivedOpen((v) => !v)}
                 disabled={isSearching}
                 className="text-xs font-medium disabled:opacity-100"
-                style={{ color: "var(--series-1)" }}
+                style={{ color: "var(--ui-accent)" }}
               >
                 Archived ({archived.length}) — {archivedSectionOpen ? "Hide" : "Show"}
               </button>
@@ -2739,7 +2803,7 @@ export default function ManagePage() {
       <Link
         href="/manage/nutrition-evidence"
         className="text-sm font-medium"
-        style={{ color: "var(--series-1)" }}
+        style={{ color: "var(--ui-accent)" }}
       >
         Nutrition evidence — the research behind Food Analytics
       </Link>
