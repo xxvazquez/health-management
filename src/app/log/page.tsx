@@ -61,6 +61,7 @@ import { SearchField } from "@/components/ui/SearchField";
 import { ChevronIcon, CloseIcon } from "@/components/ui/icons";
 import { CustomIcon, customColorValue } from "@/components/ui/customIcons";
 import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
+import { Segmented } from "@/components/ui/Segmented";
 import { TimeField } from "@/components/ui/TimeField";
 import { DemoNotice } from "@/components/ui/DemoNotice";
 import { MobileMenuButton } from "@/components/MobileMenuButton";
@@ -1711,7 +1712,7 @@ export default function LogPage() {
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-2">
         <h1
-          className="min-w-0 flex-1 border-l-[3px] pl-2.5 text-2xl font-bold tracking-tight lg:text-xl lg:font-semibold"
+          className="min-w-0 flex-1 border-l-[3px] pl-2.5 text-3xl font-bold tracking-tight lg:text-xl lg:font-semibold"
           style={{ borderColor: "var(--baseline)", color: "var(--text-primary)" }}
         >
           Log
@@ -1827,26 +1828,12 @@ export default function LogPage() {
                * changing it can't cost a tap. The time, which is right
                * ~all the time, collapses to a "now · change" link. */}
               {tabConfig.countable && (
-                <div className="inline-flex rounded-md border p-0.5" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
-                  {tagOptionsForType(tab).map((m) => {
-                    const active = m === meal;
-                    return (
-                      <button
-                        key={m}
-                        type="button"
-                        onClick={() => setMeal(m)}
-                        aria-pressed={active}
-                        className="rounded px-2.5 py-1 text-xs font-semibold whitespace-nowrap transition-colors"
-                        style={{
-                          background: active ? `color-mix(in oklab, ${TYPE_ACCENT[tabConfig.type]} 16%, var(--surface-1))` : "transparent",
-                          color: active ? TYPE_ACCENT[tabConfig.type] : "var(--text-secondary)",
-                        }}
-                      >
-                        {m}
-                      </button>
-                    );
-                  })}
-                </div>
+                <Segmented
+                  value={meal}
+                  onChange={setMeal}
+                  accent={TYPE_ACCENT[tabConfig.type]}
+                  options={tagOptionsForType(tab).map((m) => [m, m] as const)}
+                />
               )}
               {showTimeField || timeIsExplicit ? (
                 <TimeField
