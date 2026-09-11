@@ -176,31 +176,35 @@ export function LabsOverview({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <Segmented value={rangeId} onChange={setRangeId} accent={ACCENT} options={LAB_RANGES.map((r) => [r.id, r.label] as const)} />
-        <Segmented
-          value={mode}
-          onChange={setMode}
-          accent={ACCENT}
-          options={
-            [
-              ["average", "Average"],
-              ["last", "Last"],
-            ] as const
-          }
-        />
-        <Segmented
-          value={sort}
-          onChange={setSort}
-          accent={ACCENT}
-          options={
-            [
-              ["panel", "Panel"],
-              ["name", "A–Z"],
-            ] as const
-          }
-        />
-        {actions && <div className="ml-auto flex items-center gap-2">{actions}</div>}
+      <div className="flex flex-col gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Segmented value={rangeId} onChange={setRangeId} accent={ACCENT} options={LAB_RANGES.map((r) => [r.id, r.label] as const)} />
+          {actions && <div className="ml-auto flex items-center gap-2">{actions}</div>}
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Segmented
+            value={mode}
+            onChange={setMode}
+            accent={ACCENT}
+            options={
+              [
+                ["average", "Average"],
+                ["last", "Last"],
+              ] as const
+            }
+          />
+          <Segmented
+            value={sort}
+            onChange={setSort}
+            accent={ACCENT}
+            options={
+              [
+                ["panel", "Panel"],
+                ["name", "A–Z"],
+              ] as const
+            }
+          />
+        </div>
       </div>
 
       {panelSections.length >= 2 && (
