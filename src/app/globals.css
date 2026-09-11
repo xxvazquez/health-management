@@ -210,14 +210,18 @@ button:not(:disabled),
   cursor: pointer;
 }
 
-/* iOS Safari zooms the whole page in when a text-like field under 16px
-   takes focus, then snaps back out on blur — a jarring zoom in/out on
-   every tap between fields, which reads as broken rather than native.
-   Bumping just the field's own font-size below the `sm` breakpoint (not
-   the labels or anything else around it) avoids it while leaving the
-   14px/12px scale everywhere else untouched. */
+/* Every iOS browser (Chrome, Safari, an installed home-screen PWA — they
+   all run on WebKit) zooms the whole page in when a text-like field under
+   16px takes focus, then snaps back out on blur — a jarring zoom in/out on
+   every tap between fields. Bumping just the field's own font-size below
+   the `sm` breakpoint (not the labels or anything else around it) avoids
+   it while leaving the 14px/12px scale everywhere else untouched.
+   date/time inputs are excluded: their native iOS picker chrome scales
+   directly off font-size, so 16px there reads as a jump to a visibly
+   oversized control rather than a subtle text bump — left at 14px and
+   accepted as the one field type that can still trigger the zoom. */
 @media (max-width: 639px) {
-  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="date"]):not([type="time"]),
   select,
   textarea {
     font-size: 16px !important;
