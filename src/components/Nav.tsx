@@ -15,6 +15,7 @@ import { BugReportButton } from "@/components/BugReportButton";
 import { BugReportDialog } from "@/components/BugReportDialog";
 import { NAV_LABEL } from "@/components/navLabels";
 import { useMobileMenu } from "@/components/MobileMenuProvider";
+import { ThemeToggleButton } from "@/components/ThemeToggleButton";
 
 function IconWrap({ children }: { children: ReactNode }) {
   return (
@@ -361,6 +362,7 @@ export function Nav() {
         <div className={clsx("mt-5 flex items-center gap-2", collapsed ? "flex-col justify-center" : "px-1")}>
           <AccountMenuButton collapsed={collapsed} />
           <SignOutButton />
+          <ThemeToggleButton className={collapsed ? undefined : "ml-auto"} />
         </div>
         <div className="mt-5 flex min-h-0 flex-1 flex-col overflow-y-auto">
           <NavLinks pathname={pathname} collapsed={collapsed} />
@@ -398,17 +400,20 @@ export function Nav() {
           <Link href="/log" onClick={closeMobile}>
             <Wordmark />
           </Link>
-          <button
-            type="button"
-            aria-label="Close menu"
-            onClick={closeMobile}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full"
-            style={{ background: "var(--page-plane)", color: "var(--text-primary)" }}
-          >
-            <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-              <path d="M5 5l10 10M15 5L5 15" />
-            </svg>
-          </button>
+          <div className="flex shrink-0 items-center gap-2">
+            <ThemeToggleButton />
+            <button
+              type="button"
+              aria-label="Close menu"
+              onClick={closeMobile}
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full"
+              style={{ background: "var(--page-plane)", color: "var(--text-primary)" }}
+            >
+              <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+                <path d="M5 5l10 10M15 5L5 15" />
+              </svg>
+            </button>
+          </div>
         </div>
         <div className="mt-5 flex items-center gap-2 px-1">
           <AccountMenuButton onOpen={closeMobile} />
