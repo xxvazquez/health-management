@@ -179,7 +179,7 @@ const PRIMARY_LINKS: NavItem[] = [
 const MESSAGES_LINK: NavItem = { href: "/notes", label: NAV_LABEL["/notes"], iconKey: "Messages" };
 
 /** Utility routes — the always-there control surface and the how-to page.
- * Pinned below the primary areas, above Report a bug, rather than tucked
+ * Pinned below the primary areas, above Feedback, rather than tucked
  * only in the account menu (which a signed-out visitor can't open). */
 const SECONDARY_LINKS: NavItem[] = [
   { href: "/manage", label: NAV_LABEL["/manage"], iconKey: "Manage items" },

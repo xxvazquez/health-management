@@ -1,6 +1,6 @@
 import { supabase, supabaseConfigured } from "./client";
 
-export const BUG_TYPES = ["Wrong data", "Sync issue", "Display / layout", "Crash / error", "Other"] as const;
+export const BUG_TYPES = ["Wrong data", "Sync issue", "Display / layout", "Crash / error", "Idea", "Other"] as const;
 export type BugType = (typeof BUG_TYPES)[number];
 
 export interface BugReportInput {
