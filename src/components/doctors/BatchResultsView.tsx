@@ -120,7 +120,7 @@ export function BatchResultsView({
           type="button"
           onClick={() => onDone(null)}
           className="shrink-0 text-xs font-medium"
-          style={{ color: "var(--series-1)" }}
+          style={{ color: accent }}
         >
           Cancel
         </button>

@@ -23,13 +23,13 @@ export function SectionNav({
   items,
   activeId,
   onSelect,
-  accent = "var(--series-1)",
+  accent = "var(--ui-accent)",
 }: {
   items: SectionNavItem[];
   activeId: string;
   onSelect: (id: string) => void;
   /** One consistent colour for every active tab. Pass a non-default value
-   * when the page's own content already leans on the default (e.g. Food,
+   * when the page's own content already leans on a domain hue (e.g. Food,
    * whose charts are already series-1 green). */
   accent?: string;
 }) {

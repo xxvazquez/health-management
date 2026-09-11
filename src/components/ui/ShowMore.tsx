@@ -26,7 +26,7 @@ export function ShowMore({
       type="button"
       onClick={onClick}
       className={clsx("self-start text-xs font-medium", className)}
-      style={{ color: "var(--series-1)" }}
+      style={{ color: "var(--ui-accent)" }}
     >
       {expanded ? "Show less" : `Show ${hiddenCount} more`}
     </button>

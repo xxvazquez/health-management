@@ -34,7 +34,7 @@ export default function NutritionEvidencePage() {
     <div className="flex flex-col gap-5">
       <div>
         <div className="flex items-center gap-2 text-sm" style={{ color: "var(--text-muted)" }}>
-          <Link href="/manage" className="font-medium" style={{ color: "var(--series-1)" }}>Manage</Link>
+          <Link href="/manage" className="font-medium" style={{ color: "var(--ui-accent)" }}>Manage</Link>
           <span>→</span>
           <span>Nutrition evidence</span>
         </div>

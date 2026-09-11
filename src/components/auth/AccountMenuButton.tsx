@@ -49,9 +49,9 @@ export function AccountMenuButton({ collapsed, onOpen }: { collapsed?: boolean; 
         aria-label={label}
         className="relative flex h-9 w-9 items-center justify-center self-center rounded-full border"
         style={{
-          borderColor: session ? "var(--border-hairline)" : "var(--series-1)",
-          background: session ? "var(--page-plane)" : "color-mix(in oklab, var(--series-1) 14%, var(--surface-1))",
-          color: session ? "var(--text-secondary)" : "var(--series-1)",
+          borderColor: session ? "var(--border-hairline)" : "var(--ui-accent)",
+          background: session ? "var(--page-plane)" : "color-mix(in oklab, var(--ui-accent) 14%, var(--surface-1))",
+          color: session ? "var(--text-secondary)" : "var(--ui-accent)",
         }}
       >
         <PersonIcon />
@@ -71,9 +71,9 @@ export function AccountMenuButton({ collapsed, onOpen }: { collapsed?: boolean; 
       onClick={handleOpen}
       className="flex items-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-medium whitespace-nowrap transition-colors"
       style={{
-        borderColor: session ? "var(--border-hairline)" : "var(--series-1)",
-        background: session ? "var(--page-plane)" : "color-mix(in oklab, var(--series-1) 14%, var(--surface-1))",
-        color: session ? "var(--text-primary)" : "var(--series-1)",
+        borderColor: session ? "var(--border-hairline)" : "var(--ui-accent)",
+        background: session ? "var(--page-plane)" : "color-mix(in oklab, var(--ui-accent) 14%, var(--surface-1))",
+        color: session ? "var(--text-primary)" : "var(--ui-accent)",
       }}
     >
       <PersonIcon />

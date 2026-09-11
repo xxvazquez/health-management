@@ -20,7 +20,8 @@ interface Props {
   presets?: DateRangePreset[];
   /** Matches whichever page this renders on (its TYPE_ACCENT, or a
    * page-level accent), so the control never clashes with the page's own
-   * accent. Defaults to series-1 for call sites that haven't opted in. */
+   * accent. Defaults to the app's neutral UI accent for call sites that
+   * haven't opted in. */
   accent?: string;
 }
 
@@ -65,7 +66,7 @@ export function describeDateRange(presets: DateRangePreset[], span: DateRange, v
  * selection reads correctly even after `useDateRangeFilter` rehydrates a
  * range picked on another dashboard.
  */
-export function DateRangeFilter({ span, value, onChange, presets = DEFAULT_PRESETS, accent = "var(--series-1)" }: Props) {
+export function DateRangeFilter({ span, value, onChange, presets = DEFAULT_PRESETS, accent = "var(--ui-accent)" }: Props) {
   const [open, setOpen] = useState(false);
   // Which edge of the trigger the popover hangs from — right by default, but
   // flipped to the left edge when the trigger sits too close to the screen's

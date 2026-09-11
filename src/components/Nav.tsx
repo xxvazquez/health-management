@@ -225,12 +225,12 @@ function NavLinkList({
               !active && "hover:bg-[var(--page-plane)]",
             )}
             style={{
-              background: active ? "color-mix(in oklab, var(--series-1) 14%, transparent)" : "transparent",
+              background: active ? "color-mix(in oklab, var(--ui-accent) 14%, transparent)" : "transparent",
               color: active ? "var(--text-primary)" : "var(--text-secondary)",
               fontWeight: active ? 600 : 500,
             }}
           >
-            <span className="shrink-0" style={{ color: active ? "var(--series-1)" : "var(--text-muted)" }}>
+            <span className="shrink-0" style={{ color: active ? "var(--ui-accent)" : "var(--text-muted)" }}>
               {ICONS[item.iconKey]}
             </span>
             {!collapsed && item.label}

@@ -16,10 +16,11 @@ import { MedicalDisclaimer } from "@/components/MedicalDisclaimer";
 import { ThemeManager } from "@/components/ThemeManager";
 import { MobileMenuProvider } from "@/components/MobileMenuProvider";
 
-// Runs before first paint: resolves the stored appearance choice (or the OS
-// setting) and stamps `data-theme` on <html> so there's no flash of the
-// wrong theme. Kept in step with `applyThemePref` in src/lib/theme.ts.
-const THEME_INIT = `try{var v=localStorage.getItem("lauva-theme");var d=v==="dark"||(v!=="light"&&matchMedia("(prefers-color-scheme: dark)").matches);document.documentElement.dataset.theme=d?"dark":"light";var m=document.querySelector('meta[name=theme-color]');if(m)m.setAttribute("content",d?"#151b1e":"#e6f1f2");}catch(e){}`;
+// Runs before first paint: resolves the stored appearance choice (light/
+// dark/system, plus each mode's own ground palette) and stamps `data-theme`
+// + `data-palette` on <html> so there's no flash of the wrong look. Kept in
+// step with `applyThemePref` in src/lib/theme.ts.
+const THEME_INIT = `try{var v=localStorage.getItem("lauva-theme");var d=v==="dark"||(v!=="light"&&matchMedia("(prefers-color-scheme: dark)").matches);document.documentElement.dataset.theme=d?"dark":"light";var lp=localStorage.getItem("lauva-palette-light");var dp=localStorage.getItem("lauva-palette-dark");var p=d?(dp==="d2"||dp==="d4"?dp:"d1"):(lp==="l1"||lp==="l4"||lp==="l5"?lp:"l3");if(p==="l3"||p==="d1"){delete document.documentElement.dataset.palette;}else{document.documentElement.dataset.palette=p;}var bg={l1:"#f6faf9",l3:"#f4f6f8",l4:"#f7f5fb",l5:"#ffffff",d1:"#12161b",d2:"#181613",d4:"#15161c"}[p];var m=document.querySelector('meta[name=theme-color]');if(m)m.setAttribute("content",bg);}catch(e){}`;
 
 // Inter is the fallback for non-Apple platforms (Apple devices render the
 // system face, SF Pro — see --font-app in globals.css). Not preloaded, so
@@ -50,7 +51,7 @@ export const viewport: Viewport = {
   // A single tag the pre-paint script and ThemeManager keep in step with the
   // resolved theme (an in-app Dark choice under an OS Light setting still
   // needs the browser chrome dark, which a media-query tag can't do).
-  themeColor: "#e6f1f2",
+  themeColor: "#f4f6f8",
   // Explicit (matches Next's own default) rather than disabling zoom
   // outright — pinch-zoom stays available. iOS may zoom in when a form
   // field under 16px takes focus; that's accepted so fields keep the

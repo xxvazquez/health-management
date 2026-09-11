@@ -7,7 +7,7 @@ export function Segmented<T extends string>({
   value,
   onChange,
   options,
-  accent = "var(--series-1)",
+  accent = "var(--ui-accent)",
 }: {
   value: T;
   onChange: (v: T) => void;

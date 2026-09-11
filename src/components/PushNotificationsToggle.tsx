@@ -78,9 +78,9 @@ export function PushNotificationsToggle() {
         aria-pressed={enabled}
         className="flex items-center gap-1.5 rounded-md border py-1 pr-2.5 pl-1.5 text-xs font-medium disabled:opacity-50"
         style={{
-          borderColor: enabled ? "var(--series-1)" : "var(--border-hairline)",
-          background: enabled ? "color-mix(in oklab, var(--series-1) 14%, var(--surface-1))" : "var(--surface-1)",
-          color: enabled ? "var(--series-1)" : "var(--text-secondary)",
+          borderColor: enabled ? "var(--ui-accent)" : "var(--border-hairline)",
+          background: enabled ? "color-mix(in oklab, var(--ui-accent) 14%, var(--surface-1))" : "var(--surface-1)",
+          color: enabled ? "var(--ui-accent)" : "var(--text-secondary)",
         }}
       >
         <BellIcon on={Boolean(enabled)} />

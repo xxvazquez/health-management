@@ -76,7 +76,7 @@ function Breadcrumbs({ crumbs, onNavigate }: { crumbs: Crumb[]; onNavigate: (ind
                 type="button"
                 onClick={() => onNavigate(i)}
                 className="font-medium"
-                style={{ color: "var(--series-1)" }}
+                style={{ color: "var(--ui-accent)" }}
               >
                 {crumb.name}
               </button>
@@ -96,7 +96,7 @@ function FolderCard({ folder, onOpen }: { folder: DriveFile; onOpen: () => void 
       className="flex items-center gap-2.5 rounded-xl border px-3.5 py-3 text-left transition-colors hover:bg-[var(--page-plane)]"
       style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}
     >
-      <span className="shrink-0" style={{ color: "var(--series-1)" }}>
+      <span className="shrink-0" style={{ color: "var(--ui-accent)" }}>
         {DriveFolderIcon}
       </span>
       <span className="min-w-0 flex-1 truncate text-sm font-medium" style={{ color: "var(--text-primary)" }}>
@@ -414,7 +414,7 @@ export default function MyDrivePage() {
             type="button"
             onClick={disconnect}
             className="self-start text-xs font-medium"
-            style={{ color: "var(--series-1)" }}
+            style={{ color: "var(--ui-accent)" }}
           >
             Disconnect Google Drive
           </button>

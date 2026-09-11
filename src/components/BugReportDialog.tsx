@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/Button";
 import { NAV_LABEL } from "@/components/navLabels";
 import { CloseIcon } from "@/components/ui/icons";
 
-const ACCENT = "var(--series-1)";
+const ACCENT = "var(--ui-accent)";
 
 const inputStyle = { borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" };
 

@@ -338,7 +338,7 @@ export function StoolTab({
       {editingId && (
         <div className="flex items-center justify-between rounded-md px-2.5 py-1.5 text-xs font-medium" style={{ background: "var(--page-plane)", color: "var(--text-secondary)" }}>
           Editing an existing entry
-          <button type="button" onClick={cancelEdit} className="font-medium" style={{ color: "var(--series-1)" }}>
+          <button type="button" onClick={cancelEdit} className="font-medium" style={{ color: "var(--ui-accent)" }}>
             Cancel
           </button>
         </div>
@@ -563,7 +563,7 @@ export function StoolTab({
                       onClick={() => startEdit(entry)}
                       disabled={busy}
                       className="text-xs font-medium disabled:opacity-40"
-                      style={{ color: "var(--series-1)" }}
+                      style={{ color: "var(--ui-accent)" }}
                     >
                       Edit
                     </button>
