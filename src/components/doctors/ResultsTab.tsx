@@ -189,20 +189,18 @@ export function ResultsTab({ accent }: { accent: string }) {
 
       <LabsOverview
         labs={labs}
-        actions={
-          <>
-            {hasMarkers && (
-              <button
-                type="button"
-                onClick={() => setView({ mode: "batch" })}
-                className="shrink-0 rounded-md border px-2.5 py-1.5 text-xs font-medium"
-                style={{ borderColor: accent, background: `color-mix(in oklab, ${accent} 12%, var(--surface-1))`, color: accent }}
-              >
-                Add results
-              </button>
-            )}
-            <PrimaryAction label="New marker" accent={accent} onClick={() => setView({ mode: "marker-form" })} />
-          </>
+        actions={<PrimaryAction label="New marker" accent={accent} onClick={() => setView({ mode: "marker-form" })} />}
+        secondaryActions={
+          hasMarkers && (
+            <button
+              type="button"
+              onClick={() => setView({ mode: "batch" })}
+              className="shrink-0 rounded-md border px-2.5 py-1.5 text-xs font-medium"
+              style={{ borderColor: accent, background: `color-mix(in oklab, ${accent} 12%, var(--surface-1))`, color: accent }}
+            >
+              Add results
+            </button>
+          )
         }
         onNewMarker={() => setView({ mode: "marker-form" })}
         onAddValue={(markerId) => setView({ mode: "result-form", markerId })}

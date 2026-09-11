@@ -73,15 +73,20 @@ function windowWord(option: LabRangeOption): string {
 export function LabsOverview({
   labs,
   actions,
+  secondaryActions,
   onNewMarker,
   onAddValue,
   onEditValue,
 }: {
   labs: ReturnType<typeof useLabs>;
-  /** Right-aligned toolbar controls (Add results / New marker) shown on the
-   * same row as the range/mode/sort switches, so they never take a row of
-   * their own. */
+  /** Right-aligned control shown beside the time-window switch — the one
+   * primary action (New marker), so it never competes with the window
+   * control for the row's width. */
   actions?: ReactNode;
+  /** Right-aligned control(s) shown beside the mode/sort switches instead —
+   * for a secondary action (Add results) that doesn't need to be in the
+   * first row. */
+  secondaryActions?: ReactNode;
   onNewMarker?: () => void;
   onAddValue?: (markerId: string) => void;
   onEditValue?: (markerId: string, result: LabResult) => void;
@@ -204,6 +209,7 @@ export function LabsOverview({
               ] as const
             }
           />
+          {secondaryActions && <div className="ml-auto flex items-center gap-2">{secondaryActions}</div>}
         </div>
       </div>
 
