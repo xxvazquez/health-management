@@ -1768,16 +1768,33 @@ export default function LogPage() {
           onSelect={selectTab}
           className="w-full min-w-0 sm:flex-1"
         />
-        <div className="flex w-full items-center gap-3 sm:w-auto">
-          {tabConfig && (
+        {tabConfig && (
+          <div className="flex w-full flex-wrap items-center gap-x-3 gap-y-1 sm:w-auto">
             <SearchField
               value={search}
               onChange={setSearch}
               placeholder={`Search ${tabConfig.label.toLowerCase()}…`}
-              className="w-full sm:w-48"
+              className="w-40 flex-1 sm:w-48 sm:flex-none"
             />
-          )}
-        </div>
+            {!addingNew && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => (isDemoData ? openPanel() : setAddingNew(true))}
+                  className="shrink-0 rounded-md border border-dashed px-2.5 py-1 text-xs font-medium whitespace-nowrap"
+                  style={{ borderColor: "var(--border-hairline)", color: "var(--text-secondary)" }}
+                >
+                  {isDemoData ? "+ Can't find it? Sign in to add it" : "+ Can't find it? Add it"}
+                </button>
+                {!isDemoData && (
+                  <Link href="/manage" className="shrink-0 text-xs font-medium" style={{ color: "var(--series-1)" }}>
+                    Manage items
+                  </Link>
+                )}
+              </>
+            )}
+          </div>
+        )}
       </div>
 
       {tab === "stool" || tab === "workout" || tab === "cycle" ? (
@@ -1870,23 +1887,7 @@ export default function LogPage() {
             </p>
           ) : (
             <div className="flex flex-col gap-4">
-              {!addingNew ? (
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                  <button
-                    type="button"
-                    onClick={() => (isDemoData ? openPanel() : setAddingNew(true))}
-                    className="rounded-md border border-dashed px-2.5 py-1 text-xs font-medium whitespace-nowrap"
-                    style={{ borderColor: "var(--border-hairline)", color: "var(--text-secondary)" }}
-                  >
-                    {isDemoData ? "+ Can't find it? Sign in to add it" : "+ Can't find it? Add it"}
-                  </button>
-                  {!isDemoData && (
-                    <Link href="/manage" className="text-xs font-medium" style={{ color: "var(--series-1)" }}>
-                      Manage items
-                    </Link>
-                  )}
-                </div>
-              ) : (
+              {addingNew && (
                 <form
                   onSubmit={(e) => {
                     e.preventDefault();
