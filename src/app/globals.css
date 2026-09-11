@@ -210,12 +210,19 @@ button:not(:disabled),
   cursor: pointer;
 }
 
-/* Note: text fields are left at the 14px/12px scale on every viewport. An
-   earlier rule forced them to 16px below the `sm` breakpoint to stop iOS
-   Safari zooming the page in on field focus, but the oversized inputs
-   looked out of place against the 12px labels around them, so the field
-   size wins over the zoom guard. If the stuck-zoom becomes a problem
-   again, the fix is a scoped 16px bump, not a global one. */
+/* iOS Safari zooms the whole page in when a text-like field under 16px
+   takes focus, then snaps back out on blur — a jarring zoom in/out on
+   every tap between fields, which reads as broken rather than native.
+   Bumping just the field's own font-size below the `sm` breakpoint (not
+   the labels or anything else around it) avoids it while leaving the
+   14px/12px scale everywhere else untouched. */
+@media (max-width: 639px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
 
 ::selection {
   background: color-mix(in oklab, var(--series-1) 30%, transparent);
