@@ -62,6 +62,7 @@ import { ChevronIcon, CloseIcon } from "@/components/ui/icons";
 import { CustomIcon, customColorValue } from "@/components/ui/customIcons";
 import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
 import { Segmented } from "@/components/ui/Segmented";
+import { useMeals } from "@/lib/useMeals";
 import { TimeField } from "@/components/ui/TimeField";
 import { DemoNotice } from "@/components/ui/DemoNotice";
 import { MobileMenuButton } from "@/components/MobileMenuButton";
@@ -324,10 +325,90 @@ function TimelineNote({
       onClick={() => setEditing(true)}
       disabled={busy}
       className="self-start text-xs whitespace-nowrap font-medium disabled:opacity-40"
-      style={{ color: "var(--series-1)" }}
+      style={{ color: "var(--ui-accent)" }}
     >
       + note
     </button>
+  );
+}
+
+/** One meal, grouped — "Breakfast: Eggs, Banana, Milk" — with its own note,
+ * separate from any single ingredient's. The note lives in the `meals`
+ * table (`src/lib/useMeals.ts`), keyed by date + meal tag, so it survives
+ * ingredients being added or removed freely. */
+function MealGroupCard({
+  mealTag,
+  items,
+  accent,
+  note,
+  onSaveNote,
+}: {
+  mealTag: string;
+  items: string[];
+  accent: string;
+  note: string;
+  onSaveNote: (note: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [text, setText] = useState(note);
+
+  return (
+    <div className="flex flex-col gap-1.5 rounded-lg border p-3" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
+      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+        <span className="text-sm font-semibold" style={{ color: accent }}>
+          {mealTag}
+        </span>
+        <span className="text-sm" style={{ color: "var(--text-secondary)" }}>
+          {items.join(", ")}
+        </span>
+      </div>
+      {editing ? (
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            setEditing(false);
+            onSaveNote(text);
+          }}
+          className="flex items-start gap-2"
+        >
+          <input
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            autoFocus
+            placeholder="Add a note for this meal…"
+            className="min-w-0 flex-1 rounded-md border px-2 py-1 text-xs outline-none"
+            style={{ borderColor: "var(--border-hairline)", background: "var(--page-plane)", color: "var(--text-primary)" }}
+          />
+          <button type="submit" className="shrink-0 text-xs font-medium" style={{ color: "var(--status-good)" }}>
+            Save
+          </button>
+        </form>
+      ) : note ? (
+        <button
+          type="button"
+          onClick={() => {
+            setText(note);
+            setEditing(true);
+          }}
+          className="self-start text-left text-xs break-words whitespace-pre-wrap"
+          style={{ color: "var(--text-secondary)" }}
+        >
+          {note}
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={() => {
+            setText("");
+            setEditing(true);
+          }}
+          className="self-start text-xs font-medium"
+          style={{ color: "var(--ui-accent)" }}
+        >
+          + note
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -367,7 +448,7 @@ function TimelineWorkoutValue({
           onClick={() => setEditing(true)}
           disabled={busy}
           className="whitespace-nowrap font-medium disabled:opacity-40"
-          style={{ color: "var(--series-1)" }}
+          style={{ color: "var(--ui-accent)" }}
         >
           Edit
         </button>
@@ -394,6 +475,7 @@ export default function LogPage() {
   // the Symptoms tab as one-offs that aren't tracked day to day.
   const careLog = useCareLog();
   const stoolOptions = useStoolOptions();
+  const meals = useMeals();
   const today = useMemo(() => todayLocalISODate(), []);
   const [date, setDate] = useState(today);
   const [tab, setTab] = useState<LogTab>("food");
@@ -719,6 +801,20 @@ export default function LogPage() {
     () => dayTimelineEntries(effective.items, effective.logs, effective.diary, date),
     [effective, date],
   );
+
+  // Food entries on this day, grouped by meal — "Breakfast: Eggs, Banana,
+  // Milk" instead of three separate timeline rows. Oldest-logged first
+  // within a meal, so it reads as the order things were actually eaten.
+  const mealGroups = useMemo(() => {
+    const byTag = new Map<string, string[]>();
+    for (const e of [...dayTimeline].reverse()) {
+      if (e.itemType !== "food" || !e.mealTag) continue;
+      const items = byTag.get(e.mealTag) ?? [];
+      if (!items.includes(e.item)) items.push(e.item);
+      byTag.set(e.mealTag, items);
+    }
+    return MEAL_OPTIONS.filter((m) => byTag.has(m)).map((mealTag) => ({ mealTag, items: byTag.get(mealTag)! }));
+  }, [dayTimeline]);
 
   // The icon/colour a category was given in Settings, keyed `type:name`.
   // Used to tint a category header (and show its glyph) only where one is
@@ -1682,7 +1778,7 @@ export default function LogPage() {
                   type="button"
                   onClick={() => setHiddenPicksOpen((v) => !v)}
                   className="text-xs font-medium"
-                  style={{ color: "var(--series-1)" }}
+                  style={{ color: "var(--ui-accent)" }}
                 >
                   {hiddenThisMonth.length} hidden
                 </button>
@@ -1787,7 +1883,7 @@ export default function LogPage() {
                   {isDemoData ? "+ Can't find it? Sign in to add it" : "+ Can't find it? Add it"}
                 </button>
                 {!isDemoData && (
-                  <Link href="/manage" className="shrink-0 text-xs font-medium" style={{ color: "var(--series-1)" }}>
+                  <Link href="/manage" className="shrink-0 text-xs font-medium" style={{ color: "var(--ui-accent)" }}>
                     Manage items
                   </Link>
                 )}
@@ -1875,9 +1971,24 @@ export default function LogPage() {
                   style={{ color: "var(--text-muted)" }}
                 >
                   Time: <span style={{ color: "var(--text-secondary)" }}>now</span>
-                  <span className="ml-1" style={{ color: "var(--series-1)" }}>change</span>
+                  <span className="ml-1" style={{ color: "var(--ui-accent)" }}>change</span>
                 </button>
               )}
+            </div>
+          )}
+
+          {tab === "food" && mealGroups.length > 0 && (
+            <div className="flex flex-col gap-2">
+              {mealGroups.map((g) => (
+                <MealGroupCard
+                  key={g.mealTag}
+                  mealTag={g.mealTag}
+                  items={g.items}
+                  accent={TYPE_ACCENT.food}
+                  note={meals.noteFor(date, g.mealTag)}
+                  onSaveNote={(note) => void meals.setNote(date, g.mealTag, note)}
+                />
+              ))}
             </div>
           )}
 
@@ -2102,7 +2213,7 @@ export default function LogPage() {
                       <Link
                         href="/medical/#visits"
                         className="self-start text-xs font-medium"
-                        style={{ color: "var(--series-1)" }}
+                        style={{ color: "var(--ui-accent)" }}
                       >
                         Add or edit under Health → Visits
                       </Link>
@@ -2270,7 +2381,7 @@ export default function LogPage() {
                               type="button"
                               onClick={() => toggleStoolDetails(full.id)}
                               className="self-start text-xs font-medium"
-                              style={{ color: "var(--series-1)" }}
+                              style={{ color: "var(--ui-accent)" }}
                             >
                               {expanded ? "Hide details" : "More details"}
                             </button>

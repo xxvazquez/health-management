@@ -142,6 +142,23 @@ create table public.food_logs (
   foreign key (user_id, item_id) references public.food_items (user_id, id) on delete restrict
 );
 
+-- One note per meal occurrence (date + meal tag), not per ingredient —
+-- lets the Log page show "Breakfast: Eggs, Banana, Milk" as one group with
+-- its own note instead of one per food_logs row. Keyed by the natural
+-- (user, date, meal_tag) rather than a joined food_logs id, so the note
+-- survives ingredients being freely added/removed and gives a stable join
+-- key for meal-level Trends work later.
+create table public.meals (
+  user_id uuid not null default auth.uid() references auth.users(id),
+  date date not null,
+  meal_tag text not null,
+  note text,
+  updated_at timestamptz not null default now(),
+  primary key (user_id, date, meal_tag)
+);
+
+create index meals_user_date_idx on public.meals (user_id, date);
+
 create table public.supplement_logs (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null default auth.uid() references auth.users(id),
@@ -1074,6 +1091,7 @@ alter table public.habit_items enable row level security;
 alter table public.symptom_items enable row level security;
 alter table public.workout_items enable row level security;
 alter table public.food_logs enable row level security;
+alter table public.meals enable row level security;
 alter table public.supplement_logs enable row level security;
 alter table public.habit_logs enable row level security;
 alter table public.symptom_logs enable row level security;
@@ -1127,6 +1145,7 @@ create policy "habit_items_all_own" on public.habit_items for all using (auth.ui
 create policy "symptom_items_all_own" on public.symptom_items for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "workout_items_all_own" on public.workout_items for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "food_logs_all_own" on public.food_logs for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "meals_all_own" on public.meals for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "supplement_logs_all_own" on public.supplement_logs for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "habit_logs_all_own" on public.habit_logs for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "symptom_logs_all_own" on public.symptom_logs for all using (auth.uid() = user_id) with check (auth.uid() = user_id);

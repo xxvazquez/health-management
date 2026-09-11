@@ -18,6 +18,7 @@ const TABLES: { table: string; owner: string }[] = [
   { table: "habit_items", owner: "user_id" },
   { table: "workout_items", owner: "user_id" },
   { table: "food_logs", owner: "user_id" },
+  { table: "meals", owner: "user_id" },
   { table: "supplement_logs", owner: "user_id" },
   { table: "symptom_logs", owner: "user_id" },
   { table: "habit_logs", owner: "user_id" },
@@ -63,7 +64,7 @@ const TABLES: { table: string; owner: string }[] = [
  * here (guarded by a test). */
 export const EXPORT_SECTIONS: { label: string; tables: string[] }[] = [
   { label: "Everything", tables: TABLES.map((t) => t.table) },
-  { label: "Food", tables: ["food_items", "food_logs", "food_diary"] },
+  { label: "Food", tables: ["food_items", "food_logs", "food_diary", "meals"] },
   { label: "Symptoms", tables: ["symptom_items", "symptom_logs", "symptom_diary"] },
   { label: "Supplements", tables: ["supplement_items", "supplement_logs", "supplement_diary"] },
   { label: "Habits", tables: ["habit_items", "habit_logs", "habit_diary"] },
