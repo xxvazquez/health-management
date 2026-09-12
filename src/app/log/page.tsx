@@ -33,6 +33,7 @@ import {
   dayTimelineEntries,
   decideChipTapAction,
   defaultLogTimeValue,
+  groupMealsByTag,
   loggedCountsForDate,
   toTimeInputValue,
   type LogCandidate,
@@ -803,18 +804,11 @@ export default function LogPage() {
   );
 
   // Food entries on this day, grouped by meal — "Breakfast: Eggs, Banana,
-  // Milk" instead of three separate timeline rows. Oldest-logged first
-  // within a meal, so it reads as the order things were actually eaten.
-  const mealGroups = useMemo(() => {
-    const byTag = new Map<string, string[]>();
-    for (const e of [...dayTimeline].reverse()) {
-      if (e.itemType !== "food" || !e.mealTag) continue;
-      const items = byTag.get(e.mealTag) ?? [];
-      if (!items.includes(e.item)) items.push(e.item);
-      byTag.set(e.mealTag, items);
-    }
-    return MEAL_OPTIONS.filter((m) => byTag.has(m)).map((mealTag) => ({ mealTag, items: byTag.get(mealTag)! }));
-  }, [dayTimeline]);
+  // Milk" instead of three separate timeline rows. Boxes are ordered by
+  // each meal's most recent entry (see groupMealsByTag), not a fixed
+  // Breakfast/Lunch/Dinner/Snack order — a snack logged just now shows
+  // above a breakfast logged hours ago.
+  const mealGroups = useMemo(() => groupMealsByTag(dayTimeline), [dayTimeline]);
 
   // The icon/colour a category was given in Settings, keyed `type:name`.
   // Used to tint a category header (and show its glyph) only where one is
