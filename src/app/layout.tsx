@@ -55,9 +55,10 @@ export const viewport: Viewport = {
   themeColor: "#f4f6f8",
   // Pinch-zoom and double-tap-zoom disabled outright so the installed PWA
   // holds still like a native app rather than panning/zooming as a web
-  // page — safe because every text-like input is already bumped to 16px
-  // on mobile (see globals.css), so nothing relies on manual zoom to read
-  // or fill in a field.
+  // page. This also caps the zoom range at 1, which is what stops WebKit's
+  // own zoom-on-focus for a sub-16px input — see globals.css — so every
+  // input can keep its own component-level font-size instead of every one
+  // being bumped to 16px on mobile.
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,

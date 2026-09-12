@@ -325,22 +325,18 @@ a:active {
 }
 
 /* Every iOS browser (Chrome, Safari, an installed home-screen PWA — they
-   all run on WebKit) zooms the whole page in when a text-like field under
-   16px takes focus, then snaps back out on blur — a jarring zoom in/out on
-   every tap between fields. Bumping just the field's own font-size below
-   the `sm` breakpoint (not the labels or anything else around it) avoids
-   it while leaving the 14px/12px scale everywhere else untouched.
-   date/time inputs are excluded: their native iOS picker chrome scales
-   directly off font-size, so 16px there reads as a jump to a visibly
-   oversized control rather than a subtle text bump — left at 14px and
-   accepted as the one field type that can still trigger the zoom. */
-@media (max-width: 639px) {
-  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="date"]):not([type="time"]),
-  select,
-  textarea {
-    font-size: 16px !important;
-  }
-}
+   all run on WebKit) used to zoom the whole page in when a text-like field
+   under 16px took focus, then snap back out on blur. That zoom is driven by
+   the viewport's own scale range, not just font-size — with `layout.tsx`'s
+   viewport now pinned to `maximumScale: 1, userScalable: false` there's no
+   larger scale left to zoom into, so it can't happen regardless of a
+   field's font-size. That removes the need for the 16px-on-mobile override
+   this comment used to describe, which was itself a bigger jump on the
+   app's smaller inputs (SearchField's 12px) than on others — every input
+   now just keeps its own component-level size, consistent with the rest of
+   the app's 14px/12px scale. If a zoom-on-focus regression ever reappears
+   on a real device, check the viewport lock above before reintroducing a
+   font-size override. */
 
 ::selection {
   background: color-mix(in oklab, var(--series-1) 30%, transparent);
