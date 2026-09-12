@@ -15,6 +15,7 @@ import { AppLoadingSplash } from "@/components/AppLoadingSplash";
 import { MedicalDisclaimer } from "@/components/MedicalDisclaimer";
 import { ThemeManager } from "@/components/ThemeManager";
 import { MobileMenuProvider } from "@/components/MobileMenuProvider";
+import { PullToRefresh } from "@/components/PullToRefresh";
 
 // Runs before first paint: resolves the stored appearance choice (light/
 // dark/system, plus each mode's own ground palette) and stamps `data-theme`
@@ -88,15 +89,17 @@ export default function RootLayout({
                 {/* No mobile top bar (its trigger lives in each screen's
                     title row) — so `<main>` itself clears the notch. */}
                 <main className="flex min-w-0 flex-1 flex-col pt-[env(safe-area-inset-top)] lg:pt-0">
-                  <AuthBanner />
-                  <SyncStatusBanner />
-                  {/* pb-24 on mobile clears the fixed BottomNav so the last
-                      list row is never tucked under it; desktop has no
-                      fixed nav and drops back to pb-10. */}
-                  <div className="px-4 pt-5 pb-24 sm:px-6 sm:pt-6 lg:px-8 lg:pt-8 lg:pb-10">
-                    <ContentContainer>{children}</ContentContainer>
-                    <MedicalDisclaimer />
-                  </div>
+                  <PullToRefresh>
+                    <AuthBanner />
+                    <SyncStatusBanner />
+                    {/* pb-24 on mobile clears the fixed BottomNav so the
+                        last list row is never tucked under it; desktop has
+                        no fixed nav and drops back to pb-10. */}
+                    <div className="px-4 pt-5 pb-24 sm:px-6 sm:pt-6 lg:px-8 lg:pt-8 lg:pb-10">
+                      <ContentContainer>{children}</ContentContainer>
+                      <MedicalDisclaimer />
+                    </div>
+                  </PullToRefresh>
                   <BottomNav />
                 </main>
               </MobileMenuProvider>

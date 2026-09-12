@@ -345,6 +345,12 @@ separately from IndexedDB's data cache. The service worker's cache name bakes in
 the deploy's git SHA (substituted by `deploy.yml`), so every deploy is a genuinely
 new cache instead of accumulating stale assets.
 
+Pinch-zoom and the browser's rubber-band bounce/pan are disabled (`layout.tsx`
+viewport meta + `overscroll-behavior: none` in `globals.css`) so an installed
+copy holds still like a native app. In their place, `PullToRefresh.tsx` wraps
+the page content and re-syncs with Supabase (`syncNow`, or `refresh` while
+showing demo data) when you pull down from the top of the page.
+
 ## CI
 
 `.github/workflows/check.yml` runs lint, typecheck, test, and build on every
