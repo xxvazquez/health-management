@@ -52,12 +52,15 @@ export const viewport: Viewport = {
   // resolved theme (an in-app Dark choice under an OS Light setting still
   // needs the browser chrome dark, which a media-query tag can't do).
   themeColor: "#f4f6f8",
-  // Explicit (matches Next's own default) rather than disabling zoom
-  // outright — pinch-zoom stays available. iOS may zoom in when a form
-  // field under 16px takes focus; that's accepted so fields keep the
-  // 14px/12px scale of the surrounding UI.
+  // Pinch-zoom and double-tap-zoom disabled outright so the installed PWA
+  // holds still like a native app rather than panning/zooming as a web
+  // page — safe because every text-like input is already bumped to 16px
+  // on mobile (see globals.css), so nothing relies on manual zoom to read
+  // or fill in a field.
   width: "device-width",
   initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
   // Installed on the iOS home screen the app runs edge to edge, so the
   // bottom tab bar, top bar and drawer pad themselves off the notch and
   // home indicator with env(safe-area-inset-*). Without cover those insets
