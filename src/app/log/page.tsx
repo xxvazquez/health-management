@@ -354,7 +354,7 @@ function MealGroupCard({
   const [text, setText] = useState(note);
 
   return (
-    <div className="flex flex-col gap-1.5 rounded-lg border p-3" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
+    <div className="flex flex-col gap-1 rounded-lg border p-2.5" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
       <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
         <span className="text-sm font-semibold" style={{ color: accent }}>
           {mealTag}
@@ -1799,7 +1799,7 @@ export default function LogPage() {
     ) : null;
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between gap-2">
         <h1
           className="min-w-0 flex-1 border-l-[3px] pl-2.5 text-3xl font-bold tracking-tight lg:text-xl lg:font-semibold"
@@ -1991,7 +1991,7 @@ export default function LogPage() {
               Loading…
             </p>
           ) : (
-            <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-3">
               {addingNew && (
                 <form
                   onSubmit={(e) => {
