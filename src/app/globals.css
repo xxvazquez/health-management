@@ -274,6 +274,11 @@ html {
      never silently boosted. */
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
+  /* Stops the rubber-band bounce/drag past the top, bottom, and sides —
+     without it the whole page can be dragged around like a browser tab
+     instead of holding still like an installed app. */
+  overscroll-behavior: none;
+  overflow-x: hidden;
 }
 
 body {
@@ -284,6 +289,8 @@ body {
   /* SF Pro carries Text and Display optical variants — let the browser pick
      by size instead of always rendering the Text cut. */
   font-optical-sizing: auto;
+  overscroll-behavior: none;
+  overflow-x: hidden;
 }
 
 /* Tailwind's preflight resets button cursor to `default`, overriding the
