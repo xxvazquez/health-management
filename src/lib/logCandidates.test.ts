@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { combineDateAndTime, dayTimelineEntries, decideChipTapAction, defaultLogTimeValue, loggedCountsForDate, toTimeInputValue, type LogCandidate } from "./logCandidates";
+import { combineDateAndTime, dayTimelineEntries, decideChipTapAction, defaultLogTimeValue, groupMealsByTag, loggedCountsForDate, toTimeInputValue, type LogCandidate, type TimelineEntry } from "./logCandidates";
 import type { RawItem, RawLog } from "@/lib/types";
 import { createTimeOrderedId } from "@/lib/sortableId";
 
@@ -116,6 +116,45 @@ describe("dayTimelineEntries", () => {
     // sort silently relying on pre-sort array order.
     const entries = dayTimelineEntries(items, [first, second], [], "2026-01-01");
     expect(entries.map((e) => e.item)).toEqual(["Banana", "Apple"]);
+  });
+});
+
+describe("groupMealsByTag", () => {
+  function makeEntry(overrides: Partial<TimelineEntry> = {}): TimelineEntry {
+    return {
+      key: "log-1",
+      item: "Apple",
+      itemType: "food",
+      itemIdentity: "item-1",
+      time: "10:00",
+      updatedAt: "2026-01-01T10:00:00.000Z",
+      mealTag: "Breakfast",
+      value: 1,
+      note: null,
+      category: "Fruit",
+      unit: null,
+      ...overrides,
+    };
+  }
+
+  it("orders boxes by most recent entry, not the fixed Breakfast/Lunch/Dinner/Snack order", () => {
+    // Newest-first, as dayTimelineEntries always returns it: Snack (logged
+    // just now) ahead of Breakfast (logged hours earlier) — a fixed
+    // meal-name order would put Breakfast first regardless.
+    const dayTimeline = [
+      makeEntry({ key: "log-2", item: "Chips", mealTag: "Snack", updatedAt: "2026-01-01T22:03:04.000Z" }),
+      makeEntry({ key: "log-1", item: "Eggs", mealTag: "Breakfast", updatedAt: "2026-01-01T08:00:00.000Z" }),
+    ];
+    expect(groupMealsByTag(dayTimeline).map((g) => g.mealTag)).toEqual(["Snack", "Breakfast"]);
+  });
+
+  it("lists items within a box oldest-logged first", () => {
+    // dayTimeline newest-first: Potatoes logged after Milk.
+    const dayTimeline = [
+      makeEntry({ key: "log-2", item: "Potatoes", mealTag: "Dinner", updatedAt: "2026-01-01T22:03:04.000Z" }),
+      makeEntry({ key: "log-1", item: "Milk", mealTag: "Dinner", updatedAt: "2026-01-01T22:03:03.000Z" }),
+    ];
+    expect(groupMealsByTag(dayTimeline)).toEqual([{ mealTag: "Dinner", items: ["Milk", "Potatoes"] }]);
   });
 });
 

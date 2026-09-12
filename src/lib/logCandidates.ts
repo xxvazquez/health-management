@@ -176,3 +176,36 @@ export function dayTimelineEntries(
   }
   return entries;
 }
+
+export interface MealGroup {
+  mealTag: string;
+  /** Oldest-logged first — reads as the order things were actually eaten. */
+  items: string[];
+}
+
+/**
+ * Groups a day's food entries into one box per meal tag — "Breakfast: Eggs,
+ * Banana" — ordered by each meal's most recently logged item, newest first.
+ * Not the fixed Breakfast/Lunch/Dinner/Snack order: logging a snack right
+ * now should put that box first even if breakfast was logged hours ago,
+ * same as the individual-entry timeline does.
+ */
+export function groupMealsByTag(dayTimeline: TimelineEntry[]): MealGroup[] {
+  const byTag = new Map<string, { items: string[]; latestUpdatedAt: string }>();
+  // dayTimeline is already newest-first, so the first entry seen for a tag
+  // is that meal's most recent one — captured as `latestUpdatedAt` for the
+  // box-level sort below, while items accumulate newest-first here and get
+  // reversed at the end to read oldest-first.
+  for (const e of dayTimeline) {
+    if (e.itemType !== "food" || !e.mealTag) continue;
+    const g = byTag.get(e.mealTag);
+    if (g) {
+      if (!g.items.includes(e.item)) g.items.push(e.item);
+    } else {
+      byTag.set(e.mealTag, { items: [e.item], latestUpdatedAt: e.updatedAt });
+    }
+  }
+  return [...byTag.entries()]
+    .sort((a, b) => b[1].latestUpdatedAt.localeCompare(a[1].latestUpdatedAt))
+    .map(([mealTag, g]) => ({ mealTag, items: [...g.items].reverse() }));
+}
