@@ -279,6 +279,9 @@ html {
      instead of holding still like an installed app. */
   overscroll-behavior: none;
   overflow-x: hidden;
+  /* Kills WebKit's grey tap-highlight flash — replaced below with a real
+     :active state per control, so taps still get feedback. */
+  -webkit-tap-highlight-color: transparent;
 }
 
 body {
@@ -299,6 +302,26 @@ body {
 button:not(:disabled),
 [role="button"]:not(:disabled) {
   cursor: pointer;
+}
+
+/* Every tappable control loses the browser's own tap feedback along with
+   -webkit-tap-highlight-color above, plus the long-press "copy/share"
+   callout and the blue text-selection highlight WebKit shows on a
+   long-press — none of which read as native. A dim-on-press replaces the
+   highlight; callout/selection are just switched off, since a button or
+   nav label was never meant to be selected or shared. */
+button:not(:disabled),
+[role="button"]:not(:disabled),
+a {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+button:not(:disabled):active,
+[role="button"]:not(:disabled):active,
+a:active {
+  opacity: 0.6;
 }
 
 /* Every iOS browser (Chrome, Safari, an installed home-screen PWA — they
