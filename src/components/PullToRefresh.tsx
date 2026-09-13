@@ -96,10 +96,19 @@ export function PullToRefresh({ children }: { children: ReactNode }) {
           <path d="M17 3v4h-4" />
         </svg>
       </div>
+      {/* margin-top, not transform: translateY — a non-`none` transform on
+          an ancestor (even an identity translateY(0)) creates a new
+          containing block for every `position: fixed` descendant, which
+          silently breaks every full-screen dialog rendered inline in page
+          content (ComposeNoteDialog, AccountPanel, BugReportDialog, …) —
+          they'd render `fixed inset-0` relative to this div's own box
+          instead of the viewport, landing off-screen or above the current
+          scroll position instead of centered. margin-top achieves the same
+          push-down visual with no such side effect. */}
       <div
         style={{
-          transform: `translateY(${refreshing ? THRESHOLD * 0.6 : pull}px)`,
-          transition: dragging ? "none" : "transform 0.25s ease",
+          marginTop: refreshing ? THRESHOLD * 0.6 : pull,
+          transition: dragging ? "none" : "margin-top 0.25s ease",
         }}
       >
         {children}
