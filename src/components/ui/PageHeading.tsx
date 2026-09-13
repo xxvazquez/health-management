@@ -31,7 +31,7 @@ export function PageHeading({
 }) {
   return (
     <div className={clsx("border-l-[3px] pl-2.5", className)} style={{ borderColor: accent }}>
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2">
         <Heading
           className="min-w-0 text-3xl font-bold tracking-tight text-balance lg:text-xl lg:font-semibold"
           style={{ color: "var(--text-primary)" }}
