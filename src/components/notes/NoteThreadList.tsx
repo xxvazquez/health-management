@@ -147,6 +147,11 @@ export function NoteThreadList({
     <div className="flex flex-col">
       {threads.map((t) => {
         const busy = busyId === t.id;
+        // Sent rows also bold while your partner hasn't read the message
+        // yet — separate signal from `isUnreadForMe` (a reply you haven't
+        // opened), so a still-unseen sent note stays bold even once you've
+        // reread it yourself.
+        const bold = t.isUnreadForMe || (view === "sent" && !t.isSeenByPartner);
         return (
           <div
             key={t.id}
@@ -163,7 +168,7 @@ export function NoteThreadList({
               </span>
               <span className="min-w-0 flex-1">
                 <span className="flex items-center gap-1.5">
-                  <span className="min-w-0 flex-1 truncate text-sm" style={{ fontWeight: t.isUnreadForMe ? 600 : 500, color: "var(--text-primary)" }}>
+                  <span className="min-w-0 flex-1 truncate text-sm" style={{ fontWeight: bold ? 600 : 500, color: "var(--text-primary)" }}>
                     {t.subject || t.body.slice(0, 60)}
                   </span>
                   <span className="shrink-0 text-xs whitespace-nowrap tabular-nums" style={{ color: "var(--text-muted)" }}>

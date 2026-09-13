@@ -45,6 +45,9 @@ export interface NoteThread {
    * lists sort by. */
   lastMessageAt: string;
   isUnreadForMe: boolean;
+  /** Has the other side read up to the thread's latest message yet — what
+   * Sent uses to bold a message your partner hasn't opened. */
+  isSeenByPartner: boolean;
   /** Shared between both partners — either can star or unstar a thread and
    * it shows under Favourites for both. (Archive stays per-side.) */
   isFavouritedByMe: boolean;
@@ -112,6 +115,7 @@ async function currentUserId(): Promise<string | null> {
 function toThread(row: NoteRow, myUserId: string): NoteThread {
   const isMine = row.sender_id === myUserId;
   const myReadAt = isMine ? row.sender_read_at : row.recipient_read_at;
+  const partnerReadAt = isMine ? row.recipient_read_at : row.sender_read_at;
   return {
     id: row.id,
     senderId: row.sender_id,
@@ -122,6 +126,7 @@ function toThread(row: NoteRow, myUserId: string): NoteThread {
     createdAt: row.created_at,
     lastMessageAt: row.last_message_at,
     isUnreadForMe: !myReadAt || myReadAt < row.last_message_at,
+    isSeenByPartner: !!partnerReadAt && partnerReadAt >= row.last_message_at,
     isFavouritedByMe: row.sender_favourited || row.recipient_favourited,
     isArchivedByMe: isMine ? row.sender_archived : row.recipient_archived,
     isMine,
