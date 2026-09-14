@@ -59,7 +59,7 @@ import { WorkoutTab, type NewWorkoutEntry } from "@/components/log/WorkoutTab";
 import { CycleTab } from "@/components/log/CycleTab";
 import { DuplicateItemDialog } from "@/components/ui/DuplicateItemDialog";
 import { SearchField } from "@/components/ui/SearchField";
-import { ChevronIcon, CloseIcon } from "@/components/ui/icons";
+import { ChevronIcon, CloseIcon, NoteIcon } from "@/components/ui/icons";
 import { CustomIcon, customColorValue } from "@/components/ui/customIcons";
 import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
 import { Segmented } from "@/components/ui/Segmented";
@@ -355,13 +355,29 @@ function MealGroupCard({
 
   return (
     <div className="flex flex-col gap-1 rounded-lg border p-2.5" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
-      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-        <span className="text-sm font-semibold" style={{ color: accent }}>
-          {mealTag}
-        </span>
-        <span className="text-sm" style={{ color: "var(--text-secondary)" }}>
-          {items.join(", ")}
-        </span>
+      <div className="flex items-baseline gap-2">
+        <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
+          <span className="text-sm font-semibold" style={{ color: accent }}>
+            {mealTag}
+          </span>
+          <span className="text-xs" style={{ color: "var(--text-secondary)" }}>
+            {items.join(", ")}
+          </span>
+        </div>
+        {!editing && (
+          <button
+            type="button"
+            onClick={() => {
+              setText(note);
+              setEditing(true);
+            }}
+            aria-label={note ? "Edit meal note" : "Add a note for this meal"}
+            className="ml-auto shrink-0 p-0.5"
+            style={{ color: note ? "var(--ui-accent)" : "var(--text-muted)" }}
+          >
+            <NoteIcon size={15} />
+          </button>
+        )}
       </div>
       {editing ? (
         <form
@@ -396,19 +412,7 @@ function MealGroupCard({
         >
           {note}
         </button>
-      ) : (
-        <button
-          type="button"
-          onClick={() => {
-            setText("");
-            setEditing(true);
-          }}
-          className="self-start text-xs font-medium"
-          style={{ color: "var(--ui-accent)" }}
-        >
-          + note
-        </button>
-      )}
+      ) : null}
     </div>
   );
 }

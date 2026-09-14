@@ -22,6 +22,15 @@ export function ArchiveIcon({ size = 15, dir = "down" }: { size?: number; dir?: 
   );
 }
 
+export function NoteIcon({ size = 15 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="4" y="3.5" width="12" height="13" rx="1.5" />
+      <path d="M7 7.5h6M7 10h6M7 12.5h3.5" />
+    </svg>
+  );
+}
+
 export function CalendarIcon({ size = 13 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
