@@ -49,6 +49,14 @@ export function SegmentedTabs<T extends string>({
   const measureRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const [visibleCount, setVisibleCount] = useState(items.length);
+  // True when every segment can render as an equal `flex-1` share of the
+  // track without the longest label clipping. False means visibleCount was
+  // instead reached by summing each segment's own natural width — which
+  // can still land on visibleCount === items.length (everything fits, just
+  // not evenly) as easily as on a real overflow, so it must render at
+  // natural width either way; see the `hasOverflow` comment below for why
+  // that count alone can't tell the two apart.
+  const [equalShare, setEqualShare] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
 
   // How many segments fit at their natural label widths — remeasured on
@@ -60,8 +68,17 @@ export function SegmentedTabs<T extends string>({
 
     const compute = () => {
       const samples = Array.from(measure.children) as HTMLElement[];
-      const moreW = samples[samples.length - 1]?.offsetWidth ?? 60;
       const widths = samples.slice(0, items.length).map((s) => s.offsetWidth);
+      const withChevronWidths = samples.slice(items.length, items.length * 2).map((s) => s.offsetWidth);
+      const morePlaceholderW = samples[samples.length - 1]?.offsetWidth ?? 60;
+      // Once one of the overflowed items is active, the trailing segment
+      // shows THAT item's own label (+ chevron) instead of "More" — so the
+      // width reserved for it here has to cover the widest label any item
+      // could contribute, not just the "More" placeholder itself, or
+      // selecting a long-named item later pushes the whole bar past the
+      // container edge (see the Log page tab strip overflowing on
+      // "Workout"/"Cycle").
+      const moreW = Math.max(morePlaceholderW, ...withChevronWidths);
       const avail = root.clientWidth - 4; // track padding
       // When nothing overflows, every segment renders `flex-1` — an equal
       // share of `avail`, not its own natural width. So "everything fits"
@@ -71,8 +88,13 @@ export function SegmentedTabs<T extends string>({
       const maxWidth = widths.length > 0 ? Math.max(...widths) : 0;
       if (maxWidth * items.length <= avail) {
         setVisibleCount(items.length);
+        setEqualShare(true);
         return;
       }
+      // Equal share doesn't work (the longest label wouldn't clear its
+      // share), so fall back to packing segments at their own natural
+      // width instead — this can still fit every item (just unevenly
+      // sized) rather than actually needing to fold any into "More".
       let used = 0;
       let n = 0;
       for (let i = 0; i < items.length; i++) {
@@ -81,12 +103,26 @@ export function SegmentedTabs<T extends string>({
         n += 1;
       }
       setVisibleCount(Math.max(1, n));
+      setEqualShare(false);
     };
 
     compute();
     const ro = new ResizeObserver(compute);
     ro.observe(root);
-    return () => ro.disconnect();
+    // The fallback font Lauva ships isn't preloaded (see globals.css), so
+    // the very first `compute()` can run against its narrower metrics
+    // before the real webfont swaps in. `root`'s own box doesn't change
+    // size from that swap, so ResizeObserver alone wouldn't catch a label
+    // that measures differently once the real font lands — recompute once
+    // fonts are actually ready too.
+    let cancelled = false;
+    document.fonts?.ready.then(() => {
+      if (!cancelled) compute();
+    });
+    return () => {
+      cancelled = true;
+      ro.disconnect();
+    };
   }, [items]);
 
   useEffect(() => {
@@ -111,13 +147,14 @@ export function SegmentedTabs<T extends string>({
   const activeInOverflow = overflow.find((t) => t.id === activeId);
 
   return (
-    // The outer element is full-width; the track hugs its content only when
-    // some segments have folded into "More" (so those left are content-sized
-    // and never truncate). With everything visible the segments fill the bar.
+    // The outer element is full-width; the track hugs its content instead
+    // (natural widths, never truncating) whenever an equal share wouldn't
+    // fit the longest label — whether or not that also means some segments
+    // folded into "More". Only a genuine equal share fills the bar.
     <div ref={rootRef} className={clsx("relative", className)} style={style}>
       <div
         aria-label={ariaLabel}
-        className={clsx("flex items-stretch gap-0.5 rounded-lg p-0.5", hasOverflow ? "w-fit" : "w-full")}
+        className={clsx("flex items-stretch gap-0.5 rounded-lg p-0.5", equalShare ? "w-full" : "w-fit")}
         style={{ background: "var(--segment-track)" }}
       >
         {visible.map((t) => {
@@ -128,7 +165,7 @@ export function SegmentedTabs<T extends string>({
               type="button"
               aria-current={active ? "page" : undefined}
               onClick={() => onSelect(t.id)}
-              className={clsx(BASE, hasOverflow ? "shrink-0" : "flex-1")}
+              className={clsx(BASE, equalShare ? "flex-1" : "shrink-0")}
               style={segmentStyle(active, t.accent)}
             >
               {t.label}
@@ -180,12 +217,21 @@ export function SegmentedTabs<T extends string>({
         </div>
       )}
 
-      {/* Hidden natural-width copies of every label (+ a "More" sample),
-          measured to decide how many segments fit. */}
+      {/* Hidden natural-width copies of every label (plain, and again with
+          the trailing chevron they'd carry as the active overflow label),
+          plus a "More" sample — measured to decide how many segments fit. */}
       <div ref={measureRef} aria-hidden="true" className="pointer-events-none absolute -z-10 flex opacity-0" style={{ left: 0, top: 0 }}>
         {items.map((t) => (
-          <span key={t.id} className={clsx(BASE, "whitespace-nowrap")}>
+          <span key={`plain-${t.id}`} className={clsx(BASE, "whitespace-nowrap")}>
             {t.label}
+          </span>
+        ))}
+        {items.map((t) => (
+          <span key={`chevron-${t.id}`} className={clsx(BASE, "flex items-center gap-1 whitespace-nowrap")}>
+            {t.label}
+            <svg width="11" height="11" viewBox="0 0 12 12" aria-hidden="true">
+              <path d="M2.5 4.5 6 8l3.5-3.5" />
+            </svg>
           </span>
         ))}
         <span className={clsx(BASE, "flex items-center gap-1 whitespace-nowrap")}>
