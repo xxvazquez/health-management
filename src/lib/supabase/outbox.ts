@@ -4,6 +4,7 @@ import {
   getDeadLetterOutboxEntries,
   getEligibleOutboxEntries,
   getOutboxCounts,
+  getPendingOutboxEntries,
   updateOutboxEntry,
   type OutboxEntry,
 } from "@/lib/db/indexedDb";
@@ -140,6 +141,15 @@ export async function getDeadLetterEntries(): Promise<OutboxEntry[]> {
   const userId = await currentUserId();
   if (!userId) return [];
   return getDeadLetterOutboxEntries(userId);
+}
+
+/** The pending entries for the signed-in user — the detail behind the
+ * plain count in `getOutboxSyncState`, for SyncStatusBanner to list what's
+ * still queued rather than just how many. */
+export async function getPendingEntries(): Promise<OutboxEntry[]> {
+  const userId = await currentUserId();
+  if (!userId) return [];
+  return getPendingOutboxEntries(userId);
 }
 
 /** Puts one dead-lettered entry back in the retry queue and immediately
