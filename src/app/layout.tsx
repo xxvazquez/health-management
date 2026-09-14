@@ -53,16 +53,18 @@ export const viewport: Viewport = {
   // resolved theme (an in-app Dark choice under an OS Light setting still
   // needs the browser chrome dark, which a media-query tag can't do).
   themeColor: "#f4f6f8",
-  // Pinch-zoom and double-tap-zoom disabled outright so the installed PWA
-  // holds still like a native app rather than panning/zooming as a web
-  // page. This also caps the zoom range at 1, which is what stops WebKit's
-  // own zoom-on-focus for a sub-16px input — see globals.css — so every
-  // input can keep its own component-level font-size instead of every one
-  // being bumped to 16px on mobile.
+  // maximumScale caps the zoom range at 1, which is what stops WebKit's own
+  // zoom-on-focus for a sub-16px input — see globals.css — so every input
+  // can keep its own component-level font-size instead of every one being
+  // bumped to 16px on mobile. userScalable is intentionally left at its
+  // default (true): explicitly disabling it (`user-scalable=no`) is a
+  // known trigger for Chrome on Android to break touch scrolling entirely
+  // in standalone/installed-PWA display mode, not just block pinch-zoom.
+  // maximumScale: 1 alone already leaves no room to zoom into, so it's
+  // enough on its own.
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
-  userScalable: false,
   // Installed on the iOS home screen the app runs edge to edge, so the
   // bottom tab bar, top bar and drawer pad themselves off the notch and
   // home indicator with env(safe-area-inset-*). Without cover those insets
