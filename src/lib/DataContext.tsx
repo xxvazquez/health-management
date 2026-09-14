@@ -6,7 +6,7 @@ import { buildCanonicalEvents } from "@/lib/canonical/buildCanonicalEvents";
 import { clearAllData, clearSnapshots, getAllDiary, getAllLogs, getAllItems, getAllStoolLogs, getAllWorkoutLogs, getAllPeriodLogs, hasAnyData, withDataLock, type OutboxEntry } from "@/lib/db/indexedDb";
 import { pullFromCloud, resetInitialPullState, retryDeadLetterEntry } from "@/lib/supabase/sync";
 import { emitCloudRefresh } from "@/lib/cloudRefresh";
-import { discardDeadLetterEntry, getDeadLetterEntries, getOutboxSyncState } from "@/lib/supabase/outbox";
+import { discardDeadLetterEntry, getDeadLetterEntries, getOutboxSyncState, getPendingEntries } from "@/lib/supabase/outbox";
 import { ANALYTICS_START_DATE } from "@/lib/config";
 import { buildDemoDataset } from "@/lib/demoData";
 import { useAuth } from "@/lib/supabase/AuthContext";
@@ -54,6 +54,9 @@ interface DataContextValue {
   /** The dead-letter entries behind `syncState.deadLetter` — enough detail
    * (table, error code) for SyncStatusBanner to explain what failed. */
   deadLetterEntries: OutboxEntry[];
+  /** The pending entries behind `syncState.pending` — what's still queued
+   * to reach the cloud, for SyncStatusBanner to list rather than just count. */
+  pendingEntries: OutboxEntry[];
   /** Re-queues one dead-letter entry and attempts to send it again. */
   retrySync: (id: string) => Promise<void>;
   /** Permanently gives up on one dead-lettered entry without ever sending
@@ -78,6 +81,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [syncState, setSyncState] = useState<SyncState>({ pending: 0, deadLetter: 0 });
   const [deadLetterEntries, setDeadLetterEntries] = useState<OutboxEntry[]>([]);
+  const [pendingEntries, setPendingEntries] = useState<OutboxEntry[]>([]);
   const [syncing, setSyncing] = useState(false);
   const [isOnline, setIsOnline] = useState(() => (typeof navigator === "undefined" ? true : navigator.onLine));
   const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(() => {
@@ -89,6 +93,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const refreshSyncState = useCallback(async () => {
     setSyncState(await getOutboxSyncState());
     setDeadLetterEntries(await getDeadLetterEntries());
+    setPendingEntries(await getPendingEntries());
   }, []);
 
   const retrySync = useCallback(
@@ -362,12 +367,32 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       isOnline,
       syncNow: syncFromCloud,
       deadLetterEntries,
+      pendingEntries,
       retrySync,
       discardSync,
       refresh,
       clearData,
     }),
-    [status, events, workoutLogs, stoolLogs, periodLogs, isDemoData, error, syncState, syncing, lastSyncedAt, isOnline, syncFromCloud, deadLetterEntries, retrySync, discardSync, refresh, clearData],
+    [
+      status,
+      events,
+      workoutLogs,
+      stoolLogs,
+      periodLogs,
+      isDemoData,
+      error,
+      syncState,
+      syncing,
+      lastSyncedAt,
+      isOnline,
+      syncFromCloud,
+      deadLetterEntries,
+      pendingEntries,
+      retrySync,
+      discardSync,
+      refresh,
+      clearData,
+    ],
   );
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;

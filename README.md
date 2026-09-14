@@ -156,9 +156,11 @@ flowchart LR
 - Every pull also filters `.eq("user_id", …)` explicitly rather than trusting RLS
   alone — after a real incident where a table's RLS was live but a retrofitted
   migration hadn't actually run against the deployed project.
-- A permanently rejected write (not just offline) surfaces in a banner
-  (`SyncStatusBanner.tsx`) with a Retry button. The local record was never at
-  risk — only its cloud copy is stuck.
+- A banner (`SyncStatusBanner.tsx`) makes outbox state visible instead of
+  silent: a plain pending count expands into which records are still queued,
+  and a permanently rejected write expands into which record, why, and a
+  Retry/Discard button. The local record is never at risk either way — only
+  the cloud copy is stuck.
 - One write lock (`withDataLock` in `indexedDb.ts`) stops a cloud pull from ever
   landing in the middle of a local write.
 - Manage → "Your data" exports straight from Supabase (`src/lib/exportData.ts`) —

@@ -35,6 +35,7 @@ function mockData(overrides: Partial<ReturnType<typeof mockUseData>> = {}) {
   mockUseData.mockReturnValue({
     syncState: { pending: 0, deadLetter: 0 },
     deadLetterEntries: [],
+    pendingEntries: [],
     retrySync: vi.fn(),
     discardSync: vi.fn(),
     ...overrides,
@@ -58,6 +59,19 @@ describe("SyncStatusBanner", () => {
     mockData({ syncState: { pending: 2, deadLetter: 0 }, isOnline: false });
     render(<SyncStatusBanner />);
     expect(screen.getByText(/Offline — 2 changes are saved on this device/)).toBeInTheDocument();
+  });
+
+  it("shows the pending count collapsed, then the entry list on Details", async () => {
+    const entry = baseEntry({ status: "pending", table: "food_items", payload: { id: "item-1", name: "Kale" } });
+    mockData({ syncState: { pending: 1, deadLetter: 0 }, pendingEntries: [entry] });
+    render(<SyncStatusBanner />);
+
+    expect(screen.getByText("1 change pending sync")).toBeInTheDocument();
+    expect(screen.queryByText("Kale", { exact: false })).not.toBeInTheDocument();
+
+    await userEvent.setup().click(screen.getByText("Details"));
+    expect(screen.getByText(/Kale/)).toBeInTheDocument();
+    expect(screen.getByText(/hasn't synced yet/)).toBeInTheDocument();
   });
 
   it("shows the dead-letter count collapsed, then the entry list on Details", async () => {

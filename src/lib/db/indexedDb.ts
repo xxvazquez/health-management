@@ -801,6 +801,17 @@ export async function getDeadLetterOutboxEntries(userId: string): Promise<Outbox
   return all.filter((e) => e.userId === userId && e.status === "dead-letter");
 }
 
+/** The actual pending (queued, not yet failed) rows for the current user —
+ * same detail as getDeadLetterOutboxEntries, for listing what's still
+ * waiting to reach the cloud rather than just a count. Oldest first, since
+ * that's also drain order. */
+export async function getPendingOutboxEntries(userId: string): Promise<OutboxEntry[]> {
+  const all = await getAllOutboxEntries();
+  return all
+    .filter((e) => e.userId === userId && e.status === "pending")
+    .sort((a, b) => a.createdAt - b.createdAt);
+}
+
 export function updateOutboxEntry(id: string, patch: Partial<OutboxEntry>): Promise<void> {
   return withDataLock(async () => {
     const db = await getDb();
