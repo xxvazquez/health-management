@@ -154,7 +154,7 @@ function PaletteSwatch<T extends string>({ id, active, onClick }: { id: T; activ
       >
         <span className="h-3.5 w-3.5 rounded-full" style={{ background: info.accent }} />
       </span>
-      <span className="max-w-14 truncate text-[11px] font-medium" style={{ color: active ? "var(--text-primary)" : "var(--text-muted)" }}>
+      <span className="w-16 text-center text-[11px] leading-tight font-medium" style={{ color: active ? "var(--text-primary)" : "var(--text-muted)" }}>
         {info.name}
       </span>
     </button>
