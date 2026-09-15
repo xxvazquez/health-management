@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState } from "react";
 import { useData } from "@/lib/DataContext";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageSkeleton } from "@/components/ui/Skeleton";
@@ -20,7 +20,6 @@ import {
   matchItem,
   MULTIPLE_COMPARISONS_NOTE,
 } from "@/lib/aggregations/patterns";
-import { generateInsights, trackingCoverageSummary } from "@/lib/aggregations/recommendations";
 import { colorForCategorySlot } from "@/taxonomy/categories";
 import type { CanonicalEvent, RawWorkoutLog } from "@/lib/types";
 
@@ -29,18 +28,6 @@ function lagPhrase(lagDays: number): string {
   if (lagDays === 0) return "the same day as";
   if (lagDays === 1) return "the day after";
   return `${lagDays} days after`;
-}
-
-/** Inline colour-coded label for the "What might be worth adjusting?" rows. */
-function AdjustTag({ color, children }: { color: string; children: ReactNode }) {
-  return (
-    <span
-      className="mr-1.5 inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold tracking-wide uppercase"
-      style={{ background: `color-mix(in oklab, ${color} 15%, var(--surface-1))`, color }}
-    >
-      {children}
-    </span>
-  );
 }
 
 export function PatternsDashboard() {
@@ -52,8 +39,6 @@ export function PatternsDashboard() {
   );
 
   const topPatterns = useMemo(() => generateTopPatterns(filtered, filteredWorkoutLogs), [filtered, filteredWorkoutLogs]);
-  const insights = useMemo(() => generateInsights(filtered), [filtered]);
-  const coverage = useMemo(() => trackingCoverageSummary(filtered), [filtered]);
 
   if (status === "loading") return <PageSkeleton />;
   if (status === "empty") return <EmptyState />;
@@ -108,14 +93,6 @@ export function PatternsDashboard() {
         />
       )}
 
-      {coverage && (
-        <p className="max-w-3xl text-xs" style={{ color: "var(--text-muted)" }}>
-          {coverage.totalTrackedDays} of {coverage.totalCalendarDays} days in this range have at least one entry
-          ({coverage.coveragePct}%). Days with nothing logged are excluded from every percentage on this page,
-          never counted as &quot;nothing happened&quot;.
-        </p>
-      )}
-
       <Card tier="raw">
         <CardTitle size="sm" subtitle="Each pair shows whichever of 4 lags (same day to +3 days) has the strongest signal.">
           Other associations
@@ -166,50 +143,6 @@ export function PatternsDashboard() {
       <LagExplorer events={filtered} workoutLogs={filteredWorkoutLogs} />
 
       <ToleratedFoods events={filtered} />
-
-      <Card tier="raw">
-        <CardTitle size="sm" subtitle="Observed facts and a cautious reading — never a nutritional prescription.">
-          What might be worth adjusting?
-        </CardTitle>
-        {insights.length > 0 ? (
-          <ul className={`grid gap-3 ${insights.length > 1 ? "sm:grid-cols-2" : ""}`}>
-            {insights.map((insight, i) => (
-              <li
-                key={i}
-                className={`flex flex-col gap-2.5 rounded-lg border p-3.5 ${
-                  insights.length % 2 === 1 && i === insights.length - 1 ? "sm:col-span-2" : ""
-                }`}
-                style={{ borderColor: "var(--gridline)" }}
-              >
-                <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-                  {insight.title}
-                </p>
-                <div className="flex flex-col gap-2 text-xs" style={{ color: "var(--text-secondary)" }}>
-                  <p>
-                    <AdjustTag color="var(--text-muted)">Observed</AdjustTag>
-                    {insight.observed}
-                  </p>
-                  <p>
-                    <AdjustTag color="var(--series-2)">Reading</AdjustTag>
-                    {insight.interpretation}
-                  </p>
-                  {insight.recommendation && (
-                    <p
-                      className="rounded-md p-2.5"
-                      style={{ background: "color-mix(in oklab, var(--status-good) 10%, var(--surface-1))", color: "var(--text-primary)" }}
-                    >
-                      <AdjustTag color="var(--status-good)">Try</AdjustTag>
-                      {insight.recommendation}
-                    </p>
-                  )}
-                </div>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="text-sm" style={{ color: "var(--text-muted)" }}>Nothing notable to flag right now.</p>
-        )}
-      </Card>
     </div>
   );
 }
