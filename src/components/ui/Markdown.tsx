@@ -78,12 +78,14 @@ export function MarkdownField({
   placeholder,
   rows = 10,
   autoFocus = false,
+  required = true,
 }: {
   value: string;
   onChange: (next: string) => void;
   placeholder?: string;
   rows?: number;
   autoFocus?: boolean;
+  required?: boolean;
 }) {
   const ref = useRef<HTMLTextAreaElement>(null);
   // Last known selection — kept in a ref because clicking a toolbar button
@@ -184,7 +186,7 @@ export function MarkdownField({
       ) : (
         <textarea
           ref={ref}
-          required
+          required={required}
           autoFocus={autoFocus}
           value={value}
           onChange={(e) => onChange(e.target.value)}

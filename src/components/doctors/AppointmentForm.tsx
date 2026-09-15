@@ -7,6 +7,7 @@ import type { LogAppointmentInput } from "@/lib/useDoctors";
 import { ComboBox, DoctorName, FIELD_CLS, FIELD_STYLE, LABEL_CLS, LABEL_STYLE, LanguageChips, RatingChips, TrashIcon, toLocalInput } from "./shared";
 import { Button } from "@/components/ui/Button";
 import { FormShell } from "@/components/ui/FormShell";
+import { MarkdownField } from "@/components/ui/Markdown";
 
 interface TaskDraft {
   description: string;
@@ -37,7 +38,7 @@ export function AppointmentForm({
   initial?: DoctorAppointment;
   initialDoctor?: Doctor;
   onCreate: (input: LogAppointmentInput) => Promise<void>;
-  onEdit: (id: string, patch: { appointmentAt: string; reason: string; followUpNotes: string }) => Promise<void>;
+  onEdit: (id: string, patch: { appointmentAt: string; reason: string; followUpNotes: string; notes: string }) => Promise<void>;
   onCancel: () => void;
 }) {
   const editing = initial != null;
@@ -50,6 +51,7 @@ export function AppointmentForm({
   const [appointmentAt, setAppointmentAt] = useState(initial ? toLocalInput(initial.appointmentAt) : nowLocalInput());
   const [reason, setReason] = useState(initial?.reason ?? "");
   const [followUpNotes, setFollowUpNotes] = useState(initial?.followUpNotes ?? "");
+  const [notes, setNotes] = useState(initial?.notes ?? "");
   const [tasks, setTasks] = useState<TaskDraft[]>([]);
 
   const [saving, setSaving] = useState(false);
@@ -76,7 +78,7 @@ export function AppointmentForm({
     setError(null);
     try {
       if (editing) {
-        await onEdit(initial.id, { appointmentAt: new Date(appointmentAt).toISOString(), reason, followUpNotes });
+        await onEdit(initial.id, { appointmentAt: new Date(appointmentAt).toISOString(), reason, followUpNotes, notes });
       } else {
         if (!doctorName.trim()) {
           setError("Pick or add a doctor.");
@@ -97,10 +99,11 @@ export function AppointmentForm({
           }));
         await onCreate({
           doctorId: matchedDoctor?.id ?? null,
-          newDoctor: isNewDoctor ? { name: doctorName.trim(), specialty: specialty.trim(), rating, language } : null,
+          newDoctor: isNewDoctor ? { name: doctorName.trim(), specialty: specialty.trim(), rating, language, notes: null } : null,
           appointmentAt: new Date(appointmentAt).toISOString(),
           reason,
           followUpNotes,
+          notes,
           tasks: cleanTasks,
         });
       }
@@ -182,14 +185,18 @@ export function AppointmentForm({
         <label className={LABEL_CLS} style={LABEL_STYLE}>
           Follow-up notes <span style={{ color: "var(--text-muted)" }}>· optional</span>
         </label>
-        <textarea
-          value={followUpNotes}
-          onChange={(e) => setFollowUpNotes(e.target.value)}
-          rows={3}
-          placeholder="What was discussed, results, what to watch"
-          className={`${FIELD_CLS} resize-y leading-relaxed`}
-          style={FIELD_STYLE}
-        />
+        <div className="overflow-hidden rounded-lg border" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
+          <MarkdownField value={followUpNotes} onChange={setFollowUpNotes} rows={4} required={false} placeholder="What was discussed, results, what to watch" />
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <label className={LABEL_CLS} style={LABEL_STYLE}>
+          Comments <span style={{ color: "var(--text-muted)" }}>· optional</span>
+        </label>
+        <div className="overflow-hidden rounded-lg border" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
+          <MarkdownField value={notes} onChange={setNotes} rows={4} required={false} placeholder="Anything else worth noting" />
+        </div>
       </div>
 
       {!editing && (

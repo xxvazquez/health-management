@@ -1424,7 +1424,7 @@ function DoctorsCard({ searchQuery }: { searchQuery: string }) {
     if (!name) return;
     const specialty = newSpecialty.trim();
     await withBusy(async () => {
-      await api.doctors.create({ name, specialty, rating: null, language: null });
+      await api.doctors.create({ name, specialty, rating: null, language: null, notes: null });
       if (specialty) await api.specialties.ensure([specialty]);
     });
     setNewName("");
@@ -1439,8 +1439,8 @@ function DoctorsCard({ searchQuery }: { searchQuery: string }) {
       forceOpen={isSearching}
     >
       <p className="mb-3 text-xs" style={{ color: "var(--text-secondary)" }}>
-        The doctors you can attach an appointment to — name, rating, language and their current specialty. Their visit history
-        lives on Health &rarr; Doctors.
+        The doctors you can attach an appointment to — name, rating, language, notes and their current specialty. Their visit
+        history lives on Health &rarr; Doctors.
       </p>
 
       {!isSearching &&
@@ -1547,11 +1547,17 @@ function DoctorEditRow({
   onDelete: () => void;
 }) {
   const [nameDraft, setNameDraft] = useState(doctor.name);
+  const [notesDraft, setNotesDraft] = useState(doctor.notes ?? "");
 
   function commitName() {
     const next = nameDraft.trim();
     if (next && next !== doctor.name) onEdit({ name: next });
     else setNameDraft(doctor.name);
+  }
+
+  function commitNotes() {
+    const next = notesDraft.trim();
+    if (next !== (doctor.notes ?? "")) onEdit({ notes: next || null });
   }
 
   return (
@@ -1598,6 +1604,20 @@ function DoctorEditRow({
           <LanguageChips value={doctor.language} onChange={(language) => onEdit({ language })} accent={accent} />
         </div>
       </div>
+      <label className="flex flex-col gap-1">
+        <span className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
+          Notes <span style={{ color: "var(--text-muted)" }}>· optional</span>
+        </span>
+        <textarea
+          value={notesDraft}
+          onChange={(e) => setNotesDraft(e.target.value)}
+          onBlur={commitNotes}
+          rows={2}
+          placeholder="Anything worth remembering about them"
+          className="resize-y rounded-md border px-2.5 py-1.5 text-xs outline-none"
+          style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
+        />
+      </label>
       <DoctorDeleteButton
         disabled={!canDelete}
         hint={!canDelete ? "Delete their appointments first" : undefined}

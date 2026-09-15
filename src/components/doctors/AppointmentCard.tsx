@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import type { Doctor, DoctorAppointment, DoctorFollowUpTask, FollowUpTaskPatch, NewFollowUpTaskInput } from "@/lib/supabase/doctors";
 import { DoctorName, FIELD_CLS, FIELD_STYLE, IconAction, LABEL_STYLE, PencilIcon, TrashIcon, formatDateTime } from "./shared";
+import { MarkdownContent } from "@/components/ui/Markdown";
 import { FollowUpTaskRow } from "./FollowUpTaskRow";
 
 /** One appointment in a history list: doctor (when shown) + its frozen
@@ -91,9 +92,19 @@ export function AppointmentCard({
         </p>
       )}
       {appointment.followUpNotes && (
-        <p className="mt-2 text-sm leading-relaxed whitespace-pre-wrap" style={{ color: "var(--text-secondary)" }}>
-          {appointment.followUpNotes}
-        </p>
+        <div className="mt-2 text-sm leading-relaxed" style={{ color: "var(--text-secondary)" }}>
+          <MarkdownContent>{appointment.followUpNotes}</MarkdownContent>
+        </div>
+      )}
+      {appointment.notes && (
+        <div className="mt-2 flex flex-col gap-0.5">
+          <span className="text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
+            Comments
+          </span>
+          <div className="text-sm leading-relaxed" style={{ color: "var(--text-secondary)" }}>
+            <MarkdownContent>{appointment.notes}</MarkdownContent>
+          </div>
+        </div>
       )}
 
       <div className="mt-3 border-t pt-1" style={{ borderColor: "var(--gridline)" }}>
