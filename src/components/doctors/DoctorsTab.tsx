@@ -46,6 +46,12 @@ function DoctorHistory({ api, doctor, accent, onBack }: { api: DoctorsApi; docto
         </Button>
       </div>
 
+      {doctor.notes && (
+        <p className="text-sm whitespace-pre-wrap [overflow-wrap:anywhere]" style={{ color: "var(--text-secondary)" }}>
+          {doctor.notes}
+        </p>
+      )}
+
       <h3 className="text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
         Appointments ({theirAppointments.length})
       </h3>

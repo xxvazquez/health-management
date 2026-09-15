@@ -2,9 +2,9 @@
 
 import { useMemo, useState } from "react";
 import type { useDoctors } from "@/lib/useDoctors";
-import type { CareEntry } from "@/lib/supabase/careLog";
+import type { CareEntry, CareEntryKind } from "@/lib/supabase/careLog";
 import { resolveSpecialtyNames } from "@/lib/doctors";
-import { CareEntryDetail, CareEntryForm, CareEntryRow, useSpecialtyNames } from "./careEntries";
+import { CARE_KIND_LABEL, CareEntryDetail, CareEntryForm, CareEntryRow, useSpecialtyNames } from "./careEntries";
 import { AppointmentList } from "./AppointmentList";
 import { AppointmentForm } from "./AppointmentForm";
 import { NextAppointmentField } from "./shared";
@@ -14,6 +14,11 @@ import { InlineEmpty } from "@/components/ui/EmptyState";
 
 type DoctorsApi = ReturnType<typeof useDoctors>;
 type AddMode = null | "choose" | "note" | "appointment";
+
+/** Decisions and notes first, observations last — otherwise the most
+ * frequently logged kind (a symptom noticed day to day) buries the rarer,
+ * more consequential entries under sheer recency. */
+const KIND_GROUP_ORDER: CareEntryKind[] = ["decision", "note", "observation"];
 
 function SectionHeading({ children, hint }: { children: React.ReactNode; hint?: string }) {
   return (
@@ -185,20 +190,33 @@ export function VisitsTab({ api, accent }: { api: DoctorsApi; accent: string }) 
             }
           />
         ) : (
-          <ul className="flex flex-col divide-y px-0.5" style={{ borderColor: "var(--gridline)" }}>
-            {shownEntries.map((entry) => (
-              <CareEntryRow
-                key={entry.id}
-                entry={entry}
-                specialtyNames={namesFor(entry.specialtyIds)}
-                supplementName={entry.supplementItemId ? supplementNameById.get(entry.supplementItemId) : null}
-                accent={accent}
-                onOpen={() => setViewingId(entry.id)}
-                onEdit={() => setEditingEntry(entry)}
-                onDelete={() => void api.careLog.remove(entry.id)}
-              />
-            ))}
-          </ul>
+          <div className="flex flex-col gap-4">
+            {KIND_GROUP_ORDER.map((kind) => {
+              const group = shownEntries.filter((entry) => entry.kind === kind);
+              if (group.length === 0) return null;
+              return (
+                <div key={kind} className="flex flex-col gap-1">
+                  <h3 className="text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
+                    {CARE_KIND_LABEL[kind]}s
+                  </h3>
+                  <ul className="flex flex-col divide-y px-0.5" style={{ borderColor: "var(--gridline)" }}>
+                    {group.map((entry) => (
+                      <CareEntryRow
+                        key={entry.id}
+                        entry={entry}
+                        specialtyNames={namesFor(entry.specialtyIds)}
+                        supplementName={entry.supplementItemId ? supplementNameById.get(entry.supplementItemId) : null}
+                        accent={accent}
+                        onOpen={() => setViewingId(entry.id)}
+                        onEdit={() => setEditingEntry(entry)}
+                        onDelete={() => void api.careLog.remove(entry.id)}
+                      />
+                    ))}
+                  </ul>
+                </div>
+              );
+            })}
+          </div>
         )}
       </section>
 

@@ -20,6 +20,7 @@ export interface Doctor {
   specialty: string;
   rating: number | null;
   language: DoctorLanguage | null;
+  notes: string | null;
   createdAt: string;
 }
 
@@ -32,6 +33,8 @@ export interface DoctorAppointment {
   appointmentAt: string;
   reason: string | null;
   followUpNotes: string | null;
+  /** A free-standing comment, separate from the reason and follow-up notes. */
+  notes: string | null;
   createdAt: string;
 }
 
@@ -58,6 +61,7 @@ interface DoctorRow {
   specialty: string;
   rating: number | null;
   language: string | null;
+  notes: string | null;
   created_at: string;
 }
 interface AppointmentRow {
@@ -67,6 +71,7 @@ interface AppointmentRow {
   appointment_at: string;
   reason: string | null;
   follow_up_notes: string | null;
+  notes: string | null;
   created_at: string;
 }
 interface TaskRow {
@@ -79,15 +84,15 @@ interface TaskRow {
 }
 
 const SPECIALTY_COLUMNS = "id, name, next_appointment_date, is_archived, icon, color";
-const DOCTOR_COLUMNS = "id, name, specialty, rating, language, created_at";
-const APPOINTMENT_COLUMNS = "id, doctor_id, specialty, appointment_at, reason, follow_up_notes, created_at";
+const DOCTOR_COLUMNS = "id, name, specialty, rating, language, notes, created_at";
+const APPOINTMENT_COLUMNS = "id, doctor_id, specialty, appointment_at, reason, follow_up_notes, notes, created_at";
 const TASK_COLUMNS = "id, appointment_id, description, due_date, reminder_at, completed_at";
 
 function toSpecialty(row: SpecialtyRow): DoctorSpecialty {
   return { id: row.id, name: row.name, nextAppointmentDate: row.next_appointment_date, isArchived: row.is_archived, icon: row.icon, color: row.color };
 }
 function toDoctor(row: DoctorRow): Doctor {
-  return { id: row.id, name: row.name, specialty: row.specialty, rating: row.rating, language: (row.language as DoctorLanguage | null) ?? null, createdAt: row.created_at };
+  return { id: row.id, name: row.name, specialty: row.specialty, rating: row.rating, language: (row.language as DoctorLanguage | null) ?? null, notes: row.notes, createdAt: row.created_at };
 }
 function toAppointment(row: AppointmentRow): DoctorAppointment {
   return {
@@ -97,6 +102,7 @@ function toAppointment(row: AppointmentRow): DoctorAppointment {
     appointmentAt: row.appointment_at,
     reason: row.reason,
     followUpNotes: row.follow_up_notes,
+    notes: row.notes,
     createdAt: row.created_at,
   };
 }
@@ -241,6 +247,7 @@ export interface NewDoctorInput {
   specialty: string;
   rating: number | null;
   language: DoctorLanguage | null;
+  notes: string | null;
 }
 
 function doctorPayload(d: Doctor, userId: string): Record<string, unknown> {
@@ -251,6 +258,7 @@ function doctorPayload(d: Doctor, userId: string): Record<string, unknown> {
     specialty: d.specialty.trim(),
     rating: d.rating,
     language: d.language,
+    notes: d.notes,
     created_at: d.createdAt,
     updated_at: new Date().toISOString(),
   };
@@ -265,6 +273,7 @@ export async function createDoctor(input: NewDoctorInput): Promise<Doctor> {
     specialty: input.specialty.trim(),
     rating: input.rating,
     language: input.language,
+    notes: input.notes?.trim() || null,
     createdAt: new Date().toISOString(),
   };
   await upsertDirect(myUserId, "doctors", d.id, doctorPayload(d, myUserId));
@@ -276,6 +285,7 @@ export interface DoctorPatch {
   specialty?: string;
   rating?: number | null;
   language?: DoctorLanguage | null;
+  notes?: string | null;
 }
 
 /** Takes the full current doctor so an offline save can upsert a complete
@@ -289,6 +299,7 @@ export async function updateDoctor(doctor: Doctor, patch: DoctorPatch): Promise<
     specialty: patch.specialty !== undefined ? patch.specialty.trim() : doctor.specialty,
     rating: patch.rating !== undefined ? patch.rating : doctor.rating,
     language: patch.language !== undefined ? patch.language : doctor.language,
+    notes: patch.notes !== undefined ? patch.notes?.trim() || null : doctor.notes,
   };
   await upsertDirect(myUserId, "doctors", next.id, doctorPayload(next, myUserId));
   return next;
@@ -325,6 +336,7 @@ export interface NewAppointmentInput {
   appointmentAt: string;
   reason: string;
   followUpNotes: string;
+  notes: string;
 }
 
 function appointmentPayload(a: DoctorAppointment, userId: string): Record<string, unknown> {
@@ -336,6 +348,7 @@ function appointmentPayload(a: DoctorAppointment, userId: string): Record<string
     appointment_at: a.appointmentAt,
     reason: a.reason,
     follow_up_notes: a.followUpNotes,
+    notes: a.notes,
     created_at: a.createdAt,
     updated_at: new Date().toISOString(),
   };
@@ -351,6 +364,7 @@ export async function createDoctorAppointment(input: NewAppointmentInput): Promi
     appointmentAt: input.appointmentAt,
     reason: input.reason.trim() || null,
     followUpNotes: input.followUpNotes.trim() || null,
+    notes: input.notes.trim() || null,
     createdAt: new Date().toISOString(),
   };
   await upsertDirect(myUserId, "doctor_appointments", a.id, appointmentPayload(a, myUserId));
@@ -361,6 +375,7 @@ export interface AppointmentPatch {
   appointmentAt?: string;
   reason?: string;
   followUpNotes?: string;
+  notes?: string;
 }
 
 export async function updateDoctorAppointment(appointment: DoctorAppointment, patch: AppointmentPatch): Promise<DoctorAppointment> {
@@ -371,6 +386,7 @@ export async function updateDoctorAppointment(appointment: DoctorAppointment, pa
     appointmentAt: patch.appointmentAt ?? appointment.appointmentAt,
     reason: patch.reason !== undefined ? patch.reason.trim() || null : appointment.reason,
     followUpNotes: patch.followUpNotes !== undefined ? patch.followUpNotes.trim() || null : appointment.followUpNotes,
+    notes: patch.notes !== undefined ? patch.notes.trim() || null : appointment.notes,
   };
   await upsertDirect(myUserId, "doctor_appointments", next.id, appointmentPayload(next, myUserId));
   return next;

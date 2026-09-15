@@ -298,7 +298,7 @@ erDiagram
     CARE_ENTRIES {
         uuid id PK
         date happened_on
-        text kind "observation | note"
+        text kind "observation | note | decision"
         text title
         text body "nullable"
     }
@@ -312,6 +312,7 @@ erDiagram
         text specialty "current specialty (denormalised string)"
         smallint rating "1-3, nullable; 1 = shown in red"
         text language "Polish / English / Spanish, nullable"
+        text notes "free-text comment, nullable"
     }
     DOCTOR_APPOINTMENTS {
         uuid id PK
@@ -319,7 +320,8 @@ erDiagram
         text specialty "frozen copy from the doctor at logging time"
         timestamptz appointment_at
         text reason
-        text follow_up_notes
+        text follow_up_notes "markdown"
+        text notes "markdown, separate comment field"
     }
     DOCTOR_APPOINTMENT_TASKS {
         uuid id PK
@@ -346,10 +348,17 @@ history stays accurate after a doctor's specialty is corrected.
 `doctor_appointments → doctors` is `on delete restrict` (deleting an
 appointment never removes the doctor); `doctor_appointment_tasks →
 doctor_appointments` is `on delete cascade`. A `reminder_at` that has passed
-is sent once by the reminder cron (phase 2).
+is sent once by the reminder cron (phase 2). `follow_up_notes` and `notes` are
+both stored as markdown, edited with the shared `MarkdownField` toolbar and
+rendered with `MarkdownContent` (same editor as Journal) — `reason` stays
+plain text. `doctors.notes` is a plain-text comment, edited inline from its
+row in Manage.
 
 `care_entries` is a separate dated timeline (Health → Visits, the "Before your next
-visit" section) of things to remember between visits — an `observation` you noticed,
+visit" section, grouped by kind — decisions and notes shown ahead of
+observations, since observations are logged far more often and would
+otherwise bury the rest under sheer recency) of things to remember between
+visits — an `observation` you noticed,
 a `decision` you made about your care (a dose change, a treatment started or
 stopped; the reasoning goes in `body`), or a plain `note`. Each entry is tagged to
 any number of specialties through the `care_entry_specialties` join (both FKs

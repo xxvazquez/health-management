@@ -35,9 +35,9 @@ export function buildDemoDoctorSpecialties(): DoctorSpecialty[] {
 
 export function buildDemoDoctors(): Doctor[] {
   return [
-    { id: DEMO_DOCTOR_KOWALSKA, name: "Dr Kowalska", specialty: "Dentist", rating: 3, language: "Polish", createdAt: iso(-120 * DAY) },
-    { id: DEMO_DOCTOR_NOWAK, name: "Dr Nowak", specialty: "Internist (GP)", rating: 1, language: "Polish", createdAt: iso(-90 * DAY) },
-    { id: DEMO_DOCTOR_GARCIA, name: "Dr García", specialty: "Gynecologist", rating: 2, language: "Spanish", createdAt: iso(-200 * DAY) },
+    { id: DEMO_DOCTOR_KOWALSKA, name: "Dr Kowalska", specialty: "Dentist", rating: 3, language: "Polish", notes: null, createdAt: iso(-120 * DAY) },
+    { id: DEMO_DOCTOR_NOWAK, name: "Dr Nowak", specialty: "Internist (GP)", rating: 1, language: "Polish", notes: "Rushes appointments — bring written questions.", createdAt: iso(-90 * DAY) },
+    { id: DEMO_DOCTOR_GARCIA, name: "Dr García", specialty: "Gynecologist", rating: 2, language: "Spanish", notes: null, createdAt: iso(-200 * DAY) },
   ];
 }
 
@@ -50,6 +50,7 @@ export function buildDemoDoctorAppointments(): DoctorAppointment[] {
       appointmentAt: iso(-14 * DAY),
       reason: "Molar pain, upper left",
       followUpNotes: "Small cavity found. Recommended a CT scan before deciding on root canal.",
+      notes: "**Bring:** old X-rays from the previous dentist.",
       createdAt: iso(-14 * DAY),
     },
     {
@@ -59,6 +60,7 @@ export function buildDemoDoctorAppointments(): DoctorAppointment[] {
       appointmentAt: iso(-45 * DAY),
       reason: "Annual check-up, blood work",
       followUpNotes: "Vitamin D low. Retest in 3 months.",
+      notes: null,
       createdAt: iso(-45 * DAY),
     },
     {
@@ -68,6 +70,7 @@ export function buildDemoDoctorAppointments(): DoctorAppointment[] {
       appointmentAt: iso(-30 * DAY),
       reason: "Routine visit",
       followUpNotes: "Everything normal. USG scan requested for next visit.",
+      notes: null,
       createdAt: iso(-30 * DAY),
     },
   ];

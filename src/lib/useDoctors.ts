@@ -58,6 +58,7 @@ export interface LogAppointmentInput {
   appointmentAt: string;
   reason: string;
   followUpNotes: string;
+  notes: string;
   tasks: NewFollowUpTaskInput[];
 }
 
@@ -198,6 +199,7 @@ export function useDoctors() {
           specialty: input.specialty.trim(),
           rating: input.rating,
           language: input.language,
+          notes: input.notes?.trim() || null,
           createdAt: new Date().toISOString(),
         };
         setDoctors((prev) => [...prev, d].sort((a, b) => a.name.localeCompare(b.name)));
@@ -253,6 +255,7 @@ export function useDoctors() {
             specialty,
             rating: input.newDoctor.rating,
             language: input.newDoctor.language,
+            notes: input.newDoctor.notes?.trim() || null,
             createdAt: new Date().toISOString(),
           };
           setDoctors((prev) => [...prev, newDoc].sort((a, b) => a.name.localeCompare(b.name)));
@@ -266,6 +269,7 @@ export function useDoctors() {
             appointmentAt: input.appointmentAt,
             reason: input.reason.trim() || null,
             followUpNotes: input.followUpNotes.trim() || null,
+            notes: input.notes.trim() || null,
             createdAt: new Date().toISOString(),
           },
           ...prev,
@@ -295,6 +299,7 @@ export function useDoctors() {
         appointmentAt: input.appointmentAt,
         reason: input.reason,
         followUpNotes: input.followUpNotes,
+        notes: input.notes,
       });
       setAppointments((prev) => [appt, ...prev].sort((a, b) => b.appointmentAt.localeCompare(a.appointmentAt)));
       for (const t of input.tasks) {
@@ -310,7 +315,11 @@ export function useDoctors() {
       const current = appointments.find((a) => a.id === id);
       setAppointments((prev) =>
         prev
-          .map((a) => (a.id === id ? { ...a, appointmentAt: patch.appointmentAt ?? a.appointmentAt, reason: patch.reason ?? a.reason, followUpNotes: patch.followUpNotes ?? a.followUpNotes } : a))
+          .map((a) =>
+            a.id === id
+              ? { ...a, appointmentAt: patch.appointmentAt ?? a.appointmentAt, reason: patch.reason ?? a.reason, followUpNotes: patch.followUpNotes ?? a.followUpNotes, notes: patch.notes ?? a.notes }
+              : a,
+          )
           .sort((x, y) => y.appointmentAt.localeCompare(x.appointmentAt)),
       );
       if (!isDemo && current) {
