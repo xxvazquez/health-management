@@ -5,6 +5,7 @@ import clsx from "clsx";
 import { todayLocalISODate } from "@/lib/aggregations/common";
 import { isSpeechToTextSupported, useSpeechToText } from "@/lib/useSpeechToText";
 import { useSwipeReveal, SWIPE_REVEAL_CLASS } from "@/lib/useSwipeReveal";
+import { TruncatedTooltip } from "@/components/ui/TruncatedTooltip";
 import { PencilIcon, TrashIcon } from "@/components/ui/Notebook";
 import { SearchField } from "@/components/ui/SearchField";
 import { ListSection, SectionIcon } from "@/components/ui/ListSection";
@@ -251,9 +252,7 @@ function CodeItem({ code, accent, onEdit, onDelete }: { code: HouseholdCode; acc
           className="flex w-fit max-w-full items-center gap-2 rounded-md px-2.5 py-1.5 transition-opacity hover:opacity-80"
           style={{ background: `color-mix(in oklab, ${accent} 12%, transparent)` }}
         >
-          <span className="truncate font-mono text-[13px] tracking-wide" style={{ color: accent }}>
-            {code.code}
-          </span>
+          <TruncatedTooltip text={code.code} className="font-mono text-[13px] tracking-wide" style={{ color: accent }} />
           <span className="shrink-0 text-xs font-medium" style={{ color: copied ? "var(--status-good)" : accent }}>
             {copied ? "Copied ✓" : "Copy"}
           </span>

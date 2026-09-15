@@ -67,6 +67,7 @@ import { useMeals } from "@/lib/useMeals";
 import { useFoodProducts } from "@/lib/useFoodProducts";
 import type { FoodProduct } from "@/lib/supabase/foodProducts";
 import { TimeField } from "@/components/ui/TimeField";
+import { TruncatedTooltip } from "@/components/ui/TruncatedTooltip";
 import { DemoNotice } from "@/components/ui/DemoNotice";
 import { MobileMenuButton } from "@/components/MobileMenuButton";
 import { useOverflowFade } from "@/lib/useOverflowFade";
@@ -1623,9 +1624,7 @@ export default function LogPage() {
           style={trackRowStyle(logged, accent)}
         >
           <RowMark accent={accent}>{logged ? "✓" : null}</RowMark>
-          <span className="min-w-0 flex-1 truncate" style={{ fontWeight: logged ? 500 : 400 }}>
-            {c.item}
-          </span>
+          <TruncatedTooltip text={c.item} style={{ fontWeight: logged ? 500 : 400 }} />
         </button>
       </li>
     );
@@ -1648,9 +1647,7 @@ export default function LogPage() {
           style={{ ...trackRowStyle(present, accent), opacity: busy ? 0.6 : 1 }}
         >
           <RowMark accent={accent}>{present ? current : null}</RowMark>
-          <span className="min-w-0 flex-1 truncate" style={{ fontWeight: present ? 500 : 400 }}>
-            {c.item}
-          </span>
+          <TruncatedTooltip text={c.item} style={{ fontWeight: present ? 500 : 400 }} />
         </button>
       </li>
     );

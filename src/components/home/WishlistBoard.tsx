@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import clsx from "clsx";
 import { useSwipeReveal, SWIPE_REVEAL_CLASS } from "@/lib/useSwipeReveal";
+import { TruncatedTooltip } from "@/components/ui/TruncatedTooltip";
 import { PencilIcon, TrashIcon } from "@/components/ui/Notebook";
 import { SearchField } from "@/components/ui/SearchField";
 import { ListSkeleton } from "@/components/ui/Skeleton";
@@ -366,12 +367,8 @@ function CategoryRow({
     >
       <CategoryGlyph accent={accent} icon={category.icon} />
       <div className="flex min-w-0 flex-1 flex-col">
-        <span className="truncate text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-          {category.name}
-        </span>
-        <span className="truncate text-xs" style={{ color: "var(--text-muted)" }}>
-          {category.items.length === 0 ? "Empty" : preview}
-        </span>
+        <TruncatedTooltip text={category.name} className="text-sm font-semibold" style={{ color: "var(--text-primary)" }} />
+        <TruncatedTooltip text={category.items.length === 0 ? "Empty" : preview} className="text-xs" style={{ color: "var(--text-muted)" }} />
       </div>
       <span className="shrink-0 text-xs font-medium tabular-nums" style={{ color: "var(--text-muted)" }}>
         {category.items.length}
@@ -414,8 +411,8 @@ function CategoryDetail({
 
       <div className="flex items-center gap-3">
         <CategoryGlyph accent={accent} icon={category.icon} size={38} />
-        <h2 className="min-w-0 flex-1 truncate text-lg font-semibold" style={{ color: "var(--text-primary)" }}>
-          {category.name}
+        <h2 className="min-w-0 flex-1 text-lg font-semibold" style={{ color: "var(--text-primary)" }}>
+          <TruncatedTooltip text={category.name} />
         </h2>
         <Button href="/manage" variant="tinted" size="xs" accent={accent} className="shrink-0">
           Edit in Settings
