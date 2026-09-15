@@ -1,8 +1,10 @@
 "use client";
 
 import { useMemo, useRef, useState, type FormEvent } from "react";
+import clsx from "clsx";
 import { todayLocalISODate } from "@/lib/aggregations/common";
 import { isSpeechToTextSupported, useSpeechToText } from "@/lib/useSpeechToText";
+import { useSwipeReveal, SWIPE_REVEAL_CLASS } from "@/lib/useSwipeReveal";
 import { PencilIcon, TrashIcon } from "@/components/ui/Notebook";
 import { SearchField } from "@/components/ui/SearchField";
 import { ListSection, SectionIcon } from "@/components/ui/ListSection";
@@ -218,6 +220,7 @@ function groupByShop(codes: HouseholdCode[], sort: SortMode): ShopGroup[] {
 function CodeItem({ code, accent, onEdit, onDelete }: { code: HouseholdCode; accent: string; onEdit: () => void; onDelete: () => void }) {
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [copied, setCopied] = useState(false);
+  const { revealed, onTouchStart, onTouchEnd } = useSwipeReveal();
 
   async function handleCopy() {
     try {
@@ -234,7 +237,12 @@ function CodeItem({ code, accent, onEdit, onDelete }: { code: HouseholdCode; acc
   const expiryColor = days == null ? null : days < 0 ? "var(--status-critical)" : days <= 14 ? "var(--status-serious)" : "var(--text-muted)";
 
   return (
-    <div className="flex items-start gap-3 border-t py-2.5 first:border-t-0" style={{ borderColor: "var(--gridline)" }}>
+    <div
+      className="group flex items-start gap-3 border-t py-2.5 first:border-t-0"
+      style={{ borderColor: "var(--gridline)", touchAction: "pan-y" }}
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
+    >
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <button
           type="button"
@@ -272,7 +280,7 @@ function CodeItem({ code, accent, onEdit, onDelete }: { code: HouseholdCode; acc
             </button>
           </>
         ) : (
-          <>
+          <div className={clsx("flex items-center gap-4 transition-opacity", revealed ? SWIPE_REVEAL_CLASS.shown : SWIPE_REVEAL_CLASS.hidden)}>
             <button
               type="button"
               onClick={onEdit}
@@ -293,7 +301,7 @@ function CodeItem({ code, accent, onEdit, onDelete }: { code: HouseholdCode; acc
             >
               <TrashIcon size={15} />
             </button>
-          </>
+          </div>
         )}
       </div>
     </div>

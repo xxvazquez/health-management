@@ -88,8 +88,11 @@ function PillarStatRow({ row }: { row: PillarStat }) {
   return (
     <li>
       <div className="flex items-baseline justify-between gap-3">
-        <span className="min-w-0 flex-1 truncate text-sm" style={{ color: "var(--text-primary)" }}>
-          {row.label}
+        <span className="flex min-w-0 flex-1 items-center gap-1.5">
+          <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: tone }} aria-hidden="true" />
+          <span className="min-w-0 truncate text-sm" style={{ color: "var(--text-primary)" }}>
+            {row.label}
+          </span>
         </span>
         {row.notTracked ? (
           <span
