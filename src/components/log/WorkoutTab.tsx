@@ -257,6 +257,7 @@ export function WorkoutTab({
   accent,
   time,
   onTimeChange,
+  onTimeReset,
   onSave,
 }: {
   /** Active exercises grouped by category, A-Z within each — see
@@ -275,12 +276,13 @@ export function WorkoutTab({
   accent: string;
   time: string;
   onTimeChange: (time: string) => void;
+  onTimeReset: () => void;
   onSave: (entry: NewWorkoutEntry) => Promise<void>;
 }) {
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-3">
-        <TimeField value={time} onChange={onTimeChange} />
+        <TimeField value={time} onChange={onTimeChange} onReset={onTimeReset} collapsible />
       </div>
 
       {groups.length === 0 ? (

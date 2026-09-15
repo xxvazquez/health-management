@@ -134,8 +134,10 @@
   --gridline: color-mix(in oklab, var(--text-muted) 20%, var(--surface-1));
   --baseline: color-mix(in oklab, var(--text-muted) 45%, var(--surface-1));
   /* Below --surface-1 (not derived off it like the light track) so the
-     active thumb reads raised in every dark palette. */
-  --segment-track: color-mix(in oklab, black 35%, var(--surface-1));
+     active thumb reads raised in every dark palette. 55% black keeps the
+     track visibly darker than the pill — 35% left them close enough to
+     read as one flat colour. */
+  --segment-track: color-mix(in oklab, black 55%, var(--surface-1));
 
   --series-1: #638f80; /* dusty sage */
   --series-2: #5f92bb; /* muted steel blue */

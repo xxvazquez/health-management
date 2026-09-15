@@ -346,7 +346,12 @@ export function StoolTab({
 
       {loggedList()}
 
-      <TimeField value={draft.loggedAtTime} onChange={(t) => setDraft((d) => ({ ...d, loggedAtTime: t }))} />
+      <TimeField
+        value={draft.loggedAtTime}
+        onChange={(t) => setDraft((d) => ({ ...d, loggedAtTime: t }))}
+        onReset={() => setDraft((d) => ({ ...d, loggedAtTime: defaultLogTimeValue() }))}
+        collapsible
+      />
 
       {/* Same card treatment as every other tab's category groups
           (border, rounded-lg, colored header) — Bristol type is this tab's
