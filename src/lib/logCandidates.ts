@@ -117,6 +117,11 @@ export interface TimelineEntry {
    * which needs 24-hour "HH:MM" rather than a locale-formatted string. */
   updatedAt: string;
   mealTag: string | null;
+  /** Food only — set when this entry came from logging a product rather
+   * than the ingredient directly. Resolving this id to a product name is
+   * left to the caller (the Log page, which already holds the product
+   * list), same as item names are already resolved before this runs. */
+  productId: string | null;
   /** Raw logged value (e.g. minutes for a duration-kind item, or a
    * workout's weight/duration/reps) — most entries are plain occurrence
    * taps and don't need this. */
@@ -168,6 +173,7 @@ export function dayTimelineEntries(
       time: new Date(l.updatedAt as string).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }),
       updatedAt: l.updatedAt as string,
       mealTag: l.mealTag,
+      productId: l.productId,
       note: notesByItemIdentity.get(l.itemIdentity) ?? null,
       value: l.value,
       category: it.category,
@@ -177,10 +183,17 @@ export function dayTimelineEntries(
   return entries;
 }
 
+export interface MealGroupItem {
+  name: string;
+  /** Set when logged as part of a product — the caller resolves this to a
+   * display name (see TimelineEntry.productId). */
+  productId: string | null;
+}
+
 export interface MealGroup {
   mealTag: string;
   /** Oldest-logged first — reads as the order things were actually eaten. */
-  items: string[];
+  items: MealGroupItem[];
 }
 
 /**
@@ -191,18 +204,24 @@ export interface MealGroup {
  * same as the individual-entry timeline does.
  */
 export function groupMealsByTag(dayTimeline: TimelineEntry[]): MealGroup[] {
-  const byTag = new Map<string, { items: string[]; latestUpdatedAt: string }>();
+  const byTag = new Map<string, { items: MealGroupItem[]; seen: Set<string>; latestUpdatedAt: string }>();
   // dayTimeline is already newest-first, so the first entry seen for a tag
   // is that meal's most recent one — captured as `latestUpdatedAt` for the
   // box-level sort below, while items accumulate newest-first here and get
-  // reversed at the end to read oldest-first.
+  // reversed at the end to read oldest-first. Deduped by name+product, so
+  // the same ingredient logged both on its own and via a product still
+  // shows as two distinct entries.
   for (const e of dayTimeline) {
     if (e.itemType !== "food" || !e.mealTag) continue;
+    const dedupeKey = `${e.item}|${e.productId ?? ""}`;
     const g = byTag.get(e.mealTag);
     if (g) {
-      if (!g.items.includes(e.item)) g.items.push(e.item);
+      if (!g.seen.has(dedupeKey)) {
+        g.seen.add(dedupeKey);
+        g.items.push({ name: e.item, productId: e.productId });
+      }
     } else {
-      byTag.set(e.mealTag, { items: [e.item], latestUpdatedAt: e.updatedAt });
+      byTag.set(e.mealTag, { items: [{ name: e.item, productId: e.productId }], seen: new Set([dedupeKey]), latestUpdatedAt: e.updatedAt });
     }
   }
   return [...byTag.entries()]

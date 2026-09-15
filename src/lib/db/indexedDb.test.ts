@@ -128,7 +128,7 @@ describe("getItemIdentitiesWithHistory / deleteItemLocalInternal", () => {
 
   it("includes an item with a log entry", async () => {
     await putItemInternal(makeItem("habit-with-log"));
-    await putLogInternal({ identity: "log-1", itemIdentity: "habit-with-log", itemType: "habit", date: "2026-01-01", value: 1, updatedAt: "2026-01-01T08:00:00.000Z", mealTag: null });
+    await putLogInternal({ identity: "log-1", itemIdentity: "habit-with-log", itemType: "habit", date: "2026-01-01", value: 1, updatedAt: "2026-01-01T08:00:00.000Z", mealTag: null, productId: null });
     const withHistory = await getItemIdentitiesWithHistory();
     expect(withHistory.has("habit-with-log")).toBe(true);
   });
@@ -263,6 +263,7 @@ function makeLog(id: string, overrides: Partial<RawLog> = {}): RawLog {
     value: 1,
     updatedAt: "2026-01-01T08:00:00.000Z",
     mealTag: null,
+    productId: null,
     ...overrides,
   };
 }

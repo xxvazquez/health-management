@@ -172,6 +172,7 @@ export function buildDemoDataset(): DemoDataset {
       value,
       updatedAt: new Date(`${date}T12:00:00`).toISOString(),
       mealTag,
+      productId: null,
     });
   }
 

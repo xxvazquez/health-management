@@ -35,6 +35,7 @@ export function makeLog(overrides: Partial<RawLog> = {}): RawLog {
     value: 1,
     updatedAt: "2026-01-01T12:00:00.000Z",
     mealTag: null,
+    productId: null,
     ...overrides,
   };
 }

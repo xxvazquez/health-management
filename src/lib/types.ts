@@ -162,6 +162,10 @@ export interface RawLog {
    * meal selector, independent of when the tap actually happened, so
    * logging breakfast at night still files it as breakfast. Food only. */
   mealTag: string | null;
+  /** Set when this log was created by logging a food product rather than
+   * the ingredient directly — purely descriptive, never required. Food
+   * only, like mealTag. */
+  productId: string | null;
 }
 
 /** A user-defined category — Supabase's `categories` table, shared across

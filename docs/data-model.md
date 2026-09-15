@@ -67,6 +67,7 @@ erDiagram
         date    date
         numeric value
         text    meal_tag "food / supplement only"
+        uuid    product_id "food only, nullable FK to food_products"
     }
     DIARY {
         uuid id PK
@@ -95,6 +96,24 @@ automatic classification still applies. Keyed by the food's name text
 `food_items`, so the override survives a rename or a delete-and-re-add.
 Owner-only, one group per override (an override replaces every
 keyword-derived group for that item, it doesn't merge with them).
+
+`food_products` (`id, user_id, name, brand, is_archived`) + the join table
+`food_product_ingredients` (`user_id, product_id, item_id, sort_order`,
+primary key on all three) let a bought or made-up combination — "Green
+smoothie (Maczfit)" — be logged in one tap instead of one ingredient at a
+time. Logging a product on Log → Food writes one ordinary `food_logs` row
+per ingredient (each `value: 1`, same as any other Food tap), setting that
+row's `product_id`; nothing new is stored for the product itself. Every
+downstream read — the day's per-meal boxes, Trends' Food dashboard — keeps
+counting by ingredient, since `product_id` is purely descriptive metadata on
+top of an otherwise ordinary log row, not a new grouping key. `item_id` on
+the join table is `on delete restrict` (same rule as every other
+`food_items` reference — an ingredient can't be deleted while a product
+still lists it); `food_logs.product_id` is `on delete set null`, so deleting
+a product never touches its past logs, just drops the annotation. Managed
+from Settings ("Food products" card); not part of the outbox-mirrored
+items/logs/diary/categories shape above — a "direct" feature like
+`food_nutrition_groups`, `meals`, or `lab_panels`.
 
 ## Standalone logs (Stool, Workout sets, Cycle)
 

@@ -64,6 +64,8 @@ import { CustomIcon, customColorValue } from "@/components/ui/customIcons";
 import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
 import { Segmented } from "@/components/ui/Segmented";
 import { useMeals } from "@/lib/useMeals";
+import { useFoodProducts } from "@/lib/useFoodProducts";
+import type { FoodProduct } from "@/lib/supabase/foodProducts";
 import { TimeField } from "@/components/ui/TimeField";
 import { DemoNotice } from "@/components/ui/DemoNotice";
 import { MobileMenuButton } from "@/components/MobileMenuButton";
@@ -481,6 +483,7 @@ export default function LogPage() {
   const careLog = useCareLog();
   const stoolOptions = useStoolOptions();
   const meals = useMeals();
+  const foodProducts = useFoodProducts();
   const today = useMemo(() => todayLocalISODate(), []);
   const [date, setDate] = useState(today);
   const [tab, setTab] = useState<LogTab>("food");
@@ -683,6 +686,8 @@ export default function LogPage() {
       .slice(0, 8);
   }, [candidates, tab]);
 
+  const productNameById = useMemo(() => new Map(foodProducts.data.map((p) => [p.id, p.name])), [foodProducts.data]);
+
   const stoolEntriesForDate = useMemo(
     () =>
       effective.stoolLogs
@@ -880,6 +885,7 @@ export default function LogPage() {
       time: new Date(s.loggedAt).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }),
       updatedAt: s.loggedAt,
       mealTag: null,
+      productId: null,
       value: null,
       note: s.note,
       category: null,
@@ -899,6 +905,7 @@ export default function LogPage() {
         time: new Date(g.updatedAt).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }),
         updatedAt: new Date(g.updatedAt).toISOString(),
         mealTag: null,
+        productId: null,
         value: g.weightKg,
         note: itemIdentity ? (workoutNotesByItemIdentity.get(itemIdentity) ?? null) : null,
         category: workoutItem?.category ?? null,
@@ -985,6 +992,23 @@ export default function LogPage() {
     setPending(candidate.key);
     const log = await incrementDailyLogAndSync(candidate.itemIdentity, candidate.itemType, date, tabConfig?.countable ? meal : null);
     await applyLogTime(log);
+    await refreshAfterWrite();
+    setPending(null);
+  }
+
+  /** Logs every ingredient of a product at once, for the current meal — one
+   * `food_logs` row per ingredient (same as tapping each one individually),
+   * each remembering the product so the meal box and per-ingredient chips
+   * can show where it came from. Not a toggle: tapping again logs the same
+   * product again, same as re-tapping any food chip. */
+  async function handleLogProduct(product: FoodProduct) {
+    if (isDemoData || product.ingredientItemIds.length === 0) return;
+    const pendingKey = `product:${product.id}`;
+    setPending(pendingKey);
+    for (const itemIdentity of product.ingredientItemIds) {
+      const log = await incrementDailyLogAndSync(itemIdentity, "food", date, meal, product.id);
+      await applyLogTime(log);
+    }
     await refreshAfterWrite();
     setPending(null);
   }
@@ -1981,7 +2005,7 @@ export default function LogPage() {
                 <MealGroupCard
                   key={g.mealTag}
                   mealTag={g.mealTag}
-                  items={g.items}
+                  items={g.items.map((it) => (it.productId ? `${it.name} (${productNameById.get(it.productId) ?? "product"})` : it.name))}
                   accent={TYPE_ACCENT.food}
                   note={meals.noteFor(date, g.mealTag)}
                   onSaveNote={(note) => void meals.setNote(date, g.mealTag, note)}
@@ -2090,6 +2114,35 @@ export default function LogPage() {
                         </button>
                       );
                     })}
+                  </div>
+                </div>
+              )}
+
+              {tab === "food" && foodProducts.data.filter((p) => !p.isArchived).length > 0 && (
+                <div className="flex flex-col gap-1.5">
+                  <p className="text-xs font-semibold" style={{ color: "var(--text-secondary)" }}>
+                    Products
+                  </p>
+                  <div className="no-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+                    {foodProducts.data
+                      .filter((p) => !p.isArchived)
+                      .map((p) => {
+                        const cAccent = TYPE_ACCENT.food;
+                        const busy = pending === `product:${p.id}`;
+                        return (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onClick={() => void handleLogProduct(p)}
+                            disabled={busy}
+                            className="flex shrink-0 items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs whitespace-nowrap transition-colors disabled:opacity-50"
+                            style={{ background: "var(--surface-1)", borderColor: cAccent, color: cAccent }}
+                          >
+                            {p.name}
+                            {p.brand && <span style={{ color: "var(--text-muted)" }}>({p.brand})</span>}
+                          </button>
+                        );
+                      })}
                   </div>
                 </div>
               )}
