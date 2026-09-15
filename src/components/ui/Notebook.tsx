@@ -3,6 +3,7 @@
 import { useState, type ReactNode } from "react";
 import clsx from "clsx";
 import { useSwipeReveal, SWIPE_REVEAL_CLASS } from "@/lib/useSwipeReveal";
+import { TruncatedTooltip } from "./TruncatedTooltip";
 
 /** Shared list surface for Journal — `NoteList` / `NoteRow` render the same
  * card row as the rest of the app. The entry editor and reading view live
@@ -82,7 +83,7 @@ export function NoteRow({
 
   const titleEl = (
     <span className="flex items-center gap-1.5 text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-      <span className="truncate">{heading}</span>
+      <TruncatedTooltip text={heading} />
       {badge}
     </span>
   );
