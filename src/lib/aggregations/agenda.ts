@@ -72,14 +72,19 @@ function dateBucket(dateISO: string, today: string): Exclude<AgendaBucket, "done
   return "later";
 }
 
-function timing(bucket: AgendaBucket, dueMs: number | null, hasClock: boolean, today: string): string {
+function timing(bucket: AgendaBucket, dueMs: number | null, hasClock: boolean, today: string, nowMs: number): string {
   if (dueMs == null) return "";
   const d = new Date(dueMs);
   const clock = d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
   if (bucket === "overdue") {
     const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
     const diff = daysBetween(today, iso);
-    if (diff >= 0) return hasClock ? clock : "earlier";
+    if (diff >= 0) {
+      if (!hasClock) return "earlier";
+      const minsAgo = Math.max(0, Math.round((nowMs - dueMs) / 60000));
+      if (minsAgo < 60) return `${minsAgo}m ago`;
+      return `${Math.floor(minsAgo / 60)}h ago`;
+    }
     if (diff === -1) return "yesterday";
     return `${-diff}d ago`;
   }
@@ -113,7 +118,7 @@ function reminderEntries(tasks: TaskItem[], scope: AgendaScope, nowMs: number, t
       title: t.title,
       subtitle: t.notes ?? undefined,
       dueMs,
-      when: done ? "" : timing(bucket, dueMs, clock, today),
+      when: done ? "" : timing(bucket, dueMs, clock, today, nowMs),
       recurring,
       reminder: t,
     });
@@ -133,13 +138,13 @@ function expiryEntries(items: ExpirationItem[], scope: AgendaScope, today: strin
       title: it.name,
       subtitle: it.remindDaysBefore > 0 ? `remind ${it.remindDaysBefore}d before` : undefined,
       dueMs,
-      when: timing(bucket, dueMs, false, today),
+      when: timing(bucket, dueMs, false, today, Date.now()),
       expiry: it,
     };
   });
 }
 
-function followUpEntries(tasks: DoctorFollowUpTask[], today: string): AgendaEntry[] {
+function followUpEntries(tasks: DoctorFollowUpTask[], today: string, nowMs: number): AgendaEntry[] {
   const out: AgendaEntry[] = [];
   for (const t of tasks) {
     if (t.completedAt) continue;
@@ -150,7 +155,7 @@ function followUpEntries(tasks: DoctorFollowUpTask[], today: string): AgendaEntr
       dueMs = new Date(`${t.dueDate}T00:00:00`).getTime();
     } else if (t.reminderAt) {
       dueMs = new Date(t.reminderAt).getTime();
-      bucket = bucketFor(dueMs, Date.now(), today);
+      bucket = bucketFor(dueMs, nowMs, today);
     }
     out.push({
       key: `followup:${t.id}`,
@@ -160,7 +165,7 @@ function followUpEntries(tasks: DoctorFollowUpTask[], today: string): AgendaEntr
       title: t.description,
       subtitle: "Follow-up",
       dueMs,
-      when: timing(bucket, dueMs, Boolean(t.reminderAt && !t.dueDate), today),
+      when: timing(bucket, dueMs, Boolean(t.reminderAt && !t.dueDate), today, nowMs),
       href: "/medical#followups",
     });
   }
@@ -182,7 +187,7 @@ function appointmentEntries(appts: { id: string; label: string; date: string }[]
       title: a.label,
       subtitle: "Appointment",
       dueMs,
-      when: timing(bucket, dueMs, false, today),
+      when: timing(bucket, dueMs, false, today, Date.now()),
       href: "/medical",
     });
   }
@@ -206,7 +211,7 @@ export function buildAgenda(sources: AgendaSources, opts: { today: string; now?:
     ...reminderEntries(sources.sharedReminders, "shared", nowMs, today),
     ...expiryEntries(sources.personalExpiry, "mine", today),
     ...expiryEntries(sources.sharedExpiry, "shared", today),
-    ...followUpEntries(sources.followUps, today),
+    ...followUpEntries(sources.followUps, today, nowMs),
     ...appointmentEntries(sources.upcomingAppointments, today),
   ];
 

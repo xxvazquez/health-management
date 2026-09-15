@@ -507,10 +507,6 @@ export default function LogPage() {
   // on date navigation either, since the time-of-day is independent of
   // which day it's applied to.
   const [logTime, setLogTime] = useState(() => defaultLogTimeValue());
-  // The Time field stays collapsed to a small "now · change" link until
-  // it's needed — either the user opens it, or a past date is picked
-  // (handled by `timeIsExplicit` at render).
-  const [showTimeField, setShowTimeField] = useState(false);
   // Workout's own copy of the same idea as `logTime` above — it renders
   // outside the shared `tabConfig`-gated block (see the render below), same
   // as Stool's own `loggedAtTime` draft field.
@@ -561,6 +557,8 @@ export default function LogPage() {
   // by default since a 144px-wide card has no room to show them all at once.
   const [expandedStoolIds, setExpandedStoolIds] = useState<Set<string>>(new Set());
   const timelineRef = useOverflowFade<HTMLDivElement>();
+  const frequentFoodsRef = useOverflowFade<HTMLDivElement>();
+  const foodProductsRef = useOverflowFade<HTMLDivElement>();
 
   const loadSnapshot = useCallback(async () => {
     // One atomic read against withDataLock — pullFromCloud's destructive
@@ -1940,6 +1938,7 @@ export default function LogPage() {
             accent={WORKOUT_ACCENT}
             time={workoutTime}
             onTimeChange={setWorkoutTime}
+            onTimeReset={() => setWorkoutTime(defaultLogTimeValue())}
             onSave={handleSaveWorkoutEntry}
           />
         ) : (
@@ -1970,32 +1969,13 @@ export default function LogPage() {
                   options={tagOptionsForType(tab).map((m) => [m, m] as const)}
                 />
               )}
-              {showTimeField || timeIsExplicit ? (
-                <TimeField
-                  value={logTime}
-                  onChange={setLogTime}
-                  explicit={timeIsExplicit}
-                  autoFocus={showTimeField && !timeIsExplicit}
-                  onReset={
-                    timeIsExplicit
-                      ? undefined
-                      : () => {
-                          setLogTime(defaultLogTimeValue());
-                          setShowTimeField(false);
-                        }
-                  }
-                />
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setShowTimeField(true)}
-                  className="text-xs font-medium"
-                  style={{ color: "var(--text-muted)" }}
-                >
-                  Time: <span style={{ color: "var(--text-secondary)" }}>now</span>
-                  <span className="ml-1" style={{ color: "var(--ui-accent)" }}>change</span>
-                </button>
-              )}
+              <TimeField
+                value={logTime}
+                onChange={setLogTime}
+                explicit={timeIsExplicit}
+                onReset={() => setLogTime(defaultLogTimeValue())}
+                collapsible
+              />
             </div>
           )}
 
@@ -2091,7 +2071,7 @@ export default function LogPage() {
                   <p className="text-xs font-semibold" style={{ color: "var(--text-secondary)" }}>
                     Your usual
                   </p>
-                  <div className="no-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+                  <div ref={frequentFoodsRef} className="no-scrollbar fade-x -mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
                     {frequentFoods.map((c) => {
                       const cAccent = TYPE_ACCENT.food;
                       const logged = (mealCounts.get(c.key) ?? 0) > 0;
@@ -2123,7 +2103,7 @@ export default function LogPage() {
                   <p className="text-xs font-semibold" style={{ color: "var(--text-secondary)" }}>
                     Products
                   </p>
-                  <div className="no-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+                  <div ref={foodProductsRef} className="no-scrollbar fade-x -mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
                     {foodProducts.data
                       .filter((p) => !p.isArchived)
                       .map((p) => {
