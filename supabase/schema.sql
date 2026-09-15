@@ -131,6 +131,38 @@ create table public.workout_items (
   foreign key (user_id, category_id, item_type) references public.categories (user_id, id, item_type) on delete restrict
 );
 
+-- A food product is a named bundle of ingredients (e.g. a bought smoothie)
+-- that logs each ingredient at once instead of one at a time. Same shape as
+-- food_items — a per-user name, archivable, never force-deleted.
+create table public.food_products (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id),
+  name text not null check (char_length(trim(name)) > 0),
+  name_key text generated always as (lower(trim(name))) stored,
+  -- Where it's from, e.g. "Maczfit" — shown alongside its ingredients.
+  brand text,
+  is_archived boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (user_id, name_key),
+  unique (user_id, id)
+);
+
+-- The ingredient list for one product — a plain join to food_items, no
+-- quantity (a logged food is always "one occurrence", same as everywhere
+-- else in Food; see food_logs.value). Cascades with the product; an
+-- ingredient item itself can't be deleted while a product still lists it,
+-- same on-delete-restrict rule as every other food_items reference.
+create table public.food_product_ingredients (
+  user_id uuid not null default auth.uid() references auth.users(id),
+  product_id uuid not null,
+  item_id uuid not null,
+  sort_order smallint not null default 0,
+  primary key (user_id, product_id, item_id),
+  foreign key (user_id, product_id) references public.food_products (user_id, id) on delete cascade,
+  foreign key (user_id, item_id) references public.food_items (user_id, id) on delete restrict
+);
+
 create table public.food_logs (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null default auth.uid() references auth.users(id),
@@ -138,8 +170,13 @@ create table public.food_logs (
   date date not null,
   value numeric,
   meal_tag text,
+  -- Set when this log was created by logging a product rather than the
+  -- ingredient directly — purely descriptive, never required. Deleting the
+  -- product only clears this on its past logs, never touches them otherwise.
+  product_id uuid,
   updated_at timestamptz not null default now(),
-  foreign key (user_id, item_id) references public.food_items (user_id, id) on delete restrict
+  foreign key (user_id, item_id) references public.food_items (user_id, id) on delete restrict,
+  foreign key (user_id, product_id) references public.food_products (user_id, id) on delete set null
 );
 
 -- One note per meal occurrence (date + meal tag), not per ingredient —
@@ -1088,6 +1125,8 @@ create table public.food_nutrition_groups (
 -- write rows where user_id matches their own auth.uid().
 alter table public.categories enable row level security;
 alter table public.food_items enable row level security;
+alter table public.food_products enable row level security;
+alter table public.food_product_ingredients enable row level security;
 alter table public.supplement_items enable row level security;
 alter table public.habit_items enable row level security;
 alter table public.symptom_items enable row level security;
@@ -1142,6 +1181,8 @@ alter table public.food_nutrition_groups enable row level security;
 
 create policy "categories_all_own" on public.categories for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "food_items_all_own" on public.food_items for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "food_products_all_own" on public.food_products for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "food_product_ingredients_all_own" on public.food_product_ingredients for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "supplement_items_all_own" on public.supplement_items for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "habit_items_all_own" on public.habit_items for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "symptom_items_all_own" on public.symptom_items for all using (auth.uid() = user_id) with check (auth.uid() = user_id);

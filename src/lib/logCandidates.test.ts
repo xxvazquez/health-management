@@ -16,6 +16,7 @@ function makeLog(overrides: Partial<RawLog> = {}): RawLog {
     value: 1,
     updatedAt: "2026-01-01T08:00:00.000Z",
     mealTag: null,
+    productId: null,
     ...overrides,
   };
 }
@@ -129,6 +130,7 @@ describe("groupMealsByTag", () => {
       time: "10:00",
       updatedAt: "2026-01-01T10:00:00.000Z",
       mealTag: "Breakfast",
+      productId: null,
       value: 1,
       note: null,
       category: "Fruit",
@@ -154,7 +156,9 @@ describe("groupMealsByTag", () => {
       makeEntry({ key: "log-2", item: "Potatoes", mealTag: "Dinner", updatedAt: "2026-01-01T22:03:04.000Z" }),
       makeEntry({ key: "log-1", item: "Milk", mealTag: "Dinner", updatedAt: "2026-01-01T22:03:03.000Z" }),
     ];
-    expect(groupMealsByTag(dayTimeline)).toEqual([{ mealTag: "Dinner", items: ["Milk", "Potatoes"] }]);
+    expect(groupMealsByTag(dayTimeline)).toEqual([
+      { mealTag: "Dinner", items: [{ name: "Milk", productId: null }, { name: "Potatoes", productId: null }] },
+    ]);
   });
 });
 

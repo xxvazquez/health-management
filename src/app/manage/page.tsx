@@ -82,6 +82,8 @@ import { useDoctors } from "@/lib/useDoctors";
 import { resolveSpecialtyNames } from "@/lib/doctors";
 import type { Doctor, DoctorPatch } from "@/lib/supabase/doctors";
 import { ComboBox, DoctorName, LanguageChips, RatingChips } from "@/components/doctors/shared";
+import { useFoodProducts } from "@/lib/useFoodProducts";
+import type { FoodProduct, FoodProductPatch } from "@/lib/supabase/foodProducts";
 
 // Log tab order — Food, Symptoms, Supplements, Habits, Stool, Workout,
 // Cycle — so the toggle list reads left-to-right the same way the tabs
@@ -1657,6 +1659,269 @@ function DoctorDeleteButton({ disabled, hint, onDelete }: { disabled: boolean; h
   );
 }
 
+// --- Food products ----------------------------------------------------
+
+function FoodProductsCard({
+  searchQuery,
+  foodItems,
+  onResolveIngredient,
+}: {
+  searchQuery: string;
+  foodItems: ManageableItem[];
+  onResolveIngredient: (name: string) => Promise<string>;
+}) {
+  const products = useFoodProducts();
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [newName, setNewName] = useState("");
+
+  const query = searchQuery.trim().toLowerCase();
+  const isSearching = query.length > 0;
+  const accent = "var(--ui-accent)";
+
+  const shown = products.data.filter((p) => !isSearching || p.name.toLowerCase().includes(query) || (p.brand ?? "").toLowerCase().includes(query));
+  if (isSearching && shown.length === 0) return null;
+
+  async function handleAdd(e: FormEvent) {
+    e.preventDefault();
+    const name = newName.trim();
+    if (!name) return;
+    const created = await products.create({ name, brand: null, ingredientItemIds: [] });
+    setNewName("");
+    setAdding(false);
+    if (created) setEditingId(created.id);
+  }
+
+  return (
+    <CollapsibleManageCard
+      title="Food products"
+      subtitle={`${products.data.length} ${products.data.length === 1 ? "product" : "products"}`}
+      forceOpen={isSearching}
+    >
+      <p className="mb-3 text-xs" style={{ color: "var(--text-secondary)" }}>
+        A product bundles several Food ingredients under one name — logging it on Log &rarr; Food logs every ingredient at
+        once, tagged with the product they came from.
+      </p>
+
+      {!isSearching &&
+        (adding ? (
+          <form onSubmit={handleAdd} className="mb-3 flex flex-col gap-2 rounded-lg border p-2.5" style={{ borderColor: "var(--border-hairline)" }}>
+            <input
+              autoFocus
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              placeholder="Product name, e.g. Green smoothie"
+              maxLength={120}
+              className="rounded-md border px-2.5 py-1.5 text-xs outline-none"
+              style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
+            />
+            <div className="flex items-center gap-2">
+              <Button type="submit" size="sm" accent={accent} disabled={!newName.trim()}>
+                Add product
+              </Button>
+              <button type="button" onClick={() => setAdding(false)} className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+                Cancel
+              </button>
+            </div>
+          </form>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setAdding(true)}
+            className="mb-3 rounded-md border px-2.5 py-1.5 text-xs font-medium"
+            style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-secondary)" }}
+          >
+            + Add product
+          </button>
+        ))}
+
+      {products.data.length === 0 ? (
+        <p className="py-2 text-xs" style={{ color: "var(--text-muted)" }}>
+          No products yet — add one above, e.g. a bought smoothie or meal with a fixed set of ingredients.
+        </p>
+      ) : (
+        <ul className="inset-rows flex flex-col">
+          {shown.map((product) => {
+            const editing = editingId === product.id;
+            return (
+              <li key={product.id} className="py-1.5">
+                <button
+                  type="button"
+                  onClick={() => setEditingId(editing ? null : product.id)}
+                  className="flex min-h-11 w-full items-center gap-3 text-left"
+                >
+                  <span className="min-w-0 flex-1">
+                    <span className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
+                      {product.name}
+                    </span>
+                    {product.brand && (
+                      <span className="ml-2 text-xs" style={{ color: "var(--text-muted)" }}>
+                        {product.brand}
+                      </span>
+                    )}
+                  </span>
+                  <span className="shrink-0 text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>
+                    {product.ingredientItemIds.length} ingredient{product.ingredientItemIds.length === 1 ? "" : "s"}
+                  </span>
+                  <ChevronIcon dir={editing ? "down" : "right"} size={13} />
+                </button>
+
+                {editing && (
+                  <ProductEditRow
+                    product={product}
+                    foodItems={foodItems}
+                    accent={accent}
+                    onEdit={(patch) => void products.edit(product.id, patch)}
+                    onResolveIngredient={onResolveIngredient}
+                    onDelete={() =>
+                      void (async () => {
+                        await products.remove(product.id);
+                        setEditingId(null);
+                      })()
+                    }
+                  />
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </CollapsibleManageCard>
+  );
+}
+
+function ProductEditRow({
+  product,
+  foodItems,
+  accent,
+  onEdit,
+  onResolveIngredient,
+  onDelete,
+}: {
+  product: FoodProduct;
+  foodItems: ManageableItem[];
+  accent: string;
+  onEdit: (patch: FoodProductPatch) => void;
+  onResolveIngredient: (name: string) => Promise<string>;
+  onDelete: () => void;
+}) {
+  const [nameDraft, setNameDraft] = useState(product.name);
+  const [brandDraft, setBrandDraft] = useState(product.brand ?? "");
+  const [ingredientDraft, setIngredientDraft] = useState("");
+  const [confirming, setConfirming] = useState(false);
+  // Newly-created ingredients by this row, keyed by id — a fallback for the
+  // chip label ahead of `foodItems` catching up with the item this row just
+  // created (that list is owned by the Manage page and only refreshes after
+  // its own async reload settles).
+  const [justAddedNames, setJustAddedNames] = useState<Map<string, string>>(new Map());
+  const nameById = useMemo(() => new Map(foodItems.map((i) => [i.itemIdentity, i.item])), [foodItems]);
+
+  function commitName() {
+    const next = nameDraft.trim();
+    if (next && next !== product.name) onEdit({ name: next });
+    else setNameDraft(product.name);
+  }
+
+  function commitBrand() {
+    const next = brandDraft.trim();
+    if (next !== (product.brand ?? "")) onEdit({ brand: next || null });
+  }
+
+  async function addIngredient(name: string) {
+    setIngredientDraft("");
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    const itemId = await onResolveIngredient(trimmed);
+    setJustAddedNames((prev) => new Map(prev).set(itemId, trimmed));
+    if (!product.ingredientItemIds.includes(itemId)) onEdit({ ingredientItemIds: [...product.ingredientItemIds, itemId] });
+  }
+
+  function removeIngredient(itemId: string) {
+    onEdit({ ingredientItemIds: product.ingredientItemIds.filter((id) => id !== itemId) });
+  }
+
+  return (
+    <div className="mt-2.5 flex flex-col gap-3 rounded-lg border p-3" style={{ borderColor: "var(--border-hairline)" }}>
+      <label className="flex flex-col gap-1">
+        <span className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
+          Name
+        </span>
+        <input
+          value={nameDraft}
+          onChange={(e) => setNameDraft(e.target.value)}
+          onBlur={commitName}
+          maxLength={120}
+          className="rounded-md border px-2.5 py-1.5 text-xs outline-none"
+          style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
+        />
+      </label>
+      <label className="flex flex-col gap-1">
+        <span className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
+          Brand <span style={{ color: "var(--text-muted)" }}>· optional</span>
+        </span>
+        <input
+          value={brandDraft}
+          onChange={(e) => setBrandDraft(e.target.value)}
+          onBlur={commitBrand}
+          maxLength={120}
+          placeholder="e.g. Maczfit"
+          className="rounded-md border px-2.5 py-1.5 text-xs outline-none"
+          style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
+        />
+      </label>
+
+      <div className="flex flex-col gap-1.5">
+        <span className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
+          Ingredients
+        </span>
+        {product.ingredientItemIds.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {product.ingredientItemIds.map((itemId) => (
+              <span
+                key={itemId}
+                className="flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium"
+                style={{ borderColor: "var(--border-hairline)", color: "var(--text-secondary)" }}
+              >
+                {nameById.get(itemId) ?? justAddedNames.get(itemId) ?? "Unknown item"}
+                <button type="button" onClick={() => removeIngredient(itemId)} aria-label="Remove ingredient" style={{ color: "var(--text-muted)" }}>
+                  <CloseIcon size={11} />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+        <ComboBox
+          value={ingredientDraft}
+          onChange={(name) => void addIngredient(name)}
+          options={foodItems.map((i) => i.item)}
+          placeholder="Search or add an ingredient…"
+          accent={accent}
+        />
+      </div>
+
+      {confirming ? (
+        <span className="flex items-center gap-2 text-xs">
+          <button type="button" onClick={onDelete} className="font-semibold" style={{ color: "var(--status-critical)" }}>
+            Delete product
+          </button>
+          <button type="button" onClick={() => setConfirming(false)} className="font-medium" style={{ color: "var(--text-muted)" }}>
+            Keep
+          </button>
+        </span>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setConfirming(true)}
+          className="notebook-danger self-start rounded-md text-xs font-medium"
+          style={{ color: "var(--text-muted)" }}
+        >
+          Delete product
+        </button>
+      )}
+    </div>
+  );
+}
+
 const TYPE_SECTIONS: { type: ItemType; label: string; placeholder: string }[] = [
   { type: "food", label: "Food", placeholder: "e.g. Kohlrabi" },
   { type: "habit", label: "Habits", placeholder: "e.g. Stretch before bed" },
@@ -2528,6 +2793,34 @@ export default function ManagePage() {
     return true;
   }
 
+  /** Resolves a typed ingredient name to a real food_items id for a
+   * product — reuses whatever already matches by name, or materializes a
+   * new item (guessing its category the same way `handleAdd` does) rather
+   * than blocking on a duplicate-name dialog, since picking an existing
+   * ingredient by typing its name is the expected path here. */
+  async function resolveOrCreateFoodIngredient(name: string): Promise<string> {
+    const trimmed = titleCaseFallback(name);
+    const existing = itemsByType.food.find((i) => i.itemIdentity !== "" && normalizeName(i.item) === normalizeName(trimmed));
+    if (existing) return existing.itemIdentity;
+    const guessed = lookupFoodCategory(trimmed, categoryNamesByType.food);
+    const category = guessed ?? categoryNamesByType.food[0];
+    const categoryId = await ensureCategoryId("food", category);
+    const item: RawItem = {
+      identity: crypto.randomUUID(),
+      itemType: "food",
+      rawName: trimmed,
+      category,
+      categoryId,
+      isArchived: false,
+      createdDate: todayLocalISODate(),
+      reminderTime: null,
+      unit: null,
+    };
+    await putItemAndSync(item);
+    await refresh();
+    return item.identity;
+  }
+
   /** Stops offering a catalog suggestion on the Log page — since there's no
    * real row for it yet, "hide" means creating one and archiving it in the
    * same step, not toggling a flag on something that already exists. */
@@ -2745,6 +3038,17 @@ export default function ManagePage() {
   const orderedManageSections: { label: string; el: ReactNode }[] = [
     { label: "Reminder lists", el: <ReminderListsCard key="reminder-lists" isDemoData={isDemoData} searchQuery={searchQuery} /> },
     { label: "Doctors", el: <DoctorsCard key="doctors" searchQuery={searchQuery} /> },
+    {
+      label: "Food products",
+      el: (
+        <FoodProductsCard
+          key="food-products"
+          searchQuery={searchQuery}
+          foodItems={itemsByType.food.filter((i) => i.itemIdentity !== "")}
+          onResolveIngredient={resolveOrCreateFoodIngredient}
+        />
+      ),
+    },
     { label: "Doctor types", el: <DoctorSpecialtiesCard key="doctor-types" isDemoData={isDemoData} searchQuery={searchQuery} /> },
     { label: "Lab results", el: <LabResultsCard key="lab-results" searchQuery={searchQuery} /> },
     { label: "Stool options", el: <StoolOptionsCard key="stool-options" isDemoData={isDemoData} searchQuery={searchQuery} /> },

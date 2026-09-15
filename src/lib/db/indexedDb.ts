@@ -315,6 +315,7 @@ export async function toggleDailyLogInternal(
     value: 1,
     updatedAt: new Date().toISOString(),
     mealTag: null,
+    productId: null,
   };
   await tx.store.put(log);
   await tx.done;
@@ -335,6 +336,7 @@ export async function incrementDailyLogInternal(
   itemType: ItemType,
   date: string,
   mealTag: string | null = null,
+  productId: string | null = null,
 ): Promise<RawLog> {
   const db = await getDb();
   const log: RawLog = {
@@ -345,6 +347,7 @@ export async function incrementDailyLogInternal(
     value: 1,
     updatedAt: new Date().toISOString(),
     mealTag,
+    productId,
   };
   await db.put("logs", log);
   return log;
@@ -375,6 +378,7 @@ export async function setDailyDurationInternal(
     value: totalMinutes,
     updatedAt: new Date().toISOString(),
     mealTag: null,
+    productId: null,
   };
   await tx.store.put(log);
   await tx.done;

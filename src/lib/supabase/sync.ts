@@ -130,6 +130,7 @@ function buildLogRow(log: RawLog, userId: string): Record<string, unknown> {
   // supplement_logs have the column; symptom_logs/habit_logs don't, and
   // sending it there would make Supabase reject the whole upsert.
   if (log.itemType === "food" || log.itemType === "supplement") row.meal_tag = log.mealTag;
+  if (log.itemType === "food") row.product_id = log.productId;
   return row;
 }
 
@@ -278,9 +279,15 @@ export function setItemReminderTimeAndSync(item: RawItem, time: string | null): 
   });
 }
 
-export function incrementDailyLogAndSync(itemIdentity: string, itemType: ItemType, date: string, mealTag: string | null = null): Promise<RawLog> {
+export function incrementDailyLogAndSync(
+  itemIdentity: string,
+  itemType: ItemType,
+  date: string,
+  mealTag: string | null = null,
+  productId: string | null = null,
+): Promise<RawLog> {
   return withDataLock(async () => {
-    const log = await incrementDailyLogInternal(itemIdentity, itemType, date, mealTag);
+    const log = await incrementDailyLogInternal(itemIdentity, itemType, date, mealTag, productId);
     const userId = await currentUserId();
     if (userId) await enqueueOutboxInternal(logEnqueue(log, userId, "upsert"));
     return log;
@@ -481,6 +488,8 @@ interface LogRow {
   date: string;
   value: number | null;
   meal_tag?: string | null;
+  /** food_logs only — absent from the other *_logs tables. */
+  product_id?: string | null;
   updated_at: string | null;
 }
 
@@ -1048,6 +1057,7 @@ export async function pullFromCloud(): Promise<void> {
             value: row.value,
             updatedAt: row.updated_at,
             mealTag: itemType === "food" || itemType === "supplement" ? (row.meal_tag ?? null) : null,
+            productId: itemType === "food" ? (row.product_id ?? null) : null,
           };
           await putLogInternal(log);
         }
