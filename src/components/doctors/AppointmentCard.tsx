@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import type { Doctor, DoctorAppointment, DoctorFollowUpTask, FollowUpTaskPatch, NewFollowUpTaskInput } from "@/lib/supabase/doctors";
-import { DoctorName, FIELD_CLS, FIELD_STYLE, IconAction, LABEL_STYLE, PencilIcon, TrashIcon, formatDateTime } from "./shared";
+import { DoctorName, FIELD_CLS, FIELD_STYLE, IconAction, LABEL_STYLE, PencilIcon, TrashIcon, formatDate } from "./shared";
 import { MarkdownContent } from "@/components/ui/Markdown";
 import { FollowUpTaskRow } from "./FollowUpTaskRow";
 
@@ -60,7 +60,7 @@ export function AppointmentCard({
             </div>
           )}
           <div className="mt-0.5 text-xs" style={{ color: "var(--text-secondary)" }}>
-            {formatDateTime(appointment.appointmentAt)}
+            {formatDate(appointment.appointmentAt)}
             {!showDoctor && <span style={{ color: "var(--text-muted)" }}> · {appointment.specialty}</span>}
           </div>
         </div>

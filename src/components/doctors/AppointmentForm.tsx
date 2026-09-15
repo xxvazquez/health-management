@@ -4,19 +4,16 @@ import { useState, type FormEvent } from "react";
 import type { Doctor, DoctorAppointment } from "@/lib/supabase/doctors";
 import type { DoctorLanguage } from "@/lib/doctors";
 import type { LogAppointmentInput } from "@/lib/useDoctors";
-import { ComboBox, DoctorName, FIELD_CLS, FIELD_STYLE, LABEL_CLS, LABEL_STYLE, LanguageChips, RatingChips, TrashIcon, toLocalInput } from "./shared";
+import { ComboBox, DoctorName, FIELD_CLS, FIELD_STYLE, LABEL_CLS, LABEL_STYLE, LanguageChips, RatingChips, TrashIcon, toLocalDateInput } from "./shared";
 import { Button } from "@/components/ui/Button";
 import { FormShell } from "@/components/ui/FormShell";
 import { MarkdownField } from "@/components/ui/Markdown";
+import { todayLocalISODate } from "@/lib/aggregations/common";
 
 interface TaskDraft {
   description: string;
   dueDate: string;
   reminderAt: string;
-}
-
-function nowLocalInput(): string {
-  return toLocalInput(new Date().toISOString());
 }
 
 /** Log a new appointment, or edit an existing one's own fields (the doctor
@@ -48,7 +45,7 @@ export function AppointmentForm({
   const [rating, setRating] = useState<number | null>(null);
   const [language, setLanguage] = useState<DoctorLanguage | null>(null);
 
-  const [appointmentAt, setAppointmentAt] = useState(initial ? toLocalInput(initial.appointmentAt) : nowLocalInput());
+  const [appointmentDate, setAppointmentDate] = useState(initial ? toLocalDateInput(initial.appointmentAt) : todayLocalISODate());
   const [reason, setReason] = useState(initial?.reason ?? "");
   const [followUpNotes, setFollowUpNotes] = useState(initial?.followUpNotes ?? "");
   const [notes, setNotes] = useState(initial?.notes ?? "");
@@ -73,12 +70,15 @@ export function AppointmentForm({
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (saving) return;
-    if (!appointmentAt) return;
+    if (!appointmentDate) return;
     setSaving(true);
     setError(null);
+    // Stored as a timestamp for sort order, but only the date is asked for —
+    // pinned to local noon so no timezone conversion can shift the day.
+    const appointmentAt = new Date(`${appointmentDate}T12:00:00`).toISOString();
     try {
       if (editing) {
-        await onEdit(initial.id, { appointmentAt: new Date(appointmentAt).toISOString(), reason, followUpNotes, notes });
+        await onEdit(initial.id, { appointmentAt, reason, followUpNotes, notes });
       } else {
         if (!doctorName.trim()) {
           setError("Pick or add a doctor.");
@@ -100,7 +100,7 @@ export function AppointmentForm({
         await onCreate({
           doctorId: matchedDoctor?.id ?? null,
           newDoctor: isNewDoctor ? { name: doctorName.trim(), specialty: specialty.trim(), rating, language, notes: null } : null,
-          appointmentAt: new Date(appointmentAt).toISOString(),
+          appointmentAt,
           reason,
           followUpNotes,
           notes,
@@ -168,9 +168,9 @@ export function AppointmentForm({
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="flex flex-col gap-1.5">
           <label className={LABEL_CLS} style={LABEL_STYLE}>
-            Date &amp; time
+            Date
           </label>
-          <input type="datetime-local" required value={appointmentAt} onChange={(e) => setAppointmentAt(e.target.value)} className={FIELD_CLS} style={FIELD_STYLE} />
+          <input type="date" required max={todayLocalISODate()} value={appointmentDate} onChange={(e) => setAppointmentDate(e.target.value)} className={FIELD_CLS} style={FIELD_STYLE} />
         </div>
       </div>
 

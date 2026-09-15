@@ -26,6 +26,14 @@ export function toLocalInput(iso: string): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+/** ISO timestamp -> the `YYYY-MM-DD` a `date` input wants, in the viewer's
+ * own timezone — for a field that only ever asks for a day. */
+export function toLocalDateInput(iso: string): string {
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
 /** Always-visible low-contrast row action — the muted icon-button used
  * for edit / archive / delete on list rows across the app. */
 export function IconAction({ onClick, label, tone = "muted", disabled, children }: { onClick: () => void; label: string; tone?: "muted" | "critical"; disabled?: boolean; children: ReactNode }) {
