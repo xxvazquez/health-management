@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, type FormEvent, type ReactNode, type TouchEvent as ReactTouchEvent } from "react";
+import { useMemo, useState, type FormEvent, type ReactNode } from "react";
 import Link from "next/link";
 import clsx from "clsx";
 import { AGENDA_BUCKET_LABEL, AGENDA_BUCKET_ORDER, type AgendaBucket, type AgendaEntry, type AgendaKind, type AgendaScope } from "@/lib/aggregations/agenda";
@@ -20,6 +20,7 @@ import { ChoicePanel } from "@/components/ui/ChoicePanel";
 import { PencilIcon, TrashIcon } from "@/components/ui/Notebook";
 import { ChevronIcon } from "@/components/ui/icons";
 import { FIELD_CLS, FIELD_STYLE } from "@/components/ui/formField";
+import { useSwipeReveal, SWIPE_REVEAL_CLASS } from "@/lib/useSwipeReveal";
 
 const ACCENT = "var(--series-berry)";
 
@@ -447,25 +448,7 @@ function AgendaRow({
   const isReminder = e.kind === "reminder";
   const readOnly = e.kind === "followup" || e.kind === "appointment";
   const recurring = e.reminder ? isRecurringTask(e.reminder) : false;
-  // Edit/delete stay out of the way until wanted: a mouse hovering the row
-  // reveals them (`group-hover`), and on touch — which has no hover — a
-  // left swipe does the same via `revealed`. Either way they're still in
-  // the DOM for keyboard focus (`group-focus-within`).
-  const [revealed, setRevealed] = useState(false);
-  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
-  const onTouchStart = (ev: ReactTouchEvent) => {
-    const t = ev.touches[0];
-    touchStartRef.current = { x: t.clientX, y: t.clientY };
-  };
-  const onTouchEnd = (ev: ReactTouchEvent) => {
-    const start = touchStartRef.current;
-    touchStartRef.current = null;
-    if (!start) return;
-    const t = ev.changedTouches[0];
-    const dx = t.clientX - start.x;
-    if (dx < -32) setRevealed(true);
-    else if (dx > 32) setRevealed(false);
-  };
+  const { revealed, onTouchStart, onTouchEnd } = useSwipeReveal();
   // Reminders always toggle done. An expired product has no "done" state,
   // but once it's overdue a checkbox to clear it from the list (a delete)
   // is more useful than a dead bullet.
@@ -561,14 +544,7 @@ function AgendaRow({
               </button>
             </span>
           ) : (
-            <div
-              className={clsx(
-                "flex shrink-0 items-center gap-3 transition-opacity",
-                revealed
-                  ? "opacity-100"
-                  : "pointer-events-none opacity-0 group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100",
-              )}
-            >
+            <div className={clsx("flex shrink-0 items-center gap-3 transition-opacity", revealed ? SWIPE_REVEAL_CLASS.shown : SWIPE_REVEAL_CLASS.hidden)}>
               {done && (
                 <button type="button" onClick={onUncomplete} aria-label="Undo last done" className="p-1" style={{ color: "var(--text-muted)" }}>
                   <UndoIcon size={15} />

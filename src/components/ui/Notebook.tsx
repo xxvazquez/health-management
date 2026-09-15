@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
+import clsx from "clsx";
+import { useSwipeReveal, SWIPE_REVEAL_CLASS } from "@/lib/useSwipeReveal";
 
 /** Shared list surface for Journal — `NoteList` / `NoteRow` render the same
  * card row as the rest of the app. The entry editor and reading view live
@@ -76,6 +78,7 @@ export function NoteRow({
 }) {
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const { heading, preview } = headingAndPreview(title, body);
+  const { revealed, onTouchStart, onTouchEnd } = useSwipeReveal();
 
   const titleEl = (
     <span className="flex items-center gap-1.5 text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
@@ -91,8 +94,10 @@ export function NoteRow({
 
   return (
     <li
-      className="rounded-xl border p-4"
-      style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", boxShadow: "var(--shadow-card)" }}
+      className="group rounded-xl border p-4"
+      style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", boxShadow: "var(--shadow-card)", touchAction: "pan-y" }}
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
     >
       <div className="flex items-start justify-between gap-3">
         <button type="button" onClick={onOpen} className="min-w-0 flex-1 text-left">
@@ -109,7 +114,10 @@ export function NoteRow({
             onClick={() => setConfirmingDelete(true)}
             aria-label={`Delete ${heading}`}
             title="Delete"
-            className="tap-target notebook-danger -m-1 shrink-0 rounded-md p-1.5 transition-colors hover:bg-[var(--page-plane)]"
+            className={clsx(
+              "tap-target notebook-danger -m-1 shrink-0 rounded-md p-1.5 transition-colors hover:bg-[var(--page-plane)]",
+              revealed ? SWIPE_REVEAL_CLASS.shown : SWIPE_REVEAL_CLASS.hidden,
+            )}
             style={{ color: "var(--text-muted)" }}
           >
             <TrashIcon size={15} />

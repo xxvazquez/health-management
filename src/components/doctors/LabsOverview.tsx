@@ -26,6 +26,7 @@ import { Methodology } from "@/components/ui/Methodology";
 import { LabMarkerChart } from "@/components/charts/LabMarkerChart";
 import { CustomIcon, customColorValue } from "@/components/ui/customIcons";
 import { Segmented } from "@/components/ui/Segmented";
+import { useOverflowFade } from "@/lib/useOverflowFade";
 
 const ACCENT = "var(--ui-accent)";
 
@@ -96,6 +97,7 @@ export function LabsOverview({
   const [sort, setSort] = useState<SortKey>("panel");
   const [panelFilter, setPanelFilter] = useState<string | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
+  const panelFilterRef = useOverflowFade<HTMLDivElement>();
 
   const today = todayLocalISODate();
   const rangeOption = LAB_RANGES.find((r) => r.id === rangeId) ?? LAB_RANGES[0];
@@ -214,7 +216,7 @@ export function LabsOverview({
       </div>
 
       {panelSections.length >= 2 && (
-        <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5">
+        <div ref={panelFilterRef} className="no-scrollbar fade-x -mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5">
           <FilterChip label="All panels" active={!effectiveFilter} onClick={() => setPanelFilter(null)} />
           {panelSections.map((s) => (
             <FilterChip

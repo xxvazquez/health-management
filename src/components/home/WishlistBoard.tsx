@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
+import clsx from "clsx";
+import { useSwipeReveal, SWIPE_REVEAL_CLASS } from "@/lib/useSwipeReveal";
 import { PencilIcon, TrashIcon } from "@/components/ui/Notebook";
 import { SearchField } from "@/components/ui/SearchField";
 import { ListSkeleton } from "@/components/ui/Skeleton";
@@ -264,9 +266,15 @@ function ItemRow({
 }) {
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const host = hostFromUrl(item.url);
+  const { revealed, onTouchStart, onTouchEnd } = useSwipeReveal();
 
   return (
-    <div className="flex items-start gap-3 border-t py-3 first:border-t-0" style={{ borderColor: "var(--gridline)" }}>
+    <div
+      className="group flex items-start gap-3 border-t py-3 first:border-t-0"
+      style={{ borderColor: "var(--gridline)", touchAction: "pan-y" }}
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
+    >
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
         <a
           href={normalizeUrl(item.url)}
@@ -309,7 +317,7 @@ function ItemRow({
             </button>
           </>
         ) : (
-          <>
+          <div className={clsx("flex items-center gap-4 transition-opacity", revealed ? SWIPE_REVEAL_CLASS.shown : SWIPE_REVEAL_CLASS.hidden)}>
             <button
               type="button"
               onClick={onEdit}
@@ -330,7 +338,7 @@ function ItemRow({
             >
               <TrashIcon size={15} />
             </button>
-          </>
+          </div>
         )}
       </div>
     </div>
