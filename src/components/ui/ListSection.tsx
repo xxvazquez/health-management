@@ -57,20 +57,27 @@ export function ListSection({
     </>
   );
 
+  // `accent` marks urgency (Agenda's Overdue/Today buckets), not just a
+  // label colour — the whole card picks up a faint tint and a tinted
+  // border so an urgent group reads as visually heavier than a routine one,
+  // not just differently-coloured text on an otherwise identical card.
+  const cardBorder = accent ? `color-mix(in oklab, ${accent} 35%, var(--border-hairline))` : "var(--border-hairline)";
+  const cardBackground = accent ? `color-mix(in oklab, ${accent} 6%, var(--surface-1))` : "var(--surface-1)";
+
   return (
-    <section className="flex flex-col rounded-lg border" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
+    <section className="flex flex-col rounded-lg border" style={{ borderColor: cardBorder, background: cardBackground }}>
       {collapsible ? (
         <button
           type="button"
           onClick={() => setOpen((o) => !o)}
           aria-expanded={open}
           className="flex items-center gap-1.5 px-3 py-2 text-left"
-          style={{ borderBottom: shown ? "1px solid var(--border-hairline)" : "none" }}
+          style={{ borderBottom: shown ? `1px solid ${cardBorder}` : "none" }}
         >
           {head}
         </button>
       ) : (
-        <div className="flex items-center gap-1.5 border-b px-3 py-2" style={{ borderColor: "var(--border-hairline)" }}>
+        <div className="flex items-center gap-1.5 border-b px-3 py-2" style={{ borderColor: cardBorder }}>
           {head}
         </div>
       )}
