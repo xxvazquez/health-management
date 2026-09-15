@@ -403,7 +403,6 @@ export function FoodDashboard() {
             accent={TYPE_ACCENT.food}
             detail={ingredientDelta != null ? `${ingredientDelta > 0 ? "+" : ""}${ingredientDelta} vs prev.` : undefined}
           />
-          <StatChip label="Days with food logged" value={`${priorities.daysWithFoodTracked} / ${rangeLengthDays}`} />
         </div>
       )}
 
