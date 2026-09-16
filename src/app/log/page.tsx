@@ -1840,8 +1840,8 @@ export default function LogPage() {
           >
             <ChevronIcon dir="left" size={15} />
           </button>
-          <label className="relative flex min-w-[4.5rem] cursor-pointer items-center justify-center rounded px-1 py-1">
-            <span className="text-xs font-semibold whitespace-nowrap" style={{ color: "var(--text-primary)" }}>
+          <label className="relative flex w-20 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded px-1 py-1">
+            <span className="truncate text-xs font-semibold whitespace-nowrap" style={{ color: "var(--text-primary)" }}>
               {formatDateLabel(date, today)}
             </span>
             <input
