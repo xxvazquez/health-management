@@ -12,7 +12,7 @@ import { useCallback, useRef } from "react";
  * than the component (e.g. the timeline, which only renders once there's
  * something logged). Sets `--fade-l` / `--fade-r` (0 or 1) on the element;
  * pair with the `.fade-x` class in globals.css, which turns those into a
- * mask.
+ * content mask plus an edge shadow.
  */
 export function useOverflowFade<T extends HTMLElement>() {
   const cleanupRef = useRef<(() => void) | null>(null);
