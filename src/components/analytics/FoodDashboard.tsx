@@ -489,7 +489,7 @@ export function FoodDashboard() {
 
         {/* The two ranking cards pair up on a wide screen — a grid row so
             they stay the same height rather than leaving a ragged edge. */}
-        <div className="grid gap-4 xl:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
           <Card tier="raw">
             <CardTitle
               size="sm"
@@ -608,19 +608,19 @@ const VARIETY_TREND_LABEL: Record<ReturnType<typeof varietyTrendDirection>, stri
 function CoverageTableRows({ rows, rangeLengthDays }: { rows: CoverageRow[]; rangeLengthDays: number }) {
   return (
     <div className="overflow-x-auto">
-      <table className="text-sm">
+      <table className="w-full text-sm">
         <thead>
           <tr className="text-left text-xs whitespace-nowrap" style={{ color: "var(--text-muted)" }}>
-            <th className="pb-2 pr-8 font-medium">Food group</th>
-            <th className="pb-2 pr-5 text-right font-medium">Days in range</th>
+            <th className="pb-2 pr-2 font-medium">Food group</th>
+            <th className="pb-2 pr-2 text-right font-medium">Days in range</th>
             <th className="pb-2 text-right font-medium">Status</th>
           </tr>
         </thead>
         <tbody>
           {rows.map((r) => (
-            <tr key={r.label} className="border-t whitespace-nowrap" style={{ borderColor: "var(--gridline)" }}>
-              <td className="py-2 pr-8" style={{ color: "var(--text-primary)" }}>{r.label}</td>
-              <td className="py-2 pr-5 text-right tabular-nums" style={{ color: "var(--text-secondary)" }}>
+            <tr key={r.label} className="border-t" style={{ borderColor: "var(--gridline)" }}>
+              <td className="py-2 pr-2" style={{ color: "var(--text-primary)" }}>{r.label}</td>
+              <td className="py-2 pr-2 text-right tabular-nums whitespace-nowrap" style={{ color: "var(--text-secondary)" }}>
                 {r.daysInRange} / {rangeLengthDays}
               </td>
               <td className="py-2 text-right">
