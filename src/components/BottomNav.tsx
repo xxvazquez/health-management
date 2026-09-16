@@ -26,9 +26,12 @@ export function BottomNav() {
       className="fixed inset-x-0 bottom-0 z-30 flex border-t lg:hidden"
       style={{
         borderColor: "var(--border-hairline)",
-        background: "color-mix(in oklab, var(--surface-1) 92%, transparent)",
-        backdropFilter: "blur(8px)",
-        WebkitBackdropFilter: "blur(8px)",
+        // Solid, not translucent-plus-blur: backdrop-filter on a fixed,
+        // permanently-visible element has a real history of rendering
+        // failures on Android Chrome (Samsung's GPU driver stack in
+        // particular) — the whole bar can go blank instead of just losing
+        // the blur. Not worth the risk on the app's primary navigation.
+        background: "var(--surface-1)",
         paddingBottom: "env(safe-area-inset-bottom)",
         paddingLeft: "env(safe-area-inset-left)",
         paddingRight: "env(safe-area-inset-right)",
