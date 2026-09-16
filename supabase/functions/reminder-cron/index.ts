@@ -7,6 +7,12 @@
 //    reaches that item's reminder_time (no upper bound — a late or skipped
 //    cron tick still sends, just later, rather than silently never sending
 //    that day) unless it's already logged today or already resolved today.
+//    Right after it, the same per-subscription loop covers Manage's
+//    domain-level "remind me to log this" (habit_reminders): same
+//    reminder_time/reminder_last_sent_date shape and isReminderDue check,
+//    but scoped to a whole tracked domain (food/outcome/supplement/habit/
+//    stool/workout/cycle) instead of one item — resolved once *anything* in
+//    that domain is logged today, via DOMAIN_LOG_TABLE below.
 // 2. Personal Reminders / Home: scans personal_tasks/household_tasks (by
 //    due_at), personal_items/household_items (by expires_on -
 //    remind_days_before), and doctor_appointment_tasks (by reminder_at) for
@@ -189,6 +195,37 @@ const REMINDER_SOURCES = [
   { itemTable: "habit_items", logTable: "habit_logs" },
 ] as const;
 
+interface DomainReminderRow {
+  domain: string;
+  reminder_time: string;
+  reminder_last_sent_date: string | null;
+}
+
+// Mirrors TrackedDomain in src/lib/visibleDomains.tsx — duplicated rather
+// than imported, same reasoning as localNow/isReminderDue above (this
+// Edge Function is a standalone Deno bundle with no access to the Next
+// app's source tree). "outcome" is the app-internal name for what the DB
+// calls "symptom".
+const DOMAIN_LOG_TABLE: Record<string, string> = {
+  food: "food_logs",
+  outcome: "symptom_logs",
+  supplement: "supplement_logs",
+  habit: "habit_logs",
+  stool: "stool_logs",
+  workout: "workout_logs",
+  cycle: "period_logs",
+};
+
+const DOMAIN_LABEL: Record<string, string> = {
+  food: "Food",
+  outcome: "Symptoms",
+  supplement: "Supplements",
+  habit: "Habits",
+  stool: "Stool",
+  workout: "Workout",
+  cycle: "Cycle",
+};
+
 /** Stamps reminder_last_sent_date so a resolved item isn't re-evaluated on
  * the next tick. This is a separate operation from whatever resolved it
  * (a successful send, or an already-logged skip) — there's no transaction
@@ -204,6 +241,15 @@ async function markResolved(itemTable: string, itemId: string, date: string): Pr
   const { error } = await supabase.from(itemTable).update({ reminder_last_sent_date: date }).eq("id", itemId);
   if (error) {
     console.error(`reminder-cron: failed to stamp reminder_last_sent_date for ${itemTable}:${itemId}`, error);
+  }
+}
+
+/** Same idea as markResolved, but habit_reminders has no surrogate id —
+ * one row per (user_id, domain), so the update matches on that pair. */
+async function markDomainReminderResolved(userId: string, domain: string, date: string): Promise<void> {
+  const { error } = await supabase.from("habit_reminders").update({ reminder_last_sent_date: date }).eq("user_id", userId).eq("domain", domain);
+  if (error) {
+    console.error(`reminder-cron: failed to stamp reminder_last_sent_date for habit_reminders:${userId}:${domain}`, error);
   }
 }
 
@@ -267,6 +313,44 @@ Deno.serve(async (req) => {
           }
           console.error("reminder-cron: send failed for", sub.user_id, item.id, err);
         }
+      }
+    }
+
+    if (!subscriptionValid) continue;
+
+    const { data: domainReminders } = await supabase
+      .from("habit_reminders")
+      .select("domain, reminder_time, reminder_last_sent_date")
+      .eq("user_id", sub.user_id);
+
+    for (const dr of (domainReminders ?? []) as DomainReminderRow[]) {
+      checked++;
+      const reminderTime = dr.reminder_time.slice(0, 5);
+      if (!isReminderDue(local.minutesSinceMidnight, reminderTime, dr.reminder_last_sent_date, local.date)) continue;
+
+      const logTable = DOMAIN_LOG_TABLE[dr.domain];
+      if (!logTable) continue; // unrecognized domain — skip rather than fail the run
+
+      const { data: logs } = await supabase.from(logTable).select("id").eq("user_id", sub.user_id).eq("date", local.date).limit(1);
+      if (logs && logs.length > 0) {
+        await markDomainReminderResolved(sub.user_id, dr.domain, local.date);
+        continue;
+      }
+
+      try {
+        await webpush.sendNotification(
+          { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth_key } },
+          JSON.stringify({ title: `Log your ${DOMAIN_LABEL[dr.domain] ?? dr.domain} today`, body: "", tag: `habit-reminder:${dr.domain}` }),
+        );
+        sent++;
+        await markDomainReminderResolved(sub.user_id, dr.domain, local.date);
+      } catch (err) {
+        const statusCode = (err as { statusCode?: number }).statusCode;
+        if (statusCode === 404 || statusCode === 410) {
+          await supabase.from("push_subscriptions").delete().eq("user_id", sub.user_id);
+          break;
+        }
+        console.error("reminder-cron: send failed for", sub.user_id, dr.domain, err);
       }
     }
   }

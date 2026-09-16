@@ -598,6 +598,24 @@ create table public.push_subscriptions (
   constraint push_subscriptions_user_id_fkey foreign key (user_id) references auth.users(id)
 );
 
+-- Manage -> "remind me to log this", one row per user per tracked domain
+-- (Log's Food/Symptoms/Supplements/Habits/Stool/Workout/Cycle tabs — see
+-- TrackedDomain in src/lib/visibleDomains.tsx). Row absence means no
+-- reminder set for that domain. Mirrors supplement_items'/habit_items'
+-- reminder_time + reminder_last_sent_date pair above, but scoped to a
+-- whole domain instead of one item: reminder-cron skips sending once the
+-- user has logged anything at all in that domain today (checked against
+-- food_logs/symptom_logs/supplement_logs/habit_logs/stool_logs/
+-- workout_logs/period_logs by domain, not any specific item).
+create table public.habit_reminders (
+  user_id uuid not null default auth.uid() references auth.users(id),
+  domain text not null check (domain in ('food', 'outcome', 'supplement', 'habit', 'stool', 'workout', 'cycle')),
+  reminder_time time not null,
+  reminder_last_sent_date date,
+  updated_at timestamptz not null default now(),
+  primary key (user_id, domain)
+);
+
 -- Log -> Journal: a personal freeform journal entry, one row per entry.
 -- Unrelated to food_diary/supplement_diary/etc. above (those are a single
 -- optional note attached to one specific logged item on one specific day,
@@ -1146,6 +1164,7 @@ alter table public.stool_options enable row level security;
 alter table public.workout_logs enable row level security;
 alter table public.period_logs enable row level security;
 alter table public.push_subscriptions enable row level security;
+alter table public.habit_reminders enable row level security;
 alter table public.journal_entries enable row level security;
 alter table public.notes_digest_state enable row level security;
 alter table public.partner_invites enable row level security;
@@ -1202,6 +1221,7 @@ create policy "stool_options_all_own" on public.stool_options for all using (aut
 create policy "workout_logs_all_own" on public.workout_logs for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "period_logs_all_own" on public.period_logs for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "push_subscriptions_all_own" on public.push_subscriptions for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "habit_reminders_all_own" on public.habit_reminders for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "journal_entries_all_own" on public.journal_entries for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 -- Select only — the cron (service role) does every write; a client has no
 -- reason to touch this and shouldn't be able to reset its own digest state.

@@ -31,7 +31,7 @@ drawer, above Report a bug; Google Drive stays in the account menu.
 | **Health** | `/medical` | Four tabs — Visits (appointments + a running list of things to raise before the next one), Results (lab marker trends), Vitals (blood pressure and weight), Doctors (read-only directory; editing lives in Settings). Tab-by-tab detail below. `/doctors` redirects here; old tab hashes (`#appointments`, `#carelog`, `#followups`, `#specialties`) land on Visits. |
 | **Notes** | `/personal` | Things you keep, no deadline — three tabs: **Journal** (private dated writing in Markdown — a formatting toolbar and a preview switch in the editor, entries opened as formatted text), **Wishlist** (saved links grouped into lists; the lists themselves are managed in Settings), **Codes** (shared discount codes). `/home` redirects here. (Reminders and product-expiry moved to Agenda.) |
 | **Messages** | `/notes` | Primary nav, partner-linked only — a link in the sidebar / mobile menu drawer (a dot on the menu button carries the unread cue), never the bottom bar. Private one-to-one messaging with your linked partner. Sent shows a message in bold until your partner has read it. |
-| Settings | `/manage` | (Sidebar foot.) Add / rename / archive / delete items and categories, give a category its own icon/colour, set exercise units, correct a food's automatic nutrition-group classification, define food products (name, brand, ingredient list — logged as a unit on Log → Food), edit reminder lists, wishlist lists (name/icon/colour), the Vitals weight goal, lab markers and panels (ranges, units, grouping, icons/colours), doctors (name/rating/language/notes/specialty), doctor types and the Stool tab's colour/symptom/floatation/characteristic chips, show or hide tracked sections (they otherwise appear once they have data), and export your data (whole account as JSON, or a section — or everything — as CSV in one file). Searchable across every section. Also linked from Log's inline "add item". |
+| Settings | `/manage` | (Sidebar foot.) Add / rename / archive / delete items and categories, give a category its own icon/colour, set exercise units, correct a food's automatic nutrition-group classification, define food products (name, brand, ingredient list — logged as a unit on Log → Food), edit reminder lists, wishlist lists (name/icon/colour), the Vitals weight goal, lab markers and panels (ranges, units, grouping, icons/colours), doctors (name/rating/language/notes/specialty), doctor types and the Stool tab's colour/symptom/floatation/characteristic chips, show or hide tracked sections (they otherwise appear once they have data) and set a daily "remind me to log this" time per section, and export your data (whole account as JSON, or a section — or everything — as CSV in one file). Searchable across every section. Also linked from Log's inline "add item". |
 | Google Drive | `/my-drive` | (Account menu.) Read-only browser for the signed-in Google account's Drive. |
 | Help | `/help` | (Sidebar foot.) Plain-language reference for what each part does — grouped, collapsed, with a search box that filters entries. |
 
@@ -391,7 +391,10 @@ every 15 minutes by Supabase's `pg_cron` / `pg_net` (setup SQL is in
 `schema.sql`, commented out). Three phases:
 
 1. Each supplement/habit's `reminder_time` vs the user's local time → a push if
-   it's passed and not logged today.
+   it's passed and not logged today. The same check runs for `habit_reminders`
+   — a "remind me to log this" time set per tracked domain in Manage → Visible
+   sections, skipped once anything in that domain (not any specific item) is
+   logged that day.
 2. Due tasks (`personal_tasks` / `household_tasks`), due expiry items
    (`personal_items` / `household_items`, `expires_on` minus `remind_days_before`),
    doctor follow-up tasks with a `reminder_at` that has passed, and care-log
