@@ -107,7 +107,7 @@ const STOOL_ACCENT = "var(--series-indigo)";
 const WORKOUT_ACCENT = "var(--series-6)";
 const CYCLE_ACCENT = "var(--series-4)";
 
-const COLLAPSED_CATEGORIES_STORAGE_KEY = "lauva.log.collapsedCategories";
+const EXPANDED_CATEGORIES_STORAGE_KEY = "lauva.log.expandedCategories";
 
 function categoryStorageKey(itemType: ItemType, category: string): string {
   return `${itemType}:${category}`;
@@ -526,21 +526,21 @@ export default function LogPage() {
   const symptomTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
   // Persisted across navigation/reloads (localStorage, keyed per item type so
   // same-named categories in different tabs don't collide) — defaults to
-  // empty (everything expanded) until the mount effect below hydrates it
-  // from whatever the user last chose, so this never overrides a saved
+  // empty (everything collapsed) until the mount effect below hydrates it
+  // from whatever the user last expanded, so this never overrides a saved
   // choice with a fresh reset. Desktop always renders expanded regardless
   // of this set (see the `lg:grid` override at the item grid below); only
   // mobile actually collapses, so the set only matters there.
-  const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   useEffect(() => {
     try {
-      const raw = window.localStorage.getItem(COLLAPSED_CATEGORIES_STORAGE_KEY);
+      const raw = window.localStorage.getItem(EXPANDED_CATEGORIES_STORAGE_KEY);
       // Reading from localStorage on mount — an external-system read, not a
       // React-state sync loop, same pattern as DataContext's mount effects.
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      if (raw) setCollapsedCategories(new Set(JSON.parse(raw) as string[]));
+      if (raw) setExpandedCategories(new Set(JSON.parse(raw) as string[]));
     } catch {
-      // Corrupt or inaccessible storage — fall back to everything expanded.
+      // Corrupt or inaccessible storage — fall back to everything collapsed.
     }
   }, []);
   // If the tab you're sitting on gets hidden from under you (toggled off
@@ -1263,17 +1263,17 @@ export default function LogPage() {
     setPending(null);
   }
 
-  function toggleCategoryCollapsed(category: string) {
+  function toggleCategoryExpanded(category: string) {
     if (!tabConfig) return;
     const key = categoryStorageKey(tabConfig.type, category);
-    setCollapsedCategories((prev) => {
+    setExpandedCategories((prev) => {
       const next = new Set(prev);
       if (next.has(key)) next.delete(key);
       else next.add(key);
       try {
-        window.localStorage.setItem(COLLAPSED_CATEGORIES_STORAGE_KEY, JSON.stringify(Array.from(next)));
+        window.localStorage.setItem(EXPANDED_CATEGORIES_STORAGE_KEY, JSON.stringify(Array.from(next)));
       } catch {
-        // Storage unavailable (private browsing, quota) — collapse still
+        // Storage unavailable (private browsing, quota) — expand still
         // works for this session, it just won't persist.
       }
       return next;
@@ -2135,12 +2135,12 @@ export default function LogPage() {
                     // Collapse only actually hides anything on mobile — desktop
                     // always shows every category expanded (see the `lg:`
                     // overrides below), regardless of this saved state.
-                    const collapsed = collapsedCategories.has(categoryStorageKey(tabConfig.type, group.category));
+                    const collapsed = !expandedCategories.has(categoryStorageKey(tabConfig.type, group.category));
                     return (
                       <div key={group.category} className="flex flex-col gap-2 rounded-lg border p-3" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
                         <button
                           type="button"
-                          onClick={() => toggleCategoryCollapsed(group.category)}
+                          onClick={() => toggleCategoryExpanded(group.category)}
                           className="flex items-center gap-1.5 border-b pb-2 text-left text-xs font-semibold"
                           style={{ color: accent, borderColor: "var(--border-hairline)" }}
                         >
