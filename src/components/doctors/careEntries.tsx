@@ -1,11 +1,13 @@
 "use client";
 
 import { useMemo, useState, type FormEvent } from "react";
+import clsx from "clsx";
 import type { useDoctors } from "@/lib/useDoctors";
 import { todayLocalISODate } from "@/lib/aggregations/common";
 import type { CareEntry, CareEntryKind, NewCareEntryInput } from "@/lib/supabase/careLog";
 import type { SupplementOption } from "@/lib/useCareLog";
 import type { DriveAttachment } from "@/lib/googleDrive/api";
+import { useSwipeReveal, SWIPE_REVEAL_CLASS } from "@/lib/useSwipeReveal";
 import { Button } from "@/components/ui/Button";
 import { FormShell } from "@/components/ui/FormShell";
 import { Field } from "@/components/ui/Field";
@@ -445,8 +447,14 @@ export function CareEntryRow({
   onDelete: () => void;
 }) {
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const { revealed, onTouchStart, onTouchEnd } = useSwipeReveal();
   return (
-    <li className="flex flex-col gap-1.5 py-3">
+    <li
+      className="group flex flex-col gap-1.5 py-3"
+      style={{ touchAction: "pan-y" }}
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
+    >
       <div className="flex items-start gap-3">
         <button type="button" onClick={onOpen} className="flex min-w-0 flex-1 flex-col gap-1 text-left">
           <CareEntryMeta entry={entry} accent={accent} />
@@ -461,7 +469,13 @@ export function CareEntryRow({
           <CareEntryTags specialtyNames={specialtyNames} supplementName={supplementName} accent={accent} />
         </button>
 
-        <div className="flex shrink-0 items-center gap-4 self-center">
+        <div
+          className={clsx(
+            "flex shrink-0 items-center gap-4 self-center",
+            !confirmingDelete && "transition-opacity",
+            !confirmingDelete && (revealed ? SWIPE_REVEAL_CLASS.shown : SWIPE_REVEAL_CLASS.hidden),
+          )}
+        >
           {confirmingDelete ? (
             <>
               <button type="button" onClick={onDelete} className="rounded-md px-2 py-1.5 text-xs font-semibold" style={{ color: "var(--status-critical)" }}>
