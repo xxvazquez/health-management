@@ -419,7 +419,7 @@ export function Nav() {
           <AccountMenuButton onOpen={closeMobile} />
           <SignOutButton />
         </div>
-        <div className="mt-5 flex min-h-0 flex-1 flex-col overflow-y-auto">
+        <div className="mt-5 flex flex-col">
           <NavLinks pathname={pathname} onNavigate={closeMobile} />
         </div>
         <SecondaryNav pathname={pathname} onNavigate={closeMobile} />
