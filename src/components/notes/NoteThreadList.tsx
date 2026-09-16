@@ -64,7 +64,7 @@ function RowAction({
       disabled={disabled}
       aria-label={label}
       title={label}
-      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-[var(--surface-1)] disabled:opacity-40"
+      className="tap-target shrink-0 rounded-md p-1.5 transition-colors hover:bg-[var(--surface-1)] disabled:opacity-40"
       style={{ color: active ? ACCENT : "var(--text-muted)" }}
     >
       {children}
@@ -155,13 +155,13 @@ export function NoteThreadList({
         return (
           <div
             key={t.id}
-            className="flex items-start gap-1 border-t pr-1 pl-2 transition-colors first:border-t-0 hover:bg-[var(--page-plane)]"
+            className="flex items-start gap-1 border-t pr-1 transition-colors first:border-t-0 hover:bg-[var(--page-plane)]"
             style={{ borderColor: "var(--gridline)" }}
           >
             <button
               type="button"
               onClick={() => onOpen(t.id)}
-              className="flex min-w-0 flex-1 items-start gap-2.5 py-3.5 text-left"
+              className="flex min-w-0 flex-1 items-start gap-2 py-3.5 text-left"
             >
               <span className="mt-1.5 flex h-2 w-2 shrink-0 items-center justify-center">
                 {t.isUnreadForMe && <span className="h-2 w-2 rounded-full" style={{ background: ACCENT }} aria-hidden="true" />}
@@ -191,7 +191,7 @@ export function NoteThreadList({
               </span>
             </button>
 
-            <div className="flex shrink-0 items-center gap-0 pt-2 sm:gap-1">
+            <div className="flex shrink-0 items-center gap-0.5 pt-2">
               <RowAction
                 onClick={() => void run(t.id, () => onToggleFavourite(t.id, t.isMine, !t.isFavouritedByMe))}
                 active={t.isFavouritedByMe}
