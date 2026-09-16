@@ -356,7 +356,7 @@ function MarkerRow({
       }}
     >
       <span className="min-w-0">
-        <span className="block truncate text-xs font-semibold" style={{ color: "var(--text-primary)" }}>
+        <span className="block leading-tight font-semibold text-xs" style={{ color: "var(--text-primary)" }}>
           {marker.name}
         </span>
         <span
