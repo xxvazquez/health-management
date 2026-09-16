@@ -276,11 +276,6 @@ html {
      never silently boosted. */
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
-  /* Stops the rubber-band bounce/drag past the top, bottom, and sides —
-     without it the whole page can be dragged around like a browser tab
-     instead of holding still like an installed app. */
-  overscroll-behavior: none;
-  overflow-x: hidden;
   /* Kills WebKit's grey tap-highlight flash — replaced below with a real
      :active state per control, so taps still get feedback. */
   -webkit-tap-highlight-color: transparent;
@@ -294,6 +289,17 @@ body {
   /* SF Pro carries Text and Display optical variants — let the browser pick
      by size instead of always rendering the Text cut. */
   font-optical-sizing: auto;
+  /* Stops the rubber-band bounce/drag past the top, bottom, and sides —
+     without it the whole page can be dragged around like a browser tab
+     instead of holding still like an installed app. Kept on `body` only:
+     `overflow-x`/`overscroll-behavior` on `html` as well as `body` used to
+     give the document two candidate scroll containers (each non-`visible`
+     overflow value forces the other axis to a used value of `auto`, so
+     `overflow-x: hidden` on `html` was quietly turning `html` itself into
+     its own clipped scroll box) — Safari resolves that ambiguity leniently,
+     but installed Chrome on Android did not: the page loaded but couldn't
+     be scrolled at all. `body` alone gives the same edge-bounce lock with
+     one unambiguous scroll container. */
   overscroll-behavior: none;
   overflow-x: hidden;
 }
