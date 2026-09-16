@@ -357,7 +357,13 @@ a:active {
 
 /* Soft fade on whichever edge of a horizontal scroller still has content
    past it. Driven by --fade-l / --fade-r (0 or 1), set by useOverflowFade —
-   both default to 0 so the mask is a no-op until the hook runs. */
+   both default to 0 so the mask/shadow are a no-op until the hook runs.
+   The mask alone reads as almost nothing when the scroller's own content
+   (white chips on a white card) fades to transparent onto a same-colour
+   backdrop, so an inset shadow carries the actual visible cue — mixed from
+   --text-primary so it reads as a dark vignette in light mode and a soft
+   light one in dark mode, rather than a literal colour that only works in
+   one theme. */
 .fade-x {
   --fade-l: 0;
   --fade-r: 0;
@@ -375,6 +381,9 @@ a:active {
     #000 calc(100% - var(--fade-r) * 24px),
     transparent 100%
   );
+  box-shadow:
+    inset 14px 0 10px -10px color-mix(in oklab, var(--text-primary) calc(var(--fade-l) * 22%), transparent),
+    inset -14px 0 10px -10px color-mix(in oklab, var(--text-primary) calc(var(--fade-r) * 22%), transparent);
 }
 
 /* iOS inset-grouped list: hairline separators between rows that start past
