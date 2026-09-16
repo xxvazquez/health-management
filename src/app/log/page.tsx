@@ -59,7 +59,7 @@ import { WorkoutTab, type NewWorkoutEntry } from "@/components/log/WorkoutTab";
 import { CycleTab } from "@/components/log/CycleTab";
 import { DuplicateItemDialog } from "@/components/ui/DuplicateItemDialog";
 import { SearchField } from "@/components/ui/SearchField";
-import { ChevronIcon, CloseIcon, NoteIcon } from "@/components/ui/icons";
+import { ChevronIcon, CloseIcon, NoteIcon, PlusIcon } from "@/components/ui/icons";
 import { CustomIcon, customColorValue } from "@/components/ui/customIcons";
 import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
 import { Segmented } from "@/components/ui/Segmented";
@@ -1891,16 +1891,21 @@ export default function LogPage() {
             />
             {!addingNew && (
               <>
+                {/* Icon-only on mobile — the full sentence only shows once
+                 * there's room (sm:), so the search row doesn't wrap into a
+                 * second line of text on a phone. */}
                 <button
                   type="button"
                   onClick={() => (isDemoData ? openPanel() : setAddingNew(true))}
-                  className="shrink-0 rounded-md border border-dashed px-2.5 py-1 text-xs font-medium whitespace-nowrap"
+                  className="flex shrink-0 items-center gap-1.5 rounded-md border border-dashed px-2 py-1 text-xs font-medium whitespace-nowrap sm:px-2.5"
                   style={{ borderColor: "var(--border-hairline)", color: "var(--text-secondary)" }}
+                  aria-label={isDemoData ? "Can't find it? Sign in to add it" : "Can't find it? Add it"}
                 >
-                  {isDemoData ? "+ Can't find it? Sign in to add it" : "+ Can't find it? Add it"}
+                  <PlusIcon size={12} />
+                  <span className="hidden sm:inline">{isDemoData ? "Can't find it? Sign in to add it" : "Can't find it? Add it"}</span>
                 </button>
                 {!isDemoData && (
-                  <Link href="/manage" className="shrink-0 text-xs font-medium" style={{ color: "var(--ui-accent)" }}>
+                  <Link href="/manage" className="hidden shrink-0 text-xs font-medium sm:inline" style={{ color: "var(--ui-accent)" }}>
                     Manage items
                   </Link>
                 )}
