@@ -19,6 +19,15 @@ export function PlusIcon({ size = 14 }: { size?: number }) {
   );
 }
 
+export function ClockIcon({ size = 12 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="10" cy="10" r="7" />
+      <path d="M10 6v4l2.5 2" />
+    </svg>
+  );
+}
+
 /** A tray with an arrow — down for archive, up for unarchive. */
 export function ArchiveIcon({ size = 15, dir = "down" }: { size?: number; dir?: "down" | "up" }) {
   return (
