@@ -2136,13 +2136,21 @@ export default function LogPage() {
                     // always shows every category expanded (see the `lg:`
                     // overrides below), regardless of this saved state.
                     const collapsed = !expandedCategories.has(categoryStorageKey(tabConfig.type, group.category));
+                    // A handful of small catalogs (Fats, Fish, …) don't need the
+                    // same boxed-card weight as Veggies/Spices — drop the border
+                    // and background so they read as a lighter section instead.
+                    const compact = items.length <= 8;
                     return (
-                      <div key={group.category} className="flex flex-col gap-2 rounded-lg border p-3" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
+                      <div
+                        key={group.category}
+                        className={clsx("flex flex-col gap-2", compact ? "px-0.5" : "rounded-lg border p-3")}
+                        style={compact ? undefined : { borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}
+                      >
                         <button
                           type="button"
                           onClick={() => toggleCategoryExpanded(group.category)}
-                          className="flex items-center gap-1.5 border-b pb-2 text-left text-xs font-semibold"
-                          style={{ color: accent, borderColor: "var(--border-hairline)" }}
+                          className={clsx("flex items-center gap-1.5 text-left text-xs font-semibold", !compact && "border-b pb-2")}
+                          style={{ color: accent, borderColor: compact ? undefined : "var(--border-hairline)" }}
                         >
                           {icon}
                           {group.category}
