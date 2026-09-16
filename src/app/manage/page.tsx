@@ -40,6 +40,7 @@ import { buildDemoReminderLists } from "@/lib/demoPersonalReminders";
 import { createWishlistCategory, deleteWishlistCategory, fetchWishlist, updateWishlistCategory, type WishlistCategory } from "@/lib/supabase/wishlist";
 import { buildDemoWishlist } from "@/lib/demoWishlist";
 import { clearWeightTarget, fetchWeightTarget, setWeightTarget, type WeightTarget } from "@/lib/supabase/vitals";
+import { fetchHabitReminderTimes, setHabitReminderTime, type HabitReminderTimes } from "@/lib/supabase/habitReminders";
 import { buildDemoWeightTarget } from "@/lib/demoVitals";
 import { useLabs } from "@/lib/useLabs";
 import { MarkerForm } from "@/components/doctors/labForms";
@@ -221,8 +222,41 @@ function AppearanceCard() {
  * or archiving anything underneath. Sections show up on their own once
  * they have data; these toggles override that in either direction. Purely
  * a local display preference (see visibleDomains.tsx), not synced. */
-function VisibleSectionsCard() {
+function VisibleSectionsCard({ isDemoData }: { isDemoData: boolean }) {
   const { isVisible, toggle } = useVisibleDomains();
+  const [reminders, setReminders] = useState<HabitReminderTimes>({});
+  const [remindersLoading, setRemindersLoading] = useState(!isDemoData);
+  const [busyDomain, setBusyDomain] = useState<TrackedDomain | null>(null);
+
+  useEffect(() => {
+    if (isDemoData) return;
+    let cancelled = false;
+    fetchHabitReminderTimes()
+      .then((rows) => !cancelled && setReminders(rows))
+      .catch((err) => console.error("fetchHabitReminderTimes failed", err))
+      .finally(() => !cancelled && setRemindersLoading(false));
+    return () => {
+      cancelled = true;
+    };
+  }, [isDemoData]);
+
+  async function handleSetReminder(domain: TrackedDomain, time: string | null) {
+    setReminders((prev) => {
+      const next = { ...prev };
+      if (time) next[domain] = time;
+      else delete next[domain];
+      return next;
+    });
+    setBusyDomain(domain);
+    try {
+      await setHabitReminderTime(domain, time);
+    } catch (err) {
+      console.error("setHabitReminderTime failed", err);
+    } finally {
+      setBusyDomain(null);
+    }
+  }
+
   return (
     <Card tier="supporting">
       <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
@@ -232,26 +266,55 @@ function VisibleSectionsCard() {
         Each section appears on the Log page&apos;s tabs (and its Trends dashboard, if it has one) once you&apos;ve
         logged something in it. Turn one on to start tracking it before then, or off to hide it even once it has
         data — on this device only. Nothing underneath is deleted or archived.
+        {!isDemoData && " Set a time on any section for a daily reminder to log it — skipped automatically once you already have that day."}
       </p>
-      <div className="flex flex-wrap gap-1.5">
+      <div className="flex flex-wrap gap-x-3 gap-y-2">
         {DOMAIN_TOGGLE_ORDER.map((domain) => {
           const isHidden = !isVisible(domain);
+          const reminderTime = reminders[domain];
+          const busy = busyDomain === domain;
           return (
-            <button
-              key={domain}
-              type="button"
-              onClick={() => toggle(domain)}
-              aria-pressed={!isHidden}
-              className="rounded-md border px-2.5 py-1.5 text-xs font-medium whitespace-nowrap transition-colors"
-              style={{
-                borderColor: isHidden ? "var(--border-hairline)" : "var(--ui-accent)",
-                background: isHidden ? "transparent" : "color-mix(in oklab, var(--ui-accent) 14%, var(--surface-1))",
-                color: isHidden ? "var(--text-muted)" : "var(--ui-accent)",
-                textDecoration: isHidden ? "line-through" : "none",
-              }}
-            >
-              {DOMAIN_LABELS[domain]}
-            </button>
+            <span key={domain} className="inline-flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => toggle(domain)}
+                aria-pressed={!isHidden}
+                className="rounded-md border px-2.5 py-1.5 text-xs font-medium whitespace-nowrap transition-colors"
+                style={{
+                  borderColor: isHidden ? "var(--border-hairline)" : "var(--ui-accent)",
+                  background: isHidden ? "transparent" : "color-mix(in oklab, var(--ui-accent) 14%, var(--surface-1))",
+                  color: isHidden ? "var(--text-muted)" : "var(--ui-accent)",
+                  textDecoration: isHidden ? "line-through" : "none",
+                }}
+              >
+                {DOMAIN_LABELS[domain]}
+              </button>
+              {!isDemoData && !remindersLoading && (
+                <span className="flex items-center gap-1">
+                  <input
+                    type="time"
+                    value={reminderTime ?? ""}
+                    disabled={busy}
+                    onChange={(e) => void handleSetReminder(domain, e.target.value || null)}
+                    aria-label={`Reminder time for ${DOMAIN_LABELS[domain]}`}
+                    className="rounded-md border px-1.5 py-1 text-xs outline-none disabled:opacity-40"
+                    style={{ borderColor: "var(--border-hairline)", background: "var(--page-plane)", color: "var(--text-secondary)" }}
+                  />
+                  {reminderTime && (
+                    <button
+                      type="button"
+                      onClick={() => void handleSetReminder(domain, null)}
+                      disabled={busy}
+                      aria-label={`Clear reminder for ${DOMAIN_LABELS[domain]}`}
+                      className="disabled:opacity-40"
+                      style={{ color: "var(--text-muted)" }}
+                    >
+                      <CloseIcon size={11} />
+                    </button>
+                  )}
+                </span>
+              )}
+            </span>
           );
         })}
       </div>
@@ -3116,7 +3179,7 @@ export default function ManagePage() {
 
       <AppearanceCard />
 
-      <VisibleSectionsCard />
+      <VisibleSectionsCard isDemoData={isDemoData} />
 
       <SearchField value={searchQuery} onChange={setSearchQuery} placeholder="Search every item, in every section…" className="w-full" />
 
