@@ -1887,7 +1887,7 @@ export default function LogPage() {
               value={search}
               onChange={setSearch}
               placeholder={`Search ${tabConfig.label.toLowerCase()}…`}
-              className="w-40 flex-1 sm:w-48 sm:flex-none"
+              className="w-40 grow sm:w-48 sm:flex-none"
             />
             {!addingNew && (
               <>
