@@ -11,6 +11,14 @@ export function CloseIcon({ size = 14 }: { size?: number }) {
   );
 }
 
+export function PlusIcon({ size = 14 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
+      <path d="M10 4v12M4 10h12" />
+    </svg>
+  );
+}
+
 /** A tray with an arrow — down for archive, up for unarchive. */
 export function ArchiveIcon({ size = 15, dir = "down" }: { size?: number; dir?: "down" | "up" }) {
   return (
