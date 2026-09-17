@@ -53,17 +53,20 @@ export const viewport: Viewport = {
   // resolved theme (an in-app Dark choice under an OS Light setting still
   // needs the browser chrome dark, which a media-query tag can't do).
   themeColor: "#f4f6f8",
-  // maximumScale caps the zoom range at 1, which is what stops WebKit's own
-  // zoom-on-focus for a sub-16px input — see globals.css — so every input
-  // can keep its own component-level font-size instead of every one being
-  // bumped to 16px on mobile. userScalable is intentionally left at its
-  // default (true): explicitly disabling it (`user-scalable=no`) is a
-  // known trigger for Chrome on Android to break touch scrolling entirely
-  // in standalone/installed-PWA display mode, not just block pinch-zoom.
-  // maximumScale: 1 alone already leaves no room to zoom into, so it's
-  // enough on its own.
+  // maximumScale/minimumScale pin the zoom range to exactly 1, which is
+  // what stops WebKit's own zoom-on-focus for a sub-16px input — see
+  // globals.css — so every input can keep its own component-level
+  // font-size instead of every one being bumped to 16px on mobile.
+  // userScalable is intentionally left at its default (true): explicitly
+  // disabling it (`user-scalable=no`) is a known trigger for Chrome on
+  // Android to break touch scrolling entirely in standalone/installed-PWA
+  // display mode, not just block pinch-zoom. With userScalable left on,
+  // minimumScale is required too — maximumScale: 1 alone only caps zooming
+  // in, so a pinch-out could still shrink the whole page below 1x, which
+  // reads as the page "moving weird" rather than holding still like an app.
   width: "device-width",
   initialScale: 1,
+  minimumScale: 1,
   maximumScale: 1,
   // Installed on the iOS home screen the app runs edge to edge, so the
   // bottom tab bar, top bar and drawer pad themselves off the notch and
