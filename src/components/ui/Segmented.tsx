@@ -22,10 +22,17 @@ export function Segmented<T extends string>({
           type="button"
           onClick={() => onChange(v)}
           aria-pressed={value === v}
-          className="rounded px-2.5 py-1 text-xs font-medium transition-colors"
+          className="rounded px-2.5 py-1 text-xs font-medium"
           style={{
             background: value === v ? `color-mix(in oklab, ${accent} 14%, var(--surface-1))` : "transparent",
             color: value === v ? accent : "var(--text-muted)",
+            // iOS Safari can leave a stale paint on a background-color-only
+            // change (no layout impact) until something else forces a
+            // redraw — the segment stays showing its old tint alongside the
+            // newly selected one until a scroll or another tap. Promoting
+            // each button to its own compositing layer makes the tint swap
+            // repaint immediately instead.
+            transform: "translateZ(0)",
           }}
         >
           {label}
