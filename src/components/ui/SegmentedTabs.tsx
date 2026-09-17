@@ -232,37 +232,43 @@ export function SegmentedTabs<T extends string>({
       {/* Hidden natural-width copies of every label (plain, and again with
           the trailing chevron they'd carry as the active overflow label),
           plus a "More" sample — measured to decide how many segments fit.
-          Each span's own offsetWidth is what gets measured, so clipping
-          this row doesn't affect that — but without it, the row's full
-          unwrapped width (every label laid out in one line) inflates the
-          document's scrollable width, which on iOS makes the whole page
-          pannable off to the side since html can no longer clip overflow
-          itself (see globals.css's overflow-x comment). */}
-      <div
-        ref={measureRef}
-        aria-hidden="true"
-        className="pointer-events-none absolute -z-10 flex overflow-hidden opacity-0"
-        style={{ left: 0, top: 0, width: 0, height: 0 }}
-      >
-        {items.map((t) => (
-          <span key={`plain-${t.id}`} className={clsx(BASE, "whitespace-nowrap")}>
-            {t.label}
-          </span>
-        ))}
-        {items.map((t) => (
-          <span key={`chevron-${t.id}`} className={clsx(BASE, "flex items-center gap-1 whitespace-nowrap")}>
-            {t.label}
+          The outer box is pinned to 0x0 and clipped so this row's full
+          unwrapped width (every label laid out in one line, easily
+          1000px+) can't inflate the document's scrollable width — on iOS
+          that made the whole page pannable off to the side, since html can
+          no longer clip overflow itself (see globals.css's overflow-x
+          comment). The clip has to sit on this wrapper, not the flex row
+          itself: constraining the row's own width would force its
+          `min-w-0 truncate` children through real flex-shrink instead of
+          just being clipped, collapsing every label before its offsetWidth
+          gets read. The inner row is `width: max-content` rather than left
+          auto — a plain block would otherwise inherit the 0-width
+          available space from this 0-sized wrapper and hit the very same
+          collapse — so it sizes to its own content regardless of the
+          wrapper, and each span still renders (and measures) at its true
+          natural width. */}
+      <div aria-hidden="true" className="pointer-events-none absolute -z-10 overflow-hidden opacity-0" style={{ left: 0, top: 0, width: 0, height: 0 }}>
+        <div ref={measureRef} className="flex" style={{ width: "max-content" }}>
+          {items.map((t) => (
+            <span key={`plain-${t.id}`} className={clsx(BASE, "whitespace-nowrap")}>
+              {t.label}
+            </span>
+          ))}
+          {items.map((t) => (
+            <span key={`chevron-${t.id}`} className={clsx(BASE, "flex items-center gap-1 whitespace-nowrap")}>
+              {t.label}
+              <svg width="11" height="11" viewBox="0 0 12 12" aria-hidden="true">
+                <path d="M2.5 4.5 6 8l3.5-3.5" />
+              </svg>
+            </span>
+          ))}
+          <span className={clsx(BASE, "flex items-center gap-1 whitespace-nowrap")}>
+            More
             <svg width="11" height="11" viewBox="0 0 12 12" aria-hidden="true">
               <path d="M2.5 4.5 6 8l3.5-3.5" />
             </svg>
           </span>
-        ))}
-        <span className={clsx(BASE, "flex items-center gap-1 whitespace-nowrap")}>
-          More
-          <svg width="11" height="11" viewBox="0 0 12 12" aria-hidden="true">
-            <path d="M2.5 4.5 6 8l3.5-3.5" />
-          </svg>
-        </span>
+        </div>
       </div>
     </div>
   );
