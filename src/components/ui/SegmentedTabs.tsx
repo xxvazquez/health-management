@@ -231,8 +231,19 @@ export function SegmentedTabs<T extends string>({
 
       {/* Hidden natural-width copies of every label (plain, and again with
           the trailing chevron they'd carry as the active overflow label),
-          plus a "More" sample — measured to decide how many segments fit. */}
-      <div ref={measureRef} aria-hidden="true" className="pointer-events-none absolute -z-10 flex opacity-0" style={{ left: 0, top: 0 }}>
+          plus a "More" sample — measured to decide how many segments fit.
+          Each span's own offsetWidth is what gets measured, so clipping
+          this row doesn't affect that — but without it, the row's full
+          unwrapped width (every label laid out in one line) inflates the
+          document's scrollable width, which on iOS makes the whole page
+          pannable off to the side since html can no longer clip overflow
+          itself (see globals.css's overflow-x comment). */}
+      <div
+        ref={measureRef}
+        aria-hidden="true"
+        className="pointer-events-none absolute -z-10 flex overflow-hidden opacity-0"
+        style={{ left: 0, top: 0, width: 0, height: 0 }}
+      >
         {items.map((t) => (
           <span key={`plain-${t.id}`} className={clsx(BASE, "whitespace-nowrap")}>
             {t.label}
