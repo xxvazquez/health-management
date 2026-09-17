@@ -356,6 +356,72 @@ create table public.stool_options (
 
 create index stool_options_user_kind_idx on public.stool_options (user_id, kind, sort_order);
 
+-- Coffee: a small reusable catalog (one row per distinct coffee — the
+-- brand lives here, entered once when the coffee is first logged, not a
+-- managed reference list) plus a bespoke per-cup log, same standalone
+-- shape as stool_logs rather than the generic ItemType/categories
+-- machinery — Coffee's fields (café, price, brewing type/method, water
+-- temp, characteristics) don't fit a generic numeric `value`.
+create table public.coffee_items (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id),
+  name text not null check (char_length(trim(name)) > 0),
+  name_key text generated always as (lower(trim(name))) stored,
+  brand text,
+  notes text,
+  is_archived boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (user_id, name_key),
+  unique (user_id, id)
+);
+
+-- Brewing type / brewing method / characteristic chips — same editable
+-- pattern as stool_options (a kind + label + sort_order, defaults shown
+-- until the user customises them; see defaultCoffeeOptions()).
+create table public.coffee_options (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id),
+  kind text not null check (kind in ('brewing_type', 'brewing_method', 'characteristic')),
+  label text not null check (char_length(trim(label)) > 0),
+  sort_order int not null default 0,
+  is_archived boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (user_id, id),
+  unique (user_id, kind, label)
+);
+
+create index coffee_options_user_kind_idx on public.coffee_options (user_id, kind, sort_order);
+
+create table public.coffee_logs (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id),
+  item_id uuid not null,
+  date date not null,
+  logged_at timestamptz not null default now(),
+  cafe text,
+  price numeric(6, 2),
+  brewing_type text,
+  brewing_method text,
+  water_temp_c smallint,
+  characteristics text[] not null default '{}'::text[],
+  note text,
+  updated_at timestamptz not null default now(),
+  foreign key (user_id, item_id) references public.coffee_items (user_id, id) on delete restrict
+);
+
+create index coffee_logs_user_date_idx on public.coffee_logs (user_id, date);
+
+-- One row per user — the currency label shown next to every price
+-- (free text, e.g. "zł", "€", "$"), same single-row-per-user shape as
+-- weight_target.
+create table public.coffee_settings (
+  user_id uuid primary key default auth.uid() references auth.users(id),
+  currency text not null default 'zł',
+  updated_at timestamptz not null default now()
+);
+
 create table public.workout_logs (
   id uuid not null default gen_random_uuid(),
   user_id uuid not null default auth.uid(),
@@ -1161,6 +1227,10 @@ alter table public.symptom_diary enable row level security;
 alter table public.workout_diary enable row level security;
 alter table public.stool_logs enable row level security;
 alter table public.stool_options enable row level security;
+alter table public.coffee_items enable row level security;
+alter table public.coffee_options enable row level security;
+alter table public.coffee_logs enable row level security;
+alter table public.coffee_settings enable row level security;
 alter table public.workout_logs enable row level security;
 alter table public.period_logs enable row level security;
 alter table public.push_subscriptions enable row level security;
@@ -1218,6 +1288,10 @@ create policy "symptom_diary_all_own" on public.symptom_diary for all using (aut
 create policy "workout_diary_all_own" on public.workout_diary for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "stool_logs_all_own" on public.stool_logs for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "stool_options_all_own" on public.stool_options for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "coffee_items_all_own" on public.coffee_items for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "coffee_options_all_own" on public.coffee_options for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "coffee_logs_all_own" on public.coffee_logs for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "coffee_settings_all_own" on public.coffee_settings for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "workout_logs_all_own" on public.workout_logs for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "period_logs_all_own" on public.period_logs for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "push_subscriptions_all_own" on public.push_subscriptions for all using (auth.uid() = user_id) with check (auth.uid() = user_id);

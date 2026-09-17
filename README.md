@@ -1,8 +1,8 @@
 # Lauva
 
-A personal tracker for food, symptoms, supplements, habits, workouts, and your
-cycle — plus a set of dashboards for making sense of it all afterwards. Live at
-[lauva.pl](https://lauva.pl).
+A personal tracker for food, symptoms, supplements, habits, workouts, your
+cycle, and coffee — plus a set of dashboards for making sense of it all
+afterwards. Live at [lauva.pl](https://lauva.pl).
 
 It works fully offline, syncs to Supabase once you sign in, and installs as a PWA.
 
@@ -25,13 +25,13 @@ drawer, above Report a bug; Google Drive stays in the account menu.
 
 | Area | Route | What it's for |
 |---|---|---|
-| **Log** | `/log` | Tap-to-log entry for the seven tracking domains: Food, Symptoms, Supplements, Habits, Stool, Workout, Cycle. Food's own tab also has a "Products" row alongside the category grid — a saved product (e.g. a bought smoothie) logs every one of its ingredients at once. |
+| **Log** | `/log` | Tap-to-log entry for the eight tracking domains: Food, Symptoms, Supplements, Habits, Stool, Workout, Cycle, Coffee. Food's own tab also has a "Products" row alongside the category grid — a saved product (e.g. a bought smoothie) logs every one of its ingredients at once. Coffee is grouped by brand, with a per-cup form (café, price, brewing type/method, water temp, tasting characteristics). |
 | **Agenda** | `/agenda` | The landing page, and nothing but the list: one urgency-first view that answers "what needs my attention?" — reminders (mine + shared), expiring products, doctor follow-ups and appointments, interleaved by *when they matter* into Overdue / Today / Tomorrow / Next 7 days / Later / No date / Done. Type, scope and list are filter chips, never the grouping. `/overview` redirects here. |
 | **Trends** | `/analytics` | One dashboard per Log domain — Food, Supplements, Habits, Digestion (the Stool domain), Workout, Cycle — plus **Patterns**, switched by a tab bar. Food, Supplements and Habits are the "did I do it" domains: Habits and Supplements share a card grid (`AdherenceCardGrid`) with a month calendar or a 12-month bar per item; Food has its own section switcher. (Blood/lab analysis moved to Health → Results; `/analytics#labs` redirects there.) |
 | **Health** | `/medical` | Four tabs — Visits (appointments + a running list of things to raise before the next one), Results (lab marker trends), Vitals (blood pressure and weight), Doctors (read-only directory; editing lives in Settings). Tab-by-tab detail below. `/doctors` redirects here; old tab hashes (`#appointments`, `#carelog`, `#followups`, `#specialties`) land on Visits. |
 | **Notes** | `/personal` | Things you keep, no deadline — three tabs: **Journal** (private dated writing in Markdown — a formatting toolbar and a preview switch in the editor, entries opened as formatted text), **Wishlist** (saved links grouped into lists; the lists themselves are managed in Settings), **Codes** (shared discount codes). `/home` redirects here. (Reminders and product-expiry moved to Agenda.) |
 | **Messages** | `/notes` | Primary nav, partner-linked only — a link in the sidebar / mobile menu drawer (a dot on the menu button carries the unread cue), never the bottom bar. Private one-to-one messaging with your linked partner. Sent shows a message in bold until your partner has read it. |
-| Settings | `/manage` | (Sidebar foot.) Add / rename / archive / delete items and categories, give a category its own icon/colour, set exercise units, correct a food's automatic nutrition-group classification, define food products (name, brand, ingredient list — logged as a unit on Log → Food), edit reminder lists, wishlist lists (name/icon/colour), the Vitals weight goal, lab markers and panels (ranges, units, grouping, icons/colours), doctors (name/rating/language/notes/specialty), doctor types and the Stool tab's colour/symptom/floatation/characteristic chips, show or hide tracked sections (they otherwise appear once they have data) and set a daily "remind me to log this" time per section, and export your data (whole account as JSON, or a section — or everything — as CSV in one file). Searchable across every section. Also linked from Log's inline "add item". |
+| Settings | `/manage` | (Sidebar foot.) Add / rename / archive / delete items and categories, give a category its own icon/colour, set exercise units, correct a food's automatic nutrition-group classification, define food products (name, brand, ingredient list — logged as a unit on Log → Food), edit reminder lists, wishlist lists (name/icon/colour), the Vitals weight goal, lab markers and panels (ranges, units, grouping, icons/colours), doctors (name/rating/language/notes/specialty), doctor types, the Stool tab's colour/symptom/floatation/characteristic chips, and Coffee's brewing type/method/characteristic chips and currency (edit or archive existing coffees here too — new ones are added from Log → Coffee), show or hide tracked sections (they otherwise appear once they have data) and set a daily "remind me to log this" time per section, and export your data (whole account as JSON, or a section — or everything — as CSV in one file). Searchable across every section. Also linked from Log's inline "add item". |
 | Google Drive | `/my-drive` | (Account menu.) Read-only browser for the signed-in Google account's Drive. |
 | Help | `/help` | (Sidebar foot.) Plain-language reference for what each part does — grouped, collapsed, with a search box that filters entries. |
 
@@ -204,6 +204,17 @@ boundary.
 no item or category. Length, cycle day, and predictions are all derived in
 `aggregations/cycle.ts` from a recent-cycles window, so they track how the cycle
 behaves *lately* rather than an average smoothed over years.
+
+**Coffee** follows Stool's shape too: a `coffee_items` catalog (name, brand,
+tasting notes — brand is typed once from Log → Coffee's inline "add it" flow,
+not a managed list) and a bespoke `coffee_logs` row per cup (café, price,
+brewing type/method, water temp, characteristics). Brewing type, brewing
+method and characteristic chips are user-editable the same way as Stool's
+(`coffee_options`, `kind`-tagged); the currency shown next to prices is a
+single-row-per-user setting (`coffee_settings`), same shape as the Vitals
+weight goal. Direct-to-Supabase with a snapshot cache for offline reads
+([`src/lib/useCoffee.ts`](src/lib/useCoffee.ts)), not the older IndexedDB
+mirror Food/Stool use.
 
 **Every FK between user-owned tables is a composite key on `(user_id, id)`** (plus
 `item_type` for category FKs), so a row structurally can't reference another

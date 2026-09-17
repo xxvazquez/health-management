@@ -2,12 +2,13 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useData } from "@/lib/DataContext";
+import { useCoffee } from "@/lib/useCoffee";
 
 /** Every top-level tracked section a user might not want — the Log page's
  * tabs plus the two standalone ones (Stool, Workout also doubles as a Log
  * tab), matched 1:1 against Nav's analytics links wherever one exists. Not
  * an `ItemType` on its own since Stool/Workout/Cycle aren't item types. */
-export type TrackedDomain = "food" | "outcome" | "supplement" | "habit" | "stool" | "workout" | "cycle";
+export type TrackedDomain = "food" | "outcome" | "supplement" | "habit" | "stool" | "workout" | "cycle" | "coffee";
 
 export const DOMAIN_LABELS: Record<TrackedDomain, string> = {
   food: "Food",
@@ -17,6 +18,7 @@ export const DOMAIN_LABELS: Record<TrackedDomain, string> = {
   stool: "Stool",
   workout: "Workout",
   cycle: "Cycle",
+  coffee: "Coffee",
 };
 
 const STORAGE_KEY = "lauva.domainVisibility";
@@ -61,6 +63,10 @@ const VisibleDomainsContext = createContext<VisibleDomainsValue | null>(null);
  */
 export function VisibleDomainsProvider({ children }: { children: ReactNode }) {
   const { events, workoutLogs, stoolLogs, periodLogs, isDemoData } = useData();
+  // Coffee lives outside DataContext's older items/logs mirror (see
+  // useCoffee.ts) — fetched here too, same as every other domain, just via
+  // its own modern snapshot-cache hook instead of DataContext's.
+  const coffee = useCoffee();
   const [overrides, setOverrides] = useState<Overrides>({});
 
   useEffect(() => {
@@ -97,8 +103,9 @@ export function VisibleDomainsProvider({ children }: { children: ReactNode }) {
     if (workoutLogs.length > 0) domains.add("workout");
     if (stoolLogs.length > 0) domains.add("stool");
     if (periodLogs.length > 0) domains.add("cycle");
+    if (coffee.logs.data.length > 0) domains.add("coffee");
     return { domains, showAll: isDemoData || domains.size === 0 };
-  }, [events, workoutLogs, stoolLogs, periodLogs, isDemoData]);
+  }, [events, workoutLogs, stoolLogs, periodLogs, isDemoData, coffee.logs.data]);
 
   const isVisible = useCallback(
     (domain: TrackedDomain) => {
