@@ -79,6 +79,18 @@ import {
   type StoolOption,
   type StoolOptionPatch,
 } from "@/lib/supabase/stoolOptions";
+import {
+  createCoffeeOption,
+  defaultCoffeeOptions,
+  deleteCoffeeOption,
+  ensureCoffeeOptions,
+  fetchCoffeeOptions,
+  updateCoffeeOption,
+  type CoffeeOption,
+  type CoffeeOptionKind,
+  type CoffeeOptionPatch,
+} from "@/lib/supabase/coffeeOptions";
+import { useCoffee } from "@/lib/useCoffee";
 import { useDoctors } from "@/lib/useDoctors";
 import { resolveSpecialtyNames } from "@/lib/doctors";
 import type { Doctor, DoctorPatch } from "@/lib/supabase/doctors";
@@ -89,7 +101,7 @@ import type { FoodProduct, FoodProductPatch } from "@/lib/supabase/foodProducts"
 // Log tab order — Food, Symptoms, Supplements, Habits, Stool, Workout,
 // Cycle — so the toggle list reads left-to-right the same way the tabs
 // it controls do.
-const DOMAIN_TOGGLE_ORDER: TrackedDomain[] = ["food", "outcome", "supplement", "habit", "stool", "workout", "cycle"];
+const DOMAIN_TOGGLE_ORDER: TrackedDomain[] = ["food", "outcome", "supplement", "habit", "stool", "workout", "cycle", "coffee"];
 
 /** A collapsible section card for the settings blocks (Reminder lists,
  * Doctor types) — same shell, header and count subtitle as the item
@@ -1446,6 +1458,388 @@ function StoolOptionRow({
           </span>
         ))}
     </li>
+  );
+}
+
+function CoffeeOptionRow({
+  option,
+  busy,
+  onPatch,
+  onDelete,
+}: {
+  option: CoffeeOption;
+  busy: boolean;
+  onPatch: (patch: CoffeeOptionPatch) => void;
+  onDelete: () => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(option.label);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+
+  function commit() {
+    setEditing(false);
+    const next = draft.trim();
+    if (next && next !== option.label) onPatch({ label: next });
+  }
+
+  return (
+    <li className="flex min-h-11 items-center gap-2 py-1.5">
+      {editing ? (
+        <form
+          className="flex flex-1 items-center gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            commit();
+          }}
+        >
+          <input
+            autoFocus
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onBlur={commit}
+            maxLength={60}
+            className="min-w-0 flex-1 rounded-md border px-2 py-1 text-sm outline-none"
+            style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
+          />
+        </form>
+      ) : (
+        <button
+          type="button"
+          onClick={() => {
+            setDraft(option.label);
+            setEditing(true);
+          }}
+          className="min-w-0 flex-1 truncate text-left text-sm"
+          style={{ color: option.isArchived ? "var(--text-muted)" : "var(--text-primary)" }}
+        >
+          {option.label}
+        </button>
+      )}
+
+      {!editing &&
+        (confirmingDelete ? (
+          <span className="flex shrink-0 items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => {
+                setConfirmingDelete(false);
+                onDelete();
+              }}
+              className="text-xs font-semibold"
+              style={{ color: "var(--status-critical)" }}
+            >
+              Delete
+            </button>
+            <button type="button" onClick={() => setConfirmingDelete(false)} className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+              Keep
+            </button>
+          </span>
+        ) : (
+          <span className="flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={() => onPatch({ isArchived: !option.isArchived })}
+              disabled={busy}
+              className="text-xs font-medium disabled:opacity-40"
+              style={{ color: "var(--text-secondary)" }}
+            >
+              {option.isArchived ? "Show" : "Hide"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setConfirmingDelete(true)}
+              disabled={busy}
+              aria-label={`Delete ${option.label}`}
+              className="disabled:opacity-40"
+              style={{ color: "var(--text-muted)" }}
+            >
+              <TrashIcon size={14} />
+            </button>
+          </span>
+        ))}
+    </li>
+  );
+}
+
+const COFFEE_OPTION_KINDS: { kind: CoffeeOptionKind; title: string; placeholder: string }[] = [
+  { kind: "brewing_type", title: "Brewing types", placeholder: "e.g. Pour over" },
+  { kind: "brewing_method", title: "Brewing methods", placeholder: "e.g. Chemex" },
+  { kind: "characteristic", title: "Characteristics", placeholder: "e.g. Winey" },
+];
+
+function demoCoffeeOptionRows(): CoffeeOption[] {
+  return COFFEE_OPTION_KINDS.flatMap(({ kind }) =>
+    defaultCoffeeOptions(kind).map<CoffeeOption>((label, i) => ({ id: `demo:${kind}:${label}`, kind, label, sortOrder: i, isArchived: false })),
+  );
+}
+
+/** Every coffee-tracking config in one place: the currency shown next to
+ * every price, the three editable chip lists the Log page's Coffee dialog
+ * offers, and the coffee catalog itself (edit/archive/delete only — new
+ * coffees are added from Log → Coffee, where brand is typed once against
+ * the actual cup being logged; see CoffeeTab). */
+function CoffeeCard({ isDemoData, searchQuery }: { isDemoData: boolean; searchQuery: string }) {
+  const coffee = useCoffee();
+  const [rows, setRows] = useState<CoffeeOption[]>(() => (isDemoData ? demoCoffeeOptionRows() : []));
+  const [loading, setLoading] = useState(!isDemoData);
+  const [busy, setBusy] = useState(false);
+  const [newLabels, setNewLabels] = useState<Record<string, string>>({});
+  const [hiddenOpen, setHiddenOpen] = useState<Record<string, boolean>>({});
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [draftName, setDraftName] = useState("");
+  const [draftBrand, setDraftBrand] = useState("");
+  const [draftNotes, setDraftNotes] = useState("");
+
+  useEffect(() => {
+    if (isDemoData) return;
+    let cancelled = false;
+    fetchCoffeeOptions()
+      .then((data) => !cancelled && setRows(data))
+      .catch((err) => console.error("fetchCoffeeOptions failed", err))
+      .finally(() => !cancelled && setLoading(false));
+    return () => {
+      cancelled = true;
+    };
+  }, [isDemoData]);
+
+  const query = searchQuery.trim().toLowerCase();
+  const isSearching = query.length > 0;
+
+  async function realize(kind: CoffeeOptionKind): Promise<CoffeeOption[]> {
+    if (isDemoData || rows.some((r) => r.kind === kind)) return rows;
+    const fresh = await ensureCoffeeOptions(kind);
+    setRows(fresh);
+    return fresh;
+  }
+
+  async function run(kind: CoffeeOptionKind, action: (fresh: CoffeeOption[]) => Promise<void>) {
+    setBusy(true);
+    try {
+      await action(isDemoData ? rows : await realize(kind));
+    } catch (err) {
+      console.error("coffee option action failed", err);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function entriesFor(kind: CoffeeOptionKind) {
+    const mine = rows.filter((r) => r.kind === kind);
+    if (mine.length > 0) return [...mine].sort((a, b) => a.sortOrder - b.sortOrder);
+    return defaultCoffeeOptions(kind).map<CoffeeOption>((label, i) => ({ id: `default:${kind}:${label}`, kind, label, sortOrder: i, isArchived: false }));
+  }
+
+  async function addOption(kind: CoffeeOptionKind) {
+    const label = (newLabels[kind] ?? "").trim();
+    setNewLabels((p) => ({ ...p, [kind]: "" }));
+    if (!label) return;
+    if (isDemoData) {
+      setRows((prev) => (prev.some((r) => r.kind === kind && r.label.toLowerCase() === label.toLowerCase()) ? prev : [...prev, { id: `demo-coffee-opt-${Date.now()}`, kind, label, sortOrder: 99, isArchived: false }]));
+      return;
+    }
+    await run(kind, async (fresh) => {
+      if (fresh.some((r) => r.kind === kind && r.label.toLowerCase() === label.toLowerCase())) return;
+      const sortOrder = Math.max(-1, ...fresh.filter((r) => r.kind === kind).map((r) => r.sortOrder)) + 1;
+      const created = await createCoffeeOption(kind, label, sortOrder);
+      setRows((prev) => [...prev, created]);
+    });
+  }
+
+  async function patch(option: CoffeeOption, p: CoffeeOptionPatch) {
+    if (isDemoData) {
+      setRows((prev) => prev.map((r) => (r.id === option.id ? { ...r, ...p, label: p.label?.trim() ?? r.label } : r)));
+      return;
+    }
+    await run(option.kind, async (fresh) => {
+      const row = fresh.find((r) => r.kind === option.kind && r.label.toLowerCase() === option.label.toLowerCase()) ?? option;
+      const updated = await updateCoffeeOption(row, p);
+      setRows((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+    });
+  }
+
+  async function removeOption(option: CoffeeOption) {
+    if (isDemoData) {
+      setRows((prev) => prev.filter((r) => r.id !== option.id));
+      return;
+    }
+    await run(option.kind, async (fresh) => {
+      const row = fresh.find((r) => r.kind === option.kind && r.label.toLowerCase() === option.label.toLowerCase());
+      if (!row) return;
+      setRows((prev) => prev.filter((r) => r.id !== row.id));
+      await deleteCoffeeOption(row.id);
+    });
+  }
+
+  function startEditItem(item: { id: string; name: string; brand: string | null; notes: string | null }) {
+    setEditingItemId(item.id);
+    setDraftName(item.name);
+    setDraftBrand(item.brand ?? "");
+    setDraftNotes(item.notes ?? "");
+  }
+
+  async function saveItemEdit() {
+    const item = coffee.items.data.find((it) => it.id === editingItemId);
+    if (!item) return;
+    setEditingItemId(null);
+    await coffee.items.edit(item, { name: draftName, brand: draftBrand, notes: draftNotes });
+  }
+
+  const totalActive = COFFEE_OPTION_KINDS.reduce((n, k) => n + entriesFor(k.kind).filter((e) => !e.isArchived).length, 0);
+  const items = coffee.items.data.filter((it) => !isSearching || it.name.toLowerCase().includes(query) || (it.brand ?? "").toLowerCase().includes(query));
+
+  return (
+    <CollapsibleManageCard title="Coffee" subtitle={loading ? undefined : `${totalActive} chips · ${coffee.items.data.length} coffees`} forceOpen={isSearching}>
+      <div className="mb-4 flex items-center justify-between border-b pb-3" style={{ borderColor: "var(--gridline)" }}>
+        <span className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
+          Currency
+        </span>
+        <input
+          value={coffee.currency.value}
+          onChange={(e) => void coffee.currency.set(e.target.value)}
+          maxLength={6}
+          aria-label="Currency shown next to coffee prices"
+          className="w-20 rounded-md border px-2 py-1 text-right text-xs outline-none"
+          style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
+        />
+      </div>
+
+      {loading ? (
+        <p className="py-3 text-xs" style={{ color: "var(--text-muted)" }}>
+          Loading…
+        </p>
+      ) : (
+        <div className="flex flex-col gap-5">
+          {COFFEE_OPTION_KINDS.map(({ kind, title, placeholder }) => {
+            const all = entriesFor(kind).filter((e) => !isSearching || e.label.toLowerCase().includes(query));
+            const active = all.filter((e) => !e.isArchived);
+            const hidden = all.filter((e) => e.isArchived);
+            if (isSearching && all.length === 0) return null;
+            const showHidden = isSearching || hiddenOpen[kind];
+            return (
+              <div key={kind}>
+                <p className="mb-2 text-xs font-semibold" style={{ color: "var(--text-secondary)" }}>
+                  {title}
+                </p>
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    void addOption(kind);
+                  }}
+                  className="mb-2 flex items-center gap-2"
+                >
+                  <input
+                    value={newLabels[kind] ?? ""}
+                    onChange={(e) => setNewLabels((p) => ({ ...p, [kind]: e.target.value }))}
+                    placeholder={placeholder}
+                    maxLength={60}
+                    className="flex-1 rounded-md border px-2.5 py-1.5 text-xs outline-none"
+                    style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
+                  />
+                  <button type="submit" disabled={!(newLabels[kind] ?? "").trim() || busy} className="shrink-0 rounded-md px-3 py-1.5 text-xs font-semibold disabled:opacity-40" style={{ color: "var(--ui-accent)" }}>
+                    Add
+                  </button>
+                </form>
+                <ul className="inset-rows flex flex-col">
+                  {active.length === 0 && !isSearching && (
+                    <li className="py-2 text-xs" style={{ color: "var(--text-muted)" }}>
+                      Every {title.toLowerCase().replace(/s$/, "")} is hidden — add one above or show one back.
+                    </li>
+                  )}
+                  {active.map((e) => (
+                    <CoffeeOptionRow key={e.id} option={e} busy={busy} onPatch={(p) => void patch(e, p)} onDelete={() => void removeOption(e)} />
+                  ))}
+                </ul>
+                {hidden.length > 0 && (
+                  <div className="mt-2">
+                    <button
+                      type="button"
+                      onClick={() => setHiddenOpen((p) => ({ ...p, [kind]: !p[kind] }))}
+                      disabled={isSearching}
+                      className="text-xs font-medium disabled:opacity-100"
+                      style={{ color: "var(--ui-accent)" }}
+                    >
+                      Hidden ({hidden.length}) — {showHidden ? "Hide" : "Show"}
+                    </button>
+                    {showHidden && (
+                      <ul className="mt-1 inset-rows flex flex-col opacity-70">
+                        {hidden.map((e) => (
+                          <CoffeeOptionRow key={e.id} option={e} busy={busy} onPatch={(p) => void patch(e, p)} onDelete={() => void removeOption(e)} />
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+
+          <div className="border-t pt-4" style={{ borderColor: "var(--gridline)" }}>
+            <p className="mb-2 text-xs font-semibold" style={{ color: "var(--text-secondary)" }}>
+              Your coffees
+            </p>
+            <p className="mb-2 text-xs" style={{ color: "var(--text-muted)" }}>
+              New coffees are added from Log → Coffee, not here — edit or archive existing ones below.
+            </p>
+            {items.length === 0 ? (
+              <p className="py-2 text-xs" style={{ color: "var(--text-muted)" }}>
+                {isSearching ? "No coffee matches that search." : "Nothing logged yet."}
+              </p>
+            ) : (
+              <ul className="inset-rows flex flex-col">
+                {items.map((it) => {
+                  const editing = editingItemId === it.id;
+                  return (
+                    <li key={it.id} className="py-1.5">
+                      {editing ? (
+                        <form
+                          onSubmit={(e) => {
+                            e.preventDefault();
+                            void saveItemEdit();
+                          }}
+                          className="flex flex-col gap-1.5 py-1"
+                        >
+                          <div className="flex items-center gap-2">
+                            <input value={draftName} onChange={(e) => setDraftName(e.target.value)} placeholder="Name" className="min-w-0 flex-1 rounded-md border px-2 py-1 text-sm outline-none" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }} />
+                            <input value={draftBrand} onChange={(e) => setDraftBrand(e.target.value)} placeholder="Brand" className="w-28 shrink-0 rounded-md border px-2 py-1 text-sm outline-none" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }} />
+                          </div>
+                          <input value={draftNotes} onChange={(e) => setDraftNotes(e.target.value)} placeholder="Coffee notes" className="rounded-md border px-2 py-1 text-xs outline-none" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-secondary)" }} />
+                          <div className="flex items-center gap-3">
+                            <button type="submit" className="text-xs font-semibold" style={{ color: "var(--status-good)" }}>
+                              Save
+                            </button>
+                            <button type="button" onClick={() => setEditingItemId(null)} className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+                              Cancel
+                            </button>
+                          </div>
+                        </form>
+                      ) : (
+                        <div className="flex min-h-11 items-center gap-2">
+                          <button type="button" onClick={() => startEditItem(it)} className="min-w-0 flex-1 text-left">
+                            <span className="text-sm font-medium" style={{ color: it.isArchived ? "var(--text-muted)" : "var(--text-primary)" }}>
+                              {it.name}
+                            </span>
+                            {it.brand && (
+                              <span className="ml-2 text-xs" style={{ color: "var(--text-muted)" }}>
+                                {it.brand}
+                              </span>
+                            )}
+                          </button>
+                          <span className="flex shrink-0 items-center gap-2">
+                            <button type="button" onClick={() => void coffee.items.edit(it, { isArchived: !it.isArchived })} className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
+                              {it.isArchived ? "Show" : "Hide"}
+                            </button>
+                          </span>
+                        </div>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+        </div>
+      )}
+    </CollapsibleManageCard>
   );
 }
 
@@ -3115,6 +3509,7 @@ export default function ManagePage() {
     { label: "Doctor types", el: <DoctorSpecialtiesCard key="doctor-types" isDemoData={isDemoData} searchQuery={searchQuery} /> },
     { label: "Lab results", el: <LabResultsCard key="lab-results" searchQuery={searchQuery} /> },
     { label: "Stool options", el: <StoolOptionsCard key="stool-options" isDemoData={isDemoData} searchQuery={searchQuery} /> },
+    { label: "Coffee", el: <CoffeeCard key="coffee" isDemoData={isDemoData} searchQuery={searchQuery} /> },
     { label: "Weight goal", el: <WeightGoalCard key="weight-goal" isDemoData={isDemoData} searchQuery={searchQuery} /> },
     { label: "Wishlist lists", el: <WishlistListsCard key="wishlist-lists" isDemoData={isDemoData} searchQuery={searchQuery} /> },
     ...TYPE_SECTIONS.map((section) => ({

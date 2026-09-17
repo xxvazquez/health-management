@@ -57,6 +57,9 @@ import { StoolTab, type NewStoolEntry, characteristicLabels } from "@/components
 import { useStoolOptions } from "@/lib/useStoolOptions";
 import { WorkoutTab, type NewWorkoutEntry } from "@/components/log/WorkoutTab";
 import { CycleTab } from "@/components/log/CycleTab";
+import { CoffeeTab, type CoffeeLogSubmission } from "@/components/log/CoffeeTab";
+import { useCoffee } from "@/lib/useCoffee";
+import { useCoffeeOptions } from "@/lib/useCoffeeOptions";
 import { DuplicateItemDialog } from "@/components/ui/DuplicateItemDialog";
 import { SearchField } from "@/components/ui/SearchField";
 import { ChevronIcon, CloseIcon, NoteIcon, PlusIcon } from "@/components/ui/icons";
@@ -97,7 +100,7 @@ const TABS: { type: ItemType; label: string; singular: string; placeholder: stri
   { type: "habit", label: "Habits", singular: "habit", placeholder: "Add a habit…", defaultCategory: "Daily", countable: false },
 ];
 
-type LogTab = ItemType | "stool" | "workout" | "cycle";
+type LogTab = ItemType | "stool" | "workout" | "cycle" | "coffee";
 const STOOL_ACCENT = "var(--series-indigo)";
 // Distinct from every TYPE_ACCENT and from STOOL_ACCENT so all seven tabs
 // stay visually distinguishable at a glance in this one nav row. Matches
@@ -106,6 +109,7 @@ const STOOL_ACCENT = "var(--series-indigo)";
 // stool/cycle, which aren't real ItemTypes and have no TYPE_ACCENT entry.
 const WORKOUT_ACCENT = "var(--series-6)";
 const CYCLE_ACCENT = "var(--series-4)";
+const COFFEE_ACCENT = "var(--series-slate)";
 
 const EXPANDED_CATEGORIES_STORAGE_KEY = "lauva.log.expandedCategories";
 
@@ -483,6 +487,8 @@ export default function LogPage() {
   // the Symptoms tab as one-offs that aren't tracked day to day.
   const careLog = useCareLog();
   const stoolOptions = useStoolOptions();
+  const coffee = useCoffee();
+  const coffeeOptions = useCoffeeOptions();
   const meals = useMeals();
   const foodProducts = useFoodProducts();
   const today = useMemo(() => todayLocalISODate(), []);
@@ -549,7 +555,7 @@ export default function LogPage() {
   // tab nobody can reach via the nav bar anymore.
   useEffect(() => {
     if (isVisible(tab)) return;
-    const fallback = ([...TABS.map((t) => t.type), "stool", "workout", "cycle"] as TrackedDomain[]).find((t) => isVisible(t));
+    const fallback = ([...TABS.map((t) => t.type), "stool", "workout", "cycle", "coffee"] as TrackedDomain[]).find((t) => isVisible(t));
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (fallback) setTab(fallback);
   }, [tab, isVisible]);
@@ -645,6 +651,7 @@ export default function LogPage() {
       { id: "stool", label: "Stool", accent: STOOL_ACCENT, domain: "stool" },
       { id: "workout", label: "Workout", accent: WORKOUT_ACCENT, domain: "workout" },
       { id: "cycle", label: "Cycle", accent: CYCLE_ACCENT, domain: "cycle" },
+      { id: "coffee", label: "Coffee", accent: COFFEE_ACCENT, domain: "coffee" },
     ];
     return all.filter((t) => !t.domain || isVisible(t.domain));
   }, [isVisible]);
@@ -1362,6 +1369,15 @@ export default function LogPage() {
     setPending(null);
   }
 
+  async function handleSaveCoffeeLog(itemId: string, submission: CoffeeLogSubmission) {
+    logHaptic();
+    await coffee.logs.add({ ...submission, itemId, date });
+  }
+
+  async function handleUpdateCoffeeLog(id: string, itemId: string, submission: CoffeeLogSubmission) {
+    await coffee.logs.edit(id, { ...submission, itemId, date });
+  }
+
   async function handleSaveWorkoutEntry(entry: NewWorkoutEntry) {
     if (isDemoData) return;
     logHaptic();
@@ -1915,7 +1931,21 @@ export default function LogPage() {
         )}
       </div>
 
-      {tab === "stool" || tab === "workout" || tab === "cycle" ? (
+      {tab === "coffee" ? (
+        <CoffeeTab
+          items={coffee.items.data}
+          logs={coffee.logs.data}
+          options={coffeeOptions}
+          currency={coffee.currency.value}
+          date={date}
+          accent={COFFEE_ACCENT}
+          isDemoData={isDemoData}
+          onAddItem={coffee.items.add}
+          onSaveLog={handleSaveCoffeeLog}
+          onUpdateLog={handleUpdateCoffeeLog}
+          onDeleteLog={coffee.logs.remove}
+        />
+      ) : tab === "stool" || tab === "workout" || tab === "cycle" ? (
         !dataReady ? (
           <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
             Loading…

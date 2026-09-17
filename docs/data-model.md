@@ -177,6 +177,64 @@ the predicted next period) are all derived from `period_logs` dates at
 the app layer ([`src/lib/aggregations/cycle.ts`](../src/lib/aggregations/cycle.ts)
 and the Log Cycle tab), using a recent-cycles window rather than all history.
 
+## Coffee
+
+A small reusable catalog plus a bespoke per-cup log — closer to
+`stool_logs` than to the Food item/log shape, since a cup's fields
+(café, price, brewing type/method, water temp, characteristics) don't
+fit a generic numeric `value`. Direct-to-Supabase (`upsertDirect`/
+`deleteDirect`) with a snapshot-cache for offline reads
+([`src/lib/useCoffee.ts`](../src/lib/useCoffee.ts)), not the older
+items/logs/diary IndexedDB mirror Food/Stool use.
+
+```mermaid
+%%{init: {"theme": "base", "themeVariables": {
+  "primaryColor": "#eef5f3", "primaryBorderColor": "#5c8a7a",
+  "primaryTextColor": "#24313a", "lineColor": "#7d9a90",
+  "fontFamily": "Inter, -apple-system, sans-serif", "fontSize": "14px"
+}}}%%
+erDiagram
+    COFFEE_ITEMS ||--o{ COFFEE_LOGS : "logged cups"
+
+    COFFEE_ITEMS {
+        uuid    id PK
+        text    name "unique per user (case/whitespace-insensitive)"
+        text    brand "typed once from Log → Coffee, not a managed list"
+        text    notes "tasting notes for the bean/product"
+        boolean is_archived
+    }
+    COFFEE_OPTIONS {
+        uuid    id PK
+        text    kind "brewing_type / brewing_method / characteristic"
+        text    label
+        boolean is_archived "hidden from the picker"
+    }
+    COFFEE_LOGS {
+        uuid        id PK
+        uuid        item_id FK
+        date        date
+        timestamptz logged_at
+        text        cafe
+        numeric     price
+        text        brewing_type "free text; chips from coffee_options"
+        text        brewing_method "free text; chips from coffee_options"
+        smallint    water_temp_c
+        text        characteristics "array; chips from coffee_options"
+        text        note
+    }
+    COFFEE_SETTINGS {
+        uuid user_id PK
+        text currency "shown next to every price, e.g. \"zł\""
+    }
+```
+
+**Brand lives on the coffee item, not a managed reference list.** Unlike
+brewing type/method/characteristics (editable from Manage → Coffee, same
+`kind`-tagged pattern as `stool_options`), a brand is typed once when a
+coffee is first logged (Log → Coffee's search-with-no-match flow, same
+convention as Food's inline "can't find it, add it") — Manage only
+edits/archives coffees that already exist.
+
 ## Connect → Notes
 
 Private messages between two linked accounts. This is the only part of the
