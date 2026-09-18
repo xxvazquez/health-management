@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { NOTE_CATEGORY_LABEL, type NoteMessage, type NoteThread } from "@/lib/supabase/notes";
-import { CategoryIcon, EyeOffIcon, ReplyIcon, StarIcon } from "./icons";
+import { CategoryIcon, EyeOffIcon, StarIcon } from "./icons";
 import { formatNoteTimestamp } from "./NoteThreadList";
 import { AutoGrowTextarea } from "@/components/ui/AutoGrowTextarea";
 
@@ -226,24 +226,31 @@ export function NoteThreadView({
         </div>
       )}
 
-      <form onSubmit={handleReply} className="flex items-end gap-2 border-t pt-4" style={{ borderColor: "var(--gridline)" }}>
+      <form
+        onSubmit={handleReply}
+        className="flex items-end gap-1.5 rounded-2xl border p-1.5"
+        style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}
+      >
         <AutoGrowTextarea
           value={replyBody}
           onChange={(e) => setReplyBody(e.target.value)}
-          rows={2}
-          maxRows={8}
+          rows={1}
+          maxRows={6}
+          aria-label={`Reply to ${partnerLabel}`}
           placeholder={`Reply to ${partnerLabel}…`}
-          className="flex-1 resize-none min-h-20 rounded-md border px-3 text-sm outline-none py-2"
-          style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
+          className="min-w-0 flex-1 resize-none bg-transparent px-2.5 py-2 text-sm leading-5 outline-none"
+          style={{ color: "var(--text-primary)" }}
         />
         <button
           type="submit"
           disabled={replying || !replyBody.trim()}
-          className="flex h-9 shrink-0 items-center gap-1.5 rounded-md px-3 text-sm font-medium text-white disabled:opacity-50"
+          aria-label={replying ? "Sending reply" : "Send reply"}
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-white transition-opacity disabled:opacity-40"
           style={{ background: ACCENT }}
         >
-          <ReplyIcon size={13} />
-          {replying ? "Sending…" : "Reply"}
+          <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M10 16V4.5M5 9.2l5-4.7 5 4.7" />
+          </svg>
         </button>
       </form>
       {replyError && (
