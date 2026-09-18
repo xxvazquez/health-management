@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { ChevronIcon } from "@/components/ui/icons";
 import { workoutUnitLabel, type RawWorkoutLog, type RawItem, type WorkoutUnit } from "@/lib/types";
 import { UNIT_STEP_PRESETS } from "@/components/ui/NumberStepper";
 import { CustomIcon } from "@/components/ui/customIcons";
@@ -220,7 +221,7 @@ function ExerciseRow({
 
   return (
     <div
-      className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3"
+      className="flex flex-wrap items-center justify-between gap-3 rounded-xl border p-3"
       style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}
     >
       <div className="min-w-0 flex-1">
@@ -239,7 +240,7 @@ function ExerciseRow({
           type="button"
           onClick={() => void handleLog()}
           disabled={saving || isDemoData}
-          className="h-7 rounded-md px-3 text-xs font-medium text-white disabled:opacity-40"
+          className="h-9 rounded-md px-3.5 text-sm font-medium text-white disabled:opacity-40"
           style={{ background: accent }}
         >
           {isDemoData ? "Sign in to log" : saving ? "Saving…" : "Log"}
@@ -313,13 +314,20 @@ export function WorkoutTab({
         ))
       )}
 
-      <div className="flex flex-wrap gap-x-4 gap-y-1">
-        <Link href="/manage/" className="self-start text-xs font-medium" style={{ color: "var(--ui-accent)" }}>
-          Add, archive, or set units for exercises in Settings
-        </Link>
-        <Link href="/workout/" className="self-start text-xs font-medium" style={{ color: "var(--ui-accent)" }}>
-          See charts and progression on the Workout page
-        </Link>
+      <div className="inset-rows rounded-xl border" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
+        {(
+          [
+            ["/manage/", "Manage exercises and units"],
+            ["/workout/", "Charts and progression"],
+          ] as const
+        ).map(([href, label]) => (
+          <Link key={href} href={href} className="flex min-h-11 items-center gap-2 px-3.5 text-sm" style={{ color: "var(--text-primary)" }}>
+            {label}
+            <span className="ml-auto" style={{ color: "var(--text-muted)" }}>
+              <ChevronIcon dir="right" size={14} />
+            </span>
+          </Link>
+        ))}
       </div>
     </div>
   );

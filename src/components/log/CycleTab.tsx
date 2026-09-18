@@ -73,11 +73,11 @@ function Chip({ label, active, onClick, accent, icon }: { label: string; active:
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className="flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-normal whitespace-nowrap transition-colors"
+      className="flex min-h-10 w-full items-center gap-1.5 rounded-md border px-3 text-left text-sm leading-tight transition-colors"
       style={{
         borderColor: active ? accent : "var(--border-hairline)",
-        background: active ? `color-mix(in oklab, ${accent} 14%, var(--surface-1))` : "transparent",
-        color: active ? accent : "var(--text-secondary)",
+        background: active ? `color-mix(in oklab, ${accent} 14%, var(--surface-1))` : "var(--surface-1)",
+        color: active ? accent : "var(--text-primary)",
       }}
     >
       {icon}
@@ -294,7 +294,7 @@ export function CycleTab({
   return (
     <div className="flex flex-col gap-5">
       {/* ---- 1. Current cycle ---- */}
-      <div className="flex flex-col gap-2 rounded-lg border p-3" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
+      <div className="flex flex-col gap-2 rounded-xl border p-3" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
         <div className="flex flex-wrap items-baseline justify-between gap-2 border-b pb-2" style={{ borderColor: "var(--border-hairline)" }}>
           <div className="flex flex-col gap-1">
             {status.onPeriod || status.cycleDay != null ? (
@@ -328,7 +328,7 @@ export function CycleTab({
           <p className="mb-2 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
             Period intensity
           </p>
-          <div className="flex flex-wrap gap-1.5">
+          <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
             {PERIOD_INTENSITIES.map((level) => (
               <Chip
                 key={level}
@@ -346,7 +346,7 @@ export function CycleTab({
           <p className="mb-2 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
             Collection method
           </p>
-          <div className={clsx("flex flex-wrap gap-1.5", !selectedEntry && "opacity-40")}>
+          <div className={clsx("grid grid-cols-2 gap-1.5 sm:grid-cols-4", !selectedEntry && "opacity-40")}>
             {COLLECTION_METHODS.map((method) => (
               <Chip
                 key={method}
@@ -367,7 +367,7 @@ export function CycleTab({
       </div>
 
       {/* ---- 2. Period calendar ---- */}
-      <div className="flex flex-col gap-3 rounded-lg border p-3" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
+      <div className="flex flex-col gap-3 rounded-xl border p-3" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
         <div className="flex items-center justify-between border-b pb-2" style={{ borderColor: "var(--border-hairline)" }}>
           <button
             type="button"

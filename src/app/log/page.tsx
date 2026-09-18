@@ -70,7 +70,6 @@ import { useFoodProducts } from "@/lib/useFoodProducts";
 import type { FoodProduct } from "@/lib/supabase/foodProducts";
 import { ProductForm, type NewProductDraft } from "@/components/log/ProductForm";
 import { TimeField } from "@/components/ui/TimeField";
-import { TruncatedTooltip } from "@/components/ui/TruncatedTooltip";
 import { DemoNotice } from "@/components/ui/DemoNotice";
 import { MobileMenuButton } from "@/components/MobileMenuButton";
 import { useOverflowFade } from "@/lib/useOverflowFade";
@@ -365,7 +364,7 @@ function MealGroupCard({
   const [text, setText] = useState(note);
 
   return (
-    <div className="flex flex-col gap-1 rounded-lg border p-2.5" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
+    <div className="flex flex-col gap-1 rounded-xl border p-2.5" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
       <div className="flex items-baseline gap-2">
         <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
           <span className="text-sm font-semibold" style={{ color: accent }}>
@@ -1517,24 +1516,14 @@ export default function LogPage() {
   //     (accent tick + tint + left bar). Sleep gets range buckets on its
   //     row, supplements a dose count, a present symptom a 1/2/3 selector.
 
-  /** Food's logged-chip look, reused for a whole row. */
-  function trackRowStyle(active: boolean, accent: string) {
+  /** Cell look for a tracked item: white and hairline-bordered at rest, tinted
+   * in the tab's accent once logged — the same cell Food's grid uses. */
+  function trackCellStyle(active: boolean, accent: string) {
     return {
-      background: active ? `color-mix(in oklab, ${accent} 14%, var(--surface-1))` : "transparent",
-      borderLeft: `2px solid ${active ? accent : "transparent"}`,
-      color: active ? "var(--text-primary)" : "var(--text-secondary)",
+      background: active ? `color-mix(in oklab, ${accent} 14%, var(--surface-1))` : "var(--surface-1)",
+      borderColor: active ? accent : "var(--border-hairline)",
+      color: active ? accent : "var(--text-primary)",
     } as const;
-  }
-
-  /** Fixed-width state marker at the head of every tracker row — a tick for
-   * a logged habit/supplement, the intensity digit for a present symptom —
-   * so item names line up regardless of state or length. */
-  function RowMark({ children, accent }: { children?: ReactNode; accent: string }) {
-    return (
-      <span className="w-3 shrink-0 text-center text-xs font-bold leading-none tabular-nums" style={{ color: accent }}>
-        {children}
-      </span>
-    );
   }
 
   /** The intensity to show for a symptom right now — the optimistic target
@@ -1617,19 +1606,12 @@ export default function LogPage() {
     const active = activeBandValue(c.item, current);
     const busy = pending === c.key;
     return (
-      <li
-        key={c.key}
-        className="flex flex-col gap-1.5 py-2 pl-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
-        style={{ borderLeft: `2px solid ${current != null ? accent : "transparent"}`, opacity: busy ? 0.6 : 1 }}
-      >
-        <div className="flex items-center gap-1.5 text-xs">
-          <RowMark accent={accent}>{current != null ? "✓" : null}</RowMark>
-          <span style={{ fontWeight: current != null ? 500 : 400, color: current != null ? "var(--text-primary)" : "var(--text-secondary)" }}>
-            {c.item}
-          </span>
-        </div>
-        <div className="flex overflow-hidden rounded-md border" style={{ borderColor: "var(--border-hairline)" }}>
-          {bands.map((o, i) => {
+      <li key={c.key} className="flex flex-col gap-2 px-3.5 py-2.5" style={{ opacity: busy ? 0.6 : 1 }}>
+        <span className="text-sm" style={{ color: "var(--text-primary)" }}>
+          {c.item}
+        </span>
+        <div className="flex gap-1.5">
+          {bands.map((o) => {
             const isActive = active === o.value;
             return (
               <button
@@ -1638,12 +1620,8 @@ export default function LogPage() {
                 disabled={busy}
                 onClick={() => void handleSetBand(c, o.value, isActive)}
                 aria-pressed={isActive}
-                className="flex-1 px-2.5 py-1.5 text-center text-xs font-medium transition-colors disabled:opacity-50 sm:flex-none"
-                style={{
-                  background: isActive ? `color-mix(in oklab, ${accent} 16%, var(--surface-1))` : "transparent",
-                  color: isActive ? accent : "var(--text-secondary)",
-                  borderLeft: i === 0 ? "none" : "0.5px solid var(--border-hairline)",
-                }}
+                className="min-h-10 flex-1 rounded-md border px-2 text-center text-sm transition-colors disabled:opacity-50"
+                style={trackCellStyle(isActive, accent)}
               >
                 {o.label}
               </button>
@@ -1661,13 +1639,8 @@ export default function LogPage() {
     const current = durationValueForDate.get(c.itemIdentity);
     const busy = pending === c.key;
     return (
-      <li
-        key={c.key}
-        className="col-span-full flex flex-wrap items-center gap-x-2 gap-y-1 rounded-md px-2 py-1 text-xs"
-        style={{ ...trackRowStyle(current != null, accent), opacity: busy ? 0.6 : 1 }}
-      >
-        <RowMark accent={accent}>{current != null ? "✓" : null}</RowMark>
-        <span className="mr-1 flex-1" style={{ fontWeight: current != null ? 500 : 400 }}>
+      <li key={c.key} className="flex flex-wrap items-center gap-x-3 gap-y-2 px-3.5 py-2.5" style={{ opacity: busy ? 0.6 : 1 }}>
+        <span className="flex-1 text-sm" style={{ color: "var(--text-primary)" }}>
           {c.item}
         </span>
         <DurationStepper totalMinutes={current ?? DURATION_DEFAULT_MINUTES[c.item] ?? 0} onChange={(m) => void handleSetDuration(c, m)} accent={accent} />
@@ -1686,18 +1659,22 @@ export default function LogPage() {
     const logged = (mealCounts.get(c.key) ?? 0) > 0;
     const busy = pending === c.key;
     return (
-      <li key={c.key}>
-        <button
-          type="button"
-          onClick={() => handleChipTap(c)}
-          disabled={busy}
-          className="flex w-full items-center gap-1.5 rounded-md px-2 py-1 text-left text-xs transition-colors disabled:opacity-50"
-          style={trackRowStyle(logged, accent)}
-        >
-          <RowMark accent={accent}>{logged ? "✓" : null}</RowMark>
-          <TruncatedTooltip text={c.item} style={{ fontWeight: logged ? 500 : 400 }} />
-        </button>
-      </li>
+      <button
+        key={c.key}
+        type="button"
+        onClick={() => handleChipTap(c)}
+        disabled={busy}
+        aria-pressed={logged}
+        className={`${FOOD_PILL} w-full justify-between`}
+        style={trackCellStyle(logged, accent)}
+      >
+        <span className="min-w-0">{c.item}</span>
+        {logged && (
+          <span aria-hidden="true" className="shrink-0 text-xs font-bold">
+            ✓
+          </span>
+        )}
+      </button>
     );
   }
 
@@ -1709,18 +1686,17 @@ export default function LogPage() {
     const present = current != null;
     const busy = pending === c.key;
     return (
-      <li key={c.key}>
-        <button
-          type="button"
-          onClick={() => cycleSymptom(c)}
-          aria-label={present ? `${c.item}, intensity ${current} of 3 — tap to change` : `Mark ${c.item}`}
-          className="flex w-full items-center gap-1.5 rounded-md px-2 py-1 text-left text-xs transition-colors"
-          style={{ ...trackRowStyle(present, accent), opacity: busy ? 0.6 : 1 }}
-        >
-          <RowMark accent={accent}>{present ? current : null}</RowMark>
-          <TruncatedTooltip text={c.item} style={{ fontWeight: present ? 500 : 400 }} />
-        </button>
-      </li>
+      <button
+        key={c.key}
+        type="button"
+        onClick={() => cycleSymptom(c)}
+        aria-label={present ? `${c.item}, intensity ${current} of 3 — tap to change` : `Mark ${c.item}`}
+        className={`${FOOD_PILL} w-full justify-between`}
+        style={{ ...trackCellStyle(present, accent), opacity: busy ? 0.6 : 1 }}
+      >
+        <span className="min-w-0">{c.item}</span>
+        {present && <span className="shrink-0 text-xs font-bold tabular-nums">{current}</span>}
+      </button>
     );
   }
 
@@ -1732,44 +1708,48 @@ export default function LogPage() {
     const plainGroups = groupedByCategory
       .map((g) => ({ category: g.category, items: g.items.filter((c) => !isMeasure(c)) }))
       .filter((g) => g.items.length > 0);
+    const box = "inset-rows rounded-xl border";
+    const boxStyle = { borderColor: "var(--border-hairline)", background: "var(--surface-1)" } as const;
+    const header = (label: string, count: number, color: string, icon?: ReactNode) => (
+      <div className="flex min-h-11 items-center gap-3 px-3.5 text-sm" style={{ color: "var(--text-primary)" }}>
+        {icon && (
+          <span
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md"
+            style={{ color, background: `color-mix(in oklab, ${color} 14%, transparent)` }}
+          >
+            {icon}
+          </span>
+        )}
+        {label}
+        <span className="ml-auto" style={{ color: "var(--text-muted)" }}>
+          {count}
+        </span>
+      </div>
+    );
     return (
       <div className="flex flex-col gap-3">
         {plainGroups.length > 0 && (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className={box} style={boxStyle}>
             {plainGroups.map((group) => {
               const chrome = categoryChrome(tabConfig.type, group.category);
+              const color = chrome.color ?? accent;
               return (
-              <div
-                key={group.category}
-                className="flex flex-col gap-1 rounded-lg border p-2.5"
-                style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}
-              >
-                <div className="mb-0.5 flex items-center gap-1.5 border-b pb-1.5 text-xs font-semibold" style={{ color: chrome.color ?? accent, borderColor: "var(--border-hairline)" }}>
-                  {chrome.iconKey && <CustomIcon icon={chrome.iconKey} size={13} />}
-                  {group.category}
-                  <span className="ml-auto font-medium" style={{ color: "var(--text-secondary)" }}>
-                    {group.items.length}
-                  </span>
+                <div key={group.category}>
+                  {header(group.category, group.items.length, color, chrome.iconKey ? <CustomIcon icon={chrome.iconKey} size={15} /> : undefined)}
+                  <div className="grid grid-cols-2 gap-2 border-t p-3 sm:grid-cols-3 lg:grid-cols-4" style={{ borderColor: "var(--gridline)" }}>
+                    {group.items.map((c) => (tab === "outcome" ? renderSymptomRow(c, accent) : renderHabitRow(c, accent)))}
+                  </div>
                 </div>
-                <ul className="grid grid-cols-2 gap-x-3 gap-y-0.5">
-                  {group.items.map((c) =>
-                    tab === "outcome" ? renderSymptomRow(c, accent) : renderHabitRow(c, accent),
-                  )}
-                </ul>
-              </div>
               );
             })}
           </div>
         )}
         {measureItems.length > 0 && (
-          <div className="flex flex-col gap-1 rounded-lg border p-2.5" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
-            <div className="mb-0.5 flex items-center gap-1.5 border-b pb-1.5 text-xs font-semibold" style={{ color: accent, borderColor: "var(--border-hairline)" }}>
-              Measures
-              <span className="ml-auto font-medium" style={{ color: "var(--text-secondary)" }}>
-                {measureItems.length}
-              </span>
-            </div>
-            <ul className="flex flex-col divide-y divide-[color:var(--gridline)]">{measureItems.map((c) => renderMeasureRow(c, accent))}</ul>
+          <div className={box} style={boxStyle}>
+            {header("Measures", measureItems.length, accent)}
+            <ul className="inset-rows border-t" style={{ borderColor: "var(--gridline)" }}>
+              {measureItems.map((c) => renderMeasureRow(c, accent))}
+            </ul>
           </div>
         )}
       </div>
@@ -1841,7 +1821,7 @@ export default function LogPage() {
   // list rather than above it.
   const seasonalPicksCard =
     tab === "food" && dataReady && (seasonalPicks.length > 0 || hiddenThisMonth.length > 0) ? (
-      <div className="flex flex-col gap-2 rounded-lg border p-3" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
+      <div className="flex flex-col gap-2 rounded-xl border p-3" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
         <button
           type="button"
           onClick={() => setPicksOpen((v) => !v)}
@@ -2159,7 +2139,7 @@ export default function LogPage() {
                     e.preventDefault();
                     void handleAddNew();
                   }}
-                  className="flex flex-col gap-2 rounded-lg border p-3"
+                  className="flex flex-col gap-2 rounded-xl border p-3"
                   style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}
                 >
                   <div className="flex flex-wrap items-center gap-2">
@@ -2336,7 +2316,7 @@ export default function LogPage() {
               {seasonalPicksCard}
 
               {tab === "outcome" && isolatedObservations.length > 0 && (
-                <div className="flex flex-col gap-2 rounded-lg border p-3" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
+                <div className="flex flex-col gap-2 rounded-xl border p-3" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
                   <button
                     type="button"
                     onClick={() => setIsolatedOpen((v) => !v)}
@@ -2427,7 +2407,7 @@ export default function LogPage() {
                 return (
                   <div
                     key={entry.key}
-                    className="relative flex w-36 shrink-0 flex-col gap-1 rounded-lg border p-2"
+                    className="relative flex w-36 shrink-0 flex-col gap-1 rounded-xl border p-2"
                     style={{ opacity: busy ? 0.5 : 1, borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}
                   >
                     <span
