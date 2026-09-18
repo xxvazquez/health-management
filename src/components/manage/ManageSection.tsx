@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, type ReactNode } from "react";
+import { createContext, useContext, type FormEvent, type ReactNode } from "react";
 import { ChevronIcon } from "@/components/ui/icons";
 
 /** Which Settings section is open as its own screen (`null` = the list of
@@ -53,6 +53,43 @@ export function GroupNote({ children }: { children: ReactNode }) {
   );
 }
 
+/** "Add a …" as a Settings row: a borderless text field with the action on
+ * the right, in its own group. */
+export function AddRow({
+  value,
+  onChange,
+  onSubmit,
+  placeholder,
+  label = "Add",
+  maxLength,
+  disabled,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  onSubmit: (e: FormEvent) => void;
+  placeholder: string;
+  label?: string;
+  maxLength?: number;
+  disabled?: boolean;
+}) {
+  return (
+    <form onSubmit={onSubmit} className="flex min-h-11 items-center gap-2 rounded-xl border px-3.5" style={GROUP_STYLE}>
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        aria-label={placeholder}
+        maxLength={maxLength}
+        className="min-w-0 flex-1 bg-transparent py-2 text-sm outline-none"
+        style={{ color: "var(--text-primary)" }}
+      />
+      <button type="submit" disabled={!value.trim() || disabled} className="shrink-0 py-2 pl-2 text-sm font-semibold disabled:opacity-40" style={{ color: "var(--ui-accent)" }}>
+        {label}
+      </button>
+    </form>
+  );
+}
+
 /** A Settings section. In the list it is a single row; opened, its
  * children fill the screen under the page's back button and title; while
  * searching it expands in place under its own heading. */
@@ -82,7 +119,7 @@ export function CollapsibleManageCard({
         </h3>
       )}
       {bare ? (
-        <div className="flex flex-col gap-2">{children}</div>
+        <div className="flex flex-col gap-3">{children}</div>
       ) : (
         <div className="rounded-xl p-4" style={{ background: "var(--surface-1)" }}>
           {children}

@@ -8,9 +8,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { PageSkeleton } from "@/components/ui/Skeleton";
 import { SearchField } from "@/components/ui/SearchField";
 import { ChevronIcon, CloseIcon } from "@/components/ui/icons";
-import { Button } from "@/components/ui/Button";
 import { ManageRow } from "@/components/ui/ManageRow";
-import { PencilIcon, TrashIcon } from "@/components/ui/Notebook";
 import { PageHeading } from "@/components/ui/PageHeading";
 import { IconColorPicker } from "@/components/ui/IconColorPicker";
 import { CustomIcon, customColorValue } from "@/components/ui/customIcons";
@@ -18,7 +16,7 @@ import { DuplicateItemDialog } from "@/components/ui/DuplicateItemDialog";
 import { DemoNotice } from "@/components/ui/DemoNotice";
 import { PushNotificationsToggle } from "@/components/PushNotificationsToggle";
 import { DataExportCard } from "@/components/manage/DataExportCard";
-import { CollapsibleManageCard, GROUP_CLS, GROUP_STYLE, GroupNote, ManageNavContext, SectionRow, useSectionMode } from "@/components/manage/ManageSection";
+import { AddRow, CollapsibleManageCard, GROUP_CLS, GROUP_STYLE, GroupNote, ManageNavContext, SectionRow, useSectionMode } from "@/components/manage/ManageSection";
 import { SwitchKnob } from "@/components/ui/Switch";
 import { useItemActions, type ManageableItem } from "@/lib/useItemActions";
 import { getAllItems, getAllCategories, getItemIdentitiesWithHistory, withDataLock } from "@/lib/db/indexedDb";
@@ -347,34 +345,18 @@ function WishlistListsCard({ isDemoData, searchQuery }: { isDemoData: boolean; s
       title="Wishlist lists"
       subtitle={loading ? undefined : `${lists.length} list${lists.length === 1 ? "" : "s"}`}
       forceOpen={isSearching}
+      bare
     >
-      <p className="mb-3 text-xs" style={{ color: "var(--text-secondary)" }}>
-        The lists your saved links are grouped into on Notes &rarr; Wishlist. Deleting a list also deletes the links
-        saved in it.
-      </p>
-
-      <form onSubmit={handleAdd} className="mb-3 flex items-center gap-2">
-        <input
-          value={newName}
-          onChange={(e) => setNewName(e.target.value)}
-          placeholder="New list name"
-          maxLength={40}
-          className="flex-1 rounded-md border px-2.5 py-1.5 text-xs outline-none"
-          style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
-        />
-        <button type="submit" disabled={!newName.trim()} className="shrink-0 rounded-md px-3 py-1.5 text-xs font-semibold disabled:opacity-40" style={{ color: "var(--ui-accent)" }}>
-          Add list
-        </button>
-      </form>
+      <AddRow value={newName} onChange={setNewName} onSubmit={handleAdd} placeholder="New list name" maxLength={40} label="Add list" />
 
       {loading ? (
         <p className="py-3 text-xs" style={{ color: "var(--text-muted)" }}>
           Loading…
         </p>
       ) : (
-        <ul className="inset-rows flex flex-col [--row-inset:2.25rem]">
+        <ul className={GROUP_CLS} style={GROUP_STYLE}>
           {!isSearching && lists.length === 0 && (
-            <li className="py-2 text-xs" style={{ color: "var(--text-muted)" }}>
+            <li className="px-3.5 py-3 text-sm" style={{ color: "var(--text-muted)" }}>
               No lists yet — add one above, or from the Wishlist tab while saving a link.
             </li>
           )}
@@ -396,6 +378,10 @@ function WishlistListsCard({ isDemoData, searchQuery }: { isDemoData: boolean; s
           ))}
         </ul>
       )}
+      <GroupNote>
+        The lists your saved links are grouped into on Notes &rarr; Wishlist. Deleting a list also deletes the links
+        saved in it.
+      </GroupNote>
     </CollapsibleManageCard>
   );
 }
@@ -454,65 +440,72 @@ function WeightGoalCard({ isDemoData, searchQuery }: { isDemoData: boolean; sear
       title="Weight goal"
       subtitle={loading ? undefined : target ? `${target.lowKg}–${target.highKg} kg` : "not set"}
       forceOpen={isSearching}
+      bare
     >
-      <p className="mb-3 text-xs" style={{ color: "var(--text-secondary)" }}>
-        A target weight range, drawn as a shaded band on the weight chart in Health &rarr; Vitals.
-      </p>
-
       {loading ? (
-        <p className="py-2 text-xs" style={{ color: "var(--text-muted)" }}>
+        <p className="px-4 py-2 text-sm" style={{ color: "var(--text-muted)" }}>
           Loading…
         </p>
       ) : editing ? (
-        <div className="flex flex-wrap items-end gap-2">
-          <label className="flex flex-col gap-1 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
-            From (kg)
+        <div className={GROUP_CLS} style={GROUP_STYLE}>
+          <label className="flex min-h-11 items-center gap-3 px-3.5">
+            <span className="shrink-0 text-sm" style={{ color: "var(--text-primary)" }}>
+              From (kg)
+            </span>
             <input
               value={low}
               onChange={(e) => setLow(e.target.value)}
               inputMode="decimal"
               placeholder="64"
-              className="w-20 rounded-md border px-2 py-1 text-sm tabular-nums outline-none"
-              style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
+              className={`${FIELD_VALUE} tabular-nums`}
+              style={FIELD_VALUE_STYLE}
             />
           </label>
-          <label className="flex flex-col gap-1 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
-            To (kg)
+          <label className="flex min-h-11 items-center gap-3 px-3.5">
+            <span className="shrink-0 text-sm" style={{ color: "var(--text-primary)" }}>
+              To (kg)
+            </span>
             <input
               value={high}
               onChange={(e) => setHigh(e.target.value)}
               inputMode="decimal"
               placeholder="66"
-              className="w-20 rounded-md border px-2 py-1 text-sm tabular-nums outline-none"
-              style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
+              className={`${FIELD_VALUE} tabular-nums`}
+              style={FIELD_VALUE_STYLE}
             />
           </label>
-          <Button type="button" size="sm" disabled={!canSave} onClick={() => void save()}>
-            Save
-          </Button>
-          <button type="button" onClick={() => setEditing(false)} className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
-            Cancel
-          </button>
+          <div className="flex min-h-11 items-center justify-between px-3.5">
+            <button type="button" onClick={() => setEditing(false)} className="min-h-11 text-sm" style={{ color: "var(--text-secondary)" }}>
+              Cancel
+            </button>
+            <button type="button" disabled={!canSave} onClick={() => void save()} className="min-h-11 text-sm font-semibold disabled:opacity-40" style={{ color: "var(--ui-accent)" }}>
+              Save
+            </button>
+          </div>
         </div>
       ) : target ? (
-        <div className="flex items-center gap-4 text-sm">
-          <span style={{ color: "var(--text-primary)" }}>
-            <span className="font-semibold tabular-nums">
-              {target.lowKg}–{target.highKg} kg
+        <div className={GROUP_CLS} style={GROUP_STYLE}>
+          <button type="button" onClick={startEditing} className="flex min-h-11 w-full items-center gap-3 px-3.5 text-left">
+            <span className="flex-1 text-sm" style={{ color: "var(--text-primary)" }}>
+              Target range
             </span>
-          </span>
-          <button type="button" onClick={startEditing} className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
-            Edit
+            <span className="flex items-center gap-1.5 text-sm tabular-nums" style={{ color: "var(--text-muted)" }}>
+              {target.lowKg}–{target.highKg} kg
+              <ChevronIcon dir="right" size={14} />
+            </span>
           </button>
-          <button type="button" onClick={() => void clear()} className="text-xs font-medium" style={{ color: "var(--status-critical)" }}>
-            Clear
+          <button type="button" onClick={() => void clear()} className="flex min-h-11 w-full items-center px-3.5 text-left text-sm" style={{ color: "var(--status-critical)" }}>
+            Clear target
           </button>
         </div>
       ) : (
-        <Button type="button" variant="tinted" size="xs" onClick={startEditing}>
-          Set a target range
-        </Button>
+        <div className={GROUP_CLS} style={GROUP_STYLE}>
+          <button type="button" onClick={startEditing} className="flex min-h-11 w-full items-center px-3.5 text-left text-sm" style={{ color: "var(--ui-accent)" }}>
+            Set a target range
+          </button>
+        </div>
       )}
+      <GroupNote>A target weight range, drawn as a shaded band on the weight chart in Health &rarr; Vitals.</GroupNote>
     </CollapsibleManageCard>
   );
 }
@@ -557,12 +550,8 @@ function LabResultsCard({ searchQuery }: { searchQuery: string }) {
       title="Lab results"
       subtitle={labs.loading ? undefined : `${markers.length} marker${markers.length === 1 ? "" : "s"}${panels.length > 0 ? ` · ${panels.length} panel${panels.length === 1 ? "" : "s"}` : ""}`}
       forceOpen={isSearching}
+      bare
     >
-      <p className="mb-3 text-xs" style={{ color: "var(--text-secondary)" }}>
-        The markers and panels behind Health &rarr; Results. Enter values &mdash; a single reading or a whole blood draw &mdash;
-        on the Results tab.
-      </p>
-
       {labs.loading ? (
         <p className="py-3 text-xs" style={{ color: "var(--text-muted)" }}>
           Loading…
@@ -573,29 +562,15 @@ function LabResultsCard({ searchQuery }: { searchQuery: string }) {
         </p>
       ) : (
         <div className="flex flex-col gap-5">
-          <div>
-            <p className="mb-2 text-xs font-semibold" style={{ color: "var(--text-secondary)" }}>
+          <div className="flex flex-col gap-1.5">
+            <h3 className="px-4 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
               Panels
-            </p>
-            <form onSubmit={addPanel} className="mb-2 flex items-center gap-2">
-              <input
-                value={newPanel}
-                onChange={(e) => setNewPanel(e.target.value)}
-                placeholder="New panel name"
-                maxLength={60}
-                className="flex-1 rounded-md border px-2.5 py-1.5 text-xs outline-none"
-                style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
-              />
-              <button type="submit" disabled={!newPanel.trim()} className="shrink-0 rounded-md px-3 py-1.5 text-xs font-semibold disabled:opacity-40" style={{ color: accent }}>
-                Add
-              </button>
-            </form>
+            </h3>
+            <AddRow value={newPanel} onChange={setNewPanel} onSubmit={addPanel} placeholder="New panel name" maxLength={60} label="Add" />
             {panels.length === 0 ? (
-              <p className="py-1 text-xs" style={{ color: "var(--text-muted)" }}>
-                No panels yet — markers can stay ungrouped.
-              </p>
+              <GroupNote>No panels yet — markers can stay ungrouped.</GroupNote>
             ) : (
-              <ul className="inset-rows flex flex-col [--row-inset:2.25rem]">
+              <ul className={GROUP_CLS} style={GROUP_STYLE}>
                 {shownPanels.map((p) => (
                   <ManageRow
                     key={p.id}
@@ -616,105 +591,83 @@ function LabResultsCard({ searchQuery }: { searchQuery: string }) {
             )}
           </div>
 
-          <div>
-            <div className="mb-2 flex items-center justify-between gap-2">
-              <p className="text-xs font-semibold" style={{ color: "var(--text-secondary)" }}>
-                Markers
-              </p>
-              {!isSearching && !addingMarker && (
-                <button
-                  type="button"
-                  onClick={() => setAddingMarker(true)}
-                  className="rounded-md border px-2 py-1 text-xs font-medium"
-                  style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-secondary)" }}
-                >
-                  + New marker
+          <div className="flex flex-col gap-1.5">
+            <h3 className="px-4 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
+              Markers
+            </h3>
+            {!isSearching && !addingMarker && (
+              <div className={GROUP_CLS} style={GROUP_STYLE}>
+                <button type="button" onClick={() => setAddingMarker(true)} className="flex min-h-11 w-full items-center px-3.5 text-left text-sm" style={{ color: "var(--ui-accent)" }}>
+                  New marker
                 </button>
-              )}
-            </div>
-
-            {addingMarker && (
-              <div className="mb-3">
-                <MarkerForm labs={labs} accent={accent} fields="all" onSaved={() => setAddingMarker(false)} onCancel={() => setAddingMarker(false)} />
               </div>
             )}
 
+            {addingMarker && <MarkerForm labs={labs} accent={accent} fields="all" onSaved={() => setAddingMarker(false)} onCancel={() => setAddingMarker(false)} />}
+
             {markers.length === 0 && !addingMarker ? (
-              <p className="py-1 text-xs" style={{ color: "var(--text-muted)" }}>
-                No markers yet.
-              </p>
+              <GroupNote>No markers yet.</GroupNote>
             ) : (
               <div className="flex flex-col gap-4">
                 {groups.map((g) => (
-                  <div key={g.id || "__none__"}>
-                    <p className="mb-1 text-[11px] font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
+                  <div key={g.id || "__none__"} className="flex flex-col gap-1.5">
+                    <p className="px-4 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
                       {g.name}
                     </p>
-                    <ul className="inset-rows flex flex-col">
+                    <ul className={GROUP_CLS} style={GROUP_STYLE}>
                       {g.markers.map((m) => {
                         const isEditing = editingMarkerId === m.id;
                         return (
-                          <li key={m.id} className="flex min-h-11 flex-col justify-center py-1.5">
-                            <div className="flex items-center gap-2">
-                              <button
-                                type="button"
-                                onClick={() => setEditingMarkerId(isEditing ? null : m.id)}
-                                className="min-w-0 flex-1 truncate text-left text-sm"
-                                style={{ color: "var(--text-primary)" }}
-                              >
+                          <li key={m.id}>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setConfirmingMarker(null);
+                                setEditingMarkerId(isEditing ? null : m.id);
+                              }}
+                              aria-expanded={isEditing}
+                              className="flex min-h-11 w-full items-center gap-2 px-3.5 text-left"
+                            >
+                              <span className="min-w-0 flex-1 truncate text-sm" style={{ color: "var(--text-primary)" }}>
                                 {m.name}
-                                {m.unit && (
-                                  <span className="ml-1.5 text-xs" style={{ color: "var(--text-muted)" }}>
-                                    {m.unit}
-                                  </span>
-                                )}
-                              </button>
-                              {confirmingMarker === m.id ? (
-                                <span className="flex shrink-0 items-center gap-1.5 text-xs">
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setConfirmingMarker(null);
-                                      setEditingMarkerId(null);
-                                      void labs.markers.remove(m.id);
-                                    }}
-                                    className="font-semibold"
-                                    style={{ color: "var(--status-critical)" }}
-                                  >
-                                    Delete{m.results.length > 0 ? ` (${m.results.length})` : ""}
-                                  </button>
-                                  <button type="button" onClick={() => setConfirmingMarker(null)} className="font-medium" style={{ color: "var(--text-muted)" }}>
-                                    Keep
-                                  </button>
-                                </span>
-                              ) : (
-                                <span className="flex shrink-0 items-center gap-1">
-                                  <button
-                                    type="button"
-                                    onClick={() => setEditingMarkerId(isEditing ? null : m.id)}
-                                    aria-label={`Edit ${m.name}`}
-                                    title="Edit"
-                                    className="tap-target rounded-md p-1.5 transition-colors hover:bg-[var(--page-plane)]"
-                                    style={{ color: "var(--text-muted)" }}
-                                  >
-                                    <PencilIcon size={15} />
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => setConfirmingMarker(m.id)}
-                                    aria-label={`Delete ${m.name}`}
-                                    title="Delete"
-                                    className="notebook-danger tap-target rounded-md p-1.5 transition-colors hover:bg-[var(--page-plane)]"
-                                    style={{ color: "var(--text-muted)" }}
-                                  >
-                                    <TrashIcon size={15} />
-                                  </button>
+                              </span>
+                              {m.unit && (
+                                <span className="shrink-0 text-sm" style={{ color: "var(--text-muted)" }}>
+                                  {m.unit}
                                 </span>
                               )}
-                            </div>
+                              <span className="shrink-0" style={{ color: "var(--text-muted)" }}>
+                                <ChevronIcon dir={isEditing ? "down" : "right"} size={14} />
+                              </span>
+                            </button>
                             {isEditing && (
-                              <div className="mt-2">
+                              <div className="flex flex-col gap-2 border-t p-3" style={{ borderColor: "var(--gridline)" }}>
                                 <MarkerForm labs={labs} accent={accent} fields="all" initial={m} onSaved={() => setEditingMarkerId(null)} onCancel={() => setEditingMarkerId(null)} />
+                                <div className="flex min-h-11 items-center justify-end gap-4">
+                                  {confirmingMarker === m.id ? (
+                                    <>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setConfirmingMarker(null);
+                                          setEditingMarkerId(null);
+                                          void labs.markers.remove(m.id);
+                                        }}
+                                        className="min-h-11 text-sm font-semibold"
+                                        style={{ color: "var(--status-critical)" }}
+                                      >
+                                        Delete{m.results.length > 0 ? ` with ${m.results.length} result${m.results.length === 1 ? "" : "s"}` : ""}
+                                      </button>
+                                      <button type="button" onClick={() => setConfirmingMarker(null)} className="min-h-11 text-sm" style={{ color: "var(--text-secondary)" }}>
+                                        Keep
+                                      </button>
+                                    </>
+                                  ) : (
+                                    <button type="button" onClick={() => setConfirmingMarker(m.id)} className="min-h-11 text-sm" style={{ color: "var(--status-critical)" }}>
+                                      Delete marker
+                                    </button>
+                                  )}
+                                </div>
                               </div>
                             )}
                           </li>
@@ -728,6 +681,10 @@ function LabResultsCard({ searchQuery }: { searchQuery: string }) {
           </div>
         </div>
       )}
+      <GroupNote>
+        The markers and panels behind Health &rarr; Results. Enter values &mdash; a single reading or a whole blood draw &mdash;
+        on the Results tab.
+      </GroupNote>
     </CollapsibleManageCard>
   );
 }
@@ -802,34 +759,18 @@ function ReminderListsCard({ isDemoData, searchQuery }: { isDemoData: boolean; s
       title="Reminder lists"
       subtitle={loading ? undefined : `${lists.length} list${lists.length === 1 ? "" : "s"}`}
       forceOpen={isSearching}
+      bare
     >
-      <p className="mb-3 text-xs" style={{ color: "var(--text-secondary)" }}>
-        The buckets your reminders are organised into on the Log page. Deleting a list moves its reminders back to
-        the default &ldquo;Reminders&rdquo; list — it never deletes them.
-      </p>
-
-      <form onSubmit={handleAdd} className="mb-3 flex items-center gap-2">
-        <input
-          value={newName}
-          onChange={(e) => setNewName(e.target.value)}
-          placeholder="New list name"
-          maxLength={40}
-          className="flex-1 rounded-md border px-2.5 py-1.5 text-xs outline-none"
-          style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
-        />
-        <button type="submit" disabled={!newName.trim()} className="shrink-0 rounded-md px-3 py-1.5 text-xs font-semibold disabled:opacity-40" style={{ color: "var(--ui-accent)" }}>
-          Add list
-        </button>
-      </form>
+      <AddRow value={newName} onChange={setNewName} onSubmit={handleAdd} placeholder="New list name" maxLength={40} label="Add list" />
 
       {loading ? (
         <p className="py-3 text-xs" style={{ color: "var(--text-muted)" }}>
           Loading…
         </p>
       ) : (
-        <ul className="inset-rows flex flex-col [--row-inset:2.25rem]">
+        <ul className={GROUP_CLS} style={GROUP_STYLE}>
           {!isSearching && lists.length === 0 && (
-            <li className="py-2 text-xs" style={{ color: "var(--text-muted)" }}>
+            <li className="px-3.5 py-3 text-sm" style={{ color: "var(--text-muted)" }}>
               No custom lists yet — everything sits in the default &ldquo;Reminders&rdquo; list.
             </li>
           )}
@@ -851,6 +792,10 @@ function ReminderListsCard({ isDemoData, searchQuery }: { isDemoData: boolean; s
           ))}
         </ul>
       )}
+      <GroupNote>
+        The buckets your reminders are organised into on the Log page. Deleting a list moves its reminders back to
+        the default &ldquo;Reminders&rdquo; list — it never deletes them.
+      </GroupNote>
     </CollapsibleManageCard>
   );
 }
@@ -1023,25 +968,9 @@ function DoctorSpecialtiesCard({ isDemoData, searchQuery }: { isDemoData: boolea
       title="Doctor types"
       subtitle={loading ? undefined : `${totalActive} active${totalHidden > 0 ? ` · ${totalHidden} hidden` : ""}`}
       forceOpen={isSearching}
+      bare
     >
-      <p className="mb-3 text-xs" style={{ color: "var(--text-secondary)" }}>
-        The specialties offered when logging a doctor appointment. Hide the ones you don&apos;t need or add your own —
-        appointments you&apos;ve already logged keep their type either way.
-      </p>
-
-      <form onSubmit={handleAdd} className="mb-3 flex items-center gap-2">
-        <input
-          value={newName}
-          onChange={(e) => setNewName(e.target.value)}
-          placeholder="New doctor type"
-          maxLength={60}
-          className="flex-1 rounded-md border px-2.5 py-1.5 text-xs outline-none"
-          style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
-        />
-        <button type="submit" disabled={!newName.trim()} className="shrink-0 rounded-md px-3 py-1.5 text-xs font-semibold disabled:opacity-40" style={{ color: "var(--ui-accent)" }}>
-          Add type
-        </button>
-      </form>
+      <AddRow value={newName} onChange={setNewName} onSubmit={handleAdd} placeholder="New doctor type" maxLength={60} label="Add type" />
 
       {loading ? (
         <p className="py-3 text-xs" style={{ color: "var(--text-muted)" }}>
@@ -1049,9 +978,9 @@ function DoctorSpecialtiesCard({ isDemoData, searchQuery }: { isDemoData: boolea
         </p>
       ) : (
         <>
-          <ul className="inset-rows flex flex-col [--row-inset:2.25rem]">
+          <ul className={GROUP_CLS} style={GROUP_STYLE}>
             {active.length === 0 && !isSearching && (
-              <li className="py-2 text-xs" style={{ color: "var(--text-muted)" }}>
+              <li className="px-3.5 py-3 text-sm" style={{ color: "var(--text-muted)" }}>
                 Every type is hidden — add one above or show one back.
               </li>
             )}
@@ -1059,23 +988,35 @@ function DoctorSpecialtiesCard({ isDemoData, searchQuery }: { isDemoData: boolea
           </ul>
 
           {hidden.length > 0 && (
-            <div className="mt-3 border-t pt-2" style={{ borderColor: "var(--gridline)" }}>
+            <div className={GROUP_CLS} style={GROUP_STYLE}>
               <button
                 type="button"
                 onClick={() => setHiddenOpen((v) => !v)}
                 disabled={isSearching}
-                className="text-xs font-medium disabled:opacity-100"
-                style={{ color: "var(--ui-accent)" }}
+                aria-expanded={isSearching || hiddenOpen}
+                className="flex min-h-11 w-full items-center gap-2 px-3.5 text-left"
               >
-                Hidden ({hidden.length}) — {isSearching || hiddenOpen ? "Hide" : "Show"}
+                <span className="text-sm" style={{ color: "var(--text-primary)" }}>
+                  Hidden
+                </span>
+                <span className="ml-auto flex items-center gap-1.5 text-sm" style={{ color: "var(--text-muted)" }}>
+                  {hidden.length}
+                  {!isSearching && <ChevronIcon dir={hiddenOpen ? "down" : "right"} size={14} />}
+                </span>
               </button>
               {(isSearching || hiddenOpen) && (
-                <ul className="mt-2 inset-rows flex flex-col opacity-70 [--row-inset:2.25rem]">{hidden.map(rowEl)}</ul>
+                <ul className="inset-rows border-t opacity-70" style={{ borderColor: "var(--gridline)" }}>
+                  {hidden.map(rowEl)}
+                </ul>
               )}
             </div>
           )}
         </>
       )}
+      <GroupNote>
+        The specialties offered when logging a doctor appointment. Hide the ones you don&apos;t need or add your own —
+        appointments you&apos;ve already logged keep their type either way.
+      </GroupNote>
     </CollapsibleManageCard>
   );
 }
@@ -1088,6 +1029,107 @@ const STOOL_OPTION_KINDS: { kind: StoolOptionKind; title: string; placeholder: s
   { kind: "floatation", title: "Floatation", placeholder: "e.g. Sinks fast" },
   { kind: "symptom", title: "Symptoms", placeholder: "e.g. Rectal itching" },
 ];
+
+/** One kind of chip option (Stool colours, Coffee brewing types, …): a
+ * heading, an add row, the active options as tap-to-edit rows, and a
+ * collapsible Hidden group. */
+function OptionKindGroup<T extends { id: string; label: string; isArchived: boolean; swatch?: string | null }>({
+  title,
+  placeholder,
+  newLabel,
+  onNewLabelChange,
+  onAdd,
+  active,
+  hidden,
+  showHidden,
+  canToggleHidden,
+  onToggleHidden,
+  busy,
+  onPatch,
+  onDelete,
+  withSwatch = false,
+}: {
+  title: string;
+  placeholder: string;
+  newLabel: string;
+  onNewLabelChange: (value: string) => void;
+  onAdd: () => void;
+  active: T[];
+  hidden: T[];
+  showHidden: boolean;
+  canToggleHidden: boolean;
+  onToggleHidden: () => void;
+  busy: boolean;
+  onPatch: (option: T, patch: { label?: string; isArchived?: boolean; swatch?: string }) => void;
+  onDelete: (option: T) => void;
+  withSwatch?: boolean;
+}) {
+  const row = (o: T) => (
+    <ManageRow
+      key={o.id}
+      name={o.label}
+      isArchived={o.isArchived}
+      busy={busy}
+      swatch={withSwatch ? { value: o.swatch ?? "#8a5a34", onChange: (value) => onPatch(o, { swatch: value }) } : undefined}
+      onRename={(next) => onPatch(o, { label: next })}
+      onToggleHide={() => onPatch(o, { isArchived: !o.isArchived })}
+      onDelete={() => onDelete(o)}
+    />
+  );
+  return (
+    <div className="flex flex-col gap-1.5">
+      <h3 className="px-4 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
+        {title}
+      </h3>
+      <AddRow
+        value={newLabel}
+        onChange={onNewLabelChange}
+        onSubmit={(e) => {
+          e.preventDefault();
+          onAdd();
+        }}
+        placeholder={placeholder}
+        maxLength={60}
+        disabled={busy}
+      />
+      {(active.length > 0 || hidden.length === 0) && (
+        <ul className={GROUP_CLS} style={GROUP_STYLE}>
+          {active.length === 0 ? (
+            <li className="px-3.5 py-3 text-sm" style={{ color: "var(--text-muted)" }}>
+              Nothing here yet.
+            </li>
+          ) : (
+            active.map(row)
+          )}
+        </ul>
+      )}
+      {hidden.length > 0 && (
+        <div className={GROUP_CLS} style={GROUP_STYLE}>
+          <button
+            type="button"
+            onClick={onToggleHidden}
+            disabled={!canToggleHidden}
+            aria-expanded={showHidden}
+            className="flex min-h-11 w-full items-center gap-2 px-3.5 text-left"
+          >
+            <span className="text-sm" style={{ color: "var(--text-primary)" }}>
+              Hidden
+            </span>
+            <span className="ml-auto flex items-center gap-1.5 text-sm" style={{ color: "var(--text-muted)" }}>
+              {hidden.length}
+              {canToggleHidden && <ChevronIcon dir={showHidden ? "down" : "right"} size={14} />}
+            </span>
+          </button>
+          {showHidden && (
+            <ul className="inset-rows border-t opacity-70" style={{ borderColor: "var(--gridline)" }}>
+              {hidden.map(row)}
+            </ul>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function demoStoolOptionRows(): StoolOption[] {
   return STOOL_OPTION_KINDS.flatMap(({ kind }) =>
@@ -1209,12 +1251,8 @@ function StoolOptionsCard({ isDemoData, searchQuery }: { isDemoData: boolean; se
       title="Stool options"
       subtitle={loading ? undefined : `${totalActive} chips`}
       forceOpen={isSearching}
+      bare
     >
-      <p className="mb-3 text-xs" style={{ color: "var(--text-secondary)" }}>
-        The chips offered in the Log page&apos;s Stool tab. Hide the ones you don&apos;t use or add your own — entries you&apos;ve
-        already logged keep their value either way.
-      </p>
-
       {loading ? (
         <p className="py-3 text-xs" style={{ color: "var(--text-muted)" }}>
           Loading…
@@ -1228,283 +1266,32 @@ function StoolOptionsCard({ isDemoData, searchQuery }: { isDemoData: boolean; se
             if (isSearching && all.length === 0) return null;
             const showHidden = isSearching || hiddenOpen[kind];
             return (
-              <div key={kind}>
-                <p className="mb-2 text-xs font-semibold" style={{ color: "var(--text-secondary)" }}>
-                  {title}
-                </p>
-
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    void addOption(kind);
-                  }}
-                  className="mb-2 flex items-center gap-2"
-                >
-                  <input
-                    value={newLabels[kind] ?? ""}
-                    onChange={(e) => setNewLabels((p) => ({ ...p, [kind]: e.target.value }))}
-                    placeholder={placeholder}
-                    maxLength={60}
-                    className="flex-1 rounded-md border px-2.5 py-1.5 text-xs outline-none"
-                    style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
-                  />
-                  <button
-                    type="submit"
-                    disabled={!(newLabels[kind] ?? "").trim() || busy}
-                    className="shrink-0 rounded-md px-3 py-1.5 text-xs font-semibold disabled:opacity-40"
-                    style={{ color: "var(--ui-accent)" }}
-                  >
-                    Add
-                  </button>
-                </form>
-
-                <ul className="inset-rows flex flex-col">
-                  {active.length === 0 && !isSearching && (
-                    <li className="py-2 text-xs" style={{ color: "var(--text-muted)" }}>
-                      Every {title.toLowerCase().replace(/s$/, "")} is hidden — add one above or show one back.
-                    </li>
-                  )}
-                  {active.map((e) => (
-                    <StoolOptionRow key={e.id} option={e} busy={busy} onPatch={(p) => void patch(e, p)} onDelete={() => void removeOption(e)} />
-                  ))}
-                </ul>
-
-                {hidden.length > 0 && (
-                  <div className="mt-2">
-                    <button
-                      type="button"
-                      onClick={() => setHiddenOpen((p) => ({ ...p, [kind]: !p[kind] }))}
-                      disabled={isSearching}
-                      className="text-xs font-medium disabled:opacity-100"
-                      style={{ color: "var(--ui-accent)" }}
-                    >
-                      Hidden ({hidden.length}) — {showHidden ? "Hide" : "Show"}
-                    </button>
-                    {showHidden && (
-                      <ul className="mt-1 inset-rows flex flex-col opacity-70">
-                        {hidden.map((e) => (
-                          <StoolOptionRow key={e.id} option={e} busy={busy} onPatch={(p) => void patch(e, p)} onDelete={() => void removeOption(e)} />
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                )}
-              </div>
+              <OptionKindGroup
+                key={kind}
+                title={title}
+                placeholder={placeholder}
+                newLabel={newLabels[kind] ?? ""}
+                onNewLabelChange={(value) => setNewLabels((p) => ({ ...p, [kind]: value }))}
+                onAdd={() => void addOption(kind)}
+                active={active}
+                hidden={hidden}
+                showHidden={showHidden}
+                canToggleHidden={!isSearching}
+                onToggleHidden={() => setHiddenOpen((p) => ({ ...p, [kind]: !p[kind] }))}
+                busy={busy}
+                onPatch={(o, patchValue) => void patch(o, patchValue)}
+                onDelete={(o) => void removeOption(o)}
+                withSwatch={kind === "color"}
+              />
             );
           })}
         </div>
       )}
+      <GroupNote>
+        The chips offered in the Log page&apos;s Stool tab. Hide the ones you don&apos;t use or add your own — entries you&apos;ve
+        already logged keep their value either way.
+      </GroupNote>
     </CollapsibleManageCard>
-  );
-}
-
-function StoolOptionRow({
-  option,
-  busy,
-  onPatch,
-  onDelete,
-}: {
-  option: StoolOption;
-  busy: boolean;
-  onPatch: (patch: StoolOptionPatch) => void;
-  onDelete: () => void;
-}) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(option.label);
-  const [confirmingDelete, setConfirmingDelete] = useState(false);
-
-  function commit() {
-    setEditing(false);
-    const next = draft.trim();
-    if (next && next !== option.label) onPatch({ label: next });
-  }
-
-  return (
-    <li className="flex min-h-11 items-center gap-2 py-1.5">
-      {option.kind === "color" && (
-        <input
-          type="color"
-          value={option.swatch ?? "#8a5a34"}
-          onChange={(e) => onPatch({ swatch: e.target.value })}
-          disabled={busy}
-          aria-label={`${option.label} colour`}
-          className="h-5 w-5 shrink-0 cursor-pointer rounded border-0 bg-transparent p-0"
-        />
-      )}
-      {editing ? (
-        <form
-          className="flex flex-1 items-center gap-2"
-          onSubmit={(e) => {
-            e.preventDefault();
-            commit();
-          }}
-        >
-          <input
-            autoFocus
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onBlur={commit}
-            maxLength={60}
-            className="min-w-0 flex-1 rounded-md border px-2 py-1 text-sm outline-none"
-            style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
-          />
-        </form>
-      ) : (
-        <button
-          type="button"
-          onClick={() => {
-            setDraft(option.label);
-            setEditing(true);
-          }}
-          className="min-w-0 flex-1 truncate text-left text-sm"
-          style={{ color: option.isArchived ? "var(--text-muted)" : "var(--text-primary)" }}
-        >
-          {option.label}
-        </button>
-      )}
-
-      {!editing &&
-        (confirmingDelete ? (
-          <span className="flex shrink-0 items-center gap-1.5">
-            <button
-              type="button"
-              onClick={() => {
-                setConfirmingDelete(false);
-                onDelete();
-              }}
-              className="text-xs font-semibold"
-              style={{ color: "var(--status-critical)" }}
-            >
-              Delete
-            </button>
-            <button type="button" onClick={() => setConfirmingDelete(false)} className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
-              Keep
-            </button>
-          </span>
-        ) : (
-          <span className="flex shrink-0 items-center gap-2">
-            <button
-              type="button"
-              onClick={() => onPatch({ isArchived: !option.isArchived })}
-              disabled={busy}
-              className="text-xs font-medium disabled:opacity-40"
-              style={{ color: "var(--text-secondary)" }}
-            >
-              {option.isArchived ? "Show" : "Hide"}
-            </button>
-            <button
-              type="button"
-              onClick={() => setConfirmingDelete(true)}
-              disabled={busy}
-              aria-label={`Delete ${option.label}`}
-              className="disabled:opacity-40"
-              style={{ color: "var(--text-muted)" }}
-            >
-              <TrashIcon size={14} />
-            </button>
-          </span>
-        ))}
-    </li>
-  );
-}
-
-function CoffeeOptionRow({
-  option,
-  busy,
-  onPatch,
-  onDelete,
-}: {
-  option: CoffeeOption;
-  busy: boolean;
-  onPatch: (patch: CoffeeOptionPatch) => void;
-  onDelete: () => void;
-}) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(option.label);
-  const [confirmingDelete, setConfirmingDelete] = useState(false);
-
-  function commit() {
-    setEditing(false);
-    const next = draft.trim();
-    if (next && next !== option.label) onPatch({ label: next });
-  }
-
-  return (
-    <li className="flex min-h-11 items-center gap-2 py-1.5">
-      {editing ? (
-        <form
-          className="flex flex-1 items-center gap-2"
-          onSubmit={(e) => {
-            e.preventDefault();
-            commit();
-          }}
-        >
-          <input
-            autoFocus
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onBlur={commit}
-            maxLength={60}
-            className="min-w-0 flex-1 rounded-md border px-2 py-1 text-sm outline-none"
-            style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
-          />
-        </form>
-      ) : (
-        <button
-          type="button"
-          onClick={() => {
-            setDraft(option.label);
-            setEditing(true);
-          }}
-          className="min-w-0 flex-1 truncate text-left text-sm"
-          style={{ color: option.isArchived ? "var(--text-muted)" : "var(--text-primary)" }}
-        >
-          {option.label}
-        </button>
-      )}
-
-      {!editing &&
-        (confirmingDelete ? (
-          <span className="flex shrink-0 items-center gap-1.5">
-            <button
-              type="button"
-              onClick={() => {
-                setConfirmingDelete(false);
-                onDelete();
-              }}
-              className="text-xs font-semibold"
-              style={{ color: "var(--status-critical)" }}
-            >
-              Delete
-            </button>
-            <button type="button" onClick={() => setConfirmingDelete(false)} className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
-              Keep
-            </button>
-          </span>
-        ) : (
-          <span className="flex shrink-0 items-center gap-2">
-            <button
-              type="button"
-              onClick={() => onPatch({ isArchived: !option.isArchived })}
-              disabled={busy}
-              className="text-xs font-medium disabled:opacity-40"
-              style={{ color: "var(--text-secondary)" }}
-            >
-              {option.isArchived ? "Show" : "Hide"}
-            </button>
-            <button
-              type="button"
-              onClick={() => setConfirmingDelete(true)}
-              disabled={busy}
-              aria-label={`Delete ${option.label}`}
-              className="disabled:opacity-40"
-              style={{ color: "var(--text-muted)" }}
-            >
-              <TrashIcon size={14} />
-            </button>
-          </span>
-        ))}
-    </li>
   );
 }
 
@@ -1635,9 +1422,14 @@ function CoffeeCard({ isDemoData, searchQuery }: { isDemoData: boolean; searchQu
   const items = coffee.items.data.filter((it) => !isSearching || it.name.toLowerCase().includes(query) || (it.brand ?? "").toLowerCase().includes(query));
 
   return (
-    <CollapsibleManageCard title="Coffee" subtitle={loading ? undefined : `${totalActive} chips · ${coffee.items.data.length} coffees`} forceOpen={isSearching}>
-      <div className="mb-4 flex items-center justify-between border-b pb-3" style={{ borderColor: "var(--gridline)" }}>
-        <span className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
+    <CollapsibleManageCard
+      title="Coffee"
+      subtitle={loading ? undefined : `${totalActive} chips · ${coffee.items.data.length} coffees`}
+      forceOpen={isSearching}
+      bare
+    >
+      <label className={`${GROUP_CLS} flex min-h-11 items-center gap-3 px-3.5`} style={GROUP_STYLE}>
+        <span className="shrink-0 text-sm" style={{ color: "var(--text-primary)" }}>
           Currency
         </span>
         <input
@@ -1645,10 +1437,10 @@ function CoffeeCard({ isDemoData, searchQuery }: { isDemoData: boolean; searchQu
           onChange={(e) => void coffee.currency.set(e.target.value)}
           maxLength={6}
           aria-label="Currency shown next to coffee prices"
-          className="w-20 rounded-md border px-2 py-1 text-right text-xs outline-none"
-          style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
+          className={FIELD_VALUE}
+          style={FIELD_VALUE_STYLE}
         />
-      </div>
+      </label>
 
       {loading ? (
         <p className="py-3 text-xs" style={{ color: "var(--text-muted)" }}>
@@ -1663,126 +1455,101 @@ function CoffeeCard({ isDemoData, searchQuery }: { isDemoData: boolean; searchQu
             if (isSearching && all.length === 0) return null;
             const showHidden = isSearching || hiddenOpen[kind];
             return (
-              <div key={kind}>
-                <p className="mb-2 text-xs font-semibold" style={{ color: "var(--text-secondary)" }}>
-                  {title}
-                </p>
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    void addOption(kind);
-                  }}
-                  className="mb-2 flex items-center gap-2"
-                >
-                  <input
-                    value={newLabels[kind] ?? ""}
-                    onChange={(e) => setNewLabels((p) => ({ ...p, [kind]: e.target.value }))}
-                    placeholder={placeholder}
-                    maxLength={60}
-                    className="flex-1 rounded-md border px-2.5 py-1.5 text-xs outline-none"
-                    style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
-                  />
-                  <button type="submit" disabled={!(newLabels[kind] ?? "").trim() || busy} className="shrink-0 rounded-md px-3 py-1.5 text-xs font-semibold disabled:opacity-40" style={{ color: "var(--ui-accent)" }}>
-                    Add
-                  </button>
-                </form>
-                <ul className="inset-rows flex flex-col">
-                  {active.length === 0 && !isSearching && (
-                    <li className="py-2 text-xs" style={{ color: "var(--text-muted)" }}>
-                      Every {title.toLowerCase().replace(/s$/, "")} is hidden — add one above or show one back.
-                    </li>
-                  )}
-                  {active.map((e) => (
-                    <CoffeeOptionRow key={e.id} option={e} busy={busy} onPatch={(p) => void patch(e, p)} onDelete={() => void removeOption(e)} />
-                  ))}
-                </ul>
-                {hidden.length > 0 && (
-                  <div className="mt-2">
-                    <button
-                      type="button"
-                      onClick={() => setHiddenOpen((p) => ({ ...p, [kind]: !p[kind] }))}
-                      disabled={isSearching}
-                      className="text-xs font-medium disabled:opacity-100"
-                      style={{ color: "var(--ui-accent)" }}
-                    >
-                      Hidden ({hidden.length}) — {showHidden ? "Hide" : "Show"}
-                    </button>
-                    {showHidden && (
-                      <ul className="mt-1 inset-rows flex flex-col opacity-70">
-                        {hidden.map((e) => (
-                          <CoffeeOptionRow key={e.id} option={e} busy={busy} onPatch={(p) => void patch(e, p)} onDelete={() => void removeOption(e)} />
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                )}
-              </div>
+              <OptionKindGroup
+                key={kind}
+                title={title}
+                placeholder={placeholder}
+                newLabel={newLabels[kind] ?? ""}
+                onNewLabelChange={(value) => setNewLabels((p) => ({ ...p, [kind]: value }))}
+                onAdd={() => void addOption(kind)}
+                active={active}
+                hidden={hidden}
+                showHidden={showHidden}
+                canToggleHidden={!isSearching}
+                onToggleHidden={() => setHiddenOpen((p) => ({ ...p, [kind]: !p[kind] }))}
+                busy={busy}
+                onPatch={(o, patchValue) => void patch(o, patchValue)}
+                onDelete={(o) => void removeOption(o)}
+              />
             );
           })}
 
-          <div className="border-t pt-4" style={{ borderColor: "var(--gridline)" }}>
-            <p className="mb-2 text-xs font-semibold" style={{ color: "var(--text-secondary)" }}>
+          <div className="flex flex-col gap-1.5">
+            <h3 className="px-4 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
               Your coffees
-            </p>
-            <p className="mb-2 text-xs" style={{ color: "var(--text-muted)" }}>
-              New coffees are added from Log → Coffee, not here — edit or archive existing ones below.
-            </p>
+            </h3>
             {items.length === 0 ? (
-              <p className="py-2 text-xs" style={{ color: "var(--text-muted)" }}>
-                {isSearching ? "No coffee matches that search." : "Nothing logged yet."}
-              </p>
+              <GroupNote>{isSearching ? "No coffee matches that search." : "Nothing logged yet."}</GroupNote>
             ) : (
-              <ul className="inset-rows flex flex-col">
+              <ul className={GROUP_CLS} style={GROUP_STYLE}>
                 {items.map((it) => {
                   const editing = editingItemId === it.id;
+                  const changed =
+                    draftName.trim() !== it.name || draftBrand.trim() !== (it.brand ?? "") || draftNotes.trim() !== (it.notes ?? "");
                   return (
-                    <li key={it.id} className="py-1.5">
-                      {editing ? (
+                    <li key={it.id}>
+                      <button
+                        type="button"
+                        onClick={() => (editing ? setEditingItemId(null) : startEditItem(it))}
+                        aria-expanded={editing}
+                        className="flex min-h-11 w-full items-center gap-2 px-3.5 text-left"
+                      >
+                        <span className="min-w-0 flex-1 truncate text-sm" style={{ color: it.isArchived ? "var(--text-muted)" : "var(--text-primary)" }}>
+                          {it.name}
+                        </span>
+                        {(it.brand || it.isArchived) && (
+                          <span className="shrink-0 text-sm" style={{ color: "var(--text-muted)" }}>
+                            {it.isArchived ? "Hidden" : it.brand}
+                          </span>
+                        )}
+                        <span className="shrink-0" style={{ color: "var(--text-muted)" }}>
+                          <ChevronIcon dir={editing ? "down" : "right"} size={14} />
+                        </span>
+                      </button>
+                      {editing && (
                         <form
                           onSubmit={(e) => {
                             e.preventDefault();
                             void saveItemEdit();
                           }}
-                          className="flex flex-col gap-1.5 py-1"
+                          className="inset-rows border-t"
+                          style={{ borderColor: "var(--gridline)", background: "color-mix(in oklab, var(--page-plane) 55%, var(--surface-1))" }}
                         >
-                          <div className="flex items-center gap-2">
-                            <input value={draftName} onChange={(e) => setDraftName(e.target.value)} placeholder="Name" className="min-w-0 flex-1 rounded-md border px-2 py-1 text-sm outline-none" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }} />
-                            <input value={draftBrand} onChange={(e) => setDraftBrand(e.target.value)} placeholder="Brand" className="w-28 shrink-0 rounded-md border px-2 py-1 text-sm outline-none" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }} />
-                          </div>
-                          <input value={draftNotes} onChange={(e) => setDraftNotes(e.target.value)} placeholder="Coffee notes" className="rounded-md border px-2 py-1 text-xs outline-none" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-secondary)" }} />
-                          <div className="flex items-center gap-3">
-                            <button type="submit" className="text-xs font-semibold" style={{ color: "var(--status-good)" }}>
-                              Save
+                          {(
+                            [
+                              ["Name", draftName, setDraftName],
+                              ["Brand", draftBrand, setDraftBrand],
+                              ["Notes", draftNotes, setDraftNotes],
+                            ] as const
+                          ).map(([label, value, set]) => (
+                            <label key={label} className="flex min-h-11 items-center gap-3 px-3.5">
+                              <span className="w-14 shrink-0 text-sm" style={{ color: "var(--text-primary)" }}>
+                                {label}
+                              </span>
+                              <input value={value} onChange={(e) => set(e.target.value)} className={FIELD_VALUE} style={FIELD_VALUE_STYLE} />
+                            </label>
+                          ))}
+                          <div className="flex min-h-11 items-center justify-between gap-4 px-3.5">
+                            <button
+                              type="button"
+                              onClick={() => void coffee.items.edit(it, { isArchived: !it.isArchived })}
+                              className="min-h-11 text-sm"
+                              style={{ color: "var(--ui-accent)" }}
+                            >
+                              {it.isArchived ? "Show" : "Hide"}
                             </button>
-                            <button type="button" onClick={() => setEditingItemId(null)} className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
-                              Cancel
+                            <button type="submit" disabled={!changed} className="min-h-11 text-sm font-semibold disabled:opacity-40" style={{ color: "var(--ui-accent)" }}>
+                              Save
                             </button>
                           </div>
                         </form>
-                      ) : (
-                        <div className="flex min-h-11 items-center gap-2">
-                          <button type="button" onClick={() => startEditItem(it)} className="min-w-0 flex-1 text-left">
-                            <span className="text-sm font-medium" style={{ color: it.isArchived ? "var(--text-muted)" : "var(--text-primary)" }}>
-                              {it.name}
-                            </span>
-                            {it.brand && (
-                              <span className="ml-2 text-xs" style={{ color: "var(--text-muted)" }}>
-                                {it.brand}
-                              </span>
-                            )}
-                          </button>
-                          <span className="flex shrink-0 items-center gap-2">
-                            <button type="button" onClick={() => void coffee.items.edit(it, { isArchived: !it.isArchived })} className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
-                              {it.isArchived ? "Show" : "Hide"}
-                            </button>
-                          </span>
-                        </div>
                       )}
                     </li>
                   );
                 })}
               </ul>
             )}
+            <GroupNote>New coffees are added from Log → Coffee, not here — edit or hide existing ones above.</GroupNote>
           </div>
         </div>
       )}
@@ -1843,60 +1610,59 @@ function DoctorsCard({ searchQuery }: { searchQuery: string }) {
       title="Doctors"
       subtitle={`${api.doctors.data.length} ${api.doctors.data.length === 1 ? "doctor" : "doctors"}`}
       forceOpen={isSearching}
+      bare
     >
-      <p className="mb-3 text-xs" style={{ color: "var(--text-secondary)" }}>
-        The doctors you can attach an appointment to — name, rating, language, notes and their current specialty. Their visit
-        history lives on Health &rarr; Doctors.
-      </p>
-
       {!isSearching &&
         (adding ? (
-          <form onSubmit={handleAdd} className="mb-3 flex flex-col gap-2 rounded-lg border p-2.5" style={{ borderColor: "var(--border-hairline)" }}>
+          <form onSubmit={handleAdd} className={GROUP_CLS} style={GROUP_STYLE}>
             <input
               autoFocus
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               placeholder="Doctor name"
+              aria-label="Doctor name"
               maxLength={120}
-              className="rounded-md border px-2.5 py-1.5 text-xs outline-none"
-              style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
+              className="min-h-11 w-full bg-transparent px-3.5 text-sm outline-none"
+              style={{ color: "var(--text-primary)" }}
             />
-            <ComboBox value={newSpecialty} onChange={setNewSpecialty} options={specialtyOptions} placeholder="Specialty" accent={accent} />
-            <div className="flex items-center gap-2">
-              <Button type="submit" size="sm" accent={accent} disabled={!newName.trim() || busy}>
-                Add doctor
-              </Button>
-              <button type="button" onClick={() => setAdding(false)} className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+            <div className="flex min-h-11 items-center gap-3 px-3.5 py-1.5">
+              <span className="w-20 shrink-0 text-sm" style={{ color: "var(--text-primary)" }}>
+                Specialty
+              </span>
+              <div className="min-w-0 flex-1">
+                <ComboBox value={newSpecialty} onChange={setNewSpecialty} options={specialtyOptions} placeholder="Specialty" accent={accent} />
+              </div>
+            </div>
+            <div className="flex min-h-11 items-center justify-between px-3.5">
+              <button type="button" onClick={() => setAdding(false)} className="min-h-11 text-sm" style={{ color: "var(--text-secondary)" }}>
                 Cancel
+              </button>
+              <button type="submit" disabled={!newName.trim() || busy} className="min-h-11 text-sm font-semibold disabled:opacity-40" style={{ color: "var(--ui-accent)" }}>
+                Add doctor
               </button>
             </div>
           </form>
         ) : (
-          <button
-            type="button"
-            onClick={() => setAdding(true)}
-            className="mb-3 rounded-md border px-2.5 py-1.5 text-xs font-medium"
-            style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-secondary)" }}
-          >
-            + Add doctor
-          </button>
+          <div className={GROUP_CLS} style={GROUP_STYLE}>
+            <button type="button" onClick={() => setAdding(true)} className="flex min-h-11 w-full items-center px-3.5 text-left text-sm" style={{ color: "var(--ui-accent)" }}>
+              Add doctor
+            </button>
+          </div>
         ))}
 
       {api.doctors.data.length === 0 ? (
-        <p className="py-2 text-xs" style={{ color: "var(--text-muted)" }}>
-          No doctors yet — add one above, or while logging an appointment.
-        </p>
+        <GroupNote>No doctors yet — add one above, or while logging an appointment.</GroupNote>
       ) : (
-        <ul className="inset-rows flex flex-col">
+        <ul className={GROUP_CLS} style={GROUP_STYLE}>
           {shown.map((doctor) => {
             const visits = api.appointments.data.filter((a) => a.doctorId === doctor.id).length;
             const editing = editingId === doctor.id;
             return (
-              <li key={doctor.id} className="py-1.5">
+              <li key={doctor.id}>
                 <button
                   type="button"
                   onClick={() => setEditingId(editing ? null : doctor.id)}
-                  className="flex min-h-11 w-full items-center gap-3 text-left"
+                  className="flex min-h-11 w-full items-center gap-3 px-3.5 py-1 text-left"
                 >
                   <span className="min-w-0 flex-1">
                     <DoctorName name={doctor.name} rating={doctor.rating} className="text-sm" />
@@ -1904,10 +1670,10 @@ function DoctorsCard({ searchQuery }: { searchQuery: string }) {
                       {doctor.specialty || "No specialty"}
                     </span>
                   </span>
-                  <span className="shrink-0 text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>
+                  <span className="shrink-0 text-sm tabular-nums" style={{ color: "var(--text-muted)" }}>
                     {visits} visit{visits === 1 ? "" : "s"}
                   </span>
-                  <ChevronIcon dir={editing ? "down" : "right"} size={13} />
+                  <span className="shrink-0" style={{ color: "var(--text-muted)" }}><ChevronIcon dir={editing ? "down" : "right"} size={14} /></span>
                 </button>
 
                 {editing && (
@@ -1931,6 +1697,9 @@ function DoctorsCard({ searchQuery }: { searchQuery: string }) {
           })}
         </ul>
       )}
+      <GroupNote>
+        The doctors you can attach an appointment to. Their visit history lives on Health &rarr; Doctors.
+      </GroupNote>
     </CollapsibleManageCard>
   );
 }
@@ -1966,10 +1735,11 @@ function DoctorEditRow({
     if (next !== (doctor.notes ?? "")) onEdit({ notes: next || null });
   }
 
+  const labelCls = "w-20 shrink-0 text-sm";
   return (
-    <div className="mt-2.5 flex flex-col gap-3 rounded-lg border p-3" style={{ borderColor: "var(--border-hairline)" }}>
-      <label className="flex flex-col gap-1">
-        <span className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
+    <div className="inset-rows border-t" style={{ borderColor: "var(--gridline)", background: "color-mix(in oklab, var(--page-plane) 55%, var(--surface-1))" }}>
+      <label className="flex min-h-11 items-center gap-3 px-3.5">
+        <span className={labelCls} style={{ color: "var(--text-primary)" }}>
           Name
         </span>
         <input
@@ -1977,42 +1747,46 @@ function DoctorEditRow({
           onChange={(e) => setNameDraft(e.target.value)}
           onBlur={commitName}
           maxLength={120}
-          className="rounded-md border px-2.5 py-1.5 text-xs outline-none"
-          style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
+          className={FIELD_VALUE}
+          style={FIELD_VALUE_STYLE}
         />
       </label>
-      <label className="flex flex-col gap-1">
-        <span className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
+      <div className="flex min-h-11 items-center gap-3 px-3.5 py-1.5">
+        <span className={labelCls} style={{ color: "var(--text-primary)" }}>
           Specialty
         </span>
-        <ComboBox
-          value={doctor.specialty}
-          onChange={(specialty) => {
-            onEdit({ specialty });
-            if (specialty.trim()) onEnsureSpecialty(specialty.trim());
-          }}
-          options={specialtyOptions}
-          placeholder="Specialty"
-          accent={accent}
-        />
-      </label>
-      <div className="flex flex-wrap gap-x-8 gap-y-3">
-        <div className="flex flex-col gap-1">
-          <span className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
-            Rating
-          </span>
+        <div className="min-w-0 flex-1">
+          <ComboBox
+            value={doctor.specialty}
+            onChange={(specialty) => {
+              onEdit({ specialty });
+              if (specialty.trim()) onEnsureSpecialty(specialty.trim());
+            }}
+            options={specialtyOptions}
+            placeholder="Specialty"
+            accent={accent}
+          />
+        </div>
+      </div>
+      <div className="flex min-h-11 items-center gap-3 px-3.5 py-1.5">
+        <span className={labelCls} style={{ color: "var(--text-primary)" }}>
+          Rating
+        </span>
+        <div className="flex min-w-0 flex-1 justify-end">
           <RatingChips value={doctor.rating} onChange={(rating) => onEdit({ rating })} accent={accent} />
         </div>
-        <div className="flex flex-col gap-1">
-          <span className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
-            Language
-          </span>
+      </div>
+      <div className="flex min-h-11 items-center gap-3 px-3.5 py-1.5">
+        <span className={labelCls} style={{ color: "var(--text-primary)" }}>
+          Language
+        </span>
+        <div className="flex min-w-0 flex-1 justify-end">
           <LanguageChips value={doctor.language} onChange={(language) => onEdit({ language })} accent={accent} />
         </div>
       </div>
-      <label className="flex flex-col gap-1">
-        <span className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
-          Notes <span style={{ color: "var(--text-muted)" }}>· optional</span>
+      <label className="flex flex-col gap-1 px-3.5 py-2.5">
+        <span className="text-sm" style={{ color: "var(--text-primary)" }}>
+          Notes
         </span>
         <textarea
           value={notesDraft}
@@ -2020,15 +1794,17 @@ function DoctorEditRow({
           onBlur={commitNotes}
           rows={2}
           placeholder="Anything worth remembering about them"
-          className="resize-y rounded-md border px-2.5 py-1.5 text-xs outline-none"
-          style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
+          className="resize-y bg-transparent text-sm outline-none"
+          style={{ color: "var(--text-secondary)" }}
         />
       </label>
-      <DoctorDeleteButton
-        disabled={!canDelete}
-        hint={!canDelete ? "Delete their appointments first" : undefined}
-        onDelete={onDelete}
-      />
+      <div className="flex min-h-11 items-center px-3.5">
+        <DoctorDeleteButton
+          disabled={!canDelete}
+          hint={!canDelete ? "Delete their appointments first" : undefined}
+          onDelete={onDelete}
+        />
+      </div>
     </div>
   );
 }
@@ -2037,27 +1813,22 @@ function DoctorDeleteButton({ disabled, hint, onDelete }: { disabled: boolean; h
   const [confirming, setConfirming] = useState(false);
   if (disabled) {
     return (
-      <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+      <p className="text-sm" style={{ color: "var(--text-muted)" }}>
         {hint}
       </p>
     );
   }
   return confirming ? (
-    <span className="flex items-center gap-2 text-xs">
-      <button type="button" onClick={onDelete} className="font-semibold" style={{ color: "var(--status-critical)" }}>
+    <span className="flex items-center gap-4">
+      <button type="button" onClick={onDelete} className="min-h-11 text-sm font-semibold" style={{ color: "var(--status-critical)" }}>
         Delete doctor
       </button>
-      <button type="button" onClick={() => setConfirming(false)} className="font-medium" style={{ color: "var(--text-muted)" }}>
+      <button type="button" onClick={() => setConfirming(false)} className="min-h-11 text-sm" style={{ color: "var(--text-secondary)" }}>
         Keep
       </button>
     </span>
   ) : (
-    <button
-      type="button"
-      onClick={() => setConfirming(true)}
-      className="notebook-danger self-start rounded-md text-xs font-medium"
-      style={{ color: "var(--text-muted)" }}
-    >
+    <button type="button" onClick={() => setConfirming(true)} className="min-h-11 text-sm" style={{ color: "var(--status-critical)" }}>
       Delete doctor
     </button>
   );
@@ -2101,61 +1872,53 @@ function FoodProductsCard({
       title="Food products"
       subtitle={`${products.data.length} ${products.data.length === 1 ? "product" : "products"}`}
       forceOpen={isSearching}
+      bare
     >
-      <p className="mb-3 text-xs" style={{ color: "var(--text-secondary)" }}>
-        A product bundles several Food ingredients under one name — logging it on Log &rarr; Food logs every ingredient at
-        once, tagged with the product they came from.
-      </p>
-
       {!isSearching &&
         (adding ? (
-          <form onSubmit={handleAdd} className="mb-3 flex flex-col gap-2 rounded-lg border p-2.5" style={{ borderColor: "var(--border-hairline)" }}>
+          <form onSubmit={handleAdd} className={GROUP_CLS} style={GROUP_STYLE}>
             <input
               autoFocus
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               placeholder="Product name, e.g. Green smoothie"
+              aria-label="Product name"
               maxLength={120}
-              className="rounded-md border px-2.5 py-1.5 text-xs outline-none"
-              style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
+              className="min-h-11 w-full bg-transparent px-3.5 text-sm outline-none"
+              style={{ color: "var(--text-primary)" }}
             />
-            <div className="flex items-center gap-2">
-              <Button type="submit" size="sm" accent={accent} disabled={!newName.trim()}>
-                Add product
-              </Button>
-              <button type="button" onClick={() => setAdding(false)} className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+            <div className="flex min-h-11 items-center justify-between px-3.5">
+              <button type="button" onClick={() => setAdding(false)} className="min-h-11 text-sm" style={{ color: "var(--text-secondary)" }}>
                 Cancel
+              </button>
+              <button type="submit" disabled={!newName.trim()} className="min-h-11 text-sm font-semibold disabled:opacity-40" style={{ color: "var(--ui-accent)" }}>
+                Add product
               </button>
             </div>
           </form>
         ) : (
-          <button
-            type="button"
-            onClick={() => setAdding(true)}
-            className="mb-3 rounded-md border px-2.5 py-1.5 text-xs font-medium"
-            style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-secondary)" }}
-          >
-            + Add product
-          </button>
+          <div className={GROUP_CLS} style={GROUP_STYLE}>
+            <button type="button" onClick={() => setAdding(true)} className="flex min-h-11 w-full items-center px-3.5 text-left text-sm" style={{ color: "var(--ui-accent)" }}>
+              Add product
+            </button>
+          </div>
         ))}
 
       {products.data.length === 0 ? (
-        <p className="py-2 text-xs" style={{ color: "var(--text-muted)" }}>
-          No products yet — add one above, e.g. a bought smoothie or meal with a fixed set of ingredients.
-        </p>
+        <GroupNote>No products yet — add one above, e.g. a bought smoothie or meal with a fixed set of ingredients.</GroupNote>
       ) : (
-        <ul className="inset-rows flex flex-col">
+        <ul className={GROUP_CLS} style={GROUP_STYLE}>
           {shown.map((product) => {
             const editing = editingId === product.id;
             return (
-              <li key={product.id} className="py-1.5">
+              <li key={product.id}>
                 <button
                   type="button"
                   onClick={() => setEditingId(editing ? null : product.id)}
-                  className="flex min-h-11 w-full items-center gap-3 text-left"
+                  className="flex min-h-11 w-full items-center gap-3 px-3.5 py-1 text-left"
                 >
                   <span className="min-w-0 flex-1">
-                    <span className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
+                    <span className="text-sm" style={{ color: "var(--text-primary)" }}>
                       {product.name}
                     </span>
                     {product.brand && (
@@ -2164,10 +1927,10 @@ function FoodProductsCard({
                       </span>
                     )}
                   </span>
-                  <span className="shrink-0 text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>
+                  <span className="shrink-0 text-sm tabular-nums" style={{ color: "var(--text-muted)" }}>
                     {product.ingredientItemIds.length} ingredient{product.ingredientItemIds.length === 1 ? "" : "s"}
                   </span>
-                  <ChevronIcon dir={editing ? "down" : "right"} size={13} />
+                  <span className="shrink-0" style={{ color: "var(--text-muted)" }}><ChevronIcon dir={editing ? "down" : "right"} size={14} /></span>
                 </button>
 
                 {editing && (
@@ -2190,6 +1953,10 @@ function FoodProductsCard({
           })}
         </ul>
       )}
+      <GroupNote>
+        A product bundles several Food ingredients under one name — logging it on Log &rarr; Food logs every ingredient at once,
+        tagged with the product they came from.
+      </GroupNote>
     </CollapsibleManageCard>
   );
 }
@@ -2245,9 +2012,9 @@ function ProductEditRow({
   }
 
   return (
-    <div className="mt-2.5 flex flex-col gap-3 rounded-lg border p-3" style={{ borderColor: "var(--border-hairline)" }}>
-      <label className="flex flex-col gap-1">
-        <span className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
+    <div className="inset-rows border-t" style={{ borderColor: "var(--gridline)", background: "color-mix(in oklab, var(--page-plane) 55%, var(--surface-1))" }}>
+      <label className="flex min-h-11 items-center gap-3 px-3.5">
+        <span className="w-16 shrink-0 text-sm" style={{ color: "var(--text-primary)" }}>
           Name
         </span>
         <input
@@ -2255,73 +2022,67 @@ function ProductEditRow({
           onChange={(e) => setNameDraft(e.target.value)}
           onBlur={commitName}
           maxLength={120}
-          className="rounded-md border px-2.5 py-1.5 text-xs outline-none"
-          style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
+          className={FIELD_VALUE}
+          style={FIELD_VALUE_STYLE}
         />
       </label>
-      <label className="flex flex-col gap-1">
-        <span className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
-          Brand <span style={{ color: "var(--text-muted)" }}>· optional</span>
+      <label className="flex min-h-11 items-center gap-3 px-3.5">
+        <span className="w-16 shrink-0 text-sm" style={{ color: "var(--text-primary)" }}>
+          Brand
         </span>
         <input
           value={brandDraft}
           onChange={(e) => setBrandDraft(e.target.value)}
           onBlur={commitBrand}
           maxLength={120}
-          placeholder="e.g. Maczfit"
-          className="rounded-md border px-2.5 py-1.5 text-xs outline-none"
-          style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
+          placeholder="Optional"
+          className={FIELD_VALUE}
+          style={FIELD_VALUE_STYLE}
         />
       </label>
 
-      <div className="flex flex-col gap-1.5">
-        <span className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
-          Ingredients
-        </span>
-        {product.ingredientItemIds.length > 0 && (
-          <div className="flex flex-wrap gap-1.5">
-            {product.ingredientItemIds.map((itemId) => (
-              <span
-                key={itemId}
-                className="flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium"
-                style={{ borderColor: "var(--border-hairline)", color: "var(--text-secondary)" }}
-              >
-                {nameById.get(itemId) ?? justAddedNames.get(itemId) ?? "Unknown item"}
-                <button type="button" onClick={() => removeIngredient(itemId)} aria-label="Remove ingredient" style={{ color: "var(--text-muted)" }}>
-                  <CloseIcon size={11} />
-                </button>
-              </span>
-            ))}
-          </div>
-        )}
+      {product.ingredientItemIds.map((itemId) => (
+        <div key={itemId} className="flex min-h-11 items-center gap-3 px-3.5">
+          <span className="min-w-0 flex-1 truncate text-sm" style={{ color: "var(--text-primary)" }}>
+            {nameById.get(itemId) ?? justAddedNames.get(itemId) ?? "Unknown item"}
+          </span>
+          <button
+            type="button"
+            onClick={() => removeIngredient(itemId)}
+            aria-label="Remove ingredient"
+            className="tap-target flex h-7 w-7 shrink-0 items-center justify-center"
+            style={{ color: "var(--text-muted)" }}
+          >
+            <CloseIcon size={13} />
+          </button>
+        </div>
+      ))}
+      <div className="px-3.5 py-2">
         <ComboBox
           value={ingredientDraft}
           onChange={(name) => void addIngredient(name)}
           options={foodItems.map((i) => i.item)}
-          placeholder="Search or add an ingredient…"
+          placeholder="Add an ingredient…"
           accent={accent}
         />
       </div>
 
-      {confirming ? (
-        <span className="flex items-center gap-2 text-xs">
-          <button type="button" onClick={onDelete} className="font-semibold" style={{ color: "var(--status-critical)" }}>
+      <div className="flex min-h-11 items-center px-3.5">
+        {confirming ? (
+          <span className="flex items-center gap-4">
+            <button type="button" onClick={onDelete} className="min-h-11 text-sm font-semibold" style={{ color: "var(--status-critical)" }}>
+              Delete product
+            </button>
+            <button type="button" onClick={() => setConfirming(false)} className="min-h-11 text-sm" style={{ color: "var(--text-secondary)" }}>
+              Keep
+            </button>
+          </span>
+        ) : (
+          <button type="button" onClick={() => setConfirming(true)} className="min-h-11 text-sm" style={{ color: "var(--status-critical)" }}>
             Delete product
           </button>
-          <button type="button" onClick={() => setConfirming(false)} className="font-medium" style={{ color: "var(--text-muted)" }}>
-            Keep
-          </button>
-        </span>
-      ) : (
-        <button
-          type="button"
-          onClick={() => setConfirming(true)}
-          className="notebook-danger self-start rounded-md text-xs font-medium"
-          style={{ color: "var(--text-muted)" }}
-        >
-          Delete product
-        </button>
-      )}
+        )}
+      </div>
     </div>
   );
 }
@@ -3686,7 +3447,7 @@ export default function ManagePage() {
 
   return (
     <ManageNavContext.Provider value={{ active: activeSection, open: openSection }}>
-      <div className="flex flex-col gap-5">
+      <div className="flex max-w-2xl flex-col gap-5">
         <div>
           {activeSection !== null && !isSearching && (
             <button
