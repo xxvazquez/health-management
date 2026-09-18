@@ -360,11 +360,25 @@ export function JournalTab({ isDemoData, accent }: { isDemoData: boolean; accent
         <button
           type="button"
           onClick={() => setOldestFirst((v) => !v)}
-          aria-label={oldestFirst ? "Showing oldest first — tap for newest first" : "Showing newest first — tap for oldest first"}
-          className="min-h-9 shrink-0 rounded-md border px-3 text-sm whitespace-nowrap"
+          aria-label={oldestFirst ? "Oldest first — tap for newest first" : "Newest first — tap for oldest first"}
+          title={oldestFirst ? "Oldest first" : "Newest first"}
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border"
           style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-secondary)" }}
         >
-          {oldestFirst ? "Oldest" : "Newest"}
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 20 20"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+            style={{ transform: oldestFirst ? "rotate(180deg)" : undefined }}
+          >
+            <path d="M6 4v12M3 13l3 3 3-3M14 16V4M11 7l3-3 3 3" />
+          </svg>
         </button>
         <PrimaryAction label="New entry" accent={accent} onClick={() => setComposing(true)} />
       </div>

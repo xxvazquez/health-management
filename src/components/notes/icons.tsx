@@ -108,12 +108,3 @@ export function EyeOffIcon({ size = 15 }: { size?: number }) {
     </IconWrap>
   );
 }
-
-export function ReplyIcon({ size = 15 }: { size?: number }) {
-  return (
-    <IconWrap size={size}>
-      <path d="M8.5 6 4 10l4.5 4" />
-      <path d="M4 10h7c2.5 0 4.5 2 4.5 4.5" />
-    </IconWrap>
-  );
-}
