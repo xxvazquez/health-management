@@ -1489,23 +1489,26 @@ export default function LogPage() {
     const accent = TYPE_ACCENT.food;
 
     return (
-      <li key={c.key}>
-        <button
-          type="button"
-          onClick={() => handleChipTap(c)}
-          disabled={busy}
-          aria-pressed={logged}
-          className="flex min-h-11 w-full items-center gap-2 pr-3.5 pl-[3.375rem] text-left text-sm transition-colors active:bg-[var(--page-plane)] disabled:opacity-50 lg:pl-3.5"
-          style={{ color: logged ? accent : "var(--text-primary)" }}
-        >
-          <span className="min-w-0 flex-1">{c.item}</span>
-          {logged && (
-            <span aria-hidden="true" className="shrink-0 text-sm font-semibold">
-              ✓
-            </span>
-          )}
-        </button>
-      </li>
+      <button
+        key={c.key}
+        type="button"
+        onClick={() => handleChipTap(c)}
+        disabled={busy}
+        aria-pressed={logged}
+        className={`${FOOD_PILL} w-full justify-between`}
+        style={{
+          background: logged ? `color-mix(in oklab, ${accent} 14%, var(--surface-1))` : "var(--surface-1)",
+          borderColor: logged ? accent : "var(--border-hairline)",
+          color: logged ? accent : "var(--text-primary)",
+        }}
+      >
+        <span className="min-w-0">{c.item}</span>
+        {logged && (
+          <span aria-hidden="true" className="shrink-0 text-xs font-bold">
+            ✓
+          </span>
+        )}
+      </button>
     );
   }
 
@@ -2312,15 +2315,15 @@ export default function LogPage() {
                               </span>
                             </span>
                           </button>
-                          <ul
+                          <div
                             className={clsx(
-                              "inset-rows border-t [--row-inset:3.375rem] lg:grid-cols-3 lg:[--row-inset:0px]",
-                              collapsed ? "hidden lg:grid" : "block lg:grid",
+                              "grid-cols-2 gap-2 border-t p-3 sm:grid-cols-3 lg:grid-cols-4",
+                              collapsed ? "hidden lg:grid" : "grid",
                             )}
                             style={{ borderColor: "var(--gridline)" }}
                           >
                             {group.items.map((c) => renderChip(c))}
-                          </ul>
+                          </div>
                         </div>
                       );
                     })}
