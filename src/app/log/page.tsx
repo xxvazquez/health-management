@@ -65,7 +65,6 @@ import { SearchField } from "@/components/ui/SearchField";
 import { ChevronIcon, CloseIcon, NoteIcon, PlusIcon } from "@/components/ui/icons";
 import { CustomIcon, customColorValue } from "@/components/ui/customIcons";
 import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
-import { Segmented } from "@/components/ui/Segmented";
 import { useMeals } from "@/lib/useMeals";
 import { useFoodProducts } from "@/lib/useFoodProducts";
 import type { FoodProduct } from "@/lib/supabase/foodProducts";
@@ -1418,16 +1417,13 @@ export default function LogPage() {
     await refreshAfterWrite();
   }
 
-  /** A plain list row, not a pill — available items are just text; a
-   * tracked one gets a tinted background, a colored left edge, and a
-   * checkmark, which reads as "the strongest state on the row" without
-   * needing a heavy rounded shape to do it. */
+  /** A plain list row: a tracked item gets a leading tick and the accent
+   * colour, nothing else. The tick slot is always reserved so names align. */
   function renderChip(c: LogCandidate) {
     const logged = (mealCounts.get(c.key) ?? 0) > 0;
     const busy = pending === c.key;
-    // One "logged" colour for every food, regardless of category — a green
-    // tick reads as "done", where a category hue (rose for Grains, etc.)
-    // read as a status. Category colour stays on the group header only.
+    // One "logged" colour for every food, regardless of category — category
+    // colour stays on the section header only.
     const accent = TYPE_ACCENT.food;
 
     return (
@@ -1436,22 +1432,12 @@ export default function LogPage() {
         type="button"
         onClick={() => handleChipTap(c)}
         disabled={busy}
-        className={clsx(
-          "flex items-start gap-1.5 rounded-md px-2 py-1.5 text-left text-xs transition-colors disabled:opacity-50",
-          !logged && "hover:bg-[var(--page-plane)]",
-        )}
-        style={{
-          background: logged ? `color-mix(in oklab, ${accent} 14%, var(--surface-1))` : "transparent",
-          borderLeft: `2px solid ${logged ? accent : "transparent"}`,
-          color: logged ? "var(--text-primary)" : "var(--text-secondary)",
-          fontWeight: 400,
-        }}
+        className="flex min-h-11 w-full items-center gap-2 px-3.5 text-left text-sm break-inside-avoid-column transition-colors disabled:opacity-50 sm:min-h-9"
+        style={{ color: logged ? accent : "var(--text-primary)", fontWeight: logged ? 500 : 400 }}
       >
-        {logged && (
-          <span className="shrink-0" style={{ color: accent }}>
-            ✓
-          </span>
-        )}
+        <span className="w-3 shrink-0 text-center text-xs font-bold" style={{ color: accent }} aria-hidden="true">
+          {logged ? "✓" : ""}
+        </span>
         <span className="min-w-0">{c.item}</span>
       </button>
     );
@@ -1729,6 +1715,32 @@ export default function LogPage() {
   const [logHrs, logMins] = logTime.split(":").map(Number);
   const timeIsExplicit = date !== today || Math.abs((logHrs || 0) * 60 + (logMins || 0) - nowMinutes) > 5;
 
+  // Searching for a name that isn't tracked offers to add it, in place of a
+  // standing "add" button.
+  const searchQuery = search.trim();
+  const offerAddFromSearch =
+    Boolean(searchQuery) &&
+    !addingNew &&
+    !groupedByCategory.some((g) => g.items.some((c) => normalizeName(c.item) === normalizeName(searchQuery)));
+  const addRow =
+    offerAddFromSearch && tabConfig ? (
+      <button
+        type="button"
+        onClick={() => {
+          if (isDemoData) return openPanel();
+          setNewItemText(searchQuery);
+          setAddingNew(true);
+        }}
+        className="flex min-h-11 items-center gap-2 rounded-2xl border px-3.5 text-left text-sm font-medium shadow-[var(--shadow-card)]"
+        style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--ui-accent)" }}
+      >
+        <PlusIcon size={13} />
+        <span className="min-w-0 truncate">
+          {isDemoData ? `Sign in to add “${searchQuery}”` : `Add “${searchQuery}”`}
+        </span>
+      </button>
+    ) : null;
+
   // A seasonal nudge, not part of the log flow — rendered below the food
   // list rather than above it.
   const seasonalPicksCard =
@@ -1902,30 +1914,13 @@ export default function LogPage() {
             <SearchField
               value={search}
               onChange={setSearch}
-              placeholder={`Search ${tabConfig.label.toLowerCase()}…`}
-              className="w-40 grow sm:w-48 sm:flex-none"
+              placeholder={`Search or add ${tabConfig.label.toLowerCase()}…`}
+              className="w-40 grow sm:w-60 sm:flex-none"
             />
-            {!addingNew && (
-              <>
-                {/* Icon-only on mobile — the full sentence only shows once
-                 * there's room (sm:), so the search row doesn't wrap into a
-                 * second line of text on a phone. */}
-                <button
-                  type="button"
-                  onClick={() => (isDemoData ? openPanel() : setAddingNew(true))}
-                  className="flex shrink-0 items-center gap-1.5 rounded-md border border-dashed px-2 py-1 text-xs font-medium whitespace-nowrap sm:px-2.5"
-                  style={{ borderColor: "var(--border-hairline)", color: "var(--text-secondary)" }}
-                  aria-label={isDemoData ? "Can't find it? Sign in to add it" : "Can't find it? Add it"}
-                >
-                  <PlusIcon size={12} />
-                  <span className="hidden sm:inline">{isDemoData ? "Can't find it? Sign in to add it" : "Can't find it? Add it"}</span>
-                </button>
-                {!isDemoData && (
-                  <Link href="/manage" className="hidden shrink-0 text-xs font-medium sm:inline" style={{ color: "var(--ui-accent)" }}>
-                    Manage items
-                  </Link>
-                )}
-              </>
+            {!isDemoData && (
+              <Link href="/manage" className="hidden shrink-0 text-xs font-medium sm:inline" style={{ color: "var(--ui-accent)" }}>
+                Manage items
+              </Link>
             )}
           </div>
         )}
@@ -1994,12 +1989,28 @@ export default function LogPage() {
                * changing it can't cost a tap. The time, which is right
                * ~all the time, collapses to a "now · change" link. */}
               {tabConfig.countable && (
-                <Segmented
-                  value={meal}
-                  onChange={setMeal}
-                  accent={TYPE_ACCENT[tabConfig.type]}
-                  options={tagOptionsForType(tab).map((m) => [m, m] as const)}
-                />
+                <label
+                  className="relative flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-semibold"
+                  style={{
+                    background: `color-mix(in oklab, ${TYPE_ACCENT[tabConfig.type]} 14%, var(--surface-1))`,
+                    color: TYPE_ACCENT[tabConfig.type],
+                  }}
+                >
+                  {meal}
+                  <ChevronIcon dir="down" size={11} />
+                  <select
+                    value={meal}
+                    onChange={(e) => setMeal(e.target.value)}
+                    aria-label={tab === "food" ? "Meal" : "Time of day"}
+                    className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                  >
+                    {tagOptionsForType(tab).map((m) => (
+                      <option key={m} value={m}>
+                        {m}
+                      </option>
+                    ))}
+                  </select>
+                </label>
               )}
               <TimeField
                 value={logTime}
@@ -2159,62 +2170,65 @@ export default function LogPage() {
                 </div>
               )}
 
+              {addRow}
+
               {tab === "food" ? (
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  {groupedByCategory.map((group) => {
-                    const chrome = categoryChrome("food", group.category);
-                    const accent = chrome.color ?? colorForCategorySlot(group.category);
-                    const icon = chrome.iconKey ? <CustomIcon icon={chrome.iconKey} size={13} /> : FOOD_CATEGORY_ICON[group.category];
-                    const items = group.items;
-                    if (items.length === 0) return null;
-                    // Collapse only actually hides anything on mobile — desktop
-                    // always shows every category expanded (see the `lg:`
-                    // overrides below), regardless of this saved state.
-                    const collapsed = !expandedCategories.has(categoryStorageKey(tabConfig.type, group.category));
-                    return (
-                      <div key={group.category} className="flex flex-col gap-2 rounded-lg border p-3" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
-                        <button
-                          type="button"
-                          onClick={() => toggleCategoryExpanded(group.category)}
-                          className="flex items-center gap-1.5 border-b pb-2 text-left text-xs font-semibold"
-                          style={{ color: accent, borderColor: "var(--border-hairline)" }}
-                        >
-                          {icon}
-                          {group.category}
-                          <span className="ml-auto flex items-center gap-1 font-medium" style={{ color: "var(--text-secondary)" }}>
-                            {items.length}
-                            <svg
-                              width="12"
-                              height="12"
-                              viewBox="0 0 20 20"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="1.8"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              className="lg:hidden"
-                              style={{ transform: collapsed ? "rotate(-90deg)" : "none", transition: "transform 150ms" }}
-                            >
-                              <path d="M5 7.5 10 12.5 15 7.5" />
-                            </svg>
-                          </span>
-                        </button>
-                        <div
-                          className={clsx(
-                            // Flows top-to-bottom within each column (CSS
-                            // multi-column) so the A–Z sort reads down each
-                            // column, not across. Collapse hides this on
-                            // mobile only — `lg:` always shows it.
-                            "columns-[110px] gap-x-2 [&>*]:mb-0.5 [&>*]:break-inside-avoid-column",
-                            collapsed ? "hidden lg:block" : "block",
-                          )}
-                        >
-                          {items.map((c) => renderChip(c))}
+                groupedByCategory.length > 0 && (
+                  <div className="rounded-2xl border shadow-[var(--shadow-card)] overflow-hidden" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
+                    {groupedByCategory.map((group, gi) => {
+                      const chrome = categoryChrome("food", group.category);
+                      const accent = chrome.color ?? colorForCategorySlot(group.category);
+                      const icon = chrome.iconKey ? <CustomIcon icon={chrome.iconKey} size={13} /> : FOOD_CATEGORY_ICON[group.category];
+                      // Collapse only actually hides anything below `lg` —
+                      // desktop always shows every section expanded,
+                      // regardless of this saved state.
+                      const collapsed = !expandedCategories.has(categoryStorageKey(tabConfig.type, group.category));
+                      return (
+                        <div key={group.category} className={gi > 0 ? "border-t" : undefined} style={{ borderColor: "var(--border-hairline)" }}>
+                          <button
+                            type="button"
+                            onClick={() => toggleCategoryExpanded(group.category)}
+                            aria-expanded={!collapsed}
+                            className="flex min-h-11 w-full items-center gap-1.5 px-3.5 text-left text-xs font-semibold lg:min-h-9"
+                            style={{ color: accent }}
+                          >
+                            {icon}
+                            {group.category}
+                            <span className="ml-auto flex items-center gap-1 font-medium" style={{ color: "var(--text-secondary)" }}>
+                              {group.items.length}
+                              <svg
+                                width="12"
+                                height="12"
+                                viewBox="0 0 20 20"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="1.8"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                className="lg:hidden"
+                                style={{ transform: collapsed ? "rotate(-90deg)" : "none", transition: "transform 150ms" }}
+                              >
+                                <path d="M5 7.5 10 12.5 15 7.5" />
+                              </svg>
+                            </span>
+                          </button>
+                          <div
+                            // Single hairline-separated column on a phone; from
+                            // `sm` the rows flow top-to-bottom through several
+                            // columns (CSS multi-column) so the A–Z sort reads
+                            // down each column and a 30-item category stays short.
+                            className={clsx(
+                              "inset-rows [--row-inset:2.25rem] sm:columns-[170px] sm:[&>*]:before:hidden",
+                              collapsed ? "hidden lg:block" : "block",
+                            )}
+                          >
+                            {group.items.map((c) => renderChip(c))}
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                      );
+                    })}
+                  </div>
+                )
               ) : (
                 renderTrackerList()
               )}
@@ -2285,9 +2299,9 @@ export default function LogPage() {
                 </div>
               )}
 
-              {groupedByCategory.length === 0 && (
+              {groupedByCategory.length === 0 && !searchQuery && (
                 <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-                  Nothing tracked here yet — add your first {tabConfig.label.toLowerCase().replace(/s$/, "")} below.
+                  Nothing tracked here yet — search a name above to add your first {tabConfig.label.toLowerCase().replace(/s$/, "")}.
                 </p>
               )}
             </div>
