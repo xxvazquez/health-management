@@ -605,7 +605,7 @@ function MarkerDetailView({
 
       {newest.length > 0 && (
         <Card tier="raw" padded={false} className="px-3.5">
-          <ul className="flex flex-col divide-y" style={{ borderColor: "var(--gridline)" }}>
+          <ul className="flex flex-col inset-rows">
             {shown.map((r) => {
               const st = rangeStatus(r.value, low, high);
               return (

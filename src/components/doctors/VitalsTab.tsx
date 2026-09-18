@@ -449,7 +449,7 @@ export function VitalsTab({ accent }: { accent: string }) {
                 </div>
               </div>
             )}
-            <ul className="flex flex-col divide-y" style={{ borderColor: "var(--gridline)" }}>
+            <ul className="flex flex-col inset-rows">
               {vitals.bp.data.map((r) => (
                 <BpRow key={r.id} reading={r} onEdit={() => setEditingBp(r)} onDelete={() => void vitals.bp.remove(r.id)} />
               ))}
@@ -481,7 +481,7 @@ export function VitalsTab({ accent }: { accent: string }) {
               )}
             </div>
           )}
-          <ul className="flex flex-col divide-y" style={{ borderColor: "var(--gridline)" }}>
+          <ul className="flex flex-col inset-rows">
             {vitals.weight.data.map((r, i) => (
               <WeightRow
                 key={r.id}

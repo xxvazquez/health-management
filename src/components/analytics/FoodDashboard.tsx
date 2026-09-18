@@ -666,7 +666,7 @@ function TrendSection({ trend }: { trend: ReturnType<typeof computeNutritionPrio
       <CardTitle size="sm" subtitle={`Selected range vs. the ${trend.rangeLengthDays}-day period immediately before it`}>
         Over time
       </CardTitle>
-      <ul className="flex flex-col divide-y" style={{ borderColor: "var(--gridline)" }}>
+      <ul className="flex flex-col inset-rows">
         {trend.points.map((p) => {
           const direction = p.current > p.previous ? "up" : p.current < p.previous ? "down" : "flat";
           const color = direction === "up" ? "var(--status-good)" : direction === "down" ? "var(--status-warning)" : "var(--text-muted)";
@@ -797,7 +797,7 @@ function RepetitionSection({
       </CardTitle>
       {repetition.length > 0 ? (
         <>
-        <ul className="flex flex-col divide-y" style={{ borderColor: "var(--gridline)" }}>
+        <ul className="flex flex-col inset-rows">
           {visible.map((r) => (
             <li key={r.item} className="flex items-center justify-between gap-3 py-2 text-sm">
               <div className="flex min-w-0 flex-col">

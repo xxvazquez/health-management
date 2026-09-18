@@ -22,7 +22,7 @@ export function Segmented<T extends string>({
           type="button"
           onClick={() => onChange(v)}
           aria-pressed={value === v}
-          className="rounded px-2.5 py-1 text-xs font-medium"
+          className="rounded px-3 py-1.5 text-xs font-medium"
           style={{
             background: value === v ? `color-mix(in oklab, ${accent} 14%, var(--surface-1))` : "transparent",
             color: value === v ? accent : "var(--text-muted)",

@@ -28,15 +28,15 @@ export function FormShell({
     <form
       onSubmit={onSubmit}
       className="flex flex-col gap-4 rounded-xl border p-4"
-      style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", boxShadow: "var(--shadow-card)" }}
+      style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", boxShadow: "none" }}
     >
       <div className="flex items-center justify-between gap-3">
-        <h3 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+        <h3 className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>
           {title}
         </h3>
         <div className="flex items-center gap-3">
           {headerActions}
-          <button type="button" onClick={onCancel} className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+          <button type="button" onClick={onCancel} className="min-h-9 text-sm font-medium" style={{ color: "var(--ui-accent)" }}>
             Cancel
           </button>
         </div>
