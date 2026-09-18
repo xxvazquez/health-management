@@ -27,6 +27,7 @@ import { LabMarkerChart } from "@/components/charts/LabMarkerChart";
 import { CustomIcon, customColorValue } from "@/components/ui/customIcons";
 import { Segmented } from "@/components/ui/Segmented";
 import { useOverflowFade } from "@/lib/useOverflowFade";
+import { DetailPlaceholder, MedicalSplit, useIsDesktop } from "./MedicalSplit";
 
 const ACCENT = "var(--ui-accent)";
 
@@ -98,6 +99,7 @@ export function LabsOverview({
   const [panelFilter, setPanelFilter] = useState<string | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
   const panelFilterRef = useOverflowFade<HTMLDivElement>();
+  const desktop = useIsDesktop();
 
   const today = todayLocalISODate();
   const rangeOption = LAB_RANGES.find((r) => r.id === rangeId) ?? LAB_RANGES[0];
@@ -160,9 +162,13 @@ export function LabsOverview({
   }
 
   const windowStart = cutoff ?? span?.start ?? today;
-  const openMarker = openId ? inRange.find((m) => m.id === openId) ?? null : null;
+  const listedMarkers = sort === "panel" ? shownSections.flatMap((s) => s.markers) : flatMarkers;
+  // Desktop keeps a marker open so the detail pane is never an empty
+  // placeholder; mobile stays list-first until one is tapped.
+  const activeId = listedMarkers.some((m) => m.id === openId) ? openId : desktop ? (listedMarkers[0]?.id ?? null) : null;
+  const openMarker = activeId ? inRange.find((m) => m.id === activeId) ?? null : null;
 
-  if (openMarker) {
+  if (openMarker && !desktop) {
     return (
       <MarkerDetailView
         marker={openMarker}
@@ -180,6 +186,48 @@ export function LabsOverview({
 
   const yearSpan = span ? `${span.start.slice(0, 4)}–${span.end.slice(0, 4)}` : null;
   const win = windowWord(rangeOption);
+
+  const markerList =
+    sort === "panel" ? (
+        <div className="flex flex-col gap-2.5">
+          {shownSections.map((s) => (
+            <Card key={s.id} tier="raw" padded={false} className="px-3.5 py-2.5">
+              <div className="mb-1.5 flex items-center gap-1.5">
+                {s.icon && (
+                  <span style={{ color: customColorValue(s.color) ?? ACCENT }}>
+                    <CustomIcon icon={s.icon} size={13} />
+                  </span>
+                )}
+                <h3 className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>
+                  {s.name}
+                </h3>
+              </div>
+              <div className="flex flex-col">
+                {s.markers.map((m, i) => (
+                  <MarkerRow key={m.id} marker={m} mode={mode} last={i === s.markers.length - 1} active={desktop && m.id === activeId}
+                    onOpen={() => setOpenId(m.id)} />
+                ))}
+              </div>
+            </Card>
+          ))}
+        </div>
+      ) : (
+        <Card tier="raw" padded={false} className="px-3.5">
+          <div className="flex flex-col">
+            {flatMarkers.map((m, i) => (
+              <MarkerRow
+                key={m.id}
+                marker={m}
+                mode={mode}
+                subPrefix={panelName(m)}
+                last={i === flatMarkers.length - 1}
+                active={desktop && m.id === activeId}
+                    onOpen={() => setOpenId(m.id)}
+              />
+            ))}
+          </div>
+        </Card>
+      );
 
   return (
     <div className="flex flex-col gap-4">
@@ -236,44 +284,27 @@ export function LabsOverview({
         {` · ${shownCount} marker${shownCount === 1 ? "" : "s"}${yearSpan ? ` · ${yearSpan}` : ""}`}
       </p>
 
-      {sort === "panel" ? (
-        <div className="flex flex-col gap-2.5">
-          {shownSections.map((s) => (
-            <Card key={s.id} tier="raw" padded={false} className="px-3.5 py-2.5">
-              <div className="mb-1.5 flex items-center gap-1.5">
-                {s.icon && (
-                  <span style={{ color: customColorValue(s.color) ?? ACCENT }}>
-                    <CustomIcon icon={s.icon} size={13} />
-                  </span>
-                )}
-                <h3 className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>
-                  {s.name}
-                </h3>
-              </div>
-              <div className="flex flex-col">
-                {s.markers.map((m, i) => (
-                  <MarkerRow key={m.id} marker={m} mode={mode} last={i === s.markers.length - 1} onOpen={() => setOpenId(m.id)} />
-                ))}
-              </div>
-            </Card>
-          ))}
-        </div>
-      ) : (
-        <Card tier="raw" padded={false} className="px-3.5">
-          <div className="flex flex-col">
-            {flatMarkers.map((m, i) => (
-              <MarkerRow
-                key={m.id}
-                marker={m}
-                mode={mode}
-                subPrefix={panelName(m)}
-                last={i === flatMarkers.length - 1}
-                onOpen={() => setOpenId(m.id)}
-              />
-            ))}
-          </div>
-        </Card>
-      )}
+      <MedicalSplit
+        selected={!!openMarker}
+        listWidth="26rem"
+        stickyDetail
+        list={markerList}
+        detail={
+          openMarker && (
+            <MarkerDetailView
+              marker={openMarker}
+              rangeOption={rangeOption}
+              rangeId={rangeId}
+              onRangeChange={setRangeId}
+              windowStart={windowStart}
+              windowEnd={today}
+              onAddValue={onAddValue ? () => onAddValue(openMarker.id) : undefined}
+              onEditValue={onEditValue ? (r) => onEditValue(openMarker.id, r) : undefined}
+            />
+          )
+        }
+        placeholder={<DetailPlaceholder text="Pick a marker to see its trend and history." />}
+      />
 
       <Methodology>
         This view only describes your own recorded results. Pick a time window at the top: <strong>Average</strong> reads the
@@ -319,11 +350,14 @@ function MarkerRow({
   mode,
   last,
   subPrefix,
+  active = false,
   onOpen,
 }: {
   marker: LabMarker;
   mode: Mode;
   last: boolean;
+  /** The row whose detail is showing in the desktop right pane. */
+  active?: boolean;
   /** Panel name shown before the sub-label when the list is flat A–Z. */
   subPrefix?: string | null;
   onOpen: () => void;
@@ -349,10 +383,12 @@ function MarkerRow({
     <button
       type="button"
       onClick={onOpen}
-      className="grid w-full items-center gap-3 py-2 text-left"
+      aria-current={active ? "true" : undefined}
+      className={`-mx-1.5 grid w-[calc(100%+0.75rem)] items-center gap-3 px-1.5 py-2 text-left ${active ? "rounded-lg" : ""}`}
       style={{
         gridTemplateColumns: "4.75rem minmax(0,1fr) 3rem",
-        borderBottom: last ? undefined : "1px solid var(--border-hairline)",
+        borderBottom: last ? undefined : `1px solid ${active ? "transparent" : "var(--border-hairline)"}`,
+        background: active ? "var(--page-plane)" : undefined,
       }}
     >
       <span className="min-w-0">
@@ -461,7 +497,8 @@ function MarkerDetailView({
   onRangeChange: (v: LabRangeOption["id"]) => void;
   windowStart: string;
   windowEnd: string;
-  onBack: () => void;
+  /** Set on mobile, where the detail replaces the list; the desktop pane sits beside it and has neither a back link nor its own window control. */
+  onBack?: () => void;
   onAddValue?: () => void;
   onEditValue?: (result: LabResult) => void;
 }) {
@@ -498,12 +535,14 @@ function MarkerDetailView({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between gap-3">
-        <button type="button" onClick={onBack} className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
-          ← All results
-        </button>
-        <Segmented value={rangeId} onChange={onRangeChange} accent={ACCENT} options={LAB_RANGES.map((r) => [r.id, r.label] as const)} />
-      </div>
+      {onBack && (
+        <div className="flex items-center justify-between gap-3">
+          <button type="button" onClick={onBack} className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+            ← All results
+          </button>
+          <Segmented value={rangeId} onChange={onRangeChange} accent={ACCENT} options={LAB_RANGES.map((r) => [r.id, r.label] as const)} />
+        </div>
+      )}
 
       <div>
         <h2 className="text-lg font-semibold" style={{ color: "var(--text-primary)" }}>
