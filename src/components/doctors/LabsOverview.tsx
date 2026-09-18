@@ -26,6 +26,7 @@ import { Methodology } from "@/components/ui/Methodology";
 import { LabMarkerChart } from "@/components/charts/LabMarkerChart";
 import { CustomIcon, customColorValue } from "@/components/ui/customIcons";
 import { Segmented } from "@/components/ui/Segmented";
+import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
 import { useOverflowFade } from "@/lib/useOverflowFade";
 import { DetailPlaceholder, MedicalSplit, useIsDesktop } from "./MedicalSplit";
 
@@ -189,26 +190,28 @@ export function LabsOverview({
 
   const markerList =
     sort === "panel" ? (
-        <div className="flex flex-col gap-2.5">
+        <div className="flex flex-col gap-4">
           {shownSections.map((s) => (
-            <Card key={s.id} tier="raw" padded={false} className="px-3.5 py-2.5">
-              <div className="mb-1.5 flex items-center gap-1.5">
+            <div key={s.id} className="flex flex-col gap-1.5">
+              <div className="flex items-center gap-1.5 px-4">
                 {s.icon && (
                   <span style={{ color: customColorValue(s.color) ?? ACCENT }}>
                     <CustomIcon icon={s.icon} size={13} />
                   </span>
                 )}
-                <h3 className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>
+                <h3 className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>
                   {s.name}
                 </h3>
               </div>
-              <div className="flex flex-col">
-                {s.markers.map((m, i) => (
-                  <MarkerRow key={m.id} marker={m} mode={mode} last={i === s.markers.length - 1} active={desktop && m.id === activeId}
-                    onOpen={() => setOpenId(m.id)} />
-                ))}
-              </div>
-            </Card>
+              <Card tier="raw" padded={false} className="px-3.5">
+                <div className="flex flex-col">
+                  {s.markers.map((m, i) => (
+                    <MarkerRow key={m.id} marker={m} mode={mode} last={i === s.markers.length - 1} active={desktop && m.id === activeId}
+                      onOpen={() => setOpenId(m.id)} />
+                  ))}
+                </div>
+              </Card>
+            </div>
           ))}
         </div>
       ) : (
@@ -231,36 +234,39 @@ export function LabsOverview({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <Segmented value={rangeId} onChange={setRangeId} accent={ACCENT} options={LAB_RANGES.map((r) => [r.id, r.label] as const)} />
-          {actions && <div className="ml-auto flex items-center gap-2">{actions}</div>}
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Segmented
-            value={mode}
-            onChange={setMode}
-            accent={ACCENT}
-            options={
-              [
-                ["average", "Average"],
-                ["last", "Last"],
-              ] as const
-            }
+      <div className="flex flex-col gap-2.5">
+        <SegmentedTabs
+          ariaLabel="Time window"
+          activeId={rangeId}
+          onSelect={setRangeId}
+          items={LAB_RANGES.map((r) => ({ id: r.id, label: r.label }))}
+        />
+        <div className="grid grid-cols-2 gap-2.5">
+          <SegmentedTabs
+            ariaLabel="Value shown"
+            activeId={mode}
+            onSelect={setMode}
+            items={[
+              { id: "average", label: "Average" },
+              { id: "last", label: "Last" },
+            ]}
           />
-          <Segmented
-            value={sort}
-            onChange={setSort}
-            accent={ACCENT}
-            options={
-              [
-                ["panel", "Panel"],
-                ["name", "A–Z"],
-              ] as const
-            }
+          <SegmentedTabs
+            ariaLabel="Sort"
+            activeId={sort}
+            onSelect={setSort}
+            items={[
+              { id: "panel", label: "Panel" },
+              { id: "name", label: "A–Z" },
+            ]}
           />
-          {secondaryActions && <div className="ml-auto flex items-center gap-2">{secondaryActions}</div>}
         </div>
+        {(actions || secondaryActions) && (
+          <div className="flex gap-2.5 sm:justify-end [&>*]:flex-1 sm:[&>*]:flex-none [&>*>*]:w-full">
+            {secondaryActions && <div>{secondaryActions}</div>}
+            {actions && <div>{actions}</div>}
+          </div>
+        )}
       </div>
 
       {panelSections.length >= 2 && (
