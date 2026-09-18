@@ -355,18 +355,17 @@ export function JournalTab({ isDemoData, accent }: { isDemoData: boolean; accent
   return (
     <div className="flex flex-col gap-3">
       {isDemoData && <DemoNotice />}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <SearchField value={search} onChange={setSearch} placeholder="Search entries…" />
-          <button
-            type="button"
-            onClick={() => setOldestFirst((v) => !v)}
-            className="rounded-md border px-2.5 py-1.5 text-xs font-medium whitespace-nowrap"
-            style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-secondary)" }}
-          >
-            {oldestFirst ? "Oldest first" : "Newest first"}
-          </button>
-        </div>
+      <div className="flex items-center gap-2">
+        <SearchField value={search} onChange={setSearch} placeholder="Search entries…" className="min-w-0 flex-1" />
+        <button
+          type="button"
+          onClick={() => setOldestFirst((v) => !v)}
+          aria-label={oldestFirst ? "Showing oldest first — tap for newest first" : "Showing newest first — tap for oldest first"}
+          className="min-h-9 shrink-0 rounded-md border px-3 text-sm whitespace-nowrap"
+          style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-secondary)" }}
+        >
+          {oldestFirst ? "Oldest" : "Newest"}
+        </button>
         <PrimaryAction label="New entry" accent={accent} onClick={() => setComposing(true)} />
       </div>
 

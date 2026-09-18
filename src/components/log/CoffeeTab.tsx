@@ -189,7 +189,7 @@ export function CoffeeTab({
                 key={it.id}
                 type="button"
                 onClick={() => openForNewLog(it)}
-                className="flex shrink-0 items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs whitespace-nowrap"
+                className="flex min-h-10 shrink-0 items-center gap-1.5 rounded-md border px-3 text-sm whitespace-nowrap"
                 style={{ background: "var(--surface-1)", borderColor: "var(--border-hairline)", color: "var(--text-secondary)" }}
               >
                 {it.name}
@@ -255,7 +255,7 @@ export function CoffeeTab({
               return (
                 <div
                   key={log.id}
-                  className="flex flex-wrap items-center gap-3 rounded-lg border p-2.5"
+                  className="flex flex-wrap items-center gap-3 rounded-xl border p-2.5"
                   style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", opacity: busy ? 0.5 : 1 }}
                 >
                   <div className="flex min-w-0 flex-1 flex-col gap-0.5">

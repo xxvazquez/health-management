@@ -39,7 +39,7 @@ export function TimeField({
         type="button"
         onClick={() => setExpanded(true)}
         aria-label="Time: now, tap to change"
-        className="flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium"
+        className="flex min-h-9 items-center gap-1.5 self-start rounded-md border px-3 text-sm"
         style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-secondary)" }}
       >
         <ClockIcon />
@@ -50,7 +50,7 @@ export function TimeField({
 
   const userExpanded = collapsible && expanded && !explicit;
   return (
-    <label className="flex items-center gap-1.5">
+    <label className="flex items-center gap-2 self-start">
       <span aria-hidden="true" style={{ color: "var(--text-secondary)" }}>
         <ClockIcon />
       </span>
@@ -61,7 +61,7 @@ export function TimeField({
         autoFocus={userExpanded}
         onChange={(e) => onChange(e.target.value)}
         onClick={(e) => e.currentTarget.showPicker?.()}
-        className="h-7 rounded-md border px-2.5 text-xs font-medium tabular-nums outline-none transition-colors"
+        className="h-9 rounded-md border px-3 text-sm tabular-nums outline-none transition-colors"
         style={{
           borderColor: explicit ? "var(--series-2)" : "var(--border-hairline)",
           background: "var(--surface-1)",
@@ -75,7 +75,7 @@ export function TimeField({
             onReset?.();
             setExpanded(false);
           }}
-          className="text-xs font-medium"
+          className="text-sm font-medium"
           style={{ color: "var(--ui-accent)" }}
         >
           now

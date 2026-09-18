@@ -194,13 +194,13 @@ function Chip({
       aria-pressed={active}
       aria-label={ariaLabel}
       className={clsx(
-        "flex gap-1.5 rounded-md border px-2.5 py-1.5 text-left text-xs font-normal transition-colors",
-        block ? "w-full items-start" : "items-center whitespace-nowrap",
+        "flex min-h-10 items-center gap-1.5 rounded-md border px-3 text-left text-sm leading-tight transition-colors",
+        block ? "w-full" : "whitespace-nowrap",
       )}
       style={{
         borderColor: active ? accent : "var(--border-hairline)",
-        background: active ? `color-mix(in oklab, ${accent} 14%, var(--surface-1))` : "transparent",
-        color: active ? accent : "var(--text-secondary)",
+        background: active ? `color-mix(in oklab, ${accent} 14%, var(--surface-1))` : "var(--surface-1)",
+        color: active ? accent : "var(--text-primary)",
       }}
     >
       {icon}
@@ -357,14 +357,15 @@ export function StoolTab({
           (border, rounded-lg, colored header) — Bristol type is this tab's
           one "always tappable" grid, so unlike the details below it's never
           collapsed. */}
-      <div className="flex flex-col gap-2 rounded-lg border p-3" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
-        <p className="border-b pb-2 text-xs font-semibold" style={{ color: accent, borderColor: "var(--border-hairline)" }}>
+      <div className="flex flex-col gap-2 rounded-xl border p-3" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
+        <p className="border-b pb-2 text-sm font-medium" style={{ color: "var(--text-primary)", borderColor: "var(--gridline)" }}>
           Bristol type — tap all that apply
         </p>
-        <div className="flex flex-wrap gap-1.5">
+        <div className="grid grid-cols-4 gap-1.5">
           {BRISTOL_SCORES.map((score) => (
             <Chip
               key={score}
+              block
               label={String(score)}
               ariaLabel={`Bristol ${score}`}
               icon={<BristolIcon score={score} size={16} />}
@@ -380,11 +381,11 @@ export function StoolTab({
           affordance (chevron, count badge) as a food category card, just
           collapsed by default since these are extra detail, not the
           primary action. */}
-      <div className="flex flex-col gap-2 rounded-lg border p-3" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
+      <div className="flex flex-col gap-2 rounded-xl border p-3" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
         <button
           type="button"
           onClick={() => setDetailsOpen((v) => !v)}
-          className="flex items-center gap-1.5 text-left text-xs font-semibold"
+          className="flex min-h-9 items-center gap-1.5 text-left text-sm font-medium"
           style={{ color: "var(--text-primary)" }}
         >
           More details
@@ -524,7 +525,7 @@ export function StoolTab({
             return (
               <div
                 key={entry.id}
-                className="flex flex-wrap items-center gap-3 rounded-lg border p-2.5"
+                className="flex flex-wrap items-center gap-3 rounded-xl border p-2.5"
                 style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", opacity: busy ? 0.5 : 1 }}
               >
                 <span className="flex shrink-0 items-center gap-0.5" style={{ color: accent }}>
