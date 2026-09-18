@@ -113,6 +113,10 @@ const COFFEE_ACCENT = "var(--series-slate)";
 
 const EXPANDED_CATEGORIES_STORAGE_KEY = "lauva.log.expandedCategories";
 
+/** Compact tappable chip — the Your usual and Products rows. */
+const FOOD_PILL =
+  "flex min-h-10 items-center gap-1.5 rounded-md border px-3 text-left text-sm leading-tight transition-colors active:opacity-70 disabled:opacity-50";
+
 function categoryStorageKey(itemType: ItemType, category: string): string {
   return `${itemType}:${category}`;
 }
@@ -1325,7 +1329,15 @@ export default function LogPage() {
     setExpandedCategories((prev) => {
       const next = new Set(prev);
       if (next.has(key)) next.delete(key);
-      else next.add(key);
+      else {
+        // Food's categories are long lists, so opening one closes the rest
+        // — the page stays about one category tall.
+        if (tabConfig.type === "food") {
+          const prefix = categoryStorageKey("food", "");
+          for (const k of next) if (k.startsWith(prefix)) next.delete(k);
+        }
+        next.add(key);
+      }
       try {
         window.localStorage.setItem(EXPANDED_CATEGORIES_STORAGE_KEY, JSON.stringify(Array.from(next)));
       } catch {
@@ -1477,19 +1489,23 @@ export default function LogPage() {
     const accent = TYPE_ACCENT.food;
 
     return (
-      <button
-        key={c.key}
-        type="button"
-        onClick={() => handleChipTap(c)}
-        disabled={busy}
-        className="flex min-h-11 w-full items-center gap-2 px-3.5 text-left text-sm break-inside-avoid-column transition-colors disabled:opacity-50 sm:min-h-9"
-        style={{ color: logged ? accent : "var(--text-primary)", fontWeight: logged ? 500 : 400 }}
-      >
-        <span className="w-3 shrink-0 text-center text-xs font-bold" style={{ color: accent }} aria-hidden="true">
-          {logged ? "✓" : ""}
-        </span>
-        <span className="min-w-0">{c.item}</span>
-      </button>
+      <li key={c.key}>
+        <button
+          type="button"
+          onClick={() => handleChipTap(c)}
+          disabled={busy}
+          aria-pressed={logged}
+          className="flex min-h-11 w-full items-center gap-2 pr-3.5 pl-[3.375rem] text-left text-sm transition-colors active:bg-[var(--page-plane)] disabled:opacity-50 lg:pl-3.5"
+          style={{ color: logged ? accent : "var(--text-primary)" }}
+        >
+          <span className="min-w-0 flex-1">{c.item}</span>
+          {logged && (
+            <span aria-hidden="true" className="shrink-0 text-sm font-semibold">
+              ✓
+            </span>
+          )}
+        </button>
+      </li>
     );
   }
 
@@ -2216,11 +2232,11 @@ export default function LogPage() {
                           type="button"
                           onClick={() => handleChipTap(c)}
                           disabled={busy}
-                          className="flex shrink-0 items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs whitespace-nowrap transition-colors disabled:opacity-50"
+                          className={`${FOOD_PILL} shrink-0 whitespace-nowrap`}
                           style={{
-                            background: logged ? `color-mix(in oklab, ${cAccent} 12%, var(--surface-1))` : "var(--surface-1)",
+                            background: logged ? `color-mix(in oklab, ${cAccent} 14%, var(--surface-1))` : "var(--surface-1)",
                             borderColor: logged ? cAccent : "var(--border-hairline)",
-                            color: logged ? cAccent : "var(--text-secondary)",
+                            color: logged ? cAccent : "var(--text-primary)",
                           }}
                         >
                           {logged && <span aria-hidden="true">✓</span>}
@@ -2248,7 +2264,7 @@ export default function LogPage() {
                             type="button"
                             onClick={() => void handleLogProduct(p)}
                             disabled={busy}
-                            className="flex shrink-0 items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs whitespace-nowrap transition-colors disabled:opacity-50"
+                            className={`${FOOD_PILL} shrink-0 whitespace-nowrap`}
                             style={{ background: "var(--surface-1)", borderColor: cAccent, color: cAccent }}
                           >
                             {p.name}
@@ -2264,56 +2280,47 @@ export default function LogPage() {
 
               {tab === "food" ? (
                 groupedByCategory.length > 0 && (
-                  <div className="rounded-2xl border shadow-[var(--shadow-card)] overflow-hidden" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
-                    {groupedByCategory.map((group, gi) => {
+                  <div className="inset-rows rounded-xl border" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
+                    {groupedByCategory.map((group) => {
                       const chrome = categoryChrome("food", group.category);
                       const accent = chrome.color ?? colorForCategorySlot(group.category);
-                      const icon = chrome.iconKey ? <CustomIcon icon={chrome.iconKey} size={13} /> : FOOD_CATEGORY_ICON[group.category];
+                      const icon = chrome.iconKey ? <CustomIcon icon={chrome.iconKey} size={15} /> : FOOD_CATEGORY_ICON[group.category];
                       // Collapse only actually hides anything below `lg` —
                       // desktop always shows every section expanded,
                       // regardless of this saved state.
-                      const collapsed = !expandedCategories.has(categoryStorageKey(tabConfig.type, group.category));
+                      const collapsed = !searchQuery && !expandedCategories.has(categoryStorageKey(tabConfig.type, group.category));
                       return (
-                        <div key={group.category} className={gi > 0 ? "border-t" : undefined} style={{ borderColor: "var(--border-hairline)" }}>
+                        <div key={group.category}>
                           <button
                             type="button"
                             onClick={() => toggleCategoryExpanded(group.category)}
                             aria-expanded={!collapsed}
-                            className="flex min-h-11 w-full items-center gap-1.5 px-3.5 text-left text-xs font-semibold lg:min-h-9"
-                            style={{ color: accent }}
+                            className="flex min-h-11 w-full items-center gap-3 px-3.5 text-left text-sm"
+                            style={{ color: "var(--text-primary)" }}
                           >
-                            {icon}
+                            <span
+                              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md"
+                              style={{ color: accent, background: `color-mix(in oklab, ${accent} 14%, transparent)` }}
+                            >
+                              {icon ?? <span className="text-xs font-semibold">{group.category.charAt(0)}</span>}
+                            </span>
                             {group.category}
-                            <span className="ml-auto flex items-center gap-1 font-medium" style={{ color: "var(--text-secondary)" }}>
+                            <span className="ml-auto flex items-center gap-1.5" style={{ color: "var(--text-muted)" }}>
                               {group.items.length}
-                              <svg
-                                width="12"
-                                height="12"
-                                viewBox="0 0 20 20"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="1.8"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                className="lg:hidden"
-                                style={{ transform: collapsed ? "rotate(-90deg)" : "none", transition: "transform 150ms" }}
-                              >
-                                <path d="M5 7.5 10 12.5 15 7.5" />
-                              </svg>
+                              <span className="lg:hidden">
+                                <ChevronIcon dir={collapsed ? "right" : "down"} size={14} />
+                              </span>
                             </span>
                           </button>
-                          <div
-                            // Single hairline-separated column on a phone; from
-                            // `sm` the rows flow top-to-bottom through several
-                            // columns (CSS multi-column) so the A–Z sort reads
-                            // down each column and a 30-item category stays short.
+                          <ul
                             className={clsx(
-                              "inset-rows [--row-inset:2.25rem] sm:columns-[170px] sm:[&>*]:before:hidden",
-                              collapsed ? "hidden lg:block" : "block",
+                              "inset-rows border-t [--row-inset:3.375rem] lg:grid-cols-3 lg:[--row-inset:0px]",
+                              collapsed ? "hidden lg:grid" : "block lg:grid",
                             )}
+                            style={{ borderColor: "var(--gridline)" }}
                           >
                             {group.items.map((c) => renderChip(c))}
-                          </div>
+                          </ul>
                         </div>
                       );
                     })}
