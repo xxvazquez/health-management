@@ -302,7 +302,7 @@ function ItemRow({
           )}
         </span>
         {item.note && (
-          <p className="mt-0.5 text-[13px] leading-snug" style={{ color: "var(--text-secondary)" }}>
+          <p className="mt-0.5 text-sm leading-snug" style={{ color: "var(--text-secondary)" }}>
             {item.note}
           </p>
         )}
@@ -310,10 +310,10 @@ function ItemRow({
       <div className="flex shrink-0 items-center gap-4">
         {confirmingDelete ? (
           <>
-            <button type="button" onClick={onDelete} className="rounded-md px-2 py-1 text-xs font-semibold" style={{ color: "var(--status-critical)" }}>
+            <button type="button" onClick={onDelete} className="min-h-9 rounded-md px-3 text-sm font-semibold" style={{ color: "var(--status-critical)" }}>
               Delete
             </button>
-            <button type="button" onClick={() => setConfirmingDelete(false)} className="rounded-md px-2 py-1 text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+            <button type="button" onClick={() => setConfirmingDelete(false)} className="min-h-9 rounded-md px-3 text-sm font-medium" style={{ color: "var(--text-muted)" }}>
               Keep
             </button>
           </>
@@ -411,7 +411,7 @@ function CategoryDetail({
 
       <div className="flex items-center gap-3">
         <CategoryGlyph accent={accent} icon={category.icon} size={38} />
-        <h2 className="min-w-0 flex-1 text-lg font-semibold" style={{ color: "var(--text-primary)" }}>
+        <h2 className="min-w-0 flex-1 text-base font-semibold" style={{ color: "var(--text-primary)" }}>
           <TruncatedTooltip text={category.name} />
         </h2>
         <Button href="/manage" variant="tinted" size="xs" accent={accent} className="shrink-0">
@@ -465,7 +465,7 @@ function CopyRow({ label, value }: { label: string; value: string }) {
       </span>
       <div className="flex items-center gap-2">
         <code
-          className="min-w-0 flex-1 truncate rounded-md border px-2 py-1.5 text-xs"
+          className="min-w-0 flex-1 truncate min-h-9 rounded-md border px-3 text-sm"
           style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-secondary)" }}
         >
           {value}
@@ -481,7 +481,7 @@ function CopyRow({ label, value }: { label: string; value: string }) {
               // Clipboard blocked — the value stays visible to select by hand.
             }
           }}
-          className="tap-target shrink-0 rounded-md border px-2.5 py-1.5 text-xs font-medium"
+          className="tap-target shrink-0 min-h-9 rounded-md border px-3 text-sm font-medium"
           style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-secondary)" }}
         >
           {copied ? "Copied" : "Copy"}
@@ -543,7 +543,7 @@ function PhoneSetup({ share, accent, onBack }: { share: WishlistShareToPhone; ac
       </button>
 
       <div>
-        <h2 className="text-lg font-semibold" style={{ color: "var(--text-primary)" }}>
+        <h2 className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>
           Add from your phone
         </h2>
         <p className="mt-1 text-sm" style={{ color: "var(--text-secondary)" }}>
@@ -623,7 +623,7 @@ function PhoneSetup({ share, accent, onBack }: { share: WishlistShareToPhone; ac
               </span>
               <div className="flex items-center gap-2">
                 <code
-                  className="min-w-0 flex-1 truncate rounded-md border px-2 py-1.5 text-xs"
+                  className="min-w-0 flex-1 truncate min-h-9 rounded-md border px-3 text-sm"
                   style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-secondary)" }}
                 >
                   {curl}
@@ -631,7 +631,7 @@ function PhoneSetup({ share, accent, onBack }: { share: WishlistShareToPhone; ac
                 <button
                   type="button"
                   onClick={() => void navigator.clipboard?.writeText(curl).catch(() => {})}
-                  className="tap-target shrink-0 rounded-md border px-2.5 py-1.5 text-xs font-medium"
+                  className="tap-target shrink-0 min-h-9 rounded-md border px-3 text-sm font-medium"
                   style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-secondary)" }}
                 >
                   Copy
@@ -807,7 +807,7 @@ export function WishlistBoard({
             <button
               type="button"
               onClick={() => setView({ mode: "phone" })}
-              className="shrink-0 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors"
+              className="shrink-0 min-h-9 rounded-md border px-3 text-sm font-medium transition-colors"
               style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-secondary)" }}
             >
               From phone

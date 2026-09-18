@@ -14,7 +14,7 @@ export function StatChip({
 }) {
   return (
     <span
-      className="inline-flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 rounded-md border px-2.5 py-1 text-xs"
+      className="inline-flex min-h-9 flex-wrap items-center gap-x-1.5 gap-y-0.5 rounded-md border px-3 py-1 text-sm"
       style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}
     >
       <span style={{ color: "var(--text-secondary)" }}>{label}</span>

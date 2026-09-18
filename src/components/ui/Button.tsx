@@ -13,11 +13,11 @@ type ButtonSize = "xs" | "sm" | "md" | "lg" | "xl";
 // (the FormShell forms — reminders, notes, wishlist, care log, vitals,
 // appointments). xl is the one-off hero-CTA size (404, empty states).
 const SIZE_CLS: Record<ButtonSize, string> = {
-  xs: "px-2.5 py-1 text-xs",
-  sm: "px-3 py-1.5 text-sm",
-  md: "px-3 py-2 text-sm",
-  lg: "px-4 py-2 text-sm",
-  xl: "px-5 py-2 text-sm",
+  xs: "min-h-8 px-3 text-xs",
+  sm: "min-h-9 px-3.5 text-sm",
+  md: "min-h-10 px-4 text-sm",
+  lg: "min-h-11 px-4 text-sm",
+  xl: "min-h-11 px-5 text-sm",
 };
 
 const BASE_CLS = "inline-flex items-center justify-center gap-1.5 rounded-md font-medium whitespace-nowrap transition-colors disabled:opacity-50";

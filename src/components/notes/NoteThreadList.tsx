@@ -177,7 +177,7 @@ export function NoteThreadList({
                 </span>
                 <span className="mt-1 flex items-center gap-1.5 text-xs" style={{ color: "var(--text-muted)" }}>
                   <span
-                    className="inline-flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium"
+                    className="inline-flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-xs font-medium"
                     style={{
                       color: CATEGORY_TONE[t.category],
                       background: `color-mix(in oklab, ${CATEGORY_TONE[t.category]} 13%, var(--surface-1))`,

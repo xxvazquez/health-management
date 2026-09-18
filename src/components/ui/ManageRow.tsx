@@ -97,7 +97,7 @@ export function ManageRow({
       </button>
 
       {open && (
-        <div className="inset-rows border-t" style={{ borderColor: "var(--gridline)", background: "color-mix(in oklab, var(--page-plane) 55%, var(--surface-1))" }}>
+        <div className="inset-rows border-t" style={{ borderColor: "var(--gridline)" }}>
           <form onSubmit={save} className="flex min-h-11 items-center gap-3 px-3.5">
             <span className="shrink-0 text-sm" style={{ color: "var(--text-primary)" }}>
               Name

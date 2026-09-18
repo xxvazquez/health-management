@@ -259,7 +259,7 @@ export function AdherenceCardGrid({
                   type="button"
                   onClick={() => setCategoryFilter(c)}
                   aria-pressed={categoryFilter === c}
-                  className="rounded-md border px-2.5 py-1 text-xs font-medium capitalize transition-colors"
+                  className="min-h-9 rounded-md border px-3 text-sm font-medium capitalize transition-colors"
                   style={{
                     borderColor: categoryFilter === c ? accent : "var(--border-hairline)",
                     background: categoryFilter === c ? `color-mix(in oklab, ${accent} 12%, var(--surface-1))` : "transparent",

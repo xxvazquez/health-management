@@ -139,7 +139,7 @@ export function TabRail<T extends string>({
                 <span
                   role="tooltip"
                   className={clsx(
-                    "pointer-events-none absolute top-full left-1/2 z-10 mt-1.5 -translate-x-1/2 rounded-md px-2 py-1 text-xs font-medium whitespace-nowrap opacity-0 shadow-lg transition-opacity group-hover:opacity-100",
+                    "pointer-events-none absolute top-full left-1/2 z-10 mt-1.5 -translate-x-1/2 min-h-9 rounded-md px-3 text-sm font-medium whitespace-nowrap opacity-0 shadow-lg transition-opacity group-hover:opacity-100",
                     longPressId === t.id && "opacity-100",
                   )}
                   style={{ background: "var(--text-primary)", color: "var(--surface-1)" }}

@@ -93,7 +93,7 @@ export function RatingChips({ value, onChange, accent }: { value: number | null;
             type="button"
             onClick={() => onChange(active ? null : r)}
             aria-pressed={active}
-            className="rounded-md border px-2.5 py-1 text-xs font-semibold tabular-nums transition-colors"
+            className="min-h-9 rounded-md border px-2.5 text-xs font-semibold tabular-nums transition-colors"
             style={{
               borderColor: active ? activeColor : "var(--border-hairline)",
               background: active ? `color-mix(in oklab, ${activeColor} 14%, var(--surface-1))` : "transparent",
@@ -124,7 +124,7 @@ export function LanguageChips({ value, onChange, accent }: { value: DoctorLangua
             type="button"
             onClick={() => onChange(active ? null : lang)}
             aria-pressed={active}
-            className="rounded-md border px-2.5 py-1 text-xs font-medium transition-colors"
+            className="min-h-9 rounded-md border px-2.5 text-xs font-medium transition-colors"
             style={{
               borderColor: active ? accent : "var(--border-hairline)",
               background: active ? `color-mix(in oklab, ${accent} 14%, var(--surface-1))` : "transparent",

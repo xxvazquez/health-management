@@ -191,7 +191,7 @@ export function DateRangeFilter({ span, value, onChange, presets = DEFAULT_PRESE
                 min={span.start}
                 max={value.end}
                 onChange={(e) => onChange({ ...value, start: e.target.value })}
-                className="w-full rounded-md border px-2 py-1 text-xs"
+                className="w-full min-h-9 rounded-md border px-3 text-sm"
                 style={fieldStyle}
               />
               <input
@@ -201,7 +201,7 @@ export function DateRangeFilter({ span, value, onChange, presets = DEFAULT_PRESE
                 min={value.start}
                 max={span.end}
                 onChange={(e) => onChange({ ...value, end: e.target.value })}
-                className="w-full rounded-md border px-2 py-1 text-xs"
+                className="w-full min-h-9 rounded-md border px-3 text-sm"
                 style={fieldStyle}
               />
             </div>

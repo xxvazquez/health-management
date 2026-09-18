@@ -109,7 +109,7 @@ export function BatchResultsView({
     <div className="flex flex-col gap-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h2 className="text-lg font-semibold" style={{ color: "var(--text-primary)" }}>
+          <h2 className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>
             Add results
           </h2>
           <p className="text-xs" style={{ color: "var(--text-muted)" }}>
@@ -162,7 +162,7 @@ export function BatchResultsView({
                   type="button"
                   onClick={() => setPanelFilter(c.id)}
                   aria-pressed={active}
-                  className="rounded-md border px-2.5 py-1 text-xs font-medium transition-colors"
+                  className="min-h-9 rounded-md border px-3 text-sm font-medium transition-colors"
                   style={{
                     borderColor: active ? accent : "var(--border-hairline)",
                     background: active ? `color-mix(in oklab, ${accent} 14%, var(--surface-1))` : "transparent",

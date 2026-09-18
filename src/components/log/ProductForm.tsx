@@ -98,7 +98,7 @@ export function ProductForm({
             {ingredients.map((ing) => (
               <span
                 key={ing}
-                className="flex items-center gap-1 rounded-md border px-2.5 py-1 text-xs font-medium"
+                className="flex items-center gap-1 min-h-9 rounded-md border px-3 text-sm font-medium"
                 style={{ borderColor: "var(--border-hairline)", color: "var(--text-secondary)" }}
               >
                 {ing}
@@ -140,7 +140,7 @@ export function ProductForm({
                 key={s}
                 type="button"
                 onClick={() => addIngredient(s)}
-                className="rounded-md border px-2.5 py-1 text-xs"
+                className="min-h-9 rounded-md border px-3 text-sm"
                 style={{ borderColor: "var(--border-hairline)", color: "var(--text-secondary)", background: "var(--surface-1)" }}
               >
                 + {s}

@@ -89,7 +89,7 @@ export default function ResetPasswordPage() {
                 autoComplete="new-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="rounded-md border px-3 py-2 text-sm outline-none"
+                className="min-h-11 rounded-md border px-3 text-sm outline-none"
                 style={INPUT_STYLE}
               />
             </label>
@@ -101,7 +101,7 @@ export default function ResetPasswordPage() {
                 autoComplete="new-password"
                 value={confirm}
                 onChange={(e) => setConfirm(e.target.value)}
-                className="rounded-md border px-3 py-2 text-sm outline-none"
+                className="min-h-11 rounded-md border px-3 text-sm outline-none"
                 style={INPUT_STYLE}
               />
             </label>

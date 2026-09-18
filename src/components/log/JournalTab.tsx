@@ -120,7 +120,7 @@ function JournalEntryForm({
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Title"
           maxLength={150}
-          className="w-full border-0 bg-transparent px-4 pt-4 pb-3 text-lg font-semibold outline-none"
+          className="w-full border-0 bg-transparent px-4 pt-4 pb-3 text-base font-semibold outline-none"
           style={{ color: "var(--text-primary)" }}
         />
         <MarkdownField value={body} onChange={setBody} placeholder="Write whatever's on your mind…" autoFocus={!editing} />
@@ -205,7 +205,7 @@ function JournalEntryView({
           {journalFullDate(entry.date)}
         </p>
         {entry.title && (
-          <h2 className="mt-1 text-lg font-semibold" style={{ color: "var(--text-primary)" }}>
+          <h2 className="mt-1 text-base font-semibold" style={{ color: "var(--text-primary)" }}>
             {entry.title}
           </h2>
         )}

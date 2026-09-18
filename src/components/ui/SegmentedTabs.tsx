@@ -11,7 +11,7 @@ export interface SegmentedTabItem<T extends string = string> {
   accent?: string;
 }
 
-const BASE = "min-w-0 truncate rounded-md px-3 py-1.5 text-center text-sm transition-colors";
+const BASE = "min-w-0 truncate rounded-md px-2.5 py-1.5 text-center text-sm transition-colors";
 
 function segmentStyle(active: boolean, accent?: string): CSSProperties {
   return {
@@ -50,12 +50,9 @@ export function SegmentedTabs<T extends string>({
   const menuRef = useRef<HTMLDivElement>(null);
   const [visibleCount, setVisibleCount] = useState(items.length);
   // True when every segment can render as an equal `flex-1` share of the
-  // track without the longest label clipping. False means visibleCount was
-  // instead reached by summing each segment's own natural width — which
-  // can still land on visibleCount === items.length (everything fits, just
-  // not evenly) as easily as on a real overflow, so it must render at
-  // natural width either way; see the `hasOverflow` comment below for why
-  // that count alone can't tell the two apart.
+  // track without the longest label clipping. False means the segments size
+  // to their own labels and grow to fill the track — which can still show
+  // every item, just unevenly sized.
   const [equalShare, setEqualShare] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -73,12 +70,9 @@ export function SegmentedTabs<T extends string>({
       const morePlaceholderW = samples[samples.length - 1]?.offsetWidth ?? 60;
       // Once one of the overflowed items is active, the trailing segment
       // shows THAT item's own label (+ chevron) instead of "More" — so the
-      // width reserved for it here has to cover the widest label any item
-      // could contribute, not just the "More" placeholder itself, or
-      // selecting a long-named item later pushes the whole bar past the
-      // container edge (see the Log page tab strip overflowing on
-      // "Workout"/"Cycle").
-      const moreW = Math.max(morePlaceholderW, ...withChevronWidths);
+      // slot reserved for it has to cover the widest label among the items
+      // that would actually overflow (see `moreSlot` below), or selecting a
+      // long-named one later pushes the bar past the container edge.
       const avail = root.clientWidth - 4; // track padding
       // When nothing overflows, every segment renders `flex-1` — an equal
       // share of `avail`, not its own natural width. So "everything fits"
@@ -95,12 +89,13 @@ export function SegmentedTabs<T extends string>({
       // share), so fall back to packing segments at their own natural
       // width instead — this can still fit every item (just unevenly
       // sized) rather than actually needing to fold any into "More".
+      const gap = 2;
       let used = 0;
       let n = 0;
-      for (let i = 0; i < items.length; i++) {
-        if (used + widths[i] + moreW > avail) break;
-        used += widths[i];
-        n += 1;
+      for (let i = 0; i < items.length - 1; i++) {
+        used += widths[i] + gap;
+        const moreSlot = Math.max(morePlaceholderW, ...withChevronWidths.slice(i + 1));
+        if (used + moreSlot <= avail) n = i + 1;
       }
       setVisibleCount(Math.max(1, n));
       setEqualShare(false);
@@ -147,14 +142,13 @@ export function SegmentedTabs<T extends string>({
   const activeInOverflow = overflow.find((t) => t.id === activeId);
 
   return (
-    // The outer element is full-width; the track hugs its content instead
-    // (natural widths, never truncating) whenever an equal share wouldn't
-    // fit the longest label — whether or not that also means some segments
-    // folded into "More". Only a genuine equal share fills the bar.
+    // The track always spans the full width: an equal share per segment when
+    // the longest label clears it, otherwise natural-width segments that grow
+    // to fill the leftover space.
     <div ref={rootRef} className={clsx("relative", className)} style={style}>
       <div
         aria-label={ariaLabel}
-        className={clsx("flex items-stretch gap-0.5 rounded-lg p-0.5", equalShare ? "w-full" : "w-fit")}
+        className="flex w-full items-stretch gap-0.5 rounded-lg p-0.5"
         style={{ background: "var(--segment-track)" }}
       >
         {visible.map((t) => {
@@ -165,7 +159,7 @@ export function SegmentedTabs<T extends string>({
               type="button"
               aria-current={active ? "page" : undefined}
               onClick={() => onSelect(t.id)}
-              className={clsx(BASE, equalShare ? "flex-1" : "shrink-0")}
+              className={clsx(BASE, equalShare ? "flex-1" : "flex-auto")}
               style={segmentStyle(active, t.accent)}
             >
               {t.label}

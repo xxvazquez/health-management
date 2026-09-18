@@ -176,12 +176,12 @@ export function SyncStatusBanner() {
                       <button
                         type="button"
                         onClick={() => void handleDiscard(entry.id)}
-                        className="rounded-md px-2 py-1 text-xs font-semibold"
+                        className="min-h-9 rounded-md px-3 text-sm font-semibold"
                         style={{ color: "var(--status-critical)" }}
                       >
                         Discard
                       </button>
-                      <button type="button" onClick={() => setConfirmingDiscardId(null)} className="rounded-md px-2 py-1 text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+                      <button type="button" onClick={() => setConfirmingDiscardId(null)} className="min-h-9 rounded-md px-3 text-sm font-medium" style={{ color: "var(--text-muted)" }}>
                         Keep
                       </button>
                     </span>
@@ -191,7 +191,7 @@ export function SyncStatusBanner() {
                         type="button"
                         onClick={() => void handleRetry(entry.id)}
                         disabled={retryingId === entry.id || discardingId === entry.id}
-                        className="rounded-md border px-2 py-1 text-xs font-medium disabled:opacity-50"
+                        className="min-h-9 rounded-md border px-3 text-sm font-medium disabled:opacity-50"
                         style={{ borderColor: "var(--border-hairline)", color: "var(--text-secondary)" }}
                       >
                         {retryingId === entry.id ? "Retrying…" : "Retry"}
@@ -201,7 +201,7 @@ export function SyncStatusBanner() {
                         onClick={() => setConfirmingDiscardId(entry.id)}
                         disabled={retryingId === entry.id || discardingId === entry.id}
                         title="Give up on syncing this one — the local copy on this device is untouched"
-                        className="rounded-md border px-2 py-1 text-xs font-medium disabled:opacity-50"
+                        className="min-h-9 rounded-md border px-3 text-sm font-medium disabled:opacity-50"
                         style={{ borderColor: "var(--border-hairline)", color: "var(--text-muted)" }}
                       >
                         {discardingId === entry.id ? "Discarding…" : "Discard"}

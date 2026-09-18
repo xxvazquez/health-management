@@ -56,7 +56,7 @@ export function PatternsDashboard() {
         <Card tier="supporting" className="flex flex-col gap-3">
           <div className="flex flex-wrap items-center gap-2">
             <span
-              className="rounded-md px-2 py-0.5 text-[11px] font-semibold tracking-wide uppercase"
+              className="rounded-md px-2 py-0.5 text-xs font-semibold tracking-wide uppercase"
               style={{ background: "color-mix(in oklab, var(--ui-accent) 15%, var(--surface-1))", color: "var(--ui-accent)" }}
             >
               Strongest signal
@@ -188,7 +188,7 @@ function LagExplorer({ events, workoutLogs }: { events: CanonicalEvent[]; workou
         <select
           value={effectiveCause}
           onChange={(e) => setCause(e.target.value)}
-          className="rounded-md border px-2 py-1.5 text-sm"
+          className="min-h-9 rounded-md border px-3 text-sm"
           style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
         >
           {causeOptions.map((o) => (
@@ -203,7 +203,7 @@ function LagExplorer({ events, workoutLogs }: { events: CanonicalEvent[]; workou
         <select
           value={effectiveOutcome}
           onChange={(e) => setOutcome(e.target.value)}
-          className="rounded-md border px-2 py-1.5 text-sm"
+          className="min-h-9 rounded-md border px-3 text-sm"
           style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
         >
           {outcomeOptions.map((o) => (
@@ -224,7 +224,7 @@ function LagExplorer({ events, workoutLogs }: { events: CanonicalEvent[]; workou
             </div>
             {r.sampleTier !== "insufficient" ? (
               <>
-                <p className="mt-1 text-lg font-semibold tabular-nums" style={{ color: "var(--text-primary)" }}>
+                <p className="mt-1 text-base font-semibold tabular-nums" style={{ color: "var(--text-primary)" }}>
                   {r.diffPct > 0 ? "+" : ""}
                   {r.diffPct} pts
                 </p>
