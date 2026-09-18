@@ -17,7 +17,7 @@ function MenuLink({ href, onClick, children }: { href: string; onClick: () => vo
     <Link
       href={href}
       onClick={onClick}
-      className="-mx-1 flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-[var(--page-plane)]"
+      className="-mx-1 flex items-center gap-2 min-h-9 rounded-md px-3 text-sm font-medium transition-colors hover:bg-[var(--page-plane)]"
       style={{ color: "var(--text-secondary)" }}
     >
       {children}
@@ -183,7 +183,7 @@ export function AccountPanel() {
                   type="button"
                   onClick={() => void syncNow()}
                   disabled={syncing || !isOnline}
-                  className="shrink-0 rounded-md border px-2 py-1 text-xs font-medium disabled:opacity-50"
+                  className="shrink-0 min-h-9 rounded-md border px-3 text-sm font-medium disabled:opacity-50"
                   style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-secondary)" }}
                 >
                   {syncing ? "Syncing…" : "Sync now"}

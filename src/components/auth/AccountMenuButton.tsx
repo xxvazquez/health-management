@@ -69,7 +69,7 @@ export function AccountMenuButton({ collapsed, onOpen }: { collapsed?: boolean; 
     <button
       type="button"
       onClick={handleOpen}
-      className="flex items-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-medium whitespace-nowrap transition-colors"
+      className="flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded-lg border px-3 text-sm font-medium whitespace-nowrap transition-colors"
       style={{
         borderColor: session ? "var(--border-hairline)" : "var(--ui-accent)",
         background: session ? "var(--page-plane)" : "color-mix(in oklab, var(--ui-accent) 14%, var(--surface-1))",

@@ -4,7 +4,7 @@ import clsx from "clsx";
 
 function FeedbackIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
       <path d="M4 5.5h12a1 1 0 0 1 1 1v6.4a1 1 0 0 1-1 1H8l-3.5 2.6V13.9H4a1 1 0 0 1-1-1V6.5a1 1 0 0 1 1-1Z" />
       <path d="M10 8.3h.01M7 8.3h.01M13 8.3h.01" />
     </svg>
@@ -24,7 +24,7 @@ export function BugReportButton({ collapsed, onClick }: { collapsed?: boolean; o
       title="Feedback"
       aria-label="Feedback"
       className={clsx(
-        "flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium whitespace-nowrap transition-colors hover:bg-[var(--page-plane)]",
+        "tap-target flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium whitespace-nowrap transition-colors hover:bg-[var(--page-plane)] lg:py-2",
         collapsed && "justify-center px-0",
       )}
       style={{ color: "var(--text-muted)" }}
