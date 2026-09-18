@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { NOTE_CATEGORY_LABEL, type NoteMessage, type NoteThread } from "@/lib/supabase/notes";
-import { ArchiveIcon, CategoryIcon, EyeOffIcon, ReplyIcon, StarIcon } from "./icons";
+import { CategoryIcon, EyeOffIcon, ReplyIcon, StarIcon } from "./icons";
 import { formatNoteTimestamp } from "./NoteThreadList";
 import { AutoGrowTextarea } from "@/components/ui/AutoGrowTextarea";
 
@@ -156,8 +156,8 @@ export function NoteThreadView({
         <button
           type="button"
           onClick={onBack}
-          className="flex items-center gap-1 text-xs font-medium"
-          style={{ color: "var(--text-secondary)" }}
+          className="flex min-h-9 items-center gap-1 text-sm font-medium"
+          style={{ color: "var(--ui-accent)" }}
         >
           ← Back
         </button>
@@ -168,9 +168,15 @@ export function NoteThreadView({
           <ActionButton onClick={() => void markUnread()} label="Mark as unread" disabled={busy}>
             <EyeOffIcon />
           </ActionButton>
-          <ActionButton onClick={() => void toggleArchive()} active={thread.isArchivedByMe} label={thread.isArchivedByMe ? "Unarchive" : "Archive"} disabled={busy}>
-            <ArchiveIcon />
-          </ActionButton>
+          <button
+            type="button"
+            onClick={() => void toggleArchive()}
+            disabled={busy}
+            className="min-h-9 rounded-md px-2.5 text-sm font-medium disabled:opacity-50"
+            style={{ color: "var(--ui-accent)" }}
+          >
+            {thread.isArchivedByMe ? "Unarchive" : "Archive"}
+          </button>
         </div>
       </div>
 
