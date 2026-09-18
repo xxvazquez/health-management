@@ -37,7 +37,7 @@ export function TruncatedTooltip({ text, className, style }: { text: string; cla
       <span
         role="tooltip"
         className={clsx(
-          "pointer-events-none absolute top-full left-0 z-10 mt-1 max-w-[min(80vw,20rem)] rounded-md px-2 py-1 text-xs font-medium whitespace-normal opacity-0 shadow-lg transition-opacity group-hover:opacity-100",
+          "pointer-events-none absolute top-full left-0 z-10 mt-1 max-w-[min(80vw,20rem)] min-h-9 rounded-md px-3 text-sm font-medium whitespace-normal opacity-0 shadow-lg transition-opacity group-hover:opacity-100",
           pressed && "opacity-100",
         )}
         style={{ background: "var(--text-primary)", color: "var(--surface-1)" }}

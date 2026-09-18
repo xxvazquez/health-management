@@ -51,7 +51,7 @@ export function FollowUpTaskRow({
               onEdit({ description: description.trim(), dueDate: dueDate || null, reminderAt: reminderAt ? new Date(reminderAt).toISOString() : null });
               setEditing(false);
             }}
-            className="rounded-md px-3 py-1.5 text-xs font-semibold text-white"
+            className="min-h-9 rounded-md px-3 text-sm font-semibold text-white"
             style={{ background: accent }}
           >
             Save
@@ -93,10 +93,10 @@ export function FollowUpTaskRow({
       <div className="flex shrink-0 items-center gap-4 self-center">
         {confirmingDelete ? (
           <>
-            <button type="button" onClick={onDelete} className="rounded-md px-2 py-1.5 text-xs font-semibold" style={{ color: "var(--status-critical)" }}>
+            <button type="button" onClick={onDelete} className="min-h-9 rounded-md px-3 text-sm font-semibold" style={{ color: "var(--status-critical)" }}>
               Delete
             </button>
-            <button type="button" onClick={() => setConfirmingDelete(false)} className="rounded-md px-2 py-1.5 text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+            <button type="button" onClick={() => setConfirmingDelete(false)} className="min-h-9 rounded-md px-3 text-sm font-medium" style={{ color: "var(--text-muted)" }}>
               Keep
             </button>
           </>

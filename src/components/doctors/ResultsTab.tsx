@@ -195,7 +195,7 @@ export function ResultsTab({ accent }: { accent: string }) {
             <button
               type="button"
               onClick={() => setView({ mode: "batch" })}
-              className="shrink-0 rounded-md border px-2.5 py-1.5 text-xs font-medium"
+              className="shrink-0 min-h-9 rounded-md border px-3 text-sm font-medium"
               style={{ borderColor: accent, background: `color-mix(in oklab, ${accent} 12%, var(--surface-1))`, color: accent }}
             >
               Add results

@@ -336,7 +336,7 @@ export function StoolTab({
   return (
     <div className="flex flex-col gap-3">
       {editingId && (
-        <div className="flex items-center justify-between rounded-md px-2.5 py-1.5 text-xs font-medium" style={{ background: "var(--page-plane)", color: "var(--text-secondary)" }}>
+        <div className="flex items-center justify-between min-h-9 rounded-md px-3 text-sm font-medium" style={{ background: "var(--page-plane)", color: "var(--text-secondary)" }}>
           Editing an existing entry
           <button type="button" onClick={cancelEdit} className="font-medium" style={{ color: "var(--ui-accent)" }}>
             Cancel
@@ -498,7 +498,7 @@ export function StoolTab({
                 value={draft.note ?? ""}
                 onChange={(e) => setDraft((d) => ({ ...d, note: e.target.value }))}
                 placeholder="Add a note…"
-                className="w-full rounded-md border px-2.5 py-1.5 text-xs outline-none"
+                className="w-full min-h-11 rounded-md border px-3 text-sm outline-none"
                 style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
               />
             </div>

@@ -180,7 +180,7 @@ export function NoteThreadView({
           <span className="text-xs font-semibold tracking-wide uppercase">{NOTE_CATEGORY_LABEL[thread.category]}</span>
         </div>
         {thread.subject && (
-          <h2 className="mt-1 text-lg font-semibold" style={{ color: "var(--text-primary)" }}>
+          <h2 className="mt-1 text-base font-semibold" style={{ color: "var(--text-primary)" }}>
             {thread.subject}
           </h2>
         )}
@@ -227,7 +227,7 @@ export function NoteThreadView({
           rows={2}
           maxRows={8}
           placeholder={`Reply to ${partnerLabel}…`}
-          className="flex-1 resize-none rounded-md border px-3 py-2 text-sm outline-none"
+          className="flex-1 resize-none min-h-20 rounded-md border px-3 text-sm outline-none py-2"
           style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
         />
         <button

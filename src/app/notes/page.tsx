@@ -446,12 +446,13 @@ function NotesHeader({
   return (
     <PageHeading
       accent={ACCENT}
+      actionsBelow
       actions={
         <div className="flex shrink-0 items-center gap-2">
           <button
             type="button"
             onClick={onMarkAllRead}
-            className="rounded-md border px-3 py-1.5 text-sm font-medium"
+            className="min-h-9 rounded-md border px-3 text-sm font-medium"
             style={{ borderColor: "var(--border-hairline)", color: "var(--text-secondary)" }}
           >
             Mark all as read

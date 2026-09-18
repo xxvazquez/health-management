@@ -152,7 +152,7 @@ export function LabsOverview({
           <button
             type="button"
             onClick={onNewMarker}
-            className="rounded-md border px-3 py-1.5 text-xs font-medium"
+            className="min-h-9 rounded-md border px-3 text-sm font-medium"
             style={{ borderColor: ACCENT, background: `color-mix(in oklab, ${ACCENT} 12%, var(--surface-1))`, color: ACCENT }}
           >
             Add a marker
@@ -334,7 +334,7 @@ function FilterChip({ label, active, onClick }: { label: string; active: boolean
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className="shrink-0 rounded-md border px-2.5 py-1 text-xs font-medium whitespace-nowrap transition-colors"
+      className="shrink-0 min-h-9 rounded-md border px-3 text-sm font-medium whitespace-nowrap transition-colors"
       style={{
         borderColor: active ? ACCENT : "var(--border-hairline)",
         background: active ? `color-mix(in oklab, ${ACCENT} 14%, var(--surface-1))` : "var(--surface-1)",
@@ -407,12 +407,12 @@ function MarkerRow({
         >
           {reading != null ? fmtNum(reading) : "—"}
           {marker.unit && (
-            <span className="ml-0.5 text-[9px] font-normal" style={{ color: "var(--text-muted)" }}>
+            <span className="ml-0.5 text-xs font-normal" style={{ color: "var(--text-muted)" }}>
               {marker.unit}
             </span>
           )}
         </span>
-        <span className="block text-[9px] leading-tight tabular-nums" style={{ color: "var(--text-muted)" }}>
+        <span className="block text-xs leading-tight tabular-nums" style={{ color: "var(--text-muted)" }}>
           {subPrefix ? `${subPrefix} · ${sub}` : sub}
         </span>
       </span>
@@ -446,7 +446,7 @@ function MarkerRow({
             style={{ left: `calc(${bar.valuePct}% - 5.5px)`, background: tone, boxShadow: "0 0 0 2.5px var(--surface-1)" }}
           />
           <span
-            className="absolute inset-x-0 top-[15px] flex items-center justify-between gap-1 text-[9px] tabular-nums"
+            className="absolute inset-x-0 top-[15px] flex items-center justify-between gap-1 text-xs tabular-nums"
             style={{ color: "var(--text-muted)" }}
           >
             <span>{fmtNum(bar.trackLow)}</span>
@@ -459,12 +459,12 @@ function MarkerRow({
           </span>
         </span>
       ) : (
-        <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>
+        <span className="text-xs" style={{ color: "var(--text-muted)" }}>
           No range set
         </span>
       )}
 
-      <span className="text-right text-[9.5px] leading-tight" style={{ color: tone }}>
+      <span className="text-right text-xs leading-tight" style={{ color: tone }}>
         {reading != null && basis ? statusWord(status, basis) : ""}
       </span>
     </button>
@@ -476,7 +476,7 @@ function MarkerRow({
 function Stat({ k, v, tone }: { k: string; v: string; tone?: string }) {
   return (
     <div>
-      <div className="text-[10px]" style={{ color: "var(--text-muted)" }}>
+      <div className="text-xs" style={{ color: "var(--text-muted)" }}>
         {k}
       </div>
       <div className="text-sm font-semibold tabular-nums" style={{ color: tone ?? "var(--text-primary)" }}>
@@ -551,7 +551,7 @@ function MarkerDetailView({
       )}
 
       <div>
-        <h2 className="text-lg font-semibold" style={{ color: "var(--text-primary)" }}>
+        <h2 className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>
           {marker.name}
           {marker.unit && (
             <span className="ml-1 text-xs font-normal" style={{ color: "var(--text-muted)" }}>

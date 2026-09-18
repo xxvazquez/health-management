@@ -403,7 +403,7 @@ function MealGroupCard({
             onChange={(e) => setText(e.target.value)}
             autoFocus
             placeholder="Add a note for this meal…"
-            className="min-w-0 flex-1 rounded-md border px-2 py-1 text-xs outline-none"
+            className="min-w-0 flex-1 min-h-11 rounded-md border px-3 text-sm outline-none"
             style={{ borderColor: "var(--border-hairline)", background: "var(--page-plane)", color: "var(--text-primary)" }}
           />
           <button type="submit" className="shrink-0 text-xs font-medium" style={{ color: "var(--status-good)" }}>
@@ -1910,7 +1910,7 @@ export default function LogPage() {
                         key={item}
                         type="button"
                         onClick={() => unhideSeasonalPick(item)}
-                        className="rounded-md border px-2.5 py-1 text-xs font-medium whitespace-nowrap"
+                        className="min-h-9 rounded-md border px-3 text-sm font-medium whitespace-nowrap"
                         style={{ borderColor: "var(--border-hairline)", color: "var(--text-muted)", background: "var(--page-plane)" }}
                       >
                         {item} <span style={{ color: "var(--text-secondary)" }}>· show again</span>
@@ -1929,7 +1929,7 @@ export default function LogPage() {
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between gap-2">
         <h1
-          className="min-w-0 flex-1 border-l-[3px] pl-2.5 text-3xl font-bold tracking-tight lg:text-xl lg:font-semibold"
+          className="min-w-0 flex-1 border-l-[3px] pl-2.5 text-2xl font-bold tracking-tight lg:text-xl lg:font-semibold"
           style={{ borderColor: "var(--baseline)", color: "var(--text-primary)" }}
         >
           Log
@@ -2066,7 +2066,7 @@ export default function LogPage() {
                * ~all the time, collapses to a "now · change" link. */}
               {tabConfig.countable && (
                 <label
-                  className="relative flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-semibold"
+                  className="relative flex items-center gap-1 min-h-9 rounded-md px-3 text-sm font-semibold"
                   style={{
                     background: `color-mix(in oklab, ${TYPE_ACCENT[tabConfig.type]} 14%, var(--surface-1))`,
                     color: TYPE_ACCENT[tabConfig.type],
@@ -2149,13 +2149,13 @@ export default function LogPage() {
                       value={newItemText}
                       onChange={(e) => setNewItemText(e.target.value)}
                       placeholder={tabConfig.placeholder}
-                      className="w-full max-w-xs rounded-md border px-3.5 py-1.5 text-sm outline-none"
+                      className="w-full max-w-xs min-h-11 rounded-md border px-3 text-sm outline-none"
                       style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
                     />
                     <button
                       type="submit"
                       disabled={!newItemText.trim() || pending === "__new__"}
-                      className="rounded-md px-3.5 py-1.5 text-sm font-medium whitespace-nowrap text-white disabled:opacity-40"
+                      className="min-h-9 rounded-md px-3 text-sm font-medium whitespace-nowrap text-white disabled:opacity-40"
                       style={{ background: TYPE_ACCENT[tabConfig.type] }}
                     >
                       + Add &amp; log
@@ -2179,7 +2179,7 @@ export default function LogPage() {
                       <select
                         value={newItemCategory || categoryNamesForTab[0]}
                         onChange={(e) => setNewItemCategory(e.target.value)}
-                        className="rounded-md border px-2 py-1 text-xs"
+                        className="min-h-9 rounded-md border px-3 text-sm"
                         style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
                       >
                         {categoryNamesForTab.map((c) => (

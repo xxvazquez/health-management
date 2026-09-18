@@ -17,6 +17,7 @@ export function PageHeading({
   subtitle,
   accent = "var(--text-muted)",
   actions,
+  actionsBelow = false,
   className,
   as: Heading = "h1",
 }: {
@@ -24,6 +25,9 @@ export function PageHeading({
   subtitle?: ReactNode;
   accent?: string;
   actions?: ReactNode;
+  /** Put `actions` on their own row under the title (for a wide cluster)
+   * instead of beside it, so the menu button stays top-right. */
+  actionsBelow?: boolean;
   className?: string;
   /** `h2` for a heading nested under a page-level `<h1>` (a dashboard tab
    * inside the "Trends" page). Same size, still the area's rule. */
@@ -33,15 +37,16 @@ export function PageHeading({
     <div className={clsx("border-l-[3px] pl-2.5", className)} style={{ borderColor: accent }}>
       <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2">
         <Heading
-          className="min-w-0 text-3xl font-bold tracking-tight text-balance lg:text-xl lg:font-semibold"
+          className="min-w-0 text-2xl font-bold tracking-tight text-balance lg:text-xl lg:font-semibold"
           style={{ color: "var(--text-primary)" }}
         >
           {children}
         </Heading>
         <div className="flex shrink-0 items-center gap-2">
-          {actions}
+          {!actionsBelow && actions}
           <MobileMenuButton />
         </div>
+        {actionsBelow && actions && <div className="flex basis-full items-center gap-2">{actions}</div>}
       </div>
       {subtitle && (
         <p className="mt-1 text-sm" style={{ color: "var(--text-secondary)" }}>

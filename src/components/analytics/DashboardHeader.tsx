@@ -18,7 +18,7 @@ export function DashboardHeader({
 }) {
   return (
     <div className={clsx("flex flex-col gap-1", className)}>
-      <h2 className="text-lg font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
+      <h2 className="text-base font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
         {children}
       </h2>
       {subtitle && (

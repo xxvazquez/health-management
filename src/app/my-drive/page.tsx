@@ -400,7 +400,7 @@ export default function MyDrivePage() {
                     type="button"
                     onClick={loadMore}
                     disabled={listLoadingMore}
-                    className="self-start rounded-md border px-4 py-1.5 text-sm font-medium disabled:opacity-50"
+                    className="self-start min-h-9 rounded-md border px-3 text-sm font-medium disabled:opacity-50"
                     style={{ borderColor: "var(--border-hairline)", color: "var(--text-secondary)" }}
                   >
                     {listLoadingMore ? "Loading…" : "Load more"}

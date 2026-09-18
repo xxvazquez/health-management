@@ -170,7 +170,7 @@ export function DriveFilePicker({ onPick, onClose }: { onPick: (file: DriveAttac
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Search your Drive"
-                  className="w-full rounded-md border px-3 py-2 text-sm"
+                  className="w-full min-h-9 rounded-md border px-3 text-sm"
                   style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
                 />
               </form>
@@ -188,7 +188,7 @@ export function DriveFilePicker({ onPick, onClose }: { onPick: (file: DriveAttac
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploading}
-                className="shrink-0 rounded-md border px-3 py-2 text-sm font-medium disabled:opacity-50"
+                className="shrink-0 min-h-9 rounded-md border px-3 text-sm font-medium disabled:opacity-50"
                 style={{ borderColor: "var(--border-hairline)", color: "var(--text-secondary)" }}
               >
                 {uploading ? "Uploading…" : "Upload"}

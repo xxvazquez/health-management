@@ -126,7 +126,7 @@ export function ComposeNoteDialog({
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
               maxLength={120}
-              className="rounded-md border px-3 py-2 text-sm outline-none"
+              className="min-h-11 rounded-md border px-3 text-sm outline-none"
               style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
             />
           </label>
@@ -139,7 +139,7 @@ export function ComposeNoteDialog({
               onChange={(e) => setBody(e.target.value)}
               rows={5}
               maxRows={10}
-              className="resize-none rounded-md border px-3 py-2 text-sm outline-none"
+              className="resize-none min-h-20 rounded-md border px-3 text-sm outline-none py-2"
               style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
             />
           </label>

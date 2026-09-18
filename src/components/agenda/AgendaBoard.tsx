@@ -41,7 +41,7 @@ function Chip({ active, onClick, children }: { active: boolean; onClick: () => v
     <button
       type="button"
       onClick={onClick}
-      className="rounded-md border px-2.5 py-1 text-xs font-medium whitespace-nowrap transition-colors"
+      className="min-h-9 rounded-md border px-3 text-sm font-medium whitespace-nowrap transition-colors"
       style={{
         borderColor: active ? ACCENT : "var(--border-hairline)",
         background: active ? `color-mix(in oklab, ${ACCENT} 12%, var(--surface-1))` : "transparent",
@@ -82,7 +82,7 @@ function FilterButton({ open, count, onToggle }: { open: boolean; count: number;
       type="button"
       onClick={onToggle}
       aria-expanded={open}
-      className="flex shrink-0 items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-medium transition-colors"
+      className="flex shrink-0 items-center gap-1.5 min-h-9 rounded-md border px-3 text-sm font-medium transition-colors"
       style={{
         borderColor: lit ? ACCENT : "var(--border-hairline)",
         background: lit ? `color-mix(in oklab, ${ACCENT} 12%, var(--surface-1))` : "transparent",
@@ -93,7 +93,7 @@ function FilterButton({ open, count, onToggle }: { open: boolean; count: number;
       Filter
       {count > 0 && (
         <span
-          className="flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-semibold tabular-nums"
+          className="flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-xs font-semibold tabular-nums"
           style={{ background: ACCENT, color: "var(--surface-1)" }}
         >
           {count}
@@ -536,10 +536,10 @@ function AgendaRow({
           {whenEl}
           {confirming ? (
             <span className="flex shrink-0 items-center gap-1">
-              <button type="button" onClick={onConfirmDelete} className="rounded-md px-2 py-1 text-xs font-semibold" style={{ color: "var(--status-critical)" }}>
+              <button type="button" onClick={onConfirmDelete} className="min-h-9 rounded-md px-3 text-sm font-semibold" style={{ color: "var(--status-critical)" }}>
                 Delete
               </button>
-              <button type="button" onClick={onCancelDelete} className="rounded-md px-2 py-1 text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+              <button type="button" onClick={onCancelDelete} className="min-h-9 rounded-md px-3 text-sm font-medium" style={{ color: "var(--text-muted)" }}>
                 Keep
               </button>
             </span>

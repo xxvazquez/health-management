@@ -299,7 +299,7 @@ export function CycleTab({
           <div className="flex flex-col gap-1">
             {status.onPeriod || status.cycleDay != null ? (
               <span
-                className="inline-flex w-fit items-baseline rounded-md px-2.5 py-1 text-sm font-semibold"
+                className="inline-flex w-fit items-center min-h-9 rounded-md px-3 text-sm font-semibold"
                 style={{ background: `color-mix(in oklab, ${accent} 13%, var(--surface-1))`, color: accent }}
               >
                 {status.onPeriod ? `Day ${status.periodDay} of your period` : `Day ${status.cycleDay} of your cycle`}

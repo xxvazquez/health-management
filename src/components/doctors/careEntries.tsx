@@ -412,7 +412,7 @@ export function CareEntryDetail({
 
       <div className="flex flex-col gap-2">
         <CareEntryMeta entry={entry} accent={accent} />
-        <h2 className="text-lg font-semibold" style={{ color: "var(--text-primary)" }}>
+        <h2 className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>
           {entry.title}
         </h2>
       </div>
@@ -478,10 +478,10 @@ export function CareEntryRow({
         >
           {confirmingDelete ? (
             <>
-              <button type="button" onClick={onDelete} className="rounded-md px-2 py-1.5 text-xs font-semibold" style={{ color: "var(--status-critical)" }}>
+              <button type="button" onClick={onDelete} className="min-h-9 rounded-md px-3 text-sm font-semibold" style={{ color: "var(--status-critical)" }}>
                 Delete
               </button>
-              <button type="button" onClick={() => setConfirmingDelete(false)} className="rounded-md px-2 py-1.5 text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+              <button type="button" onClick={() => setConfirmingDelete(false)} className="min-h-9 rounded-md px-3 text-sm font-medium" style={{ color: "var(--text-muted)" }}>
                 Keep
               </button>
             </>

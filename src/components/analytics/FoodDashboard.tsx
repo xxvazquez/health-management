@@ -885,7 +885,7 @@ function MealTypePatternsSection({
         <div className="overflow-x-auto">
           <div className="min-w-[19rem] max-w-[27rem]">
             <div
-              className="grid items-end border-b pb-1.5 text-[10px]"
+              className="grid items-end border-b pb-1.5 text-xs"
               style={{ gridTemplateColumns: MEAL_GRID, borderColor: "var(--gridline)", color: "var(--text-muted)" }}
             >
               <span />
@@ -905,13 +905,13 @@ function MealTypePatternsSection({
                   borderBottom: i < matrix.length - 1 ? "1px solid var(--border-hairline)" : undefined,
                 }}
               >
-                <span className="truncate pr-2 text-right text-[13px] font-medium" style={{ color: "var(--text-secondary)" }}>
+                <span className="truncate pr-2 text-right text-sm font-medium" style={{ color: "var(--text-secondary)" }}>
                   {r.item}
                 </span>
                 {MEAL_TAG_ORDER.map((m) => (
                   <MealHeatCell key={m} count={r.countsByMeal[m] ?? 0} meal={m} />
                 ))}
-                <span className="text-right text-[11px] tabular-nums" style={{ color: "var(--text-muted)" }}>
+                <span className="text-right text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>
                   {r.total}
                 </span>
               </div>

@@ -51,7 +51,7 @@ export function PartnerLinkPanel({ onLinked }: { onLinked: () => void }) {
   return (
     <div className="mx-auto flex max-w-md flex-col gap-4">
       <div>
-        <h1 className="text-xl font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
+        <h1 className="text-2xl font-semibold lg:text-xl tracking-tight" style={{ color: "var(--text-primary)" }}>
           Connect with your partner
         </h1>
         <p className="mt-1 text-sm" style={{ color: "var(--text-secondary)" }}>
@@ -77,7 +77,7 @@ export function PartnerLinkPanel({ onLinked }: { onLinked: () => void }) {
             type="button"
             onClick={() => void handleGenerate()}
             disabled={generating}
-            className="w-full rounded-md px-4 py-2.5 text-sm font-medium text-white disabled:opacity-50"
+            className="w-full min-h-9 rounded-md px-3 text-sm font-medium text-white disabled:opacity-50"
             style={{ background: ACCENT }}
           >
             {generating ? "Generating…" : "Generate a code"}
@@ -97,7 +97,7 @@ export function PartnerLinkPanel({ onLinked }: { onLinked: () => void }) {
             value={codeInput}
             onChange={(e) => setCodeInput(e.target.value.toUpperCase())}
             placeholder="e.g. AB3D9KQZ"
-            className="flex-1 rounded-md border px-3 py-2 text-sm tracking-[0.15em] uppercase outline-none"
+            className="flex-1 min-h-9 rounded-md border px-3 text-sm tracking-[0.15em] uppercase outline-none"
             style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
           />
           <Button type="submit" size="lg" accent={ACCENT} disabled={redeeming || !codeInput.trim()} className="shrink-0">

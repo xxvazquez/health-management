@@ -168,7 +168,7 @@ export function VisitsTab({ api, accent }: { api: DoctorsApi; accent: string }) 
           <select
             value={filterSpecialty}
             onChange={(e) => setFilterSpecialty(e.target.value)}
-            className="self-start rounded-md border px-2 py-1.5 text-xs"
+            className="self-start min-h-9 rounded-md border px-3 text-sm"
             style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
           >
             <option value="">All notes</option>
