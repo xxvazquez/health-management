@@ -14,7 +14,7 @@ function ExitIcon() {
 
 /** One-click sign out, always visible next to the account entry when signed
  * in — no need to open the account panel just to find the way out. */
-export function SignOutButton() {
+export function SignOutButton({ collapsed }: { collapsed?: boolean }) {
   const { configured, session, signOut } = useAuth();
 
   if (!configured || !session) return null;
@@ -25,7 +25,7 @@ export function SignOutButton() {
       onClick={() => void signOut()}
       title="Sign out"
       aria-label="Sign out"
-      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border transition-colors hover:opacity-80"
+      className={`flex shrink-0 items-center justify-center border transition-colors hover:opacity-80 ${collapsed ? "h-9 w-9 rounded-full" : "h-11 w-11 rounded-lg"}`}
       style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-secondary)" }}
     >
       <ExitIcon />

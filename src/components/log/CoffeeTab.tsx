@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from "react";
 import { SearchField } from "@/components/ui/SearchField";
-import { FIELD_CLS, FIELD_STYLE, LABEL_CLS, LABEL_STYLE } from "@/components/ui/formField";
 import { CoffeeLogDialog, type CoffeeLogDraft } from "@/components/log/CoffeeLogDialog";
 import type { ResolvedCoffeeOptions } from "@/lib/useCoffeeOptions";
 import type { CoffeeItem, CoffeeLog, NewCoffeeItemInput, NewCoffeeLogInput } from "@/lib/supabase/coffee";
@@ -112,12 +111,12 @@ export function CoffeeTab({
   async function handleAddNew() {
     const name = trimmedSearch;
     if (!name) return;
-    const existing = active.find((it) => normalizeName(it.name) === normalizeName(name));
-    const item = existing ?? (await onAddItem({ name, brand: newBrand, notes: newNotes }));
+    if (!active.some((it) => normalizeName(it.name) === normalizeName(name))) {
+      await onAddItem({ name, brand: newBrand, notes: newNotes });
+    }
     setNewBrand("");
     setNewNotes("");
     setSearch("");
-    openForNewLog(item);
   }
 
   async function handleDialogSave(draft: CoffeeLogDraft) {
@@ -146,34 +145,51 @@ export function CoffeeTab({
       <SearchField value={search} onChange={setSearch} placeholder="Search or add coffee…" className="w-full" />
 
       {showAddNew && (
-        <div className="flex flex-col gap-3 rounded-xl border p-4" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
-          <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-            No match — add &ldquo;{trimmedSearch}&rdquo;?
-          </p>
-          <label className="flex flex-col gap-1.5">
-            <span className={LABEL_CLS} style={LABEL_STYLE}>
-              Brand <span style={{ color: "var(--text-muted)" }}>· optional</span>
-            </span>
-            <input value={newBrand} onChange={(e) => setNewBrand(e.target.value)} className={FIELD_CLS} style={FIELD_STYLE} />
-          </label>
-          <label className="flex flex-col gap-1.5">
-            <span className={LABEL_CLS} style={LABEL_STYLE}>
-              Coffee notes <span style={{ color: "var(--text-muted)" }}>· optional</span>
-            </span>
-            <input value={newNotes} onChange={(e) => setNewNotes(e.target.value)} placeholder="Floral, bright, citrus" className={FIELD_CLS} style={FIELD_STYLE} />
-          </label>
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => void handleAddNew()}
-              className="rounded-md px-3.5 py-1.5 text-sm font-medium whitespace-nowrap text-white"
-              style={{ background: accent }}
-            >
-              + Add &amp; log
-            </button>
-            <button type="button" onClick={() => setSearch("")} className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>
-              Cancel
-            </button>
+        <div className="flex flex-col gap-1.5">
+          <h3 className="px-4 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
+            New coffee
+          </h3>
+          <div className="inset-rows rounded-xl border" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
+            <div className="flex min-h-11 items-center gap-3 px-3.5">
+              <span className="w-16 shrink-0 text-sm" style={{ color: "var(--text-primary)" }}>
+                Name
+              </span>
+              <span className="min-w-0 flex-1 truncate text-right text-sm" style={{ color: "var(--text-secondary)" }}>
+                {trimmedSearch}
+              </span>
+            </div>
+            <label className="flex min-h-11 items-center gap-3 px-3.5">
+              <span className="w-16 shrink-0 text-sm" style={{ color: "var(--text-primary)" }}>
+                Brand
+              </span>
+              <input
+                value={newBrand}
+                onChange={(e) => setNewBrand(e.target.value)}
+                placeholder="Optional"
+                className="min-w-0 flex-1 bg-transparent py-2 text-right text-sm outline-none"
+                style={{ color: "var(--text-secondary)" }}
+              />
+            </label>
+            <label className="flex min-h-11 items-center gap-3 px-3.5">
+              <span className="w-16 shrink-0 text-sm" style={{ color: "var(--text-primary)" }}>
+                Notes
+              </span>
+              <input
+                value={newNotes}
+                onChange={(e) => setNewNotes(e.target.value)}
+                placeholder="Floral, bright, citrus"
+                className="min-w-0 flex-1 bg-transparent py-2 text-right text-sm outline-none"
+                style={{ color: "var(--text-secondary)" }}
+              />
+            </label>
+            <div className="flex min-h-11 items-center justify-between px-3.5">
+              <button type="button" onClick={() => setSearch("")} className="min-h-11 text-sm" style={{ color: "var(--text-secondary)" }}>
+                Cancel
+              </button>
+              <button type="button" onClick={() => void handleAddNew()} className="min-h-11 text-sm font-semibold" style={{ color: "var(--ui-accent)" }}>
+                Add coffee
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -203,7 +219,7 @@ export function CoffeeTab({
         <div className="rounded-2xl border shadow-[var(--shadow-card)] overflow-hidden" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
           {groupedByBrand.map((group, gi) => (
             <div key={group.brand} className={gi > 0 ? "border-t" : undefined} style={{ borderColor: "var(--border-hairline)" }}>
-              <p className="px-3.5 pt-3 pb-1 text-[11px] font-bold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
+              <p className="px-3.5 pt-3 pb-1 text-xs font-bold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
                 {group.brand}
               </p>
               {group.items.map((it) => (

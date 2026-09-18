@@ -15,7 +15,7 @@ import { BugReportButton } from "@/components/BugReportButton";
 import { BugReportDialog } from "@/components/BugReportDialog";
 import { NAV_LABEL } from "@/components/navLabels";
 import { useMobileMenu } from "@/components/MobileMenuProvider";
-import { ThemeToggleButton } from "@/components/ThemeToggleButton";
+import { ThemeToggleRow } from "@/components/ThemeToggleRow";
 
 function IconWrap({ children }: { children: ReactNode }) {
   return (
@@ -281,6 +281,7 @@ function SecondaryNav({ pathname, collapsed, onNavigate }: { pathname: string; c
   return (
     <div className="mt-2 flex flex-col gap-1 border-t pt-3" style={{ borderColor: "var(--gridline)" }}>
       <NavLinkList items={SECONDARY_LINKS} pathname={pathname} collapsed={collapsed} onNavigate={onNavigate} />
+      <ThemeToggleRow collapsed={collapsed} />
     </div>
   );
 }
@@ -359,10 +360,9 @@ export function Nav() {
             </span>
           )}
         </Link>
-        <div className={clsx("mt-5 flex items-center gap-2", collapsed ? "flex-col justify-center" : "px-1")}>
+        <div className={clsx("mt-5 flex items-center gap-2", collapsed && "flex-col justify-center")}>
           <AccountMenuButton collapsed={collapsed} />
-          <SignOutButton />
-          <ThemeToggleButton className={collapsed ? undefined : "ml-auto"} />
+          <SignOutButton collapsed={collapsed} />
         </div>
         <div className="mt-5 flex min-h-0 flex-1 flex-col overflow-y-auto">
           <NavLinks pathname={pathname} collapsed={collapsed} />
@@ -401,7 +401,6 @@ export function Nav() {
             <Wordmark />
           </Link>
           <div className="flex shrink-0 items-center gap-2">
-            <ThemeToggleButton />
             <button
               type="button"
               aria-label="Close menu"
@@ -415,7 +414,7 @@ export function Nav() {
             </button>
           </div>
         </div>
-        <div className="mt-5 flex items-center gap-2 px-1">
+        <div className="mt-5 flex items-center gap-2">
           <AccountMenuButton onOpen={closeMobile} />
           <SignOutButton />
         </div>

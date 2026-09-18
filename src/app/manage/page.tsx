@@ -1301,6 +1301,34 @@ const COFFEE_OPTION_KINDS: { kind: CoffeeOptionKind; title: string; placeholder:
   { kind: "characteristic", title: "Characteristics", placeholder: "e.g. Winey" },
 ];
 
+/** Delete for a coffee — only when no cup has been logged with it (the
+ * database restricts it otherwise); a logged coffee is hidden instead. */
+function CoffeeDeleteRow({ cups, onDelete }: { cups: number; onDelete: () => void }) {
+  const [confirming, setConfirming] = useState(false);
+  return (
+    <div className="flex min-h-11 items-center gap-4 px-3.5">
+      {cups > 0 ? (
+        <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+          Logged {cups} time{cups === 1 ? "" : "s"} — hide it instead of deleting.
+        </p>
+      ) : confirming ? (
+        <>
+          <button type="button" onClick={onDelete} className="min-h-11 text-sm font-semibold" style={{ color: "var(--status-critical)" }}>
+            Delete coffee
+          </button>
+          <button type="button" onClick={() => setConfirming(false)} className="min-h-11 text-sm" style={{ color: "var(--text-secondary)" }}>
+            Keep
+          </button>
+        </>
+      ) : (
+        <button type="button" onClick={() => setConfirming(true)} className="min-h-11 text-sm" style={{ color: "var(--status-critical)" }}>
+          Delete coffee
+        </button>
+      )}
+    </div>
+  );
+}
+
 function demoCoffeeOptionRows(): CoffeeOption[] {
   return COFFEE_OPTION_KINDS.flatMap(({ kind }) =>
     defaultCoffeeOptions(kind).map<CoffeeOption>((label, i) => ({ id: `demo:${kind}:${label}`, kind, label, sortOrder: i, isArchived: false })),
@@ -1513,7 +1541,7 @@ function CoffeeCard({ isDemoData, searchQuery }: { isDemoData: boolean; searchQu
                             void saveItemEdit();
                           }}
                           className="inset-rows border-t"
-                          style={{ borderColor: "var(--gridline)", background: "color-mix(in oklab, var(--page-plane) 55%, var(--surface-1))" }}
+                          style={{ borderColor: "var(--gridline)" }}
                         >
                           {(
                             [
@@ -1542,6 +1570,13 @@ function CoffeeCard({ isDemoData, searchQuery }: { isDemoData: boolean; searchQu
                               Save
                             </button>
                           </div>
+                          <CoffeeDeleteRow
+                            cups={coffee.logs.data.filter((l) => l.itemId === it.id).length}
+                            onDelete={() => {
+                              setEditingItemId(null);
+                              void coffee.items.remove(it.id);
+                            }}
+                          />
                         </form>
                       )}
                     </li>
@@ -1737,7 +1772,7 @@ function DoctorEditRow({
 
   const labelCls = "w-20 shrink-0 text-sm";
   return (
-    <div className="inset-rows border-t" style={{ borderColor: "var(--gridline)", background: "color-mix(in oklab, var(--page-plane) 55%, var(--surface-1))" }}>
+    <div className="inset-rows border-t" style={{ borderColor: "var(--gridline)" }}>
       <label className="flex min-h-11 items-center gap-3 px-3.5">
         <span className={labelCls} style={{ color: "var(--text-primary)" }}>
           Name
@@ -2012,7 +2047,7 @@ function ProductEditRow({
   }
 
   return (
-    <div className="inset-rows border-t" style={{ borderColor: "var(--gridline)", background: "color-mix(in oklab, var(--page-plane) 55%, var(--surface-1))" }}>
+    <div className="inset-rows border-t" style={{ borderColor: "var(--gridline)" }}>
       <label className="flex min-h-11 items-center gap-3 px-3.5">
         <span className="w-16 shrink-0 text-sm" style={{ color: "var(--text-primary)" }}>
           Name
@@ -2542,7 +2577,7 @@ function ItemRow({
       </button>
 
       {open && (
-        <div className="inset-rows border-t" style={{ borderColor: "var(--gridline)", background: "color-mix(in oklab, var(--page-plane) 55%, var(--surface-1))" }}>
+        <div className="inset-rows border-t" style={{ borderColor: "var(--gridline)" }}>
           <form onSubmit={saveName} className="flex min-h-11 items-center gap-3 px-3.5">
             <span className="shrink-0 text-sm" style={{ color: "var(--text-primary)" }}>
               Name

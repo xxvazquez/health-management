@@ -5,6 +5,7 @@ import { useAuth } from "@/lib/supabase/AuthContext";
 import {
   createCoffeeItem,
   createCoffeeLog,
+  deleteCoffeeItem,
   deleteCoffeeLog,
   fetchCoffeeCurrency,
   fetchCoffeeItems,
@@ -110,6 +111,26 @@ export function useCoffee() {
     [isDemo],
   );
 
+  /** Deletes a coffee that has never been logged. One with logged cups is
+   * refused (the database restricts it too) — archive it instead. */
+  const removeItem = useCallback(
+    async (id: string) => {
+      if (logs.some((l) => l.itemId === id)) return false;
+      const previous = items;
+      setItems((prev) => prev.filter((it) => it.id !== id));
+      if (isDemo) return true;
+      try {
+        await deleteCoffeeItem(id);
+        return true;
+      } catch (err) {
+        console.error("deleteCoffeeItem failed", err);
+        setItems(previous);
+        return false;
+      }
+    },
+    [isDemo, items, logs],
+  );
+
   // --- Logs (per cup) ---
   const addLog = useCallback(
     async (input: NewCoffeeLogInput) => {
@@ -182,7 +203,7 @@ export function useCoffee() {
     isDemo,
     loading: !isDemo && loading,
     error,
-    items: { data: items, add: addItem, edit: editItem },
+    items: { data: items, add: addItem, edit: editItem, remove: removeItem },
     logs: { data: logs, add: addLog, edit: editLog, remove: removeLog },
     currency: { value: currency, set: setCurrency },
   };
