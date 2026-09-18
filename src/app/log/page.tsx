@@ -68,6 +68,7 @@ import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
 import { useMeals } from "@/lib/useMeals";
 import { useFoodProducts } from "@/lib/useFoodProducts";
 import type { FoodProduct } from "@/lib/supabase/foodProducts";
+import { ProductForm, type NewProductDraft } from "@/components/log/ProductForm";
 import { TimeField } from "@/components/ui/TimeField";
 import { TruncatedTooltip } from "@/components/ui/TruncatedTooltip";
 import { DemoNotice } from "@/components/ui/DemoNotice";
@@ -494,6 +495,7 @@ export default function LogPage() {
   const [date, setDate] = useState(today);
   const [tab, setTab] = useState<LogTab>("food");
   const [addingNew, setAddingNew] = useState(false);
+  const [addingProduct, setAddingProduct] = useState(false);
   const [newItemCategory, setNewItemCategory] = useState("");
   const [duplicateConflict, setDuplicateConflict] = useState<RawItem | null>(null);
   const [picksOpen, setPicksOpen] = useState(false);
@@ -1226,6 +1228,54 @@ export default function LogPage() {
     setPending(null);
   }
 
+  /** A typed ingredient name -> a food item id: reuses the item already
+   * tracked under that name (bringing it back if archived), otherwise
+   * creates it, guessing its category the way `handleAddNew` does. */
+  async function resolveFoodIngredient(name: string): Promise<string> {
+    const clean = titleCaseFallback(name);
+    const key = normalizeName(clean);
+    const existing = effective.items.find((i) => i.itemType === "food" && normalizeName(i.rawName) === key);
+    if (existing) {
+      if (existing.isArchived) await putItemAndSync({ ...existing, isArchived: false });
+      return existing.identity;
+    }
+    const category = lookupFoodCategory(clean, foodCategoryNames) ?? foodCategoryNames[0];
+    const item: RawItem = {
+      identity: crypto.randomUUID(),
+      itemType: "food",
+      rawName: clean,
+      category,
+      categoryId: await ensureCategoryId("food", category),
+      isArchived: false,
+      createdDate: date,
+      reminderTime: null,
+      unit: null,
+    };
+    await putItemAndSync(item);
+    return item.identity;
+  }
+
+  /** Creates the product with its ingredients, then logs it for the
+   * current meal like a tap on its chip would. */
+  async function handleAddProduct(draft: NewProductDraft) {
+    if (isDemoData) return;
+    setPending("__new-product__");
+    try {
+      const ids: string[] = [];
+      for (const ingredient of draft.ingredients) {
+        const id = await resolveFoodIngredient(ingredient);
+        if (!ids.includes(id)) ids.push(id);
+      }
+      const created = await foodProducts.create({ name: draft.name, brand: draft.brand, ingredientItemIds: ids });
+      setAddingProduct(false);
+      setSearch("");
+      await refreshAfterWrite();
+      if (created) await handleLogProduct(created);
+    } finally {
+      setPending(null);
+    }
+  }
+
   async function handleUnarchiveDuplicate() {
     if (!duplicateConflict) return;
     setPending("__unarchive-duplicate__");
@@ -1716,30 +1766,57 @@ export default function LogPage() {
   const timeIsExplicit = date !== today || Math.abs((logHrs || 0) * 60 + (logMins || 0) - nowMinutes) > 5;
 
   // Searching for a name that isn't tracked offers to add it, in place of a
-  // standing "add" button.
+  // standing "add" button. On Food it can also be added as a product — a
+  // named bundle of ingredients that logs them all at once.
   const searchQuery = search.trim();
+  const activeProducts = foodProducts.data.filter((p) => !p.isArchived);
+  const matchingProducts = tab === "food" && searchQuery ? activeProducts.filter((p) => `${p.name} ${p.brand ?? ""}`.toLowerCase().includes(searchQuery.toLowerCase())) : activeProducts;
   const offerAddFromSearch =
     Boolean(searchQuery) &&
     !addingNew &&
-    !groupedByCategory.some((g) => g.items.some((c) => normalizeName(c.item) === normalizeName(searchQuery)));
+    !addingProduct &&
+    !groupedByCategory.some((g) => g.items.some((c) => normalizeName(c.item) === normalizeName(searchQuery))) &&
+    !(tab === "food" && activeProducts.some((p) => normalizeName(p.name) === normalizeName(searchQuery)));
+  const addRowCls = "flex min-h-11 w-full items-center gap-2 px-3.5 text-left text-sm font-medium";
   const addRow =
     offerAddFromSearch && tabConfig ? (
-      <button
-        type="button"
-        onClick={() => {
-          if (isDemoData) return openPanel();
-          setNewItemText(searchQuery);
-          setAddingNew(true);
-        }}
-        className="flex min-h-11 items-center gap-2 rounded-2xl border px-3.5 text-left text-sm font-medium shadow-[var(--shadow-card)]"
-        style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--ui-accent)" }}
-      >
-        <PlusIcon size={13} />
-        <span className="min-w-0 truncate">
-          {isDemoData ? `Sign in to add “${searchQuery}”` : `Add “${searchQuery}”`}
-        </span>
-      </button>
+      <div className="inset-rows flex flex-col rounded-2xl border shadow-[var(--shadow-card)]" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--ui-accent)" }}>
+        <button
+          type="button"
+          onClick={() => {
+            if (isDemoData) return openPanel();
+            setNewItemText(searchQuery);
+            setAddingNew(true);
+          }}
+          className={addRowCls}
+        >
+          <PlusIcon size={13} />
+          <span className="min-w-0 truncate">{isDemoData ? `Sign in to add “${searchQuery}”` : `Add “${searchQuery}”`}</span>
+        </button>
+        {tab === "food" && !isDemoData && (
+          <button
+            type="button"
+            onClick={() => {
+              setNewItemText(searchQuery);
+              setAddingProduct(true);
+            }}
+            className={addRowCls}
+          >
+            <PlusIcon size={13} />
+            <span className="min-w-0 truncate">Add “{searchQuery}” as a product with ingredients</span>
+          </button>
+        )}
+      </div>
     ) : null;
+
+  // Every food name already tracked or in the catalog — what the product
+  // form suggests while typing an ingredient.
+  const knownFoodNames = useMemo(() => {
+    const names = new Set<string>();
+    for (const i of effective.items) if (i.itemType === "food" && !i.isArchived) names.add(i.rawName);
+    for (const list of Object.values(POLAND_FOOD_CATALOG)) for (const n of list) names.add(n);
+    return Array.from(names).sort((a, b) => a.localeCompare(b));
+  }, [effective.items]);
 
   // A seasonal nudge, not part of the log flow — rendered below the food
   // list rather than above it.
@@ -2043,6 +2120,20 @@ export default function LogPage() {
             </p>
           ) : (
             <div className="flex flex-col gap-3">
+              {addingProduct && (
+                <ProductForm
+                  initialName={newItemText}
+                  knownFoods={knownFoodNames}
+                  accent={TYPE_ACCENT.food}
+                  busy={pending === "__new-product__"}
+                  onSubmit={(draft) => void handleAddProduct(draft)}
+                  onCancel={() => {
+                    setAddingProduct(false);
+                    setNewItemText("");
+                  }}
+                />
+              )}
+
               {addingNew && (
                 <form
                   onSubmit={(e) => {
@@ -2141,14 +2232,13 @@ export default function LogPage() {
                 </div>
               )}
 
-              {tab === "food" && foodProducts.data.filter((p) => !p.isArchived).length > 0 && (
+              {tab === "food" && matchingProducts.length > 0 && (
                 <div className="flex flex-col gap-1.5">
                   <p className="text-xs font-semibold" style={{ color: "var(--text-secondary)" }}>
                     Products
                   </p>
                   <div ref={foodProductsRef} className="no-scrollbar fade-x -mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
-                    {foodProducts.data
-                      .filter((p) => !p.isArchived)
+                    {matchingProducts
                       .map((p) => {
                         const cAccent = TYPE_ACCENT.food;
                         const busy = pending === `product:${p.id}`;
