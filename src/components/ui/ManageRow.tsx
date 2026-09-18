@@ -23,8 +23,8 @@ export interface ManageRowAppearance {
  * Show/Hide toggle, an optional icon/colour picker, and a delete with an
  * inline Delete/Keep confirm. Owns its own edit + confirm state; the
  * parent just supplies the handlers. Used by the Reminder-lists and
- * Doctor-types sections; the item rows have their own richer row (extra
- * per-item controls) built on ItemActionButtons. */
+ * Doctor-types sections; the tracked-item rows have their own richer row
+ * (extra per-item controls) in the Settings page. */
 export function ManageRow({
   name,
   isArchived = false,

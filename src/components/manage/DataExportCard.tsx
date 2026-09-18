@@ -2,9 +2,7 @@
 
 import { useState } from "react";
 import { useAuth } from "@/lib/supabase/AuthContext";
-import { Card } from "@/components/ui/Card";
-import { Button } from "@/components/ui/Button";
-import { FIELD_CLS, FIELD_STYLE } from "@/components/ui/formField";
+import { CollapsibleManageCard, GROUP_CLS, GROUP_STYLE, GroupNote } from "@/components/manage/ManageSection";
 import { buildExport, downloadExport, downloadSectionCsv, EXPORT_SECTIONS, type ExportBundle } from "@/lib/exportData";
 
 /** "Your data" — a one-click JSON download of everything the signed-in
@@ -61,59 +59,49 @@ export function DataExportCard({ isDemoData }: { isDemoData: boolean }) {
     }
   }
 
+  const rowCls = "flex min-h-11 w-full items-center gap-3 px-3.5 text-left text-sm disabled:opacity-50";
+
   return (
-    <Card tier="supporting">
-      <h2 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-        Your data
-      </h2>
-      <p className="mt-1 text-xs" style={{ color: "var(--text-secondary)" }}>
-        Download everything this account owns — every log, note, appointment, lab result and more. JSON is
-        the whole account in one file; CSV gives you a section (or everything) for a spreadsheet, as a single
-        file — a `.zip` when the section has more than one table. Messages with your partner aren&apos;t included.
-      </p>
-
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        <Button type="button" onClick={exportJson} disabled={busy} className="transition-opacity hover:opacity-90">
-          {json === "working" ? "Gathering…" : "Download JSON"}
-        </Button>
-      </div>
-
-      <div className="mt-2 flex flex-wrap items-center gap-2">
-        <select
-          value={sectionLabel}
-          onChange={(e) => setSectionLabel(e.target.value)}
-          disabled={busy}
-          className={FIELD_CLS}
-          style={FIELD_STYLE}
-          aria-label="Section to export as CSV"
-        >
-          {EXPORT_SECTIONS.map((s) => (
-            <option key={s.label} value={s.label}>
-              {s.label}
-            </option>
-          ))}
-        </select>
-        <button
-          type="button"
-          onClick={exportCsv}
-          disabled={busy}
-          className="rounded-md border px-3 py-2 text-sm font-medium transition-colors disabled:opacity-50"
-          style={{ borderColor: "var(--border-hairline)", color: "var(--text-secondary)" }}
-        >
-          {csv === "working" ? "Gathering…" : "Download CSV"}
+    <CollapsibleManageCard title="Your data" bare>
+      <div className={GROUP_CLS} style={GROUP_STYLE}>
+        <button type="button" onClick={exportJson} disabled={busy} className={rowCls} style={{ color: "var(--ui-accent)" }}>
+          {json === "working" ? "Gathering…" : "Download everything (JSON)"}
         </button>
       </div>
+      <GroupNote>Every log, note, appointment, lab result and more that this account owns, in one file. Messages with your partner aren&apos;t included.</GroupNote>
 
-      {note && (
-        <p className="mt-2 text-xs" style={{ color: "var(--text-muted)" }}>
-          {note}
-        </p>
-      )}
+      <div className={`${GROUP_CLS} mt-3`} style={GROUP_STYLE}>
+        <label className="flex min-h-11 items-center gap-3 px-3.5">
+          <span className="shrink-0 text-sm" style={{ color: "var(--text-primary)" }}>
+            Section
+          </span>
+          <select
+            value={sectionLabel}
+            onChange={(e) => setSectionLabel(e.target.value)}
+            disabled={busy}
+            className="min-w-0 flex-1 bg-transparent py-2 text-right text-sm outline-none [text-align-last:right]"
+            style={{ color: "var(--text-secondary)" }}
+            aria-label="Section to export as CSV"
+          >
+            {EXPORT_SECTIONS.map((s) => (
+              <option key={s.label} value={s.label}>
+                {s.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <button type="button" onClick={exportCsv} disabled={busy} className={rowCls} style={{ color: "var(--ui-accent)" }}>
+          {csv === "working" ? "Gathering…" : "Download section (CSV)"}
+        </button>
+      </div>
+      <GroupNote>A single CSV file, or a .zip when the section has more than one table.</GroupNote>
+
+      {note && <GroupNote>{note}</GroupNote>}
       {(json === "error" || csv === "error") && (
-        <p className="mt-2 text-xs" style={{ color: "var(--status-critical)" }}>
+        <p className="px-4 text-xs" style={{ color: "var(--status-critical)" }}>
           Couldn&apos;t build the export — try again in a moment.
         </p>
       )}
-    </Card>
+    </CollapsibleManageCard>
   );
 }

@@ -8,9 +8,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { PageSkeleton } from "@/components/ui/Skeleton";
 import { SearchField } from "@/components/ui/SearchField";
 import { ChevronIcon, CloseIcon } from "@/components/ui/icons";
-import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { ItemNameField, ItemActionButtons, useInlineRename } from "@/components/ui/ItemActions";
 import { ManageRow } from "@/components/ui/ManageRow";
 import { PencilIcon, TrashIcon } from "@/components/ui/Notebook";
 import { PageHeading } from "@/components/ui/PageHeading";
@@ -20,6 +18,8 @@ import { DuplicateItemDialog } from "@/components/ui/DuplicateItemDialog";
 import { DemoNotice } from "@/components/ui/DemoNotice";
 import { PushNotificationsToggle } from "@/components/PushNotificationsToggle";
 import { DataExportCard } from "@/components/manage/DataExportCard";
+import { CollapsibleManageCard, GROUP_CLS, GROUP_STYLE, GroupNote, ManageNavContext, SectionRow, useSectionMode } from "@/components/manage/ManageSection";
+import { SwitchKnob } from "@/components/ui/Switch";
 import { useItemActions, type ManageableItem } from "@/lib/useItemActions";
 import { getAllItems, getAllCategories, getItemIdentitiesWithHistory, withDataLock } from "@/lib/db/indexedDb";
 import { putItemAndSync, deleteCategoryAndSync } from "@/lib/supabase/sync";
@@ -44,7 +44,7 @@ import { fetchHabitReminderTimes, setHabitReminderTime, type HabitReminderTimes 
 import { buildDemoWeightTarget } from "@/lib/demoVitals";
 import { useLabs } from "@/lib/useLabs";
 import { MarkerForm } from "@/components/doctors/labForms";
-import { Segmented } from "@/components/ui/Segmented";
+import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
 import {
   setThemePref,
   useThemePref,
@@ -103,129 +103,74 @@ import type { FoodProduct, FoodProductPatch } from "@/lib/supabase/foodProducts"
 // it controls do.
 const DOMAIN_TOGGLE_ORDER: TrackedDomain[] = ["food", "outcome", "supplement", "habit", "stool", "workout", "cycle", "coffee"];
 
-/** A collapsible section card for the settings blocks (Reminder lists,
- * Doctor types) — same shell, header and count subtitle as the item
- * sections below, so the whole Manage page reads as one list. Starts
- * collapsed; `forceOpen` (a live search) pins it open. */
-function CollapsibleManageCard({
-  title,
-  subtitle,
-  defaultOpen = false,
-  forceOpen = false,
-  children,
-}: {
-  title: string;
-  subtitle?: string;
-  defaultOpen?: boolean;
-  forceOpen?: boolean;
-  children: ReactNode;
-}) {
-  const [open, setOpen] = useState(defaultOpen);
-  const shown = forceOpen || open;
-  return (
-    <Card tier="raw" padded={false}>
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        disabled={forceOpen}
-        aria-expanded={shown}
-        className="flex w-full items-center gap-2 px-4 py-3 text-left"
-      >
-        {!forceOpen && (
-          <span className="shrink-0" style={{ color: "var(--text-muted)" }}>
-            <ChevronIcon dir={shown ? "down" : "right"} size={13} />
-          </span>
-        )}
-        <h3 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-          {title}
-        </h3>
-        {subtitle && (
-          <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-            {subtitle}
-          </span>
-        )}
-      </button>
-      {shown && <div className="px-4 pb-4">{children}</div>}
-    </Card>
-  );
-}
-
-/** One ground-palette option — a small two-tone swatch (page background +
- * accent dot) plus its name, with a ring on the active choice. */
-function PaletteSwatch<T extends string>({ id, active, onClick }: { id: T; active: boolean; onClick: () => void }) {
+/** One palette choice: a swatch (page ground + accent dot), its name, and a
+ * check on the active one. */
+function PaletteRow<T extends string>({ id, active, onClick }: { id: T; active: boolean; onClick: () => void }) {
   const info = PALETTE_INFO[id as LightPalette | DarkPalette];
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      aria-label={info.name}
-      title={info.name}
-      className="flex flex-col items-center gap-1"
-    >
+    <button type="button" onClick={onClick} aria-pressed={active} className="flex min-h-11 w-full items-center gap-3 px-3.5 text-left">
       <span
-        className="flex h-9 w-9 items-center justify-center rounded-full border-2 transition-colors"
-        style={{ background: info.bg, borderColor: active ? info.accent : "var(--border-hairline)" }}
+        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border"
+        style={{ background: info.bg, borderColor: "var(--border-hairline)" }}
       >
-        <span className="h-3.5 w-3.5 rounded-full" style={{ background: info.accent }} />
+        <span className="h-3 w-3 rounded-full" style={{ background: info.accent }} />
       </span>
-      <span className="w-16 text-center text-[11px] leading-tight font-medium" style={{ color: active ? "var(--text-primary)" : "var(--text-muted)" }}>
+      <span className="flex-1 text-sm" style={{ color: "var(--text-primary)" }}>
         {info.name}
       </span>
+      {active && (
+        <span aria-hidden="true" className="text-sm font-semibold" style={{ color: "var(--ui-accent)" }}>
+          ✓
+        </span>
+      )}
     </button>
   );
 }
 
+const THEME_LABEL = { light: "Light", dark: "Dark", system: "System" } as const;
+
 /** Light / Dark / System, plus which ground palette each mode uses — all
  * per-device choices (localStorage, applied by a pre-paint script +
- * ThemeManager), not synced. The palette rows show every option regardless
+ * ThemeManager), not synced. The palette lists show every option regardless
  * of which mode is currently active, since System can resolve to either. */
 function AppearanceCard() {
   const pref = useThemePref();
   const lightPalette = useLightPalette();
   const darkPalette = useDarkPalette();
   return (
-    <Card tier="supporting">
-      <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-        Appearance
-      </p>
-      <p className="mt-0.5 mb-3 text-xs" style={{ color: "var(--text-secondary)" }}>
-        Light, dark, or match your device. This device only.
-      </p>
-      <Segmented
-        value={pref}
-        onChange={setThemePref}
-        options={
-          [
-            ["light", "Light"],
-            ["dark", "Dark"],
-            ["system", "System"],
-          ] as const
-        }
+    <CollapsibleManageCard title="Appearance" subtitle={THEME_LABEL[pref]} bare>
+      <SegmentedTabs
+        ariaLabel="Theme"
+        activeId={pref}
+        onSelect={setThemePref}
+        items={[
+          { id: "light", label: "Light" },
+          { id: "dark", label: "Dark" },
+          { id: "system", label: "System" },
+        ]}
       />
-      <div className="mt-4 flex flex-col gap-3">
-        <div className="flex flex-col gap-1.5">
-          <span className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
-            Light palette
-          </span>
-          <div className="flex gap-3">
-            {LIGHT_PALETTES.map((id) => (
-              <PaletteSwatch key={id} id={id} active={id === lightPalette} onClick={() => setLightPalette(id)} />
-            ))}
-          </div>
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <span className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
-            Dark palette
-          </span>
-          <div className="flex gap-3">
-            {DARK_PALETTES.map((id) => (
-              <PaletteSwatch key={id} id={id} active={id === darkPalette} onClick={() => setDarkPalette(id)} />
-            ))}
-          </div>
+      <GroupNote>Light, dark, or match your device. This device only.</GroupNote>
+      <div className="mt-3 flex flex-col gap-1.5">
+        <h3 className="px-4 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
+          Light palette
+        </h3>
+        <div className={GROUP_CLS} style={GROUP_STYLE}>
+          {LIGHT_PALETTES.map((id) => (
+            <PaletteRow key={id} id={id} active={id === lightPalette} onClick={() => setLightPalette(id)} />
+          ))}
         </div>
       </div>
-    </Card>
+      <div className="mt-3 flex flex-col gap-1.5">
+        <h3 className="px-4 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
+          Dark palette
+        </h3>
+        <div className={GROUP_CLS} style={GROUP_STYLE}>
+          {DARK_PALETTES.map((id) => (
+            <PaletteRow key={id} id={id} active={id === darkPalette} onClick={() => setDarkPalette(id)} />
+          ))}
+        </div>
+      </div>
+    </CollapsibleManageCard>
   );
 }
 
@@ -269,68 +214,70 @@ function VisibleSectionsCard({ isDemoData }: { isDemoData: boolean }) {
     }
   }
 
+  const shownCount = DOMAIN_TOGGLE_ORDER.filter((d) => isVisible(d)).length;
+  const showReminders = !isDemoData && !remindersLoading;
+
   return (
-    <Card tier="supporting">
-      <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-        Visible sections
-      </p>
-      <p className="mt-0.5 mb-3 text-xs" style={{ color: "var(--text-secondary)" }}>
-        Each section appears on the Log page&apos;s tabs (and its Trends dashboard, if it has one) once you&apos;ve
-        logged something in it. Turn one on to start tracking it before then, or off to hide it even once it has
-        data — on this device only. Nothing underneath is deleted or archived.
-        {!isDemoData && " Set a time on any section for a daily reminder to log it — skipped automatically once you already have that day."}
-      </p>
-      <div className="flex flex-wrap gap-x-3 gap-y-2">
+    <CollapsibleManageCard title="Visible sections" subtitle={`${shownCount} of ${DOMAIN_TOGGLE_ORDER.length} on`} bare>
+      <div className={GROUP_CLS} style={GROUP_STYLE}>
         {DOMAIN_TOGGLE_ORDER.map((domain) => {
-          const isHidden = !isVisible(domain);
+          const on = isVisible(domain);
           const reminderTime = reminders[domain];
           const busy = busyDomain === domain;
           return (
-            <span key={domain} className="inline-flex items-center gap-1">
+            <div key={domain}>
               <button
                 type="button"
+                role="switch"
+                aria-checked={on}
                 onClick={() => toggle(domain)}
-                aria-pressed={!isHidden}
-                className="rounded-md border px-2.5 py-1.5 text-xs font-medium whitespace-nowrap transition-colors"
-                style={{
-                  borderColor: isHidden ? "var(--border-hairline)" : "var(--ui-accent)",
-                  background: isHidden ? "transparent" : "color-mix(in oklab, var(--ui-accent) 14%, var(--surface-1))",
-                  color: isHidden ? "var(--text-muted)" : "var(--ui-accent)",
-                  textDecoration: isHidden ? "line-through" : "none",
-                }}
+                className="flex min-h-11 w-full items-center gap-3 px-3.5 text-left"
               >
-                {DOMAIN_LABELS[domain]}
-              </button>
-              {!isDemoData && !remindersLoading && (
-                <span className="flex items-center gap-1">
-                  <input
-                    type="time"
-                    value={reminderTime ?? ""}
-                    disabled={busy}
-                    onChange={(e) => void handleSetReminder(domain, e.target.value || null)}
-                    aria-label={`Reminder time for ${DOMAIN_LABELS[domain]}`}
-                    className="rounded-md border px-1.5 py-1 text-xs outline-none disabled:opacity-40"
-                    style={{ borderColor: "var(--border-hairline)", background: "var(--page-plane)", color: "var(--text-secondary)" }}
-                  />
-                  {reminderTime && (
-                    <button
-                      type="button"
-                      onClick={() => void handleSetReminder(domain, null)}
-                      disabled={busy}
-                      aria-label={`Clear reminder for ${DOMAIN_LABELS[domain]}`}
-                      className="disabled:opacity-40"
-                      style={{ color: "var(--text-muted)" }}
-                    >
-                      <CloseIcon size={11} />
-                    </button>
-                  )}
+                <span className="flex-1 text-sm" style={{ color: "var(--text-primary)" }}>
+                  {DOMAIN_LABELS[domain]}
                 </span>
+                <SwitchKnob on={on} />
+              </button>
+              {showReminders && on && (
+                <label className="flex min-h-11 items-center gap-3 px-3.5">
+                  <span className="text-sm" style={{ color: "var(--text-secondary)" }}>
+                    Daily reminder
+                  </span>
+                  <span className="flex flex-1 items-center justify-end gap-2">
+                    <input
+                      type="time"
+                      value={reminderTime ?? ""}
+                      disabled={busy}
+                      onChange={(e) => void handleSetReminder(domain, e.target.value || null)}
+                      aria-label={`Reminder time for ${DOMAIN_LABELS[domain]}`}
+                      className={FIELD_VALUE}
+                      style={FIELD_VALUE_STYLE}
+                    />
+                    {reminderTime && (
+                      <button
+                        type="button"
+                        onClick={() => void handleSetReminder(domain, null)}
+                        disabled={busy}
+                        className="shrink-0 text-sm font-medium disabled:opacity-40"
+                        style={{ color: "var(--ui-accent)" }}
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </span>
+                </label>
               )}
-            </span>
+            </div>
           );
         })}
       </div>
-    </Card>
+      <GroupNote>
+        A section shows on the Log tabs (and its Trends dashboard, if it has one) once you&apos;ve logged something in it. Turn
+        one on to start tracking it sooner, or off to hide it even with data — on this device only. Nothing is deleted or
+        archived.
+        {!isDemoData && " A daily reminder is skipped automatically once you've already logged that day."}
+      </GroupNote>
+    </CollapsibleManageCard>
   );
 }
 
@@ -2402,6 +2349,10 @@ function displayCategoryNames(itemType: ItemType, rows: RawCategory[]): string[]
   return [...CATEGORIES_BY_TYPE[itemType]];
 }
 
+/** Borderless, right-aligned value that sits in an EditorField row. */
+const FIELD_VALUE = "min-w-0 flex-1 bg-transparent py-2 text-right text-sm outline-none disabled:opacity-40 [text-align-last:right]";
+const FIELD_VALUE_STYLE = { color: "var(--text-secondary)" } as const;
+
 function AddItemForm({
   itemType,
   placeholder,
@@ -2438,31 +2389,39 @@ function AddItemForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-wrap items-center gap-2">
-      <input
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        placeholder={placeholder}
-        className="rounded-md border px-2.5 py-1.5 text-sm leading-5"
-        style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
-      />
-      {needsCategory && (
-        <select
-          value={category}
-          onChange={(e) => setCategory(e.target.value)}
-          className="appearance-none rounded-md border px-2.5 py-1.5 text-sm leading-5"
-          style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
+    <form onSubmit={handleSubmit} className="inset-rows flex flex-col rounded-xl" style={{ background: "var(--surface-1)" }}>
+      <div className="flex min-h-11 items-center gap-2 px-3.5">
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder={placeholder}
+          aria-label={`New ${itemType} name`}
+          className="min-w-0 flex-1 bg-transparent py-2 text-sm outline-none"
+          style={{ color: "var(--text-primary)" }}
+        />
+        <button
+          type="submit"
+          disabled={!trimmed || busy}
+          className="shrink-0 py-2 pl-2 text-sm font-semibold disabled:opacity-40"
+          style={{ color: "var(--ui-accent)" }}
         >
-          {categories.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
-        </select>
+          {busy ? "Adding…" : "Add"}
+        </button>
+      </div>
+      {needsCategory && (
+        <label className="flex min-h-11 items-center gap-3 px-3.5">
+          <span className="shrink-0 text-sm" style={{ color: "var(--text-primary)" }}>
+            Category
+          </span>
+          <select value={category} onChange={(e) => setCategory(e.target.value)} className={FIELD_VALUE} style={FIELD_VALUE_STYLE}>
+            {categories.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+        </label>
       )}
-      <Button type="submit" size="sm" disabled={!trimmed || busy}>
-        {busy ? "Adding…" : "Add"}
-      </Button>
     </form>
   );
 }
@@ -2484,6 +2443,7 @@ function CategoryManager({
   onRemoveCategory: (name: string) => Promise<void>;
   onSetAppearance: (name: string, appearance: { icon: string | null; color: string | null }) => Promise<void>;
 }) {
+  const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -2502,74 +2462,77 @@ function CategoryManager({
   const accentFor = (c: string) => customColorValue(appearanceFor(c).color) ?? typeAccent;
 
   return (
-    <div className="mb-4 rounded-lg border p-3" style={{ borderColor: "var(--gridline)" }}>
-      <p className="mb-2 text-xs font-semibold" style={{ color: "var(--text-secondary)" }}>
-        Categories
-      </p>
-      <div className="flex flex-wrap gap-1.5">
-        {categories.map((c) => {
-          const { icon } = appearanceFor(c);
-          return (
-            <span
-              key={c}
-              className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs whitespace-nowrap"
-              style={{ background: "var(--page-plane)", color: "var(--text-secondary)" }}
-            >
-              <button
-                type="button"
-                onClick={() => setExpanded((prev) => (prev === c ? null : c))}
-                aria-label={`Change ${c}'s icon and colour`}
-                aria-pressed={expanded === c}
-                className="tap-target flex h-5 w-5 items-center justify-center rounded transition-colors hover:bg-[var(--surface-1)]"
-                style={{ color: accentFor(c) }}
-              >
-                <CustomIcon icon={icon} size={13} />
+    <div className="rounded-xl" style={{ background: "var(--surface-1)" }}>
+      <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} className="flex min-h-11 w-full items-center gap-2 px-3.5 text-left">
+        <span className="text-sm" style={{ color: "var(--text-primary)" }}>
+          Categories
+        </span>
+        <span className="ml-auto flex items-center gap-1.5 text-sm" style={{ color: "var(--text-muted)" }}>
+          {categories.length}
+          <ChevronIcon dir={open ? "down" : "right"} size={14} />
+        </span>
+      </button>
+      {open && (
+        <ul className="inset-rows border-t" style={{ borderColor: "var(--gridline)" }}>
+          {categories.map((c) => {
+            const { icon } = appearanceFor(c);
+            return (
+              <li key={c} className="px-3.5">
+                <div className="flex min-h-11 items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setExpanded((prev) => (prev === c ? null : c))}
+                    aria-label={`Change ${c}'s icon and colour`}
+                    aria-pressed={expanded === c}
+                    className="tap-target flex h-7 w-7 shrink-0 items-center justify-center rounded-md"
+                    style={{ color: accentFor(c), background: `color-mix(in oklab, ${accentFor(c)} 14%, transparent)` }}
+                  >
+                    <CustomIcon icon={icon} size={15} />
+                  </button>
+                  <span className="min-w-0 flex-1 truncate text-sm" style={{ color: "var(--text-primary)" }}>
+                    {c}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => void onRemoveCategory(c)}
+                    aria-label={`Remove category ${c}`}
+                    className="tap-target flex h-7 w-7 shrink-0 items-center justify-center"
+                    style={{ color: "var(--text-muted)" }}
+                  >
+                    <CloseIcon size={13} />
+                  </button>
+                </div>
+                {expanded === c && (
+                  <div className="pb-3">
+                    <IconColorPicker
+                      icon={appearanceFor(c).icon}
+                      color={appearanceFor(c).color}
+                      onIconChange={(next) => void onSetAppearance(c, { ...appearanceFor(c), icon: next })}
+                      onColorChange={(color) => void onSetAppearance(c, { ...appearanceFor(c), color })}
+                      accent={accentFor(c)}
+                    />
+                  </div>
+                )}
+              </li>
+            );
+          })}
+          <li>
+            <form onSubmit={handleSubmit} className="flex min-h-11 items-center gap-2 px-3.5">
+              <input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="New category"
+                aria-label="New category name"
+                className="min-w-0 flex-1 bg-transparent py-2 text-sm outline-none"
+                style={{ color: "var(--text-primary)" }}
+              />
+              <button type="submit" disabled={!name.trim() || busy} className="shrink-0 py-2 pl-2 text-sm font-semibold disabled:opacity-40" style={{ color: "var(--ui-accent)" }}>
+                Add
               </button>
-              {c}
-              <button
-                type="button"
-                onClick={() => void onRemoveCategory(c)}
-                aria-label={`Remove category ${c}`}
-                style={{ color: "var(--text-muted)" }}
-              >
-                <CloseIcon size={11} />
-              </button>
-            </span>
-          );
-        })}
-      </div>
-
-      {expanded !== null && (
-        <div className="mt-2.5 flex flex-col gap-1.5 rounded-md border p-2.5" style={{ borderColor: "var(--border-hairline)" }}>
-          <p className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
-            {expanded}
-          </p>
-          <IconColorPicker
-            icon={appearanceFor(expanded).icon}
-            color={appearanceFor(expanded).color}
-            onIconChange={(icon) => void onSetAppearance(expanded, { ...appearanceFor(expanded), icon })}
-            onColorChange={(color) => void onSetAppearance(expanded, { ...appearanceFor(expanded), color })}
-            accent={accentFor(expanded)}
-          />
-        </div>
+            </form>
+          </li>
+        </ul>
       )}
-      <form onSubmit={handleSubmit} className="mt-2.5 flex items-center gap-2">
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Add a category…"
-          className="rounded-md border px-2.5 py-1 text-xs leading-4"
-          style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
-        />
-        <button
-          type="submit"
-          disabled={!name.trim() || busy}
-          className="text-xs font-medium disabled:opacity-40"
-          style={{ color: "var(--ui-accent)" }}
-        >
-          Add
-        </button>
-      </form>
     </div>
   );
 }
@@ -2582,21 +2545,16 @@ function CategoryManager({
  * (creates the row) and archives it in the same step. */
 function CatalogFoodRow({ item, busy, onHide }: { item: ManageableItem; busy: boolean; onHide: () => void }) {
   return (
-    <li className="flex flex-wrap items-center justify-between gap-2 py-2">
-      <span className="flex items-center gap-2">
-        <span className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>
-          {item.item}
-        </span>
-        <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-          not yet tracked · {item.category}
-        </span>
+    <li className="flex min-h-11 items-center gap-2 px-3">
+      <span className="min-w-0 flex-1 truncate text-sm" style={{ color: "var(--text-secondary)" }}>
+        {item.item}
       </span>
       <button
         type="button"
         onClick={onHide}
         disabled={busy}
-        className="text-xs font-medium disabled:opacity-40"
-        style={{ color: "var(--ui-accent)" }}
+        className="tap-target shrink-0 px-1 text-sm disabled:opacity-40"
+        style={{ color: "var(--text-muted)" }}
       >
         Hide
       </button>
@@ -2646,8 +2604,8 @@ function UnitSelect({
         }}
         placeholder="e.g. laps"
         aria-label={`Custom unit for ${itemName}`}
-        className="w-20 rounded-md border px-2 py-1 text-xs leading-4 outline-none disabled:opacity-40"
-        style={{ borderColor: "var(--ui-accent)", background: "var(--surface-1)", color: "var(--text-primary)" }}
+        className={FIELD_VALUE}
+        style={{ color: "var(--ui-accent)" }}
       />
     );
   }
@@ -2661,10 +2619,8 @@ function UnitSelect({
         else onSetUnit(e.target.value);
       }}
       aria-label={`Unit for ${itemName}`}
-      // See the matching comment on ItemRow's category <select> — same
-      // native-chrome-plus-inherited-line-height blowup on iOS without this.
-      className="appearance-none rounded-md border px-2 py-1 text-xs leading-4 disabled:opacity-40"
-      style={{ borderColor: "var(--border-hairline)", background: "var(--page-plane)", color: "var(--text-secondary)" }}
+      className={FIELD_VALUE}
+      style={FIELD_VALUE_STYLE}
     >
       {options.map((u) => (
         <option key={u} value={u}>
@@ -2702,10 +2658,8 @@ function NutritionGroupSelect({
       disabled={busy}
       onChange={(e) => onSetNutritionGroup(e.target.value ? (e.target.value as NutritionGroupId) : null)}
       aria-label={`Nutrition group for ${itemName}`}
-      // See the matching comment on ItemRow's category <select> — same
-      // native-chrome-plus-inherited-line-height blowup on iOS without this.
-      className="appearance-none rounded-md border px-2 py-1 text-xs leading-4 disabled:opacity-40"
-      style={{ borderColor: override ? "var(--ui-accent)" : "var(--border-hairline)", background: "var(--page-plane)", color: "var(--text-secondary)" }}
+      className={FIELD_VALUE}
+      style={{ color: override ? "var(--ui-accent)" : "var(--text-secondary)" }}
     >
       <option value="">Auto ({autoLabel})</option>
       {NUTRITION_GROUPS.map((g) => (
@@ -2717,10 +2671,28 @@ function NutritionGroupSelect({
   );
 }
 
+/** A label on the left and its value on the right — one row per field in
+ * an expanded item, like a Settings form row. */
+function EditorField({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <label className="flex min-h-11 items-center gap-3 px-3.5">
+      <span className="shrink-0 text-sm" style={{ color: "var(--text-primary)" }}>
+        {label}
+      </span>
+      <span className="flex min-w-0 flex-1 items-center justify-end gap-2">{children}</span>
+    </label>
+  );
+}
+
+/** One tracked item: a single tappable line (name, short summary, chevron)
+ * that opens its editor — rename, category, per-type settings, archive and
+ * delete — right below it. Keeping every control behind the tap is what
+ * lets a 150-item list stay a tidy column instead of a wall of pills. */
 function ItemRow({
   item,
   itemType,
   categories,
+  showCategory,
   linkedDecisions,
   busy,
   onArchiveToggle,
@@ -2737,6 +2709,9 @@ function ItemRow({
   item: ManageableItem;
   itemType: ItemType;
   categories: readonly string[] | null;
+  /** Show the category as the row's summary — only when the list isn't
+   * already grouped by it. */
+  showCategory?: boolean;
   /** Supplement only — decision entries explaining this item, newest first. */
   linkedDecisions?: CareEntry[];
   busy: boolean;
@@ -2753,7 +2728,10 @@ function ItemRow({
   onSetNutritionGroup?: (groupId: NutritionGroupId | null) => void;
   onDelete?: () => void;
 }) {
-  const renameState = useInlineRename(item, onRename);
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState(item.item);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+
   if (item.itemIdentity === "" && onHideCatalog) {
     return <CatalogFoodRow item={item} busy={busy} onHide={onHideCatalog} />;
   }
@@ -2763,75 +2741,159 @@ function ItemRow({
   // Delete is only ever offered for an item with zero logged history — see
   // ManageableItem.hasHistory's doc comment for why (an item with any
   // history can't be hard-deleted, only archived).
+  const canDelete = item.hasHistory === false && onDelete;
+
+  const summary =
+    (canRemind && item.reminderTime) ||
+    (canSetUnit && workoutUnitLabel(item.unit ?? "kg")) ||
+    (nutritionGroupOverride && NUTRITION_GROUP_LABEL[nutritionGroupOverride]) ||
+    (showCategory ? item.category : "");
+
+  function saveName(e: FormEvent) {
+    e.preventDefault();
+    const next = draft.trim();
+    if (next && next !== item.item) onRename(next);
+  }
+
   return (
-    <li className="flex min-h-11 flex-col justify-center gap-1 py-1.5">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
-          <ItemNameField item={item} state={renameState} />
-          {categories && onChangeCategory ? (
-            <select
-              value={item.category}
-              disabled={busy}
-              onChange={(e) => onChangeCategory(e.target.value)}
-              // appearance-none strips iOS Safari's native control chrome and
-              // leading-4 pins the line-height, so this select stays the same
-              // compact size as the plain category pills next to it.
-              className="appearance-none rounded-md border px-2 py-1 text-xs leading-4 disabled:opacity-40"
-              style={{ borderColor: "var(--border-hairline)", background: "var(--page-plane)", color: "var(--text-secondary)" }}
-            >
-              {!categories.includes(item.category) && <option value={item.category}>{item.category}</option>}
-              {categories.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
-          ) : (
-            <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-              {item.category}
+    <li>
+      <button
+        type="button"
+        onClick={() => {
+          setDraft(item.item);
+          setConfirmingDelete(false);
+          setOpen((v) => !v);
+        }}
+        aria-expanded={open}
+        className="flex min-h-11 w-full items-center gap-2 px-3.5 text-left"
+      >
+        <span className="min-w-0 flex-1 truncate text-sm" style={{ color: "var(--text-primary)" }}>
+          {item.item}
+        </span>
+        {summary && (
+          <span className="shrink-0 text-sm" style={{ color: "var(--text-muted)" }}>
+            {summary}
+          </span>
+        )}
+        <span className="shrink-0" style={{ color: "var(--text-muted)" }}>
+          <ChevronIcon dir={open ? "down" : "right"} size={14} />
+        </span>
+      </button>
+
+      {open && (
+        <div className="inset-rows border-t" style={{ borderColor: "var(--gridline)", background: "color-mix(in oklab, var(--page-plane) 55%, var(--surface-1))" }}>
+          <form onSubmit={saveName} className="flex min-h-11 items-center gap-3 px-3.5">
+            <span className="shrink-0 text-sm" style={{ color: "var(--text-primary)" }}>
+              Name
             </span>
+            <input
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              aria-label={`Rename ${item.item}`}
+              className={FIELD_VALUE}
+              style={FIELD_VALUE_STYLE}
+            />
+            {draft.trim() && draft.trim() !== item.item && (
+              <button type="submit" disabled={busy} className="shrink-0 py-2 text-sm font-semibold disabled:opacity-40" style={{ color: "var(--ui-accent)" }}>
+                Save
+              </button>
+            )}
+          </form>
+
+          {categories && onChangeCategory && (
+            <EditorField label="Category">
+              <select value={item.category} disabled={busy} onChange={(e) => onChangeCategory(e.target.value)} className={FIELD_VALUE} style={FIELD_VALUE_STYLE}>
+                {!categories.includes(item.category) && <option value={item.category}>{item.category}</option>}
+                {categories.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </EditorField>
+          )}
+          {canSetNutritionGroup && (
+            <EditorField label="Nutrition">
+              <NutritionGroupSelect itemName={item.item} override={nutritionGroupOverride} busy={busy} onSetNutritionGroup={onSetNutritionGroup} />
+            </EditorField>
+          )}
+          {canSetUnit && (
+            <EditorField label="Unit">
+              <UnitSelect unit={item.unit ?? "kg"} knownUnits={knownUnits ?? []} busy={busy} onSetUnit={onSetUnit} itemName={item.item} />
+            </EditorField>
           )}
           {canRemind && (
-            <span className="flex items-center gap-1">
+            <EditorField label="Reminder">
               <input
                 type="time"
                 value={item.reminderTime ?? ""}
                 disabled={busy}
                 onChange={(e) => onSetReminderTime(e.target.value || null)}
                 aria-label={`Reminder time for ${item.item}`}
-                className="rounded-md border px-1.5 py-1 text-xs outline-none disabled:opacity-40"
-                style={{ borderColor: "var(--border-hairline)", background: "var(--page-plane)", color: "var(--text-secondary)" }}
+                className={FIELD_VALUE}
+                style={FIELD_VALUE_STYLE}
               />
               {item.reminderTime && (
                 <button
                   type="button"
                   onClick={() => onSetReminderTime(null)}
                   disabled={busy}
-                  aria-label={`Clear reminder for ${item.item}`}
-                  className="disabled:opacity-40"
-                  style={{ color: "var(--text-muted)" }}
+                  className="shrink-0 text-sm font-medium disabled:opacity-40"
+                  style={{ color: "var(--ui-accent)" }}
                 >
-                  <CloseIcon size={11} />
+                  Clear
                 </button>
               )}
-            </span>
+            </EditorField>
           )}
-          {canSetUnit && <UnitSelect unit={item.unit ?? "kg"} knownUnits={knownUnits ?? []} busy={busy} onSetUnit={onSetUnit} itemName={item.item} />}
-          {canSetNutritionGroup && (
-            <NutritionGroupSelect itemName={item.item} override={nutritionGroupOverride} busy={busy} onSetNutritionGroup={onSetNutritionGroup} />
+          {linkedDecisions && linkedDecisions.length > 0 && (
+            <div className="px-3.5 py-2.5">
+              <SupplementWhyLine decisions={linkedDecisions} />
+            </div>
           )}
+
+          <div className="flex min-h-11 items-center justify-between gap-4 px-3.5">
+            <button
+              type="button"
+              onClick={onArchiveToggle}
+              disabled={busy}
+              className="min-h-11 text-sm disabled:opacity-40"
+              style={{ color: "var(--ui-accent)" }}
+            >
+              {item.isArchived ? "Unarchive" : "Archive"}
+            </button>
+            {canDelete &&
+              (confirmingDelete ? (
+                <span className="flex items-center gap-4">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setConfirmingDelete(false);
+                      onDelete();
+                    }}
+                    className="min-h-11 text-sm font-semibold"
+                    style={{ color: "var(--status-critical)" }}
+                  >
+                    Delete for good
+                  </button>
+                  <button type="button" onClick={() => setConfirmingDelete(false)} className="min-h-11 text-sm" style={{ color: "var(--text-secondary)" }}>
+                    Keep
+                  </button>
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setConfirmingDelete(true)}
+                  disabled={busy}
+                  className="min-h-11 text-sm disabled:opacity-40"
+                  style={{ color: "var(--status-critical)" }}
+                >
+                  Delete
+                </button>
+              ))}
+          </div>
         </div>
-        <span className="flex shrink-0 items-center gap-1">
-          <ItemActionButtons
-            item={item}
-            busy={busy}
-            state={renameState}
-            onArchiveToggle={onArchiveToggle}
-            onDelete={item.hasHistory === false ? onDelete : undefined}
-          />
-        </span>
-      </div>
-      {linkedDecisions && linkedDecisions.length > 0 && <SupplementWhyLine decisions={linkedDecisions} />}
+      )}
     </li>
   );
 }
@@ -2870,6 +2932,10 @@ function SupplementWhyLine({ decisions }: { decisions: CareEntry[] }) {
   );
 }
 
+/** Above this many active items a type's list is grouped by category,
+ * each group collapsed — a long flat list is the thing to avoid. */
+const GROUP_THRESHOLD = 12;
+
 function ItemSection({
   itemType,
   label,
@@ -2878,8 +2944,6 @@ function ItemSection({
   categories,
   decisionsBySupplementId,
   searchQuery,
-  open,
-  onToggleOpen,
   busyIdentity,
   onToggleArchive,
   onRename,
@@ -2904,8 +2968,6 @@ function ItemSection({
   /** Supplement section only — decision care-log entries keyed by supplement id. */
   decisionsBySupplementId?: Map<string, CareEntry[]>;
   searchQuery: string;
-  open: boolean;
-  onToggleOpen: () => void;
   busyIdentity: string | null;
   onToggleArchive: (item: ManageableItem) => void;
   onRename: (item: ManageableItem, name: string) => void;
@@ -2931,50 +2993,158 @@ function ItemSection({
   onDelete: (item: ManageableItem) => void;
 }) {
   const [archivedOpen, setArchivedOpen] = useState(false);
-  const query = searchQuery.trim().toLowerCase();
-  const isSearching = query.length > 0;
+  const [openCategories, setOpenCategories] = useState<Set<string>>(new Set());
+  const [localQuery, setLocalQuery] = useState("");
+  const globalQuery = searchQuery.trim().toLowerCase();
+  const mode = useSectionMode(label, globalQuery.length > 0);
+  const query = globalQuery || localQuery.trim().toLowerCase();
+  const isFiltering = query.length > 0;
   const matches = (i: ManageableItem) => i.item.toLowerCase().includes(query);
 
   const active = items
-    .filter((i) => !i.isArchived && (!isSearching || matches(i)))
+    .filter((i) => !i.isArchived && (!isFiltering || matches(i)))
     .sort((a, b) => a.item.localeCompare(b.item));
   const archived = items
-    .filter((i) => i.isArchived && (!isSearching || matches(i)))
+    .filter((i) => i.isArchived && (!isFiltering || matches(i)))
     .sort((a, b) => a.item.localeCompare(b.item));
+  const activeCount = items.filter((i) => !i.isArchived).length;
+  const archivedCount = items.length - activeCount;
 
   // Every unit already in play across this type's items, plus the built-in
-  // starting suggestions — the select below offers all of them so picking
-  // a unit someone else's exercise already uses is one click, same as
-  // picking an existing category. Units aren't first-class rows (unlike
-  // categories), so this is derived from usage rather than a stored list.
+  // starting suggestions — the select offers all of them so picking a unit
+  // someone else's exercise already uses is one tap, same as picking an
+  // existing category. Units aren't first-class rows (unlike categories),
+  // so this is derived from usage rather than a stored list.
   const knownUnits =
     itemType === "workout"
       ? Array.from(new Set([...WORKOUT_UNITS, ...items.map((i) => i.unit).filter((u): u is WorkoutUnit => Boolean(u))])).sort((a, b) => a.localeCompare(b))
       : [];
 
-  if (isSearching && active.length === 0 && archived.length === 0) return null;
+  if (mode === "hidden") return null;
+  if (globalQuery && active.length === 0 && archived.length === 0) return null;
+  if (mode === "row") {
+    return <SectionRow title={label} subtitle={`${activeCount} active${archivedCount > 0 ? ` · ${archivedCount} archived` : ""}`} />;
+  }
 
-  const sectionOpen = isSearching ? true : open;
-  const archivedSectionOpen = isSearching ? archived.length > 0 : archivedOpen;
+  const groups = new Map<string, ManageableItem[]>();
+  for (const item of active) {
+    const list = groups.get(item.category);
+    if (list) list.push(item);
+    else groups.set(item.category, [item]);
+  }
+  const grouped = items.filter((i) => !i.isArchived).length > GROUP_THRESHOLD;
+  const sortedGroups = Array.from(groups.entries()).sort(([a], [b]) => a.localeCompare(b));
+
+  function toggleCategory(category: string) {
+    setOpenCategories((prev) => {
+      const next = new Set(prev);
+      if (next.has(category)) next.delete(category);
+      else next.add(category);
+      return next;
+    });
+  }
+
+  function renderRow(item: ManageableItem, opts: { archivedRow?: boolean } = {}) {
+    return (
+      <ItemRow
+        key={item.itemIdentity || `catalog:${item.item}`}
+        item={item}
+        itemType={itemType}
+        categories={categories}
+        showCategory={!grouped || opts.archivedRow}
+        linkedDecisions={decisionsBySupplementId?.get(item.itemIdentity)}
+        busy={item.itemIdentity !== "" && busyIdentity === item.itemIdentity}
+        onArchiveToggle={() => onToggleArchive(item)}
+        onRename={(name) => onRename(item, name)}
+        onChangeCategory={(category) => onChangeCategory(item, category)}
+        onHideCatalog={!opts.archivedRow && onHideCatalogFood ? () => void onHideCatalogFood(item.item, item.category) : undefined}
+        onSetReminderTime={onSetReminderTime ? (time) => onSetReminderTime(item, time) : undefined}
+        onSetUnit={onSetUnit ? (unit) => onSetUnit(item, unit) : undefined}
+        knownUnits={knownUnits}
+        nutritionGroupOverride={nutritionGroupOverrides?.[normalizeName(item.item)]}
+        onSetNutritionGroup={onSetNutritionGroup ? (groupId) => onSetNutritionGroup(item, groupId) : undefined}
+        onDelete={() => onDelete(item)}
+      />
+    );
+  }
+
+  const listBox = "inset-rows rounded-xl";
+  const listBoxStyle = { background: "var(--surface-1)" } as const;
 
   return (
-    <Card tier="raw" padded={false}>
-      <button type="button" onClick={onToggleOpen} disabled={isSearching} className="flex w-full items-center gap-2 px-4 py-3 text-left">
-        {!isSearching && (
-          <span className="shrink-0" style={{ color: "var(--text-muted)" }}>
-            <ChevronIcon dir={sectionOpen ? "down" : "right"} size={13} />
-          </span>
-        )}
-        <h3 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+    <div className="flex flex-col gap-1.5">
+      {mode === "inline" && (
+        <h3 className="px-4 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
           {label}
         </h3>
-        <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-          {active.length} active{archived.length > 0 ? ` · ${archived.length} archived` : ""}
-        </span>
-      </button>
+      )}
+      <div className="flex flex-col gap-4">
+        {mode === "detail" && <SearchField value={localQuery} onChange={setLocalQuery} placeholder={`Search ${label.toLowerCase()}…`} className="w-full" />}
 
-      {sectionOpen && (
-        <div className="px-4 pb-4">
+        <AddItemForm itemType={itemType} placeholder={placeholder} categories={categories} onAdd={onAdd} />
+
+        {active.length === 0 ? (
+          <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+            {isFiltering ? "No match." : "Nothing tracked yet."}
+          </p>
+        ) : grouped ? (
+          <div className={listBox} style={listBoxStyle}>
+            {sortedGroups.map(([category, rows]) => {
+              const groupOpen = isFiltering || openCategories.has(category);
+              return (
+                <div key={category}>
+                  <button
+                    type="button"
+                    onClick={() => toggleCategory(category)}
+                    disabled={isFiltering}
+                    aria-expanded={groupOpen}
+                    className="flex min-h-11 w-full items-center gap-2 px-3.5 text-left"
+                  >
+                    <span className="text-sm" style={{ color: "var(--text-primary)" }}>
+                      {category}
+                    </span>
+                    <span className="ml-auto flex items-center gap-1.5 text-sm" style={{ color: "var(--text-muted)" }}>
+                      {rows.length}
+                      {!isFiltering && <ChevronIcon dir={groupOpen ? "down" : "right"} size={14} />}
+                    </span>
+                  </button>
+                  {groupOpen && <ul className="inset-rows border-t" style={{ borderColor: "var(--gridline)" }}>{rows.map((item) => renderRow(item))}</ul>}
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <ul className={listBox} style={listBoxStyle}>
+            {active.map((item) => renderRow(item))}
+          </ul>
+        )}
+
+        {archived.length > 0 && (
+          <div className={listBox} style={listBoxStyle}>
+            <button
+              type="button"
+              onClick={() => setArchivedOpen((v) => !v)}
+              disabled={isFiltering}
+              aria-expanded={isFiltering || archivedOpen}
+              className="flex min-h-11 w-full items-center gap-2 px-3.5 text-left"
+            >
+              <span className="text-sm" style={{ color: "var(--text-primary)" }}>
+                Archived
+              </span>
+              <span className="ml-auto flex items-center gap-1.5 text-sm" style={{ color: "var(--text-muted)" }}>
+                {archived.length}
+                {!isFiltering && <ChevronIcon dir={archivedOpen ? "down" : "right"} size={14} />}
+              </span>
+            </button>
+            {(isFiltering || archivedOpen) && (
+              <ul className="inset-rows border-t opacity-70" style={{ borderColor: "var(--gridline)" }}>
+                {archived.map((item) => renderRow(item, { archivedRow: true }))}
+              </ul>
+            )}
+          </div>
+        )}
+
+        {mode === "detail" && (
           <CategoryManager
             categories={categories}
             appearanceByName={categoryAppearanceByName}
@@ -2983,77 +3153,9 @@ function ItemSection({
             onRemoveCategory={onRemoveCategory}
             onSetAppearance={onSetCategoryAppearance}
           />
-
-          <div className="mb-4">
-            <AddItemForm itemType={itemType} placeholder={placeholder} categories={categories} onAdd={onAdd} />
-          </div>
-
-          {active.length === 0 ? (
-            <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-              Nothing tracked yet.
-            </p>
-          ) : (
-            <ul className="inset-rows flex flex-col">
-              {active.map((item) => (
-                <ItemRow
-                  key={item.itemIdentity || `catalog:${item.item}`}
-                  item={item}
-                  itemType={itemType}
-                  categories={categories}
-                  linkedDecisions={decisionsBySupplementId?.get(item.itemIdentity)}
-                  busy={item.itemIdentity !== "" && busyIdentity === item.itemIdentity}
-                  onArchiveToggle={() => onToggleArchive(item)}
-                  onRename={(name) => onRename(item, name)}
-                  onChangeCategory={(category) => onChangeCategory(item, category)}
-                  onHideCatalog={onHideCatalogFood ? () => void onHideCatalogFood(item.item, item.category) : undefined}
-                  onSetReminderTime={onSetReminderTime ? (time) => onSetReminderTime(item, time) : undefined}
-                  onSetUnit={onSetUnit ? (unit) => onSetUnit(item, unit) : undefined}
-                  knownUnits={knownUnits}
-                  nutritionGroupOverride={nutritionGroupOverrides?.[normalizeName(item.item)]}
-                  onSetNutritionGroup={onSetNutritionGroup ? (groupId) => onSetNutritionGroup(item, groupId) : undefined}
-                  onDelete={() => onDelete(item)}
-                />
-              ))}
-            </ul>
-          )}
-
-          {archived.length > 0 && (
-            <div className="mt-4 border-t pt-3" style={{ borderColor: "var(--gridline)" }}>
-              <button
-                type="button"
-                onClick={() => setArchivedOpen((v) => !v)}
-                disabled={isSearching}
-                className="text-xs font-medium disabled:opacity-100"
-                style={{ color: "var(--ui-accent)" }}
-              >
-                Archived ({archived.length}) — {archivedSectionOpen ? "Hide" : "Show"}
-              </button>
-              {archivedSectionOpen && (
-                <ul className="mt-2 inset-rows flex flex-col opacity-70">
-                  {archived.map((item) => (
-                    <ItemRow
-                      key={item.itemIdentity}
-                      item={item}
-                      itemType={itemType}
-                      categories={categories}
-                      busy={busyIdentity === item.itemIdentity}
-                      onArchiveToggle={() => onToggleArchive(item)}
-                      onRename={(name) => onRename(item, name)}
-                      onChangeCategory={(category) => onChangeCategory(item, category)}
-                      onSetReminderTime={onSetReminderTime ? (time) => onSetReminderTime(item, time) : undefined}
-                      onSetUnit={onSetUnit ? (unit) => onSetUnit(item, unit) : undefined}
-                      nutritionGroupOverride={nutritionGroupOverrides?.[normalizeName(item.item)]}
-                      onSetNutritionGroup={onSetNutritionGroup ? (groupId) => onSetNutritionGroup(item, groupId) : undefined}
-                      onDelete={() => onDelete(item)}
-                    />
-                  ))}
-                </ul>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-    </Card>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -3080,8 +3182,25 @@ export default function ManagePage() {
   // demo dataset's items are all in-memory anyway, so Delete there is
   // always safe and harmless.
   const [itemsWithHistory, setItemsWithHistory] = useState<Set<string>>(new Set());
-  const [openSections, setOpenSections] = useState<Set<ItemType>>(new Set());
   const [searchQuery, setSearchQuery] = useState("");
+  // The section open as its own screen; `null` is the list of sections.
+  // Each open pushes a history entry so the phone's back gesture returns to
+  // the list rather than leaving Settings.
+  const [activeSection, setActiveSection] = useState<string | null>(null);
+  const openSection = useCallback((title: string) => {
+    window.history.pushState({ ...window.history.state, manageSection: title }, "");
+    setActiveSection(title);
+    window.scrollTo(0, 0);
+  }, []);
+  const closeSection = useCallback(() => {
+    if (window.history.state?.manageSection) window.history.back();
+    else setActiveSection(null);
+  }, []);
+  useEffect(() => {
+    const onPop = (e: PopStateEvent) => setActiveSection(e.state?.manageSection ?? null);
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
   const [actionError, setActionError] = useState<string | null>(null);
   // Set when Add matches an existing item's name (active or archived) —
   // surfaced as a dialog instead of silently either creating a duplicate
@@ -3209,15 +3328,6 @@ export default function ManagePage() {
     }
     return map;
   }, [careLog.data]);
-
-  function toggleSection(type: ItemType) {
-    setOpenSections((prev) => {
-      const next = new Set(prev);
-      if (next.has(type)) next.delete(type);
-      else next.add(type);
-      return next;
-    });
-  }
 
   async function handleAdd(itemType: ItemType, name: string, categoryChoice: string): Promise<boolean> {
     const trimmed = titleCaseFallback(name);
@@ -3489,10 +3599,9 @@ export default function ManagePage() {
   if (!isDemoData && rawItems === null) return <PageSkeleton cards={4} />;
   if (status === "empty" && !isDemoData) return <EmptyState />;
 
-  // Every editable grouping in one A–Z list, so the page is predictable to
-  // scan — reminder lists and doctor types sort in with the tracked-item
-  // sections rather than sitting pinned above them.
-  const orderedManageSections: { label: string; el: ReactNode }[] = [
+  // Every editable grouping, keyed by its title — the page lays them out in
+  // the groups below.
+  const manageSections: { label: string; el: ReactNode }[] = [
     { label: "Reminder lists", el: <ReminderListsCard key="reminder-lists" isDemoData={isDemoData} searchQuery={searchQuery} /> },
     { label: "Doctors", el: <DoctorsCard key="doctors" searchQuery={searchQuery} /> },
     {
@@ -3524,8 +3633,6 @@ export default function ManagePage() {
           categories={categoryNamesByType[section.type]}
           decisionsBySupplementId={section.type === "supplement" ? decisionsBySupplementId : undefined}
           searchQuery={searchQuery}
-          open={openSections.has(section.type)}
-          onToggleOpen={() => toggleSection(section.type)}
           busyIdentity={busyIdentity}
           onToggleArchive={(item) => (isDemoData ? demoToggleArchive(item) : void realToggleArchive(item))}
           onRename={(item, name) => (isDemoData ? demoRename(item, name) : void realRename(item, name))}
@@ -3558,37 +3665,81 @@ export default function ManagePage() {
         />
       ),
     })),
-  ].sort((a, b) => a.label.localeCompare(b.label));
+  ];
+  const sectionByLabel = new Map(manageSections.map((sec) => [sec.label, sec.el]));
+  const appSections: { label: string; el: ReactNode }[] = [
+    { label: "Appearance", el: <AppearanceCard key="appearance" /> },
+    { label: "Visible sections", el: <VisibleSectionsCard key="visible-sections" isDemoData={isDemoData} /> },
+    { label: "Your data", el: <DataExportCard key="your-data" isDemoData={isDemoData} /> },
+  ];
+  for (const sec of appSections) sectionByLabel.set(sec.label, sec.el);
+
+  const groups: { title: string; labels: string[] }[] = [
+    { title: "Tracking", labels: ["Food", "Food products", "Symptoms", "Supplements", "Habits", "Workout", "Coffee", "Stool options"] },
+    { title: "Health", labels: ["Doctors", "Doctor types", "Lab results", "Weight goal"] },
+    { title: "Lists", labels: ["Reminder lists", "Wishlist lists"] },
+    { title: "App", labels: ["Appearance", "Visible sections", "Your data"] },
+  ];
+  const isSearching = searchQuery.trim().length > 0;
+  const groupBox = "inset-rows rounded-2xl border shadow-[var(--shadow-card)]";
+  const groupBoxStyle = { borderColor: "var(--border-hairline)", background: "var(--surface-1)" } as const;
 
   return (
-    <div className="flex flex-col gap-5">
-      <div>
-        <PageHeading actions={!isDemoData && <PushNotificationsToggle />}>Settings</PageHeading>
-        {isDemoData && <DemoNotice className="mt-2" />}
-        {actionError && (
-          <p className="mt-2 text-sm" style={{ color: "var(--status-warning)" }}>
-            {actionError}
-          </p>
+    <ManageNavContext.Provider value={{ active: activeSection, open: openSection }}>
+      <div className="flex flex-col gap-5">
+        <div>
+          {activeSection !== null && !isSearching && (
+            <button
+              type="button"
+              onClick={closeSection}
+              className="-ml-1 mb-1 flex min-h-11 items-center gap-0.5 text-sm font-medium"
+              style={{ color: "var(--ui-accent)" }}
+            >
+              <ChevronIcon dir="left" size={16} />
+              Settings
+            </button>
+          )}
+          <PageHeading actions={!isDemoData && activeSection === null && <PushNotificationsToggle />}>
+            {activeSection !== null && !isSearching ? activeSection : "Settings"}
+          </PageHeading>
+          {isDemoData && <DemoNotice className="mt-2" />}
+          {actionError && (
+            <p className="mt-2 text-sm" style={{ color: "var(--status-warning)" }}>
+              {actionError}
+            </p>
+          )}
+        </div>
+
+        {activeSection === null && (
+          <SearchField value={searchQuery} onChange={setSearchQuery} placeholder="Search every item, in every section…" className="w-full" />
         )}
-      </div>
 
-      <AppearanceCard />
-
-      <VisibleSectionsCard isDemoData={isDemoData} />
-
-      <SearchField value={searchQuery} onChange={setSearchQuery} placeholder="Search every item, in every section…" className="w-full" />
-
-      {orderedManageSections.map((s) => s.el)}
-
-      <DataExportCard isDemoData={isDemoData} />
-
-      <Link
-        href="/manage/nutrition-evidence"
-        className="text-sm font-medium"
-        style={{ color: "var(--ui-accent)" }}
-      >
-        Nutrition evidence — the research behind Food Analytics
-      </Link>
+        {activeSection !== null && !isSearching ? (
+          sectionByLabel.get(activeSection)
+        ) : isSearching ? (
+          <div className="flex flex-col gap-3">{manageSections.map((sec) => sec.el)}</div>
+        ) : (
+          groups.map((group) => (
+            <div key={group.title} className="flex flex-col gap-1.5">
+              <h2 className="px-4 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
+                {group.title}
+              </h2>
+              <div className={groupBox} style={groupBoxStyle}>
+                {group.labels.map((label) => sectionByLabel.get(label))}
+                {group.title === "App" && (
+                  <Link href="/manage/nutrition-evidence" className="flex min-h-11 items-center gap-2 px-4">
+                    <span className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
+                      Nutrition evidence
+                    </span>
+                    <span className="ml-auto" style={{ color: "var(--text-muted)" }}>
+                      <ChevronIcon dir="right" size={14} />
+                    </span>
+                  </Link>
+                )}
+              </div>
+            </div>
+          ))
+        )}
 
       {duplicateConflict && (
         <DuplicateItemDialog
@@ -3604,6 +3755,7 @@ export default function ManagePage() {
           }}
         />
       )}
-    </div>
+      </div>
+    </ManageNavContext.Provider>
   );
 }
