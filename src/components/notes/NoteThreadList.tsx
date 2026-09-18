@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { ArchiveIcon, CategoryIcon, EyeIcon, EyeOffIcon, StarIcon } from "./icons";
+import { CategoryIcon, EyeIcon, EyeOffIcon, StarIcon } from "./icons";
 import { ErrorState } from "@/components/ui/EmptyState";
 import { NOTE_CATEGORY_LABEL, type NoteThread, type NoteView } from "@/lib/supabase/notes";
 
@@ -80,7 +80,6 @@ export function NoteThreadList({
   partnerLabel,
   onOpen,
   onToggleFavourite,
-  onToggleArchive,
   onMarkRead,
   onMarkUnread,
   onChanged,
@@ -91,11 +90,10 @@ export function NoteThreadList({
   view: NoteView;
   partnerLabel: string;
   onOpen: (id: string) => void;
-  /** Same four actions the open-thread view exposes, so read/unread,
-   * favourite and archive work without opening a note first. Injected
+  /** Favourite and read/unread work without opening a note first (archive
+   * lives inside the open thread). Injected
    * (not called directly) for the same demo/real split as NoteThreadView. */
   onToggleFavourite: (threadId: string, isMine: boolean, next: boolean) => Promise<void>;
-  onToggleArchive: (threadId: string, isMine: boolean, next: boolean) => Promise<void>;
   onMarkRead: (threadId: string, isMine: boolean) => Promise<void>;
   onMarkUnread: (threadId: string, isMine: boolean) => Promise<void>;
   onChanged: () => void;
@@ -209,14 +207,6 @@ export function NoteThreadList({
                   <EyeOffIcon size={15} />
                 </RowAction>
               )}
-              <RowAction
-                onClick={() => void run(t.id, () => onToggleArchive(t.id, t.isMine, !t.isArchivedByMe))}
-                active={t.isArchivedByMe}
-                label={t.isArchivedByMe ? "Unarchive" : "Archive"}
-                disabled={busy}
-              >
-                <ArchiveIcon size={14} />
-              </RowAction>
             </div>
           </div>
         );

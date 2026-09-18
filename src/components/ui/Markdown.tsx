@@ -45,7 +45,7 @@ export function stripMarkdown(md: string): string {
 }
 
 const TOOLBAR_BTN =
-  "min-w-[1.75rem] rounded-md px-1.5 py-1 text-xs leading-none transition-colors hover:bg-[var(--surface-1)]";
+  "min-h-9 min-w-9 shrink-0 rounded-md px-2 text-sm leading-none whitespace-nowrap transition-colors hover:bg-[var(--surface-1)]";
 
 /** Toolbar buttons must not steal focus from the textarea — otherwise the
  * selection collapses before the click handler can read it. */
@@ -148,26 +148,28 @@ export function MarkdownField({
   return (
     <div className="flex flex-col">
       <div
-        className="flex flex-wrap items-center gap-0.5 border-y px-2 py-1.5"
+        className="flex items-center gap-1 border-y pr-2 pl-2"
         style={{ borderColor: "var(--gridline)", background: "var(--page-backdrop)", color: "var(--text-secondary)" }}
       >
-        <ToolbarButton label="B" name="Bold" extra="font-bold" onPress={() => wrap("**", "bold")} />
-        <ToolbarButton label="I" name="Italic" extra="italic" onPress={() => wrap("_", "italic")} />
-        <ToolbarDivider />
-        <ToolbarButton label="H1" name="Heading" onPress={() => prefixLines("# ")} />
-        <ToolbarButton label="H2" name="Subheading" onPress={() => prefixLines("## ")} />
-        <ToolbarDivider />
-        <ToolbarButton label="List" name="Bulleted list" onPress={() => prefixLines("- ")} />
-        <ToolbarButton label="1." name="Numbered list" onPress={() => prefixLines("1. ", true)} />
-        <ToolbarButton label="Task" name="Checklist" onPress={() => prefixLines("- [ ] ")} />
-        <ToolbarButton label="Quote" name="Quote" onPress={() => prefixLines("> ")} />
-        <ToolbarButton label="Link" name="Link" onPress={insertLink} />
+        <div className="no-scrollbar fade-x flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto py-1">
+          <ToolbarButton label="B" name="Bold" extra="font-bold" onPress={() => wrap("**", "bold")} />
+          <ToolbarButton label="I" name="Italic" extra="italic" onPress={() => wrap("_", "italic")} />
+          <ToolbarDivider />
+          <ToolbarButton label="H1" name="Heading" onPress={() => prefixLines("# ")} />
+          <ToolbarButton label="H2" name="Subheading" onPress={() => prefixLines("## ")} />
+          <ToolbarDivider />
+          <ToolbarButton label="List" name="Bulleted list" onPress={() => prefixLines("- ")} />
+          <ToolbarButton label="1." name="Numbered list" onPress={() => prefixLines("1. ", true)} />
+          <ToolbarButton label="Task" name="Checklist" onPress={() => prefixLines("- [ ] ")} />
+          <ToolbarButton label="Quote" name="Quote" onPress={() => prefixLines("> ")} />
+          <ToolbarButton label="Link" name="Link" onPress={insertLink} />
+        </div>
         <button
           type="button"
           onMouseDown={(e) => e.preventDefault()}
           onClick={() => setPreview((v) => !v)}
-          className={`${TOOLBAR_BTN} ml-auto font-medium`}
-          style={{ background: preview ? "var(--surface-1)" : undefined, color: preview ? "var(--text-primary)" : undefined }}
+          className={`${TOOLBAR_BTN} font-medium`}
+          style={{ color: "var(--ui-accent)" }}
         >
           {preview ? "Write" : "Preview"}
         </button>

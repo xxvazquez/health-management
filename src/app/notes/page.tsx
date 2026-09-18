@@ -320,7 +320,7 @@ export default function NotesPage() {
         <NotesHeader
           onCompose={() => setComposeOpen(true)}
           onMarkAllRead={() => void demoMarkAllRead()}
-          showCompose={!selectedDemoThread}
+          showActions={!selectedDemoThread}
         />
         <DemoNotice />
 
@@ -348,7 +348,6 @@ export default function NotesPage() {
               partnerLabel={DEMO_PARTNER_LABEL}
               onOpen={setSelectedThreadId}
               onToggleFavourite={demoToggleFavourite}
-              onToggleArchive={demoToggleArchive}
               onMarkRead={demoMarkRead}
               onMarkUnread={demoMarkUnread}
               onChanged={() => {}}
@@ -383,7 +382,7 @@ export default function NotesPage() {
       <NotesHeader
         onCompose={() => setComposeOpen(true)}
         onMarkAllRead={() => void handleMarkAllRead()}
-        showCompose={!selectedThread}
+        showActions={!selectedThread}
       />
 
       {selectedThread ? (
@@ -414,7 +413,6 @@ export default function NotesPage() {
             partnerLabel={partnerLabel}
             onOpen={setSelectedThreadId}
             onToggleFavourite={toggleFavourite}
-            onToggleArchive={toggleArchive}
             onMarkRead={markRead}
             onMarkUnread={markUnread}
             onChanged={() => void loadThreads()}
@@ -437,28 +435,31 @@ export default function NotesPage() {
 function NotesHeader({
   onCompose,
   onMarkAllRead,
-  showCompose = true,
+  showActions = true,
 }: {
   onCompose: () => void;
   onMarkAllRead: () => void;
-  showCompose?: boolean;
+  /** Off while a message is open — its own actions live in the message. */
+  showActions?: boolean;
 }) {
   return (
     <PageHeading
       accent={ACCENT}
       actionsBelow
       actions={
-        <div className="flex shrink-0 items-center gap-2">
-          <button
-            type="button"
-            onClick={onMarkAllRead}
-            className="min-h-9 rounded-md border px-3 text-sm font-medium"
-            style={{ borderColor: "var(--border-hairline)", color: "var(--text-secondary)" }}
-          >
-            Mark all as read
-          </button>
-          {showCompose && <PrimaryAction label="New message" accent={ACCENT} onClick={onCompose} />}
-        </div>
+        showActions && (
+          <div className="flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={onMarkAllRead}
+              className="min-h-9 rounded-md border px-3 text-sm font-medium"
+              style={{ borderColor: "var(--border-hairline)", color: "var(--text-secondary)" }}
+            >
+              Mark all as read
+            </button>
+            <PrimaryAction label="New message" accent={ACCENT} onClick={onCompose} />
+          </div>
+        )
       }
     >
       Messages
