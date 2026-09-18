@@ -158,7 +158,7 @@ export function SyncStatusBanner() {
           </span>
         </button>
         {expanded && (
-          <ul className="flex flex-col divide-y px-4 pb-2 sm:px-6 lg:px-8" style={{ borderColor: "var(--gridline)" }}>
+          <ul className="flex flex-col inset-rows px-4 pb-2 sm:px-6 lg:px-8">
             {deadLetterEntries.map((entry) => {
               const { reason, action } = friendlyReason(entry.lastErrorCode, entry.op, entry.table);
               const label = describeRecord(entry);
@@ -236,7 +236,7 @@ export function SyncStatusBanner() {
         </span>
       </button>
       {pendingExpanded && (
-        <ul className="flex flex-col divide-y px-4 pb-2 sm:px-6 lg:px-8" style={{ borderColor: "var(--gridline)" }}>
+        <ul className="flex flex-col inset-rows px-4 pb-2 sm:px-6 lg:px-8">
           {pendingEntries.map((entry) => (
             <li key={entry.id} className="py-2 text-xs" style={{ color: "var(--text-secondary)" }}>
               <span className="font-semibold" style={{ color: "var(--text-primary)" }}>

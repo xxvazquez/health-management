@@ -199,7 +199,7 @@ export function VisitsTab({ api, accent }: { api: DoctorsApi; accent: string }) 
                   <h3 className="text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
                     {CARE_KIND_LABEL[kind]}s
                   </h3>
-                  <ul className="flex flex-col divide-y px-0.5" style={{ borderColor: "var(--gridline)" }}>
+                  <ul className="flex flex-col inset-rows px-0.5">
                     {group.map((entry) => (
                       <CareEntryRow
                         key={entry.id}
