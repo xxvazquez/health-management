@@ -665,17 +665,17 @@ create table public.push_subscriptions (
 );
 
 -- Manage -> "remind me to log this", one row per user per tracked domain
--- (Log's Food/Symptoms/Supplements/Habits/Stool/Workout/Cycle tabs — see
+-- (Log's Food/Symptoms/Supplements/Habits/Stool/Workout/Cycle/Coffee tabs — see
 -- TrackedDomain in src/lib/visibleDomains.tsx). Row absence means no
 -- reminder set for that domain. Mirrors supplement_items'/habit_items'
 -- reminder_time + reminder_last_sent_date pair above, but scoped to a
 -- whole domain instead of one item: reminder-cron skips sending once the
 -- user has logged anything at all in that domain today (checked against
 -- food_logs/symptom_logs/supplement_logs/habit_logs/stool_logs/
--- workout_logs/period_logs by domain, not any specific item).
+-- workout_logs/period_logs/coffee_logs by domain, not any specific item).
 create table public.habit_reminders (
   user_id uuid not null default auth.uid() references auth.users(id),
-  domain text not null check (domain in ('food', 'outcome', 'supplement', 'habit', 'stool', 'workout', 'cycle')),
+  domain text not null check (domain in ('food', 'outcome', 'supplement', 'habit', 'stool', 'workout', 'cycle', 'coffee')),
   reminder_time time not null,
   reminder_last_sent_date date,
   updated_at timestamptz not null default now(),

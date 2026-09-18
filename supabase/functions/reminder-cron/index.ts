@@ -11,7 +11,7 @@
 //    domain-level "remind me to log this" (habit_reminders): same
 //    reminder_time/reminder_last_sent_date shape and isReminderDue check,
 //    but scoped to a whole tracked domain (food/outcome/supplement/habit/
-//    stool/workout/cycle) instead of one item — resolved once *anything* in
+//    stool/workout/cycle/coffee) instead of one item — resolved once *anything* in
 //    that domain is logged today, via DOMAIN_LOG_TABLE below.
 // 2. Personal Reminders / Home: scans personal_tasks/household_tasks (by
 //    due_at), personal_items/household_items (by expires_on -
@@ -214,6 +214,7 @@ const DOMAIN_LOG_TABLE: Record<string, string> = {
   stool: "stool_logs",
   workout: "workout_logs",
   cycle: "period_logs",
+  coffee: "coffee_logs",
 };
 
 const DOMAIN_LABEL: Record<string, string> = {
@@ -224,6 +225,7 @@ const DOMAIN_LABEL: Record<string, string> = {
   stool: "Stool",
   workout: "Workout",
   cycle: "Cycle",
+  coffee: "Coffee",
 };
 
 /** Stamps reminder_last_sent_date so a resolved item isn't re-evaluated on
