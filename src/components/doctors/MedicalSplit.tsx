@@ -27,20 +27,29 @@ export function MedicalSplit({
   list,
   detail,
   placeholder,
+  listWidth = "20rem",
+  stickyDetail = false,
 }: {
   selected: boolean;
   list: ReactNode;
   detail: ReactNode;
   placeholder: ReactNode;
+  /** Max width of the left rail. */
+  listWidth?: string;
+  /** Keeps the detail pane in view while a long list scrolls; a pane taller
+   * than the viewport scrolls within itself. */
+  stickyDetail?: boolean;
 }) {
   const desktop = useIsDesktop();
 
   if (!desktop) return <>{selected ? detail : list}</>;
 
   return (
-    <div className="grid items-start gap-6" style={{ gridTemplateColumns: "minmax(0, 20rem) minmax(0, 1fr)" }}>
+    <div className="grid items-start gap-6" style={{ gridTemplateColumns: `minmax(0, ${listWidth}) minmax(0, 1fr)` }}>
       <div className="min-w-0">{list}</div>
-      <div className="min-w-0">{selected ? detail : placeholder}</div>
+      <div className={stickyDetail ? "sticky top-4 max-h-[calc(100dvh-2rem)] min-w-0 overflow-y-auto" : "min-w-0"}>
+        {selected ? detail : placeholder}
+      </div>
     </div>
   );
 }
