@@ -15,7 +15,7 @@ export function Segmented<T extends string>({
   accent?: string;
 }) {
   return (
-    <div className="inline-flex rounded-md border p-0.5" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
+    <div className="inline-flex w-fit rounded-md border p-0.5" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
       {options.map(([v, label]) => (
         <button
           key={v}

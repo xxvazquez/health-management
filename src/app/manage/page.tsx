@@ -3477,7 +3477,7 @@ export default function ManagePage() {
     { title: "App", labels: ["Appearance", "Visible sections", "Your data"] },
   ];
   const isSearching = searchQuery.trim().length > 0;
-  const groupBox = "inset-rows rounded-xl border shadow-[var(--shadow-card)]";
+  const groupBox = "inset-rows rounded-xl border";
   const groupBoxStyle = { borderColor: "var(--border-hairline)", background: "var(--surface-1)" } as const;
 
   return (

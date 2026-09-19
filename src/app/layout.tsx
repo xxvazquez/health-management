@@ -102,8 +102,10 @@ export default function RootLayout({
                         last list row is never tucked under it; desktop has
                         no fixed nav and drops back to pb-10. */}
                     <div className="px-4 pt-5 pb-24 sm:px-6 sm:pt-6 lg:px-8 lg:pt-8 lg:pb-10">
-                      <ContentContainer>{children}</ContentContainer>
-                      <MedicalDisclaimer />
+                      <ContentContainer>
+                        {children}
+                        <MedicalDisclaimer />
+                      </ContentContainer>
                     </div>
                   </PullToRefresh>
                   <BottomNav />
