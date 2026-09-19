@@ -2,16 +2,20 @@ import { execSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import type { NextConfig } from "next";
 
-// Baked in at build time for the Settings footer. The commit falls back to
-// empty when git isn't available (e.g. a source tarball build).
-function gitLog(format: string): string {
+// Baked in at build time for the Settings footer. Every commit is a new
+// version: package.json supplies major.minor and the commit count is the patch
+// number. All three fall back to empty / package.json's own version when git
+// isn't available (e.g. a source tarball build).
+function git(command: string): string {
   try {
-    return execSync(`git log -1 --format=${format}`, { stdio: ["ignore", "pipe", "ignore"] }).toString().trim();
+    return execSync(`git ${command}`, { stdio: ["ignore", "pipe", "ignore"] }).toString().trim();
   } catch {
     return "";
   }
 }
-const appVersion = (JSON.parse(readFileSync("package.json", "utf8")) as { version: string }).version;
+const packageVersion = (JSON.parse(readFileSync("package.json", "utf8")) as { version: string }).version;
+const commitCount = git("rev-list --count HEAD");
+const appVersion = commitCount ? `${packageVersion.split(".").slice(0, 2).join(".")}.${commitCount}` : packageVersion;
 
 // Leave NEXT_PUBLIC_BASE_PATH unset for local dev and for the current
 // deploy target (lauva.pl, a custom domain — see public/CNAME — always
@@ -29,8 +33,8 @@ const nextConfig: NextConfig = {
   images: { unoptimized: true },
   env: {
     NEXT_PUBLIC_APP_VERSION: appVersion,
-    NEXT_PUBLIC_COMMIT_HASH: gitLog("%h"),
-    NEXT_PUBLIC_COMMIT_DATE: gitLog("%cI"),
+    NEXT_PUBLIC_COMMIT_HASH: git("log -1 --format=%h"),
+    NEXT_PUBLIC_COMMIT_DATE: git("log -1 --format=%cI"),
   },
 };
 

@@ -3,7 +3,7 @@ export function appVersionLabel(): string {
   const version = process.env.NEXT_PUBLIC_APP_VERSION;
   const hash = process.env.NEXT_PUBLIC_COMMIT_HASH;
   const iso = process.env.NEXT_PUBLIC_COMMIT_DATE;
-  const parts = [`Lauva ${version}`];
+  const parts = [`Lauva v${version}`];
   if (hash) parts.push(hash);
   if (iso) {
     const date = new Date(iso);

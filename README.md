@@ -399,9 +399,10 @@ including a full sign-out / sign-in account switch.
 
 - **The app**: push to `main` → `deploy.yml` builds and publishes to GitHub Pages
   at the domain in `public/CNAME`. A merge to `main` *is* the deploy. The
-  Settings footer shows the version from `package.json`, the short hash of the
-  commit that was built, and that commit's date (read from git in
-  `next.config.ts`).
+  Settings footer shows the build version, the short hash of the commit that was
+  built, and that commit's date, all read from git in `next.config.ts`. Every
+  commit is a new version: `major.minor` from `package.json` plus the commit
+  count (`v0.1.477`), so the deploy checks out full history.
 - **Edge Functions** (`supabase/functions/`): deployed by `deploy-functions.yml`,
   triggered whenever that folder changes. That same workflow pushes their secrets
   into Supabase's secret store — but only ones that actually have a value, so an
