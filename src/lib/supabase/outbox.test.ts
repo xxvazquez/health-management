@@ -358,6 +358,21 @@ describe("drainOutbox", () => {
   });
 });
 
+describe("drainOutbox with a damaged entry", () => {
+  it("dead-letters an entry with no usable payload instead of sending it", async () => {
+    const { userId, dedupeKey } = unique("damaged");
+    currentSessionUserId = userId;
+    await enqueueOutbox({ userId, dedupeKey, table: "food_items", op: "upsert", payload: null });
+
+    const { drainOutbox } = await import("./outbox");
+    await drainOutbox();
+
+    const [entry] = (await getAllOutboxEntries()).filter((e) => e.dedupeKey === dedupeKey);
+    expect(entry).toMatchObject({ status: "dead-letter", lastErrorCode: "LOCAL_DAMAGED" });
+    expect(sentCalls).toHaveLength(0);
+  });
+});
+
 describe("getOutboxSyncState", () => {
   it("returns zero counts when signed out", async () => {
     currentSessionUserId = null;

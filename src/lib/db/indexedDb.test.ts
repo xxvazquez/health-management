@@ -300,6 +300,32 @@ describe("snapshot cache", () => {
     expect(typeof snap?.cachedAt).toBe("number");
   });
 
+  it("drops a damaged snapshot row and reports it missing", async () => {
+    await writeSnapshot("user-snap-bad", "doctors", { ok: true });
+    // Damage the stored envelope directly: no payload, wrong owner.
+    const req = indexedDB.open("health-analytics");
+    const rawDb = await new Promise<IDBDatabase>((resolve, reject) => {
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+    await new Promise<void>((resolve, reject) => {
+      const tx = rawDb.transaction("snapshots", "readwrite");
+      tx.objectStore("snapshots").put({ key: "user-snap-bad:doctors", userId: "someone-else", cachedAt: 1 });
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+    rawDb.close();
+
+    expect(await readSnapshot("user-snap-bad", "doctors")).toBeUndefined();
+    await writeSnapshot("user-snap-bad", "doctors", { ok: true });
+    expect((await readSnapshot("user-snap-bad", "doctors"))?.payload).toEqual({ ok: true });
+  });
+
+  it("keeps a snapshot whose payload isn't an object (a plain count)", async () => {
+    await writeSnapshot("user-snap-num", "unreadNoteCount", 3);
+    expect((await readSnapshot("user-snap-num", "unreadNoteCount"))?.payload).toBe(3);
+  });
+
   it("overwrites in place — one row per user + feature", async () => {
     await writeSnapshot("user-snap-2", "labs", { markers: [] });
     await writeSnapshot("user-snap-2", "labs", { markers: [{ id: "m1" }] });

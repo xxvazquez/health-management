@@ -341,4 +341,27 @@ describe("pullFromCloud's replay of unsynced writes", () => {
     expect(items).toHaveLength(1);
     expect(items[0]).toMatchObject({ identity: "item-9", rawName: "Stretch", category: "Evening", categoryId: "cat-1" });
   });
+
+  it("skips a malformed server row and a damaged pending payload instead of caching them", async () => {
+    configureFakeSupabase({
+      habit_logs: [
+        { id: "log-ok", item_id: "item-1", date: "2026-09-18", value: 1, updated_at: "2026-09-18T10:00:00.000Z" },
+        { id: "log-no-date", item_id: "item-1", value: 1 },
+        { item_id: "item-1", date: "2026-09-18", value: 1 },
+      ],
+    });
+    await enqueuePending({
+      userId: "user-1",
+      table: "habit_logs",
+      op: "upsert",
+      payload: { id: "log-pending-bad", user_id: "user-1" },
+      dedupeKey: "habit_logs:log-pending-bad",
+    });
+
+    const { pullFromCloud } = await import("./sync");
+    await pullFromCloud();
+
+    expect((await getAllLogs()).map((l) => l.identity)).toEqual(["log-ok"]);
+    expect(await getAllOutboxEntries()).toHaveLength(1);
+  });
 });

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef } from "react";
-import { hasOutboxEntriesForTables, readSnapshot, writeSnapshot } from "@/lib/db/indexedDb";
+import { discardSnapshot, hasOutboxEntriesForTables, readSnapshot, writeSnapshot } from "@/lib/db/indexedDb";
 import { onCloudRefresh } from "@/lib/cloudRefresh";
 
 interface Options<B> {
@@ -72,8 +72,14 @@ export function useSnapshotCache<B>({ feature, tables, userId, isDemo, seeded, f
       if (!seeded) {
         const snap = await readSnapshot(userId, feature).catch(() => undefined);
         if (!cancelled && snap) {
-          refs.current.apply(snap.payload as B);
-          refs.current.onSettled();
+          try {
+            refs.current.apply(snap.payload as B);
+            refs.current.onSettled();
+          } catch {
+            // The cached payload doesn't fit what this hook expects (an older
+            // build's shape, or damage) — drop it and let the fetch below fill in.
+            await discardSnapshot(userId, feature).catch(() => undefined);
+          }
         }
       }
       if (!cancelled) await reload();

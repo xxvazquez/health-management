@@ -98,6 +98,15 @@ describe("SyncStatusBanner", () => {
     expect(screen.getByText(/Tiredness/)).toBeInTheDocument();
   });
 
+  it("explains a damaged saved copy in plain language", async () => {
+    const entry = baseEntry({ table: "food_logs", lastErrorCode: "LOCAL_DAMAGED", payload: { id: "log-1", date: "2026-09-19" } });
+    mockData({ syncState: { pending: 0, deadLetter: 1 }, deadLetterEntries: [entry] });
+    render(<SyncStatusBanner />);
+    await userEvent.setup().click(screen.getByText("Details"));
+
+    expect(screen.getByText(/its saved copy on this device is damaged/)).toBeInTheDocument();
+  });
+
   it("blames the category for an item's own 23503, not the log/diary phrasing", async () => {
     const entry = baseEntry({ table: "symptom_items", op: "upsert", lastErrorCode: "23503" });
     mockData({ syncState: { pending: 0, deadLetter: 1 }, deadLetterEntries: [entry] });

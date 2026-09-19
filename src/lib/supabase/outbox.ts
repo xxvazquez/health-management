@@ -111,6 +111,27 @@ export function backoffDelay(attempts: number): number {
   return Math.min(BASE_DELAY_MS * 2 ** attempts, MAX_DELAY_MS);
 }
 
+const OUTBOX_OPS = new Set(["upsert", "update", "insert", "delete"]);
+
+/** Whether a stored entry is well-formed enough to send. A damaged one (a
+ * truncated write, a bad manual edit, an older build's leftovers) would
+ * otherwise be sent as-is and fail in a confusing way — or throw — on every
+ * pass. */
+export function isSendableOutboxEntry(entry: OutboxEntry): boolean {
+  return (
+    typeof entry.table === "string" &&
+    entry.table !== "" &&
+    OUTBOX_OPS.has(entry.op) &&
+    typeof entry.payload === "object" &&
+    entry.payload !== null &&
+    !Array.isArray(entry.payload)
+  );
+}
+
+/** Marker stored as `lastErrorCode` on an entry that never left this device
+ * because its own saved copy is damaged. */
+export const DAMAGED_ENTRY_CODE = "LOCAL_DAMAGED";
+
 let draining: Promise<void> | null = null;
 
 /**
@@ -132,6 +153,17 @@ export function drainOutbox(): Promise<void> {
       const entries = await getEligibleOutboxEntries();
       for (const entry of entries) {
         if (entry.userId !== userId) continue;
+        if (!isSendableOutboxEntry(entry)) {
+          // Kept (not deleted) and surfaced as a failed change, so nothing is
+          // discarded without the user seeing it.
+          await updateOutboxEntry(entry.id, {
+            status: "dead-letter",
+            attempts: entry.attempts + 1,
+            lastError: "Stored entry is damaged",
+            lastErrorCode: DAMAGED_ENTRY_CODE,
+          });
+          continue;
+        }
         const result = await sendOutboxEntry(entry);
         if (result.outcome === "success") {
           // The record may have already been deleted server-side by a

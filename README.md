@@ -174,6 +174,11 @@ flowchart LR
   itself rejects (device out of space, browser blocking site data). `indexedDb.ts`
   announces those and the banner tells the user their last change may not have
   been kept; the error still reaches the caller.
+- Stored data is checked when it's read back. A server row missing its id, date
+  or name is skipped during a pull rather than half-installed; an outbox entry
+  with no usable payload is moved to the failed list instead of being sent; a
+  snapshot that doesn't match its envelope, or that its hook can't apply, is
+  dropped and refetched. None of this touches Supabase — only the local cache.
 - One write lock (`withDataLock` in `indexedDb.ts`) stops a cloud pull from ever
   landing in the middle of a local write.
 - Manage → "Your data" exports straight from Supabase (`src/lib/exportData.ts`) —

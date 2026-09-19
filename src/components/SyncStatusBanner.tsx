@@ -104,6 +104,8 @@ function friendlyReason(code: string | undefined, op: OutboxOperation, table: st
         reason: "a duplicate of it already exists in your account",
         action: "Retrying alone won't fix this — rename it (or the other one) so they don't collide, then retry, or Discard if the other copy already has what you need.",
       };
+    case "LOCAL_DAMAGED":
+      return { reason: "its saved copy on this device is damaged", action: "It can't be sent — Discard it and enter the change again." };
     case "23514":
       return { reason: "one of its values isn't valid", action: "Edit it and save again." };
     case "42501":

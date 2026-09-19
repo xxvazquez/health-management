@@ -541,6 +541,28 @@ interface PeriodLogRow {
   updated_at: string;
 }
 
+// Columns a row must carry as real strings to be cached at all. A row
+// missing one (a malformed server row, or a damaged outbox payload) would
+// either throw partway through the destructive repopulate — leaving a
+// half-filled cache — or be stored as a record with `undefined` fields, so
+// it's skipped instead. The row itself is never touched: Supabase keeps it,
+// and a pull after the data is fixed picks it up.
+const REQUIRED_COLUMNS: Record<string, string[]> = {
+  categories: ["id", "item_type", "name"],
+  stool_logs: ["id", "date", "logged_at"],
+  workout_logs: ["id", "item_id", "date"],
+  period_logs: ["id", "date"],
+  ...Object.fromEntries(Object.values(ITEM_TABLE).map((table) => [table, ["id", "name"]])),
+  ...Object.fromEntries(Object.values(LOG_TABLE).filter((table) => table !== "workout_logs").map((table) => [table, ["id", "item_id", "date"]])),
+  ...Object.fromEntries(Object.values(DIARY_TABLE).map((table) => [table, ["id", "item_id", "date"]])),
+};
+
+function hasRequiredColumns(table: string, row: unknown): boolean {
+  if (!row || typeof row !== "object") return false;
+  const record = row as Record<string, unknown>;
+  return (REQUIRED_COLUMNS[table] ?? ["id"]).every((column) => typeof record[column] === "string" && record[column] !== "");
+}
+
 const PAGE_SIZE = 1000;
 
 /** Reads an entire table for the signed-in user, paginated — a plain
@@ -572,7 +594,10 @@ async function fetchAllRows<T>(client: SupabaseClient, table: string, userId: st
       .range(from, from + PAGE_SIZE - 1);
     if (error) throw error;
     const rows = (data ?? []) as T[];
-    out.push(...rows);
+    for (const row of rows) {
+      if (hasRequiredColumns(table, row)) out.push(row);
+      else console.warn(`Skipping a malformed ${table} row while syncing`);
+    }
     if (rows.length < PAGE_SIZE) break;
     from += PAGE_SIZE;
   }
@@ -1168,6 +1193,7 @@ async function replayUnsyncedWrites(userId: string, categoryNameById: Map<string
     const id = idOf(entry.payload);
     if (!id) continue;
     if (entry.op === "upsert") {
+      if (!hasRequiredColumns("categories", entry.payload)) continue;
       const category = categoryFromRow(entry.payload as CategoryRow);
       await putCategoryInternal(category);
       names.set(category.id, category.name);
@@ -1184,6 +1210,7 @@ async function replayUnsyncedWrites(userId: string, categoryNameById: Map<string
     const itemType = TRACKING_TYPE_BY_TABLE.get(entry.table);
     const isDelete = entry.op === "delete";
     const payload = entry.payload;
+    if (!isDelete && !hasRequiredColumns(entry.table, payload)) continue;
 
     if (itemType && entry.table === ITEM_TABLE[itemType]) {
       if (isDelete) await deleteItemLocalInternal(id);

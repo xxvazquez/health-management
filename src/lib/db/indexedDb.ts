@@ -894,9 +894,33 @@ function snapshotKey(userId: string, feature: string): string {
   return `${userId}:${feature}`;
 }
 
+/** Reads a feature's cached snapshot. A row that isn't the shape
+ * `writeSnapshot` produces (wrong owner, no payload, damaged envelope) is
+ * dropped and reported as missing, so the hook falls back to a fresh fetch
+ * instead of rendering from garbage. Safe: a snapshot is only a cache of what
+ * Supabase already holds. */
 export async function readSnapshot(userId: string, feature: string): Promise<SnapshotRow | undefined> {
   const db = await getDb();
-  return db.get("snapshots", snapshotKey(userId, feature));
+  const key = snapshotKey(userId, feature);
+  const row = await db.get("snapshots", key);
+  if (row === undefined) return undefined;
+  const valid =
+    typeof row === "object" &&
+    row !== null &&
+    row.key === key &&
+    row.userId === userId &&
+    row.payload !== undefined &&
+    typeof row.cachedAt === "number";
+  if (valid) return row;
+  await db.delete("snapshots", key);
+  return undefined;
+}
+
+/** Drops one feature's snapshot — for a hook that found the cached payload
+ * unusable after reading it. */
+export async function discardSnapshot(userId: string, feature: string): Promise<void> {
+  const db = await getDb();
+  await db.delete("snapshots", snapshotKey(userId, feature));
 }
 
 export async function writeSnapshot(userId: string, feature: string, payload: unknown): Promise<void> {
