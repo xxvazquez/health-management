@@ -1,6 +1,6 @@
 "use client";
 
-import { CHIP_CLS, chipStyle } from "@/components/ui/Chip";
+import { CHIP_CLS, CHIP_SM_CLS, chipStyle } from "@/components/ui/Chip";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import clsx from "clsx";
@@ -2216,7 +2216,7 @@ export default function LogPage() {
                           type="button"
                           onClick={() => handleChipTap(c)}
                           disabled={busy}
-                          className={`${CHIP_CLS} shrink-0 whitespace-nowrap`}
+                          className={`${CHIP_SM_CLS} shrink-0 whitespace-nowrap`}
                           style={chipStyle(logged, cAccent)}
                         >
                           {logged && <span aria-hidden="true">✓</span>}
@@ -2243,7 +2243,7 @@ export default function LogPage() {
                             type="button"
                             onClick={() => void handleLogProduct(p)}
                             disabled={busy}
-                            className={`${CHIP_CLS} shrink-0 whitespace-nowrap`}
+                            className={`${CHIP_SM_CLS} shrink-0 whitespace-nowrap`}
                             style={chipStyle(false)}
                           >
                             {p.name}
@@ -2388,7 +2388,7 @@ export default function LogPage() {
                     {/* Item name, directly below time — same position on
                      * every card, capped at two lines so a long name can't
                      * push the rest of the card's layout around. */}
-                    <span className="line-clamp-2 text-xs font-semibold" style={{ color: "var(--text-primary)" }}>
+                    <span className="line-clamp-2 text-xs font-medium" style={{ color: "var(--text-primary)" }}>
                       {entry.item}
                       {entry.value != null && (() => {
                         const suffix =

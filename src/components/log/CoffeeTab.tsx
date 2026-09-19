@@ -1,6 +1,6 @@
 "use client";
 
-import { CHIP_CLS, chipStyle } from "@/components/ui/Chip";
+import { CHIP_SM_CLS, chipStyle } from "@/components/ui/Chip";
 import { useMemo, useState } from "react";
 import { SearchField } from "@/components/ui/SearchField";
 import { CoffeeLogDialog, type CoffeeLogDraft } from "@/components/log/CoffeeLogDialog";
@@ -206,7 +206,7 @@ export function CoffeeTab({
                 key={it.id}
                 type="button"
                 onClick={() => openForNewLog(it)}
-                className={`${CHIP_CLS} shrink-0 whitespace-nowrap`}
+                className={`${CHIP_SM_CLS} shrink-0 whitespace-nowrap`}
                 style={chipStyle(false)}
               >
                 {it.name}
@@ -279,7 +279,7 @@ export function CoffeeTab({
                   style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", opacity: busy ? 0.5 : 1 }}
                 >
                   <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                    <span className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+                    <span className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
                       {it?.name ?? "Coffee"}
                       {log.brewingMethod && (
                         <span className="ml-1.5 font-normal" style={{ color: "var(--text-secondary)" }}>
