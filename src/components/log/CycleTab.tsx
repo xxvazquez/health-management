@@ -140,7 +140,7 @@ function MonthGrid({
   const grid = useMemo(() => calendarGridDates(month), [month]);
   return (
     <div className="flex flex-col items-center gap-2">
-      <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+      <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
         {formatMonthLabel(month)}
       </p>
       <div className="grid grid-cols-7 gap-1 text-center text-xs font-semibold" style={{ color: "var(--text-secondary)" }}>
@@ -296,7 +296,7 @@ export function CycleTab({
                 {status.onPeriod ? `Day ${status.periodDay} of your period` : `Day ${status.cycleDay} of your cycle`}
               </span>
             ) : (
-              <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+              <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
                 No period recorded yet
               </p>
             )}

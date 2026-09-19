@@ -523,7 +523,7 @@ export function StoolTab({
                   ))}
                 </span>
                 <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                  <span className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+                  <span className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
                     {`Bristol ${entry.bristolScores.join(", ")}`}
                     {entry.color && <span className="ml-1.5 font-normal" style={{ color: "var(--text-secondary)" }}>· {entry.color}</span>}
                     {entry.floatation && <span className="ml-1.5 font-normal" style={{ color: "var(--text-secondary)" }}>· {entry.floatation}</span>}
