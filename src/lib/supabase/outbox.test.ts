@@ -16,6 +16,7 @@ let deleteResult: { error: { code?: string; message: string } | null } = { error
 let updateResult: { error: { code?: string; message: string } | null } = { error: null };
 let thrown: Error | null = null;
 let hang = false;
+let onRefreshSession: (() => void) | null = null;
 let currentSessionUserId: string | null = "user-1";
 const sentCalls: { table: string; op: string; payload?: unknown; id?: unknown }[] = [];
 
@@ -24,6 +25,10 @@ vi.mock("./client", () => ({
     return {
       auth: {
         getSession: async () => ({ data: { session: currentSessionUserId ? { user: { id: currentSessionUserId } } : null } }),
+        refreshSession: async () => {
+          onRefreshSession?.();
+          return {};
+        },
       },
       from(table: string) {
         return {
@@ -370,6 +375,29 @@ describe("drainOutbox with a damaged entry", () => {
     const [entry] = (await getAllOutboxEntries()).filter((e) => e.dedupeKey === dedupeKey);
     expect(entry).toMatchObject({ status: "dead-letter", lastErrorCode: "LOCAL_DAMAGED" });
     expect(sentCalls).toHaveLength(0);
+  });
+});
+
+describe("drainOutbox with a refused login token", () => {
+  it("refreshes the session once and sends the entry again", async () => {
+    const { userId, dedupeKey } = unique("token");
+    currentSessionUserId = userId;
+    upsertResult = { error: { code: "PGRST303", message: "JWT issued at future" } };
+    let refreshes = 0;
+    onRefreshSession = () => {
+      refreshes += 1;
+      upsertResult = { error: null };
+    };
+    try {
+      await enqueueOutbox({ userId, dedupeKey, table: "food_items", op: "upsert", payload: { id: "a" } });
+      const { drainOutbox } = await import("./outbox");
+      await drainOutbox();
+    } finally {
+      onRefreshSession = null;
+    }
+
+    expect(refreshes).toBe(1);
+    expect((await getAllOutboxEntries()).filter((e) => e.dedupeKey === dedupeKey)).toHaveLength(0);
   });
 });
 

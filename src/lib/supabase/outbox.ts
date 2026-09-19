@@ -111,6 +111,10 @@ export function backoffDelay(attempts: number): number {
   return Math.min(BASE_DELAY_MS * 2 ** attempts, MAX_DELAY_MS);
 }
 
+/** PostgREST codes for a missing, expired or rejected login token — worth one
+ * session refresh before giving up on a pass. */
+const AUTH_TOKEN_CODES = new Set(["PGRST301", "PGRST302", "PGRST303"]);
+
 const OUTBOX_OPS = new Set(["upsert", "update", "insert", "delete"]);
 
 /** Whether a stored entry is well-formed enough to send. A damaged one (a
@@ -151,6 +155,7 @@ export function drainOutbox(): Promise<void> {
       const userId = await currentUserId();
       if (!userId) return;
       const entries = await getEligibleOutboxEntries();
+      let refreshedSession = false;
       for (const entry of entries) {
         if (entry.userId !== userId) continue;
         if (!isSendableOutboxEntry(entry)) {
@@ -164,7 +169,14 @@ export function drainOutbox(): Promise<void> {
           });
           continue;
         }
-        const result = await sendOutboxEntry(entry);
+        let result = await sendOutboxEntry(entry);
+        if (result.outcome === "retryable" && result.code && AUTH_TOKEN_CODES.has(result.code) && !refreshedSession && supabase) {
+          // The stored login token was refused. Get a fresh one once per
+          // pass and try this entry again before backing off.
+          refreshedSession = true;
+          await supabase.auth.refreshSession().catch(() => undefined);
+          result = await sendOutboxEntry(entry);
+        }
         if (result.outcome === "success") {
           // The record may have already been deleted server-side by a
           // retry of an earlier attempt whose success acknowledgement was

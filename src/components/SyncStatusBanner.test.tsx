@@ -90,6 +90,17 @@ describe("SyncStatusBanner", () => {
     expect(screen.getByText(/Saved on this device/)).toBeInTheDocument();
   });
 
+  it("shows the latest problem once, in one line", async () => {
+    const make = (id: string, nextAttemptAt: number, lastError: string) =>
+      baseEntry({ id, status: "pending", table: "food_logs", nextAttemptAt, lastError, lastErrorCode: "PGRST303", payload: { id, date: "2026-09-19" } });
+    mockData({ syncState: { pending: 2, deadLetter: 0 }, pendingEntries: [make("a", 1, "old"), make("b", 2, "JWT issued at future")] });
+    render(<SyncStatusBanner />);
+
+    await userEvent.setup().click(screen.getByText("Details"));
+    expect(screen.getAllByText(/Latest problem/)).toHaveLength(1);
+    expect(screen.getByText(/Latest problem: PGRST303: JWT issued at future/)).toBeInTheDocument();
+  });
+
   it("lists each pending change with what it is and when it was saved", async () => {
     const saved = new Date(2026, 8, 19, 14, 32).getTime();
     const make = (id: string, date: string) =>

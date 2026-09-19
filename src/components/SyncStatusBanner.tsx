@@ -72,6 +72,8 @@ export function SyncStatusBanner() {
   const [discardingId, setDiscardingId] = useState<string | null>(null);
   const [confirmingDiscardId, setConfirmingDiscardId] = useState<string | null>(null);
 
+  const lastAttempt = pendingEntries.filter((e) => e.lastError).sort((a, b) => b.nextAttemptAt - a.nextAttemptAt)[0];
+  const lastProblem = lastAttempt ? `${lastAttempt.lastErrorCode ? `${lastAttempt.lastErrorCode}: ` : ""}${lastAttempt.lastError}` : null;
   const [itemNames, setItemNames] = useState<Map<string, string>>(new Map());
   const listOpen = expanded || pendingExpanded;
   useEffect(() => {
@@ -236,6 +238,11 @@ export function SyncStatusBanner() {
               Save a copy as a file
             </button>
           </p>
+          {lastProblem && (
+            <p className="pb-1 text-xs" style={{ color: "var(--text-muted)" }}>
+              Latest problem: {lastProblem}
+            </p>
+          )}
           <ul className="flex flex-col inset-rows">
             {[...pendingEntries]
               .sort((a, b) => b.createdAt - a.createdAt)

@@ -168,8 +168,10 @@ flowchart LR
 - A banner (`SyncStatusBanner.tsx`) makes outbox state visible instead of
   silent. A pending count (with Retry now, which skips the backoff wait) expands
   into every queued change: what it is (item, day, meal — `describeOutboxEntry.ts`),
-  when it was saved on this device, and how many sends were tried, plus a "Save a
-  copy as a file" download of the unsent data. A permanently rejected write shows
+  when it was saved on this device, and how many sends were tried, one "Latest
+  problem" line with the most recent error, plus a "Save a copy as a file"
+  download of the unsent data. A refused login token (`PGRST301`–`303`) makes the
+  drain refresh the session once and resend. A permanently rejected write shows
   which record, why, and Retry/Discard buttons. The local record is never at
   risk either way — only the cloud copy is stuck.
 - `StorageErrorBanner.tsx` covers the other failure: a local save that IndexedDB
