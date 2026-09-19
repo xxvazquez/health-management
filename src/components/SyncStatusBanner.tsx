@@ -130,10 +130,11 @@ function friendlyReason(code: string | undefined, op: OutboxOperation, table: st
  * the record itself is safely in this device's local storage regardless,
  * and stays there whether or not the retry below ever succeeds. */
 export function SyncStatusBanner() {
-  const { syncState, deadLetterEntries, pendingEntries, retrySync, discardSync, isOnline } = useData();
+  const { syncState, deadLetterEntries, pendingEntries, retrySync, retryPending, discardSync, isOnline } = useData();
   const offline = isOnline === false;
   const [expanded, setExpanded] = useState(false);
   const [pendingExpanded, setPendingExpanded] = useState(false);
+  const [retryingPending, setRetryingPending] = useState(false);
   const [retryingId, setRetryingId] = useState<string | null>(null);
   const [discardingId, setDiscardingId] = useState<string | null>(null);
   const [confirmingDiscardId, setConfirmingDiscardId] = useState<string | null>(null);
@@ -146,6 +147,15 @@ export function SyncStatusBanner() {
       await retrySync(id);
     } finally {
       setRetryingId(null);
+    }
+  }
+
+  async function handleRetryPending() {
+    setRetryingPending(true);
+    try {
+      await retryPending();
+    } finally {
+      setRetryingPending(false);
     }
   }
 
@@ -230,22 +240,29 @@ export function SyncStatusBanner() {
 
   return (
     <div className="border-b" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
-      <button
-        type="button"
-        onClick={() => setPendingExpanded((v) => !v)}
-        className="flex w-full items-center gap-2 px-4 py-2 text-left text-xs font-medium sm:px-6 lg:px-8"
-      >
-        <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: "var(--text-muted)" }} />
-        <span style={{ color: "var(--text-secondary)" }}>
-          {offline
-            ? `Offline — ${syncState.pending} ${syncState.pending === 1 ? "change is" : "changes are"} saved on this device and will sync when you reconnect`
-            : `${syncState.pending} ${syncState.pending === 1 ? "change" : "changes"} pending sync`}
-        </span>
-        <span className="ml-auto flex shrink-0 items-center gap-1 text-xs" style={{ color: "var(--text-muted)" }}>
-          {pendingExpanded ? "Hide" : "Details"}
-          <ChevronIcon dir={pendingExpanded ? "up" : "down"} size={12} />
-        </span>
-      </button>
+      <div className="flex items-center gap-2 px-4 sm:px-6 lg:px-8">
+        <button
+          type="button"
+          onClick={() => setPendingExpanded((v) => !v)}
+          className="flex min-w-0 flex-1 items-center gap-2 py-2 text-left text-xs font-medium"
+        >
+          <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: "var(--text-muted)" }} />
+          <span style={{ color: "var(--text-secondary)" }}>
+            {offline
+              ? `Offline — ${syncState.pending} ${syncState.pending === 1 ? "change is" : "changes are"} saved on this device and will sync when you reconnect`
+              : `${syncState.pending} ${syncState.pending === 1 ? "change" : "changes"} pending sync`}
+          </span>
+          <span className="ml-auto flex shrink-0 items-center gap-1 text-xs" style={{ color: "var(--text-muted)" }}>
+            {pendingExpanded ? "Hide" : "Details"}
+            <ChevronIcon dir={pendingExpanded ? "up" : "down"} size={12} />
+          </span>
+        </button>
+        {!offline && (
+          <Chip onClick={() => void handleRetryPending()} disabled={retryingPending}>
+            {retryingPending ? "Retrying…" : "Retry now"}
+          </Chip>
+        )}
+      </div>
       {pendingExpanded && (
         <ul className="flex flex-col inset-rows px-4 pb-2 sm:px-6 lg:px-8">
           {groupPending(pendingEntries).map(({ key, entry, count }) => (

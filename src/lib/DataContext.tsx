@@ -6,7 +6,7 @@ import { buildCanonicalEvents } from "@/lib/canonical/buildCanonicalEvents";
 import { clearAllData, clearSnapshots, getAllDiary, getAllLogs, getAllItems, getAllStoolLogs, getAllWorkoutLogs, getAllPeriodLogs, hasAnyData, withDataLock, type OutboxEntry } from "@/lib/db/indexedDb";
 import { pullFromCloud, resetInitialPullState, retryDeadLetterEntry } from "@/lib/supabase/sync";
 import { emitCloudRefresh } from "@/lib/cloudRefresh";
-import { discardDeadLetterEntry, getDeadLetterEntries, getOutboxSyncState, getPendingEntries } from "@/lib/supabase/outbox";
+import { discardDeadLetterEntry, getDeadLetterEntries, getOutboxSyncState, getPendingEntries, retryPendingEntries } from "@/lib/supabase/outbox";
 import { ANALYTICS_START_DATE } from "@/lib/config";
 import { buildDemoDataset } from "@/lib/demoData";
 import { useAuth } from "@/lib/supabase/AuthContext";
@@ -59,6 +59,8 @@ interface DataContextValue {
   pendingEntries: OutboxEntry[];
   /** Re-queues one dead-letter entry and attempts to send it again. */
   retrySync: (id: string) => Promise<void>;
+  /** Skips the retry wait on every pending entry and sends them now. */
+  retryPending: () => Promise<void>;
   /** Permanently gives up on one dead-lettered entry without ever sending
    * it — for a failure Retry can never fix (see discardDeadLetterEntry's
    * own doc comment), most commonly a duplicate-name conflict. The local
@@ -103,6 +105,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     },
     [refreshSyncState],
   );
+
+  const retryPending = useCallback(async () => {
+    await retryPendingEntries();
+    await refreshSyncState();
+  }, [refreshSyncState]);
 
   const discardSync = useCallback(
     async (id: string) => {
@@ -369,6 +376,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       deadLetterEntries,
       pendingEntries,
       retrySync,
+      retryPending,
       discardSync,
       refresh,
       clearData,
@@ -389,6 +397,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       deadLetterEntries,
       pendingEntries,
       retrySync,
+      retryPending,
       discardSync,
       refresh,
       clearData,

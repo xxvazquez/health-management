@@ -55,6 +55,21 @@ describe("SyncStatusBanner", () => {
     expect(screen.getByText("3 changes pending sync")).toBeInTheDocument();
   });
 
+  it("offers Retry now on pending changes and runs it", async () => {
+    const retryPending = vi.fn().mockResolvedValue(undefined);
+    mockData({ syncState: { pending: 2, deadLetter: 0 }, isOnline: true, retryPending });
+    render(<SyncStatusBanner />);
+
+    await userEvent.setup().click(screen.getByText("Retry now"));
+    expect(retryPending).toHaveBeenCalledTimes(1);
+  });
+
+  it("hides Retry now while offline", () => {
+    mockData({ syncState: { pending: 2, deadLetter: 0 }, isOnline: false });
+    render(<SyncStatusBanner />);
+    expect(screen.queryByText("Retry now")).not.toBeInTheDocument();
+  });
+
   it("reassures instead when offline with pending changes", () => {
     mockData({ syncState: { pending: 2, deadLetter: 0 }, isOnline: false });
     render(<SyncStatusBanner />);

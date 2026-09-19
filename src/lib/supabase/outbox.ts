@@ -229,6 +229,18 @@ export async function retryOutboxEntry(id: string): Promise<void> {
   await drainOutbox();
 }
 
+/** Skips the retry wait on every pending entry for the signed-in user and
+ * drains right away — for a user staring at "N changes pending sync" who
+ * doesn't want to wait out a backoff of up to five minutes. */
+export async function retryPendingEntries(): Promise<void> {
+  const userId = await currentUserId();
+  if (!userId) return;
+  for (const entry of await getPendingOutboxEntries(userId)) {
+    await updateOutboxEntry(entry.id, { nextAttemptAt: Date.now() });
+  }
+  await drainOutbox();
+}
+
 /**
  * Permanently gives up on ONE dead-lettered sync attempt, without ever
  * sending it. For failures Retry can never fix by itself — most notably a

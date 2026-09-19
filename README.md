@@ -166,7 +166,8 @@ flowchart LR
   alone — after a real incident where a table's RLS was live but a retrofitted
   migration hadn't actually run against the deployed project.
 - A banner (`SyncStatusBanner.tsx`) makes outbox state visible instead of
-  silent: a plain pending count expands into which records are still queued,
+  silent: a plain pending count (with a Retry now button that skips the backoff wait)
+  expands into which records are still queued and the last error for each,
   and a permanently rejected write expands into which record, why, and a
   Retry/Discard button. The local record is never at risk either way — only
   the cloud copy is stuck.

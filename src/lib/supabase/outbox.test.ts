@@ -373,6 +373,21 @@ describe("drainOutbox with a damaged entry", () => {
   });
 });
 
+describe("retryPendingEntries", () => {
+  it("skips the backoff wait and sends a pending entry right away", async () => {
+    const { userId, dedupeKey } = unique("retry-now");
+    currentSessionUserId = userId;
+    await enqueueOutbox({ userId, dedupeKey, table: "food_items", op: "upsert", payload: { id: "a" } });
+    const [entry] = (await getAllOutboxEntries()).filter((e) => e.dedupeKey === dedupeKey);
+    await updateOutboxEntry(entry.id, { attempts: 3, nextAttemptAt: Date.now() + 5 * 60_000 });
+
+    const { retryPendingEntries } = await import("./outbox");
+    await retryPendingEntries();
+
+    expect((await getAllOutboxEntries()).filter((e) => e.dedupeKey === dedupeKey)).toHaveLength(0);
+  });
+});
+
 describe("getOutboxSyncState", () => {
   it("returns zero counts when signed out", async () => {
     currentSessionUserId = null;
