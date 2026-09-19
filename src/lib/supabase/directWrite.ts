@@ -1,5 +1,5 @@
 import { supabase } from "./client";
-import { classifySupabaseError } from "./outbox";
+import { classifySupabaseError, withSendTimeout } from "./outbox";
 import { enqueueOutbox, type OutboxOperation } from "@/lib/db/indexedDb";
 
 function notConfigured(): Error {
@@ -31,25 +31,26 @@ async function attemptOrQueue(userId: string, table: string, id: string, op: Out
   if (!supabase) throw notConfigured();
   let serverError: { code?: string; message: string } | null = null;
   let unreachable = false;
+  const client = supabase;
   try {
-    const query = supabase.from(table);
-    let error;
-    if (op === "upsert") {
-      ({ error } = await query.upsert(payload));
-    } else if (op === "insert") {
-      ({ error } = await query.upsert(payload, { ignoreDuplicates: true }));
-    } else if (op === "update") {
-      const rest = { ...payload };
-      delete rest.id;
-      ({ error } = await query.update(rest).eq("id", id));
-    } else {
+    const send = async () => {
+      const query = client.from(table);
+      if (op === "upsert") return (await query.upsert(payload)).error;
+      if (op === "insert") return (await query.upsert(payload, { ignoreDuplicates: true })).error;
+      if (op === "update") {
+        const rest = { ...payload };
+        delete rest.id;
+        return (await query.update(rest).eq("id", id)).error;
+      }
       const match = (payload as { match?: Record<string, unknown> }).match;
-      ({ error } = match ? await query.delete().match(match) : await query.delete().eq("id", id));
-    }
+      return (await (match ? query.delete().match(match) : query.delete().eq("id", id))).error;
+    };
+    const error = await withSendTimeout(send());
     if (error) serverError = error;
   } catch {
     // Never actually reached the server — offline, a dropped connection,
-    // a CORS/DNS failure. Always queue, never surface to the caller.
+    // a CORS/DNS failure, or a request that stalled past the send timeout.
+    // Always queue, never surface to the caller.
     unreachable = true;
   }
   if (serverError) {

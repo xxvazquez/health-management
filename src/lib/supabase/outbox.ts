@@ -59,18 +59,25 @@ export function classifySupabaseError(error: { code?: string; message: string })
  * anywhere in this module; only the actual request outcome decides. */
 export async function sendOutboxEntry(entry: OutboxEntry): Promise<SendResult> {
   if (!supabase) return { outcome: "retryable", message: "Supabase not configured" };
-  let timer: ReturnType<typeof setTimeout> | undefined;
   try {
-    // A request that never settles (a stalled connection on a phone, a stuck
-    // auth lock) would otherwise hold the whole drain open forever, since
-    // concurrent drains reuse the in-flight one. Sends are idempotent, so
-    // giving up and retrying later is safe even if the request lands anyway.
-    const timeout = new Promise<never>((_, reject) => {
-      timer = setTimeout(() => reject(new Error("Request timed out")), SEND_TIMEOUT_MS);
-    });
-    return await Promise.race([send(supabase, entry), timeout]);
+    return await withSendTimeout(send(supabase, entry));
   } catch (err) {
     return { outcome: "retryable", message: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+/** Rejects if `request` hasn't settled within SEND_TIMEOUT_MS. A request that
+ * never settles (a stalled connection on a phone, a stuck auth lock) would
+ * otherwise hold a drain — or a direct write's caller — open forever. Sends
+ * are idempotent, so giving up and retrying later is safe even if the
+ * request lands anyway. */
+export async function withSendTimeout<T>(request: Promise<T>): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error("Request timed out")), SEND_TIMEOUT_MS);
+  });
+  try {
+    return await Promise.race([request, timeout]);
   } finally {
     clearTimeout(timer);
   }

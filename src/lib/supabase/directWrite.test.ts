@@ -5,6 +5,7 @@ let upsertResult: { error: { code?: string; message: string } | null } = { error
 let deleteResult: { error: { code?: string; message: string } | null } = { error: null };
 let updateResult: { error: { code?: string; message: string } | null } = { error: null };
 let thrown: Error | null = null;
+let hang = false;
 const sentCalls: { table: string; op: string; payload?: unknown }[] = [];
 
 vi.mock("./client", () => ({
@@ -14,6 +15,7 @@ vi.mock("./client", () => ({
         return {
           upsert: async (_payload: unknown, options?: { ignoreDuplicates?: boolean }) => {
             sentCalls.push({ table, op: options?.ignoreDuplicates ? "insert" : "upsert" });
+            if (hang) return new Promise(() => {});
             if (thrown) throw thrown;
             return upsertResult;
           },
@@ -57,6 +59,7 @@ beforeEach(() => {
   deleteResult = { error: null };
   updateResult = { error: null };
   thrown = null;
+  hang = false;
   sentCalls.length = 0;
 });
 
@@ -65,6 +68,21 @@ afterEach(() => {
 });
 
 describe("upsertDirect", () => {
+  it("queues the write instead of hanging when the request never settles", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    try {
+      hang = true;
+      const id = uniqueId();
+      const { upsertDirect } = await import("./directWrite");
+      const done = upsertDirect("user-1", "journal_entries", id, { id, body: "hi" });
+      await vi.advanceTimersByTimeAsync(31_000);
+      await expect(done).resolves.toBeUndefined();
+      expect(await entriesFor(`journal_entries:${id}`)).toHaveLength(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("resolves without queuing anything on success", async () => {
     const id = uniqueId();
     const { upsertDirect } = await import("./directWrite");
