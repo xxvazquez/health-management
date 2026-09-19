@@ -21,6 +21,7 @@ import { SwitchKnob } from "@/components/ui/Switch";
 import { useItemActions, type ManageableItem } from "@/lib/useItemActions";
 import { getAllItems, getAllCategories, getItemIdentitiesWithHistory, withDataLock } from "@/lib/db/indexedDb";
 import { putItemAndSync, deleteCategoryAndSync } from "@/lib/supabase/sync";
+import { appVersionLabel } from "@/lib/appVersion";
 import { ensureCategoryId, categoryRowsToSeedForDemo, setCategoryAppearanceAndSync } from "@/lib/categoryResolution";
 import { useCareLog } from "@/lib/useCareLog";
 import type { CareEntry } from "@/lib/supabase/careLog";
@@ -3535,6 +3536,12 @@ export default function ManagePage() {
               </div>
             </div>
           ))
+        )}
+
+        {activeSection === null && !isSearching && (
+          <p className="px-4 text-xs" style={{ color: "var(--text-muted)" }}>
+            {appVersionLabel()}
+          </p>
         )}
 
       {duplicateConflict && (

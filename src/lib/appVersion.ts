@@ -1,0 +1,15 @@
+/** Build details baked in by next.config.ts. */
+export function appVersionLabel(): string {
+  const version = process.env.NEXT_PUBLIC_APP_VERSION;
+  const hash = process.env.NEXT_PUBLIC_COMMIT_HASH;
+  const iso = process.env.NEXT_PUBLIC_COMMIT_DATE;
+  const parts = [`Lauva ${version}`];
+  if (hash) parts.push(hash);
+  if (iso) {
+    const date = new Date(iso);
+    if (!Number.isNaN(date.getTime())) {
+      parts.push(date.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }));
+    }
+  }
+  return parts.join(" · ");
+}
