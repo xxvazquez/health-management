@@ -255,12 +255,25 @@ async function markDomainReminderResolved(userId: string, domain: string, date: 
   }
 }
 
+/** The role and issue/expiry times of the key this function talks to
+ * Supabase with (never the key itself), for the failure log below. */
+function describeServiceKey(): Record<string, unknown> {
+  const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+  try {
+    const payload = JSON.parse(atob(key.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
+    const iso = (t?: number) => (t ? new Date(t * 1000).toISOString() : null);
+    return { role: payload.role, iat: iso(payload.iat), exp: iso(payload.exp), now: new Date().toISOString() };
+  } catch {
+    return { format: key ? `not a JWT, starts with ${key.slice(0, 6)}` : "missing", now: new Date().toISOString() };
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
 
   const { data: subs, error } = await supabase.from("push_subscriptions").select("*");
   if (error) {
-    console.error("reminder-cron: failed to load subscriptions", error);
+    console.error("reminder-cron: failed to load subscriptions", error, describeServiceKey());
     return new Response(JSON.stringify({ error: error.message }), { status: 500 });
   }
 
