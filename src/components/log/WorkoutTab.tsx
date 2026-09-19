@@ -282,21 +282,24 @@ export function WorkoutTab({
 }) {
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-center gap-3">
-        <TimeField value={time} onChange={onTimeChange} onReset={onTimeReset} collapsible />
-      </div>
-
       {groups.length === 0 ? (
         <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
           No exercises yet — add one in Settings.
         </p>
       ) : (
-        groups.map((group) => (
+        groups.map((group, gi) => (
           <div key={group.category} className="flex flex-col gap-2">
-            <p className="flex items-center gap-1.5 text-xs font-semibold" style={{ color: group.chrome.color ?? accent }}>
-              {group.chrome.iconKey && <CustomIcon icon={group.chrome.iconKey} size={13} />}
-              {group.category}
-            </p>
+            <div className="flex min-h-9 flex-wrap items-center justify-between gap-x-3 gap-y-1">
+              <p className="flex items-center gap-1.5 px-0.5 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
+                {group.chrome.iconKey && (
+                  <span style={{ color: group.chrome.color ?? accent }}>
+                    <CustomIcon icon={group.chrome.iconKey} size={13} />
+                  </span>
+                )}
+                {group.category}
+              </p>
+              {gi === 0 && <TimeField value={time} onChange={onTimeChange} onReset={onTimeReset} collapsible />}
+            </div>
             <div className="flex flex-col gap-2">
               {group.items.map((item) => (
                 <ExerciseRow

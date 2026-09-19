@@ -332,21 +332,22 @@ export function StoolTab({
 
       {loggedList()}
 
-      <TimeField
-        value={draft.loggedAtTime}
-        onChange={(t) => setDraft((d) => ({ ...d, loggedAtTime: t }))}
-        onReset={() => setDraft((d) => ({ ...d, loggedAtTime: defaultLogTimeValue() }))}
-        collapsible
-      />
-
       {/* Same card treatment as every other tab's category groups
           (border, rounded-lg, colored header) — Bristol type is this tab's
           one "always tappable" grid, so unlike the details below it's never
           collapsed. */}
       <div className="flex flex-col gap-2 rounded-xl border p-3" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
-        <p className="border-b pb-2 text-sm font-medium" style={{ color: "var(--text-primary)", borderColor: "var(--gridline)" }}>
-          Bristol type — tap all that apply
-        </p>
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b pb-2" style={{ borderColor: "var(--gridline)" }}>
+          <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
+            Bristol type — tap all that apply
+          </p>
+          <TimeField
+            value={draft.loggedAtTime}
+            onChange={(t) => setDraft((d) => ({ ...d, loggedAtTime: t }))}
+            onReset={() => setDraft((d) => ({ ...d, loggedAtTime: defaultLogTimeValue() }))}
+            collapsible
+          />
+        </div>
         <div className="grid grid-cols-4 gap-1.5">
           {BRISTOL_SCORES.map((score) => (
             <Chip
