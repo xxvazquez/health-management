@@ -356,7 +356,7 @@ export function JournalTab({ isDemoData, accent }: { isDemoData: boolean; accent
     <div className="flex flex-col gap-3">
       {isDemoData && <DemoNotice />}
       <div className="flex items-center gap-2">
-        <SearchField value={search} onChange={setSearch} placeholder="Search entries…" className="min-w-0 flex-1" />
+        <SearchField value={search} onChange={setSearch} placeholder="Search entries…" className="min-w-0 flex-1 sm:w-64 sm:flex-none" />
         <button
           type="button"
           onClick={() => setOldestFirst((v) => !v)}
@@ -380,7 +380,9 @@ export function JournalTab({ isDemoData, accent }: { isDemoData: boolean; accent
             <path d="M6 4v12M3 13l3 3 3-3M14 16V4M11 7l3-3 3 3" />
           </svg>
         </button>
-        <PrimaryAction label="New entry" accent={accent} onClick={() => setComposing(true)} />
+        <div className="sm:ml-auto">
+          <PrimaryAction label="New entry" accent={accent} onClick={() => setComposing(true)} />
+        </div>
       </div>
 
       {loading ? (

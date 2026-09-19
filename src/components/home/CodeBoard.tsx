@@ -357,7 +357,7 @@ export function CodeBoard({
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center gap-2">
-        <SearchField value={search} onChange={setSearch} placeholder="Search codes…" className="min-w-0 flex-1" />
+        <SearchField value={search} onChange={setSearch} placeholder="Search codes…" className="min-w-0 flex-1 sm:w-64 sm:flex-none" />
         <button
           type="button"
           onClick={() => setSort((s) => (s === "shop" ? "expiry" : "shop"))}
@@ -374,7 +374,9 @@ export function CodeBoard({
             <ClockIcon size={16} />
           )}
         </button>
-        <PrimaryAction label="New code" accent={accent} onClick={() => setComposing(true)} />
+        <div className="sm:ml-auto">
+          <PrimaryAction label="New code" accent={accent} onClick={() => setComposing(true)} />
+        </div>
       </div>
 
       {loading ? (

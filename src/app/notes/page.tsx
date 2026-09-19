@@ -454,10 +454,11 @@ function NotesHeader({
               onClick={onMarkAllRead}
               aria-label="Mark all as read"
               title="Mark all as read"
-              className="flex h-9 w-9 items-center justify-center rounded-md border"
-              style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-secondary)" }}
+              className="flex h-9 w-9 items-center justify-center gap-1.5 rounded-md border text-sm font-medium sm:w-auto sm:px-3"
+              style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
             >
               <CheckIcon size={16} />
+              <span className="hidden sm:inline">Mark all as read</span>
             </button>
             <PrimaryAction label="New message" accent={ACCENT} onClick={onCompose} />
           </div>
