@@ -112,9 +112,13 @@ const COFFEE_ACCENT = "var(--series-slate)";
 
 const EXPANDED_CATEGORIES_STORAGE_KEY = "lauva.log.expandedCategories";
 
-/** Compact tappable chip — the Your usual and Products rows. */
+/** Tappable cell inside a category card. */
 const FOOD_PILL =
   "flex min-h-10 items-center gap-1.5 rounded-md border px-3 text-left text-sm leading-tight transition-colors active:opacity-70 disabled:opacity-50";
+
+/** Compact chip for the horizontally-scrolling Your usual and Products rows. */
+const QUICK_CHIP =
+  "flex min-h-8 shrink-0 items-center gap-1 whitespace-nowrap rounded-md border px-2.5 text-xs font-medium transition-colors active:opacity-70 disabled:opacity-50";
 
 function categoryStorageKey(itemType: ItemType, category: string): string {
   return `${itemType}:${category}`;
@@ -1700,6 +1704,61 @@ export default function LogPage() {
     );
   }
 
+  /** The grouped category list every Log tab shares: one rounded card, an
+   * icon + name + count header per category (collapsible on mobile), and a
+   * grid of tappable cells underneath. */
+  function renderCategoryCards(groups: { category: string; items: LogCandidate[] }[], renderItem: (c: LogCandidate) => ReactNode) {
+    if (!tabConfig || groups.length === 0) return null;
+    const type = tabConfig.type;
+    // A lone category, or a short tracker list, has nothing worth folding.
+    const single = groups.length === 1 || (type !== "food" && groups.reduce((n, g) => n + g.items.length, 0) <= 12);
+    return (
+      <div className="inset-rows rounded-xl border" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
+        {groups.map((group) => {
+          const chrome = categoryChrome(type, group.category);
+          const accent = chrome.color ?? colorForCategorySlot(group.category);
+          const icon = chrome.iconKey ? <CustomIcon icon={chrome.iconKey} size={15} /> : type === "food" ? FOOD_CATEGORY_ICON[group.category] : undefined;
+          // Collapse only hides anything below `lg` — desktop always shows
+          // every section expanded.
+          const collapsed = !searchQuery && !single && !expandedCategories.has(categoryStorageKey(type, group.category));
+          return (
+            <div key={group.category}>
+              <button
+                type="button"
+                onClick={() => toggleCategoryExpanded(group.category)}
+                aria-expanded={!collapsed}
+                className="flex min-h-11 w-full items-center gap-3 px-3.5 text-left text-sm"
+                style={{ color: "var(--text-primary)" }}
+              >
+                <span
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md"
+                  style={{ color: accent, background: `color-mix(in oklab, ${accent} 14%, transparent)` }}
+                >
+                  {icon ?? <span className="text-xs font-semibold">{group.category.charAt(0)}</span>}
+                </span>
+                {group.category}
+                <span className="ml-auto flex items-center gap-1.5" style={{ color: "var(--text-muted)" }}>
+                  {group.items.length}
+                  {!single && (
+                    <span className="lg:hidden">
+                      <ChevronIcon dir={collapsed ? "right" : "down"} size={14} />
+                    </span>
+                  )}
+                </span>
+              </button>
+              <div
+                className={clsx("grid-cols-2 gap-2 border-t p-3 sm:grid-cols-3 lg:grid-cols-4", collapsed ? "hidden lg:grid" : "grid")}
+                style={{ borderColor: "var(--gridline)" }}
+              >
+                {group.items.map((c) => renderItem(c))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
   function renderTrackerList() {
     if (!tabConfig) return null;
     const accent = TYPE_ACCENT[tabConfig.type];
@@ -1710,43 +1769,17 @@ export default function LogPage() {
       .filter((g) => g.items.length > 0);
     const box = "inset-rows rounded-xl border";
     const boxStyle = { borderColor: "var(--border-hairline)", background: "var(--surface-1)" } as const;
-    const header = (label: string, count: number, color: string, icon?: ReactNode) => (
-      <div className="flex min-h-11 items-center gap-3 px-3.5 text-sm" style={{ color: "var(--text-primary)" }}>
-        {icon && (
-          <span
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md"
-            style={{ color, background: `color-mix(in oklab, ${color} 14%, transparent)` }}
-          >
-            {icon}
-          </span>
-        )}
-        {label}
-        <span className="ml-auto" style={{ color: "var(--text-muted)" }}>
-          {count}
-        </span>
-      </div>
-    );
     return (
       <div className="flex flex-col gap-3">
-        {plainGroups.length > 0 && (
-          <div className={box} style={boxStyle}>
-            {plainGroups.map((group) => {
-              const chrome = categoryChrome(tabConfig.type, group.category);
-              const color = chrome.color ?? accent;
-              return (
-                <div key={group.category}>
-                  {header(group.category, group.items.length, color, chrome.iconKey ? <CustomIcon icon={chrome.iconKey} size={15} /> : undefined)}
-                  <div className="grid grid-cols-2 gap-2 border-t p-3 sm:grid-cols-3 lg:grid-cols-4" style={{ borderColor: "var(--gridline)" }}>
-                    {group.items.map((c) => (tab === "outcome" ? renderSymptomRow(c, accent) : renderHabitRow(c, accent)))}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
+        {renderCategoryCards(plainGroups, (c) => (tab === "outcome" ? renderSymptomRow(c, accent) : renderHabitRow(c, accent)))}
         {measureItems.length > 0 && (
           <div className={box} style={boxStyle}>
-            {header("Measures", measureItems.length, accent)}
+            <div className="flex min-h-11 items-center gap-3 px-3.5 text-sm" style={{ color: "var(--text-primary)" }}>
+              Measures
+              <span className="ml-auto" style={{ color: "var(--text-muted)" }}>
+                {measureItems.length}
+              </span>
+            </div>
             <ul className="inset-rows border-t" style={{ borderColor: "var(--gridline)" }}>
               {measureItems.map((c) => renderMeasureRow(c, accent))}
             </ul>
@@ -1990,8 +2023,43 @@ export default function LogPage() {
             <SearchField
               value={search}
               onChange={setSearch}
-              placeholder={`Search or add ${tabConfig.label.toLowerCase()}…`}
-              className="w-40 grow sm:w-60 sm:flex-none"
+              placeholder="Search or add…"
+              className="w-36 grow sm:w-60 sm:flex-none"
+            />
+            {/* The meal tag stays visible — the auto-pick is by time of day
+             * and is often wrong (breakfast logged at 11pm), so changing it
+             * can't cost a tap. The time, right ~all the time, collapses to
+             * a "now" pill. */}
+            {tabConfig.countable && (
+              <label
+                className="relative flex min-h-9 items-center gap-1 rounded-md px-3 text-sm font-semibold"
+                style={{
+                  background: `color-mix(in oklab, ${TYPE_ACCENT[tabConfig.type]} 14%, var(--surface-1))`,
+                  color: TYPE_ACCENT[tabConfig.type],
+                }}
+              >
+                {meal}
+                <ChevronIcon dir="down" size={11} />
+                <select
+                  value={meal}
+                  onChange={(e) => setMeal(e.target.value)}
+                  aria-label={tab === "food" ? "Meal" : "Time of day"}
+                  className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                >
+                  {tagOptionsForType(tab).map((m) => (
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            <TimeField
+              value={logTime}
+              onChange={setLogTime}
+              explicit={timeIsExplicit}
+              onReset={() => setLogTime(defaultLogTimeValue())}
+              collapsible
             />
             {!isDemoData && (
               <Link href="/manage" className="hidden shrink-0 text-xs font-medium sm:inline" style={{ color: "var(--ui-accent)" }}>
@@ -2058,46 +2126,6 @@ export default function LogPage() {
         )
       ) : (
         <>
-          {tabConfig && (
-            <div className="flex flex-wrap items-center gap-3">
-              {/* The meal tag stays visible — the auto-pick is by time of
-               * day and is often wrong (breakfast logged at 11pm), so
-               * changing it can't cost a tap. The time, which is right
-               * ~all the time, collapses to a "now · change" link. */}
-              {tabConfig.countable && (
-                <label
-                  className="relative flex items-center gap-1 min-h-9 rounded-md px-3 text-sm font-semibold"
-                  style={{
-                    background: `color-mix(in oklab, ${TYPE_ACCENT[tabConfig.type]} 14%, var(--surface-1))`,
-                    color: TYPE_ACCENT[tabConfig.type],
-                  }}
-                >
-                  {meal}
-                  <ChevronIcon dir="down" size={11} />
-                  <select
-                    value={meal}
-                    onChange={(e) => setMeal(e.target.value)}
-                    aria-label={tab === "food" ? "Meal" : "Time of day"}
-                    className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-                  >
-                    {tagOptionsForType(tab).map((m) => (
-                      <option key={m} value={m}>
-                        {m}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              )}
-              <TimeField
-                value={logTime}
-                onChange={setLogTime}
-                explicit={timeIsExplicit}
-                onReset={() => setLogTime(defaultLogTimeValue())}
-                collapsible
-              />
-            </div>
-          )}
-
           {tab === "food" && mealGroups.length > 0 && (
             <div className="flex flex-col gap-2">
               {mealGroups.map((g) => (
@@ -2215,7 +2243,7 @@ export default function LogPage() {
                           type="button"
                           onClick={() => handleChipTap(c)}
                           disabled={busy}
-                          className={`${FOOD_PILL} shrink-0 whitespace-nowrap`}
+                          className={QUICK_CHIP}
                           style={{
                             background: logged ? `color-mix(in oklab, ${cAccent} 14%, var(--surface-1))` : "var(--surface-1)",
                             borderColor: logged ? cAccent : "var(--border-hairline)",
@@ -2247,7 +2275,7 @@ export default function LogPage() {
                             type="button"
                             onClick={() => void handleLogProduct(p)}
                             disabled={busy}
-                            className={`${FOOD_PILL} shrink-0 whitespace-nowrap`}
+                            className={QUICK_CHIP}
                             style={{ background: "var(--surface-1)", borderColor: cAccent, color: cAccent }}
                           >
                             {p.name}
@@ -2261,57 +2289,9 @@ export default function LogPage() {
 
               {addRow}
 
-              {tab === "food" ? (
-                groupedByCategory.length > 0 && (
-                  <div className="inset-rows rounded-xl border" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
-                    {groupedByCategory.map((group) => {
-                      const chrome = categoryChrome("food", group.category);
-                      const accent = chrome.color ?? colorForCategorySlot(group.category);
-                      const icon = chrome.iconKey ? <CustomIcon icon={chrome.iconKey} size={15} /> : FOOD_CATEGORY_ICON[group.category];
-                      // Collapse only actually hides anything below `lg` —
-                      // desktop always shows every section expanded,
-                      // regardless of this saved state.
-                      const collapsed = !searchQuery && !expandedCategories.has(categoryStorageKey(tabConfig.type, group.category));
-                      return (
-                        <div key={group.category}>
-                          <button
-                            type="button"
-                            onClick={() => toggleCategoryExpanded(group.category)}
-                            aria-expanded={!collapsed}
-                            className="flex min-h-11 w-full items-center gap-3 px-3.5 text-left text-sm"
-                            style={{ color: "var(--text-primary)" }}
-                          >
-                            <span
-                              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md"
-                              style={{ color: accent, background: `color-mix(in oklab, ${accent} 14%, transparent)` }}
-                            >
-                              {icon ?? <span className="text-xs font-semibold">{group.category.charAt(0)}</span>}
-                            </span>
-                            {group.category}
-                            <span className="ml-auto flex items-center gap-1.5" style={{ color: "var(--text-muted)" }}>
-                              {group.items.length}
-                              <span className="lg:hidden">
-                                <ChevronIcon dir={collapsed ? "right" : "down"} size={14} />
-                              </span>
-                            </span>
-                          </button>
-                          <div
-                            className={clsx(
-                              "grid-cols-2 gap-2 border-t p-3 sm:grid-cols-3 lg:grid-cols-4",
-                              collapsed ? "hidden lg:grid" : "grid",
-                            )}
-                            style={{ borderColor: "var(--gridline)" }}
-                          >
-                            {group.items.map((c) => renderChip(c))}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )
-              ) : (
-                renderTrackerList()
-              )}
+              {tab === "food"
+                ? renderCategoryCards(groupedByCategory, (c) => renderChip(c))
+                : renderTrackerList()}
 
               {seasonalPicksCard}
 
