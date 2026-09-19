@@ -102,7 +102,7 @@ export function LabMarkerChart({
           tickFormatter={axis.format}
           tickLine={{ stroke: "var(--baseline)" }}
           axisLine={{ stroke: "var(--baseline)" }}
-          tick={{ fill: "var(--text-muted)", fontSize: 10 }}
+          tick={{ fill: "var(--text-muted)", fontSize: 12 }}
           angle={axis.vertical ? -90 : 0}
           textAnchor={axis.vertical ? "end" : "middle"}
           height={axis.vertical ? 52 : 22}
@@ -112,7 +112,7 @@ export function LabMarkerChart({
           domain={[yFloor, yCeil]}
           tickLine={false}
           axisLine={false}
-          tick={{ fill: "var(--text-muted)", fontSize: 11 }}
+          tick={{ fill: "var(--text-muted)", fontSize: 12 }}
           width={40}
         />
         <Tooltip

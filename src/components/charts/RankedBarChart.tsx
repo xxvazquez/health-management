@@ -45,7 +45,7 @@ export function RankedBarChart({
           }}
           formatter={(v) => (valueFormatter ? valueFormatter(Number(v)) : Number(v))}
         />
-        <Bar dataKey="value" radius={[0, 4, 4, 0]} maxBarSize={16} label={{ position: "right", fill: "var(--text-secondary)", fontSize: 11 }}>
+        <Bar dataKey="value" radius={[0, 4, 4, 0]} maxBarSize={16} label={{ position: "right", fill: "var(--text-secondary)", fontSize: 12 }}>
           {data.map((d, i) => (
             <Cell key={i} fill={d.color ?? color} />
           ))}

@@ -26,7 +26,7 @@ export function BristolScoreChart({ data, color = "var(--series-1)", height = 28
           dataKey="date"
           tickLine={false}
           axisLine={{ stroke: "var(--baseline)" }}
-          tick={{ fill: "var(--text-muted)", fontSize: 11 }}
+          tick={{ fill: "var(--text-muted)", fontSize: 12 }}
           tickFormatter={formatAxisDate}
           tickMargin={8}
           minTickGap={28}
@@ -37,7 +37,7 @@ export function BristolScoreChart({ data, color = "var(--series-1)", height = 28
           allowDecimals={false}
           tickLine={false}
           axisLine={false}
-          tick={{ fill: "var(--text-muted)", fontSize: 11 }}
+          tick={{ fill: "var(--text-muted)", fontSize: 12 }}
           width={32}
         />
         <Tooltip

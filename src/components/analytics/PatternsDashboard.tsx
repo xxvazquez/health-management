@@ -63,7 +63,7 @@ export function PatternsDashboard() {
             </span>
             <SampleTierBadge tier={topPatterns[0].sampleTier} />
           </div>
-          <p className="text-base leading-snug" style={{ color: "var(--text-primary)" }}>
+          <p className="text-sm leading-snug" style={{ color: "var(--text-primary)" }}>
             <strong className="font-semibold">{topPatterns[0].outcomeLabel}</strong>{" "}
             {topPatterns[0].diffPct > 0 ? "occurred more often" : "occurred less often"} {lagPhrase(topPatterns[0].lagDays)}{" "}
             <strong className="font-semibold">{topPatterns[0].causeLabel}</strong>.
@@ -224,7 +224,7 @@ function LagExplorer({ events, workoutLogs }: { events: CanonicalEvent[]; workou
             </div>
             {r.sampleTier !== "insufficient" ? (
               <>
-                <p className="mt-1 text-base font-semibold tabular-nums" style={{ color: "var(--text-primary)" }}>
+                <p className="mt-1 text-sm font-semibold tabular-nums" style={{ color: "var(--text-primary)" }}>
                   {r.diffPct > 0 ? "+" : ""}
                   {r.diffPct} pts
                 </p>

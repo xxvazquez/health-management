@@ -355,7 +355,7 @@ export function Nav() {
         <Link href="/log" className={clsx("flex items-center", collapsed ? "justify-center px-0" : "px-2")}>
           <Logo size={26} />
           {!collapsed && (
-            <span className="ml-2 text-lg font-semibold tracking-[0.2em] whitespace-nowrap" style={{ color: "var(--text-primary)" }}>
+            <span className="ml-2 text-base font-semibold tracking-[0.2em] whitespace-nowrap" style={{ color: "var(--text-primary)" }}>
               LAUVA
             </span>
           )}

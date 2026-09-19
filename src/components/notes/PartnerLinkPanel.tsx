@@ -51,7 +51,7 @@ export function PartnerLinkPanel({ onLinked }: { onLinked: () => void }) {
   return (
     <div className="mx-auto flex max-w-md flex-col gap-4">
       <div>
-        <h1 className="text-2xl font-semibold lg:text-xl tracking-tight" style={{ color: "var(--text-primary)" }}>
+        <h1 className="text-xl font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
           Connect with your partner
         </h1>
         <p className="mt-1 text-sm" style={{ color: "var(--text-secondary)" }}>
@@ -65,7 +65,7 @@ export function PartnerLinkPanel({ onLinked }: { onLinked: () => void }) {
         </CardTitle>
         {invite ? (
           <div className="flex items-center justify-between rounded-lg border px-4 py-3" style={{ borderColor: ACCENT, background: "color-mix(in oklab, var(--series-magenta) 10%, var(--surface-1))" }}>
-            <span className="text-lg font-semibold tracking-[0.2em] tabular-nums" style={{ color: "var(--text-primary)" }}>
+            <span className="text-base font-semibold tracking-[0.2em] tabular-nums" style={{ color: "var(--text-primary)" }}>
               {invite.code}
             </span>
             <button type="button" onClick={handleGenerate} className="text-xs font-medium" style={{ color: ACCENT }}>

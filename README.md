@@ -444,7 +444,9 @@ bug-report function is unaffected — it mails `BUG_EMAIL`, the account owner.
   before first paint; `ThemeManager` keeps `system` in step with the OS live.
   Every component styles through the tokens, so keep new colours as `var(--…)`,
   not literals. One sans-serif family: the system face (SF Pro) on Apple devices via
-  `--font-app`, Inter as the fallback elsewhere. `public/icons/` are PNG renders
+  `--font-app`, Inter as the fallback elsewhere. Type scale: 12px captions, 14px body,
+  16px section headings, 20px page titles — nothing else, including chart ticks.
+  `public/icons/` are PNG renders
   of `public/logo-mark.svg` — regenerate from the SVG, don't hand-edit the PNGs.
 
   ![Lauva brand palette](docs/palette.svg)

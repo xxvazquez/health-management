@@ -17,7 +17,7 @@ export function HabitGridWeekdays() {
   return (
     <div className="grid" style={{ gridTemplateColumns: TRACK, gap: GAP }}>
       {["M", "T", "W", "T", "F", "S", "S"].map((d, i) => (
-        <span key={i} className="text-center text-[9px] font-medium" style={{ color: "var(--text-muted)" }}>
+        <span key={i} className="text-center text-xs font-medium" style={{ color: "var(--text-muted)" }}>
           {d}
         </span>
       ))}
@@ -101,11 +101,11 @@ export function HabitYearBars({
         <div key={i} className="flex flex-col items-center">
           <div
             className="flex w-full flex-col items-center justify-end"
-            style={{ height: YEAR_BAR_AREA + 10 }}
+            style={{ height: YEAR_BAR_AREA + 16 }}
             title={mo.pct != null ? `${MONTH_LETTERS[i]}: ${mo.done} days, ${Math.round(mo.pct)}%` : undefined}
           >
             {mo.pct != null && mo.done > 0 && (
-              <span className="text-[8px] leading-none tabular-nums" style={{ color: "var(--text-muted)" }}>
+              <span className="text-xs leading-none tabular-nums" style={{ color: "var(--text-muted)" }}>
                 {mo.done}
               </span>
             )}
@@ -117,7 +117,7 @@ export function HabitYearBars({
             )}
           </div>
           <span
-            className="w-full border-t pt-0.5 text-center text-[9px] font-medium leading-none"
+            className="w-full border-t pt-0.5 text-center text-xs font-medium leading-none"
             style={{ color: "var(--text-muted)", borderColor: "var(--gridline)" }}
           >
             {MONTH_LETTERS[i]}

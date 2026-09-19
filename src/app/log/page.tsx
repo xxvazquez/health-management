@@ -1962,7 +1962,7 @@ export default function LogPage() {
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between gap-2">
         <h1
-          className="min-w-0 flex-1 border-l-[3px] pl-2.5 text-2xl font-bold tracking-tight lg:text-xl lg:font-semibold"
+          className="min-w-0 flex-1 border-l-[3px] pl-2.5 text-xl font-semibold tracking-tight"
           style={{ borderColor: "var(--baseline)", color: "var(--text-primary)" }}
         >
           Log

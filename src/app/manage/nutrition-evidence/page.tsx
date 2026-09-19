@@ -38,7 +38,7 @@ export default function NutritionEvidencePage() {
           <span>→</span>
           <span>Nutrition evidence</span>
         </div>
-        <h1 className="mt-1 text-2xl font-semibold lg:text-xl tracking-tight" style={{ color: "var(--text-primary)" }}>
+        <h1 className="mt-1 text-xl font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
           Nutrition evidence
         </h1>
         <p className="mt-1 text-sm" style={{ color: "var(--text-secondary)" }}>
