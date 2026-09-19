@@ -8,7 +8,16 @@ export function appVersionLabel(): string {
   if (iso) {
     const date = new Date(iso);
     if (!Number.isNaN(date.getTime())) {
-      parts.push(date.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }));
+      parts.push(
+        date.toLocaleString("en-GB", {
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+          timeZone: "Europe/Warsaw",
+        }),
+      );
     }
   }
   return parts.join(" · ");
