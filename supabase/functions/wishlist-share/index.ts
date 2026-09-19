@@ -28,7 +28,9 @@ function json(body: unknown, status = 200): Response {
 const DEFAULT_LIST = "Saved from phone";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+// SERVICE_ROLE_JWT (a legacy JWT service_role key, set by hand) overrides the
+// built-in key, which can be a newer sb_secret_ key PostgREST rejects.
+const SERVICE_ROLE_KEY = (Deno.env.get("SERVICE_ROLE_JWT") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"))!;
 const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
 function safeDecode(s: string): string {

@@ -409,6 +409,11 @@ including a full sign-out / sign-in account switch.
   unset GitHub secret can't wipe one set by hand in the dashboard. Changing a
   secret's *value* in GitHub doesn't retrigger the workflow (no file changed) —
   run it manually from the Actions tab.
+- **Service key override.** The functions use `SERVICE_ROLE_JWT` (a legacy JWT
+  `service_role` key, set by hand under Edge Functions → Secrets) when it exists,
+  and otherwise Supabase's built-in `SUPABASE_SERVICE_ROLE_KEY`. On this project
+  the built-in one is an `sb_secret_` key that PostgREST rejects with
+  `PGRST303 JWT issued at future`, which stopped `reminder-cron` entirely.
 
 ### The reminder / digest cron
 

@@ -25,7 +25,8 @@
 //    have N unread notes from <name>" summary — instead of a mail per
 //    message. notes_digest_state stops it re-sending the same day.
 // SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are injected automatically by
-// Supabase for every Edge Function; only the VAPID keys, RESEND_API_KEY,
+// Supabase for every Edge Function (SERVICE_ROLE_JWT, if set, overrides the
+// latter — see serviceKey below); only the VAPID keys, RESEND_API_KEY,
 // NOTES_FROM/REMINDERS_FROM, and (optionally) DIGEST_TIMEZONE need to be
 // set by hand (see
 // .github/workflows/deploy-functions.yml).
@@ -33,7 +34,11 @@
 import webpush from "npm:web-push@3.6.7";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+// SERVICE_ROLE_JWT (a legacy JWT service_role key, set by hand) wins when
+// present. The built-in SUPABASE_SERVICE_ROLE_KEY can be a newer sb_secret_ key,
+// which PostgREST rejected here with "JWT issued at future".
+const serviceKey = Deno.env.get("SERVICE_ROLE_JWT") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const supabase = createClient(Deno.env.get("SUPABASE_URL")!, serviceKey);
 
 const vapidSubject = Deno.env.get("VAPID_SUBJECT") || `mailto:${Deno.env.get("BUG_EMAIL") || "support@lauva.pl"}`;
 webpush.setVapidDetails(vapidSubject, Deno.env.get("VAPID_PUBLIC_KEY")!, Deno.env.get("VAPID_PRIVATE_KEY")!);
@@ -258,7 +263,7 @@ async function markDomainReminderResolved(userId: string, domain: string, date: 
 /** The role and issue/expiry times of the key this function talks to
  * Supabase with (never the key itself), for the failure log below. */
 function describeServiceKey(): Record<string, unknown> {
-  const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+  const key = serviceKey ?? "";
   try {
     const payload = JSON.parse(atob(key.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
     const iso = (t?: number) => (t ? new Date(t * 1000).toISOString() : null);

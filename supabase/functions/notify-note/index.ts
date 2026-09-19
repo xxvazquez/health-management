@@ -49,7 +49,9 @@ Deno.serve(async (req) => {
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
-  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  // SERVICE_ROLE_JWT (a legacy JWT service_role key, set by hand) overrides the
+  // built-in key, which can be a newer sb_secret_ key PostgREST rejects.
+  const serviceRoleKey = Deno.env.get("SERVICE_ROLE_JWT") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   if (!supabaseUrl || !anonKey || !serviceRoleKey || !Deno.env.get("VAPID_PUBLIC_KEY")) {
     console.error("notify-note: missing SUPABASE_URL / SUPABASE_ANON_KEY / SUPABASE_SERVICE_ROLE_KEY / VAPID_PUBLIC_KEY");
     return json({ error: "Server not configured" }, 500);
