@@ -1,5 +1,6 @@
 "use client";
 
+import { CHIP_CLS, chipStyle, Chip as BaseChip } from "@/components/ui/Chip";
 import { useState, type ReactNode } from "react";
 import type { useLabs } from "@/lib/useLabs";
 import { formatDMY, todayLocalISODate } from "@/lib/aggregations/common";
@@ -152,8 +153,8 @@ export function LabsOverview({
           <button
             type="button"
             onClick={onNewMarker}
-            className="min-h-9 rounded-md border px-3 text-sm font-medium"
-            style={{ borderColor: ACCENT, background: `color-mix(in oklab, ${ACCENT} 12%, var(--surface-1))`, color: ACCENT }}
+            className={CHIP_CLS}
+            style={chipStyle(true, ACCENT)}
           >
             Add a marker
           </button>
@@ -330,19 +331,9 @@ export function LabsOverview({
  * but standalone so the row can scroll sideways on a narrow screen. */
 function FilterChip({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className="shrink-0 min-h-9 rounded-md border px-3 text-sm font-medium whitespace-nowrap transition-colors"
-      style={{
-        borderColor: active ? ACCENT : "var(--border-hairline)",
-        background: active ? `color-mix(in oklab, ${ACCENT} 14%, var(--surface-1))` : "var(--surface-1)",
-        color: active ? ACCENT : "var(--text-secondary)",
-      }}
-    >
+    <BaseChip active={active} accent={ACCENT} nowrap onClick={onClick}>
       {label}
-    </button>
+    </BaseChip>
   );
 }
 

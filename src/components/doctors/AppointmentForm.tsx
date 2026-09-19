@@ -140,7 +140,7 @@ export function AppointmentForm({
       </div>
 
       {isNewDoctor && (
-        <div className="flex flex-col gap-3 rounded-lg border p-3" style={{ borderColor: "var(--gridline)", background: "var(--page-backdrop)" }}>
+        <div className="flex flex-col gap-3 rounded-xl border p-3" style={{ borderColor: "var(--gridline)", background: "var(--page-backdrop)" }}>
           <p className="text-xs" style={{ color: "var(--text-muted)" }}>
             New doctor — saved for reuse.
           </p>
@@ -185,7 +185,7 @@ export function AppointmentForm({
         <label className={LABEL_CLS} style={LABEL_STYLE}>
           Follow-up notes <span style={{ color: "var(--text-muted)" }}>· optional</span>
         </label>
-        <div className="overflow-hidden rounded-lg border" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
+        <div className="overflow-hidden rounded-xl border" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
           <MarkdownField value={followUpNotes} onChange={setFollowUpNotes} rows={4} required={false} placeholder="What was discussed, results, what to watch" />
         </div>
       </div>
@@ -194,7 +194,7 @@ export function AppointmentForm({
         <label className={LABEL_CLS} style={LABEL_STYLE}>
           Comments <span style={{ color: "var(--text-muted)" }}>· optional</span>
         </label>
-        <div className="overflow-hidden rounded-lg border" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
+        <div className="overflow-hidden rounded-xl border" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
           <MarkdownField value={notes} onChange={setNotes} rows={4} required={false} placeholder="Anything else worth noting" />
         </div>
       </div>
@@ -205,7 +205,7 @@ export function AppointmentForm({
             Follow-up tasks <span style={{ color: "var(--text-muted)" }}>· optional</span>
           </label>
           {tasks.map((task, index) => (
-            <div key={index} className="flex flex-col gap-2 rounded-lg border p-2.5" style={{ borderColor: "var(--gridline)" }}>
+            <div key={index} className="flex flex-col gap-2 rounded-xl border p-2.5" style={{ borderColor: "var(--gridline)" }}>
               <div className="flex items-center gap-2">
                 <input
                   value={task.description}

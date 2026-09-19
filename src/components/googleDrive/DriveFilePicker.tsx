@@ -1,5 +1,6 @@
 "use client";
 
+import { CHIP_CLS, chipStyle } from "@/components/ui/Chip";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/Button";
 import { CloseIcon } from "@/components/ui/icons";
@@ -188,8 +189,8 @@ export function DriveFilePicker({ onPick, onClose }: { onPick: (file: DriveAttac
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploading}
-                className="shrink-0 min-h-9 rounded-md border px-3 text-sm font-medium disabled:opacity-50"
-                style={{ borderColor: "var(--border-hairline)", color: "var(--text-secondary)" }}
+                className={`${CHIP_CLS} shrink-0`}
+                style={chipStyle(false)}
               >
                 {uploading ? "Uploading…" : "Upload"}
               </button>

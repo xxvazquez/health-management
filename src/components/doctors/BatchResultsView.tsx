@@ -1,5 +1,6 @@
 "use client";
 
+import { Chip } from "@/components/ui/Chip";
 import { useMemo, useState } from "react";
 import { useLabs } from "@/lib/useLabs";
 import { todayLocalISODate } from "@/lib/aggregations/common";
@@ -157,20 +158,9 @@ export function BatchResultsView({
             {chips.map((c) => {
               const active = panelFilter === c.id;
               return (
-                <button
-                  key={c.id}
-                  type="button"
-                  onClick={() => setPanelFilter(c.id)}
-                  aria-pressed={active}
-                  className="min-h-9 rounded-md border px-3 text-sm font-medium transition-colors"
-                  style={{
-                    borderColor: active ? accent : "var(--border-hairline)",
-                    background: active ? `color-mix(in oklab, ${accent} 14%, var(--surface-1))` : "transparent",
-                    color: active ? accent : "var(--text-muted)",
-                  }}
-                >
+                <Chip key={c.id} active={active} accent={accent} onClick={() => setPanelFilter(c.id)}>
                   {c.label}
-                </button>
+                </Chip>
               );
             })}
           </div>
@@ -235,7 +225,7 @@ function MarkerGroup({
   setValues: (fn: (prev: Record<string, string>) => Record<string, string>) => void;
 }) {
   return (
-    <section className="flex flex-col rounded-lg border" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
+    <section className="flex flex-col rounded-xl border" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
       <div className="flex items-center gap-1.5 border-b px-3 py-2" style={{ borderColor: "var(--border-hairline)" }}>
         <h3 className="min-w-0 flex-1 truncate text-xs font-semibold" style={{ color: accent }}>{title}</h3>
         <span className="text-xs font-medium tabular-nums" style={{ color: "var(--text-muted)" }}>{markers.length}</span>
@@ -263,7 +253,7 @@ function MarkerGroup({
                 inputMode="decimal"
                 aria-label={`${m.name} value`}
                 placeholder={m.unit ?? "value"}
-                className="w-24 shrink-0 rounded-lg border px-2.5 py-1.5 text-sm tabular-nums outline-none focus:border-[color:var(--baseline)]"
+                className="w-24 shrink-0 rounded-md border px-2.5 py-1.5 text-sm tabular-nums outline-none focus:border-[color:var(--baseline)]"
                 style={FIELD_STYLE}
               />
             </div>

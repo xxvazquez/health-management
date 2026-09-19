@@ -1,5 +1,6 @@
 "use client";
 
+import { Chip as BaseChip } from "@/components/ui/Chip";
 import { useMemo, useState, type ReactNode } from "react";
 import clsx from "clsx";
 import { addDaysToDate, monthStart } from "@/lib/aggregations/common";
@@ -69,20 +70,10 @@ const COLLECTION_METHOD_ICON: Record<string, ReactNode> = {
 
 function Chip({ label, active, onClick, accent, icon }: { label: string; active: boolean; onClick: () => void; accent: string; icon?: ReactNode }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className="flex min-h-10 w-full items-center gap-1.5 rounded-md border px-3 text-left text-sm leading-tight transition-colors"
-      style={{
-        borderColor: active ? accent : "var(--border-hairline)",
-        background: active ? `color-mix(in oklab, ${accent} 14%, var(--surface-1))` : "var(--surface-1)",
-        color: active ? accent : "var(--text-primary)",
-      }}
-    >
+    <BaseChip active={active} accent={accent} block onClick={onClick}>
       {icon}
       {label}
-    </button>
+    </BaseChip>
   );
 }
 
@@ -378,7 +369,7 @@ export function CycleTab({
           >
             <ChevronIcon dir="left" size={15} />
           </button>
-          <p className="text-xs font-semibold" style={{ color: "var(--text-secondary)" }}>
+          <p className="px-0.5 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
             Period calendar
           </p>
           <button

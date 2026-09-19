@@ -1,5 +1,6 @@
 "use client";
 
+import { CHIP_CLS, chipStyle, Chip } from "@/components/ui/Chip";
 import { useMemo, useState, type ReactNode } from "react";
 import { DOCTOR_LANGUAGES, DOCTOR_RATINGS, isBadDoctor, type DoctorLanguage } from "@/lib/doctors";
 
@@ -88,20 +89,9 @@ export function RatingChips({ value, onChange, accent }: { value: number | null;
         const bad = r === 1;
         const activeColor = bad ? "var(--status-critical)" : accent;
         return (
-          <button
-            key={r}
-            type="button"
-            onClick={() => onChange(active ? null : r)}
-            aria-pressed={active}
-            className="min-h-9 rounded-md border px-2.5 text-xs font-semibold tabular-nums transition-colors"
-            style={{
-              borderColor: active ? activeColor : "var(--border-hairline)",
-              background: active ? `color-mix(in oklab, ${activeColor} 14%, var(--surface-1))` : "transparent",
-              color: active ? activeColor : "var(--text-muted)",
-            }}
-          >
+          <Chip key={r} active={active} accent={activeColor} className="tabular-nums" onClick={() => onChange(active ? null : r)}>
             {r}
-          </button>
+          </Chip>
         );
       })}
       {value != null && (
@@ -119,20 +109,9 @@ export function LanguageChips({ value, onChange, accent }: { value: DoctorLangua
       {DOCTOR_LANGUAGES.map((lang) => {
         const active = value === lang;
         return (
-          <button
-            key={lang}
-            type="button"
-            onClick={() => onChange(active ? null : lang)}
-            aria-pressed={active}
-            className="min-h-9 rounded-md border px-2.5 text-xs font-medium transition-colors"
-            style={{
-              borderColor: active ? accent : "var(--border-hairline)",
-              background: active ? `color-mix(in oklab, ${accent} 14%, var(--surface-1))` : "transparent",
-              color: active ? accent : "var(--text-muted)",
-            }}
-          >
+          <Chip key={lang} active={active} accent={accent} onClick={() => onChange(active ? null : lang)}>
             {lang}
-          </button>
+          </Chip>
         );
       })}
     </div>
@@ -268,12 +247,8 @@ export function NextAppointmentField({
         </span>
       )}
       <label
-        className="relative inline-flex cursor-pointer items-center gap-1.5 rounded-md border px-2 py-1 text-xs font-medium transition-colors"
-        style={{
-          borderColor: date ? accent : "var(--border-hairline)",
-          background: date ? `color-mix(in oklab, ${accent} 12%, var(--surface-1))` : "var(--surface-1)",
-          color: date ? accent : "var(--text-muted)",
-        }}
+        className={`${CHIP_CLS} relative cursor-pointer`}
+        style={chipStyle(Boolean(date), accent)}
       >
         <CalendarIcon size={13} />
         <span className="tabular-nums">{date ? formatDate(date) : "Set a date"}</span>

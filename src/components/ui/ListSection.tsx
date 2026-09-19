@@ -65,7 +65,7 @@ export function ListSection({
   const cardBackground = accent ? `color-mix(in oklab, ${accent} 6%, var(--surface-1))` : "var(--surface-1)";
 
   return (
-    <section className="flex flex-col rounded-lg border" style={{ borderColor: cardBorder, background: cardBackground }}>
+    <section className="flex flex-col rounded-xl border" style={{ borderColor: cardBorder, background: cardBackground }}>
       {collapsible ? (
         <button
           type="button"

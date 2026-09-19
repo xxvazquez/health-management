@@ -1,5 +1,6 @@
 "use client";
 
+import { Chip } from "@/components/ui/Chip";
 import { useMemo, useState, type FormEvent } from "react";
 import clsx from "clsx";
 import type { useDoctors } from "@/lib/useDoctors";
@@ -52,20 +53,9 @@ function SpecialtyPicker({ api, selected, onToggle, accent }: { api: DoctorsApi;
       {options.map((s) => {
         const on = selected.includes(s.id);
         return (
-          <button
-            key={s.id}
-            type="button"
-            onClick={() => onToggle(s.id)}
-            aria-pressed={on}
-            className="rounded-full border px-2.5 py-1 text-xs font-medium transition-colors"
-            style={{
-              borderColor: on ? accent : "var(--border-hairline)",
-              background: on ? `color-mix(in oklab, ${accent} 14%, var(--surface-1))` : "transparent",
-              color: on ? accent : "var(--text-secondary)",
-            }}
-          >
+          <Chip key={s.id} active={on} accent={accent} onClick={() => onToggle(s.id)}>
             {s.name}
-          </button>
+          </Chip>
         );
       })}
     </div>
@@ -128,20 +118,9 @@ export function CareEntryForm({
     <FormShell title={initial ? "Edit entry" : "New entry"} onSubmit={handleSubmit} onCancel={onCancel}>
       <div className="flex gap-1.5">
         {(["observation", "note", "decision"] as const).map((k) => (
-          <button
-            key={k}
-            type="button"
-            onClick={() => setKind(k)}
-            aria-pressed={kind === k}
-            className="rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors"
-            style={{
-              borderColor: kind === k ? accent : "var(--border-hairline)",
-              background: kind === k ? `color-mix(in oklab, ${accent} 12%, var(--surface-1))` : "transparent",
-              color: kind === k ? accent : "var(--text-secondary)",
-            }}
-          >
+          <Chip key={k} active={kind === k} accent={accent} onClick={() => setKind(k)}>
             {CARE_KIND_LABEL[k]}
-          </button>
+          </Chip>
         ))}
       </div>
       <p className="-mt-1 text-xs" style={{ color: "var(--text-muted)" }}>
@@ -309,12 +288,12 @@ function CareEntryTags({ specialtyNames, supplementName, accent }: { specialtyNa
   return (
     <span className="flex flex-wrap gap-1">
       {supplementName && (
-        <span className="rounded-full px-2 py-0.5 text-xs font-medium" style={{ background: `color-mix(in oklab, ${accent} 14%, transparent)`, color: accent }}>
+        <span className="rounded-md px-2 py-0.5 text-xs font-medium" style={{ background: `color-mix(in oklab, ${accent} 14%, transparent)`, color: accent }}>
           {supplementName}
         </span>
       )}
       {specialtyNames.map((name) => (
-        <span key={name} className="rounded-full border px-2 py-0.5 text-xs" style={{ borderColor: "var(--border-hairline)", color: "var(--text-muted)" }}>
+        <span key={name} className="rounded-md border px-2 py-0.5 text-xs" style={{ borderColor: "var(--border-hairline)", color: "var(--text-muted)" }}>
           {name}
         </span>
       ))}
@@ -450,7 +429,7 @@ export function CareEntryRow({
   const { revealed, onTouchStart, onTouchEnd } = useSwipeReveal();
   return (
     <li
-      className="group flex flex-col gap-1.5 py-3"
+      className="group flex flex-col gap-1.5 px-3.5 py-3"
       style={{ touchAction: "pan-y" }}
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}

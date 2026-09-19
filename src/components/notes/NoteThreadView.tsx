@@ -228,7 +228,7 @@ export function NoteThreadView({
 
       <form
         onSubmit={handleReply}
-        className="flex items-end gap-1.5 rounded-2xl border p-1.5"
+        className="flex items-end gap-1.5 rounded-xl border p-1.5"
         style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}
       >
         <AutoGrowTextarea

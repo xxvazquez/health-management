@@ -1,5 +1,6 @@
 "use client";
 
+import { CHIP_CLS, chipStyle } from "@/components/ui/Chip";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import clsx from "clsx";
 import { useSwipeReveal, SWIPE_REVEAL_CLASS } from "@/lib/useSwipeReveal";
@@ -362,12 +363,11 @@ function CategoryRow({
     <button
       type="button"
       onClick={onOpen}
-      className="flex w-full items-center gap-3 rounded-xl border px-3 py-3 text-left transition-colors hover:bg-[var(--page-plane)]"
-      style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}
+      className="flex w-full items-center gap-3 px-3.5 py-2.5 text-left transition-colors hover:bg-[var(--page-plane)]"
     >
       <CategoryGlyph accent={accent} icon={category.icon} />
       <div className="flex min-w-0 flex-1 flex-col">
-        <TruncatedTooltip text={category.name} className="text-sm font-semibold" style={{ color: "var(--text-primary)" }} />
+        <TruncatedTooltip text={category.name} className="text-sm font-medium" style={{ color: "var(--text-primary)" }} />
         <TruncatedTooltip text={category.items.length === 0 ? "Empty" : preview} className="text-xs" style={{ color: "var(--text-muted)" }} />
       </div>
       <span className="shrink-0 text-xs font-medium tabular-nums" style={{ color: "var(--text-muted)" }}>
@@ -481,8 +481,8 @@ function CopyRow({ label, value }: { label: string; value: string }) {
               // Clipboard blocked — the value stays visible to select by hand.
             }
           }}
-          className="tap-target shrink-0 min-h-9 rounded-md border px-3 text-sm font-medium"
-          style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-secondary)" }}
+          className={`${CHIP_CLS} tap-target shrink-0`}
+          style={chipStyle(false)}
         >
           {copied ? "Copied" : "Copy"}
         </button>
@@ -631,8 +631,8 @@ function PhoneSetup({ share, accent, onBack }: { share: WishlistShareToPhone; ac
                 <button
                   type="button"
                   onClick={() => void navigator.clipboard?.writeText(curl).catch(() => {})}
-                  className="tap-target shrink-0 min-h-9 rounded-md border px-3 text-sm font-medium"
-                  style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-secondary)" }}
+                  className={`${CHIP_CLS} tap-target shrink-0`}
+                  style={chipStyle(false)}
                 >
                   Copy
                 </button>
@@ -807,8 +807,8 @@ export function WishlistBoard({
             <button
               type="button"
               onClick={() => setView({ mode: "phone" })}
-              className="shrink-0 min-h-9 rounded-md border px-3 text-sm font-medium transition-colors"
-              style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-secondary)" }}
+              className={`${CHIP_CLS} shrink-0`}
+              style={chipStyle(false)}
             >
               From phone
             </button>
@@ -853,7 +853,7 @@ export function WishlistBoard({
       ) : shownCategories.length === 0 ? (
         <InlineEmpty title="Nothing matches that search" description="Try a different term." />
       ) : (
-        <div className="flex flex-col gap-2">
+        <div className="inset-rows overflow-hidden rounded-xl border" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
           {shownCategories.map((category) => (
             <CategoryRow
               key={category.id}

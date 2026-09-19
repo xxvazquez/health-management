@@ -30,6 +30,7 @@ import { PageSkeleton } from "@/components/ui/Skeleton";
 import { PrimaryAction } from "@/components/ui/PrimaryAction";
 import { PageHeading } from "@/components/ui/PageHeading";
 import { DemoNotice } from "@/components/ui/DemoNotice";
+import { CheckIcon } from "@/components/ui/icons";
 
 const ACCENT = "var(--series-magenta)";
 // Never the partner's email — that's private data the app shouldn't surface
@@ -445,17 +446,18 @@ function NotesHeader({
   return (
     <PageHeading
       accent={ACCENT}
-      actionsBelow
       actions={
         showActions && (
           <div className="flex shrink-0 items-center gap-2">
             <button
               type="button"
               onClick={onMarkAllRead}
-              className="min-h-9 rounded-md border px-3 text-sm font-medium"
-              style={{ borderColor: "var(--border-hairline)", color: "var(--text-secondary)" }}
+              aria-label="Mark all as read"
+              title="Mark all as read"
+              className="flex h-9 w-9 items-center justify-center rounded-md border"
+              style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-secondary)" }}
             >
-              Mark all as read
+              <CheckIcon size={16} />
             </button>
             <PrimaryAction label="New message" accent={ACCENT} onClick={onCompose} />
           </div>

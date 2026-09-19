@@ -1,5 +1,6 @@
 "use client";
 
+import { Chip } from "@/components/ui/Chip";
 import { useMemo, useState, type ReactNode } from "react";
 import { Card } from "@/components/ui/Card";
 import { Disclosure } from "@/components/ui/Disclosure";
@@ -254,20 +255,9 @@ export function AdherenceCardGrid({
           {categories.length > 1 && (
             <div className="flex flex-wrap gap-1.5">
               {["all", ...categories].map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  onClick={() => setCategoryFilter(c)}
-                  aria-pressed={categoryFilter === c}
-                  className="min-h-9 rounded-md border px-3 text-sm font-medium capitalize transition-colors"
-                  style={{
-                    borderColor: categoryFilter === c ? accent : "var(--border-hairline)",
-                    background: categoryFilter === c ? `color-mix(in oklab, ${accent} 12%, var(--surface-1))` : "transparent",
-                    color: categoryFilter === c ? accent : "var(--text-muted)",
-                  }}
-                >
+                <Chip key={c} active={categoryFilter === c} accent={accent} onClick={() => setCategoryFilter(c)} className="capitalize">
                   {c === "all" ? "All" : c}
-                </button>
+                </Chip>
               ))}
             </div>
           )}
@@ -285,7 +275,7 @@ export function AdherenceCardGrid({
                 return (
                   <div
                     key={it.itemIdentity}
-                    className="flex flex-col gap-2 rounded-lg border p-2.5"
+                    className="flex flex-col gap-2 rounded-xl border p-2.5"
                     style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}
                   >
                     <span

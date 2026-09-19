@@ -14,7 +14,7 @@ type ButtonSize = "xs" | "sm" | "md" | "lg" | "xl";
 // appointments). xl is the one-off hero-CTA size (404, empty states).
 const SIZE_CLS: Record<ButtonSize, string> = {
   xs: "min-h-8 px-3 text-xs",
-  sm: "min-h-9 px-3.5 text-sm",
+  sm: "min-h-9 px-3 text-sm",
   md: "min-h-10 px-4 text-sm",
   lg: "min-h-11 px-4 text-sm",
   xl: "min-h-11 px-5 text-sm",
@@ -38,7 +38,7 @@ type ButtonAsLink = CommonProps & { href: string } & Omit<AnchorHTMLAttributes<H
 
 function variantStyle(variant: ButtonVariant, accent: string): CSSProperties {
   if (variant === "primary") return { background: accent, color: "#fff" };
-  if (variant === "outline") return { borderColor: "var(--border-hairline)", color: "var(--text-secondary)" };
+  if (variant === "outline") return { borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" };
   if (variant === "tinted") return { background: `color-mix(in oklab, ${accent} 14%, transparent)`, color: accent };
   return { color: "var(--text-secondary)" };
 }

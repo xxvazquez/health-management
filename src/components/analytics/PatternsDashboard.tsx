@@ -100,7 +100,7 @@ export function PatternsDashboard() {
         {topPatterns.length > 1 ? (
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
             {topPatterns.slice(1).map((p, i) => (
-              <div key={i} className="rounded-lg border p-3.5" style={{ borderColor: "var(--gridline)" }}>
+              <div key={i} className="rounded-xl border p-3.5" style={{ borderColor: "var(--gridline)" }}>
                 <div className="mb-2 flex items-start justify-between gap-2">
                   <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
                     {p.outcomeLabel}{" "}
@@ -215,7 +215,7 @@ function LagExplorer({ events, workoutLogs }: { events: CanonicalEvent[]; workou
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {results.map((r) => (
-          <div key={r.lagDays} className="rounded-lg border p-3" style={{ borderColor: "var(--gridline)" }}>
+          <div key={r.lagDays} className="rounded-xl border p-3" style={{ borderColor: "var(--gridline)" }}>
             <div className="flex items-center justify-between gap-2">
               <p className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
                 {r.lagDays === 0 ? "Same day" : `+${r.lagDays} day${r.lagDays > 1 ? "s" : ""} later`}

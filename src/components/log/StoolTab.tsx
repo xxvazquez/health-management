@@ -1,7 +1,7 @@
 "use client";
 
+import { Chip as BaseChip } from "@/components/ui/Chip";
 import { useState, type ReactNode } from "react";
-import clsx from "clsx";
 import { BristolIcon } from "@/components/icons/BristolIcons";
 import { CloseIcon } from "@/components/ui/icons";
 import { Button } from "@/components/ui/Button";
@@ -188,24 +188,10 @@ function Chip({
   block?: boolean;
 }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      aria-label={ariaLabel}
-      className={clsx(
-        "flex min-h-10 items-center gap-1.5 rounded-md border px-3 text-left text-sm leading-tight transition-colors",
-        block ? "w-full" : "whitespace-nowrap",
-      )}
-      style={{
-        borderColor: active ? accent : "var(--border-hairline)",
-        background: active ? `color-mix(in oklab, ${accent} 14%, var(--surface-1))` : "var(--surface-1)",
-        color: active ? accent : "var(--text-primary)",
-      }}
-    >
+    <BaseChip active={active} accent={accent} aria-label={ariaLabel} block={block} nowrap={!block} onClick={onClick}>
       {icon}
       <span>{label}</span>
-    </button>
+    </BaseChip>
   );
 }
 
@@ -516,7 +502,7 @@ export function StoolTab({
     if (entries.length === 0) return null;
     return (
       <div className="flex flex-col gap-2">
-        <p className="text-xs font-semibold" style={{ color: "var(--text-secondary)" }}>
+        <p className="px-0.5 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
           Logged today
         </p>
         <div className="flex flex-col gap-2">

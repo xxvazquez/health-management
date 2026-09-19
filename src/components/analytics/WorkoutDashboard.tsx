@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { useData } from "@/lib/DataContext";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageSkeleton } from "@/components/ui/Skeleton";
@@ -79,7 +78,7 @@ function monogram(exercise: WorkoutExercise): string {
 function PRBadge() {
   return (
     <span
-      className="inline-flex shrink-0 items-center gap-1 rounded-full px-1.5 py-0.5 text-xs font-semibold"
+      className="inline-flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-semibold"
       style={{ background: "color-mix(in oklab, var(--status-good) 16%, var(--surface-1))", color: "var(--status-good)" }}
     >
       <svg width="9" height="9" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
@@ -359,19 +358,7 @@ export function WorkoutDashboard() {
   return (
     <div className="flex flex-col gap-6">
       <DashboardHeader
-        subtitle={
-          <>
-            Charts and progression from what you&apos;ve logged — head to the{" "}
-            <Link href="/log" className="underline" style={{ color: "var(--ui-accent)" }}>
-              Log page
-            </Link>{" "}
-            to add a lift, or{" "}
-            <Link href="/manage" className="underline" style={{ color: "var(--ui-accent)" }}>
-              Manage
-            </Link>{" "}
-            to add, archive, or set units for exercises.
-          </>
-        }
+        subtitle="Charts and progression from what you've logged."
       >
         Workout
       </DashboardHeader>

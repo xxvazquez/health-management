@@ -1,5 +1,6 @@
 "use client";
 
+import { CHIP_CLS, chipStyle } from "@/components/ui/Chip";
 import { useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/supabase/AuthContext";
@@ -183,8 +184,8 @@ export function AccountPanel() {
                   type="button"
                   onClick={() => void syncNow()}
                   disabled={syncing || !isOnline}
-                  className="shrink-0 min-h-9 rounded-md border px-3 text-sm font-medium disabled:opacity-50"
-                  style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-secondary)" }}
+                  className={`${CHIP_CLS} shrink-0`}
+                  style={chipStyle(false)}
                 >
                   {syncing ? "Syncing…" : "Sync now"}
                 </button>
