@@ -26,14 +26,21 @@ async function currentUserId(): Promise<string | null> {
 // the exact same payload will fail the exact same way every time, so
 // retrying is pointless: 23503 foreign_key_violation, 23505
 // unique_violation, 23514 check_violation, 42501 insufficient_privilege
-// (RLS rejection). PGRST-prefixed codes are PostgREST's own request-shape
-// validation errors — also deterministic. Anything else (a 5xx, a timeout
+// (RLS rejection). Most PGRST-prefixed codes are PostgREST's own
+// request-shape validation errors — also deterministic. The exceptions are
+// PGRST000–003 (database unreachable, schema cache reloading, timeout) and
+// PGRST301–303 (expired or missing JWT): those clear on their own or after
+// a token refresh, so they stay retryable. Anything else (a 5xx, a timeout
 // surfaced as an `error` object rather than a thrown exception, an
 // unrecognized code) is treated as transient and retried.
 const PERMANENT_ERROR_CODES = new Set(["23503", "23505", "23514", "42501"]);
+const TRANSIENT_POSTGREST_CODES = /^PGRST(00[0-3]|30[1-3])$/;
 
 export function classifySupabaseError(error: { code?: string; message: string }): SendResult {
-  if (error.code && (PERMANENT_ERROR_CODES.has(error.code) || error.code.startsWith("PGRST"))) {
+  const permanent =
+    error.code !== undefined &&
+    (PERMANENT_ERROR_CODES.has(error.code) || (error.code.startsWith("PGRST") && !TRANSIENT_POSTGREST_CODES.test(error.code)));
+  if (permanent) {
     return { outcome: "permanent", message: error.message, code: error.code };
   }
   return { outcome: "retryable", message: error.message, code: error.code };

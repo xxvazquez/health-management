@@ -83,6 +83,13 @@ describe("classifySupabaseError", () => {
     expect(classifySupabaseError({ code: "PGRST116", message: "x" })).toMatchObject({ outcome: "permanent" });
   });
 
+  it("keeps PostgREST connection, schema-cache, and JWT errors retryable", async () => {
+    const { classifySupabaseError } = await import("./outbox");
+    for (const code of ["PGRST000", "PGRST002", "PGRST003", "PGRST301", "PGRST303"]) {
+      expect(classifySupabaseError({ code, message: "x" })).toMatchObject({ outcome: "retryable", code });
+    }
+  });
+
   it("classifies an unrecognized or missing code as retryable", async () => {
     const { classifySupabaseError } = await import("./outbox");
     expect(classifySupabaseError({ code: "53300", message: "too many connections" })).toMatchObject({ outcome: "retryable" });
