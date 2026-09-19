@@ -1,78 +1,11 @@
 "use client";
 
 import { Chip } from "@/components/ui/Chip";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useData } from "@/lib/DataContext";
 import { ChevronIcon } from "@/components/ui/icons";
-import type { OutboxEntry, OutboxOperation } from "@/lib/db/indexedDb";
-
-const TABLE_LABEL: Record<string, string> = {
-  food_items: "food item",
-  supplement_items: "supplement item",
-  symptom_items: "symptom item",
-  habit_items: "habit item",
-  workout_items: "workout item",
-  food_logs: "food log entry",
-  supplement_logs: "supplement log entry",
-  symptom_logs: "symptom log entry",
-  habit_logs: "habit log entry",
-  food_diary: "food note",
-  supplement_diary: "supplement note",
-  symptom_diary: "symptom note",
-  habit_diary: "habit note",
-  workout_diary: "workout note",
-  categories: "category",
-  stool_logs: "stool entry",
-  workout_logs: "workout entry",
-  period_logs: "period entry",
-  journal_entries: "journal entry",
-  personal_items: "expiring item",
-  blood_pressure: "blood pressure reading",
-  weight_logs: "weight reading",
-  weight_target: "weight target",
-  care_entry_files: "linked Drive file",
-};
-
-function friendlyTable(table: string): string {
-  return TABLE_LABEL[table] ?? "change";
-}
-
-/** Pulls a human-readable label out of the entry's own payload — the
- * `name` an item/category upsert carries, or the note/log's `date` — so
- * "a habit item didn't sync" becomes "Sleep well" didn't sync" instead of
- * forcing a guess at which of several identical-looking failures is which.
- * A delete's payload is just `{ id }`, and some upserts genuinely have
- * nothing better than that either — falls back to a short id fragment
- * rather than nothing. */
-function describeRecord(entry: OutboxEntry): string {
-  const payload = entry.payload;
-  if (payload && typeof payload === "object") {
-    const p = payload as Record<string, unknown>;
-    if (typeof p.name === "string" && p.name.trim()) return p.name;
-    if (typeof p.title === "string" && p.title.trim()) return p.title;
-    if (typeof p.content === "string" && p.content.trim()) return p.content.length > 40 ? `${p.content.slice(0, 40)}…` : p.content;
-    if (typeof p.body === "string" && p.body.trim()) return p.body.length > 40 ? `${p.body.slice(0, 40)}…` : p.body;
-    if (typeof p.date === "string" && p.date.trim()) return p.date;
-  }
-  return entry.dedupeKey.split(":").at(-1)?.slice(0, 8) ?? "unknown";
-}
-
-/** Collapses pending entries that read identically (same table, same label)
- * into one row with a count, so a busy day's queue doesn't fill the screen. */
-function groupPending(entries: OutboxEntry[]): { key: string; entry: OutboxEntry; count: number }[] {
-  const groups = new Map<string, { key: string; entry: OutboxEntry; count: number }>();
-  for (const entry of entries) {
-    const key = `${entry.table}:${describeRecord(entry)}`;
-    const group = groups.get(key);
-    if (group) {
-      group.count += 1;
-      if (entry.lastError) group.entry = entry;
-    } else {
-      groups.set(key, { key, entry, count: 1 });
-    }
-  }
-  return [...groups.values()];
-}
+import { getAllItems, type OutboxEntry, type OutboxOperation } from "@/lib/db/indexedDb";
+import { describeOutboxEntry, formatSavedAt } from "@/lib/supabase/describeOutboxEntry";
 
 /** Translates the Postgres/PostgREST error codes classifySupabaseError
  * treats as permanent (see lib/supabase/outbox.ts) into plain language —
@@ -139,6 +72,14 @@ export function SyncStatusBanner() {
   const [discardingId, setDiscardingId] = useState<string | null>(null);
   const [confirmingDiscardId, setConfirmingDiscardId] = useState<string | null>(null);
 
+  const [itemNames, setItemNames] = useState<Map<string, string>>(new Map());
+  const listOpen = expanded || pendingExpanded;
+  useEffect(() => {
+    if (!listOpen) return;
+    // Reads the local cache so a log can be shown under its item's name.
+    void getAllItems().then((items) => setItemNames(new Map(items.map((i) => [i.identity, i.rawName]))));
+  }, [listOpen]);
+
   if (syncState.deadLetter === 0 && syncState.pending === 0) return null;
 
   async function handleRetry(id: string) {
@@ -148,6 +89,23 @@ export function SyncStatusBanner() {
     } finally {
       setRetryingId(null);
     }
+  }
+
+  function saveCopy(entries: OutboxEntry[]) {
+    const rows = entries.map((entry) => ({
+      ...describeOutboxEntry(entry, itemNames),
+      savedAt: new Date(entry.createdAt).toISOString(),
+      table: entry.table,
+      op: entry.op,
+      data: entry.payload,
+    }));
+    const blob = new Blob([JSON.stringify(rows, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `lauva-unsynced-${new Date().toISOString().slice(0, 10)}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
   }
 
   async function handleRetryPending() {
@@ -191,14 +149,15 @@ export function SyncStatusBanner() {
           <ul className="flex flex-col inset-rows px-4 pb-2 sm:px-6 lg:px-8">
             {deadLetterEntries.map((entry) => {
               const { reason, action } = friendlyReason(entry.lastErrorCode, entry.op, entry.table);
-              const label = describeRecord(entry);
+              const { title, kind, details } = describeOutboxEntry(entry, itemNames);
               return (
                 <li key={entry.id} className="flex items-center justify-between gap-3 py-2 text-xs">
                   <span style={{ color: "var(--text-secondary)" }}>
                     <span className="font-semibold" style={{ color: "var(--text-primary)" }}>
-                      &ldquo;{label}&rdquo;
+                      &ldquo;{title}&rdquo;
                     </span>{" "}
-                    ({friendlyTable(entry.table)}) didn&apos;t sync because {reason}. {action}
+                    ({kind.toLowerCase()}
+                    {details.length > 0 ? `, ${details.join(", ")}` : ""}, saved {formatSavedAt(entry.createdAt)}) didn&apos;t sync because {reason}. {action}
                   </span>
                   {confirmingDiscardId === entry.id ? (
                     <span className="flex shrink-0 items-center gap-1.5">
@@ -264,23 +223,36 @@ export function SyncStatusBanner() {
         )}
       </div>
       {pendingExpanded && (
-        <ul className="flex flex-col inset-rows px-4 pb-2 sm:px-6 lg:px-8">
-          {groupPending(pendingEntries).map(({ key, entry, count }) => (
-            <li key={key} className="py-2 text-xs" style={{ color: "var(--text-secondary)" }}>
-              <span className="font-semibold" style={{ color: "var(--text-primary)" }}>
-                &ldquo;{describeRecord(entry)}&rdquo;
-              </span>{" "}
-              ({friendlyTable(entry.table)}
-              {count > 1 ? ` ×${count}` : ""}) hasn&apos;t synced yet — saved on this device, will retry on its own
-              {offline ? " once you&apos;re back online" : ""}.
-              {entry.lastError && (
-                <span className="block" style={{ color: "var(--text-muted)" }}>
-                  Last attempt: {entry.lastError}
-                </span>
-              )}
-            </li>
-          ))}
-        </ul>
+        <div className="px-4 pb-2 sm:px-6 lg:px-8">
+          <p className="pb-1 text-xs" style={{ color: "var(--text-secondary)" }}>
+            Everything below is saved on this device — nothing is lost. It will be sent to the cloud automatically.{" "}
+            <button type="button" onClick={() => saveCopy(pendingEntries)} className="font-medium" style={{ color: "var(--series-1)" }}>
+              Save a copy as a file
+            </button>
+          </p>
+          <ul className="flex flex-col inset-rows">
+            {[...pendingEntries]
+              .sort((a, b) => b.createdAt - a.createdAt)
+              .map((entry) => {
+                const { title, kind, details } = describeOutboxEntry(entry, itemNames);
+                return (
+                  <li key={entry.id} className="py-2 text-xs" style={{ color: "var(--text-secondary)" }}>
+                    <div>
+                      <span className="font-semibold" style={{ color: "var(--text-primary)" }}>
+                        {title}
+                      </span>{" "}
+                      · {kind}
+                      {details.length > 0 ? ` · ${details.join(" · ")}` : ""}
+                    </div>
+                    <div style={{ color: "var(--text-muted)" }}>
+                      Saved on this device {formatSavedAt(entry.createdAt)}
+                      {entry.attempts > 0 ? ` · tried ${entry.attempts} ${entry.attempts === 1 ? "time" : "times"}` : " · not sent yet"}
+                    </div>
+                  </li>
+                );
+              })}
+          </ul>
+        </div>
       )}
     </div>
   );

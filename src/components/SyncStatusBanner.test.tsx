@@ -85,20 +85,22 @@ describe("SyncStatusBanner", () => {
     expect(screen.queryByText("Kale", { exact: false })).not.toBeInTheDocument();
 
     await userEvent.setup().click(screen.getByText("Details"));
-    expect(screen.getByText(/Kale/)).toBeInTheDocument();
-    expect(screen.getByText(/hasn't synced yet/)).toBeInTheDocument();
+    expect(screen.getByText("Kale")).toBeInTheDocument();
+    expect(screen.getByText(/Everything below is saved on this device — nothing is lost/)).toBeInTheDocument();
+    expect(screen.getByText(/Saved on this device/)).toBeInTheDocument();
   });
 
-  it("groups identical pending entries and shows the last error", async () => {
-    const make = (id: string) =>
-      baseEntry({ id, status: "pending", table: "food_logs", payload: { id, date: "2026-09-19" }, lastError: "Request timed out" });
-    mockData({ syncState: { pending: 3, deadLetter: 0 }, pendingEntries: [make("a"), make("b"), make("c")] });
+  it("lists each pending change with what it is and when it was saved", async () => {
+    const saved = new Date(2026, 8, 19, 14, 32).getTime();
+    const make = (id: string, date: string) =>
+      baseEntry({ id, status: "pending", attempts: 0, createdAt: saved, table: "food_logs", payload: { id, item_id: "item-1", date, meal_tag: "Lunch" } });
+    mockData({ syncState: { pending: 2, deadLetter: 0 }, pendingEntries: [make("a", "2026-09-19"), make("b", "2026-09-18")] });
     render(<SyncStatusBanner />);
 
     await userEvent.setup().click(screen.getByText("Details"));
-    expect(screen.getAllByText(/hasn't synced yet/)).toHaveLength(1);
-    expect(screen.getByText(/food log entry ×3/)).toBeInTheDocument();
-    expect(screen.getByText(/Last attempt: Request timed out/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Food log/)).toHaveLength(2);
+    expect(screen.getByText(/2026-09-18/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Saved on this device 19 Sept?, 14:32 · not sent yet/)).toHaveLength(2);
   });
 
   it("shows the dead-letter count collapsed, then the entry list on Details", async () => {
