@@ -1,5 +1,6 @@
 "use client";
 
+import { Chip as BaseChip } from "@/components/ui/Chip";
 import { useState, type ReactNode } from "react";
 import clsx from "clsx";
 import { useDialogA11y } from "@/components/ui/useDialogA11y";
@@ -48,19 +49,9 @@ const PICK_GRID = "grid grid-cols-2 gap-1.5";
 
 function PickChip({ label, active, onClick, accent }: { label: string; active: boolean; onClick: () => void; accent: string }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className="w-full rounded-md border px-2.5 py-1.5 text-center text-xs font-medium transition-colors"
-      style={{
-        borderColor: active ? accent : "var(--border-hairline)",
-        background: active ? `color-mix(in oklab, ${accent} 14%, var(--surface-1))` : "transparent",
-        color: active ? accent : "var(--text-secondary)",
-      }}
-    >
+    <BaseChip active={active} accent={accent} block onClick={onClick}>
       {label}
-    </button>
+    </BaseChip>
   );
 }
 
@@ -171,7 +162,7 @@ export function CoffeeLogDialog({
             value={draft.cafe}
             onChange={(e) => setDraft((d) => ({ ...d, cafe: e.target.value }))}
             placeholder="Home"
-            className="rounded-lg border px-3 py-2 text-sm outline-none"
+            className="rounded-md border px-3 py-2 text-sm outline-none"
             style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
           />
         </label>
@@ -265,7 +256,7 @@ export function CoffeeLogDialog({
             rows={2}
             maxRows={6}
             placeholder="Bloomed 30s, a little under-extracted…"
-            className="resize-none rounded-lg border px-3 py-2 text-sm outline-none"
+            className="resize-none rounded-md border px-3 py-2 text-sm outline-none"
             style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
           />
         </label>

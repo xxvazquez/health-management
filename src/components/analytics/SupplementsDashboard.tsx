@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo } from "react";
-import Link from "next/link";
 import { useData } from "@/lib/DataContext";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageSkeleton } from "@/components/ui/Skeleton";
@@ -27,19 +26,7 @@ export function SupplementsDashboard() {
   return (
     <div className="flex flex-col gap-5">
       <DashboardHeader
-        subtitle={
-          <>
-            Consistency for every supplement you&apos;ve logged — head to the{" "}
-            <Link href="/log" className="underline" style={{ color: "var(--ui-accent)" }}>
-              Log page
-            </Link>{" "}
-            to check one off, or{" "}
-            <Link href="/manage" className="underline" style={{ color: "var(--ui-accent)" }}>
-              Settings
-            </Link>{" "}
-            to add, rename, or archive them.
-          </>
-        }
+        subtitle="Consistency for every supplement you've logged."
       >
         Supplements
       </DashboardHeader>

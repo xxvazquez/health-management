@@ -1,5 +1,6 @@
 "use client";
 
+import { CHIP_CLS, chipStyle } from "@/components/ui/Chip";
 import { useState } from "react";
 import { ClockIcon } from "@/components/ui/icons";
 
@@ -39,8 +40,8 @@ export function TimeField({
         type="button"
         onClick={() => setExpanded(true)}
         aria-label="Time: now, tap to change"
-        className="flex min-h-9 items-center gap-1.5 self-start rounded-md border px-3 text-sm"
-        style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-secondary)" }}
+        className={`${CHIP_CLS} self-start`}
+        style={chipStyle(false)}
       >
         <ClockIcon />
         now

@@ -1,5 +1,6 @@
 "use client";
 
+import { Chip } from "@/components/ui/Chip";
 import { useMemo, useState } from "react";
 import type { useDoctors } from "@/lib/useDoctors";
 import type { CareEntry, CareEntryKind } from "@/lib/supabase/careLog";
@@ -165,19 +166,16 @@ export function VisitsTab({ api, accent }: { api: DoctorsApi; accent: string }) 
         )}
 
         {specialtiesWithEntries.length > 0 && (
-          <select
-            value={filterSpecialty}
-            onChange={(e) => setFilterSpecialty(e.target.value)}
-            className="self-start min-h-9 rounded-md border px-3 text-sm"
-            style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
-          >
-            <option value="">All notes</option>
-            {specialtiesWithEntries.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </select>
+          <div className="no-scrollbar fade-x -mx-1 flex gap-2 overflow-x-auto px-1 pb-1" role="group" aria-label="Filter notes by specialty">
+            {[{ id: "", name: "All notes" }, ...specialtiesWithEntries].map((s) => {
+              const on = filterSpecialty === s.id;
+              return (
+                <Chip key={s.id || "all"} active={on} accent={accent} nowrap onClick={() => setFilterSpecialty(s.id)}>
+                  {s.name}
+                </Chip>
+              );
+            })}
+          </div>
         )}
 
         {shownEntries.length === 0 ? (
@@ -195,11 +193,11 @@ export function VisitsTab({ api, accent }: { api: DoctorsApi; accent: string }) 
               const group = shownEntries.filter((entry) => entry.kind === kind);
               if (group.length === 0) return null;
               return (
-                <div key={kind} className="flex flex-col gap-1">
+                <div key={kind} className="flex flex-col gap-1.5">
                   <h3 className="text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
                     {CARE_KIND_LABEL[kind]}s
                   </h3>
-                  <ul className="flex flex-col inset-rows px-0.5">
+                  <ul className="inset-rows flex flex-col rounded-xl border" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
                     {group.map((entry) => (
                       <CareEntryRow
                         key={entry.id}

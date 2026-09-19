@@ -1,5 +1,6 @@
 "use client";
 
+import { Chip } from "@/components/ui/Chip";
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import clsx from "clsx";
 import { Card, CardTitle } from "@/components/ui/Card";
@@ -396,15 +397,9 @@ export default function MyDrivePage() {
                 )}
 
                 {nextPageToken && (
-                  <button
-                    type="button"
-                    onClick={loadMore}
-                    disabled={listLoadingMore}
-                    className="self-start min-h-9 rounded-md border px-3 text-sm font-medium disabled:opacity-50"
-                    style={{ borderColor: "var(--border-hairline)", color: "var(--text-secondary)" }}
-                  >
+                  <Chip onClick={loadMore} disabled={listLoadingMore} className="self-start">
                     {listLoadingMore ? "Loading…" : "Load more"}
-                  </button>
+                  </Chip>
                 )}
               </>
             ))

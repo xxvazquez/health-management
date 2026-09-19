@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo } from "react";
-import Link from "next/link";
 import { useData } from "@/lib/DataContext";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageSkeleton } from "@/components/ui/Skeleton";
@@ -54,15 +53,7 @@ export function CycleDashboard() {
   return (
     <div className="flex flex-col gap-6">
       <DashboardHeader
-        subtitle={
-          <>
-            Patterns from what you&apos;ve logged — head to the{" "}
-            <Link href="/log" className="underline" style={{ color: "var(--ui-accent)" }}>
-              Log page
-            </Link>{" "}
-            to record or correct a period day.
-          </>
-        }
+        subtitle="Patterns from what you've logged."
       >
         Cycle
       </DashboardHeader>

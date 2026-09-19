@@ -31,7 +31,7 @@ export function Insight({
 }) {
   return (
     <div
-      className={clsx("flex flex-col gap-1 rounded-lg border p-3.5", className)}
+      className={clsx("flex flex-col gap-1 rounded-xl border p-3.5", className)}
       style={{ background: "var(--surface-1)", borderColor: "var(--border-hairline)" }}
     >
       <span

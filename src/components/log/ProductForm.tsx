@@ -1,5 +1,6 @@
 "use client";
 
+import { CHIP_CLS, chipStyle } from "@/components/ui/Chip";
 import { useMemo, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/Button";
 import { CloseIcon } from "@/components/ui/icons";
@@ -98,8 +99,8 @@ export function ProductForm({
             {ingredients.map((ing) => (
               <span
                 key={ing}
-                className="flex items-center gap-1 min-h-9 rounded-md border px-3 text-sm font-medium"
-                style={{ borderColor: "var(--border-hairline)", color: "var(--text-secondary)" }}
+                className={CHIP_CLS}
+                style={chipStyle(false)}
               >
                 {ing}
                 <button

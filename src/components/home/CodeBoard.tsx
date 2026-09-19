@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/Button";
 import { FormShell } from "@/components/ui/FormShell";
 import { Field } from "@/components/ui/Field";
 import { FIELD_CLS, FIELD_STYLE, LABEL_CLS, LABEL_STYLE } from "@/components/ui/formField";
+import { ClockIcon } from "@/components/ui/icons";
 import type { HouseholdCode, NewHouseholdCodeInput } from "@/lib/supabase/household";
 
 type SortMode = "shop" | "expiry";
@@ -355,19 +356,24 @@ export function CodeBoard({
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <SearchField value={search} onChange={setSearch} placeholder="Search codes…" />
-          <button
-            type="button"
-            onClick={() => setSort((s) => (s === "shop" ? "expiry" : "shop"))}
-            className="shrink-0 min-h-9 rounded-md border px-3 text-sm font-medium transition-colors"
-            style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-secondary)" }}
-            title="Change sort order"
-          >
-            {sort === "shop" ? "Shop A–Z" : "Expiring soon"}
-          </button>
-        </div>
+      <div className="flex items-center gap-2">
+        <SearchField value={search} onChange={setSearch} placeholder="Search codes…" className="min-w-0 flex-1" />
+        <button
+          type="button"
+          onClick={() => setSort((s) => (s === "shop" ? "expiry" : "shop"))}
+          aria-label={sort === "shop" ? "Sorted by shop — tap to sort by expiry" : "Sorted by expiry — tap to sort by shop"}
+          title={sort === "shop" ? "Sorted by shop A–Z" : "Sorted by expiring soon"}
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border"
+          style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-secondary)" }}
+        >
+          {sort === "shop" ? (
+            <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M3 13l3 3 3-3M6 4v12M12 6h5l-5 5h5" />
+            </svg>
+          ) : (
+            <ClockIcon size={16} />
+          )}
+        </button>
         <PrimaryAction label="New code" accent={accent} onClick={() => setComposing(true)} />
       </div>
 

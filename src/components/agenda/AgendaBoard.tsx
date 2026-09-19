@@ -1,5 +1,6 @@
 "use client";
 
+import { CHIP_CLS, chipStyle, Chip as BaseChip } from "@/components/ui/Chip";
 import { useMemo, useState, type FormEvent, type ReactNode } from "react";
 import Link from "next/link";
 import clsx from "clsx";
@@ -38,18 +39,9 @@ function UndoIcon({ size = 15 }: { size?: number }) {
 
 function Chip({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="min-h-9 rounded-md border px-3 text-sm font-medium whitespace-nowrap transition-colors"
-      style={{
-        borderColor: active ? ACCENT : "var(--border-hairline)",
-        background: active ? `color-mix(in oklab, ${ACCENT} 12%, var(--surface-1))` : "transparent",
-        color: active ? ACCENT : "var(--text-secondary)",
-      }}
-    >
+    <BaseChip active={active} accent={ACCENT} nowrap onClick={onClick}>
       {children}
-    </button>
+    </BaseChip>
   );
 }
 
@@ -82,12 +74,8 @@ function FilterButton({ open, count, onToggle }: { open: boolean; count: number;
       type="button"
       onClick={onToggle}
       aria-expanded={open}
-      className="flex shrink-0 items-center gap-1.5 min-h-9 rounded-md border px-3 text-sm font-medium transition-colors"
-      style={{
-        borderColor: lit ? ACCENT : "var(--border-hairline)",
-        background: lit ? `color-mix(in oklab, ${ACCENT} 12%, var(--surface-1))` : "transparent",
-        color: lit ? ACCENT : "var(--text-secondary)",
-      }}
+      className={`${CHIP_CLS} shrink-0`}
+      style={chipStyle(lit, ACCENT)}
     >
       <FunnelIcon />
       Filter
@@ -133,7 +121,7 @@ function FilterPanel({
 
   return (
     <div
-      className="flex flex-col gap-2 rounded-lg border p-2.5"
+      className="flex flex-col gap-2 rounded-xl border p-2.5"
       style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}
     >
       <FilterRow label="Show">

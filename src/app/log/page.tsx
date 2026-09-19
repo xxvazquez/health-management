@@ -1,5 +1,6 @@
 "use client";
 
+import { CHIP_CLS, chipStyle } from "@/components/ui/Chip";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import clsx from "clsx";
@@ -111,14 +112,6 @@ const CYCLE_ACCENT = "var(--series-4)";
 const COFFEE_ACCENT = "var(--series-slate)";
 
 const EXPANDED_CATEGORIES_STORAGE_KEY = "lauva.log.expandedCategories";
-
-/** Tappable cell inside a category card. */
-const FOOD_PILL =
-  "flex min-h-10 items-center gap-1.5 rounded-md border px-3 text-left text-sm leading-tight transition-colors active:opacity-70 disabled:opacity-50";
-
-/** Compact chip for the horizontally-scrolling Your usual and Products rows. */
-const QUICK_CHIP =
-  "flex min-h-8 shrink-0 items-center gap-1 whitespace-nowrap rounded-md border px-2.5 text-xs font-medium transition-colors active:opacity-70 disabled:opacity-50";
 
 function categoryStorageKey(itemType: ItemType, category: string): string {
   return `${itemType}:${category}`;
@@ -1498,12 +1491,8 @@ export default function LogPage() {
         onClick={() => handleChipTap(c)}
         disabled={busy}
         aria-pressed={logged}
-        className={`${FOOD_PILL} w-full justify-between`}
-        style={{
-          background: logged ? `color-mix(in oklab, ${accent} 14%, var(--surface-1))` : "var(--surface-1)",
-          borderColor: logged ? accent : "var(--border-hairline)",
-          color: logged ? accent : "var(--text-primary)",
-        }}
+        className={`${CHIP_CLS} w-full justify-between`}
+        style={chipStyle(logged, accent)}
       >
         <span className="min-w-0">{c.item}</span>
         {logged && (
@@ -1523,11 +1512,7 @@ export default function LogPage() {
   /** Cell look for a tracked item: white and hairline-bordered at rest, tinted
    * in the tab's accent once logged — the same cell Food's grid uses. */
   function trackCellStyle(active: boolean, accent: string) {
-    return {
-      background: active ? `color-mix(in oklab, ${accent} 14%, var(--surface-1))` : "var(--surface-1)",
-      borderColor: active ? accent : "var(--border-hairline)",
-      color: active ? accent : "var(--text-primary)",
-    } as const;
+    return chipStyle(active, accent);
   }
 
   /** The intensity to show for a symptom right now — the optimistic target
@@ -1669,7 +1654,7 @@ export default function LogPage() {
         onClick={() => handleChipTap(c)}
         disabled={busy}
         aria-pressed={logged}
-        className={`${FOOD_PILL} w-full justify-between`}
+        className={`${CHIP_CLS} w-full justify-between`}
         style={trackCellStyle(logged, accent)}
       >
         <span className="min-w-0">{c.item}</span>
@@ -1695,7 +1680,7 @@ export default function LogPage() {
         type="button"
         onClick={() => cycleSymptom(c)}
         aria-label={present ? `${c.item}, intensity ${current} of 3 — tap to change` : `Mark ${c.item}`}
-        className={`${FOOD_PILL} w-full justify-between`}
+        className={`${CHIP_CLS} w-full justify-between`}
         style={{ ...trackCellStyle(present, accent), opacity: busy ? 0.6 : 1 }}
       >
         <span className="min-w-0">{c.item}</span>
@@ -1812,7 +1797,7 @@ export default function LogPage() {
   const addRowCls = "flex min-h-11 w-full items-center gap-2 px-3.5 text-left text-sm font-medium";
   const addRow =
     offerAddFromSearch && tabConfig ? (
-      <div className="inset-rows flex flex-col rounded-2xl border shadow-[var(--shadow-card)]" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--ui-accent)" }}>
+      <div className="inset-rows flex flex-col rounded-xl border" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--ui-accent)" }}>
         <button
           type="button"
           onClick={() => {
@@ -1854,35 +1839,22 @@ export default function LogPage() {
   // list rather than above it.
   const seasonalPicksCard =
     tab === "food" && dataReady && (seasonalPicks.length > 0 || hiddenThisMonth.length > 0) ? (
-      <div className="flex flex-col gap-2 rounded-xl border p-3" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
+      <div className="overflow-hidden rounded-xl border" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
         <button
           type="button"
           onClick={() => setPicksOpen((v) => !v)}
-          className="flex items-center justify-between gap-2 text-left"
+          aria-expanded={picksOpen}
+          className="flex min-h-11 w-full items-center gap-3 px-3.5 text-left text-sm"
+          style={{ color: "var(--text-primary)" }}
         >
-          <span className="text-xs font-semibold" style={{ color: "var(--text-primary)" }}>
-            {monthName} picks
-            <span className="ml-1.5 font-normal" style={{ color: "var(--text-secondary)" }}>
-              · {seasonalPicks.length} in season
-            </span>
+          {monthName} picks
+          <span className="ml-auto flex items-center gap-1.5" style={{ color: "var(--text-muted)" }}>
+            {seasonalPicks.length} in season
+            <ChevronIcon dir={picksOpen ? "down" : "right"} size={14} />
           </span>
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 20 20"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.8"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="shrink-0 transition-transform"
-            style={{ color: "var(--text-secondary)", transform: picksOpen ? "rotate(180deg)" : "none" }}
-          >
-            <path d="M5 7.5 10 12.5 15 7.5" />
-          </svg>
         </button>
         {picksOpen && (
-          <>
+          <div className="flex flex-col gap-2 border-t p-3" style={{ borderColor: "var(--gridline)" }}>
             {seasonalPicksSorted.length > 0 && (
               <div className="flex flex-wrap gap-1.5">
                 {seasonalPicksSorted.map((pick) => (
@@ -1953,7 +1925,7 @@ export default function LogPage() {
                 )}
               </div>
             )}
-          </>
+          </div>
         )}
       </div>
     ) : null;
@@ -2032,11 +2004,8 @@ export default function LogPage() {
              * a "now" pill. */}
             {tabConfig.countable && (
               <label
-                className="relative flex min-h-9 items-center gap-1 rounded-md px-3 text-sm font-semibold"
-                style={{
-                  background: `color-mix(in oklab, ${TYPE_ACCENT[tabConfig.type]} 14%, var(--surface-1))`,
-                  color: TYPE_ACCENT[tabConfig.type],
-                }}
+                className={`${CHIP_CLS} relative`}
+                style={chipStyle(true, TYPE_ACCENT[tabConfig.type])}
               >
                 {meal}
                 <ChevronIcon dir="down" size={11} />
@@ -2229,7 +2198,7 @@ export default function LogPage() {
 
               {tab === "food" && frequentFoods.length >= 3 && (
                 <div className="flex flex-col gap-1.5">
-                  <p className="text-xs font-semibold" style={{ color: "var(--text-secondary)" }}>
+                  <p className="px-0.5 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
                     Your usual
                   </p>
                   <div ref={frequentFoodsRef} className="no-scrollbar fade-x -mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
@@ -2243,12 +2212,8 @@ export default function LogPage() {
                           type="button"
                           onClick={() => handleChipTap(c)}
                           disabled={busy}
-                          className={QUICK_CHIP}
-                          style={{
-                            background: logged ? `color-mix(in oklab, ${cAccent} 14%, var(--surface-1))` : "var(--surface-1)",
-                            borderColor: logged ? cAccent : "var(--border-hairline)",
-                            color: logged ? cAccent : "var(--text-primary)",
-                          }}
+                          className={`${CHIP_CLS} shrink-0 whitespace-nowrap`}
+                          style={chipStyle(logged, cAccent)}
                         >
                           {logged && <span aria-hidden="true">✓</span>}
                           {c.item}
@@ -2261,13 +2226,12 @@ export default function LogPage() {
 
               {tab === "food" && matchingProducts.length > 0 && (
                 <div className="flex flex-col gap-1.5">
-                  <p className="text-xs font-semibold" style={{ color: "var(--text-secondary)" }}>
+                  <p className="px-0.5 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
                     Products
                   </p>
                   <div ref={foodProductsRef} className="no-scrollbar fade-x -mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
                     {matchingProducts
                       .map((p) => {
-                        const cAccent = TYPE_ACCENT.food;
                         const busy = pending === `product:${p.id}`;
                         return (
                           <button
@@ -2275,8 +2239,8 @@ export default function LogPage() {
                             type="button"
                             onClick={() => void handleLogProduct(p)}
                             disabled={busy}
-                            className={QUICK_CHIP}
-                            style={{ background: "var(--surface-1)", borderColor: cAccent, color: cAccent }}
+                            className={`${CHIP_CLS} shrink-0 whitespace-nowrap`}
+                            style={chipStyle(false)}
                           >
                             {p.name}
                             {p.brand && <span style={{ color: "var(--text-muted)" }}>({p.brand})</span>}
@@ -2296,35 +2260,22 @@ export default function LogPage() {
               {seasonalPicksCard}
 
               {tab === "outcome" && isolatedObservations.length > 0 && (
-                <div className="flex flex-col gap-2 rounded-xl border p-3" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
+                <div className="overflow-hidden rounded-xl border" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
                   <button
                     type="button"
                     onClick={() => setIsolatedOpen((v) => !v)}
-                    className="flex items-center justify-between gap-2 text-left"
+                    aria-expanded={isolatedOpen}
+                    className="flex min-h-11 w-full items-center gap-3 px-3.5 text-left text-sm"
+                    style={{ color: "var(--text-primary)" }}
                   >
-                    <span className="text-xs font-semibold" style={{ color: "var(--text-primary)" }}>
-                      Isolated symptoms
-                      <span className="ml-1.5 font-normal" style={{ color: "var(--text-secondary)" }}>
-                        · {isolatedObservations.length} noted in your care log
-                      </span>
+                    Isolated symptoms
+                    <span className="ml-auto flex items-center gap-1.5" style={{ color: "var(--text-muted)" }}>
+                      {isolatedObservations.length} in your care log
+                      <ChevronIcon dir={isolatedOpen ? "down" : "right"} size={14} />
                     </span>
-                    <svg
-                      width="14"
-                      height="14"
-                      viewBox="0 0 20 20"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.8"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="shrink-0 transition-transform"
-                      style={{ color: "var(--text-secondary)", transform: isolatedOpen ? "rotate(180deg)" : "none" }}
-                    >
-                      <path d="M5 7.5 10 12.5 15 7.5" />
-                    </svg>
                   </button>
                   {isolatedOpen && (
-                    <>
+                    <div className="flex flex-col gap-2 border-t p-3" style={{ borderColor: "var(--gridline)" }}>
                       <p className="text-xs" style={{ color: "var(--text-muted)" }}>
                         One-off things you noticed and logged for a doctor&apos;s visit — not tracked day to day.
                       </p>
@@ -2354,7 +2305,7 @@ export default function LogPage() {
                       >
                         Add or edit under Health → Visits
                       </Link>
-                    </>
+                    </div>
                   )}
                 </div>
               )}
@@ -2370,7 +2321,7 @@ export default function LogPage() {
       )}
       {combinedTimeline.length > 0 && (
         <div className="mt-1 flex flex-col gap-2 border-t pt-3" style={{ borderColor: "var(--border-hairline)" }}>
-          <h2 className="text-xs font-semibold" style={{ color: "var(--text-secondary)" }}>
+          <h2 className="px-0.5 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
             Timeline — {formatDateLabel(date, today).toLowerCase()}
           </h2>
           {/* Horizontal card strip. Every card is the same width and — via

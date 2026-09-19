@@ -1,5 +1,6 @@
 "use client";
 
+import { Chip } from "@/components/ui/Chip";
 import { useState, type FormEvent } from "react";
 import { useVitals } from "@/lib/useVitals";
 import { todayLocalISODate } from "@/lib/aggregations/common";
@@ -221,7 +222,7 @@ function BpRow({ reading, onEdit, onDelete }: { reading: BloodPressureReading; o
   const [confirming, setConfirming] = useState(false);
   const cat = bpCategory(reading.systolic, reading.diastolic);
   return (
-    <li className="flex items-start gap-3 py-2.5">
+    <li className="flex items-start gap-3 px-3.5 py-2.5">
       <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full" style={{ background: cat.color }} aria-hidden="true" />
       <div className="min-w-0 flex-1">
         <span className="text-sm font-medium tabular-nums" style={{ color: "var(--text-primary)" }}>
@@ -244,7 +245,7 @@ function WeightRow({ reading, previousKg, onEdit, onDelete }: { reading: WeightR
   const [confirming, setConfirming] = useState(false);
   const delta = previousKg != null ? Math.round((reading.kg - previousKg) * 10) / 10 : null;
   return (
-    <li className="flex items-start gap-3 py-2.5">
+    <li className="flex items-start gap-3 px-3.5 py-2.5">
       <div className="min-w-0 flex-1">
         <span className="text-sm font-medium tabular-nums" style={{ color: "var(--text-primary)" }}>
           {reading.kg} <span className="text-xs font-normal" style={{ color: "var(--text-muted)" }}>kg</span>
@@ -378,20 +379,9 @@ export function VitalsTab({ accent }: { accent: string }) {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex gap-1.5">
           {(["bp", "weight"] as const).map((k) => (
-            <button
-              key={k}
-              type="button"
-              onClick={() => setKind(k)}
-              aria-pressed={kind === k}
-              className="rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors"
-              style={{
-                borderColor: kind === k ? accent : "var(--border-hairline)",
-                background: kind === k ? `color-mix(in oklab, ${accent} 12%, var(--surface-1))` : "transparent",
-                color: kind === k ? accent : "var(--text-secondary)",
-              }}
-            >
+            <Chip key={k} active={kind === k} accent={accent} onClick={() => setKind(k)}>
               {k === "bp" ? "Blood pressure" : "Weight"}
-            </button>
+            </Chip>
           ))}
         </div>
         <PrimaryAction
@@ -449,7 +439,7 @@ export function VitalsTab({ accent }: { accent: string }) {
                 </div>
               </div>
             )}
-            <ul className="flex flex-col inset-rows">
+            <ul className="inset-rows flex flex-col rounded-xl border" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
               {vitals.bp.data.map((r) => (
                 <BpRow key={r.id} reading={r} onEdit={() => setEditingBp(r)} onDelete={() => void vitals.bp.remove(r.id)} />
               ))}
@@ -481,7 +471,7 @@ export function VitalsTab({ accent }: { accent: string }) {
               )}
             </div>
           )}
-          <ul className="flex flex-col inset-rows">
+          <ul className="inset-rows flex flex-col rounded-xl border" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
             {vitals.weight.data.map((r, i) => (
               <WeightRow
                 key={r.id}

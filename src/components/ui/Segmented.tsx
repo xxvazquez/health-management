@@ -15,17 +15,17 @@ export function Segmented<T extends string>({
   accent?: string;
 }) {
   return (
-    <div className="inline-flex rounded-md border p-0.5" style={{ borderColor: "var(--border-hairline)" }}>
+    <div className="inline-flex rounded-md border p-0.5" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
       {options.map(([v, label]) => (
         <button
           key={v}
           type="button"
           onClick={() => onChange(v)}
           aria-pressed={value === v}
-          className="rounded px-3 py-1.5 text-xs font-medium"
+          className="min-h-8 rounded px-3 text-sm font-medium"
           style={{
             background: value === v ? `color-mix(in oklab, ${accent} 14%, var(--surface-1))` : "transparent",
-            color: value === v ? accent : "var(--text-muted)",
+            color: value === v ? accent : "var(--text-secondary)",
             // iOS Safari can leave a stale paint on a background-color-only
             // change (no layout impact) until something else forces a
             // redraw — the segment stays showing its old tint alongside the

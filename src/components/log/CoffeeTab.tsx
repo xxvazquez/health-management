@@ -1,5 +1,6 @@
 "use client";
 
+import { CHIP_CLS, chipStyle } from "@/components/ui/Chip";
 import { useMemo, useState } from "react";
 import { SearchField } from "@/components/ui/SearchField";
 import { CoffeeLogDialog, type CoffeeLogDraft } from "@/components/log/CoffeeLogDialog";
@@ -196,7 +197,7 @@ export function CoffeeTab({
 
       {usual.length > 0 && !trimmedSearch && (
         <div className="flex flex-col gap-1.5">
-          <p className="text-xs font-semibold" style={{ color: "var(--text-secondary)" }}>
+          <p className="px-0.5 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
             Your usual
           </p>
           <div className="no-scrollbar fade-x -mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
@@ -205,8 +206,8 @@ export function CoffeeTab({
                 key={it.id}
                 type="button"
                 onClick={() => openForNewLog(it)}
-                className="flex min-h-8 shrink-0 items-center gap-1 rounded-md border px-2.5 text-xs font-medium whitespace-nowrap transition-colors active:opacity-70"
-                style={{ background: "var(--surface-1)", borderColor: "var(--border-hairline)", color: "var(--text-primary)" }}
+                className={`${CHIP_CLS} shrink-0 whitespace-nowrap`}
+                style={chipStyle(false)}
               >
                 {it.name}
               </button>
@@ -216,25 +217,28 @@ export function CoffeeTab({
       )}
 
       {groupedByBrand.length > 0 && (
-        <div className="rounded-2xl border shadow-[var(--shadow-card)] overflow-hidden" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
+        <div className="overflow-hidden rounded-xl border" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
           {groupedByBrand.map((group, gi) => (
-            <div key={group.brand} className={gi > 0 ? "border-t" : undefined} style={{ borderColor: "var(--border-hairline)" }}>
-              <p className="px-3.5 pt-3 pb-1 text-xs font-bold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
+            <div key={group.brand} className={gi > 0 ? "border-t" : undefined} style={{ borderColor: "var(--gridline)" }}>
+              <p className="flex min-h-11 items-center px-3.5 text-sm" style={{ color: "var(--text-primary)" }}>
                 {group.brand}
+                <span className="ml-auto" style={{ color: "var(--text-muted)" }}>
+                  {group.items.length}
+                </span>
               </p>
               {group.items.map((it) => (
                 <button
                   key={it.id}
                   type="button"
                   onClick={() => openForNewLog(it)}
-                  className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left border-t first:border-t-0"
-                  style={{ borderColor: "var(--border-hairline)" }}
+                  className="flex w-full items-center gap-2.5 border-t px-3.5 py-2.5 text-left"
+                  style={{ borderColor: "var(--gridline)" }}
                 >
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full" style={{ background: `color-mix(in oklab, ${accent} 14%, var(--surface-1))`, color: accent }}>
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md" style={{ background: `color-mix(in oklab, ${accent} 14%, transparent)`, color: accent }}>
                     <CupIcon />
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+                    <span className="block text-sm font-medium" style={{ color: "var(--text-primary)" }}>
                       {it.name}
                     </span>
                     {it.notes && (
@@ -261,7 +265,7 @@ export function CoffeeTab({
 
       {todaysLogs.length > 0 && (
         <div className="flex flex-col gap-2">
-          <p className="text-xs font-semibold" style={{ color: "var(--text-secondary)" }}>
+          <p className="px-0.5 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
             Logged today
           </p>
           <div className="flex flex-col gap-2">

@@ -209,7 +209,7 @@ export function DigestionDashboard() {
         {bristolPatterns.length > 0 ? (
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
             {bristolPatterns.map((p, i) => (
-              <div key={i} className="rounded-lg border p-3.5" style={{ borderColor: "var(--gridline)" }}>
+              <div key={i} className="rounded-xl border p-3.5" style={{ borderColor: "var(--gridline)" }}>
                 <div className="mb-1 flex items-start justify-between gap-2">
                   <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
                     {p.outcomeLabel}{" "}

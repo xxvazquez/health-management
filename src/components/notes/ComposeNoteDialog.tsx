@@ -1,5 +1,6 @@
 "use client";
 
+import { chipStyle } from "@/components/ui/Chip";
 import { useState, type FormEvent } from "react";
 import { useDialogA11y } from "@/components/ui/useDialogA11y";
 import { AutoGrowTextarea } from "@/components/ui/AutoGrowTextarea";
@@ -106,12 +107,9 @@ export function ComposeNoteDialog({
                   key={c}
                   type="button"
                   onClick={() => setCategory(c)}
-                  className="flex flex-1 flex-col items-center gap-1 rounded-lg border py-2 text-xs font-medium transition-colors"
-                  style={{
-                    borderColor: active ? ACCENT : "var(--border-hairline)",
-                    background: active ? "color-mix(in oklab, var(--series-magenta) 12%, var(--surface-1))" : "transparent",
-                    color: active ? ACCENT : "var(--text-secondary)",
-                  }}
+                  aria-pressed={active}
+                  className="flex flex-1 flex-col items-center gap-1 rounded-md border py-2 text-sm font-medium transition-colors"
+                  style={chipStyle(active, ACCENT)}
                 >
                   <CategoryIcon category={c} />
                   {NOTE_CATEGORY_LABEL[c]}

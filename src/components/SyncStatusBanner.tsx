@@ -1,5 +1,6 @@
 "use client";
 
+import { Chip } from "@/components/ui/Chip";
 import { useState } from "react";
 import { useData } from "@/lib/DataContext";
 import { ChevronIcon } from "@/components/ui/icons";
@@ -187,25 +188,16 @@ export function SyncStatusBanner() {
                     </span>
                   ) : (
                     <span className="flex shrink-0 gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => void handleRetry(entry.id)}
-                        disabled={retryingId === entry.id || discardingId === entry.id}
-                        className="min-h-9 rounded-md border px-3 text-sm font-medium disabled:opacity-50"
-                        style={{ borderColor: "var(--border-hairline)", color: "var(--text-secondary)" }}
-                      >
+                      <Chip onClick={() => void handleRetry(entry.id)} disabled={retryingId === entry.id || discardingId === entry.id}>
                         {retryingId === entry.id ? "Retrying…" : "Retry"}
-                      </button>
-                      <button
-                        type="button"
+                      </Chip>
+                      <Chip
                         onClick={() => setConfirmingDiscardId(entry.id)}
                         disabled={retryingId === entry.id || discardingId === entry.id}
                         title="Give up on syncing this one — the local copy on this device is untouched"
-                        className="min-h-9 rounded-md border px-3 text-sm font-medium disabled:opacity-50"
-                        style={{ borderColor: "var(--border-hairline)", color: "var(--text-muted)" }}
                       >
                         {discardingId === entry.id ? "Discarding…" : "Discard"}
-                      </button>
+                      </Chip>
                     </span>
                   )}
                 </li>

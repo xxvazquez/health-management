@@ -64,7 +64,7 @@ export function PartnerLinkPanel({ onLinked }: { onLinked: () => void }) {
           Invite your partner
         </CardTitle>
         {invite ? (
-          <div className="flex items-center justify-between rounded-lg border px-4 py-3" style={{ borderColor: ACCENT, background: "color-mix(in oklab, var(--series-magenta) 10%, var(--surface-1))" }}>
+          <div className="flex items-center justify-between rounded-xl border px-4 py-3" style={{ borderColor: ACCENT, background: "color-mix(in oklab, var(--series-magenta) 10%, var(--surface-1))" }}>
             <span className="text-base font-semibold tracking-[0.2em] tabular-nums" style={{ color: "var(--text-primary)" }}>
               {invite.code}
             </span>

@@ -1,5 +1,6 @@
 "use client";
 
+import { CHIP_CLS, chipStyle } from "@/components/ui/Chip";
 import { useEffect, useState, type FormEvent } from "react";
 import { useLabs } from "@/lib/useLabs";
 import { todayLocalISODate } from "@/lib/aggregations/common";
@@ -180,7 +181,7 @@ export function ResultsTab({ accent }: { accent: string }) {
     <div className="flex flex-col gap-4">
       {flash && (
         <p
-          className="rounded-lg border px-3 py-2 text-xs font-medium"
+          className="rounded-md border px-3 py-2 text-xs font-medium"
           style={{ borderColor: accent, background: `color-mix(in oklab, ${accent} 10%, var(--surface-1))`, color: "var(--text-secondary)" }}
         >
           {flash}
@@ -195,8 +196,8 @@ export function ResultsTab({ accent }: { accent: string }) {
             <button
               type="button"
               onClick={() => setView({ mode: "batch" })}
-              className="shrink-0 min-h-9 rounded-md border px-3 text-sm font-medium"
-              style={{ borderColor: accent, background: `color-mix(in oklab, ${accent} 12%, var(--surface-1))`, color: accent }}
+              className={`${CHIP_CLS} shrink-0`}
+              style={chipStyle(true, accent)}
             >
               Add results
             </button>
