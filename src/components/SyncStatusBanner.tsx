@@ -217,9 +217,15 @@ export function SyncStatusBanner() {
           </span>
         </button>
         {!offline && (
-          <Chip onClick={() => void handleRetryPending()} disabled={retryingPending}>
+          <button
+            type="button"
+            onClick={() => void handleRetryPending()}
+            disabled={retryingPending}
+            className="shrink-0 py-2 text-xs font-medium disabled:opacity-50"
+            style={{ color: "var(--series-1)" }}
+          >
             {retryingPending ? "Retrying…" : "Retry now"}
-          </Chip>
+          </button>
         )}
       </div>
       {pendingExpanded && (
