@@ -1979,7 +1979,7 @@ export default function LogPage() {
 
       {isDemoData && <DemoNotice className="-mt-2" />}
 
-      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between sm:gap-3">
+      <div className="flex flex-col gap-2 lg:flex-row lg:flex-wrap lg:items-end lg:justify-between lg:gap-3">
         {/* The whole-page view switcher — a segmented control (with the
          * domains past the edge folded into "More"). A different shape from
          * "Eaten at" below, which just tags optional metadata on a food. */}
@@ -1988,15 +1988,19 @@ export default function LogPage() {
           items={logTabs.map((t) => ({ id: t.id, label: t.label, accent: t.accent }))}
           activeId={tab}
           onSelect={selectTab}
-          className="w-full min-w-0 sm:flex-1"
+          className="w-full min-w-0 lg:flex-1"
         />
+        {/* On lg+ this slot keeps the same width on every tab (empty on the
+         * ones with no search), so the tab strip beside it never changes
+         * size and shows the same tabs whichever one is open. */}
+        {!tabConfig && <div aria-hidden="true" className="hidden lg:block lg:w-[28rem]" />}
         {tabConfig && (
-          <div className="flex w-full flex-wrap items-center gap-x-3 gap-y-1 sm:w-auto">
+          <div className="flex w-full flex-wrap items-center gap-x-3 gap-y-1 lg:w-[28rem]">
             <SearchField
               value={search}
               onChange={setSearch}
               placeholder="Search or add…"
-              className="w-36 grow sm:w-60 sm:flex-none"
+              className="w-36 min-w-0 grow"
             />
             {/* The meal tag stays visible — the auto-pick is by time of day
              * and is often wrong (breakfast logged at 11pm), so changing it
