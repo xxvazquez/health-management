@@ -1,12 +1,12 @@
 "use client";
 
-import { CHIP_CLS, chipStyle } from "@/components/ui/Chip";
 import { useEffect, useState, type FormEvent } from "react";
 import { useLabs } from "@/lib/useLabs";
 import { todayLocalISODate } from "@/lib/aggregations/common";
 import type { LabMarker, LabResult } from "@/lib/supabase/labs";
 import { ErrorState } from "@/components/ui/EmptyState";
 import { PrimaryAction } from "@/components/ui/PrimaryAction";
+import { ChoicePanel } from "@/components/ui/ChoicePanel";
 import { Button } from "@/components/ui/Button";
 import { FIELD_CLS, FIELD_STYLE, LABEL_CLS, LABEL_STYLE, formatDate } from "./shared";
 import { parseNum } from "./labStatus";
@@ -123,6 +123,7 @@ export function ResultsTab({ accent }: { accent: string }) {
   const labs = useLabs();
   const [view, setView] = useState<View>({ mode: "list" });
   const [flash, setFlash] = useState<string | null>(null);
+  const [choosing, setChoosing] = useState(false);
 
   useEffect(() => {
     if (!flash) return;
@@ -188,20 +189,37 @@ export function ResultsTab({ accent }: { accent: string }) {
         </p>
       )}
 
+      {choosing && (
+        <ChoicePanel
+          title="Add to Results"
+          onCancel={() => setChoosing(false)}
+          options={[
+            {
+              label: "Add results",
+              onClick: () => {
+                setChoosing(false);
+                setView({ mode: "batch" });
+              },
+            },
+            {
+              label: "New marker",
+              onClick: () => {
+                setChoosing(false);
+                setView({ mode: "marker-form" });
+              },
+            },
+          ]}
+        />
+      )}
+
       <LabsOverview
         labs={labs}
-        actions={<PrimaryAction label="New marker" accent={accent} onClick={() => setView({ mode: "marker-form" })} />}
-        secondaryActions={
-          hasMarkers && (
-            <button
-              type="button"
-              onClick={() => setView({ mode: "batch" })}
-              className={`${CHIP_CLS} shrink-0`}
-              style={chipStyle(true, accent)}
-            >
-              Add results
-            </button>
-          )
+        actions={
+          <PrimaryAction
+            label={hasMarkers ? "Add" : "New marker"}
+            accent={accent}
+            onClick={() => (hasMarkers ? setChoosing(true) : setView({ mode: "marker-form" }))}
+          />
         }
         onNewMarker={() => setView({ mode: "marker-form" })}
         onAddValue={(markerId) => setView({ mode: "result-form", markerId })}
