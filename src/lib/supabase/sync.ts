@@ -1009,130 +1009,33 @@ export async function pullFromCloud(): Promise<void> {
 
       await clearAllDataInternal();
 
-      for (const entry of categoryRows) {
-        await putCategoryInternal({ id: entry.id, itemType: dbTypeToItemType(entry.item_type), name: entry.name, icon: entry.icon ?? null, color: entry.color ?? null });
+      for (const row of categoryRows) await putCategoryInternal(categoryFromRow(row));
+
+      for (let i = 0; i < ITEM_TYPES.length; i++) {
+        for (const row of itemsByType[i]) await putItemInternal(itemFromRow(row, ITEM_TYPES[i], categoryNameById));
+      }
+      for (const row of workoutItemRows) await putItemInternal(itemFromRow(row, "workout", categoryNameById));
+
+      for (let i = 0; i < ITEM_TYPES.length; i++) {
+        for (const row of logsByType[i]) await putLogInternal(logFromRow(row, ITEM_TYPES[i]));
       }
 
       for (let i = 0; i < ITEM_TYPES.length; i++) {
-        const itemType = ITEM_TYPES[i];
-        for (const row of itemsByType[i]) {
-          const item: RawItem = {
-            identity: row.id,
-            itemType,
-            rawName: row.name,
-            category: categoryNameById.get(row.category_id ?? "") ?? "Other",
-            categoryId: row.category_id,
-            isArchived: row.is_archived ?? false,
-            createdDate: row.created_date,
-            reminderTime: row.reminder_time ? row.reminder_time.slice(0, 5) : null,
-            unit: null,
-          };
-          await putItemInternal(item);
-        }
+        for (const row of diaryByType[i]) await putDiaryEntryInternal(diaryFromRow(row, ITEM_TYPES[i]));
       }
+      for (const row of workoutDiaryRows) await putDiaryEntryInternal(diaryFromRow(row, "workout"));
 
-      for (const row of workoutItemRows) {
-        const item: RawItem = {
-          identity: row.id,
-          itemType: "workout",
-          rawName: row.name,
-          category: categoryNameById.get(row.category_id ?? "") ?? "Other",
-          categoryId: row.category_id,
-          isArchived: row.is_archived ?? false,
-          createdDate: row.created_date,
-          reminderTime: null,
-          unit: row.unit ?? "kg",
-        };
-        await putItemInternal(item);
-      }
-
-      for (let i = 0; i < ITEM_TYPES.length; i++) {
-        const itemType = ITEM_TYPES[i];
-        for (const row of logsByType[i]) {
-          const log: RawLog = {
-            identity: row.id,
-            itemIdentity: row.item_id,
-            itemType,
-            date: row.date,
-            value: row.value,
-            updatedAt: row.updated_at,
-            mealTag: itemType === "food" || itemType === "supplement" ? (row.meal_tag ?? null) : null,
-            productId: itemType === "food" ? (row.product_id ?? null) : null,
-          };
-          await putLogInternal(log);
-        }
-      }
-
-      for (let i = 0; i < ITEM_TYPES.length; i++) {
-        const itemType = ITEM_TYPES[i];
-        for (const row of diaryByType[i]) {
-          const entry: RawDiaryEntry = {
-            identity: row.id,
-            itemIdentity: row.item_id,
-            itemType,
-            date: row.date,
-            content: row.content,
-            title: row.title,
-            updatedAt: row.updated_at,
-          };
-          await putDiaryEntryInternal(entry);
-        }
-      }
-
-      for (const row of workoutDiaryRows) {
-        const entry: RawDiaryEntry = {
-          identity: row.id,
-          itemIdentity: row.item_id,
-          itemType: "workout",
-          date: row.date,
-          content: row.content,
-          title: row.title,
-          updatedAt: row.updated_at,
-        };
-        await putDiaryEntryInternal(entry);
-      }
-
-      for (const row of stoolLogRows) {
-        const log: RawStoolLog = {
-          id: row.id,
-          date: row.date,
-          loggedAt: row.logged_at,
-          bristolScores: row.bristol_scores ?? [],
-          color: row.color ?? null,
-          floatation: row.floatation ?? null,
-          characteristics: row.characteristics ?? [],
-          hygiene: (row.hygiene as HygieneOption[] | null) ?? [],
-          symptoms: row.symptoms ?? [],
-          timeOnToiletMinutes: row.time_on_toilet_minutes,
-          note: row.note,
-          updatedAt: row.updated_at,
-        };
-        await putStoolLogInternal(log);
-      }
+      for (const row of stoolLogRows) await putStoolLogInternal(stoolLogFromRow(row));
 
       for (const row of workoutLogRows) {
         const exercise = workoutItemNameById.get(row.item_id);
         if (!exercise) continue; // orphaned row (workout item deleted) — shouldn't happen, FK is on delete restrict
-        const log: RawWorkoutLog = {
-          id: row.id,
-          date: row.date,
-          exercise,
-          weightKg: row.weight_kg,
-          updatedAt: new Date(row.updated_at).getTime(),
-        };
-        await putWorkoutLogInternal(log);
+        await putWorkoutLogInternal(workoutLogFromRow(row, exercise));
       }
 
-      for (const row of periodLogRows) {
-        const log: RawPeriodLog = {
-          id: row.id,
-          date: row.date,
-          intensity: row.intensity,
-          collectionMethods: row.collection_methods ?? [],
-          updatedAt: new Date(row.updated_at).getTime(),
-        };
-        await putPeriodLogInternal(log);
-      }
+      for (const row of periodLogRows) await putPeriodLogInternal(periodLogFromRow(row));
+
+      await replayUnsyncedWrites(userId, categoryNameById, new Set(repairPlan.toDiscard));
       return true;
     });
     if (installed) {
@@ -1150,6 +1053,162 @@ export async function pullFromCloud(): Promise<void> {
   // land must not leave ensureCategoryId/ensureDefaultWorkoutItems waiting
   // forever.
   markInitialPullDone(userId);
+}
+
+// Row -> local record. Shared by the pull's install step and by
+// replayUnsyncedWrites, so a payload still waiting in the outbox is read back
+// exactly the way a server row would be.
+
+function categoryFromRow(row: CategoryRow): RawCategory {
+  return { id: row.id, itemType: dbTypeToItemType(row.item_type), name: row.name, icon: row.icon ?? null, color: row.color ?? null };
+}
+
+function itemFromRow(row: ItemRow, itemType: ItemType, categoryNameById: Map<string, string>): RawItem {
+  return {
+    identity: row.id,
+    itemType,
+    rawName: row.name,
+    category: categoryNameById.get(row.category_id ?? "") ?? "Other",
+    categoryId: row.category_id,
+    isArchived: row.is_archived ?? false,
+    createdDate: row.created_date,
+    reminderTime: row.reminder_time ? row.reminder_time.slice(0, 5) : null,
+    unit: itemType === "workout" ? (row.unit ?? "kg") : null,
+  };
+}
+
+function logFromRow(row: LogRow, itemType: ItemType): RawLog {
+  return {
+    identity: row.id,
+    itemIdentity: row.item_id,
+    itemType,
+    date: row.date,
+    value: row.value,
+    updatedAt: row.updated_at,
+    mealTag: itemType === "food" || itemType === "supplement" ? (row.meal_tag ?? null) : null,
+    productId: itemType === "food" ? (row.product_id ?? null) : null,
+  };
+}
+
+function diaryFromRow(row: DiaryRow, itemType: ItemType): RawDiaryEntry {
+  return {
+    identity: row.id,
+    itemIdentity: row.item_id,
+    itemType,
+    date: row.date,
+    content: row.content,
+    title: row.title,
+    updatedAt: row.updated_at,
+  };
+}
+
+function stoolLogFromRow(row: StoolLogRow): RawStoolLog {
+  return {
+    id: row.id,
+    date: row.date,
+    loggedAt: row.logged_at,
+    bristolScores: row.bristol_scores ?? [],
+    color: row.color ?? null,
+    floatation: row.floatation ?? null,
+    characteristics: row.characteristics ?? [],
+    hygiene: (row.hygiene as HygieneOption[] | null) ?? [],
+    symptoms: row.symptoms ?? [],
+    timeOnToiletMinutes: row.time_on_toilet_minutes,
+    note: row.note,
+    updatedAt: row.updated_at,
+  };
+}
+
+function workoutLogFromRow(row: WorkoutLogRow, exercise: string): RawWorkoutLog {
+  return { id: row.id, date: row.date, exercise, weightKg: row.weight_kg, updatedAt: new Date(row.updated_at).getTime() };
+}
+
+function periodLogFromRow(row: PeriodLogRow): RawPeriodLog {
+  return {
+    id: row.id,
+    date: row.date,
+    intensity: row.intensity,
+    collectionMethods: row.collection_methods ?? [],
+    updatedAt: new Date(row.updated_at).getTime(),
+  };
+}
+
+const TRACKING_TYPE_BY_TABLE = new Map<string, ItemType>([
+  ...(Object.entries(ITEM_TABLE) as [ItemType, string][]).map(([type, table]) => [table, type] as const),
+  ...(Object.entries(LOG_TABLE) as [ItemType, string][]).map(([type, table]) => [table, type] as const),
+  ...(Object.entries(DIARY_TABLE) as [ItemType, string][]).map(([type, table]) => [table, type] as const),
+]);
+
+/**
+ * Re-applies every change still waiting in the outbox (pending or
+ * dead-lettered) on top of the freshly installed server snapshot. The pull
+ * wipes the local cache, and a change that hasn't reached Supabase yet isn't
+ * in that snapshot — without this it would disappear from the screen while
+ * the sync banner still says it's saved on this device. Runs inside the
+ * pull's data lock, oldest entry first, so the final state matches what the
+ * outbox will eventually send. Entries the repair pass is about to discard
+ * (`skipIds`, unrecoverable duplicates) are left out. Only the tracking-domain tables are cached
+ * here; entries for the direct-to-Supabase features are left to their own
+ * snapshot handling.
+ */
+async function replayUnsyncedWrites(userId: string, categoryNameById: Map<string, string>, skipIds: Set<string>): Promise<void> {
+  const entries = (await getAllOutboxEntries())
+    .filter((e) => e.userId === userId && !skipIds.has(e.id))
+    .sort((a, b) => a.createdAt - b.createdAt);
+  const names = new Map(categoryNameById);
+  const idOf = (payload: unknown): string | null => {
+    const id = (payload as { id?: unknown } | null)?.id;
+    return typeof id === "string" ? id : null;
+  };
+
+  // Categories first, so a replayed item can resolve a category created or
+  // renamed offline.
+  for (const entry of entries) {
+    if (entry.table !== "categories") continue;
+    const id = idOf(entry.payload);
+    if (!id) continue;
+    if (entry.op === "upsert") {
+      const category = categoryFromRow(entry.payload as CategoryRow);
+      await putCategoryInternal(category);
+      names.set(category.id, category.name);
+    } else if (entry.op === "delete") {
+      await deleteCategoryLocalInternal(id);
+      names.delete(id);
+    }
+  }
+
+  for (const entry of entries) {
+    if (entry.op !== "upsert" && entry.op !== "delete") continue;
+    const id = idOf(entry.payload);
+    if (!id) continue;
+    const itemType = TRACKING_TYPE_BY_TABLE.get(entry.table);
+    const isDelete = entry.op === "delete";
+    const payload = entry.payload;
+
+    if (itemType && entry.table === ITEM_TABLE[itemType]) {
+      if (isDelete) await deleteItemLocalInternal(id);
+      else await putItemInternal(itemFromRow(payload as ItemRow, itemType, names));
+    } else if (itemType && entry.table === LOG_TABLE[itemType] && itemType !== "workout") {
+      if (isDelete) await deleteLogByIdInternal(id);
+      else await putLogInternal(logFromRow(payload as LogRow, itemType));
+    } else if (itemType && entry.table === DIARY_TABLE[itemType]) {
+      if (!isDelete) await putDiaryEntryInternal(diaryFromRow(payload as DiaryRow, itemType));
+    } else if (entry.table === "stool_logs") {
+      if (isDelete) await deleteStoolLogByIdInternal(id);
+      else await putStoolLogInternal(stoolLogFromRow(payload as StoolLogRow));
+    } else if (entry.table === "period_logs") {
+      if (isDelete) await deletePeriodLogByIdInternal(id);
+      else await putPeriodLogInternal(periodLogFromRow(payload as PeriodLogRow));
+    } else if (entry.table === "workout_logs") {
+      if (isDelete) {
+        await deleteWorkoutLogByIdInternal(id);
+      } else {
+        const row = payload as WorkoutLogRow;
+        const item = await getItem(row.item_id);
+        if (item) await putWorkoutLogInternal(workoutLogFromRow(row, item.rawName));
+      }
+    }
+  }
 }
 
 function dbTypeToItemType(dbType: string): ItemType {

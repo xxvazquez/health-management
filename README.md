@@ -156,7 +156,9 @@ flowchart LR
 
 - IndexedDB is wiped and repopulated from Supabase on sign-in, on tab focus, on
   reconnect, and on a 60-second timer while the tab is visible — so a change made
-  on another device shows up here within about a minute.
+  on another device shows up here within about a minute. Changes still waiting in
+  the outbox are re-applied on top of the fresh copy, so an unsynced entry never
+  disappears from the screen.
 - Every write goes to IndexedDB first (the UI never waits on the network) and is
   queued in a small outbox. A background drain pushes queued writes to Supabase
   with retry/backoff, so nothing typed offline is lost.

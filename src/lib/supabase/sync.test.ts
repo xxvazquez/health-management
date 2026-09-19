@@ -196,7 +196,11 @@ const baseTables = {
   workout_logs: [{ id: "workout-1", item_id: "item-workout-1", date: "2026-01-01", weight_kg: 60, updated_at: "2026-01-01T10:00:00.000Z" }],
 };
 
-beforeEach(() => {
+beforeEach(async () => {
+  // The pull replays whatever the outbox still holds, so entries left by an
+  // earlier test would show up as extra writes in `calls`.
+  const { getAllOutboxEntries, deleteOutboxEntryById } = await import("@/lib/db/indexedDb");
+  for (const entry of await getAllOutboxEntries()) await deleteOutboxEntryById(entry.id);
   calls.length = 0;
   committed.length = 0;
   for (const key of Object.keys(concurrency)) {

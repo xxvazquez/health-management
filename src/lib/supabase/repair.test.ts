@@ -9,6 +9,7 @@ import {
   getDeadLetterOutboxEntries,
   getAllItems,
   getAllCategories,
+  getAllLogs,
   clearAllDataInternal,
 } from "@/lib/db/indexedDb";
 import type { RawItem } from "@/lib/types";
@@ -276,5 +277,68 @@ describe("waitForInitialPull — the actual gate that stops new occurrences", ()
     const categories = await getAllCategories();
     expect(categories).toHaveLength(1); // no duplicate ever got created
     await waitForInitialPull(); // should already be resolved — no hang
+  });
+});
+
+describe("pullFromCloud's replay of unsynced writes", () => {
+  async function enqueuePending(entry: Parameters<typeof enqueueOutboxInternal>[0]) {
+    await withDataLock(() => enqueueOutboxInternal(entry));
+    await sleep(2); // keep createdAt clear of the pull's race-detection cutoff
+  }
+
+  it("keeps a log that hasn't reached the server visible after the pull wipes the cache", async () => {
+    configureFakeSupabase({});
+    await enqueuePending({
+      userId: "user-1",
+      table: "habit_logs",
+      op: "upsert",
+      payload: { id: "log-1", user_id: "user-1", item_id: "item-1", date: "2026-09-19", value: 1, updated_at: "2026-09-19T10:00:00.000Z" },
+      dedupeKey: "habit_logs:log-1",
+    });
+
+    const { pullFromCloud } = await import("./sync");
+    await pullFromCloud();
+
+    const logs = await getAllLogs();
+    expect(logs).toHaveLength(1);
+    expect(logs[0]).toMatchObject({ identity: "log-1", itemType: "habit", date: "2026-09-19", value: 1 });
+    expect(await getAllOutboxEntries()).toHaveLength(1);
+  });
+
+  it("keeps a pending delete applied to a log the server still has", async () => {
+    configureFakeSupabase({
+      habit_logs: [{ id: "log-2", item_id: "item-1", date: "2026-09-18", value: 1, updated_at: "2026-09-18T10:00:00.000Z" }],
+    });
+    await enqueuePending({ userId: "user-1", table: "habit_logs", op: "delete", payload: { id: "log-2" }, dedupeKey: "habit_logs:log-2" });
+
+    const { pullFromCloud } = await import("./sync");
+    await pullFromCloud();
+
+    expect(await getAllLogs()).toEqual([]);
+  });
+
+  it("resolves a replayed item's category from a category created offline", async () => {
+    configureFakeSupabase({});
+    await enqueuePending({
+      userId: "user-1",
+      table: "categories",
+      op: "upsert",
+      payload: { id: "cat-1", user_id: "user-1", item_type: "habit", name: "Evening" },
+      dedupeKey: "categories:cat-1",
+    });
+    await enqueuePending({
+      userId: "user-1",
+      table: "habit_items",
+      op: "upsert",
+      payload: { id: "item-9", user_id: "user-1", name: "Stretch", category_id: "cat-1", item_type: "habit", is_archived: false, created_date: "2026-09-19" },
+      dedupeKey: "habit_items:item-9",
+    });
+
+    const { pullFromCloud } = await import("./sync");
+    await pullFromCloud();
+
+    const items = await getAllItems();
+    expect(items).toHaveLength(1);
+    expect(items[0]).toMatchObject({ identity: "item-9", rawName: "Stretch", category: "Evening", categoryId: "cat-1" });
   });
 });
