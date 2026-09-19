@@ -85,6 +85,34 @@ interface HealthDbSchema extends DBSchema {
 const DB_NAME = "health-analytics";
 const DB_VERSION = 10;
 
+// ---------------------------------------------------------------------------
+// Storage failures
+// ---------------------------------------------------------------------------
+// A local write can fail for reasons the caller can't do anything about —
+// the device is out of space, or the browser won't give this site storage
+// (private mode, blocked site data). Callers just see a rejected promise, and
+// most are fire-and-forget UI handlers, so the user would never learn their
+// change wasn't kept. Every such failure is announced here for
+// StorageErrorBanner; the error is still rethrown to the caller unchanged.
+export type StorageProblem = "full" | "unavailable";
+
+const UNAVAILABLE_ERROR_NAMES = new Set(["UnknownError", "InvalidStateError", "AbortError", "SecurityError", "NotFoundError", "VersionError"]);
+const storageListeners = new Set<(problem: StorageProblem) => void>();
+
+export function onStorageProblem(listener: (problem: StorageProblem) => void): () => void {
+  storageListeners.add(listener);
+  return () => {
+    storageListeners.delete(listener);
+  };
+}
+
+function reportStorageFailure(err: unknown): void {
+  if (typeof DOMException === "undefined" || !(err instanceof DOMException)) return;
+  const problem: StorageProblem | null =
+    err.name === "QuotaExceededError" ? "full" : UNAVAILABLE_ERROR_NAMES.has(err.name) ? "unavailable" : null;
+  if (problem) storageListeners.forEach((listener) => listener(problem));
+}
+
 let dbPromise: Promise<IDBPDatabase<HealthDbSchema>> | null = null;
 
 function getDb(): Promise<IDBPDatabase<HealthDbSchema>> {
@@ -141,6 +169,11 @@ function getDb(): Promise<IDBPDatabase<HealthDbSchema>> {
           }
         }
       },
+    }).catch((err) => {
+      // Don't cache a failed open — the next call gets a fresh attempt.
+      dbPromise = null;
+      reportStorageFailure(err);
+      throw err;
     });
   }
   return dbPromise;
@@ -167,7 +200,15 @@ function getDb(): Promise<IDBPDatabase<HealthDbSchema>> {
 let dataLockQueue: Promise<unknown> = Promise.resolve();
 
 export function withDataLock<T>(fn: () => Promise<T>): Promise<T> {
-  const result = dataLockQueue.then(fn, fn);
+  const run = async () => {
+    try {
+      return await fn();
+    } catch (err) {
+      reportStorageFailure(err);
+      throw err;
+    }
+  };
+  const result = dataLockQueue.then(run, run);
   dataLockQueue = result.then(
     () => undefined,
     () => undefined,

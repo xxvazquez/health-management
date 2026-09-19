@@ -290,7 +290,7 @@ describe("pullFromCloud", () => {
     const { withDataLock } = await import("@/lib/db/indexedDb");
 
     const pullPromise = pullFromCloud();
-    await sleep(1); // let the pull acquire the lock and call clearAllDataInternal first
+    await vi.waitFor(() => expect(calls).toContain("clear")); // the pull now holds the lock
     const writePromise = withDataLock(async () => {
       // Pushed into the SAME shared `calls` timeline the pull's own writes
       // use, so position (not just eventual presence) is verifiable —

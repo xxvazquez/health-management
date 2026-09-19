@@ -10,6 +10,7 @@ import { BottomNav } from "@/components/BottomNav";
 import { ContentContainer } from "@/components/ContentContainer";
 import { AuthBanner } from "@/components/auth/AuthBanner";
 import { SyncStatusBanner } from "@/components/SyncStatusBanner";
+import { StorageErrorBanner } from "@/components/StorageErrorBanner";
 import { RegisterServiceWorker } from "@/components/RegisterServiceWorker";
 import { AppLoadingSplash } from "@/components/AppLoadingSplash";
 import { MedicalDisclaimer } from "@/components/MedicalDisclaimer";
@@ -97,6 +98,7 @@ export default function RootLayout({
                 <main className="flex min-w-0 flex-1 flex-col pt-[env(safe-area-inset-top)] lg:pt-0">
                   <PullToRefresh>
                     <AuthBanner />
+                    <StorageErrorBanner />
                     <SyncStatusBanner />
                     {/* pb-24 on mobile clears the fixed BottomNav so the
                         last list row is never tucked under it; desktop has

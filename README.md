@@ -170,6 +170,10 @@ flowchart LR
   and a permanently rejected write expands into which record, why, and a
   Retry/Discard button. The local record is never at risk either way — only
   the cloud copy is stuck.
+- `StorageErrorBanner.tsx` covers the other failure: a local save that IndexedDB
+  itself rejects (device out of space, browser blocking site data). `indexedDb.ts`
+  announces those and the banner tells the user their last change may not have
+  been kept; the error still reaches the caller.
 - One write lock (`withDataLock` in `indexedDb.ts`) stops a cloud pull from ever
   landing in the middle of a local write.
 - Manage → "Your data" exports straight from Supabase (`src/lib/exportData.ts`) —
