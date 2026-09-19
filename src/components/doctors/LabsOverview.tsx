@@ -77,20 +77,14 @@ function windowWord(option: LabRangeOption): string {
 export function LabsOverview({
   labs,
   actions,
-  secondaryActions,
   onNewMarker,
   onAddValue,
   onEditValue,
 }: {
   labs: ReturnType<typeof useLabs>;
-  /** Right-aligned control shown beside the time-window switch — the one
-   * primary action (New marker), so it never competes with the window
-   * control for the row's width. */
+  /** Control shown beside the time-window switch — the one primary action,
+   * so it shares the first row instead of taking its own. */
   actions?: ReactNode;
-  /** Right-aligned control(s) shown beside the mode/sort switches instead —
-   * for a secondary action (Add results) that doesn't need to be in the
-   * first row. */
-  secondaryActions?: ReactNode;
   onNewMarker?: () => void;
   onAddValue?: (markerId: string) => void;
   onEditValue?: (markerId: string, result: LabResult) => void;
@@ -236,12 +230,16 @@ export function LabsOverview({
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-2.5">
-        <SegmentedTabs
-          ariaLabel="Time window"
-          activeId={rangeId}
-          onSelect={setRangeId}
-          items={LAB_RANGES.map((r) => ({ id: r.id, label: r.label }))}
-        />
+        <div className="flex items-center gap-2.5">
+          <SegmentedTabs
+            ariaLabel="Time window"
+            activeId={rangeId}
+            onSelect={setRangeId}
+            items={LAB_RANGES.map((r) => ({ id: r.id, label: r.label }))}
+            className="min-w-0 flex-1"
+          />
+          {actions}
+        </div>
         <div className="grid grid-cols-2 gap-2.5">
           <SegmentedTabs
             ariaLabel="Value shown"
@@ -262,12 +260,6 @@ export function LabsOverview({
             ]}
           />
         </div>
-        {(actions || secondaryActions) && (
-          <div className="flex gap-2.5 sm:justify-end [&>*]:flex-1 sm:[&>*]:flex-none [&>*>*]:w-full">
-            {secondaryActions && <div>{secondaryActions}</div>}
-            {actions && <div>{actions}</div>}
-          </div>
-        )}
       </div>
 
       {panelSections.length >= 2 && (
