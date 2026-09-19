@@ -451,7 +451,9 @@ Sending needs a **verified Resend domain**. The cron mails a *user's* address (a
 partner, or whoever a task is for), and Resend's shared `onboarding@resend.dev`
 sender only delivers to the Resend account owner — so those emails silently fail
 until you [verify a domain](https://resend.com/domains) and set `NOTES_FROM` /
-`REMINDERS_FROM` to an address on it (e.g. `Lauva <notes@lauva.pl>`). The
+`REMINDERS_FROM` to an address on exactly that domain — this project verified
+`send.lauva.pl`, so it's `Lauva <reminders@send.lauva.pl>`; an address on the
+parent `lauva.pl` is rejected with "The domain is invalid". The
 bug-report function is unaffected — it mails `BUG_EMAIL`, the account owner.
 
 ## Notes for maintainers
