@@ -15,6 +15,7 @@ let upsertResult: { error: { code?: string; message: string } | null } = { error
 let deleteResult: { error: { code?: string; message: string } | null } = { error: null };
 let updateResult: { error: { code?: string; message: string } | null } = { error: null };
 let thrown: Error | null = null;
+let hang = false;
 let currentSessionUserId: string | null = "user-1";
 const sentCalls: { table: string; op: string; payload?: unknown; id?: unknown }[] = [];
 
@@ -28,6 +29,7 @@ vi.mock("./client", () => ({
         return {
           upsert: async (_payload: unknown, options?: { ignoreDuplicates?: boolean }) => {
             sentCalls.push({ table, op: options?.ignoreDuplicates ? "insert" : "upsert" });
+            if (hang) return new Promise(() => {});
             if (thrown) throw thrown;
             return upsertResult;
           },
@@ -90,10 +92,34 @@ describe("classifySupabaseError", () => {
     }
   });
 
+  it("classifies other data, integrity and schema SQLSTATEs as permanent", async () => {
+    const { classifySupabaseError } = await import("./outbox");
+    for (const code of ["22P02", "23502", "42703", "42P01", "42P10"]) {
+      expect(classifySupabaseError({ code, message: "x" })).toMatchObject({ outcome: "permanent", code });
+    }
+  });
+
   it("classifies an unrecognized or missing code as retryable", async () => {
     const { classifySupabaseError } = await import("./outbox");
     expect(classifySupabaseError({ code: "53300", message: "too many connections" })).toMatchObject({ outcome: "retryable" });
     expect(classifySupabaseError({ message: "no code at all" })).toMatchObject({ outcome: "retryable" });
+  });
+});
+
+describe("sendOutboxEntry timeout", () => {
+  it("gives up on a request that never settles and reports it as retryable", async () => {
+    vi.useFakeTimers();
+    try {
+      const { sendOutboxEntry } = await import("./outbox");
+      hang = true;
+      const entry = { id: "e1", userId: "u", table: "food_logs", op: "upsert", payload: { id: "x" }, dedupeKey: "k", status: "pending", attempts: 0, createdAt: 0, nextAttemptAt: 0 } as never;
+      const promise = sendOutboxEntry(entry);
+      await vi.advanceTimersByTimeAsync(31_000);
+      await expect(promise).resolves.toMatchObject({ outcome: "retryable", message: "Request timed out" });
+    } finally {
+      hang = false;
+      vi.useRealTimers();
+    }
   });
 });
 

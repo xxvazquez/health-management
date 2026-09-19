@@ -30,16 +30,23 @@ async function currentUserId(): Promise<string | null> {
 // request-shape validation errors — also deterministic. The exceptions are
 // PGRST000–003 (database unreachable, schema cache reloading, timeout) and
 // PGRST301–303 (expired or missing JWT): those clear on their own or after
-// a token refresh, so they stay retryable. Anything else (a 5xx, a timeout
-// surfaced as an `error` object rather than a thrown exception, an
-// unrecognized code) is treated as transient and retried.
+// a token refresh, so they stay retryable. Any other SQLSTATE in class 22
+// (data exception), 23 (integrity violation) or 42 (syntax error / missing
+// column or table) is deterministic too — without this a payload the schema
+// can't accept would sit in the pending queue retrying forever, never
+// telling the user. Anything else (a 5xx, a timeout surfaced as an `error`
+// object rather than a thrown exception, an unrecognized code) is treated as
+// transient and retried.
 const PERMANENT_ERROR_CODES = new Set(["23503", "23505", "23514", "42501"]);
+const PERMANENT_SQLSTATE_CLASSES = /^(22|23|42)[0-9A-Z]{3}$/;
 const TRANSIENT_POSTGREST_CODES = /^PGRST(00[0-3]|30[1-3])$/;
 
 export function classifySupabaseError(error: { code?: string; message: string }): SendResult {
   const permanent =
     error.code !== undefined &&
-    (PERMANENT_ERROR_CODES.has(error.code) || (error.code.startsWith("PGRST") && !TRANSIENT_POSTGREST_CODES.test(error.code)));
+    (PERMANENT_ERROR_CODES.has(error.code) ||
+      PERMANENT_SQLSTATE_CLASSES.test(error.code) ||
+      (error.code.startsWith("PGRST") && !TRANSIENT_POSTGREST_CODES.test(error.code)));
   if (permanent) {
     return { outcome: "permanent", message: error.message, code: error.code };
   }
@@ -52,27 +59,41 @@ export function classifySupabaseError(error: { code?: string; message: string })
  * anywhere in this module; only the actual request outcome decides. */
 export async function sendOutboxEntry(entry: OutboxEntry): Promise<SendResult> {
   if (!supabase) return { outcome: "retryable", message: "Supabase not configured" };
+  let timer: ReturnType<typeof setTimeout> | undefined;
   try {
-    const query = supabase.from(entry.table);
-    let error;
-    if (entry.op === "upsert") {
-      ({ error } = await query.upsert(entry.payload as Record<string, unknown>));
-    } else if (entry.op === "insert") {
-      ({ error } = await query.upsert(entry.payload as Record<string, unknown>, { ignoreDuplicates: true }));
-    } else if (entry.op === "update") {
-      const { id, ...rest } = entry.payload as Record<string, unknown> & { id: string };
-      ({ error } = await query.update(rest).eq("id", id));
-    } else {
-      const p = entry.payload as { id?: string; match?: Record<string, unknown> };
-      ({ error } = p.match ? await query.delete().match(p.match) : await query.delete().eq("id", p.id as string));
-    }
-    if (!error) return { outcome: "success" };
-    return classifySupabaseError(error);
+    // A request that never settles (a stalled connection on a phone, a stuck
+    // auth lock) would otherwise hold the whole drain open forever, since
+    // concurrent drains reuse the in-flight one. Sends are idempotent, so
+    // giving up and retrying later is safe even if the request lands anyway.
+    const timeout = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(new Error("Request timed out")), SEND_TIMEOUT_MS);
+    });
+    return await Promise.race([send(supabase, entry), timeout]);
   } catch (err) {
     return { outcome: "retryable", message: err instanceof Error ? err.message : String(err) };
+  } finally {
+    clearTimeout(timer);
   }
 }
 
+async function send(client: NonNullable<typeof supabase>, entry: OutboxEntry): Promise<SendResult> {
+  const query = client.from(entry.table);
+  let error;
+  if (entry.op === "upsert") {
+    ({ error } = await query.upsert(entry.payload as Record<string, unknown>));
+  } else if (entry.op === "insert") {
+    ({ error } = await query.upsert(entry.payload as Record<string, unknown>, { ignoreDuplicates: true }));
+  } else if (entry.op === "update") {
+    const { id, ...rest } = entry.payload as Record<string, unknown> & { id: string };
+    ({ error } = await query.update(rest).eq("id", id));
+  } else {
+    const p = entry.payload as { id?: string; match?: Record<string, unknown> };
+    ({ error } = p.match ? await query.delete().match(p.match) : await query.delete().eq("id", p.id as string));
+  }
+  return error ? classifySupabaseError(error) : { outcome: "success" };
+}
+
+const SEND_TIMEOUT_MS = 30_000;
 const BASE_DELAY_MS = 2_000;
 const MAX_DELAY_MS = 5 * 60_000;
 

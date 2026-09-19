@@ -74,6 +74,18 @@ describe("SyncStatusBanner", () => {
     expect(screen.getByText(/hasn't synced yet/)).toBeInTheDocument();
   });
 
+  it("groups identical pending entries and shows the last error", async () => {
+    const make = (id: string) =>
+      baseEntry({ id, status: "pending", table: "food_logs", payload: { id, date: "2026-09-19" }, lastError: "Request timed out" });
+    mockData({ syncState: { pending: 3, deadLetter: 0 }, pendingEntries: [make("a"), make("b"), make("c")] });
+    render(<SyncStatusBanner />);
+
+    await userEvent.setup().click(screen.getByText("Details"));
+    expect(screen.getAllByText(/hasn't synced yet/)).toHaveLength(1);
+    expect(screen.getByText(/food log entry ×3/)).toBeInTheDocument();
+    expect(screen.getByText(/Last attempt: Request timed out/)).toBeInTheDocument();
+  });
+
   it("shows the dead-letter count collapsed, then the entry list on Details", async () => {
     const entry = baseEntry();
     mockData({ syncState: { pending: 0, deadLetter: 1 }, deadLetterEntries: [entry] });

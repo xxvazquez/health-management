@@ -57,6 +57,23 @@ function describeRecord(entry: OutboxEntry): string {
   return entry.dedupeKey.split(":").at(-1)?.slice(0, 8) ?? "unknown";
 }
 
+/** Collapses pending entries that read identically (same table, same label)
+ * into one row with a count, so a busy day's queue doesn't fill the screen. */
+function groupPending(entries: OutboxEntry[]): { key: string; entry: OutboxEntry; count: number }[] {
+  const groups = new Map<string, { key: string; entry: OutboxEntry; count: number }>();
+  for (const entry of entries) {
+    const key = `${entry.table}:${describeRecord(entry)}`;
+    const group = groups.get(key);
+    if (group) {
+      group.count += 1;
+      if (entry.lastError) group.entry = entry;
+    } else {
+      groups.set(key, { key, entry, count: 1 });
+    }
+  }
+  return [...groups.values()];
+}
+
 /** Translates the Postgres/PostgREST error codes classifySupabaseError
  * treats as permanent (see lib/supabase/outbox.ts) into plain language —
  * never the raw error message, which can contain table/column names or
@@ -229,13 +246,19 @@ export function SyncStatusBanner() {
       </button>
       {pendingExpanded && (
         <ul className="flex flex-col inset-rows px-4 pb-2 sm:px-6 lg:px-8">
-          {pendingEntries.map((entry) => (
-            <li key={entry.id} className="py-2 text-xs" style={{ color: "var(--text-secondary)" }}>
+          {groupPending(pendingEntries).map(({ key, entry, count }) => (
+            <li key={key} className="py-2 text-xs" style={{ color: "var(--text-secondary)" }}>
               <span className="font-semibold" style={{ color: "var(--text-primary)" }}>
                 &ldquo;{describeRecord(entry)}&rdquo;
               </span>{" "}
-              ({friendlyTable(entry.table)}) hasn&apos;t synced yet — saved on this device, will send on its own once it&apos;s your turn
-              {offline ? " and you&apos;re back online" : ""}.
+              ({friendlyTable(entry.table)}
+              {count > 1 ? ` ×${count}` : ""}) hasn&apos;t synced yet — saved on this device, will retry on its own
+              {offline ? " once you&apos;re back online" : ""}.
+              {entry.lastError && (
+                <span className="block" style={{ color: "var(--text-muted)" }}>
+                  Last attempt: {entry.lastError}
+                </span>
+              )}
             </li>
           ))}
         </ul>
