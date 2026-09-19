@@ -110,18 +110,21 @@ export function isItemRowDue(expiresOn: string, remindDaysBefore: number, remind
 
 async function sendReminderEmail(toEmail: string, subject: string, bodyText: string): Promise<void> {
   if (!resendApiKey) return;
+  const from = Deno.env.get("REMINDERS_FROM") ?? Deno.env.get("NOTES_FROM") ?? "Lauva <onboarding@resend.dev>";
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${resendApiKey}`, "Content-Type": "application/json" },
     body: JSON.stringify({
-      from: Deno.env.get("REMINDERS_FROM") ?? Deno.env.get("NOTES_FROM") ?? "Lauva <onboarding@resend.dev>",
+      from,
       to: toEmail,
       subject,
       text: bodyText,
     }),
   });
   if (!res.ok) {
-    console.error("reminder-cron: reminder email failed", res.status, await res.text());
+    // Logs the sender and only the recipient's domain, so a "domain is invalid"
+    // can be traced to the sender secret or to one bad recipient address.
+    console.error("reminder-cron: reminder email failed", res.status, await res.text(), { from, toDomain: toEmail.split("@")[1] ?? toEmail });
   }
 }
 
