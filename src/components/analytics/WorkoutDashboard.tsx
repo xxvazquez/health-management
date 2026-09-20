@@ -78,8 +78,8 @@ function monogram(exercise: WorkoutExercise): string {
 function PRBadge() {
   return (
     <span
-      className="inline-flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-semibold"
-      style={{ background: "color-mix(in oklab, var(--status-good) 16%, var(--surface-1))", color: "var(--status-good)" }}
+      className="inline-flex shrink-0 items-center gap-1 text-xs font-semibold"
+      style={{ color: "var(--status-good)" }}
     >
       <svg width="9" height="9" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
         <path d="M10 1.8l2.36 5.1 5.53.58-4.15 3.83 1.16 5.51L10 13.9l-4.9 2.92 1.16-5.51-4.15-3.83 5.53-.58z" />

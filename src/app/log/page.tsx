@@ -1,6 +1,6 @@
 "use client";
 
-import { CHIP_CLS, CHIP_SM_CLS, CONTROL_CLS, CONTROL_STYLE, chipStyle } from "@/components/ui/Chip";
+import { CHIP_SM_CLS, CONTROL_CLS, CONTROL_STYLE, chipStyle } from "@/components/ui/Chip";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import clsx from "clsx";
@@ -341,6 +341,50 @@ function TimelineNote({
       style={{ color: "var(--ui-accent)" }}
     >
       + note
+    </button>
+  );
+}
+
+/** The one tappable list row: name on the left, a status mark on the right
+ * once set (name and mark take the accent). `indent` lines it up with the
+ * category name above it in a grouped list. */
+function TapRow({
+  name,
+  accent,
+  mark,
+  onTap,
+  label,
+  indent = false,
+  busy = false,
+}: {
+  name: string;
+  accent: string;
+  mark: ReactNode;
+  onTap: () => void;
+  label?: string;
+  indent?: boolean;
+  busy?: boolean;
+}) {
+  const on = mark != null && mark !== false;
+  return (
+    <button
+      type="button"
+      onClick={onTap}
+      disabled={busy}
+      aria-pressed={on}
+      aria-label={label}
+      className={clsx(
+        "flex min-h-11 w-full items-center justify-between gap-3 pr-3.5 text-left text-sm transition-colors hover:bg-black/[0.04] active:bg-black/5 disabled:opacity-50 lg:rounded-lg",
+        indent ? "pl-[3.375rem] lg:pl-3.5" : "pl-3.5",
+      )}
+      style={{ color: on ? accent : "var(--text-primary)", fontWeight: on ? 600 : 400 }}
+    >
+      <span className="min-w-0">{name}</span>
+      {on && (
+        <span aria-hidden="true" className="shrink-0 text-sm font-bold tabular-nums">
+          {mark}
+        </span>
+      )}
     </button>
   );
 }
@@ -1490,34 +1534,9 @@ export default function LogPage() {
     await refreshAfterWrite();
   }
 
-  /** A Food row: name on the left, a tick on the right once logged (name and
-   * tick take the Food accent). `indent` lines it up with the category name
-   * above it in the grouped search results. */
   function renderChip(c: LogCandidate, indent = false) {
     const logged = (mealCounts.get(c.key) ?? 0) > 0;
-    const busy = pending === c.key;
-
-    return (
-      <button
-        key={c.key}
-        type="button"
-        onClick={() => handleChipTap(c)}
-        disabled={busy}
-        aria-pressed={logged}
-        className={clsx(
-          "flex min-h-11 w-full items-center justify-between gap-3 pr-3.5 text-left text-sm transition-colors hover:bg-black/[0.04] active:bg-black/5 disabled:opacity-50 lg:rounded-lg",
-          indent ? "pl-[3.375rem] lg:pl-3.5" : "pl-3.5",
-        )}
-        style={{ color: logged ? TYPE_ACCENT.food : "var(--text-primary)", fontWeight: logged ? 600 : 400 }}
-      >
-        <span className="min-w-0">{c.item}</span>
-        {logged && (
-          <span aria-hidden="true" className="shrink-0 text-sm font-bold">
-            ✓
-          </span>
-        )}
-      </button>
-    );
+    return <TapRow key={c.key} name={c.item} accent={TYPE_ACCENT.food} mark={logged && "✓"} onTap={() => handleChipTap(c)} indent={indent} busy={pending === c.key} />;
   }
 
   // --- Habits / Supplements / Symptoms: full-width rows grouped into the
@@ -1625,7 +1644,7 @@ export default function LogPage() {
                 disabled={busy}
                 onClick={() => void handleSetBand(c, o.value, isActive)}
                 aria-pressed={isActive}
-                className="min-h-10 flex-1 rounded-md border px-2 text-center text-sm transition-colors disabled:opacity-50"
+                className="min-h-10 flex-1 rounded-[10px] border px-2 text-center text-sm transition-colors disabled:opacity-50"
                 style={trackCellStyle(isActive, accent)}
               >
                 {o.label}
@@ -1662,25 +1681,7 @@ export default function LogPage() {
     // inside a category card directly.
     if (INPUT_KIND[c.item]) return renderMeasureRow(c, accent);
     const logged = (mealCounts.get(c.key) ?? 0) > 0;
-    const busy = pending === c.key;
-    return (
-      <button
-        key={c.key}
-        type="button"
-        onClick={() => handleChipTap(c)}
-        disabled={busy}
-        aria-pressed={logged}
-        className={`${CHIP_CLS} w-full justify-between`}
-        style={trackCellStyle(logged, accent)}
-      >
-        <span className="min-w-0">{c.item}</span>
-        {logged && (
-          <span aria-hidden="true" className="shrink-0 text-xs font-bold">
-            ✓
-          </span>
-        )}
-      </button>
-    );
+    return <TapRow key={c.key} name={c.item} accent={accent} mark={logged && "✓"} onTap={() => handleChipTap(c)} indent busy={pending === c.key} />;
   }
 
   /** Symptoms: one tap marks it at intensity 1; each further tap raises it
@@ -1688,20 +1689,17 @@ export default function LogPage() {
    * shared left-hand marker slot, so names stay aligned. */
   function renderSymptomRow(c: LogCandidate, accent: string) {
     const current = symptomDisplayValue(c.itemIdentity);
-    const present = current != null;
-    const busy = pending === c.key;
     return (
-      <button
+      <TapRow
         key={c.key}
-        type="button"
-        onClick={() => cycleSymptom(c)}
-        aria-label={present ? `${c.item}, intensity ${current} of 3 — tap to change` : `Mark ${c.item}`}
-        className={`${CHIP_CLS} w-full justify-between`}
-        style={{ ...trackCellStyle(present, accent), opacity: busy ? 0.6 : 1 }}
-      >
-        <span className="min-w-0">{c.item}</span>
-        {present && <span className="shrink-0 text-xs font-bold tabular-nums">{current}</span>}
-      </button>
+        name={c.item}
+        accent={accent}
+        mark={current != null && current}
+        onTap={() => cycleSymptom(c)}
+        label={current != null ? `${c.item}, intensity ${current} of 3 — tap to change` : `Mark ${c.item}`}
+        indent
+        busy={pending === c.key}
+      />
     );
   }
 
@@ -1768,8 +1766,8 @@ export default function LogPage() {
   }
 
   /** The grouped category list every Log tab shares: one rounded card, an
-   * icon + name + count header per category (collapsible on mobile), and a
-   * grid of tappable cells underneath. */
+   * icon + name + count header per category (collapsible on mobile), and
+   * tappable rows underneath (a grid of them from `lg` up). */
   function renderCategoryCards(groups: { category: string; items: LogCandidate[] }[], renderItem: (c: LogCandidate) => ReactNode) {
     if (!tabConfig || groups.length === 0) return null;
     const type = tabConfig.type;
@@ -1814,10 +1812,8 @@ export default function LogPage() {
               <div
                 className={clsx(
                   "border-t",
-                  type === "food"
-                    ? "inset-rows flex-col [--row-inset:3.375rem] lg:grid lg:grid-cols-3 lg:gap-1 lg:p-1.5 xl:grid-cols-4 lg:[&>*::before]:hidden"
-                    : "grid-cols-2 gap-2 p-3 sm:grid-cols-3 lg:grid-cols-4",
-                  type === "food" ? (collapsed ? "hidden lg:grid" : "flex lg:grid") : collapsed ? "hidden lg:grid" : "grid",
+                  "inset-rows flex-col [--row-inset:3.375rem] lg:grid lg:grid-cols-3 lg:gap-1 lg:p-1.5 xl:grid-cols-4 lg:[&>*::before]:hidden",
+                  collapsed ? "hidden lg:grid" : "flex lg:grid",
                 )}
                 style={{ borderColor: "var(--gridline)" }}
               >
@@ -2230,7 +2226,7 @@ export default function LogPage() {
                     <button
                       type="submit"
                       disabled={!newItemText.trim() || pending === "__new__"}
-                      className="min-h-9 rounded-md px-3 text-sm font-medium whitespace-nowrap text-white disabled:opacity-40"
+                      className="min-h-9 rounded-[10px] px-3 text-sm font-medium whitespace-nowrap text-white disabled:opacity-40"
                       style={{ background: TYPE_ACCENT[tabConfig.type] }}
                     >
                       + Add &amp; log
@@ -2473,15 +2469,15 @@ export default function LogPage() {
                       })()}
                     </span>
 
-                    {/* Category pill, directly below the name — Workout's
-                     * equivalent of Food's meal-tag pill below. Read-only
+                    {/* Category label, directly below the name — Workout's
+                     * equivalent of Food's meal tag below. Read-only
                      * (recategorizing here would mean recategorizing the
                      * exercise itself, not just this one entry — that's a
                      * Manage-page action, not a timeline one). */}
                     {entry.itemType === "workout" && entry.category && (
                       <span
-                        className="self-start rounded px-1.5 py-0.5 text-xs font-medium whitespace-nowrap"
-                        style={{ background: `color-mix(in oklab, ${accent} 14%, var(--surface-1))`, color: accent }}
+                        className="self-start text-xs font-medium whitespace-nowrap"
+                        style={{ color: accent }}
                       >
                         {entry.category}
                       </span>
@@ -2494,8 +2490,8 @@ export default function LogPage() {
                       (isDemoData ? (
                         entry.mealTag && (
                           <span
-                            className="self-start rounded px-1.5 py-0.5 text-xs font-medium whitespace-nowrap"
-                            style={{ background: `color-mix(in oklab, ${accent} 14%, var(--surface-1))`, color: accent }}
+                            className="self-start text-xs font-medium whitespace-nowrap"
+                            style={{ color: accent }}
                           >
                             {entry.mealTag}
                           </span>
@@ -2505,8 +2501,8 @@ export default function LogPage() {
                           value={entry.mealTag ?? ""}
                           disabled={busy}
                           onChange={(e) => void handleChangeEntryMeal(entry, e.target.value)}
-                          className="w-full rounded px-1.5 py-0.5 text-xs font-medium whitespace-nowrap outline-none disabled:opacity-40"
-                          style={{ background: `color-mix(in oklab, ${accent} 14%, var(--surface-1))`, color: accent, border: "none" }}
+                          className="w-full text-xs font-medium whitespace-nowrap outline-none disabled:opacity-40"
+                          style={{ background: "transparent", color: accent, border: "none" }}
                         >
                           <option value="" disabled>
                             {entry.itemType === "supplement" ? "set time" : "set meal"}

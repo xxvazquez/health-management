@@ -35,8 +35,8 @@ export function Insight({
       style={{ background: "var(--surface-1)", borderColor: "var(--border-hairline)" }}
     >
       <span
-        className="self-start rounded px-1.5 py-0.5 text-xs font-semibold tracking-wide uppercase"
-        style={{ color: TONE_COLOR[tone], background: `color-mix(in oklab, ${TONE_COLOR[tone]} 14%, var(--surface-1))` }}
+        className="self-start text-xs font-semibold tracking-wide uppercase"
+        style={{ color: TONE_COLOR[tone] }}
       >
         {label}
       </span>

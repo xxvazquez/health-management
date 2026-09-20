@@ -51,7 +51,7 @@ export function FollowUpTaskRow({
               onEdit({ description: description.trim(), dueDate: dueDate || null, reminderAt: reminderAt ? new Date(reminderAt).toISOString() : null });
               setEditing(false);
             }}
-            className="min-h-9 rounded-md px-3 text-sm font-semibold text-white"
+            className="min-h-9 rounded-[10px] px-3 text-sm font-semibold text-white"
             style={{ background: accent }}
           >
             Save

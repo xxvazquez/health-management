@@ -56,8 +56,8 @@ export function PatternsDashboard() {
         <Card tier="supporting" className="flex flex-col gap-3">
           <div className="flex flex-wrap items-center gap-2">
             <span
-              className="rounded-md px-2 py-0.5 text-xs font-semibold tracking-wide uppercase"
-              style={{ background: "color-mix(in oklab, var(--ui-accent) 15%, var(--surface-1))", color: "var(--ui-accent)" }}
+              className="text-xs font-semibold tracking-wide uppercase"
+              style={{ color: "var(--ui-accent)" }}
             >
               Strongest signal
             </span>

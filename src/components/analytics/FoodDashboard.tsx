@@ -70,8 +70,8 @@ function StatusPill({ status, label, color }: { status: string; label: string; c
   return (
     <span
       key={status}
-      className="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium whitespace-nowrap"
-      style={{ color, background: color === "var(--text-muted)" ? "var(--page-plane)" : `color-mix(in oklab, ${color} 14%, transparent)` }}
+      className="inline-flex items-center text-xs font-medium whitespace-nowrap"
+      style={{ color }}
     >
       {label}
     </span>
@@ -96,8 +96,8 @@ function PillarStatRow({ row }: { row: PillarStat }) {
         </span>
         {row.notTracked ? (
           <span
-            className="shrink-0 rounded-md px-1.5 py-0.5 text-xs font-medium"
-            style={{ color: "var(--text-muted)", background: "var(--page-plane)" }}
+            className="shrink-0 text-xs font-medium"
+            style={{ color: "var(--text-muted)" }}
           >
             Not tracked
           </span>
@@ -808,8 +808,8 @@ function RepetitionSection({
                 </span>
               </div>
               <span
-                className="shrink-0 rounded-md px-2 py-0.5 text-xs font-medium whitespace-nowrap"
-                style={{ color: REPETITION_TAG_COLOR[r.tag], background: `color-mix(in oklab, ${REPETITION_TAG_COLOR[r.tag]} 14%, transparent)` }}
+                className="shrink-0 text-xs font-medium whitespace-nowrap"
+                style={{ color: REPETITION_TAG_COLOR[r.tag] }}
               >
                 {REPETITION_TAG_LABEL[r.tag]}
               </span>

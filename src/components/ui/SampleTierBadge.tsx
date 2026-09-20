@@ -15,8 +15,8 @@ export function SampleTierBadge({ tier }: { tier: SampleTier }) {
   const { dots, color } = TIER_META[tier];
   return (
     <span
-      className="inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-medium whitespace-nowrap uppercase tracking-wide"
-      style={{ color, background: `color-mix(in oklab, ${color} 12%, var(--surface-1))` }}
+      className="inline-flex items-center gap-1.5 text-xs font-medium whitespace-nowrap uppercase tracking-wide"
+      style={{ color }}
       title={SAMPLE_TIER_EXPLANATION[tier]}
     >
       <span aria-hidden="true" className="inline-flex gap-0.5">

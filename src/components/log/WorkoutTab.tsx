@@ -240,7 +240,7 @@ function ExerciseRow({
           type="button"
           onClick={() => void handleLog()}
           disabled={saving || isDemoData}
-          className="h-9 rounded-md px-3.5 text-sm font-medium text-white disabled:opacity-40"
+          className="h-9 rounded-[10px] px-3.5 text-sm font-medium text-white disabled:opacity-40"
           style={{ background: accent }}
         >
           {isDemoData ? "Sign in to log" : saving ? "Saving…" : "Log"}

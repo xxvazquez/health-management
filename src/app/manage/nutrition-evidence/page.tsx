@@ -56,11 +56,8 @@ export default function NutritionEvidencePage() {
             </div>
             <div className="mb-2 flex flex-wrap items-center gap-2">
               <span
-                className="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium"
-                style={{
-                  color: STRENGTH_COLOR[record.strength],
-                  background: `color-mix(in oklab, ${STRENGTH_COLOR[record.strength]} 14%, transparent)`,
-                }}
+                className="inline-flex items-center text-xs font-medium"
+                style={{ color: STRENGTH_COLOR[record.strength] }}
               >
                 {record.strength} evidence
               </span>

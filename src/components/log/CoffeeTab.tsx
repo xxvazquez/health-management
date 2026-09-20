@@ -195,7 +195,7 @@ export function CoffeeTab({
         </div>
       )}
 
-      {usual.length > 0 && !trimmedSearch && (
+      {usual.length > 0 && items.length > 6 && !trimmedSearch && (
         <div className="flex flex-col gap-1.5">
           <p className="px-0.5 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
             Your usual

@@ -77,7 +77,7 @@ export function PartnerLinkPanel({ onLinked }: { onLinked: () => void }) {
             type="button"
             onClick={() => void handleGenerate()}
             disabled={generating}
-            className="w-full min-h-9 rounded-md px-3 text-sm font-medium text-white disabled:opacity-50"
+            className="w-full min-h-9 rounded-[10px] px-3 text-sm font-medium text-white disabled:opacity-50"
             style={{ background: ACCENT }}
           >
             {generating ? "Generating…" : "Generate a code"}
