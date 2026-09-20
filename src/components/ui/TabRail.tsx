@@ -48,6 +48,7 @@ export function TabRail<T extends string>({
   style,
   wrap = true,
   iconOnly = false,
+  tall = false,
 }: {
   items: readonly TabRailItem<T>[];
   activeId: T;
@@ -57,6 +58,8 @@ export function TabRail<T extends string>({
   style?: CSSProperties;
   wrap?: boolean;
   iconOnly?: boolean;
+  /** 44px tap height, for a rail that is the primary way to move around. */
+  tall?: boolean;
 }) {
   const navRef = useOverflowFade<HTMLElement>();
   const activeRef = useRef<HTMLButtonElement>(null);
@@ -122,10 +125,10 @@ export function TabRail<T extends string>({
             onPointerCancel={() => clearLongPress(t.id)}
             aria-current={active ? "page" : undefined}
             aria-label={iconOnly ? t.label : undefined}
-            className={clsx("group relative flex shrink-0 items-center gap-1.5 pb-2.5 text-sm whitespace-nowrap transition-colors", iconOnly && "justify-center")}
+            className={clsx("group relative flex shrink-0 items-center gap-1.5 text-sm whitespace-nowrap transition-colors", tall ? "min-h-11" : "pb-2.5", iconOnly && "justify-center")}
             style={{
               color: active ? t.accent : "var(--text-secondary)",
-              fontWeight: active ? 700 : 500,
+              fontWeight: active ? 600 : 500,
               // Wrapped rows each need their own baseline, so inactive tabs
               // carry a hairline. A single scrolling row sits on one
               // continuous rail (the caller's border-b) instead.

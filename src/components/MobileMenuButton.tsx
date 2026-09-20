@@ -20,7 +20,7 @@ export function MobileMenuButton() {
       onClick={open}
       aria-label={unread > 0 ? `Open menu, ${unread} unread message${unread === 1 ? "" : "s"}` : "Open menu"}
       className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full lg:hidden"
-      style={{ background: "var(--page-plane)", color: "var(--text-primary)" }}
+      style={{ background: "var(--field-fill)", color: "var(--text-primary)" }}
     >
       <svg width="17" height="17" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
         <path d="M3 6h14" />

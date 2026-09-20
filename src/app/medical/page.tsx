@@ -89,7 +89,7 @@ export default function MedicalPage() {
 
   return (
     <div className="flex flex-col gap-5">
-      <PageHeading accent={HEALTH_ACCENT}>Health</PageHeading>
+      <PageHeading>Health</PageHeading>
 
       <SegmentedTabs
         ariaLabel="Health sections"

@@ -16,7 +16,7 @@ const BASE = "min-w-0 truncate rounded-md px-2.5 py-1.5 text-center text-sm tran
 function segmentStyle(active: boolean, accent?: string): CSSProperties {
   return {
     background: active ? "var(--surface-1)" : "transparent",
-    color: active ? accent ?? "var(--text-primary)" : "var(--text-muted)",
+    color: active ? accent ?? "var(--text-primary)" : "var(--text-secondary)",
     boxShadow: active ? "var(--shadow-card)" : "none",
     fontWeight: active ? 600 : 500,
   };

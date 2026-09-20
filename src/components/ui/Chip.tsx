@@ -1,6 +1,13 @@
 import type { ButtonHTMLAttributes, CSSProperties, ReactNode } from "react";
 import clsx from "clsx";
 
+/** Every value-setting control outside a form — search, meal, time, date —
+ * shares this shape: 36px, 10px radius, the soft `--field-fill`. Menus and
+ * pickers add a muted chevron/icon; state changes are never a different
+ * shape. */
+export const CONTROL_CLS = "inline-flex h-9 shrink-0 items-center gap-1.5 rounded-[10px] px-3 text-sm transition-opacity active:opacity-60";
+export const CONTROL_STYLE: CSSProperties = { background: "var(--field-fill)", color: "var(--text-primary)" };
+
 /** Shape of every selectable pill and grid cell in the app — filters,
  * pickers, Log's tap-to-log cells. One height, one radius, one type size. */
 export const CHIP_CLS =

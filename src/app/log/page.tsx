@@ -1,6 +1,6 @@
 "use client";
 
-import { CHIP_CLS, CHIP_SM_CLS, chipStyle } from "@/components/ui/Chip";
+import { CHIP_CLS, CHIP_SM_CLS, CONTROL_CLS, CONTROL_STYLE, chipStyle } from "@/components/ui/Chip";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import clsx from "clsx";
@@ -1754,9 +1754,10 @@ export default function LogPage() {
           items={tabs.map((g) => ({ id: g.category, label: g.category === USUAL_TAB ? "Usual" : g.category, accent: TYPE_ACCENT.food }))}
           activeId={active.category}
           onSelect={setFoodCategory}
+          tall
         />
         <div
-          className="inset-rows rounded-xl border lg:grid lg:grid-cols-3 lg:gap-1 lg:p-1.5 xl:grid-cols-4 lg:[&>*::before]:hidden"
+          className="inset-rows rounded-xl border [--row-inset:0.875rem] lg:grid lg:grid-cols-3 lg:gap-1 lg:p-1.5 xl:grid-cols-4 lg:[&>*::before]:hidden"
           style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}
         >
           {visibleItems.map((c) => renderChip(c))}
@@ -2020,23 +2021,23 @@ export default function LogPage() {
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between gap-2">
         <h1
-          className="min-w-0 flex-1 border-l-[3px] pl-2.5 text-xl font-semibold tracking-tight"
-          style={{ borderColor: "var(--baseline)", color: "var(--text-primary)" }}
+          className="min-w-0 flex-1 text-[1.75rem] leading-tight font-bold tracking-tight"
+          style={{ color: "var(--text-primary)" }}
         >
           Log
         </h1>
-        <div className="flex shrink-0 items-center gap-0.5 rounded-md border p-0.5" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
+        <div className="flex h-9 shrink-0 items-center rounded-[10px]" style={{ background: "var(--field-fill)" }}>
           <button
             type="button"
             onClick={() => setDate((d) => addDaysLocal(d, -1))}
-            className="flex h-7 w-7 items-center justify-center rounded"
+            className="flex h-9 w-8 items-center justify-center rounded-[10px]"
             style={{ color: "var(--text-secondary)" }}
             aria-label="Previous day"
           >
             <ChevronIcon dir="left" size={15} />
           </button>
           <label className="relative flex w-20 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded px-1 py-1">
-            <span className="truncate text-xs font-semibold whitespace-nowrap" style={{ color: "var(--text-primary)" }}>
+            <span className="truncate text-sm font-medium whitespace-nowrap" style={{ color: "var(--text-primary)" }}>
               {formatDateLabel(date, today)}
             </span>
             <input
@@ -2053,7 +2054,7 @@ export default function LogPage() {
             type="button"
             onClick={() => setDate((d) => (d < today ? addDaysLocal(d, 1) : d))}
             disabled={date >= today}
-            className="flex h-7 w-7 items-center justify-center rounded disabled:opacity-30"
+            className="flex h-9 w-8 items-center justify-center rounded-[10px] disabled:opacity-30"
             style={{ color: "var(--text-secondary)" }}
             aria-label="Next day"
           >
@@ -2081,12 +2082,12 @@ export default function LogPage() {
          * size and shows the same tabs whichever one is open. */}
         {!tabConfig && <div aria-hidden="true" className="hidden lg:block lg:w-[28rem]" />}
         {tabConfig && (
-          <div className="flex w-full flex-wrap items-center gap-x-1 gap-y-1 lg:w-[28rem]">
+          <div className="flex w-full flex-wrap items-center gap-2 lg:w-[28rem]">
             <SearchField
               value={search}
               onChange={setSearch}
               placeholder="Search or add…"
-              className="min-w-40 flex-1"
+              className="min-w-36 flex-1"
             />
             {/* The meal tag stays visible — the auto-pick is by time of day
              * and is often wrong (breakfast logged at 11pm), so changing it
@@ -2094,11 +2095,13 @@ export default function LogPage() {
              * a "now" pill. */}
             {tabConfig.countable && (
               <label
-                className="relative inline-flex h-9 shrink-0 items-center gap-1 rounded-lg px-1.5 text-sm font-medium active:opacity-60"
-                style={{ color: "var(--ui-accent)" }}
+                className={`${CONTROL_CLS} relative`}
+                style={CONTROL_STYLE}
               >
                 {meal}
-                <ChevronIcon dir="down" size={11} />
+                <span aria-hidden="true" style={{ color: "var(--text-muted)" }}>
+                  <ChevronIcon dir="down" size={11} />
+                </span>
                 <select
                   value={meal}
                   onChange={(e) => setMeal(e.target.value)}
@@ -2369,7 +2372,7 @@ export default function LogPage() {
 
           {tab === "food" && mealGroups.length > 0 && (
             <div className="flex flex-col gap-1.5">
-              <p className="px-0.5 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
+              <p className="px-3.5 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
                 Logged today
               </p>
               {mealGroups.map((g) => (

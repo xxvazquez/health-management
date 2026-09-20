@@ -102,7 +102,6 @@ export default function NotesPage() {
   return (
     <BoardPage
       title="Notes"
-      accent={active.accent}
       tabs={TABS}
       activeTab={active.id}
       onSelectTab={(id) => selectTab(id as NotesTab)}

@@ -3,9 +3,8 @@ import clsx from "clsx";
 
 /** The heading block at the top of every Trends dashboard — the domain
  * name as a plain secondary heading (`<h2>`) plus an optional purpose
- * line. No left rule: the page-level "Trends" `<h1>` already carries the
- * area colour, and a second ruled heading right under it just doubled the
- * cue. `className` still passes through for grid-span on the dashboards
+ * line, deliberately quieter than the page-level "Trends" `<h1>` above it.
+ * `className` still passes through for grid-span on the dashboards
  * that lay their content out in two columns. */
 export function DashboardHeader({
   className,

@@ -13,8 +13,6 @@ export interface BoardPageTab {
 
 interface BoardPageProps {
   title: string;
-  /** The page-heading left-rule tint. */
-  accent: string;
   tabs: BoardPageTab[];
   activeTab: string;
   onSelectTab: (id: string) => void;
@@ -24,12 +22,12 @@ interface BoardPageProps {
   children: ReactNode;
 }
 
-/** Shared shell for the Notes page: a large title with the coloured left
- * rule, a segmented control switching the board below. */
-export function BoardPage({ title, accent, tabs, activeTab, onSelectTab, notice, children }: BoardPageProps) {
+/** Shared shell for the Notes page: a large title and a segmented control
+ * switching the board below. */
+export function BoardPage({ title, tabs, activeTab, onSelectTab, notice, children }: BoardPageProps) {
   return (
     <div className="flex flex-col gap-4">
-      <PageHeading accent={accent}>{title}</PageHeading>
+      <PageHeading>{title}</PageHeading>
 
       <SegmentedTabs
         ariaLabel="Sections"

@@ -471,12 +471,11 @@ bug-report function is unaffected — it mails `BUG_EMAIL`, the account owner.
   Every component styles through the tokens, so keep new colours as `var(--…)`,
   not literals. One sans-serif family: the system face (SF Pro) on Apple devices via
   `--font-app`, Inter as the fallback elsewhere. Type scale: 12px captions, 14px body,
-  16px section headings, 20px page titles — nothing else, including chart ticks.
+  16px section headings, 28px bold page titles (no side rule, flush with the content) — nothing else, including chart ticks.
   Every selectable pill, filter and Log cell is the shared `Chip` (`ui/Chip.tsx`):
   white with a hairline border at rest, accent-tinted when on, regular weight, 36px
   tall (`CHIP_SM_CLS` for the scrolling "Your usual" rows) — don't hand-roll a new one.
-  `SearchField` is a filled, borderless bar (`--field-fill`); on Log the meal and time
-  controls beside it are plain accent-coloured menu text, not pills.
+  Value-setting controls outside forms — `SearchField`, Log's meal and time menus, the date stepper, the header menu button — share one shape (`CONTROL_CLS` in `ui/Chip.tsx`: 36px, 10px radius, `--field-fill`, no border).
   `public/icons/` are PNG renders
   of `public/logo-mark.svg` — regenerate from the SVG, don't hand-edit the PNGs.
 

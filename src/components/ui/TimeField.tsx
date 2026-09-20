@@ -1,5 +1,6 @@
 "use client";
 
+import { CONTROL_CLS, CONTROL_STYLE } from "@/components/ui/Chip";
 import { useState } from "react";
 import { ClockIcon } from "@/components/ui/icons";
 
@@ -39,10 +40,12 @@ export function TimeField({
         type="button"
         onClick={() => setExpanded(true)}
         aria-label="Time: now, tap to change"
-        className="inline-flex h-9 shrink-0 items-center gap-1 rounded-lg px-1.5 text-sm font-medium active:opacity-60"
-        style={{ color: "var(--ui-accent)" }}
+        className={CONTROL_CLS}
+        style={CONTROL_STYLE}
       >
-        <ClockIcon />
+        <span aria-hidden="true" style={{ color: "var(--text-muted)" }}>
+          <ClockIcon />
+        </span>
         now
       </button>
     );
@@ -61,11 +64,10 @@ export function TimeField({
         autoFocus={userExpanded}
         onChange={(e) => onChange(e.target.value)}
         onClick={(e) => e.currentTarget.showPicker?.()}
-        className="h-9 rounded-md border px-3 text-sm tabular-nums outline-none transition-colors"
+        className="h-9 rounded-[10px] px-3 text-sm tabular-nums outline-none transition-colors"
         style={{
-          borderColor: explicit ? "var(--series-2)" : "var(--border-hairline)",
-          background: "var(--surface-1)",
-          color: "var(--text-primary)",
+          ...CONTROL_STYLE,
+          boxShadow: explicit ? "inset 0 0 0 1px var(--series-2)" : "none",
         }}
       />
       {(onReset || userExpanded) && (
