@@ -623,6 +623,7 @@ export default function LogPage() {
   // characteristics, paper cleanliness, time on toilet) expanded — collapsed
   // by default since a 144px-wide card has no room to show them all at once.
   const [expandedStoolIds, setExpandedStoolIds] = useState<Set<string>>(new Set());
+  const [confirmingDeleteKeys, setConfirmingDeleteKeys] = useState<Set<string>>(new Set());
   const foodProductsRef = useOverflowFade<HTMLDivElement>();
 
   const loadSnapshot = useCallback(async () => {
@@ -1033,6 +1034,15 @@ export default function LogPage() {
     });
   }
 
+  function toggleConfirmDelete(key: string) {
+    setConfirmingDeleteKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
+
   async function refreshAfterWrite() {
     await loadSnapshot();
     await refresh();
@@ -1144,6 +1154,12 @@ export default function LogPage() {
    * on `itemType` rather than assuming every entry is a `RawLog` row. */
   async function handleDeleteEntry(entry: TimelineEntry) {
     if (isDemoData) return;
+    setConfirmingDeleteKeys((prev) => {
+      if (!prev.has(entry.key)) return prev;
+      const next = new Set(prev);
+      next.delete(entry.key);
+      return next;
+    });
     setPending(entry.key);
     if (entry.itemType === "stool") {
       await deleteStoolLogByIdAndSync(entry.key);
@@ -2589,10 +2605,32 @@ export default function LogPage() {
                       />
                     )}
                     </div>
-                    {!isDemoData && (
+                    {!isDemoData &&
+                      (confirmingDeleteKeys.has(entry.key) ? (
+                        <span className="hit-slop flex h-5 shrink-0 items-center gap-2 text-xs whitespace-nowrap">
+                          <button
+                            type="button"
+                            onClick={() => void handleDeleteEntry(entry)}
+                            disabled={busy}
+                            className="font-semibold disabled:opacity-40"
+                            style={{ color: "var(--status-critical)" }}
+                          >
+                            Delete
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => toggleConfirmDelete(entry.key)}
+                            disabled={busy}
+                            className="disabled:opacity-40"
+                            style={{ color: "var(--text-muted)" }}
+                          >
+                            Keep
+                          </button>
+                        </span>
+                      ) : (
                         <button
                           type="button"
-                          onClick={() => void handleDeleteEntry(entry)}
+                          onClick={() => toggleConfirmDelete(entry.key)}
                           disabled={busy}
                           aria-label={`Delete ${entry.item} at ${entry.time}`}
                           className="tap-target flex h-5 shrink-0 items-center disabled:opacity-40"
@@ -2600,7 +2638,7 @@ export default function LogPage() {
                         >
                           <CloseIcon size={12} />
                         </button>
-                      )}
+                      ))}
                   </div>
                 );
               })}

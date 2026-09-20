@@ -229,6 +229,7 @@ export function StoolTab({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(true);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const canSave = draft.bristolScores.length > 0;
 
@@ -502,16 +503,42 @@ export function StoolTab({
                     >
                       Edit
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => void onDelete(entry.id)}
-                      disabled={busy}
-                      aria-label="Delete entry"
-                      className="disabled:opacity-40"
-                      style={{ color: "var(--text-secondary)" }}
-                    >
-                      <CloseIcon size={12} />
-                    </button>
+                    {confirmDeleteId === entry.id ? (
+                      <span className="flex items-center gap-2 text-xs whitespace-nowrap">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setConfirmDeleteId(null);
+                            void onDelete(entry.id);
+                          }}
+                          disabled={busy}
+                          className="font-semibold disabled:opacity-40"
+                          style={{ color: "var(--status-critical)" }}
+                        >
+                          Delete
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmDeleteId(null)}
+                          disabled={busy}
+                          className="disabled:opacity-40"
+                          style={{ color: "var(--text-muted)" }}
+                        >
+                          Keep
+                        </button>
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setConfirmDeleteId(entry.id)}
+                        disabled={busy}
+                        aria-label="Delete entry"
+                        className="disabled:opacity-40"
+                        style={{ color: "var(--text-secondary)" }}
+                      >
+                        <CloseIcon size={12} />
+                      </button>
+                    )}
                   </div>
                 )}
               </div>

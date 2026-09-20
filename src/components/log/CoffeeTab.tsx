@@ -60,6 +60,7 @@ export function CoffeeTab({
   const [dialogItem, setDialogItem] = useState<CoffeeItem | null>(null);
   const [editingLog, setEditingLog] = useState<CoffeeLog | null>(null);
   const [pending, setPending] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const active = useMemo(() => items.filter((it) => !it.isArchived), [items]);
 
@@ -333,16 +334,42 @@ export function CoffeeTab({
                       <button type="button" onClick={() => openForEdit(log)} disabled={busy} className="text-xs font-medium disabled:opacity-40" style={{ color: "var(--ui-accent)" }}>
                         Edit
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => void onDeleteLog(log.id)}
-                        disabled={busy}
-                        aria-label="Delete entry"
-                        className="text-xs font-medium disabled:opacity-40"
-                        style={{ color: "var(--text-secondary)" }}
-                      >
-                        Delete
-                      </button>
+                      {confirmDeleteId === log.id ? (
+                        <span className="flex items-center gap-2 text-xs whitespace-nowrap">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setConfirmDeleteId(null);
+                              void onDeleteLog(log.id);
+                            }}
+                            disabled={busy}
+                            className="font-semibold disabled:opacity-40"
+                            style={{ color: "var(--status-critical)" }}
+                          >
+                            Delete
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setConfirmDeleteId(null)}
+                            disabled={busy}
+                            className="disabled:opacity-40"
+                            style={{ color: "var(--text-muted)" }}
+                          >
+                            Keep
+                          </button>
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setConfirmDeleteId(log.id)}
+                          disabled={busy}
+                          aria-label="Delete entry"
+                          className="text-xs font-medium disabled:opacity-40"
+                          style={{ color: "var(--text-secondary)" }}
+                        >
+                          Delete
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
