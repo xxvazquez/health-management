@@ -479,8 +479,25 @@ select:focus-visible {
     opacity: 1;
   }
 }
+@keyframes sheet-down {
+  to {
+    transform: translateY(100%);
+  }
+}
+@keyframes sheet-out {
+  to {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+}
 .sheet-backdrop {
   animation: sheet-fade 200ms ease-out;
+}
+.sheet-backdrop[data-closing] {
+  animation: sheet-fade 180ms ease-in reverse forwards;
+}
+.sheet-panel[data-closing] {
+  animation: sheet-down 200ms ease-in forwards;
 }
 .sheet-panel {
   animation: sheet-up 280ms cubic-bezier(0.22, 0.9, 0.3, 1);
@@ -489,10 +506,15 @@ select:focus-visible {
   .sheet-panel {
     animation: sheet-pop 180ms ease-out;
   }
+  .sheet-panel[data-closing] {
+    animation: sheet-out 150ms ease-in forwards;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
   .sheet-backdrop,
-  .sheet-panel {
+  .sheet-panel,
+  .sheet-backdrop[data-closing],
+  .sheet-panel[data-closing] {
     animation: none;
   }
 }

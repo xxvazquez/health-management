@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { CloseIcon } from "@/components/ui/icons";
 import { useDialogA11y } from "@/components/ui/useDialogA11y";
@@ -36,7 +36,22 @@ export function Sheet({
   onClose: () => void;
   children: ReactNode;
 }) {
-  const containerRef = useDialogA11y(true, onClose);
+  const [closing, setClosing] = useState(false);
+  // Every way out (backdrop, Close, Escape, swipe) plays the exit first.
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  function requestClose() {
+    if (closeTimer.current) return;
+    setClosing(true);
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    closeTimer.current = setTimeout(onClose, reduced ? 0 : 200);
+  }
+  useEffect(
+    () => () => {
+      if (closeTimer.current) clearTimeout(closeTimer.current);
+    },
+    [],
+  );
+  const containerRef = useDialogA11y(true, requestClose);
   const panelRef = useRef<HTMLDivElement>(null);
   const drag = useRef<{ startY: number; startT: number; dy: number } | null>(null);
 
@@ -70,7 +85,7 @@ export function Sheet({
     if (!d || !panel) return;
     const velocity = d.dy / Math.max(1, e.timeStamp - d.startT);
     if (d.dy > DISMISS_DISTANCE || (d.dy > 30 && velocity > DISMISS_VELOCITY)) {
-      onClose();
+      requestClose();
       return;
     }
     panel.style.transition = "transform 200ms ease-out";
@@ -82,9 +97,10 @@ export function Sheet({
   if (typeof document === "undefined") return null;
   return createPortal(
     <div ref={containerRef} className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby={titleId}>
-      <div className="sheet-backdrop absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="sheet-backdrop absolute inset-0 bg-black/40" data-closing={closing ? "" : undefined} onClick={requestClose} />
       <div
         ref={panelRef}
+        data-closing={closing ? "" : undefined}
         className="sheet-panel relative flex max-h-[92dvh] w-full max-w-md flex-col gap-4 overflow-y-auto overscroll-contain rounded-t-2xl p-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] shadow-xl sm:rounded-2xl"
         style={{ background: "var(--page-plane)" }}
       >
@@ -109,7 +125,7 @@ export function Sheet({
             </div>
             <button
               type="button"
-              onClick={onClose}
+              onClick={requestClose}
               aria-label="Close"
               className="hit-slop flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
               style={{ color: "var(--text-secondary)", background: "var(--field-fill)" }}
