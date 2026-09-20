@@ -595,6 +595,8 @@ export default function LogPage() {
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   // Food categories the user has opened past their most-used items.
   const [foodCategory, setFoodCategory] = useState("");
+  // Same idea as `foodCategory`, shared by every other tab's own category strip.
+  const [trackerCategory, setTrackerCategory] = useState("");
   const [fullCategories, setFullCategories] = useState<Set<string>>(new Set());
   useEffect(() => {
     try {
@@ -1679,19 +1681,19 @@ export default function LogPage() {
   /** A plain tracked item — Habits, and Supplements (a supplement tap logs
    * it for the time of day selected above; the M/A/N split is the "which
    * dose", so the row itself is just a toggle, no per-row counter). */
-  function renderHabitRow(c: LogCandidate, accent: string) {
+  function renderHabitRow(c: LogCandidate, accent: string, indent = true) {
     // Measures (Sleep's bands, a duration stepper) normally render in their
     // own section — this fallthrough only matters if one is ever shown
     // inside a category card directly.
     if (INPUT_KIND[c.item]) return renderMeasureRow(c, accent);
     const logged = (mealCounts.get(c.key) ?? 0) > 0;
-    return <TapRow key={c.key} name={c.item} accent={accent} mark={logged && "✓"} onTap={() => handleChipTap(c)} indent busy={pending === c.key} />;
+    return <TapRow key={c.key} name={c.item} accent={accent} mark={logged && "✓"} onTap={() => handleChipTap(c)} indent={indent} busy={pending === c.key} />;
   }
 
   /** Symptoms: one tap marks it at intensity 1; each further tap raises it
    * (2, 3); a tap past 3 clears it. The level shows as a small digit in the
    * shared left-hand marker slot, so names stay aligned. */
-  function renderSymptomRow(c: LogCandidate, accent: string) {
+  function renderSymptomRow(c: LogCandidate, accent: string, indent = true) {
     const current = symptomDisplayValue(c.itemIdentity);
     return (
       <TapRow
@@ -1701,7 +1703,7 @@ export default function LogPage() {
         mark={current != null && current}
         onTap={() => cycleSymptom(c)}
         label={current != null ? `${c.item}, intensity ${current} of 3 — tap to change` : `Mark ${c.item}`}
-        indent
+        indent={indent}
         busy={pending === c.key}
       />
     );
@@ -1763,6 +1765,39 @@ export default function LogPage() {
           style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}
         >
           {visibleItems.map((c) => renderChip(c))}
+          {hiddenCount > 0 && renderShowAll(storageKey, active.items.length, false)}
+        </div>
+      </div>
+    );
+  }
+
+  /** Same browse-by-category strip as Food, for Symptoms/Supplements/Habits
+   * once they have more than one category — the accordion below stays for a
+   * single-category tab or a search, same as Food falls back to it too. */
+  function renderTrackerByCategory(groups: { category: string; items: LogCandidate[] }[], renderItem: (c: LogCandidate) => ReactNode) {
+    if (!tabConfig || groups.length === 0) return null;
+    const type = tabConfig.type;
+    const accent = TYPE_ACCENT[type];
+    const active = groups.find((g) => g.category === trackerCategory) ?? groups[0];
+    const storageKey = categoryStorageKey(type, active.category);
+    const { visibleItems, hiddenCount } = previewFoodItems(active.items, storageKey);
+    return (
+      <div className="flex flex-col gap-3">
+        <TabRail
+          ariaLabel={`${tabConfig.label} category`}
+          wrap={false}
+          className="border-b"
+          style={{ borderColor: "var(--border-hairline)" }}
+          items={groups.map((g) => ({ id: g.category, label: g.category, accent }))}
+          activeId={active.category}
+          onSelect={setTrackerCategory}
+          tall
+        />
+        <div
+          className="inset-rows rounded-xl border [--row-inset:0.875rem] lg:grid lg:grid-cols-3 lg:gap-1 lg:p-1.5 xl:grid-cols-4 lg:[&>*::before]:hidden"
+          style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}
+        >
+          {visibleItems.map((c) => renderItem(c))}
           {hiddenCount > 0 && renderShowAll(storageKey, active.items.length, false)}
         </div>
       </div>
@@ -1843,7 +1878,9 @@ export default function LogPage() {
     const boxStyle = { borderColor: "var(--border-hairline)", background: "var(--surface-1)" } as const;
     return (
       <div className="flex flex-col gap-3">
-        {renderCategoryCards(plainGroups, (c) => (tab === "outcome" ? renderSymptomRow(c, accent) : renderHabitRow(c, accent)))}
+        {!searchQuery && plainGroups.length > 1
+          ? renderTrackerByCategory(plainGroups, (c) => (tab === "outcome" ? renderSymptomRow(c, accent, false) : renderHabitRow(c, accent, false)))
+          : renderCategoryCards(plainGroups, (c) => (tab === "outcome" ? renderSymptomRow(c, accent) : renderHabitRow(c, accent)))}
         {measureItems.length > 0 && (
           <div className={box} style={boxStyle}>
             <div className="flex min-h-11 items-center gap-3 px-3.5 text-sm" style={{ color: "var(--text-primary)" }}>

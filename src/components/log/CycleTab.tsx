@@ -2,11 +2,14 @@
 
 import { Chip as BaseChip } from "@/components/ui/Chip";
 import { useMemo, useState, type ReactNode } from "react";
-import clsx from "clsx";
 import { addDaysToDate, monthStart } from "@/lib/aggregations/common";
 import { ChevronIcon } from "@/components/ui/icons";
+import { FormGroup } from "@/components/ui/FormGroup";
 import { groupIntoPeriodRuns, currentCycleStatus, predictUpcomingPeriods } from "@/lib/aggregations/cycle";
 import { PERIOD_INTENSITIES, COLLECTION_METHODS, type RawPeriodLog, type PeriodIntensity, type CollectionMethod } from "@/lib/types";
+
+/** Same wrap-row chip layout as Stool's detail sections. */
+const CHIP_GRID = "flex flex-wrap gap-1.5";
 
 /** Same thin-stroke icon language as Stool's own chip icons — small enough
  * (14px) to sit inline in front of a chip label. */
@@ -70,7 +73,7 @@ const COLLECTION_METHOD_ICON: Record<string, ReactNode> = {
 
 function Chip({ label, active, onClick, accent, icon }: { label: string; active: boolean; onClick: () => void; accent: string; icon?: ReactNode }) {
   return (
-    <BaseChip active={active} accent={accent} block onClick={onClick}>
+    <BaseChip active={active} accent={accent} onClick={onClick}>
       {icon}
       {label}
     </BaseChip>
@@ -283,10 +286,10 @@ export function CycleTab({
   const thirdMonth = useMemo(() => shiftMonth(calendarMonth, 2), [calendarMonth]);
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-3">
       {/* ---- 1. Current cycle ---- */}
-      <div className="flex flex-col gap-2 rounded-xl border p-3" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
-        <div className="flex flex-wrap items-baseline justify-between gap-2 border-b pb-2" style={{ borderColor: "var(--border-hairline)" }}>
+      <FormGroup>
+        <div className="flex flex-wrap items-baseline justify-between gap-2 px-3.5 py-3">
           <div className="flex flex-col gap-1">
             {status.onPeriod || status.cycleDay != null ? (
               <span
@@ -314,48 +317,37 @@ export function CycleTab({
             </p>
           )}
         </div>
+      </FormGroup>
 
-        <div>
-          <p className="mb-2 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
-            Period intensity
-          </p>
-          <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
-            {PERIOD_INTENSITIES.map((level) => (
-              <Chip
-                key={level}
-                label={level}
-                icon={<IntensityIcon level={level} />}
-                active={selectedEntry?.intensity === level}
-                onClick={() => void setIntensity(level)}
-                accent={accent}
-              />
-            ))}
-          </div>
+      <FormGroup title="Period intensity">
+        <div className={`${CHIP_GRID} px-3.5 py-3`}>
+          {PERIOD_INTENSITIES.map((level) => (
+            <Chip
+              key={level}
+              label={level}
+              icon={<IntensityIcon level={level} />}
+              active={selectedEntry?.intensity === level}
+              onClick={() => void setIntensity(level)}
+              accent={accent}
+            />
+          ))}
         </div>
+      </FormGroup>
 
-        <div>
-          <p className="mb-2 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
-            Collection method
-          </p>
-          <div className={clsx("grid grid-cols-2 gap-1.5 sm:grid-cols-4", !selectedEntry && "opacity-40")}>
-            {COLLECTION_METHODS.map((method) => (
-              <Chip
-                key={method}
-                label={method}
-                icon={COLLECTION_METHOD_ICON[method]}
-                active={Boolean(selectedEntry?.collectionMethods.includes(method))}
-                onClick={() => void toggleCollectionMethod(method)}
-                accent={accent}
-              />
-            ))}
-          </div>
-          {!selectedEntry && (
-            <p className="mt-1.5 text-xs" style={{ color: "var(--text-muted)" }}>
-              Set a period intensity above first.
-            </p>
-          )}
+      <FormGroup title="Collection method" footer={!selectedEntry ? "Set a period intensity above first." : undefined}>
+        <div className={`${CHIP_GRID} px-3.5 py-3`} style={{ opacity: selectedEntry ? 1 : 0.4 }}>
+          {COLLECTION_METHODS.map((method) => (
+            <Chip
+              key={method}
+              label={method}
+              icon={COLLECTION_METHOD_ICON[method]}
+              active={Boolean(selectedEntry?.collectionMethods.includes(method))}
+              onClick={() => void toggleCollectionMethod(method)}
+              accent={accent}
+            />
+          ))}
         </div>
-      </div>
+      </FormGroup>
 
       {/* ---- 2. Period calendar ---- */}
       <div className="flex flex-col gap-3 rounded-xl border p-3" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
