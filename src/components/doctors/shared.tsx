@@ -1,6 +1,6 @@
 "use client";
 
-import { CHIP_CLS, chipStyle, Chip } from "@/components/ui/Chip";
+import { CONTROL_CLS, CONTROL_STYLE, Chip } from "@/components/ui/Chip";
 import { useMemo, useState, type ReactNode } from "react";
 import { DOCTOR_LANGUAGES, DOCTOR_RATINGS, isBadDoctor, type DoctorLanguage } from "@/lib/doctors";
 
@@ -224,7 +224,7 @@ export function ComboBox({
 }
 
 /** The one editable next-appointment date for a specialty — a compact
- * date pill (accent-tinted once set) with an icon clear button. Shown in
+ * filled date control with an icon clear button. Shown in
  * both the Specialty and Doctor history headers; both write the same
  * specialty-level value. `hideLabel` drops the "Next appointment" caption
  * where the surrounding section already makes it obvious. */
@@ -247,10 +247,12 @@ export function NextAppointmentField({
         </span>
       )}
       <label
-        className={`${CHIP_CLS} relative cursor-pointer`}
-        style={chipStyle(Boolean(date), accent)}
+        className={`${CONTROL_CLS} relative cursor-pointer`}
+        style={CONTROL_STYLE}
       >
-        <CalendarIcon size={13} />
+        <span style={{ color: date ? accent : "var(--text-muted)" }}>
+          <CalendarIcon size={13} />
+        </span>
         <span className="tabular-nums">{date ? formatDate(date) : "Set a date"}</span>
         <input
           type="date"

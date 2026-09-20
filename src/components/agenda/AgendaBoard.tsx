@@ -1,6 +1,6 @@
 "use client";
 
-import { CHIP_CLS, chipStyle, Chip as BaseChip } from "@/components/ui/Chip";
+import { CONTROL_CLS, CONTROL_STYLE, Chip as BaseChip } from "@/components/ui/Chip";
 import { useMemo, useState, type FormEvent, type ReactNode } from "react";
 import Link from "next/link";
 import clsx from "clsx";
@@ -74,8 +74,8 @@ function FilterButton({ open, count, onToggle }: { open: boolean; count: number;
       type="button"
       onClick={onToggle}
       aria-expanded={open}
-      className={`${CHIP_CLS} shrink-0`}
-      style={chipStyle(lit, ACCENT)}
+      className={CONTROL_CLS}
+      style={lit ? { background: `color-mix(in oklab, ${ACCENT} 16%, var(--surface-1))`, color: ACCENT } : CONTROL_STYLE}
     >
       <FunnelIcon />
       Filter
@@ -447,15 +447,11 @@ function AgendaRow({
       <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs" style={{ color: "var(--text-muted)" }}>
         {e.subtitle && <span className="truncate">{e.subtitle}</span>}
         {recurring && e.reminder?.recurrenceDays != null && (
-          <span className="rounded px-1.5 py-0.5 font-semibold" style={{ background: `color-mix(in oklab, ${ACCENT} 14%, transparent)`, color: ACCENT }}>
+          <span className="font-medium" style={{ color: ACCENT }}>
             every {e.reminder.recurrenceDays}d
           </span>
         )}
-        {e.scope === "shared" && (
-          <span className="rounded px-1.5 py-0.5 font-medium" style={{ background: "var(--page-plane)", color: "var(--text-secondary)" }}>
-            shared
-          </span>
-        )}
+        {e.scope === "shared" && <span>shared</span>}
       </span>
     ) : null;
 

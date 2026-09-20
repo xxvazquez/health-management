@@ -485,8 +485,8 @@ export function StoolTab({
                 value={draft.note ?? ""}
                 onChange={(e) => setDraft((d) => ({ ...d, note: e.target.value }))}
                 placeholder="Add a note…"
-                className="w-full min-h-11 rounded-md border px-3 text-sm outline-none"
-                style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
+                className="w-full min-h-11 rounded-[10px] px-3 text-sm outline-none"
+                style={{ background: "var(--field-fill)", color: "var(--text-primary)" }}
               />
             </div>
           </div>

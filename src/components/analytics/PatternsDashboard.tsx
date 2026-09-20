@@ -188,8 +188,8 @@ function LagExplorer({ events, workoutLogs }: { events: CanonicalEvent[]; workou
         <select
           value={effectiveCause}
           onChange={(e) => setCause(e.target.value)}
-          className="min-h-9 rounded-md border px-3 text-sm"
-          style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
+          className="min-h-9 rounded-[10px] px-3 text-sm"
+          style={{ background: "var(--field-fill)", color: "var(--text-primary)" }}
         >
           {causeOptions.map((o) => (
             <option key={o.label} value={o.label}>
@@ -203,8 +203,8 @@ function LagExplorer({ events, workoutLogs }: { events: CanonicalEvent[]; workou
         <select
           value={effectiveOutcome}
           onChange={(e) => setOutcome(e.target.value)}
-          className="min-h-9 rounded-md border px-3 text-sm"
-          style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
+          className="min-h-9 rounded-[10px] px-3 text-sm"
+          style={{ background: "var(--field-fill)", color: "var(--text-primary)" }}
         >
           {outcomeOptions.map((o) => (
             <option key={o.value} value={o.value}>

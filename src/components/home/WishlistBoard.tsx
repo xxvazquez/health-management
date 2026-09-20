@@ -465,8 +465,8 @@ function CopyRow({ label, value }: { label: string; value: string }) {
       </span>
       <div className="flex items-center gap-2">
         <code
-          className="min-w-0 flex-1 truncate min-h-9 rounded-md border px-3 text-sm"
-          style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-secondary)" }}
+          className="min-w-0 flex-1 truncate min-h-9 rounded-[10px] px-3 text-sm"
+          style={{ background: "var(--field-fill)", color: "var(--text-secondary)" }}
         >
           {value}
         </code>
@@ -623,8 +623,8 @@ function PhoneSetup({ share, accent, onBack }: { share: WishlistShareToPhone; ac
               </span>
               <div className="flex items-center gap-2">
                 <code
-                  className="min-w-0 flex-1 truncate min-h-9 rounded-md border px-3 text-sm"
-                  style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-secondary)" }}
+                  className="min-w-0 flex-1 truncate min-h-9 rounded-[10px] px-3 text-sm"
+                  style={{ background: "var(--field-fill)", color: "var(--text-secondary)" }}
                 >
                   {curl}
                 </code>
@@ -820,8 +820,8 @@ export function WishlistBoard({
               disabled={refreshing}
               aria-label="Refresh wishlist"
               title="Refresh — picks up links added from your phone"
-              className="tap-target flex h-9 w-9 shrink-0 items-center justify-center rounded-md border transition-colors disabled:opacity-60"
-              style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-secondary)" }}
+              className="tap-target flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] transition-colors disabled:opacity-60"
+              style={{ background: "var(--field-fill)", color: "var(--text-secondary)" }}
             >
               <svg
                 width="15"

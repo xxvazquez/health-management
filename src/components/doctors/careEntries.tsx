@@ -260,15 +260,12 @@ export function CareEntryForm({
   );
 }
 
-/** Kind badge + date + optional revisit date — the metadata line shared by
+/** Kind label + date + optional revisit date — the metadata line shared by
  * the care-log row and its detail view. */
 function CareEntryMeta({ entry, accent }: { entry: CareEntry; accent: string }) {
   return (
     <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs" style={{ color: "var(--text-muted)" }}>
-      <span
-        className="rounded px-1.5 py-0.5 text-xs font-semibold tracking-wide uppercase"
-        style={{ background: `color-mix(in oklab, ${accent} 14%, transparent)`, color: accent }}
-      >
+      <span className="text-xs font-semibold tracking-wide uppercase" style={{ color: accent }}>
         {CARE_KIND_LABEL[entry.kind]}
       </span>
       <span className="tabular-nums">{formatDate(entry.happenedOn)}</span>
@@ -286,14 +283,15 @@ function CareEntryMeta({ entry, accent }: { entry: CareEntry; accent: string }) 
 function CareEntryTags({ specialtyNames, supplementName, accent }: { specialtyNames: string[]; supplementName?: string | null; accent: string }) {
   if (specialtyNames.length === 0 && !supplementName) return null;
   return (
-    <span className="flex flex-wrap gap-1">
+    <span className="flex flex-wrap gap-x-1.5 text-xs" style={{ color: "var(--text-muted)" }}>
       {supplementName && (
-        <span className="rounded-md px-2 py-0.5 text-xs font-medium" style={{ background: `color-mix(in oklab, ${accent} 14%, transparent)`, color: accent }}>
+        <span className="font-medium" style={{ color: accent }}>
           {supplementName}
         </span>
       )}
-      {specialtyNames.map((name) => (
-        <span key={name} className="rounded-md border px-2 py-0.5 text-xs" style={{ borderColor: "var(--border-hairline)", color: "var(--text-muted)" }}>
+      {specialtyNames.map((name, i) => (
+        <span key={name}>
+          {(supplementName || i > 0) && "· "}
           {name}
         </span>
       ))}
@@ -320,16 +318,16 @@ function AttachmentChips({ attachments }: { attachments: CareEntry["attachments"
             href={f.webViewLink}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex max-w-full items-center gap-1 rounded-md border px-2 py-0.5 text-xs"
-            style={{ borderColor: "var(--border-hairline)", color: "var(--text-secondary)" }}
+            className="inline-flex max-w-full items-center gap-1 rounded-lg px-2 py-1 text-xs"
+            style={{ background: "var(--field-fill)", color: "var(--text-secondary)" }}
           >
             {inner}
           </a>
         ) : (
           <span
             key={f.driveFileId}
-            className="inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs"
-            style={{ borderColor: "var(--border-hairline)", color: "var(--text-muted)" }}
+            className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs"
+            style={{ background: "var(--field-fill)", color: "var(--text-muted)" }}
           >
             {inner}
           </span>

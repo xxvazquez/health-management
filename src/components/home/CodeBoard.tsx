@@ -363,8 +363,8 @@ export function CodeBoard({
           onClick={() => setSort((s) => (s === "shop" ? "expiry" : "shop"))}
           aria-label={sort === "shop" ? "Sorted by shop — tap to sort by expiry" : "Sorted by expiry — tap to sort by shop"}
           title={sort === "shop" ? "Sorted by shop A–Z" : "Sorted by expiring soon"}
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border"
-          style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-secondary)" }}
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px]"
+          style={{ background: "var(--field-fill)", color: "var(--text-secondary)" }}
         >
           {sort === "shop" ? (
             <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

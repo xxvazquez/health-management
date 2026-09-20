@@ -475,7 +475,7 @@ bug-report function is unaffected — it mails `BUG_EMAIL`, the account owner.
   Every selectable pill, filter and Log cell is the shared `Chip` (`ui/Chip.tsx`):
   white with a hairline border at rest, accent-tinted when on, regular weight, 36px
   tall (`CHIP_SM_CLS` for the scrolling "Your usual" rows) — don't hand-roll a new one.
-  Value-setting controls outside forms — `SearchField`, Log's meal and time menus, the date stepper, the header menu button — share one shape (`CONTROL_CLS` in `ui/Chip.tsx`: 36px, 10px radius, `--field-fill`, no border).
+  Value-setting controls — `SearchField`, form fields (`FIELD_CLS`), `Button variant="outline"`, Log's meal/time menus, the date stepper, the Filter and date-range buttons, the header menu button — share one filled shape (`CONTROL_CLS` in `ui/Chip.tsx`: 36px, 10px radius, `--field-fill`, no border). Filters and category switchers that change what a list shows are `TabRail` text tabs (`tall`), not pills; two-way modes use `Segmented`. Small metadata (kind, specialty, "shared") is plain text, never a badge. `ListSection` is an iOS section header above a white card.
   `public/icons/` are PNG renders
   of `public/logo-mark.svg` — regenerate from the SVG, don't hand-edit the PNGs.
 

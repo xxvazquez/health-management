@@ -1,6 +1,5 @@
 "use client";
 
-import { Chip } from "@/components/ui/Chip";
 import { useState, type FormEvent } from "react";
 import { useVitals } from "@/lib/useVitals";
 import { todayLocalISODate } from "@/lib/aggregations/common";
@@ -377,13 +376,15 @@ export function VitalsTab({ accent }: { accent: string }) {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex gap-1.5">
-          {(["bp", "weight"] as const).map((k) => (
-            <Chip key={k} active={kind === k} accent={accent} onClick={() => setKind(k)}>
-              {k === "bp" ? "Blood pressure" : "Weight"}
-            </Chip>
-          ))}
-        </div>
+        <Segmented
+          value={kind}
+          onChange={setKind}
+          accent={accent}
+          options={[
+            ["bp", "Blood pressure"],
+            ["weight", "Weight"],
+          ]}
+        />
         <PrimaryAction
           label={kind === "bp" ? "New reading" : "New weigh-in"}
           accent={accent}

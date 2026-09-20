@@ -171,8 +171,8 @@ export function DriveFilePicker({ onPick, onClose }: { onPick: (file: DriveAttac
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Search your Drive"
-                  className="w-full min-h-9 rounded-md border px-3 text-sm"
-                  style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
+                  className="w-full min-h-9 rounded-[10px] px-3 text-sm"
+                  style={{ background: "var(--field-fill)", color: "var(--text-primary)" }}
                 />
               </form>
               <input

@@ -362,8 +362,8 @@ export function JournalTab({ isDemoData, accent }: { isDemoData: boolean; accent
           onClick={() => setOldestFirst((v) => !v)}
           aria-label={oldestFirst ? "Oldest first — tap for newest first" : "Newest first — tap for oldest first"}
           title={oldestFirst ? "Oldest first" : "Newest first"}
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border"
-          style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-secondary)" }}
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px]"
+          style={{ background: "var(--field-fill)", color: "var(--text-secondary)" }}
         >
           <svg
             width="16"

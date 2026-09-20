@@ -97,8 +97,8 @@ export function PartnerLinkPanel({ onLinked }: { onLinked: () => void }) {
             value={codeInput}
             onChange={(e) => setCodeInput(e.target.value.toUpperCase())}
             placeholder="e.g. AB3D9KQZ"
-            className="flex-1 min-h-9 rounded-md border px-3 text-sm tracking-[0.15em] uppercase outline-none"
-            style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
+            className="flex-1 min-h-9 rounded-[10px] px-3 text-sm tracking-[0.15em] uppercase outline-none"
+            style={{ background: "var(--field-fill)", color: "var(--text-primary)" }}
           />
           <Button type="submit" size="lg" accent={ACCENT} disabled={redeeming || !codeInput.trim()} className="shrink-0">
             {redeeming ? "Linking…" : "Link"}

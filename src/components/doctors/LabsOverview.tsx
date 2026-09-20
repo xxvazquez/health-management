@@ -1,6 +1,6 @@
 "use client";
 
-import { CHIP_CLS, chipStyle, Chip as BaseChip } from "@/components/ui/Chip";
+import { CHIP_CLS, chipStyle } from "@/components/ui/Chip";
 import { useState, type ReactNode } from "react";
 import type { useLabs } from "@/lib/useLabs";
 import { formatDMY, todayLocalISODate } from "@/lib/aggregations/common";
@@ -28,7 +28,7 @@ import { LabMarkerChart } from "@/components/charts/LabMarkerChart";
 import { CustomIcon, customColorValue } from "@/components/ui/customIcons";
 import { Segmented } from "@/components/ui/Segmented";
 import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
-import { useOverflowFade } from "@/lib/useOverflowFade";
+import { TabRail } from "@/components/ui/TabRail";
 import { DetailPlaceholder, MedicalSplit, useIsDesktop } from "./MedicalSplit";
 
 const ACCENT = "var(--ui-accent)";
@@ -94,7 +94,6 @@ export function LabsOverview({
   const [sort, setSort] = useState<SortKey>("panel");
   const [panelFilter, setPanelFilter] = useState<string | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
-  const panelFilterRef = useOverflowFade<HTMLDivElement>();
   const desktop = useIsDesktop();
 
   const today = todayLocalISODate();
@@ -263,17 +262,16 @@ export function LabsOverview({
       </div>
 
       {panelSections.length >= 2 && (
-        <div ref={panelFilterRef} className="no-scrollbar fade-x -mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5">
-          <FilterChip label="All panels" active={!effectiveFilter} onClick={() => setPanelFilter(null)} />
-          {panelSections.map((s) => (
-            <FilterChip
-              key={s.id}
-              label={s.name}
-              active={effectiveFilter === s.id}
-              onClick={() => setPanelFilter(effectiveFilter === s.id ? null : s.id)}
-            />
-          ))}
-        </div>
+        <TabRail
+          ariaLabel="Filter by panel"
+          wrap={false}
+          tall
+          className="border-b"
+          style={{ borderColor: "var(--border-hairline)" }}
+          items={[{ id: "", name: "All panels" }, ...panelSections].map((s) => ({ id: s.id, label: s.name, accent: ACCENT }))}
+          activeId={effectiveFilter ?? ""}
+          onSelect={(id) => setPanelFilter(id || null)}
+        />
       )}
 
       <p className="text-xs" style={{ color: "var(--text-muted)" }}>
@@ -321,14 +319,6 @@ export function LabsOverview({
 
 /** One pill in the panel filter row — same accent treatment as `Segmented`,
  * but standalone so the row can scroll sideways on a narrow screen. */
-function FilterChip({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
-  return (
-    <BaseChip active={active} accent={ACCENT} nowrap onClick={onClick}>
-      {label}
-    </BaseChip>
-  );
-}
-
 // --- Row -----------------------------------------------------------
 
 /** One marker: a compact name + value block, the horizontal range bar

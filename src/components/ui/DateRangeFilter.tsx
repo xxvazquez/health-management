@@ -1,6 +1,6 @@
 "use client";
 
-import { CHIP_CLS, chipStyle } from "@/components/ui/Chip";
+import { CONTROL_CLS, CONTROL_STYLE } from "@/components/ui/Chip";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { DateRange } from "@/lib/aggregations/common";
 import { addDaysToDate } from "@/lib/aggregations/common";
@@ -118,8 +118,8 @@ export function DateRangeFilter({ span, value, onChange, presets = DEFAULT_PRESE
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
         aria-haspopup="dialog"
-        className={CHIP_CLS}
-        style={chipStyle(open, accent)}
+        className={CONTROL_CLS}
+        style={open ? { background: `color-mix(in oklab, ${accent} 16%, var(--surface-1))`, color: accent } : CONTROL_STYLE}
       >
         <svg width="13" height="13" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <rect x="3.5" y="4.5" width="13" height="12" rx="1.5" />

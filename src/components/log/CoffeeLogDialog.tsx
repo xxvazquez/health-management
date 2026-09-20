@@ -162,8 +162,8 @@ export function CoffeeLogDialog({
             value={draft.cafe}
             onChange={(e) => setDraft((d) => ({ ...d, cafe: e.target.value }))}
             placeholder="Home"
-            className="rounded-md border px-3 py-2 text-sm outline-none"
-            style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
+            className="rounded-[10px] px-3 py-2 text-sm outline-none"
+            style={{ background: "var(--field-fill)", color: "var(--text-primary)" }}
           />
         </label>
 
@@ -256,8 +256,8 @@ export function CoffeeLogDialog({
             rows={2}
             maxRows={6}
             placeholder="Bloomed 30s, a little under-extracted…"
-            className="resize-none rounded-md border px-3 py-2 text-sm outline-none"
-            style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
+            className="resize-none rounded-[10px] px-3 py-2 text-sm outline-none"
+            style={{ background: "var(--field-fill)", color: "var(--text-primary)" }}
           />
         </label>
 

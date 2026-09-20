@@ -1,6 +1,6 @@
 "use client";
 
-import { Chip } from "@/components/ui/Chip";
+import { TabRail } from "@/components/ui/TabRail";
 import { useMemo, useState } from "react";
 import type { useDoctors } from "@/lib/useDoctors";
 import type { CareEntry, CareEntryKind } from "@/lib/supabase/careLog";
@@ -166,16 +166,16 @@ export function VisitsTab({ api, accent }: { api: DoctorsApi; accent: string }) 
         )}
 
         {specialtiesWithEntries.length > 0 && (
-          <div className="no-scrollbar fade-x -mx-1 flex gap-2 overflow-x-auto px-1 pb-1" role="group" aria-label="Filter notes by specialty">
-            {[{ id: "", name: "All notes" }, ...specialtiesWithEntries].map((s) => {
-              const on = filterSpecialty === s.id;
-              return (
-                <Chip key={s.id || "all"} active={on} accent={accent} nowrap onClick={() => setFilterSpecialty(s.id)}>
-                  {s.name}
-                </Chip>
-              );
-            })}
-          </div>
+          <TabRail
+            ariaLabel="Filter notes by specialty"
+            wrap={false}
+            tall
+            className="border-b"
+            style={{ borderColor: "var(--border-hairline)" }}
+            items={[{ id: "", name: "All notes" }, ...specialtiesWithEntries].map((s) => ({ id: s.id, label: s.name, accent }))}
+            activeId={filterSpecialty}
+            onSelect={setFilterSpecialty}
+          />
         )}
 
         {shownEntries.length === 0 ? (
