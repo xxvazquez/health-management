@@ -20,12 +20,17 @@ export function Insight({
   label,
   headline,
   detail,
+  stat,
   tone = "neutral",
   className,
 }: {
   label: string;
   headline: ReactNode;
   detail?: ReactNode | null;
+  /** A lone headline figure (a `StatChip` or two) with nothing else to
+   * share a row with — folded into the card instead of sitting alone on
+   * its own near-empty row below it. */
+  stat?: ReactNode;
   tone?: InsightTone;
   className?: string;
 }) {
@@ -48,6 +53,7 @@ export function Insight({
           {detail}
         </p>
       )}
+      {stat && <div className="mt-1 flex flex-wrap gap-2">{stat}</div>}
     </div>
   );
 }

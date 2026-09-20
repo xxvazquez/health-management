@@ -392,19 +392,22 @@ export function FoodDashboard() {
         )}
       </div>
 
-
-      <Insight label={foodInsight.label} headline={foodInsight.headline} detail={foodInsight.detail} tone={foodInsight.tone} />
-
-      {!priorities.insufficientData && diversity && (
-        <div className="flex flex-wrap gap-2">
-          <StatChip
-            label="Unique ingredients"
-            value={String(diversity.current)}
-            accent={TYPE_ACCENT.food}
-            detail={ingredientDelta != null ? `${ingredientDelta > 0 ? "+" : ""}${ingredientDelta} vs prev.` : undefined}
-          />
-        </div>
-      )}
+      <Insight
+        label={foodInsight.label}
+        headline={foodInsight.headline}
+        detail={foodInsight.detail}
+        tone={foodInsight.tone}
+        stat={
+          !priorities.insufficientData && diversity ? (
+            <StatChip
+              label="Unique ingredients"
+              value={String(diversity.current)}
+              accent={TYPE_ACCENT.food}
+              detail={ingredientDelta != null ? `${ingredientDelta > 0 ? "+" : ""}${ingredientDelta} vs prev.` : undefined}
+            />
+          ) : undefined
+        }
+      />
 
       {/* The sticky section tabs and the section they render share one
           parent, so the tabs have room to stay pinned while a long section
