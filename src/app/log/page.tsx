@@ -70,6 +70,7 @@ import { useMeals } from "@/lib/useMeals";
 import { useFoodProducts } from "@/lib/useFoodProducts";
 import type { FoodProduct } from "@/lib/supabase/foodProducts";
 import { ProductForm, type NewProductDraft } from "@/components/log/ProductForm";
+import { TabRail } from "@/components/ui/TabRail";
 import { TimeField } from "@/components/ui/TimeField";
 import { DemoNotice } from "@/components/ui/DemoNotice";
 import { MobileMenuButton } from "@/components/MobileMenuButton";
@@ -112,6 +113,8 @@ const CYCLE_ACCENT = "var(--series-4)";
 const COFFEE_ACCENT = "var(--series-slate)";
 
 const EXPANDED_CATEGORIES_STORAGE_KEY = "lauva.log.expandedCategories";
+/** A long Food category opens showing only its most-used items. */
+const CATEGORY_PREVIEW_COUNT = 8;
 
 function categoryStorageKey(itemType: ItemType, category: string): string {
   return `${itemType}:${category}`;
@@ -539,6 +542,9 @@ export default function LogPage() {
   // of this set (see the `lg:grid` override at the item grid below); only
   // mobile actually collapses, so the set only matters there.
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+  // Food categories the user has opened past their most-used items.
+  const [foodCategory, setFoodCategory] = useState("");
+  const [fullCategories, setFullCategories] = useState<Set<string>>(new Set());
   useEffect(() => {
     try {
       const raw = window.localStorage.getItem(EXPANDED_CATEGORIES_STORAGE_KEY);
@@ -681,17 +687,26 @@ export default function LogPage() {
 
   const tabCandidates = useMemo(() => candidates.filter((c) => c.itemType === tab), [candidates, tab]);
 
-  // "Your usual" — the handful of foods logged most across all history,
-  // pinned above the catalog so the common case is one tap, not a scroll.
-  // Only for Food (its list is the longest); hidden until there's a real
-  // pattern to show.
+  // "Usual for <meal>" — the foods logged most at the selected meal, topped
+  // up with the overall favourites, pinned above the catalog so the common
+  // case is one tap, not a scroll. Only for Food (its list is the longest);
+  // hidden until there's a real pattern to show.
   const frequentFoods = useMemo(() => {
     if (tab !== "food") return [];
+    const atMeal = new Map<string, number>();
+    for (const l of effective.logs) {
+      if (l.mealTag === meal) atMeal.set(l.itemIdentity, (atMeal.get(l.itemIdentity) ?? 0) + 1);
+    }
     return candidates
       .filter((c) => c.itemType === "food" && c.count > 0)
-      .sort((a, b) => b.count - a.count || a.item.localeCompare(b.item))
+      .sort(
+        (a, b) =>
+          (atMeal.get(b.itemIdentity) ?? 0) - (atMeal.get(a.itemIdentity) ?? 0) ||
+          b.count - a.count ||
+          a.item.localeCompare(b.item),
+      )
       .slice(0, 8);
-  }, [candidates, tab]);
+  }, [candidates, effective.logs, meal, tab]);
 
   const productNameById = useMemo(() => new Map(foodProducts.data.map((p) => [p.id, p.name])), [foodProducts.data]);
 
@@ -1475,14 +1490,12 @@ export default function LogPage() {
     await refreshAfterWrite();
   }
 
-  /** A plain list row: a tracked item gets a leading tick and the accent
-   * colour, nothing else. The tick slot is always reserved so names align. */
-  function renderChip(c: LogCandidate) {
+  /** A Food row: name on the left, a tick on the right once logged (name and
+   * tick take the Food accent). `indent` lines it up with the category name
+   * above it in the grouped search results. */
+  function renderChip(c: LogCandidate, indent = false) {
     const logged = (mealCounts.get(c.key) ?? 0) > 0;
     const busy = pending === c.key;
-    // One "logged" colour for every food, regardless of category — category
-    // colour stays on the section header only.
-    const accent = TYPE_ACCENT.food;
 
     return (
       <button
@@ -1491,12 +1504,15 @@ export default function LogPage() {
         onClick={() => handleChipTap(c)}
         disabled={busy}
         aria-pressed={logged}
-        className={`${CHIP_CLS} w-full justify-between`}
-        style={chipStyle(logged, accent)}
+        className={clsx(
+          "flex min-h-11 w-full items-center justify-between gap-3 pr-3.5 text-left text-sm transition-colors active:bg-black/5 disabled:opacity-50",
+          indent ? "pl-[3.375rem]" : "pl-3.5",
+        )}
+        style={{ color: logged ? TYPE_ACCENT.food : "var(--text-primary)", fontWeight: logged ? 600 : 400 }}
       >
         <span className="min-w-0">{c.item}</span>
         {logged && (
-          <span aria-hidden="true" className="shrink-0 text-xs font-bold">
+          <span aria-hidden="true" className="shrink-0 text-sm font-bold">
             ✓
           </span>
         )}
@@ -1689,6 +1705,58 @@ export default function LogPage() {
     );
   }
 
+  /** A long Food category opens on its most-used items (the rest sit behind
+   * "All N"); short ones, searches and opened categories show everything in
+   * order. Anything logged for the current meal stays visible either way. */
+  function previewFoodItems(items: LogCandidate[], storageKey: string) {
+    const trimmed = !searchQuery && items.length > CATEGORY_PREVIEW_COUNT + 2 && !fullCategories.has(storageKey);
+    if (!trimmed) return { visibleItems: items, hiddenCount: 0 };
+    const visibleItems = [...items]
+      .sort((a, b) => b.count - a.count || a.item.localeCompare(b.item))
+      .filter((c, i) => i < CATEGORY_PREVIEW_COUNT || (mealCounts.get(c.key) ?? 0) > 0);
+    return { visibleItems, hiddenCount: items.length - visibleItems.length };
+  }
+
+  function renderShowAll(storageKey: string, total: number, indent: boolean) {
+    return (
+      <button
+        type="button"
+        onClick={() => setFullCategories((prev) => new Set(prev).add(storageKey))}
+        className={clsx("flex min-h-11 w-full items-center pr-3.5 text-left text-sm font-medium active:bg-black/5", indent ? "pl-[3.375rem]" : "pl-3.5")}
+        style={{ color: "var(--ui-accent)" }}
+      >
+        All {total}
+      </button>
+    );
+  }
+
+  /** Food's browse view: a scrolling category strip on top, the selected
+   * category's items as one list below — switching category replaces the
+   * list instead of stacking every category down the page. */
+  function renderFoodByCategory(groups: { category: string; items: LogCandidate[] }[]) {
+    if (groups.length === 0) return null;
+    const active = groups.find((g) => g.category === foodCategory) ?? groups[0];
+    const storageKey = categoryStorageKey("food", active.category);
+    const { visibleItems, hiddenCount } = previewFoodItems(active.items, storageKey);
+    return (
+      <div className="flex flex-col gap-3">
+        <TabRail
+          ariaLabel="Food category"
+          wrap={false}
+          className="border-b"
+          style={{ borderColor: "var(--border-hairline)" }}
+          items={groups.map((g) => ({ id: g.category, label: g.category, accent: TYPE_ACCENT.food }))}
+          activeId={active.category}
+          onSelect={setFoodCategory}
+        />
+        <div className="inset-rows rounded-xl border" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
+          {visibleItems.map((c) => renderChip(c))}
+          {hiddenCount > 0 && renderShowAll(storageKey, active.items.length, false)}
+        </div>
+      </div>
+    );
+  }
+
   /** The grouped category list every Log tab shares: one rounded card, an
    * icon + name + count header per category (collapsible on mobile), and a
    * grid of tappable cells underneath. */
@@ -1705,7 +1773,9 @@ export default function LogPage() {
           const icon = chrome.iconKey ? <CustomIcon icon={chrome.iconKey} size={15} /> : type === "food" ? FOOD_CATEGORY_ICON[group.category] : undefined;
           // Collapse only hides anything below `lg` — desktop always shows
           // every section expanded.
-          const collapsed = !searchQuery && !single && !expandedCategories.has(categoryStorageKey(type, group.category));
+          const storageKey = categoryStorageKey(type, group.category);
+          const collapsed = !searchQuery && !single && !expandedCategories.has(storageKey);
+          const { visibleItems, hiddenCount } = previewFoodItems(group.items, storageKey);
           return (
             <div key={group.category}>
               <button
@@ -1732,10 +1802,17 @@ export default function LogPage() {
                 </span>
               </button>
               <div
-                className={clsx("grid-cols-2 gap-2 border-t p-3 sm:grid-cols-3 lg:grid-cols-4", collapsed ? "hidden lg:grid" : "grid")}
+                className={clsx(
+                  "border-t",
+                  type === "food"
+                    ? "inset-rows flex-col [--row-inset:3.375rem]"
+                    : "grid-cols-2 gap-2 p-3 sm:grid-cols-3 lg:grid-cols-4",
+                  type === "food" ? (collapsed ? "hidden lg:flex" : "flex") : collapsed ? "hidden lg:grid" : "grid",
+                )}
                 style={{ borderColor: "var(--gridline)" }}
               >
-                {group.items.map((c) => renderItem(c))}
+                {visibleItems.map((c) => renderItem(c))}
+                {hiddenCount > 0 && renderShowAll(storageKey, group.items.length, true)}
               </div>
             </div>
           );
@@ -2203,7 +2280,7 @@ export default function LogPage() {
               {tab === "food" && frequentFoods.length >= 3 && (
                 <div className="flex flex-col gap-1.5">
                   <p className="px-0.5 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
-                    Your usual
+                    Usual for {meal.toLowerCase()}
                   </p>
                   <div ref={frequentFoodsRef} className="no-scrollbar fade-x -mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
                     {frequentFoods.map((c) => {
@@ -2258,7 +2335,9 @@ export default function LogPage() {
               {addRow}
 
               {tab === "food"
-                ? renderCategoryCards(groupedByCategory, (c) => renderChip(c))
+                ? searchQuery
+                  ? renderCategoryCards(groupedByCategory, (c) => renderChip(c, true))
+                  : renderFoodByCategory(groupedByCategory)
                 : renderTrackerList()}
 
               {seasonalPicksCard}
