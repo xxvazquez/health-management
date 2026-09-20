@@ -6,6 +6,7 @@ import { DOCTOR_LANGUAGES, DOCTOR_RATINGS, isBadDoctor, type DoctorLanguage } fr
 
 export { PencilIcon, TrashIcon } from "@/components/ui/Notebook";
 import { CalendarIcon, CloseIcon } from "@/components/ui/icons";
+import { DatePicker } from "@/components/ui/DatePicker";
 import { FIELD_CLS, FIELD_STYLE, LABEL_CLS, LABEL_STYLE, ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
 export { FIELD_CLS, FIELD_STYLE, LABEL_CLS, LABEL_STYLE };
 
@@ -249,29 +250,20 @@ export function NextAppointmentField({
           Next appointment
         </span>
       )}
-      <label
-        className={`${CONTROL_CLS} relative cursor-pointer`}
-        style={CONTROL_STYLE}
-      >
-        <span style={{ color: date ? accent : "var(--text-muted)" }}>
-          <CalendarIcon size={13} />
-        </span>
-        <span className="tabular-nums">{date ? formatDate(date) : "Set a date"}</span>
-        <input
-          type="date"
-          value={date ?? ""}
-          onChange={(e) => onChange(e.target.value || null)}
-          onClick={(e) => {
-            try {
-              e.currentTarget.showPicker();
-            } catch {
-              /* not supported — the native click still opens it */
-            }
-          }}
-          aria-label="Next appointment date"
-          className="absolute inset-0 cursor-pointer opacity-0"
-        />
-      </label>
+      <DatePicker
+        value={date ?? ""}
+        onChange={(v) => onChange(v || null)}
+        optional
+        title="Next appointment"
+        renderTrigger={(open) => (
+          <button type="button" onClick={open} aria-label="Next appointment date" className={CONTROL_CLS} style={CONTROL_STYLE}>
+            <span style={{ color: date ? accent : "var(--text-muted)" }}>
+              <CalendarIcon size={13} />
+            </span>
+            <span className="tabular-nums">{date ? formatDate(date) : "Set a date"}</span>
+          </button>
+        )}
+      />
       {date && (
         <IconAction label="Clear next appointment" onClick={() => onChange(null)}>
           <CloseIcon size={13} />

@@ -1,5 +1,6 @@
 "use client";
 
+import { DateTimePicker } from "@/components/ui/DatePicker";
 import { SwitchRow } from "@/components/ui/Switch";
 import { useState, type FormEvent } from "react";
 import { isRecurringTask, type TaskItem } from "@/lib/reminders";
@@ -161,7 +162,7 @@ export function TaskForm({
           </Field>
         ) : (
           <Field label={<>Deadline <span style={{ color: "var(--text-muted)" }}>· optional</span></>} inline>
-            <input type="datetime-local" value={dueAtLocal} onChange={(e) => setDueAtLocal(e.target.value)} className={ROW_INLINE_CLS} style={ROW_STYLE} />
+            <DateTimePicker value={dueAtLocal} onChange={setDueAtLocal} optional title="Deadline" />
           </Field>
         )}
       </FormGroup>

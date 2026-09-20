@@ -1,5 +1,6 @@
 "use client";
 
+import { DatePicker } from "@/components/ui/DatePicker";
 import { useEffect, useState, type FormEvent } from "react";
 import { useLabs } from "@/lib/useLabs";
 import { todayLocalISODate } from "@/lib/aggregations/common";
@@ -75,7 +76,7 @@ function ResultForm({
           <input autoFocus value={value} onChange={(e) => setValue(e.target.value)} inputMode="decimal" placeholder="e.g. 2.1" className={`${ROW_INLINE_CLS} w-28 font-medium`} style={ROW_STYLE} />
         </Field>
         <Field label="Date" inline>
-          <input type="date" value={measuredOn} max={todayLocalISODate()} onChange={(e) => setMeasuredOn(e.target.value)} className={ROW_INLINE_CLS} style={ROW_STYLE} />
+          <DatePicker value={measuredOn} onChange={setMeasuredOn} max={todayLocalISODate()} />
         </Field>
         <Field label="Lab · optional" inline>
           <input value={lab} onChange={(e) => setLab(e.target.value)} placeholder="Where it was done" maxLength={80} className={`${ROW_INLINE_CLS} w-40`} style={ROW_STYLE} />

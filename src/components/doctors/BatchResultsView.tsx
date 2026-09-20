@@ -1,5 +1,6 @@
 "use client";
 
+import { DatePicker } from "@/components/ui/DatePicker";
 import { TabRail } from "@/components/ui/TabRail";
 import { useMemo, useState } from "react";
 import { useLabs } from "@/lib/useLabs";
@@ -132,7 +133,7 @@ export function BatchResultsView({
 
       <FormGroup>
         <Field label="Date" inline>
-          <input type="date" value={date} max={todayLocalISODate()} onChange={(e) => setDate(e.target.value)} className={ROW_INLINE_CLS} style={ROW_STYLE} />
+          <DatePicker value={date} onChange={setDate} max={todayLocalISODate()} />
         </Field>
         <Field label="Lab · optional" inline>
           <input value={lab} onChange={(e) => setLab(e.target.value)} placeholder="Where it was done" maxLength={80} className={`${ROW_INLINE_CLS} w-40`} style={ROW_STYLE} />

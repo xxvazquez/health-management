@@ -5,9 +5,10 @@ import type { Doctor, DoctorAppointment } from "@/lib/supabase/doctors";
 import type { DoctorLanguage } from "@/lib/doctors";
 import type { LogAppointmentInput } from "@/lib/useDoctors";
 import { ComboBox, DoctorName, LanguageChips, RatingChips, TrashIcon, toLocalDateInput } from "./shared";
+import { DatePicker, DateTimePicker } from "@/components/ui/DatePicker";
 import { Field } from "@/components/ui/Field";
 import { FormGroup } from "@/components/ui/FormGroup";
-import { ROW_INLINE_CLS, ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
+import { ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
 import { Button } from "@/components/ui/Button";
 import { FormShell } from "@/components/ui/FormShell";
 import { MarkdownField } from "@/components/ui/Markdown";
@@ -141,7 +142,7 @@ export function AppointmentForm({
           )}
         </Field>
         <Field label="Date" inline>
-          <input type="date" required max={todayLocalISODate()} value={appointmentDate} onChange={(e) => setAppointmentDate(e.target.value)} className={ROW_INLINE_CLS} style={ROW_STYLE} />
+          <DatePicker value={appointmentDate} onChange={setAppointmentDate} max={todayLocalISODate()} />
         </Field>
       </FormGroup>
 
@@ -190,10 +191,10 @@ export function AppointmentForm({
                 </button>
               </div>
               <Field label="Due date" inline className="border-t" >
-                <input type="date" value={task.dueDate} onChange={(e) => setTaskRow(index, { dueDate: e.target.value })} className={ROW_INLINE_CLS} style={ROW_STYLE} />
+                <DatePicker value={task.dueDate} onChange={(v) => setTaskRow(index, { dueDate: v })} optional title="Due date" />
               </Field>
               <Field label="Reminder" inline className="border-t">
-                <input type="datetime-local" value={task.reminderAt} onChange={(e) => setTaskRow(index, { reminderAt: e.target.value })} className={ROW_INLINE_CLS} style={ROW_STYLE} />
+                <DateTimePicker value={task.reminderAt} onChange={(v) => setTaskRow(index, { reminderAt: v })} optional title="Reminder" />
               </Field>
             </div>
           ))}

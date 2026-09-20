@@ -1,5 +1,6 @@
 "use client";
 
+import { DateTimePicker } from "@/components/ui/DatePicker";
 import { useState, type FormEvent } from "react";
 import { useVitals } from "@/lib/useVitals";
 import { todayLocalISODate } from "@/lib/aggregations/common";
@@ -136,7 +137,7 @@ function BpForm({
           <input value={pulse} onChange={(e) => setPulse(e.target.value)} inputMode="numeric" placeholder="70" className={`${ROW_INLINE_CLS} w-24 tabular-nums`} style={ROW_STYLE} />
         </Field>
         <Field label="When" inline>
-          <input type="datetime-local" value={measuredAt} max={nowLocalInput()} onChange={(e) => setMeasuredAt(e.target.value)} className={ROW_INLINE_CLS} style={ROW_STYLE} />
+          <DateTimePicker value={measuredAt} onChange={setMeasuredAt} max={todayLocalISODate()} title="When" />
         </Field>
       </FormGroup>
 
@@ -199,7 +200,7 @@ function WeightForm({
           <input autoFocus value={kg} onChange={(e) => setKg(e.target.value)} inputMode="decimal" placeholder="67.5" className={`${ROW_INLINE_CLS} w-24 font-medium tabular-nums`} style={ROW_STYLE} />
         </Field>
         <Field label="When" inline>
-          <input type="datetime-local" value={measuredAt} max={nowLocalInput()} onChange={(e) => setMeasuredAt(e.target.value)} className={ROW_INLINE_CLS} style={ROW_STYLE} />
+          <DateTimePicker value={measuredAt} onChange={setMeasuredAt} max={todayLocalISODate()} title="When" />
         </Field>
       </FormGroup>
 

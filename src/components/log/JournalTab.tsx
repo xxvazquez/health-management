@@ -1,5 +1,6 @@
 "use client";
 
+import { DatePicker } from "@/components/ui/DatePicker";
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { todayLocalISODate } from "@/lib/aggregations/common";
 import { createJournalEntry, deleteJournalEntry, fetchJournalEntries, updateJournalEntry, type JournalEntry } from "@/lib/supabase/journal";
@@ -80,18 +81,7 @@ function JournalEntryForm({
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <label className="flex items-center gap-1.5 text-xs font-medium" style={{ color: "var(--text-muted)" }}>
-          Date
-          <input
-            type="date"
-            required
-            value={date}
-            max={todayLocalISODate()}
-            onChange={(e) => setDate(e.target.value)}
-            className="border-0 bg-transparent p-0 text-xs font-medium outline-none"
-            style={{ color: "var(--text-secondary)" }}
-          />
-        </label>
+        <DatePicker value={date} onChange={setDate} max={todayLocalISODate()} title="Entry date" ariaLabel="Entry date" />
         <div className="flex items-center gap-3">
           {onDelete &&
             (confirmingDelete ? (

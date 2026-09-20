@@ -18,6 +18,7 @@ import { PushNotificationsToggle } from "@/components/PushNotificationsToggle";
 import { DataExportCard } from "@/components/manage/DataExportCard";
 import { AddRow, CollapsibleManageCard, GROUP_CLS, GROUP_STYLE, GroupNote, ManageNavContext, SectionRow, useSectionMode } from "@/components/manage/ManageSection";
 import { SwitchKnob } from "@/components/ui/Switch";
+import { TimePicker } from "@/components/ui/DatePicker";
 import { useItemActions, type ManageableItem } from "@/lib/useItemActions";
 import { getAllItems, getAllCategories, getItemIdentitiesWithHistory, withDataLock } from "@/lib/db/indexedDb";
 import { putItemAndSync, deleteCategoryAndSync } from "@/lib/supabase/sync";
@@ -243,26 +244,14 @@ function VisibleSectionsCard({ isDemoData }: { isDemoData: boolean }) {
                     Daily reminder
                   </span>
                   <span className="flex flex-1 items-center justify-end gap-2">
-                    <input
-                      type="time"
+                    <TimePicker
                       value={reminderTime ?? ""}
+                      onChange={(t) => void handleSetReminder(domain, t || null)}
+                      optional
                       disabled={busy}
-                      onChange={(e) => void handleSetReminder(domain, e.target.value || null)}
-                      aria-label={`Reminder time for ${DOMAIN_LABELS[domain]}`}
-                      className={FIELD_VALUE}
-                      style={FIELD_VALUE_STYLE}
+                      ariaLabel={`Reminder time for ${DOMAIN_LABELS[domain]}`}
+                      title="Daily reminder"
                     />
-                    {reminderTime && (
-                      <button
-                        type="button"
-                        onClick={() => void handleSetReminder(domain, null)}
-                        disabled={busy}
-                        className="shrink-0 text-sm font-medium disabled:opacity-40"
-                        style={{ color: "var(--ui-accent)" }}
-                      >
-                        Clear
-                      </button>
-                    )}
                   </span>
                 </label>
               )}
@@ -2621,26 +2610,14 @@ function ItemRow({
           )}
           {canRemind && (
             <EditorField label="Reminder">
-              <input
-                type="time"
+              <TimePicker
                 value={item.reminderTime ?? ""}
+                onChange={(t) => onSetReminderTime(t || null)}
+                optional
                 disabled={busy}
-                onChange={(e) => onSetReminderTime(e.target.value || null)}
-                aria-label={`Reminder time for ${item.item}`}
-                className={FIELD_VALUE}
-                style={FIELD_VALUE_STYLE}
+                ariaLabel={`Reminder time for ${item.item}`}
+                title="Reminder"
               />
-              {item.reminderTime && (
-                <button
-                  type="button"
-                  onClick={() => onSetReminderTime(null)}
-                  disabled={busy}
-                  className="shrink-0 text-sm font-medium disabled:opacity-40"
-                  style={{ color: "var(--ui-accent)" }}
-                >
-                  Clear
-                </button>
-              )}
             </EditorField>
           )}
           {linkedDecisions && linkedDecisions.length > 0 && (

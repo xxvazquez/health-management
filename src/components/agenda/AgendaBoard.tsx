@@ -1,5 +1,6 @@
 "use client";
 
+import { DatePicker } from "@/components/ui/DatePicker";
 import { CONTROL_CLS, CONTROL_STYLE } from "@/components/ui/Chip";
 import { useMemo, useState, type FormEvent } from "react";
 import Link from "next/link";
@@ -194,7 +195,7 @@ function ExpiryForm({
           <input autoFocus required value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Sunscreen" maxLength={150} className={`${ROW_TEXT_CLS} font-medium`} style={ROW_STYLE} />
         </Field>
         <Field label="Expires on" inline>
-          <input type="date" required value={expiresOn} onChange={(e) => setExpiresOn(e.target.value)} className={ROW_INLINE_CLS} style={ROW_STYLE} />
+          <DatePicker value={expiresOn} onChange={setExpiresOn} title="Expires on" />
         </Field>
         <Field label="Remind (days before)" inline>
           <input type="number" min={0} value={remind} onChange={(e) => setRemind(e.target.value)} className={`${ROW_INLINE_CLS} w-16`} style={ROW_STYLE} />

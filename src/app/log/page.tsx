@@ -64,6 +64,7 @@ import { useCoffeeOptions } from "@/lib/useCoffeeOptions";
 import { DuplicateItemDialog } from "@/components/ui/DuplicateItemDialog";
 import { SearchField } from "@/components/ui/SearchField";
 import { Button } from "@/components/ui/Button";
+import { DatePicker, TimePicker } from "@/components/ui/DatePicker";
 import { Field } from "@/components/ui/Field";
 import { FormGroup } from "@/components/ui/FormGroup";
 import { ROW_INLINE_CLS, ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
@@ -2036,20 +2037,19 @@ export default function LogPage() {
           >
             <ChevronIcon dir="left" size={15} />
           </button>
-          <label className="relative flex w-20 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded px-1 py-1">
-            <span className="truncate text-sm font-medium whitespace-nowrap" style={{ color: "var(--text-primary)" }}>
-              {formatDateLabel(date, today)}
-            </span>
-            <input
-              type="date"
-              value={date}
-              max={today}
-              onChange={(e) => e.target.value && setDate(e.target.value)}
-              onClick={(e) => e.currentTarget.showPicker?.()}
-              aria-label="Pick a date"
-              className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-            />
-          </label>
+          <DatePicker
+            value={date}
+            onChange={(v) => v && setDate(v)}
+            max={today}
+            title="Go to date"
+            renderTrigger={(open) => (
+              <button type="button" onClick={open} aria-label="Pick a date" className="flex h-9 w-20 shrink-0 items-center justify-center rounded-lg px-1">
+                <span className="truncate text-sm font-medium whitespace-nowrap" style={{ color: "var(--text-primary)" }}>
+                  {formatDateLabel(date, today)}
+                </span>
+              </button>
+            )}
+          />
           <button
             type="button"
             onClick={() => setDate((d) => (d < today ? addDaysLocal(d, 1) : d))}
@@ -2120,8 +2120,6 @@ export default function LogPage() {
               value={logTime}
               onChange={setLogTime}
               explicit={timeIsExplicit}
-              onReset={() => setLogTime(defaultLogTimeValue())}
-              collapsible
             />
             {!isDemoData && (
               <Link href="/manage" className="hidden shrink-0 text-xs font-medium sm:inline" style={{ color: "var(--ui-accent)" }}>
@@ -2171,7 +2169,6 @@ export default function LogPage() {
             accent={WORKOUT_ACCENT}
             time={workoutTime}
             onTimeChange={setWorkoutTime}
-            onTimeReset={() => setWorkoutTime(defaultLogTimeValue())}
             onSave={handleSaveWorkoutEntry}
           />
         ) : (
@@ -2420,15 +2417,24 @@ export default function LogPage() {
                           {entry.time}
                         </span>
                       ) : (
-                        <input
-                          type="time"
+                        <TimePicker
                           value={toTimeInputValue(entry.updatedAt)}
                           disabled={busy}
-                          onChange={(e) => void handleChangeEntryTime(entry, e.target.value)}
-                          onClick={(e) => e.currentTarget.showPicker?.()}
-                          aria-label={`Change time for ${entry.item}`}
-                          className="w-[84px] min-w-0 rounded px-0.5 py-0.5 font-mono text-xs whitespace-nowrap outline-none disabled:opacity-40"
-                          style={{ background: "transparent", color: "var(--text-muted)", border: "none" }}
+                          onChange={(t) => void handleChangeEntryTime(entry, t)}
+                          ariaLabel={`Change time for ${entry.item}`}
+                          title="Time"
+                          renderTrigger={(open, display) => (
+                            <button
+                              type="button"
+                              onClick={open}
+                              disabled={busy}
+                              aria-label={`Change time for ${entry.item}`}
+                              className="font-mono text-xs whitespace-nowrap disabled:opacity-40"
+                              style={{ color: "var(--text-muted)" }}
+                            >
+                              {display}
+                            </button>
+                          )}
                         />
                       )}
                       {!isDemoData && (

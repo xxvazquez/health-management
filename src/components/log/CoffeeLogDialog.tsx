@@ -123,8 +123,6 @@ export function CoffeeLogDialog({
           <TimeField
             value={draft.loggedAtTime}
             onChange={(t) => setDraft((d) => ({ ...d, loggedAtTime: t }))}
-            onReset={() => setDraft((d) => ({ ...d, loggedAtTime: defaultLogTimeValue() }))}
-            collapsible
           />
         </div>
         <Field label="Café · optional" inline>

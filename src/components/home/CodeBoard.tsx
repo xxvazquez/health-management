@@ -1,5 +1,6 @@
 "use client";
 
+import { DatePicker } from "@/components/ui/DatePicker";
 import { useMemo, useRef, useState, type FormEvent } from "react";
 import clsx from "clsx";
 import { todayLocalISODate } from "@/lib/aggregations/common";
@@ -16,7 +17,7 @@ import { Button } from "@/components/ui/Button";
 import { FormShell } from "@/components/ui/FormShell";
 import { Field } from "@/components/ui/Field";
 import { FormGroup } from "@/components/ui/FormGroup";
-import { ROW_INLINE_CLS, ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
+import { ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
 import { ClockIcon } from "@/components/ui/icons";
 import type { HouseholdCode, NewHouseholdCodeInput } from "@/lib/supabase/household";
 
@@ -144,7 +145,7 @@ function CodeForm({
           <input value={comment} onChange={(e) => setComment(e.target.value)} placeholder="What it's for, any conditions" maxLength={300} className={ROW_TEXT_CLS} style={ROW_STYLE} />
         </Field>
         <Field label={<>Expires on <span style={{ color: "var(--text-muted)" }}>· optional</span></>} inline>
-          <input type="date" value={expiresOn} onChange={(e) => setExpiresOn(e.target.value)} min={todayLocalISODate()} className={ROW_INLINE_CLS} style={ROW_STYLE} />
+          <DatePicker value={expiresOn} onChange={setExpiresOn} min={todayLocalISODate()} optional title="Expires on" />
         </Field>
       </FormGroup>
 

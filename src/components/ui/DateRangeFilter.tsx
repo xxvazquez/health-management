@@ -5,6 +5,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { DateRange } from "@/lib/aggregations/common";
 import { addDaysToDate } from "@/lib/aggregations/common";
 import { useDialogA11y } from "./useDialogA11y";
+import { DatePicker } from "@/components/ui/DatePicker";
 
 export interface DateRangePreset {
   label: string;
@@ -95,6 +96,8 @@ export function DateRangeFilter({ span, value, onChange, presets = DEFAULT_PRESE
       // focus stays inside our inputs even though the picker overlay is
       // technically outside the root.
       if (root.contains(e.target as Node) || root.contains(document.activeElement)) return;
+      // A date-picker sheet opened from the custom range is portalled outside the root.
+      if ((e.target as Element).closest?.('[role="dialog"][aria-modal="true"]')) return;
       setOpen(false);
     };
     document.addEventListener("pointerdown", onPointerDown);
@@ -183,32 +186,14 @@ export function DateRangeFilter({ span, value, onChange, presets = DEFAULT_PRESE
               Custom range
             </p>
             <div className="flex flex-col">
-              <label className="flex min-h-11 items-center justify-between gap-3 px-2 text-sm" style={{ color: "var(--text-primary)" }}>
+              <div className="flex min-h-11 items-center justify-between gap-3 px-2 text-sm" style={{ color: "var(--text-primary)" }}>
                 From
-                <input
-                  type="date"
-                  aria-label="Start date"
-                  value={value.start}
-                  min={span.start}
-                  max={value.end}
-                  onChange={(e) => onChange({ ...value, start: e.target.value })}
-                  className="min-w-0 bg-transparent text-right text-sm outline-none"
-                  style={{ color: "var(--text-primary)" }}
-                />
-              </label>
-              <label className="flex min-h-11 items-center justify-between gap-3 px-2 text-sm" style={{ color: "var(--text-primary)" }}>
+                <DatePicker value={value.start} onChange={(v) => v && onChange({ ...value, start: v })} min={span.start} max={value.end} title="From" ariaLabel="Start date" />
+              </div>
+              <div className="flex min-h-11 items-center justify-between gap-3 px-2 text-sm" style={{ color: "var(--text-primary)" }}>
                 To
-                <input
-                  type="date"
-                  aria-label="End date"
-                  value={value.end}
-                  min={value.start}
-                  max={span.end}
-                  onChange={(e) => onChange({ ...value, end: e.target.value })}
-                  className="min-w-0 bg-transparent text-right text-sm outline-none"
-                  style={{ color: "var(--text-primary)" }}
-                />
-              </label>
+                <DatePicker value={value.end} onChange={(v) => v && onChange({ ...value, end: v })} min={value.start} max={span.end} title="To" ariaLabel="End date" />
+              </div>
             </div>
           </div>
         </div>

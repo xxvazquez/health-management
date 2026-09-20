@@ -255,7 +255,6 @@ export function WorkoutTab({
   accent,
   time,
   onTimeChange,
-  onTimeReset,
   onSave,
 }: {
   /** Active exercises grouped by category, A-Z within each — see
@@ -274,7 +273,6 @@ export function WorkoutTab({
   accent: string;
   time: string;
   onTimeChange: (time: string) => void;
-  onTimeReset: () => void;
   onSave: (entry: NewWorkoutEntry) => Promise<void>;
 }) {
   return (
@@ -295,7 +293,7 @@ export function WorkoutTab({
                 )}
                 {group.category}
               </p>
-              {gi === 0 && <TimeField value={time} onChange={onTimeChange} onReset={onTimeReset} collapsible />}
+              {gi === 0 && <TimeField value={time} onChange={onTimeChange} />}
             </div>
             <div className="inset-rows rounded-xl border" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
               {group.items.map((item) => (

@@ -1,5 +1,6 @@
 "use client";
 
+import { MonthPicker } from "@/components/ui/DatePicker";
 import { Segmented } from "@/components/ui/Segmented";
 import { TabRail } from "@/components/ui/TabRail";
 import { useMemo, useState, type ReactNode } from "react";
@@ -82,20 +83,19 @@ function PeriodNav({
         <ChevronIcon dir="left" size={15} />
       </button>
       {view === "month" ? (
-        <label className="relative flex min-w-[7.5rem] cursor-pointer items-center justify-center rounded px-1 py-1">
-          <span className="text-sm font-medium whitespace-nowrap" style={{ color: "var(--text-primary)" }}>
-            {label}
-          </span>
-          <input
-            type="month"
-            value={anchor.slice(0, 7)}
-            max={monthStart(today).slice(0, 7)}
-            onChange={(e) => e.target.value && setAnchor(`${e.target.value}-01`)}
-            onClick={(e) => e.currentTarget.showPicker?.()}
-            aria-label="Pick a month"
-            className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-          />
-        </label>
+        <MonthPicker
+          value={anchor.slice(0, 7)}
+          onChange={(v) => v && setAnchor(`${v}-01`)}
+          max={monthStart(today).slice(0, 7)}
+          title="Month"
+          renderTrigger={(open) => (
+            <button type="button" onClick={open} aria-label="Pick a month" className="flex h-9 min-w-[7.5rem] items-center justify-center rounded-lg px-1">
+              <span className="text-sm font-medium whitespace-nowrap" style={{ color: "var(--text-primary)" }}>
+                {label}
+              </span>
+            </button>
+          )}
+        />
       ) : (
         <span className="flex min-w-[7.5rem] items-center justify-center px-1 py-1 text-sm font-medium tabular-nums" style={{ color: "var(--text-primary)" }}>
           {label}

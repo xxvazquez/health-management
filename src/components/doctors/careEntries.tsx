@@ -1,5 +1,6 @@
 "use client";
 
+import { DatePicker } from "@/components/ui/DatePicker";
 import { Chip } from "@/components/ui/Chip";
 import { Segmented } from "@/components/ui/Segmented";
 import { useMemo, useState, type FormEvent } from "react";
@@ -167,15 +168,10 @@ export function CareEntryForm({
           </Field>
         )}
         <Field label="Date" inline>
-          <input type="date" value={happenedOn} max={todayLocalISODate()} onChange={(e) => setHappenedOn(e.target.value)} className={ROW_INLINE_CLS} style={ROW_STYLE} />
+          <DatePicker value={happenedOn} onChange={setHappenedOn} max={todayLocalISODate()} />
         </Field>
         <Field label="Revisit on" inline>
-          {remindOn && (
-            <button type="button" onClick={() => setRemindOn("")} className="text-sm font-medium" style={{ color: "var(--ui-accent)" }}>
-              Clear
-            </button>
-          )}
-          <input type="date" value={remindOn} min={todayLocalISODate()} onChange={(e) => setRemindOn(e.target.value)} className={ROW_INLINE_CLS} style={ROW_STYLE} />
+          <DatePicker value={remindOn} onChange={setRemindOn} min={todayLocalISODate()} optional title="Revisit on" />
         </Field>
       </FormGroup>
 

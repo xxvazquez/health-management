@@ -7,6 +7,10 @@ function focusableElements(container: HTMLElement): HTMLElement[] {
   return Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter((el) => el.offsetParent !== null);
 }
 
+// Open dialogs, innermost last — only the top one answers Escape and Tab, so a
+// picker sheet opened from inside another dialog closes on its own.
+const openStack: symbol[] = [];
+
 /**
  * Standard modal-dialog keyboard behavior, shared by every `role="dialog"
  * aria-modal="true"` overlay (AccountPanel, BugReportDialog,
@@ -38,12 +42,15 @@ export function useDialogA11y(active: boolean, onClose: () => void) {
     if (!active) return;
     const container = containerRef.current;
     const previouslyFocused = document.activeElement as HTMLElement | null;
+    const token = Symbol("dialog");
+    openStack.push(token);
 
     if (container && !container.contains(document.activeElement)) {
       focusableElements(container)[0]?.focus();
     }
 
     function handleKeyDown(e: KeyboardEvent) {
+      if (openStack[openStack.length - 1] !== token) return;
       if (e.key === "Escape") {
         e.stopPropagation();
         onCloseRef.current();
@@ -66,6 +73,8 @@ export function useDialogA11y(active: boolean, onClose: () => void) {
     document.addEventListener("keydown", handleKeyDown);
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
+      const at = openStack.indexOf(token);
+      if (at >= 0) openStack.splice(at, 1);
       previouslyFocused?.focus();
     };
   }, [active]);

@@ -341,8 +341,6 @@ export function StoolTab({
           <TimeField
             value={draft.loggedAtTime}
             onChange={(t) => setDraft((d) => ({ ...d, loggedAtTime: t }))}
-            onReset={() => setDraft((d) => ({ ...d, loggedAtTime: defaultLogTimeValue() }))}
-            collapsible
           />
         </div>
         <div className="grid grid-cols-4 gap-1.5 px-3.5 py-3">

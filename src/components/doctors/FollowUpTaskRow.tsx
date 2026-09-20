@@ -1,10 +1,11 @@
 "use client";
 
+import { DatePicker, DateTimePicker } from "@/components/ui/DatePicker";
 import { useState, type ReactNode } from "react";
 import type { DoctorFollowUpTask, FollowUpTaskPatch } from "@/lib/supabase/doctors";
 import { IconAction, PencilIcon, TrashIcon, formatDate, formatDateTime, toLocalInput } from "./shared";
 import { Field } from "@/components/ui/Field";
-import { ROW_INLINE_CLS, ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
+import { ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
 
 /** One follow-up task — a completion checkbox, its text + due/reminder
  * meta, and edit/delete. Shared by the appointment card and the Follow-ups
@@ -39,10 +40,10 @@ export function FollowUpTaskRow({
             <input value={description} onChange={(e) => setDescription(e.target.value)} aria-label="Task" className={`${ROW_TEXT_CLS} min-h-11`} style={ROW_STYLE} />
           </div>
           <Field label="Due date · optional" inline>
-            <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className={ROW_INLINE_CLS} style={ROW_STYLE} />
+            <DatePicker value={dueDate} onChange={setDueDate} optional title="Due date" />
           </Field>
           <Field label="Reminder · optional" inline>
-            <input type="datetime-local" value={reminderAt} onChange={(e) => setReminderAt(e.target.value)} className={ROW_INLINE_CLS} style={ROW_STYLE} />
+            <DateTimePicker value={reminderAt} onChange={setReminderAt} optional title="Reminder" />
           </Field>
         </div>
         <div className="flex items-center gap-2 pb-2">

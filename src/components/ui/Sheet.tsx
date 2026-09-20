@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { CloseIcon } from "@/components/ui/icons";
 import { useDialogA11y } from "@/components/ui/useDialogA11y";
 
@@ -8,7 +9,8 @@ import { useDialogA11y } from "@/components/ui/useDialogA11y";
  * The shared modal: an iOS-style sheet — pinned to the bottom edge with a
  * grab handle on a phone, centred from `sm` up — on the grouped grey ground
  * so `FormGroup` cards read as white rows on it. Render it only while open;
- * it traps focus and closes on Escape or a tap on the backdrop.
+ * it traps focus and closes on Escape or a tap on the backdrop. Rendered in a
+ * portal on `document.body`.
  */
 export function Sheet({
   title,
@@ -28,7 +30,10 @@ export function Sheet({
   children: ReactNode;
 }) {
   const containerRef = useDialogA11y(true, onClose);
-  return (
+  // Portalled to <body> so a sheet opened from inside a <label>, a transformed
+  // drawer or a popover isn't clicked through or clipped by its ancestors.
+  if (typeof document === "undefined") return null;
+  return createPortal(
     <div ref={containerRef} className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby={titleId}>
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
       <div
@@ -58,6 +63,7 @@ export function Sheet({
         </div>
         {children}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
