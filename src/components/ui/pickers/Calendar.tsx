@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import clsx from "clsx";
 import { ChevronIcon } from "@/components/ui/icons";
 import { daysInMonth, mondayIndexOfFirst, monthName, parseISODate, toISODate, todayISO } from "./dateUtils";
@@ -52,7 +52,7 @@ export function MonthGrid({
               className="min-h-10 rounded-lg text-sm transition-colors disabled:opacity-30"
               style={{
                 background: selected ? "var(--ui-accent)" : "transparent",
-                color: selected ? "#fff" : "var(--text-primary)",
+                color: selected ? "var(--on-accent)" : "var(--text-primary)",
                 fontWeight: selected ? 600 : 400,
               }}
             >
@@ -84,6 +84,44 @@ export function Calendar({
   const start = selected ?? parseISODate(today)!;
   const [view, setView] = useState({ y: start.y, m: start.m });
   const [drill, setDrill] = useState(false);
+  // One tab stop for the whole grid (the selected day, else today, else the
+  // 1st); arrow keys move it, PageUp/PageDown change month.
+  const [focusIso, setFocusIso] = useState(value || today);
+  const dayRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const pendingFocus = useRef(false);
+
+  useEffect(() => {
+    if (pendingFocus.current) {
+      pendingFocus.current = false;
+      dayRefs.current[focusIso]?.focus();
+    }
+  });
+
+  function moveFocus(from: string, days: number, months = 0) {
+    const p = parseISODate(from);
+    if (!p) return;
+    const d = new Date(p.y, p.m + months, p.d + days);
+    const iso = toISODate(d.getFullYear(), d.getMonth(), d.getDate());
+    if ((min != null && iso < min) || (max != null && iso > max)) return;
+    pendingFocus.current = true;
+    setFocusIso(iso);
+    setView({ y: d.getFullYear(), m: d.getMonth() });
+  }
+
+  function handleKey(e: React.KeyboardEvent, iso: string) {
+    const step: Record<string, [number, number]> = {
+      ArrowLeft: [-1, 0],
+      ArrowRight: [1, 0],
+      ArrowUp: [-7, 0],
+      ArrowDown: [7, 0],
+      PageUp: [0, -1],
+      PageDown: [0, 1],
+    };
+    const move = step[e.key];
+    if (!move) return;
+    e.preventDefault();
+    moveFocus(iso, move[0], move[1]);
+  }
 
   function shift(delta: number) {
     setView((v) => {
@@ -110,6 +148,8 @@ export function Calendar({
 
   const lead = mondayIndexOfFirst(view.y, view.m);
   const total = daysInMonth(view.y, view.m);
+  const viewPrefix = `${view.y}-${String(view.m + 1).padStart(2, "0")}`;
+  const tabIso = focusIso.startsWith(viewPrefix) ? focusIso : toISODate(view.y, view.m, 1);
   const cells: (number | null)[] = [...Array<null>(lead).fill(null), ...Array.from({ length: total }, (_, i) => i + 1)];
 
   return (
@@ -147,15 +187,21 @@ export function Calendar({
           return (
             <button
               key={iso}
+              ref={(el) => {
+                dayRefs.current[iso] = el;
+              }}
               type="button"
               disabled={disabled}
               aria-pressed={isSel}
-              aria-label={iso}
+              aria-label={new Date(view.y, view.m, d).toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+              data-date={iso}
+              tabIndex={iso === tabIso ? 0 : -1}
+              onKeyDown={(e) => handleKey(e, iso)}
               onClick={() => onPick(iso)}
               className={clsx("mx-auto flex h-10 w-10 items-center justify-center rounded-full text-sm tabular-nums transition-colors disabled:opacity-30")}
               style={{
                 background: isSel ? "var(--ui-accent)" : "transparent",
-                color: isSel ? "#fff" : isToday ? "var(--ui-accent)" : "var(--text-primary)",
+                color: isSel ? "var(--on-accent)" : isToday ? "var(--ui-accent)" : "var(--text-primary)",
                 fontWeight: isSel || isToday ? 600 : 400,
               }}
             >

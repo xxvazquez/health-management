@@ -16,7 +16,7 @@ import {
 
 /** The compact value button every picker shows in a row — the iOS "compact
  * date picker": the value in a small grey capsule, muted when empty. */
-const TRIGGER_CLS = "inline-flex h-8 max-w-full items-center rounded-lg px-2.5 text-sm tabular-nums transition-opacity active:opacity-60 disabled:opacity-40";
+const TRIGGER_CLS = "hit-slop inline-flex h-8 max-w-full items-center rounded-lg px-2.5 text-sm tabular-nums transition-opacity active:opacity-60 disabled:opacity-40";
 
 function Trigger({
   display,

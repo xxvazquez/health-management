@@ -24,7 +24,7 @@
   --page-plane: #eaeef2;
   --text-primary: #1f2933;
   --text-secondary: #5b6b76;
-  --text-muted: #7c8a94;
+  --text-muted: #69777f;
   --border-hairline: rgba(31, 41, 51, 0.1);
   /* The one default interactive tint — buttons, tinted text, active-state
      icons, anything that doesn't have its own domain hue (Food, Workout,
@@ -44,6 +44,9 @@
   /* Filled (borderless) text-field ground — iOS search-bar grey, a step
      off the page plane so it reads on the page and on white cards. */
   --field-fill: color-mix(in oklab, var(--text-muted) 10%, var(--page-plane));
+  /* Text on a solid --ui-accent fill (selected calendar day): white on the
+     light accents, dark on the pale dark-mode accents. */
+  --on-accent: #ffffff;
 
   /* Categorical (fixed order — never cycle). Deepened versions of the
      brand palette, plus the in-between hues below, so 8 series stay
@@ -131,9 +134,10 @@
   --page-plane: #212932;
   --text-primary: #eef2f4;
   --text-secondary: #aab4bb;
-  --text-muted: #7c8790;
+  --text-muted: #86929a;
   --border-hairline: rgba(238, 242, 244, 0.1);
   --ui-accent: #4fb3ab;
+  --on-accent: #0e1418;
   --gridline: color-mix(in oklab, var(--text-muted) 20%, var(--surface-1));
   --baseline: color-mix(in oklab, var(--text-muted) 45%, var(--surface-1));
   /* Below --surface-1 (not derived off it like the light track) so the
@@ -417,6 +421,80 @@ a:active {
   left: var(--row-inset, 0);
   right: 0;
   border-top: 1px solid var(--gridline);
+}
+
+/* Visible keyboard focus. Controls in this app remove the browser outline, so
+   without this a desktop keyboard user can't see where they are. Only
+   :focus-visible, so touch and mouse taps never flash a ring. */
+:where(a, button, summary, [role="button"], [role="switch"], [role="option"], [tabindex]):focus-visible {
+  outline: 2px solid var(--ui-accent);
+  outline-offset: 2px;
+}
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--ui-accent) 55%, transparent);
+  border-radius: 6px;
+}
+
+/* Extends a compact control's pointer target to 44px (Apple's minimum)
+   without changing its look: an invisible band above and below. */
+.hit-slop {
+  position: relative;
+}
+.hit-slop::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: min(0px, calc((100% - 44px) / 2));
+  bottom: min(0px, calc((100% - 44px) / 2));
+}
+
+/* Sheet motion: slides up from the bottom edge on a phone, fades and settles
+   on wider screens; the backdrop fades in. Off for reduced-motion users. */
+@keyframes sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: none;
+  }
+}
+@keyframes sheet-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes sheet-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.sheet-backdrop {
+  animation: sheet-fade 200ms ease-out;
+}
+.sheet-panel {
+  animation: sheet-up 280ms cubic-bezier(0.22, 0.9, 0.3, 1);
+}
+@media (min-width: 640px) {
+  .sheet-panel {
+    animation: sheet-pop 180ms ease-out;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sheet-backdrop,
+  .sheet-panel {
+    animation: none;
+  }
 }
 
 /* Quiet trash button that only warms to the critical tone on hover. */

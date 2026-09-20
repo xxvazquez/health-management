@@ -20,7 +20,7 @@ const SIZE_CLS: Record<ButtonSize, string> = {
   xl: "min-h-11 px-5 text-sm",
 };
 
-const BASE_CLS = "inline-flex items-center justify-center gap-1.5 rounded-[10px] font-medium whitespace-nowrap transition-colors disabled:opacity-50";
+const BASE_CLS = "hit-slop inline-flex items-center justify-center gap-1.5 rounded-[10px] font-medium whitespace-nowrap transition-colors disabled:opacity-50";
 
 interface CommonProps {
   variant?: ButtonVariant;
@@ -37,7 +37,7 @@ type ButtonAsButton = CommonProps & { href?: undefined } & Omit<ButtonHTMLAttrib
 type ButtonAsLink = CommonProps & { href: string } & Omit<AnchorHTMLAttributes<HTMLAnchorElement>, "className" | "children">;
 
 function variantStyle(variant: ButtonVariant, accent: string): CSSProperties {
-  if (variant === "primary") return { background: accent, color: "#fff" };
+  if (variant === "primary") return { background: accent, color: accent === "var(--ui-accent)" ? "var(--on-accent)" : "#fff" };
   if (variant === "outline") return { background: "var(--field-fill)", color: "var(--text-primary)" };
   if (variant === "tinted") return { background: `color-mix(in oklab, ${accent} 14%, transparent)`, color: accent };
   return { color: "var(--text-secondary)" };

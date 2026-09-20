@@ -5,18 +5,18 @@ import clsx from "clsx";
  * shares this shape: 36px, 10px radius, the soft `--field-fill`. Menus and
  * pickers add a muted chevron/icon; state changes are never a different
  * shape. */
-export const CONTROL_CLS = "inline-flex h-9 shrink-0 items-center gap-1.5 rounded-[10px] px-3 text-sm transition-opacity active:opacity-60";
+export const CONTROL_CLS = "hit-slop inline-flex h-9 shrink-0 items-center gap-1.5 rounded-[10px] px-3 text-sm transition-opacity active:opacity-60";
 export const CONTROL_STYLE: CSSProperties = { background: "var(--field-fill)", color: "var(--text-primary)" };
 
 /** Shape of every selectable pill and grid cell in the app — filters,
  * pickers, Log's tap-to-log cells. One height, one radius, one type size. */
 export const CHIP_CLS =
-  "inline-flex min-h-8 items-center gap-1.5 rounded-[10px] border px-2.5 text-left text-sm leading-tight transition-colors active:opacity-70 disabled:opacity-50";
+  "hit-slop inline-flex min-h-8 items-center gap-1.5 rounded-[10px] border px-2.5 text-left text-sm leading-tight transition-colors active:opacity-70 disabled:opacity-50";
 
 /** Smaller chip for the horizontally-scrolling quick-pick rows ("Your usual",
  * "Products") — same look, less height and type. */
 export const CHIP_SM_CLS =
-  "inline-flex min-h-8 items-center gap-1 rounded-[10px] border px-2.5 text-left text-xs leading-tight transition-colors active:opacity-70 disabled:opacity-50";
+  "hit-slop inline-flex min-h-8 items-center gap-1 rounded-[10px] border px-2.5 text-left text-xs leading-tight transition-colors active:opacity-70 disabled:opacity-50";
 
 /** White with a hairline border at rest; tinted in `accent` when on. */
 export function chipStyle(active: boolean, accent: string = "var(--ui-accent)"): CSSProperties {

@@ -11,7 +11,7 @@ export interface SegmentedTabItem<T extends string = string> {
   accent?: string;
 }
 
-const BASE = "min-w-0 truncate rounded-md px-2.5 py-1.5 text-center text-sm transition-colors";
+const BASE = "hit-slop min-w-0 truncate rounded-md px-2.5 py-1.5 text-center text-sm transition-colors";
 
 function segmentStyle(active: boolean, accent?: string): CSSProperties {
   return {

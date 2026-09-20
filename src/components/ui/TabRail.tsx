@@ -125,7 +125,7 @@ export function TabRail<T extends string>({
             onPointerCancel={() => clearLongPress(t.id)}
             aria-current={active ? "page" : undefined}
             aria-label={iconOnly ? t.label : undefined}
-            className={clsx("group relative flex shrink-0 items-center gap-1.5 text-sm whitespace-nowrap transition-colors", tall ? "min-h-11" : "pb-2.5", iconOnly && "justify-center")}
+            className={clsx("group relative flex shrink-0 items-center gap-1.5 text-sm whitespace-nowrap transition-colors", tall ? "min-h-11" : "hit-slop pb-2.5", iconOnly && "justify-center")}
             style={{
               color: active ? t.accent : "var(--text-secondary)",
               fontWeight: active ? 600 : 500,

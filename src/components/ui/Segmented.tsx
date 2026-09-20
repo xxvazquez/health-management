@@ -24,7 +24,7 @@ export function Segmented<T extends string>({
           type="button"
           onClick={() => onChange(v)}
           aria-pressed={value === v}
-          className="min-h-8 rounded-lg px-3 text-sm font-medium"
+          className="hit-slop min-h-8 rounded-lg px-3 text-sm font-medium"
           style={{
             background: value === v ? "var(--surface-1)" : "transparent",
             boxShadow: value === v ? "var(--shadow-card)" : "none",
