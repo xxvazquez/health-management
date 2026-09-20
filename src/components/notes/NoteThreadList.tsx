@@ -2,7 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import { CategoryIcon, EyeIcon, EyeOffIcon, StarIcon } from "./icons";
-import { ErrorState } from "@/components/ui/EmptyState";
+import { ErrorState, InlineEmpty } from "@/components/ui/EmptyState";
 import { NOTE_CATEGORY_LABEL, type NoteThread, type NoteView } from "@/lib/supabase/notes";
 
 const ACCENT = "var(--series-magenta)";
@@ -64,7 +64,7 @@ function RowAction({
       disabled={disabled}
       aria-label={label}
       title={label}
-      className="tap-target shrink-0 rounded-md p-1.5 transition-colors hover:bg-[var(--surface-1)] disabled:opacity-40"
+      className="tap-target shrink-0 rounded-lg p-1.5 transition-colors hover:bg-[var(--page-plane)] disabled:opacity-40"
       style={{ color: active ? ACCENT : "var(--text-muted)" }}
     >
       {children}
@@ -126,23 +126,11 @@ export function NoteThreadList({
 
   if (threads.length === 0) {
     const copy = VIEW_EMPTY_COPY[view];
-    return (
-      <div
-        className="flex flex-col items-center justify-center rounded-xl border border-dashed py-12 text-center"
-        style={{ borderColor: "var(--border-hairline)" }}
-      >
-        <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-          {copy.title}
-        </p>
-        <p className="mt-1 max-w-xs text-xs" style={{ color: "var(--text-secondary)" }}>
-          {copy.description}
-        </p>
-      </div>
-    );
+    return <InlineEmpty title={copy.title} description={copy.description} />;
   }
 
   return (
-    <div className="flex flex-col">
+    <div className="inset-rows rounded-xl border [--row-inset:2rem]" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
       {threads.map((t) => {
         const busy = busyId === t.id;
         // Sent rows also bold while your partner hasn't read the message
@@ -153,13 +141,12 @@ export function NoteThreadList({
         return (
           <div
             key={t.id}
-            className="flex items-start gap-1 border-t pr-1 transition-colors first:border-t-0 hover:bg-[var(--page-plane)]"
-            style={{ borderColor: "var(--gridline)" }}
+            className="flex items-start gap-1 pr-1 pl-3.5 transition-colors hover:bg-black/[0.03]"
           >
             <button
               type="button"
               onClick={() => onOpen(t.id)}
-              className="flex min-w-0 flex-1 items-start gap-2 py-3.5 text-left"
+              className="flex min-w-0 flex-1 items-start gap-2 py-2.5 text-left"
             >
               <span className="mt-1.5 flex h-2 w-2 shrink-0 items-center justify-center">
                 {t.isUnreadForMe && <span className="h-2 w-2 rounded-full" style={{ background: ACCENT }} aria-hidden="true" />}
@@ -173,7 +160,7 @@ export function NoteThreadList({
                     {formatNoteTimestampShort(t.lastMessageAt)}
                   </span>
                 </span>
-                <span className="mt-1 flex items-center gap-1.5 text-xs" style={{ color: "var(--text-muted)" }}>
+                <span className="mt-0.5 flex items-center gap-1.5 text-xs" style={{ color: "var(--text-muted)" }}>
                   <span
                     className="inline-flex shrink-0 items-center gap-1 text-xs font-medium"
                     style={{ color: CATEGORY_TONE[t.category] }}
@@ -186,7 +173,7 @@ export function NoteThreadList({
               </span>
             </button>
 
-            <div className="flex shrink-0 items-center gap-0.5 pt-2">
+            <div className="flex shrink-0 items-center gap-0.5 pt-1.5">
               <RowAction
                 onClick={() => void run(t.id, () => onToggleFavourite(t.id, t.isMine, !t.isFavouritedByMe))}
                 active={t.isFavouritedByMe}

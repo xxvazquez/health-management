@@ -1,5 +1,7 @@
 "use client";
 
+import type { ReactNode } from "react";
+
 /** A small inline segmented control — one row of buttons on a filled track, the
  * active one raised and tinted with the given accent. Used for the trend
  * charts' time-window / mode switches. */
@@ -11,7 +13,7 @@ export function Segmented<T extends string>({
 }: {
   value: T;
   onChange: (v: T) => void;
-  options: readonly (readonly [T, string])[];
+  options: readonly (readonly [T, ReactNode])[];
   accent?: string;
 }) {
   return (

@@ -1,5 +1,6 @@
 "use client";
 
+import { TabRail } from "@/components/ui/TabRail";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/supabase/AuthContext";
 import { getPartnerLink, type PartnerLink } from "@/lib/supabase/partner";
@@ -471,21 +472,15 @@ function NotesHeader({
 
 function ViewTabs({ view, onChange }: { view: NoteView; onChange: (v: NoteView) => void }) {
   return (
-    <div className="flex gap-1 border-b" style={{ borderColor: "var(--gridline)" }}>
-      {VIEWS.map((v) => {
-        const active = v.id === view;
-        return (
-          <button
-            key={v.id}
-            type="button"
-            onClick={() => onChange(v.id)}
-            className="border-b-2 px-3 py-2 text-sm font-medium transition-colors"
-            style={{ borderColor: active ? ACCENT : "transparent", color: active ? ACCENT : "var(--text-secondary)" }}
-          >
-            {v.label}
-          </button>
-        );
-      })}
-    </div>
+    <TabRail
+      ariaLabel="Message folders"
+      wrap={false}
+      tall
+      className="border-b"
+      style={{ borderColor: "var(--border-hairline)" }}
+      items={VIEWS.map((v) => ({ id: v.id, label: v.label, accent: ACCENT }))}
+      activeId={view}
+      onSelect={onChange}
+    />
   );
 }

@@ -28,8 +28,8 @@ function ActionButton({
       disabled={disabled}
       aria-label={label}
       title={label}
-      className="flex h-8 w-8 items-center justify-center rounded-full disabled:opacity-40"
-      style={{ color: active ? ACCENT : "var(--text-secondary)", background: "var(--page-plane)" }}
+      className="flex h-9 w-9 items-center justify-center rounded-lg disabled:opacity-40"
+      style={{ color: active ? ACCENT : "var(--text-secondary)" }}
     >
       {children}
     </button>
@@ -159,7 +159,7 @@ export function NoteThreadView({
           className="flex min-h-9 items-center gap-1 text-sm font-medium"
           style={{ color: "var(--ui-accent)" }}
         >
-          ← Back
+          ‹ Back
         </button>
         <div className="flex items-center gap-1">
           <ActionButton onClick={() => void toggleFavourite()} active={thread.isFavouritedByMe} label={thread.isFavouritedByMe ? "Unfavourite" : "Favourite"} disabled={busy}>
@@ -172,7 +172,7 @@ export function NoteThreadView({
             type="button"
             onClick={() => void toggleArchive()}
             disabled={busy}
-            className="min-h-9 rounded-md px-2.5 text-sm font-medium disabled:opacity-50"
+            className="min-h-9 px-2.5 text-sm font-medium disabled:opacity-50"
             style={{ color: "var(--ui-accent)" }}
           >
             {thread.isArchivedByMe ? "Unarchive" : "Archive"}
@@ -206,19 +206,18 @@ export function NoteThreadView({
       {messages && (
         <div className="flex flex-col gap-3">
           {messages.map((m) => (
-            <div
-              key={m.id}
-              className="max-w-[85%] rounded-xl border px-3.5 py-2.5"
-              style={{
-                alignSelf: m.isMine ? "flex-end" : "flex-start",
-                borderColor: m.isMine ? ACCENT : "var(--border-hairline)",
-                background: m.isMine ? "color-mix(in oklab, var(--series-magenta) 10%, var(--surface-1))" : "var(--surface-1)",
-              }}
-            >
-              <p className="text-sm whitespace-pre-wrap" style={{ color: "var(--text-primary)" }}>
-                {m.body}
-              </p>
-              <p className="mt-1 text-xs" style={{ color: "var(--text-muted)" }}>
+            <div key={m.id} className="flex max-w-[85%] flex-col gap-0.5" style={{ alignSelf: m.isMine ? "flex-end" : "flex-start" }}>
+              <div
+                className="rounded-2xl px-3.5 py-2"
+                style={{
+                  background: m.isMine ? ACCENT : "var(--surface-1)",
+                  color: m.isMine ? "#fff" : "var(--text-primary)",
+                  boxShadow: m.isMine ? "none" : "inset 0 0 0 1px var(--border-hairline)",
+                }}
+              >
+                <p className="text-sm whitespace-pre-wrap">{m.body}</p>
+              </div>
+              <p className="px-1.5 text-xs" style={{ color: "var(--text-muted)", textAlign: m.isMine ? "right" : "left" }}>
                 {m.isMine ? "You" : partnerLabel} · {formatNoteTimestamp(m.createdAt)}
               </p>
             </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { CategoryIcon } from "./icons";
 import { Sheet } from "@/components/ui/Sheet";
 import { Segmented } from "@/components/ui/Segmented";
 import { Field } from "@/components/ui/Field";
@@ -87,7 +88,16 @@ export function ComposeNoteDialog({
           value={category}
           onChange={setCategory}
           accent={ACCENT}
-          options={NOTE_CATEGORIES.map((c) => [c, NOTE_CATEGORY_LABEL[c]] as const)}
+          options={NOTE_CATEGORIES.map(
+            (c) =>
+              [
+                c,
+                <span key={c} className="flex items-center gap-1.5">
+                  <CategoryIcon category={c} size={13} />
+                  {NOTE_CATEGORY_LABEL[c]}
+                </span>,
+              ] as const,
+          )}
         />
 
         <FormGroup>
