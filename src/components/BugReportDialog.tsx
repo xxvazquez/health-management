@@ -11,7 +11,7 @@ import { CloseIcon } from "@/components/ui/icons";
 
 const ACCENT = "var(--ui-accent)";
 
-const inputStyle = { background: "var(--field-fill)", color: "var(--text-primary)" };
+const inputStyle = { borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" };
 
 /** The one global feedback surface — a bug report or an idea, opened from
  * the nav's BugReportButton (desktop rail and mobile drawer both trigger
@@ -114,7 +114,7 @@ export function BugReportDialog({ open, onClose }: { open: boolean; onClose: () 
           <form onSubmit={handleSubmit} className="flex flex-col gap-3">
             <label className="flex flex-col gap-1 text-sm font-medium" style={{ color: "var(--text-secondary)" }}>
               Type
-              <select value={bugType} onChange={(e) => setBugType(e.target.value as BugType)} className="min-h-11 rounded-[10px] px-3 text-sm outline-none" style={inputStyle}>
+              <select value={bugType} onChange={(e) => setBugType(e.target.value as BugType)} className="min-h-11 rounded-[10px] border px-3 text-sm outline-none" style={inputStyle}>
                 {BUG_TYPES.map((t) => (
                   <option key={t} value={t}>
                     {t}
@@ -129,7 +129,7 @@ export function BugReportDialog({ open, onClose }: { open: boolean; onClose: () 
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
                 placeholder="e.g. Log page, Digestion chart"
-                className="min-h-11 rounded-[10px] px-3 text-sm outline-none"
+                className="min-h-11 rounded-[10px] border px-3 text-sm outline-none"
                 style={inputStyle}
               />
             </label>
@@ -141,7 +141,7 @@ export function BugReportDialog({ open, onClose }: { open: boolean; onClose: () 
                 rows={3}
                 maxRows={8}
                 placeholder="Anything else that would help"
-                className="resize-none min-h-20 rounded-[10px] px-3 text-sm outline-none py-2"
+                className="resize-none min-h-20 rounded-[10px] border px-3 text-sm outline-none py-2"
                 style={inputStyle}
               />
             </label>

@@ -1,6 +1,6 @@
 "use client";
 
-import { Chip } from "@/components/ui/Chip";
+import { TabRail } from "@/components/ui/TabRail";
 import { useMemo, useState } from "react";
 import { useLabs } from "@/lib/useLabs";
 import { todayLocalISODate } from "@/lib/aggregations/common";
@@ -154,16 +154,16 @@ export function BatchResultsView({
 
       <div className="flex flex-col gap-2">
         {chips.length > 2 && (
-          <div className="flex flex-wrap gap-1.5">
-            {chips.map((c) => {
-              const active = panelFilter === c.id;
-              return (
-                <Chip key={c.id} active={active} accent={accent} onClick={() => setPanelFilter(c.id)}>
-                  {c.label}
-                </Chip>
-              );
-            })}
-          </div>
+          <TabRail
+            ariaLabel="Filter by panel"
+            wrap={false}
+            tall
+            className="border-b"
+            style={{ borderColor: "var(--border-hairline)" }}
+            items={chips.map((c) => ({ id: c.id, label: c.label, accent }))}
+            activeId={panelFilter}
+            onSelect={setPanelFilter}
+          />
         )}
         <input
           value={query}

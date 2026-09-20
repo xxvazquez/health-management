@@ -1,6 +1,7 @@
 "use client";
 
 import { Chip } from "@/components/ui/Chip";
+import { Segmented } from "@/components/ui/Segmented";
 import { useMemo, useState, type FormEvent } from "react";
 import clsx from "clsx";
 import type { useDoctors } from "@/lib/useDoctors";
@@ -116,13 +117,12 @@ export function CareEntryForm({
 
   return (
     <FormShell title={initial ? "Edit entry" : "New entry"} onSubmit={handleSubmit} onCancel={onCancel}>
-      <div className="flex gap-1.5">
-        {(["observation", "note", "decision"] as const).map((k) => (
-          <Chip key={k} active={kind === k} accent={accent} onClick={() => setKind(k)}>
-            {CARE_KIND_LABEL[k]}
-          </Chip>
-        ))}
-      </div>
+      <Segmented
+        value={kind}
+        onChange={setKind}
+        accent={accent}
+        options={(["observation", "note", "decision"] as const).map((k) => [k, CARE_KIND_LABEL[k]] as const)}
+      />
       <p className="-mt-1 text-xs" style={{ color: "var(--text-muted)" }}>
         {KIND_HINT[kind]}
       </p>

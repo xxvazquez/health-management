@@ -1,5 +1,6 @@
 "use client";
 
+import { SwitchKnob } from "@/components/ui/Switch";
 import { useState, type FormEvent } from "react";
 import { isRecurringTask, type TaskItem } from "@/lib/reminders";
 import type { ReminderList } from "@/lib/supabase/personalReminders";
@@ -122,10 +123,17 @@ export function TaskForm({
       </Field>
 
       {recurrenceMode === "optional" && (
-        <label className="flex items-center gap-2 text-xs font-medium" style={labelStyle}>
-          <input type="checkbox" checked={recurring} onChange={(e) => setRecurring(e.target.checked)} style={{ accentColor: accent }} />
+        <button
+          type="button"
+          role="switch"
+          aria-checked={recurring}
+          onClick={() => setRecurring((v) => !v)}
+          className="flex min-h-11 w-full items-center justify-between gap-3 text-sm"
+          style={{ color: "var(--text-primary)" }}
+        >
           Repeats on a schedule
-        </label>
+          <SwitchKnob on={recurring} />
+        </button>
       )}
 
       <div className="grid gap-3 sm:grid-cols-2">

@@ -220,10 +220,7 @@ function ExerciseRow({
   }
 
   return (
-    <div
-      className="flex flex-wrap items-center justify-between gap-3 rounded-xl border p-3"
-      style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}
-    >
+    <div className="flex flex-wrap items-center justify-between gap-3 px-3.5 py-2.5">
       <div className="min-w-0 flex-1">
         <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
           {item.rawName}
@@ -240,8 +237,8 @@ function ExerciseRow({
           type="button"
           onClick={() => void handleLog()}
           disabled={saving || isDemoData}
-          className="h-9 rounded-[10px] px-3.5 text-sm font-medium text-white disabled:opacity-40"
-          style={{ background: accent }}
+          className="h-9 rounded-[10px] px-3.5 text-sm font-medium disabled:opacity-40"
+          style={{ background: `color-mix(in oklab, ${accent} 16%, var(--surface-1))`, color: accent }}
         >
           {isDemoData ? "Sign in to log" : saving ? "Saving…" : "Log"}
         </button>
@@ -290,7 +287,7 @@ export function WorkoutTab({
         groups.map((group, gi) => (
           <div key={group.category} className="flex flex-col gap-2">
             <div className="flex min-h-9 flex-wrap items-center justify-between gap-x-3 gap-y-1">
-              <p className="flex items-center gap-1.5 px-0.5 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
+              <p className="flex items-center gap-1.5 px-3.5 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
                 {group.chrome.iconKey && (
                   <span style={{ color: group.chrome.color ?? accent }}>
                     <CustomIcon icon={group.chrome.iconKey} size={13} />
@@ -300,7 +297,7 @@ export function WorkoutTab({
               </p>
               {gi === 0 && <TimeField value={time} onChange={onTimeChange} onReset={onTimeReset} collapsible />}
             </div>
-            <div className="flex flex-col gap-2">
+            <div className="inset-rows rounded-xl border" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
               {group.items.map((item) => (
                 <ExerciseRow
                   key={item.identity}

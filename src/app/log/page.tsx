@@ -299,8 +299,8 @@ function TimelineNote({
           onChange={(e) => setText(e.target.value)}
           autoFocus
           placeholder="Add a note…"
-          className="w-full min-w-0 rounded-[10px] px-1.5 py-0.5 text-xs outline-none"
-          style={{ background: "var(--field-fill)", color: "var(--text-primary)" }}
+          className="w-full min-w-0 rounded-[10px] border px-1.5 py-0.5 text-xs outline-none"
+          style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
         />
         <button type="submit" className="text-xs font-medium" style={{ color: "var(--status-good)" }}>
           Save
@@ -2220,8 +2220,8 @@ export default function LogPage() {
                       value={newItemText}
                       onChange={(e) => setNewItemText(e.target.value)}
                       placeholder={tabConfig.placeholder}
-                      className="w-full max-w-xs min-h-11 rounded-[10px] px-3 text-sm outline-none"
-                      style={{ background: "var(--field-fill)", color: "var(--text-primary)" }}
+                      className="w-full max-w-xs min-h-11 rounded-[10px] border px-3 text-sm outline-none"
+                      style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
                     />
                     <button
                       type="submit"
@@ -2250,8 +2250,8 @@ export default function LogPage() {
                       <select
                         value={newItemCategory || categoryNamesForTab[0]}
                         onChange={(e) => setNewItemCategory(e.target.value)}
-                        className="min-h-9 rounded-[10px] px-3 text-sm"
-                        style={{ background: "var(--field-fill)", color: "var(--text-primary)" }}
+                        className="min-h-9 rounded-[10px] border px-3 text-sm"
+                        style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
                       >
                         {categoryNamesForTab.map((c) => (
                           <option key={c} value={c}>

@@ -1,6 +1,6 @@
 "use client";
 
-import { Chip } from "@/components/ui/Chip";
+import { TabRail } from "@/components/ui/TabRail";
 import { useMemo, useState, type ReactNode } from "react";
 import { Card } from "@/components/ui/Card";
 import { Disclosure } from "@/components/ui/Disclosure";
@@ -253,13 +253,16 @@ export function AdherenceCardGrid({
           </div>
 
           {categories.length > 1 && (
-            <div className="flex flex-wrap gap-1.5">
-              {["all", ...categories].map((c) => (
-                <Chip key={c} active={categoryFilter === c} accent={accent} onClick={() => setCategoryFilter(c)} className="capitalize">
-                  {c === "all" ? "All" : c}
-                </Chip>
-              ))}
-            </div>
+            <TabRail
+              ariaLabel="Filter by category"
+              wrap={false}
+              tall
+              className="border-b"
+              style={{ borderColor: "var(--border-hairline)" }}
+              items={["all", ...categories].map((c) => ({ id: c, label: c === "all" ? "All" : c, accent }))}
+              activeId={categoryFilter}
+              onSelect={setCategoryFilter}
+            />
           )}
 
           {rows.length === 0 ? (

@@ -195,10 +195,8 @@ function Chip({
   );
 }
 
-/** Equal-width pill grid — two per row on the narrowest phones, three
- * above — used for every detail field so the chips line up instead of
- * ragging. */
-const CHIP_GRID = "grid grid-cols-2 gap-1.5 min-[400px]:grid-cols-3";
+/** Wrapping row of natural-width chips, used for every detail field. */
+const CHIP_GRID = "flex flex-wrap gap-1.5";
 
 /** The stool properties logged against an entry — "Smelly", "Sticky", … */
 export function characteristicLabels(entry: { characteristics: string[] }): string[] {
@@ -402,7 +400,7 @@ export function StoolTab({
               </p>
               <div className={CHIP_GRID}>
                 {options.color.map((c) => (
-                  <Chip key={c} label={c} icon={<ColorDot swatch={options.swatchFor(c)} />} active={draft.color === c} onClick={() => pickColor(c)} accent={accent} block />
+                  <Chip key={c} label={c} icon={<ColorDot swatch={options.swatchFor(c)} />} active={draft.color === c} onClick={() => pickColor(c)} accent={accent} />
                 ))}
               </div>
             </div>
@@ -413,7 +411,7 @@ export function StoolTab({
               </p>
               <div className={CHIP_GRID}>
                 {options.floatation.map((f) => (
-                  <Chip key={f} label={f} icon={<FloatationIcon />} active={draft.floatation === f} onClick={() => pickFloatation(f)} accent={accent} block />
+                  <Chip key={f} label={f} icon={<FloatationIcon />} active={draft.floatation === f} onClick={() => pickFloatation(f)} accent={accent} />
                 ))}
               </div>
             </div>
@@ -431,7 +429,6 @@ export function StoolTab({
                     active={draft.characteristics.includes(c)}
                     onClick={() => toggleCharacteristic(c)}
                     accent={accent}
-                    block
                   />
                 ))}
               </div>
@@ -443,7 +440,7 @@ export function StoolTab({
               </p>
               <div className={CHIP_GRID}>
                 {options.symptom.map((s) => (
-                  <Chip key={s} label={s} active={draft.symptoms.includes(s)} onClick={() => toggleSymptom(s)} accent={accent} block />
+                  <Chip key={s} label={s} active={draft.symptoms.includes(s)} onClick={() => toggleSymptom(s)} accent={accent} />
                 ))}
               </div>
             </div>
@@ -454,7 +451,7 @@ export function StoolTab({
               </p>
               <div className={CHIP_GRID}>
                 {HYGIENE_OPTIONS.map((h) => (
-                  <Chip key={h} label={h} icon={<HygieneIcon option={h} />} active={draft.hygiene.includes(h)} onClick={() => toggleHygiene(h)} accent={accent} block />
+                  <Chip key={h} label={h} icon={<HygieneIcon option={h} />} active={draft.hygiene.includes(h)} onClick={() => toggleHygiene(h)} accent={accent} />
                 ))}
               </div>
             </div>
@@ -471,7 +468,6 @@ export function StoolTab({
                     active={draft.timeOnToiletMinutes === m}
                     onClick={() => pickTimeOnToilet(m)}
                     accent={accent}
-                    block
                   />
                 ))}
               </div>
@@ -485,8 +481,8 @@ export function StoolTab({
                 value={draft.note ?? ""}
                 onChange={(e) => setDraft((d) => ({ ...d, note: e.target.value }))}
                 placeholder="Add a note…"
-                className="w-full min-h-11 rounded-[10px] px-3 text-sm outline-none"
-                style={{ background: "var(--field-fill)", color: "var(--text-primary)" }}
+                className="w-full min-h-11 rounded-[10px] border px-3 text-sm outline-none"
+                style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
               />
             </div>
           </div>

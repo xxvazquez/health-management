@@ -1,5 +1,6 @@
 "use client";
 
+import { Segmented } from "@/components/ui/Segmented";
 import { CONTROL_CLS, CONTROL_STYLE, Chip as BaseChip } from "@/components/ui/Chip";
 import { useMemo, useState, type FormEvent, type ReactNode } from "react";
 import Link from "next/link";
@@ -125,19 +126,21 @@ function FilterPanel({
       style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}
     >
       <FilterRow label="Show">
-        {(["all", "reminder", "expiry", "appointment"] as const).map((t) => (
-          <Chip key={t} active={typeFilter === t} onClick={() => setTypeFilter(t)}>
-            {TYPE_LABEL[t]}
-          </Chip>
-        ))}
+        <Segmented
+          value={typeFilter}
+          onChange={setTypeFilter}
+          accent={ACCENT}
+          options={(["all", "reminder", "expiry", "appointment"] as const).map((t) => [t, TYPE_LABEL[t]] as const)}
+        />
       </FilterRow>
       {partnerLinked && (
         <FilterRow label="Scope">
-          {(["all", "mine", "shared", "medical"] as const).map((s) => (
-            <Chip key={s} active={scopeFilter === s} onClick={() => setScopeFilter(s)}>
-              {SCOPE_LABEL[s]}
-            </Chip>
-          ))}
+          <Segmented
+            value={scopeFilter}
+            onChange={setScopeFilter}
+            accent={ACCENT}
+            options={(["all", "mine", "shared", "medical"] as const).map((s) => [s, SCOPE_LABEL[s]] as const)}
+          />
         </FilterRow>
       )}
       {listShown && (
@@ -444,14 +447,14 @@ function AgendaRow({
 
   const meta =
     e.subtitle || recurring || e.scope === "shared" ? (
-      <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs" style={{ color: "var(--text-muted)" }}>
+      <span className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs" style={{ color: "var(--text-muted)" }}>
         {e.subtitle && <span className="truncate">{e.subtitle}</span>}
         {recurring && e.reminder?.recurrenceDays != null && (
           <span className="font-medium" style={{ color: ACCENT }}>
             every {e.reminder.recurrenceDays}d
           </span>
         )}
-        {e.scope === "shared" && <span>shared</span>}
+        {e.scope === "shared" && <span>{e.subtitle || recurring ? "· shared" : "shared"}</span>}
       </span>
     ) : null;
 

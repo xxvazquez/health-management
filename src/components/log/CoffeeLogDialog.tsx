@@ -42,14 +42,12 @@ function draftFromLog(log: CoffeeLog): CoffeeLogDraft {
   };
 }
 
-/** Same equal-width pill grid as Stool's picker chips, so every "pick one
- * or many" field across the app aligns the same way instead of wrapping
- * ragged, differently-sized pills. */
-const PICK_GRID = "grid grid-cols-2 gap-1.5";
+/** Wrapping row of natural-width chips for every "pick one or many" field. */
+const PICK_GRID = "flex flex-wrap gap-1.5";
 
 function PickChip({ label, active, onClick, accent }: { label: string; active: boolean; onClick: () => void; accent: string }) {
   return (
-    <BaseChip active={active} accent={accent} block onClick={onClick}>
+    <BaseChip active={active} accent={accent} onClick={onClick}>
       {label}
     </BaseChip>
   );
@@ -162,8 +160,8 @@ export function CoffeeLogDialog({
             value={draft.cafe}
             onChange={(e) => setDraft((d) => ({ ...d, cafe: e.target.value }))}
             placeholder="Home"
-            className="rounded-[10px] px-3 py-2 text-sm outline-none"
-            style={{ background: "var(--field-fill)", color: "var(--text-primary)" }}
+            className="rounded-[10px] border px-3 py-2 text-sm outline-none"
+            style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
           />
         </label>
 
@@ -256,8 +254,8 @@ export function CoffeeLogDialog({
             rows={2}
             maxRows={6}
             placeholder="Bloomed 30s, a little under-extracted…"
-            className="resize-none rounded-[10px] px-3 py-2 text-sm outline-none"
-            style={{ background: "var(--field-fill)", color: "var(--text-primary)" }}
+            className="resize-none rounded-[10px] border px-3 py-2 text-sm outline-none"
+            style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
           />
         </label>
 

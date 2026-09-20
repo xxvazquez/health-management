@@ -465,8 +465,8 @@ function CopyRow({ label, value }: { label: string; value: string }) {
       </span>
       <div className="flex items-center gap-2">
         <code
-          className="min-w-0 flex-1 truncate min-h-9 rounded-[10px] px-3 text-sm"
-          style={{ background: "var(--field-fill)", color: "var(--text-secondary)" }}
+          className="min-w-0 flex-1 truncate min-h-9 rounded-[10px] border px-3 text-sm"
+          style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-secondary)" }}
         >
           {value}
         </code>
@@ -623,8 +623,8 @@ function PhoneSetup({ share, accent, onBack }: { share: WishlistShareToPhone; ac
               </span>
               <div className="flex items-center gap-2">
                 <code
-                  className="min-w-0 flex-1 truncate min-h-9 rounded-[10px] px-3 text-sm"
-                  style={{ background: "var(--field-fill)", color: "var(--text-secondary)" }}
+                  className="min-w-0 flex-1 truncate min-h-9 rounded-[10px] border px-3 text-sm"
+                  style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-secondary)" }}
                 >
                   {curl}
                 </code>

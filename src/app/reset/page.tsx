@@ -5,7 +5,7 @@ import { useAuth } from "@/lib/supabase/AuthContext";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 
-const INPUT_STYLE = { background: "var(--field-fill)", color: "var(--text-primary)" };
+const INPUT_STYLE = { borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" };
 
 /** Where the password-reset email link lands. Supabase's JS client picks
  * the recovery token out of the URL on load and establishes a session;
@@ -89,7 +89,7 @@ export default function ResetPasswordPage() {
                 autoComplete="new-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="min-h-11 rounded-[10px] px-3 text-sm outline-none"
+                className="min-h-11 rounded-[10px] border px-3 text-sm outline-none"
                 style={INPUT_STYLE}
               />
             </label>
@@ -101,7 +101,7 @@ export default function ResetPasswordPage() {
                 autoComplete="new-password"
                 value={confirm}
                 onChange={(e) => setConfirm(e.target.value)}
-                className="min-h-11 rounded-[10px] px-3 text-sm outline-none"
+                className="min-h-11 rounded-[10px] border px-3 text-sm outline-none"
                 style={INPUT_STYLE}
               />
             </label>
