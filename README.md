@@ -473,8 +473,10 @@ bug-report function is unaffected — it mails `BUG_EMAIL`, the account owner.
   `--font-app`, Inter as the fallback elsewhere. Type scale: 12px captions, 14px body,
   16px section headings, 20px page titles — nothing else, including chart ticks.
   Every selectable pill, filter and Log cell is the shared `Chip` (`ui/Chip.tsx`):
-  white with a hairline border at rest, accent-tinted when on, regular weight, 36px
-  tall (`CHIP_SM_CLS` for the scrolling "Your usual" rows) — don't hand-roll a new one.
+  a soft grey fill (`--field-fill`, no outline) at rest, accent-tinted when on, regular
+  weight, 36px tall (`CHIP_SM_CLS` for the scrolling "Your usual" rows) — don't
+  hand-roll a new one. `SearchField` uses the same filled, borderless look; on Log the
+  meal and time controls beside it are plain accent-coloured menu text, not pills.
   `public/icons/` are PNG renders
   of `public/logo-mark.svg` — regenerate from the SVG, don't hand-edit the PNGs.
 

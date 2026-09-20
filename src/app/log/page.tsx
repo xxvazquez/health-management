@@ -1995,12 +1995,12 @@ export default function LogPage() {
          * size and shows the same tabs whichever one is open. */}
         {!tabConfig && <div aria-hidden="true" className="hidden lg:block lg:w-[28rem]" />}
         {tabConfig && (
-          <div className="flex w-full flex-wrap items-center gap-x-3 gap-y-1 lg:w-[28rem]">
+          <div className="flex w-full flex-wrap items-center gap-x-1 gap-y-1 lg:w-[28rem]">
             <SearchField
               value={search}
               onChange={setSearch}
               placeholder="Search or add…"
-              className="w-36 min-w-0 grow"
+              className="min-w-40 flex-1"
             />
             {/* The meal tag stays visible — the auto-pick is by time of day
              * and is often wrong (breakfast logged at 11pm), so changing it
@@ -2008,8 +2008,8 @@ export default function LogPage() {
              * a "now" pill. */}
             {tabConfig.countable && (
               <label
-                className={`${CHIP_CLS} relative`}
-                style={chipStyle(true, TYPE_ACCENT[tabConfig.type])}
+                className="relative inline-flex h-9 shrink-0 items-center gap-1 rounded-lg px-1.5 text-sm font-medium active:opacity-60"
+                style={{ color: TYPE_ACCENT[tabConfig.type] }}
               >
                 {meal}
                 <ChevronIcon dir="down" size={11} />

@@ -41,6 +41,9 @@
   /* The segmented-control track — set so the active thumb (`--surface-1`)
      always reads as raised above it, in either theme. */
   --segment-track: var(--page-plane);
+  /* Filled (borderless) text-field ground — iOS search-bar grey, a step
+     off the page plane so it reads on the page and on white cards. */
+  --field-fill: color-mix(in oklab, var(--text-muted) 10%, var(--page-plane));
 
   /* Categorical (fixed order — never cycle). Deepened versions of the
      brand palette, plus the in-between hues below, so 8 series stay
