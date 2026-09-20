@@ -4,18 +4,18 @@ import clsx from "clsx";
 /** Shape of every selectable pill and grid cell in the app — filters,
  * pickers, Log's tap-to-log cells. One height, one radius, one type size. */
 export const CHIP_CLS =
-  "inline-flex min-h-9 items-center gap-1.5 rounded-lg border px-3 text-left text-sm leading-tight transition-colors active:opacity-70 disabled:opacity-50";
+  "inline-flex min-h-9 items-center gap-1.5 rounded-md border px-3 text-left text-sm leading-tight transition-colors active:opacity-70 disabled:opacity-50";
 
 /** Smaller chip for the horizontally-scrolling quick-pick rows ("Your usual",
  * "Products") — same look, less height and type. */
 export const CHIP_SM_CLS =
-  "inline-flex min-h-8 items-center gap-1 rounded-lg border px-2.5 text-left text-xs leading-tight transition-colors active:opacity-70 disabled:opacity-50";
+  "inline-flex min-h-8 items-center gap-1 rounded-md border px-2.5 text-left text-xs leading-tight transition-colors active:opacity-70 disabled:opacity-50";
 
-/** Soft grey fill at rest, no outline; tinted in `accent` when on. */
+/** White with a hairline border at rest; tinted in `accent` when on. */
 export function chipStyle(active: boolean, accent: string = "var(--ui-accent)"): CSSProperties {
   return {
-    background: active ? `color-mix(in oklab, ${accent} 16%, var(--surface-1))` : "var(--field-fill)",
-    borderColor: "transparent",
+    background: active ? `color-mix(in oklab, ${accent} 14%, var(--surface-1))` : "var(--surface-1)",
+    borderColor: active ? accent : "var(--border-hairline)",
     color: active ? accent : "var(--text-primary)",
   };
 }
