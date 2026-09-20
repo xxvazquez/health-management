@@ -1505,8 +1505,8 @@ export default function LogPage() {
         disabled={busy}
         aria-pressed={logged}
         className={clsx(
-          "flex min-h-11 w-full items-center justify-between gap-3 pr-3.5 text-left text-sm transition-colors active:bg-black/5 disabled:opacity-50",
-          indent ? "pl-[3.375rem]" : "pl-3.5",
+          "flex min-h-11 w-full items-center justify-between gap-3 pr-3.5 text-left text-sm transition-colors hover:bg-black/[0.04] active:bg-black/5 disabled:opacity-50 lg:rounded-lg",
+          indent ? "pl-[3.375rem] lg:pl-3.5" : "pl-3.5",
         )}
         style={{ color: logged ? TYPE_ACCENT.food : "var(--text-primary)", fontWeight: logged ? 600 : 400 }}
       >
@@ -1722,7 +1722,10 @@ export default function LogPage() {
       <button
         type="button"
         onClick={() => setFullCategories((prev) => new Set(prev).add(storageKey))}
-        className={clsx("flex min-h-11 w-full items-center pr-3.5 text-left text-sm font-medium active:bg-black/5", indent ? "pl-[3.375rem]" : "pl-3.5")}
+        className={clsx(
+          "flex min-h-11 w-full items-center pr-3.5 text-left text-sm font-medium hover:bg-black/[0.04] active:bg-black/5 lg:rounded-lg",
+          indent ? "pl-[3.375rem] lg:pl-3.5" : "pl-3.5",
+        )}
         style={{ color: "var(--ui-accent)" }}
       >
         All {total}
@@ -1749,7 +1752,10 @@ export default function LogPage() {
           activeId={active.category}
           onSelect={setFoodCategory}
         />
-        <div className="inset-rows rounded-xl border" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
+        <div
+          className="inset-rows rounded-xl border lg:grid lg:grid-cols-3 lg:gap-1 lg:p-1.5 xl:grid-cols-4 lg:[&>*::before]:hidden"
+          style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}
+        >
           {visibleItems.map((c) => renderChip(c))}
           {hiddenCount > 0 && renderShowAll(storageKey, active.items.length, false)}
         </div>
@@ -1805,9 +1811,9 @@ export default function LogPage() {
                 className={clsx(
                   "border-t",
                   type === "food"
-                    ? "inset-rows flex-col [--row-inset:3.375rem]"
+                    ? "inset-rows flex-col [--row-inset:3.375rem] lg:grid lg:grid-cols-3 lg:gap-1 lg:p-1.5 xl:grid-cols-4 lg:[&>*::before]:hidden"
                     : "grid-cols-2 gap-2 p-3 sm:grid-cols-3 lg:grid-cols-4",
-                  type === "food" ? (collapsed ? "hidden lg:flex" : "flex") : collapsed ? "hidden lg:grid" : "grid",
+                  type === "food" ? (collapsed ? "hidden lg:grid" : "flex lg:grid") : collapsed ? "hidden lg:grid" : "grid",
                 )}
                 style={{ borderColor: "var(--gridline)" }}
               >
