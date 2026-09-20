@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import clsx from "clsx";
 import { useOverflowFade } from "@/lib/useOverflowFade";
+import { useRovingTabs } from "@/lib/useRovingTabs";
 
 export interface TabRailItem<T extends string = string> {
   id: T;
@@ -63,6 +64,8 @@ export function TabRail<T extends string>({
 }) {
   const navRef = useOverflowFade<HTMLElement>();
   const activeRef = useRef<HTMLButtonElement>(null);
+  const ids = items.map((t) => t.id);
+  const { registerRef, handleKeyDown, tabIndex } = useRovingTabs(ids, activeId, onSelect);
   const [longPressId, setLongPressId] = useState<T | null>(null);
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longPressFiredRef = useRef(false);
@@ -116,9 +119,14 @@ export function TabRail<T extends string>({
         return (
           <button
             key={t.id}
-            ref={active ? activeRef : undefined}
+            ref={(el) => {
+              if (active) activeRef.current = el;
+              registerRef(t.id)(el);
+            }}
             type="button"
             onClick={() => handleClick(t.id)}
+            onKeyDown={(e) => handleKeyDown(e, t.id)}
+            tabIndex={tabIndex(t.id)}
             onPointerDown={(e) => handlePointerDown(e, t.id)}
             onPointerUp={() => clearLongPress(t.id)}
             onPointerLeave={() => clearLongPress(t.id)}

@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { useRovingTabs } from "@/lib/useRovingTabs";
 
 /** A small inline segmented control — one row of buttons on a filled track, the
  * active one raised and tinted with the given accent. Used for the trend
@@ -16,13 +17,18 @@ export function Segmented<T extends string>({
   options: readonly (readonly [T, ReactNode])[];
   accent?: string;
 }) {
+  const ids = options.map(([v]) => v);
+  const { registerRef, handleKeyDown, tabIndex } = useRovingTabs(ids, value, onChange);
   return (
     <div className="inline-flex w-fit rounded-[10px] p-0.5" style={{ background: "var(--field-fill)" }}>
       {options.map(([v, label]) => (
         <button
           key={v}
+          ref={registerRef(v)}
           type="button"
           onClick={() => onChange(v)}
+          onKeyDown={(e) => handleKeyDown(e, v)}
+          tabIndex={tabIndex(v)}
           aria-pressed={value === v}
           className="hit-slop min-h-8 rounded-lg px-3 text-sm font-medium"
           style={{

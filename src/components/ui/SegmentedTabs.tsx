@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import clsx from "clsx";
+import { useRovingTabs } from "@/lib/useRovingTabs";
 
 export interface SegmentedTabItem<T extends string = string> {
   id: T;
@@ -141,6 +142,13 @@ export function SegmentedTabs<T extends string>({
   const overflow = items.slice(visibleCount);
   const activeInOverflow = overflow.find((t) => t.id === activeId);
 
+  // The roving tab stop has to land on a rendered segment — when the active
+  // item is folded into "More" instead, that trigger button already has its
+  // own ordinary tab stop, so the visible row falls back to its first item.
+  const visibleIds = visible.map((t) => t.id);
+  const rovingActiveId = activeInOverflow ? (visibleIds[0] ?? activeId) : activeId;
+  const { registerRef, handleKeyDown, tabIndex } = useRovingTabs(visibleIds, rovingActiveId, onSelect);
+
   return (
     // The track always spans the full width: an equal share per segment when
     // the longest label clears it, otherwise natural-width segments that grow
@@ -156,9 +164,12 @@ export function SegmentedTabs<T extends string>({
           return (
             <button
               key={t.id}
+              ref={registerRef(t.id)}
               type="button"
               aria-current={active ? "page" : undefined}
               onClick={() => onSelect(t.id)}
+              onKeyDown={(e) => handleKeyDown(e, t.id)}
+              tabIndex={tabIndex(t.id)}
               className={clsx(BASE, equalShare ? "flex-1" : "flex-auto")}
               style={segmentStyle(active, t.accent)}
             >
