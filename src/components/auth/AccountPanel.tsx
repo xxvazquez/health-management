@@ -1,16 +1,18 @@
 "use client";
 
-import { CHIP_CLS, chipStyle } from "@/components/ui/Chip";
 import { useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/supabase/AuthContext";
 import { useData } from "@/lib/DataContext";
 import { usePartnerLinked } from "@/lib/usePartnerLinked";
 import { relativeTime } from "@/lib/relativeTime";
-import { useDialogA11y } from "@/components/ui/useDialogA11y";
+import { Sheet } from "@/components/ui/Sheet";
+import { Field } from "@/components/ui/Field";
+import { FormGroup } from "@/components/ui/FormGroup";
+import { ChevronIcon } from "@/components/ui/icons";
 import { Button } from "@/components/ui/Button";
 import { Logo } from "@/components/Logo";
-import { FIELD_CLS, FIELD_STYLE, LABEL_CLS, LABEL_STYLE } from "@/components/ui/formField";
+import { ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
 
 /** A row in the account menu's utility list. */
 function MenuLink({ href, onClick, children }: { href: string; onClick: () => void; children: React.ReactNode }) {
@@ -18,10 +20,13 @@ function MenuLink({ href, onClick, children }: { href: string; onClick: () => vo
     <Link
       href={href}
       onClick={onClick}
-      className="-mx-1 flex items-center gap-2 min-h-9 rounded-md px-3 text-sm font-medium transition-colors hover:bg-[var(--page-plane)]"
-      style={{ color: "var(--text-secondary)" }}
+      className="flex min-h-11 items-center justify-between gap-2 px-3.5 text-sm transition-colors hover:bg-black/[0.04]"
+      style={{ color: "var(--text-primary)" }}
     >
       {children}
+      <span aria-hidden="true" style={{ color: "var(--text-muted)" }}>
+        <ChevronIcon dir="right" size={14} />
+      </span>
     </Link>
   );
 }
@@ -47,7 +52,6 @@ export function AccountPanel() {
   const [submitting, setSubmitting] = useState(false);
   const [resetSent, setResetSent] = useState(false);
   const [resetError, setResetError] = useState<string | null>(null);
-  const containerRef = useDialogA11y(panelOpen, closePanel);
 
   if (!panelOpen) return null;
 
@@ -86,137 +90,110 @@ export function AccountPanel() {
   }
 
   return (
-    <div
-      ref={containerRef}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="account-panel-title"
-    >
-      <div className="absolute inset-0 bg-black/30" onClick={closePanel} />
-      <div
-        className="relative flex w-full max-w-sm flex-col gap-4 rounded-xl border p-5 shadow-xl"
-        style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}
-      >
-        <div className="flex items-start justify-between gap-3">
-          {session ? (
-            <h2 id="account-panel-title" className="text-sm font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
-              Account
-            </h2>
-          ) : (
-            <div className="flex flex-col gap-1">
-              <span className="flex items-center gap-2">
-                <Logo size={22} />
-                <span id="account-panel-title" className="text-base font-semibold tracking-[0.18em]" style={{ color: "var(--text-primary)" }}>
-                  LAUVA
-                </span>
-              </span>
-              <p className="text-xs leading-snug" style={{ color: "var(--text-secondary)" }}>
-                Private tracking for food, symptoms, supplements, habits and your cycle — with the trends afterwards.
-              </p>
-            </div>
-          )}
-          <button
-            type="button"
-            onClick={closePanel}
-            aria-label="Close"
-            className="-mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full"
-            style={{ color: "var(--text-secondary)", background: "var(--page-plane)" }}
-          >
-            <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-              <path d="M5 5l10 10M15 5L5 15" />
-            </svg>
-          </button>
-        </div>
-
-        {session && (
-          <nav className="flex flex-col gap-0.5 border-b pb-3" style={{ borderColor: "var(--border-hairline)" }}>
-            {!partnerLinked && (
-              // The one place a solo user can reach the partner-link flow —
-              // Messages only enters the nav once a partner is linked.
-              <MenuLink href="/notes" onClick={closePanel}>
-                Link a partner
-              </MenuLink>
-            )}
-            <MenuLink href="/manage" onClick={closePanel}>
-              Settings
-            </MenuLink>
-            <MenuLink href="/help" onClick={closePanel}>
-              Help
-            </MenuLink>
-            <MenuLink href="/my-drive" onClick={closePanel}>
-              Google Drive
-            </MenuLink>
-          </nav>
-        )}
-
-        {!configured && (
-          <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-            Cloud sync isn&apos;t set up for this deployment yet — data stays on this device only.
+    <Sheet
+      title={session ? "Account" : "LAUVA"}
+      titleId="account-panel-title"
+      onClose={closePanel}
+      icon={session ? undefined : <Logo size={22} />}
+      subtitle={
+        !session && (
+          <p className="text-xs leading-snug" style={{ color: "var(--text-secondary)" }}>
+            Private tracking for food, symptoms, supplements, habits and your cycle — with the trends afterwards.
           </p>
-        )}
+        )
+      }
+    >
+      {session && (
+        <FormGroup>
+          {!partnerLinked && (
+            // The one place a solo user can reach the partner-link flow —
+            // Messages only enters the nav once a partner is linked.
+            <MenuLink href="/notes" onClick={closePanel}>
+              Link a partner
+            </MenuLink>
+          )}
+          <MenuLink href="/manage" onClick={closePanel}>
+            Settings
+          </MenuLink>
+          <MenuLink href="/help" onClick={closePanel}>
+            Help
+          </MenuLink>
+          <MenuLink href="/my-drive" onClick={closePanel}>
+            Google Drive
+          </MenuLink>
+        </FormGroup>
+      )}
 
-        {configured && session && (
-          <>
-            <div className="flex items-center gap-2 text-sm" style={{ color: "var(--text-primary)" }}>
-              <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: "var(--status-good)" }} />
-              Signed in as <span className="font-medium">{session.user.email}</span>
+      {!configured && (
+        <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
+          Cloud sync isn&apos;t set up for this deployment yet — data stays on this device only.
+        </p>
+      )}
+
+      {configured && session && (
+        <>
+          <FormGroup
+            footer={
+              syncState.pending > 0
+                ? `${syncState.pending} ${syncState.pending === 1 ? "change" : "changes"} saved on this device${isOnline ? ", uploading…" : " — will upload when you're back online"}`
+                : undefined
+            }
+          >
+            <div className="flex min-h-11 items-center gap-3 px-3.5 text-sm">
+              <span className="text-sm" style={{ color: "var(--text-secondary)" }}>
+                Signed in as
+              </span>
+              <span className="min-w-0 flex-1 truncate text-right font-medium" style={{ color: "var(--text-primary)" }}>
+                {session.user.email}
+              </span>
             </div>
-
-            <div className="flex flex-col gap-1.5 rounded-md border p-3" style={{ borderColor: "var(--border-hairline)", background: "var(--page-plane)" }}>
-              <div className="flex items-center justify-between gap-2">
-                <span className="flex items-center gap-1.5 text-xs" style={{ color: "var(--text-secondary)" }}>
-                  <span
-                    className="h-1.5 w-1.5 shrink-0 rounded-full"
-                    style={{
-                      background: syncState.deadLetter > 0 ? "var(--status-warning)" : !isOnline || syncState.pending > 0 || syncing ? "var(--text-muted)" : "var(--status-good)",
-                    }}
-                  />
-                  {syncing
-                    ? "Syncing…"
-                    : !isOnline
-                      ? "Offline"
-                      : lastSyncedAt
-                        ? `Synced ${relativeTime(lastSyncedAt)}`
-                        : "Not synced yet"}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => void syncNow()}
-                  disabled={syncing || !isOnline}
-                  className={`${CHIP_CLS} shrink-0`}
-                  style={chipStyle(false)}
-                >
-                  {syncing ? "Syncing…" : "Sync now"}
-                </button>
-              </div>
-              {syncState.pending > 0 && (
-                <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-                  {syncState.pending} {syncState.pending === 1 ? "change" : "changes"} saved on this device{isOnline ? ", uploading…" : " — will upload when you're back online"}
-                </span>
-              )}
+            <div className="flex min-h-11 items-center justify-between gap-3 px-3.5">
+              <span className="flex items-center gap-1.5 text-sm" style={{ color: "var(--text-secondary)" }}>
+                <span
+                  className="h-1.5 w-1.5 shrink-0 rounded-full"
+                  style={{
+                    background: syncState.deadLetter > 0 ? "var(--status-warning)" : !isOnline || syncState.pending > 0 || syncing ? "var(--text-muted)" : "var(--status-good)",
+                  }}
+                />
+                {syncing ? "Syncing…" : !isOnline ? "Offline" : lastSyncedAt ? `Synced ${relativeTime(lastSyncedAt)}` : "Not synced yet"}
+              </span>
+              <button
+                type="button"
+                onClick={() => void syncNow()}
+                disabled={syncing || !isOnline}
+                className="text-sm font-medium disabled:opacity-40"
+                style={{ color: "var(--ui-accent)" }}
+              >
+                Sync now
+              </button>
             </div>
+          </FormGroup>
 
-            <Button type="button" variant="outline" size="sm" onClick={() => void handleSignOut()} disabled={submitting} className="self-start">
+          <FormGroup>
+            <button
+              type="button"
+              onClick={() => void handleSignOut()}
+              disabled={submitting}
+              className="flex min-h-11 w-full items-center justify-center text-sm font-medium disabled:opacity-50"
+              style={{ color: "var(--status-critical)" }}
+            >
               Sign out
-            </Button>
-          </>
-        )}
+            </button>
+          </FormGroup>
+        </>
+      )}
 
-        {configured && !session && mode === "reset" && (
-          <form onSubmit={handleResetSubmit} className="flex flex-col gap-2.5">
-            {resetSent ? (
-              <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-                If an account exists for <span className="font-medium" style={{ color: "var(--text-primary)" }}>{email}</span>, a
-                link to set a new password is on its way. Check your inbox.
-              </p>
-            ) : (
-              <>
-                <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-                  Enter your email and we&apos;ll send a link to set a new password.
-                </p>
-                <label className={`flex flex-col gap-1 ${LABEL_CLS}`} style={LABEL_STYLE}>
-                  Email
+      {configured && !session && mode === "reset" && (
+        <form onSubmit={handleResetSubmit} className="flex flex-col gap-3">
+          {resetSent ? (
+            <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
+              If an account exists for <span className="font-medium" style={{ color: "var(--text-primary)" }}>{email}</span>, a
+              link to set a new password is on its way. Check your inbox.
+            </p>
+          ) : (
+            <>
+              <FormGroup footer="Enter your email and we'll send a link to set a new password.">
+                <Field label="Email">
                   <input
                     type="email"
                     required
@@ -227,35 +204,31 @@ export function AccountPanel() {
                     spellCheck={false}
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className={FIELD_CLS}
-                    style={FIELD_STYLE}
+                    className={ROW_TEXT_CLS}
+                    style={ROW_STYLE}
                   />
-                </label>
-                <Button type="submit" disabled={submitting} className="w-full">
-                  {submitting ? "Sending…" : "Send reset link"}
-                </Button>
-              </>
-            )}
-            <button
-              type="button"
-              onClick={() => goToMode("signIn")}
-              className="self-center text-xs font-medium"
-              style={{ color: "var(--ui-accent)" }}
-            >
-              Back to sign in
-            </button>
-            {resetError && (
-              <span className="text-xs" style={{ color: "var(--status-critical)" }}>
-                {resetError}
-              </span>
-            )}
-          </form>
-        )}
+                </Field>
+              </FormGroup>
+              <Button type="submit" disabled={submitting} className="w-full">
+                {submitting ? "Sending…" : "Send reset link"}
+              </Button>
+            </>
+          )}
+          <button type="button" onClick={() => goToMode("signIn")} className="self-center text-sm font-medium" style={{ color: "var(--ui-accent)" }}>
+            Back to sign in
+          </button>
+          {resetError && (
+            <span className="text-xs" style={{ color: "var(--status-critical)" }}>
+              {resetError}
+            </span>
+          )}
+        </form>
+      )}
 
-        {configured && !session && mode !== "reset" && (
-          <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-            <label className={`flex flex-col gap-1 ${LABEL_CLS}`} style={LABEL_STYLE}>
-              Email
+      {configured && !session && mode !== "reset" && (
+        <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+          <FormGroup>
+            <Field label="Email">
               <input
                 type="email"
                 required
@@ -266,66 +239,59 @@ export function AccountPanel() {
                 spellCheck={false}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className={FIELD_CLS}
-                style={FIELD_STYLE}
+                className={ROW_TEXT_CLS}
+                style={ROW_STYLE}
               />
-            </label>
-            <label className={`flex flex-col gap-1 ${LABEL_CLS}`} style={LABEL_STYLE}>
-              <span className="flex items-center justify-between gap-2">
-                Password
-                {mode === "signIn" && (
-                  <button
-                    type="button"
-                    onClick={() => goToMode("reset")}
-                    className="font-medium"
-                    style={{ color: "var(--ui-accent)" }}
-                  >
-                    Forgot?
-                  </button>
-                )}
-              </span>
+            </Field>
+            <Field
+              label={
+                <span className="flex items-center justify-between gap-2">
+                  Password
+                  {mode === "signIn" && (
+                    <button type="button" onClick={() => goToMode("reset")} className="font-medium" style={{ color: "var(--ui-accent)" }}>
+                      Forgot?
+                    </button>
+                  )}
+                </span>
+              }
+            >
               <input
                 type="password"
                 required
                 autoComplete={mode === "signIn" ? "current-password" : "new-password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className={FIELD_CLS}
-                style={FIELD_STYLE}
+                className={ROW_TEXT_CLS}
+                style={ROW_STYLE}
               />
-            </label>
-            {error && (
-              <span className="text-xs" style={{ color: "var(--status-critical)" }}>
-                {error}
-              </span>
-            )}
-            <Button type="submit" disabled={submitting} className="w-full">
-              {mode === "signIn" ? "Sign in" : "Create account"}
-            </Button>
-            <p className="text-center text-xs" style={{ color: "var(--text-secondary)" }}>
-              {mode === "signIn" ? "New here? " : "Have an account? "}
-              <button
-                type="button"
-                onClick={() => goToMode(mode === "signIn" ? "signUp" : "signIn")}
-                className="font-medium"
-                style={{ color: "var(--ui-accent)" }}
-              >
-                {mode === "signIn" ? "Create an account" : "Sign in"}
-              </button>
-            </p>
-          </form>
-        )}
-
-        {configured && !session && (
-          <p className="border-t pt-3 text-center text-xs" style={{ borderColor: "var(--border-hairline)", color: "var(--text-muted)" }}>
-            You can look around without an account — nothing is saved until you sign in.{" "}
-            <Link href="/help" onClick={closePanel} className="font-medium underline" style={{ color: "var(--ui-accent)" }}>
-              What is Lauva?
-            </Link>
+            </Field>
+          </FormGroup>
+          {error && (
+            <span className="text-xs" style={{ color: "var(--status-critical)" }}>
+              {error}
+            </span>
+          )}
+          <Button type="submit" disabled={submitting} className="w-full">
+            {mode === "signIn" ? "Sign in" : "Create account"}
+          </Button>
+          <p className="text-center text-sm" style={{ color: "var(--text-secondary)" }}>
+            {mode === "signIn" ? "New here? " : "Have an account? "}
+            <button type="button" onClick={() => goToMode(mode === "signIn" ? "signUp" : "signIn")} className="font-medium" style={{ color: "var(--ui-accent)" }}>
+              {mode === "signIn" ? "Create an account" : "Sign in"}
+            </button>
           </p>
-        )}
-      </div>
-    </div>
+        </form>
+      )}
+
+      {configured && !session && (
+        <p className="text-center text-xs" style={{ color: "var(--text-muted)" }}>
+          You can look around without an account — nothing is saved until you sign in.{" "}
+          <Link href="/help" onClick={closePanel} className="font-medium underline" style={{ color: "var(--ui-accent)" }}>
+            What is Lauva?
+          </Link>
+        </p>
+      )}
+    </Sheet>
   );
 }
 

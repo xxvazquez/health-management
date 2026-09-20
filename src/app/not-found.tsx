@@ -11,7 +11,7 @@ export default function NotFound() {
       <p className="mt-6 text-sm font-semibold tracking-[0.3em]" style={{ color: "var(--text-muted)" }}>
         404
       </p>
-      <h1 className="mt-2 text-xl font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
+      <h1 className="mt-2 text-[1.75rem] leading-tight font-bold tracking-tight" style={{ color: "var(--text-primary)" }}>
         Nothing tracked here
       </h1>
       <p className="mt-2 max-w-sm text-sm" style={{ color: "var(--text-secondary)" }}>

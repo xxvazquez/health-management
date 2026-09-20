@@ -109,8 +109,6 @@ export function DateRangeFilter({ span, value, onChange, presets = DEFAULT_PRESE
   });
   const triggerLabel = describeDateRange(presets, span, value);
 
-  const fieldStyle = { borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" } as const;
-
   return (
     <div ref={rootRef} className="relative shrink-0">
       <button
@@ -184,27 +182,33 @@ export function DateRangeFilter({ span, value, onChange, presets = DEFAULT_PRESE
             <p className="mb-1.5 px-2 text-xs font-medium" style={{ color: "var(--text-muted)" }}>
               Custom range
             </p>
-            <div className="flex flex-col gap-1 px-1">
-              <input
-                type="date"
-                aria-label="Start date"
-                value={value.start}
-                min={span.start}
-                max={value.end}
-                onChange={(e) => onChange({ ...value, start: e.target.value })}
-                className="w-full min-h-9 rounded-md border px-3 text-sm"
-                style={fieldStyle}
-              />
-              <input
-                type="date"
-                aria-label="End date"
-                value={value.end}
-                min={value.start}
-                max={span.end}
-                onChange={(e) => onChange({ ...value, end: e.target.value })}
-                className="w-full min-h-9 rounded-md border px-3 text-sm"
-                style={fieldStyle}
-              />
+            <div className="flex flex-col">
+              <label className="flex min-h-11 items-center justify-between gap-3 px-2 text-sm" style={{ color: "var(--text-primary)" }}>
+                From
+                <input
+                  type="date"
+                  aria-label="Start date"
+                  value={value.start}
+                  min={span.start}
+                  max={value.end}
+                  onChange={(e) => onChange({ ...value, start: e.target.value })}
+                  className="min-w-0 bg-transparent text-right text-sm outline-none"
+                  style={{ color: "var(--text-primary)" }}
+                />
+              </label>
+              <label className="flex min-h-11 items-center justify-between gap-3 px-2 text-sm" style={{ color: "var(--text-primary)" }}>
+                To
+                <input
+                  type="date"
+                  aria-label="End date"
+                  value={value.end}
+                  min={value.start}
+                  max={span.end}
+                  onChange={(e) => onChange({ ...value, end: e.target.value })}
+                  className="min-w-0 bg-transparent text-right text-sm outline-none"
+                  style={{ color: "var(--text-primary)" }}
+                />
+              </label>
             </div>
           </div>
         </div>

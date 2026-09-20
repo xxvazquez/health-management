@@ -8,7 +8,11 @@ import { ErrorState } from "@/components/ui/EmptyState";
 import { PrimaryAction } from "@/components/ui/PrimaryAction";
 import { ChoicePanel } from "@/components/ui/ChoicePanel";
 import { Button } from "@/components/ui/Button";
-import { FIELD_CLS, FIELD_STYLE, LABEL_CLS, LABEL_STYLE, formatDate } from "./shared";
+import { formatDate } from "./shared";
+import { Field } from "@/components/ui/Field";
+import { FormGroup } from "@/components/ui/FormGroup";
+import { FormShell } from "@/components/ui/FormShell";
+import { ROW_INLINE_CLS, ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
 import { parseNum } from "./labStatus";
 import { BatchResultsView } from "./BatchResultsView";
 import { LabsOverview } from "./LabsOverview";
@@ -61,41 +65,28 @@ function ResultForm({
   }
 
   return (
-    <form
+    <FormShell
+      title={marker.unit ? `${marker.name} (${marker.unit})` : marker.name}
       onSubmit={handleSubmit}
-      className="flex flex-col gap-4 rounded-xl border p-4"
-      style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", boxShadow: "var(--shadow-card)" }}
+      onCancel={onCancel}
     >
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-          {marker.name}
-          {marker.unit && <span className="ml-1 font-normal" style={{ color: "var(--text-muted)" }}>({marker.unit})</span>}
-        </h3>
-        <button type="button" onClick={onCancel} className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
-          Cancel
-        </button>
-      </div>
+      <FormGroup>
+        <Field label="Value" inline>
+          <input autoFocus value={value} onChange={(e) => setValue(e.target.value)} inputMode="decimal" placeholder="e.g. 2.1" className={`${ROW_INLINE_CLS} w-28 font-medium`} style={ROW_STYLE} />
+        </Field>
+        <Field label="Date" inline>
+          <input type="date" value={measuredOn} max={todayLocalISODate()} onChange={(e) => setMeasuredOn(e.target.value)} className={ROW_INLINE_CLS} style={ROW_STYLE} />
+        </Field>
+        <Field label="Lab · optional" inline>
+          <input value={lab} onChange={(e) => setLab(e.target.value)} placeholder="Where it was done" maxLength={80} className={`${ROW_INLINE_CLS} w-40`} style={ROW_STYLE} />
+        </Field>
+      </FormGroup>
 
-      <div className="flex flex-wrap gap-3">
-        <label className="flex min-w-28 flex-1 flex-col gap-1">
-          <span className={LABEL_CLS} style={LABEL_STYLE}>Value</span>
-          <input autoFocus value={value} onChange={(e) => setValue(e.target.value)} inputMode="decimal" placeholder="e.g. 2.1" className={`${FIELD_CLS} font-medium`} style={FIELD_STYLE} />
-        </label>
-        <label className="flex min-w-36 flex-1 flex-col gap-1">
-          <span className={LABEL_CLS} style={LABEL_STYLE}>Date</span>
-          <input type="date" value={measuredOn} max={todayLocalISODate()} onChange={(e) => setMeasuredOn(e.target.value)} className={FIELD_CLS} style={FIELD_STYLE} />
-        </label>
-      </div>
-
-      <label className="flex flex-col gap-1">
-        <span className={LABEL_CLS} style={LABEL_STYLE}>Lab (optional)</span>
-        <input value={lab} onChange={(e) => setLab(e.target.value)} placeholder="Where it was done" maxLength={80} className={FIELD_CLS} style={FIELD_STYLE} />
-      </label>
-
-      <label className="flex flex-col gap-1">
-        <span className={LABEL_CLS} style={LABEL_STYLE}>Note (optional)</span>
-        <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder="Context worth remembering — fasting, medication change…" maxLength={400} className={`${FIELD_CLS} resize-y`} style={FIELD_STYLE} />
-      </label>
+      <FormGroup>
+        <Field label="Note · optional">
+          <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder="Context worth remembering — fasting, medication change…" maxLength={400} className={`${ROW_TEXT_CLS} resize-none leading-relaxed`} style={ROW_STYLE} />
+        </Field>
+      </FormGroup>
 
       <div className="flex items-center gap-3">
         <Button type="submit" size="lg" accent={accent} disabled={!canSave || saving}>
@@ -103,7 +94,7 @@ function ResultForm({
         </Button>
         {error && <span className="text-xs" style={{ color: "var(--status-critical)" }}>{error}</span>}
       </div>
-    </form>
+    </FormShell>
   );
 }
 
@@ -182,7 +173,7 @@ export function ResultsTab({ accent }: { accent: string }) {
     <div className="flex flex-col gap-4">
       {flash && (
         <p
-          className="rounded-md border px-3 py-2 text-xs font-medium"
+          className="rounded-[10px] border px-3 py-2 text-xs font-medium"
           style={{ borderColor: accent, background: `color-mix(in oklab, ${accent} 10%, var(--surface-1))`, color: "var(--text-secondary)" }}
         >
           {flash}

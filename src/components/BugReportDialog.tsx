@@ -3,15 +3,15 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { usePathname } from "next/navigation";
 import { BUG_TYPES, bugReportingConfigured, submitBugReport, type BugType } from "@/lib/supabase/reportBug";
-import { useDialogA11y } from "@/components/ui/useDialogA11y";
+import { Sheet } from "@/components/ui/Sheet";
+import { Field } from "@/components/ui/Field";
+import { FormGroup } from "@/components/ui/FormGroup";
+import { ROW_INLINE_CLS, ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
 import { AutoGrowTextarea } from "@/components/ui/AutoGrowTextarea";
 import { Button } from "@/components/ui/Button";
 import { NAV_LABEL } from "@/components/navLabels";
-import { CloseIcon } from "@/components/ui/icons";
 
 const ACCENT = "var(--ui-accent)";
-
-const inputStyle = { borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" };
 
 /** The one global feedback surface — a bug report or an idea, opened from
  * the nav's BugReportButton (desktop rail and mobile drawer both trigger
@@ -46,8 +46,6 @@ export function BugReportDialog({ open, onClose }: { open: boolean; onClose: () 
     }
   }
 
-  const containerRef = useDialogA11y(open, onClose);
-
   // Close on its own a beat after a successful send — the confirmation has
   // been read by then, and there's nothing left to do in the dialog.
   useEffect(() => {
@@ -77,85 +75,56 @@ export function BugReportDialog({ open, onClose }: { open: boolean; onClose: () 
   }
 
   return (
-    <div ref={containerRef} className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="bug-report-title">
-      <div className="absolute inset-0 bg-black/30" onClick={onClose} />
-      <div
-        className="relative flex w-full max-w-sm flex-col gap-4 rounded-xl border p-5 shadow-xl"
-        style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}
-      >
-        <div className="flex items-center justify-between">
-          <h2 id="bug-report-title" className="text-sm font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
-            Feedback
-          </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close"
-            className="flex h-7 w-7 items-center justify-center rounded-full"
-            style={{ color: "var(--text-secondary)", background: "var(--page-plane)" }}
-          >
-            <CloseIcon />
-          </button>
-        </div>
+    <Sheet title="Feedback" titleId="bug-report-title" onClose={onClose}>
+      {!bugReportingConfigured && (
+        <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
+          Feedback isn&apos;t set up for this deployment yet.
+        </p>
+      )}
 
-        {!bugReportingConfigured && (
-          <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-            Feedback isn&apos;t set up for this deployment yet.
-          </p>
-        )}
+      {bugReportingConfigured && submitted && (
+        <p className="text-sm" style={{ color: "var(--status-good)" }}>
+          Thanks — that&apos;s been sent.
+        </p>
+      )}
 
-        {bugReportingConfigured && submitted && (
-          <p className="text-sm" style={{ color: "var(--status-good)" }}>
-            Thanks — that&apos;s been sent.
-          </p>
-        )}
-
-        {bugReportingConfigured && !submitted && (
-          <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-            <label className="flex flex-col gap-1 text-sm font-medium" style={{ color: "var(--text-secondary)" }}>
-              Type
-              <select value={bugType} onChange={(e) => setBugType(e.target.value as BugType)} className="min-h-11 rounded-[10px] border px-3 text-sm outline-none" style={inputStyle}>
+      {bugReportingConfigured && !submitted && (
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <FormGroup>
+            <Field label="Type" inline>
+              <select value={bugType} onChange={(e) => setBugType(e.target.value as BugType)} className={ROW_INLINE_CLS} style={ROW_STYLE}>
                 {BUG_TYPES.map((t) => (
                   <option key={t} value={t}>
                     {t}
                   </option>
                 ))}
               </select>
-            </label>
-            <label className="flex flex-col gap-1 text-sm font-medium" style={{ color: "var(--text-secondary)" }}>
-              Location
-              <input
-                required
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
-                placeholder="e.g. Log page, Digestion chart"
-                className="min-h-11 rounded-[10px] border px-3 text-sm outline-none"
-                style={inputStyle}
-              />
-            </label>
-            <label className="flex flex-col gap-1 text-sm font-medium" style={{ color: "var(--text-secondary)" }}>
-              Comment (optional)
+            </Field>
+            <Field label="Location">
+              <input required value={location} onChange={(e) => setLocation(e.target.value)} placeholder="e.g. Log page, Digestion chart" className={ROW_TEXT_CLS} style={ROW_STYLE} />
+            </Field>
+            <Field label="Comment · optional">
               <AutoGrowTextarea
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
                 rows={3}
                 maxRows={8}
                 placeholder="Anything else that would help"
-                className="resize-none min-h-20 rounded-[10px] border px-3 text-sm outline-none py-2"
-                style={inputStyle}
+                className={`${ROW_TEXT_CLS} resize-none leading-relaxed`}
+                style={ROW_STYLE}
               />
-            </label>
-            <Button type="submit" disabled={submitting} accent={ACCENT}>
-              {submitting ? "Sending…" : "Send"}
-            </Button>
-            {error && (
-              <span className="text-xs" style={{ color: "var(--status-critical)" }}>
-                {error}
-              </span>
-            )}
-          </form>
-        )}
-      </div>
-    </div>
+            </Field>
+          </FormGroup>
+          <Button type="submit" disabled={submitting} accent={ACCENT}>
+            {submitting ? "Sending…" : "Send"}
+          </Button>
+          {error && (
+            <span className="text-xs" style={{ color: "var(--status-critical)" }}>
+              {error}
+            </span>
+          )}
+        </form>
+      )}
+    </Sheet>
   );
 }

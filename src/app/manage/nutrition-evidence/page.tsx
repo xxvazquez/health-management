@@ -34,11 +34,9 @@ export default function NutritionEvidencePage() {
     <div className="flex flex-col gap-5">
       <div>
         <div className="flex items-center gap-2 text-sm" style={{ color: "var(--text-muted)" }}>
-          <Link href="/manage" className="font-medium" style={{ color: "var(--ui-accent)" }}>Manage</Link>
-          <span>→</span>
-          <span>Nutrition evidence</span>
+          <Link href="/manage" className="font-medium" style={{ color: "var(--ui-accent)" }}>‹ Settings</Link>
         </div>
-        <h1 className="mt-1 text-xl font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
+        <h1 className="mt-1 text-[1.75rem] leading-tight font-bold tracking-tight" style={{ color: "var(--text-primary)" }}>
           Nutrition evidence
         </h1>
         <p className="mt-1 text-sm" style={{ color: "var(--text-secondary)" }}>

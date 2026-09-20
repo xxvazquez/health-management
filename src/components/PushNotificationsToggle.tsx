@@ -1,5 +1,6 @@
 "use client";
 
+import { CONTROL_CLS, CONTROL_STYLE } from "@/components/ui/Chip";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/supabase/AuthContext";
 import { pushNotificationsSupported, disablePushNotifications, enablePushNotifications, isPushNotificationsEnabled } from "@/lib/push";
@@ -76,12 +77,12 @@ export function PushNotificationsToggle() {
         onClick={() => void toggle()}
         disabled={busy}
         aria-pressed={enabled}
-        className="flex items-center gap-1.5 rounded-md border py-1 pr-2.5 pl-1.5 text-xs font-medium disabled:opacity-50"
-        style={{
-          borderColor: enabled ? "var(--ui-accent)" : "var(--border-hairline)",
-          background: enabled ? "color-mix(in oklab, var(--ui-accent) 14%, var(--surface-1))" : "var(--surface-1)",
-          color: enabled ? "var(--ui-accent)" : "var(--text-secondary)",
-        }}
+        className={`${CONTROL_CLS} disabled:opacity-50`}
+        style={
+          enabled
+            ? { background: "color-mix(in oklab, var(--ui-accent) 14%, var(--surface-1))", color: "var(--ui-accent)" }
+            : CONTROL_STYLE
+        }
       >
         <BellIcon on={Boolean(enabled)} />
         {enabled ? "Notifications on" : "Turn on notifications"}

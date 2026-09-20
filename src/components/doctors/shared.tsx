@@ -6,7 +6,7 @@ import { DOCTOR_LANGUAGES, DOCTOR_RATINGS, isBadDoctor, type DoctorLanguage } fr
 
 export { PencilIcon, TrashIcon } from "@/components/ui/Notebook";
 import { CalendarIcon, CloseIcon } from "@/components/ui/icons";
-import { FIELD_CLS, FIELD_STYLE, LABEL_CLS, LABEL_STYLE } from "@/components/ui/formField";
+import { FIELD_CLS, FIELD_STYLE, LABEL_CLS, LABEL_STYLE, ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
 export { FIELD_CLS, FIELD_STYLE, LABEL_CLS, LABEL_STYLE };
 
 export function formatDateTime(iso: string): string {
@@ -129,6 +129,7 @@ export function ComboBox({
   allowCreate = true,
   renderOption,
   accent,
+  bare = false,
 }: {
   value: string;
   onChange: (value: string) => void;
@@ -137,6 +138,8 @@ export function ComboBox({
   allowCreate?: boolean;
   renderOption?: (option: string) => ReactNode;
   accent: string;
+  /** Borderless, for a row inside a `FormGroup`. */
+  bare?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -179,8 +182,8 @@ export function ComboBox({
             commit(filtered.length === 1 ? filtered[0] : query.trim());
           }
         }}
-        className={`${FIELD_CLS} w-full`}
-        style={FIELD_STYLE}
+        className={bare ? ROW_TEXT_CLS : `${FIELD_CLS} w-full`}
+        style={bare ? ROW_STYLE : FIELD_STYLE}
       />
       {open && (filtered.length > 0 || showCreate) && (
         <ul

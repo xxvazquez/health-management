@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { Card, CardTitle } from "@/components/ui/Card";
+import { Field } from "@/components/ui/Field";
+import { FormGroup } from "@/components/ui/FormGroup";
+import { ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
 import { Button } from "@/components/ui/Button";
 import { createPartnerInvite, redeemPartnerInvite, type PartnerInvite } from "@/lib/supabase/partner";
 
@@ -49,9 +51,9 @@ export function PartnerLinkPanel({ onLinked }: { onLinked: () => void }) {
   }
 
   return (
-    <div className="mx-auto flex max-w-md flex-col gap-4">
+    <div className="mx-auto flex max-w-md flex-col gap-5">
       <div>
-        <h1 className="text-xl font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
+        <h1 className="text-[1.75rem] leading-tight font-bold tracking-tight" style={{ color: "var(--text-primary)" }}>
           Connect with your partner
         </h1>
         <p className="mt-1 text-sm" style={{ color: "var(--text-secondary)" }}>
@@ -59,16 +61,25 @@ export function PartnerLinkPanel({ onLinked }: { onLinked: () => void }) {
         </p>
       </div>
 
-      <Card tier="supporting">
-        <CardTitle subtitle="Share this code with your partner however you like — text, WhatsApp, in person. It works once and expires in 7 days.">
-          Invite your partner
-        </CardTitle>
+      <FormGroup
+        title="Invite your partner"
+        footer={
+          <>
+            Share this code with your partner however you like — text, WhatsApp, in person. It works once and expires in 7 days.
+            {generateError && (
+              <span className="mt-1 block" style={{ color: "var(--status-critical)" }}>
+                {generateError}
+              </span>
+            )}
+          </>
+        }
+      >
         {invite ? (
-          <div className="flex items-center justify-between rounded-xl border px-4 py-3" style={{ borderColor: ACCENT, background: "color-mix(in oklab, var(--series-magenta) 10%, var(--surface-1))" }}>
+          <div className="flex min-h-11 items-center justify-between gap-3 px-3.5">
             <span className="text-base font-semibold tracking-[0.2em] tabular-nums" style={{ color: "var(--text-primary)" }}>
               {invite.code}
             </span>
-            <button type="button" onClick={handleGenerate} className="text-xs font-medium" style={{ color: ACCENT }}>
+            <button type="button" onClick={handleGenerate} className="text-sm font-medium" style={{ color: ACCENT }}>
               New code
             </button>
           </div>
@@ -77,39 +88,42 @@ export function PartnerLinkPanel({ onLinked }: { onLinked: () => void }) {
             type="button"
             onClick={() => void handleGenerate()}
             disabled={generating}
-            className="w-full min-h-9 rounded-[10px] px-3 text-sm font-medium text-white disabled:opacity-50"
-            style={{ background: ACCENT }}
+            className="flex min-h-11 w-full items-center px-3.5 text-left text-sm font-medium disabled:opacity-50"
+            style={{ color: ACCENT }}
           >
             {generating ? "Generating…" : "Generate a code"}
           </button>
         )}
-        {generateError && (
-          <p className="mt-2 text-xs" style={{ color: "var(--status-critical)" }}>
-            {generateError}
-          </p>
-        )}
-      </Card>
+      </FormGroup>
 
-      <Card tier="supporting">
-        <CardTitle subtitle="Got a code from your partner? Enter it here to link your accounts.">Have a code?</CardTitle>
-        <form onSubmit={handleRedeem} className="flex items-center gap-2">
-          <input
-            value={codeInput}
-            onChange={(e) => setCodeInput(e.target.value.toUpperCase())}
-            placeholder="e.g. AB3D9KQZ"
-            className="flex-1 min-h-9 rounded-[10px] border px-3 text-sm tracking-[0.15em] uppercase outline-none"
-            style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
-          />
-          <Button type="submit" size="lg" accent={ACCENT} disabled={redeeming || !codeInput.trim()} className="shrink-0">
-            {redeeming ? "Linking…" : "Link"}
-          </Button>
-        </form>
-        {redeemError && (
-          <p className="mt-2 text-xs" style={{ color: "var(--status-critical)" }}>
-            {redeemError}
-          </p>
-        )}
-      </Card>
+      <form onSubmit={handleRedeem} className="flex flex-col gap-3">
+        <FormGroup
+          title="Have a code?"
+          footer={
+            <>
+              Got a code from your partner? Enter it here to link your accounts.
+              {redeemError && (
+                <span className="mt-1 block" style={{ color: "var(--status-critical)" }}>
+                  {redeemError}
+                </span>
+              )}
+            </>
+          }
+        >
+          <Field label="Code">
+            <input
+              value={codeInput}
+              onChange={(e) => setCodeInput(e.target.value.toUpperCase())}
+              placeholder="e.g. AB3D9KQZ"
+              className={`${ROW_TEXT_CLS} tracking-[0.15em] uppercase`}
+              style={ROW_STYLE}
+            />
+          </Field>
+        </FormGroup>
+        <Button type="submit" size="lg" accent={ACCENT} disabled={redeeming || !codeInput.trim()}>
+          {redeeming ? "Linking…" : "Link"}
+        </Button>
+      </form>
     </div>
   );
 }

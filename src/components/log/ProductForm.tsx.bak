@@ -1,6 +1,6 @@
 "use client";
 
-import { Chip } from "@/components/ui/Chip";
+import { CHIP_CLS, chipStyle } from "@/components/ui/Chip";
 import { useMemo, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/Button";
 import { CloseIcon } from "@/components/ui/icons";

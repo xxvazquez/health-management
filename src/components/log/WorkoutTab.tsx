@@ -105,7 +105,7 @@ function ScrollTypeValue({
           if (e.key === "Enter") e.currentTarget.blur();
           if (e.key === "Escape") setEditing(false);
         }}
-        className="h-7 w-16 rounded-md border px-1.5 text-center text-xs font-semibold tabular-nums outline-none"
+        className="h-7 w-16 rounded-lg border px-1.5 text-center text-xs font-semibold tabular-nums outline-none"
         style={{ borderColor: accent, color: "var(--text-primary)" }}
       />
     );

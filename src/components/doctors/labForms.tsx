@@ -4,7 +4,11 @@ import { useMemo, useState, type FormEvent } from "react";
 import type { useLabs } from "@/lib/useLabs";
 import type { LabMarker } from "@/lib/supabase/labs";
 import { Button } from "@/components/ui/Button";
-import { ComboBox, FIELD_CLS, FIELD_STYLE, LABEL_CLS, LABEL_STYLE } from "./shared";
+import { ComboBox } from "./shared";
+import { Field } from "@/components/ui/Field";
+import { FormGroup } from "@/components/ui/FormGroup";
+import { FormShell } from "@/components/ui/FormShell";
+import { ROW_INLINE_CLS, ROW_STYLE } from "@/components/ui/formField";
 import { parseNum } from "./labStatus";
 
 const NEW_PANEL = "__new__";
@@ -92,28 +96,12 @@ export function MarkerForm({
   }
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="flex flex-col gap-4 rounded-xl border p-4"
-      style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", boxShadow: "var(--shadow-card)" }}
-    >
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-          {initial ? "Edit marker" : "New marker"}
-        </h3>
-        <button type="button" onClick={onCancel} className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
-          Cancel
-        </button>
-      </div>
-
-      <div className="flex flex-col gap-1">
-        <span className={LABEL_CLS} style={LABEL_STYLE}>Marker</span>
-        <ComboBox value={name} onChange={setName} options={markerNameOptions} placeholder="Search or add a marker…" accent={accent} />
-      </div>
-
-      <div className="flex flex-wrap gap-3">
-        <label className="flex min-w-28 flex-1 flex-col gap-1">
-          <span className={LABEL_CLS} style={LABEL_STYLE}>Unit</span>
+    <FormShell title={initial ? "Edit marker" : "New marker"} onSubmit={handleSubmit} onCancel={onCancel}>
+      <FormGroup>
+        <Field label="Marker" plain>
+          <ComboBox bare value={name} onChange={setName} options={markerNameOptions} placeholder="Search or add a marker…" accent={accent} />
+        </Field>
+        <Field label="Unit" inline>
           <input
             value={effectiveUnit}
             onChange={(e) => {
@@ -122,56 +110,49 @@ export function MarkerForm({
             }}
             placeholder="mIU/L"
             maxLength={20}
-            className={FIELD_CLS}
-            style={FIELD_STYLE}
+            className={`${ROW_INLINE_CLS} w-28`}
+            style={ROW_STYLE}
           />
-        </label>
-        {showRanges && (
-          <>
-            <label className="flex min-w-24 flex-1 flex-col gap-1">
-              <span className={LABEL_CLS} style={LABEL_STYLE}>Ref. low</span>
-              <input value={refLow} onChange={(e) => setRefLow(e.target.value)} inputMode="decimal" placeholder="0.4" className={FIELD_CLS} style={FIELD_STYLE} />
-            </label>
-            <label className="flex min-w-24 flex-1 flex-col gap-1">
-              <span className={LABEL_CLS} style={LABEL_STYLE}>Ref. high</span>
-              <input value={refHigh} onChange={(e) => setRefHigh(e.target.value)} inputMode="decimal" placeholder="4.0" className={FIELD_CLS} style={FIELD_STYLE} />
-            </label>
-          </>
+        </Field>
+        <Field label="Panel" inline>
+          <select value={panelId} onChange={(e) => setPanelId(e.target.value)} className={ROW_INLINE_CLS} style={ROW_STYLE}>
+            <option value={NO_PANEL}>No panel</option>
+            {labs.panels.data.map((p) => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
+            <option value={NEW_PANEL}>＋ New panel…</option>
+          </select>
+        </Field>
+        {needsNewPanel && (
+          <Field label="New panel name" inline>
+            <input value={newPanelName} onChange={(e) => setNewPanelName(e.target.value)} placeholder="Name" maxLength={60} className={`${ROW_INLINE_CLS} w-40`} style={ROW_STYLE} />
+          </Field>
         )}
-      </div>
+      </FormGroup>
 
       {showRanges && (
-        <div className="flex flex-col gap-1">
-          <span className={LABEL_CLS} style={LABEL_STYLE}>Optimal range · optional</span>
-          <div className="flex flex-wrap gap-3">
-            <label className="flex min-w-24 flex-1 flex-col gap-1">
-              <span className="text-xs" style={{ color: "var(--text-muted)" }}>Low</span>
-              <input value={optLow} onChange={(e) => setOptLow(e.target.value)} inputMode="decimal" placeholder="1.0" className={FIELD_CLS} style={FIELD_STYLE} />
-            </label>
-            <label className="flex min-w-24 flex-1 flex-col gap-1">
-              <span className="text-xs" style={{ color: "var(--text-muted)" }}>High</span>
-              <input value={optHigh} onChange={(e) => setOptHigh(e.target.value)} inputMode="decimal" placeholder="2.5" className={FIELD_CLS} style={FIELD_STYLE} />
-            </label>
-          </div>
-          <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-            The band you want to sit in — the Results overview reads values against this, not just the lab range.
-          </span>
-        </div>
+        <>
+          <FormGroup title="Lab reference range">
+            <Field label="Low" inline>
+              <input value={refLow} onChange={(e) => setRefLow(e.target.value)} inputMode="decimal" placeholder="0.4" className={`${ROW_INLINE_CLS} w-24`} style={ROW_STYLE} />
+            </Field>
+            <Field label="High" inline>
+              <input value={refHigh} onChange={(e) => setRefHigh(e.target.value)} inputMode="decimal" placeholder="4.0" className={`${ROW_INLINE_CLS} w-24`} style={ROW_STYLE} />
+            </Field>
+          </FormGroup>
+          <FormGroup
+            title="Optimal range · optional"
+            footer="The band you want to sit in — the Results overview reads values against this, not just the lab range."
+          >
+            <Field label="Low" inline>
+              <input value={optLow} onChange={(e) => setOptLow(e.target.value)} inputMode="decimal" placeholder="1.0" className={`${ROW_INLINE_CLS} w-24`} style={ROW_STYLE} />
+            </Field>
+            <Field label="High" inline>
+              <input value={optHigh} onChange={(e) => setOptHigh(e.target.value)} inputMode="decimal" placeholder="2.5" className={`${ROW_INLINE_CLS} w-24`} style={ROW_STYLE} />
+            </Field>
+          </FormGroup>
+        </>
       )}
-
-      <label className="flex flex-col gap-1">
-        <span className={LABEL_CLS} style={LABEL_STYLE}>Panel</span>
-        <select value={panelId} onChange={(e) => setPanelId(e.target.value)} className={FIELD_CLS} style={FIELD_STYLE}>
-          <option value={NO_PANEL}>No panel</option>
-          {labs.panels.data.map((p) => (
-            <option key={p.id} value={p.id}>{p.name}</option>
-          ))}
-          <option value={NEW_PANEL}>＋ New panel…</option>
-        </select>
-        {needsNewPanel && (
-          <input value={newPanelName} onChange={(e) => setNewPanelName(e.target.value)} placeholder="New panel name" maxLength={60} className={`${FIELD_CLS} mt-1`} style={FIELD_STYLE} />
-        )}
-      </label>
 
       <div className="flex items-center gap-3">
         <Button type="submit" size="lg" accent={accent} disabled={!canSave || saving}>
@@ -179,6 +160,6 @@ export function MarkerForm({
         </Button>
         {error && <span className="text-xs" style={{ color: "var(--status-critical)" }}>{error}</span>}
       </div>
-    </form>
+    </FormShell>
   );
 }

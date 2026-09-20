@@ -2,7 +2,9 @@
 
 import { useState, type ReactNode } from "react";
 import type { DoctorFollowUpTask, FollowUpTaskPatch } from "@/lib/supabase/doctors";
-import { FIELD_CLS, FIELD_STYLE, IconAction, LABEL_STYLE, PencilIcon, TrashIcon, formatDate, formatDateTime, toLocalInput } from "./shared";
+import { IconAction, PencilIcon, TrashIcon, formatDate, formatDateTime, toLocalInput } from "./shared";
+import { Field } from "@/components/ui/Field";
+import { ROW_INLINE_CLS, ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
 
 /** One follow-up task — a completion checkbox, its text + due/reminder
  * meta, and edit/delete. Shared by the appointment card and the Follow-ups
@@ -31,19 +33,19 @@ export function FollowUpTaskRow({
 
   if (editing) {
     return (
-      <div className="flex flex-col gap-2 border-t py-3 first:border-t-0" style={{ borderColor: "var(--gridline)" }}>
-        <input value={description} onChange={(e) => setDescription(e.target.value)} className={FIELD_CLS} style={FIELD_STYLE} />
-        <div className="grid gap-2 sm:grid-cols-2">
-          <label className="flex flex-col gap-1 text-xs" style={LABEL_STYLE}>
-            Due date · optional
-            <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className={FIELD_CLS} style={FIELD_STYLE} />
-          </label>
-          <label className="flex flex-col gap-1 text-xs" style={LABEL_STYLE}>
-            Reminder · optional
-            <input type="datetime-local" value={reminderAt} onChange={(e) => setReminderAt(e.target.value)} className={FIELD_CLS} style={FIELD_STYLE} />
-          </label>
+      <div className="flex flex-col gap-2 border-t py-1 first:border-t-0" style={{ borderColor: "var(--gridline)" }}>
+        <div className="inset-rows -mx-3 [--row-inset:0.875rem]">
+          <div className="px-3.5">
+            <input value={description} onChange={(e) => setDescription(e.target.value)} aria-label="Task" className={`${ROW_TEXT_CLS} min-h-11`} style={ROW_STYLE} />
+          </div>
+          <Field label="Due date · optional" inline>
+            <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className={ROW_INLINE_CLS} style={ROW_STYLE} />
+          </Field>
+          <Field label="Reminder · optional" inline>
+            <input type="datetime-local" value={reminderAt} onChange={(e) => setReminderAt(e.target.value)} className={ROW_INLINE_CLS} style={ROW_STYLE} />
+          </Field>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 pb-2">
           <button
             type="button"
             onClick={() => {

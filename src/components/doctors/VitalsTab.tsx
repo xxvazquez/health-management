@@ -13,7 +13,10 @@ import { ErrorState, InlineEmpty } from "@/components/ui/EmptyState";
 import { PrimaryAction } from "@/components/ui/PrimaryAction";
 import { Button } from "@/components/ui/Button";
 import { FormShell } from "@/components/ui/FormShell";
-import { FIELD_CLS, FIELD_STYLE, IconAction, LABEL_CLS, LABEL_STYLE, PencilIcon, TrashIcon, formatDateTime, toLocalInput } from "./shared";
+import { IconAction, PencilIcon, TrashIcon, formatDateTime, toLocalInput } from "./shared";
+import { Field } from "@/components/ui/Field";
+import { FormGroup } from "@/components/ui/FormGroup";
+import { ROW_INLINE_CLS, ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
 
 type Kind = "bp" | "weight";
 
@@ -106,40 +109,42 @@ function BpForm({
 
   return (
     <FormShell title={initial ? "Edit reading" : "New reading"} onSubmit={handleSubmit} onCancel={onCancel}>
-      <div className="flex flex-wrap gap-3">
-        <label className="flex min-w-24 flex-1 flex-col gap-1">
-          <span className={LABEL_CLS} style={LABEL_STYLE}>Systolic</span>
-          <input autoFocus value={systolic} onChange={(e) => setSystolic(e.target.value)} inputMode="numeric" placeholder="120" className={`${FIELD_CLS} font-medium tabular-nums`} style={FIELD_STYLE} />
-        </label>
-        <label className="flex min-w-24 flex-1 flex-col gap-1">
-          <span className={LABEL_CLS} style={LABEL_STYLE}>Diastolic</span>
-          <input value={diastolic} onChange={(e) => setDiastolic(e.target.value)} inputMode="numeric" placeholder="80" className={`${FIELD_CLS} font-medium tabular-nums`} style={FIELD_STYLE} />
-        </label>
-        <label className="flex min-w-24 flex-1 flex-col gap-1">
-          <span className={LABEL_CLS} style={LABEL_STYLE}>Pulse <span style={{ color: "var(--text-muted)" }}>· optional</span></span>
-          <input value={pulse} onChange={(e) => setPulse(e.target.value)} inputMode="numeric" placeholder="70" className={`${FIELD_CLS} tabular-nums`} style={FIELD_STYLE} />
-        </label>
-      </div>
+      <FormGroup
+        footer={
+          <>
+            {preview && (
+              <span className="block">
+                <span className="mr-1.5 inline-block h-2 w-2 rounded-full align-middle" style={{ background: preview.color }} aria-hidden="true" />
+                {preview.label}
+              </span>
+            )}
+            {sys != null && dia != null && sys <= dia && (
+              <span className="block" style={{ color: "var(--status-warning)" }}>
+                Systolic should be higher than diastolic.
+              </span>
+            )}
+          </>
+        }
+      >
+        <Field label="Systolic" inline>
+          <input autoFocus value={systolic} onChange={(e) => setSystolic(e.target.value)} inputMode="numeric" placeholder="120" className={`${ROW_INLINE_CLS} w-24 font-medium tabular-nums`} style={ROW_STYLE} />
+        </Field>
+        <Field label="Diastolic" inline>
+          <input value={diastolic} onChange={(e) => setDiastolic(e.target.value)} inputMode="numeric" placeholder="80" className={`${ROW_INLINE_CLS} w-24 font-medium tabular-nums`} style={ROW_STYLE} />
+        </Field>
+        <Field label={<>Pulse <span style={{ color: "var(--text-muted)" }}>· optional</span></>} inline>
+          <input value={pulse} onChange={(e) => setPulse(e.target.value)} inputMode="numeric" placeholder="70" className={`${ROW_INLINE_CLS} w-24 tabular-nums`} style={ROW_STYLE} />
+        </Field>
+        <Field label="When" inline>
+          <input type="datetime-local" value={measuredAt} max={nowLocalInput()} onChange={(e) => setMeasuredAt(e.target.value)} className={ROW_INLINE_CLS} style={ROW_STYLE} />
+        </Field>
+      </FormGroup>
 
-      {preview && (
-        <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-          <span className="mr-1.5 inline-block h-2 w-2 rounded-full align-middle" style={{ background: preview.color }} aria-hidden="true" />
-          {preview.label}
-        </p>
-      )}
-      {sys != null && dia != null && sys <= dia && (
-        <p className="text-xs" style={{ color: "var(--status-warning)" }}>Systolic should be higher than diastolic.</p>
-      )}
-
-      <label className="flex flex-col gap-1">
-        <span className={LABEL_CLS} style={LABEL_STYLE}>When</span>
-        <input type="datetime-local" value={measuredAt} max={nowLocalInput()} onChange={(e) => setMeasuredAt(e.target.value)} className={FIELD_CLS} style={FIELD_STYLE} />
-      </label>
-
-      <label className="flex flex-col gap-1">
-        <span className={LABEL_CLS} style={LABEL_STYLE}>Note <span style={{ color: "var(--text-muted)" }}>· optional</span></span>
-        <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder="Context worth remembering — time of day, after exercise, how you felt…" maxLength={400} className={`${FIELD_CLS} resize-y`} style={FIELD_STYLE} />
-      </label>
+      <FormGroup>
+        <Field label={<>Note <span style={{ color: "var(--text-muted)" }}>· optional</span></>}>
+          <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder="Context worth remembering — time of day, after exercise, how you felt…" maxLength={400} className={`${ROW_TEXT_CLS} resize-none leading-relaxed`} style={ROW_STYLE} />
+        </Field>
+      </FormGroup>
 
       <div className="flex flex-wrap items-center gap-3">
         <Button type="submit" size="lg" accent={accent} disabled={!canSave || saving}>
@@ -189,21 +194,20 @@ function WeightForm({
 
   return (
     <FormShell title={initial ? "Edit weigh-in" : "New weigh-in"} onSubmit={handleSubmit} onCancel={onCancel}>
-      <div className="flex flex-wrap gap-3">
-        <label className="flex min-w-28 flex-1 flex-col gap-1">
-          <span className={LABEL_CLS} style={LABEL_STYLE}>Weight (kg)</span>
-          <input autoFocus value={kg} onChange={(e) => setKg(e.target.value)} inputMode="decimal" placeholder="67.5" className={`${FIELD_CLS} font-medium tabular-nums`} style={FIELD_STYLE} />
-        </label>
-        <label className="flex min-w-36 flex-1 flex-col gap-1">
-          <span className={LABEL_CLS} style={LABEL_STYLE}>When</span>
-          <input type="datetime-local" value={measuredAt} max={nowLocalInput()} onChange={(e) => setMeasuredAt(e.target.value)} className={FIELD_CLS} style={FIELD_STYLE} />
-        </label>
-      </div>
+      <FormGroup>
+        <Field label="Weight (kg)" inline>
+          <input autoFocus value={kg} onChange={(e) => setKg(e.target.value)} inputMode="decimal" placeholder="67.5" className={`${ROW_INLINE_CLS} w-24 font-medium tabular-nums`} style={ROW_STYLE} />
+        </Field>
+        <Field label="When" inline>
+          <input type="datetime-local" value={measuredAt} max={nowLocalInput()} onChange={(e) => setMeasuredAt(e.target.value)} className={ROW_INLINE_CLS} style={ROW_STYLE} />
+        </Field>
+      </FormGroup>
 
-      <label className="flex flex-col gap-1">
-        <span className={LABEL_CLS} style={LABEL_STYLE}>Note <span style={{ color: "var(--text-muted)" }}>· optional</span></span>
-        <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder="Anything worth remembering alongside this" maxLength={400} className={`${FIELD_CLS} resize-y`} style={FIELD_STYLE} />
-      </label>
+      <FormGroup>
+        <Field label={<>Note <span style={{ color: "var(--text-muted)" }}>· optional</span></>}>
+          <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder="Anything worth remembering alongside this" maxLength={400} className={`${ROW_TEXT_CLS} resize-none leading-relaxed`} style={ROW_STYLE} />
+        </Field>
+      </FormGroup>
 
       <div className="flex flex-wrap items-center gap-3">
         <Button type="submit" size="lg" accent={accent} disabled={!canSave || saving}>

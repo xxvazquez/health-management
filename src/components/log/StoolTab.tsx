@@ -3,7 +3,10 @@
 import { Chip as BaseChip } from "@/components/ui/Chip";
 import { useState, type ReactNode } from "react";
 import { BristolIcon } from "@/components/icons/BristolIcons";
-import { CloseIcon } from "@/components/ui/icons";
+import { ChevronIcon, CloseIcon } from "@/components/ui/icons";
+import { Field } from "@/components/ui/Field";
+import { FormGroup } from "@/components/ui/FormGroup";
+import { ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
 import { Button } from "@/components/ui/Button";
 import { TimeField } from "@/components/ui/TimeField";
 import { defaultLogTimeValue, toTimeInputValue } from "@/lib/logCandidates";
@@ -320,25 +323,21 @@ export function StoolTab({
   return (
     <div className="flex flex-col gap-3">
       {editingId && (
-        <div className="flex items-center justify-between min-h-9 rounded-md px-3 text-sm font-medium" style={{ background: "var(--page-plane)", color: "var(--text-secondary)" }}>
-          Editing an existing entry
-          <button type="button" onClick={cancelEdit} className="font-medium" style={{ color: "var(--ui-accent)" }}>
-            Cancel
-          </button>
-        </div>
+        <FormGroup>
+          <div className="flex min-h-11 items-center justify-between gap-3 px-3.5 text-sm" style={{ color: "var(--text-secondary)" }}>
+            Editing an existing entry
+            <button type="button" onClick={cancelEdit} className="font-medium" style={{ color: "var(--ui-accent)" }}>
+              Cancel
+            </button>
+          </div>
+        </FormGroup>
       )}
 
-      {loggedList()}
-
-      {/* Same card treatment as every other tab's category groups
-          (border, rounded-lg, colored header) — Bristol type is this tab's
-          one "always tappable" grid, so unlike the details below it's never
-          collapsed. */}
-      <div className="flex flex-col gap-2 rounded-xl border p-3" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
-        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b pb-2" style={{ borderColor: "var(--gridline)" }}>
-          <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
-            Bristol type — tap all that apply
-          </p>
+      <FormGroup title="Bristol type — tap all that apply">
+        <div className="flex min-h-11 items-center justify-between gap-3 px-3.5">
+          <span className="text-sm" style={{ color: "var(--text-primary)" }}>
+            Time
+          </span>
           <TimeField
             value={draft.loggedAtTime}
             onChange={(t) => setDraft((d) => ({ ...d, loggedAtTime: t }))}
@@ -346,7 +345,7 @@ export function StoolTab({
             collapsible
           />
         </div>
-        <div className="grid grid-cols-4 gap-1.5">
+        <div className="grid grid-cols-4 gap-1.5 px-3.5 py-3">
           {BRISTOL_SCORES.map((score) => (
             <Chip
               key={score}
@@ -360,138 +359,87 @@ export function StoolTab({
             />
           ))}
         </div>
-      </div>
+      </FormGroup>
 
-      {/* Everything optional folded behind one toggle — same collapse
-          affordance (chevron, count badge) as a food category card, just
-          collapsed by default since these are extra detail, not the
-          primary action. */}
-      <div className="flex flex-col gap-2 rounded-xl border p-3" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
+      <FormGroup>
         <button
           type="button"
           onClick={() => setDetailsOpen((v) => !v)}
-          className="flex min-h-9 items-center gap-1.5 text-left text-sm font-medium"
+          aria-expanded={detailsOpen}
+          className="flex min-h-11 w-full items-center gap-1.5 px-3.5 text-left text-sm"
           style={{ color: "var(--text-primary)" }}
         >
           More details
-          <span className="ml-auto flex items-center gap-1 font-medium" style={{ color: "var(--text-secondary)" }}>
+          <span className="ml-auto flex items-center gap-1.5" style={{ color: "var(--text-muted)" }}>
             {detailsChosenCount > 0 && `${detailsChosenCount} set`}
-            <svg
-              width="12"
-              height="12"
-              viewBox="0 0 20 20"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              style={{ transform: detailsOpen ? "none" : "rotate(-90deg)", transition: "transform 150ms" }}
-            >
-              <path d="M5 7.5 10 12.5 15 7.5" />
-            </svg>
+            <ChevronIcon dir={detailsOpen ? "down" : "right"} size={14} />
           </span>
         </button>
+      </FormGroup>
 
-        {detailsOpen && (
-          <div className="flex flex-col gap-5 border-t pt-3.5" style={{ borderColor: "var(--border-hairline)" }}>
-            <div>
-              <p className="mb-2 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
-                Color
-              </p>
-              <div className={CHIP_GRID}>
+      {detailsOpen && (
+        <>
+            <FormGroup title="Color">
+              <div className={`${CHIP_GRID} px-3.5 py-3`}>
                 {options.color.map((c) => (
                   <Chip key={c} label={c} icon={<ColorDot swatch={options.swatchFor(c)} />} active={draft.color === c} onClick={() => pickColor(c)} accent={accent} />
                 ))}
               </div>
-            </div>
-
-            <div>
-              <p className="mb-2 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
-                Floatation
-              </p>
-              <div className={CHIP_GRID}>
+            </FormGroup>
+            <FormGroup title="Floatation">
+              <div className={`${CHIP_GRID} px-3.5 py-3`}>
                 {options.floatation.map((f) => (
                   <Chip key={f} label={f} icon={<FloatationIcon />} active={draft.floatation === f} onClick={() => pickFloatation(f)} accent={accent} />
                 ))}
               </div>
-            </div>
-
-            <div>
-              <p className="mb-2 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
-                Characteristics
-              </p>
-              <div className={CHIP_GRID}>
+            </FormGroup>
+            <FormGroup title="Characteristics">
+              <div className={`${CHIP_GRID} px-3.5 py-3`}>
                 {options.characteristic.map((c) => (
-                  <Chip
-                    key={c}
-                    label={c}
-                    icon={CHARACTERISTIC_ICON[c]}
-                    active={draft.characteristics.includes(c)}
-                    onClick={() => toggleCharacteristic(c)}
-                    accent={accent}
-                  />
+                  <Chip key={c} label={c} icon={CHARACTERISTIC_ICON[c]} active={draft.characteristics.includes(c)} onClick={() => toggleCharacteristic(c)} accent={accent} />
                 ))}
               </div>
-            </div>
-
-            <div>
-              <p className="mb-2 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
-                Symptoms
-              </p>
-              <div className={CHIP_GRID}>
+            </FormGroup>
+            <FormGroup title="Symptoms">
+              <div className={`${CHIP_GRID} px-3.5 py-3`}>
                 {options.symptom.map((s) => (
                   <Chip key={s} label={s} active={draft.symptoms.includes(s)} onClick={() => toggleSymptom(s)} accent={accent} />
                 ))}
               </div>
-            </div>
-
-            <div>
-              <p className="mb-2 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
-                Hygiene
-              </p>
-              <div className={CHIP_GRID}>
+            </FormGroup>
+            <FormGroup title="Hygiene">
+              <div className={`${CHIP_GRID} px-3.5 py-3`}>
                 {HYGIENE_OPTIONS.map((h) => (
                   <Chip key={h} label={h} icon={<HygieneIcon option={h} />} active={draft.hygiene.includes(h)} onClick={() => toggleHygiene(h)} accent={accent} />
                 ))}
               </div>
-            </div>
-
-            <div>
-              <p className="mb-2 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
-                Time on toilet
-              </p>
-              <div className={CHIP_GRID}>
+            </FormGroup>
+            <FormGroup title="Time on toilet">
+              <div className={`${CHIP_GRID} px-3.5 py-3`}>
                 {TIME_ON_TOILET_OPTIONS.map((m) => (
-                  <Chip
-                    key={m}
-                    label={timeOnToiletLabel(m)}
-                    active={draft.timeOnToiletMinutes === m}
-                    onClick={() => pickTimeOnToilet(m)}
-                    accent={accent}
-                  />
+                  <Chip key={m} label={timeOnToiletLabel(m)} active={draft.timeOnToiletMinutes === m} onClick={() => pickTimeOnToilet(m)} accent={accent} />
                 ))}
               </div>
-            </div>
-
-            <div>
-              <p className="mb-2 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
-                Notes
-              </p>
-              <input
-                value={draft.note ?? ""}
-                onChange={(e) => setDraft((d) => ({ ...d, note: e.target.value }))}
-                placeholder="Add a note…"
-                className="w-full min-h-11 rounded-[10px] border px-3 text-sm outline-none"
-                style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
-              />
-            </div>
-          </div>
-        )}
-      </div>
+            </FormGroup>
+            <FormGroup>
+              <Field label="Notes">
+                <input
+                  value={draft.note ?? ""}
+                  onChange={(e) => setDraft((d) => ({ ...d, note: e.target.value }))}
+                  placeholder="Add a note…"
+                  className={ROW_TEXT_CLS}
+                  style={ROW_STYLE}
+                />
+              </Field>
+            </FormGroup>
+        </>
+      )}
 
       <Button type="button" size="sm" onClick={() => void handleSave()} disabled={!canSave || saving || isDemoData} accent={accent} className="self-start">
         {isDemoData ? "Sign in to log" : saving ? "Saving…" : editingId ? "Update entry" : "Save entry"}
       </Button>
+
+      {loggedList()}
     </div>
   );
 
@@ -499,7 +447,7 @@ export function StoolTab({
     if (entries.length === 0) return null;
     return (
       <div className="flex flex-col gap-2">
-        <p className="px-0.5 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
+        <p className="px-3.5 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
           Logged today
         </p>
         <div className="flex flex-col gap-2">

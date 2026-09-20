@@ -15,7 +15,8 @@ import { PrimaryAction } from "@/components/ui/PrimaryAction";
 import { Button } from "@/components/ui/Button";
 import { FormShell } from "@/components/ui/FormShell";
 import { Field } from "@/components/ui/Field";
-import { FIELD_CLS, FIELD_STYLE, LABEL_CLS, LABEL_STYLE } from "@/components/ui/formField";
+import { FormGroup } from "@/components/ui/FormGroup";
+import { ROW_INLINE_CLS, ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
 import { ClockIcon } from "@/components/ui/icons";
 import type { HouseholdCode, NewHouseholdCodeInput } from "@/lib/supabase/household";
 
@@ -53,10 +54,9 @@ function MicButton({ onStart, onText }: { onStart?: () => void; onText: (text: s
       }}
       aria-label="Dictate the code"
       aria-pressed={listening}
-      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border transition-colors"
+      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] transition-colors"
       style={{
-        borderColor: listening ? "var(--status-critical)" : "var(--border-hairline)",
-        background: listening ? "color-mix(in oklab, var(--status-critical) 10%, var(--surface-1))" : "var(--surface-1)",
+        background: listening ? "color-mix(in oklab, var(--status-critical) 12%, var(--surface-1))" : "var(--field-fill)",
         color: listening ? "var(--status-critical)" : "var(--text-secondary)",
       }}
     >
@@ -112,67 +112,41 @@ function CodeForm({
 
   return (
     <FormShell title={initial ? "Edit code" : "New code"} onSubmit={handleSubmit} onCancel={onCancel}>
-      <div className="flex flex-col gap-1.5">
-        <span className={LABEL_CLS} style={LABEL_STYLE}>
-          Code
-        </span>
-        <div className="flex items-center gap-2">
-          <input
-            ref={codeInputRef}
-            required
-            autoFocus
-            value={code}
-            onChange={(e) => setCode(e.target.value)}
-            placeholder="e.g. SUMMER20"
-            maxLength={200}
-            className={`${FIELD_CLS} min-w-0 flex-1 font-mono`}
-            style={FIELD_STYLE}
-          />
-          <MicButton
-            onStart={focusCodeEnd}
-            onText={(text) => {
-              setCode(text.trim());
-              // Re-assert focus + caret after the result so the field is ready
-              // to edit straight away, no tap needed.
-              requestAnimationFrame(focusCodeEnd);
-            }}
-          />
-        </div>
-      </div>
-
-      <Field label="Shop or name">
-        <input
-          required
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Where it works"
-          maxLength={150}
-          className={`${FIELD_CLS} font-medium`}
-          style={FIELD_STYLE}
-        />
-      </Field>
-
-      <Field label={<>Comment <span style={{ color: "var(--text-muted)" }}>· optional</span></>}>
-        <input
-          value={comment}
-          onChange={(e) => setComment(e.target.value)}
-          placeholder="What it's for, any conditions"
-          maxLength={300}
-          className={FIELD_CLS}
-          style={FIELD_STYLE}
-        />
-      </Field>
-
-      <Field label={<>Expires on <span style={{ color: "var(--text-muted)" }}>· optional</span></>}>
-        <input
-          type="date"
-          value={expiresOn}
-          onChange={(e) => setExpiresOn(e.target.value)}
-          min={todayLocalISODate()}
-          className={FIELD_CLS}
-          style={FIELD_STYLE}
-        />
-      </Field>
+      <FormGroup>
+        <Field label="Code" plain>
+          <div className="flex items-center gap-2">
+            <input
+              ref={codeInputRef}
+              required
+              autoFocus
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              placeholder="e.g. SUMMER20"
+              maxLength={200}
+              className={`${ROW_TEXT_CLS} min-w-0 flex-1 font-mono`}
+              style={ROW_STYLE}
+            />
+            <MicButton
+              onStart={focusCodeEnd}
+              onText={(text) => {
+                setCode(text.trim());
+                // Re-assert focus + caret after the result so the field is ready
+                // to edit straight away, no tap needed.
+                requestAnimationFrame(focusCodeEnd);
+              }}
+            />
+          </div>
+        </Field>
+        <Field label="Shop or name">
+          <input required value={name} onChange={(e) => setName(e.target.value)} placeholder="Where it works" maxLength={150} className={`${ROW_TEXT_CLS} font-medium`} style={ROW_STYLE} />
+        </Field>
+        <Field label={<>Comment <span style={{ color: "var(--text-muted)" }}>· optional</span></>}>
+          <input value={comment} onChange={(e) => setComment(e.target.value)} placeholder="What it's for, any conditions" maxLength={300} className={ROW_TEXT_CLS} style={ROW_STYLE} />
+        </Field>
+        <Field label={<>Expires on <span style={{ color: "var(--text-muted)" }}>· optional</span></>} inline>
+          <input type="date" value={expiresOn} onChange={(e) => setExpiresOn(e.target.value)} min={todayLocalISODate()} className={ROW_INLINE_CLS} style={ROW_STYLE} />
+        </Field>
+      </FormGroup>
 
       <div className="flex flex-wrap items-center gap-3">
         <Button type="submit" size="lg" accent={accent} disabled={saving || !canSave}>

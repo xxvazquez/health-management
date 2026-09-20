@@ -15,7 +15,9 @@ import { FormShell } from "@/components/ui/FormShell";
 import { Field } from "@/components/ui/Field";
 import { DriveFilePicker } from "@/components/googleDrive/DriveFilePicker";
 import { driveFileIcon } from "@/components/icons/DriveFileIcons";
-import { FIELD_CLS, FIELD_STYLE, IconAction, LABEL_CLS, LABEL_STYLE, PencilIcon, TrashIcon, formatDate } from "./shared";
+import { IconAction, PencilIcon, TrashIcon, formatDate } from "./shared";
+import { FormGroup } from "@/components/ui/FormGroup";
+import { ROW_INLINE_CLS, ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
 
 type DoctorsApi = ReturnType<typeof useDoctors>;
 
@@ -123,118 +125,91 @@ export function CareEntryForm({
         accent={accent}
         options={(["observation", "note", "decision"] as const).map((k) => [k, CARE_KIND_LABEL[k]] as const)}
       />
-      <p className="-mt-1 text-xs" style={{ color: "var(--text-muted)" }}>
+      <p className="-mt-2 px-3.5 text-xs" style={{ color: "var(--text-muted)" }}>
         {KIND_HINT[kind]}
       </p>
 
-      <Field label="Title">
-        <input
-          autoFocus
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder={TITLE_HINT[kind]}
-          maxLength={200}
-          className={`${FIELD_CLS} font-medium`}
-          style={FIELD_STYLE}
-        />
-      </Field>
-
-      <Field label={<>Detail <span style={{ color: "var(--text-muted)" }}>· optional</span></>}>
-        <textarea
-          value={body}
-          onChange={(e) => setBody(e.target.value)}
-          placeholder={BODY_HINT[kind]}
-          rows={3}
-          className={`${FIELD_CLS} resize-y`}
-          style={FIELD_STYLE}
-        />
-      </Field>
-
-      {kind === "decision" && supplements.length > 0 && (
-        <Field label={<>About which supplement? <span style={{ color: "var(--text-muted)" }}>· optional</span></>}>
-          <select value={supplementItemId} onChange={(e) => setSupplementItemId(e.target.value)} className={FIELD_CLS} style={FIELD_STYLE}>
-            <option value="">None</option>
-            {supplements.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </select>
-        </Field>
-      )}
-
-      <Field label="Date">
-        <input type="date" value={happenedOn} max={todayLocalISODate()} onChange={(e) => setHappenedOn(e.target.value)} className={FIELD_CLS} style={FIELD_STYLE} />
-      </Field>
-
-      <label className="flex flex-col gap-1.5">
-        <span className={LABEL_CLS} style={LABEL_STYLE}>
-          Remind me to revisit <span style={{ color: "var(--text-muted)" }}>· optional</span>
-        </span>
-        <div className="flex items-center gap-2">
+      <FormGroup>
+        <Field label="Title">
           <input
-            type="date"
-            value={remindOn}
-            min={todayLocalISODate()}
-            onChange={(e) => setRemindOn(e.target.value)}
-            className={FIELD_CLS}
-            style={FIELD_STYLE}
+            autoFocus
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder={TITLE_HINT[kind]}
+            maxLength={200}
+            className={`${ROW_TEXT_CLS} font-medium`}
+            style={ROW_STYLE}
           />
+        </Field>
+        <Field label={<>Detail <span style={{ color: "var(--text-muted)" }}>· optional</span></>}>
+          <textarea
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            placeholder={BODY_HINT[kind]}
+            rows={3}
+            className={`${ROW_TEXT_CLS} resize-none leading-relaxed`}
+            style={ROW_STYLE}
+          />
+        </Field>
+      </FormGroup>
+
+      <FormGroup footer="A push on the revisit date — e.g. to recheck a result or how a change is going.">
+        {kind === "decision" && supplements.length > 0 && (
+          <Field label="Supplement" inline>
+            <select value={supplementItemId} onChange={(e) => setSupplementItemId(e.target.value)} className={ROW_INLINE_CLS} style={ROW_STYLE}>
+              <option value="">None</option>
+              {supplements.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          </Field>
+        )}
+        <Field label="Date" inline>
+          <input type="date" value={happenedOn} max={todayLocalISODate()} onChange={(e) => setHappenedOn(e.target.value)} className={ROW_INLINE_CLS} style={ROW_STYLE} />
+        </Field>
+        <Field label="Revisit on" inline>
           {remindOn && (
-            <button type="button" onClick={() => setRemindOn("")} className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+            <button type="button" onClick={() => setRemindOn("")} className="text-sm font-medium" style={{ color: "var(--ui-accent)" }}>
               Clear
             </button>
           )}
+          <input type="date" value={remindOn} min={todayLocalISODate()} onChange={(e) => setRemindOn(e.target.value)} className={ROW_INLINE_CLS} style={ROW_STYLE} />
+        </Field>
+      </FormGroup>
+
+      <FormGroup title="Relevant to">
+        <div className="px-3.5 py-3">
+          <SpecialtyPicker
+            api={api}
+            selected={specialtyIds}
+            onToggle={(id) => setSpecialtyIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))}
+            accent={accent}
+          />
         </div>
-        <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-          A push on that date — e.g. to recheck a result or how a change is going.
-        </span>
-      </label>
+      </FormGroup>
 
-      <div className="flex flex-col gap-1.5">
-        <span className={LABEL_CLS} style={LABEL_STYLE}>
-          Relevant to
-        </span>
-        <SpecialtyPicker
-          api={api}
-          selected={specialtyIds}
-          onToggle={(id) => setSpecialtyIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))}
-          accent={accent}
-        />
-      </div>
-
-      <div className="flex flex-col gap-1.5">
-        <span className={LABEL_CLS} style={LABEL_STYLE}>
-          Drive files <span style={{ color: "var(--text-muted)" }}>· optional</span>
-        </span>
-        {attachments.length > 0 && (
-          <ul className="flex flex-col gap-1">
-            {attachments.map((f) => (
-              <li key={f.driveFileId} className="flex items-center gap-2 text-xs">
-                <span className="min-w-0 flex-1 truncate" style={{ color: "var(--text-secondary)" }}>
-                  {f.name}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setAttachments((prev) => prev.filter((x) => x.driveFileId !== f.driveFileId))}
-                  aria-label={`Unlink ${f.name}`}
-                  style={{ color: "var(--text-muted)" }}
-                >
-                  <TrashIcon size={13} />
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-        <button
-          type="button"
-          onClick={() => setPickerOpen(true)}
-          className="self-start text-xs font-medium"
-          style={{ color: accent }}
-        >
-          + Attach a Google Drive file
+      <FormGroup title="Drive files · optional">
+        {attachments.map((f) => (
+          <div key={f.driveFileId} className="flex min-h-11 items-center gap-2 px-3.5 text-sm">
+            <span className="min-w-0 flex-1 truncate" style={{ color: "var(--text-primary)" }}>
+              {f.name}
+            </span>
+            <button
+              type="button"
+              onClick={() => setAttachments((prev) => prev.filter((x) => x.driveFileId !== f.driveFileId))}
+              aria-label={`Unlink ${f.name}`}
+              style={{ color: "var(--text-muted)" }}
+            >
+              <TrashIcon size={14} />
+            </button>
+          </div>
+        ))}
+        <button type="button" onClick={() => setPickerOpen(true)} className="flex min-h-11 w-full items-center px-3.5 text-left text-sm font-medium" style={{ color: accent }}>
+          Attach a Google Drive file
         </button>
-      </div>
+      </FormGroup>
 
       {pickerOpen && (
         <DriveFilePicker

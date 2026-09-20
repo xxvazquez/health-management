@@ -1,9 +1,9 @@
 import type { FormEvent, ReactNode } from "react";
 
 /**
- * The shared surface for every Lauva create/edit form — a bordered card
- * with a title and a Cancel control, fields passed as children. Keeping
- * the framing in one place is what stops these forms drifting apart.
+ * The shared frame for every Lauva create/edit form — a title with a Cancel
+ * control above grouped rows (`FormGroup`), passed as children. Keeping the
+ * framing in one place is what stops these forms drifting apart.
  *
  * Journal's writing sheet (`JournalEntryForm`) deliberately opts out of
  * this — a journal entry shouldn't feel like filling in a form. Nothing
@@ -27,10 +27,9 @@ export function FormShell({
   return (
     <form
       onSubmit={onSubmit}
-      className="flex flex-col gap-4 rounded-xl border p-4"
-      style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", boxShadow: "none" }}
+      className="flex flex-col gap-4"
     >
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex items-center justify-between gap-3 px-0.5">
         <h3 className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>
           {title}
         </h3>

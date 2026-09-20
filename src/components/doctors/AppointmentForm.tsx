@@ -4,7 +4,10 @@ import { useState, type FormEvent } from "react";
 import type { Doctor, DoctorAppointment } from "@/lib/supabase/doctors";
 import type { DoctorLanguage } from "@/lib/doctors";
 import type { LogAppointmentInput } from "@/lib/useDoctors";
-import { ComboBox, DoctorName, FIELD_CLS, FIELD_STYLE, LABEL_CLS, LABEL_STYLE, LanguageChips, RatingChips, TrashIcon, toLocalDateInput } from "./shared";
+import { ComboBox, DoctorName, LanguageChips, RatingChips, TrashIcon, toLocalDateInput } from "./shared";
+import { Field } from "@/components/ui/Field";
+import { FormGroup } from "@/components/ui/FormGroup";
+import { ROW_INLINE_CLS, ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
 import { Button } from "@/components/ui/Button";
 import { FormShell } from "@/components/ui/FormShell";
 import { MarkdownField } from "@/components/ui/Markdown";
@@ -116,124 +119,88 @@ export function AppointmentForm({
 
   return (
     <FormShell title={editing ? "Edit appointment" : "Log appointment"} onSubmit={handleSubmit} onCancel={onCancel}>
-      <div className="flex flex-col gap-1.5">
-        <label className={LABEL_CLS} style={LABEL_STYLE}>
-          Doctor
-        </label>
-        {editing ? (
-          <span className="text-sm" style={{ color: "var(--text-primary)" }}>
-            <DoctorName name={initialDoctor?.name ?? "—"} rating={initialDoctor?.rating ?? null} /> · {initial.specialty}
-          </span>
-        ) : (
-          <ComboBox
-            value={doctorName}
-            onChange={setDoctorName}
-            options={doctors.map((d) => d.name)}
-            placeholder="Search or add a doctor…"
-            accent={accent}
-            renderOption={(name) => {
-              const d = doctors.find((x) => x.name === name);
-              return <DoctorName name={name} rating={d?.rating ?? null} weight="font-normal" />;
-            }}
-          />
-        )}
-      </div>
+      <FormGroup>
+        <Field label="Doctor" plain>
+          {editing ? (
+            <span className="py-0.5 text-sm" style={{ color: "var(--text-primary)" }}>
+              <DoctorName name={initialDoctor?.name ?? "—"} rating={initialDoctor?.rating ?? null} /> · {initial.specialty}
+            </span>
+          ) : (
+            <ComboBox
+              bare
+              value={doctorName}
+              onChange={setDoctorName}
+              options={doctors.map((d) => d.name)}
+              placeholder="Search or add a doctor…"
+              accent={accent}
+              renderOption={(name) => {
+                const d = doctors.find((x) => x.name === name);
+                return <DoctorName name={name} rating={d?.rating ?? null} weight="font-normal" />;
+              }}
+            />
+          )}
+        </Field>
+        <Field label="Date" inline>
+          <input type="date" required max={todayLocalISODate()} value={appointmentDate} onChange={(e) => setAppointmentDate(e.target.value)} className={ROW_INLINE_CLS} style={ROW_STYLE} />
+        </Field>
+      </FormGroup>
 
       {isNewDoctor && (
-        <div className="flex flex-col gap-3 rounded-xl border p-3" style={{ borderColor: "var(--gridline)", background: "var(--page-backdrop)" }}>
-          <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-            New doctor — saved for reuse.
-          </p>
-          <div className="flex flex-col gap-1.5">
-            <label className={LABEL_CLS} style={LABEL_STYLE}>
-              Specialty
-            </label>
-            <ComboBox value={specialty} onChange={setSpecialty} options={specialtyOptions} placeholder="Search or add a specialty…" accent={accent} />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <label className={LABEL_CLS} style={LABEL_STYLE}>
-              Rating <span style={{ color: "var(--text-muted)" }}>· optional</span>
-            </label>
+        <FormGroup title="New doctor" footer="Saved for reuse.">
+          <Field label="Specialty" plain>
+            <ComboBox bare value={specialty} onChange={setSpecialty} options={specialtyOptions} placeholder="Search or add a specialty…" accent={accent} />
+          </Field>
+          <Field label={<>Rating <span style={{ color: "var(--text-muted)" }}>· optional</span></>} plain className="gap-1.5">
             <RatingChips value={rating} onChange={setRating} accent={accent} />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <label className={LABEL_CLS} style={LABEL_STYLE}>
-              Language <span style={{ color: "var(--text-muted)" }}>· optional</span>
-            </label>
+          </Field>
+          <Field label={<>Language <span style={{ color: "var(--text-muted)" }}>· optional</span></>} plain className="gap-1.5">
             <LanguageChips value={language} onChange={setLanguage} accent={accent} />
-          </div>
-        </div>
+          </Field>
+        </FormGroup>
       )}
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div className="flex flex-col gap-1.5">
-          <label className={LABEL_CLS} style={LABEL_STYLE}>
-            Date
-          </label>
-          <input type="date" required max={todayLocalISODate()} value={appointmentDate} onChange={(e) => setAppointmentDate(e.target.value)} className={FIELD_CLS} style={FIELD_STYLE} />
-        </div>
-      </div>
+      <FormGroup>
+        <Field label={<>Reason for appointment <span style={{ color: "var(--text-muted)" }}>· optional</span></>}>
+          <textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={2} placeholder="Why you went" className={`${ROW_TEXT_CLS} resize-none leading-relaxed`} style={ROW_STYLE} />
+        </Field>
+      </FormGroup>
 
-      <div className="flex flex-col gap-1.5">
-        <label className={LABEL_CLS} style={LABEL_STYLE}>
-          Reason for appointment <span style={{ color: "var(--text-muted)" }}>· optional</span>
-        </label>
-        <textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={2} placeholder="Why you went" className={`${FIELD_CLS} resize-y leading-relaxed`} style={FIELD_STYLE} />
-      </div>
+      <FormGroup title="Follow-up notes · optional">
+        <MarkdownField value={followUpNotes} onChange={setFollowUpNotes} rows={4} required={false} placeholder="What was discussed, results, what to watch" />
+      </FormGroup>
 
-      <div className="flex flex-col gap-1.5">
-        <label className={LABEL_CLS} style={LABEL_STYLE}>
-          Follow-up notes <span style={{ color: "var(--text-muted)" }}>· optional</span>
-        </label>
-        <div className="overflow-hidden rounded-xl border" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
-          <MarkdownField value={followUpNotes} onChange={setFollowUpNotes} rows={4} required={false} placeholder="What was discussed, results, what to watch" />
-        </div>
-      </div>
-
-      <div className="flex flex-col gap-1.5">
-        <label className={LABEL_CLS} style={LABEL_STYLE}>
-          Comments <span style={{ color: "var(--text-muted)" }}>· optional</span>
-        </label>
-        <div className="overflow-hidden rounded-xl border" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
-          <MarkdownField value={notes} onChange={setNotes} rows={4} required={false} placeholder="Anything else worth noting" />
-        </div>
-      </div>
+      <FormGroup title="Comments · optional">
+        <MarkdownField value={notes} onChange={setNotes} rows={4} required={false} placeholder="Anything else worth noting" />
+      </FormGroup>
 
       {!editing && (
-        <div className="flex flex-col gap-2">
-          <label className={LABEL_CLS} style={LABEL_STYLE}>
-            Follow-up tasks <span style={{ color: "var(--text-muted)" }}>· optional</span>
-          </label>
+        <FormGroup title="Follow-up tasks · optional">
           {tasks.map((task, index) => (
-            <div key={index} className="flex flex-col gap-2 rounded-xl border p-2.5" style={{ borderColor: "var(--gridline)" }}>
-              <div className="flex items-center gap-2">
+            <div key={index} className="flex flex-col">
+              <div className="flex items-center gap-2 px-3.5">
                 <input
                   value={task.description}
                   onChange={(e) => setTaskRow(index, { description: e.target.value })}
                   placeholder="e.g. Book the CT scan"
-                  className={`${FIELD_CLS} flex-1`}
-                  style={FIELD_STYLE}
+                  className={`${ROW_TEXT_CLS} min-h-11 flex-1`}
+                  style={ROW_STYLE}
                 />
                 <button type="button" onClick={() => removeTaskRow(index)} aria-label="Remove task" className="tap-target shrink-0 rounded-md p-1.5 notebook-danger" style={{ color: "var(--text-muted)" }}>
                   <TrashIcon size={15} />
                 </button>
               </div>
-              <div className="grid gap-2 sm:grid-cols-2">
-                <label className="flex flex-col gap-1 text-xs" style={LABEL_STYLE}>
-                  Due date · optional
-                  <input type="date" value={task.dueDate} onChange={(e) => setTaskRow(index, { dueDate: e.target.value })} className={FIELD_CLS} style={FIELD_STYLE} />
-                </label>
-                <label className="flex flex-col gap-1 text-xs" style={LABEL_STYLE}>
-                  Reminder · optional
-                  <input type="datetime-local" value={task.reminderAt} onChange={(e) => setTaskRow(index, { reminderAt: e.target.value })} className={FIELD_CLS} style={FIELD_STYLE} />
-                </label>
-              </div>
+              <Field label="Due date" inline className="border-t" >
+                <input type="date" value={task.dueDate} onChange={(e) => setTaskRow(index, { dueDate: e.target.value })} className={ROW_INLINE_CLS} style={ROW_STYLE} />
+              </Field>
+              <Field label="Reminder" inline className="border-t">
+                <input type="datetime-local" value={task.reminderAt} onChange={(e) => setTaskRow(index, { reminderAt: e.target.value })} className={ROW_INLINE_CLS} style={ROW_STYLE} />
+              </Field>
             </div>
           ))}
-          <button type="button" onClick={addTaskRow} className="self-start text-xs font-medium" style={{ color: accent }}>
-            + Add follow-up task
+          <button type="button" onClick={addTaskRow} className="flex min-h-11 w-full items-center px-3.5 text-left text-sm font-medium" style={{ color: accent }}>
+            Add follow-up task
           </button>
-        </div>
+        </FormGroup>
       )}
 
       <div className="flex flex-wrap items-center gap-3 pt-1">

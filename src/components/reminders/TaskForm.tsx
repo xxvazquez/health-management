@@ -1,13 +1,14 @@
 "use client";
 
-import { SwitchKnob } from "@/components/ui/Switch";
+import { SwitchRow } from "@/components/ui/Switch";
 import { useState, type FormEvent } from "react";
 import { isRecurringTask, type TaskItem } from "@/lib/reminders";
 import type { ReminderList } from "@/lib/supabase/personalReminders";
 import { Field } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
 import { FormShell } from "@/components/ui/FormShell";
-import { FIELD_CLS as fieldCls, FIELD_STYLE as fieldStyle, LABEL_CLS as labelCls, LABEL_STYLE as labelStyle } from "@/components/ui/formField";
+import { FormGroup } from "@/components/ui/FormGroup";
+import { ROW_INLINE_CLS, ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
 
 const DEFAULT_LIST_NAME = "Reminders";
 
@@ -98,51 +99,36 @@ export function TaskForm({
 
   return (
     <FormShell title={initial ? "Edit reminder" : "New reminder"} onSubmit={handleSubmit} onCancel={onCancel}>
-      <Field label="What needs doing?">
-        <input
-          required
-          autoFocus
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="e.g. Call the dentist"
-          maxLength={150}
-          className={`${fieldCls} font-medium`}
-          style={fieldStyle}
-        />
-      </Field>
+      <FormGroup>
+        <Field label="What needs doing?">
+          <input
+            required
+            autoFocus
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="e.g. Call the dentist"
+            maxLength={150}
+            className={`${ROW_TEXT_CLS} font-medium`}
+            style={ROW_STYLE}
+          />
+        </Field>
+        <Field label={<>Notes <span style={{ color: "var(--text-muted)" }}>· optional</span></>}>
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            rows={2}
+            placeholder="Anything useful to remember"
+            className={`${ROW_TEXT_CLS} resize-none leading-relaxed`}
+            style={ROW_STYLE}
+          />
+        </Field>
+      </FormGroup>
 
-      <Field label={<>Notes <span style={{ color: "var(--text-muted)" }}>· optional</span></>}>
-        <textarea
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          rows={2}
-          placeholder="Anything useful to remember"
-          className={`${fieldCls} resize-y leading-relaxed`}
-          style={fieldStyle}
-        />
-      </Field>
-
-      {recurrenceMode === "optional" && (
-        <button
-          type="button"
-          role="switch"
-          aria-checked={recurring}
-          onClick={() => setRecurring((v) => !v)}
-          className="flex min-h-11 w-full items-center justify-between gap-3 text-sm"
-          style={{ color: "var(--text-primary)" }}
-        >
-          Repeats on a schedule
-          <SwitchKnob on={recurring} />
-        </button>
-      )}
-
-      <div className="grid gap-3 sm:grid-cols-2">
+      <FormGroup>
+        {recurrenceMode === "optional" && <SwitchRow label="Repeats on a schedule" on={recurring} onChange={setRecurring} />}
         {lists && (
-          <div className="flex flex-col gap-1.5">
-            <label className={labelCls} style={labelStyle}>
-              List
-            </label>
-            <select value={listId} onChange={(e) => setListId(e.target.value)} className={fieldCls} style={fieldStyle}>
+          <Field label="List" inline>
+            <select value={listId} onChange={(e) => setListId(e.target.value)} className={ROW_INLINE_CLS} style={ROW_STYLE}>
               <option value="">{DEFAULT_LIST_NAME}</option>
               {lists.map((l) => (
                 <option key={l.id} value={l.id}>
@@ -150,51 +136,35 @@ export function TaskForm({
                 </option>
               ))}
             </select>
-          </div>
+          </Field>
         )}
-
         {assignable && (
-          <div className="flex flex-col gap-1.5">
-            <label className={labelCls} style={labelStyle}>
-              Assigned to
-            </label>
-            <select value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)} className={fieldCls} style={fieldStyle}>
+          <Field label="Assigned to" inline>
+            <select value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)} className={ROW_INLINE_CLS} style={ROW_STYLE}>
               <option value="">Anyone</option>
               <option value={assignable.myUserId}>Me</option>
               {assignable.partnerId && <option value={assignable.partnerId}>Partner</option>}
             </select>
-          </div>
+          </Field>
         )}
-
         {usesRecurrence ? (
-          <div className="flex flex-col gap-1.5">
-            <label className={labelCls} style={labelStyle}>
-              Repeat every
-            </label>
-            <div className="flex items-center gap-2">
-              <input
-                type="number"
-                min={1}
-                required
-                value={recurrenceDays}
-                onChange={(e) => setRecurrenceDays(e.target.value)}
-                className={`${fieldCls} w-20`}
-                style={fieldStyle}
-              />
-              <span className="text-xs" style={labelStyle}>
-                days
-              </span>
-            </div>
-          </div>
+          <Field label="Repeat every (days)" inline>
+            <input
+              type="number"
+              min={1}
+              required
+              value={recurrenceDays}
+              onChange={(e) => setRecurrenceDays(e.target.value)}
+              className={`${ROW_INLINE_CLS} w-16`}
+              style={ROW_STYLE}
+            />
+          </Field>
         ) : (
-          <div className="flex flex-col gap-1.5">
-            <label className={labelCls} style={labelStyle}>
-              Deadline <span style={{ color: "var(--text-muted)" }}>· optional</span>
-            </label>
-            <input type="datetime-local" value={dueAtLocal} onChange={(e) => setDueAtLocal(e.target.value)} className={fieldCls} style={fieldStyle} />
-          </div>
+          <Field label={<>Deadline <span style={{ color: "var(--text-muted)" }}>· optional</span></>} inline>
+            <input type="datetime-local" value={dueAtLocal} onChange={(e) => setDueAtLocal(e.target.value)} className={ROW_INLINE_CLS} style={ROW_STYLE} />
+          </Field>
         )}
-      </div>
+      </FormGroup>
 
       <div className="flex flex-wrap items-center gap-3 pt-1">
         <Button type="submit" size="lg" accent={accent} disabled={saving || !title.trim()}>

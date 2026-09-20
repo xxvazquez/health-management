@@ -5,7 +5,10 @@ import { useMemo, useState } from "react";
 import { useLabs } from "@/lib/useLabs";
 import { todayLocalISODate } from "@/lib/aggregations/common";
 import type { LabMarker, NewLabResultInput } from "@/lib/supabase/labs";
-import { FIELD_CLS, FIELD_STYLE, LABEL_CLS, LABEL_STYLE } from "./shared";
+import { Field } from "@/components/ui/Field";
+import { FormGroup } from "@/components/ui/FormGroup";
+import { SearchField } from "@/components/ui/SearchField";
+import { ROW_INLINE_CLS, ROW_STYLE } from "@/components/ui/formField";
 import { Button } from "@/components/ui/Button";
 import { parseNum, rangeStatus, statusColor } from "./labStatus";
 
@@ -120,37 +123,21 @@ export function BatchResultsView({
         <button
           type="button"
           onClick={() => onDone(null)}
-          className="shrink-0 text-xs font-medium"
+          className="shrink-0 text-sm font-medium"
           style={{ color: accent }}
         >
           Cancel
         </button>
       </div>
 
-      <div className="flex flex-wrap gap-3">
-        <label className="flex min-w-36 flex-1 flex-col gap-1">
-          <span className={LABEL_CLS} style={LABEL_STYLE}>Date</span>
-          <input
-            type="date"
-            value={date}
-            max={todayLocalISODate()}
-            onChange={(e) => setDate(e.target.value)}
-            className={FIELD_CLS}
-            style={FIELD_STYLE}
-          />
-        </label>
-        <label className="flex min-w-36 flex-1 flex-col gap-1">
-          <span className={LABEL_CLS} style={LABEL_STYLE}>Lab (optional)</span>
-          <input
-            value={lab}
-            onChange={(e) => setLab(e.target.value)}
-            placeholder="Where it was done"
-            maxLength={80}
-            className={FIELD_CLS}
-            style={FIELD_STYLE}
-          />
-        </label>
-      </div>
+      <FormGroup>
+        <Field label="Date" inline>
+          <input type="date" value={date} max={todayLocalISODate()} onChange={(e) => setDate(e.target.value)} className={ROW_INLINE_CLS} style={ROW_STYLE} />
+        </Field>
+        <Field label="Lab · optional" inline>
+          <input value={lab} onChange={(e) => setLab(e.target.value)} placeholder="Where it was done" maxLength={80} className={`${ROW_INLINE_CLS} w-40`} style={ROW_STYLE} />
+        </Field>
+      </FormGroup>
 
       <div className="flex flex-col gap-2">
         {chips.length > 2 && (
@@ -165,13 +152,7 @@ export function BatchResultsView({
             onSelect={setPanelFilter}
           />
         )}
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search markers"
-          className={FIELD_CLS}
-          style={FIELD_STYLE}
-        />
+        <SearchField value={query} onChange={setQuery} placeholder="Search markers" className="w-full" />
       </div>
 
       <div className="flex items-center gap-3">
@@ -186,13 +167,12 @@ export function BatchResultsView({
       ) : (
         <div className="flex flex-col gap-3">
           {visible.sections.map((s) => (
-            <MarkerGroup key={s.id} title={s.name} markers={s.markers} accent={accent} date={date} values={values} setValues={setValues} />
+            <MarkerGroup key={s.id} title={s.name} markers={s.markers} date={date} values={values} setValues={setValues} />
           ))}
           {visible.ungrouped.length > 0 && (
             <MarkerGroup
               title={grouped.sections.length > 0 ? "Other" : "Markers"}
               markers={visible.ungrouped}
-              accent={accent}
               date={date}
               values={values}
               setValues={setValues}
@@ -212,54 +192,46 @@ export function BatchResultsView({
 function MarkerGroup({
   title,
   markers,
-  accent,
   date,
   values,
   setValues,
 }: {
   title: string;
   markers: LabMarker[];
-  accent: string;
   date: string;
   values: Record<string, string>;
   setValues: (fn: (prev: Record<string, string>) => Record<string, string>) => void;
 }) {
   return (
-    <section className="flex flex-col rounded-xl border" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
-      <div className="flex items-center gap-1.5 border-b px-3 py-2" style={{ borderColor: "var(--border-hairline)" }}>
-        <h3 className="min-w-0 flex-1 truncate text-xs font-semibold" style={{ color: accent }}>{title}</h3>
-        <span className="text-xs font-medium tabular-nums" style={{ color: "var(--text-muted)" }}>{markers.length}</span>
-      </div>
-      <div className="px-3">
-        {markers.map((m) => {
-          const raw = values[m.id] ?? "";
-          const parsed = parseNum(raw);
-          const status = parsed != null ? rangeStatus(parsed, m.refLow, m.refHigh) : null;
-          const ref = refLabel(m);
-          const dupe = m.results.some((r) => r.measuredOn === date);
-          return (
-            <div key={m.id} className="flex items-center gap-3 border-t py-2 first:border-t-0" style={{ borderColor: "var(--gridline)" }}>
-              <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: statusColor(status) }} aria-hidden="true" />
-              <div className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-medium" style={{ color: "var(--text-primary)" }}>{m.name}</span>
-                {ref && <span className="text-xs" style={{ color: "var(--text-muted)" }}>Ref {ref}</span>}
-                {dupe && raw.trim() !== "" && (
-                  <span className="block text-xs" style={{ color: "var(--status-warning)" }}>Already has a value on this date</span>
-                )}
-              </div>
-              <input
-                value={raw}
-                onChange={(e) => setValues((prev) => ({ ...prev, [m.id]: e.target.value }))}
-                inputMode="decimal"
-                aria-label={`${m.name} value`}
-                placeholder={m.unit ?? "value"}
-                className="w-24 shrink-0 rounded-md border px-2.5 py-1.5 text-sm tabular-nums outline-none focus:border-[color:var(--baseline)]"
-                style={FIELD_STYLE}
-              />
+    <FormGroup title={<span className="flex items-center justify-between"><span className="truncate">{title}</span><span className="tabular-nums">{markers.length}</span></span>}>
+      {markers.map((m) => {
+        const raw = values[m.id] ?? "";
+        const parsed = parseNum(raw);
+        const status = parsed != null ? rangeStatus(parsed, m.refLow, m.refHigh) : null;
+        const ref = refLabel(m);
+        const dupe = m.results.some((r) => r.measuredOn === date);
+        return (
+          <div key={m.id} className="flex min-h-11 items-center gap-3 px-3.5 py-2">
+            <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: statusColor(status) }} aria-hidden="true" />
+            <div className="min-w-0 flex-1">
+              <span className="block truncate text-sm" style={{ color: "var(--text-primary)" }}>{m.name}</span>
+              {ref && <span className="text-xs" style={{ color: "var(--text-muted)" }}>Ref {ref}</span>}
+              {dupe && raw.trim() !== "" && (
+                <span className="block text-xs" style={{ color: "var(--status-warning)" }}>Already has a value on this date</span>
+              )}
             </div>
-          );
-        })}
-      </div>
-    </section>
+            <input
+              value={raw}
+              onChange={(e) => setValues((prev) => ({ ...prev, [m.id]: e.target.value }))}
+              inputMode="decimal"
+              aria-label={`${m.name} value`}
+              placeholder={m.unit ?? "value"}
+              className={`${ROW_INLINE_CLS} w-24 shrink-0 tabular-nums`}
+              style={ROW_STYLE}
+            />
+          </div>
+        );
+      })}
+    </FormGroup>
   );
 }

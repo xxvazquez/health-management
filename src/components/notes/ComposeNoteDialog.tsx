@@ -1,12 +1,13 @@
 "use client";
 
-import { chipStyle } from "@/components/ui/Chip";
 import { useState, type FormEvent } from "react";
-import { useDialogA11y } from "@/components/ui/useDialogA11y";
+import { Sheet } from "@/components/ui/Sheet";
+import { Segmented } from "@/components/ui/Segmented";
+import { Field } from "@/components/ui/Field";
+import { FormGroup } from "@/components/ui/FormGroup";
+import { ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
 import { AutoGrowTextarea } from "@/components/ui/AutoGrowTextarea";
 import { NOTE_CATEGORIES, NOTE_CATEGORY_LABEL, type NewNoteInput, type NoteCategory } from "@/lib/supabase/notes";
-import { CategoryIcon } from "./icons";
-import { CloseIcon } from "@/components/ui/icons";
 import { Button } from "@/components/ui/Button";
 
 const ACCENT = "var(--series-magenta)";
@@ -51,8 +52,6 @@ export function ComposeNoteDialog({
     }
   }
 
-  const containerRef = useDialogA11y(open, onClose);
-
   if (!open) return null;
 
   async function handleSubmit(e: FormEvent) {
@@ -73,85 +72,50 @@ export function ComposeNoteDialog({
   }
 
   return (
-    <div ref={containerRef} className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
-      <div className="absolute inset-0 bg-black/30" onClick={onClose} />
-      <div
-        className="relative flex w-full max-w-md flex-col gap-4 rounded-xl border p-5 shadow-xl"
-        style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}
-      >
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
-            New message
-          </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close"
-            className="flex h-7 w-7 items-center justify-center rounded-full"
-            style={{ color: "var(--text-secondary)", background: "var(--page-plane)" }}
-          >
-            <CloseIcon />
-          </button>
-        </div>
-
+    <Sheet
+      title="New message"
+      titleId="compose-note-title"
+      onClose={onClose}
+      subtitle={
         <p className="text-xs" style={{ color: "var(--text-muted)" }}>
           To <span style={{ color: "var(--text-secondary)" }}>{partnerLabel}</span>
         </p>
+      }
+    >
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <Segmented
+          value={category}
+          onChange={setCategory}
+          accent={ACCENT}
+          options={NOTE_CATEGORIES.map((c) => [c, NOTE_CATEGORY_LABEL[c]] as const)}
+        />
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-          <div className="flex gap-1.5">
-            {NOTE_CATEGORIES.map((c) => {
-              const active = c === category;
-              return (
-                <button
-                  key={c}
-                  type="button"
-                  onClick={() => setCategory(c)}
-                  aria-pressed={active}
-                  className="flex flex-1 flex-col items-center gap-1 rounded-md border py-2 text-sm font-medium transition-colors"
-                  style={chipStyle(active, ACCENT)}
-                >
-                  <CategoryIcon category={c} />
-                  {NOTE_CATEGORY_LABEL[c]}
-                </button>
-              );
-            })}
-          </div>
-
-          <label className="flex flex-col gap-1 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
-            <span>Subject <span style={{ color: "var(--text-muted)" }}>· optional</span></span>
-            <input
-              value={subject}
-              onChange={(e) => setSubject(e.target.value)}
-              maxLength={120}
-              className="min-h-11 rounded-[10px] border px-3 text-sm outline-none"
-              style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
-            />
-          </label>
-
-          <label className="flex flex-col gap-1 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
-            Message
+        <FormGroup>
+          <Field label="Subject · optional">
+            <input value={subject} onChange={(e) => setSubject(e.target.value)} maxLength={120} className={ROW_TEXT_CLS} style={ROW_STYLE} />
+          </Field>
+          <Field label="Message">
             <AutoGrowTextarea
               required
               value={body}
               onChange={(e) => setBody(e.target.value)}
               rows={5}
               maxRows={10}
-              className="resize-none min-h-20 rounded-[10px] border px-3 text-sm outline-none py-2"
-              style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
+              className={`${ROW_TEXT_CLS} resize-none leading-relaxed`}
+              style={ROW_STYLE}
             />
-          </label>
+          </Field>
+        </FormGroup>
 
-          <Button type="submit" accent={ACCENT} disabled={sending || !body.trim()}>
-            {sending ? "Sending…" : "Send"}
-          </Button>
-          {error && (
-            <span className="text-xs" style={{ color: "var(--status-critical)" }}>
-              {error}
-            </span>
-          )}
-        </form>
-      </div>
-    </div>
+        <Button type="submit" accent={ACCENT} disabled={sending || !body.trim()}>
+          {sending ? "Sending…" : "Send"}
+        </Button>
+        {error && (
+          <span className="text-xs" style={{ color: "var(--status-critical)" }}>
+            {error}
+          </span>
+        )}
+      </form>
+    </Sheet>
   );
 }

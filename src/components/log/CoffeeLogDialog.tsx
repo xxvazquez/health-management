@@ -1,12 +1,13 @@
 "use client";
 
 import { Chip as BaseChip } from "@/components/ui/Chip";
-import { useState, type ReactNode } from "react";
-import clsx from "clsx";
-import { useDialogA11y } from "@/components/ui/useDialogA11y";
+import { useState } from "react";
+import { Sheet } from "@/components/ui/Sheet";
+import { Field } from "@/components/ui/Field";
+import { FormGroup } from "@/components/ui/FormGroup";
+import { ROW_INLINE_CLS, ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
 import { AutoGrowTextarea } from "@/components/ui/AutoGrowTextarea";
 import { Button } from "@/components/ui/Button";
-import { CloseIcon } from "@/components/ui/icons";
 import { NumberStepper } from "@/components/ui/NumberStepper";
 import { TimeField } from "@/components/ui/TimeField";
 import { defaultLogTimeValue } from "@/lib/logCandidates";
@@ -53,23 +54,6 @@ function PickChip({ label, active, onClick, accent }: { label: string; active: b
   );
 }
 
-function FieldLabel({ children }: { children: ReactNode }) {
-  return (
-    <span className="text-xs font-semibold" style={{ color: "var(--text-secondary)" }}>
-      {children}
-    </span>
-  );
-}
-
-function Optional() {
-  return (
-    <span className="font-normal" style={{ color: "var(--text-muted)" }}>
-      {" "}
-      · optional
-    </span>
-  );
-}
-
 export function CoffeeLogDialog({
   open,
   onClose,
@@ -101,8 +85,6 @@ export function CoffeeLogDialog({
     if (open) setDraft(editingLog ? draftFromLog(editingLog) : blankDraft());
   }
 
-  const containerRef = useDialogA11y(open, onClose);
-
   if (!open || !item) return null;
 
   function toggleCharacteristic(label: string) {
@@ -121,148 +103,114 @@ export function CoffeeLogDialog({
   }
 
   return (
-    <div ref={containerRef} className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="coffee-log-title">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div
-        className="relative flex w-full max-w-md flex-col gap-4 overflow-y-auto rounded-xl border p-5 shadow-xl"
-        style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", maxHeight: "90vh" }}
-      >
-        <div className="flex items-start justify-between gap-3">
-          <span className="flex flex-col gap-0.5">
-            <h2 id="coffee-log-title" className="text-sm font-bold" style={{ color: "var(--text-primary)" }}>
-              {item.name}
-            </h2>
-            {item.brand && (
-              <span className="text-xs font-medium" style={{ color: accent }}>
-                {item.brand}
-              </span>
-            )}
+    <Sheet
+      title={item.name}
+      titleId="coffee-log-title"
+      onClose={onClose}
+      subtitle={
+        item.brand && (
+          <span className="text-xs font-medium" style={{ color: accent }}>
+            {item.brand}
           </span>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close"
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full"
-            style={{ color: "var(--text-secondary)", background: "var(--page-plane)" }}
-          >
-            <CloseIcon />
-          </button>
+        )
+      }
+    >
+      <FormGroup>
+        <div className="flex min-h-11 items-center justify-between gap-3 px-3.5">
+          <span className="text-sm" style={{ color: "var(--text-primary)" }}>
+            Time
+          </span>
+          <TimeField
+            value={draft.loggedAtTime}
+            onChange={(t) => setDraft((d) => ({ ...d, loggedAtTime: t }))}
+            onReset={() => setDraft((d) => ({ ...d, loggedAtTime: defaultLogTimeValue() }))}
+            collapsible
+          />
         </div>
-
-        <TimeField value={draft.loggedAtTime} onChange={(t) => setDraft((d) => ({ ...d, loggedAtTime: t }))} onReset={() => setDraft((d) => ({ ...d, loggedAtTime: defaultLogTimeValue() }))} collapsible />
-
-        <label className="flex flex-col gap-1.5">
-          <FieldLabel>
-            Café
-            <Optional />
-          </FieldLabel>
+        <Field label="Café · optional" inline>
           <input
             value={draft.cafe}
             onChange={(e) => setDraft((d) => ({ ...d, cafe: e.target.value }))}
             placeholder="Home"
-            className="rounded-[10px] border px-3 py-2 text-sm outline-none"
-            style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
+            className={`${ROW_INLINE_CLS} w-40`}
+            style={ROW_STYLE}
           />
-        </label>
+        </Field>
+      </FormGroup>
 
-        <div className="flex flex-col gap-1.5">
-          <FieldLabel>Brewing type</FieldLabel>
-          <div className={PICK_GRID}>
-            {options.brewingType.map((t) => (
-              <PickChip key={t} label={t} active={draft.brewingType === t} onClick={() => setDraft((d) => ({ ...d, brewingType: d.brewingType === t ? null : t }))} accent={accent} />
-            ))}
-          </div>
+      <FormGroup title="Brewing type">
+        <div className={`${PICK_GRID} px-3.5 py-3`}>
+          {options.brewingType.map((t) => (
+            <PickChip key={t} label={t} active={draft.brewingType === t} onClick={() => setDraft((d) => ({ ...d, brewingType: d.brewingType === t ? null : t }))} accent={accent} />
+          ))}
         </div>
+      </FormGroup>
 
-        <div className="flex flex-col gap-1.5">
-          <FieldLabel>Brewing method</FieldLabel>
-          <div className={PICK_GRID}>
-            {options.brewingMethod.map((m) => (
-              <PickChip key={m} label={m} active={draft.brewingMethod === m} onClick={() => setDraft((d) => ({ ...d, brewingMethod: d.brewingMethod === m ? null : m }))} accent={accent} />
-            ))}
-          </div>
+      <FormGroup title="Brewing method">
+        <div className={`${PICK_GRID} px-3.5 py-3`}>
+          {options.brewingMethod.map((m) => (
+            <PickChip key={m} label={m} active={draft.brewingMethod === m} onClick={() => setDraft((d) => ({ ...d, brewingMethod: d.brewingMethod === m ? null : m }))} accent={accent} />
+          ))}
         </div>
+      </FormGroup>
 
-        <div className="flex flex-col gap-1.5">
-          <FieldLabel>
-            Characteristics
-            <span className="font-normal" style={{ color: "var(--text-muted)" }}>
-              {" "}
-              · optional, tap all that apply
-            </span>
-          </FieldLabel>
-          <div className={PICK_GRID}>
-            {options.characteristic.map((c) => (
-              <PickChip key={c} label={c} active={draft.characteristics.includes(c)} onClick={() => toggleCharacteristic(c)} accent={accent} />
-            ))}
-          </div>
+      <FormGroup title="Characteristics · optional">
+        <div className={`${PICK_GRID} px-3.5 py-3`}>
+          {options.characteristic.map((c) => (
+            <PickChip key={c} label={c} active={draft.characteristics.includes(c)} onClick={() => toggleCharacteristic(c)} accent={accent} />
+          ))}
         </div>
+      </FormGroup>
 
-        <div className="grid grid-cols-2 gap-3">
-          <div className="flex flex-col gap-1.5">
-            <FieldLabel>
-              Water temp
-              <Optional />
-            </FieldLabel>
-            <NumberStepper
-              value={draft.waterTempC ?? 94}
-              onChange={(v) => setDraft((d) => ({ ...d, waterTempC: v }))}
-              unit="°C"
-              accent={accent}
-              step={5}
-              bigStep={10}
-              min={60}
-              max={100}
-              compact
-            />
-          </div>
-          <label className="flex flex-col gap-1.5">
-            <FieldLabel>
-              Price
-              <Optional />
-            </FieldLabel>
-            <div
-              className="flex h-7 items-center gap-1.5 rounded-md px-2.5"
-              style={{ background: `color-mix(in oklab, ${accent} 12%, var(--surface-1))` }}
-            >
-              <input
-                type="number"
-                inputMode="decimal"
-                step="0.01"
-                min={0}
-                value={draft.price ?? ""}
-                onChange={(e) => setDraft((d) => ({ ...d, price: e.target.value === "" ? null : Number(e.target.value) }))}
-                placeholder="0"
-                className={clsx("w-full bg-transparent text-xs font-semibold outline-none")}
-                style={{ color: "var(--text-primary)" }}
-              />
-              <span className="shrink-0 text-xs font-medium" style={{ color: "var(--text-muted)" }}>
-                {currency}
-              </span>
-            </div>
-          </label>
+      <FormGroup>
+        <div className="flex min-h-11 items-center justify-between gap-3 px-3.5">
+          <span className="text-sm" style={{ color: "var(--text-primary)" }}>
+            Water temp · optional
+          </span>
+          <NumberStepper
+            value={draft.waterTempC ?? 94}
+            onChange={(v) => setDraft((d) => ({ ...d, waterTempC: v }))}
+            unit="°C"
+            accent={accent}
+            step={5}
+            bigStep={10}
+            min={60}
+            max={100}
+            compact
+          />
         </div>
-
-        <label className="flex flex-col gap-1.5">
-          <FieldLabel>
-            Notes
-            <Optional />
-          </FieldLabel>
+        <Field label="Price · optional" inline>
+          <input
+            type="number"
+            inputMode="decimal"
+            step="0.01"
+            min={0}
+            value={draft.price ?? ""}
+            onChange={(e) => setDraft((d) => ({ ...d, price: e.target.value === "" ? null : Number(e.target.value) }))}
+            placeholder="0"
+            className={`${ROW_INLINE_CLS} w-20 tabular-nums`}
+            style={ROW_STYLE}
+          />
+          <span className="shrink-0 text-sm" style={{ color: "var(--text-muted)" }}>
+            {currency}
+          </span>
+        </Field>
+        <Field label="Notes · optional">
           <AutoGrowTextarea
             value={draft.note}
             onChange={(e) => setDraft((d) => ({ ...d, note: e.target.value }))}
             rows={2}
             maxRows={6}
             placeholder="Bloomed 30s, a little under-extracted…"
-            className="resize-none rounded-[10px] border px-3 py-2 text-sm outline-none"
-            style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
+            className={`${ROW_TEXT_CLS} resize-none leading-relaxed`}
+            style={ROW_STYLE}
           />
-        </label>
+        </Field>
+      </FormGroup>
 
-        <Button type="button" size="lg" accent={accent} disabled={saving || isDemoData} className="self-start" onClick={() => void handleSave()}>
-          {isDemoData ? "Sign in to log" : saving ? "Saving…" : editingLog ? "Update log" : "Save log"}
-        </Button>
-      </div>
-    </div>
+      <Button type="button" size="lg" accent={accent} disabled={saving || isDemoData} onClick={() => void handleSave()}>
+        {isDemoData ? "Sign in to log" : saving ? "Saving…" : editingLog ? "Update log" : "Save log"}
+      </Button>
+    </Sheet>
   );
 }

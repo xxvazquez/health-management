@@ -15,3 +15,21 @@ export function SwitchKnob({ on }: { on: boolean }) {
     </span>
   );
 }
+
+/** A form row with a label on the left and the iOS switch on the right; the
+ * whole 44px row toggles it. Use inside a `FormGroup`. */
+export function SwitchRow({ label, on, onChange }: { label: string; on: boolean; onChange: (on: boolean) => void }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
+      onClick={() => onChange(!on)}
+      className="flex min-h-11 w-full items-center justify-between gap-3 px-3.5 text-left text-sm"
+      style={{ color: "var(--text-primary)" }}
+    >
+      {label}
+      <SwitchKnob on={on} />
+    </button>
+  );
+}

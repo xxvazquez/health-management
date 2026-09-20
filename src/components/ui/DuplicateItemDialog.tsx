@@ -1,7 +1,6 @@
 "use client";
 
 import { useDialogA11y } from "./useDialogA11y";
-import { Button } from "./Button";
 
 /** Shown instead of silently creating a duplicate when adding an item
  * matches an existing one's name (case/whitespace-insensitive) — an active
@@ -27,28 +26,38 @@ export function DuplicateItemDialog({
   const containerRef = useDialogA11y(true, onClose);
 
   return (
-    <div ref={containerRef} className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
-      <div className="absolute inset-0 bg-black/30" onClick={onClose} />
-      <div
-        className="relative flex w-full max-w-sm flex-col gap-3 rounded-xl border p-5 shadow-xl"
-        style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}
-      >
-        <h2 className="text-sm font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
-          &quot;{name}&quot; already exists
-        </h2>
-        <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-          {isArchived
-            ? "It's archived, so it isn't offered on the Log page — unarchive it instead of adding it again."
-            : "It's already in your active list under this name."}
-        </p>
-        <div className="mt-1 flex justify-end gap-2">
-          <Button type="button" variant="quiet" size="sm" onClick={onClose}>
+    <div ref={containerRef} className="fixed inset-0 z-50 flex items-center justify-center p-6" role="alertdialog" aria-modal="true" aria-labelledby="duplicate-item-title">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="relative flex w-full max-w-xs flex-col overflow-hidden rounded-2xl shadow-xl" style={{ background: "var(--surface-1)" }}>
+        <div className="flex flex-col gap-1 px-5 pt-5 pb-4 text-center">
+          <h2 id="duplicate-item-title" className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>
+            &quot;{name}&quot; already exists
+          </h2>
+          <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
+            {isArchived
+              ? "It's archived, so it isn't offered on the Log page — unarchive it instead of adding it again."
+              : "It's already in your active list under this name."}
+          </p>
+        </div>
+        <div className="flex border-t" style={{ borderColor: "var(--gridline)" }}>
+          <button
+            type="button"
+            onClick={onClose}
+            className="min-h-11 flex-1 text-base font-medium active:bg-black/5"
+            style={{ color: "var(--ui-accent)" }}
+          >
             {isArchived ? "Cancel" : "OK"}
-          </Button>
+          </button>
           {isArchived && (
-            <Button type="button" size="sm" onClick={onUnarchive} disabled={busy}>
+            <button
+              type="button"
+              onClick={onUnarchive}
+              disabled={busy}
+              className="min-h-11 flex-1 border-l text-base font-semibold active:bg-black/5 disabled:opacity-50"
+              style={{ color: "var(--ui-accent)", borderColor: "var(--gridline)" }}
+            >
               Unarchive
-            </Button>
+            </button>
           )}
         </div>
       </div>

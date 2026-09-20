@@ -13,7 +13,8 @@ import { PrimaryAction } from "@/components/ui/PrimaryAction";
 import { Button } from "@/components/ui/Button";
 import { FormShell } from "@/components/ui/FormShell";
 import { Field } from "@/components/ui/Field";
-import { FIELD_CLS, FIELD_STYLE } from "@/components/ui/formField";
+import { FormGroup } from "@/components/ui/FormGroup";
+import { ROW_INLINE_CLS, ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
 import type {
   NewWishlistItemInput,
   WishlistCategory,
@@ -154,57 +155,40 @@ function ItemForm({
 
   return (
     <FormShell title={initial ? "Edit item" : "New item"} onSubmit={handleSubmit} onCancel={onCancel}>
-      <Field label="Link">
-        <input
-          autoFocus
-          required
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-          onBlur={lookUpTitle}
-          placeholder="https://…"
-          inputMode="url"
-          maxLength={2000}
-          className={FIELD_CLS}
-          style={FIELD_STYLE}
-        />
-      </Field>
+      <FormGroup>
+        <Field label="Link">
+          <input
+            autoFocus
+            required
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            onBlur={lookUpTitle}
+            placeholder="https://…"
+            inputMode="url"
+            maxLength={2000}
+            className={ROW_TEXT_CLS}
+            style={ROW_STYLE}
+          />
+        </Field>
+        <Field
+          label={
+            <span className="flex items-center gap-2">
+              Title
+              {fetching && <span style={{ color: "var(--text-muted)" }}>· fetching…</span>}
+            </span>
+          }
+        >
+          <input required value={title} onChange={(e) => setTitle(e.target.value)} placeholder="What is it?" maxLength={200} className={`${ROW_TEXT_CLS} font-medium`} style={ROW_STYLE} />
+        </Field>
+        <Field label={<>Note <span style={{ color: "var(--text-muted)" }}>· optional</span></>}>
+          <textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Size, colour, who it's for, why…" rows={2} maxLength={500} className={`${ROW_TEXT_CLS} resize-none leading-relaxed`} style={ROW_STYLE} />
+        </Field>
+      </FormGroup>
 
-      <Field
-        label={
-          <span className="flex items-center gap-2">
-            Title
-            {fetching && <span style={{ color: "var(--text-muted)" }}>· fetching…</span>}
-          </span>
-        }
-      >
-        <input
-          required
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="What is it?"
-          maxLength={200}
-          className={`${FIELD_CLS} font-medium`}
-          style={FIELD_STYLE}
-        />
-      </Field>
-
-      <Field label={<>Note <span style={{ color: "var(--text-muted)" }}>· optional</span></>}>
-        <textarea
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-          placeholder="Size, colour, who it's for, why…"
-          rows={2}
-          maxLength={500}
-          className={`${FIELD_CLS} resize-y`}
-          style={FIELD_STYLE}
-        />
-      </Field>
-
-      <div className="flex flex-wrap gap-3">
-        <label className="flex min-w-40 flex-1 flex-col gap-1.5 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
-          Category
-          {categories.length > 0 && (
-            <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className={FIELD_CLS} style={FIELD_STYLE}>
+      <FormGroup>
+        {categories.length > 0 && (
+          <Field label="Category" inline>
+            <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className={ROW_INLINE_CLS} style={ROW_STYLE}>
               {categories.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
@@ -212,30 +196,23 @@ function ItemForm({
               ))}
               <option value={NEW_CATEGORY}>＋ New category…</option>
             </select>
-          )}
-          {needsNewCategory && (
-            <input
-              value={newCategoryName}
-              onChange={(e) => setNewCategoryName(e.target.value)}
-              placeholder="New category name"
-              maxLength={80}
-              className={`${FIELD_CLS} ${categories.length > 0 ? "mt-1" : ""}`}
-              style={FIELD_STYLE}
-            />
-          )}
-        </label>
-
+          </Field>
+        )}
+        {needsNewCategory && (
+          <Field label="New category" inline>
+            <input value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)} placeholder="Name" maxLength={80} className={`${ROW_INLINE_CLS} w-40`} style={ROW_STYLE} />
+          </Field>
+        )}
         {people && (
-          <label className="flex min-w-32 flex-1 flex-col gap-1.5 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
-            For
-            <select value={forUserId} onChange={(e) => setForUserId(e.target.value)} className={FIELD_CLS} style={FIELD_STYLE}>
+          <Field label="For" inline>
+            <select value={forUserId} onChange={(e) => setForUserId(e.target.value)} className={ROW_INLINE_CLS} style={ROW_STYLE}>
               <option value={FOR_ANYONE}>Either of you</option>
               <option value={people.myUserId}>Me</option>
               {people.partnerId && <option value={people.partnerId}>Partner</option>}
             </select>
-          </label>
+          </Field>
         )}
-      </div>
+      </FormGroup>
 
       <div className="flex flex-wrap items-center gap-3">
         <Button type="submit" size="lg" accent={accent} disabled={!canSave || saving}>

@@ -2,7 +2,8 @@
 
 import { useState, type FormEvent } from "react";
 import type { Doctor, DoctorAppointment, DoctorFollowUpTask, FollowUpTaskPatch, NewFollowUpTaskInput } from "@/lib/supabase/doctors";
-import { DoctorName, FIELD_CLS, FIELD_STYLE, IconAction, LABEL_STYLE, PencilIcon, TrashIcon, formatDate } from "./shared";
+import { DoctorName, IconAction, LABEL_STYLE, PencilIcon, TrashIcon, formatDate } from "./shared";
+import { ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
 import { MarkdownContent } from "@/components/ui/Markdown";
 import { FollowUpTaskRow } from "./FollowUpTaskRow";
 
@@ -131,7 +132,7 @@ export function AppointmentCard({
 
         {addingTask ? (
           <form onSubmit={submitTask} className="flex items-center gap-2 py-2">
-            <input autoFocus value={newTask} onChange={(e) => setNewTask(e.target.value)} placeholder="e.g. Do the USG" className={`${FIELD_CLS} flex-1`} style={FIELD_STYLE} />
+            <input autoFocus value={newTask} onChange={(e) => setNewTask(e.target.value)} placeholder="e.g. Do the USG" className={`${ROW_TEXT_CLS} min-h-11 flex-1`} style={ROW_STYLE} />
             <button type="submit" disabled={!newTask.trim()} className="shrink-0 min-h-9 rounded-[10px] px-3 text-sm font-semibold text-white disabled:opacity-40" style={{ background: accent }}>
               Add
             </button>

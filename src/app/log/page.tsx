@@ -63,6 +63,10 @@ import { useCoffee } from "@/lib/useCoffee";
 import { useCoffeeOptions } from "@/lib/useCoffeeOptions";
 import { DuplicateItemDialog } from "@/components/ui/DuplicateItemDialog";
 import { SearchField } from "@/components/ui/SearchField";
+import { Button } from "@/components/ui/Button";
+import { Field } from "@/components/ui/Field";
+import { FormGroup } from "@/components/ui/FormGroup";
+import { ROW_INLINE_CLS, ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
 import { ChevronIcon, CloseIcon, NoteIcon, PlusIcon } from "@/components/ui/icons";
 import { CustomIcon, customColorValue } from "@/components/ui/customIcons";
 import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
@@ -299,8 +303,8 @@ function TimelineNote({
           onChange={(e) => setText(e.target.value)}
           autoFocus
           placeholder="Add a note…"
-          className="w-full min-w-0 rounded-[10px] border px-1.5 py-0.5 text-xs outline-none"
-          style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
+          className="w-full min-w-0 border-b bg-transparent px-0.5 py-1 text-xs outline-none"
+          style={{ borderColor: "var(--baseline)", color: "var(--text-primary)" }}
         />
         <button type="submit" className="text-xs font-medium" style={{ color: "var(--status-good)" }}>
           Save
@@ -1943,7 +1947,7 @@ export default function LogPage() {
                 {seasonalPicksSorted.map((pick) => (
                   <span
                     key={pick.item}
-                    className="inline-flex items-center gap-0.5 rounded-md border py-1 pr-1 pl-2.5 text-xs font-medium whitespace-nowrap"
+                    className="inline-flex items-center gap-0.5 rounded-[10px] border py-1 pr-1 pl-2.5 text-xs font-medium whitespace-nowrap"
                     style={{ borderColor: "var(--border-hairline)", color: "var(--text-secondary)", background: "var(--surface-1)" }}
                   >
                     <button
@@ -1998,8 +2002,8 @@ export default function LogPage() {
                         key={item}
                         type="button"
                         onClick={() => unhideSeasonalPick(item)}
-                        className="min-h-9 rounded-md border px-3 text-sm font-medium whitespace-nowrap"
-                        style={{ borderColor: "var(--border-hairline)", color: "var(--text-muted)", background: "var(--page-plane)" }}
+                        className="min-h-9 rounded-[10px] px-3 text-sm font-medium whitespace-nowrap"
+                        style={{ color: "var(--text-muted)", background: "var(--field-fill)" }}
                       >
                         {item} <span style={{ color: "var(--text-secondary)" }}>· show again</span>
                       </button>
@@ -2210,27 +2214,44 @@ export default function LogPage() {
                     e.preventDefault();
                     void handleAddNew();
                   }}
-                  className="flex flex-col gap-2 rounded-xl border p-3"
-                  style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}
+                  className="flex flex-col gap-3"
                 >
-                  <div className="flex flex-wrap items-center gap-2">
-                    <input
-                      autoFocus
-                      type="text"
-                      value={newItemText}
-                      onChange={(e) => setNewItemText(e.target.value)}
-                      placeholder={tabConfig.placeholder}
-                      className="w-full max-w-xs min-h-11 rounded-[10px] border px-3 text-sm outline-none"
-                      style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
-                    />
-                    <button
-                      type="submit"
-                      disabled={!newItemText.trim() || pending === "__new__"}
-                      className="min-h-9 rounded-[10px] px-3 text-sm font-medium whitespace-nowrap text-white disabled:opacity-40"
-                      style={{ background: TYPE_ACCENT[tabConfig.type] }}
-                    >
-                      + Add &amp; log
-                    </button>
+                  <FormGroup
+                    footer={
+                      newItemNeedsCategory
+                        ? undefined
+                        : newItemText.trim()
+                          ? "Already recognized — will file under its usual category automatically."
+                          : undefined
+                    }
+                  >
+                    <Field label="New item">
+                      <input
+                        autoFocus
+                        type="text"
+                        value={newItemText}
+                        onChange={(e) => setNewItemText(e.target.value)}
+                        placeholder={tabConfig.placeholder}
+                        className={ROW_TEXT_CLS}
+                        style={ROW_STYLE}
+                      />
+                    </Field>
+                    {newItemNeedsCategory && (
+                      <Field label="Category" inline>
+                        <select value={newItemCategory || categoryNamesForTab[0]} onChange={(e) => setNewItemCategory(e.target.value)} className={ROW_INLINE_CLS} style={ROW_STYLE}>
+                          {categoryNamesForTab.map((c) => (
+                            <option key={c} value={c}>
+                              {c}
+                            </option>
+                          ))}
+                        </select>
+                      </Field>
+                    )}
+                  </FormGroup>
+                  <div className="flex items-center gap-3">
+                    <Button type="submit" accent={TYPE_ACCENT[tabConfig.type]} disabled={!newItemText.trim() || pending === "__new__"}>
+                      Add &amp; log
+                    </Button>
                     <button
                       type="button"
                       onClick={() => {
@@ -2239,34 +2260,11 @@ export default function LogPage() {
                         setNewItemCategory("");
                       }}
                       className="text-sm font-medium"
-                      style={{ color: "var(--text-secondary)" }}
+                      style={{ color: "var(--ui-accent)" }}
                     >
-                      cancel
+                      Cancel
                     </button>
                   </div>
-                  {newItemNeedsCategory ? (
-                    <label className="flex flex-wrap items-center gap-2 text-xs" style={{ color: "var(--text-secondary)" }}>
-                      Not sure where this belongs — pick a category:
-                      <select
-                        value={newItemCategory || categoryNamesForTab[0]}
-                        onChange={(e) => setNewItemCategory(e.target.value)}
-                        className="min-h-9 rounded-[10px] border px-3 text-sm"
-                        style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
-                      >
-                        {categoryNamesForTab.map((c) => (
-                          <option key={c} value={c}>
-                            {c}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                  ) : (
-                    newItemText.trim() && (
-                      <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-                        Already recognized — will file under its usual category automatically.
-                      </p>
-                    )
-                  )}
                 </form>
               )}
 

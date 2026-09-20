@@ -2,10 +2,10 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { useAuth } from "@/lib/supabase/AuthContext";
-import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-
-const INPUT_STYLE = { borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" };
+import { Field } from "@/components/ui/Field";
+import { FormGroup } from "@/components/ui/FormGroup";
+import { ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
 
 /** Where the password-reset email link lands. Supabase's JS client picks
  * the recovery token out of the URL on load and establishes a session;
@@ -47,8 +47,8 @@ export default function ResetPasswordPage() {
 
   return (
     <div className="mx-auto max-w-sm py-6">
-      <Card tier="supporting" className="flex flex-col gap-4">
-        <h1 className="text-sm font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
+      <div className="flex flex-col gap-4">
+        <h1 className="text-[1.75rem] leading-tight font-bold tracking-tight" style={{ color: "var(--text-primary)" }}>
           Reset password
         </h1>
 
@@ -79,32 +79,32 @@ export default function ResetPasswordPage() {
             </Button>
           </>
         ) : (
-          <form onSubmit={handleSubmit} className="flex flex-col gap-2.5">
-            <label className="flex flex-col gap-1 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
-              New password
-              <input
-                type="password"
-                required
-                autoFocus
-                autoComplete="new-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="min-h-11 rounded-[10px] border px-3 text-sm outline-none"
-                style={INPUT_STYLE}
-              />
-            </label>
-            <label className="flex flex-col gap-1 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
-              Confirm new password
-              <input
-                type="password"
-                required
-                autoComplete="new-password"
-                value={confirm}
-                onChange={(e) => setConfirm(e.target.value)}
-                className="min-h-11 rounded-[10px] border px-3 text-sm outline-none"
-                style={INPUT_STYLE}
-              />
-            </label>
+          <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+            <FormGroup>
+              <Field label="New password">
+                <input
+                  type="password"
+                  required
+                  autoFocus
+                  autoComplete="new-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className={ROW_TEXT_CLS}
+                  style={ROW_STYLE}
+                />
+              </Field>
+              <Field label="Confirm new password">
+                <input
+                  type="password"
+                  required
+                  autoComplete="new-password"
+                  value={confirm}
+                  onChange={(e) => setConfirm(e.target.value)}
+                  className={ROW_TEXT_CLS}
+                  style={ROW_STYLE}
+                />
+              </Field>
+            </FormGroup>
             <Button type="submit" disabled={submitting}>
               {submitting ? "Saving…" : "Set new password"}
             </Button>
@@ -115,7 +115,7 @@ export default function ResetPasswordPage() {
             )}
           </form>
         )}
-      </Card>
+      </div>
     </div>
   );
 }

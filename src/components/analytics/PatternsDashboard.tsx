@@ -1,5 +1,6 @@
 "use client";
 
+import { CONTROL_CLS, CONTROL_STYLE } from "@/components/ui/Chip";
 import { useMemo, useState } from "react";
 import { useData } from "@/lib/DataContext";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -188,8 +189,8 @@ function LagExplorer({ events, workoutLogs }: { events: CanonicalEvent[]; workou
         <select
           value={effectiveCause}
           onChange={(e) => setCause(e.target.value)}
-          className="min-h-9 rounded-[10px] border px-3 text-sm"
-          style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
+          className={CONTROL_CLS}
+          style={CONTROL_STYLE}
         >
           {causeOptions.map((o) => (
             <option key={o.label} value={o.label}>
@@ -203,8 +204,8 @@ function LagExplorer({ events, workoutLogs }: { events: CanonicalEvent[]; workou
         <select
           value={effectiveOutcome}
           onChange={(e) => setOutcome(e.target.value)}
-          className="min-h-9 rounded-[10px] border px-3 text-sm"
-          style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
+          className={CONTROL_CLS}
+          style={CONTROL_STYLE}
         >
           {outcomeOptions.map((o) => (
             <option key={o.value} value={o.value}>

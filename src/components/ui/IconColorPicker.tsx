@@ -50,7 +50,7 @@ export function IconColorPicker({
                 aria-pressed={selected}
                 aria-label={key}
                 onClick={() => onIconChange(key === defaultIcon ? null : key)}
-                className="tap-target flex h-9 w-9 items-center justify-center rounded-md border transition-colors"
+                className="tap-target flex h-9 w-9 items-center justify-center rounded-[10px] border transition-colors"
                 style={{
                   borderColor: selected ? accent : "var(--border-hairline)",
                   background: selected ? `color-mix(in oklab, ${accent} 14%, var(--surface-1))` : "var(--surface-1)",

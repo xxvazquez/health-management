@@ -1,5 +1,6 @@
 "use client";
 
+import { Segmented } from "@/components/ui/Segmented";
 import { TabRail } from "@/components/ui/TabRail";
 import { useMemo, useState, type ReactNode } from "react";
 import { Card } from "@/components/ui/Card";
@@ -29,29 +30,20 @@ const PALETTE = [
 
 type View = "month" | "year";
 
-/** Same bordered-group shape as the Log page's day nav. */
-const NAV_GROUP = "flex items-center gap-0.5 rounded-md border p-0.5";
-const NAV_GROUP_STYLE = { borderColor: "var(--border-hairline)", background: "var(--surface-1)" } as const;
+/** Same filled stepper shape as the Log page's day nav. */
+const NAV_GROUP = "flex h-9 items-center rounded-[10px]";
+const NAV_GROUP_STYLE = { background: "var(--field-fill)" } as const;
 
 function ViewToggle({ value, onChange }: { value: View; onChange: (v: View) => void }) {
   return (
-    <div className={NAV_GROUP} style={NAV_GROUP_STYLE}>
-      {(["month", "year"] as const).map((v) => (
-        <button
-          key={v}
-          type="button"
-          onClick={() => onChange(v)}
-          aria-pressed={value === v}
-          className="rounded px-2.5 py-1 text-xs font-semibold capitalize transition-colors"
-          style={{
-            background: value === v ? "var(--page-plane)" : "transparent",
-            color: value === v ? "var(--text-primary)" : "var(--text-muted)",
-          }}
-        >
-          {v}
-        </button>
-      ))}
-    </div>
+    <Segmented
+      value={value}
+      onChange={onChange}
+      options={[
+        ["month", "Month"],
+        ["year", "Year"],
+      ]}
+    />
   );
 }
 
@@ -84,14 +76,14 @@ function PeriodNav({
         onClick={() => onShift(-step)}
         disabled={!canPrev}
         aria-label="Previous"
-        className="flex h-7 w-7 items-center justify-center rounded disabled:opacity-30"
+        className="flex h-9 w-8 items-center justify-center rounded-[10px] disabled:opacity-30"
         style={{ color: "var(--text-secondary)" }}
       >
         <ChevronIcon dir="left" size={15} />
       </button>
       {view === "month" ? (
         <label className="relative flex min-w-[7.5rem] cursor-pointer items-center justify-center rounded px-1 py-1">
-          <span className="text-xs font-semibold whitespace-nowrap" style={{ color: "var(--text-primary)" }}>
+          <span className="text-sm font-medium whitespace-nowrap" style={{ color: "var(--text-primary)" }}>
             {label}
           </span>
           <input
@@ -105,7 +97,7 @@ function PeriodNav({
           />
         </label>
       ) : (
-        <span className="flex min-w-[7.5rem] items-center justify-center px-1 py-1 text-xs font-semibold tabular-nums" style={{ color: "var(--text-primary)" }}>
+        <span className="flex min-w-[7.5rem] items-center justify-center px-1 py-1 text-sm font-medium tabular-nums" style={{ color: "var(--text-primary)" }}>
           {label}
         </span>
       )}
@@ -114,7 +106,7 @@ function PeriodNav({
         onClick={() => onShift(step)}
         disabled={!canNext}
         aria-label="Next"
-        className="flex h-7 w-7 items-center justify-center rounded disabled:opacity-30"
+        className="flex h-9 w-8 items-center justify-center rounded-[10px] disabled:opacity-30"
         style={{ color: "var(--text-secondary)" }}
       >
         <ChevronIcon dir="right" size={15} />

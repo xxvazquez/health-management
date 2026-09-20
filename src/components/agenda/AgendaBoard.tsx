@@ -1,8 +1,7 @@
 "use client";
 
-import { Segmented } from "@/components/ui/Segmented";
-import { CONTROL_CLS, CONTROL_STYLE, Chip as BaseChip } from "@/components/ui/Chip";
-import { useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { CONTROL_CLS, CONTROL_STYLE } from "@/components/ui/Chip";
+import { useMemo, useState, type FormEvent } from "react";
 import Link from "next/link";
 import clsx from "clsx";
 import { AGENDA_BUCKET_LABEL, AGENDA_BUCKET_ORDER, type AgendaBucket, type AgendaEntry, type AgendaKind, type AgendaScope } from "@/lib/aggregations/agenda";
@@ -21,7 +20,8 @@ import { FormShell } from "@/components/ui/FormShell";
 import { ChoicePanel } from "@/components/ui/ChoicePanel";
 import { PencilIcon, TrashIcon } from "@/components/ui/Notebook";
 import { ChevronIcon } from "@/components/ui/icons";
-import { FIELD_CLS, FIELD_STYLE } from "@/components/ui/formField";
+import { ROW_INLINE_CLS, ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
+import { FormGroup } from "@/components/ui/FormGroup";
 import { useSwipeReveal, SWIPE_REVEAL_CLASS } from "@/lib/useSwipeReveal";
 
 const ACCENT = "var(--series-berry)";
@@ -35,14 +35,6 @@ function UndoIcon({ size = 15 }: { size?: number }) {
       <path d="M7 8H4V5" />
       <path d="M4 8a6.5 6.5 0 1 1-1.2 5" />
     </svg>
-  );
-}
-
-function Chip({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
-  return (
-    <BaseChip active={active} accent={ACCENT} nowrap onClick={onClick}>
-      {children}
-    </BaseChip>
   );
 }
 
@@ -92,19 +84,9 @@ function FilterButton({ open, count, onToggle }: { open: boolean; count: number;
   );
 }
 
-function FilterRow({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div className="flex flex-wrap items-center gap-1.5">
-      <span className="w-11 shrink-0 text-xs font-medium" style={{ color: "var(--text-muted)" }}>
-        {label}
-      </span>
-      {children}
-    </div>
-  );
-}
-
-/** The expandable filter panel — type / scope / list chip groups, plus a
- * Clear all once anything is on. Rendered full-width under the heading. */
+/** The expandable filter panel — type / scope / list pickers as grouped
+ * rows, plus a Clear all once anything is on. Rendered full-width under the
+ * heading. */
 function FilterPanel({
   partnerLinked,
   showList,
@@ -121,43 +103,42 @@ function FilterPanel({
   const anyActive = typeFilter !== "all" || scopeFilter !== "all" || listFilter !== "all";
 
   return (
-    <div
-      className="flex flex-col gap-2 rounded-xl border p-2.5"
-      style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}
-    >
-      <FilterRow label="Show">
-        <Segmented
-          value={typeFilter}
-          onChange={setTypeFilter}
-          accent={ACCENT}
-          options={(["all", "reminder", "expiry", "appointment"] as const).map((t) => [t, TYPE_LABEL[t]] as const)}
-        />
-      </FilterRow>
-      {partnerLinked && (
-        <FilterRow label="Scope">
-          <Segmented
-            value={scopeFilter}
-            onChange={setScopeFilter}
-            accent={ACCENT}
-            options={(["all", "mine", "shared", "medical"] as const).map((s) => [s, SCOPE_LABEL[s]] as const)}
-          />
-        </FilterRow>
-      )}
-      {listShown && (
-        <FilterRow label="List">
-          <Chip active={listFilter === "all"} onClick={() => setListFilter("all")}>
-            All lists
-          </Chip>
-          <Chip active={listFilter === "__default__"} onClick={() => setListFilter("__default__")}>
-            Reminders
-          </Chip>
-          {lists.map((l) => (
-            <Chip key={l.id} active={listFilter === l.id} onClick={() => setListFilter(l.id)}>
-              {l.name}
-            </Chip>
-          ))}
-        </FilterRow>
-      )}
+    <div className="flex flex-col gap-2">
+      <FormGroup>
+        <Field label="Show" inline>
+          <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value as typeof typeFilter)} className={ROW_INLINE_CLS} style={ROW_STYLE}>
+            {(["all", "reminder", "expiry", "appointment"] as const).map((t) => (
+              <option key={t} value={t}>
+                {TYPE_LABEL[t]}
+              </option>
+            ))}
+          </select>
+        </Field>
+        {partnerLinked && (
+          <Field label="Scope" inline>
+            <select value={scopeFilter} onChange={(e) => setScopeFilter(e.target.value as typeof scopeFilter)} className={ROW_INLINE_CLS} style={ROW_STYLE}>
+              {(["all", "mine", "shared", "medical"] as const).map((sc) => (
+                <option key={sc} value={sc}>
+                  {SCOPE_LABEL[sc]}
+                </option>
+              ))}
+            </select>
+          </Field>
+        )}
+        {listShown && (
+          <Field label="List" inline>
+            <select value={listFilter} onChange={(e) => setListFilter(e.target.value)} className={ROW_INLINE_CLS} style={ROW_STYLE}>
+              <option value="all">All lists</option>
+              <option value="__default__">Reminders</option>
+              {lists.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.name}
+                </option>
+              ))}
+            </select>
+          </Field>
+        )}
+      </FormGroup>
       {anyActive && (
         <button
           type="button"
@@ -166,8 +147,8 @@ function FilterPanel({
             setScopeFilter("all");
             setListFilter("all");
           }}
-          className="self-start text-xs font-medium"
-          style={{ color: "var(--text-muted)" }}
+          className="self-start px-3.5 text-sm font-medium"
+          style={{ color: "var(--ui-accent)" }}
         >
           Clear all
         </button>
@@ -208,17 +189,17 @@ function ExpiryForm({
 
   return (
     <FormShell title={initial ? "Edit product" : "New product"} onSubmit={submit} onCancel={onCancel}>
-      <Field label="Product">
-        <input autoFocus required value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Sunscreen" maxLength={150} className={`${FIELD_CLS} font-medium`} style={FIELD_STYLE} />
-      </Field>
-      <div className="flex flex-wrap gap-4">
-        <Field label="Expires on" className="flex-1">
-          <input type="date" required value={expiresOn} onChange={(e) => setExpiresOn(e.target.value)} className={FIELD_CLS} style={FIELD_STYLE} />
+      <FormGroup>
+        <Field label="Product">
+          <input autoFocus required value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Sunscreen" maxLength={150} className={`${ROW_TEXT_CLS} font-medium`} style={ROW_STYLE} />
         </Field>
-        <Field label="Remind (days before)">
-          <input type="number" min={0} value={remind} onChange={(e) => setRemind(e.target.value)} className={`${FIELD_CLS} w-24`} style={FIELD_STYLE} />
+        <Field label="Expires on" inline>
+          <input type="date" required value={expiresOn} onChange={(e) => setExpiresOn(e.target.value)} className={ROW_INLINE_CLS} style={ROW_STYLE} />
         </Field>
-      </div>
+        <Field label="Remind (days before)" inline>
+          <input type="number" min={0} value={remind} onChange={(e) => setRemind(e.target.value)} className={`${ROW_INLINE_CLS} w-16`} style={ROW_STYLE} />
+        </Field>
+      </FormGroup>
       <div className="flex flex-wrap items-center gap-3">
         <Button type="submit" size="lg" accent="var(--series-2)" disabled={saving || !name.trim()}>
           {saving ? "Saving…" : initial ? "Save changes" : "Save product"}
