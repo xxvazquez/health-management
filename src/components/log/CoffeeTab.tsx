@@ -1,8 +1,9 @@
 "use client";
 
 import { CHIP_SM_CLS, chipStyle } from "@/components/ui/Chip";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { SearchField } from "@/components/ui/SearchField";
+import { TabRail } from "@/components/ui/TabRail";
 import { CoffeeLogDialog, type CoffeeLogDraft } from "@/components/log/CoffeeLogDialog";
 import type { ResolvedCoffeeOptions } from "@/lib/useCoffeeOptions";
 import type { CoffeeItem, CoffeeLog, NewCoffeeItemInput, NewCoffeeLogInput } from "@/lib/supabase/coffee";
@@ -53,6 +54,7 @@ export function CoffeeTab({
   onDeleteLog: (id: string) => Promise<void>;
 }) {
   const [search, setSearch] = useState("");
+  const [activeBrand, setActiveBrand] = useState("");
   const [newBrand, setNewBrand] = useState("");
   const [newNotes, setNewNotes] = useState("");
   const [dialogItem, setDialogItem] = useState<CoffeeItem | null>(null);
@@ -84,6 +86,8 @@ export function CoffeeTab({
       .sort((a, b) => (a.brand === "Other" ? 1 : b.brand === "Other" ? -1 : a.brand.localeCompare(b.brand)));
   }, [filtered]);
 
+  const activeGroup = groupedByBrand.find((g) => g.brand === activeBrand) ?? groupedByBrand[0];
+
   const usual = useMemo(() => {
     const counts = new Map<string, number>();
     for (const l of logs) counts.set(l.itemId, (counts.get(l.itemId) ?? 0) + 1);
@@ -107,6 +111,39 @@ export function CoffeeTab({
     if (!item) return;
     setEditingLog(log);
     setDialogItem(item);
+  }
+
+  /** One roast row — icon avatar, name, tasting notes, a chevron to open the
+   * log dialog. `bordered` adds the hairline the plain multi-brand accordion
+   * needs between rows; the single-brand tab view gets it from `inset-rows`
+   * on its wrapper instead. */
+  function renderCoffeeRow(it: CoffeeItem, bordered = false): ReactNode {
+    return (
+      <button
+        key={it.id}
+        type="button"
+        onClick={() => openForNewLog(it)}
+        className={`flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left ${bordered ? "border-t" : ""}`}
+        style={bordered ? { borderColor: "var(--gridline)" } : undefined}
+      >
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md" style={{ background: `color-mix(in oklab, ${accent} 14%, transparent)`, color: accent }}>
+          <CupIcon />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm font-medium" style={{ color: "var(--text-primary)" }}>
+            {it.name}
+          </span>
+          {it.notes && (
+            <span className="block truncate text-xs" style={{ color: "var(--text-muted)" }}>
+              {it.notes}
+            </span>
+          )}
+        </span>
+        <svg width="13" height="13" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--text-muted)" }}>
+          <path d="M7.5 5 12.5 10 7.5 15" />
+        </svg>
+      </button>
+    );
   }
 
   async function handleAddNew() {
@@ -216,45 +253,38 @@ export function CoffeeTab({
         </div>
       )}
 
-      {groupedByBrand.length > 0 && (
-        <div className="overflow-hidden rounded-xl border" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
-          {groupedByBrand.map((group, gi) => (
-            <div key={group.brand} className={gi > 0 ? "border-t" : undefined} style={{ borderColor: "var(--gridline)" }}>
-              <p className="flex min-h-11 items-center px-3.5 text-sm" style={{ color: "var(--text-primary)" }}>
-                {group.brand}
-                <span className="ml-auto" style={{ color: "var(--text-muted)" }}>
-                  {group.items.length}
-                </span>
-              </p>
-              {group.items.map((it) => (
-                <button
-                  key={it.id}
-                  type="button"
-                  onClick={() => openForNewLog(it)}
-                  className="flex w-full items-center gap-2.5 border-t px-3.5 py-2.5 text-left"
-                  style={{ borderColor: "var(--gridline)" }}
-                >
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md" style={{ background: `color-mix(in oklab, ${accent} 14%, transparent)`, color: accent }}>
-                    <CupIcon />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-sm font-medium" style={{ color: "var(--text-primary)" }}>
-                      {it.name}
-                    </span>
-                    {it.notes && (
-                      <span className="block truncate text-xs" style={{ color: "var(--text-muted)" }}>
-                        {it.notes}
-                      </span>
-                    )}
-                  </span>
-                  <svg width="13" height="13" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--text-muted)" }}>
-                    <path d="M7.5 5 12.5 10 7.5 15" />
-                  </svg>
-                </button>
-              ))}
-            </div>
-          ))}
+      {groupedByBrand.length > 1 && !trimmedSearch ? (
+        <div className="flex flex-col gap-3">
+          <TabRail
+            ariaLabel="Coffee brand"
+            wrap={false}
+            className="border-b"
+            style={{ borderColor: "var(--border-hairline)" }}
+            items={groupedByBrand.map((g) => ({ id: g.brand, label: g.brand, accent }))}
+            activeId={activeGroup.brand}
+            onSelect={setActiveBrand}
+            tall
+          />
+          <div className="inset-rows rounded-xl border" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
+            {activeGroup.items.map((it) => renderCoffeeRow(it))}
+          </div>
         </div>
+      ) : (
+        groupedByBrand.length > 0 && (
+          <div className="overflow-hidden rounded-xl border" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
+            {groupedByBrand.map((group, gi) => (
+              <div key={group.brand} className={gi > 0 ? "border-t" : undefined} style={{ borderColor: "var(--gridline)" }}>
+                <p className="flex min-h-11 items-center px-3.5 text-sm" style={{ color: "var(--text-primary)" }}>
+                  {group.brand}
+                  <span className="ml-auto" style={{ color: "var(--text-muted)" }}>
+                    {group.items.length}
+                  </span>
+                </p>
+                {group.items.map((it) => renderCoffeeRow(it, true))}
+              </div>
+            ))}
+          </div>
+        )
       )}
 
       {groupedByBrand.length === 0 && !showAddNew && (
