@@ -11,7 +11,7 @@ export const CONTROL_STYLE: CSSProperties = { background: "var(--field-fill)", c
 /** Shape of every selectable pill and grid cell in the app — filters,
  * pickers, Log's tap-to-log cells. One height, one radius, one type size. */
 export const CHIP_CLS =
-  "inline-flex min-h-9 items-center gap-1.5 rounded-[10px] border px-3 text-left text-sm leading-tight transition-colors active:opacity-70 disabled:opacity-50";
+  "inline-flex min-h-8 items-center gap-1.5 rounded-[10px] border px-2.5 text-left text-sm leading-tight transition-colors active:opacity-70 disabled:opacity-50";
 
 /** Smaller chip for the horizontally-scrolling quick-pick rows ("Your usual",
  * "Products") — same look, less height and type. */

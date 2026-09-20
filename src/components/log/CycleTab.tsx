@@ -290,7 +290,7 @@ export function CycleTab({
           <div className="flex flex-col gap-1">
             {status.onPeriod || status.cycleDay != null ? (
               <span
-                className="inline-flex w-fit items-center text-base font-semibold"
+                className="inline-flex w-fit items-center text-sm font-semibold"
                 style={{ color: accent }}
               >
                 {status.onPeriod ? `Day ${status.periodDay} of your period` : `Day ${status.cycleDay} of your cycle`}

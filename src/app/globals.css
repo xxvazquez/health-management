@@ -284,6 +284,12 @@ html {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* The type scale tops out at semibold — emphasis tags never render bold. */
+strong,
+b {
+  font-weight: 600;
+}
+
 body {
   min-height: 100%;
   background-color: var(--page-backdrop);

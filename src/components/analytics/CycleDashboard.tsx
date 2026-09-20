@@ -61,7 +61,7 @@ export function CycleDashboard() {
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         {(currentStatus.onPeriod || currentStatus.cycleDay !== null) && (
           <span
-            className="inline-flex flex-wrap items-center gap-x-2 gap-y-0.5 text-base font-semibold"
+            className="inline-flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm font-semibold"
             style={{ color: ACCENT }}
           >
             {currentStatus.onPeriod ? `Day ${currentStatus.periodDay} of your period` : `Day ${currentStatus.cycleDay} of your cycle`}

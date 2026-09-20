@@ -32,7 +32,7 @@ export function PageHeading({
     <div className={className}>
       <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2">
         <Heading
-          className="min-w-0 text-[1.75rem] leading-tight font-bold tracking-tight text-balance"
+          className="min-w-0 text-2xl leading-tight font-semibold tracking-tight text-balance"
           style={{ color: "var(--text-primary)" }}
         >
           {children}

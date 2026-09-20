@@ -385,7 +385,7 @@ function TapRow({
     >
       <span className="min-w-0">{name}</span>
       {on && (
-        <span aria-hidden="true" className="shrink-0 text-sm font-bold tabular-nums">
+        <span aria-hidden="true" className="shrink-0 text-sm font-semibold tabular-nums">
           {mark}
         </span>
       )}
@@ -2021,7 +2021,7 @@ export default function LogPage() {
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between gap-2">
         <h1
-          className="min-w-0 flex-1 text-[1.75rem] leading-tight font-bold tracking-tight"
+          className="min-w-0 flex-1 text-2xl leading-tight font-semibold tracking-tight"
           style={{ color: "var(--text-primary)" }}
         >
           Log

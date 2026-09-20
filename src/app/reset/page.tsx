@@ -48,7 +48,7 @@ export default function ResetPasswordPage() {
   return (
     <div className="mx-auto max-w-sm py-6">
       <div className="flex flex-col gap-4">
-        <h1 className="text-[1.75rem] leading-tight font-bold tracking-tight" style={{ color: "var(--text-primary)" }}>
+        <h1 className="text-2xl leading-tight font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
           Reset password
         </h1>
 

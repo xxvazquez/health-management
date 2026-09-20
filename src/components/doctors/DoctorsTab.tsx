@@ -29,7 +29,7 @@ function DoctorHistory({ api, doctor, accent, onBack }: { api: DoctorsApi; docto
 
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 border-b pb-3" style={{ borderColor: "var(--gridline)" }}>
         <p className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-          <DoctorName name={doctor.name} rating={doctor.rating} className="text-base" />
+          <DoctorName name={doctor.name} rating={doctor.rating} className="text-sm" />
           <span className="text-xs" style={{ color: "var(--text-muted)" }}>
             {[
               doctor.specialty || "No specialty",

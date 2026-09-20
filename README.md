@@ -471,7 +471,7 @@ bug-report function is unaffected — it mails `BUG_EMAIL`, the account owner.
   Every component styles through the tokens, so keep new colours as `var(--…)`,
   not literals. One sans-serif family: the system face (SF Pro) on Apple devices via
   `--font-app`, Inter as the fallback elsewhere. Type scale: 12px captions, 14px body,
-  16px section headings, 28px bold page titles (no side rule, flush with the content) — nothing else, including chart ticks.
+  16px semibold sheet/form titles, 24px semibold page titles (no side rule, flush with the content) — nothing else, including chart ticks. Weights stop at 600 (`strong` is 600 too). Option chips are 32px tall.
   Every remaining selectable option (form choices, Stool/Coffee tags, scrolling quick-picks) is the shared `Chip` (`ui/Chip.tsx`):
   white with a hairline border at rest, accent-tinted when on, regular weight, 36px
   tall (`CHIP_SM_CLS` for the scrolling "Your usual" rows) — don't hand-roll a new one.

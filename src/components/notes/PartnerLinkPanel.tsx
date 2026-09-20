@@ -53,7 +53,7 @@ export function PartnerLinkPanel({ onLinked }: { onLinked: () => void }) {
   return (
     <div className="mx-auto flex max-w-md flex-col gap-5">
       <div>
-        <h1 className="text-[1.75rem] leading-tight font-bold tracking-tight" style={{ color: "var(--text-primary)" }}>
+        <h1 className="text-2xl leading-tight font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
           Connect with your partner
         </h1>
         <p className="mt-1 text-sm" style={{ color: "var(--text-secondary)" }}>
