@@ -115,6 +115,8 @@ const COFFEE_ACCENT = "var(--series-slate)";
 const EXPANDED_CATEGORIES_STORAGE_KEY = "lauva.log.expandedCategories";
 /** A long Food category opens showing only its most-used items. */
 const CATEGORY_PREVIEW_COUNT = 8;
+/** The Food category strip's first tab — what's logged most at this meal. */
+const USUAL_TAB = "__usual__";
 
 function categoryStorageKey(itemType: ItemType, category: string): string {
   return `${itemType}:${category}`;
@@ -571,7 +573,6 @@ export default function LogPage() {
   // by default since a 144px-wide card has no room to show them all at once.
   const [expandedStoolIds, setExpandedStoolIds] = useState<Set<string>>(new Set());
   const timelineRef = useOverflowFade<HTMLDivElement>();
-  const frequentFoodsRef = useOverflowFade<HTMLDivElement>();
   const foodProductsRef = useOverflowFade<HTMLDivElement>();
 
   const loadSnapshot = useCallback(async () => {
@@ -687,10 +688,9 @@ export default function LogPage() {
 
   const tabCandidates = useMemo(() => candidates.filter((c) => c.itemType === tab), [candidates, tab]);
 
-  // "Usual for <meal>" — the foods logged most at the selected meal, topped
-  // up with the overall favourites, pinned above the catalog so the common
-  // case is one tap, not a scroll. Only for Food (its list is the longest);
-  // hidden until there's a real pattern to show.
+  // The foods logged most at the selected meal, topped up with the overall
+  // favourites — the Food strip's first tab, so the common case is one tap,
+  // not a scroll. Hidden until there's a real pattern to show.
   const frequentFoods = useMemo(() => {
     if (tab !== "food") return [];
     const atMeal = new Map<string, number>();
@@ -1738,9 +1738,12 @@ export default function LogPage() {
    * list instead of stacking every category down the page. */
   function renderFoodByCategory(groups: { category: string; items: LogCandidate[] }[]) {
     if (groups.length === 0) return null;
-    const active = groups.find((g) => g.category === foodCategory) ?? groups[0];
+    const usual = frequentFoods.length >= 3 ? { category: USUAL_TAB, items: frequentFoods } : null;
+    const tabs = usual ? [usual, ...groups] : groups;
+    const active = tabs.find((g) => g.category === foodCategory) ?? tabs[0];
     const storageKey = categoryStorageKey("food", active.category);
-    const { visibleItems, hiddenCount } = previewFoodItems(active.items, storageKey);
+    const { visibleItems, hiddenCount } =
+      active === usual ? { visibleItems: active.items, hiddenCount: 0 } : previewFoodItems(active.items, storageKey);
     return (
       <div className="flex flex-col gap-3">
         <TabRail
@@ -1748,7 +1751,7 @@ export default function LogPage() {
           wrap={false}
           className="border-b"
           style={{ borderColor: "var(--border-hairline)" }}
-          items={groups.map((g) => ({ id: g.category, label: g.category, accent: TYPE_ACCENT.food }))}
+          items={tabs.map((g) => ({ id: g.category, label: g.category === USUAL_TAB ? "Usual" : g.category, accent: TYPE_ACCENT.food }))}
           activeId={active.category}
           onSelect={setFoodCategory}
         />
@@ -2092,7 +2095,7 @@ export default function LogPage() {
             {tabConfig.countable && (
               <label
                 className="relative inline-flex h-9 shrink-0 items-center gap-1 rounded-lg px-1.5 text-sm font-medium active:opacity-60"
-                style={{ color: TYPE_ACCENT[tabConfig.type] }}
+                style={{ color: "var(--ui-accent)" }}
               >
                 {meal}
                 <ChevronIcon dir="down" size={11} />
@@ -2182,21 +2185,6 @@ export default function LogPage() {
         )
       ) : (
         <>
-          {tab === "food" && mealGroups.length > 0 && (
-            <div className="flex flex-col gap-2">
-              {mealGroups.map((g) => (
-                <MealGroupCard
-                  key={g.mealTag}
-                  mealTag={g.mealTag}
-                  items={g.items.map((it) => (it.productId ? `${it.name} (${productNameById.get(it.productId) ?? "product"})` : it.name))}
-                  accent={TYPE_ACCENT.food}
-                  note={meals.noteFor(date, g.mealTag)}
-                  onSaveNote={(note) => void meals.setNote(date, g.mealTag, note)}
-                />
-              ))}
-            </div>
-          )}
-
           {!dataReady || !tabConfig ? (
             <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
               Loading…
@@ -2281,34 +2269,6 @@ export default function LogPage() {
                     )
                   )}
                 </form>
-              )}
-
-              {tab === "food" && frequentFoods.length >= 3 && (
-                <div className="flex flex-col gap-1.5">
-                  <p className="px-0.5 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
-                    Usual for {meal.toLowerCase()}
-                  </p>
-                  <div ref={frequentFoodsRef} className="no-scrollbar fade-x -mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
-                    {frequentFoods.map((c) => {
-                      const cAccent = TYPE_ACCENT.food;
-                      const logged = (mealCounts.get(c.key) ?? 0) > 0;
-                      const busy = pending === c.key;
-                      return (
-                        <button
-                          key={`freq-${c.key}`}
-                          type="button"
-                          onClick={() => handleChipTap(c)}
-                          disabled={busy}
-                          className={`${CHIP_SM_CLS} shrink-0 whitespace-nowrap`}
-                          style={chipStyle(logged, cAccent)}
-                        >
-                          {logged && <span aria-hidden="true">✓</span>}
-                          {c.item}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
               )}
 
               {tab === "food" && matchingProducts.length > 0 && (
@@ -2404,6 +2364,24 @@ export default function LogPage() {
                   Nothing tracked here yet — search a name above to add your first {tabConfig.label.toLowerCase().replace(/s$/, "")}.
                 </p>
               )}
+            </div>
+          )}
+
+          {tab === "food" && mealGroups.length > 0 && (
+            <div className="flex flex-col gap-1.5">
+              <p className="px-0.5 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
+                Logged today
+              </p>
+              {mealGroups.map((g) => (
+                <MealGroupCard
+                  key={g.mealTag}
+                  mealTag={g.mealTag}
+                  items={g.items.map((it) => (it.productId ? `${it.name} (${productNameById.get(it.productId) ?? "product"})` : it.name))}
+                  accent={TYPE_ACCENT.food}
+                  note={meals.noteFor(date, g.mealTag)}
+                  onSaveNote={(note) => void meals.setNote(date, g.mealTag, note)}
+                />
+              ))}
             </div>
           )}
         </>
