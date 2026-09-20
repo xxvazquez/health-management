@@ -3,17 +3,14 @@
 import { CHIP_CLS, chipStyle } from "@/components/ui/Chip";
 import { useState, type ReactNode } from "react";
 import type { useLabs } from "@/lib/useLabs";
-import { formatDMY, todayLocalISODate } from "@/lib/aggregations/common";
+import { formatDMY, todayLocalISODate, type DateRange } from "@/lib/aggregations/common";
 import {
   clipMarkers,
   effectiveRange,
   labsSpan,
   rangeBar,
-  rangeCutoff,
   rangeStatus,
   summariseWindow,
-  LAB_RANGES,
-  type LabRangeOption,
   type RangeStatus,
 } from "@/lib/aggregations/labs";
 import { optimalStatusColor } from "./labStatus";
@@ -26,7 +23,7 @@ import { Card } from "@/components/ui/Card";
 import { Methodology } from "@/components/ui/Methodology";
 import { LabMarkerChart } from "@/components/charts/LabMarkerChart";
 import { CustomIcon, customColorValue } from "@/components/ui/customIcons";
-import { Segmented } from "@/components/ui/Segmented";
+import { DateRangeFilter, describeDateRange, type DateRangePreset } from "@/components/ui/DateRangeFilter";
 import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
 import { TabRail } from "@/components/ui/TabRail";
 import { DetailPlaceholder, MedicalSplit, useIsDesktop } from "./MedicalSplit";
@@ -36,6 +33,16 @@ const ACCENT = "var(--ui-accent)";
 type Mode = "average" | "last";
 type SortKey = "panel" | "name";
 type Basis = "optimal" | "reference" | null;
+
+/** Same rolling-window family as every other date-range control in the app
+ * (`DateRangeFilter`'s own defaults, Vitals) — years expressed as days so
+ * results share the one popover pattern instead of a bespoke pill row. */
+const LAB_DATE_PRESETS: DateRangePreset[] = [
+  { label: "1 year", days: 365 },
+  { label: "2 years", days: 730 },
+  { label: "5 years", days: 1826 },
+  { label: "All time", days: "all" },
+];
 
 /** Trim padding artefacts off a widened track end (2.749999 → 2.7). */
 function fmtNum(v: number): string {
@@ -64,8 +71,10 @@ function bandLabel(basis: Basis, low: number | null, high: number | null): strin
   return `${noun} ≤ ${fmtNum(high as number)}`;
 }
 
-function windowWord(option: LabRangeOption): string {
-  return option.years ? `${option.years} year${option.years > 1 ? "s" : ""}` : "all-time";
+/** "1 year" / "2 years" / "5 years" / "all-time" — the active preset's own
+ * label, lowercased to sit inline in a sentence ("… in the last 1 year"). */
+function windowWord(label: string): string {
+  return label === "All time" ? "all-time" : label.toLowerCase();
 }
 
 /** The read/analysis view of Health → Results: the panel list — every
@@ -89,7 +98,7 @@ export function LabsOverview({
   onAddValue?: (markerId: string) => void;
   onEditValue?: (markerId: string, result: LabResult) => void;
 }) {
-  const [rangeId, setRangeId] = useState<LabRangeOption["id"]>("all");
+  const [range, setRange] = useState<DateRange | null>(null);
   const [mode, setMode] = useState<Mode>("last");
   const [sort, setSort] = useState<SortKey>("panel");
   const [panelFilter, setPanelFilter] = useState<string | null>(null);
@@ -97,12 +106,13 @@ export function LabsOverview({
   const desktop = useIsDesktop();
 
   const today = todayLocalISODate();
-  const rangeOption = LAB_RANGES.find((r) => r.id === rangeId) ?? LAB_RANGES[0];
-  const cutoff = rangeCutoff(rangeOption, today);
-
   const allMarkers = labs.markers.data;
   const span = labsSpan(allMarkers);
-  const inRange = clipMarkers(allMarkers, cutoff);
+  // Rolling window anchored at today, same as Vitals — not the dataset's own
+  // end, so "1 year" always means the last 365 real days.
+  const dateSpan: DateRange = { start: span?.start ?? today, end: today };
+  const activeRange = range ?? dateSpan;
+  const inRange = clipMarkers(allMarkers, activeRange.start);
 
   const panelNameById = new Map(labs.panels.data.map((p) => [p.id, p.name] as const));
   const panelName = (m: LabMarker) => (m.panelId ? panelNameById.get(m.panelId) ?? null : null);
@@ -156,7 +166,6 @@ export function LabsOverview({
     );
   }
 
-  const windowStart = cutoff ?? span?.start ?? today;
   const listedMarkers = sort === "panel" ? shownSections.flatMap((s) => s.markers) : flatMarkers;
   // Desktop keeps a marker open so the detail pane is never an empty
   // placeholder; mobile stays list-first until one is tapped.
@@ -167,11 +176,11 @@ export function LabsOverview({
     return (
       <MarkerDetailView
         marker={openMarker}
-        rangeOption={rangeOption}
-        rangeId={rangeId}
-        onRangeChange={setRangeId}
-        windowStart={windowStart}
-        windowEnd={today}
+        dateSpan={dateSpan}
+        range={activeRange}
+        onRangeChange={setRange}
+        windowStart={activeRange.start}
+        windowEnd={activeRange.end}
         onBack={() => setOpenId(null)}
         onAddValue={onAddValue ? () => onAddValue(openMarker.id) : undefined}
         onEditValue={onEditValue ? (r) => onEditValue(openMarker.id, r) : undefined}
@@ -180,7 +189,7 @@ export function LabsOverview({
   }
 
   const yearSpan = span ? `${span.start.slice(0, 4)}–${span.end.slice(0, 4)}` : null;
-  const win = windowWord(rangeOption);
+  const win = windowWord(describeDateRange(LAB_DATE_PRESETS, dateSpan, activeRange));
 
   const markerList =
     sort === "panel" ? (
@@ -229,14 +238,8 @@ export function LabsOverview({
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-2.5">
-        <div className="flex items-center gap-2.5">
-          <SegmentedTabs
-            ariaLabel="Time window"
-            activeId={rangeId}
-            onSelect={setRangeId}
-            items={LAB_RANGES.map((r) => ({ id: r.id, label: r.label }))}
-            className="min-w-0 flex-1"
-          />
+        <div className="flex flex-wrap items-center gap-2.5">
+          <DateRangeFilter span={dateSpan} value={activeRange} onChange={setRange} presets={LAB_DATE_PRESETS} accent={ACCENT} />
           {actions}
         </div>
         <div className="grid grid-cols-2 gap-2.5">
@@ -276,8 +279,8 @@ export function LabsOverview({
 
       <p className="text-xs" style={{ color: "var(--text-muted)" }}>
         {mode === "average"
-          ? `Each bar is the mean of every reading ${cutoff ? `in the last ${win}` : "on record"} — the whisker is its lowest-to-highest spread.`
-          : `Each bar is the most recent reading${cutoff ? ` in the last ${win}` : ""}.`}
+          ? `Each bar is the mean of every reading ${win !== "all-time" ? `in the last ${win}` : "on record"} — the whisker is its lowest-to-highest spread.`
+          : `Each bar is the most recent reading${win !== "all-time" ? ` in the last ${win}` : ""}.`}
         {` · ${shownCount} marker${shownCount === 1 ? "" : "s"}${yearSpan ? ` · ${yearSpan}` : ""}`}
       </p>
 
@@ -290,11 +293,11 @@ export function LabsOverview({
           openMarker && (
             <MarkerDetailView
               marker={openMarker}
-              rangeOption={rangeOption}
-              rangeId={rangeId}
-              onRangeChange={setRangeId}
-              windowStart={windowStart}
-              windowEnd={today}
+              dateSpan={dateSpan}
+              range={activeRange}
+              onRangeChange={setRange}
+              windowStart={activeRange.start}
+              windowEnd={activeRange.end}
               onAddValue={onAddValue ? () => onAddValue(openMarker.id) : undefined}
               onEditValue={onEditValue ? (r) => onEditValue(openMarker.id, r) : undefined}
             />
@@ -461,8 +464,8 @@ function Stat({ k, v, tone }: { k: string; v: string; tone?: string }) {
 
 function MarkerDetailView({
   marker,
-  rangeOption,
-  rangeId,
+  dateSpan,
+  range,
   onRangeChange,
   windowStart,
   windowEnd,
@@ -471,9 +474,9 @@ function MarkerDetailView({
   onEditValue,
 }: {
   marker: LabMarker;
-  rangeOption: LabRangeOption;
-  rangeId: LabRangeOption["id"];
-  onRangeChange: (v: LabRangeOption["id"]) => void;
+  dateSpan: DateRange;
+  range: DateRange;
+  onRangeChange: (v: DateRange) => void;
   windowStart: string;
   windowEnd: string;
   /** Set on mobile, where the detail replaces the list; the desktop pane sits beside it and has neither a back link nor its own window control. */
@@ -494,7 +497,7 @@ function MarkerDetailView({
       ? ((summary.latest - summary.previous) / Math.abs(summary.previous)) * 100
       : null;
 
-  const win = windowWord(rangeOption);
+  const win = windowWord(describeDateRange(LAB_DATE_PRESETS, dateSpan, range));
   const winCap = win.charAt(0).toUpperCase() + win.slice(1);
 
   const refLabel =
@@ -519,7 +522,7 @@ function MarkerDetailView({
           <button type="button" onClick={onBack} className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
             ← All results
           </button>
-          <Segmented value={rangeId} onChange={onRangeChange} accent={ACCENT} options={LAB_RANGES.map((r) => [r.id, r.label] as const)} />
+          <DateRangeFilter span={dateSpan} value={range} onChange={onRangeChange} presets={LAB_DATE_PRESETS} accent={ACCENT} />
         </div>
       )}
 
