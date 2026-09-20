@@ -471,14 +471,13 @@ a:active {
   font-weight: 600;
   color: var(--text-primary);
 }
+/* In-entry headings stay on the type scale: 16px, then 14px. */
 .md-content h1 {
-  font-size: 1.25rem;
-}
-.md-content h2 {
-  font-size: 1.1rem;
-}
-.md-content h3 {
   font-size: 1rem;
+}
+.md-content h2,
+.md-content h3 {
+  font-size: var(--text-sm);
 }
 .md-content a {
   color: var(--series-1);

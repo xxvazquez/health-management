@@ -152,7 +152,7 @@ export function MarkdownField({
         style={{ borderColor: "var(--gridline)", background: "var(--page-backdrop)", color: "var(--text-secondary)" }}
       >
         <div className="no-scrollbar fade-x flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto py-1">
-          <ToolbarButton label="B" name="Bold" extra="font-bold" onPress={() => wrap("**", "bold")} />
+          <ToolbarButton label="B" name="Bold" extra="font-semibold" onPress={() => wrap("**", "bold")} />
           <ToolbarButton label="I" name="Italic" extra="italic" onPress={() => wrap("_", "italic")} />
           <ToolbarDivider />
           <ToolbarButton label="H1" name="Heading" onPress={() => prefixLines("# ")} />

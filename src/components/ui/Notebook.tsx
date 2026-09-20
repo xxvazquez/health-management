@@ -5,8 +5,8 @@ import clsx from "clsx";
 import { useSwipeReveal, SWIPE_REVEAL_CLASS } from "@/lib/useSwipeReveal";
 import { TruncatedTooltip } from "./TruncatedTooltip";
 
-/** Shared list surface for Journal — `NoteList` / `NoteRow` render the same
- * card row as the rest of the app. The entry editor and reading view live
+/** Shared list surface for Journal — `NoteList` / `NoteRow` render an iOS
+ * grouped list, like the rest of the app. The entry editor and reading view live
  * in `JournalTab`. */
 
 export function PencilIcon({ size = 15 }: { size?: number }) {
@@ -55,15 +55,15 @@ export function headingAndPreview(title: string | null, body: string): { heading
   return { heading: firstLine(only.slice(0, cut), 120), preview: firstLine(only.slice(cut)) };
 }
 
-/** One row in the notes / journal list. The whole row opens the entry (its
- * reading view), so the only trailing action is delete, always with a
- * confirm step. `metaFirst` flips the stack to meta → title → body, which
- * Journal uses so the date leads each row. */
+/** One row in the Journal list — an iOS Notes row: the heading on top, the
+ * date and a one-line preview beneath. The whole row opens the entry (its
+ * reading view); the only trailing action is delete, always with a confirm
+ * step (a swipe reveals it on touch, hover on desktop). Rows sit in a
+ * `NoteList` card. */
 export function NoteRow({
   title,
   meta,
   body,
-  metaFirst = false,
   badge,
   onOpen,
   onDelete,
@@ -71,7 +71,6 @@ export function NoteRow({
   title: string | null;
   meta: string;
   body: string;
-  metaFirst?: boolean;
   /** A small trailing glyph on the heading line — e.g. a "shared" marker. */
   badge?: ReactNode;
   onOpen: () => void;
@@ -81,31 +80,19 @@ export function NoteRow({
   const { heading, preview } = headingAndPreview(title, body);
   const { revealed, onTouchStart, onTouchEnd } = useSwipeReveal();
 
-  const titleEl = (
-    <span className="flex items-center gap-1.5 text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-      <TruncatedTooltip text={heading} />
-      {badge}
-    </span>
-  );
-  const metaEl = (
-    <span className="block text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>
-      {meta}
-    </span>
-  );
-
   return (
-    <li
-      className="group rounded-xl border p-4"
-      style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", boxShadow: "var(--shadow-card)", touchAction: "pan-y" }}
-      onTouchStart={onTouchStart}
-      onTouchEnd={onTouchEnd}
-    >
-      <div className="flex items-start justify-between gap-3">
-        <button type="button" onClick={onOpen} className="min-w-0 flex-1 text-left">
-          {metaFirst ? metaEl : titleEl}
-          <span className="mt-0.5 block">{metaFirst ? titleEl : metaEl}</span>
-          <span className="mt-1.5 line-clamp-2 text-xs leading-snug [overflow-wrap:anywhere]" style={{ color: "var(--text-secondary)" }}>
-            {preview || "No additional text"}
+    <li className="group px-3.5 py-2.5" style={{ touchAction: "pan-y" }} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+      <div className="flex items-center justify-between gap-3">
+        <button type="button" onClick={onOpen} className="flex min-w-0 flex-1 flex-col gap-0.5 text-left">
+          <span className="flex items-center gap-1.5 text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+            <TruncatedTooltip text={heading} />
+            {badge}
+          </span>
+          <span className="flex min-w-0 gap-1.5 text-xs" style={{ color: "var(--text-secondary)" }}>
+            <span className="shrink-0 tabular-nums" style={{ color: "var(--text-muted)" }}>
+              {meta}
+            </span>
+            <span className="truncate">{preview || "No additional text"}</span>
           </span>
         </button>
 
@@ -116,7 +103,7 @@ export function NoteRow({
             aria-label={`Delete ${heading}`}
             title="Delete"
             className={clsx(
-              "tap-target notebook-danger -m-1 shrink-0 rounded-md p-1.5 transition-colors hover:bg-[var(--page-plane)]",
+              "tap-target notebook-danger -m-1 shrink-0 rounded-lg p-1.5 transition-colors hover:bg-[var(--page-plane)]",
               revealed ? SWIPE_REVEAL_CLASS.shown : SWIPE_REVEAL_CLASS.hidden,
             )}
             style={{ color: "var(--text-muted)" }}
@@ -127,11 +114,11 @@ export function NoteRow({
       </div>
 
       {onDelete && confirmingDelete && (
-        <div className="mt-3 flex items-center gap-2 text-xs">
-          <button type="button" onClick={onDelete} className="rounded-md px-2 py-1 font-semibold" style={{ color: "var(--status-critical)" }}>
+        <div className="mt-2 flex items-center gap-4 text-sm">
+          <button type="button" onClick={onDelete} className="font-semibold" style={{ color: "var(--status-critical)" }}>
             Delete
           </button>
-          <button type="button" onClick={() => setConfirmingDelete(false)} className="rounded-md px-2 py-1 font-medium" style={{ color: "var(--text-muted)" }}>
+          <button type="button" onClick={() => setConfirmingDelete(false)} className="font-medium" style={{ color: "var(--ui-accent)" }}>
             Keep
           </button>
         </div>
@@ -140,11 +127,12 @@ export function NoteRow({
   );
 }
 
-/** The list wrapper — a stack of card rows, matching the spacing of the
- * app's other list screens. */
-/** `wide` tiles the rows two-up from `xl` — for the flat Notes boards on a
- * wide page. Journal keeps the default single column under its month
- * headers. */
-export function NoteList({ children, wide = false }: { children: ReactNode; wide?: boolean }) {
-  return <ul className={`flex flex-col gap-3${wide ? " xl:grid xl:grid-cols-2 xl:items-start" : ""}`}>{children}</ul>;
+/** The list wrapper — one white card of rows with inset hairline separators,
+ * like an iOS grouped list. */
+export function NoteList({ children }: { children: ReactNode }) {
+  return (
+    <ul className="inset-rows rounded-xl border [--row-inset:0.875rem]" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
+      {children}
+    </ul>
+  );
 }

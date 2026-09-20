@@ -1,16 +1,17 @@
 "use client";
 
 import { DatePicker } from "@/components/ui/DatePicker";
-import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { todayLocalISODate } from "@/lib/aggregations/common";
 import { createJournalEntry, deleteJournalEntry, fetchJournalEntries, updateJournalEntry, type JournalEntry } from "@/lib/supabase/journal";
 import { buildDemoJournalEntries } from "@/lib/demoJournal";
 import { useAuth } from "@/lib/supabase/AuthContext";
 import { useSnapshotCache } from "@/lib/useSnapshotCache";
-import { NoteList, NoteRow, PencilIcon, TrashIcon } from "@/components/ui/Notebook";
+import { NoteList, NoteRow } from "@/components/ui/Notebook";
+import { Field } from "@/components/ui/Field";
+import { FormGroup } from "@/components/ui/FormGroup";
 import { MarkdownContent, MarkdownField, stripMarkdown } from "@/components/ui/Markdown";
 import { Button } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
 import { SearchField } from "@/components/ui/SearchField";
 import { ListSkeleton } from "@/components/ui/Skeleton";
 import { ErrorState, InlineEmpty } from "@/components/ui/EmptyState";
@@ -80,41 +81,30 @@ function JournalEntryForm({
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <DatePicker value={date} onChange={setDate} max={todayLocalISODate()} title="Entry date" ariaLabel="Entry date" />
-        <div className="flex items-center gap-3">
-          {onDelete &&
-            (confirmingDelete ? (
-              <>
-                <button type="button" onClick={onDelete} className="text-xs font-semibold" style={{ color: "var(--status-critical)" }}>
-                  Delete
-                </button>
-                <button type="button" onClick={() => setConfirmingDelete(false)} className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
-                  Keep
-                </button>
-              </>
-            ) : (
-              <button type="button" onClick={() => setConfirmingDelete(true)} className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
-                Delete
-              </button>
-            ))}
-          <button type="button" onClick={onCancel} className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
-            Cancel
-          </button>
-        </div>
+      <div className="flex items-center justify-between gap-3 px-0.5">
+        <h3 className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>
+          {editing ? "Edit entry" : "New entry"}
+        </h3>
+        <button type="button" onClick={onCancel} className="min-h-9 text-sm font-medium" style={{ color: "var(--ui-accent)" }}>
+          Cancel
+        </button>
       </div>
 
-      <Card tier="supporting" padded={false} className="overflow-hidden">
+      <FormGroup>
+        <Field label="Date" inline>
+          <DatePicker value={date} onChange={setDate} max={todayLocalISODate()} title="Entry date" ariaLabel="Entry date" />
+        </Field>
         <input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Title"
           maxLength={150}
-          className="w-full border-0 bg-transparent px-4 pt-4 pb-3 text-base font-semibold outline-none"
+          aria-label="Title"
+          className="min-h-11 w-full bg-transparent px-3.5 text-sm font-semibold outline-none placeholder:font-normal placeholder:text-[color:var(--text-muted)]"
           style={{ color: "var(--text-primary)" }}
         />
         <MarkdownField value={body} onChange={setBody} placeholder="Write whatever's on your mind…" autoFocus={!editing} />
-      </Card>
+      </FormGroup>
 
       <div className="flex items-center gap-3">
         <Button type="submit" size="lg" accent={accent} disabled={saving || !body.trim()}>
@@ -126,28 +116,32 @@ function JournalEntryForm({
           </span>
         )}
       </div>
+
+      {onDelete && (
+        <FormGroup>
+          {confirmingDelete ? (
+            <div className="flex min-h-11 items-center justify-center gap-6 text-sm">
+              <button type="button" onClick={onDelete} className="font-semibold" style={{ color: "var(--status-critical)" }}>
+                Delete entry
+              </button>
+              <button type="button" onClick={() => setConfirmingDelete(false)} className="font-medium" style={{ color: "var(--ui-accent)" }}>
+                Keep
+              </button>
+            </div>
+          ) : (
+            <button type="button" onClick={() => setConfirmingDelete(true)} className="flex min-h-11 w-full items-center justify-center text-sm font-medium" style={{ color: "var(--status-critical)" }}>
+              Delete entry
+            </button>
+          )}
+        </FormGroup>
+      )}
     </form>
   );
 }
 
-function HeaderIconButton({ onClick, label, danger, children }: { onClick: () => void; label: string; danger?: boolean; children: ReactNode }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-label={label}
-      title={label}
-      className={`tap-target rounded-md p-1.5 transition-colors hover:bg-[var(--page-plane)]${danger ? " notebook-danger" : ""}`}
-      style={{ color: "var(--text-muted)" }}
-    >
-      {children}
-    </button>
-  );
-}
-
-/** Reading view for one entry — the rendered markdown in a card, with
- * Edit / Delete in the header. Tapping a row opens this; Edit swaps in the
- * form. */
+/** Reading view for one entry — the rendered markdown in a white card, with
+ * a back link and Edit / Delete in the header. Tapping a row opens this; Edit
+ * swaps in the form. */
 function JournalEntryView({
   entry,
   onEdit,
@@ -163,46 +157,46 @@ function JournalEntryView({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between gap-3">
-        <button type="button" onClick={onBack} className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
-          ← All entries
+      <div className="flex items-center justify-between gap-3 px-0.5">
+        <button type="button" onClick={onBack} className="min-h-9 text-sm font-medium" style={{ color: "var(--ui-accent)" }}>
+          ‹ All entries
         </button>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-4 text-sm">
           {confirmingDelete ? (
             <>
-              <button type="button" onClick={onDelete} className="text-xs font-semibold" style={{ color: "var(--status-critical)" }}>
+              <button type="button" onClick={onDelete} className="min-h-9 font-semibold" style={{ color: "var(--status-critical)" }}>
                 Delete entry
               </button>
-              <button type="button" onClick={() => setConfirmingDelete(false)} className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+              <button type="button" onClick={() => setConfirmingDelete(false)} className="min-h-9 font-medium" style={{ color: "var(--ui-accent)" }}>
                 Keep
               </button>
             </>
           ) : (
             <>
-              <HeaderIconButton onClick={onEdit} label="Edit entry">
-                <PencilIcon size={15} />
-              </HeaderIconButton>
-              <HeaderIconButton onClick={() => setConfirmingDelete(true)} label="Delete entry" danger>
-                <TrashIcon size={15} />
-              </HeaderIconButton>
+              <button type="button" onClick={() => setConfirmingDelete(true)} className="min-h-9 font-medium" style={{ color: "var(--status-critical)" }}>
+                Delete
+              </button>
+              <button type="button" onClick={onEdit} className="min-h-9 font-medium" style={{ color: "var(--ui-accent)" }}>
+                Edit
+              </button>
             </>
           )}
         </div>
       </div>
 
-      <Card tier="supporting">
-        <p className="text-xs font-medium tabular-nums" style={{ color: "var(--text-muted)" }}>
-          {journalFullDate(entry.date)}
-        </p>
-        {entry.title && (
-          <h2 className="mt-1 text-base font-semibold" style={{ color: "var(--text-primary)" }}>
-            {entry.title}
-          </h2>
-        )}
-        <div className="mt-3 border-t pt-4" style={{ borderColor: "var(--gridline)" }}>
-          <MarkdownContent>{entry.body}</MarkdownContent>
+      <div className="flex flex-col gap-3 rounded-xl border p-4" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
+        <div className="flex flex-col gap-0.5">
+          <p className="text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>
+            {journalFullDate(entry.date)}
+          </p>
+          {entry.title && (
+            <h2 className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>
+              {entry.title}
+            </h2>
+          )}
         </div>
-      </Card>
+        <MarkdownContent>{entry.body}</MarkdownContent>
+      </div>
     </div>
   );
 }
@@ -388,17 +382,16 @@ export function JournalTab({ isDemoData, accent }: { isDemoData: boolean; accent
         <div className="flex flex-col gap-5">
           {monthGroups.map((group) => (
             <section key={group.label} className="flex flex-col gap-2">
-              <h3 className="px-0.5 text-xs font-semibold tracking-[0.08em] uppercase" style={{ color: "var(--text-muted)" }}>
+              <h3 className="px-3.5 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
                 {group.label}
               </h3>
-              <NoteList wide>
+              <NoteList>
                 {group.entries.map((entry) => (
                   <NoteRow
                     key={entry.id}
                     title={entry.title}
                     meta={journalRowDate(entry.date)}
                     body={stripMarkdown(entry.body)}
-                    metaFirst
                     onOpen={() => setViewingId(entry.id)}
                     onDelete={() => void handleDelete(entry.id)}
                   />
