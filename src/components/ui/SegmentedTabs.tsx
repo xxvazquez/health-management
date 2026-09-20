@@ -75,13 +75,19 @@ export function SegmentedTabs<T extends string>({
       // that would actually overflow (see `moreSlot` below), or selecting a
       // long-named one later pushes the bar past the container edge.
       const avail = root.clientWidth - 4; // track padding
+      // A few px of slack on every reservation below — the hidden measuring
+      // copies and the real flex-laid-out segments can land a couple of
+      // pixels apart (subpixel flex rounding, a font metric not fully
+      // settled yet), and without slack that gap was enough for `truncate`
+      // to clip a letter off an otherwise-fitting label.
+      const SLACK = 6;
       // When nothing overflows, every segment renders `flex-1` — an equal
       // share of `avail`, not its own natural width. So "everything fits"
       // has to mean the longest label still clears that equal share, not
       // just that the widths sum to less than avail (which let a couple of
       // long labels among several short ones get squeezed and truncate).
       const maxWidth = widths.length > 0 ? Math.max(...widths) : 0;
-      if (maxWidth * items.length <= avail) {
+      if ((maxWidth + SLACK) * items.length <= avail) {
         setVisibleCount(items.length);
         setEqualShare(true);
         return;
@@ -94,7 +100,7 @@ export function SegmentedTabs<T extends string>({
       let used = 0;
       let n = 0;
       for (let i = 0; i < items.length - 1; i++) {
-        used += widths[i] + gap;
+        used += widths[i] + SLACK + gap;
         const moreSlot = Math.max(morePlaceholderW, ...withChevronWidths.slice(i + 1));
         if (used + moreSlot <= avail) n = i + 1;
       }
