@@ -111,6 +111,16 @@ const LUTEAL_PHASE_DAYS = 14;
 const FERTILE_WINDOW_DAYS = 6;
 const FERTILE_FILL = "color-mix(in oklab, var(--brand-wave) 30%, var(--surface-1))";
 
+/** How strongly a recorded day's cell fills with the cycle accent — light
+ * flow reads as a pale tint, Super Heavy as a near-solid, saturated fill,
+ * so the calendar itself shows flow intensity at a glance. */
+const INTENSITY_FILL_PERCENT: Record<PeriodIntensity, number> = {
+  Light: 28,
+  Medium: 48,
+  Heavy: 68,
+  "Super Heavy": 88,
+};
+
 function shiftMonth(monthDate: string, delta: number): string {
   const d = new Date(`${monthDate}T00:00:00`);
   d.setMonth(d.getMonth() + delta);
@@ -161,6 +171,7 @@ function MonthGrid({
           const fertile = !recorded && !predicted && fertileDates.has(d);
           const isToday = d === today;
           const isSelected = d === date;
+          const fillPercent = recorded ? INTENSITY_FILL_PERCENT[recorded.intensity] : null;
           return (
             <button
               key={d}
@@ -168,14 +179,14 @@ function MonthGrid({
               onClick={() => onNavigateToDate(d)}
               className="flex h-8 w-8 flex-col items-center justify-center rounded-md text-xs font-medium transition-colors"
               style={{
-                background: recorded
-                  ? `color-mix(in oklab, ${accent} 55%, var(--surface-1))`
+                background: fillPercent != null
+                  ? `color-mix(in oklab, ${accent} ${fillPercent}%, var(--surface-1))`
                   : predicted
                     ? `color-mix(in oklab, ${accent} 16%, var(--surface-1))`
                     : fertile
                       ? FERTILE_FILL
                       : "transparent",
-                color: recorded ? "#ffffff" : inMonth ? "var(--text-primary)" : "var(--text-muted)",
+                color: fillPercent != null ? (fillPercent >= 55 ? "#ffffff" : "var(--text-primary)") : inMonth ? "var(--text-primary)" : "var(--text-muted)",
                 border: isSelected ? `2px solid ${accent}` : isToday ? `1px solid ${accent}` : "1px solid transparent",
                 // Only a bare (untracked) day dims for being outside the
                 // current month — a recorded, predicted or fertile day
