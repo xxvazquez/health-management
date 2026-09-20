@@ -433,7 +433,7 @@ function MealGroupCard({
               setEditing(true);
             }}
             aria-label={note ? "Edit meal note" : "Add a note for this meal"}
-            className="ml-auto shrink-0 p-0.5"
+            className="tap-target ml-auto shrink-0 p-0.5"
             style={{ color: note ? "var(--ui-accent)" : "var(--text-muted)" }}
           >
             <NoteIcon size={15} />
@@ -621,7 +621,6 @@ export default function LogPage() {
   // characteristics, paper cleanliness, time on toilet) expanded — collapsed
   // by default since a 144px-wide card has no room to show them all at once.
   const [expandedStoolIds, setExpandedStoolIds] = useState<Set<string>>(new Set());
-  const timelineRef = useOverflowFade<HTMLDivElement>();
   const foodProductsRef = useOverflowFade<HTMLDivElement>();
 
   const loadSnapshot = useCallback(async () => {
@@ -2385,35 +2384,20 @@ export default function LogPage() {
           <h2 className="px-0.5 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
             Timeline — {formatDateLabel(date, today).toLowerCase()}
           </h2>
-          {/* Horizontal card strip. Every card is the same width and — via
-           * `items-stretch` — the same height, so time / name / tag / note
-           * line up across the row. A right-edge fade (see useOverflowFade)
-           * shows when there's more to scroll to. */}
-          <div ref={timelineRef} className="no-scrollbar fade-x overflow-x-auto pb-2">
-            <div className="flex min-w-max items-stretch gap-3">
-              {combinedTimeline.map((entry, i) => {
+          <div className="inset-rows rounded-xl border [--row-inset:0.875rem]" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
+              {combinedTimeline.map((entry) => {
                 const busy = pending === entry.key;
                 const hasMealTag = (entry.itemType === "food" || entry.itemType === "supplement") && (entry.mealTag || !isDemoData);
                 const hasNote = !isDemoData || entry.note;
                 const accent = entry.itemType === "stool" ? STOOL_ACCENT : TYPE_ACCENT[entry.itemType];
                 return (
-                  <div
-                    key={entry.key}
-                    className="relative flex w-36 shrink-0 flex-col gap-1 rounded-xl border p-2"
-                    style={{ opacity: busy ? 0.5 : 1, borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}
-                  >
-                    <span
-                      className="absolute top-[10px] left-2 z-10 h-2.5 w-2.5 shrink-0 rounded-full border-2"
-                      style={{ borderColor: accent, background: "var(--surface-1)" }}
-                    />
-                    {i < combinedTimeline.length - 1 && (
-                      <span className="absolute top-[15px] -right-3 h-px w-3" style={{ background: "var(--border-hairline)" }} />
-                    )}
-                    {/* Top row, same position on every card: time on the
-                     * left (indented past the dot), delete at top-right. */}
-                    <div className="flex w-full items-start justify-between gap-1 pl-3">
+                  <div key={entry.key} className="flex items-start gap-3 px-3.5 py-2.5" style={{ opacity: busy ? 0.5 : 1 }}>
+                    <span className="flex h-5 shrink-0 items-center" aria-hidden="true">
+                      <span className="h-2 w-2 rounded-full" style={{ background: accent }} />
+                    </span>
+                    <div className="flex h-5 w-11 shrink-0 items-center">
                       {isDemoData ? (
-                        <span className="font-mono text-xs whitespace-nowrap" style={{ color: "var(--text-muted)" }}>
+                        <span className="font-mono text-xs leading-5 whitespace-nowrap" style={{ color: "var(--text-muted)" }}>
                           {entry.time}
                         </span>
                       ) : (
@@ -2429,7 +2413,7 @@ export default function LogPage() {
                               onClick={open}
                               disabled={busy}
                               aria-label={`Change time for ${entry.item}`}
-                              className="font-mono text-xs whitespace-nowrap disabled:opacity-40"
+                              className="font-mono text-xs leading-5 whitespace-nowrap disabled:opacity-40"
                               style={{ color: "var(--text-muted)" }}
                             >
                               {display}
@@ -2437,24 +2421,12 @@ export default function LogPage() {
                           )}
                         />
                       )}
-                      {!isDemoData && (
-                        <button
-                          type="button"
-                          onClick={() => void handleDeleteEntry(entry)}
-                          disabled={busy}
-                          aria-label={`Delete ${entry.item} at ${entry.time}`}
-                          className="shrink-0 disabled:opacity-40"
-                          style={{ color: "var(--text-secondary)" }}
-                        >
-                          <CloseIcon size={12} />
-                        </button>
-                      )}
                     </div>
-
+                    <div className="flex min-w-0 flex-1 flex-col gap-1">
                     {/* Item name, directly below time — same position on
                      * every card, capped at two lines so a long name can't
                      * push the rest of the card's layout around. */}
-                    <span className="line-clamp-2 text-xs font-medium" style={{ color: "var(--text-primary)" }}>
+                    <span className="line-clamp-2 text-sm leading-5" style={{ color: "var(--text-primary)" }}>
                       {entry.item}
                       {entry.value != null && (() => {
                         const suffix =
@@ -2538,7 +2510,7 @@ export default function LogPage() {
                             <button
                               type="button"
                               onClick={() => toggleStoolDetails(full.id)}
-                              className="self-start text-xs font-medium"
+                              className="hit-slop self-start text-xs font-medium"
                               style={{ color: "var(--ui-accent)" }}
                             >
                               {expanded ? "Hide details" : "More details"}
@@ -2579,10 +2551,22 @@ export default function LogPage() {
                         onSave={(content) => void handleSaveNote(entry, content)}
                       />
                     )}
+                    </div>
+                    {!isDemoData && (
+                        <button
+                          type="button"
+                          onClick={() => void handleDeleteEntry(entry)}
+                          disabled={busy}
+                          aria-label={`Delete ${entry.item} at ${entry.time}`}
+                          className="tap-target flex h-5 shrink-0 items-center disabled:opacity-40"
+                          style={{ color: "var(--text-secondary)" }}
+                        >
+                          <CloseIcon size={12} />
+                        </button>
+                      )}
                   </div>
                 );
               })}
-            </div>
           </div>
         </div>
       )}
