@@ -578,7 +578,7 @@ function PhoneSetup({ share, accent, onBack }: { share: WishlistShareToPhone; ac
             <p className="mt-2" style={{ color: "var(--text-muted)" }}>
               Use it: any browser → <strong>Share</strong> → <strong>Save to Lauva</strong>. Links land in a “Saved from
               phone” list. For a wish that’s for your partner, change <code>for=either</code> to <code>for=partner</code> in
-              the endpoint; your partner can set the shortcut up from his own account too.
+              the endpoint; your partner can set the shortcut up from their own account too.
             </p>
             <details className="mt-2">
               <summary className="cursor-pointer text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
