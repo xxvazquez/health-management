@@ -2444,53 +2444,48 @@ export default function LogPage() {
             const gapMinutes = prevHour != null ? Math.max(0, (prevHour - hour) * 60) : 0;
             return (
               <div key={hour}>
-                {gapMinutes > 60 && <div style={{ height: Math.min(80, gapMinutes * 0.4) }} aria-hidden="true" />}
-                <div className="flex gap-2.5">
-                  <span className="w-9 shrink-0 pt-2.5 text-right font-mono text-xs" style={{ color: "var(--text-muted)" }}>
-                    {String(hour).padStart(2, "0")}:00
-                  </span>
-                  <div className="inset-rows min-w-0 flex-1 rounded-xl border" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
-                    {hourEntries.map((entry) => {
-                      const accent = entry.itemType === "stool" ? STOOL_ACCENT : TYPE_ACCENT[entry.itemType];
-                      const valueSuffix =
-                        entry.value == null
-                          ? null
-                          : INPUT_KIND[entry.item] === "band"
-                            ? bandLabelForValue(entry.item, entry.value)
-                            : INPUT_KIND[entry.item] === "duration"
-                              ? formatMinutes(entry.value)
-                              : entry.itemType === "outcome" && entry.value >= 1
-                                ? `intensity ${entry.value}`
-                                : null;
-                      const meta = entry.mealTag || entry.category || valueSuffix || null;
-                      return (
-                        // A fixed-height row, tap-through to a detail sheet
-                        // for anything editable — same idea as Reminders and
-                        // Calendar, which never expand a row in place.
-                        <button
-                          key={entry.key}
-                          type="button"
-                          onClick={() => setDetailKey(entry.key)}
-                          className="flex min-h-11 w-full items-center gap-2.5 px-3.5 text-left"
-                          style={{ opacity: pending === entry.key ? 0.5 : 1 }}
-                        >
-                          <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: accent }} aria-hidden="true" />
-                          <span className="w-11 shrink-0 font-mono text-xs" style={{ color: "var(--text-muted)" }}>
-                            {entry.time}
+                {gapMinutes > 60 && <div style={{ height: Math.min(40, gapMinutes * 0.15) }} aria-hidden="true" />}
+                <div className="inset-rows rounded-xl border" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
+                  {hourEntries.map((entry) => {
+                    const accent = entry.itemType === "stool" ? STOOL_ACCENT : TYPE_ACCENT[entry.itemType];
+                    const valueSuffix =
+                      entry.value == null
+                        ? null
+                        : INPUT_KIND[entry.item] === "band"
+                          ? bandLabelForValue(entry.item, entry.value)
+                          : INPUT_KIND[entry.item] === "duration"
+                            ? formatMinutes(entry.value)
+                            : entry.itemType === "outcome" && entry.value >= 1
+                              ? `intensity ${entry.value}`
+                              : null;
+                    const meta = entry.mealTag || entry.category || valueSuffix || null;
+                    return (
+                      // A fixed-height row, tap-through to a detail sheet
+                      // for anything editable — same idea as Reminders and
+                      // Calendar, which never expand a row in place.
+                      <button
+                        key={entry.key}
+                        type="button"
+                        onClick={() => setDetailKey(entry.key)}
+                        className="flex min-h-11 w-full items-center gap-2.5 px-3.5 text-left"
+                        style={{ opacity: pending === entry.key ? 0.5 : 1 }}
+                      >
+                        <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: accent }} aria-hidden="true" />
+                        <span className="w-11 shrink-0 font-mono text-xs" style={{ color: "var(--text-muted)" }}>
+                          {entry.time}
+                        </span>
+                        <span className="min-w-0 flex-1 truncate text-sm" style={{ color: "var(--text-primary)" }}>
+                          {entry.item}
+                        </span>
+                        {meta && (
+                          <span className="max-w-[35%] shrink-0 truncate text-right text-xs" style={{ color: "var(--text-secondary)" }}>
+                            {meta}
                           </span>
-                          <span className="min-w-0 flex-1 truncate text-sm" style={{ color: "var(--text-primary)" }}>
-                            {entry.item}
-                            {meta && (
-                              <span className="ml-1.5 font-normal" style={{ color: "var(--text-secondary)" }}>
-                                · {meta}
-                              </span>
-                            )}
-                          </span>
-                          <ChevronIcon dir="right" size={13} />
-                        </button>
-                      );
-                    })}
-                  </div>
+                        )}
+                        <ChevronIcon dir="right" size={13} />
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             );
