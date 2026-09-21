@@ -14,6 +14,7 @@ import { StorageErrorBanner } from "@/components/StorageErrorBanner";
 import { RegisterServiceWorker } from "@/components/RegisterServiceWorker";
 import { AppLoadingSplash } from "@/components/AppLoadingSplash";
 import { MedicalDisclaimer } from "@/components/MedicalDisclaimer";
+import { AppFooter } from "@/components/AppFooter";
 import { ThemeManager } from "@/components/ThemeManager";
 import { MobileMenuProvider } from "@/components/MobileMenuProvider";
 import { PullToRefresh } from "@/components/PullToRefresh";
@@ -107,6 +108,7 @@ export default function RootLayout({
                       <ContentContainer>
                         {children}
                         <MedicalDisclaimer />
+                        <AppFooter />
                       </ContentContainer>
                     </div>
                   </PullToRefresh>
