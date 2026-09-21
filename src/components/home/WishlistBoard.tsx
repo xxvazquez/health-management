@@ -786,8 +786,9 @@ export function WishlistBoard({
               onClick={() => setView({ mode: "phone" })}
               className={`${CHIP_CLS} shrink-0`}
               style={chipStyle(false)}
+              title="Set up sharing links from your phone into Lauva"
             >
-              From phone
+              Add from phone
             </button>
           )}
           {onRefresh && (
