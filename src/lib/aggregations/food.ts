@@ -340,7 +340,7 @@ export interface FallenOutEntry {
   daysInRange: number;
 }
 
-const STAPLE_MIN_PERCENT = 30;
+export const STAPLE_MIN_PERCENT = 30;
 const FALLEN_OUT_MIN_DAYS_BEFORE = 3;
 const FALLEN_OUT_MAX_DAYS_IN_RANGE = 1;
 
@@ -355,14 +355,17 @@ const FALLEN_OUT_MAX_DAYS_IN_RANGE = 1;
  * computeNutritionPriorities's `trend` section already uses, applied per
  * ingredient instead of per nutrition group. `fallenOutOfRotation` is empty
  * when the dataset doesn't extend back far enough for that comparison
- * (never fabricated), same guard as `trend`.
+ * (never fabricated), same guard as `trend` — `trendAvailable` says which
+ * case it is, so the UI can tell "nothing's dropped off" apart from "can't
+ * be checked for this range" (always false for "all time", since there's no
+ * earlier period left to compare against).
  */
 export function ingredientRotation(
   events: CanonicalEvent[],
   range: DateRange,
   staplesTopN = 8,
   fallenOutTopN = 8,
-): { staples: StapleEntry[]; fallenOutOfRotation: FallenOutEntry[] } {
+): { staples: StapleEntry[]; fallenOutOfRotation: FallenOutEntry[]; trendAvailable: boolean } {
   const foods = foodEvents(events);
   const rangeLengthDays = daysBetween(range.start, range.end) + 1;
   const inRangeFoods = foods.filter((e) => e.date >= range.start && e.date <= range.end);
@@ -400,5 +403,5 @@ export function ingredientRotation(
       .slice(0, fallenOutTopN);
   }
 
-  return { staples, fallenOutOfRotation };
+  return { staples, fallenOutOfRotation, trendAvailable };
 }

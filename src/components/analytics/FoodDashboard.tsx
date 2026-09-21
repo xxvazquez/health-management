@@ -27,6 +27,7 @@ import {
   mealInstances,
   rankedFoods,
   repetitionInsights,
+  STAPLE_MIN_PERCENT,
   varietyTrendDirection,
   type FallenOutEntry,
   type IngredientMealRow,
@@ -290,7 +291,7 @@ export function FoodDashboard() {
     [events, range, nutritionGroupOverrides],
   );
   const rotation = useMemo(
-    () => (range ? ingredientRotation(events, range) : { staples: [], fallenOutOfRotation: [] }),
+    () => (range ? ingredientRotation(events, range) : { staples: [], fallenOutOfRotation: [], trendAvailable: false }),
     [events, range],
   );
 
@@ -341,11 +342,9 @@ export function FoodDashboard() {
             underPillars.length === 1 ? "is" : "are"
           } logged least often${rangeSuffix}.`,
           detail:
-            underPillars.length > 2
-              ? `Plus ${underPillars.length - 2} more in the balance card below.`
-              : priorities.missing.length > underPillars.length
-                ? "A few specific groups are also lighter than they could be — see the coverage table."
-                : null,
+            priorities.missing.length > underPillars.length
+              ? "A few specific groups are also lighter than they could be — see the coverage table."
+              : null,
           tone: "attention" as const,
         }
       : priorities.missing.length > 0
@@ -455,7 +454,7 @@ export function FoodDashboard() {
                   </h3>
                   {rotation.staples.length === 0 ? (
                     <p className="mt-2 text-xs" style={{ color: "var(--text-muted)" }}>
-                      Nothing logged consistently enough yet.
+                      Nothing logged on {STAPLE_MIN_PERCENT}% or more of days in this range yet.
                     </p>
                   ) : (
                     <ul className="mt-2 flex flex-col gap-3">
@@ -469,7 +468,12 @@ export function FoodDashboard() {
                   <h3 className="text-xs font-semibold" style={{ color: "var(--status-warning)" }}>
                     Fallen out of rotation
                   </h3>
-                  {rotation.fallenOutOfRotation.length === 0 ? (
+                  {!rotation.trendAvailable ? (
+                    <p className="mt-2 text-xs" style={{ color: "var(--text-muted)" }}>
+                      Needs an equal-length period before this range to compare against — pick a shorter range than
+                      &quot;all time&quot; to see it.
+                    </p>
+                  ) : rotation.fallenOutOfRotation.length === 0 ? (
                     <p className="mt-2 text-xs" style={{ color: "var(--text-muted)" }}>
                       Nothing you used to eat regularly has dropped off.
                     </p>
