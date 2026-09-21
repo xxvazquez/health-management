@@ -79,6 +79,7 @@ import { ProductForm, type NewProductDraft } from "@/components/log/ProductForm"
 import { TabRail } from "@/components/ui/TabRail";
 import { TimeField } from "@/components/ui/TimeField";
 import { DemoNotice } from "@/components/ui/DemoNotice";
+import { ErrorState } from "@/components/ui/EmptyState";
 import { MobileMenuButton } from "@/components/MobileMenuButton";
 import { useOverflowFade } from "@/lib/useOverflowFade";
 import {
@@ -2176,6 +2177,9 @@ export default function LogPage() {
       </div>
 
       {tab === "coffee" ? (
+        coffee.error ? (
+          <ErrorState what="your coffee log" />
+        ) : (
         <CoffeeTab
           items={coffee.items.data}
           logs={coffee.logs.data}
@@ -2189,6 +2193,7 @@ export default function LogPage() {
           onUpdateLog={handleUpdateCoffeeLog}
           onDeleteLog={coffee.logs.remove}
         />
+        )
       ) : tab === "stool" || tab === "workout" || tab === "cycle" ? (
         !dataReady ? (
           <p className="text-sm" style={{ color: "var(--text-secondary)" }}>

@@ -58,9 +58,12 @@ export function useSnapshotCache<B>({ feature, tables, userId, isDemo, seeded, f
       if (await hasOutboxEntriesForTables(userId, tables)) return;
       refs.current.apply(fresh);
       await writeSnapshot(userId, feature, fresh, startedAt);
-    } catch {
+    } catch (err) {
       const snap = await readSnapshot(userId, feature).catch(() => undefined);
-      if (!snap) refs.current.onError();
+      if (!snap) {
+        console.error(`${feature} fetch failed`, err);
+        refs.current.onError();
+      }
     } finally {
       refs.current.onSettled();
     }
