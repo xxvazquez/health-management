@@ -206,16 +206,9 @@ export function SegmentedTabs<T extends string>({
           <div className="fixed inset-0 z-20 bg-black/20" aria-hidden="true" onClick={() => setMenuOpen(false)} />
           <div
             ref={menuRef}
-            className="absolute right-0 z-30 mt-1 min-w-40 rounded-lg border shadow-lg"
+            className="absolute right-0 z-30 mt-1.5 min-w-40 rounded-lg border shadow-lg"
             style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}
           >
-            {/* Not clipped by the list's own overflow-y-auto below, so the
-                notch pointing back at the "More" trigger stays visible. */}
-            <div
-              aria-hidden="true"
-              className="absolute -top-1.5 right-4 h-3 w-3 rotate-45 border-t border-l"
-              style={{ background: "var(--surface-1)", borderColor: "var(--border-hairline)" }}
-            />
             <div className="flex max-h-72 flex-col overflow-y-auto py-1">
               {overflow.map((t) => {
                 const active = t.id === activeId;
