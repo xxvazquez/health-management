@@ -1,7 +1,8 @@
 "use client";
 
-import { useId, useState, type ReactNode } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { Sheet } from "@/components/ui/Sheet";
+import { useDialogA11y } from "@/components/ui/useDialogA11y";
 import { Calendar, MonthGrid } from "@/components/ui/pickers/Calendar";
 import { TimeWheels } from "@/components/ui/pickers/TimeWheels";
 import {
@@ -62,6 +63,76 @@ function ActionButton({ onClick, children, strong }: { onClick: () => void; chil
   );
 }
 
+const POPOVER_BREAKPOINT = "(min-width: 640px)";
+const POPOVER_MIN_WIDTH = 280;
+
+/** Below `sm`, a picker is `Sheet`'s iOS bottom sheet, same as every other
+ * modal. From `sm` up it's a small popover anchored to the trigger instead
+ * — a calendar or a couple of wheels doesn't need the whole screen (or a
+ * centred backdrop) on a pointer-driven layout, and this matches every
+ * other anchored popover in the app (`DateRangeFilter`, the "More" tabs
+ * menu). Wraps whatever trigger is passed in, so it works for both the
+ * default capsule and a caller's own `renderTrigger`. */
+function PickerShell({ trigger, open, onClose, title, titleId, children }: { trigger: ReactNode; open: boolean; onClose: () => void; title: string; titleId: string; children: ReactNode }) {
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [isPopover, setIsPopover] = useState(false);
+  const [alignLeft, setAlignLeft] = useState(false);
+  const panelRef = useDialogA11y(open && isPopover, onClose);
+
+  useEffect(() => {
+    const mq = window.matchMedia(POPOVER_BREAKPOINT);
+    const update = () => setIsPopover(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!open || !isPopover || !rootRef.current) return;
+    const rect = rootRef.current.getBoundingClientRect();
+    setAlignLeft(rect.right < POPOVER_MIN_WIDTH + 8);
+  }, [open, isPopover]);
+
+  useEffect(() => {
+    if (!open || !isPopover) return;
+    const onPointerDown = (e: PointerEvent) => {
+      if (rootRef.current?.contains(e.target as Node)) return;
+      onClose();
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, [open, isPopover, onClose]);
+
+  if (open && !isPopover) {
+    return (
+      <>
+        {trigger}
+        <Sheet title={title} titleId={titleId} onClose={onClose}>
+          {children}
+        </Sheet>
+      </>
+    );
+  }
+
+  return (
+    <div ref={rootRef} className="relative inline-block">
+      {trigger}
+      {open && (
+        <div
+          ref={panelRef}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={titleId}
+          className={`absolute z-30 mt-1.5 flex max-h-[80vh] w-max flex-col gap-4 overflow-y-auto rounded-xl border p-3 shadow-lg ${alignLeft ? "left-0" : "right-0"}`}
+          style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}
+        >
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
+
 interface CommonProps {
   ariaLabel?: string;
   disabled?: boolean;
@@ -101,52 +172,55 @@ export function DatePicker({
   const today = todayISO();
   const todayOk = (min == null || today >= min) && (max == null || today <= max);
   return (
-    <>
-      {renderTrigger ? (
-        renderTrigger(() => setOpen(true), display)
-      ) : (
-        <Trigger display={display} placeholder={placeholder} empty={!value} onOpen={() => setOpen(true)} ariaLabel={ariaLabel} disabled={disabled} className={className} />
-      )}
-      {open && (
-        <Sheet title={title} titleId={id} onClose={() => setOpen(false)}>
-          <div className="rounded-xl border p-3" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
-            <Calendar
-              value={value}
-              min={min}
-              max={max}
-              onPick={(iso) => {
-                onChange(iso);
-                setOpen(false);
-              }}
-            />
-          </div>
-          <PickerActions>
-            {optional && value ? (
-              <ActionButton
-                onClick={() => {
-                  onChange("");
-                  setOpen(false);
-                }}
-              >
-                Clear
-              </ActionButton>
-            ) : (
-              <span />
-            )}
-            {todayOk && (
-              <ActionButton
-                onClick={() => {
-                  onChange(today);
-                  setOpen(false);
-                }}
-              >
-                Today
-              </ActionButton>
-            )}
-          </PickerActions>
-        </Sheet>
-      )}
-    </>
+    <PickerShell
+      title={title}
+      titleId={id}
+      open={open}
+      onClose={() => setOpen(false)}
+      trigger={
+        renderTrigger ? (
+          renderTrigger(() => setOpen(true), display)
+        ) : (
+          <Trigger display={display} placeholder={placeholder} empty={!value} onOpen={() => setOpen(true)} ariaLabel={ariaLabel} disabled={disabled} className={className} />
+        )
+      }
+    >
+      <div className="rounded-xl border p-3" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
+        <Calendar
+          value={value}
+          min={min}
+          max={max}
+          onPick={(iso) => {
+            onChange(iso);
+            setOpen(false);
+          }}
+        />
+      </div>
+      <PickerActions>
+        {optional && value ? (
+          <ActionButton
+            onClick={() => {
+              onChange("");
+              setOpen(false);
+            }}
+          >
+            Clear
+          </ActionButton>
+        ) : (
+          <span />
+        )}
+        {todayOk && (
+          <ActionButton
+            onClick={() => {
+              onChange(today);
+              setOpen(false);
+            }}
+          >
+            Today
+          </ActionButton>
+        )}
+      </PickerActions>
+    </PickerShell>
   );
 }
 
@@ -173,44 +247,47 @@ export function TimePicker({
   const id = useId();
   const display = /^\d{1,2}:\d{2}/.test(value) ? value.slice(0, 5) : "";
   return (
-    <>
-      {renderTrigger ? (
-        renderTrigger(() => setOpen(true), display)
-      ) : (
-        <Trigger display={display} placeholder={placeholder} empty={!display} onOpen={() => setOpen(true)} ariaLabel={ariaLabel} disabled={disabled} className={className} />
-      )}
-      {open && (
-        <Sheet title={title} titleId={id} onClose={() => setOpen(false)}>
-          <div className="rounded-xl border py-2" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
-            <TimeWheels value={display || "12:00"} onChange={onChange} />
-          </div>
-          <PickerActions>
-            {optional && display ? (
-              <ActionButton
-                onClick={() => {
-                  onChange("");
-                  setOpen(false);
-                }}
-              >
-                Clear
-              </ActionButton>
-            ) : (
-              <ActionButton
-                onClick={() => {
-                  const now = new Date();
-                  onChange(`${pad2(now.getHours())}:${pad2(now.getMinutes())}`);
-                }}
-              >
-                Now
-              </ActionButton>
-            )}
-            <ActionButton onClick={() => setOpen(false)} strong>
-              Done
-            </ActionButton>
-          </PickerActions>
-        </Sheet>
-      )}
-    </>
+    <PickerShell
+      title={title}
+      titleId={id}
+      open={open}
+      onClose={() => setOpen(false)}
+      trigger={
+        renderTrigger ? (
+          renderTrigger(() => setOpen(true), display)
+        ) : (
+          <Trigger display={display} placeholder={placeholder} empty={!display} onOpen={() => setOpen(true)} ariaLabel={ariaLabel} disabled={disabled} className={className} />
+        )
+      }
+    >
+      <div className="rounded-xl border py-2" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
+        <TimeWheels value={display || "12:00"} onChange={onChange} />
+      </div>
+      <PickerActions>
+        {optional && display ? (
+          <ActionButton
+            onClick={() => {
+              onChange("");
+              setOpen(false);
+            }}
+          >
+            Clear
+          </ActionButton>
+        ) : (
+          <ActionButton
+            onClick={() => {
+              const now = new Date();
+              onChange(`${pad2(now.getHours())}:${pad2(now.getMinutes())}`);
+            }}
+          >
+            Now
+          </ActionButton>
+        )}
+        <ActionButton onClick={() => setOpen(false)} strong>
+          Done
+        </ActionButton>
+      </PickerActions>
+    </PickerShell>
   );
 }
 
@@ -242,36 +319,37 @@ export function DateTimePicker({
   const now = new Date();
   const nowTime = `${pad2(now.getHours())}:${pad2(now.getMinutes())}`;
   return (
-    <>
-      <Trigger display={display} placeholder={placeholder} empty={!display} onOpen={() => setOpen(true)} ariaLabel={ariaLabel} disabled={disabled} className={className} />
-      {open && (
-        <Sheet title={title} titleId={id} onClose={() => setOpen(false)}>
-          <div className="flex flex-col gap-3 rounded-xl border p-3" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
-            <Calendar value={date} min={min?.slice(0, 10)} max={max?.slice(0, 10)} onPick={(iso) => onChange(joinDateTime(iso, time || nowTime))} />
-            <div className="border-t pt-2" style={{ borderColor: "var(--gridline)" }}>
-              <TimeWheels value={time || nowTime} onChange={(t) => onChange(joinDateTime(date || todayISO(), t))} />
-            </div>
-          </div>
-          <PickerActions>
-            {optional && value ? (
-              <ActionButton
-                onClick={() => {
-                  onChange("");
-                  setOpen(false);
-                }}
-              >
-                Clear
-              </ActionButton>
-            ) : (
-              <ActionButton onClick={() => onChange(joinDateTime(todayISO(), nowTime))}>Now</ActionButton>
-            )}
-            <ActionButton onClick={() => setOpen(false)} strong>
-              Done
-            </ActionButton>
-          </PickerActions>
-        </Sheet>
-      )}
-    </>
+    <PickerShell
+      title={title}
+      titleId={id}
+      open={open}
+      onClose={() => setOpen(false)}
+      trigger={<Trigger display={display} placeholder={placeholder} empty={!display} onOpen={() => setOpen(true)} ariaLabel={ariaLabel} disabled={disabled} className={className} />}
+    >
+      <div className="flex flex-col gap-3 rounded-xl border p-3" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
+        <Calendar value={date} min={min?.slice(0, 10)} max={max?.slice(0, 10)} onPick={(iso) => onChange(joinDateTime(iso, time || nowTime))} />
+        <div className="border-t pt-2" style={{ borderColor: "var(--gridline)" }}>
+          <TimeWheels value={time || nowTime} onChange={(t) => onChange(joinDateTime(date || todayISO(), t))} />
+        </div>
+      </div>
+      <PickerActions>
+        {optional && value ? (
+          <ActionButton
+            onClick={() => {
+              onChange("");
+              setOpen(false);
+            }}
+          >
+            Clear
+          </ActionButton>
+        ) : (
+          <ActionButton onClick={() => onChange(joinDateTime(todayISO(), nowTime))}>Now</ActionButton>
+        )}
+        <ActionButton onClick={() => setOpen(false)} strong>
+          Done
+        </ActionButton>
+      </PickerActions>
+    </PickerShell>
   );
 }
 
@@ -300,28 +378,31 @@ export function MonthPicker({
   const [year, setYear] = useState(parsed?.y ?? new Date().getFullYear());
   const display = formatMonthValue(value);
   return (
-    <>
-      {renderTrigger ? (
-        renderTrigger(() => setOpen(true), display)
-      ) : (
-        <Trigger display={display} placeholder="None" empty={!display} onOpen={() => setOpen(true)} ariaLabel={ariaLabel} className={className} />
-      )}
-      {open && (
-        <Sheet title={title} titleId={id} onClose={() => setOpen(false)}>
-          <div className="rounded-xl border p-3" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
-            <MonthGrid
-              year={year}
-              month={parsed && parsed.y === year ? parsed.m : -1}
-              maxYM={max}
-              onYear={setYear}
-              onPick={(y, m) => {
-                onChange(`${y}-${pad2(m + 1)}`);
-                setOpen(false);
-              }}
-            />
-          </div>
-        </Sheet>
-      )}
-    </>
+    <PickerShell
+      title={title}
+      titleId={id}
+      open={open}
+      onClose={() => setOpen(false)}
+      trigger={
+        renderTrigger ? (
+          renderTrigger(() => setOpen(true), display)
+        ) : (
+          <Trigger display={display} placeholder="None" empty={!display} onOpen={() => setOpen(true)} ariaLabel={ariaLabel} className={className} />
+        )
+      }
+    >
+      <div className="rounded-xl border p-3" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
+        <MonthGrid
+          year={year}
+          month={parsed && parsed.y === year ? parsed.m : -1}
+          maxYM={max}
+          onYear={setYear}
+          onPick={(y, m) => {
+            onChange(`${y}-${pad2(m + 1)}`);
+            setOpen(false);
+          }}
+        />
+      </div>
+    </PickerShell>
   );
 }
