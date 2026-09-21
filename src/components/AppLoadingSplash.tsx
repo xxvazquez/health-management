@@ -15,8 +15,8 @@ export function AppLoadingSplash() {
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex flex-col items-center justify-center gap-3"
-      style={{ background: "var(--page-backdrop)" }}
+      className="fixed inset-0 z-[100] flex flex-col items-center justify-center gap-3 bg-cover bg-center"
+      style={{ backgroundColor: "var(--page-backdrop)", backgroundImage: "url(/background.webp)" }}
       role="status"
       aria-label="Loading Lauva"
     >
