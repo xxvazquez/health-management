@@ -2134,10 +2134,6 @@ export default function LogPage() {
           onSelect={selectTab}
           className="w-full min-w-0 lg:flex-1"
         />
-        {/* On lg+ this slot keeps the same width on every tab (empty on the
-         * ones with no search), so the tab strip beside it never changes
-         * size and shows the same tabs whichever one is open. */}
-        {!tabConfig && <div aria-hidden="true" className="hidden lg:block lg:w-[28rem]" />}
         {tabConfig && (
           <div className="flex w-full flex-wrap items-center gap-2 lg:w-[28rem]">
             <SearchField
