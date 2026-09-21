@@ -95,15 +95,17 @@ export function SegmentedTabs<T extends string>({
       // Not every item clears an equal share. Before falling back to
       // natural-width segments — which visibly mismatches a short label
       // like "Food" against a longer one like "Symptoms" — look for a
-      // smaller visible count whose own labels DO clear an equal share once
-      // the trailing "More" segment is reserved. An iOS segmented control
-      // keeps its segments the same width even when some fold away.
+      // smaller visible count whose own labels DO clear an equal share,
+      // with the trailing "More"/active-overflow segment as one of those
+      // equal shares too rather than a separately-sized leftover slot. An
+      // iOS segmented control keeps every segment the same width, folded
+      // one included, so there's never a stray gap next to it.
       const gap = 2;
       for (let n = items.length - 1; n >= 1; n--) {
-        const reserved = Math.max(morePlaceholderW, ...withChevronWidths.slice(n));
-        const share = (avail - reserved - n * gap) / n;
+        const trailingWidth = Math.max(morePlaceholderW, ...withChevronWidths.slice(n));
+        const share = (avail - n * gap) / (n + 1);
         const maxVisibleWidth = Math.max(...widths.slice(0, n));
-        if (share >= maxVisibleWidth + SLACK) {
+        if (share >= maxVisibleWidth + SLACK && share >= trailingWidth + SLACK) {
           setVisibleCount(n);
           setEqualShare(true);
           return;
@@ -206,7 +208,7 @@ export function SegmentedTabs<T extends string>({
             aria-haspopup="menu"
             aria-expanded={menuOpen}
             onClick={() => setMenuOpen((v) => !v)}
-            className={clsx(BASE, "flex flex-none items-center justify-center gap-1")}
+            className={clsx(BASE, "flex items-center justify-center gap-1", equalShare ? "flex-1" : "flex-auto")}
             style={segmentStyle(Boolean(activeInOverflow), activeInOverflow?.accent)}
           >
             <span className="truncate">{activeInOverflow ? activeInOverflow.label : "More"}</span>
