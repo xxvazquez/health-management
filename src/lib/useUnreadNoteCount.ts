@@ -33,11 +33,12 @@ export function useUnreadNoteCount(pathname: string): number {
       });
     }
     const refresh = () => {
+      const startedAt = Date.now();
       void unreadNoteCount()
         .then((n) => {
           if (cancelled) return;
           setCount(n);
-          if (userId) void writeSnapshot(userId, "unreadNoteCount", n);
+          if (userId) void writeSnapshot(userId, "unreadNoteCount", n, startedAt);
         })
         .catch(() => {
           // Transient network/RLS hiccup — keep the last known count.

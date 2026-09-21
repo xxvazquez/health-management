@@ -245,8 +245,10 @@ through a full write-local-first IndexedDB mirror.
 **Reads work offline** via a snapshot cache (`src/lib/db/indexedDb.ts`'s
 `snapshots` store + `src/lib/useSnapshotCache.ts`). Each of these hooks caches
 its already-shaped result (joins resolved) keyed by `${userId}:${feature}`;
-on mount it renders that instantly, then re-fetches and overwrites. A fetch that
-fails with a snapshot to fall back on is not an error. `cloudRefresh.ts` re-runs
+on mount it renders that instantly, then re-fetches and overwrites. Each write
+carries the timestamp its data was fetched at, so a slow write from one tab
+can't clobber a newer one already stored by another. A fetch that fails with a
+snapshot to fall back on is not an error. `cloudRefresh.ts` re-runs
 those fetches on the same beats as a tracking-domain pull (sign-in, focus,
 reconnect, the 60 s tick, "Sync now"). A fetch result is never applied while the
 outbox still holds a write for that feature's tables — the server copy is stale

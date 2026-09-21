@@ -52,11 +52,12 @@ export function useSnapshotCache<B>({ feature, tables, userId, isDemo, seeded, f
 
   const reload = useCallback(async () => {
     if (isDemo || !userId) return;
+    const startedAt = Date.now();
     try {
       const fresh = await refs.current.fetcher();
       if (await hasOutboxEntriesForTables(userId, tables)) return;
       refs.current.apply(fresh);
-      await writeSnapshot(userId, feature, fresh);
+      await writeSnapshot(userId, feature, fresh, startedAt);
     } catch {
       const snap = await readSnapshot(userId, feature).catch(() => undefined);
       if (!snap) refs.current.onError();

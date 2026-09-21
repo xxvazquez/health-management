@@ -119,13 +119,14 @@ export default function NotesPage() {
   const loadThreads = useCallback(async () => {
     setThreadsLoading(true);
     setThreadsError(false);
+    const startedAt = Date.now();
     try {
       const fresh = await fetchNoteThreads(view);
       // Don't let a server list step on a not-yet-synced local change
       // (relevant once Messages writes go through the outbox).
       if (accountId && (await hasOutboxEntriesForTables(accountId, NOTES_TABLES))) return;
       setThreads(fresh);
-      if (accountId) void writeSnapshot(accountId, `notes:${view}`, fresh);
+      if (accountId) void writeSnapshot(accountId, `notes:${view}`, fresh, startedAt);
     } catch (err) {
       console.error("fetchNoteThreads failed", err);
       const snap = accountId ? await readSnapshot(accountId, `notes:${view}`).catch(() => undefined) : undefined;

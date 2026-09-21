@@ -887,8 +887,10 @@ export async function hasOutboxEntriesForTables(userId: string, tables: readonly
 // ---------------------------------------------------------------------------
 // Snapshot cache CRUD
 // ---------------------------------------------------------------------------
-// Raw/unlocked: a snapshot write races nothing (its own store, last-write-
-// wins by design), and it must not block on the tracking-domain data lock.
+// Raw/unlocked: a snapshot write must not block on the tracking-domain data
+// lock. Ordered by `capturedAt` rather than plain last-write-wins, so a
+// slower write from an earlier fetch can't clobber a newer one — see
+// writeSnapshot below.
 
 function snapshotKey(userId: string, feature: string): string {
   return `${userId}:${feature}`;
@@ -923,9 +925,21 @@ export async function discardSnapshot(userId: string, feature: string): Promise<
   await db.delete("snapshots", snapshotKey(userId, feature));
 }
 
-export async function writeSnapshot(userId: string, feature: string, payload: unknown): Promise<void> {
+/** `capturedAt` should be the moment the payload was known fresh (when its
+ * fetch started, or now for an optimistic local edit) rather than when this
+ * call happens to resolve — otherwise a slow fetch from one tab can land
+ * after, and clobber, a newer write from another tab or from this same
+ * hook's own later call. A write older than what's already stored is
+ * dropped instead of overwriting it. */
+export async function writeSnapshot(userId: string, feature: string, payload: unknown, capturedAt: number = Date.now()): Promise<void> {
   const db = await getDb();
-  await db.put("snapshots", { key: snapshotKey(userId, feature), userId, payload, cachedAt: Date.now() });
+  const key = snapshotKey(userId, feature);
+  const tx = db.transaction("snapshots", "readwrite");
+  const existing = await tx.store.get(key);
+  if (!existing || existing.cachedAt <= capturedAt) {
+    await tx.store.put({ key, userId, payload, cachedAt: capturedAt });
+  }
+  await tx.done;
 }
 
 /** Drops every snapshot for one user, or (no argument) all of them —

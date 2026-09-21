@@ -333,6 +333,14 @@ describe("snapshot cache", () => {
     expect(snap?.payload).toEqual({ markers: [{ id: "m1" }] });
   });
 
+  it("drops a write captured earlier than what's already stored (a slow fetch resolving after a newer one)", async () => {
+    const now = Date.now();
+    await writeSnapshot("user-snap-race", "doctors", { v: "new" }, now);
+    await writeSnapshot("user-snap-race", "doctors", { v: "stale" }, now - 5000);
+    const snap = await readSnapshot("user-snap-race", "doctors");
+    expect(snap?.payload).toEqual({ v: "new" });
+  });
+
   it("keys are per-user — one user's snapshot never reads as another's", async () => {
     await writeSnapshot("user-snap-a", "vitals", { bp: ["a"] });
     await writeSnapshot("user-snap-b", "vitals", { bp: ["b"] });

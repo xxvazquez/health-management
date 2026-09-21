@@ -210,6 +210,7 @@ export async function fetchThreadMessages(rootId: string): Promise<NoteMessage[]
   const myUserId = await currentUserId();
   if (!myUserId) return [];
   const feature = `noteMessages:${rootId}`;
+  const startedAt = Date.now();
   try {
     const { data, error } = await supabase
       .from("notes")
@@ -224,7 +225,7 @@ export async function fetchThreadMessages(rootId: string): Promise<NoteMessage[]
       body: row.body,
       createdAt: row.created_at,
     }));
-    void writeSnapshot(myUserId, feature, messages);
+    void writeSnapshot(myUserId, feature, messages, startedAt);
     return messages;
   } catch (err) {
     const snap = await readSnapshot(myUserId, feature).catch(() => undefined);
