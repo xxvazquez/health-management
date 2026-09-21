@@ -3,7 +3,7 @@
 import { Chip as BaseChip } from "@/components/ui/Chip";
 import { useState, type ReactNode } from "react";
 import { BristolIcon } from "@/components/icons/BristolIcons";
-import { ChevronIcon, CloseIcon } from "@/components/ui/icons";
+import { CloseIcon } from "@/components/ui/icons";
 import { Field } from "@/components/ui/Field";
 import { FormGroup } from "@/components/ui/FormGroup";
 import { ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
@@ -228,7 +228,6 @@ export function StoolTab({
   const [draft, setDraft] = useState<NewStoolEntry>(blankEntry);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [detailsOpen, setDetailsOpen] = useState(true);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const canSave = draft.bristolScores.length > 0;
@@ -249,19 +248,6 @@ export function StoolTab({
   function startEdit(entry: RawStoolLog) {
     setEditingId(entry.id);
     setDraft(entryToDraft(entry));
-    // Surface whatever details it already has instead of hiding them
-    // behind a collapsed section the moment you go to fix something else.
-    if (
-      entry.color ||
-      entry.floatation ||
-      entry.hygiene.length > 0 ||
-      entry.symptoms.length > 0 ||
-      entry.timeOnToiletMinutes != null ||
-      entry.note ||
-      entry.characteristics.length > 0
-    ) {
-      setDetailsOpen(true);
-    }
   }
 
   function cancelEdit() {
@@ -312,15 +298,6 @@ export function StoolTab({
     setDraft((d) => ({ ...d, timeOnToiletMinutes: d.timeOnToiletMinutes === minutes ? null : minutes }));
   }
 
-  const detailsChosenCount =
-    (draft.color ? 1 : 0) +
-    (draft.floatation ? 1 : 0) +
-    (draft.hygiene.length > 0 ? 1 : 0) +
-    (draft.symptoms.length > 0 ? 1 : 0) +
-    (draft.timeOnToiletMinutes != null ? 1 : 0) +
-    (draft.note?.trim() ? 1 : 0) +
-    draft.characteristics.length;
-
   return (
     <div className="flex flex-col gap-3">
       {editingId && (
@@ -360,79 +337,59 @@ export function StoolTab({
         </div>
       </FormGroup>
 
-      <FormGroup>
-        <button
-          type="button"
-          onClick={() => setDetailsOpen((v) => !v)}
-          aria-expanded={detailsOpen}
-          className="flex min-h-11 w-full items-center gap-1.5 px-3.5 text-left text-sm"
-          style={{ color: "var(--text-primary)" }}
-        >
-          More details
-          <span className="ml-auto flex items-center gap-1.5" style={{ color: "var(--text-muted)" }}>
-            {detailsChosenCount > 0 && `${detailsChosenCount} set`}
-            <ChevronIcon dir={detailsOpen ? "down" : "right"} size={14} />
-          </span>
-        </button>
+      <FormGroup title="Color">
+        <div className={`${CHIP_GRID} px-3.5 py-3`}>
+          {options.color.map((c) => (
+            <Chip key={c} label={c} icon={<ColorDot swatch={options.swatchFor(c)} />} active={draft.color === c} onClick={() => pickColor(c)} accent={accent} />
+          ))}
+        </div>
       </FormGroup>
-
-      {detailsOpen && (
-        <>
-            <FormGroup title="Color">
-              <div className={`${CHIP_GRID} px-3.5 py-3`}>
-                {options.color.map((c) => (
-                  <Chip key={c} label={c} icon={<ColorDot swatch={options.swatchFor(c)} />} active={draft.color === c} onClick={() => pickColor(c)} accent={accent} />
-                ))}
-              </div>
-            </FormGroup>
-            <FormGroup title="Floatation">
-              <div className={`${CHIP_GRID} px-3.5 py-3`}>
-                {options.floatation.map((f) => (
-                  <Chip key={f} label={f} icon={<FloatationIcon />} active={draft.floatation === f} onClick={() => pickFloatation(f)} accent={accent} />
-                ))}
-              </div>
-            </FormGroup>
-            <FormGroup title="Characteristics">
-              <div className={`${CHIP_GRID} px-3.5 py-3`}>
-                {options.characteristic.map((c) => (
-                  <Chip key={c} label={c} icon={CHARACTERISTIC_ICON[c]} active={draft.characteristics.includes(c)} onClick={() => toggleCharacteristic(c)} accent={accent} />
-                ))}
-              </div>
-            </FormGroup>
-            <FormGroup title="Symptoms">
-              <div className={`${CHIP_GRID} px-3.5 py-3`}>
-                {options.symptom.map((s) => (
-                  <Chip key={s} label={s} active={draft.symptoms.includes(s)} onClick={() => toggleSymptom(s)} accent={accent} />
-                ))}
-              </div>
-            </FormGroup>
-            <FormGroup title="Hygiene">
-              <div className={`${CHIP_GRID} px-3.5 py-3`}>
-                {HYGIENE_OPTIONS.map((h) => (
-                  <Chip key={h} label={h} icon={<HygieneIcon option={h} />} active={draft.hygiene.includes(h)} onClick={() => toggleHygiene(h)} accent={accent} />
-                ))}
-              </div>
-            </FormGroup>
-            <FormGroup title="Time on toilet">
-              <div className={`${CHIP_GRID} px-3.5 py-3`}>
-                {TIME_ON_TOILET_OPTIONS.map((m) => (
-                  <Chip key={m} label={timeOnToiletLabel(m)} active={draft.timeOnToiletMinutes === m} onClick={() => pickTimeOnToilet(m)} accent={accent} />
-                ))}
-              </div>
-            </FormGroup>
-            <FormGroup>
-              <Field label="Notes">
-                <input
-                  value={draft.note ?? ""}
-                  onChange={(e) => setDraft((d) => ({ ...d, note: e.target.value }))}
-                  placeholder="Add a note…"
-                  className={ROW_TEXT_CLS}
-                  style={ROW_STYLE}
-                />
-              </Field>
-            </FormGroup>
-        </>
-      )}
+      <FormGroup title="Floatation">
+        <div className={`${CHIP_GRID} px-3.5 py-3`}>
+          {options.floatation.map((f) => (
+            <Chip key={f} label={f} icon={<FloatationIcon />} active={draft.floatation === f} onClick={() => pickFloatation(f)} accent={accent} />
+          ))}
+        </div>
+      </FormGroup>
+      <FormGroup title="Characteristics">
+        <div className={`${CHIP_GRID} px-3.5 py-3`}>
+          {options.characteristic.map((c) => (
+            <Chip key={c} label={c} icon={CHARACTERISTIC_ICON[c]} active={draft.characteristics.includes(c)} onClick={() => toggleCharacteristic(c)} accent={accent} />
+          ))}
+        </div>
+      </FormGroup>
+      <FormGroup title="Symptoms">
+        <div className={`${CHIP_GRID} px-3.5 py-3`}>
+          {options.symptom.map((s) => (
+            <Chip key={s} label={s} active={draft.symptoms.includes(s)} onClick={() => toggleSymptom(s)} accent={accent} />
+          ))}
+        </div>
+      </FormGroup>
+      <FormGroup title="Hygiene">
+        <div className={`${CHIP_GRID} px-3.5 py-3`}>
+          {HYGIENE_OPTIONS.map((h) => (
+            <Chip key={h} label={h} icon={<HygieneIcon option={h} />} active={draft.hygiene.includes(h)} onClick={() => toggleHygiene(h)} accent={accent} />
+          ))}
+        </div>
+      </FormGroup>
+      <FormGroup title="Time on toilet">
+        <div className={`${CHIP_GRID} px-3.5 py-3`}>
+          {TIME_ON_TOILET_OPTIONS.map((m) => (
+            <Chip key={m} label={timeOnToiletLabel(m)} active={draft.timeOnToiletMinutes === m} onClick={() => pickTimeOnToilet(m)} accent={accent} />
+          ))}
+        </div>
+      </FormGroup>
+      <FormGroup>
+        <Field label="Notes">
+          <input
+            value={draft.note ?? ""}
+            onChange={(e) => setDraft((d) => ({ ...d, note: e.target.value }))}
+            placeholder="Add a note…"
+            className={ROW_TEXT_CLS}
+            style={ROW_STYLE}
+          />
+        </Field>
+      </FormGroup>
 
       <Button type="button" size="sm" onClick={() => void handleSave()} disabled={!canSave || saving || isDemoData} accent={accent} className="self-start">
         {isDemoData ? "Sign in to log" : saving ? "Saving…" : editingId ? "Update entry" : "Save entry"}
