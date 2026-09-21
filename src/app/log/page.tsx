@@ -118,8 +118,6 @@ const CYCLE_ACCENT = "var(--series-4)";
 const COFFEE_ACCENT = "var(--series-slate)";
 
 const EXPANDED_CATEGORIES_STORAGE_KEY = "lauva.log.expandedCategories";
-/** A long Food category opens showing only its most-used items. */
-const CATEGORY_PREVIEW_COUNT = 8;
 /** The Food category strip's first tab — what's logged most at this meal. */
 const USUAL_TAB = "__usual__";
 
@@ -602,7 +600,6 @@ export default function LogPage() {
   const [foodCategory, setFoodCategory] = useState("");
   // Same idea as `foodCategory`, shared by every other tab's own category strip.
   const [trackerCategory, setTrackerCategory] = useState("");
-  const [fullCategories, setFullCategories] = useState<Set<string>>(new Set());
   useEffect(() => {
     try {
       const raw = window.localStorage.getItem(EXPANDED_CATEGORIES_STORAGE_KEY);
@@ -1730,32 +1727,11 @@ export default function LogPage() {
     );
   }
 
-  /** A long Food category opens on its most-used items (the rest sit behind
-   * "All N"); short ones, searches and opened categories show everything in
-   * order. Anything logged for the current meal stays visible either way. */
-  function previewFoodItems(items: LogCandidate[], storageKey: string) {
-    const trimmed = !searchQuery && items.length > CATEGORY_PREVIEW_COUNT + 2 && !fullCategories.has(storageKey);
-    if (!trimmed) return { visibleItems: items, hiddenCount: 0 };
-    const visibleItems = [...items]
-      .sort((a, b) => b.count - a.count || a.item.localeCompare(b.item))
-      .filter((c, i) => i < CATEGORY_PREVIEW_COUNT || (mealCounts.get(c.key) ?? 0) > 0);
-    return { visibleItems, hiddenCount: items.length - visibleItems.length };
-  }
-
-  function renderShowAll(storageKey: string, total: number, indent: boolean) {
-    return (
-      <button
-        type="button"
-        onClick={() => setFullCategories((prev) => new Set(prev).add(storageKey))}
-        className={clsx(
-          "flex min-h-11 w-full items-center pr-3.5 text-left text-sm font-medium hover:bg-black/[0.04] active:bg-black/5 lg:rounded-lg",
-          indent ? "pl-[3.375rem] lg:pl-3.5" : "pl-3.5",
-        )}
-        style={{ color: "var(--ui-accent)" }}
-      >
-        All {total}
-      </button>
-    );
+  /** Every category always shows its full, alphabetically-sorted item list —
+   * no "most used first, rest behind All N" truncation, since hiding items
+   * just costs an extra tap when logging. */
+  function previewFoodItems(items: LogCandidate[]) {
+    return { visibleItems: items, hiddenCount: 0 };
   }
 
   /** Food's browse view: a scrolling category strip on top, the selected
@@ -1766,9 +1742,7 @@ export default function LogPage() {
     const usual = frequentFoods.length >= 3 ? { category: USUAL_TAB, items: frequentFoods } : null;
     const tabs = usual ? [usual, ...groups] : groups;
     const active = tabs.find((g) => g.category === foodCategory) ?? tabs[0];
-    const storageKey = categoryStorageKey("food", active.category);
-    const { visibleItems, hiddenCount } =
-      active === usual ? { visibleItems: active.items, hiddenCount: 0 } : previewFoodItems(active.items, storageKey);
+    const { visibleItems } = active === usual ? { visibleItems: active.items } : previewFoodItems(active.items);
     return (
       <div className="flex flex-col gap-3">
         <TabRail
@@ -1786,7 +1760,6 @@ export default function LogPage() {
           style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}
         >
           {visibleItems.map((c) => renderChip(c))}
-          {hiddenCount > 0 && renderShowAll(storageKey, active.items.length, false)}
         </div>
       </div>
     );
@@ -1800,8 +1773,7 @@ export default function LogPage() {
     const type = tabConfig.type;
     const accent = TYPE_ACCENT[type];
     const active = groups.find((g) => g.category === trackerCategory) ?? groups[0];
-    const storageKey = categoryStorageKey(type, active.category);
-    const { visibleItems, hiddenCount } = previewFoodItems(active.items, storageKey);
+    const { visibleItems } = previewFoodItems(active.items);
     return (
       <div className="flex flex-col gap-3">
         <TabRail
@@ -1819,7 +1791,6 @@ export default function LogPage() {
           style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}
         >
           {visibleItems.map((c) => renderItem(c))}
-          {hiddenCount > 0 && renderShowAll(storageKey, active.items.length, false)}
         </div>
       </div>
     );
@@ -1843,7 +1814,7 @@ export default function LogPage() {
           // every section expanded.
           const storageKey = categoryStorageKey(type, group.category);
           const collapsed = !searchQuery && !single && !expandedCategories.has(storageKey);
-          const { visibleItems, hiddenCount } = previewFoodItems(group.items, storageKey);
+          const { visibleItems } = previewFoodItems(group.items);
           return (
             <div key={group.category}>
               <button
@@ -1878,7 +1849,6 @@ export default function LogPage() {
                 style={{ borderColor: "var(--gridline)" }}
               >
                 {visibleItems.map((c) => renderItem(c))}
-                {hiddenCount > 0 && renderShowAll(storageKey, group.items.length, true)}
               </div>
             </div>
           );
