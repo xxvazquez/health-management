@@ -27,6 +27,16 @@ export function PlusIcon({ size = 14 }: { size?: number }) {
   );
 }
 
+export function InfoIcon({ size = 13 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="10" cy="10" r="7.5" />
+      <path d="M10 9.25v4.25" />
+      <circle cx="10" cy="6.5" r="1" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
 export function ClockIcon({ size = 12 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

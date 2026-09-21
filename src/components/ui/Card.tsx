@@ -1,5 +1,6 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import clsx from "clsx";
+import { InfoIcon } from "@/components/ui/icons";
 
 export type CardTier = "primary" | "supporting" | "raw";
 
@@ -55,6 +56,10 @@ export function Card({
   );
 }
 
+/** A card's heading, with its explanation tucked behind a tap instead of
+ * always sitting under the title — that description text is only useful
+ * once, the first time someone wonders what the card means, and is dead
+ * weight in the way on every later visit. */
 export function CardTitle({
   children,
   subtitle,
@@ -64,16 +69,31 @@ export function CardTitle({
   subtitle?: ReactNode;
   size?: "default" | "sm";
 }) {
+  const [open, setOpen] = useState(false);
   return (
     <div className="mb-3">
-      <h3
-        className={size === "sm" ? "text-sm font-medium" : "text-base font-semibold"}
-        style={{ color: size === "sm" ? "var(--text-secondary)" : "var(--text-primary)" }}
-      >
-        {children}
-      </h3>
-      {subtitle && (
-        <p className="mt-0.5 text-xs" style={{ color: "var(--text-muted)" }}>
+      <div className="flex items-center gap-1.5">
+        <h3
+          className={size === "sm" ? "text-sm font-medium" : "text-base font-semibold"}
+          style={{ color: size === "sm" ? "var(--text-secondary)" : "var(--text-primary)" }}
+        >
+          {children}
+        </h3>
+        {subtitle && (
+          <button
+            type="button"
+            onClick={() => setOpen((o) => !o)}
+            aria-expanded={open}
+            aria-label={open ? "Hide description" : "Show description"}
+            className="tap-target flex shrink-0 items-center justify-center rounded-full"
+            style={{ color: "var(--text-muted)" }}
+          >
+            <InfoIcon size={size === "sm" ? 12 : 13} />
+          </button>
+        )}
+      </div>
+      {subtitle && open && (
+        <p className="mt-1 text-xs" style={{ color: "var(--text-muted)" }}>
           {subtitle}
         </p>
       )}
