@@ -67,6 +67,7 @@ import { Button } from "@/components/ui/Button";
 import { DatePicker, TimePicker } from "@/components/ui/DatePicker";
 import { Field } from "@/components/ui/Field";
 import { FormGroup } from "@/components/ui/FormGroup";
+import { Sheet } from "@/components/ui/Sheet";
 import { ROW_INLINE_CLS, ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
 import { ChevronIcon, CloseIcon, NoteIcon, PlusIcon } from "@/components/ui/icons";
 import { CustomIcon, customColorValue } from "@/components/ui/customIcons";
@@ -624,11 +625,15 @@ export default function LogPage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (fallback) setTab(fallback);
   }, [tab, isVisible]);
-  // Which stool timeline cards have their extra details (color, floatation,
-  // characteristics, paper cleanliness, time on toilet) expanded — collapsed
-  // by default since a 144px-wide card has no room to show them all at once.
-  const [expandedStoolIds, setExpandedStoolIds] = useState<Set<string>>(new Set());
   const [confirmingDeleteKeys, setConfirmingDeleteKeys] = useState<Set<string>>(new Set());
+  // Which Summary-tab timeline entry has its editable detail sheet open —
+  // the row itself is a compact, fixed-height tap target (Apple's own
+  // Calendar/Reminders keep list rows uniform height and push editing into
+  // a detail view instead of expanding a row in place). Keyed rather than
+  // holding the entry object itself, so an edit made inside the sheet (new
+  // time, new meal tag, ...) is reflected immediately instead of showing
+  // the stale value the sheet was opened with.
+  const [detailKey, setDetailKey] = useState<string | null>(null);
   const foodProductsRef = useOverflowFade<HTMLDivElement>();
 
   const loadSnapshot = useCallback(async () => {
@@ -1001,17 +1006,23 @@ export default function LogPage() {
 
   // The Summary tab's timeline groups entries under the hour they happened,
   // an agenda-style anchor rather than one flat list — combinedTimeline is
-  // already newest-first, so hours come out newest-first too.
+  // already newest-first, so hours come out newest-first too. Keyed by the
+  // numeric hour (not a formatted label) so the render can space groups
+  // apart by how much real time actually separates them.
   const timelineByHour = useMemo(() => {
-    const byHour = new Map<string, TimelineEntry[]>();
+    const byHour = new Map<number, TimelineEntry[]>();
     for (const entry of combinedTimeline) {
-      const hour = `${String(new Date(entry.updatedAt).getHours()).padStart(2, "0")}:00`;
+      const hour = new Date(entry.updatedAt).getHours();
       const list = byHour.get(hour) ?? [];
       list.push(entry);
       byHour.set(hour, list);
     }
     return Array.from(byHour.entries());
   }, [combinedTimeline]);
+
+  // The Summary tab's timeline opens an entry's editable detail in a sheet
+  // rather than expanding its row — see `detailKey`'s own comment.
+  const detailEntry = combinedTimeline.find((e) => e.key === detailKey) ?? null;
 
   // Unfiltered canonical events (no archived-item or date-range filtering,
   // unlike the dashboards' DataContext) so "weeks since last eaten" stays
@@ -1046,15 +1057,6 @@ export default function LogPage() {
     [seasonalCanonical, today],
   );
   const leastTrackedCategory = weeklyPriority[0] ?? null;
-
-  function toggleStoolDetails(id: string) {
-    setExpandedStoolIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
 
   function toggleConfirmDelete(key: string) {
     setConfirmingDeleteKeys((prev) => {
@@ -2429,106 +2431,134 @@ export default function LogPage() {
           <h2 className="px-0.5 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
             Timeline — {formatDateLabel(date, today).toLowerCase()}
           </h2>
-          {timelineByHour.map(([hour, hourEntries]) => (
-          <div key={hour} className="flex gap-2.5">
-            <span className="w-9 shrink-0 pt-2.5 text-right font-mono text-xs" style={{ color: "var(--text-muted)" }}>
-              {hour}
-            </span>
-          <div className="inset-rows min-w-0 flex-1 rounded-xl border [--row-inset:0.875rem]" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
-              {hourEntries.map((entry) => {
-                const busy = pending === entry.key;
-                const hasMealTag = (entry.itemType === "food" || entry.itemType === "supplement") && (entry.mealTag || !isDemoData);
-                const hasNote = !isDemoData || entry.note;
-                const accent = entry.itemType === "stool" ? STOOL_ACCENT : TYPE_ACCENT[entry.itemType];
-                return (
-                  <div
-                    key={entry.key}
-                    className="flex items-start gap-3 border-l-[3px] py-2.5 pr-3.5 pl-3"
-                    style={{ opacity: busy ? 0.5 : 1, borderLeftColor: accent, borderRadius: 0 }}
-                  >
-                    <div className="flex h-5 w-11 shrink-0 items-center">
-                      {isDemoData ? (
-                        <span className="font-mono text-xs leading-5 whitespace-nowrap" style={{ color: "var(--text-muted)" }}>
-                          {entry.time}
-                        </span>
-                      ) : (
-                        <TimePicker
-                          value={toTimeInputValue(entry.updatedAt)}
-                          disabled={busy}
-                          onChange={(t) => void handleChangeEntryTime(entry, t)}
-                          ariaLabel={`Change time for ${entry.item}`}
-                          title="Time"
-                          renderTrigger={(open, display) => (
-                            <button
-                              type="button"
-                              onClick={open}
-                              disabled={busy}
-                              aria-label={`Change time for ${entry.item}`}
-                              className="font-mono text-xs leading-5 whitespace-nowrap disabled:opacity-40"
-                              style={{ color: "var(--text-muted)" }}
-                            >
-                              {display}
-                            </button>
-                          )}
-                        />
-                      )}
-                    </div>
-                    <div className="flex min-w-0 flex-1 flex-col gap-1">
-                    {/* Item name, directly below time — same position on
-                     * every card, capped at two lines so a long name can't
-                     * push the rest of the card's layout around. */}
-                    <span className="line-clamp-2 text-sm leading-5" style={{ color: "var(--text-primary)" }}>
-                      {entry.item}
-                      {entry.value != null && (() => {
-                        const suffix =
-                          INPUT_KIND[entry.item] === "band"
+          {timelineByHour.map(([hour, hourEntries], i) => {
+            // Real elapsed time between hour groups, not just their stacking
+            // order — an empty stretch of the day reads as an empty gap
+            // instead of every group sitting flush against the next one.
+            const prevHour = i > 0 ? timelineByHour[i - 1][0] : null;
+            const gapMinutes = prevHour != null ? Math.max(0, (prevHour - hour) * 60) : 0;
+            return (
+              <div key={hour}>
+                {gapMinutes > 60 && <div style={{ height: Math.min(80, gapMinutes * 0.4) }} aria-hidden="true" />}
+                <div className="flex gap-2.5">
+                  <span className="w-9 shrink-0 pt-2.5 text-right font-mono text-xs" style={{ color: "var(--text-muted)" }}>
+                    {String(hour).padStart(2, "0")}:00
+                  </span>
+                  <div className="inset-rows min-w-0 flex-1 rounded-xl border" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
+                    {hourEntries.map((entry) => {
+                      const accent = entry.itemType === "stool" ? STOOL_ACCENT : TYPE_ACCENT[entry.itemType];
+                      const valueSuffix =
+                        entry.value == null
+                          ? null
+                          : INPUT_KIND[entry.item] === "band"
                             ? bandLabelForValue(entry.item, entry.value)
                             : INPUT_KIND[entry.item] === "duration"
                               ? formatMinutes(entry.value)
                               : entry.itemType === "outcome" && entry.value >= 1
                                 ? `intensity ${entry.value}`
                                 : null;
-                        return suffix ? (
-                          <span className="ml-1 font-normal" style={{ color: "var(--text-secondary)" }}>
-                            {suffix}
+                      const meta = entry.mealTag || entry.category || valueSuffix || null;
+                      return (
+                        // A fixed-height row, tap-through to a detail sheet
+                        // for anything editable — same idea as Reminders and
+                        // Calendar, which never expand a row in place.
+                        <button
+                          key={entry.key}
+                          type="button"
+                          onClick={() => setDetailKey(entry.key)}
+                          className="flex min-h-11 w-full items-center gap-2.5 px-3.5 text-left"
+                          style={{ opacity: pending === entry.key ? 0.5 : 1 }}
+                        >
+                          <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: accent }} aria-hidden="true" />
+                          <span className="w-11 shrink-0 font-mono text-xs" style={{ color: "var(--text-muted)" }}>
+                            {entry.time}
                           </span>
-                        ) : null;
-                      })()}
+                          <span className="min-w-0 flex-1 truncate text-sm" style={{ color: "var(--text-primary)" }}>
+                            {entry.item}
+                            {meta && (
+                              <span className="ml-1.5 font-normal" style={{ color: "var(--text-secondary)" }}>
+                                · {meta}
+                              </span>
+                            )}
+                          </span>
+                          <ChevronIcon dir="right" size={13} />
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+        </div>
+      )}
+      {detailEntry &&
+        (() => {
+          const entry = detailEntry;
+          const busy = pending === entry.key;
+          const hasMealTag = (entry.itemType === "food" || entry.itemType === "supplement") && (entry.mealTag || !isDemoData);
+          const hasNote = !isDemoData || entry.note;
+          const accent = entry.itemType === "stool" ? STOOL_ACCENT : TYPE_ACCENT[entry.itemType];
+          return (
+            <Sheet
+              title={entry.item}
+              titleId="timeline-entry-title"
+              onClose={() => setDetailKey(null)}
+              subtitle={
+                <span className="text-xs font-medium" style={{ color: accent }}>
+                  {entry.time}
+                </span>
+              }
+            >
+              <div className="flex flex-col gap-3">
+                <FormGroup>
+                  <div className="flex min-h-11 items-center justify-between gap-3 px-3.5">
+                    <span className="text-sm" style={{ color: "var(--text-primary)" }}>
+                      Time
                     </span>
+                    {isDemoData ? (
+                      <span className="font-mono text-sm" style={{ color: "var(--text-muted)" }}>
+                        {entry.time}
+                      </span>
+                    ) : (
+                      <TimePicker
+                        value={toTimeInputValue(entry.updatedAt)}
+                        disabled={busy}
+                        onChange={(t) => void handleChangeEntryTime(entry, t)}
+                        ariaLabel={`Change time for ${entry.item}`}
+                        title="Time"
+                      />
+                    )}
+                  </div>
 
-                    {/* Category label, directly below the name — Workout's
-                     * equivalent of Food's meal tag below. Read-only
-                     * (recategorizing here would mean recategorizing the
-                     * exercise itself, not just this one entry — that's a
-                     * Manage-page action, not a timeline one). */}
-                    {entry.itemType === "workout" && entry.category && (
-                      <span
-                        className="self-start text-xs font-medium whitespace-nowrap"
-                        style={{ color: accent }}
-                      >
+                  {entry.itemType === "workout" && entry.category && (
+                    <div className="flex min-h-11 items-center justify-between gap-3 px-3.5">
+                      <span className="text-sm" style={{ color: "var(--text-primary)" }}>
+                        Exercise
+                      </span>
+                      <span className="text-sm" style={{ color: "var(--text-secondary)" }}>
                         {entry.category}
                       </span>
-                    )}
+                    </div>
+                  )}
 
-                    {/* Meal/time-of-day selector, directly below the name
-                     * when it applies — absent for anything that isn't
-                     * Food or Supplements. */}
-                    {hasMealTag &&
-                      (isDemoData ? (
-                        entry.mealTag && (
-                          <span
-                            className="self-start text-xs font-medium whitespace-nowrap"
-                            style={{ color: accent }}
-                          >
-                            {entry.mealTag}
-                          </span>
-                        )
+                  {hasMealTag && (
+                    <div className="flex min-h-11 items-center justify-between gap-3 px-3.5">
+                      <span className="text-sm" style={{ color: "var(--text-primary)" }}>
+                        {entry.itemType === "supplement" ? "Time of day" : "Meal"}
+                      </span>
+                      {isDemoData ? (
+                        <span className="text-sm" style={{ color: "var(--text-secondary)" }}>
+                          {entry.mealTag ?? "—"}
+                        </span>
                       ) : (
                         <select
                           value={entry.mealTag ?? ""}
                           disabled={busy}
                           onChange={(e) => void handleChangeEntryMeal(entry, e.target.value)}
-                          className="w-full text-xs font-medium whitespace-nowrap outline-none disabled:opacity-40"
+                          className="text-sm font-medium outline-none disabled:opacity-40"
                           style={{ background: "transparent", color: accent, border: "none" }}
                         >
                           <option value="" disabled>
@@ -2540,50 +2570,15 @@ export default function LogPage() {
                             </option>
                           ))}
                         </select>
-                      ))}
+                      )}
+                    </div>
+                  )}
 
-                    {entry.itemType === "stool" &&
-                      (() => {
-                        const full = effective.stoolLogs.find((s) => s.id === entry.itemIdentity);
-                        if (!full) return null;
-                        const labels = characteristicLabels(full);
-                        const hasDetails =
-                          full.color ||
-                          full.floatation ||
-                          full.hygiene.length > 0 ||
-                          full.symptoms.length > 0 ||
-                          full.timeOnToiletMinutes != null ||
-                          labels.length > 0;
-                        if (!hasDetails) return null;
-                        const expanded = expandedStoolIds.has(full.id);
-                        return (
-                          <div className="flex flex-col gap-1">
-                            <button
-                              type="button"
-                              onClick={() => toggleStoolDetails(full.id)}
-                              className="hit-slop self-start text-xs font-medium"
-                              style={{ color: "var(--ui-accent)" }}
-                            >
-                              {expanded ? "Hide details" : "More details"}
-                            </button>
-                            {expanded && (
-                              <div className="flex flex-col gap-0.5 text-xs" style={{ color: "var(--text-secondary)" }}>
-                                {full.color && <span>Color: {full.color}</span>}
-                                {full.floatation && <span>{full.floatation}</span>}
-                                {labels.length > 0 && <span>{labels.join(", ")}</span>}
-                                {full.symptoms.length > 0 && <span>{full.symptoms.join(", ")}</span>}
-                                {full.hygiene.length > 0 && <span>Hygiene: {full.hygiene.join(", ")}</span>}
-                                {full.timeOnToiletMinutes != null && <span>{full.timeOnToiletMinutes}m on toilet</span>}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })()}
-
-                    {/* Value + unit, its own bottom line — read-only until
-                     * Edit is tapped, same reveal-on-click shape as the
-                     * note button below. */}
-                    {entry.itemType === "workout" && entry.value != null && (
+                  {entry.itemType === "workout" && entry.value != null && (
+                    <div className="flex min-h-11 items-center justify-between gap-3 px-3.5">
+                      <span className="text-sm" style={{ color: "var(--text-primary)" }}>
+                        Weight
+                      </span>
                       <TimelineWorkoutValue
                         value={entry.value}
                         unit={entry.unit ?? "kg"}
@@ -2592,61 +2587,84 @@ export default function LogPage() {
                         hidden={isDemoData}
                         onChange={(v) => void handleChangeEntryValue(entry, v)}
                       />
-                    )}
+                    </div>
+                  )}
+                </FormGroup>
 
-                    {hasNote && (
+                {entry.itemType === "stool" &&
+                  (() => {
+                    const full = effective.stoolLogs.find((s) => s.id === entry.itemIdentity);
+                    if (!full) return null;
+                    const labels = characteristicLabels(full);
+                    const hasDetails =
+                      full.color || full.floatation || full.hygiene.length > 0 || full.symptoms.length > 0 || full.timeOnToiletMinutes != null || labels.length > 0;
+                    if (!hasDetails) return null;
+                    return (
+                      <FormGroup title="Details">
+                        <div className="flex flex-col gap-0.5 px-3.5 py-3 text-sm" style={{ color: "var(--text-secondary)" }}>
+                          {full.color && <span>Color: {full.color}</span>}
+                          {full.floatation && <span>{full.floatation}</span>}
+                          {labels.length > 0 && <span>{labels.join(", ")}</span>}
+                          {full.symptoms.length > 0 && <span>{full.symptoms.join(", ")}</span>}
+                          {full.hygiene.length > 0 && <span>Hygiene: {full.hygiene.join(", ")}</span>}
+                          {full.timeOnToiletMinutes != null && <span>{full.timeOnToiletMinutes}m on toilet</span>}
+                        </div>
+                      </FormGroup>
+                    );
+                  })()}
+
+                {hasNote && (
+                  <FormGroup title="Note">
+                    <div className="px-3.5 py-3">
                       <TimelineNote
                         note={entry.note}
                         busy={pending === `note:${entry.itemIdentity}`}
                         hidden={isDemoData}
                         onSave={(content) => void handleSaveNote(entry, content)}
                       />
-                    )}
                     </div>
-                    {!isDemoData &&
-                      (confirmingDeleteKeys.has(entry.key) ? (
-                        <span className="hit-slop flex h-5 shrink-0 items-center gap-2 text-xs whitespace-nowrap">
-                          <button
-                            type="button"
-                            onClick={() => void handleDeleteEntry(entry)}
-                            disabled={busy}
-                            className="font-semibold disabled:opacity-40"
-                            style={{ color: "var(--status-critical)" }}
-                          >
-                            Delete
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => toggleConfirmDelete(entry.key)}
-                            disabled={busy}
-                            className="disabled:opacity-40"
-                            style={{ color: "var(--text-muted)" }}
-                          >
-                            Keep
-                          </button>
-                        </span>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => toggleConfirmDelete(entry.key)}
-                          disabled={busy}
-                          aria-label={`Delete ${entry.item} at ${entry.time}`}
-                          className="tap-target flex h-5 shrink-0 items-center disabled:opacity-40"
-                          style={{ color: "var(--text-secondary)" }}
-                        >
-                          <CloseIcon size={12} />
-                        </button>
-                      ))}
-                  </div>
-                );
-              })}
-          </div>
-          </div>
-          ))}
-        </div>
-      )}
-        </div>
-      )}
+                  </FormGroup>
+                )}
+
+                {!isDemoData &&
+                  (confirmingDeleteKeys.has(entry.key) ? (
+                    <div className="flex items-center gap-3">
+                      <Button
+                        type="button"
+                        accent="var(--status-critical)"
+                        disabled={busy}
+                        onClick={() => {
+                          void handleDeleteEntry(entry);
+                          setDetailKey(null);
+                        }}
+                      >
+                        Delete
+                      </Button>
+                      <button
+                        type="button"
+                        onClick={() => toggleConfirmDelete(entry.key)}
+                        disabled={busy}
+                        className="text-sm font-medium disabled:opacity-40"
+                        style={{ color: "var(--text-muted)" }}
+                      >
+                        Keep
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => toggleConfirmDelete(entry.key)}
+                      disabled={busy}
+                      className="self-start text-sm font-medium disabled:opacity-40"
+                      style={{ color: "var(--status-critical)" }}
+                    >
+                      Delete this entry
+                    </button>
+                  ))}
+              </div>
+            </Sheet>
+          );
+        })()}
       {duplicateConflict && (
         <DuplicateItemDialog
           name={duplicateConflict.rawName}
