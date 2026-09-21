@@ -475,7 +475,13 @@ function AgendaRow({
           )}
         </button>
       ) : (
-        <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: overdue ? "var(--status-critical)" : "var(--text-muted)" }} aria-hidden="true" />
+        // Same footprint as the checkbox above, so a read-only row's title
+        // lands in the same column as a checkable one instead of drifting
+        // left — only the mark inside is smaller, since there's nothing to
+        // tap here.
+        <span className="mt-0.5 flex h-[18px] w-[18px] shrink-0 items-center justify-center" aria-hidden="true">
+          <span className="h-1.5 w-1.5 rounded-full" style={{ background: overdue ? "var(--status-critical)" : "var(--text-muted)" }} />
+        </span>
       )}
       <div className="min-w-0 flex-1">
         <span className={clsx("block text-sm break-words", done && "line-through")} style={{ color: done ? "var(--text-muted)" : "var(--text-primary)", fontWeight: 500 }}>
