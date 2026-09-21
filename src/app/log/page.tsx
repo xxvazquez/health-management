@@ -106,7 +106,7 @@ const TABS: { type: ItemType; label: string; singular: string; placeholder: stri
   { type: "habit", label: "Habits", singular: "habit", placeholder: "Add a habit…", defaultCategory: "Daily", countable: false },
 ];
 
-type LogTab = ItemType | "stool" | "workout" | "cycle" | "coffee";
+type LogTab = ItemType | "stool" | "workout" | "cycle" | "coffee" | "summary";
 const STOOL_ACCENT = "var(--series-indigo)";
 // Distinct from every TYPE_ACCENT and from STOOL_ACCENT so all seven tabs
 // stay visually distinguishable at a glance in this one nav row. Matches
@@ -116,6 +116,9 @@ const STOOL_ACCENT = "var(--series-indigo)";
 const WORKOUT_ACCENT = "var(--series-6)";
 const CYCLE_ACCENT = "var(--series-4)";
 const COFFEE_ACCENT = "var(--series-slate)";
+// Neutral rather than one more domain color — Summary doesn't own a food
+// group or tracker, it looks back across all of them.
+const SUMMARY_ACCENT = "var(--series-other)";
 
 const EXPANDED_CATEGORIES_STORAGE_KEY = "lauva.log.expandedCategories";
 /** The Food category strip's first tab — what's logged most at this meal. */
@@ -616,7 +619,7 @@ export default function LogPage() {
   // jump to the first tab that's still visible rather than rendering a
   // tab nobody can reach via the nav bar anymore.
   useEffect(() => {
-    if (isVisible(tab)) return;
+    if (tab === "summary" || isVisible(tab)) return;
     const fallback = ([...TABS.map((t) => t.type), "stool", "workout", "cycle", "coffee"] as TrackedDomain[]).find((t) => isVisible(t));
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (fallback) setTab(fallback);
@@ -713,6 +716,9 @@ export default function LogPage() {
       { id: "workout", label: "Workout", accent: WORKOUT_ACCENT, domain: "workout" },
       { id: "cycle", label: "Cycle", accent: CYCLE_ACCENT, domain: "cycle" },
       { id: "coffee", label: "Coffee", accent: COFFEE_ACCENT, domain: "coffee" },
+      // No `domain` — this isn't a trackable thing to hide from Settings,
+      // it's a read-back-over-everything-else view, so it always shows.
+      { id: "summary", label: "Summary", accent: SUMMARY_ACCENT },
     ];
     return all.filter((t) => !t.domain || isVisible(t.domain));
   }, [isVisible]);
@@ -992,6 +998,20 @@ export default function LogPage() {
       return byTime !== 0 ? byTime : b.key.localeCompare(a.key);
     });
   }, [dayTimeline, stoolEntriesForDate, workoutEntriesForDate, workoutItemIdByName, workoutItemById, effective.diary, date]);
+
+  // The Summary tab's timeline groups entries under the hour they happened,
+  // an agenda-style anchor rather than one flat list — combinedTimeline is
+  // already newest-first, so hours come out newest-first too.
+  const timelineByHour = useMemo(() => {
+    const byHour = new Map<string, TimelineEntry[]>();
+    for (const entry of combinedTimeline) {
+      const hour = `${String(new Date(entry.updatedAt).getHours()).padStart(2, "0")}:00`;
+      const list = byHour.get(hour) ?? [];
+      list.push(entry);
+      byHour.set(hour, list);
+    }
+    return Array.from(byHour.entries());
+  }, [combinedTimeline]);
 
   // Unfiltered canonical events (no archived-item or date-range filtering,
   // unlike the dashboards' DataContext) so "weeks since last eaten" stays
@@ -2206,7 +2226,7 @@ export default function LogPage() {
             onNavigateToDate={setDate}
           />
         )
-      ) : (
+      ) : tab === "summary" ? null : (
         <>
           {!dataReady || !tabConfig ? (
             <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
@@ -2383,11 +2403,14 @@ export default function LogPage() {
               )}
             </div>
           )}
-
-          {tab === "food" && mealGroups.length > 0 && (
+        </>
+      )}
+      {tab === "summary" && (mealGroups.length > 0 || combinedTimeline.length > 0) && (
+        <div className="flex flex-col gap-5">
+          {mealGroups.length > 0 && (
             <div className="flex flex-col gap-1.5">
               <p className="px-3.5 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
-                Logged today
+                Meals today
               </p>
               {mealGroups.map((g) => (
                 <MealGroupCard
@@ -2401,24 +2424,28 @@ export default function LogPage() {
               ))}
             </div>
           )}
-        </>
-      )}
-      {combinedTimeline.length > 0 && (
-        <div className="mt-1 flex flex-col gap-2 border-t pt-3" style={{ borderColor: "var(--border-hairline)" }}>
+          {combinedTimeline.length > 0 && (
+        <div className="flex flex-col gap-2">
           <h2 className="px-0.5 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
             Timeline — {formatDateLabel(date, today).toLowerCase()}
           </h2>
-          <div className="inset-rows rounded-xl border [--row-inset:0.875rem]" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
-              {combinedTimeline.map((entry) => {
+          {timelineByHour.map(([hour, hourEntries]) => (
+          <div key={hour} className="flex gap-2.5">
+            <span className="w-9 shrink-0 pt-2.5 text-right font-mono text-xs" style={{ color: "var(--text-muted)" }}>
+              {hour}
+            </span>
+          <div className="inset-rows min-w-0 flex-1 rounded-xl border [--row-inset:0.875rem]" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
+              {hourEntries.map((entry) => {
                 const busy = pending === entry.key;
                 const hasMealTag = (entry.itemType === "food" || entry.itemType === "supplement") && (entry.mealTag || !isDemoData);
                 const hasNote = !isDemoData || entry.note;
                 const accent = entry.itemType === "stool" ? STOOL_ACCENT : TYPE_ACCENT[entry.itemType];
                 return (
-                  <div key={entry.key} className="flex items-start gap-3 px-3.5 py-2.5" style={{ opacity: busy ? 0.5 : 1 }}>
-                    <span className="flex h-5 shrink-0 items-center" aria-hidden="true">
-                      <span className="h-2 w-2 rounded-full" style={{ background: accent }} />
-                    </span>
+                  <div
+                    key={entry.key}
+                    className="flex items-start gap-3 border-l-[3px] py-2.5 pr-3.5 pl-3"
+                    style={{ opacity: busy ? 0.5 : 1, borderLeftColor: accent, borderRadius: 0 }}
+                  >
                     <div className="flex h-5 w-11 shrink-0 items-center">
                       {isDemoData ? (
                         <span className="font-mono text-xs leading-5 whitespace-nowrap" style={{ color: "var(--text-muted)" }}>
@@ -2614,6 +2641,10 @@ export default function LogPage() {
                 );
               })}
           </div>
+          </div>
+          ))}
+        </div>
+      )}
         </div>
       )}
       {duplicateConflict && (
