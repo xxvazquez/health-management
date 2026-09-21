@@ -92,11 +92,27 @@ export function SegmentedTabs<T extends string>({
         setEqualShare(true);
         return;
       }
-      // Equal share doesn't work (the longest label wouldn't clear its
-      // share), so fall back to packing segments at their own natural
-      // width instead — this can still fit every item (just unevenly
-      // sized) rather than actually needing to fold any into "More".
+      // Not every item clears an equal share. Before falling back to
+      // natural-width segments — which visibly mismatches a short label
+      // like "Food" against a longer one like "Symptoms" — look for a
+      // smaller visible count whose own labels DO clear an equal share once
+      // the trailing "More" segment is reserved. An iOS segmented control
+      // keeps its segments the same width even when some fold away.
       const gap = 2;
+      for (let n = items.length - 1; n >= 1; n--) {
+        const reserved = Math.max(morePlaceholderW, ...withChevronWidths.slice(n));
+        const share = (avail - reserved - n * gap) / n;
+        const maxVisibleWidth = Math.max(...widths.slice(0, n));
+        if (share >= maxVisibleWidth + SLACK) {
+          setVisibleCount(n);
+          setEqualShare(true);
+          return;
+        }
+      }
+      // Equal share doesn't work even at a single visible segment — fall
+      // back to packing segments at their own natural width instead — this
+      // can still fit every item (just unevenly sized) rather than
+      // actually needing to fold any into "More".
       let used = 0;
       let n = 0;
       for (let i = 0; i < items.length - 1; i++) {
