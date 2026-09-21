@@ -170,7 +170,7 @@ export function CoffeeLogDialog({
             onChange={(v) => setDraft((d) => ({ ...d, waterTempC: v }))}
             unit="°C"
             accent={accent}
-            step={5}
+            step={1}
             bigStep={10}
             min={60}
             max={100}
