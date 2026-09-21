@@ -379,10 +379,15 @@ function TapRow({
       aria-pressed={on}
       aria-label={label}
       className={clsx(
-        "flex min-h-11 w-full items-center justify-between gap-3 pr-3.5 text-left text-sm transition-colors hover:bg-black/[0.04] active:bg-black/5 disabled:opacity-50 lg:rounded-lg",
+        "flex min-h-11 w-full items-center justify-between gap-3 pr-3.5 text-left text-sm transition-[background-color,filter] disabled:opacity-50 lg:rounded-lg",
+        on ? "hover:brightness-95 active:brightness-90" : "hover:bg-black/[0.04] active:bg-black/5",
         indent ? "pl-[3.375rem] lg:pl-3.5" : "pl-3.5",
       )}
-      style={{ color: on ? accent : "var(--text-primary)", fontWeight: on ? 600 : 400 }}
+      style={{
+        color: on ? accent : "var(--text-primary)",
+        fontWeight: on ? 600 : 400,
+        background: on ? `color-mix(in oklab, ${accent} 14%, var(--surface-1))` : undefined,
+      }}
     >
       <span className="min-w-0">{name}</span>
       {on && (
