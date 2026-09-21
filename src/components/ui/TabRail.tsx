@@ -106,7 +106,7 @@ export function TabRail<T extends string>({
       ref={navRef}
       aria-label={ariaLabel}
       className={clsx(
-        "no-scrollbar fade-x flex items-center gap-x-5",
+        "no-scrollbar fade-x flex items-center gap-x-5 touch-pan-x",
         wrap
           ? "flex-wrap gap-y-2 sm:flex-nowrap sm:gap-5 sm:overflow-x-auto"
           : "flex-nowrap gap-y-2 overflow-x-auto sm:gap-5",
