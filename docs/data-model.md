@@ -622,7 +622,7 @@ phone"). Regenerating is a delete + insert, so there's no UPDATE policy.
 
 | Table | Purpose |
 |---|---|
-| `push_subscriptions` | One row per user — the Web Push endpoint/keys/timezone for their last device that enabled notifications. Row present = enabled. Read by the reminder cron with the service-role key. |
+| `push_subscriptions` | One row per device (`user_id`, `endpoint`) — the Web Push endpoint/keys/timezone for each device that enabled notifications. A user can have several rows; every one of theirs gets pushed to. Read by the reminder cron with the service-role key. |
 | `habit_reminders` | Manage → Visible sections: an optional daily `reminder_time` per (`user_id`, `domain`) — one of the eight `TrackedDomain`s (`food` / `outcome` / `supplement` / `habit` / `stool` / `workout` / `cycle` / `coffee`). Same `reminder_time` / `reminder_last_sent_date` shape as `supplement_items`/`habit_items`, but resolved once anything in that domain is logged that day, not any one item. Row absence = no reminder for that domain. |
 | `journal_entries` | Notes → Journal: a freeform diary (`date`, optional `title`, `body` stored as Markdown). Unrelated to the per-item `*_diary` tables. Written directly to Supabase. |
 | `notes_digest_state` | One row per user — `last_sent_date` for the daily unread-notes digest email. Written only by the cron (service role); a client only reads its own row. |

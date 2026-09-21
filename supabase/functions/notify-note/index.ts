@@ -85,37 +85,37 @@ Deno.serve(async (req) => {
   if (noteError || !note) return json({ error: "Note not found" }, 404);
   if (note.sender_id !== callerId) return json({ error: "Not the sender" }, 403);
 
-  const { data: sub } = await admin
+  const { data: subs } = await admin
     .from("push_subscriptions")
     .select("endpoint, p256dh, auth_key")
-    .eq("user_id", note.recipient_id)
-    .maybeSingle();
+    .eq("user_id", note.recipient_id);
   // No subscription is a normal case — email digest is the fallback channel.
-  if (!sub) return json({ ok: true, skipped: "no subscription" });
+  if (!subs || subs.length === 0) return json({ ok: true, skipped: "no subscription" });
 
   const { data: sender } = await admin.auth.admin.getUserById(note.sender_id);
   const senderName = displayName(sender?.user);
   const isReply = Boolean(note.thread_root_id);
   const threadRootId = (note.thread_root_id as string | null) ?? note.id;
+  const payload = JSON.stringify({
+    title: isReply ? `${senderName} replied` : `${senderName} sent you a message`,
+    body: "",
+    tag: `note:${threadRootId}`,
+    url: `/notes?thread=${threadRootId}`,
+  });
 
-  try {
-    await webpush.sendNotification(
-      { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth_key } },
-      JSON.stringify({
-        title: isReply ? `${senderName} replied` : `${senderName} sent you a message`,
-        body: "",
-        tag: `note:${threadRootId}`,
-        url: `/notes?thread=${threadRootId}`,
-      }),
-    );
-  } catch (err) {
-    const statusCode = (err as { statusCode?: number }).statusCode;
-    if (statusCode === 404 || statusCode === 410) {
-      await admin.from("push_subscriptions").delete().eq("user_id", note.recipient_id);
-      return json({ ok: true, skipped: "stale subscription dropped" });
+  // The recipient may have push enabled on more than one device — send to
+  // every one of theirs, independently, rather than stopping at the first.
+  for (const sub of subs) {
+    try {
+      await webpush.sendNotification({ endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth_key } }, payload);
+    } catch (err) {
+      const statusCode = (err as { statusCode?: number }).statusCode;
+      if (statusCode === 404 || statusCode === 410) {
+        await admin.from("push_subscriptions").delete().eq("user_id", note.recipient_id).eq("endpoint", sub.endpoint);
+      } else {
+        console.error("notify-note: push failed", err);
+      }
     }
-    console.error("notify-note: push failed", err);
-    return json({ error: "Failed to send push" }, 502);
   }
 
   return json({ ok: true });

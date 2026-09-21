@@ -470,7 +470,7 @@ select public.test_assert_raises(
 );
 
 -- ============================================================================
--- push_subscriptions (PK is user_id itself — one row per user)
+-- push_subscriptions (PK is user_id + endpoint — one row per device)
 -- ============================================================================
 
 select public.test_switch_user('11111111-1111-1111-1111-111111111111');

@@ -24,47 +24,50 @@ function urlBase64ToUint8Array(base64: string): Uint8Array<ArrayBuffer> {
 }
 
 /** A DB row existing is necessary but not sufficient — it only proves some
- * device once subscribed for this account, and never gets cleaned up if
- * *this* device's own grant quietly dies (a Home Screen icon removed and
- * re-added, a Safari data clear, an iOS update resetting permissions all
- * do this) since the push service can keep accepting sends to the old
- * endpoint for a while with no error. Left unchecked, the toggle claims
- * "Notifications on" forever even after this device can no longer show
- * anything. So the row is only trusted once this device's own live state
- * — OS permission plus an actual subscription — confirms it; a mismatch
- * clears the row and reports disabled, since re-subscribing needs a fresh
- * user gesture (the toggle's own click) rather than happening silently
- * here. Also opportunistically refreshes the stored IANA timezone if it's
- * drifted from the browser's current one (e.g. the user travelled), via a
- * plain UPDATE — not upsert, so it can't fail on the table's other NOT
- * NULL columns — since this table isn't part of the outbox/RawItem sync
- * system at all; every call to it, this one included, talks to Supabase
- * directly. Called every time PushNotificationsToggle mounts, i.e. every
- * page load while signed in, so drift gets caught the next time the app is
- * actually open rather than staying stale until the user toggles off/on. */
+ * device once subscribed for this account (a user can have several rows now,
+ * one per device), and never gets cleaned up if *this* device's own grant
+ * quietly dies (a Home Screen icon removed and re-added, a Safari data
+ * clear, an iOS update resetting permissions all do this) since the push
+ * service can keep accepting sends to the old endpoint for a while with no
+ * error. Left unchecked, the toggle claims "Notifications on" forever even
+ * after this device can no longer show anything. So the row is only trusted
+ * once this device's own live state — OS permission plus an actual
+ * subscription whose endpoint matches a stored row — confirms it. Also
+ * opportunistically refreshes the stored IANA timezone if it's drifted from
+ * the browser's current one (e.g. the user travelled), via a plain UPDATE —
+ * not upsert, so it can't fail on the table's other NOT NULL columns —
+ * since this table isn't part of the outbox/RawItem sync system at all;
+ * every call to it, this one included, talks to Supabase directly. Called
+ * every time PushNotificationsToggle mounts, i.e. every page load while
+ * signed in, so drift gets caught the next time the app is actually open
+ * rather than staying stale until the user toggles off/on. */
 export async function isPushNotificationsEnabled(): Promise<boolean> {
   if (!supabase || !pushNotificationsSupported) return false;
   const {
     data: { session },
   } = await supabase.auth.getSession();
   if (!session) return false;
-  const { data } = await supabase.from("push_subscriptions").select("user_id, timezone").eq("user_id", session.user.id).maybeSingle();
-  if (!data) return false;
+  if (Notification.permission !== "granted") return false;
 
-  if (Notification.permission !== "granted") {
-    await supabase.from("push_subscriptions").delete().eq("user_id", session.user.id);
-    return false;
-  }
   const registration = await navigator.serviceWorker.ready;
   const subscription = await registration.pushManager.getSubscription();
-  if (!subscription) {
-    await supabase.from("push_subscriptions").delete().eq("user_id", session.user.id);
-    return false;
-  }
+  if (!subscription) return false;
+
+  const { data } = await supabase
+    .from("push_subscriptions")
+    .select("timezone")
+    .eq("user_id", session.user.id)
+    .eq("endpoint", subscription.endpoint)
+    .maybeSingle();
+  if (!data) return false;
 
   const currentTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   if (data.timezone !== currentTimezone) {
-    await supabase.from("push_subscriptions").update({ timezone: currentTimezone }).eq("user_id", session.user.id);
+    await supabase
+      .from("push_subscriptions")
+      .update({ timezone: currentTimezone })
+      .eq("user_id", session.user.id)
+      .eq("endpoint", subscription.endpoint);
   }
   return true;
 }
@@ -93,27 +96,31 @@ export async function enablePushNotifications(): Promise<void> {
     }));
 
   const json = subscription.toJSON();
-  const { error } = await supabase.from("push_subscriptions").upsert({
-    user_id: session.user.id,
-    endpoint: json.endpoint,
-    p256dh: json.keys?.p256dh,
-    auth_key: json.keys?.auth,
-    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-  });
+  const { error } = await supabase.from("push_subscriptions").upsert(
+    {
+      user_id: session.user.id,
+      endpoint: json.endpoint,
+      p256dh: json.keys?.p256dh,
+      auth_key: json.keys?.auth,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    },
+    { onConflict: "user_id,endpoint" },
+  );
   if (error) throw error;
 }
 
+/** Only removes *this device's* row (matched by its live subscription's
+ * endpoint) — a user can have push enabled on several devices, and turning
+ * it off on one must not silently disable the others. */
 export async function disablePushNotifications(): Promise<void> {
   if (!supabase) return;
   const {
     data: { session },
   } = await supabase.auth.getSession();
-  if (session) {
-    await supabase.from("push_subscriptions").delete().eq("user_id", session.user.id);
+  const registration = "serviceWorker" in navigator ? await navigator.serviceWorker.ready : null;
+  const subscription = registration ? await registration.pushManager.getSubscription() : null;
+  if (session && subscription) {
+    await supabase.from("push_subscriptions").delete().eq("user_id", session.user.id).eq("endpoint", subscription.endpoint);
   }
-  if ("serviceWorker" in navigator) {
-    const registration = await navigator.serviceWorker.ready;
-    const subscription = await registration.pushManager.getSubscription();
-    if (subscription) await subscription.unsubscribe();
-  }
+  if (subscription) await subscription.unsubscribe();
 }

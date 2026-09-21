@@ -2,17 +2,19 @@
 // "Reminders" section for the schedule).
 //
 // Three independent phases:
-// 1. For every push subscription, for every one of that user's supplement/
-//    habit items with a reminder_time set, sends a push once local time
-//    reaches that item's reminder_time (no upper bound — a late or skipped
-//    cron tick still sends, just later, rather than silently never sending
-//    that day) unless it's already logged today or already resolved today.
-//    Right after it, the same per-subscription loop covers Manage's
-//    domain-level "remind me to log this" (habit_reminders): same
-//    reminder_time/reminder_last_sent_date shape and isReminderDue check,
-//    but scoped to a whole tracked domain (food/outcome/supplement/habit/
-//    stool/workout/cycle/coffee) instead of one item — resolved once *anything* in
-//    that domain is logged today, via DOMAIN_LOG_TABLE below.
+// 1. For every user with at least one push subscription (a user can have
+//    several — one per device — and every one of theirs gets the push, never
+//    a partner's), for every one of that user's supplement/habit items with
+//    a reminder_time set, sends a push once local time reaches that item's
+//    reminder_time (no upper bound — a late or skipped cron tick still
+//    sends, just later, rather than silently never sending that day) unless
+//    it's already logged today or already resolved today. Right after it,
+//    the same per-user loop covers Manage's domain-level "remind me to log
+//    this" (habit_reminders): same reminder_time/reminder_last_sent_date
+//    shape and isReminderDue check, but scoped to a whole tracked domain
+//    (food/outcome/supplement/habit/stool/workout/cycle/coffee) instead of
+//    one item — resolved once *anything* in that domain is logged today,
+//    via DOMAIN_LOG_TABLE below.
 // 2. Personal Reminders / Home: scans personal_tasks/household_tasks (by
 //    due_at), personal_items/household_items (by expires_on -
 //    remind_days_before), and doctor_appointment_tasks (by reminder_at) for
@@ -128,23 +130,29 @@ async function sendReminderEmail(toEmail: string, subject: string, bodyText: str
   }
 }
 
-/** Pushes to one user if they have a subscription, dropping it on a 404/410
- * exactly like the per-item loop above. Returns whether a push subscription
- * existed at all (not whether the send succeeded) — a user with no push
- * subscription is a normal, expected case (email is the reliable channel),
- * not something worth logging as a failure. */
-async function sendPushToUser(subsByUser: Map<string, Subscription>, userId: string, title: string, tag: string): Promise<void> {
-  const sub = subsByUser.get(userId);
-  if (!sub) return;
-  try {
-    await webpush.sendNotification({ endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth_key } }, JSON.stringify({ title, body: "", tag }));
-  } catch (err) {
-    const statusCode = (err as { statusCode?: number }).statusCode;
-    if (statusCode === 404 || statusCode === 410) {
-      await supabase.from("push_subscriptions").delete().eq("user_id", userId);
-      subsByUser.delete(userId);
-    } else {
-      console.error("reminder-cron: push failed for", userId, tag, err);
+/** Pushes to every device the given user (and only that user — a caller
+ * that wants a partner notified too passes their id separately) has push
+ * enabled on, since one person can have several devices (phone, laptop).
+ * Drops a subscription on a 404/410 exactly like the per-item loop above. A
+ * user with no push subscription at all is a normal, expected case (email
+ * is the reliable channel), not something worth logging as a failure. */
+async function sendPushToUser(subsByUser: Map<string, Subscription[]>, userId: string, title: string, tag: string): Promise<void> {
+  const subs = subsByUser.get(userId);
+  if (!subs || subs.length === 0) return;
+  for (const sub of subs) {
+    try {
+      await webpush.sendNotification({ endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth_key } }, JSON.stringify({ title, body: "", tag }));
+    } catch (err) {
+      const statusCode = (err as { statusCode?: number }).statusCode;
+      if (statusCode === 404 || statusCode === 410) {
+        await supabase.from("push_subscriptions").delete().eq("user_id", userId).eq("endpoint", sub.endpoint);
+        subsByUser.set(
+          userId,
+          subs.filter((s) => s.endpoint !== sub.endpoint),
+        );
+      } else {
+        console.error("reminder-cron: push failed for", userId, tag, err);
+      }
     }
   }
 }
@@ -285,24 +293,33 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ error: error.message }), { status: 500 });
   }
 
+  // Grouped once, up front — a user can have push enabled on more than one
+  // device, and every phase below sends to all of a user's devices rather
+  // than picking one.
+  const subsByUser = new Map<string, Subscription[]>();
+  for (const sub of (subs ?? []) as Subscription[]) {
+    const list = subsByUser.get(sub.user_id) ?? [];
+    list.push(sub);
+    subsByUser.set(sub.user_id, list);
+  }
+
   let checked = 0;
   let sent = 0;
-  for (const sub of (subs ?? []) as Subscription[]) {
+  for (const [userId, userSubs] of subsByUser) {
+    // All of one user's devices report the same IANA timezone (kept in sync
+    // per-device on toggle mount), so any one of them stands in for the user.
     let local: { date: string; minutesSinceMidnight: number };
     try {
-      local = localNow(sub.timezone);
+      local = localNow(userSubs[0].timezone);
     } catch {
       continue; // unrecognized timezone string — skip rather than fail the whole run
     }
 
-    let subscriptionValid = true;
     for (const { itemTable, logTable } of REMINDER_SOURCES) {
-      if (!subscriptionValid) break;
-
       const { data: items } = await supabase
         .from(itemTable)
         .select("id, name, reminder_time, reminder_last_sent_date")
-        .eq("user_id", sub.user_id)
+        .eq("user_id", userId)
         .eq("is_archived", false)
         .not("reminder_time", "is", null);
 
@@ -311,40 +328,22 @@ Deno.serve(async (req) => {
         const reminderTime = item.reminder_time.slice(0, 5);
         if (!isReminderDue(local.minutesSinceMidnight, reminderTime, item.reminder_last_sent_date, local.date)) continue;
 
-        const { data: logs } = await supabase.from(logTable).select("id").eq("user_id", sub.user_id).eq("item_id", item.id).eq("date", local.date).limit(1);
+        const { data: logs } = await supabase.from(logTable).select("id").eq("user_id", userId).eq("item_id", item.id).eq("date", local.date).limit(1);
         if (logs && logs.length > 0) {
           await markResolved(itemTable, item.id, local.date);
           continue;
         }
 
-        try {
-          await webpush.sendNotification(
-            { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth_key } },
-            JSON.stringify({ title: `Time for ${item.name}`, body: "", tag: `reminder:${item.id}` }),
-          );
-          sent++;
-          await markResolved(itemTable, item.id, local.date);
-        } catch (err) {
-          const statusCode = (err as { statusCode?: number }).statusCode;
-          if (statusCode === 404 || statusCode === 410) {
-            // Subscription no longer valid (permission revoked, browser
-            // data cleared) — drop it instead of retrying it forever, and
-            // stop checking this subscription's remaining items this run.
-            await supabase.from("push_subscriptions").delete().eq("user_id", sub.user_id);
-            subscriptionValid = false;
-            break;
-          }
-          console.error("reminder-cron: send failed for", sub.user_id, item.id, err);
-        }
+        await sendPushToUser(subsByUser, userId, `Time for ${item.name}`, `reminder:${item.id}`);
+        sent++;
+        await markResolved(itemTable, item.id, local.date);
       }
     }
-
-    if (!subscriptionValid) continue;
 
     const { data: domainReminders } = await supabase
       .from("habit_reminders")
       .select("domain, reminder_time, reminder_last_sent_date")
-      .eq("user_id", sub.user_id);
+      .eq("user_id", userId);
 
     for (const dr of (domainReminders ?? []) as DomainReminderRow[]) {
       checked++;
@@ -354,27 +353,15 @@ Deno.serve(async (req) => {
       const logTable = DOMAIN_LOG_TABLE[dr.domain];
       if (!logTable) continue; // unrecognized domain — skip rather than fail the run
 
-      const { data: logs } = await supabase.from(logTable).select("id").eq("user_id", sub.user_id).eq("date", local.date).limit(1);
+      const { data: logs } = await supabase.from(logTable).select("id").eq("user_id", userId).eq("date", local.date).limit(1);
       if (logs && logs.length > 0) {
-        await markDomainReminderResolved(sub.user_id, dr.domain, local.date);
+        await markDomainReminderResolved(userId, dr.domain, local.date);
         continue;
       }
 
-      try {
-        await webpush.sendNotification(
-          { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth_key } },
-          JSON.stringify({ title: `Log your ${DOMAIN_LABEL[dr.domain] ?? dr.domain} today`, body: "", tag: `habit-reminder:${dr.domain}` }),
-        );
-        sent++;
-        await markDomainReminderResolved(sub.user_id, dr.domain, local.date);
-      } catch (err) {
-        const statusCode = (err as { statusCode?: number }).statusCode;
-        if (statusCode === 404 || statusCode === 410) {
-          await supabase.from("push_subscriptions").delete().eq("user_id", sub.user_id);
-          break;
-        }
-        console.error("reminder-cron: send failed for", sub.user_id, dr.domain, err);
-      }
+      await sendPushToUser(subsByUser, userId, `Log your ${DOMAIN_LABEL[dr.domain] ?? dr.domain} today`, `habit-reminder:${dr.domain}`);
+      sent++;
+      await markDomainReminderResolved(userId, dr.domain, local.date);
     }
   }
 
@@ -383,8 +370,8 @@ Deno.serve(async (req) => {
   // scans each table directly instead of per-subscription: a task/item is
   // either due right now or it isn't, regardless of whose subscription
   // happens to be loaded. reminder_sent_at is the sole idempotency guard —
-  // see isTaskRowDue/isItemRowDue's own comments.
-  const subsByUser = new Map<string, Subscription>((subs ?? []).map((s: Subscription) => [s.user_id, s]));
+  // see isTaskRowDue/isItemRowDue's own comments. Reuses the same
+  // subsByUser grouped above phase 1.
   const nowDate = new Date();
   const today = localNow("UTC", nowDate).date;
   let dueChecked = 0;

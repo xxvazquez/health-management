@@ -649,6 +649,8 @@ create index symptom_logs_user_date_idx on public.symptom_logs (user_id, date);
 -- supplement_items/habit_items above). Read by the reminder-cron
 -- Edge Function using the service role key, not by the browser client, so
 -- RLS below only ever needs to cover the user's own read/write from the app.
+-- One row per device: a user can have push enabled on several devices
+-- (phone, laptop) and every one of theirs gets sent to, never a partner's.
 create table public.push_subscriptions (
   user_id uuid not null default auth.uid(),
   endpoint text not null,
@@ -660,7 +662,7 @@ create table public.push_subscriptions (
   -- UTC time for everyone.
   timezone text not null,
   updated_at timestamp with time zone not null default now(),
-  constraint push_subscriptions_pkey primary key (user_id),
+  constraint push_subscriptions_pkey primary key (user_id, endpoint),
   constraint push_subscriptions_user_id_fkey foreign key (user_id) references auth.users(id)
 );
 
