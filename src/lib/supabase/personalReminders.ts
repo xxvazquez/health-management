@@ -1,7 +1,8 @@
 import { supabase } from "./client";
-import { isRecurringTask, nextRecurringDueAt, type TaskItem } from "@/lib/reminders";
+import { isRecurringTask, nextRecurringDueAt, type TaskItem, type TaskSubitem } from "@/lib/reminders";
 import { createTimeOrderedId } from "@/lib/sortableId";
 import { deleteDirect, deleteWhereDirect, insertDirect, upsertDirect } from "./directWrite";
+import { saveTaskSubitems, toggleTaskSubitem } from "./taskSubitems";
 import type { CustomAppearance } from "@/components/ui/customIcons";
 
 interface TaskRow {
@@ -15,7 +16,7 @@ interface TaskRow {
   list_id: string | null;
 }
 
-function toTask(row: TaskRow): TaskItem {
+function toTask(row: TaskRow, subitems: TaskSubitem[] = []): TaskItem {
   return {
     id: row.id,
     title: row.title,
@@ -27,6 +28,7 @@ function toTask(row: TaskRow): TaskItem {
     assignedTo: null,
     isArchived: row.is_archived,
     listId: row.list_id,
+    subitems,
   };
 }
 
@@ -48,6 +50,18 @@ function toItem(row: ItemRow): PersonalItem {
   return { id: row.id, name: row.name, expiresOn: row.expires_on, remindDaysBefore: row.remind_days_before };
 }
 
+interface SubitemRow {
+  id: string;
+  task_id: string;
+  title: string;
+  is_done: boolean;
+  sort_order: number;
+}
+
+function toSubitem(row: SubitemRow): TaskSubitem {
+  return { id: row.id, title: row.title, done: row.is_done, order: row.sort_order };
+}
+
 async function currentUserId(): Promise<string | null> {
   if (!supabase) return null;
   const {
@@ -59,6 +73,8 @@ async function currentUserId(): Promise<string | null> {
 const TASK_COLUMNS = "id, title, notes, due_at, recurrence_days, last_completed_at, is_archived, list_id";
 const ITEM_COLUMNS = "id, name, expires_on, remind_days_before";
 const LIST_COLUMNS = "id, name, sort_order, icon, color";
+const SUBITEM_COLUMNS = "id, task_id, title, is_done, sort_order";
+const SUBITEMS_TABLE = "personal_task_subitems";
 
 /** A user-owned reminder list ("To Do", "To Buy", "Bathroom", …). Real
  * rows so a list can be empty, renamed, and deleted independently of the
@@ -148,13 +164,19 @@ export async function fetchPersonalTasks(): Promise<TaskItem[]> {
   if (!supabase) return [];
   const myUserId = await currentUserId();
   if (!myUserId) return [];
-  const { data, error } = await supabase
-    .from("personal_tasks")
-    .select(TASK_COLUMNS)
-    .eq("user_id", myUserId)
-    .order("due_at", { ascending: true, nullsFirst: false });
+  const [{ data, error }, { data: subData, error: subError }] = await Promise.all([
+    supabase.from("personal_tasks").select(TASK_COLUMNS).eq("user_id", myUserId).order("due_at", { ascending: true, nullsFirst: false }),
+    supabase.from(SUBITEMS_TABLE).select(SUBITEM_COLUMNS).eq("user_id", myUserId).order("sort_order", { ascending: true }),
+  ]);
   if (error) throw error;
-  return (data as TaskRow[]).map(toTask);
+  if (subError) throw subError;
+  const subitemsByTask = new Map<string, TaskSubitem[]>();
+  for (const row of subData as SubitemRow[]) {
+    const list = subitemsByTask.get(row.task_id) ?? [];
+    list.push(toSubitem(row));
+    subitemsByTask.set(row.task_id, list);
+  }
+  return (data as TaskRow[]).map((row) => toTask(row, subitemsByTask.get(row.id) ?? []));
 }
 
 export interface NewPersonalTaskInput {
@@ -163,6 +185,7 @@ export interface NewPersonalTaskInput {
   dueAt: string | null;
   recurrenceDays: number | null;
   listId: string | null;
+  subitems: TaskSubitem[];
 }
 
 const TASKS_TABLE = "personal_tasks";
@@ -199,6 +222,7 @@ function taskFromInput(id: string, input: NewPersonalTaskInput, base?: TaskItem)
     assignedTo: null,
     isArchived: base?.isArchived ?? false,
     listId: input.listId,
+    subitems: input.subitems,
   };
 }
 
@@ -207,6 +231,7 @@ export async function createPersonalTask(input: NewPersonalTaskInput): Promise<T
   if (!myUserId) throw new Error("Sign in first.");
   const task = taskFromInput(createTimeOrderedId(), input);
   await upsertDirect(myUserId, TASKS_TABLE, task.id, taskPayload(task, myUserId));
+  await saveTaskSubitems(myUserId, SUBITEMS_TABLE, task.id, [], task.subitems, { user_id: myUserId });
   return task;
 }
 
@@ -217,7 +242,16 @@ export async function updatePersonalTask(task: TaskItem, input: NewPersonalTaskI
   if (!myUserId) throw new Error("Sign in first.");
   const next = taskFromInput(task.id, input, task);
   await upsertDirect(myUserId, TASKS_TABLE, next.id, taskPayload(next, myUserId));
+  await saveTaskSubitems(myUserId, SUBITEMS_TABLE, next.id, task.subitems, next.subitems, { user_id: myUserId });
   return next;
+}
+
+/** Flips one sub-item's done state in place — used by Agenda's row list,
+ * which doesn't want to resave the whole task just to check something off. */
+export async function togglePersonalTaskSubitem(taskId: string, subitem: TaskSubitem): Promise<void> {
+  const myUserId = await currentUserId();
+  if (!myUserId) throw new Error("Sign in first.");
+  await toggleTaskSubitem(myUserId, SUBITEMS_TABLE, taskId, subitem, { user_id: myUserId });
 }
 
 export async function setPersonalTaskArchived(task: TaskItem, archived: boolean): Promise<TaskItem> {

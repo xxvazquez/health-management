@@ -308,6 +308,7 @@ components, `household_*` tables (next section).
 }}}%%
 erDiagram
     PERSONAL_TASKS ||--o{ PERSONAL_TASK_COMPLETIONS : "full history"
+    PERSONAL_TASKS ||--o{ PERSONAL_TASK_SUBITEMS : "checklist"
 
     PERSONAL_NOTES {
         uuid id PK
@@ -329,6 +330,13 @@ erDiagram
         uuid        task_id FK
         timestamptz completed_at
     }
+    PERSONAL_TASK_SUBITEMS {
+        uuid    id PK
+        uuid    task_id FK
+        text    title
+        boolean is_done
+        int     sort_order
+    }
     PERSONAL_ITEMS {
         uuid id PK
         text name
@@ -337,6 +345,12 @@ erDiagram
         timestamptz reminder_sent_at
     }
 ```
+
+A reminder's own checklist — "Clean bathroom" with "Sink" / "Faucet" / …
+underneath, like iOS Reminders' subtasks. Each sub-item is addressed by its
+own client-generated id (same as `reminder_lists`), so an edit
+upserts/deletes individual rows instead of replacing the whole set; checking
+one off from Agenda's row list writes just that row.
 
 `recurrence_days` null → one-off task (`last_completed_at` set = done, shown
 in a "Done" section). Set → recurring: `due_at` advances by
@@ -544,6 +558,7 @@ helper — no separate "share" step, no FK to `partner_links`.
 }}}%%
 erDiagram
     HOUSEHOLD_TASKS ||--o{ HOUSEHOLD_TASK_COMPLETIONS : "full history"
+    HOUSEHOLD_TASKS ||--o{ HOUSEHOLD_TASK_SUBITEMS : "checklist"
 
     HOUSEHOLD_NOTES {
         uuid id PK
@@ -569,6 +584,13 @@ erDiagram
         uuid        completed_by FK
         timestamptz completed_at
     }
+    HOUSEHOLD_TASK_SUBITEMS {
+        uuid    id PK
+        uuid    task_id FK
+        text    title
+        boolean is_done
+        int     sort_order
+    }
     HOUSEHOLD_ITEMS {
         uuid id PK
         uuid owner_id FK
@@ -584,6 +606,10 @@ Same one-off-vs-recurring shape as Personal, plus `last_completed_by` /
 `household_items` is the product-expiration tracker — standalone, no
 relationship to the others. `household_codes` (discount/promo codes, not
 diagrammed above) is another standalone board on the same page.
+`household_task_subitems` has no `owner_id` of its own — same
+join-back-to-the-parent-task RLS as `household_task_completions`, but with
+an update policy too since checking a sub-item off is an ordinary edit, not
+an immutable log entry.
 
 `wishlist_categories` / `wishlist_items` back the Wishlist board: a
 category is a name plus an optional `icon` / `color` (an icon key and a

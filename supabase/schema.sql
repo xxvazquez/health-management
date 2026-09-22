@@ -783,6 +783,22 @@ create table public.personal_task_completions (
   completed_at timestamptz not null default now()
 );
 
+-- A checkable sub-item nested under a personal_tasks row — "Clean bathroom"
+-- with "Sink" / "Faucet" / … underneath, like iOS Reminders' subtasks.
+-- Each row is addressed by its own id (client-generated, same as
+-- reminder_lists) so the app can upsert/delete a single sub-item without
+-- touching the rest — no separate completion log, `is_done` just flips.
+create table public.personal_task_subitems (
+  id uuid primary key default gen_random_uuid(),
+  task_id uuid not null references public.personal_tasks(id) on delete cascade,
+  user_id uuid not null default auth.uid() references auth.users(id),
+  title text not null check (char_length(trim(title)) > 0),
+  is_done boolean not null default false,
+  sort_order int not null default 0,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 -- Log -> Expiration: the private counterpart to household_items below —
 -- products/supplements tracked by expiry date, owned by one user. Same
 -- standalone shape and remind_days_before logic as household_items; the
@@ -804,6 +820,7 @@ create index personal_notes_user_updated_idx on public.personal_notes (user_id, 
 create index personal_tasks_user_due_idx on public.personal_tasks (user_id, due_at);
 create index personal_tasks_user_list_idx on public.personal_tasks (user_id, list_id);
 create index personal_task_completions_task_idx on public.personal_task_completions (task_id, completed_at desc);
+create index personal_task_subitems_task_idx on public.personal_task_subitems (task_id, sort_order);
 create index personal_items_user_expires_idx on public.personal_items (user_id, expires_on);
 
 -- Doctors: a personal history log of appointments already attended (not a
@@ -1102,6 +1119,22 @@ create table public.household_task_completions (
   completed_at timestamptz not null default now()
 );
 
+-- A checkable sub-item nested under a household_tasks row — same idea as
+-- personal_task_subitems, pair-visible/editable like the parent task
+-- instead of owner-only (its RLS joins back to household_tasks, same
+-- pattern as household_task_completions below, but with update allowed
+-- since checking a sub-item off is an ordinary edit, not an immutable log
+-- entry).
+create table public.household_task_subitems (
+  id uuid primary key default gen_random_uuid(),
+  task_id uuid not null references public.household_tasks(id) on delete cascade,
+  title text not null check (char_length(trim(title)) > 0),
+  is_done boolean not null default false,
+  sort_order int not null default 0,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 -- Home -> Expiration: household products/items tracked by expiry date, not
 -- tied to any item/category dimension elsewhere in this schema (its own
 -- standalone shape, same reasoning as stool_logs/period_logs). Reminders
@@ -1170,6 +1203,7 @@ create table public.wishlist_items (
 create index household_notes_owner_updated_idx on public.household_notes (owner_id, updated_at desc);
 create index household_tasks_owner_due_idx on public.household_tasks (owner_id, due_at);
 create index household_task_completions_task_idx on public.household_task_completions (task_id, completed_at desc);
+create index household_task_subitems_task_idx on public.household_task_subitems (task_id, sort_order);
 create index household_items_owner_expires_idx on public.household_items (owner_id, expires_on);
 create index household_codes_owner_created_idx on public.household_codes (owner_id, created_at desc);
 -- Home -> Wishlist: a personal capture token so a phone Share Sheet
@@ -1246,6 +1280,7 @@ alter table public.reminder_lists enable row level security;
 alter table public.personal_notes enable row level security;
 alter table public.personal_tasks enable row level security;
 alter table public.personal_task_completions enable row level security;
+alter table public.personal_task_subitems enable row level security;
 alter table public.personal_items enable row level security;
 alter table public.doctor_specialties enable row level security;
 alter table public.doctors enable row level security;
@@ -1263,6 +1298,7 @@ alter table public.weight_target enable row level security;
 alter table public.household_notes enable row level security;
 alter table public.household_tasks enable row level security;
 alter table public.household_task_completions enable row level security;
+alter table public.household_task_subitems enable row level security;
 alter table public.household_items enable row level security;
 alter table public.household_codes enable row level security;
 alter table public.wishlist_categories enable row level security;
@@ -1306,6 +1342,7 @@ create policy "personal_notes_all_own" on public.personal_notes for all using (a
 create policy "reminder_lists_all_own" on public.reminder_lists for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "personal_tasks_all_own" on public.personal_tasks for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "personal_task_completions_all_own" on public.personal_task_completions for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "personal_task_subitems_all_own" on public.personal_task_subitems for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "personal_items_all_own" on public.personal_items for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "doctor_specialties_all_own" on public.doctor_specialties for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "doctors_all_own" on public.doctors for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
@@ -1386,6 +1423,24 @@ create policy "household_tasks_select_pair" on public.household_tasks for select
 create policy "household_tasks_insert_own" on public.household_tasks for insert with check (auth.uid() = owner_id);
 create policy "household_tasks_update_pair" on public.household_tasks for update using (auth.uid() = owner_id or public.is_household_member(owner_id)) with check (auth.uid() = owner_id or public.is_household_member(owner_id));
 create policy "household_tasks_delete_pair" on public.household_tasks for delete using (auth.uid() = owner_id or public.is_household_member(owner_id));
+
+-- household_task_subitems has no owner_id of its own — same join-back-to-
+-- the-parent-task shape as household_task_completions, but with an update
+-- policy too since checking a sub-item off is an ordinary edit.
+create policy "household_task_subitems_select_pair" on public.household_task_subitems for select using (
+  exists (select 1 from public.household_tasks t where t.id = task_id and (auth.uid() = t.owner_id or public.is_household_member(t.owner_id)))
+);
+create policy "household_task_subitems_insert_pair" on public.household_task_subitems for insert with check (
+  exists (select 1 from public.household_tasks t where t.id = task_id and (auth.uid() = t.owner_id or public.is_household_member(t.owner_id)))
+);
+create policy "household_task_subitems_update_pair" on public.household_task_subitems for update using (
+  exists (select 1 from public.household_tasks t where t.id = task_id and (auth.uid() = t.owner_id or public.is_household_member(t.owner_id)))
+) with check (
+  exists (select 1 from public.household_tasks t where t.id = task_id and (auth.uid() = t.owner_id or public.is_household_member(t.owner_id)))
+);
+create policy "household_task_subitems_delete_pair" on public.household_task_subitems for delete using (
+  exists (select 1 from public.household_tasks t where t.id = task_id and (auth.uid() = t.owner_id or public.is_household_member(t.owner_id)))
+);
 
 create policy "household_items_select_pair" on public.household_items for select using (auth.uid() = owner_id or public.is_household_member(owner_id));
 create policy "household_items_insert_own" on public.household_items for insert with check (auth.uid() = owner_id);

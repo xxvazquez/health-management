@@ -26,6 +26,7 @@ export function buildDemoHouseholdTasks(): TaskItem[] {
       assignedTo: null,
       isArchived: false,
       listId: null,
+      subitems: [],
     },
     {
       id: "demo-home-task-2",
@@ -38,6 +39,7 @@ export function buildDemoHouseholdTasks(): TaskItem[] {
       assignedTo: DEMO_HOME_PARTNER_ID,
       isArchived: false,
       listId: null,
+      subitems: [],
     },
     {
       id: "demo-home-task-3",
@@ -50,6 +52,12 @@ export function buildDemoHouseholdTasks(): TaskItem[] {
       assignedTo: DEMO_HOME_ME_ID,
       isArchived: false,
       listId: null,
+      subitems: [
+        { id: "demo-home-subitem-1", title: "Sink", done: true, order: 0 },
+        { id: "demo-home-subitem-2", title: "Faucet", done: true, order: 1 },
+        { id: "demo-home-subitem-3", title: "Toilet", done: false, order: 2 },
+        { id: "demo-home-subitem-4", title: "Floor", done: false, order: 3 },
+      ],
     },
   ];
 }

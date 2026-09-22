@@ -11,13 +11,14 @@ import {
   fetchHouseholdItems,
   fetchHouseholdTasks,
   setHouseholdTaskArchived,
+  toggleHouseholdTaskSubitem,
   uncompleteHouseholdTask,
   updateHouseholdItem,
   updateHouseholdTask,
 } from "@/lib/supabase/household";
 import { getPartnerLink } from "@/lib/supabase/partner";
 import { buildDemoHouseholdItems, buildDemoHouseholdTasks, DEMO_HOME_ME_ID, DEMO_HOME_PARTNER_ID } from "@/lib/demoHousehold";
-import { isRecurringTask, nextRecurringDueAt, type ExpirationItem, type TaskItem } from "@/lib/reminders";
+import { isRecurringTask, nextRecurringDueAt, type ExpirationItem, type TaskItem, type TaskSubitem } from "@/lib/reminders";
 import type { TaskFormValues } from "@/components/reminders/TaskForm";
 import { useSnapshotCache } from "@/lib/useSnapshotCache";
 
@@ -113,11 +114,12 @@ export function useHouseholdReminderBoards() {
             assignedTo: v.assignedTo,
             isArchived: false,
             listId: null,
+            subitems: v.subitems,
           },
         ]);
         return;
       }
-      const created = await createHouseholdTask({ title: v.title, notes: v.notes, dueAt: v.dueAt, recurrenceDays: v.recurrenceDays, assignedTo: v.assignedTo });
+      const created = await createHouseholdTask({ title: v.title, notes: v.notes, dueAt: v.dueAt, recurrenceDays: v.recurrenceDays, assignedTo: v.assignedTo, subitems: v.subitems });
       setTasks((prev) => [...prev, created]);
     },
     [isDemo],
@@ -128,17 +130,38 @@ export function useHouseholdReminderBoards() {
       if (isDemo) {
         setTasks((prev) =>
           prev.map((t) =>
-            t.id === id ? { ...t, title: v.title.trim(), notes: v.notes.trim() || null, dueAt: v.dueAt, recurrenceDays: v.recurrenceDays, assignedTo: v.assignedTo } : t,
+            t.id === id
+              ? { ...t, title: v.title.trim(), notes: v.notes.trim() || null, dueAt: v.dueAt, recurrenceDays: v.recurrenceDays, assignedTo: v.assignedTo, subitems: v.subitems }
+              : t,
           ),
         );
         return;
       }
       const current = tasks.find((t) => t.id === id);
       if (!current) return;
-      const updated = await updateHouseholdTask(current, { title: v.title, notes: v.notes, dueAt: v.dueAt, recurrenceDays: v.recurrenceDays, assignedTo: v.assignedTo });
+      const updated = await updateHouseholdTask(current, {
+        title: v.title,
+        notes: v.notes,
+        dueAt: v.dueAt,
+        recurrenceDays: v.recurrenceDays,
+        assignedTo: v.assignedTo,
+        subitems: v.subitems,
+      });
       setTasks((prev) => prev.map((t) => (t.id === id ? updated : t)));
     },
     [isDemo, tasks],
+  );
+
+  /** Flips one sub-item's done state from the row list — see
+   * `usePersonalReminderBoards`' own `toggleSubitem`. */
+  const toggleSubitem = useCallback(
+    async (taskId: string, subitem: TaskSubitem) => {
+      setTasks((prev) =>
+        prev.map((t) => (t.id === taskId ? { ...t, subitems: t.subitems.map((s) => (s.id === subitem.id ? { ...s, done: !s.done } : s)) } : t)),
+      );
+      if (!isDemo) await toggleHouseholdTaskSubitem(taskId, subitem);
+    },
+    [isDemo],
   );
 
   const completeTask = useCallback(
@@ -250,6 +273,7 @@ export function useHouseholdReminderBoards() {
       uncomplete: uncompleteTask,
       archive: archiveTask,
       remove: deleteTask,
+      toggleSubitem,
     },
     items: { data: items, loading: itemsLoading, error: itemsError, create: createItem, edit: editItem, remove: deleteItem },
   };

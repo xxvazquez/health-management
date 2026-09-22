@@ -38,6 +38,7 @@ export function buildDemoPersonalTasks(): TaskItem[] {
       assignedTo: null,
       isArchived: false,
       listId: DEMO_LIST_TODO,
+      subitems: [],
     },
     {
       id: "demo-task-2",
@@ -50,6 +51,7 @@ export function buildDemoPersonalTasks(): TaskItem[] {
       assignedTo: null,
       isArchived: false,
       listId: DEMO_LIST_TODO,
+      subitems: [],
     },
     {
       id: "demo-task-7",
@@ -62,6 +64,7 @@ export function buildDemoPersonalTasks(): TaskItem[] {
       assignedTo: null,
       isArchived: false,
       listId: DEMO_LIST_TODO,
+      subitems: [],
     },
     {
       id: "demo-task-8",
@@ -74,6 +77,7 @@ export function buildDemoPersonalTasks(): TaskItem[] {
       assignedTo: null,
       isArchived: false,
       listId: DEMO_LIST_TODO,
+      subitems: [],
     },
     {
       id: "demo-task-3",
@@ -86,6 +90,7 @@ export function buildDemoPersonalTasks(): TaskItem[] {
       assignedTo: null,
       isArchived: false,
       listId: null,
+      subitems: [],
     },
     {
       id: "demo-task-4",
@@ -98,6 +103,7 @@ export function buildDemoPersonalTasks(): TaskItem[] {
       assignedTo: null,
       isArchived: false,
       listId: DEMO_LIST_TOBUY,
+      subitems: [],
     },
     {
       id: "demo-task-5",
@@ -110,6 +116,7 @@ export function buildDemoPersonalTasks(): TaskItem[] {
       assignedTo: null,
       isArchived: false,
       listId: DEMO_LIST_TOBUY,
+      subitems: [],
     },
     {
       id: "demo-task-6",
@@ -122,6 +129,7 @@ export function buildDemoPersonalTasks(): TaskItem[] {
       assignedTo: null,
       isArchived: false,
       listId: DEMO_LIST_BATHROOM,
+      subitems: [],
     },
   ];
 }

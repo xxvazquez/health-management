@@ -1,3 +1,13 @@
+/** A checkable sub-task nested under a reminder — "Clean bathroom" with
+ * "Sink" / "Faucet" / … underneath, same idea as iOS Reminders' subtasks.
+ * `order` is display order within the parent, not a timestamp. */
+export interface TaskSubitem {
+  id: string;
+  title: string;
+  done: boolean;
+  order: number;
+}
+
 /** Shared shape between Personal Reminders (`personal_tasks`) and Home
  * (`household_tasks`) — one table covers both a one-off deadline and a
  * recurring chore (see schema.sql's own comment on personal_tasks).
@@ -20,6 +30,8 @@ export interface TaskItem {
   /** Personal reminders only — which `reminder_lists` row this belongs to
    * (null = the default "Reminders" list). Always null for Home tasks. */
   listId: string | null;
+  /** Always sorted by `order`. */
+  subitems: TaskSubitem[];
 }
 
 export function isRecurringTask(task: Pick<TaskItem, "recurrenceDays">): boolean {

@@ -311,7 +311,10 @@ wired up one at a time.
   - **Reminders** (`*_tasks`) and **expiry** (`*_items`) surface together on
     **Agenda** via `AgendaBoard` (reusing `reminders/TaskForm`).
     `usePersonalReminderBoards` / `useHouseholdReminderBoards` are the data hooks;
-    scope is picked at creation and not changed afterwards.
+    scope is picked at creation and not changed afterwards. A reminder can carry
+    its own checklist (`*_task_subitems` — "Clean bathroom" with "Sink" / "Faucet"
+    / … underneath, like iOS Reminders' subtasks), edited in `TaskForm` and
+    checkable straight from the Agenda row without opening the form.
 - **Shared codes** (`household_codes`, pair-visible) — discount/promo codes with a
   code, name, optional comment and optional `expires_on`. There's no cron: a code
   whose `expires_on` has passed is deleted client-side by `fetchHouseholdCodes`

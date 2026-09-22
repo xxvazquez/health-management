@@ -11,6 +11,7 @@ import { buildAgenda, type AgendaEntry } from "@/lib/aggregations/agenda";
 import { PageShell } from "@/components/ui/PageShell";
 import { AgendaBoard } from "@/components/agenda/AgendaBoard";
 import type { TaskFormValues } from "@/components/reminders/TaskForm";
+import type { TaskSubitem } from "@/lib/reminders";
 
 /**
  * Agenda — the one "what needs my attention?" surface. Reminders (mine +
@@ -60,6 +61,7 @@ export default function AgendaPage() {
   const onEditReminder = (e: AgendaEntry, v: TaskFormValues) => boardFor(e.scope as "mine" | "shared").tasks.edit(e.reminder!.id, v);
   const onDeleteReminder = (e: AgendaEntry) => boardFor(e.scope as "mine" | "shared").tasks.remove(e.reminder!.id);
   const onCreateReminder = (scope: "mine" | "shared", v: TaskFormValues) => boardFor(scope).tasks.create(v);
+  const onToggleSubitem = (e: AgendaEntry, s: TaskSubitem) => void boardFor(e.scope as "mine" | "shared").tasks.toggleSubitem(e.reminder!.id, s);
   const onEditExpiry = (e: AgendaEntry, name: string, on: string, remind: number) =>
     boardFor(e.scope as "mine" | "shared").items.edit(e.expiry!.id, name, on, remind);
   const onDeleteExpiry = (e: AgendaEntry) => boardFor(e.scope as "mine" | "shared").items.remove(e.expiry!.id);
@@ -86,6 +88,7 @@ export default function AgendaPage() {
         onEditReminder={onEditReminder}
         onDeleteReminder={onDeleteReminder}
         onCreateReminder={onCreateReminder}
+        onToggleSubitem={onToggleSubitem}
         onEditExpiry={onEditExpiry}
         onDeleteExpiry={onDeleteExpiry}
         onCreateExpiry={onCreateExpiry}

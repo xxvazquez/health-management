@@ -2,13 +2,16 @@
 
 import { DateTimePicker } from "@/components/ui/DatePicker";
 import { SwitchRow } from "@/components/ui/Switch";
-import { useState, type FormEvent } from "react";
-import { isRecurringTask, type TaskItem } from "@/lib/reminders";
+import { useRef, useState, type FormEvent, type KeyboardEvent } from "react";
+import { isRecurringTask, type TaskItem, type TaskSubitem } from "@/lib/reminders";
 import type { ReminderList } from "@/lib/supabase/personalReminders";
 import { Field } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
 import { FormShell } from "@/components/ui/FormShell";
 import { FormGroup } from "@/components/ui/FormGroup";
+import { AutoGrowTextarea } from "@/components/ui/AutoGrowTextarea";
+import { CloseIcon, PlusIcon } from "@/components/ui/icons";
+import { createTimeOrderedId } from "@/lib/sortableId";
 import { ROW_INLINE_CLS, ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
 
 const DEFAULT_LIST_NAME = "Reminders";
@@ -22,6 +25,7 @@ export type TaskFormValues = {
   recurrenceDays: number | null;
   assignedTo: string | null;
   listId: string | null;
+  subitems: TaskSubitem[];
 };
 
 /** ISO timestamp -> the `YYYY-MM-DDTHH:mm` a `datetime-local` input wants,
@@ -66,10 +70,28 @@ export function TaskForm({
   );
   const [assignedTo, setAssignedTo] = useState(initial?.assignedTo ?? "");
   const [listId, setListId] = useState(initial?.listId ?? defaultListId ?? "");
+  const [subitems, setSubitems] = useState<TaskSubitem[]>(initial?.subitems ?? []);
+  const [newSubitemText, setNewSubitemText] = useState("");
+  const newSubitemRef = useRef<HTMLInputElement>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const usesRecurrence = recurrenceMode === "required" || (recurrenceMode === "optional" && recurring);
+
+  function addSubitem() {
+    const trimmed = newSubitemText.trim();
+    if (!trimmed) return;
+    setSubitems((prev) => [...prev, { id: createTimeOrderedId(), title: trimmed, done: false, order: prev.length }]);
+    setNewSubitemText("");
+    newSubitemRef.current?.focus();
+  }
+
+  function handleNewSubitemKeyDown(e: KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      addSubitem();
+    }
+  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -90,6 +112,7 @@ export function TaskForm({
         recurrenceDays: usesRecurrence ? Number(recurrenceDays) : null,
         assignedTo: assignedTo || null,
         listId: listId || null,
+        subitems: subitems.map((s, i) => ({ ...s, order: i })),
       });
     } catch (err) {
       console.error("task save failed", err);
@@ -114,15 +137,77 @@ export function TaskForm({
           />
         </Field>
         <Field label={<>Notes <span style={{ color: "var(--text-muted)" }}>· optional</span></>}>
-          <textarea
+          <AutoGrowTextarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            rows={2}
+            rows={3}
+            maxRows={12}
             placeholder="Anything useful to remember"
             className={`${ROW_TEXT_CLS} resize-none leading-relaxed`}
             style={ROW_STYLE}
           />
         </Field>
+      </FormGroup>
+
+      <FormGroup title="Checklist · optional">
+        <div className="inset-rows [--row-inset:1.75rem]">
+          {subitems.map((item, i) => (
+            <div key={item.id} className="flex min-h-11 items-center gap-2 px-3.5">
+              <button
+                type="button"
+                onClick={() => setSubitems((prev) => prev.map((s) => (s.id === item.id ? { ...s, done: !s.done } : s)))}
+                aria-label={item.done ? "Mark not done" : "Mark done"}
+                className="flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full border transition-colors"
+                style={{
+                  borderColor: item.done ? "var(--status-good)" : "var(--text-secondary)",
+                  background: item.done ? "var(--status-good)" : "transparent",
+                }}
+              >
+                {item.done && (
+                  <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="var(--surface-1)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M2.5 6.5 5 9l4.5-5" />
+                  </svg>
+                )}
+              </button>
+              <input
+                value={item.title}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setSubitems((prev) => prev.map((s) => (s.id === item.id ? { ...s, title: value } : s)));
+                }}
+                maxLength={150}
+                className={`${ROW_TEXT_CLS} ${item.done ? "line-through" : ""}`}
+                style={{ color: item.done ? "var(--text-muted)" : "var(--text-primary)" }}
+                aria-label={`Sub-item ${i + 1}`}
+              />
+              <button
+                type="button"
+                onClick={() => setSubitems((prev) => prev.filter((s) => s.id !== item.id))}
+                aria-label="Remove sub-item"
+                className="shrink-0 p-1"
+                style={{ color: "var(--text-muted)" }}
+              >
+                <CloseIcon size={13} />
+              </button>
+            </div>
+          ))}
+          <div className="flex min-h-11 items-center gap-2 px-3.5">
+            <span className="flex h-[18px] w-[18px] shrink-0 items-center justify-center" style={{ color: "var(--text-muted)" }}>
+              <PlusIcon size={13} />
+            </span>
+            <input
+              ref={newSubitemRef}
+              value={newSubitemText}
+              onChange={(e) => setNewSubitemText(e.target.value)}
+              onKeyDown={handleNewSubitemKeyDown}
+              onBlur={addSubitem}
+              placeholder="Add an item"
+              maxLength={150}
+              className={ROW_TEXT_CLS}
+              style={ROW_STYLE}
+            />
+          </div>
+        </div>
       </FormGroup>
 
       <FormGroup>

@@ -13,6 +13,7 @@ function makeTask(overrides: Partial<TaskItem> = {}): TaskItem {
     assignedTo: null,
     isArchived: false,
     listId: null,
+    subitems: [],
     ...overrides,
   };
 }

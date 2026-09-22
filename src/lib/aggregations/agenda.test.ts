@@ -30,6 +30,7 @@ function task(overrides: Partial<TaskItem> = {}): TaskItem {
     assignedTo: null,
     isArchived: false,
     listId: null,
+    subitems: [],
     ...overrides,
   };
 }

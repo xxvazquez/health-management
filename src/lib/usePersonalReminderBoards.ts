@@ -15,6 +15,7 @@ import {
   fetchReminderLists,
   renameReminderList,
   setPersonalTaskArchived,
+  togglePersonalTaskSubitem,
   uncompletePersonalTask,
   updatePersonalItem,
   updatePersonalTask,
@@ -22,7 +23,7 @@ import {
   type ReminderList,
 } from "@/lib/supabase/personalReminders";
 import { buildDemoPersonalItems, buildDemoPersonalTasks, buildDemoReminderLists } from "@/lib/demoPersonalReminders";
-import { isRecurringTask, nextRecurringDueAt, type TaskItem } from "@/lib/reminders";
+import { isRecurringTask, nextRecurringDueAt, type TaskItem, type TaskSubitem } from "@/lib/reminders";
 import type { TaskFormValues } from "@/components/reminders/TaskForm";
 import { useSnapshotCache } from "@/lib/useSnapshotCache";
 
@@ -156,11 +157,12 @@ export function usePersonalReminderBoards() {
             assignedTo: null,
             isArchived: false,
             listId: v.listId,
+            subitems: v.subitems,
           },
         ]);
         return;
       }
-      const created = await createPersonalTask({ title: v.title, notes: v.notes, dueAt: v.dueAt, recurrenceDays: v.recurrenceDays, listId: v.listId });
+      const created = await createPersonalTask({ title: v.title, notes: v.notes, dueAt: v.dueAt, recurrenceDays: v.recurrenceDays, listId: v.listId, subitems: v.subitems });
       setTasks((prev) => [...prev, created]);
     },
     [isDemo],
@@ -170,16 +172,32 @@ export function usePersonalReminderBoards() {
     async (id: string, v: TaskFormValues) => {
       if (isDemo) {
         setTasks((prev) =>
-          prev.map((t) => (t.id === id ? { ...t, title: v.title.trim(), notes: v.notes.trim() || null, dueAt: v.dueAt, recurrenceDays: v.recurrenceDays, listId: v.listId } : t)),
+          prev.map((t) =>
+            t.id === id
+              ? { ...t, title: v.title.trim(), notes: v.notes.trim() || null, dueAt: v.dueAt, recurrenceDays: v.recurrenceDays, listId: v.listId, subitems: v.subitems }
+              : t,
+          ),
         );
         return;
       }
       const current = tasks.find((t) => t.id === id);
       if (!current) return;
-      const updated = await updatePersonalTask(current, { title: v.title, notes: v.notes, dueAt: v.dueAt, recurrenceDays: v.recurrenceDays, listId: v.listId });
+      const updated = await updatePersonalTask(current, { title: v.title, notes: v.notes, dueAt: v.dueAt, recurrenceDays: v.recurrenceDays, listId: v.listId, subitems: v.subitems });
       setTasks((prev) => prev.map((t) => (t.id === id ? updated : t)));
     },
     [isDemo, tasks],
+  );
+
+  /** Flips one sub-item's done state from the row list — doesn't reopen the
+   * whole edit form, same "quick tap" as completing the task itself. */
+  const toggleSubitem = useCallback(
+    async (taskId: string, subitem: TaskSubitem) => {
+      setTasks((prev) =>
+        prev.map((t) => (t.id === taskId ? { ...t, subitems: t.subitems.map((s) => (s.id === subitem.id ? { ...s, done: !s.done } : s)) } : t)),
+      );
+      if (!isDemo) await togglePersonalTaskSubitem(taskId, subitem);
+    },
+    [isDemo],
   );
 
   const completeTask = useCallback(
@@ -282,6 +300,7 @@ export function usePersonalReminderBoards() {
       uncomplete: uncompleteTask,
       archive: archiveTask,
       remove: deleteTask,
+      toggleSubitem,
     },
     items: { data: items, loading: itemsLoading, error: itemsError, create: createItem, edit: editItem, remove: deleteItem },
     lists: { data: sortedLists, create: createList, rename: renameList, remove: deleteList },

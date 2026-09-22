@@ -6,7 +6,7 @@ import { useMemo, useState, type FormEvent } from "react";
 import Link from "next/link";
 import clsx from "clsx";
 import { AGENDA_BUCKET_LABEL, AGENDA_BUCKET_ORDER, type AgendaBucket, type AgendaEntry, type AgendaKind, type AgendaScope } from "@/lib/aggregations/agenda";
-import { isRecurringTask } from "@/lib/reminders";
+import { isRecurringTask, type TaskSubitem } from "@/lib/reminders";
 import { todayLocalISODate } from "@/lib/aggregations/common";
 import type { ReminderList } from "@/lib/supabase/personalReminders";
 import { TaskForm, type TaskFormValues } from "@/components/reminders/TaskForm";
@@ -225,6 +225,7 @@ export interface AgendaBoardProps {
   onEditReminder: (e: AgendaEntry, v: TaskFormValues) => Promise<void>;
   onDeleteReminder: (e: AgendaEntry) => Promise<void>;
   onCreateReminder: (scope: "mine" | "shared", v: TaskFormValues) => Promise<void>;
+  onToggleSubitem: (e: AgendaEntry, subitem: TaskSubitem) => void;
   onEditExpiry: (e: AgendaEntry, name: string, expiresOn: string, remindDaysBefore: number) => Promise<void>;
   onDeleteExpiry: (e: AgendaEntry) => Promise<void>;
   onCreateExpiry: (scope: "mine" | "shared", name: string, expiresOn: string, remindDaysBefore: number) => Promise<void>;
@@ -377,6 +378,7 @@ export function AgendaBoard(props: AgendaBoardProps) {
                       onComplete={() => void props.onCompleteReminder(e)}
                       onUncomplete={() => void props.onUncompleteReminder(e)}
                       onEdit={() => setEditing(e)}
+                      onToggleSubitem={(s) => props.onToggleSubitem(e, s)}
                       onAskDelete={() => setConfirmingDelete(e.key)}
                       onCancelDelete={() => setConfirmingDelete(null)}
                       onConfirmDelete={() => {
@@ -405,6 +407,7 @@ function AgendaRow({
   onAskDelete,
   onCancelDelete,
   onConfirmDelete,
+  onToggleSubitem,
 }: {
   entry: AgendaEntry;
   confirming: boolean;
@@ -414,6 +417,7 @@ function AgendaRow({
   onAskDelete: () => void;
   onCancelDelete: () => void;
   onConfirmDelete: () => void;
+  onToggleSubitem: (subitem: TaskSubitem) => void;
 }) {
   const e = entry;
   const done = e.bucket === "done";
@@ -421,6 +425,7 @@ function AgendaRow({
   const isReminder = e.kind === "reminder";
   const readOnly = e.kind === "followup" || e.kind === "appointment";
   const recurring = e.reminder ? isRecurringTask(e.reminder) : false;
+  const subitems = e.reminder?.subitems ?? [];
   const { revealed, onTouchStart, onTouchEnd } = useSwipeReveal();
   // Reminders always toggle done. An expired product has no "done" state,
   // but once it's overdue a checkbox to clear it from the list (a delete)
@@ -488,6 +493,35 @@ function AgendaRow({
           {e.title}
         </span>
         {meta}
+        {subitems.length > 0 && (
+          <div className="mt-1.5 flex flex-col gap-1.5">
+            {subitems.map((s) => (
+              <button
+                key={s.id}
+                type="button"
+                onClick={(ev) => {
+                  ev.stopPropagation();
+                  onToggleSubitem(s);
+                }}
+                className="flex min-h-[18px] items-center gap-2 text-left"
+              >
+                <span
+                  className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full border"
+                  style={{ borderColor: s.done ? "var(--status-good)" : "var(--text-secondary)", background: s.done ? "var(--status-good)" : "transparent" }}
+                >
+                  {s.done && (
+                    <svg width="9" height="9" viewBox="0 0 12 12" fill="none" stroke="var(--surface-1)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d="M2.5 6.5 5 9l4.5-5" />
+                    </svg>
+                  )}
+                </span>
+                <span className={clsx("text-xs", s.done && "line-through")} style={{ color: s.done ? "var(--text-muted)" : "var(--text-secondary)" }}>
+                  {s.title}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     </>
   );

@@ -1,8 +1,9 @@
 import { supabase } from "./client";
 import { todayLocalISODate } from "@/lib/aggregations/common";
-import { isRecurringTask, nextRecurringDueAt, type ExpirationItem, type TaskItem } from "@/lib/reminders";
+import { isRecurringTask, nextRecurringDueAt, type ExpirationItem, type TaskItem, type TaskSubitem } from "@/lib/reminders";
 import { createTimeOrderedId } from "@/lib/sortableId";
 import { deleteDirect, deleteWhereDirect, insertDirect, updateDirect, upsertDirect } from "./directWrite";
+import { saveTaskSubitems, toggleTaskSubitem } from "./taskSubitems";
 
 interface TaskRow {
   id: string;
@@ -16,7 +17,7 @@ interface TaskRow {
   is_archived: boolean;
 }
 
-function toTask(row: TaskRow): TaskItem {
+function toTask(row: TaskRow, subitems: TaskSubitem[] = []): TaskItem {
   return {
     id: row.id,
     title: row.title,
@@ -28,7 +29,20 @@ function toTask(row: TaskRow): TaskItem {
     assignedTo: row.assigned_to,
     isArchived: row.is_archived,
     listId: null, // Home tasks have no lists — that's a personal-reminders feature.
+    subitems,
   };
+}
+
+interface SubitemRow {
+  id: string;
+  task_id: string;
+  title: string;
+  is_done: boolean;
+  sort_order: number;
+}
+
+function toSubitem(row: SubitemRow): TaskSubitem {
+  return { id: row.id, title: row.title, done: row.is_done, order: row.sort_order };
 }
 
 interface ItemRow {
@@ -86,6 +100,8 @@ async function currentUserId(): Promise<string | null> {
 const TASK_COLUMNS = "id, title, notes, due_at, recurrence_days, last_completed_at, last_completed_by, assigned_to, is_archived";
 const ITEM_COLUMNS = "id, name, expires_on, remind_days_before";
 const CODE_COLUMNS = "id, code, name, comment, expires_on, created_at, updated_at";
+const SUBITEM_COLUMNS = "id, task_id, title, is_done, sort_order";
+const SUBITEMS_TABLE = "household_task_subitems";
 
 // Every household_* table is pair-visible (split insert_own / update_pair /
 // delete_pair RLS), so a create is an upsert of your own row, an edit goes
@@ -96,9 +112,19 @@ const CODE_COLUMNS = "id, code, name, comment, expires_on, created_at, updated_a
 
 export async function fetchHouseholdTasks(): Promise<TaskItem[]> {
   if (!supabase) return [];
-  const { data, error } = await supabase.from("household_tasks").select(TASK_COLUMNS).order("due_at", { ascending: true, nullsFirst: false });
+  const [{ data, error }, { data: subData, error: subError }] = await Promise.all([
+    supabase.from("household_tasks").select(TASK_COLUMNS).order("due_at", { ascending: true, nullsFirst: false }),
+    supabase.from(SUBITEMS_TABLE).select(SUBITEM_COLUMNS).order("sort_order", { ascending: true }),
+  ]);
   if (error) throw error;
-  return (data as TaskRow[]).map(toTask);
+  if (subError) throw subError;
+  const subitemsByTask = new Map<string, TaskSubitem[]>();
+  for (const row of subData as SubitemRow[]) {
+    const list = subitemsByTask.get(row.task_id) ?? [];
+    list.push(toSubitem(row));
+    subitemsByTask.set(row.task_id, list);
+  }
+  return (data as TaskRow[]).map((row) => toTask(row, subitemsByTask.get(row.id) ?? []));
 }
 
 export interface NewHouseholdTaskInput {
@@ -107,6 +133,7 @@ export interface NewHouseholdTaskInput {
   dueAt: string | null;
   recurrenceDays: number | null;
   assignedTo: string | null;
+  subitems: TaskSubitem[];
 }
 
 function taskPayload(t: TaskItem, ownerId: string, extra?: Record<string, unknown>): Record<string, unknown> {
@@ -138,6 +165,7 @@ function taskFromInput(id: string, input: NewHouseholdTaskInput, base?: TaskItem
     assignedTo: input.assignedTo,
     isArchived: base?.isArchived ?? false,
     listId: null,
+    subitems: input.subitems,
   };
 }
 
@@ -146,6 +174,7 @@ export async function createHouseholdTask(input: NewHouseholdTaskInput): Promise
   if (!myUserId) throw new Error("Sign in first.");
   const t = taskFromInput(createTimeOrderedId(), input);
   await upsertDirect(myUserId, "household_tasks", t.id, taskPayload(t, myUserId));
+  await saveTaskSubitems(myUserId, SUBITEMS_TABLE, t.id, [], t.subitems);
   return t;
 }
 
@@ -156,7 +185,15 @@ export async function updateHouseholdTask(task: TaskItem, input: NewHouseholdTas
   if (!myUserId) throw new Error("Sign in first.");
   const next = taskFromInput(task.id, input, task);
   await updateDirect(myUserId, "household_tasks", next.id, taskPayload(next, myUserId));
+  await saveTaskSubitems(myUserId, SUBITEMS_TABLE, next.id, task.subitems, next.subitems);
   return next;
+}
+
+/** Flips one sub-item's done state in place — see `togglePersonalTaskSubitem`. */
+export async function toggleHouseholdTaskSubitem(taskId: string, subitem: TaskSubitem): Promise<void> {
+  const myUserId = await currentUserId();
+  if (!myUserId) throw new Error("Sign in first.");
+  await toggleTaskSubitem(myUserId, SUBITEMS_TABLE, taskId, subitem);
 }
 
 export async function setHouseholdTaskArchived(task: TaskItem, archived: boolean): Promise<TaskItem> {
