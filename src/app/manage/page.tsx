@@ -224,36 +224,44 @@ function VisibleSectionsCard({ isDemoData }: { isDemoData: boolean }) {
           const reminderTime = reminders[domain];
           const busy = busyDomain === domain;
           return (
-            <div key={domain}>
+            <div key={domain} className="flex min-h-11 w-full items-center gap-3 px-3.5">
+              <span className="flex-1 truncate text-sm" style={{ color: "var(--text-primary)" }}>
+                {DOMAIN_LABELS[domain]}
+              </span>
+              {showReminders && on && (
+                <TimePicker
+                  value={reminderTime ?? ""}
+                  onChange={(t) => void handleSetReminder(domain, t || null)}
+                  optional
+                  disabled={busy}
+                  ariaLabel={`Daily reminder for ${DOMAIN_LABELS[domain]}`}
+                  title="Daily reminder"
+                  renderTrigger={(open, display) => (
+                    <button
+                      type="button"
+                      onClick={open}
+                      disabled={busy}
+                      aria-haspopup="dialog"
+                      aria-label={`Daily reminder for ${DOMAIN_LABELS[domain]}: ${display || "not set"}`}
+                      className="hit-slop flex shrink-0 items-center gap-1 disabled:opacity-40"
+                      style={{ color: display ? "var(--ui-accent)" : "var(--text-muted)" }}
+                    >
+                      <CustomIcon icon="bell" size={17} />
+                      {display && <span className="text-xs font-medium tabular-nums">{display}</span>}
+                    </button>
+                  )}
+                />
+              )}
               <button
                 type="button"
                 role="switch"
                 aria-checked={on}
+                aria-label={DOMAIN_LABELS[domain]}
                 onClick={() => toggle(domain)}
-                className="flex min-h-11 w-full items-center gap-3 px-3.5 text-left"
+                className="hit-slop shrink-0"
               >
-                <span className="flex-1 text-sm" style={{ color: "var(--text-primary)" }}>
-                  {DOMAIN_LABELS[domain]}
-                </span>
                 <SwitchKnob on={on} />
               </button>
-              {showReminders && on && (
-                <label className="flex min-h-11 items-center gap-3 px-3.5">
-                  <span className="text-sm" style={{ color: "var(--text-secondary)" }}>
-                    Daily reminder
-                  </span>
-                  <span className="flex flex-1 items-center justify-end gap-2">
-                    <TimePicker
-                      value={reminderTime ?? ""}
-                      onChange={(t) => void handleSetReminder(domain, t || null)}
-                      optional
-                      disabled={busy}
-                      ariaLabel={`Reminder time for ${DOMAIN_LABELS[domain]}`}
-                      title="Daily reminder"
-                    />
-                  </span>
-                </label>
-              )}
             </div>
           );
         })}
