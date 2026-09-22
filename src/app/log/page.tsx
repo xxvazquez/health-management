@@ -2132,11 +2132,14 @@ export default function LogPage() {
                 <span aria-hidden="true" style={{ color: "var(--text-muted)" }}>
                   <ChevronIcon dir="down" size={11} />
                 </span>
+                {/* z-10: CONTROL_CLS's own .hit-slop::after tap-target overlay
+                 * otherwise paints above this select and swallows the click
+                 * before it ever reaches the real control. */}
                 <select
                   value={meal}
                   onChange={(e) => setMeal(e.target.value)}
                   aria-label={tab === "food" ? "Meal" : "Time of day"}
-                  className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                  className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0"
                 >
                   {tagOptionsForType(tab).map((m) => (
                     <option key={m} value={m}>
