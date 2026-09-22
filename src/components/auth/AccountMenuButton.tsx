@@ -32,7 +32,6 @@ export function AccountMenuButton({ collapsed, onOpen }: { collapsed?: boolean; 
 
   if (!configured || loading) return null;
 
-  
   const label = session ? `Hi, ${displayNameFromEmail(session.user.email ?? "")}` : "Log in";
 
   function handleOpen() {
@@ -75,9 +74,9 @@ export function AccountMenuButton({ collapsed, onOpen }: { collapsed?: boolean; 
         color: session ? "var(--text-primary)" : "var(--ui-accent)",
       }}
     >
-      <PersonIcon />
-      {label}
-      {session && <span className="ml-auto h-2 w-2 shrink-0 rounded-full" style={{ background: dotColor ?? "transparent" }} />}
+      <span className="shrink-0"><PersonIcon /></span>
+      <span className="min-w-0 truncate">{label}</span>
+      {session && <span className="mr-1 ml-auto h-2 w-2 shrink-0 rounded-full" style={{ background: dotColor ?? "transparent" }} />}
     </button>
   );
 }
