@@ -236,8 +236,7 @@ export function TaskForm({
         {usesRecurrence ? (
           <Field label="Repeat every (days)" inline>
             <input
-              type="number"
-              min={1}
+              inputMode="numeric"
               required
               value={recurrenceDays}
               onChange={(e) => setRecurrenceDays(e.target.value)}

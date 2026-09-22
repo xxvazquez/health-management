@@ -198,7 +198,7 @@ function ExpiryForm({
           <DatePicker value={expiresOn} onChange={setExpiresOn} title="Expires on" />
         </Field>
         <Field label="Remind (days before)" inline>
-          <input type="number" min={0} value={remind} onChange={(e) => setRemind(e.target.value)} className={`${ROW_INLINE_CLS} w-16`} style={ROW_STYLE} />
+          <input inputMode="numeric" value={remind} onChange={(e) => setRemind(e.target.value)} className={`${ROW_INLINE_CLS} w-16`} style={ROW_STYLE} />
         </Field>
       </FormGroup>
       <div className="flex flex-wrap items-center gap-3">

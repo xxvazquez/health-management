@@ -179,10 +179,7 @@ export function CoffeeLogDialog({
         </div>
         <Field label="Price · optional" inline>
           <input
-            type="number"
             inputMode="decimal"
-            step="0.01"
-            min={0}
             value={draft.price ?? ""}
             onChange={(e) => setDraft((d) => ({ ...d, price: e.target.value === "" ? null : Number(e.target.value) }))}
             placeholder="0"
