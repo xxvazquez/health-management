@@ -12,7 +12,7 @@ import { FormGroup } from "@/components/ui/FormGroup";
 import { ChevronIcon } from "@/components/ui/icons";
 import { Button } from "@/components/ui/Button";
 import { Logo } from "@/components/Logo";
-import { ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
+import { FIELD_CLS, FIELD_STYLE } from "@/components/ui/formField";
 
 /** A row in the account menu's utility list. */
 function MenuLink({ href, onClick, children }: { href: string; onClick: () => void; children: React.ReactNode }) {
@@ -204,8 +204,8 @@ export function AccountPanel() {
                     spellCheck={false}
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className={ROW_TEXT_CLS}
-                    style={ROW_STYLE}
+                    className={`${FIELD_CLS} w-full`}
+                    style={FIELD_STYLE}
                   />
                 </Field>
               </FormGroup>
@@ -239,8 +239,8 @@ export function AccountPanel() {
                 spellCheck={false}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className={ROW_TEXT_CLS}
-                style={ROW_STYLE}
+                className={`${FIELD_CLS} w-full`}
+                style={FIELD_STYLE}
               />
             </Field>
             <Field
@@ -261,8 +261,8 @@ export function AccountPanel() {
                 autoComplete={mode === "signIn" ? "current-password" : "new-password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className={ROW_TEXT_CLS}
-                style={ROW_STYLE}
+                className={`${FIELD_CLS} w-full`}
+                style={FIELD_STYLE}
               />
             </Field>
           </FormGroup>
