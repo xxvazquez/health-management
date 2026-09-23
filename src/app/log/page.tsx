@@ -1,6 +1,6 @@
 "use client";
 
-import { CHIP_SM_CLS, CONTROL_CLS, CONTROL_STYLE, chipStyle } from "@/components/ui/Chip";
+import { CHIP_CLS, CHIP_SM_CLS, CONTROL_CLS, CONTROL_STYLE, chipStyle } from "@/components/ui/Chip";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import clsx from "clsx";
@@ -125,6 +125,7 @@ const SUMMARY_ACCENT = "var(--series-other)";
 const EXPANDED_CATEGORIES_STORAGE_KEY = "lauva.log.expandedCategories";
 /** The Food category strip's first tab — what's logged most at this meal. */
 const USUAL_TAB = "__usual__";
+const PICKS_TAB = "__picks__";
 
 function categoryStorageKey(itemType: ItemType, category: string): string {
   return `${itemType}:${category}`;
@@ -382,14 +383,12 @@ function TapRow({
       aria-pressed={on}
       aria-label={label}
       className={clsx(
-        "flex min-h-11 w-full items-center justify-between gap-3 pr-3.5 text-left text-sm transition-[background-color,filter] disabled:opacity-50 lg:rounded-lg",
-        on ? "hover:brightness-95 active:brightness-90" : "hover:bg-black/[0.04] active:bg-black/5",
-        indent ? "pl-[3.375rem] lg:pl-3.5" : "pl-3.5",
+        "flex min-h-11 w-full items-center justify-between gap-3 pr-3.5 text-left text-sm transition-colors hover:bg-black/[0.04] active:bg-black/5 disabled:opacity-50 lg:rounded-lg lg:pr-2.5 lg:pointer-fine:min-h-9",
+        indent ? "pl-[3.375rem] lg:pl-2.5" : "pl-3.5 lg:pl-2.5",
       )}
       style={{
         color: on ? accent : "var(--text-primary)",
-        fontWeight: on ? 600 : 400,
-        background: on ? `color-mix(in oklab, ${accent} 14%, var(--surface-1))` : undefined,
+        fontWeight: on ? 500 : 400,
       }}
     >
       <span className="min-w-0">{name}</span>
@@ -560,7 +559,6 @@ export default function LogPage() {
   const [addingProduct, setAddingProduct] = useState(false);
   const [newItemCategory, setNewItemCategory] = useState("");
   const [duplicateConflict, setDuplicateConflict] = useState<RawItem | null>(null);
-  const [picksOpen, setPicksOpen] = useState(false);
   const [isolatedOpen, setIsolatedOpen] = useState(false);
   // Filters the category grid below by name — cleared on tab switch since
   // each tab's items are a different set (see selectTab).
@@ -1747,7 +1745,8 @@ export default function LogPage() {
   function renderFoodByCategory(groups: { category: string; items: LogCandidate[] }[]) {
     if (groups.length === 0) return null;
     const usual = frequentFoods.length >= 3 ? { category: USUAL_TAB, items: frequentFoods } : null;
-    const tabs = usual ? [usual, ...groups] : groups;
+    const picks = hasSeasonalPicks ? { category: PICKS_TAB, items: [] } : null;
+    const tabs = [usual, picks, ...groups].filter((g): g is { category: string; items: LogCandidate[] } => g !== null);
     const active = tabs.find((g) => g.category === foodCategory) ?? tabs[0];
     const { visibleItems } = active === usual ? { visibleItems: active.items } : previewFoodItems(active.items);
     return (
@@ -1757,17 +1756,21 @@ export default function LogPage() {
           wrap={false}
           className="border-b"
           style={{ borderColor: "var(--border-hairline)" }}
-          items={tabs.map((g) => ({ id: g.category, label: g.category === USUAL_TAB ? "Usual" : g.category, accent: TYPE_ACCENT.food }))}
+          items={tabs.map((g) => ({ id: g.category, label: g.category === USUAL_TAB ? "Usual" : g.category === PICKS_TAB ? `${monthName} picks` : g.category, accent: TYPE_ACCENT.food }))}
           activeId={active.category}
           onSelect={setFoodCategory}
           tall
         />
-        <div
-          className="inset-rows rounded-xl border [--row-inset:0.875rem] lg:grid lg:grid-cols-3 lg:gap-1 lg:p-1.5 xl:grid-cols-4 lg:[&>*::before]:hidden"
-          style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}
-        >
-          {visibleItems.map((c) => renderChip(c))}
-        </div>
+        {active === picks ? (
+          seasonalPicksPanel
+        ) : (
+          <div
+            className="inset-rows rounded-xl border [--row-inset:0.875rem] lg:grid lg:grid-cols-[repeat(auto-fill,minmax(9.5rem,1fr))] lg:gap-x-1 lg:p-1 lg:[&>*::before]:hidden"
+            style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}
+          >
+            {visibleItems.map((c) => renderChip(c))}
+          </div>
+        )}
       </div>
     );
   }
@@ -1794,7 +1797,7 @@ export default function LogPage() {
           tall
         />
         <div
-          className="inset-rows rounded-xl border [--row-inset:0.875rem] lg:grid lg:grid-cols-3 lg:gap-1 lg:p-1.5 xl:grid-cols-4 lg:[&>*::before]:hidden"
+          className="inset-rows rounded-xl border [--row-inset:0.875rem] lg:grid lg:grid-cols-[repeat(auto-fill,minmax(9.5rem,1fr))] lg:gap-x-1 lg:p-1 lg:[&>*::before]:hidden"
           style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}
         >
           {visibleItems.map((c) => renderItem(c))}
@@ -1850,7 +1853,7 @@ export default function LogPage() {
               <div
                 className={clsx(
                   "border-t",
-                  "inset-rows flex-col [--row-inset:3.375rem] lg:grid lg:grid-cols-3 lg:gap-1 lg:p-1.5 xl:grid-cols-4 lg:[&>*::before]:hidden",
+                  "inset-rows flex-col [--row-inset:3.375rem] lg:grid lg:grid-cols-[repeat(auto-fill,minmax(9.5rem,1fr))] lg:gap-x-1 lg:p-1 lg:[&>*::before]:hidden",
                   collapsed ? "hidden lg:grid" : "flex lg:grid",
                 )}
                 style={{ borderColor: "var(--gridline)" }}
@@ -1957,111 +1960,93 @@ export default function LogPage() {
     return Array.from(names).sort((a, b) => a.localeCompare(b));
   }, [effective.items]);
 
-  // A seasonal nudge, not part of the log flow — rendered below the food
-  // list rather than above it.
-  const seasonalPicksCard =
-    tab === "food" && dataReady && (seasonalPicks.length > 0 || hiddenThisMonth.length > 0) ? (
-      <div className="overflow-hidden rounded-xl border" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
-        <button
-          type="button"
-          onClick={() => setPicksOpen((v) => !v)}
-          aria-expanded={picksOpen}
-          className="flex min-h-11 w-full items-center gap-3 px-3.5 text-left text-sm"
-          style={{ color: "var(--text-primary)" }}
+  // The seasonal nudge — its own tab on Food's category rail. Tapping a pick
+  // logs it for the chosen meal; the × hides it for the rest of the month.
+  const hasSeasonalPicks = tab === "food" && dataReady && (seasonalPicks.length > 0 || hiddenThisMonth.length > 0);
+  const seasonalPicksPanel = (
+    <div className="flex flex-col gap-2">
+      {seasonalPicksSorted.length > 0 && (
+        <div
+          className="inset-rows rounded-xl border [--row-inset:0.875rem] lg:grid lg:grid-cols-[repeat(auto-fill,minmax(12rem,1fr))] lg:gap-x-1 lg:p-1 lg:[&>*::before]:hidden"
+          style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}
         >
-          {monthName} picks
-          <span className="ml-auto flex items-center gap-1.5" style={{ color: "var(--text-muted)" }}>
-            {seasonalPicks.length} in season
-            <ChevronIcon dir={picksOpen ? "down" : "right"} size={14} />
-          </span>
-        </button>
-        {picksOpen && (
-          <div className="flex flex-col gap-2 border-t p-3" style={{ borderColor: "var(--gridline)" }}>
-            {seasonalPicksSorted.length > 0 && (
-              <div className="flex flex-wrap gap-1.5">
-                {seasonalPicksSorted.map((pick) => (
-                  <span
-                    key={pick.item}
-                    className="inline-flex items-center gap-0.5 rounded-[10px] border py-1 pr-1 pl-2.5 text-xs font-medium whitespace-nowrap"
-                    style={{ borderColor: "var(--border-hairline)", color: "var(--text-secondary)", background: "var(--surface-1)" }}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => void handleQuickLogSeasonal(pick.item)}
-                      disabled={pending === `seasonal:${normalizeName(pick.item)}`}
-                      className="disabled:opacity-50"
-                    >
-                      {pick.item}
-                      <span className="ml-1" style={{ color: "var(--text-muted)" }}>
-                        {pick.weeksSinceLastEaten === null
-                          ? "· never"
-                          : pick.weeksSinceLastEaten === 0
-                            ? "· this week"
-                            : `· ${pick.weeksSinceLastEaten}w ago`}
-                      </span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => hideSeasonalPick(pick.item)}
-                      aria-label={`Don't show ${pick.item} in seasonal picks`}
-                      title="Don't show this again"
-                      className="tap-target shrink-0 rounded p-1 transition-colors hover:bg-[var(--page-plane)]"
-                      style={{ color: "var(--text-muted)" }}
-                    >
-                      <CloseIcon size={10} />
-                    </button>
-                  </span>
-                ))}
-              </div>
-            )}
-            {leastTrackedCategory && (
-              <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
-                This week&apos;s priority: <strong style={{ color: "var(--text-primary)" }}>{leastTrackedCategory.category}</strong> — logged{" "}
-                {leastTrackedCategory.countThisWeek} time{leastTrackedCategory.countThisWeek === 1 ? "" : "s"} so far.
-              </p>
-            )}
-            {hiddenThisMonth.length > 0 && (
-              <div>
+          {seasonalPicksSorted.map((pick) => (
+            <div key={pick.item} className="flex items-center lg:rounded-lg">
+              <button
+                type="button"
+                onClick={() => void handleQuickLogSeasonal(pick.item)}
+                disabled={pending === `seasonal:${normalizeName(pick.item)}`}
+                className="flex min-h-11 min-w-0 flex-1 items-center gap-1.5 rounded-lg pl-3.5 text-left text-sm transition-colors hover:bg-black/[0.04] active:bg-black/5 disabled:opacity-50 lg:pl-2.5 lg:pointer-fine:min-h-9"
+                style={{ color: "var(--text-primary)" }}
+              >
+                <span className="truncate">{pick.item}</span>
+                <span className="shrink-0 text-xs" style={{ color: "var(--text-muted)" }}>
+                  {pick.weeksSinceLastEaten === null ? "never" : pick.weeksSinceLastEaten === 0 ? "this week" : `${pick.weeksSinceLastEaten}w ago`}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => hideSeasonalPick(pick.item)}
+                aria-label={`Don't show ${pick.item} in seasonal picks`}
+                title="Don't show this again"
+                className="tap-target mr-2 shrink-0 rounded p-1 transition-colors hover:bg-[var(--page-plane)]"
+                style={{ color: "var(--text-muted)" }}
+              >
+                <CloseIcon size={10} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+      {leastTrackedCategory && (
+        <p className="px-0.5 text-xs" style={{ color: "var(--text-secondary)" }}>
+          This week&apos;s priority: <strong style={{ color: "var(--text-primary)" }}>{leastTrackedCategory.category}</strong> — logged{" "}
+          {leastTrackedCategory.countThisWeek} time{leastTrackedCategory.countThisWeek === 1 ? "" : "s"} so far.
+        </p>
+      )}
+      {hiddenThisMonth.length > 0 && (
+        <div className="px-0.5">
+          <button
+            type="button"
+            onClick={() => setHiddenPicksOpen((v) => !v)}
+            className="text-xs font-medium"
+            style={{ color: "var(--ui-accent)" }}
+          >
+            {hiddenThisMonth.length} hidden
+          </button>
+          {hiddenPicksOpen && (
+            <div className="mt-1.5 flex flex-wrap gap-1.5">
+              {hiddenThisMonth.map((item) => (
                 <button
+                  key={item}
                   type="button"
-                  onClick={() => setHiddenPicksOpen((v) => !v)}
-                  className="text-xs font-medium"
-                  style={{ color: "var(--ui-accent)" }}
+                  onClick={() => unhideSeasonalPick(item)}
+                  className={`${CHIP_CLS} whitespace-nowrap`}
+                  style={chipStyle(false)}
                 >
-                  {hiddenThisMonth.length} hidden
+                  {item} <span style={{ color: "var(--text-muted)" }}>· show again</span>
                 </button>
-                {hiddenPicksOpen && (
-                  <div className="mt-1.5 flex flex-wrap gap-1.5">
-                    {hiddenThisMonth.map((item) => (
-                      <button
-                        key={item}
-                        type="button"
-                        onClick={() => unhideSeasonalPick(item)}
-                        className="min-h-9 rounded-[10px] px-3 text-sm font-medium whitespace-nowrap"
-                        style={{ color: "var(--text-muted)", background: "var(--field-fill)" }}
-                      >
-                        {item} <span style={{ color: "var(--text-secondary)" }}>· show again</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-    ) : null;
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex items-center justify-between gap-2">
+      {/* Phones: title + date, then the tabs, then the tab's controls.
+       * Desktop: the controls move up into the title row so the tabs get a
+       * full row of their own. */}
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-3">
         <h1
-          className="min-w-0 flex-1 text-2xl leading-tight font-semibold tracking-tight"
+          className="min-w-0 flex-1 text-2xl leading-tight font-semibold tracking-tight lg:mr-2 lg:flex-none"
           style={{ color: "var(--text-primary)" }}
         >
           Log
         </h1>
-        <div className="control-surface flex h-9 shrink-0 items-center rounded-[10px]">
+        <div className="control-surface flex h-9 shrink-0 items-center rounded-[10px] lg:order-3 lg:ml-auto">
           <button
             type="button"
             onClick={() => setDate((d) => addDaysLocal(d, -1))}
@@ -2096,23 +2081,20 @@ export default function LogPage() {
           </button>
         </div>
         <MobileMenuButton />
-      </div>
 
-      {isDemoData && <DemoNotice className="-mt-2" />}
+        {isDemoData && <DemoNotice className="order-4 -mt-2 w-full" />}
 
-      <div className="flex flex-col gap-2 lg:flex-row lg:flex-wrap lg:items-end lg:justify-between lg:gap-3">
         {/* The whole-page view switcher — a segmented control (with the
-         * domains past the edge folded into "More"). A different shape from
-         * "Eaten at" below, which just tags optional metadata on a food. */}
+         * domains past the edge folded into "More"). */}
         <SegmentedTabs
           ariaLabel="Tracking domain"
           items={logTabs.map((t) => ({ id: t.id, label: t.label, accent: t.accent }))}
           activeId={tab}
           onSelect={selectTab}
-          className="w-full min-w-0 lg:flex-1"
+          className="order-5 w-full min-w-0"
         />
         {tabConfig && (
-          <div className="flex w-full items-center gap-2 lg:w-[28rem]">
+          <div className="order-6 flex w-full items-center gap-2 lg:order-2 lg:w-auto lg:flex-1">
             <SearchField
               value={search}
               onChange={setSearch}
@@ -2153,7 +2135,7 @@ export default function LogPage() {
               explicit={timeIsExplicit}
             />
             {!isDemoData && (
-              <Link href="/manage" className="hidden shrink-0 text-xs font-medium sm:inline" style={{ color: "var(--ui-accent)" }}>
+              <Link href="/manage" className="hidden shrink-0 px-1 text-sm font-medium whitespace-nowrap sm:inline" style={{ color: "var(--ui-accent)" }}>
                 Manage items
               </Link>
             )}
@@ -2335,7 +2317,6 @@ export default function LogPage() {
                   : renderFoodByCategory(groupedByCategory)
                 : renderTrackerList()}
 
-              {seasonalPicksCard}
 
               {tab === "outcome" && isolatedObservations.length > 0 && (
                 <div className="overflow-hidden rounded-xl border" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import clsx from "clsx";
 import { useRovingTabs } from "@/lib/useRovingTabs";
 
@@ -45,6 +45,7 @@ export function SegmentedTabs<T extends string>({
   style?: CSSProperties;
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
+  const trackRef = useRef<HTMLDivElement>(null);
   const measureRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const [visibleCount, setVisibleCount] = useState(items.length);
@@ -90,6 +91,16 @@ export function SegmentedTabs<T extends string>({
         setEqualShare(true);
         return;
       }
+      // Every label fits at its own width with room to spare: show them all,
+      // with the spare space shared out evenly so the gaps between labels
+      // stay equal, rather than folding any into "More".
+      const gap = 2;
+      const naturalTotal = widths.reduce((sum, w) => sum + w + SLACK, 0) + gap * (items.length - 1);
+      if (items.length > 3 && naturalTotal <= avail) {
+        setVisibleCount(items.length);
+        setEqualShare(false);
+        return;
+      }
       // Not every item clears an equal share. Before falling back to
       // natural-width segments — which visibly mismatches a short label
       // like "Food" against a longer one like "Symptoms" — look for a
@@ -98,7 +109,6 @@ export function SegmentedTabs<T extends string>({
       // equal shares too rather than a separately-sized leftover slot. An
       // iOS segmented control keeps every segment the same width, folded
       // one included, so there's never a stray gap next to it.
-      const gap = 2;
       for (let n = items.length - 1; n >= 1; n--) {
         const trailingWidth = Math.max(morePlaceholderW, ...withChevronWidths.slice(n));
         const share = (avail - n * gap) / (n + 1);
@@ -143,6 +153,20 @@ export function SegmentedTabs<T extends string>({
     };
   }, [items]);
 
+  // The hidden measuring copies can come out narrower than the real
+  // segments in some engines (seen in Safari), letting a long label spill
+  // into its neighbour. Check the rendered segments themselves and fold one
+  // more into "More" until nothing overflows.
+  useLayoutEffect(() => {
+    const track = trackRef.current;
+    if (!track || visibleCount <= 1) return;
+    const spills = Array.from(track.children).some((el) => el.scrollWidth > el.clientWidth + 1);
+    if (spills) {
+      setVisibleCount((n) => Math.min(n, visibleCount - 1));
+      setEqualShare(true);
+    }
+  }, [visibleCount, equalShare]);
+
   useEffect(() => {
     if (!menuOpen) return;
     const onDown = (e: MouseEvent) => {
@@ -177,6 +201,7 @@ export function SegmentedTabs<T extends string>({
     // to fill the leftover space.
     <div ref={rootRef} className={clsx("relative", className)} style={style}>
       <div
+        ref={trackRef}
         aria-label={ariaLabel}
         className="flex w-full items-stretch gap-0.5 rounded-[10px] p-0.5"
         style={{ background: "var(--segment-track)", boxShadow: "inset 0 0 0 0.5px var(--border-hairline)" }}
