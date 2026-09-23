@@ -272,6 +272,9 @@
   --text-xs--line-height: 1rem;
   --text-sm: 0.875rem;
   --text-sm--line-height: 1.25rem;
+  /* `rounded-xl` is the card / grouped-list radius — a step softer than
+     the 10px controls that sit inside them. */
+  --radius-xl: 1rem;
 }
 
 * {
