@@ -1739,6 +1739,13 @@ export default function LogPage() {
     return { visibleItems: items, hiddenCount: 0 };
   }
 
+  /** A category's icon on the rail — its custom icon from Manage, else
+   * Food's built-in category glyph. The rail shows it from `sm` up. */
+  function railIcon(type: ItemType, category: string) {
+    const chrome = categoryChrome(type, category);
+    return chrome.iconKey ? <CustomIcon icon={chrome.iconKey} size={14} /> : type === "food" ? FOOD_CATEGORY_ICON[category] : undefined;
+  }
+
   /** Food's browse view: a scrolling category strip on top, the selected
    * category's items as one list below — switching category replaces the
    * list instead of stacking every category down the page. */
@@ -1756,7 +1763,12 @@ export default function LogPage() {
           wrap={false}
           className="border-b"
           style={{ borderColor: "var(--border-hairline)" }}
-          items={tabs.map((g) => ({ id: g.category, label: g.category === USUAL_TAB ? "Usual" : g.category === PICKS_TAB ? `${monthName} picks` : g.category, accent: TYPE_ACCENT.food }))}
+          items={tabs.map((g) => ({
+            id: g.category,
+            label: g.category === USUAL_TAB ? "Usual" : g.category === PICKS_TAB ? `${monthName} picks` : g.category,
+            accent: TYPE_ACCENT.food,
+            icon: g.category === USUAL_TAB || g.category === PICKS_TAB ? undefined : railIcon("food", g.category),
+          }))}
           activeId={active.category}
           onSelect={setFoodCategory}
           tall
@@ -1791,7 +1803,7 @@ export default function LogPage() {
           wrap={false}
           className="border-b"
           style={{ borderColor: "var(--border-hairline)" }}
-          items={groups.map((g) => ({ id: g.category, label: g.category, accent }))}
+          items={groups.map((g) => ({ id: g.category, label: g.category, accent, icon: railIcon(type, g.category) }))}
           activeId={active.category}
           onSelect={setTrackerCategory}
           tall
