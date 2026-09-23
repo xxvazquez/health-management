@@ -38,14 +38,15 @@
      every palette gets a correctly-contrasted line for free. */
   --gridline: color-mix(in oklab, var(--text-muted) 20%, var(--surface-1));
   --baseline: color-mix(in oklab, var(--text-muted) 45%, var(--surface-1));
-  /* The segmented-control track — set so the active thumb (`--surface-1`)
-     always reads as raised above it, in either theme. */
-  --segment-track: var(--page-plane);
+  /* The segmented-control track — a barely-there wash plus a hairline, so
+     it reads on the page and on white cards; the thumb is the raised
+     `.control-surface`. */
+  --segment-track: color-mix(in oklab, var(--text-muted) 8%, transparent);
   /* Filled (borderless) text-field ground — iOS search-bar grey, a step
      off the page plane so it reads on the page and on white cards. */
   --field-fill: color-mix(in oklab, var(--text-muted) 10%, var(--page-plane));
-  /* Toolbar controls (`.control-surface`): a raised white capsule with a
-     hairline edge and a soft drop, instead of a grey fill. */
+  /* Toolbar controls and segmented thumbs (`.control-surface`): a raised
+     white surface with a hairline edge and a soft drop. */
   --control-bg: var(--surface-1);
   --control-edge: var(--border-hairline);
   --control-shadow: 0 1px 3px rgba(31, 41, 51, 0.08);
@@ -146,11 +147,7 @@
   --on-accent: #0e1418;
   --gridline: color-mix(in oklab, var(--text-muted) 20%, var(--surface-1));
   --baseline: color-mix(in oklab, var(--text-muted) 45%, var(--surface-1));
-  /* Below --surface-1 (not derived off it like the light track) so the
-     active thumb reads raised in every dark palette. 55% black keeps the
-     track visibly darker than the pill — 35% left them close enough to
-     read as one flat colour. */
-  --segment-track: color-mix(in oklab, black 55%, var(--surface-1));
+    --segment-track: color-mix(in oklab, black 22%, transparent);
   --control-bg: color-mix(in oklab, white 5%, var(--surface-1));
   --control-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
   --control-highlight: rgba(255, 255, 255, 0.06);

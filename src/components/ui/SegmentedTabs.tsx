@@ -12,13 +12,11 @@ export interface SegmentedTabItem<T extends string = string> {
   accent?: string;
 }
 
-const BASE = "hit-slop min-w-0 truncate rounded-md px-2.5 py-1.5 text-center text-sm transition-colors";
+const BASE = "hit-slop min-w-0 truncate rounded-lg px-2.5 py-1.5 text-center text-sm transition-colors";
 
 function segmentStyle(active: boolean, accent?: string): CSSProperties {
   return {
-    background: active ? "var(--surface-1)" : "transparent",
     color: active ? accent ?? "var(--text-primary)" : "var(--text-secondary)",
-    boxShadow: active ? "var(--shadow-card)" : "none",
     fontWeight: active ? 600 : 500,
   };
 }
@@ -180,8 +178,8 @@ export function SegmentedTabs<T extends string>({
     <div ref={rootRef} className={clsx("relative", className)} style={style}>
       <div
         aria-label={ariaLabel}
-        className="flex w-full items-stretch gap-0.5 rounded-lg p-0.5"
-        style={{ background: "var(--segment-track)" }}
+        className="flex w-full items-stretch gap-0.5 rounded-[10px] p-0.5"
+        style={{ background: "var(--segment-track)", boxShadow: "inset 0 0 0 0.5px var(--border-hairline)" }}
       >
         {visible.map((t) => {
           const active = t.id === activeId;
@@ -194,7 +192,7 @@ export function SegmentedTabs<T extends string>({
               onClick={() => onSelect(t.id)}
               onKeyDown={(e) => handleKeyDown(e, t.id)}
               tabIndex={tabIndex(t.id)}
-              className={clsx(BASE, equalShare ? "flex-1" : "flex-auto")}
+              className={clsx(BASE, equalShare ? "flex-1" : "flex-auto", active && "control-surface")}
               style={segmentStyle(active, t.accent)}
             >
               {t.label}
@@ -208,7 +206,7 @@ export function SegmentedTabs<T extends string>({
             aria-haspopup="menu"
             aria-expanded={menuOpen}
             onClick={() => setMenuOpen((v) => !v)}
-            className={clsx(BASE, "flex items-center justify-center gap-1", equalShare ? "flex-1" : "flex-auto")}
+            className={clsx(BASE, "flex items-center justify-center gap-1", equalShare ? "flex-1" : "flex-auto", activeInOverflow && "control-surface")}
             style={segmentStyle(Boolean(activeInOverflow), activeInOverflow?.accent)}
           >
             <span className="truncate">{activeInOverflow ? activeInOverflow.label : "More"}</span>

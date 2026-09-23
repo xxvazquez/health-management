@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import { useRovingTabs } from "@/lib/useRovingTabs";
 
-/** A small inline segmented control — one row of buttons on a filled track, the
+/** A small inline segmented control — one row of buttons on a faint track, the
  * active one raised and tinted with the given accent. Used for the trend
  * charts' time-window / mode switches. */
 export function Segmented<T extends string>({
@@ -20,7 +20,7 @@ export function Segmented<T extends string>({
   const ids = options.map(([v]) => v);
   const { registerRef, handleKeyDown, tabIndex } = useRovingTabs(ids, value, onChange);
   return (
-    <div className="inline-flex w-fit rounded-[10px] p-0.5" style={{ background: "var(--field-fill)" }}>
+    <div className="inline-flex w-fit rounded-[10px] p-0.5" style={{ background: "var(--segment-track)", boxShadow: "inset 0 0 0 0.5px var(--border-hairline)" }}>
       {options.map(([v, label]) => (
         <button
           key={v}
@@ -30,10 +30,8 @@ export function Segmented<T extends string>({
           onKeyDown={(e) => handleKeyDown(e, v)}
           tabIndex={tabIndex(v)}
           aria-pressed={value === v}
-          className="hit-slop min-h-8 rounded-lg px-3 text-sm font-medium"
+          className={`hit-slop min-h-8 rounded-lg px-3 text-sm font-medium ${value === v ? "control-surface" : ""}`}
           style={{
-            background: value === v ? "var(--surface-1)" : "transparent",
-            boxShadow: value === v ? "var(--shadow-card)" : "none",
             color: value === v ? accent : "var(--text-secondary)",
             // iOS Safari can leave a stale paint on a background-color-only
             // change (no layout impact) until something else forces a
