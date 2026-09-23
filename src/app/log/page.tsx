@@ -1014,10 +1014,7 @@ export default function LogPage() {
   const seasonalCanonical = useMemo(() => buildCanonicalEvents(effective.items, effective.logs, []), [effective]);
 
   const currentMonth = useMemo(() => new Date().getMonth() + 1, []);
-  const monthName = useMemo(
-    () => new Date(2000, currentMonth - 1, 1).toLocaleDateString(undefined, { month: "long" }),
-    [currentMonth],
-  );
+  const monthShort = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][currentMonth - 1];
   const { hidden: hiddenSeasonalPicks, hide: hideSeasonalPick, unhide: unhideSeasonalPick } = useHiddenSeasonalPicks();
   const seasonalPicks = useMemo(
     () => seasonalPicksForMonth(seasonalCanonical, currentMonth, today, hiddenSeasonalPicks),
@@ -1765,7 +1762,7 @@ export default function LogPage() {
           style={{ borderColor: "var(--border-hairline)" }}
           items={tabs.map((g) => ({
             id: g.category,
-            label: g.category === USUAL_TAB ? "Usual" : g.category === PICKS_TAB ? `${monthName} picks` : g.category,
+            label: g.category === USUAL_TAB ? "Usual" : g.category === PICKS_TAB ? `${monthShort} picks` : g.category,
             accent: TYPE_ACCENT.food,
             icon: g.category === USUAL_TAB || g.category === PICKS_TAB ? undefined : railIcon("food", g.category),
           }))}
