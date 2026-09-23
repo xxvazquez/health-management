@@ -273,7 +273,7 @@ export function AdherenceCardGrid({
                     style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}
                   >
                     <span
-                      className="line-clamp-2 min-h-10 text-sm leading-snug font-medium"
+                      className="truncate text-sm leading-snug font-medium"
                       style={{ color: "var(--text-primary)" }}
                       title={it.item}
                     >
