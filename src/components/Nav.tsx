@@ -333,13 +333,14 @@ export function Nav() {
 
   return (
     <>
-      {/* Desktop sidebar — collapsible to an icon rail */}
+      {/* Desktop sidebar — a floating panel inset from the window edges,
+          collapsible to an icon rail */}
       <aside
         className={clsx(
-          "sticky top-0 relative hidden h-screen shrink-0 flex-col border-r py-6 transition-[width] duration-200 lg:flex",
+          "sticky top-2 relative my-2 ml-2 hidden h-[calc(100dvh-1rem)] shrink-0 flex-col rounded-xl border py-6 transition-[width] duration-200 lg:flex",
           collapsed ? "w-[76px] px-3" : "w-60 px-4",
         )}
-        style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}
+        style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", boxShadow: "var(--shadow-card)" }}
       >
         <button
           type="button"
