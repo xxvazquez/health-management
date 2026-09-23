@@ -149,8 +149,7 @@ export function DateRangeFilter({ span, value, onChange, presets = DEFAULT_PRESE
           role="dialog"
           aria-modal="true"
           aria-label="Date range"
-          className={`absolute z-30 mt-1.5 w-56 rounded-lg border p-1.5 ${alignLeft ? "left-0" : "right-0"}`}
-          style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", boxShadow: "var(--shadow-card)" }}
+          className={`menu-surface absolute z-30 mt-1.5 w-60 p-1.5 ${alignLeft ? "left-0" : "right-0"}`}
         >
           <div className="flex flex-col">
             {presets.map((preset) => {
@@ -163,11 +162,10 @@ export function DateRangeFilter({ span, value, onChange, presets = DEFAULT_PRESE
                     onChange(presetRange(preset, span));
                     setOpen(false);
                   }}
-                  className="flex items-center justify-between rounded-md px-2 py-1.5 text-left text-xs transition-colors"
+                  className="flex min-h-10 items-center justify-between rounded-lg px-2.5 text-left text-sm transition-colors hover:bg-black/[0.04]"
                   style={{
-                    background: isActive ? `color-mix(in oklab, ${accent} 12%, transparent)` : "transparent",
-                    color: isActive ? accent : "var(--text-secondary)",
-                    fontWeight: isActive ? 600 : 400,
+                    color: isActive ? accent : "var(--text-primary)",
+                    fontWeight: isActive ? 500 : 400,
                   }}
                 >
                   {preset.label}

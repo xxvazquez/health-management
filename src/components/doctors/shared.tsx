@@ -188,8 +188,7 @@ export function ComboBox({
       />
       {open && (filtered.length > 0 || showCreate) && (
         <ul
-          className="absolute z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-lg border py-1 shadow-lg"
-          style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", boxShadow: "var(--shadow-card)" }}
+          className="menu-surface absolute z-20 mt-1 max-h-56 w-full overflow-y-auto p-1.5"
         >
           {filtered.map((option) => (
             <li key={option}>
@@ -199,7 +198,7 @@ export function ComboBox({
                   e.preventDefault();
                   commit(option);
                 }}
-                className="flex w-full items-center px-3 py-1.5 text-left text-sm transition-colors hover:bg-[var(--page-plane)]"
+                className="flex min-h-10 w-full items-center rounded-lg px-2.5 text-left text-sm transition-colors hover:bg-black/[0.04]"
                 style={{ color: "var(--text-primary)" }}
               >
                 {renderOption ? renderOption(option) : option}
@@ -214,7 +213,7 @@ export function ComboBox({
                   e.preventDefault();
                   commit(query.trim());
                 }}
-                className="flex w-full items-center px-3 py-1.5 text-left text-sm font-medium transition-colors hover:bg-[var(--page-plane)]"
+                className="flex min-h-10 w-full items-center rounded-lg px-2.5 text-left text-sm font-medium transition-colors hover:bg-black/[0.04]"
                 style={{ color: accent }}
               >
                 Add &ldquo;{query.trim()}&rdquo;

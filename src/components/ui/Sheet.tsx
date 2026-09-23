@@ -96,12 +96,12 @@ export function Sheet({
   // drawer or a popover isn't clicked through or clipped by its ancestors.
   if (typeof document === "undefined") return null;
   return createPortal(
-    <div ref={containerRef} className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby={titleId}>
+    <div ref={containerRef} className="fixed inset-0 z-50 flex items-end justify-center px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby={titleId}>
       <div className="sheet-backdrop absolute inset-0 bg-black/40" data-closing={closing ? "" : undefined} onClick={requestClose} />
       <div
         ref={panelRef}
         data-closing={closing ? "" : undefined}
-        className="sheet-panel relative flex max-h-[92dvh] w-full max-w-md flex-col gap-4 overflow-y-auto overscroll-contain rounded-t-2xl p-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] shadow-xl sm:rounded-2xl"
+        className="sheet-panel relative flex max-h-[92dvh] w-full max-w-md flex-col gap-4 overflow-y-auto overscroll-contain rounded-[20px] p-4 pb-6 shadow-xl"
         style={{ background: "var(--page-plane)" }}
       >
         <div
@@ -127,8 +127,8 @@ export function Sheet({
               type="button"
               onClick={requestClose}
               aria-label="Close"
-              className="hit-slop flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
-              style={{ color: "var(--text-secondary)", background: "var(--field-fill)" }}
+              className="control-surface hit-slop flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
+              style={{ color: "var(--text-secondary)" }}
             >
               <CloseIcon />
             </button>

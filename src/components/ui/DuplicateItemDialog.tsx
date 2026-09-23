@@ -28,8 +28,8 @@ export function DuplicateItemDialog({
   return (
     <div ref={containerRef} className="fixed inset-0 z-50 flex items-center justify-center p-6" role="alertdialog" aria-modal="true" aria-labelledby="duplicate-item-title">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative flex w-full max-w-xs flex-col overflow-hidden rounded-2xl shadow-xl" style={{ background: "var(--surface-1)" }}>
-        <div className="flex flex-col gap-1 px-5 pt-5 pb-4 text-center">
+      <div className="menu-surface relative flex w-full max-w-xs flex-col gap-4 rounded-[20px] p-5">
+        <div className="flex flex-col gap-1 text-center">
           <h2 id="duplicate-item-title" className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>
             &quot;{name}&quot; already exists
           </h2>
@@ -39,12 +39,12 @@ export function DuplicateItemDialog({
               : "It's already in your active list under this name."}
           </p>
         </div>
-        <div className="flex border-t" style={{ borderColor: "var(--gridline)" }}>
+        <div className="flex gap-2">
           <button
             type="button"
             onClick={onClose}
-            className="min-h-11 flex-1 text-base font-medium active:bg-black/5"
-            style={{ color: "var(--ui-accent)" }}
+            className={`min-h-11 flex-1 rounded-[10px] text-base active:opacity-70 ${isArchived ? "control-surface font-medium" : "font-semibold"}`}
+            style={isArchived ? { color: "var(--text-primary)" } : { background: "var(--ui-accent)", color: "var(--on-accent)" }}
           >
             {isArchived ? "Cancel" : "OK"}
           </button>
@@ -53,8 +53,8 @@ export function DuplicateItemDialog({
               type="button"
               onClick={onUnarchive}
               disabled={busy}
-              className="min-h-11 flex-1 border-l text-base font-semibold active:bg-black/5 disabled:opacity-50"
-              style={{ color: "var(--ui-accent)", borderColor: "var(--gridline)" }}
+              className="min-h-11 flex-1 rounded-[10px] text-base font-semibold active:opacity-70 disabled:opacity-50"
+              style={{ background: "var(--ui-accent)", color: "var(--on-accent)" }}
             >
               Unarchive
             </button>

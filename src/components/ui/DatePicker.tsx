@@ -123,8 +123,7 @@ function PickerShell({ trigger, open, onClose, title, titleId, children }: { tri
           role="dialog"
           aria-modal="true"
           aria-labelledby={titleId}
-          className={`absolute z-30 mt-1.5 flex max-h-[80vh] w-max flex-col gap-4 overflow-y-auto rounded-xl border p-3 shadow-lg ${alignLeft ? "left-0" : "right-0"}`}
-          style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}
+          className={`menu-surface absolute z-30 mt-1.5 flex max-h-[80vh] w-max flex-col gap-4 overflow-y-auto p-3 ${alignLeft ? "left-0" : "right-0"}`}
         >
           {children}
         </div>

@@ -247,10 +247,9 @@ export function SegmentedTabs<T extends string>({
           <div className="fixed inset-0 z-20 bg-black/20" aria-hidden="true" onClick={() => setMenuOpen(false)} />
           <div
             ref={menuRef}
-            className="absolute right-0 z-30 mt-1.5 min-w-40 rounded-lg border shadow-lg"
-            style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}
+            className="menu-surface absolute right-0 z-30 mt-1.5 min-w-44 p-1.5"
           >
-            <div className="flex max-h-72 flex-col overflow-y-auto py-1">
+            <div className="flex max-h-72 flex-col overflow-y-auto">
               {overflow.map((t) => {
                 const active = t.id === activeId;
                 return (
@@ -262,8 +261,8 @@ export function SegmentedTabs<T extends string>({
                       onSelect(t.id);
                       setMenuOpen(false);
                     }}
-                    className="px-3 py-2 text-left text-sm transition-colors hover:bg-[var(--page-plane)]"
-                    style={{ color: active ? t.accent ?? "var(--text-primary)" : "var(--text-secondary)", fontWeight: active ? 600 : 500 }}
+                    className="flex min-h-10 items-center rounded-lg px-2.5 text-left text-sm transition-colors hover:bg-black/[0.04]"
+                    style={{ color: active ? t.accent ?? "var(--text-primary)" : "var(--text-primary)", fontWeight: active ? 500 : 400 }}
                   >
                     {t.label}
                   </button>
