@@ -17,7 +17,7 @@ import {
 
 /** The compact value button every picker shows in a row — the iOS "compact
  * date picker": the value in a small grey capsule, muted when empty. */
-const TRIGGER_CLS = "hit-slop inline-flex h-8 max-w-full items-center rounded-lg px-2.5 text-sm tabular-nums transition-opacity active:opacity-60 disabled:opacity-40";
+const TRIGGER_CLS = "control-surface hit-slop inline-flex h-8 max-w-full items-center rounded-lg px-2.5 text-sm tabular-nums transition-opacity active:opacity-60 disabled:opacity-40";
 
 function Trigger({
   display,
@@ -44,7 +44,7 @@ function Trigger({
       aria-haspopup="dialog"
       aria-label={ariaLabel ? `${ariaLabel}: ${empty ? placeholder : display}` : undefined}
       className={`${TRIGGER_CLS} ${className ?? ""}`}
-      style={{ background: "var(--field-fill)", color: empty ? "var(--text-muted)" : "var(--text-primary)" }}
+      style={{ color: empty ? "var(--text-muted)" : "var(--text-primary)" }}
     >
       <span className="truncate">{empty ? placeholder : display}</span>
     </button>

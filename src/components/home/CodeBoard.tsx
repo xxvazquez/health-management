@@ -55,9 +55,9 @@ function MicButton({ onStart, onText }: { onStart?: () => void; onText: (text: s
       }}
       aria-label="Dictate the code"
       aria-pressed={listening}
-      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] transition-colors"
+      className="control-surface flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] transition-colors"
       style={{
-        background: listening ? "color-mix(in oklab, var(--status-critical) 12%, var(--surface-1))" : "var(--field-fill)",
+        background: listening ? "color-mix(in oklab, var(--status-critical) 12%, var(--surface-1))" : undefined,
         color: listening ? "var(--status-critical)" : "var(--text-secondary)",
       }}
     >
@@ -338,8 +338,8 @@ export function CodeBoard({
           onClick={() => setSort((s) => (s === "shop" ? "expiry" : "shop"))}
           aria-label={sort === "shop" ? "Sorted by shop — tap to sort by expiry" : "Sorted by expiry — tap to sort by shop"}
           title={sort === "shop" ? "Sorted by shop A–Z" : "Sorted by expiring soon"}
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px]"
-          style={{ background: "var(--field-fill)", color: "var(--text-secondary)" }}
+          className="control-surface flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px]"
+          style={{ color: "var(--text-secondary)" }}
         >
           {sort === "shop" ? (
             <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

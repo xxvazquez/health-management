@@ -34,9 +34,9 @@ export function TimeField({
           aria-haspopup="dialog"
           aria-label={explicit ? `Time: ${display}, tap to change` : "Time: now, tap to change"}
           className={`${CONTROL_CLS} tabular-nums`}
-          style={{ ...CONTROL_STYLE, boxShadow: explicit ? "inset 0 0 0 1px var(--series-2)" : "none" }}
+          style={explicit ? { ...CONTROL_STYLE, boxShadow: "inset 0 0 0 1px var(--series-2)" } : { ...CONTROL_STYLE, color: "var(--ui-accent)" }}
         >
-          <span aria-hidden="true" style={{ color: "var(--text-muted)" }}>
+          <span aria-hidden="true" style={{ color: explicit ? "var(--text-muted)" : undefined }}>
             <ClockIcon />
           </span>
           {explicit ? display : "now"}

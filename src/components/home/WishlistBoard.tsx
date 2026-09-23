@@ -798,8 +798,8 @@ export function WishlistBoard({
               disabled={refreshing}
               aria-label="Refresh wishlist"
               title="Refresh — picks up links added from your phone"
-              className="tap-target flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] transition-colors disabled:opacity-60"
-              style={{ background: "var(--field-fill)", color: "var(--text-secondary)" }}
+              className="control-surface tap-target flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] transition-colors disabled:opacity-60"
+              style={{ color: "var(--text-secondary)" }}
             >
               <svg
                 width="15"

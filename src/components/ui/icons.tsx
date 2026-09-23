@@ -75,6 +75,15 @@ export function CalendarIcon({ size = 13 }: { size?: number }) {
   );
 }
 
+/** The iOS pop-up menu chevron (a small up/down pair). */
+export function UpDownChevronIcon({ size = 12 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M6 8l4-4 4 4M6 12l4 4 4-4" />
+    </svg>
+  );
+}
+
 const CHEVRON_ROTATION = { right: 0, down: 90, left: 180, up: 270 } as const;
 
 export function ChevronIcon({ dir = "right", size = 16 }: { dir?: keyof typeof CHEVRON_ROTATION; size?: number }) {

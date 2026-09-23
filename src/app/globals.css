@@ -44,6 +44,12 @@
   /* Filled (borderless) text-field ground — iOS search-bar grey, a step
      off the page plane so it reads on the page and on white cards. */
   --field-fill: color-mix(in oklab, var(--text-muted) 10%, var(--page-plane));
+  /* Toolbar controls (`.control-surface`): a raised white capsule with a
+     hairline edge and a soft drop, instead of a grey fill. */
+  --control-bg: var(--surface-1);
+  --control-edge: var(--border-hairline);
+  --control-shadow: 0 1px 3px rgba(31, 41, 51, 0.08);
+  --control-highlight: rgba(255, 255, 255, 0.9);
   /* Text on a solid --ui-accent fill (selected calendar day): white on the
      light accents, dark on the pale dark-mode accents. */
   --on-accent: #ffffff;
@@ -145,6 +151,9 @@
      track visibly darker than the pill — 35% left them close enough to
      read as one flat colour. */
   --segment-track: color-mix(in oklab, black 55%, var(--surface-1));
+  --control-bg: color-mix(in oklab, white 5%, var(--surface-1));
+  --control-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+  --control-highlight: rgba(255, 255, 255, 0.06);
 
   --series-1: #638f80; /* dusty sage */
   --series-2: #5f92bb; /* muted steel blue */
@@ -435,6 +444,16 @@ textarea:focus-visible,
 select:focus-visible {
   box-shadow: 0 0 0 2px color-mix(in oklab, var(--ui-accent) 55%, transparent);
   border-radius: 6px;
+}
+
+/* The raised surface every toolbar control shares — search, menus, date
+   stepper, icon buttons. Solid, so it reads the same on every browser. */
+.control-surface {
+  background: var(--control-bg);
+  box-shadow:
+    0 0 0 0.5px var(--control-edge),
+    var(--control-shadow),
+    inset 0 0.5px 0 var(--control-highlight);
 }
 
 /* Extends a compact control's pointer target to 44px (Apple's minimum)

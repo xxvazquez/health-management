@@ -330,8 +330,8 @@ export default function MyDrivePage() {
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               placeholder="Search your Drive"
-              className="w-full rounded-[10px] py-2 pr-9 pl-9 text-sm"
-              style={{ background: "var(--field-fill)", color: "var(--text-primary)" }}
+              className="control-surface w-full rounded-[10px] py-2 pr-9 pl-9 text-sm"
+              style={{ color: "var(--text-primary)" }}
             />
             {searchInput && (
               <button

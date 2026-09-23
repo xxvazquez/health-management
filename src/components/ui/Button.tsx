@@ -38,7 +38,7 @@ type ButtonAsLink = CommonProps & { href: string } & Omit<AnchorHTMLAttributes<H
 
 function variantStyle(variant: ButtonVariant, accent: string): CSSProperties {
   if (variant === "primary") return { background: accent, color: accent === "var(--ui-accent)" ? "var(--on-accent)" : "#fff" };
-  if (variant === "outline") return { background: "var(--field-fill)", color: "var(--text-primary)" };
+  if (variant === "outline") return { color: "var(--text-primary)" };
   if (variant === "tinted") return { background: `color-mix(in oklab, ${accent} 14%, transparent)`, color: accent };
   return { color: "var(--text-secondary)" };
 }
@@ -53,7 +53,7 @@ function variantStyle(variant: ButtonVariant, accent: string): CSSProperties {
  * they have their own submit/cancel pairing and were left for a follow-up.
  */
 export function Button({ variant = "primary", size = "md", accent = "var(--ui-accent)", className, children, href, ...rest }: ButtonAsButton | ButtonAsLink) {
-  const cls = clsx(BASE_CLS, SIZE_CLS[size], className);
+  const cls = clsx(BASE_CLS, SIZE_CLS[size], variant === "outline" && "control-surface", className);
   const style = variantStyle(variant, accent);
 
   if (href !== undefined) {

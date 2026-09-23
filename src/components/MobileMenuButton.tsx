@@ -19,8 +19,8 @@ export function MobileMenuButton() {
       type="button"
       onClick={open}
       aria-label={unread > 0 ? `Open menu, ${unread} unread message${unread === 1 ? "" : "s"}` : "Open menu"}
-      className="hit-slop relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full lg:hidden"
-      style={{ background: "var(--field-fill)", color: "var(--text-primary)" }}
+      className="hit-slop relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full lg:hidden control-surface"
+      style={{ color: "var(--text-primary)" }}
     >
       <svg width="17" height="17" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
         <path d="M3 6h14" />
@@ -30,7 +30,7 @@ export function MobileMenuButton() {
       {unread > 0 && (
         <span
           className="absolute top-1 right-1 h-2 w-2 rounded-full ring-2"
-          style={{ background: "var(--series-magenta)", ["--tw-ring-color" as string]: "var(--page-plane)" }}
+          style={{ background: "var(--series-magenta)", ["--tw-ring-color" as string]: "var(--control-bg)" }}
           aria-hidden="true"
         />
       )}

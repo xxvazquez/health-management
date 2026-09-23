@@ -31,9 +31,8 @@ const PALETTE = [
 
 type View = "month" | "year";
 
-/** Same filled stepper shape as the Log page's day nav. */
-const NAV_GROUP = "flex h-9 items-center rounded-[10px]";
-const NAV_GROUP_STYLE = { background: "var(--field-fill)" } as const;
+/** Same raised stepper shape as the Log page's day nav. */
+const NAV_GROUP = "control-surface flex h-9 items-center rounded-[10px]";
 
 function ViewToggle({ value, onChange }: { value: View; onChange: (v: View) => void }) {
   return (
@@ -71,14 +70,14 @@ function PeriodNav({
       ? new Date(`${anchor}T00:00:00`).toLocaleDateString(undefined, { month: "long", year: "numeric" })
       : anchor.slice(0, 4);
   return (
-    <div className={NAV_GROUP} style={NAV_GROUP_STYLE}>
+    <div className={NAV_GROUP}>
       <button
         type="button"
         onClick={() => onShift(-step)}
         disabled={!canPrev}
         aria-label="Previous"
         className="flex h-9 w-8 items-center justify-center rounded-[10px] disabled:opacity-30"
-        style={{ color: "var(--text-secondary)" }}
+        style={{ color: "var(--ui-accent)" }}
       >
         <ChevronIcon dir="left" size={15} />
       </button>
@@ -107,7 +106,7 @@ function PeriodNav({
         disabled={!canNext}
         aria-label="Next"
         className="flex h-9 w-8 items-center justify-center rounded-[10px] disabled:opacity-30"
-        style={{ color: "var(--text-secondary)" }}
+        style={{ color: "var(--ui-accent)" }}
       >
         <ChevronIcon dir="right" size={15} />
       </button>

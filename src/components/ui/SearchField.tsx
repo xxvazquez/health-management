@@ -41,8 +41,8 @@ export function SearchField({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="h-9 w-full rounded-[10px] pr-8 pl-8 text-sm outline-none"
-        style={{ background: "var(--field-fill)", color: "var(--text-primary)" }}
+        className="control-surface h-9 w-full rounded-[10px] pr-8 pl-8 text-sm outline-none"
+        style={{ color: "var(--text-primary)" }}
       />
       {value && (
         <button

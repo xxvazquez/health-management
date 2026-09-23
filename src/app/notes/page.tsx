@@ -455,8 +455,8 @@ function NotesHeader({
               onClick={onMarkAllRead}
               aria-label="Mark all as read"
               title="Mark all as read"
-              className="flex h-9 w-9 items-center justify-center gap-1.5 rounded-[10px] text-sm font-medium sm:w-auto sm:px-3"
-              style={{ background: "var(--field-fill)", color: "var(--text-primary)" }}
+              className="control-surface flex h-9 w-9 items-center justify-center gap-1.5 rounded-[10px] text-sm font-medium sm:w-auto sm:px-3"
+              style={{ color: "var(--text-primary)" }}
             >
               <CheckIcon size={16} />
               <span className="hidden sm:inline">Mark all as read</span>

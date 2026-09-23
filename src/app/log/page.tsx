@@ -69,7 +69,7 @@ import { Field } from "@/components/ui/Field";
 import { FormGroup } from "@/components/ui/FormGroup";
 import { Sheet } from "@/components/ui/Sheet";
 import { ROW_INLINE_CLS, ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
-import { ChevronIcon, CloseIcon, NoteIcon, PlusIcon } from "@/components/ui/icons";
+import { ChevronIcon, CloseIcon, NoteIcon, PlusIcon, UpDownChevronIcon } from "@/components/ui/icons";
 import { CustomIcon, customColorValue } from "@/components/ui/customIcons";
 import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
 import { useMeals } from "@/lib/useMeals";
@@ -2061,12 +2061,12 @@ export default function LogPage() {
         >
           Log
         </h1>
-        <div className="flex h-9 shrink-0 items-center rounded-[10px]" style={{ background: "var(--field-fill)" }}>
+        <div className="control-surface flex h-9 shrink-0 items-center rounded-[10px]">
           <button
             type="button"
             onClick={() => setDate((d) => addDaysLocal(d, -1))}
             className="flex h-9 w-8 items-center justify-center rounded-[10px]"
-            style={{ color: "var(--text-secondary)" }}
+            style={{ color: "var(--ui-accent)" }}
             aria-label="Previous day"
           >
             <ChevronIcon dir="left" size={15} />
@@ -2089,7 +2089,7 @@ export default function LogPage() {
             onClick={() => setDate((d) => (d < today ? addDaysLocal(d, 1) : d))}
             disabled={date >= today}
             className="flex h-9 w-8 items-center justify-center rounded-[10px] disabled:opacity-30"
-            style={{ color: "var(--text-secondary)" }}
+            style={{ color: "var(--ui-accent)" }}
             aria-label="Next day"
           >
             <ChevronIcon dir="right" size={15} />
@@ -2112,12 +2112,12 @@ export default function LogPage() {
           className="w-full min-w-0 lg:flex-1"
         />
         {tabConfig && (
-          <div className="flex w-full flex-wrap items-center gap-2 lg:w-[28rem]">
+          <div className="flex w-full items-center gap-2 lg:w-[28rem]">
             <SearchField
               value={search}
               onChange={setSearch}
               placeholder="Search or add…"
-              className="min-w-36 flex-1"
+              className="min-w-0 flex-1"
             />
             {/* The meal tag stays visible — the auto-pick is by time of day
              * and is often wrong (breakfast logged at 11pm), so changing it
@@ -2126,12 +2126,10 @@ export default function LogPage() {
             {tabConfig.countable && (
               <label
                 className={`${CONTROL_CLS} relative`}
-                style={CONTROL_STYLE}
+                style={{ ...CONTROL_STYLE, color: "var(--ui-accent)" }}
               >
                 {meal}
-                <span aria-hidden="true" style={{ color: "var(--text-muted)" }}>
-                  <ChevronIcon dir="down" size={11} />
-                </span>
+                <UpDownChevronIcon size={11} />
                 {/* z-10: CONTROL_CLS's own .hit-slop::after tap-target overlay
                  * otherwise paints above this select and swallows the click
                  * before it ever reaches the real control. */}
