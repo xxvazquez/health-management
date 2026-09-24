@@ -78,6 +78,7 @@ One sans-serif family: SF Pro on Apple devices, Inter elsewhere (`--font-app`).
 
 - **`FormShell`** (title + Cancel) holds **`FormGroup`** cards of **`Field`** rows
 - **`SwitchRow`** for toggles
+- **Numbers are picked, not typed:** `NumberStepper` (−/+ steps, optional `format` for readouts like "Ongoing")
 - **No boxed inputs**, never grey-filled
 - **Dates and times:** `DatePicker`, `TimePicker`, `DateTimePicker`, `MonthPicker`. Never a native date input
 

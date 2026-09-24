@@ -55,6 +55,7 @@ Tabs: **Food · Symptoms · Supplements · Habits · Stool · Workout · Cycle �
   - "Usual" tab: what you log most at the chosen meal
   - "Sep picks" tab: in-season foods you haven't eaten lately
   - Products: log a whole product's ingredients in one tap
+- **Workout:** a Log / Plan switch. Plan shows the day's targets from your active workout plans, with an iOS-style week row (done, missed or short per day). Logging a plan set writes an ordinary workout log.
 - **Coffee:** grouped by brand. Tapping a coffee opens a per-cup form (café, price, brewing, water temp, tasting notes).
 - **Summary:** the day's meals with their notes, then everything logged, grouped by hour. Tap an entry to edit it or delete it.
 
@@ -74,6 +75,7 @@ A grouped list (Tracking, Health, Lists, App) where each row opens its own scree
 - Add, rename, archive or delete items and categories, including a category icon and colour
 - Edit products, reminder lists, wishlist lists, lab markers and panels, doctors and doctor types
 - Edit the Stool and Coffee option chips, and the coffee currency
+- Build weekly workout plans: lifts, their starting weight, a weekly gain, and which days get +kg or % of that week's base
 - Show or hide tracked sections, each with an optional daily "remind me to log" time
 - Export your data as JSON (whole account) or CSV (one section or everything)
 
