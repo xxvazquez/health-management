@@ -572,6 +572,7 @@ export default function LogPage() {
   // the stale value the sheet was opened with.
   const [detailKey, setDetailKey] = useState<string | null>(null);
   const foodProductsRef = useOverflowFade<HTMLDivElement>();
+  const loggedMealRef = useOverflowFade<HTMLDivElement>();
 
   const loadSnapshot = useCallback(async () => {
     // One atomic read against withDataLock — pullFromCloud's destructive
@@ -1806,35 +1807,41 @@ export default function LogPage() {
       .sort((x, y) => x.item.localeCompare(y.item));
     if (logged.length === 0) return null;
     const accent = TYPE_ACCENT.food;
+    // A caption line with Copy to…, then one sideways-scrolling chip row
+    // (wrapping on desktop), so a long meal never pushes the list down.
     return (
-      <div className="flex flex-wrap items-center gap-1.5">
-        <span className="mr-1 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
-          {meal} · {logged.length}
-        </span>
-        {logged.map((c) => (
-          <button
-            key={c.key}
-            type="button"
-            onClick={() => handleChipTap(c)}
-            disabled={pending === c.key}
-            aria-label={`Remove ${c.item} from ${meal}`}
-            className={CHIP_CLS}
-            style={chipStyle(true, accent)}
-          >
-            {c.item}
-            <CloseIcon size={12} />
-          </button>
-        ))}
-        {!isDemoData && (
-          <button
-            type="button"
-            onClick={() => setCopyTarget({ meal: tagOptionsForType("food").find((m) => m !== meal) ?? meal, date })}
-            className="hit-slop ml-auto min-h-8 px-1 text-sm font-medium whitespace-nowrap"
-            style={{ color: accent }}
-          >
-            Copy to…
-          </button>
-        )}
+      <div className="flex flex-col gap-1">
+        <div className="flex min-h-8 items-center justify-between gap-3 px-0.5">
+          <span className="text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
+            {meal} · {logged.length}
+          </span>
+          {!isDemoData && (
+            <button
+              type="button"
+              onClick={() => setCopyTarget({ meal: tagOptionsForType("food").find((m) => m !== meal) ?? meal, date })}
+              className="hit-slop text-sm font-medium whitespace-nowrap"
+              style={{ color: accent }}
+            >
+              Copy to…
+            </button>
+          )}
+        </div>
+        <div ref={loggedMealRef} className="no-scrollbar fade-x -mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 lg:flex-wrap lg:overflow-visible">
+          {logged.map((c) => (
+            <button
+              key={c.key}
+              type="button"
+              onClick={() => handleChipTap(c)}
+              disabled={pending === c.key}
+              aria-label={`Remove ${c.item} from ${meal}`}
+              className={`${CHIP_SM_CLS} shrink-0 whitespace-nowrap`}
+              style={chipStyle(true, accent)}
+            >
+              {c.item}
+              <CloseIcon size={10} />
+            </button>
+          ))}
+        </div>
       </div>
     );
   }
