@@ -9,7 +9,8 @@ const PAGE = 1000;
  * is the real boundary, but a table whose policy is ever missing or
  * mis-scoped on the live project would otherwise hand this export another
  * account's rows. Messages (`notes`) are two-party and left out of a
- * one-sided "your data" export for now. */
+ * one-sided "your data" export for now; `NOT_EXPORTED` in the test lists
+ * every other table that's deliberately skipped. */
 const TABLES: { table: string; owner: string }[] = [
   { table: "categories", owner: "user_id" },
   { table: "food_items", owner: "user_id" },
@@ -19,6 +20,14 @@ const TABLES: { table: string; owner: string }[] = [
   { table: "workout_items", owner: "user_id" },
   { table: "food_logs", owner: "user_id" },
   { table: "meals", owner: "user_id" },
+  { table: "food_products", owner: "user_id" },
+  { table: "food_product_ingredients", owner: "user_id" },
+  { table: "food_nutrition_groups", owner: "user_id" },
+  { table: "coffee_items", owner: "user_id" },
+  { table: "coffee_logs", owner: "user_id" },
+  { table: "coffee_options", owner: "user_id" },
+  { table: "coffee_settings", owner: "user_id" },
+  { table: "habit_reminders", owner: "user_id" },
   { table: "supplement_logs", owner: "user_id" },
   { table: "symptom_logs", owner: "user_id" },
   { table: "habit_logs", owner: "user_id" },
@@ -38,6 +47,7 @@ const TABLES: { table: string; owner: string }[] = [
   { table: "reminder_lists", owner: "user_id" },
   { table: "personal_tasks", owner: "user_id" },
   { table: "personal_task_completions", owner: "user_id" },
+  { table: "personal_task_subitems", owner: "user_id" },
   { table: "doctor_specialties", owner: "user_id" },
   { table: "doctors", owner: "user_id" },
   { table: "doctor_appointments", owner: "user_id" },
@@ -66,18 +76,19 @@ const TABLES: { table: string; owner: string }[] = [
  * here (guarded by a test). */
 export const EXPORT_SECTIONS: { label: string; tables: string[] }[] = [
   { label: "Everything", tables: TABLES.map((t) => t.table) },
-  { label: "Food", tables: ["food_items", "food_logs", "food_diary", "meals"] },
+  { label: "Food", tables: ["food_items", "food_logs", "food_diary", "meals", "food_products", "food_product_ingredients", "food_nutrition_groups"] },
   { label: "Symptoms", tables: ["symptom_items", "symptom_logs", "symptom_diary"] },
   { label: "Supplements", tables: ["supplement_items", "supplement_logs", "supplement_diary"] },
   { label: "Habits", tables: ["habit_items", "habit_logs", "habit_diary"] },
   { label: "Workout", tables: ["workout_items", "workout_logs", "workout_diary", "workout_plans"] },
   { label: "Stool", tables: ["stool_logs", "stool_options"] },
   { label: "Cycle", tables: ["period_logs"] },
-  { label: "Categories", tables: ["categories", "color_palette"] },
+  { label: "Coffee", tables: ["coffee_items", "coffee_logs", "coffee_options", "coffee_settings"] },
+  { label: "Categories, colours and reminders", tables: ["categories", "color_palette", "habit_reminders"] },
   { label: "Journal", tables: ["journal_entries"] },
   {
     label: "Personal notes & reminders",
-    tables: ["personal_notes", "reminder_lists", "personal_tasks", "personal_task_completions", "personal_items"],
+    tables: ["personal_notes", "reminder_lists", "personal_tasks", "personal_task_completions", "personal_task_subitems", "personal_items"],
   },
   {
     label: "Medical",

@@ -27,6 +27,23 @@ describe("export table list", () => {
     }
   });
 
+  it("covers every table that holds the person's own data", () => {
+    // Skipped on purpose: two-party messages, partner/push/digest/share
+    // plumbing, and household sub-items (no owner column to scope by).
+    const NOT_EXPORTED = [
+      "notes",
+      "notes_digest_state",
+      "partner_invites",
+      "partner_links",
+      "push_subscriptions",
+      "wishlist_share_tokens",
+      "household_task_subitems",
+    ];
+    const all = [...schema.matchAll(/^create table public\.([a-z_]+) \(/gm)].map((m) => m[1]);
+    const exported = new Set(entries.map((e) => e.table));
+    expect(all.filter((t) => !exported.has(t) && !NOT_EXPORTED.includes(t))).toEqual([]);
+  });
+
   it("only scopes rows by an ownership column", () => {
     for (const { owner } of entries) {
       expect(["user_id", "owner_id", "completed_by"]).toContain(owner);

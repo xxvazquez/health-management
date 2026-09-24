@@ -51,7 +51,8 @@ Settings → "Your data" exports straight from Supabase (`src/lib/exportData.ts`
 
 - **JSON:** the whole account in one file
 - **CSV:** one section or everything. One table → a `.csv`; several → a `.zip`
-- Signed-in only; partner messages are left out
+- Signed-in only; partner messages and sharing/push plumbing are left out
+- `exportData.test.ts` fails if a table in `schema.sql` is neither exported nor on its short skip list, so a new table can't be forgotten
 
 ---
 
