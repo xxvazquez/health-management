@@ -6,7 +6,6 @@ import { ChevronIcon } from "@/components/ui/icons";
 import { workoutUnitLabel, type RawWorkoutLog, type RawItem, type WorkoutUnit } from "@/lib/types";
 import { UNIT_STEP_PRESETS } from "@/components/ui/NumberStepper";
 import { CustomIcon } from "@/components/ui/customIcons";
-import { TimeField } from "@/components/ui/TimeField";
 
 /** Vertical drag distance, in px, worth one `step` of value change — tuned
  * so a natural swipe adjusts a useful range without feeling twitchy or
@@ -258,7 +257,6 @@ export function WorkoutTab({
   isDemoData,
   accent,
   time,
-  onTimeChange,
   onSave,
 }: {
   /** Active exercises grouped by category, A-Z within each — see
@@ -276,7 +274,6 @@ export function WorkoutTab({
   isDemoData: boolean;
   accent: string;
   time: string;
-  onTimeChange: (time: string) => void;
   onSave: (entry: NewWorkoutEntry) => Promise<void>;
 }) {
   return (
@@ -286,9 +283,9 @@ export function WorkoutTab({
           No exercises yet — add one in Settings.
         </p>
       ) : (
-        groups.map((group, gi) => (
+        groups.map((group) => (
           <div key={group.category} className="flex flex-col gap-2">
-            <div className="flex min-h-9 flex-wrap items-center justify-between gap-x-3 gap-y-1">
+            <div className="flex min-h-9 items-center">
               <p className="flex items-center gap-1.5 px-3.5 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
                 {group.chrome.iconKey && (
                   <span style={{ color: group.chrome.color ?? accent }}>
@@ -297,7 +294,6 @@ export function WorkoutTab({
                 )}
                 {group.category}
               </p>
-              {gi === 0 && <TimeField value={time} onChange={onTimeChange} />}
             </div>
             <div className="inset-rows rounded-xl border" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
               {group.items.map((item) => (

@@ -2198,15 +2198,18 @@ export default function LogPage() {
           />
         ) : tab === "workout" ? (
           <div className="flex flex-col gap-3">
-            <Segmented
-              value={workoutMode}
-              onChange={setWorkoutModeChoice}
-              accent={WORKOUT_ACCENT}
-              options={[
-                ["log", "Log"],
-                ["plan", "Plan"],
-              ]}
-            />
+            <div className="flex items-center justify-between gap-3">
+              <Segmented
+                value={workoutMode}
+                onChange={setWorkoutModeChoice}
+                accent={WORKOUT_ACCENT}
+                options={[
+                  ["log", "Log"],
+                  ["plan", "Plan"],
+                ]}
+              />
+              <TimeField value={workoutTime} onChange={setWorkoutTime} />
+            </div>
             {workoutMode === "plan" ? (
               <WorkoutPlanView
                 plans={workoutPlans.plans}
@@ -2217,8 +2220,6 @@ export default function LogPage() {
                 today={today}
                 isDemoData={isDemoData}
                 accent={WORKOUT_ACCENT}
-                time={workoutTime}
-                onTimeChange={setWorkoutTime}
                 onLog={(exercise, value) => handleSaveWorkoutEntry({ exercise, weightKg: String(value), time: workoutTime })}
                 onNavigateToDate={setDate}
               />
@@ -2230,7 +2231,6 @@ export default function LogPage() {
                 isDemoData={isDemoData}
                 accent={WORKOUT_ACCENT}
                 time={workoutTime}
-                onTimeChange={setWorkoutTime}
                 onSave={handleSaveWorkoutEntry}
               />
             )}

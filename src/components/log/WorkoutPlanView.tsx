@@ -3,7 +3,6 @@
 import { useMemo } from "react";
 import Link from "next/link";
 import { ChevronIcon } from "@/components/ui/icons";
-import { TimeField } from "@/components/ui/TimeField";
 import type { RawItem, RawWorkoutLog } from "@/lib/types";
 import {
   WEEKDAY_SHORT,
@@ -44,8 +43,7 @@ export function useLoggedValues(logs: RawWorkoutLog[], itemsById: Map<string, Ra
   }, [logs, itemsById]);
 }
 
-function StatusLine({ set, accent }: { set: PlannedSet; accent: string }) {
-  const target = `Target ${set.targetKg} kg · ${describeSession(set.session)}`;
+function StatusLine({ set }: { set: PlannedSet }) {
   const status =
     set.status === "done"
       ? { text: "✓ Done", color: "var(--status-good)" }
@@ -56,11 +54,13 @@ function StatusLine({ set, accent }: { set: PlannedSet; accent: string }) {
           : null;
   return (
     <p className="text-xs tabular-nums" style={{ color: "var(--text-secondary)" }}>
-      <span style={{ color: accent }}>{target}</span>
+      <span className="whitespace-nowrap">Target {set.targetKg} kg</span>
+      {" · "}
+      <span className="whitespace-nowrap">{describeSession(set.session)}</span>
       {status && (
         <>
           {" · "}
-          <span className="font-medium" style={{ color: status.color }}>
+          <span className="font-medium whitespace-nowrap" style={{ color: status.color }}>
             {status.text}
           </span>
         </>
@@ -69,12 +69,27 @@ function StatusLine({ set, accent }: { set: PlannedSet; accent: string }) {
   );
 }
 
-/** Mon–Sun at a glance for one plan: each training day's dot fills in as
- * its sets get done, turns amber when one was missed or short. Tap a day
- * to open it in the Log. */
-function WeekStrip({ sets, monday, date, accent, onNavigateToDate }: { sets: PlannedSet[]; monday: string; date: string; accent: string; onNavigateToDate: (date: string) => void }) {
+/** Mon–Sun at a glance for one plan, laid out like the iOS Calendar week
+ * row: weekday letter over the date, the selected day in a filled circle,
+ * today in the accent. A training day's dot fills in as its sets get done
+ * and turns amber when one was missed or short. Tap a day to open it. */
+function WeekStrip({
+  sets,
+  monday,
+  date,
+  today,
+  accent,
+  onNavigateToDate,
+}: {
+  sets: PlannedSet[];
+  monday: string;
+  date: string;
+  today: string;
+  accent: string;
+  onNavigateToDate: (date: string) => void;
+}) {
   return (
-    <div className="grid grid-cols-7 gap-1">
+    <div className="grid grid-cols-7">
       {WEEKDAY_SHORT.map((label, i) => {
         const day = addDays(monday, i);
         const daySets = sets.filter((s) => s.date === day);
@@ -89,21 +104,31 @@ function WeekStrip({ sets, monday, date, accent, onNavigateToDate }: { sets: Pla
               : bad
                 ? { background: "var(--status-warning)", border: "var(--status-warning)" }
                 : { background: "transparent", border: accent };
+        const isToday = day === today;
         return (
           <button
             key={day}
             type="button"
             onClick={() => onNavigateToDate(day)}
             aria-pressed={selected}
-            aria-label={`${label}${daySets.length ? `, ${done} of ${daySets.length} done` : ", rest day"}`}
-            className="flex min-h-11 flex-col items-center justify-center gap-1 rounded-lg text-xs"
-            style={{
-              background: selected ? `color-mix(in oklab, ${accent} 14%, var(--surface-1))` : "transparent",
-              color: selected ? "var(--text-primary)" : "var(--text-muted)",
-            }}
+            aria-label={`${label} ${Number(day.slice(8))}${daySets.length ? `, ${done} of ${daySets.length} done` : ", rest day"}`}
+            className="flex flex-col items-center gap-1 py-1"
           >
-            {label}
-            <span className="h-2 w-2 rounded-full border" style={dot ? { background: dot.background, borderColor: dot.border } : { borderColor: "transparent" }} />
+            <span className="text-xs" style={{ color: "var(--text-muted)" }} aria-hidden>
+              {label[0]}
+            </span>
+            <span
+              className="flex h-8 w-8 items-center justify-center rounded-full text-sm tabular-nums"
+              style={
+                selected
+                  ? { background: accent, color: "var(--on-accent)", fontWeight: 600 }
+                  : { color: isToday ? accent : "var(--text-primary)", fontWeight: isToday ? 600 : 400 }
+              }
+              aria-hidden
+            >
+              {Number(day.slice(8))}
+            </span>
+            <span className="h-1.5 w-1.5 rounded-full border" style={dot ? { background: dot.background, borderColor: dot.border } : { borderColor: "transparent" }} />
           </button>
         );
       })}
@@ -123,8 +148,6 @@ export function WorkoutPlanView({
   today,
   isDemoData,
   accent,
-  time,
-  onTimeChange,
   onLog,
   onNavigateToDate,
 }: {
@@ -137,8 +160,6 @@ export function WorkoutPlanView({
   today: string;
   isDemoData: boolean;
   accent: string;
-  time: string;
-  onTimeChange: (time: string) => void;
   onLog: (exercise: string, value: number) => Promise<void>;
   onNavigateToDate: (date: string) => void;
 }) {
@@ -150,10 +171,6 @@ export function WorkoutPlanView({
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex min-h-9 items-center justify-end">
-        <TimeField value={time} onChange={onTimeChange} />
-      </div>
-
       {running.length === 0 && (
         <div className="rounded-xl border px-3.5 py-3 text-sm" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-secondary)" }}>
           {active.length === 0 ? "No active plans yet. Create a weekly plan in Settings → Workout plans." : "No plan runs on this day."}
@@ -182,7 +199,7 @@ export function WorkoutPlanView({
                 {weekDone}/{weekSets.length} this week
               </p>
             </div>
-            <WeekStrip sets={weekSets} monday={monday} date={date} accent={accent} onNavigateToDate={onNavigateToDate} />
+            <WeekStrip sets={weekSets} monday={monday} date={date} today={today} accent={accent} onNavigateToDate={onNavigateToDate} />
             <div className="inset-rows rounded-xl border" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
               {daySets.length === 0 ? (
                 next ? (
@@ -210,7 +227,7 @@ export function WorkoutPlanView({
                       todaysSets={entries.filter((e) => e.exercise === item.rawName).map((e) => e.weightKg)}
                       isDemoData={isDemoData}
                       accent={accent}
-                      detail={<StatusLine set={set} accent={accent} />}
+                      detail={<StatusLine set={set} />}
                       onLog={(value) => onLog(item.rawName, value)}
                     />
                   );
