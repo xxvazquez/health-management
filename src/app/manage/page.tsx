@@ -1249,7 +1249,7 @@ function StoolOptionsCard({ isDemoData, searchQuery }: { isDemoData: boolean; se
   return (
     <CollapsibleManageCard
       title="Stool options"
-      subtitle={loading ? undefined : `${totalActive} chips`}
+      subtitle={loading ? undefined : `${totalActive} options`}
       forceOpen={isSearching}
       bare
     >
@@ -1452,7 +1452,7 @@ function CoffeeCard({ isDemoData, searchQuery }: { isDemoData: boolean; searchQu
   return (
     <CollapsibleManageCard
       title="Coffee"
-      subtitle={loading ? undefined : `${totalActive} chips · ${coffee.items.data.length} coffees`}
+      subtitle={loading ? undefined : `${coffee.items.data.length} ${coffee.items.data.length === 1 ? "coffee" : "coffees"} · ${totalActive} options`}
       forceOpen={isSearching}
       bare
     >
