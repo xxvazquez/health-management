@@ -25,6 +25,7 @@ const TABLE_LABEL: Record<string, string> = {
   blood_pressure: "Blood pressure reading",
   weight_logs: "Weight reading",
   weight_target: "Weight target",
+  color_palette: "Your colours",
   care_entry_files: "Linked Drive file",
 };
 

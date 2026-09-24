@@ -554,7 +554,7 @@ Parent-and-children creates (an appointment + its tasks, a care entry + its
 specialty tags) enqueue the parent first — the outbox drains oldest-first, so
 the FK holds. Wired: `journal_entries`, `personal_items` / `personal_tasks` /
 `personal_task_completions`, `reminder_lists`,
-`blood_pressure` / `weight_logs` / `weight_target`, `doctors` / `doctor_specialties` /
+`blood_pressure` / `weight_logs` / `weight_target`, `color_palette`, `doctors` / `doctor_specialties` /
 `doctor_appointments` / `doctor_appointment_tasks`, `care_entries` /
 `care_entry_specialties` / `care_entry_files`, `lab_panels` / `lab_markers` / `lab_results`,
 `wishlist_*`, `household_*`, `notes`. Messages toggles send only my own
@@ -645,7 +645,11 @@ back to the page's hardcoded look" rule — also lives on `reminder_lists`,
 all set from their own Settings row via the shared `ui/IconColorPicker.tsx`. `icon` is one of Lauva's own
 glyphs in `customIcons.tsx` (searchable by the synonyms in `ICON_SEARCH`) or
 `lucide:<name>` for any of the ~1,600 Lucide icons; `color` is a brand-hue
-key (`series-1` …) or a free `#rrggbb` hex from the custom colour swatch. On
+key (`series-1` …) or a free `#rrggbb` hex. Hexes the person saves go in
+`color_palette` — one row per user (`user_id` primary key, upserted whole)
+with `colors text[]` (lowercase `#rrggbb`, at most 24, oldest first) — and
+show as "Your colours" in every picker; picking a new colour with + adds it
+there and applies it in one step. On
 `categories`, the picker shows on the Settings category chip (materializing
 the row on first edit, like any other category change) **and** tints that
 category's header on the Log page — the Food grid, the Symptoms / Supplements
@@ -677,7 +681,7 @@ phone"). Regenerating is a delete + insert, so there's no UPDATE policy.
 
 | Tables | `using` / `with check` |
 |---|---|
-| All tracked-domain, standalone-log, `personal_*`, `doctor_*`, `care_ent*`, `lab_*`, vitals (`blood_pressure` / `weight_logs` / `weight_target`), and infra tables | `auth.uid() = user_id` (SELECT only for `notes_digest_state` — the cron does every write) |
+| All tracked-domain, standalone-log, `personal_*`, `doctor_*`, `care_ent*`, `lab_*`, vitals (`blood_pressure` / `weight_logs` / `weight_target`), `color_palette`, and infra tables | `auth.uid() = user_id` (SELECT only for `notes_digest_state` — the cron does every write) |
 | `partner_invites` | `auth.uid() = created_by` |
 | `partner_links` | SELECT/DELETE only: `auth.uid() in (user_a_id, user_b_id)` — no INSERT/UPDATE (created via `redeem_partner_invite()`) |
 | `notes` | SELECT/UPDATE: `auth.uid() in (sender_id, recipient_id)`. INSERT: must be yourself, to your actual linked partner, into a thread you're part of. No DELETE. |

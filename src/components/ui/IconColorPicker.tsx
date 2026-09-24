@@ -2,8 +2,10 @@
 
 import { useEffect, useRef, useState, type ComponentType, type ReactNode } from "react";
 import { iconNames } from "lucide-react/dynamic";
-import { CUSTOM_COLOR_CHOICES, CUSTOM_ICON_KEYS, CustomIcon, ICON_SEARCH, LUCIDE_PREFIX, customColorValue, isCustomHex } from "./customIcons";
+import { CUSTOM_COLOR_CHOICES, CUSTOM_ICON_KEYS, CustomIcon, ICON_SEARCH, LUCIDE_PREFIX, isCustomHex } from "./customIcons";
 import { SearchField } from "./SearchField";
+import { PlusIcon } from "./icons";
+import { usePalette } from "@/lib/usePalette";
 
 type LucideComponent = ComponentType<{ size?: number; strokeWidth?: number; "aria-hidden"?: boolean }>;
 
@@ -122,65 +124,94 @@ export function IconColorPicker({
         </div>
       </fieldset>
 
-      <fieldset className="flex flex-col gap-1.5">
-        <legend className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
-          Colour
-        </legend>
-        <div className="flex flex-wrap gap-2">
-          {CUSTOM_COLOR_CHOICES.map((choice) => {
-            const selected = color === choice.key;
-            return (
-              <button
-                key={choice.key}
-                type="button"
-                aria-pressed={selected}
-                aria-label={choice.key}
-                onClick={() => onColorChange(selected ? null : choice.key)}
-                className="tap-target flex h-7 w-7 items-center justify-center rounded-full"
-                style={{ boxShadow: selected ? `0 0 0 2px var(--surface-1), 0 0 0 4px ${choice.value}` : "none" }}
-              >
-                <span className="h-5 w-5 rounded-full" style={{ background: choice.value }} />
-              </button>
-            );
-          })}
-          <CustomColorSwatch color={color} onChange={onColorChange} />
-        </div>
-      </fieldset>
+      <ColourField color={color} onChange={onColorChange} />
     </>
   );
 }
 
-/** Any colour at all, through the system colour picker. The value is only
- * saved once the picker is closed (`change`), not on every drag step. */
-function CustomColorSwatch({ color, onChange }: { color: string | null; onChange: (color: string | null) => void }) {
+function Swatch({ value, selected, label, onClick }: { value: string; selected: boolean; label: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      aria-pressed={selected}
+      aria-label={label}
+      title={label}
+      onClick={onClick}
+      className="tap-target flex h-7 w-7 items-center justify-center rounded-full"
+      style={{ boxShadow: selected ? `0 0 0 2px var(--surface-1), 0 0 0 4px ${value}` : "none" }}
+    >
+      <span className="h-5 w-5 rounded-full" style={{ background: value }} />
+    </button>
+  );
+}
+
+/** Brand hues, then "Your colours" (saved to the account, shared by every
+ * picker), then + to pick any colour — which is added to your colours and
+ * applied in one go. A custom colour that isn't saved yet (set before the
+ * palette existed) shows too, with an option to save it. */
+function ColourField({ color, onChange }: { color: string | null; onChange: (color: string | null) => void }) {
+  const palette = usePalette();
+  const custom = isCustomHex(color) ? color.toLowerCase() : null;
+  const unsaved = custom && !palette.colors.includes(custom) ? custom : null;
+  const action = "text-xs font-medium";
+  return (
+    <fieldset className="flex flex-col gap-1.5">
+      <legend className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
+        Colour
+      </legend>
+      <div className="flex flex-wrap items-center gap-2">
+        {CUSTOM_COLOR_CHOICES.map((choice) => (
+          <Swatch key={choice.key} value={choice.value} label={choice.key} selected={color === choice.key} onClick={() => onChange(color === choice.key ? null : choice.key)} />
+        ))}
+        {(palette.colors.length > 0 || unsaved) && <span className="mx-0.5 h-5 w-px" style={{ background: "var(--border-hairline)" }} aria-hidden="true" />}
+        {palette.colors.map((hex) => (
+          <Swatch key={hex} value={hex} label={hex} selected={custom === hex} onClick={() => onChange(custom === hex ? null : hex)} />
+        ))}
+        {unsaved && <Swatch value={unsaved} label={unsaved} selected onClick={() => onChange(null)} />}
+        <AddColourSwatch
+          onPick={(hex) => {
+            palette.add(hex);
+            onChange(hex.toLowerCase());
+          }}
+        />
+      </div>
+      {unsaved ? (
+        <button type="button" onClick={() => palette.add(unsaved)} className={`${action} self-start`} style={{ color: "var(--series-1)" }}>
+          Add to your colours
+        </button>
+      ) : custom ? (
+        <button type="button" onClick={() => palette.remove(custom)} className={`${action} self-start`} style={{ color: "var(--text-secondary)" }}>
+          Remove from your colours
+        </button>
+      ) : null}
+    </fieldset>
+  );
+}
+
+/** The + swatch: opens the system colour picker. The colour is only taken
+ * once the picker closes (`change`), not on every drag step. */
+function AddColourSwatch({ onPick }: { onPick: (hex: string) => void }) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const selected = isCustomHex(color);
-  const onChangeRef = useRef(onChange);
+  const onPickRef = useRef(onPick);
   useEffect(() => {
-    onChangeRef.current = onChange;
-  }, [onChange]);
+    onPickRef.current = onPick;
+  }, [onPick]);
   useEffect(() => {
     const input = inputRef.current;
     if (!input) return;
-    const commit = () => onChangeRef.current(input.value);
+    const commit = () => onPickRef.current(input.value);
     input.addEventListener("change", commit);
     return () => input.removeEventListener("change", commit);
   }, []);
-  const fill = selected ? customColorValue(color)! : "conic-gradient(from 0deg, #e5484d, #f5a524, #e8d44d, #46a758, #0d9488, #3e63dd, #8e4ec6, #e5484d)";
   return (
-    <label
-      className="tap-target relative flex h-7 w-7 cursor-pointer items-center justify-center rounded-full"
-      style={{ boxShadow: selected ? `0 0 0 2px var(--surface-1), 0 0 0 4px ${color}` : "none" }}
-      title="Custom colour"
-    >
-      <span className="h-5 w-5 rounded-full" style={{ background: fill }} />
-      <input
-        ref={inputRef}
-        type="color"
-        aria-label="Custom colour"
-        defaultValue={selected ? color! : "#3e63dd"}
-        className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-      />
+    <label className="tap-target relative flex h-7 w-7 cursor-pointer items-center justify-center rounded-full" title="Add a colour">
+      <span
+        className="flex h-5 w-5 items-center justify-center rounded-full"
+        style={{ background: "conic-gradient(from 0deg, #e5484d, #f5a524, #e8d44d, #46a758, #0d9488, #3e63dd, #8e4ec6, #e5484d)", color: "#fff" }}
+      >
+        <PlusIcon size={11} />
+      </span>
+      <input ref={inputRef} type="color" aria-label="Add a colour" defaultValue="#3e63dd" className="absolute inset-0 h-full w-full cursor-pointer opacity-0" />
     </label>
   );
 }

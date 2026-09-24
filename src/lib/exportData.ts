@@ -51,6 +51,7 @@ const TABLES: { table: string; owner: string }[] = [
   { table: "blood_pressure", owner: "user_id" },
   { table: "weight_logs", owner: "user_id" },
   { table: "weight_target", owner: "user_id" },
+  { table: "color_palette", owner: "user_id" },
   { table: "wishlist_categories", owner: "owner_id" },
   { table: "wishlist_items", owner: "owner_id" },
   { table: "household_notes", owner: "owner_id" },
@@ -72,7 +73,7 @@ export const EXPORT_SECTIONS: { label: string; tables: string[] }[] = [
   { label: "Workout", tables: ["workout_items", "workout_logs", "workout_diary", "workout_plans"] },
   { label: "Stool", tables: ["stool_logs", "stool_options"] },
   { label: "Cycle", tables: ["period_logs"] },
-  { label: "Categories", tables: ["categories"] },
+  { label: "Categories", tables: ["categories", "color_palette"] },
   { label: "Journal", tables: ["journal_entries"] },
   {
     label: "Personal notes & reminders",

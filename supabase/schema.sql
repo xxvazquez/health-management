@@ -422,6 +422,16 @@ create table public.coffee_settings (
   updated_at timestamptz not null default now()
 );
 
+-- One row per user — "Your colours", the custom colours saved from any
+-- icon/colour picker to reuse elsewhere (lowercase `#rrggbb`, oldest
+-- first). Same single-row-per-user shape as weight_target.
+create table public.color_palette (
+  user_id uuid primary key default auth.uid() references auth.users(id),
+  colors text[] not null default '{}'
+    check (cardinality(colors) <= 24 and array_to_string(colors, ',') ~ '^(#[0-9a-f]{6}(,#[0-9a-f]{6})*)?$'),
+  updated_at timestamptz not null default now()
+);
+
 create table public.workout_logs (
   id uuid not null default gen_random_uuid(),
   user_id uuid not null default auth.uid(),
@@ -1295,6 +1305,7 @@ alter table public.coffee_items enable row level security;
 alter table public.coffee_options enable row level security;
 alter table public.coffee_logs enable row level security;
 alter table public.coffee_settings enable row level security;
+alter table public.color_palette enable row level security;
 alter table public.workout_logs enable row level security;
 alter table public.workout_plans enable row level security;
 alter table public.period_logs enable row level security;
@@ -1359,6 +1370,7 @@ create policy "coffee_items_all_own" on public.coffee_items for all using (auth.
 create policy "coffee_options_all_own" on public.coffee_options for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "coffee_logs_all_own" on public.coffee_logs for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "coffee_settings_all_own" on public.coffee_settings for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "color_palette_all_own" on public.color_palette for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "workout_logs_all_own" on public.workout_logs for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "workout_plans_all_own" on public.workout_plans for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "period_logs_all_own" on public.period_logs for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
