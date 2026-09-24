@@ -38,6 +38,7 @@ One sans-serif family: SF Pro on Apple devices, Inter elsewhere (`--font-app`).
 
 - Weights: 400, 500, 600 only. Never 700
 - Inputs are 16px on phones so iOS doesn't zoom in
+- Long text wraps, never overflows: `body` sets `text-wrap: pretty` + `overflow-wrap: break-word`, headings `balance`. Truncate only where a second line would break a fixed-height row
 
 ---
 
@@ -91,7 +92,8 @@ One sans-serif family: SF Pro on Apple devices, Inter elsewhere (`--font-app`).
 
 ### Lists
 
-- **`.inset-rows`:** iOS grouped-list separators. Rows are at least 44px tall
+- **`.inset-rows`:** iOS grouped-list separators. Rows are at least 44px tall, with vertical padding so a wrapped two-line label still breathes
+- **Multi-column lists** (Log items on desktop) size their columns with `fitColumnWidth` (`src/lib/fitColumnWidth.ts`): wide enough for the longest label, clamped 10–22rem, so long names don't wrap into slivers
 - **`ListSection`:** the section header above a card
 - **Metadata** (kind, specialty, "shared") is plain text, not a badge
 

@@ -300,6 +300,12 @@ html {
   -webkit-tap-highlight-color: transparent;
 }
 
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+}
+
 /* The type scale tops out at semibold — emphasis tags never render bold. */
 strong,
 b {
@@ -314,6 +320,11 @@ body {
   /* SF Pro carries Text and Display optical variants — let the browser pick
      by size instead of always rendering the Text cut. */
   font-optical-sizing: auto;
+  /* Long labels wrap without orphaning a last word on its own line, and a
+     single unbreakable word (a URL, a long product name) breaks rather than
+     pushing its container wider. Both inherit into every component. */
+  text-wrap: pretty;
+  overflow-wrap: break-word;
   /* Stops the rubber-band bounce/drag past the top, bottom, and sides —
      without it the whole page can be dragged around like a browser tab
      instead of holding still like an installed app. Kept on `body` only:
