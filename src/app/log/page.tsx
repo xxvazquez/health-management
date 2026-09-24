@@ -54,10 +54,9 @@ import { lookupFoodCategory } from "@/taxonomy/classify";
 import { POLAND_FOOD_CATALOG } from "@/taxonomy/polandFoodCatalog";
 import { BAND_OPTIONS, DURATION_DEFAULT_MINUTES, INPUT_KIND, activeBandValue, bandLabelForValue } from "@/taxonomy/inputKinds";
 import { DurationStepper } from "@/components/ui/DurationStepper";
-import { NumberStepper, UNIT_STEP_PRESETS } from "@/components/ui/NumberStepper";
 import { StoolTab, type NewStoolEntry, characteristicLabels } from "@/components/log/StoolTab";
 import { useStoolOptions } from "@/lib/useStoolOptions";
-import { WorkoutTab, type NewWorkoutEntry } from "@/components/log/WorkoutTab";
+import { WorkoutTab, WorkoutValueStepper, type NewWorkoutEntry } from "@/components/log/WorkoutTab";
 import { WorkoutPlanView } from "@/components/log/WorkoutPlanView";
 import { useWorkoutPlans } from "@/lib/useWorkoutPlans";
 import { planCoversDate } from "@/lib/workoutPlans";
@@ -89,6 +88,7 @@ import { MobileMenuButton } from "@/components/MobileMenuButton";
 import { useOverflowFade } from "@/lib/useOverflowFade";
 import {
   workoutUnitLabel,
+  workoutValueLabel,
   defaultWorkoutUnitForCategory,
   type RawLog,
   type RawItem,
@@ -397,44 +397,54 @@ function MealGroupCard({
  * default same as every other field on this card; tapping Edit swaps in
  * the same tap stepper the Workout tab itself uses, so correcting a set
  * here never means retyping it. */
+/** The sheet's editable workout value — the same stepper as the Workout
+ * rows. Steps show at once; the write waits until the value settles so a
+ * drag doesn't send one update per step. */
 function TimelineWorkoutValue({
   value,
   unit,
+  name,
   accent,
-  busy,
   hidden,
   onChange,
 }: {
   value: number;
   unit: WorkoutUnit;
+  name: string;
   accent: string;
-  busy: boolean;
   hidden: boolean;
   onChange: (value: number) => void;
 }) {
-  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const onChangeRef = useRef(onChange);
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  });
+  useEffect(() => () => {
+    if (timer.current) clearTimeout(timer.current);
+  }, []);
 
-  if (editing) {
-    return <NumberStepper compact value={value} onChange={onChange} unit={workoutUnitLabel(unit)} accent={accent} {...UNIT_STEP_PRESETS[unit]} />;
+  if (hidden) {
+    return (
+      <span className="text-sm tabular-nums" style={{ color: "var(--text-secondary)" }}>
+        {value} {workoutUnitLabel(unit)}
+      </span>
+    );
   }
 
   return (
-    <span className="flex items-center gap-1.5 text-xs">
-      <span className="tabular-nums" style={{ color: "var(--text-secondary)" }}>
-        {value} {workoutUnitLabel(unit)}
-      </span>
-      {!hidden && (
-        <button
-          type="button"
-          onClick={() => setEditing(true)}
-          disabled={busy}
-          className="whitespace-nowrap font-medium disabled:opacity-40"
-          style={{ color: "var(--ui-accent)" }}
-        >
-          Edit
-        </button>
-      )}
-    </span>
+    <WorkoutValueStepper
+      value={draft}
+      unit={unit}
+      accent={accent}
+      name={name}
+      onChange={(next) => {
+        setDraft(next);
+        if (timer.current) clearTimeout(timer.current);
+        timer.current = setTimeout(() => onChangeRef.current(next), 600);
+      }}
+    />
   );
 }
 
@@ -2602,7 +2612,7 @@ export default function LogPage() {
                   {entry.itemType === "workout" && entry.category && (
                     <div className="flex min-h-11 items-center justify-between gap-3 px-3.5">
                       <span className="text-sm" style={{ color: "var(--text-primary)" }}>
-                        Exercise
+                        Category
                       </span>
                       <span className="text-sm" style={{ color: "var(--text-secondary)" }}>
                         {entry.category}
@@ -2643,13 +2653,13 @@ export default function LogPage() {
                   {entry.itemType === "workout" && entry.value != null && (
                     <div className="flex min-h-11 items-center justify-between gap-3 px-3.5">
                       <span className="text-sm" style={{ color: "var(--text-primary)" }}>
-                        Weight
+                        {workoutValueLabel(entry.unit ?? "kg")}
                       </span>
                       <TimelineWorkoutValue
                         value={entry.value}
                         unit={entry.unit ?? "kg"}
+                        name={entry.item}
                         accent={accent}
-                        busy={busy}
                         hidden={isDemoData}
                         onChange={(v) => void handleChangeEntryValue(entry, v)}
                       />

@@ -43,6 +43,15 @@ export function workoutUnitLabel(unit: string): string {
   return KNOWN_WORKOUT_UNIT_LABEL[unit] ?? unit;
 }
 
+/** What a logged value measures, for a form label: kg is a weight, time
+ * units a duration, reps a rep count, anything custom a plain amount. */
+export function workoutValueLabel(unit: string): string {
+  if (unit === "kg") return "Weight";
+  if (["minutes", "min", "hours", "h"].includes(unit)) return "Duration";
+  if (unit === "reps") return "Reps";
+  return "Amount";
+}
+
 /** Sensible default unit for a brand-new exercise, guessed from the
  * category it's filed under at creation time — Strength Training is
  * naturally weighted, Cardio is naturally timed, anything else (Flexibility

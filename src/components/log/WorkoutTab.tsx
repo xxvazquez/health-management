@@ -159,6 +159,58 @@ function ScrollTypeValue({
   );
 }
 
+/** Step sizes for a workout unit. A custom unit typed in Settings has no
+ * tuned preset, so it gets the whole-number minutes/reps one. */
+export function workoutStepPreset(unit: WorkoutUnit) {
+  return UNIT_STEP_PRESETS[unit] ?? UNIT_STEP_PRESETS.minutes;
+}
+
+/** `− value +` on one raised capsule: the buttons move by the coarse step,
+ * dragging or typing the number sets it finely. */
+export function WorkoutValueStepper({
+  value,
+  onChange,
+  unit,
+  accent,
+  name,
+}: {
+  value: number;
+  onChange: (next: number) => void;
+  unit: WorkoutUnit;
+  accent: string;
+  /** Exercise name, for the buttons' labels. */
+  name: string;
+}) {
+  const preset = workoutStepPreset(unit);
+  const unitLabel = workoutUnitLabel(unit);
+  const nudge = (delta: number) => onChange(Math.round(Math.min(preset.max, Math.max(0, value + delta)) * 100) / 100);
+  return (
+    <div className="control-surface inline-flex h-8 shrink-0 items-center rounded-[10px]">
+      <button
+        type="button"
+        onClick={() => nudge(-preset.bigStep)}
+        disabled={value <= 0}
+        aria-label={`Decrease ${name} by ${preset.bigStep} ${unitLabel}`}
+        className="tap-target flex h-full w-7 items-center justify-center transition-opacity active:opacity-50 disabled:opacity-30"
+        style={{ color: accent }}
+      >
+        <MinusIcon size={12} />
+      </button>
+      <ScrollTypeValue value={value} onChange={onChange} unit={unitLabel} accent={accent} step={preset.step} max={preset.max} />
+      <button
+        type="button"
+        onClick={() => nudge(preset.bigStep)}
+        disabled={value >= preset.max}
+        aria-label={`Increase ${name} by ${preset.bigStep} ${unitLabel}`}
+        className="tap-target flex h-full w-7 items-center justify-center transition-opacity active:opacity-50 disabled:opacity-30"
+        style={{ color: accent }}
+      >
+        <PlusIcon size={12} />
+      </button>
+    </div>
+  );
+}
+
 export interface NewWorkoutEntry {
   exercise: string;
   weightKg: string;
@@ -203,10 +255,6 @@ export function ExerciseRow({
   detail?: ReactNode;
 }) {
   const unit: WorkoutUnit = item.unit ?? "kg";
-  // A custom unit typed in Settings has no tuned preset/default —
-  // fall back to the minutes/reps-style whole-number preset rather than
-  // leaving `value` undefined (which broke the +/- buttons into NaN).
-  const preset = UNIT_STEP_PRESETS[unit] ?? UNIT_STEP_PRESETS.minutes;
   const initialValue = Number.isFinite(lastValue) ? (lastValue as number) : (DEFAULT_VALUE_BY_UNIT[unit] ?? DEFAULT_FOR_UNKNOWN_UNIT);
   const [value, setValue] = useState(initialValue);
   const [saving, setSaving] = useState(false);
@@ -219,7 +267,6 @@ export function ExerciseRow({
   }
 
   const unitLabel = workoutUnitLabel(unit);
-  const nudge = (delta: number) => setValue((v) => Math.round(Math.min(preset.max, Math.max(0, v + delta)) * 100) / 100);
 
   return (
     <div className="flex min-h-11 items-center gap-3 px-3.5 py-2">
@@ -235,29 +282,7 @@ export function ExerciseRow({
           </p>
         )}
       </div>
-      <div className="control-surface inline-flex h-8 shrink-0 items-center rounded-[10px]">
-        <button
-          type="button"
-          onClick={() => nudge(-preset.bigStep)}
-          disabled={value <= 0}
-          aria-label={`Decrease ${item.rawName} by ${preset.bigStep} ${unitLabel}`}
-          className="tap-target flex h-full w-7 items-center justify-center transition-opacity active:opacity-50 disabled:opacity-30"
-          style={{ color: accent }}
-        >
-          <MinusIcon size={12} />
-        </button>
-        <ScrollTypeValue value={value} onChange={setValue} unit={unitLabel} accent={accent} step={preset.step} max={preset.max} />
-        <button
-          type="button"
-          onClick={() => nudge(preset.bigStep)}
-          disabled={value >= preset.max}
-          aria-label={`Increase ${item.rawName} by ${preset.bigStep} ${unitLabel}`}
-          className="tap-target flex h-full w-7 items-center justify-center transition-opacity active:opacity-50 disabled:opacity-30"
-          style={{ color: accent }}
-        >
-          <PlusIcon size={12} />
-        </button>
-      </div>
+      <WorkoutValueStepper value={value} onChange={setValue} unit={unit} accent={accent} name={item.rawName} />
       <Button
         variant="tinted"
         size="xs"
