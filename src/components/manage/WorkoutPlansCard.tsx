@@ -248,14 +248,16 @@ function PlanEditor({
 
       <FormGroup title="Lifts · this week's weight" footer="Each lift's base for week 1. Filled in from your heaviest set of the last 7 days. The weekly gain is added to it every week.">
         {d.lifts.map((lift) => (
-          <div key={lift.itemId} className="flex min-h-11 items-center gap-3 px-3.5">
-            <span className="flex-1 text-sm" style={{ color: "var(--text-primary)" }}>
+          <div key={lift.itemId} className="flex min-h-11 flex-wrap items-center gap-x-3 gap-y-1.5 px-3.5 py-1.5">
+            <span className="min-w-24 flex-1 text-sm" style={{ color: "var(--text-primary)" }}>
               {nameOf(lift.itemId)}
             </span>
-            <NumberStepper value={lift.base} onChange={(base) => update({ lifts: d.lifts.map((l) => (l.itemId === lift.itemId ? { ...l, base } : l)) })} unit="kg" {...KG} />
-            <button type="button" onClick={() => removeLift(lift.itemId)} aria-label={`Remove ${nameOf(lift.itemId)}`} className="hit-slop" style={{ color: "var(--text-muted)" }}>
-              <CloseIcon size={14} />
-            </button>
+            <span className="ml-auto flex items-center gap-2">
+              <NumberStepper value={lift.base} onChange={(base) => update({ lifts: d.lifts.map((l) => (l.itemId === lift.itemId ? { ...l, base } : l)) })} unit="kg" {...KG} />
+              <button type="button" onClick={() => removeLift(lift.itemId)} aria-label={`Remove ${nameOf(lift.itemId)}`} className="hit-slop" style={{ color: "var(--text-muted)" }}>
+                <CloseIcon size={14} />
+              </button>
+            </span>
           </div>
         ))}
         {liftable.length > 0 ? (
@@ -321,15 +323,15 @@ function PlanEditor({
                         </option>
                       ))}
                     </select>
+                    <Segmented
+                      value={s.mode}
+                      onChange={(mode) => patchSession(s.key, { mode, amount: mode === "percent" ? 80 : 0 })}
+                      options={[
+                        ["kg", "+kg"],
+                        ["percent", "%"],
+                      ]}
+                    />
                     <span className="ml-auto flex items-center gap-2">
-                      <Segmented
-                        value={s.mode}
-                        onChange={(mode) => patchSession(s.key, { mode, amount: mode === "percent" ? 80 : 0 })}
-                        options={[
-                          ["kg", "+kg"],
-                          ["percent", "%"],
-                        ]}
-                      />
                       {s.mode === "percent" ? (
                         <NumberStepper value={s.amount} onChange={(amount) => patchSession(s.key, { amount })} unit="%" step={1} bigStep={5} min={5} max={150} format={(v) => `${v}%`} />
                       ) : (

@@ -2,24 +2,18 @@
 
 /** Coarse + fine tap adjustment, no typed decimals — same "select instead
  * of type" idea as DurationStepper, generalized to any unit (kg, minutes,
- * reps) since a workout entry's meaning now depends on the exercise's own
- * configured unit rather than always being a weight. Default fine step is
- * a quarter-unit (not a whole one) so a real plate-loaded total — 61.25,
- * 62.5, 63.75 — is always reachable by tapping, matching how barbell
- * plates actually come in fractional-kg increments; the coarse step covers
- * the big jump to get there quickly. A single fine step from 0 could take
- * a long time to reach a real value, so this pairs a small step with a
- * bigger jump on each side rather than decomposing into two independent
- * units the way hours+minutes does — the value is one number, not two.
- * `compact` drops the big-step buttons for tight spaces (the day
- * timeline's fixed-width card). Fixed at h-7 and tinted with `accent` (not
- * the generic mint page-plane) so it reads as one unit with the Log
- * button beside it, not two visually unrelated controls stacked together. */
+ * reps). Default fine step is a quarter-unit so a real plate-loaded total
+ * — 61.25, 62.5, 63.75 — is always reachable by tapping; the coarse step
+ * covers the big jump to get there quickly. `compact` drops the big-step
+ * buttons for tight spaces. One raised `.control-surface` capsule (10px
+ * corners) with the step buttons tinted in `accent`, the way the app's
+ * other steppers tint their arrows; each button is as wide as its label,
+ * so "−0.25" never runs into the value. */
 export function NumberStepper({
   value,
   onChange,
   unit,
-  accent = "var(--text-secondary)",
+  accent = "var(--ui-accent)",
   step = 0.25,
   bigStep = 2.5,
   min = 0,
@@ -30,8 +24,7 @@ export function NumberStepper({
   value: number;
   onChange: (next: number) => void;
   unit: string;
-  /** Ties this control's tint to whatever it's paired with (e.g. the
-   * Workout tab's per-row accent) instead of the generic neutral fill. */
+  /** Tint for the step buttons. */
   accent?: string;
   step?: number;
   bigStep?: number;
@@ -42,59 +35,35 @@ export function NumberStepper({
   format?: (value: number) => string;
 }) {
   const clamp = (n: number) => Math.min(max, Math.max(min, n));
+  // Round off float drift from repeated step math (0.1 + 0.2).
+  const set = (n: number) => onChange(Math.round(clamp(n) * 100) / 100);
+
+  const stepButton = (delta: number) => {
+    const disabled = delta < 0 ? value <= min : value >= max;
+    const label = `${delta < 0 ? "−" : "+"}${Math.abs(delta)}`;
+    return (
+      <button
+        type="button"
+        onClick={() => set(value + delta)}
+        disabled={disabled}
+        aria-label={`${delta < 0 ? "Decrease" : "Increase"} by ${Math.abs(delta)}${unit}`}
+        className="flex h-full shrink-0 items-center px-1.5 text-xs font-medium tabular-nums transition-opacity active:opacity-50 disabled:opacity-30"
+        style={{ color: accent }}
+      >
+        {label}
+      </button>
+    );
+  };
 
   return (
-    <div
-      className="flex h-7 items-center gap-0.5 rounded-md"
-      style={{ background: `color-mix(in oklab, ${accent} 12%, var(--surface-1))` }}
-    >
-      {!compact && (
-        <button
-          type="button"
-          onClick={() => onChange(clamp(value - bigStep))}
-          disabled={value <= min}
-          aria-label={`Decrease by ${bigStep}${unit}`}
-          className="flex h-full w-8 items-center justify-center text-xs font-medium disabled:opacity-30"
-          style={{ color: "var(--text-secondary)" }}
-        >
-          −{bigStep}
-        </button>
-      )}
-      <button
-        type="button"
-        onClick={() => onChange(clamp(value - step))}
-        disabled={value <= min}
-        aria-label={`Decrease by ${step}${unit}`}
-        className="flex h-full w-7 items-center justify-center text-xs font-medium disabled:opacity-30"
-        style={{ color: "var(--text-secondary)" }}
-      >
-        −{step}
-      </button>
-      <span className="min-w-14 text-center text-xs font-semibold tabular-nums" style={{ color: "var(--text-primary)" }}>
+    <div className="control-surface inline-flex h-8 shrink-0 items-center rounded-[10px]">
+      {!compact && stepButton(-bigStep)}
+      {stepButton(-step)}
+      <span className="min-w-12 shrink-0 px-1.5 text-center text-sm font-medium whitespace-nowrap tabular-nums" style={{ color: "var(--text-primary)" }}>
         {format ? format(value) : `${value} ${unit}`}
       </span>
-      <button
-        type="button"
-        onClick={() => onChange(clamp(value + step))}
-        disabled={value >= max}
-        aria-label={`Increase by ${step}${unit}`}
-        className="flex h-full w-7 items-center justify-center text-xs font-medium disabled:opacity-30"
-        style={{ color: "var(--text-secondary)" }}
-      >
-        +{step}
-      </button>
-      {!compact && (
-        <button
-          type="button"
-          onClick={() => onChange(clamp(value + bigStep))}
-          disabled={value >= max}
-          aria-label={`Increase by ${bigStep}${unit}`}
-          className="flex h-full w-8 items-center justify-center text-xs font-medium disabled:opacity-30"
-          style={{ color: "var(--text-secondary)" }}
-        >
-          +{bigStep}
-        </button>
-      )}
+      {stepButton(step)}
+      {!compact && stepButton(bigStep)}
     </div>
   );
 }
