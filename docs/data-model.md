@@ -159,10 +159,9 @@ erDiagram
         text     name
         date     start_date "a Monday, week 1"
         smallint weeks "null = ongoing"
-        numeric  weekly_gain_kg
         boolean  hold_on_miss
         boolean  is_active
-        jsonb    lifts "[{itemId, baseKg}]"
+        jsonb    lifts "[{itemId, baseKg, weeklyGainKg}]"
         jsonb    sessions "[{weekday, itemId, mode kg/percent, amount}]"
     }
     PERIOD_LOGS {
@@ -182,8 +181,8 @@ past entries. `characteristics` replaced the old `is_smelly` / `is_sticky`
 / `is_straining` booleans on 2026-09-09.
 
 **Workout plans store only the template.** A plan is one week of lifts per
-weekday, each `+N kg` or `N %` of that lift's weekly base; the base rises by
-`weekly_gain_kg` each week, and with `hold_on_miss` it stays put for a lift
+weekday, each `+N kg` or `N %` of that lift's weekly base; each lift's base
+rises by its own `weeklyGainKg` (in `lifts`) each week, and with `hold_on_miss` it stays put for a lift
 after a finished week with a missed or short set of it. Every week's
 targets are derived in `src/lib/workoutPlans.ts` from the plan plus
 `workout_logs`. A set counts as done when that exercise has a log on that

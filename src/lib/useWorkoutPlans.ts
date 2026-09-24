@@ -27,12 +27,11 @@ function buildDemoPlans(): WorkoutPlan[] {
       name: "Squat & bench",
       startDate: start,
       weeks: 8,
-      weeklyGainKg: 2.5,
       holdOnMiss: true,
       isActive: true,
       lifts: [
-        { itemId: squat, baseKg: 90 },
-        { itemId: bench, baseKg: 55 },
+        { itemId: squat, baseKg: 90, weeklyGainKg: 2.5 },
+        { itemId: bench, baseKg: 55, weeklyGainKg: 1.25 },
       ],
       sessions: [
         { weekday: 1, itemId: squat, mode: "percent", amount: 80 },

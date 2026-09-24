@@ -1,7 +1,8 @@
 /**
  * Weekly workout plans — a one-week template (which lifts on which
  * weekdays, each as "+N kg" or "N %" of the lift's weekly base) that
- * repeats, with the base rising by `weeklyGainKg` each week. Supabase's
+ * repeats, with each lift's base rising by its own `weeklyGainKg` each
+ * week. Supabase's
  * `workout_plans` table; see `src/lib/supabase/workoutPlans.ts`.
  *
  * Nothing per-week is stored: every target is derived here from the plan
@@ -13,10 +14,12 @@
 
 export type PlanAdjustMode = "kg" | "percent";
 
-/** One exercise in a plan and its week-1 base (a `workout_items` id). */
+/** One exercise in a plan (a `workout_items` id), its week-1 base and how
+ * much that base goes up each week. */
 export interface WorkoutPlanLift {
   itemId: string;
   baseKg: number;
+  weeklyGainKg: number;
 }
 
 /** One lift on one weekday. `weekday` is ISO: 1 = Monday … 7 = Sunday.
@@ -36,9 +39,8 @@ export interface WorkoutPlan {
   startDate: string;
   /** Plan length in weeks; null keeps it running until paused or deleted. */
   weeks: number | null;
-  weeklyGainKg: number;
   /** A week with a missed or short set keeps that lift's base instead of
-   * adding `weeklyGainKg`. */
+   * adding its `weeklyGainKg`. */
   holdOnMiss: boolean;
   isActive: boolean;
   lifts: WorkoutPlanLift[];
@@ -136,7 +138,7 @@ function statusFor(plan: WorkoutPlan, date: string, today: string, targetKg: num
 
 /**
  * Each lift's base for weeks 0…`throughWeek`. Week 0 is the lift's
- * `baseKg`; each later week adds `weeklyGainKg` — unless `holdOnMiss` is on
+ * `baseKg`; each later week adds the lift's `weeklyGainKg` — unless `holdOnMiss` is on
  * and the previous week is already over with a set of that lift missed or
  * short, in which case the base stays. Weeks not yet finished are
  * projected as if every set gets done.
@@ -159,7 +161,7 @@ export function liftBasesByWeek(plan: WorkoutPlan, throughWeek: number, today: s
           return status === "missed" || status === "short";
         });
       }
-      bases.push(hold ? prevBase : Math.round((prevBase + plan.weeklyGainKg) * 100) / 100);
+      bases.push(hold ? prevBase : Math.round((prevBase + lift.weeklyGainKg) * 100) / 100);
     }
     result.set(lift.itemId, bases);
   }

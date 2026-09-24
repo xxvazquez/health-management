@@ -46,10 +46,9 @@ interface Draft {
   name: string;
   startDate: string;
   weeks: number;
-  gain: number;
   hold: boolean;
   active: boolean;
-  lifts: { itemId: string; base: number }[];
+  lifts: { itemId: string; base: number; gain: number }[];
   sessions: DraftSession[];
   createdDate: string;
 }
@@ -73,10 +72,9 @@ function draftFromPlan(plan: WorkoutPlan): Draft {
     name: plan.name,
     startDate: plan.startDate,
     weeks: plan.weeks ?? 0,
-    gain: plan.weeklyGainKg,
     hold: plan.holdOnMiss,
     active: plan.isActive,
-    lifts: plan.lifts.map((l) => ({ itemId: l.itemId, base: l.baseKg })),
+    lifts: plan.lifts.map((l) => ({ itemId: l.itemId, base: l.baseKg, gain: l.weeklyGainKg })),
     sessions: plan.sessions.map((s, i) => ({ key: `s${i}`, weekday: s.weekday, itemId: s.itemId, mode: s.mode, amount: s.amount })),
     createdDate: plan.createdDate,
   };
@@ -89,7 +87,6 @@ function newDraft(today: string): Draft {
     name: "",
     startDate: addDays(mondayOf(today), 7),
     weeks: 0,
-    gain: 2.5,
     hold: true,
     active: true,
     lifts: [],
@@ -102,7 +99,7 @@ function newDraft(today: string): Draft {
 function planFromDraft(d: Draft): { plan: WorkoutPlan } | { error: string } {
   if (!d.name.trim()) return { error: "Give the plan a name." };
   if (d.lifts.length === 0) return { error: "Add at least one lift." };
-  const lifts = d.lifts.map((l) => ({ itemId: l.itemId, baseKg: l.base }));
+  const lifts = d.lifts.map((l) => ({ itemId: l.itemId, baseKg: l.base, weeklyGainKg: l.gain }));
   if (lifts.some((l) => !(l.baseKg > 0))) return { error: "Every lift needs this week's weight." };
   const sessions = d.sessions.filter((s) => d.lifts.some((l) => l.itemId === s.itemId)).map((s) => ({ weekday: s.weekday, itemId: s.itemId, mode: s.mode, amount: s.amount }));
   if (sessions.length === 0) return { error: "Put at least one lift on a day." };
@@ -112,7 +109,6 @@ function planFromDraft(d: Draft): { plan: WorkoutPlan } | { error: string } {
       name: d.name.trim(),
       startDate: d.startDate,
       weeks: d.weeks > 0 ? d.weeks : null,
-      weeklyGainKg: d.gain,
       holdOnMiss: d.hold,
       isActive: d.active,
       lifts,
@@ -200,7 +196,11 @@ function PlanEditor({
       logs.filter((l) => l.exercise === name).map((l) => ({ date: l.date, value: l.weightKg })),
       today,
     );
-    update({ lifts: [...d.lifts, { itemId, base: suggestion ?? 20 }] });
+    update({ lifts: [...d.lifts, { itemId, base: suggestion ?? 20, gain: 2.5 }] });
+  }
+
+  function patchLift(itemId: string, patch: Partial<Draft["lifts"][number]>) {
+    update({ lifts: d.lifts.map((l) => (l.itemId === itemId ? { ...l, ...patch } : l)) });
   }
 
   function removeLift(itemId: string) {
@@ -220,7 +220,7 @@ function PlanEditor({
 
   return (
     <div className="flex flex-col gap-4">
-      <FormGroup title="Plan" footer="Ongoing runs until you pause or delete it. Weekly gain is added to every lift's base once a week.">
+      <FormGroup title="Plan" footer="Ongoing runs until you pause or delete it.">
         <Field label="Name" inline>
           <input value={d.name} onChange={(e) => update({ name: e.target.value })} placeholder="e.g. Squat 3x" maxLength={80} className={ROW_INLINE_CLS} style={ROW_STYLE} />
         </Field>
@@ -236,28 +236,33 @@ function PlanEditor({
           </span>
           <NumberStepper value={d.weeks} onChange={(weeks) => update({ weeks })} unit="weeks" step={1} bigStep={4} max={104} format={(v) => (v === 0 ? "Ongoing" : `${v} wk`)} />
         </div>
-        <div className="flex min-h-11 items-center justify-between gap-3 px-3.5">
-          <span className="text-sm" style={{ color: "var(--text-primary)" }}>
-            Weekly gain
-          </span>
-          <NumberStepper value={d.gain} onChange={(gain) => update({ gain })} unit="kg" step={KG.step} bigStep={KG.bigStep} max={20} format={signedKg} />
-        </div>
         <SwitchRow label="Hold weight after a missed week" on={d.hold} onChange={(hold) => update({ hold })} />
         {!d.isNew && <SwitchRow label="Active" on={d.active} onChange={(active) => update({ active })} />}
       </FormGroup>
 
-      <FormGroup title="Lifts · this week's weight" footer="Each lift's base for week 1. Filled in from your heaviest set of the last 7 days. The weekly gain is added to it every week.">
+      <FormGroup title="Lifts" footer="Start is the lift's base for week 1, filled in from your heaviest set of the last 7 days. Per week is added to that base once a week.">
         {d.lifts.map((lift) => (
-          <div key={lift.itemId} className="flex min-h-11 flex-wrap items-center gap-x-3 gap-y-1.5 px-3.5 py-1.5">
-            <span className="min-w-24 flex-1 text-sm" style={{ color: "var(--text-primary)" }}>
-              {nameOf(lift.itemId)}
-            </span>
-            <span className="ml-auto flex items-center gap-2">
-              <NumberStepper value={lift.base} onChange={(base) => update({ lifts: d.lifts.map((l) => (l.itemId === lift.itemId ? { ...l, base } : l)) })} unit="kg" {...KG} />
+          <div key={lift.itemId} className="flex flex-col px-3.5 py-1.5">
+            <div className="flex min-h-9 items-center justify-between gap-3">
+              <span className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
+                {nameOf(lift.itemId)}
+              </span>
               <button type="button" onClick={() => removeLift(lift.itemId)} aria-label={`Remove ${nameOf(lift.itemId)}`} className="hit-slop" style={{ color: "var(--text-muted)" }}>
                 <CloseIcon size={14} />
               </button>
-            </span>
+            </div>
+            <div className="flex min-h-10 items-center justify-between gap-3">
+              <span className="text-sm whitespace-nowrap" style={{ color: "var(--text-secondary)" }}>
+                Start
+              </span>
+              <NumberStepper value={lift.base} onChange={(base) => patchLift(lift.itemId, { base })} unit="kg" {...KG} />
+            </div>
+            <div className="flex min-h-10 items-center justify-between gap-3">
+              <span className="text-sm whitespace-nowrap" style={{ color: "var(--text-secondary)" }}>
+                Per week
+              </span>
+              <NumberStepper value={lift.gain} onChange={(gain) => patchLift(lift.itemId, { gain })} unit="kg" step={KG.step} bigStep={KG.bigStep} max={20} format={signedKg} />
+            </div>
           </div>
         ))}
         {liftable.length > 0 ? (
@@ -479,7 +484,7 @@ export function WorkoutPlansCard({ isDemoData, searchQuery, workoutItems }: { is
             </p>
           )}
           <GroupNote>
-            A weekly template: which lifts on which days, each as +kg or % of that week&rsquo;s base. The base goes up by the weekly gain each week, and stays put for a lift if you
+            A weekly template: which lifts on which days, each as +kg or % of that week&rsquo;s base. Each lift&rsquo;s base goes up by its own weekly gain, and stays put for a lift if you
             missed or fell short on it. Follow it from Log → Workout → Plan.
           </GroupNote>
         </>

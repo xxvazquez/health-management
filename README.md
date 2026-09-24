@@ -75,7 +75,7 @@ A grouped list (Tracking, Health, Lists, App) where each row opens its own scree
 - Add, rename, archive or delete items and categories, including a category icon and colour
 - Edit products, reminder lists, wishlist lists, lab markers and panels, doctors and doctor types
 - Edit the Stool and Coffee option chips, and the coffee currency
-- Build weekly workout plans: lifts, their starting weight, a weekly gain, and which days get +kg or % of that week's base
+- Build weekly workout plans: lifts, each with a starting weight and its own weekly gain, and which days get +kg or % of that week's base
 - Show or hide tracked sections, each with an optional daily "remind me to log" time
 - Export your data as JSON (whole account) or CSV (one section or everything)
 

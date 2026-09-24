@@ -21,7 +21,7 @@ function num(value: unknown, fallback: number): number {
  * (a hand edit, an older shape) drops that entry rather than the plan. */
 function parseLifts(value: unknown): WorkoutPlanLift[] {
   if (!Array.isArray(value)) return [];
-  return value.flatMap((l) => (l && typeof l.itemId === "string" ? [{ itemId: l.itemId, baseKg: num(l.baseKg, 0) }] : []));
+  return value.flatMap((l) => (l && typeof l.itemId === "string" ? [{ itemId: l.itemId, baseKg: num(l.baseKg, 0), weeklyGainKg: num(l.weeklyGainKg, 0) }] : []));
 }
 
 function parseSessions(value: unknown): WorkoutPlanSession[] {
@@ -41,7 +41,6 @@ export function planFromRow(r: Record<string, unknown>): WorkoutPlan {
     name: (r.name as string) ?? "",
     startDate: r.start_date as string,
     weeks: r.weeks === null || r.weeks === undefined ? null : num(r.weeks, 0) || null,
-    weeklyGainKg: num(r.weekly_gain_kg, 0),
     holdOnMiss: r.hold_on_miss !== false,
     isActive: r.is_active !== false,
     lifts: parseLifts(r.lifts),
@@ -56,7 +55,7 @@ export async function fetchWorkoutPlans(): Promise<WorkoutPlan[]> {
   if (!myUserId) return [];
   const { data, error } = await supabase
     .from(WORKOUT_PLANS_TABLE)
-    .select("id, name, start_date, weeks, weekly_gain_kg, hold_on_miss, is_active, lifts, sessions, created_date")
+    .select("id, name, start_date, weeks, hold_on_miss, is_active, lifts, sessions, created_date")
     .eq("user_id", myUserId)
     .order("start_date", { ascending: true });
   if (error) throw error;
@@ -74,7 +73,6 @@ export async function saveWorkoutPlan(plan: WorkoutPlan): Promise<void> {
     name: plan.name.trim(),
     start_date: plan.startDate,
     weeks: plan.weeks,
-    weekly_gain_kg: plan.weeklyGainKg,
     hold_on_miss: plan.holdOnMiss,
     is_active: plan.isActive,
     lifts: plan.lifts,

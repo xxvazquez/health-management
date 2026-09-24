@@ -21,10 +21,9 @@ function plan(overrides: Partial<WorkoutPlan> = {}): WorkoutPlan {
     name: "Squat 3x",
     startDate: "2026-09-07",
     weeks: null,
-    weeklyGainKg: 2.5,
     holdOnMiss: true,
     isActive: true,
-    lifts: [{ itemId: "squat", baseKg: 80 }],
+    lifts: [{ itemId: "squat", baseKg: 80, weeklyGainKg: 2.5 }],
     sessions: [
       { weekday: 1, itemId: "squat", mode: "kg", amount: 5 },
       { weekday: 3, itemId: "squat", mode: "kg", amount: 10 },
@@ -111,8 +110,8 @@ describe("liftBasesByWeek", () => {
   it("tracks each lift on its own", () => {
     const p = plan({
       lifts: [
-        { itemId: "squat", baseKg: 80 },
-        { itemId: "bench", baseKg: 60 },
+        { itemId: "squat", baseKg: 80, weeklyGainKg: 2.5 },
+        { itemId: "bench", baseKg: 60, weeklyGainKg: 2.5 },
       ],
       sessions: [
         { weekday: 1, itemId: "squat", mode: "percent", amount: 80 },
@@ -122,6 +121,19 @@ describe("liftBasesByWeek", () => {
     const bases = liftBasesByWeek(p, 1, "2026-09-15", logsFrom({ "squat:2026-09-07": 65 }));
     expect(bases.get("squat")).toEqual([80, 82.5]);
     expect(bases.get("bench")).toEqual([60, 60]);
+  });
+
+  it("uses each lift's own weekly gain", () => {
+    const p = plan({
+      holdOnMiss: false,
+      lifts: [
+        { itemId: "squat", baseKg: 80, weeklyGainKg: 2.5 },
+        { itemId: "bench", baseKg: 60, weeklyGainKg: 1.25 },
+      ],
+    });
+    const bases = liftBasesByWeek(p, 2, "2026-09-07", logsFrom({}));
+    expect(bases.get("squat")).toEqual([80, 82.5, 85]);
+    expect(bases.get("bench")).toEqual([60, 61.25, 62.5]);
   });
 });
 

@@ -435,11 +435,11 @@ create table public.workout_logs (
 
 -- A weekly workout plan: a one-week template of lifts per weekday, each
 -- "+N kg" or "N %" of the lift's weekly base, repeating from start_date
--- with the base rising by weekly_gain_kg each week (held for a lift after
+-- with each lift's base rising by its own weeklyGainKg (held for a lift after
 -- a week with a missed/short set when hold_on_miss is on). Per-week
 -- targets are derived at the app layer from this row plus workout_logs,
 -- never stored — see src/lib/workoutPlans.ts. `lifts` is
--- [{itemId, baseKg}] and `sessions` is [{weekday 1-7, itemId,
+-- [{itemId, baseKg, weeklyGainKg}] and `sessions` is [{weekday 1-7, itemId,
 -- mode 'kg'|'percent', amount}]; itemId is a workout_items id, kept in
 -- jsonb (so not FK-checked) since the whole template is edited and saved
 -- as one unit — the app skips an id it can't resolve.
@@ -451,7 +451,6 @@ create table public.workout_plans (
   start_date date not null check (extract(isodow from start_date) = 1),
   -- Null runs until paused or deleted.
   weeks smallint check (weeks is null or weeks > 0),
-  weekly_gain_kg numeric not null default 0,
   hold_on_miss boolean not null default true,
   is_active boolean not null default true,
   lifts jsonb not null default '[]'::jsonb check (jsonb_typeof(lifts) = 'array'),
