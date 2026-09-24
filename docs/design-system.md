@@ -12,7 +12,7 @@ Lauva aims to look like a native **iOS 26** app while still working as a normal 
 - `--brand-*` is the true Lauva palette (logo, large fills)
 - The other tokens are deepened versions tuned for readable text and charts
 - `--ui-accent` is the default interactive tint; each Log domain has its own `--series-*` colour
-- `--text-muted` is held at about 4.5:1 contrast. Don't lighten it
+- `--text-muted` clears 4.5:1 on the page, cards and raised controls in every palette. Re-measure after changing any ground colour; never lighten it
 
 ### Themes
 

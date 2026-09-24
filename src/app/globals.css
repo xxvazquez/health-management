@@ -24,7 +24,7 @@
   --page-plane: #eaeef2;
   --text-primary: #1f2933;
   --text-secondary: #5b6b76;
-  --text-muted: #69777f;
+  --text-muted: #647179;
   --border-hairline: rgba(31, 41, 51, 0.1);
   /* The one default interactive tint — buttons, tinted text, active-state
      icons, anything that doesn't have its own domain hue (Food, Workout,
@@ -143,23 +143,23 @@
   --page-plane: #212932;
   --text-primary: #eef2f4;
   --text-secondary: #aab4bb;
-  --text-muted: #86929a;
+  --text-muted: #89959c;
   --border-hairline: rgba(238, 242, 244, 0.1);
   --ui-accent: #4fb3ab;
   --on-accent: #0e1418;
   --gridline: color-mix(in oklab, var(--text-muted) 20%, var(--surface-1));
   --baseline: color-mix(in oklab, var(--text-muted) 45%, var(--surface-1));
-    --segment-track: color-mix(in oklab, black 22%, transparent);
+  --segment-track: color-mix(in oklab, black 22%, transparent);
   --control-bg: color-mix(in oklab, white 5%, var(--surface-1));
   --control-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
   --control-highlight: rgba(255, 255, 255, 0.06);
   --menu-shadow: 0 12px 32px -8px rgba(0, 0, 0, 0.7), 0 2px 6px rgba(0, 0, 0, 0.35);
 
-  --series-1: #638f80; /* dusty sage */
+  --series-1: #649182; /* dusty sage */
   --series-2: #5f92bb; /* muted steel blue */
   --series-3: #9589c6; /* greyed lavender */
   --series-4: #c47c92; /* dusty rose */
-  --series-6: #55917b; /* grey teal-green */
+  --series-6: #57947d; /* grey teal-green */
   --series-8: #a87e97; /* greyed plum */
   --series-other: #8b9799;
   --series-indigo: #7a83bd; /* muted indigo */
@@ -199,7 +199,7 @@
   --page-plane: #eef5f3;
   --text-primary: #202b30;
   --text-secondary: #55646b;
-  --text-muted: #6b7981;
+  --text-muted: #66737b;
   --border-hairline: rgba(32, 43, 48, 0.1);
   --ui-accent: #3f7d68;
 }
@@ -212,7 +212,7 @@
   --page-plane: #efebf7;
   --text-primary: #2a2733;
   --text-secondary: #64606f;
-  --text-muted: #837e8d;
+  --text-muted: #726d7c;
   --border-hairline: rgba(42, 39, 51, 0.1);
   --ui-accent: #8171b8;
 }
@@ -238,7 +238,7 @@
   --page-plane: #29241f;
   --text-primary: #f1ece4;
   --text-secondary: #bdb2a2;
-  --text-muted: #8f8576;
+  --text-muted: #999082;
   --border-hairline: rgba(241, 236, 228, 0.1);
   --ui-accent: #d3a15a;
 }
@@ -251,7 +251,7 @@
   --page-plane: #252833;
   --text-primary: #edeef3;
   --text-secondary: #a7abbb;
-  --text-muted: #7d8194;
+  --text-muted: #8e92a2;
   --border-hairline: rgba(237, 238, 243, 0.1);
   --ui-accent: #7c93e0;
 }
