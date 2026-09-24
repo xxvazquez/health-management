@@ -449,7 +449,7 @@ interface Snapshot {
 }
 
 export default function LogPage() {
-  const { refresh, isDemoData, status } = useData();
+  const { refresh, isDemoData, status, events } = useData();
   const { isVisible } = useVisibleDomains();
   const { openPanel } = useAuth();
   // Observation-type care-log entries (Health → Visits) — surfaced on
@@ -578,13 +578,13 @@ export default function LogPage() {
   }, []);
 
   useEffect(() => {
-    // Re-reads local IndexedDB whenever the shared data status changes —
-    // covers both the initial mount and the global sign-in pull-from-cloud
-    // (DataContext) landing, without this page issuing its own Supabase
-    // fetch.
+    // Re-reads local IndexedDB after every DataContext refresh (a new
+    // `events` array each time), not just status changes — a background
+    // pull that refills the cache leaves status at "ready", and this page
+    // would otherwise keep showing what it read before the pull landed.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadSnapshot();
-  }, [status, loadSnapshot]);
+  }, [status, events, loadSnapshot]);
 
   // One-time bootstrap for a signed-in user with no workout items yet (see
   // ensureDefaultWorkoutItems's own doc comment) — guarded by a ref so it
