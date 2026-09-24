@@ -72,7 +72,7 @@ Used by Food, Supplements, Habits, Symptoms and Workout.
 | Domain | Tables | Notes |
 |---|---|---|
 | Stool | `stool_logs`, `stool_options` | Option chips are user-editable; logged values are plain text, so hiding a chip never rewrites history |
-| Workout | `workout_items`, `workout_logs` | App code uses exercise names; `item_id` is resolved only at the sync boundary |
+| Workout | `workout_items`, `workout_logs`, `workout_plans` | App code uses exercise names; `item_id` is resolved only at the sync boundary. Plans are direct-to-Supabase (`useWorkoutPlans`); weekly targets are derived, never stored |
 | Cycle | `period_logs` | One row per period day. Length, cycle day and predictions come from `aggregations/cycle.ts` |
 | Coffee | `coffee_items`, `coffee_logs`, `coffee_options`, `coffee_settings` | Catalog + one row per cup; editable chips like Stool; currency is a per-user setting |
 

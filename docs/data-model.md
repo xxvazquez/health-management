@@ -154,6 +154,18 @@ erDiagram
         date    date
         numeric weight_kg "unit per workout_items.unit"
     }
+    WORKOUT_PLANS {
+        uuid     id PK
+        text     name
+        date     start_date "a Monday, week 1"
+        smallint weeks "null = ongoing"
+        numeric  weekly_gain_kg
+        numeric  round_to_kg
+        boolean  hold_on_miss
+        boolean  is_active
+        jsonb    lifts "[{itemId, baseKg}]"
+        jsonb    sessions "[{weekday, itemId, mode kg/percent, amount}]"
+    }
     PERIOD_LOGS {
         uuid id PK
         date date "unique per user, row present = period day"
@@ -169,6 +181,15 @@ the whole default set as rows (like `doctor_specialties`). A logged value
 is plain text on `stool_logs`, so hiding or renaming a chip never touches
 past entries. `characteristics` replaced the old `is_smelly` / `is_sticky`
 / `is_straining` booleans on 2026-09-09.
+
+**Workout plans store only the template.** A plan is one week of lifts per
+weekday, each `+N kg` or `N %` of that lift's weekly base; the base rises by
+`weekly_gain_kg` each week, and with `hold_on_miss` it stays put for a lift
+after a finished week with a missed or short set of it. Every week's
+targets are derived in `src/lib/workoutPlans.ts` from the plan plus
+`workout_logs`. A set counts as done when that exercise has a log on that
+date at or above the target, so plan sets are plain `workout_logs` rows.
+Exercise ids sit in jsonb (no FK); the app skips one it can't resolve.
 
 **Nothing about the cycle is stored** beyond the flagged period days.
 Cycle length, current cycle day, period length, next-period predictions,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { ChevronIcon } from "@/components/ui/icons";
 import { workoutUnitLabel, type RawWorkoutLog, type RawItem, type WorkoutUnit } from "@/lib/types";
@@ -186,13 +186,14 @@ const DEFAULT_FOR_UNKNOWN_UNIT = 10;
  * logging a second lift right after doesn't mean re-picking it from a
  * list. A logged set's own edit/delete/note lives in the shared day
  * timeline below (same as every other tab), not duplicated here. */
-function ExerciseRow({
+export function ExerciseRow({
   item,
   lastValue,
   todaysSets,
   isDemoData,
   accent,
   onLog,
+  detail,
 }: {
   item: RawItem;
   lastValue: number | undefined;
@@ -202,6 +203,8 @@ function ExerciseRow({
   isDemoData: boolean;
   accent: string;
   onLog: (value: number) => Promise<void>;
+  /** Extra line under the name — the Plan view's target and status. */
+  detail?: ReactNode;
 }) {
   const unit: WorkoutUnit = item.unit ?? "kg";
   // A custom unit typed in Settings has no tuned preset/default —
@@ -225,6 +228,7 @@ function ExerciseRow({
         <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
           {item.rawName}
         </p>
+        {detail}
         {todaysSets.length > 0 && (
           <p className="text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>
             Logged today: {todaysSets.join(", ")} {workoutUnitLabel(unit)}
