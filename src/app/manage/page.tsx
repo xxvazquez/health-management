@@ -7,7 +7,7 @@ import { useVisibleDomains, DOMAIN_LABELS, type TrackedDomain } from "@/lib/visi
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageSkeleton } from "@/components/ui/Skeleton";
 import { SearchField } from "@/components/ui/SearchField";
-import { ChevronIcon, CloseIcon } from "@/components/ui/icons";
+import { ChevronIcon, CloseIcon, PlusIcon } from "@/components/ui/icons";
 import { ManageRow } from "@/components/ui/ManageRow";
 import { PageHeading } from "@/components/ui/PageHeading";
 import { IconColorPicker } from "@/components/ui/IconColorPicker";
@@ -2149,19 +2149,30 @@ function displayCategoryNames(itemType: ItemType, rows: RawCategory[]): string[]
 const FIELD_VALUE = "min-w-0 flex-1 bg-transparent py-2 text-right text-sm outline-none disabled:opacity-40 [text-align-last:right]";
 const FIELD_VALUE_STYLE = { color: "var(--text-secondary)" } as const;
 
+/** Adds an item by name. Standalone it's a name field with Add; given
+ * `search`, it's the section's one search field instead, offering "Add
+ * "…"" whenever the text isn't an existing item — the Log page's
+ * search-to-add, so a page never stacks two look-alike fields. */
 function AddItemForm({
   itemType,
   placeholder,
   categories,
   onAdd,
+  search,
+  defaultCategory,
 }: {
   itemType: ItemType;
   placeholder: string;
   categories: readonly string[];
   onAdd: (name: string, category: string) => Promise<boolean>;
+  search?: { value: string; onChange: (value: string) => void; placeholder: string; exists: (name: string) => boolean };
+  /** Preselected category — the one most of this section's items use. */
+  defaultCategory?: string;
 }) {
-  const [name, setName] = useState("");
-  const [category, setCategory] = useState("");
+  const [ownName, setOwnName] = useState("");
+  const name = search ? search.value : ownName;
+  const setName = search ? search.onChange : setOwnName;
+  const [category, setCategory] = useState(defaultCategory ?? "");
   const [busy, setBusy] = useState(false);
   const trimmed = name.trim();
   // Food can often guess its own category from the name; every other type
@@ -2179,9 +2190,42 @@ function AddItemForm({
     const added = await onAdd(trimmed, category);
     if (added) {
       setName("");
-      setCategory("");
+      setCategory(defaultCategory ?? "");
     }
     setBusy(false);
+  }
+
+  const categoryRow = needsCategory && (
+    <label className="flex min-h-11 items-center gap-3 px-3.5">
+      <span className="shrink-0 text-sm" style={{ color: "var(--text-primary)" }}>
+        Category
+      </span>
+      <select value={category} onChange={(e) => setCategory(e.target.value)} className={FIELD_VALUE} style={FIELD_VALUE_STYLE}>
+        {categories.map((c) => (
+          <option key={c} value={c}>
+            {c}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+
+  if (search) {
+    const canAdd = trimmed.length > 0 && !search.exists(trimmed);
+    return (
+      <form onSubmit={(e) => (canAdd ? void handleSubmit(e) : e.preventDefault())} className="flex flex-col gap-2">
+        <SearchField value={name} onChange={setName} placeholder={search.placeholder} className="w-full" />
+        {canAdd && (
+          <div className="inset-rows flex flex-col rounded-xl" style={{ background: "var(--surface-1)" }}>
+            <button type="submit" disabled={busy} className="flex min-h-11 items-center gap-2 px-3.5 text-left text-sm disabled:opacity-40" style={{ color: "var(--ui-accent)" }}>
+              <PlusIcon size={14} />
+              <span className="min-w-0 truncate">{busy ? "Adding…" : `Add “${trimmed}”`}</span>
+            </button>
+            {categoryRow}
+          </div>
+        )}
+      </form>
+    );
   }
 
   return (
@@ -2204,20 +2248,7 @@ function AddItemForm({
           {busy ? "Adding…" : "Add"}
         </button>
       </div>
-      {needsCategory && (
-        <label className="flex min-h-11 items-center gap-3 px-3.5">
-          <span className="shrink-0 text-sm" style={{ color: "var(--text-primary)" }}>
-            Category
-          </span>
-          <select value={category} onChange={(e) => setCategory(e.target.value)} className={FIELD_VALUE} style={FIELD_VALUE_STYLE}>
-            {categories.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
-        </label>
-      )}
+      {categoryRow}
     </form>
   );
 }
@@ -2847,6 +2878,10 @@ function ItemSection({
 
   const editing = editingIdentity ? items.find((i) => i.itemIdentity === editingIdentity) : undefined;
 
+  const categoryCounts = new Map<string, number>();
+  for (const i of items) if (!i.isArchived && categories.includes(i.category)) categoryCounts.set(i.category, (categoryCounts.get(i.category) ?? 0) + 1);
+  const mostUsedCategory = [...categoryCounts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0]?.[0];
+
   const listBox = "inset-rows rounded-xl";
   const listBoxStyle = { background: "var(--surface-1)" } as const;
 
@@ -2858,14 +2893,32 @@ function ItemSection({
         </h3>
       )}
       <div className="flex flex-col gap-4">
-        {mode === "detail" && <SearchField value={localQuery} onChange={setLocalQuery} placeholder={`Search ${label.toLowerCase()}…`} className="w-full" />}
-
-        <AddItemForm itemType={itemType} placeholder={placeholder} categories={categories} onAdd={onAdd} />
+        {mode === "detail" ? (
+          <AddItemForm
+            defaultCategory={mostUsedCategory}
+            itemType={itemType}
+            placeholder={placeholder}
+            categories={categories}
+            onAdd={onAdd}
+            search={{
+              value: localQuery,
+              onChange: setLocalQuery,
+              placeholder: `Search or add ${label.toLowerCase()}…`,
+              exists: (name) => items.some((i) => normalizeName(i.item) === normalizeName(name)),
+            }}
+          />
+        ) : (
+          <AddItemForm itemType={itemType} placeholder={placeholder} categories={categories} onAdd={onAdd} defaultCategory={mostUsedCategory} />
+        )}
 
         {active.length === 0 ? (
-          <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-            {isFiltering ? "No match." : "Nothing tracked yet."}
-          </p>
+          // While searching on the section's own page, the Add row already
+          // answers "no match".
+          mode === "detail" && isFiltering ? null : (
+            <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+              {isFiltering ? "No match." : "Nothing tracked yet."}
+            </p>
+          )
         ) : grouped ? (
           <div className={listBox} style={listBoxStyle}>
             {sortedGroups.map(([category, rows]) => {
