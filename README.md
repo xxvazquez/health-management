@@ -59,7 +59,7 @@ Tabs: **Food · Symptoms · Supplements · Habits · Stool · Workout · Cycle �
 - **Workout:** a Log / Plan switch, with Charts (Trends → Workout) and Manage beside it. Log lists every exercise by category with a `− value +` stepper (drag or tap the number for fine steps) and a Log button. Plan shows the day's targets from your active workout plans, with an iOS-style week row (done, missed or short per day). Logging a plan set writes an ordinary workout log.
 - **Coffee:** grouped by brand. Tapping a coffee opens a per-cup form (café, price, brewing, water temp, tasting notes).
 - **Deep link:** `/log/?tab=workout` opens Log on that tab; any tab name works, e.g. `symptoms`, `supplements`, `summary`. Settings → Workout and Workout plans link back this way.
-- **Summary:** the day's meals with their notes, then everything logged, grouped by hour. Tap an entry to edit it or delete it.
+- **Summary:** the day's meals with their notes, then a timeline of everything logged. Each meal's foods are one row ("Dinner · 9 foods") that opens the list of foods; tap any entry to edit or delete it.
 
 ### Health
 

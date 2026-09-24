@@ -571,6 +571,9 @@ export default function LogPage() {
   // time, new meal tag, ...) is reflected immediately instead of showing
   // the stale value the sheet was opened with.
   const [detailKey, setDetailKey] = useState<string | null>(null);
+  // Summary's timeline shows each meal's foods as one row; this is the meal
+  // whose food list sheet is open (a food's own sheet opens on top of it).
+  const [mealSheetTag, setMealSheetTag] = useState<string | null>(null);
   const foodProductsRef = useOverflowFade<HTMLDivElement>();
   const loggedMealRef = useOverflowFade<HTMLDivElement>();
 
@@ -945,6 +948,41 @@ export default function LogPage() {
   // The Summary tab's timeline opens an entry's editable detail in a sheet
   // rather than expanding its row — see `detailKey`'s own comment.
   const detailEntry = combinedTimeline.find((e) => e.key === detailKey) ?? null;
+
+  // The timeline with each meal's foods folded into one row at the time of
+  // that meal's latest entry — the meal cards above already list the foods,
+  // so repeating each one here only made the day longer to scan.
+  const timelineRows = useMemo(() => {
+    type Row = { kind: "entry"; entry: TimelineEntry } | { kind: "meal"; mealTag: string; entries: TimelineEntry[] };
+    const rows: Row[] = [];
+    const mealRows = new Map<string, TimelineEntry[]>();
+    for (const entry of combinedTimeline) {
+      if (entry.itemType !== "food" || !entry.mealTag) {
+        rows.push({ kind: "entry", entry });
+        continue;
+      }
+      const existing = mealRows.get(entry.mealTag);
+      if (existing) existing.push(entry);
+      else {
+        const entries = [entry];
+        mealRows.set(entry.mealTag, entries);
+        rows.push({ kind: "meal", mealTag: entry.mealTag, entries });
+      }
+    }
+    return rows;
+  }, [combinedTimeline]);
+  const mealSheetEntries = mealSheetTag ? (timelineRows.find((r) => r.kind === "meal" && r.mealTag === mealSheetTag) as { entries: TimelineEntry[] } | undefined)?.entries ?? null : null;
+  // Logged all at once, a meal's foods share one time — shown once then.
+  const mealSheetSharedTime = mealSheetEntries?.every((e) => e.time === mealSheetEntries[0].time) ? mealSheetEntries[0].time : null;
+  // Close the meal sheet once its last food is gone, or on another day.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (mealSheetTag && !mealSheetEntries && !detailKey) setMealSheetTag(null);
+  }, [mealSheetTag, mealSheetEntries, detailKey]);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setMealSheetTag(null);
+  }, [date]);
 
   // Unfiltered canonical events (no archived-item or date-range filtering,
   // unlike the dashboards' DataContext) so "weeks since last eaten" stays
@@ -2532,7 +2570,31 @@ export default function LogPage() {
             Timeline — {formatDateLabel(date, today).toLowerCase()}
           </h2>
           <div className="inset-rows rounded-xl border" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
-            {combinedTimeline.map((entry) => {
+            {timelineRows.map((row) => {
+              if (row.kind === "meal") {
+                const latest = row.entries[0];
+                return (
+                  <button
+                    key={`meal:${row.mealTag}`}
+                    type="button"
+                    onClick={() => setMealSheetTag(row.mealTag)}
+                    className="flex min-h-11 w-full items-center gap-2.5 px-3.5 text-left"
+                  >
+                    <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: TYPE_ACCENT.food }} aria-hidden="true" />
+                    <span className="w-11 shrink-0 font-mono text-xs" style={{ color: "var(--text-muted)" }}>
+                      {latest.time}
+                    </span>
+                    <span className="min-w-0 flex-1 truncate text-sm" style={{ color: "var(--text-primary)" }}>
+                      {row.mealTag}
+                    </span>
+                    <span className="shrink-0 text-right text-xs" style={{ color: "var(--text-secondary)" }}>
+                      {row.entries.length} {row.entries.length === 1 ? "food" : "foods"}
+                    </span>
+                    <ChevronIcon dir="right" size={13} />
+                  </button>
+                );
+              }
+              const entry = row.entry;
               const accent = entry.itemType === "stool" ? STOOL_ACCENT : TYPE_ACCENT[entry.itemType];
               const valueSuffix =
                 entry.value == null
@@ -2576,6 +2638,41 @@ export default function LogPage() {
         </div>
       )}
         </div>
+      )}
+      {mealSheetTag && mealSheetEntries && !detailEntry && (
+        <Sheet
+          title={mealSheetTag}
+          titleId="timeline-meal-title"
+          onClose={() => setMealSheetTag(null)}
+          subtitle={
+            <span className="text-xs font-medium" style={{ color: TYPE_ACCENT.food }}>
+              {mealSheetEntries.length} {mealSheetEntries.length === 1 ? "food" : "foods"}
+              {mealSheetSharedTime && ` · ${mealSheetSharedTime}`}
+            </span>
+          }
+        >
+          <div className="inset-rows rounded-xl border" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
+            {[...mealSheetEntries].reverse().map((entry) => (
+              <button
+                key={entry.key}
+                type="button"
+                onClick={() => setDetailKey(entry.key)}
+                className="flex min-h-11 w-full items-center gap-2.5 px-3.5 text-left"
+                style={{ opacity: pending === entry.key ? 0.5 : 1 }}
+              >
+                {!mealSheetSharedTime && (
+                  <span className="w-11 shrink-0 font-mono text-xs" style={{ color: "var(--text-muted)" }}>
+                    {entry.time}
+                  </span>
+                )}
+                <span className="min-w-0 flex-1 truncate text-sm" style={{ color: "var(--text-primary)" }}>
+                  {entry.productId ? `${entry.item} (${productNameById.get(entry.productId) ?? "product"})` : entry.item}
+                </span>
+                <ChevronIcon dir="right" size={13} />
+              </button>
+            ))}
+          </div>
+        </Sheet>
       )}
       {detailEntry &&
         (() => {
