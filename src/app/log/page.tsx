@@ -448,6 +448,8 @@ interface Snapshot {
   periodLogs: RawPeriodLog[];
 }
 
+const TAB_ALIASES: Record<string, string> = { symptoms: "outcome", supplements: "supplement", habits: "habit" };
+
 export default function LogPage() {
   const { refresh, isDemoData, status, events } = useData();
   const { isVisible } = useVisibleDomains();
@@ -531,7 +533,9 @@ export default function LogPage() {
   // `/log/?tab=workout` (the links back from Settings) opens on that tab;
   // the hidden-tab fallback below still applies.
   useEffect(() => {
-    const requested = new URLSearchParams(window.location.search).get("tab");
+    const param = new URLSearchParams(window.location.search).get("tab");
+    // The visible tab names work too (symptoms → outcome, supplements → supplement).
+    const requested = param ? (TAB_ALIASES[param] ?? param) : null;
     const tabs: string[] = [...TABS.map((t) => t.type), "stool", "workout", "cycle", "coffee", "summary"];
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (requested && tabs.includes(requested)) setTab(requested as LogTab);
