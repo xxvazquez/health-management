@@ -57,6 +57,10 @@ import { NumberStepper, UNIT_STEP_PRESETS } from "@/components/ui/NumberStepper"
 import { StoolTab, type NewStoolEntry, characteristicLabels } from "@/components/log/StoolTab";
 import { useStoolOptions } from "@/lib/useStoolOptions";
 import { WorkoutTab, type NewWorkoutEntry } from "@/components/log/WorkoutTab";
+import { WorkoutPlanView } from "@/components/log/WorkoutPlanView";
+import { useWorkoutPlans } from "@/lib/useWorkoutPlans";
+import { planCoversDate } from "@/lib/workoutPlans";
+import { Segmented } from "@/components/ui/Segmented";
 import { CycleTab } from "@/components/log/CycleTab";
 import { CoffeeTab, type CoffeeLogSubmission } from "@/components/log/CoffeeTab";
 import { useCoffee } from "@/lib/useCoffee";
@@ -579,6 +583,10 @@ export default function LogPage() {
   // outside the shared `tabConfig`-gated block (see the render below), same
   // as Stool's own `loggedAtTime` draft field.
   const [workoutTime, setWorkoutTime] = useState(() => defaultLogTimeValue());
+  // Workout's Log / Plan switch — null until the user picks one, which
+  // opens on Plan whenever an active plan covers the day being viewed.
+  const [workoutModeChoice, setWorkoutModeChoice] = useState<"log" | "plan" | null>(null);
+  const workoutPlans = useWorkoutPlans();
   const [newItemText, setNewItemText] = useState("");
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [pending, setPending] = useState<string | null>(null);
@@ -1520,6 +1528,8 @@ export default function LogPage() {
     await coffee.logs.edit(id, { ...submission, itemId, date });
   }
 
+  const workoutMode = workoutModeChoice ?? (workoutPlans.plans.some((p) => p.isActive && planCoversDate(p, date)) ? "plan" : "log");
+
   async function handleSaveWorkoutEntry(entry: NewWorkoutEntry) {
     if (isDemoData) return;
     logHaptic();
@@ -2187,16 +2197,44 @@ export default function LogPage() {
             onDelete={handleDeleteStoolEntry}
           />
         ) : tab === "workout" ? (
-          <WorkoutTab
-            groups={workoutGroupedByCategory}
-            entries={workoutEntriesForDate}
-            lastValues={workoutLastWeights}
-            isDemoData={isDemoData}
-            accent={WORKOUT_ACCENT}
-            time={workoutTime}
-            onTimeChange={setWorkoutTime}
-            onSave={handleSaveWorkoutEntry}
-          />
+          <div className="flex flex-col gap-3">
+            <Segmented
+              value={workoutMode}
+              onChange={setWorkoutModeChoice}
+              accent={WORKOUT_ACCENT}
+              options={[
+                ["log", "Log"],
+                ["plan", "Plan"],
+              ]}
+            />
+            {workoutMode === "plan" ? (
+              <WorkoutPlanView
+                plans={workoutPlans.plans}
+                itemsById={workoutItemById}
+                allLogs={effective.workoutLogs}
+                entries={workoutEntriesForDate}
+                date={date}
+                today={today}
+                isDemoData={isDemoData}
+                accent={WORKOUT_ACCENT}
+                time={workoutTime}
+                onTimeChange={setWorkoutTime}
+                onLog={(exercise, value) => handleSaveWorkoutEntry({ exercise, weightKg: String(value), time: workoutTime })}
+                onNavigateToDate={setDate}
+              />
+            ) : (
+              <WorkoutTab
+                groups={workoutGroupedByCategory}
+                entries={workoutEntriesForDate}
+                lastValues={workoutLastWeights}
+                isDemoData={isDemoData}
+                accent={WORKOUT_ACCENT}
+                time={workoutTime}
+                onTimeChange={setWorkoutTime}
+                onSave={handleSaveWorkoutEntry}
+              />
+            )}
+          </div>
         ) : (
           <CycleTab
             periodLogs={effective.periodLogs}

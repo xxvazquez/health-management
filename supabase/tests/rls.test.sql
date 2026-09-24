@@ -123,7 +123,7 @@ grant select, insert, update, delete on
   public.categories, public.food_items, public.supplement_items, public.habit_items, public.symptom_items, public.workout_items,
   public.food_logs, public.supplement_logs, public.habit_logs, public.symptom_logs,
   public.food_diary, public.supplement_diary, public.habit_diary, public.symptom_diary, public.workout_diary,
-  public.stool_logs, public.stool_options, public.workout_logs, public.period_logs, public.push_subscriptions,
+  public.stool_logs, public.stool_options, public.workout_logs, public.workout_plans, public.period_logs, public.push_subscriptions,
   public.partner_invites, public.partner_links, public.notes,
   public.doctor_specialties, public.doctors, public.doctor_appointments, public.doctor_appointment_tasks
   to authenticated;
@@ -425,6 +425,35 @@ select public.test_assert_raises(
   $sql$insert into public.stool_options (id, user_id, kind, label)
        values ('5b000000-0000-0000-0000-00000000005b', '11111111-1111-1111-1111-111111111111', 'symptom', 'Spoofed')$sql$,
   'stool_options: user_id cannot be spoofed on INSERT'
+);
+
+-- ============================================================================
+-- workout_plans (standalone, owner-only — the template's exercise ids live
+-- in jsonb, so there's no cross-user FK to probe)
+-- ============================================================================
+
+select public.test_switch_user('11111111-1111-1111-1111-111111111111');
+insert into public.workout_plans (id, user_id, name, start_date) values ('71a00000-0000-0000-0000-0000000071a0', '11111111-1111-1111-1111-111111111111', 'Squat 3x', '2026-01-05');
+
+select public.test_switch_user('22222222-2222-2222-2222-222222222222');
+select public.test_assert(
+  (select count(*) from public.workout_plans where id = '71a00000-0000-0000-0000-0000000071a0') = 0,
+  'workout_plans: user B cannot SELECT user A''s plan'
+);
+update public.workout_plans set name = 'hijacked' where id = '71a00000-0000-0000-0000-0000000071a0';
+delete from public.workout_plans where id = '71a00000-0000-0000-0000-0000000071a0';
+
+select public.test_switch_user('11111111-1111-1111-1111-111111111111');
+select public.test_assert(
+  (select name from public.workout_plans where id = '71a00000-0000-0000-0000-0000000071a0') = 'Squat 3x',
+  'workout_plans: user A''s plan survives user B''s UPDATE and DELETE attempts, untouched'
+);
+
+select public.test_switch_user('22222222-2222-2222-2222-222222222222');
+select public.test_assert_raises(
+  $sql$insert into public.workout_plans (id, user_id, name, start_date)
+       values ('71b00000-0000-0000-0000-0000000071b0', '11111111-1111-1111-1111-111111111111', 'Spoofed', '2026-01-05')$sql$,
+  'workout_plans: user_id cannot be spoofed on INSERT'
 );
 
 -- ============================================================================

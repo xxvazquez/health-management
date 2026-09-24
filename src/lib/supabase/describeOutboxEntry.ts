@@ -18,6 +18,7 @@ const TABLE_LABEL: Record<string, string> = {
   categories: "Category",
   stool_logs: "Stool entry",
   workout_logs: "Workout entry",
+  workout_plans: "Workout plan",
   period_logs: "Period entry",
   journal_entries: "Journal entry",
   personal_items: "Expiring item",

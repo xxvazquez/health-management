@@ -16,6 +16,7 @@ import { DuplicateItemDialog } from "@/components/ui/DuplicateItemDialog";
 import { DemoNotice } from "@/components/ui/DemoNotice";
 import { PushNotificationsToggle } from "@/components/PushNotificationsToggle";
 import { DataExportCard } from "@/components/manage/DataExportCard";
+import { WorkoutPlansCard } from "@/components/manage/WorkoutPlansCard";
 import { AddRow, CollapsibleManageCard, GROUP_CLS, GROUP_STYLE, GroupNote, ManageNavContext, SectionRow, useSectionMode } from "@/components/manage/ManageSection";
 import { SwitchKnob } from "@/components/ui/Switch";
 import { TimePicker } from "@/components/ui/DatePicker";
@@ -3400,6 +3401,17 @@ export default function ManagePage() {
     { label: "Lab results", el: <LabResultsCard key="lab-results" searchQuery={searchQuery} /> },
     { label: "Stool options", el: <StoolOptionsCard key="stool-options" isDemoData={isDemoData} searchQuery={searchQuery} /> },
     { label: "Coffee", el: <CoffeeCard key="coffee" isDemoData={isDemoData} searchQuery={searchQuery} /> },
+    {
+      label: "Workout plans",
+      el: (
+        <WorkoutPlansCard
+          key="workout-plans"
+          isDemoData={isDemoData}
+          searchQuery={searchQuery}
+          workoutItems={(isDemoData ? demoItems : (rawItems ?? [])).filter((i) => i.itemType === "workout")}
+        />
+      ),
+    },
     { label: "Weight goal", el: <WeightGoalCard key="weight-goal" isDemoData={isDemoData} searchQuery={searchQuery} /> },
     { label: "Wishlist lists", el: <WishlistListsCard key="wishlist-lists" isDemoData={isDemoData} searchQuery={searchQuery} /> },
     ...TYPE_SECTIONS.map((section) => ({
@@ -3456,7 +3468,7 @@ export default function ManagePage() {
   for (const sec of appSections) sectionByLabel.set(sec.label, sec.el);
 
   const groups: { title: string; labels: string[] }[] = [
-    { title: "Tracking", labels: ["Food", "Food products", "Symptoms", "Supplements", "Habits", "Workout", "Coffee", "Stool options"] },
+    { title: "Tracking", labels: ["Food", "Food products", "Symptoms", "Supplements", "Habits", "Workout", "Workout plans", "Coffee", "Stool options"] },
     { title: "Health", labels: ["Doctors", "Doctor types", "Lab results", "Weight goal"] },
     { title: "Lists", labels: ["Reminder lists", "Wishlist lists"] },
     { title: "App", labels: ["Appearance", "Visible sections", "Your data"] },
