@@ -154,7 +154,7 @@ function ItemForm({
   }
 
   return (
-    <FormShell title={initial ? "Edit item" : "New item"} onSubmit={handleSubmit} onCancel={onCancel}>
+    <FormShell title={initial ? "Edit item" : "New item"} onSubmit={handleSubmit} onCancel={onCancel} submitLabel={initial ? "Done" : "Add"} submitDisabled={!canSave || saving} busy={saving} accent={accent}>
       <FormGroup>
         <Field label="Link">
           <input
@@ -215,9 +215,6 @@ function ItemForm({
       </FormGroup>
 
       <div className="flex flex-wrap items-center gap-3">
-        <Button type="submit" size="lg" accent={accent} disabled={!canSave || saving}>
-          {saving ? "Saving…" : initial ? "Save changes" : "Save item"}
-        </Button>
         {error && (
           <span className="text-xs" style={{ color: "var(--status-critical)" }}>
             {error}

@@ -2,7 +2,6 @@
 
 import { Chip } from "@/components/ui/Chip";
 import { useMemo, useState, type FormEvent } from "react";
-import { Button } from "@/components/ui/Button";
 import { CloseIcon } from "@/components/ui/icons";
 import { Field } from "@/components/ui/Field";
 import { FormGroup } from "@/components/ui/FormGroup";
@@ -69,7 +68,7 @@ export function ProductForm({
   const canSave = name.trim().length > 0 && (ingredients.length > 0 || draft.trim().length > 0) && !busy;
 
   return (
-    <FormShell title="New product" onSubmit={handleSubmit} onCancel={onCancel}>
+    <FormShell title="New product" onSubmit={handleSubmit} onCancel={onCancel} submitLabel="Add" submitDisabled={!canSave} busy={busy} accent={accent}>
       <FormGroup>
         <Field label="Name">
           <input autoFocus value={name} onChange={(e) => setName(e.target.value)} maxLength={120} className={ROW_TEXT_CLS} style={ROW_STYLE} />
@@ -129,11 +128,6 @@ export function ProductForm({
         )}
       </FormGroup>
 
-      <div className="flex items-center gap-3">
-        <Button type="submit" size="lg" accent={accent} disabled={!canSave}>
-          {busy ? "Saving…" : "Add & log"}
-        </Button>
-      </div>
     </FormShell>
   );
 }

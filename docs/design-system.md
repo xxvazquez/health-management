@@ -78,7 +78,7 @@ One sans-serif family: SF Pro on Apple devices, Inter elsewhere (`--font-app`).
 
 ### Forms
 
-- **`FormShell`** (title + Cancel) holds **`FormGroup`** cards of **`Field`** rows
+- **`FormShell`** (iOS sheet header: Cancel left, title centred, Add/Done right) holds **`FormGroup`** cards of **`Field`** rows
 - **`SwitchRow`** for toggles
 - **Explanations hide behind an ⓘ** (`InfoButton`): `CardTitle`'s `subtitle` and `FormGroup`'s `info` show it beside the heading. Keep the text to what isn't obvious from the controls
 - **Numbers are picked, not typed.** In forms, a row shows the value on the right, and tapping it opens an iOS wheel under the row: `NumberWheel` (one column over a list of values), `KgWheels` (whole kg + quarter kg). `NumberStepper` (a raised −/+ capsule) is for quick inline adjustments

@@ -16,7 +16,6 @@ import { PageHeading } from "@/components/ui/PageHeading";
 import { ErrorState, InlineEmpty } from "@/components/ui/EmptyState";
 import { ListSkeleton } from "@/components/ui/Skeleton";
 import { PrimaryAction } from "@/components/ui/PrimaryAction";
-import { Button } from "@/components/ui/Button";
 import { FormShell } from "@/components/ui/FormShell";
 import { ChoicePanel } from "@/components/ui/ChoicePanel";
 import { PencilIcon, TrashIcon } from "@/components/ui/Notebook";
@@ -189,7 +188,15 @@ function ExpiryForm({
   }
 
   return (
-    <FormShell title={initial ? "Edit product" : "New product"} onSubmit={submit} onCancel={onCancel}>
+    <FormShell
+      title={initial ? "Edit product" : "New product"}
+      onSubmit={submit}
+      onCancel={onCancel}
+      submitLabel={initial ? "Done" : "Add"}
+      submitDisabled={saving || !name.trim()}
+      busy={saving}
+      accent="var(--series-2)"
+    >
       <FormGroup>
         <Field label="Product">
           <input autoFocus required value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Sunscreen" maxLength={150} className={`${ROW_TEXT_CLS} font-medium`} style={ROW_STYLE} />
@@ -201,12 +208,7 @@ function ExpiryForm({
           <input inputMode="numeric" value={remind} onChange={(e) => setRemind(e.target.value)} className={`${ROW_INLINE_CLS} w-16`} style={ROW_STYLE} />
         </Field>
       </FormGroup>
-      <div className="flex flex-wrap items-center gap-3">
-        <Button type="submit" size="lg" accent="var(--series-2)" disabled={saving || !name.trim()}>
-          {saving ? "Saving…" : initial ? "Save changes" : "Save product"}
-        </Button>
-        {error && <span className="text-xs" style={{ color: "var(--status-critical)" }}>{error}</span>}
-      </div>
+      {error && <span className="text-xs" style={{ color: "var(--status-critical)" }}>{error}</span>}
     </FormShell>
   );
 }

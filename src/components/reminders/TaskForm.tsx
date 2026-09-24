@@ -6,7 +6,6 @@ import { useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { isRecurringTask, type TaskItem, type TaskSubitem } from "@/lib/reminders";
 import type { ReminderList } from "@/lib/supabase/personalReminders";
 import { Field } from "@/components/ui/Field";
-import { Button } from "@/components/ui/Button";
 import { FormShell } from "@/components/ui/FormShell";
 import { FormGroup } from "@/components/ui/FormGroup";
 import { AutoGrowTextarea } from "@/components/ui/AutoGrowTextarea";
@@ -122,7 +121,7 @@ export function TaskForm({
   }
 
   return (
-    <FormShell title={initial ? "Edit reminder" : "New reminder"} onSubmit={handleSubmit} onCancel={onCancel}>
+    <FormShell title={initial ? "Edit reminder" : "New reminder"} onSubmit={handleSubmit} onCancel={onCancel} submitLabel={initial ? "Done" : "Add"} submitDisabled={saving || !title.trim()} busy={saving} accent={accent}>
       <FormGroup>
         <Field label="What needs doing?">
           <input
@@ -252,9 +251,6 @@ export function TaskForm({
       </FormGroup>
 
       <div className="flex flex-wrap items-center gap-3 pt-1">
-        <Button type="submit" size="lg" accent={accent} disabled={saving || !title.trim()}>
-          {saving ? "Saving…" : initial ? "Save changes" : "Save reminder"}
-        </Button>
         {error && (
           <span className="text-xs" style={{ color: "var(--status-critical)" }}>
             {error}

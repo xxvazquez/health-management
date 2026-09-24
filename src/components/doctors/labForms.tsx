@@ -3,7 +3,6 @@
 import { useMemo, useState, type FormEvent } from "react";
 import type { useLabs } from "@/lib/useLabs";
 import type { LabMarker } from "@/lib/supabase/labs";
-import { Button } from "@/components/ui/Button";
 import { ComboBox } from "./shared";
 import { Field } from "@/components/ui/Field";
 import { FormGroup } from "@/components/ui/FormGroup";
@@ -96,7 +95,7 @@ export function MarkerForm({
   }
 
   return (
-    <FormShell title={initial ? "Edit marker" : "New marker"} onSubmit={handleSubmit} onCancel={onCancel}>
+    <FormShell title={initial ? "Edit marker" : "New marker"} onSubmit={handleSubmit} onCancel={onCancel} submitLabel={initial ? "Done" : "Add"} submitDisabled={!canSave || saving} busy={saving} accent={accent}>
       <FormGroup>
         <Field label="Marker" plain>
           <ComboBox bare value={name} onChange={setName} options={markerNameOptions} placeholder="Search or add a marker…" accent={accent} />
@@ -155,9 +154,6 @@ export function MarkerForm({
       )}
 
       <div className="flex items-center gap-3">
-        <Button type="submit" size="lg" accent={accent} disabled={!canSave || saving}>
-          {saving ? "Saving…" : initial ? "Save changes" : "Add marker"}
-        </Button>
         {error && <span className="text-xs" style={{ color: "var(--status-critical)" }}>{error}</span>}
       </div>
     </FormShell>

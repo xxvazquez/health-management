@@ -13,7 +13,6 @@ import { ListSection, SectionIcon } from "@/components/ui/ListSection";
 import { ListSkeleton } from "@/components/ui/Skeleton";
 import { ErrorState, InlineEmpty } from "@/components/ui/EmptyState";
 import { PrimaryAction } from "@/components/ui/PrimaryAction";
-import { Button } from "@/components/ui/Button";
 import { FormShell } from "@/components/ui/FormShell";
 import { Field } from "@/components/ui/Field";
 import { FormGroup } from "@/components/ui/FormGroup";
@@ -112,7 +111,7 @@ function CodeForm({
   }
 
   return (
-    <FormShell title={initial ? "Edit code" : "New code"} onSubmit={handleSubmit} onCancel={onCancel}>
+    <FormShell title={initial ? "Edit code" : "New code"} onSubmit={handleSubmit} onCancel={onCancel} submitLabel={initial ? "Done" : "Add"} submitDisabled={saving || !canSave} busy={saving} accent={accent}>
       <FormGroup>
         <Field label="Code" plain>
           <div className="flex items-center gap-2">
@@ -150,9 +149,6 @@ function CodeForm({
       </FormGroup>
 
       <div className="flex flex-wrap items-center gap-3">
-        <Button type="submit" size="lg" accent={accent} disabled={saving || !canSave}>
-          {saving ? "Saving…" : initial ? "Save changes" : "Save code"}
-        </Button>
         {error && (
           <span className="text-xs" style={{ color: "var(--status-critical)" }}>
             {error}

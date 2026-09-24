@@ -11,7 +11,6 @@ import type { CareEntry, CareEntryKind, NewCareEntryInput } from "@/lib/supabase
 import type { SupplementOption } from "@/lib/useCareLog";
 import type { DriveAttachment } from "@/lib/googleDrive/api";
 import { useSwipeReveal, SWIPE_REVEAL_CLASS } from "@/lib/useSwipeReveal";
-import { Button } from "@/components/ui/Button";
 import { FormShell } from "@/components/ui/FormShell";
 import { Field } from "@/components/ui/Field";
 import { DriveFilePicker } from "@/components/googleDrive/DriveFilePicker";
@@ -119,7 +118,7 @@ export function CareEntryForm({
   }
 
   return (
-    <FormShell title={initial ? "Edit entry" : "New entry"} onSubmit={handleSubmit} onCancel={onCancel}>
+    <FormShell title={initial ? "Edit entry" : "New entry"} onSubmit={handleSubmit} onCancel={onCancel} submitLabel={initial ? "Done" : "Add"} submitDisabled={!canSave || saving} busy={saving} accent={accent}>
       <Segmented
         value={kind}
         onChange={setKind}
@@ -218,9 +217,6 @@ export function CareEntryForm({
       )}
 
       <div className="flex flex-wrap items-center gap-3">
-        <Button type="submit" size="lg" accent={accent} disabled={!canSave || saving}>
-          {saving ? "Saving…" : initial ? "Save changes" : "Save entry"}
-        </Button>
         {error && (
           <span className="text-xs" style={{ color: "var(--status-critical)" }}>
             {error}

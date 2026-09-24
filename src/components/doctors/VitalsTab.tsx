@@ -103,7 +103,7 @@ function BpForm({
   }
 
   return (
-    <FormShell title={initial ? "Edit reading" : "New reading"} onSubmit={handleSubmit} onCancel={onCancel}>
+    <FormShell title={initial ? "Edit reading" : "New reading"} onSubmit={handleSubmit} onCancel={onCancel} submitLabel={initial ? "Done" : "Add"} submitDisabled={!canSave || saving} busy={saving} accent={accent}>
       <FormGroup
         footer={
           <>
@@ -142,9 +142,6 @@ function BpForm({
       </FormGroup>
 
       <div className="flex flex-wrap items-center gap-3">
-        <Button type="submit" size="lg" accent={accent} disabled={!canSave || saving}>
-          {saving ? "Saving…" : initial ? "Save changes" : "Save reading"}
-        </Button>
         {error && <span className="text-xs" style={{ color: "var(--status-critical)" }}>{error}</span>}
       </div>
     </FormShell>
@@ -188,7 +185,7 @@ function WeightForm({
   }
 
   return (
-    <FormShell title={initial ? "Edit weigh-in" : "New weigh-in"} onSubmit={handleSubmit} onCancel={onCancel}>
+    <FormShell title={initial ? "Edit weigh-in" : "New weigh-in"} onSubmit={handleSubmit} onCancel={onCancel} submitLabel={initial ? "Done" : "Add"} submitDisabled={!canSave || saving} busy={saving} accent={accent}>
       <FormGroup>
         <Field label="Weight (kg)" inline>
           <input autoFocus value={kg} onChange={(e) => setKg(e.target.value)} inputMode="decimal" placeholder="67.5" className={`${ROW_INLINE_CLS} w-24 font-medium tabular-nums`} style={ROW_STYLE} />
@@ -205,9 +202,6 @@ function WeightForm({
       </FormGroup>
 
       <div className="flex flex-wrap items-center gap-3">
-        <Button type="submit" size="lg" accent={accent} disabled={!canSave || saving}>
-          {saving ? "Saving…" : initial ? "Save changes" : "Save weigh-in"}
-        </Button>
         {error && <span className="text-xs" style={{ color: "var(--status-critical)" }}>{error}</span>}
       </div>
     </FormShell>

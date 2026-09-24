@@ -9,7 +9,6 @@ import { DatePicker, DateTimePicker } from "@/components/ui/DatePicker";
 import { Field } from "@/components/ui/Field";
 import { FormGroup } from "@/components/ui/FormGroup";
 import { ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
-import { Button } from "@/components/ui/Button";
 import { FormShell } from "@/components/ui/FormShell";
 import { MarkdownField } from "@/components/ui/Markdown";
 import { todayLocalISODate } from "@/lib/aggregations/common";
@@ -119,7 +118,7 @@ export function AppointmentForm({
   }
 
   return (
-    <FormShell title={editing ? "Edit appointment" : "Log appointment"} onSubmit={handleSubmit} onCancel={onCancel}>
+    <FormShell title={editing ? "Edit appointment" : "Log appointment"} onSubmit={handleSubmit} onCancel={onCancel} submitLabel={editing ? "Done" : "Add"} submitDisabled={saving} busy={saving} accent={accent}>
       <FormGroup>
         <Field label="Doctor" plain>
           {editing ? (
@@ -205,9 +204,6 @@ export function AppointmentForm({
       )}
 
       <div className="flex flex-wrap items-center gap-3 pt-1">
-        <Button type="submit" size="lg" accent={accent} disabled={saving}>
-          {saving ? "Saving…" : editing ? "Save changes" : "Save appointment"}
-        </Button>
         {error && (
           <span className="text-xs" style={{ color: "var(--status-critical)" }}>
             {error}

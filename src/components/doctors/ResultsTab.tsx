@@ -8,7 +8,6 @@ import type { LabMarker, LabResult } from "@/lib/supabase/labs";
 import { ErrorState } from "@/components/ui/EmptyState";
 import { PrimaryAction } from "@/components/ui/PrimaryAction";
 import { ChoicePanel } from "@/components/ui/ChoicePanel";
-import { Button } from "@/components/ui/Button";
 import { formatDate } from "./shared";
 import { Field } from "@/components/ui/Field";
 import { FormGroup } from "@/components/ui/FormGroup";
@@ -70,6 +69,10 @@ function ResultForm({
       title={marker.unit ? `${marker.name} (${marker.unit})` : marker.name}
       onSubmit={handleSubmit}
       onCancel={onCancel}
+      submitLabel={initial ? "Done" : "Add"}
+      submitDisabled={!canSave || saving}
+      busy={saving}
+      accent={accent}
     >
       <FormGroup>
         <Field label="Value" inline>
@@ -90,9 +93,6 @@ function ResultForm({
       </FormGroup>
 
       <div className="flex items-center gap-3">
-        <Button type="submit" size="lg" accent={accent} disabled={!canSave || saving}>
-          {saving ? "Saving…" : initial ? "Save changes" : "Add value"}
-        </Button>
         {error && <span className="text-xs" style={{ color: "var(--status-critical)" }}>{error}</span>}
       </div>
     </FormShell>
