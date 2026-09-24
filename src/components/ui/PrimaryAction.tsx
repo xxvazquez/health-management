@@ -2,9 +2,9 @@ import { Button } from "./Button";
 
 /** The one "create something" control — same accent fill and label
  * grammar everywhere it appears. Pass the label as "New <noun>" when it
- * opens a form directly, "Log <noun>" for a past event, or "Add" when it
- * opens a small "what kind?" picker first (Agenda, Health → Visits); the
- * "+" is added here.
+ * opens a form directly, or "Log <noun>" for a past event; the "+" is added
+ * here. A section with several kinds of thing to add uses `AddMenu`, which
+ * wraps this in a pull-down menu.
  *
  * Renders inline wherever it's called — every call site already places it
  * at the top of its section (a `PageHeading` actions slot, or beside that

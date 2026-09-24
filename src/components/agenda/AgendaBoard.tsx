@@ -15,9 +15,8 @@ import { ListSection } from "@/components/ui/ListSection";
 import { PageHeading } from "@/components/ui/PageHeading";
 import { ErrorState, InlineEmpty } from "@/components/ui/EmptyState";
 import { ListSkeleton } from "@/components/ui/Skeleton";
-import { PrimaryAction } from "@/components/ui/PrimaryAction";
 import { FormShell } from "@/components/ui/FormShell";
-import { ChoicePanel } from "@/components/ui/ChoicePanel";
+import { AddMenu } from "@/components/ui/AddMenu";
 import { PencilIcon, TrashIcon } from "@/components/ui/Notebook";
 import { ChevronIcon } from "@/components/ui/icons";
 import { ROW_INLINE_CLS, ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
@@ -235,7 +234,6 @@ export interface AgendaBoardProps {
 
 type AddState =
   | null
-  | { mode: "choose" }
   | { mode: "reminder"; scope: "mine" | "shared" }
   | { mode: "expiry"; scope: "mine" | "shared" };
 
@@ -326,7 +324,15 @@ export function AgendaBoard(props: AgendaBoardProps) {
           ready ? (
             <div className="flex items-center gap-2">
               <FilterButton open={filterOpen} count={activeCount} onToggle={() => setFilterOpen((o) => !o)} />
-              <PrimaryAction label="Add" accent={ACCENT} onClick={() => setAdd({ mode: "choose" })} />
+              <AddMenu
+                accent={ACCENT}
+                options={[
+                  { label: partnerLinked ? "My reminder" : "Reminder", onClick: () => setAdd({ mode: "reminder", scope: "mine" }) },
+                  ...(partnerLinked ? [{ label: "Shared reminder", onClick: () => setAdd({ mode: "reminder" as const, scope: "shared" as const }) }] : []),
+                  { label: partnerLinked ? "My expiry product" : "Expiry product", onClick: () => setAdd({ mode: "expiry", scope: "mine" }) },
+                  ...(partnerLinked ? [{ label: "Shared expiry product", onClick: () => setAdd({ mode: "expiry" as const, scope: "shared" as const }) }] : []),
+                ]}
+              />
             </div>
           ) : undefined
         }
@@ -335,19 +341,6 @@ export function AgendaBoard(props: AgendaBoardProps) {
       </PageHeading>
 
       {ready && filterOpen && <FilterPanel partnerLinked={partnerLinked} showList={showList} lists={lists} filters={filters} />}
-
-      {add?.mode === "choose" && (
-        <ChoicePanel
-          title="Add to your agenda"
-          onCancel={() => setAdd(null)}
-          options={[
-            { label: partnerLinked ? "My reminder" : "Reminder", onClick: () => setAdd({ mode: "reminder", scope: "mine" }) },
-            ...(partnerLinked ? [{ label: "Shared reminder", onClick: () => setAdd({ mode: "reminder" as const, scope: "shared" as const }) }] : []),
-            { label: partnerLinked ? "My expiry product" : "Expiry product", onClick: () => setAdd({ mode: "expiry", scope: "mine" }) },
-            ...(partnerLinked ? [{ label: "Shared expiry product", onClick: () => setAdd({ mode: "expiry" as const, scope: "shared" as const }) }] : []),
-          ]}
-        />
-      )}
 
       {loading ? (
         <ListSkeleton />

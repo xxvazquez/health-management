@@ -7,7 +7,7 @@ import { todayLocalISODate } from "@/lib/aggregations/common";
 import type { LabMarker, LabResult } from "@/lib/supabase/labs";
 import { ErrorState } from "@/components/ui/EmptyState";
 import { PrimaryAction } from "@/components/ui/PrimaryAction";
-import { ChoicePanel } from "@/components/ui/ChoicePanel";
+import { AddMenu } from "@/components/ui/AddMenu";
 import { formatDate } from "./shared";
 import { Field } from "@/components/ui/Field";
 import { FormGroup } from "@/components/ui/FormGroup";
@@ -115,7 +115,6 @@ export function ResultsTab({ accent }: { accent: string }) {
   const labs = useLabs();
   const [view, setView] = useState<View>({ mode: "list" });
   const [flash, setFlash] = useState<string | null>(null);
-  const [choosing, setChoosing] = useState(false);
 
   useEffect(() => {
     if (!flash) return;
@@ -181,37 +180,20 @@ export function ResultsTab({ accent }: { accent: string }) {
         </p>
       )}
 
-      {choosing && (
-        <ChoicePanel
-          title="Add to Results"
-          onCancel={() => setChoosing(false)}
-          options={[
-            {
-              label: "Add results",
-              onClick: () => {
-                setChoosing(false);
-                setView({ mode: "batch" });
-              },
-            },
-            {
-              label: "New marker",
-              onClick: () => {
-                setChoosing(false);
-                setView({ mode: "marker-form" });
-              },
-            },
-          ]}
-        />
-      )}
-
       <LabsOverview
         labs={labs}
         actions={
-          <PrimaryAction
-            label={hasMarkers ? "Add" : "New marker"}
-            accent={accent}
-            onClick={() => (hasMarkers ? setChoosing(true) : setView({ mode: "marker-form" }))}
-          />
+          hasMarkers ? (
+            <AddMenu
+              accent={accent}
+              options={[
+                { label: "Add results", onClick: () => setView({ mode: "batch" }) },
+                { label: "New marker", onClick: () => setView({ mode: "marker-form" }) },
+              ]}
+            />
+          ) : (
+            <PrimaryAction label="New marker" accent={accent} onClick={() => setView({ mode: "marker-form" })} />
+          )
         }
         onNewMarker={() => setView({ mode: "marker-form" })}
         onAddValue={(markerId) => setView({ mode: "result-form", markerId })}

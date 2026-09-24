@@ -88,6 +88,7 @@ One sans-serif family: SF Pro on Apple devices, Inter elsewhere (`--font-app`).
 
 ### Dialogs
 
+- **`AddMenu`:** "+ Add" for a section with more than one kind of thing to create (Agenda, Visits, Results) opens an iOS pull-down menu, not an inline picker card
 - **`Sheet`:** every modal. A bottom sheet on phones (swipe down to close), centred from `sm`
 - **`DuplicateItemDialog`:** the iOS-style alert
 

@@ -9,12 +9,11 @@ import { CARE_KIND_LABEL, CareEntryDetail, CareEntryForm, CareEntryRow, useSpeci
 import { AppointmentList } from "./AppointmentList";
 import { AppointmentForm } from "./AppointmentForm";
 import { NextAppointmentField } from "./shared";
-import { PrimaryAction } from "@/components/ui/PrimaryAction";
-import { ChoicePanel } from "@/components/ui/ChoicePanel";
+import { AddMenu } from "@/components/ui/AddMenu";
 import { InlineEmpty } from "@/components/ui/EmptyState";
 
 type DoctorsApi = ReturnType<typeof useDoctors>;
-type AddMode = null | "choose" | "note" | "appointment";
+type AddMode = null | "note" | "appointment";
 
 /** Decisions and notes first, observations last — otherwise the most
  * frequently logged kind (a symptom noticed day to day) buries the rarer,
@@ -130,21 +129,16 @@ export function VisitsTab({ api, accent }: { api: DoctorsApi; accent: string }) 
 
   return (
     <div className="flex flex-col gap-5">
-      {add === "choose" && (
-        <ChoicePanel
-          title="Add to Visits"
-          onCancel={() => setAdd(null)}
-          options={[
-            { label: "Something to raise", onClick: () => setAdd("note") },
-            { label: "Log a past appointment", onClick: () => setAdd("appointment") },
-          ]}
-        />
-      )}
-
       <section className="flex flex-col gap-3">
         <div className="flex items-start justify-between gap-3">
           <SectionHeading hint="Upcoming dates, and what you want to bring up.">Before your next visit</SectionHeading>
-          <PrimaryAction label="Add" accent={accent} onClick={() => setAdd("choose")} />
+          <AddMenu
+            accent={accent}
+            options={[
+              { label: "Something to raise", onClick: () => setAdd("note") },
+              { label: "Log a past appointment", onClick: () => setAdd("appointment") },
+            ]}
+          />
         </div>
 
         {upcoming.length > 0 && (
