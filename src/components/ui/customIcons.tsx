@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { DynamicIcon, iconNames, type IconName } from "lucide-react/dynamic";
 
 /** Fixed set of glyphs offered for any user-named grouping's custom icon
  * (Wishlist categories, reminder lists, lab panels, doctor specialties, …)
@@ -397,7 +398,21 @@ export function defaultCategoryIcon(itemType: string, category: string): string 
   return DEFAULT_CATEGORY_ICONS[itemType]?.[category.trim().toLowerCase()] ?? TYPE_FALLBACK_ICON[itemType] ?? DEFAULT_ICON_KEY;
 }
 
+/** Keys starting with this are Lucide icon names (the picker's "All
+ * icons"); anything else is one of Lauva's own glyphs above. */
+export const LUCIDE_PREFIX = "lucide:";
+const LUCIDE_NAMES = new Set<string>(iconNames);
+
 export function CustomIcon({ icon, size = 15 }: { icon: string | null; size?: number }) {
+  const lucide = icon?.startsWith(LUCIDE_PREFIX) ? icon.slice(LUCIDE_PREFIX.length) : null;
+  if (lucide && LUCIDE_NAMES.has(lucide)) {
+    // Fixed box so the row doesn't shift while the icon's chunk loads.
+    return (
+      <span className="inline-flex shrink-0" style={{ width: size, height: size }} aria-hidden="true">
+        <DynamicIcon name={lucide as IconName} size={size} strokeWidth={1.75} />
+      </span>
+    );
+  }
   return <Glyph size={size}>{PATHS[icon ?? ""] ?? PATHS[DEFAULT_ICON_KEY]}</Glyph>;
 }
 
@@ -417,7 +432,13 @@ export const CUSTOM_COLOR_CHOICES: { key: string; value: string }[] = [
   { key: "series-slate", value: "var(--series-slate)" },
 ];
 
+/** A colour picked freely in the picker is stored as its `#rrggbb` hex. */
+export function isCustomHex(key: string | null): key is string {
+  return key != null && /^#[0-9a-f]{6}$/i.test(key);
+}
+
 export function customColorValue(key: string | null): string | null {
+  if (isCustomHex(key)) return key;
   return CUSTOM_COLOR_CHOICES.find((c) => c.key === key)?.value ?? null;
 }
 

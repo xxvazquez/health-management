@@ -22,9 +22,9 @@ create table public.categories (
   item_type text not null check (item_type in ('food', 'supplement', 'habit', 'symptom', 'workout')),
   name text not null,
   name_key text generated always as (lower(trim(name))) stored,
-  -- Optional per-category icon key / colour key (same customIcons.tsx sets
-  -- the other groupings use). Display only for now — shown on the category
-  -- chip in Settings; Log/Trends keep their built-in look.
+  -- Optional per-category icon key / colour (same customIcons.tsx keys the
+  -- other groupings use: a Lauva glyph, `lucide:<name>`, a brand-hue key or
+  -- a `#rrggbb` hex). Null falls back to the built-in look.
   icon text,
   color text,
   unique (user_id, item_type, name_key),
@@ -1201,8 +1201,8 @@ create table public.household_codes (
 -- whoever added the row — either partner — with pair visibility via
 -- is_household_member, same "shared, not just visible" rule as the tables
 -- above. `icon` / `color` are an optional per-category look set from the
--- category form (icon key + brand-hue key, both from fixed client-side
--- sets); left null they fall back to a heart glyph and a position-keyed
+-- category form (icon key + colour key or hex, see customIcons.tsx); left
+-- null they fall back to a heart glyph and a position-keyed
 -- accent.
 create table public.wishlist_categories (
   id uuid primary key default gen_random_uuid(),

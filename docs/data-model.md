@@ -632,19 +632,20 @@ an immutable log entry.
 
 `wishlist_categories` / `wishlist_items` back the Wishlist board: a
 category is a name plus an optional `icon` / `color` (an icon key and a
-brand-hue key, both from the fixed client-side sets in
-`src/components/ui/customIcons.tsx`), an item is one URL plus a title
+colour key, see below), an item is one URL plus a title
 (fetched by the `fetch-link-metadata` Edge Function, or typed) and an
 optional note. `wishlist_items.category_id` cascades on category delete.
 A category with no `icon` / `color` falls back to a heart glyph and a
 position-keyed accent. All the household tables use the pair RLS shape
 below.
 
-The same `icon` / `color` pair — same fixed sets, same "both null falls
+The same `icon` / `color` pair — same keys, same "both null falls
 back to the page's hardcoded look" rule — also lives on `reminder_lists`,
 `wishlist_categories`, `doctor_specialties`, `lab_panels` and `categories`,
-all set from their own Settings row via the shared `ui/IconColorPicker.tsx` (~36 glyphs,
-filtered by a search box that matches per-glyph synonyms in `ICON_SEARCH`). On
+all set from their own Settings row via the shared `ui/IconColorPicker.tsx`. `icon` is one of Lauva's own
+glyphs in `customIcons.tsx` (searchable by the synonyms in `ICON_SEARCH`) or
+`lucide:<name>` for any of the ~1,600 Lucide icons; `color` is a brand-hue
+key (`series-1` …) or a free `#rrggbb` hex from the custom colour swatch. On
 `categories`, the picker shows on the Settings category chip (materializing
 the row on first edit, like any other category change) **and** tints that
 category's header on the Log page — the Food grid, the Symptoms / Supplements
