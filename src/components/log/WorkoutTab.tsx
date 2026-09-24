@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import Link from "next/link";
-import { ChevronIcon } from "@/components/ui/icons";
+import { Button } from "@/components/ui/Button";
+import { CheckIcon, MinusIcon, PlusIcon } from "@/components/ui/icons";
 import { workoutUnitLabel, type RawWorkoutLog, type RawItem, type WorkoutUnit } from "@/lib/types";
 import { UNIT_STEP_PRESETS } from "@/components/ui/NumberStepper";
 import { CustomIcon } from "@/components/ui/customIcons";
@@ -17,13 +17,11 @@ const PIXELS_PER_STEP = 10;
  * that trembles slightly while tapping doesn't accidentally start one. */
 const DRAG_THRESHOLD_PX = 4;
 
-/** Same idea as an iPhone quantity field: drag/scroll the number up or
- * down to nudge it by `step`, or tap it once to get a text cursor and type
- * an exact value. Replaces the old fixed -2.5/-0.25/+0.25/+2.5 buttons,
- * which didn't scale to every unit (reps/hours want different jump sizes)
- * and took 4 taps to move any real distance. Desktop wheel-scroll only
- * engages once the control is focused (tap/click it first), so scrolling
- * the page with the cursor incidentally over a row doesn't hijack it. */
+/** The readout in the middle of an exercise row's stepper: drag/scroll the
+ * number up or down to nudge it by the fine `step`, or tap it once to get a
+ * text cursor and type an exact value. Desktop wheel-scroll only engages
+ * once the control is focused (tap/click it first), so scrolling the page
+ * with the cursor incidentally over a row doesn't hijack it. */
 function ScrollTypeValue({
   value,
   onChange,
@@ -104,8 +102,8 @@ function ScrollTypeValue({
           if (e.key === "Enter") e.currentTarget.blur();
           if (e.key === "Escape") setEditing(false);
         }}
-        className="h-7 w-16 rounded-lg border px-1.5 text-center text-xs font-semibold tabular-nums outline-none"
-        style={{ borderColor: accent, color: "var(--text-primary)" }}
+        className="h-8 w-18 bg-transparent px-1 text-center text-sm font-medium tabular-nums outline-none"
+        style={{ color: "var(--text-primary)", boxShadow: `inset 0 -2px 0 ${accent}` }}
       />
     );
   }
@@ -153,8 +151,8 @@ function ScrollTypeValue({
           startEditing();
         }
       }}
-      className="flex h-7 min-w-16 cursor-ns-resize items-center justify-center rounded-md px-2 text-center text-xs font-semibold tabular-nums select-none outline-none"
-      style={{ background: `color-mix(in oklab, ${accent} 12%, var(--surface-1))`, color: "var(--text-primary)", touchAction: "none" }}
+      className="flex h-8 min-w-18 cursor-ns-resize items-center justify-center rounded-md px-1 text-center text-sm font-medium whitespace-nowrap tabular-nums select-none"
+      style={{ color: "var(--text-primary)", touchAction: "none" }}
     >
       {value} {unit}
     </div>
@@ -179,12 +177,11 @@ export interface NewWorkoutEntry {
 const DEFAULT_VALUE_BY_UNIT: Record<WorkoutUnit, number> = { kg: 20, minutes: 20, hours: 1, reps: 10 };
 const DEFAULT_FOR_UNKNOWN_UNIT = 10;
 
-/** One row per exercise, grouped by category — tap the stepper to the
- * right value, tap Log. Replaces the old single exercise-dropdown +
- * weight form: every exercise is already on screen and ready to log, so
- * logging a second lift right after doesn't mean re-picking it from a
- * list. A logged set's own edit/delete/note lives in the shared day
- * timeline below (same as every other tab), not duplicated here. */
+/** One row per exercise, grouped by category — set the value on the
+ * stepper (± for the coarse step, drag or tap the number for fine), tap
+ * Log. Every exercise is already on screen and ready to log, so logging a
+ * second lift right after doesn't mean re-picking it from a list. A logged
+ * set's own edit/delete/note lives in the day timeline on Summary. */
 export function ExerciseRow({
   item,
   lastValue,
@@ -221,31 +218,58 @@ export function ExerciseRow({
     setSaving(false);
   }
 
+  const unitLabel = workoutUnitLabel(unit);
+  const nudge = (delta: number) => setValue((v) => Math.round(Math.min(preset.max, Math.max(0, v + delta)) * 100) / 100);
+
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 px-3.5 py-2.5">
+    <div className="flex min-h-11 items-center gap-3 px-3.5 py-2">
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
+        <p className="text-sm break-words" style={{ color: "var(--text-primary)" }}>
           {item.rawName}
         </p>
         {detail}
         {todaysSets.length > 0 && (
-          <p className="text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>
-            Logged today: {todaysSets.join(", ")} {workoutUnitLabel(unit)}
+          <p className="flex items-center gap-1 text-xs tabular-nums" style={{ color: accent }}>
+            <CheckIcon size={11} />
+            {todaysSets.join(", ")} {unitLabel} today
           </p>
         )}
       </div>
-      <div className="flex items-center gap-2.5">
-        <ScrollTypeValue value={value} onChange={setValue} unit={workoutUnitLabel(unit)} accent={accent} step={preset.step} max={preset.max} />
+      <div className="control-surface inline-flex h-8 shrink-0 items-center rounded-[10px]">
         <button
           type="button"
-          onClick={() => void handleLog()}
-          disabled={saving || isDemoData}
-          className="h-9 rounded-[10px] px-3.5 text-sm font-medium disabled:opacity-40"
-          style={{ background: `color-mix(in oklab, ${accent} 16%, var(--surface-1))`, color: accent }}
+          onClick={() => nudge(-preset.bigStep)}
+          disabled={value <= 0}
+          aria-label={`Decrease ${item.rawName} by ${preset.bigStep} ${unitLabel}`}
+          className="tap-target flex h-full w-7 items-center justify-center transition-opacity active:opacity-50 disabled:opacity-30"
+          style={{ color: accent }}
         >
-          {isDemoData ? "Sign in to log" : saving ? "Saving…" : "Log"}
+          <MinusIcon size={12} />
+        </button>
+        <ScrollTypeValue value={value} onChange={setValue} unit={unitLabel} accent={accent} step={preset.step} max={preset.max} />
+        <button
+          type="button"
+          onClick={() => nudge(preset.bigStep)}
+          disabled={value >= preset.max}
+          aria-label={`Increase ${item.rawName} by ${preset.bigStep} ${unitLabel}`}
+          className="tap-target flex h-full w-7 items-center justify-center transition-opacity active:opacity-50 disabled:opacity-30"
+          style={{ color: accent }}
+        >
+          <PlusIcon size={12} />
         </button>
       </div>
+      <Button
+        variant="tinted"
+        size="xs"
+        accent={accent}
+        onClick={() => void handleLog()}
+        disabled={saving || isDemoData}
+        title={isDemoData ? "Sign in to log" : undefined}
+        aria-label={`Log ${item.rawName}`}
+        className="shrink-0 text-sm!"
+      >
+        {saving ? "Saving…" : "Log"}
+      </Button>
     </div>
   );
 }
@@ -276,57 +300,40 @@ export function WorkoutTab({
   time: string;
   onSave: (entry: NewWorkoutEntry) => Promise<void>;
 }) {
+  if (groups.length === 0) {
+    return (
+      <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
+        No exercises yet — add one in Settings.
+      </p>
+    );
+  }
   return (
-    <div className="flex flex-col gap-3">
-      {groups.length === 0 ? (
-        <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-          No exercises yet — add one in Settings.
-        </p>
-      ) : (
-        groups.map((group) => (
-          <div key={group.category} className="flex flex-col gap-2">
-            <div className="flex min-h-9 items-center">
-              <p className="flex items-center gap-1.5 px-3.5 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
-                {group.chrome.iconKey && (
-                  <span style={{ color: group.chrome.color ?? accent }}>
-                    <CustomIcon icon={group.chrome.iconKey} size={13} />
-                  </span>
-                )}
-                {group.category}
-              </p>
-            </div>
-            <div className="inset-rows rounded-xl border" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
-              {group.items.map((item) => (
-                <ExerciseRow
-                  key={item.identity}
-                  item={item}
-                  lastValue={lastValues[item.rawName]}
-                  todaysSets={entries.filter((e) => e.exercise === item.rawName).map((e) => e.weightKg)}
-                  isDemoData={isDemoData}
-                  accent={accent}
-                  onLog={(value) => onSave({ exercise: item.rawName, weightKg: String(value), time })}
-                />
-              ))}
-            </div>
+    <div className={`grid gap-4 ${groups.length > 1 ? "lg:grid-cols-2 lg:items-start" : ""}`}>
+      {groups.map((group) => (
+        <section key={group.category} className="flex flex-col gap-1.5">
+          <h3 className="flex items-center gap-1.5 px-3.5 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
+            {group.chrome.iconKey && (
+              <span style={{ color: group.chrome.color ?? accent }}>
+                <CustomIcon icon={group.chrome.iconKey} size={13} />
+              </span>
+            )}
+            {group.category}
+          </h3>
+          <div className="inset-rows rounded-xl border" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
+            {group.items.map((item) => (
+              <ExerciseRow
+                key={item.identity}
+                item={item}
+                lastValue={lastValues[item.rawName]}
+                todaysSets={entries.filter((e) => e.exercise === item.rawName).map((e) => e.weightKg)}
+                isDemoData={isDemoData}
+                accent={accent}
+                onLog={(value) => onSave({ exercise: item.rawName, weightKg: String(value), time })}
+              />
+            ))}
           </div>
-        ))
-      )}
-
-      <div className="inset-rows rounded-xl border" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
-        {(
-          [
-            ["/manage/", "Manage exercises and units"],
-            ["/workout/", "Charts and progression"],
-          ] as const
-        ).map(([href, label]) => (
-          <Link key={href} href={href} className="flex min-h-11 items-center gap-2 px-3.5 text-sm" style={{ color: "var(--text-primary)" }}>
-            {label}
-            <span className="ml-auto" style={{ color: "var(--text-muted)" }}>
-              <ChevronIcon dir="right" size={14} />
-            </span>
-          </Link>
-        ))}
-      </div>
+        </section>
+      ))}
     </div>
   );
 }

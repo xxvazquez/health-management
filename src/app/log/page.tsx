@@ -2218,7 +2218,19 @@ export default function LogPage() {
                   ["plan", "Plan"],
                 ]}
               />
-              <TimeField value={workoutTime} onChange={setWorkoutTime} />
+              <div className="flex items-center gap-3">
+                {(
+                  [
+                    ["/analytics/#workout", "Charts"],
+                    ["/manage/", "Manage"],
+                  ] as const
+                ).map(([href, label]) => (
+                  <Link key={href} href={href} className="hit-slop text-sm font-medium whitespace-nowrap" style={{ color: WORKOUT_ACCENT }}>
+                    {label}
+                  </Link>
+                ))}
+                <TimeField value={workoutTime} onChange={setWorkoutTime} />
+              </div>
             </div>
             {workoutMode === "plan" ? (
               <WorkoutPlanView
