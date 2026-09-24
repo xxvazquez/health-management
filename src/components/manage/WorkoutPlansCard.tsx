@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { ChevronIcon, CloseIcon } from "@/components/ui/icons";
+import { useEffect, useId, useMemo, useState, type ReactNode } from "react";
+import { ChevronIcon } from "@/components/ui/icons";
 import { FormGroup } from "@/components/ui/FormGroup";
 import { Field } from "@/components/ui/Field";
 import { Segmented } from "@/components/ui/Segmented";
-import { NumberStepper, UNIT_STEP_PRESETS } from "@/components/ui/NumberStepper";
+import { KgWheels, NumberWheel, numberRange } from "@/components/ui/NumberWheels";
+import { Sheet } from "@/components/ui/Sheet";
 import { DatePicker } from "@/components/ui/DatePicker";
 import { SwitchRow } from "@/components/ui/Switch";
 import { ROW_INLINE_CLS, ROW_STYLE } from "@/components/ui/formField";
@@ -19,10 +20,12 @@ import type { RawItem, RawWorkoutLog } from "@/lib/types";
 import {
   WEEKDAY_SHORT,
   addDays,
+  describeSession,
   mondayOf,
   planCoversDate,
   planWeekIndex,
   plannedSetsForWeek,
+  sessionTargetKg,
   suggestBaseKg,
   type LoggedValues,
   type PlanAdjustMode,
@@ -52,8 +55,6 @@ interface Draft {
   sessions: DraftSession[];
   createdDate: string;
 }
-
-const KG = UNIT_STEP_PRESETS.kg;
 
 function signedKg(value: number): string {
   if (value === 0) return "0 kg";
@@ -163,6 +164,183 @@ function Preview({ plan, today, logged, nameOf }: { plan: WorkoutPlan; today: st
   );
 }
 
+const WEEKDAY_LONG = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"] as const;
+
+function LiftSheet({
+  name,
+  base,
+  gain,
+  onChange,
+  onRemove,
+  onClose,
+}: {
+  name: string;
+  base: number;
+  gain: number;
+  onChange: (patch: { base?: number; gain?: number }) => void;
+  onRemove: () => void;
+  onClose: () => void;
+}) {
+  const [open, setOpen] = useState<"base" | "gain" | null>(null);
+  const titleId = useId();
+  const toggle = (row: "base" | "gain") => setOpen((o) => (o === row ? null : row));
+  return (
+    <Sheet title={name} titleId={titleId} onClose={onClose}>
+      <div className="flex flex-col gap-5">
+        <FormGroup footer="The starting weight is week 1's base. The weekly amount is added to it once a week.">
+          <ValueRow label="Starting weight" value={`${base} kg`} open={open === "base"} onToggle={() => toggle("base")}>
+            <KgWheels value={base} onChange={(v) => onChange({ base: v })} label="Starting weight" />
+          </ValueRow>
+          <ValueRow label="Added each week" value={`+${gain} kg`} open={open === "gain"} onToggle={() => toggle("gain")}>
+            <NumberWheel values={GAIN_VALUES} value={gain} onChange={(v) => onChange({ gain: v })} format={(v) => `+${v} kg`} label="Added each week" />
+          </ValueRow>
+        </FormGroup>
+        <div className={GROUP_CLS} style={GROUP_STYLE}>
+          <button type="button" onClick={onRemove} className="flex min-h-11 w-full items-center px-3.5 text-left text-sm" style={{ color: "var(--status-critical)" }}>
+            Remove from plan
+          </button>
+        </div>
+      </div>
+    </Sheet>
+  );
+}
+
+function DaySheet({
+  weekday,
+  sessions,
+  lifts,
+  nameOf,
+  onAdd,
+  onPatch,
+  onRemove,
+  onClose,
+}: {
+  weekday: number;
+  sessions: DraftSession[];
+  lifts: Draft["lifts"];
+  nameOf: (id: string) => string;
+  onAdd: () => void;
+  onPatch: (key: string, patch: Partial<DraftSession>) => void;
+  onRemove: (key: string) => void;
+  onClose: () => void;
+}) {
+  const [open, setOpen] = useState<string | null>(null);
+  const titleId = useId();
+  return (
+    <Sheet title={WEEKDAY_LONG[weekday - 1]} titleId={titleId} onClose={onClose}>
+      <div className="flex flex-col gap-5">
+        {sessions.length === 0 && (
+          <p className="px-3.5 text-sm" style={{ color: "var(--text-secondary)" }}>
+            Rest day. Add an exercise to train on {WEEKDAY_LONG[weekday - 1]}s.
+          </p>
+        )}
+        {sessions.map((s) => {
+          const base = lifts.find((l) => l.itemId === s.itemId)?.base ?? 0;
+          const isPercent = s.mode === "percent";
+          return (
+            <FormGroup key={s.key} footer={`Week 1 target: ${sessionTargetKg(base, s)} kg (base ${base} kg).`}>
+              <Field label="Exercise" inline>
+                <select value={s.itemId} onChange={(e) => onPatch(s.key, { itemId: e.target.value })} className={ROW_INLINE_CLS} style={ROW_STYLE}>
+                  {lifts.map((l) => (
+                    <option key={l.itemId} value={l.itemId}>
+                      {nameOf(l.itemId)}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <div className="flex min-h-11 items-center justify-between gap-3 px-3.5">
+                <span className="text-sm" style={{ color: "var(--text-primary)" }}>
+                  Weight
+                </span>
+                <Segmented
+                  value={s.mode}
+                  onChange={(mode) => onPatch(s.key, { mode, amount: mode === "percent" ? 80 : 0 })}
+                  options={[
+                    ["kg", "Base + kg"],
+                    ["percent", "% of base"],
+                  ]}
+                />
+              </div>
+              <ValueRow
+                label={isPercent ? "Share of base" : "Added to base"}
+                value={isPercent ? `${s.amount}%` : signedKg(s.amount)}
+                open={open === s.key}
+                onToggle={() => setOpen((o) => (o === s.key ? null : s.key))}
+              >
+                {isPercent ? (
+                  <NumberWheel values={PERCENT_VALUES} value={s.amount} onChange={(amount) => onPatch(s.key, { amount })} format={(v) => `${v}%`} label="Share of base" />
+                ) : (
+                  <NumberWheel values={OFFSET_VALUES} value={s.amount} onChange={(amount) => onPatch(s.key, { amount })} format={signedKg} label="Added to base" />
+                )}
+              </ValueRow>
+              <button type="button" onClick={() => onRemove(s.key)} className="flex min-h-11 w-full items-center px-3.5 text-left text-sm" style={{ color: "var(--status-critical)" }}>
+                Remove {nameOf(s.itemId)}
+              </button>
+            </FormGroup>
+          );
+        })}
+        <div className={GROUP_CLS} style={GROUP_STYLE}>
+          <button type="button" onClick={onAdd} className="flex min-h-11 w-full items-center px-3.5 text-left text-sm" style={{ color: ACCENT }}>
+            Add exercise
+          </button>
+        </div>
+      </div>
+    </Sheet>
+  );
+}
+
+/** An inset-group row showing a value on the right; tapping it opens a
+ * picker wheel under the row, the way iOS Calendar's date rows expand. */
+function ValueRow({ label, value, open, onToggle, children }: { label: string; value: string; open: boolean; onToggle: () => void; children: ReactNode }) {
+  return (
+    <div>
+      <button type="button" onClick={onToggle} aria-expanded={open} className="flex min-h-11 w-full items-center justify-between gap-3 px-3.5 text-left text-sm">
+        <span style={{ color: "var(--text-primary)" }}>{label}</span>
+        <span className="tabular-nums" style={{ color: open ? ACCENT : "var(--text-secondary)" }}>
+          {value}
+        </span>
+      </button>
+      {open && <div className="pb-3">{children}</div>}
+    </div>
+  );
+}
+
+/** A tappable summary row that opens a sheet: title (and optional detail
+ * line) on the left, a muted value and chevron on the right. */
+function NavRow({ title, detail, value, onClick }: { title: string; detail?: string; value?: string; onClick: () => void }) {
+  return (
+    <button type="button" onClick={onClick} className="flex min-h-11 w-full items-center gap-3 px-3.5 py-1.5 text-left">
+      <span className="flex min-w-0 flex-1 flex-col">
+        <span className="text-sm" style={{ color: "var(--text-primary)" }}>
+          {title}
+        </span>
+        {detail && (
+          <span className="truncate text-xs" style={{ color: "var(--text-muted)" }}>
+            {detail}
+          </span>
+        )}
+      </span>
+      {value && (
+        <span className="shrink-0 text-sm tabular-nums" style={{ color: "var(--text-secondary)" }}>
+          {value}
+        </span>
+      )}
+      <span className="shrink-0" style={{ color: "var(--text-muted)" }}>
+        <ChevronIcon dir="right" size={14} />
+      </span>
+    </button>
+  );
+}
+
+const LENGTH_VALUES = numberRange(0, 52, 1);
+const GAIN_VALUES = numberRange(0, 10, 0.25);
+const OFFSET_VALUES = numberRange(-20, 30, 0.25);
+const PERCENT_VALUES = numberRange(30, 150, 5);
+
+function weeksLabel(weeks: number): string {
+  return weeks === 0 ? "Ongoing" : `${weeks} ${weeks === 1 ? "week" : "weeks"}`;
+}
+
 function PlanEditor({
   initial,
   items,
@@ -183,6 +361,9 @@ function PlanEditor({
   const [d, setD] = useState<Draft>(initial);
   const [showErrors, setShowErrors] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [lengthOpen, setLengthOpen] = useState(false);
+  const [liftSheet, setLiftSheet] = useState<string | null>(null);
+  const [daySheet, setDaySheet] = useState<number | null>(null);
   const itemsById = useMemo(() => new Map(items.map((i) => [i.identity, i])), [items]);
   const logged = useLoggedValues(logs, itemsById);
   const nameOf = (id: string) => itemsById.get(id)?.rawName ?? "Deleted exercise";
@@ -218,8 +399,10 @@ function PlanEditor({
     update({ sessions: d.sessions.map((s) => (s.key === key ? { ...s, ...patch } : s)) });
   }
 
+  const sheetLift = d.lifts.find((l) => l.itemId === liftSheet) ?? null;
+
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-5">
       <FormGroup title="Plan" footer="Ongoing runs until you pause or delete it.">
         <Field label="Name" inline>
           <input value={d.name} onChange={(e) => update({ name: e.target.value })} placeholder="e.g. Squat 3x" maxLength={80} className={ROW_INLINE_CLS} style={ROW_STYLE} />
@@ -230,52 +413,23 @@ function PlanEditor({
           </span>
           <DatePicker value={d.startDate} onChange={(v) => update({ startDate: mondayOf(v) })} title="Plan starts" ariaLabel="Plan starts week of" />
         </div>
-        <div className="flex min-h-11 items-center justify-between gap-3 px-3.5">
-          <span className="text-sm" style={{ color: "var(--text-primary)" }}>
-            Length
-          </span>
-          <NumberStepper value={d.weeks} onChange={(weeks) => update({ weeks })} unit="weeks" step={1} bigStep={4} max={104} format={(v) => (v === 0 ? "Ongoing" : `${v} wk`)} />
-        </div>
+        <ValueRow label="Length" value={weeksLabel(d.weeks)} open={lengthOpen} onToggle={() => setLengthOpen((o) => !o)}>
+          <NumberWheel values={LENGTH_VALUES} value={d.weeks} onChange={(weeks) => update({ weeks })} format={weeksLabel} label="Plan length" />
+        </ValueRow>
         <SwitchRow label="Hold weight after a missed week" on={d.hold} onChange={(hold) => update({ hold })} />
         {!d.isNew && <SwitchRow label="Active" on={d.active} onChange={(active) => update({ active })} />}
       </FormGroup>
 
-      <FormGroup title="Lifts" footer="Start is the lift's base for week 1, filled in from your heaviest set of the last 7 days. Per week is added to that base once a week.">
+      <FormGroup title="Exercises" footer="Tap an exercise to set its starting weight and how much it goes up each week.">
         {d.lifts.map((lift) => (
-          <div key={lift.itemId} className="flex flex-col px-3.5 py-1.5">
-            <div className="flex min-h-9 items-center justify-between gap-3">
-              <span className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
-                {nameOf(lift.itemId)}
-              </span>
-              <button type="button" onClick={() => removeLift(lift.itemId)} aria-label={`Remove ${nameOf(lift.itemId)}`} className="hit-slop" style={{ color: "var(--text-muted)" }}>
-                <CloseIcon size={14} />
-              </button>
-            </div>
-            <div className="flex min-h-10 items-center justify-between gap-3">
-              <span className="text-sm whitespace-nowrap" style={{ color: "var(--text-secondary)" }}>
-                Start
-              </span>
-              <NumberStepper value={lift.base} onChange={(base) => patchLift(lift.itemId, { base })} unit="kg" {...KG} />
-            </div>
-            <div className="flex min-h-10 items-center justify-between gap-3">
-              <span className="text-sm whitespace-nowrap" style={{ color: "var(--text-secondary)" }}>
-                Per week
-              </span>
-              <NumberStepper value={lift.gain} onChange={(gain) => patchLift(lift.itemId, { gain })} unit="kg" step={KG.step} bigStep={KG.bigStep} max={20} format={signedKg} />
-            </div>
-          </div>
+          <NavRow key={lift.itemId} title={nameOf(lift.itemId)} detail={`+${lift.gain} kg each week`} value={`${lift.base} kg`} onClick={() => setLiftSheet(lift.itemId)} />
         ))}
         {liftable.length > 0 ? (
           <label className="flex min-h-11 items-center gap-3 px-3.5">
             <span className="text-sm" style={{ color: ACCENT }}>
-              Add lift
+              Add exercise
             </span>
-            <select
-              value=""
-              onChange={(e) => e.target.value && addLift(e.target.value)}
-              className={`${ROW_INLINE_CLS} flex-1`}
-              style={ROW_STYLE}
-            >
+            <select value="" onChange={(e) => e.target.value && addLift(e.target.value)} className={`${ROW_INLINE_CLS} flex-1`} style={ROW_STYLE}>
               <option value="">Choose…</option>
               {liftable.map((i) => (
                 <option key={i.identity} value={i.identity}>
@@ -294,61 +448,17 @@ function PlanEditor({
       </FormGroup>
 
       {d.lifts.length > 0 && (
-        <FormGroup title="Week template" footer="A day's target is that week's base plus the kg set here (minus for a lighter day), or a % of the base, e.g. 80% for a light day.">
-          {WEEKDAY_SHORT.map((label, i) => {
-            const weekday = i + 1;
-            const daySessions = d.sessions.filter((s) => s.weekday === weekday);
+        <FormGroup title="Week" footer="Tap a day to choose what you lift and how heavy.">
+          {WEEKDAY_LONG.map((label, i) => {
+            const daySessions = d.sessions.filter((s) => s.weekday === i + 1);
             return (
-              <div key={label} className="flex flex-col gap-1.5 px-3.5 py-2">
-                <div className="flex min-h-8 items-center justify-between">
-                  <span className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
-                    {label}
-                    {daySessions.length === 0 && (
-                      <span className="ml-2 font-normal" style={{ color: "var(--text-muted)" }}>
-                        Rest
-                      </span>
-                    )}
-                  </span>
-                  <button type="button" onClick={() => addSession(weekday)} className="min-h-8 text-sm font-medium" style={{ color: ACCENT }}>
-                    Add lift
-                  </button>
-                </div>
-                {daySessions.map((s) => (
-                  <div key={s.key} className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
-                    <select
-                      value={s.itemId}
-                      onChange={(e) => patchSession(s.key, { itemId: e.target.value })}
-                      aria-label={`${label} exercise`}
-                      className="min-h-9 min-w-32 flex-1 rounded-lg border bg-transparent px-2 text-sm outline-none"
-                      style={{ borderColor: "var(--border-hairline)", color: "var(--text-primary)" }}
-                    >
-                      {d.lifts.map((l) => (
-                        <option key={l.itemId} value={l.itemId}>
-                          {nameOf(l.itemId)}
-                        </option>
-                      ))}
-                    </select>
-                    <Segmented
-                      value={s.mode}
-                      onChange={(mode) => patchSession(s.key, { mode, amount: mode === "percent" ? 80 : 0 })}
-                      options={[
-                        ["kg", "+kg"],
-                        ["percent", "%"],
-                      ]}
-                    />
-                    <span className="ml-auto flex items-center gap-2">
-                      {s.mode === "percent" ? (
-                        <NumberStepper value={s.amount} onChange={(amount) => patchSession(s.key, { amount })} unit="%" step={1} bigStep={5} min={5} max={150} format={(v) => `${v}%`} />
-                      ) : (
-                        <NumberStepper value={s.amount} onChange={(amount) => patchSession(s.key, { amount })} unit="kg" step={KG.step} bigStep={KG.bigStep} min={-50} max={50} format={signedKg} />
-                      )}
-                      <button type="button" onClick={() => update({ sessions: d.sessions.filter((x) => x.key !== s.key) })} aria-label={`Remove from ${label}`} className="hit-slop" style={{ color: "var(--text-muted)" }}>
-                        <CloseIcon size={14} />
-                      </button>
-                    </span>
-                  </div>
-                ))}
-              </div>
+              <NavRow
+                key={label}
+                title={label}
+                detail={daySessions.length ? daySessions.map((s) => `${nameOf(s.itemId)} ${describeSession(s)}`).join(" · ") : undefined}
+                value={daySessions.length ? undefined : "Rest"}
+                onClick={() => setDaySheet(i + 1)}
+              />
             );
           })}
         </FormGroup>
@@ -358,6 +468,33 @@ function PlanEditor({
         <FormGroup title="Preview">
           <Preview plan={result.plan} today={today} logged={logged} nameOf={nameOf} />
         </FormGroup>
+      )}
+
+      {sheetLift && (
+        <LiftSheet
+          name={nameOf(sheetLift.itemId)}
+          base={sheetLift.base}
+          gain={sheetLift.gain}
+          onChange={(patch) => patchLift(sheetLift.itemId, patch)}
+          onRemove={() => {
+            removeLift(sheetLift.itemId);
+            setLiftSheet(null);
+          }}
+          onClose={() => setLiftSheet(null)}
+        />
+      )}
+
+      {daySheet !== null && (
+        <DaySheet
+          weekday={daySheet}
+          sessions={d.sessions.filter((s) => s.weekday === daySheet)}
+          lifts={d.lifts}
+          nameOf={nameOf}
+          onAdd={() => addSession(daySheet)}
+          onPatch={patchSession}
+          onRemove={(key) => update({ sessions: d.sessions.filter((x) => x.key !== key) })}
+          onClose={() => setDaySheet(null)}
+        />
       )}
 
       {showErrors && "error" in result && (

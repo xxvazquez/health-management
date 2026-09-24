@@ -78,7 +78,8 @@ One sans-serif family: SF Pro on Apple devices, Inter elsewhere (`--font-app`).
 
 - **`FormShell`** (title + Cancel) holds **`FormGroup`** cards of **`Field`** rows
 - **`SwitchRow`** for toggles
-- **Numbers are picked, not typed:** `NumberStepper` (−/+ steps, optional `format` for readouts like "Ongoing")
+- **Numbers are picked, not typed.** In forms, a row shows the value on the right, and tapping it opens an iOS wheel under the row: `NumberWheel` (one column over a list of values), `KgWheels` (whole kg + quarter kg). `NumberStepper` (a raised −/+ capsule) is for quick inline adjustments
+- **Summary rows open sheets:** a list of things to configure shows one row each (title, muted detail, value, chevron), and the detail is edited in a `Sheet`, not inline
 - **No boxed inputs**, never grey-filled
 - **Dates and times:** `DatePicker`, `TimePicker`, `DateTimePicker`, `MonthPicker`. Never a native date input
 

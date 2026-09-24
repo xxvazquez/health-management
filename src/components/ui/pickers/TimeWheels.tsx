@@ -1,13 +1,29 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { pad2 } from "./dateUtils";
 
 const ROW = 36;
 const VIEW = 176;
 const PAD = (VIEW - ROW) / 2;
 
-function Wheel({ count, value, onChange, label }: { count: number; value: number; onChange: (n: number) => void; label: string }) {
+/** One scrolling picker column over indices 0…count-1; `format` turns an
+ * index into its label (two-digit by default, for times). */
+export function Wheel({
+  count,
+  value,
+  onChange,
+  label,
+  format = pad2,
+  width = 64,
+}: {
+  count: number;
+  value: number;
+  onChange: (n: number) => void;
+  label: string;
+  format?: (i: number) => string;
+  width?: number;
+}) {
   const ref = useRef<HTMLDivElement>(null);
   const scrolling = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -46,8 +62,8 @@ function Wheel({ count, value, onChange, label }: { count: number; value: number
           onChange(Math.max(0, value - 1));
         }
       }}
-      className="no-scrollbar relative w-16 snap-y snap-mandatory overflow-y-auto outline-none"
-      style={{ height: VIEW, paddingTop: PAD, paddingBottom: PAD }}
+      className="no-scrollbar relative snap-y snap-mandatory overflow-y-auto outline-none"
+      style={{ width, height: VIEW, paddingTop: PAD, paddingBottom: PAD }}
     >
       {Array.from({ length: count }, (_, i) => (
         <button
@@ -66,9 +82,19 @@ function Wheel({ count, value, onChange, label }: { count: number; value: number
             fontWeight: i === value ? 600 : 400,
           }}
         >
-          {pad2(i)}
+          {format(i)}
         </button>
       ))}
+    </div>
+  );
+}
+
+/** Wheels side by side over one shared selection band. */
+export function WheelFrame({ children }: { children: ReactNode }) {
+  return (
+    <div className="relative mx-auto flex w-fit items-center justify-center gap-1" style={{ height: VIEW }}>
+      <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 rounded-lg" style={{ top: PAD, height: ROW, background: "var(--field-fill)", zIndex: 0 }} />
+      <div className="relative z-10 flex items-center">{children}</div>
     </div>
   );
 }
@@ -78,15 +104,12 @@ function Wheel({ count, value, onChange, label }: { count: number; value: number
 export function TimeWheels({ value, onChange }: { value: string; onChange: (time: string) => void }) {
   const [hh, mm] = /^(\d{1,2}):(\d{2})/.test(value) ? value.split(":").map(Number) : [0, 0];
   return (
-    <div className="relative mx-auto flex w-fit items-center justify-center gap-1" style={{ height: VIEW }}>
-      <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 rounded-lg" style={{ top: PAD, height: ROW, background: "var(--field-fill)", zIndex: 0 }} />
-      <div className="relative z-10 flex items-center">
-        <Wheel count={24} value={hh} onChange={(h) => onChange(`${pad2(h)}:${pad2(mm)}`)} label="Hours" />
-        <span className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-          :
-        </span>
-        <Wheel count={60} value={mm} onChange={(m) => onChange(`${pad2(hh)}:${pad2(m)}`)} label="Minutes" />
-      </div>
-    </div>
+    <WheelFrame>
+      <Wheel count={24} value={hh} onChange={(h) => onChange(`${pad2(h)}:${pad2(mm)}`)} label="Hours" />
+      <span className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+        :
+      </span>
+      <Wheel count={60} value={mm} onChange={(m) => onChange(`${pad2(hh)}:${pad2(m)}`)} label="Minutes" />
+    </WheelFrame>
   );
 }
