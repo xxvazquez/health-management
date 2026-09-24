@@ -529,11 +529,21 @@ function AgendaRow({
   );
 
   return (
+    // Tapping the row opens it for editing, as in Reminders; its own
+    // buttons (checkbox, checklist, swipe actions) keep their taps.
     <div
-      className="group flex items-start gap-3 border-t py-3 first:border-t-0"
+      className={clsx("group flex items-start gap-3 border-t py-3 first:border-t-0", !readOnly && "cursor-pointer")}
       style={{ borderColor: "var(--gridline)", touchAction: "pan-y" }}
       onTouchStart={readOnly ? undefined : onTouchStart}
       onTouchEnd={readOnly ? undefined : onTouchEnd}
+      onClick={
+        readOnly || confirming
+          ? undefined
+          : (ev) => {
+              if ((ev.target as HTMLElement).closest("button, a, input")) return;
+              onEdit();
+            }
+      }
     >
       {readOnly ? (
         <Link href={e.href ?? "/medical"} className="flex min-w-0 flex-1 items-start gap-3 hover:opacity-80">
