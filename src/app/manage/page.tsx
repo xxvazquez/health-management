@@ -45,6 +45,8 @@ import { buildDemoWeightTarget } from "@/lib/demoVitals";
 import { useLabs } from "@/lib/useLabs";
 import { MarkerForm } from "@/components/doctors/labForms";
 import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
+import { Sheet } from "@/components/ui/Sheet";
+import { FormGroup } from "@/components/ui/FormGroup";
 import {
   setThemePref,
   useThemePref,
@@ -2340,19 +2342,13 @@ function CategoryManager({
  * or recategorize (there's no row to touch), so this is just a name + a
  * one-click way to stop being offered it — clicking Hide materializes it
  * (creates the row) and archives it in the same step. */
-function CatalogFoodRow({ item, busy, onHide }: { item: ManageableItem; busy: boolean; onHide: () => void }) {
+function CatalogFoodRow({ item, nested, onHide }: { item: ManageableItem; nested: boolean; onHide: () => void }) {
   return (
-    <li className="flex min-h-11 items-center gap-2 px-3">
-      <span className="min-w-0 flex-1 truncate text-sm" style={{ color: "var(--text-secondary)" }}>
+    <li className={`flex min-h-11 items-center gap-2 py-2 pr-3.5 ${nested ? NESTED_ROW_PAD : "pl-3.5"}`}>
+      <span className="min-w-0 flex-1 text-sm" style={{ color: "var(--text-primary)" }}>
         {item.item}
       </span>
-      <button
-        type="button"
-        onClick={onHide}
-        disabled={busy}
-        className="tap-target shrink-0 px-1 text-sm disabled:opacity-40"
-        style={{ color: "var(--text-muted)" }}
-      >
+      <button type="button" onClick={onHide} className="tap-target shrink-0 text-sm" style={{ color: "var(--ui-accent)" }}>
         Hide
       </button>
     </li>
@@ -2481,21 +2477,49 @@ function EditorField({ label, children }: { label: string; children: ReactNode }
   );
 }
 
-/** One tracked item: a single tappable line (name, short summary, chevron)
- * that opens its editor — rename, category, per-type settings, archive and
- * delete — right below it. Keeping every control behind the tap is what
- * lets a 150-item list stay a tidy column instead of a wall of pills. */
-function ItemRow({
+/** Left padding that lines an item up with its category's name, past the
+ * category's icon tile. */
+const NESTED_ROW_PAD = "pl-[3.375rem]";
+
+/** One tracked item in a Settings list: a fixed-height row (name, short
+ * summary, chevron) that opens the item's editor sheet. */
+function ItemRow({ item, summary, nested, onOpen }: { item: ManageableItem; summary: string; nested: boolean; onOpen: () => void }) {
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={onOpen}
+        aria-haspopup="dialog"
+        className={`flex min-h-11 w-full items-center gap-2 py-2 pr-3.5 text-left ${nested ? NESTED_ROW_PAD : "pl-3.5"}`}
+      >
+        <span className="min-w-0 flex-1 text-sm" style={{ color: "var(--text-primary)" }}>
+          {item.item}
+        </span>
+        {summary && (
+          <span className="shrink-0 text-sm" style={{ color: "var(--text-muted)" }}>
+            {summary}
+          </span>
+        )}
+        <span className="shrink-0" style={{ color: "var(--text-muted)" }}>
+          <ChevronIcon dir="right" size={14} />
+        </span>
+      </button>
+    </li>
+  );
+}
+
+/** A tracked item's editor — rename, category, per-type settings, archive
+ * and delete — as grouped rows in a sheet, like an iOS detail screen. */
+function ItemEditorSheet({
   item,
   itemType,
   categories,
-  showCategory,
   linkedDecisions,
   busy,
+  onClose,
   onArchiveToggle,
   onRename,
   onChangeCategory,
-  onHideCatalog,
   onSetReminderTime,
   onSetUnit,
   knownUnits,
@@ -2505,46 +2529,33 @@ function ItemRow({
 }: {
   item: ManageableItem;
   itemType: ItemType;
-  categories: readonly string[] | null;
-  /** Show the category as the row's summary — only when the list isn't
-   * already grouped by it. */
-  showCategory?: boolean;
+  categories: readonly string[];
   /** Supplement only — decision entries explaining this item, newest first. */
   linkedDecisions?: CareEntry[];
   busy: boolean;
+  onClose: () => void;
   onArchiveToggle: () => void;
   onRename: (newName: string) => void;
-  onChangeCategory?: (newCategory: string) => void;
-  onHideCatalog?: () => void;
+  onChangeCategory: (newCategory: string) => void;
   onSetReminderTime?: (time: string | null) => void;
   onSetUnit?: (unit: WorkoutUnit) => void;
-  knownUnits?: WorkoutUnit[];
+  knownUnits: WorkoutUnit[];
   /** Food only — the current per-user override, if any (undefined means
    * automatic keyword classification). */
   nutritionGroupOverride?: NutritionGroupId;
   onSetNutritionGroup?: (groupId: NutritionGroupId | null) => void;
-  onDelete?: () => void;
+  onDelete: () => void;
 }) {
-  const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(item.item);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
 
-  if (item.itemIdentity === "" && onHideCatalog) {
-    return <CatalogFoodRow item={item} busy={busy} onHide={onHideCatalog} />;
-  }
   const canRemind = onSetReminderTime && (itemType === "supplement" || itemType === "habit");
   const canSetUnit = onSetUnit && itemType === "workout";
   const canSetNutritionGroup = onSetNutritionGroup && itemType === "food";
   // Delete is only ever offered for an item with zero logged history — see
   // ManageableItem.hasHistory's doc comment for why (an item with any
   // history can't be hard-deleted, only archived).
-  const canDelete = item.hasHistory === false && onDelete;
-
-  const summary =
-    (canRemind && item.reminderTime) ||
-    (canSetUnit && workoutUnitLabel(item.unit ?? "kg")) ||
-    (nutritionGroupOverride && NUTRITION_GROUP_LABEL[nutritionGroupOverride]) ||
-    (showCategory ? item.category : "");
+  const canDelete = item.hasHistory === false;
 
   function saveName(e: FormEvent) {
     e.preventDefault();
@@ -2553,62 +2564,30 @@ function ItemRow({
   }
 
   return (
-    <li>
-      <button
-        type="button"
-        onClick={() => {
-          setDraft(item.item);
-          setConfirmingDelete(false);
-          setOpen((v) => !v);
-        }}
-        aria-expanded={open}
-        className="flex min-h-11 w-full items-center gap-2 px-3.5 text-left"
-      >
-        <span className="min-w-0 flex-1 truncate text-sm" style={{ color: "var(--text-primary)" }}>
-          {item.item}
-        </span>
-        {summary && (
-          <span className="shrink-0 text-sm" style={{ color: "var(--text-muted)" }}>
-            {summary}
-          </span>
-        )}
-        <span className="shrink-0" style={{ color: "var(--text-muted)" }}>
-          <ChevronIcon dir={open ? "down" : "right"} size={14} />
-        </span>
-      </button>
-
-      {open && (
-        <div className="inset-rows border-t" style={{ borderColor: "var(--gridline)" }}>
+    <Sheet title={item.item} titleId="manage-item-title" onClose={onClose}>
+      <div className="flex flex-col gap-4">
+        <FormGroup>
           <form onSubmit={saveName} className="flex min-h-11 items-center gap-3 px-3.5">
             <span className="shrink-0 text-sm" style={{ color: "var(--text-primary)" }}>
               Name
             </span>
-            <input
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              aria-label={`Rename ${item.item}`}
-              className={FIELD_VALUE}
-              style={FIELD_VALUE_STYLE}
-            />
+            <input value={draft} onChange={(e) => setDraft(e.target.value)} aria-label={`Rename ${item.item}`} className={FIELD_VALUE} style={FIELD_VALUE_STYLE} />
             {draft.trim() && draft.trim() !== item.item && (
               <button type="submit" disabled={busy} className="shrink-0 py-2 text-sm font-semibold disabled:opacity-40" style={{ color: "var(--ui-accent)" }}>
                 Save
               </button>
             )}
           </form>
-
-          {categories && onChangeCategory && (
-            <EditorField label="Category">
-              <select value={item.category} disabled={busy} onChange={(e) => onChangeCategory(e.target.value)} className={FIELD_VALUE} style={FIELD_VALUE_STYLE}>
-                {!categories.includes(item.category) && <option value={item.category}>{item.category}</option>}
-                {categories.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
-            </EditorField>
-          )}
+          <EditorField label="Category">
+            <select value={item.category} disabled={busy} onChange={(e) => onChangeCategory(e.target.value)} className={FIELD_VALUE} style={FIELD_VALUE_STYLE}>
+              {!categories.includes(item.category) && <option value={item.category}>{item.category}</option>}
+              {categories.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          </EditorField>
           {canSetNutritionGroup && (
             <EditorField label="Nutrition">
               <NutritionGroupSelect itemName={item.item} override={nutritionGroupOverride} busy={busy} onSetNutritionGroup={onSetNutritionGroup} />
@@ -2616,7 +2595,7 @@ function ItemRow({
           )}
           {canSetUnit && (
             <EditorField label="Unit">
-              <UnitSelect unit={item.unit ?? "kg"} knownUnits={knownUnits ?? []} busy={busy} onSetUnit={onSetUnit} itemName={item.item} />
+              <UnitSelect unit={item.unit ?? "kg"} knownUnits={knownUnits} busy={busy} onSetUnit={onSetUnit} itemName={item.item} />
             </EditorField>
           )}
           {canRemind && (
@@ -2631,55 +2610,61 @@ function ItemRow({
               />
             </EditorField>
           )}
-          {linkedDecisions && linkedDecisions.length > 0 && (
+        </FormGroup>
+
+        {linkedDecisions && linkedDecisions.length > 0 && (
+          <FormGroup title="Why">
             <div className="px-3.5 py-2.5">
               <SupplementWhyLine decisions={linkedDecisions} />
             </div>
-          )}
+          </FormGroup>
+        )}
 
-          <div className="flex min-h-11 items-center justify-between gap-4 px-3.5">
-            <button
-              type="button"
-              onClick={onArchiveToggle}
-              disabled={busy}
-              className="min-h-11 text-sm disabled:opacity-40"
-              style={{ color: "var(--ui-accent)" }}
-            >
-              {item.isArchived ? "Unarchive" : "Archive"}
-            </button>
-            {canDelete &&
-              (confirmingDelete ? (
-                <span className="flex items-center gap-4">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setConfirmingDelete(false);
-                      onDelete();
-                    }}
-                    className="min-h-11 text-sm font-semibold"
-                    style={{ color: "var(--status-critical)" }}
-                  >
-                    Delete for good
-                  </button>
-                  <button type="button" onClick={() => setConfirmingDelete(false)} className="min-h-11 text-sm" style={{ color: "var(--text-secondary)" }}>
-                    Keep
-                  </button>
-                </span>
-              ) : (
+        <FormGroup footer={item.isArchived ? "Unarchiving puts it back on the Log page." : "Archiving hides it from the Log page and keeps its history."}>
+          <button
+            type="button"
+            onClick={() => {
+              onArchiveToggle();
+              onClose();
+            }}
+            disabled={busy}
+            className="flex min-h-11 w-full items-center px-3.5 text-left text-sm disabled:opacity-40"
+            style={{ color: "var(--ui-accent)" }}
+          >
+            {item.isArchived ? "Unarchive" : "Archive"}
+          </button>
+          {canDelete &&
+            (confirmingDelete ? (
+              <div className="flex min-h-11 items-center justify-between gap-4 px-3.5">
                 <button
                   type="button"
-                  onClick={() => setConfirmingDelete(true)}
-                  disabled={busy}
-                  className="min-h-11 text-sm disabled:opacity-40"
+                  onClick={() => {
+                    onDelete();
+                    onClose();
+                  }}
+                  className="min-h-11 text-sm font-semibold"
                   style={{ color: "var(--status-critical)" }}
                 >
-                  Delete
+                  Delete for good
                 </button>
-              ))}
-          </div>
-        </div>
-      )}
-    </li>
+                <button type="button" onClick={() => setConfirmingDelete(false)} className="min-h-11 text-sm" style={{ color: "var(--text-secondary)" }}>
+                  Keep
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setConfirmingDelete(true)}
+                disabled={busy}
+                className="flex min-h-11 w-full items-center px-3.5 text-left text-sm disabled:opacity-40"
+                style={{ color: "var(--status-critical)" }}
+              >
+                Delete
+              </button>
+            ))}
+        </FormGroup>
+      </div>
+    </Sheet>
   );
 }
 
@@ -2779,6 +2764,7 @@ function ItemSection({
 }) {
   const [archivedOpen, setArchivedOpen] = useState(false);
   const [openCategories, setOpenCategories] = useState<Set<string>>(new Set());
+  const [editingIdentity, setEditingIdentity] = useState<string | null>(null);
   const [localQuery, setLocalQuery] = useState("");
   const globalQuery = searchQuery.trim().toLowerCase();
   const mode = useSectionMode(label, globalQuery.length > 0);
@@ -2830,28 +2816,20 @@ function ItemSection({
   }
 
   function renderRow(item: ManageableItem, opts: { archivedRow?: boolean } = {}) {
-    return (
-      <ItemRow
-        key={item.itemIdentity || `catalog:${item.item}`}
-        item={item}
-        itemType={itemType}
-        categories={categories}
-        showCategory={!grouped || opts.archivedRow}
-        linkedDecisions={decisionsBySupplementId?.get(item.itemIdentity)}
-        busy={item.itemIdentity !== "" && busyIdentity === item.itemIdentity}
-        onArchiveToggle={() => onToggleArchive(item)}
-        onRename={(name) => onRename(item, name)}
-        onChangeCategory={(category) => onChangeCategory(item, category)}
-        onHideCatalog={!opts.archivedRow && onHideCatalogFood ? () => void onHideCatalogFood(item.item, item.category) : undefined}
-        onSetReminderTime={onSetReminderTime ? (time) => onSetReminderTime(item, time) : undefined}
-        onSetUnit={onSetUnit ? (unit) => onSetUnit(item, unit) : undefined}
-        knownUnits={knownUnits}
-        nutritionGroupOverride={nutritionGroupOverrides?.[normalizeName(item.item)]}
-        onSetNutritionGroup={onSetNutritionGroup ? (groupId) => onSetNutritionGroup(item, groupId) : undefined}
-        onDelete={() => onDelete(item)}
-      />
-    );
+    if (item.itemIdentity === "") {
+      if (opts.archivedRow || !onHideCatalogFood) return null;
+      return <CatalogFoodRow key={`catalog:${item.item}`} item={item} nested={grouped} onHide={() => void onHideCatalogFood(item.item, item.category)} />;
+    }
+    const override = nutritionGroupOverrides?.[normalizeName(item.item)];
+    const summary =
+      ((itemType === "supplement" || itemType === "habit") && onSetReminderTime && item.reminderTime) ||
+      (itemType === "workout" && onSetUnit && workoutUnitLabel(item.unit ?? "kg")) ||
+      (override && NUTRITION_GROUP_LABEL[override]) ||
+      (!grouped || opts.archivedRow ? item.category : "");
+    return <ItemRow key={item.itemIdentity} item={item} summary={summary} nested={grouped && !opts.archivedRow} onOpen={() => setEditingIdentity(item.itemIdentity)} />;
   }
+
+  const editing = editingIdentity ? items.find((i) => i.itemIdentity === editingIdentity) : undefined;
 
   const listBox = "inset-rows rounded-xl";
   const listBoxStyle = { background: "var(--surface-1)" } as const;
@@ -2876,6 +2854,8 @@ function ItemSection({
           <div className={listBox} style={listBoxStyle}>
             {sortedGroups.map(([category, rows]) => {
               const groupOpen = isFiltering || openCategories.has(category);
+              const appearance = categoryAppearanceByName.get(category);
+              const accent = customColorValue(appearance?.color ?? null) ?? TYPE_ACCENT[itemType];
               return (
                 <div key={category}>
                   <button
@@ -2883,17 +2863,31 @@ function ItemSection({
                     onClick={() => toggleCategory(category)}
                     disabled={isFiltering}
                     aria-expanded={groupOpen}
-                    className="flex min-h-11 w-full items-center gap-2 px-3.5 text-left"
+                    className="flex min-h-11 w-full items-center gap-3 px-3.5 text-left"
                   >
-                    <span className="text-sm" style={{ color: "var(--text-primary)" }}>
+                    <span
+                      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md"
+                      style={{ color: accent, background: `color-mix(in oklab, ${accent} 14%, transparent)` }}
+                    >
+                      <CustomIcon icon={appearance?.icon ?? defaultCategoryIcon(itemType, category)} size={15} />
+                    </span>
+                    <span className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
                       {category}
                     </span>
                     <span className="ml-auto flex items-center gap-1.5 text-sm" style={{ color: "var(--text-muted)" }}>
                       {rows.length}
-                      {!isFiltering && <ChevronIcon dir={groupOpen ? "down" : "right"} size={14} />}
+                      {!isFiltering && (
+                        <span className="transition-transform duration-200" style={{ transform: groupOpen ? "rotate(90deg)" : undefined }}>
+                          <ChevronIcon dir="right" size={14} />
+                        </span>
+                      )}
                     </span>
                   </button>
-                  {groupOpen && <ul className="inset-rows border-t" style={{ borderColor: "var(--gridline)" }}>{rows.map((item) => renderRow(item))}</ul>}
+                  {groupOpen && (
+                    <ul className="inset-rows relative [--row-inset:3.375rem] before:absolute before:top-0 before:right-0 before:left-[3.375rem] before:border-t before:border-[var(--gridline)]">
+                      {rows.map((item) => renderRow(item))}
+                    </ul>
+                  )}
                 </div>
               );
             })}
@@ -2943,6 +2937,27 @@ function ItemSection({
 
         {mode === "detail" && itemType === "workout" && <OpenInLogRow tab="workout" label="Go to Workout in Log" />}
       </div>
+
+      {editing && (
+        <ItemEditorSheet
+          key={editing.itemIdentity}
+          item={editing}
+          itemType={itemType}
+          categories={categories}
+          linkedDecisions={decisionsBySupplementId?.get(editing.itemIdentity)}
+          busy={busyIdentity === editing.itemIdentity}
+          onClose={() => setEditingIdentity(null)}
+          onArchiveToggle={() => onToggleArchive(editing)}
+          onRename={(name) => onRename(editing, name)}
+          onChangeCategory={(category) => onChangeCategory(editing, category)}
+          onSetReminderTime={onSetReminderTime ? (time) => onSetReminderTime(editing, time) : undefined}
+          onSetUnit={onSetUnit ? (unit) => onSetUnit(editing, unit) : undefined}
+          knownUnits={knownUnits}
+          nutritionGroupOverride={nutritionGroupOverrides?.[normalizeName(editing.item)]}
+          onSetNutritionGroup={onSetNutritionGroup ? (groupId) => onSetNutritionGroup(editing, groupId) : undefined}
+          onDelete={() => onDelete(editing)}
+        />
+      )}
     </div>
   );
 }
