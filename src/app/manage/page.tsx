@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import Link from "next/link";
 import { useData } from "@/lib/DataContext";
 import { useVisibleDomains, DOMAIN_LABELS, type TrackedDomain } from "@/lib/visibleDomains";
@@ -2557,21 +2557,37 @@ function ItemEditorSheet({
   // history can't be hard-deleted, only archived).
   const canDelete = item.hasHistory === false;
 
+  // A typed name saves on Enter, on leaving the field, or on closing the
+  // sheet — never lost to a dismiss.
+  const committedName = useRef(item.item);
+  function commitName() {
+    const next = draft.trim();
+    if (!next || next === item.item || next === committedName.current) return;
+    committedName.current = next;
+    onRename(next);
+  }
+
   function saveName(e: FormEvent) {
     e.preventDefault();
-    const next = draft.trim();
-    if (next && next !== item.item) onRename(next);
+    commitName();
   }
 
   return (
-    <Sheet title={item.item} titleId="manage-item-title" onClose={onClose}>
+    <Sheet
+      title={item.item}
+      titleId="manage-item-title"
+      onClose={() => {
+        commitName();
+        onClose();
+      }}
+    >
       <div className="flex flex-col gap-4">
         <FormGroup>
           <form onSubmit={saveName} className="flex min-h-11 items-center gap-3 px-3.5">
             <span className="shrink-0 text-sm" style={{ color: "var(--text-primary)" }}>
               Name
             </span>
-            <input value={draft} onChange={(e) => setDraft(e.target.value)} aria-label={`Rename ${item.item}`} className={FIELD_VALUE} style={FIELD_VALUE_STYLE} />
+            <input value={draft} onChange={(e) => setDraft(e.target.value)} onBlur={commitName} aria-label={`Rename ${item.item}`} className={FIELD_VALUE} style={FIELD_VALUE_STYLE} />
             {draft.trim() && draft.trim() !== item.item && (
               <button type="submit" disabled={busy} className="shrink-0 py-2 text-sm font-semibold disabled:opacity-40" style={{ color: "var(--ui-accent)" }}>
                 Save
