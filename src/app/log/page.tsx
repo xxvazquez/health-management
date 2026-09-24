@@ -643,12 +643,14 @@ export default function LogPage() {
   // in Manage, in another tab, or restored from a stale saved choice),
   // jump to the first tab that's still visible rather than rendering a
   // tab nobody can reach via the nav bar anymore.
+  // Waits for the first load: until then visibility is worked out from
+  // partial data and would bounce you off a tab that's about to appear.
   useEffect(() => {
-    if (tab === "summary" || isVisible(tab)) return;
+    if (status === "loading" || tab === "summary" || isVisible(tab)) return;
     const fallback = ([...TABS.map((t) => t.type), "stool", "workout", "cycle", "coffee"] as TrackedDomain[]).find((t) => isVisible(t));
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (fallback) setTab(fallback);
-  }, [tab, isVisible]);
+  }, [tab, isVisible, status]);
   const [confirmingDeleteKeys, setConfirmingDeleteKeys] = useState<Set<string>>(new Set());
   // Which Summary-tab timeline entry has its editable detail sheet open —
   // the row itself is a compact, fixed-height tap target (Apple's own
