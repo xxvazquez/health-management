@@ -17,7 +17,7 @@ import { DemoNotice } from "@/components/ui/DemoNotice";
 import { PushNotificationsToggle } from "@/components/PushNotificationsToggle";
 import { DataExportCard } from "@/components/manage/DataExportCard";
 import { WorkoutPlansCard } from "@/components/manage/WorkoutPlansCard";
-import { AddRow, CollapsibleManageCard, GROUP_CLS, GROUP_STYLE, GroupNote, ManageNavContext, SectionRow, useSectionMode } from "@/components/manage/ManageSection";
+import { AddRow, CollapsibleManageCard, GROUP_CLS, GROUP_STYLE, GroupNote, ManageNavContext, OpenInLogRow, SectionRow, useSectionMode } from "@/components/manage/ManageSection";
 import { SwitchKnob } from "@/components/ui/Switch";
 import { TimePicker } from "@/components/ui/DatePicker";
 import { useItemActions, type ManageableItem } from "@/lib/useItemActions";
@@ -2936,6 +2936,8 @@ function ItemSection({
             onSetAppearance={onSetCategoryAppearance}
           />
         )}
+
+        {mode === "detail" && itemType === "workout" && <OpenInLogRow tab="workout" label="Go to Workout in Log" />}
       </div>
     </div>
   );

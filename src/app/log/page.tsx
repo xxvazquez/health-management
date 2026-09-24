@@ -631,6 +631,14 @@ export default function LogPage() {
       // Corrupt or inaccessible storage — fall back to everything collapsed.
     }
   }, []);
+  // `/log/?tab=workout` (the links back from Settings) opens on that tab;
+  // the hidden-tab fallback below still applies.
+  useEffect(() => {
+    const requested = new URLSearchParams(window.location.search).get("tab");
+    const tabs: string[] = [...TABS.map((t) => t.type), "stool", "workout", "cycle", "coffee", "summary"];
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (requested && tabs.includes(requested)) setTab(requested as LogTab);
+  }, []);
   // If the tab you're sitting on gets hidden from under you (toggled off
   // in Manage, in another tab, or restored from a stale saved choice),
   // jump to the first tab that's still visible rather than rendering a

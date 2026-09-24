@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, type FormEvent, type ReactNode } from "react";
+import Link from "next/link";
 import { ChevronIcon } from "@/components/ui/icons";
 
 /** Which Settings section is open as its own screen (`null` = the list of
@@ -45,6 +46,21 @@ export const GROUP_CLS = "inset-rows rounded-xl border";
 export const GROUP_STYLE = { borderColor: "var(--border-hairline)", background: "var(--surface-1)" } as const;
 
 /** Small grey caption under a group, like a Settings footnote. */
+/** A one-row group that jumps to a Log tab — for heading back to log once
+ * something is set up here. */
+export function OpenInLogRow({ tab, label }: { tab: string; label: string }) {
+  return (
+    <div className={GROUP_CLS} style={GROUP_STYLE}>
+      <Link href={`/log/?tab=${tab}`} className="flex min-h-11 items-center gap-2 px-3.5 text-sm" style={{ color: "var(--ui-accent)" }}>
+        {label}
+        <span className="ml-auto" style={{ color: "var(--text-muted)" }}>
+          <ChevronIcon dir="right" size={14} />
+        </span>
+      </Link>
+    </div>
+  );
+}
+
 export function GroupNote({ children }: { children: ReactNode }) {
   return (
     <p className="px-4 text-xs" style={{ color: "var(--text-muted)" }}>

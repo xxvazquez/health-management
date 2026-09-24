@@ -11,7 +11,7 @@ import { DatePicker } from "@/components/ui/DatePicker";
 import { SwitchRow } from "@/components/ui/Switch";
 import { ROW_INLINE_CLS, ROW_STYLE } from "@/components/ui/formField";
 import { useLoggedValues } from "@/components/log/WorkoutPlanView";
-import { CollapsibleManageCard, GROUP_CLS, GROUP_STYLE, GroupNote } from "@/components/manage/ManageSection";
+import { CollapsibleManageCard, GROUP_CLS, GROUP_STYLE, GroupNote, OpenInLogRow } from "@/components/manage/ManageSection";
 import { getAllWorkoutLogs } from "@/lib/db/indexedDb";
 import { buildDemoDataset } from "@/lib/demoData";
 import { todayLocalISODate } from "@/lib/aggregations/common";
@@ -624,6 +624,7 @@ export function WorkoutPlansCard({ isDemoData, searchQuery, workoutItems }: { is
             A weekly template: which lifts on which days, each as +kg or % of that week&rsquo;s base. Each lift&rsquo;s base goes up by its own weekly gain, and stays put for a lift if you
             missed or fell short on it. Follow it from Log → Workout → Plan.
           </GroupNote>
+          <OpenInLogRow tab="workout" label="Go to Workout in Log" />
         </>
       )}
     </CollapsibleManageCard>
