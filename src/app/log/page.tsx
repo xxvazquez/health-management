@@ -1,7 +1,7 @@
 "use client";
 
 import { CHIP_CLS, CHIP_SM_CLS, CONTROL_CLS, CONTROL_STYLE, chipStyle } from "@/components/ui/Chip";
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import Link from "next/link";
 import clsx from "clsx";
 import { useData } from "@/lib/DataContext";
@@ -42,6 +42,7 @@ import {
 } from "@/lib/logCandidates";
 import { buildCanonicalEvents } from "@/lib/canonical/buildCanonicalEvents";
 import { createTimeOrderedId } from "@/lib/sortableId";
+import { fitColumnWidth } from "@/lib/fitColumnWidth";
 import { ensureCategoryId, ensureDefaultWorkoutItems } from "@/lib/categoryResolution";
 import { hiddenPicksForMonth, seasonalPicksForMonth, weeklyCategoryPriority } from "@/lib/aggregations/seasonal";
 import { useHiddenSeasonalPicks } from "@/lib/useHiddenSeasonalPicks";
@@ -292,7 +293,7 @@ function TapRow({
       disabled={busy}
       aria-pressed={on}
       aria-label={label}
-      className="flex min-h-11 w-full items-center gap-3 px-3.5 text-left text-sm transition-colors hover:bg-black/[0.04] active:bg-black/5 disabled:opacity-50 lg:gap-2 lg:px-2 lg:pointer-fine:min-h-8"
+      className="flex min-h-11 w-full items-center gap-3 px-3.5 py-2.5 text-left text-sm leading-snug transition-colors hover:bg-black/[0.04] active:bg-black/5 disabled:opacity-50 lg:gap-2.5 lg:px-2.5 lg:pointer-fine:min-h-8 lg:pointer-fine:py-1.5"
       style={{ color: "var(--text-primary)" }}
     >
       <span className="flex w-7 shrink-0 justify-center lg:w-auto" aria-hidden="true">
@@ -482,6 +483,8 @@ export default function LogPage() {
   // on date navigation either, since the time-of-day is independent of
   // which day it's applied to.
   const [logTime, setLogTime] = useState(() => defaultLogTimeValue());
+  // Target of Food's "Copy to…" sheet — null while it's closed.
+  const [copyTarget, setCopyTarget] = useState<{ meal: string; date: string } | null>(null);
   // Workout's own copy of the same idea as `logTime` above — it renders
   // outside the shared `tabConfig`-gated block (see the render below), same
   // as Stool's own `loggedAtTime` draft field.
@@ -1018,6 +1021,29 @@ export default function LogPage() {
     }
     await refreshAfterWrite();
     setPending(null);
+  }
+
+  /** Logs everything in the selected meal again under another meal/day,
+   * skipping items already logged there, then jumps to the copy. */
+  async function handleCopyMeal(target: { meal: string; date: string }) {
+    if (isDemoData) return;
+    setPending("__copy-meal__");
+    const existing = loggedCountsForDate(effective.logs, target.date, target.meal);
+    const seen = new Set<string>();
+    const iso = combineDateAndTime(target.date, logTime);
+    for (const l of effective.logs) {
+      if (l.itemType !== "food" || l.date !== date || (l.value ?? 0) <= 0) continue;
+      if (l.mealTag !== meal && l.mealTag != null) continue;
+      if (seen.has(l.itemIdentity) || existing.has(l.itemIdentity)) continue;
+      seen.add(l.itemIdentity);
+      const log = await incrementDailyLogAndSync(l.itemIdentity, "food", target.date, target.meal, l.productId);
+      if (log.updatedAt !== iso) await updateLogTimeAndSync(log.identity, iso);
+    }
+    await refreshAfterWrite();
+    setPending(null);
+    setCopyTarget(null);
+    setDate(target.date);
+    setMeal(target.meal);
   }
 
   async function handleDecrement(candidate: LogCandidate) {
@@ -1741,13 +1767,14 @@ export default function LogPage() {
   }
 
   /** The item list for one category, A–Z: grouped rows on a phone; from
-   * `lg` up as many newspaper columns as fit, reading down each column. */
+   * `lg` up as many newspaper columns as fit, reading down each column,
+   * each wide enough for the longest name. */
   function renderItemList(items: LogCandidate[], renderItem: (c: LogCandidate) => ReactNode) {
     const sorted = [...items].sort((a, b) => a.item.localeCompare(b.item));
     return (
       <div
-        className="inset-rows rounded-xl border [--row-inset:3.375rem] lg:columns-[10rem] lg:gap-x-2 lg:p-1 lg:[&>*]:break-inside-avoid lg:[&>*]:rounded-lg lg:[&>*::before]:hidden"
-        style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}
+        className="inset-rows rounded-xl border text-sm [--row-inset:3.375rem] lg:columns-(--col-w) lg:gap-x-3 lg:p-1.5 lg:[&>*]:break-inside-avoid lg:[&>*]:rounded-lg lg:[&>*::before]:hidden"
+        style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", "--col-w": fitColumnWidth(sorted.map((c) => c.item)) } as CSSProperties}
       >
         {sorted.map((c) => renderItem(c))}
       </div>
@@ -1784,6 +1811,16 @@ export default function LogPage() {
             <CloseIcon size={12} />
           </button>
         ))}
+        {!isDemoData && (
+          <button
+            type="button"
+            onClick={() => setCopyTarget({ meal: tagOptionsForType("food").find((m) => m !== meal) ?? meal, date })}
+            className="hit-slop ml-auto min-h-8 px-1 text-sm font-medium whitespace-nowrap"
+            style={{ color: accent }}
+          >
+            Copy to…
+          </button>
+        )}
       </div>
     );
   }
@@ -1843,8 +1880,10 @@ export default function LogPage() {
     const type = tabConfig.type;
     // A lone category, or a short tracker list, has nothing worth folding.
     const single = groups.length === 1 || (type !== "food" && groups.reduce((n, g) => n + g.items.length, 0) <= 12);
+    // One column width across every category, so the grids line up.
+    const colWidth = fitColumnWidth(groups.flatMap((g) => g.items.map((c) => c.item)));
     return (
-      <div className="inset-rows rounded-xl border" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
+      <div className="inset-rows rounded-xl border" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", "--col-w": colWidth } as CSSProperties}>
         {groups.map((group) => {
           const chrome = categoryChrome(type, group.category);
           const accent = chrome.color ?? colorForCategorySlot(group.category);
@@ -1882,7 +1921,7 @@ export default function LogPage() {
               <div
                 className={clsx(
                   "border-t",
-                  "inset-rows flex-col [--row-inset:3.375rem] lg:grid lg:grid-cols-[repeat(auto-fill,minmax(9.5rem,1fr))] lg:gap-x-1 lg:p-1 lg:[&>*::before]:hidden",
+                  "inset-rows flex-col text-sm [--row-inset:3.375rem] lg:grid lg:grid-cols-[repeat(auto-fill,minmax(min(var(--col-w),100%),1fr))] lg:gap-x-3 lg:p-1.5 lg:[&>*::before]:hidden",
                   collapsed ? "hidden lg:grid" : "flex lg:grid",
                 )}
                 style={{ borderColor: "var(--gridline)" }}
@@ -1996,8 +2035,8 @@ export default function LogPage() {
     <div className="flex flex-col gap-2">
       {seasonalPicksSorted.length > 0 && (
         <div
-          className="inset-rows rounded-xl border [--row-inset:0.875rem] lg:grid lg:grid-cols-[repeat(auto-fill,minmax(12rem,1fr))] lg:gap-x-1 lg:p-1 lg:[&>*::before]:hidden"
-          style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}
+          className="inset-rows rounded-xl border text-sm [--row-inset:0.875rem] lg:grid lg:grid-cols-[repeat(auto-fill,minmax(min(var(--col-w),100%),1fr))] lg:gap-x-3 lg:p-1.5 lg:[&>*::before]:hidden"
+          style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", "--col-w": fitColumnWidth(seasonalPicksSorted.map((p) => p.item), "7rem", 12) } as CSSProperties}
         >
           {seasonalPicksSorted.map((pick) => (
             <div key={pick.item} className="flex items-center lg:rounded-lg">
@@ -2688,6 +2727,54 @@ export default function LogPage() {
             </Sheet>
           );
         })()}
+      {copyTarget && (
+        <Sheet title={`Copy ${meal.toLowerCase()}`} titleId="copy-meal-title" onClose={() => setCopyTarget(null)}>
+          <div className="flex flex-col gap-3">
+            <FormGroup footer="Anything already logged there is skipped.">
+              <div className="flex min-h-11 items-center justify-between gap-3 px-3.5">
+                <span className="text-sm" style={{ color: "var(--text-primary)" }}>
+                  Meal
+                </span>
+                <select
+                  value={copyTarget.meal}
+                  onChange={(e) => setCopyTarget({ ...copyTarget, meal: e.target.value })}
+                  aria-label="Copy to meal"
+                  className="text-sm font-medium outline-none"
+                  style={{ background: "transparent", color: TYPE_ACCENT.food, border: "none" }}
+                >
+                  {tagOptionsForType("food").map((m) => (
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex min-h-11 items-center justify-between gap-3 px-3.5">
+                <span className="text-sm" style={{ color: "var(--text-primary)" }}>
+                  Day
+                </span>
+                <DatePicker
+                  value={copyTarget.date}
+                  onChange={(d) => setCopyTarget({ ...copyTarget, date: d })}
+                  max={today}
+                  ariaLabel="Copy to day"
+                  title="Day"
+                />
+              </div>
+            </FormGroup>
+            <Button
+              type="button"
+              size="lg"
+              accent={TYPE_ACCENT.food}
+              disabled={pending === "__copy-meal__" || (copyTarget.meal === meal && copyTarget.date === date)}
+              onClick={() => void handleCopyMeal(copyTarget)}
+            >
+              Copy to {copyTarget.meal}
+            </Button>
+          </div>
+        </Sheet>
+      )}
+
       {duplicateConflict && (
         <DuplicateItemDialog
           name={duplicateConflict.rawName}

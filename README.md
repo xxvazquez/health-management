@@ -51,7 +51,7 @@ Tabs: **Food · Symptoms · Supplements · Habits · Stool · Workout · Cycle �
 
 - **Toolbar:** search (or add), meal / time of day, time. On desktop it sits beside the page title.
 - **Categories:** a scrolling category rail on a phone; a sidebar with per-category logged counts on desktop. Items are A–Z, in as many columns as fit on desktop.
-- **Food's current meal** shows above the list as removable chips ("Dinner · 3").
+- **Food's current meal** shows above the list as removable chips ("Dinner · 3"). "Copy to…" logs the same items under another meal or day.
 - **Food extras:**
   - "Usual" tab: what you log most at the chosen meal
   - "Sep picks" tab: in-season foods you haven't eaten lately
