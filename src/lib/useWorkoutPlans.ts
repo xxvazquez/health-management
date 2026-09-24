@@ -28,7 +28,6 @@ function buildDemoPlans(): WorkoutPlan[] {
       startDate: start,
       weeks: 8,
       weeklyGainKg: 2.5,
-      roundToKg: 2.5,
       holdOnMiss: true,
       isActive: true,
       lifts: [

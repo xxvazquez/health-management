@@ -25,6 +25,7 @@ export function NumberStepper({
   min = 0,
   max = 400,
   compact = false,
+  format,
 }: {
   value: number;
   onChange: (next: number) => void;
@@ -37,6 +38,8 @@ export function NumberStepper({
   min?: number;
   max?: number;
   compact?: boolean;
+  /** Custom readout, e.g. "Ongoing" for 0. */
+  format?: (value: number) => string;
 }) {
   const clamp = (n: number) => Math.min(max, Math.max(min, n));
 
@@ -68,7 +71,7 @@ export function NumberStepper({
         −{step}
       </button>
       <span className="min-w-14 text-center text-xs font-semibold tabular-nums" style={{ color: "var(--text-primary)" }}>
-        {value} {unit}
+        {format ? format(value) : `${value} ${unit}`}
       </span>
       <button
         type="button"

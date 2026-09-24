@@ -452,7 +452,6 @@ create table public.workout_plans (
   -- Null runs until paused or deleted.
   weeks smallint check (weeks is null or weeks > 0),
   weekly_gain_kg numeric not null default 0,
-  round_to_kg numeric not null default 2.5 check (round_to_kg > 0),
   hold_on_miss boolean not null default true,
   is_active boolean not null default true,
   lifts jsonb not null default '[]'::jsonb check (jsonb_typeof(lifts) = 'array'),

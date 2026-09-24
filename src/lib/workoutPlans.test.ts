@@ -22,7 +22,6 @@ function plan(overrides: Partial<WorkoutPlan> = {}): WorkoutPlan {
     startDate: "2026-09-07",
     weeks: null,
     weeklyGainKg: 2.5,
-    roundToKg: 2.5,
     holdOnMiss: true,
     isActive: true,
     lifts: [{ itemId: "squat", baseKg: 80 }],
@@ -50,11 +49,11 @@ describe("date helpers", () => {
 });
 
 describe("sessionTargetKg", () => {
-  it("adds kg or takes a percentage, rounded to the plate step", () => {
-    expect(sessionTargetKg(80, { mode: "kg", amount: 5 }, 2.5)).toBe(85);
-    expect(sessionTargetKg(80, { mode: "percent", amount: 80 }, 2.5)).toBe(65);
-    expect(sessionTargetKg(81, { mode: "percent", amount: 80 }, 2.5)).toBe(65);
-    expect(sessionTargetKg(10, { mode: "kg", amount: -20 }, 2.5)).toBe(0);
+  it("adds kg or takes a percentage, snapped to 0.25 kg", () => {
+    expect(sessionTargetKg(80, { mode: "kg", amount: 5 })).toBe(85);
+    expect(sessionTargetKg(80, { mode: "percent", amount: 80 })).toBe(64);
+    expect(sessionTargetKg(81, { mode: "percent", amount: 80 })).toBe(64.75);
+    expect(sessionTargetKg(10, { mode: "kg", amount: -20 })).toBe(0);
   });
 });
 
@@ -64,13 +63,13 @@ describe("plannedSetsForWeek", () => {
     expect(sets.map((s) => [s.date, s.targetKg, s.status])).toEqual([
       ["2026-09-07", 85, "today"],
       ["2026-09-09", 90, "upcoming"],
-      ["2026-09-11", 65, "upcoming"],
+      ["2026-09-11", 64, "upcoming"],
     ]);
   });
 
   it("projects the weekly gain into future weeks", () => {
     const sets = plannedSetsForWeek(plan(), "2026-09-21", "2026-09-07", logsFrom({}));
-    expect(sets.map((s) => s.targetKg)).toEqual([90, 95, 67.5]);
+    expect(sets.map((s) => s.targetKg)).toEqual([90, 95, 68]);
   });
 
   it("is empty outside the plan's run", () => {

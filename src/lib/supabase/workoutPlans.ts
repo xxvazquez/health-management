@@ -42,7 +42,6 @@ export function planFromRow(r: Record<string, unknown>): WorkoutPlan {
     startDate: r.start_date as string,
     weeks: r.weeks === null || r.weeks === undefined ? null : num(r.weeks, 0) || null,
     weeklyGainKg: num(r.weekly_gain_kg, 0),
-    roundToKg: num(r.round_to_kg, 2.5),
     holdOnMiss: r.hold_on_miss !== false,
     isActive: r.is_active !== false,
     lifts: parseLifts(r.lifts),
@@ -57,7 +56,7 @@ export async function fetchWorkoutPlans(): Promise<WorkoutPlan[]> {
   if (!myUserId) return [];
   const { data, error } = await supabase
     .from(WORKOUT_PLANS_TABLE)
-    .select("id, name, start_date, weeks, weekly_gain_kg, round_to_kg, hold_on_miss, is_active, lifts, sessions, created_date")
+    .select("id, name, start_date, weeks, weekly_gain_kg, hold_on_miss, is_active, lifts, sessions, created_date")
     .eq("user_id", myUserId)
     .order("start_date", { ascending: true });
   if (error) throw error;
@@ -76,7 +75,6 @@ export async function saveWorkoutPlan(plan: WorkoutPlan): Promise<void> {
     start_date: plan.startDate,
     weeks: plan.weeks,
     weekly_gain_kg: plan.weeklyGainKg,
-    round_to_kg: plan.roundToKg,
     hold_on_miss: plan.holdOnMiss,
     is_active: plan.isActive,
     lifts: plan.lifts,

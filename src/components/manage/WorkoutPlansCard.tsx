@@ -5,6 +5,8 @@ import { ChevronIcon, CloseIcon } from "@/components/ui/icons";
 import { FormGroup } from "@/components/ui/FormGroup";
 import { Field } from "@/components/ui/Field";
 import { Segmented } from "@/components/ui/Segmented";
+import { NumberStepper, UNIT_STEP_PRESETS } from "@/components/ui/NumberStepper";
+import { DatePicker } from "@/components/ui/DatePicker";
 import { SwitchRow } from "@/components/ui/Switch";
 import { ROW_INLINE_CLS, ROW_STYLE } from "@/components/ui/formField";
 import { useLoggedValues } from "@/components/log/WorkoutPlanView";
@@ -34,28 +36,29 @@ interface DraftSession {
   weekday: number;
   itemId: string;
   mode: PlanAdjustMode;
-  amount: string;
+  amount: number;
 }
 
-/** The editor's working copy — numbers kept as the typed text until Save. */
+/** The editor's working copy. `weeks: 0` means ongoing. */
 interface Draft {
   id: string;
   isNew: boolean;
   name: string;
   startDate: string;
-  weeks: string;
-  gain: string;
-  round: string;
+  weeks: number;
+  gain: number;
   hold: boolean;
   active: boolean;
-  lifts: { itemId: string; base: string }[];
+  lifts: { itemId: string; base: number }[];
   sessions: DraftSession[];
   createdDate: string;
 }
 
-function parseNum(text: string): number {
-  const trimmed = text.trim().replace(",", ".");
-  return trimmed === "" ? NaN : Number(trimmed);
+const KG = UNIT_STEP_PRESETS.kg;
+
+function signedKg(value: number): string {
+  if (value === 0) return "0 kg";
+  return `${value > 0 ? "+" : "−"}${Math.abs(value)} kg`;
 }
 
 function shortDate(iso: string): string {
@@ -69,13 +72,12 @@ function draftFromPlan(plan: WorkoutPlan): Draft {
     isNew: false,
     name: plan.name,
     startDate: plan.startDate,
-    weeks: plan.weeks === null ? "" : String(plan.weeks),
-    gain: String(plan.weeklyGainKg),
-    round: String(plan.roundToKg),
+    weeks: plan.weeks ?? 0,
+    gain: plan.weeklyGainKg,
     hold: plan.holdOnMiss,
     active: plan.isActive,
-    lifts: plan.lifts.map((l) => ({ itemId: l.itemId, base: String(l.baseKg) })),
-    sessions: plan.sessions.map((s, i) => ({ key: `s${i}`, weekday: s.weekday, itemId: s.itemId, mode: s.mode, amount: String(s.amount) })),
+    lifts: plan.lifts.map((l) => ({ itemId: l.itemId, base: l.baseKg })),
+    sessions: plan.sessions.map((s, i) => ({ key: `s${i}`, weekday: s.weekday, itemId: s.itemId, mode: s.mode, amount: s.amount })),
     createdDate: plan.createdDate,
   };
 }
@@ -86,9 +88,8 @@ function newDraft(today: string): Draft {
     isNew: true,
     name: "",
     startDate: addDays(mondayOf(today), 7),
-    weeks: "",
-    gain: "2.5",
-    round: "2.5",
+    weeks: 0,
+    gain: 2.5,
     hold: true,
     active: true,
     lifts: [],
@@ -101,25 +102,17 @@ function newDraft(today: string): Draft {
 function planFromDraft(d: Draft): { plan: WorkoutPlan } | { error: string } {
   if (!d.name.trim()) return { error: "Give the plan a name." };
   if (d.lifts.length === 0) return { error: "Add at least one lift." };
-  const lifts = d.lifts.map((l) => ({ itemId: l.itemId, baseKg: parseNum(l.base) }));
+  const lifts = d.lifts.map((l) => ({ itemId: l.itemId, baseKg: l.base }));
   if (lifts.some((l) => !(l.baseKg > 0))) return { error: "Every lift needs this week's weight." };
-  const sessions = d.sessions.filter((s) => d.lifts.some((l) => l.itemId === s.itemId)).map((s) => ({ weekday: s.weekday, itemId: s.itemId, mode: s.mode, amount: parseNum(s.amount) }));
+  const sessions = d.sessions.filter((s) => d.lifts.some((l) => l.itemId === s.itemId)).map((s) => ({ weekday: s.weekday, itemId: s.itemId, mode: s.mode, amount: s.amount }));
   if (sessions.length === 0) return { error: "Put at least one lift on a day." };
-  if (sessions.some((s) => !Number.isFinite(s.amount) || (s.mode === "percent" && s.amount <= 0))) return { error: "Every day's lift needs a +kg or % amount." };
-  const weeks = d.weeks.trim() === "" ? null : parseNum(d.weeks);
-  if (weeks !== null && !(Number.isInteger(weeks) && weeks > 0 && weeks < 1000)) return { error: "Length must be a whole number of weeks (or blank)." };
-  const gain = d.gain.trim() === "" ? 0 : parseNum(d.gain);
-  if (!Number.isFinite(gain)) return { error: "Weekly gain must be a number." };
-  const round = parseNum(d.round);
-  if (!(round > 0)) return { error: "Round to must be more than 0 kg." };
   return {
     plan: {
       id: d.id,
       name: d.name.trim(),
       startDate: d.startDate,
-      weeks,
-      weeklyGainKg: gain,
-      roundToKg: round,
+      weeks: d.weeks > 0 ? d.weeks : null,
+      weeklyGainKg: d.gain,
       holdOnMiss: d.hold,
       isActive: d.active,
       lifts,
@@ -207,7 +200,7 @@ function PlanEditor({
       logs.filter((l) => l.exercise === name).map((l) => ({ date: l.date, value: l.weightKg })),
       today,
     );
-    update({ lifts: [...d.lifts, { itemId, base: suggestion === null ? "" : String(suggestion) }] });
+    update({ lifts: [...d.lifts, { itemId, base: suggestion ?? 20 }] });
   }
 
   function removeLift(itemId: string) {
@@ -218,50 +211,37 @@ function PlanEditor({
     const onDay = new Set(d.sessions.filter((s) => s.weekday === weekday).map((s) => s.itemId));
     const lift = d.lifts.find((l) => !onDay.has(l.itemId)) ?? d.lifts[0];
     if (!lift) return;
-    update({ sessions: [...d.sessions, { key: crypto.randomUUID(), weekday, itemId: lift.itemId, mode: "kg", amount: "0" }] });
+    update({ sessions: [...d.sessions, { key: crypto.randomUUID(), weekday, itemId: lift.itemId, mode: "kg", amount: 0 }] });
   }
 
   function patchSession(key: string, patch: Partial<DraftSession>) {
     update({ sessions: d.sessions.map((s) => (s.key === key ? { ...s, ...patch } : s)) });
   }
 
-  const thisMonday = mondayOf(today);
-  const nextMonday = addDays(thisMonday, 7);
-
   return (
     <div className="flex flex-col gap-4">
-      <FormGroup title="Plan">
+      <FormGroup title="Plan" footer="Ongoing runs until you pause or delete it. Weekly gain is added to every lift's base once a week.">
         <Field label="Name" inline>
           <input value={d.name} onChange={(e) => update({ name: e.target.value })} placeholder="e.g. Squat 3x" maxLength={80} className={ROW_INLINE_CLS} style={ROW_STYLE} />
         </Field>
         <div className="flex min-h-11 items-center justify-between gap-3 px-3.5">
           <span className="text-sm" style={{ color: "var(--text-primary)" }}>
-            Starts
+            Starts week of
           </span>
-          {d.isNew ? (
-            <Segmented
-              value={d.startDate === thisMonday ? "this" : "next"}
-              onChange={(v) => update({ startDate: v === "this" ? thisMonday : nextMonday })}
-              options={[
-                ["this", `This week (${shortDate(thisMonday)})`],
-                ["next", `Next week (${shortDate(nextMonday)})`],
-              ]}
-            />
-          ) : (
-            <span className="text-sm" style={{ color: "var(--text-muted)" }}>
-              Mon {shortDate(d.startDate)}
-            </span>
-          )}
+          <DatePicker value={d.startDate} onChange={(v) => update({ startDate: mondayOf(v) })} title="Plan starts" ariaLabel="Plan starts week of" />
         </div>
-        <Field label="Length (weeks)" inline>
-          <input value={d.weeks} onChange={(e) => update({ weeks: e.target.value })} inputMode="numeric" placeholder="Ongoing" className={`${ROW_INLINE_CLS} tabular-nums`} style={ROW_STYLE} />
-        </Field>
-        <Field label="Weekly gain (kg)" inline>
-          <input value={d.gain} onChange={(e) => update({ gain: e.target.value })} inputMode="decimal" placeholder="2.5" className={`${ROW_INLINE_CLS} tabular-nums`} style={ROW_STYLE} />
-        </Field>
-        <Field label="Round to (kg)" inline>
-          <input value={d.round} onChange={(e) => update({ round: e.target.value })} inputMode="decimal" placeholder="2.5" className={`${ROW_INLINE_CLS} tabular-nums`} style={ROW_STYLE} />
-        </Field>
+        <div className="flex min-h-11 items-center justify-between gap-3 px-3.5">
+          <span className="text-sm" style={{ color: "var(--text-primary)" }}>
+            Length
+          </span>
+          <NumberStepper value={d.weeks} onChange={(weeks) => update({ weeks })} unit="weeks" step={1} bigStep={4} max={104} format={(v) => (v === 0 ? "Ongoing" : `${v} wk`)} />
+        </div>
+        <div className="flex min-h-11 items-center justify-between gap-3 px-3.5">
+          <span className="text-sm" style={{ color: "var(--text-primary)" }}>
+            Weekly gain
+          </span>
+          <NumberStepper value={d.gain} onChange={(gain) => update({ gain })} unit="kg" step={KG.step} bigStep={KG.bigStep} max={20} format={signedKg} />
+        </div>
         <SwitchRow label="Hold weight after a missed week" on={d.hold} onChange={(hold) => update({ hold })} />
         {!d.isNew && <SwitchRow label="Active" on={d.active} onChange={(active) => update({ active })} />}
       </FormGroup>
@@ -272,18 +252,7 @@ function PlanEditor({
             <span className="flex-1 text-sm" style={{ color: "var(--text-primary)" }}>
               {nameOf(lift.itemId)}
             </span>
-            <input
-              value={lift.base}
-              onChange={(e) => update({ lifts: d.lifts.map((l) => (l.itemId === lift.itemId ? { ...l, base: e.target.value } : l)) })}
-              inputMode="decimal"
-              placeholder="kg"
-              aria-label={`${nameOf(lift.itemId)} base weight in kg`}
-              className={`${ROW_INLINE_CLS} w-20 tabular-nums`}
-              style={ROW_STYLE}
-            />
-            <span className="text-sm" style={{ color: "var(--text-muted)" }}>
-              kg
-            </span>
+            <NumberStepper value={lift.base} onChange={(base) => update({ lifts: d.lifts.map((l) => (l.itemId === lift.itemId ? { ...l, base } : l)) })} unit="kg" {...KG} />
             <button type="button" onClick={() => removeLift(lift.itemId)} aria-label={`Remove ${nameOf(lift.itemId)}`} className="hit-slop" style={{ color: "var(--text-muted)" }}>
               <CloseIcon size={14} />
             </button>
@@ -318,7 +287,7 @@ function PlanEditor({
       </FormGroup>
 
       {d.lifts.length > 0 && (
-        <FormGroup title="Week template" footer="+kg is added to the lift's base for that week (use a minus for a lighter day). % takes that share of it, e.g. 80% for a light day.">
+        <FormGroup title="Week template" footer="A day's target is that week's base plus the kg set here (minus for a lighter day), or a % of the base, e.g. 80% for a light day.">
           {WEEKDAY_SHORT.map((label, i) => {
             const weekday = i + 1;
             const daySessions = d.sessions.filter((s) => s.weekday === weekday);
@@ -338,12 +307,12 @@ function PlanEditor({
                   </button>
                 </div>
                 {daySessions.map((s) => (
-                  <div key={s.key} className="flex flex-wrap items-center gap-2">
+                  <div key={s.key} className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
                     <select
                       value={s.itemId}
                       onChange={(e) => patchSession(s.key, { itemId: e.target.value })}
                       aria-label={`${label} exercise`}
-                      className="min-h-9 min-w-0 flex-1 rounded-lg border bg-transparent px-2 text-sm outline-none"
+                      className="min-h-9 min-w-32 flex-1 rounded-lg border bg-transparent px-2 text-sm outline-none"
                       style={{ borderColor: "var(--border-hairline)", color: "var(--text-primary)" }}
                     >
                       {d.lifts.map((l) => (
@@ -352,25 +321,24 @@ function PlanEditor({
                         </option>
                       ))}
                     </select>
-                    <Segmented
-                      value={s.mode}
-                      onChange={(mode) => patchSession(s.key, { mode, amount: mode === "percent" ? "80" : "0" })}
-                      options={[
-                        ["kg", "+kg"],
-                        ["percent", "%"],
-                      ]}
-                    />
-                    <input
-                      value={s.amount}
-                      onChange={(e) => patchSession(s.key, { amount: e.target.value })}
-                      inputMode="decimal"
-                      aria-label={s.mode === "percent" ? `${label} percent of base` : `${label} kg added to base`}
-                      className="min-h-9 w-16 rounded-lg border bg-transparent px-2 text-right text-sm tabular-nums outline-none"
-                      style={{ borderColor: "var(--border-hairline)", color: "var(--text-primary)" }}
-                    />
-                    <button type="button" onClick={() => update({ sessions: d.sessions.filter((x) => x.key !== s.key) })} aria-label={`Remove from ${label}`} className="hit-slop" style={{ color: "var(--text-muted)" }}>
-                      <CloseIcon size={14} />
-                    </button>
+                    <span className="ml-auto flex items-center gap-2">
+                      <Segmented
+                        value={s.mode}
+                        onChange={(mode) => patchSession(s.key, { mode, amount: mode === "percent" ? 80 : 0 })}
+                        options={[
+                          ["kg", "+kg"],
+                          ["percent", "%"],
+                        ]}
+                      />
+                      {s.mode === "percent" ? (
+                        <NumberStepper value={s.amount} onChange={(amount) => patchSession(s.key, { amount })} unit="%" step={1} bigStep={5} min={5} max={150} format={(v) => `${v}%`} />
+                      ) : (
+                        <NumberStepper value={s.amount} onChange={(amount) => patchSession(s.key, { amount })} unit="kg" step={KG.step} bigStep={KG.bigStep} min={-50} max={50} format={signedKg} />
+                      )}
+                      <button type="button" onClick={() => update({ sessions: d.sessions.filter((x) => x.key !== s.key) })} aria-label={`Remove from ${label}`} className="hit-slop" style={{ color: "var(--text-muted)" }}>
+                        <CloseIcon size={14} />
+                      </button>
+                    </span>
                   </div>
                 ))}
               </div>

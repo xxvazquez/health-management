@@ -37,8 +37,6 @@ export interface WorkoutPlan {
   /** Plan length in weeks; null keeps it running until paused or deleted. */
   weeks: number | null;
   weeklyGainKg: number;
-  /** Targets round to the nearest multiple of this (plate math). */
-  roundToKg: number;
   /** A week with a missed or short set keeps that lift's base instead of
    * adding `weeklyGainKg`. */
   holdOnMiss: boolean;
@@ -94,14 +92,13 @@ export function planCoversDate(plan: WorkoutPlan, date: string): boolean {
 
 // ---- Targets
 
-export function roundToStep(value: number, step: number): number {
-  if (!(step > 0)) return Math.round(value * 100) / 100;
-  return Math.round(Math.round(value / step) * step * 100) / 100;
-}
+/** Targets land on the Log stepper's 0.25 kg step, so every one can be
+ * tapped in exactly. */
+const TARGET_STEP_KG = 0.25;
 
-export function sessionTargetKg(baseKg: number, session: Pick<WorkoutPlanSession, "mode" | "amount">, roundToKg: number): number {
+export function sessionTargetKg(baseKg: number, session: Pick<WorkoutPlanSession, "mode" | "amount">): number {
   const raw = session.mode === "percent" ? (baseKg * session.amount) / 100 : baseKg + session.amount;
-  return Math.max(0, roundToStep(raw, roundToKg));
+  return Math.max(0, Math.round(raw / TARGET_STEP_KG) * TARGET_STEP_KG);
 }
 
 /** How a planned set stands against the log. */
@@ -157,7 +154,7 @@ export function liftBasesByWeek(plan: WorkoutPlan, throughWeek: number, today: s
       if (plan.holdOnMiss && prevWeekOver) {
         hold = liftSessions.some((s) => {
           const date = addDays(prevWeekStart, s.weekday - 1);
-          const target = sessionTargetKg(prevBase, s, plan.roundToKg);
+          const target = sessionTargetKg(prevBase, s);
           const { status } = statusFor(plan, date, today, target, logged(lift.itemId, date));
           return status === "missed" || status === "short";
         });
@@ -182,7 +179,7 @@ export function plannedSetsForWeek(plan: WorkoutPlan, monday: string, today: str
     if (!liftBases) continue;
     const baseKg = liftBases[week];
     const date = addDays(monday, session.weekday - 1);
-    const targetKg = sessionTargetKg(baseKg, session, plan.roundToKg);
+    const targetKg = sessionTargetKg(baseKg, session);
     sets.push({ planId: plan.id, date, weekday: session.weekday, itemId: session.itemId, session, week, baseKg, targetKg, ...statusFor(plan, date, today, targetKg, logged(session.itemId, date)) });
   }
   return sets;

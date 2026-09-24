@@ -160,7 +160,6 @@ erDiagram
         date     start_date "a Monday, week 1"
         smallint weeks "null = ongoing"
         numeric  weekly_gain_kg
-        numeric  round_to_kg
         boolean  hold_on_miss
         boolean  is_active
         jsonb    lifts "[{itemId, baseKg}]"
