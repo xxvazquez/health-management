@@ -840,10 +840,8 @@ export default function LogPage() {
   );
 
   // Food entries on this day, grouped by meal — "Breakfast: Eggs, Banana,
-  // Milk" instead of three separate timeline rows. Boxes are ordered by
-  // each meal's most recent entry (see groupMealsByTag), not a fixed
-  // Breakfast/Lunch/Dinner/Snack order — a snack logged just now shows
-  // above a breakfast logged hours ago.
+  // Milk" instead of three separate timeline rows, in the order of the day
+  // (see groupMealsByTag).
   const mealGroups = useMemo(() => groupMealsByTag(dayTimeline), [dayTimeline]);
 
   // The icon/colour a category was given in Settings, keyed `type:name`.

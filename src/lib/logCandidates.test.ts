@@ -139,15 +139,16 @@ describe("groupMealsByTag", () => {
     };
   }
 
-  it("orders boxes by most recent entry, not the fixed Breakfast/Lunch/Dinner/Snack order", () => {
-    // Newest-first, as dayTimelineEntries always returns it: Snack (logged
-    // just now) ahead of Breakfast (logged hours earlier) — a fixed
-    // meal-name order would put Breakfast first regardless.
+  it("orders boxes Breakfast, Lunch, Dinner, Snack however late each was logged", () => {
+    // Newest-first, as dayTimelineEntries always returns it — all logged in
+    // the evening, breakfast last of all.
     const dayTimeline = [
-      makeEntry({ key: "log-2", item: "Chips", mealTag: "Snack", updatedAt: "2026-01-01T22:03:04.000Z" }),
-      makeEntry({ key: "log-1", item: "Eggs", mealTag: "Breakfast", updatedAt: "2026-01-01T08:00:00.000Z" }),
+      makeEntry({ key: "log-4", item: "Eggs", mealTag: "Breakfast", updatedAt: "2026-01-01T23:00:00.000Z" }),
+      makeEntry({ key: "log-3", item: "Chips", mealTag: "Snack", updatedAt: "2026-01-01T22:30:00.000Z" }),
+      makeEntry({ key: "log-2", item: "Rice", mealTag: "Dinner", updatedAt: "2026-01-01T22:00:00.000Z" }),
+      makeEntry({ key: "log-1", item: "Soup", mealTag: "Lunch", updatedAt: "2026-01-01T21:00:00.000Z" }),
     ];
-    expect(groupMealsByTag(dayTimeline).map((g) => g.mealTag)).toEqual(["Snack", "Breakfast"]);
+    expect(groupMealsByTag(dayTimeline).map((g) => g.mealTag)).toEqual(["Breakfast", "Lunch", "Dinner", "Snack"]);
   });
 
   it("lists items within a box oldest-logged first", () => {
