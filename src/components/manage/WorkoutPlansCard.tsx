@@ -403,7 +403,11 @@ function PlanEditor({
 
   return (
     <div className="flex flex-col gap-5">
-      <FormGroup title="Plan" footer="Ongoing runs until you pause or delete it.">
+      <FormGroup
+        title="Plan"
+        footer="Ongoing runs until you pause or delete it."
+        info="Plan weeks run Monday to Sunday. With Hold weight on, missing a planned set or logging less than its target keeps that exercise at the same weight next week. Your other exercises still go up."
+      >
         <Field label="Name" inline>
           <input value={d.name} onChange={(e) => update({ name: e.target.value })} placeholder="e.g. Squat 3x" maxLength={80} className={ROW_INLINE_CLS} style={ROW_STYLE} />
         </Field>
@@ -420,7 +424,11 @@ function PlanEditor({
         {!d.isNew && <SwitchRow label="Active" on={d.active} onChange={(active) => update({ active })} />}
       </FormGroup>
 
-      <FormGroup title="Exercises" footer="Tap an exercise to set its starting weight and how much it goes up each week.">
+      <FormGroup
+        title="Exercises"
+        footer="Tap an exercise to set its starting weight and how much it goes up each week."
+        info="Each exercise has a base weight: the starting weight in week 1, then that plus the weekly amount every week after. Every day's target is worked out from this base. The starting weight is filled in from your heaviest set in the last 7 days."
+      >
         {d.lifts.map((lift) => (
           <NavRow key={lift.itemId} title={nameOf(lift.itemId)} detail={`+${lift.gain} kg each week`} value={`${lift.base} kg`} onClick={() => setLiftSheet(lift.itemId)} />
         ))}
@@ -448,7 +456,11 @@ function PlanEditor({
       </FormGroup>
 
       {d.lifts.length > 0 && (
-        <FormGroup title="Week" footer="Tap a day to choose what you lift and how heavy.">
+        <FormGroup
+          title="Week"
+          footer="Tap a day to choose what you lift and how heavy."
+          info="A day's target is that week's base plus some kg (use a minus for a lighter day), or a % of the base, like 80% for an easy day. Targets are rounded to 0.25 kg so you can load them on the bar."
+        >
           {WEEKDAY_LONG.map((label, i) => {
             const daySessions = d.sessions.filter((s) => s.weekday === i + 1);
             return (
@@ -465,7 +477,7 @@ function PlanEditor({
       )}
 
       {"plan" in result && (
-        <FormGroup title="Preview">
+        <FormGroup title="Preview" info="Upcoming weeks assume you hit every target. Once a week is over, it uses what you actually logged, so a held exercise shows up here.">
           <Preview plan={result.plan} today={today} logged={logged} nameOf={nameOf} />
         </FormGroup>
       )}

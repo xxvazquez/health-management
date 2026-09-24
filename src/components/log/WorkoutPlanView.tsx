@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { InfoButton } from "@/components/ui/InfoButton";
 import Link from "next/link";
 import { ChevronIcon } from "@/components/ui/icons";
 import type { RawItem, RawWorkoutLog } from "@/lib/types";
@@ -168,6 +169,7 @@ export function WorkoutPlanView({
   const active = plans.filter((p) => p.isActive);
   const running = active.filter((p) => planCoversDate(p, date));
   const upcoming = active.filter((p) => p.startDate > date);
+  const [infoOpen, setInfoOpen] = useState(false);
 
   return (
     <div className="flex flex-col gap-3">
@@ -191,14 +193,22 @@ export function WorkoutPlanView({
         return (
           <div key={plan.id} className="flex flex-col gap-2">
             <div className="flex min-h-9 items-center justify-between gap-3 px-3.5">
-              <p className="text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
-                {plan.name} · Week {week}
-                {plan.weeks !== null && ` of ${plan.weeks}`}
-              </p>
+              <span className="flex min-w-0 items-center gap-1">
+                <p className="text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
+                  {plan.name} · Week {week}
+                  {plan.weeks !== null && ` of ${plan.weeks}`}
+                </p>
+                <InfoButton open={infoOpen} onToggle={() => setInfoOpen((o) => !o)} size={12} />
+              </span>
               <p className="text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>
                 {weekDone}/{weekSets.length} this week
               </p>
             </div>
+            {infoOpen && (
+              <p className="px-3.5 text-xs" style={{ color: "var(--text-secondary)" }}>
+                A set counts as done once you log that exercise on its day at or above the target, from here or from the normal Log tab. Logging less marks it short. Dots: filled means done, amber means missed or short, an outline means still to do.
+              </p>
+            )}
             <WeekStrip sets={weekSets} monday={monday} date={date} today={today} accent={accent} onNavigateToDate={onNavigateToDate} />
             <div className="inset-rows rounded-xl border" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
               {daySets.length === 0 ? (

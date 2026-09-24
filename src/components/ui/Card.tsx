@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import clsx from "clsx";
-import { InfoIcon } from "@/components/ui/icons";
+import { InfoButton } from "@/components/ui/InfoButton";
 
 export type CardTier = "primary" | "supporting" | "raw";
 
@@ -79,18 +79,7 @@ export function CardTitle({
         >
           {children}
         </h3>
-        {subtitle && (
-          <button
-            type="button"
-            onClick={() => setOpen((o) => !o)}
-            aria-expanded={open}
-            aria-label={open ? "Hide description" : "Show description"}
-            className="tap-target flex shrink-0 items-center justify-center rounded-full"
-            style={{ color: "var(--text-muted)" }}
-          >
-            <InfoIcon size={size === "sm" ? 12 : 13} />
-          </button>
-        )}
+        {subtitle && <InfoButton open={open} onToggle={() => setOpen((o) => !o)} size={size === "sm" ? 12 : 13} />}
       </div>
       {subtitle && open && (
         <p className="mt-1 text-xs" style={{ color: "var(--text-muted)" }}>
