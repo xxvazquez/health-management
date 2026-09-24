@@ -13,6 +13,7 @@ Lauva aims to look like a native **iOS 26** app while still working as a normal 
 - The other tokens are deepened versions tuned for readable text and charts
 - `--ui-accent` is the default interactive tint; each Log domain has its own `--series-*` colour
 - `--text-muted` clears 4.5:1 on the page, cards and raised controls in every palette. Re-measure after changing any ground colour; never lighten it
+- A user's own picked colour (`#rrggbb`) renders as picked, except in dark mode where one darker than `--custom-color-min-l` (oklch lightness 0.6) is lifted to it, hue kept (`customColorValue`)
 
 ### Themes
 

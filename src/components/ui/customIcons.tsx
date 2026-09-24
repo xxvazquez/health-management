@@ -437,8 +437,11 @@ export function isCustomHex(key: string | null): key is string {
   return key != null && /^#[0-9a-f]{6}$/i.test(key);
 }
 
+/** CSS for a stored colour key. A free-picked hex renders as picked, except
+ * that dark mode raises its lightness to `--custom-color-min-l` when it
+ * would otherwise vanish on the dark ground. */
 export function customColorValue(key: string | null): string | null {
-  if (isCustomHex(key)) return key;
+  if (isCustomHex(key)) return `oklch(from ${key} max(l, var(--custom-color-min-l)) c h)`;
   return CUSTOM_COLOR_CHOICES.find((c) => c.key === key)?.value ?? null;
 }
 

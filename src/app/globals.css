@@ -56,6 +56,10 @@
   /* Text on a solid --ui-accent fill (selected calendar day): white on the
      light accents, dark on the pale dark-mode accents. */
   --on-accent: #ffffff;
+  /* Lightness floor (oklch) for colours users pick freely — see
+     `customColorValue`. None in light mode; dark mode lifts only a colour
+     too dark to see on the dark ground, keeping its hue. */
+  --custom-color-min-l: 0;
 
   /* Categorical (fixed order — never cycle). Deepened versions of the
      brand palette, plus the in-between hues below, so 8 series stay
@@ -147,6 +151,7 @@
   --border-hairline: rgba(238, 242, 244, 0.1);
   --ui-accent: #4fb3ab;
   --on-accent: #0e1418;
+  --custom-color-min-l: 0.6;
   --gridline: color-mix(in oklab, var(--text-muted) 20%, var(--surface-1));
   --baseline: color-mix(in oklab, var(--text-muted) 45%, var(--surface-1));
   --segment-track: color-mix(in oklab, black 22%, transparent);
