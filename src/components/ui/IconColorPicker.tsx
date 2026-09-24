@@ -9,7 +9,8 @@ import { SearchField } from "./SearchField";
  * categories, reminder lists, lab panels, doctor specialties, …) — one
  * fieldset of icon buttons, one of colour swatches. `null` means "use the
  * default" for both (the app's existing hardcoded fallback for that
- * grouping), so `icon`'s "selected" state treats `null` as the first key.
+ * grouping), so `icon`'s "selected" state treats `null` as `defaultIcon`
+ * (the first key unless the grouping has its own built-in icon).
  */
 export function IconColorPicker({
   icon,
@@ -17,14 +18,15 @@ export function IconColorPicker({
   onIconChange,
   onColorChange,
   accent,
+  defaultIcon = CUSTOM_ICON_KEYS[0],
 }: {
   icon: string | null;
   color: string | null;
   onIconChange: (icon: string | null) => void;
   onColorChange: (color: string | null) => void;
   accent: string;
+  defaultIcon?: string;
 }) {
-  const defaultIcon = CUSTOM_ICON_KEYS[0];
   const [query, setQuery] = useState("");
   const q = query.trim().toLowerCase();
   const shown = q ? CUSTOM_ICON_KEYS.filter((k) => (ICON_SEARCH[k] ?? k).includes(q)) : CUSTOM_ICON_KEYS;

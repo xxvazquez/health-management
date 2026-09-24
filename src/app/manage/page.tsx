@@ -11,7 +11,7 @@ import { ChevronIcon, CloseIcon } from "@/components/ui/icons";
 import { ManageRow } from "@/components/ui/ManageRow";
 import { PageHeading } from "@/components/ui/PageHeading";
 import { IconColorPicker } from "@/components/ui/IconColorPicker";
-import { CustomIcon, customColorValue } from "@/components/ui/customIcons";
+import { CustomIcon, customColorValue, defaultCategoryIcon } from "@/components/ui/customIcons";
 import { DuplicateItemDialog } from "@/components/ui/DuplicateItemDialog";
 import { DemoNotice } from "@/components/ui/DemoNotice";
 import { PushNotificationsToggle } from "@/components/PushNotificationsToggle";
@@ -2221,8 +2221,9 @@ function AddItemForm({
 }
 
 /** Add/remove which categories a type offers, and give each one a custom
- * icon/colour (shown here only — Log and Trends keep their built-in look). */
+ * icon/colour. Unset icons show the built-in default the Log page uses. */
 function CategoryManager({
+  itemType,
   categories,
   appearanceByName,
   typeAccent,
@@ -2230,6 +2231,7 @@ function CategoryManager({
   onRemoveCategory,
   onSetAppearance,
 }: {
+  itemType: ItemType;
   categories: readonly string[];
   appearanceByName: Map<string, { icon: string | null; color: string | null }>;
   typeAccent: string;
@@ -2269,7 +2271,7 @@ function CategoryManager({
       {open && (
         <ul className="inset-rows border-t" style={{ borderColor: "var(--gridline)" }}>
           {categories.map((c) => {
-            const { icon } = appearanceFor(c);
+            const icon = appearanceFor(c).icon ?? defaultCategoryIcon(itemType, c);
             return (
               <li key={c} className="px-3.5">
                 <div className="flex min-h-11 items-center gap-3">
@@ -2304,6 +2306,7 @@ function CategoryManager({
                       onIconChange={(next) => void onSetAppearance(c, { ...appearanceFor(c), icon: next })}
                       onColorChange={(color) => void onSetAppearance(c, { ...appearanceFor(c), color })}
                       accent={accentFor(c)}
+                      defaultIcon={defaultCategoryIcon(itemType, c)}
                     />
                   </div>
                 )}
@@ -2928,6 +2931,7 @@ function ItemSection({
 
         {mode === "detail" && (
           <CategoryManager
+            itemType={itemType}
             categories={categories}
             appearanceByName={categoryAppearanceByName}
             typeAccent={TYPE_ACCENT[itemType]}

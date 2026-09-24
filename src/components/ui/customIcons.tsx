@@ -201,6 +201,98 @@ const PATHS: Record<string, ReactNode> = {
     </>
   ),
   bookmark: <path d="M6 3.8h8v12.4l-4-2.8-4 2.8Z" />,
+  sprout: (
+    <>
+      <path d="M6 14C6 8 10 4 16 4c0 6-4 10-10 10Z" />
+      <path d="M6 14 12 8" />
+    </>
+  ),
+  apple: (
+    <>
+      <circle cx="10" cy="12" r="5.5" />
+      <path d="M10 6.5V4.5" />
+      <path d="M10 4.5c0-.9.6-1.5 1.6-1.8" />
+    </>
+  ),
+  bean: (
+    <>
+      <path d="M5 12c0-4 2-7 6-7s6 3 6 7-2 5-6 5-6-1-6-5Z" />
+      <circle cx="8" cy="11" r=".6" fill="currentColor" stroke="none" />
+      <circle cx="10.5" cy="10.3" r=".6" fill="currentColor" stroke="none" />
+      <circle cx="13" cy="11" r=".6" fill="currentColor" stroke="none" />
+    </>
+  ),
+  grain: (
+    <>
+      <path d="M10 17V6" />
+      <path d="M10 8 7.5 6.5M10 8l2.5-1.5M10 10.5 7.5 9M10 10.5l2.5-1.5M10 13l-2.5-1.5M10 13l2.5-1.5" />
+    </>
+  ),
+  milk: (
+    <>
+      <path d="M7.5 5h5l.5 3v8a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1V8l.5-3Z" />
+      <path d="M7.3 9h5.4" />
+    </>
+  ),
+  carton: (
+    <>
+      <path d="M7.5 5h5l.5 3v8a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1V8l.5-3Z" />
+      <path d="M9.5 4.5c0-1 .8-1.8 2-2" />
+    </>
+  ),
+  meat: (
+    <>
+      <path d="M5.5 8a3 3 0 0 1 3-3h4a4 4 0 0 1 4 4v2a4 4 0 0 1-4 4h-4a3 3 0 0 1-3-3V8Z" />
+      <path d="M7.5 9c.8.8 1.7.8 2.5 0M8.5 12c.8.8 1.7.8 2.5 0" />
+    </>
+  ),
+  fish: (
+    <>
+      <path d="M4 11c1.5-2.5 4-4 7-4s5 1.5 5 4-2.5 4-5 4-5.5-1.5-7-4Z" />
+      <path d="M16 11l2.5-2.2v4.4L16 11Z" />
+      <circle cx="8" cy="10" r=".6" fill="currentColor" stroke="none" />
+    </>
+  ),
+  nut: (
+    <>
+      <path d="M7 10.3c0-2.5 1.5-4 3-4s3 1.5 3 4-1.5 4.7-3 4.7-3-2.2-3-4.7Z" />
+      <path d="M7.3 9.3h5.4" />
+      <path d="M8.5 6.3c0-1 .7-1.6 1.5-1.6s1.5.6 1.5 1.6" />
+    </>
+  ),
+  oil: (
+    <>
+      <path d="M10 4c2 3.2 4 6 4 8.5a4 4 0 0 1-8 0C6 10 8 7.2 10 4Z" />
+    </>
+  ),
+  jar: (
+    <>
+      <path d="M7.5 8h5l.7 7a1 1 0 0 1-1 1.1H7.8A1 1 0 0 1 6.8 15L7.5 8Z" />
+      <path d="M8 8V5.5a2 2 0 0 1 4 0V8" />
+      <path d="M9 4.6h2M8.7 6h2.6" />
+    </>
+  ),
+  tin: (
+    <>
+      <path d="M8.5 4h3v2.2c1 .3 1.5 1 1.5 2v6.8a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1V8.2c0-1 .5-1.7 1.5-2V4Z" />
+      <path d="M7.5 10h5" />
+    </>
+  ),
+  stomach: <path d="M8 3.5v2.8c0 1.1-.6 1.9-1.9 2.5C4.5 9.5 3.6 10.8 3.6 12.5c0 2.4 2 4 4.7 4 4.1 0 7.6-3 7.6-7.1 0-2-1.4-3.4-3.2-3.4-1.4 0-2.3.8-2.3 2" />,
+  gem: (
+    <>
+      <path d="M6 4.5h8l2.5 3.3L10 16 3.5 7.8Z" />
+      <path d="M3.5 7.8h13M8 4.5 7.2 7.8 10 16l2.8-8.2L12 4.5" />
+    </>
+  ),
+  cross: <path d="M8 3.8h4v4.2h4.2v4H12v4.2H8V12H3.8V8H8Z" />,
+  tube: (
+    <>
+      <path d="M7 3.5h6v2l1 9.7a1.4 1.4 0 0 1-1.4 1.5H7.4A1.4 1.4 0 0 1 6 15.2l1-9.7Z" />
+      <path d="M7 5.5h6" />
+    </>
+  ),
+  fork: <path d="M6.5 3.5v3.8a2 2 0 0 0 4 0V3.5M8.5 3.5v13M14.5 3.5c-1.4.9-2 2.8-2 4.8s.7 3 2 3v5.2" />,
 };
 
 /** Search synonyms per glyph — the icon picker matches a typed query
@@ -243,10 +335,67 @@ export const ICON_SEARCH: Record<string, string> = {
   folder: "folder files documents papers organise records admin",
   flag: "flag goal target priority milestone country",
   bookmark: "bookmark save read later mark keep",
+  sprout: "sprout veggies vegetables greens salad plant",
+  apple: "apple fruit",
+  bean: "bean legumes lentils peas pulses",
+  grain: "grain grains wheat cereal bread fiber fibre oats",
+  milk: "milk dairy bottle",
+  carton: "carton dairy alternatives plant milk oat soy",
+  meat: "meat steak protein",
+  fish: "fish seafood omega",
+  nut: "nut nuts seeds acorn",
+  oil: "oil fats butter olive drop",
+  jar: "jar spices herbs condiments",
+  tin: "tin misc can pantry other",
+  stomach: "stomach digestive digestion gut belly symptom",
+  gem: "gem mineral minerals crystal diamond",
+  cross: "cross medical medication medicine health first aid",
+  tube: "tube cream creams ointment lotion topical skin",
+  fork: "fork food eat meal habit utensils",
 };
 
 export const CUSTOM_ICON_KEYS = Object.keys(PATHS);
 const DEFAULT_ICON_KEY = "square";
+
+/** Built-in icon per default category name, lowercase. A category's own
+ * icon (set in Settings) always wins; a category with neither falls back to
+ * its type's icon so every list lines up. */
+const DEFAULT_CATEGORY_ICONS: Record<string, Record<string, string>> = {
+  food: {
+    veggies: "sprout",
+    fruit: "apple",
+    legumes: "bean",
+    grains: "grain",
+    dairy: "milk",
+    "dairy alternatives": "carton",
+    meat: "meat",
+    fish: "fish",
+    "nuts & seeds": "nut",
+    fats: "oil",
+    spices: "jar",
+    misc: "tin",
+  },
+  supplement: {
+    vitamins: "pill",
+    minerals: "gem",
+    "omega-3": "fish",
+    "protein & amino acids": "dumbbell",
+    fiber: "grain",
+    "digestive aid": "stomach",
+    medication: "cross",
+    creams: "tube",
+    other: "tag",
+  },
+  outcome: { "digestive symptom": "stomach", "other symptom": "activity" },
+  habit: { food: "fork", body: "heart", daily: "sun" },
+  workout: { "strength training": "dumbbell", cardio: "activity", "flexibility & mind-body": "leaf" },
+};
+
+const TYPE_FALLBACK_ICON: Record<string, string> = { food: "tag", supplement: "pill", outcome: "activity", habit: "flag", workout: "dumbbell" };
+
+export function defaultCategoryIcon(itemType: string, category: string): string {
+  return DEFAULT_CATEGORY_ICONS[itemType]?.[category.trim().toLowerCase()] ?? TYPE_FALLBACK_ICON[itemType] ?? DEFAULT_ICON_KEY;
+}
 
 export function CustomIcon({ icon, size = 15 }: { icon: string | null; size?: number }) {
   return <Glyph size={size}>{PATHS[icon ?? ""] ?? PATHS[DEFAULT_ICON_KEY]}</Glyph>;

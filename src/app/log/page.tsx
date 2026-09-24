@@ -74,7 +74,7 @@ import { FormGroup } from "@/components/ui/FormGroup";
 import { Sheet } from "@/components/ui/Sheet";
 import { ROW_INLINE_CLS, ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
 import { CheckIcon, ChevronIcon, CloseIcon, NoteIcon, PlusIcon, UpDownChevronIcon } from "@/components/ui/icons";
-import { CustomIcon, customColorValue } from "@/components/ui/customIcons";
+import { CustomIcon, customColorValue, defaultCategoryIcon } from "@/components/ui/customIcons";
 import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
 import { useMeals } from "@/lib/useMeals";
 import { useFoodProducts } from "@/lib/useFoodProducts";
@@ -165,112 +165,6 @@ function tagOptionsForType(type: string): readonly string[] {
   if (type === "supplement") return SUPPLEMENT_TIME_OPTIONS;
   return [];
 }
-
-function CategoryIconWrap({ children }: { children: ReactNode }) {
-  return (
-    <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      {children}
-    </svg>
-  );
-}
-
-const USUAL_ICON = (
-  <CategoryIconWrap>
-    <path d="m10 3 2.1 4.4 4.8.6-3.5 3.3.9 4.8L10 13.8l-4.3 2.3.9-4.8-3.5-3.3 4.8-.6Z" />
-  </CategoryIconWrap>
-);
-
-const PICKS_ICON = (
-  <CategoryIconWrap>
-    <rect x="3.5" y="4.5" width="13" height="12" rx="2" />
-    <path d="M3.5 8.5h13M7 3v3M13 3v3" />
-  </CategoryIconWrap>
-);
-
-/** Food-category icons — same thin-stroke line-art language as Nav.tsx's
- * nav icons, not emoji, so the highest-frequency tab (tapped many times a
- * day) stays scannable without looking like a stock emoji picker. Only food
- * gets these: it's the tab with both the most categories and the most
- * repeat taps, per the redesign this was built for. */
-const FOOD_CATEGORY_ICON: Record<string, ReactNode> = {
-  Veggies: (
-    <CategoryIconWrap>
-      <path d="M6 14C6 8 10 4 16 4c0 6-4 10-10 10Z" />
-      <path d="M6 14 12 8" />
-    </CategoryIconWrap>
-  ),
-  Fruit: (
-    <CategoryIconWrap>
-      <circle cx="10" cy="12" r="5.5" />
-      <path d="M10 6.5V4.5" />
-      <path d="M10 4.5c0-.9.6-1.5 1.6-1.8" />
-    </CategoryIconWrap>
-  ),
-  Legumes: (
-    <CategoryIconWrap>
-      <path d="M5 12c0-4 2-7 6-7s6 3 6 7-2 5-6 5-6-1-6-5Z" />
-      <circle cx="8" cy="11" r=".6" fill="currentColor" stroke="none" />
-      <circle cx="10.5" cy="10.3" r=".6" fill="currentColor" stroke="none" />
-      <circle cx="13" cy="11" r=".6" fill="currentColor" stroke="none" />
-    </CategoryIconWrap>
-  ),
-  Grains: (
-    <CategoryIconWrap>
-      <path d="M10 17V6" />
-      <path d="M10 8 7.5 6.5M10 8l2.5-1.5M10 10.5 7.5 9M10 10.5l2.5-1.5M10 13l-2.5-1.5M10 13l2.5-1.5" />
-    </CategoryIconWrap>
-  ),
-  Dairy: (
-    <CategoryIconWrap>
-      <path d="M7.5 5h5l.5 3v8a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1V8l.5-3Z" />
-      <path d="M7.3 9h5.4" />
-    </CategoryIconWrap>
-  ),
-  "Dairy Alternatives": (
-    <CategoryIconWrap>
-      <path d="M7.5 5h5l.5 3v8a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1V8l.5-3Z" />
-      <path d="M9.5 4.5c0-1 .8-1.8 2-2" />
-    </CategoryIconWrap>
-  ),
-  Meat: (
-    <CategoryIconWrap>
-      <path d="M5.5 8a3 3 0 0 1 3-3h4a4 4 0 0 1 4 4v2a4 4 0 0 1-4 4h-4a3 3 0 0 1-3-3V8Z" />
-      <path d="M7.5 9c.8.8 1.7.8 2.5 0M8.5 12c.8.8 1.7.8 2.5 0" />
-    </CategoryIconWrap>
-  ),
-  Fish: (
-    <CategoryIconWrap>
-      <path d="M4 11c1.5-2.5 4-4 7-4s5 1.5 5 4-2.5 4-5 4-5.5-1.5-7-4Z" />
-      <path d="M16 11l2.5-2.2v4.4L16 11Z" />
-      <circle cx="8" cy="10" r=".6" fill="currentColor" stroke="none" />
-    </CategoryIconWrap>
-  ),
-  "Nuts & Seeds": (
-    <CategoryIconWrap>
-      <path d="M7 10.3c0-2.5 1.5-4 3-4s3 1.5 3 4-1.5 4.7-3 4.7-3-2.2-3-4.7Z" />
-      <path d="M7.3 9.3h5.4" />
-      <path d="M8.5 6.3c0-1 .7-1.6 1.5-1.6s1.5.6 1.5 1.6" />
-    </CategoryIconWrap>
-  ),
-  Fats: (
-    <CategoryIconWrap>
-      <path d="M10 4c2 3.2 4 6 4 8.5a4 4 0 0 1-8 0C6 10 8 7.2 10 4Z" />
-    </CategoryIconWrap>
-  ),
-  Spices: (
-    <CategoryIconWrap>
-      <path d="M7.5 8h5l.7 7a1 1 0 0 1-1 1.1H7.8A1 1 0 0 1 6.8 15L7.5 8Z" />
-      <path d="M8 8V5.5a2 2 0 0 1 4 0V8" />
-      <path d="M9 4.6h2M8.7 6h2.6" />
-    </CategoryIconWrap>
-  ),
-  Misc: (
-    <CategoryIconWrap>
-      <path d="M8.5 4h3v2.2c1 .3 1.5 1 1.5 2v6.8a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1V8.2c0-1 .5-1.7 1.5-2V4Z" />
-      <path d="M7.5 10h5" />
-    </CategoryIconWrap>
-  ),
-};
 
 function addDaysLocal(date: string, days: number): string {
   const [y, m, d] = date.split("-").map(Number);
@@ -1764,11 +1658,11 @@ export default function LogPage() {
     return { visibleItems: items, hiddenCount: 0 };
   }
 
-  /** A category's icon on the rail — its custom icon from Manage, else
-   * Food's built-in category glyph. The rail shows it from `sm` up. */
+  /** A category's icon — its own from Settings, else the built-in default
+   * for that name (or the tab's fallback). The phone rail shows it from `sm` up. */
   function railIcon(type: ItemType, category: string) {
     const chrome = categoryChrome(type, category);
-    return chrome.iconKey ? <CustomIcon icon={chrome.iconKey} size={14} /> : type === "food" ? FOOD_CATEGORY_ICON[category] : undefined;
+    return <CustomIcon icon={chrome.iconKey ?? defaultCategoryIcon(type, category)} size={14} />;
   }
 
   /** Browse-by-category, shared by Food and the other list tabs. On a phone
@@ -1791,9 +1685,6 @@ export default function LogPage() {
     body: ReactNode;
   }) {
     const activeLabel = tabs.find((t) => t.id === activeId)?.label;
-    // Names stay flush left when no category has an icon; once any does,
-    // the rest get a dot so every name lines up.
-    const anyIcon = tabs.some((t) => t.icon);
     return (
       <div className="flex flex-col gap-3 lg:grid lg:grid-cols-[13rem_minmax(0,1fr)] lg:items-start lg:gap-4">
         <TabRail
@@ -1826,11 +1717,9 @@ export default function LogPage() {
                   fontWeight: active ? 600 : 400,
                 }}
               >
-                {anyIcon && (
-                  <span className="flex w-4 shrink-0 justify-center" style={{ color: active ? accent : "var(--text-muted)" }} aria-hidden="true">
-                    {t.icon ?? <span className="h-1.5 w-1.5 rounded-full bg-current" />}
-                  </span>
-                )}
+                <span className="flex w-4 shrink-0 justify-center" style={{ color: active ? accent : "var(--text-muted)" }} aria-hidden="true">
+                  {t.icon}
+                </span>
                 <span className="min-w-0 flex-1 truncate">{t.label}</span>
                 {t.logged > 0 && (
                   <span className="shrink-0 text-xs font-medium tabular-nums" style={{ color: accent }}>
@@ -1918,7 +1807,7 @@ export default function LogPage() {
           tabs: tabs.map((g) => ({
             id: g.category,
             label: g.category === USUAL_TAB ? "Usual" : g.category === PICKS_TAB ? `${monthShort} picks` : g.category,
-            icon: g.category === USUAL_TAB ? USUAL_ICON : g.category === PICKS_TAB ? PICKS_ICON : railIcon("food", g.category),
+            icon: g.category === USUAL_TAB ? <CustomIcon icon="star" size={14} /> : g.category === PICKS_TAB ? <CustomIcon icon="calendar" size={14} /> : railIcon("food", g.category),
             logged: g === picks ? 0 : loggedIn(g.items),
           })),
           activeId: active.category,
@@ -1959,7 +1848,7 @@ export default function LogPage() {
         {groups.map((group) => {
           const chrome = categoryChrome(type, group.category);
           const accent = chrome.color ?? colorForCategorySlot(group.category);
-          const icon = chrome.iconKey ? <CustomIcon icon={chrome.iconKey} size={15} /> : type === "food" ? FOOD_CATEGORY_ICON[group.category] : undefined;
+          const icon = <CustomIcon icon={chrome.iconKey ?? defaultCategoryIcon(type, group.category)} size={15} />;
           // Collapse only hides anything below `lg` — desktop always shows
           // every section expanded.
           const storageKey = categoryStorageKey(type, group.category);
