@@ -687,6 +687,20 @@ export function clearAllData(): Promise<void> {
  *    what the spec warns against.
  */
 export async function enqueueOutboxInternal(entry: NewOutboxEntry): Promise<void> {
+  await writeOutboxEntry(entry);
+  enqueueListener?.();
+}
+
+let enqueueListener: (() => void) | null = null;
+
+/** Called after every outbox write, so the app can send the change right
+ * away instead of at the next full sync. Must not await the data lock — it
+ * runs while the writer still holds it. */
+export function setOutboxEnqueueListener(listener: (() => void) | null): void {
+  enqueueListener = listener;
+}
+
+async function writeOutboxEntry(entry: NewOutboxEntry): Promise<void> {
   const db = await getDb();
   const existing = await db.getAllFromIndex("outbox", "dedupeKey", entry.dedupeKey);
   const pendingUnattempted = existing.find((e) => e.status === "pending" && e.attempts === 0);

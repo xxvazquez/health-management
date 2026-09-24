@@ -3,10 +3,10 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { CanonicalEvent, RawWorkoutLog, RawStoolLog, RawPeriodLog } from "@/lib/types";
 import { buildCanonicalEvents } from "@/lib/canonical/buildCanonicalEvents";
-import { clearAllData, clearSnapshots, getAllDiary, getAllLogs, getAllItems, getAllStoolLogs, getAllWorkoutLogs, getAllPeriodLogs, hasAnyData, withDataLock, type OutboxEntry } from "@/lib/db/indexedDb";
+import { clearAllData, clearSnapshots, getAllDiary, getAllLogs, getAllItems, getAllStoolLogs, getAllWorkoutLogs, getAllPeriodLogs, hasAnyData, setOutboxEnqueueListener, withDataLock, type OutboxEntry } from "@/lib/db/indexedDb";
 import { pullFromCloud, resetInitialPullState, retryDeadLetterEntry } from "@/lib/supabase/sync";
 import { emitCloudRefresh } from "@/lib/cloudRefresh";
-import { discardDeadLetterEntry, getDeadLetterEntries, getOutboxSyncState, getPendingEntries, retryPendingEntries } from "@/lib/supabase/outbox";
+import { discardDeadLetterEntry, drainOutbox, getDeadLetterEntries, getOutboxSyncState, getPendingEntries, retryPendingEntries } from "@/lib/supabase/outbox";
 import { ANALYTICS_START_DATE } from "@/lib/config";
 import { buildDemoDataset } from "@/lib/demoData";
 import { useAuth } from "@/lib/supabase/AuthContext";
@@ -348,6 +348,25 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }, 60_000);
     return () => window.clearInterval(intervalId);
   }, [session, syncFromCloud]);
+
+  // Send a change about a second after it's queued rather than at the next
+  // full sync — otherwise a log made just before closing the app stays on
+  // this device until it's opened again. The delay batches quick taps.
+  useEffect(() => {
+    if (!session) return;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    setOutboxEnqueueListener(() => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        if (!navigator.onLine) return;
+        void drainOutbox().then(refreshSyncState);
+      }, 1000);
+    });
+    return () => {
+      setOutboxEnqueueListener(null);
+      if (timer) clearTimeout(timer);
+    };
+  }, [session, refreshSyncState]);
 
   // Once at startup too, independent of sign-in state changing — e.g. a
   // page reload while already signed in with something left in the
