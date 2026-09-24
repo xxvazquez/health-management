@@ -315,8 +315,8 @@ export function DateTimePicker({
   const id = useId();
   const { date, time } = splitDateTime(value);
   const display = date ? `${formatDateValue(date)}, ${time || "00:00"}` : "";
-  const now = new Date();
-  const nowTime = `${pad2(now.getHours())}:${pad2(now.getMinutes())}`;
+  // An unset time starts at the next full hour, as in Reminders/Calendar.
+  const nowTime = `${pad2((new Date().getHours() + 1) % 24)}:00`;
   return (
     <PickerShell
       title={title}
