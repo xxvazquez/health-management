@@ -70,9 +70,11 @@ export function SegmentedTabs<T extends string>({
       const morePlaceholderW = samples[samples.length - 1]?.offsetWidth ?? 60;
       // Once one of the overflowed items is active, the trailing segment
       // shows THAT item's own label (+ chevron) instead of "More" — so the
-      // slot reserved for it has to cover the widest label among the items
-      // that would actually overflow (see `moreSlot` below), or selecting a
-      // long-named one later pushes the bar past the container edge.
+      // slot reserved for it covers the active label when it would overflow.
+      // Recomputed whenever the active item changes, so picking a long one
+      // from the menu can't push the bar past the edge.
+      const activeIndex = items.findIndex((t) => t.id === activeId);
+      const trailingFor = (n: number) => (activeIndex >= n ? Math.max(morePlaceholderW, withChevronWidths[activeIndex] ?? 0) : morePlaceholderW);
       const avail = root.clientWidth - 4; // track padding
       // A few px of slack on every reservation below — the hidden measuring
       // copies and the real flex-laid-out segments can land a couple of
@@ -110,7 +112,7 @@ export function SegmentedTabs<T extends string>({
       // iOS segmented control keeps every segment the same width, folded
       // one included, so there's never a stray gap next to it.
       for (let n = items.length - 1; n >= 1; n--) {
-        const trailingWidth = Math.max(morePlaceholderW, ...withChevronWidths.slice(n));
+        const trailingWidth = trailingFor(n);
         const share = (avail - n * gap) / (n + 1);
         const maxVisibleWidth = Math.max(...widths.slice(0, n));
         if (share >= maxVisibleWidth + SLACK && share >= trailingWidth + SLACK) {
@@ -127,7 +129,7 @@ export function SegmentedTabs<T extends string>({
       let n = 0;
       for (let i = 0; i < items.length - 1; i++) {
         used += widths[i] + SLACK + gap;
-        const moreSlot = Math.max(morePlaceholderW, ...withChevronWidths.slice(i + 1));
+        const moreSlot = trailingFor(i + 1);
         if (used + moreSlot <= avail) n = i + 1;
       }
       setVisibleCount(Math.max(1, n));
@@ -151,7 +153,7 @@ export function SegmentedTabs<T extends string>({
       cancelled = true;
       ro.disconnect();
     };
-  }, [items]);
+  }, [items, activeId]);
 
   // The hidden measuring copies can come out narrower than the real
   // segments in some engines (seen in Safari), letting a long label spill
