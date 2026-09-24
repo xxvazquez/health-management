@@ -75,7 +75,7 @@ function dateBucket(dateISO: string, today: string): Exclude<AgendaBucket, "done
 function timing(bucket: AgendaBucket, dueMs: number | null, hasClock: boolean, today: string, nowMs: number): string {
   if (dueMs == null) return "";
   const d = new Date(dueMs);
-  const clock = d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  const clock = d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
   if (bucket === "overdue") {
     const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
     const diff = daysBetween(today, iso);

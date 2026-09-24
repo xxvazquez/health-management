@@ -27,7 +27,7 @@ export interface DayStory {
 }
 
 function localTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  return new Date(iso).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
 }
 
 /** "eggs, toast & avocado" — natural join, not a comma-separated dump. */
