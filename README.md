@@ -50,7 +50,8 @@ Old routes redirect: `/overview` → `/agenda`, `/doctors` → `/medical`, `/hom
 Tabs: **Food · Symptoms · Supplements · Habits · Stool · Workout · Cycle · Coffee · Summary**
 
 - **Toolbar:** search (or add), meal / time of day, time. On desktop it sits beside the page title.
-- **Categories:** a scrolling category rail with one list below it. The rail shows each category's icon from tablet width up.
+- **Categories:** a scrolling category rail on a phone; a sidebar with per-category logged counts on desktop. Items are A–Z, in as many columns as fit on desktop.
+- **Food's current meal** shows above the list as removable chips ("Dinner · 3").
 - **Food extras:**
   - "Usual" tab: what you log most at the chosen meal
   - "Sep picks" tab: in-season foods you haven't eaten lately
@@ -85,7 +86,7 @@ A grouped list (Tracking, Health, Lists, App) where each row opens its own scree
 
 - **Tap-only.** No forms on the tracking tabs: pick a category, tap an item.
 - **Symptoms** cycle through intensity 1 → 2 → 3 → clear. **Sleep** takes a band (`<5h` … `9h+`).
-- **A logged item** shows as tinted text with a ✓.
+- **A logged item** gets a filled circle with a tick (Reminders-style); a symptom's circle shows its level.
 - **The day rolls over at 3 AM.** Anything logged before 3 AM counts toward the previous day.
 - **The meal is auto-picked by time:** Breakfast before noon, Lunch before 6pm, Dinner after that.
 - **Time is editable** per entry, and the date stepper opens a calendar.

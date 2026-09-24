@@ -73,7 +73,7 @@ import { Field } from "@/components/ui/Field";
 import { FormGroup } from "@/components/ui/FormGroup";
 import { Sheet } from "@/components/ui/Sheet";
 import { ROW_INLINE_CLS, ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
-import { ChevronIcon, CloseIcon, NoteIcon, PlusIcon, UpDownChevronIcon } from "@/components/ui/icons";
+import { CheckIcon, ChevronIcon, CloseIcon, NoteIcon, PlusIcon, UpDownChevronIcon } from "@/components/ui/icons";
 import { CustomIcon, customColorValue } from "@/components/ui/customIcons";
 import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
 import { useMeals } from "@/lib/useMeals";
@@ -173,6 +173,19 @@ function CategoryIconWrap({ children }: { children: ReactNode }) {
     </svg>
   );
 }
+
+const USUAL_ICON = (
+  <CategoryIconWrap>
+    <path d="m10 3 2.1 4.4 4.8.6-3.5 3.3.9 4.8L10 13.8l-4.3 2.3.9-4.8-3.5-3.3 4.8-.6Z" />
+  </CategoryIconWrap>
+);
+
+const PICKS_ICON = (
+  <CategoryIconWrap>
+    <rect x="3.5" y="4.5" width="13" height="12" rx="2" />
+    <path d="M3.5 8.5h13M7 3v3M13 3v3" />
+  </CategoryIconWrap>
+);
 
 /** Food-category icons — same thin-stroke line-art language as Nav.tsx's
  * nav icons, not emoji, so the highest-frequency tab (tapped many times a
@@ -358,16 +371,16 @@ function TimelineNote({
   );
 }
 
-/** The one tappable list row: name on the left, a status mark on the right
- * once set (name and mark take the accent). `indent` lines it up with the
- * category name above it in a grouped list. */
+/** The one tappable list row, Reminders-style: a leading circle that fills
+ * in the accent with a tick once logged (or shows a symptom's 1–3 level),
+ * then the name. The circle sits in a 28px slot so names line up with the
+ * category name in a grouped list. */
 function TapRow({
   name,
   accent,
   mark,
   onTap,
   label,
-  indent = false,
   busy = false,
 }: {
   name: string;
@@ -375,7 +388,6 @@ function TapRow({
   mark: ReactNode;
   onTap: () => void;
   label?: string;
-  indent?: boolean;
   busy?: boolean;
 }) {
   const on = mark != null && mark !== false;
@@ -386,21 +398,18 @@ function TapRow({
       disabled={busy}
       aria-pressed={on}
       aria-label={label}
-      className={clsx(
-        "flex min-h-11 w-full items-center justify-between gap-3 pr-3.5 text-left text-sm transition-colors hover:bg-black/[0.04] active:bg-black/5 disabled:opacity-50 lg:rounded-lg lg:pr-2.5 lg:pointer-fine:min-h-9",
-        indent ? "pl-[3.375rem] lg:pl-2.5" : "pl-3.5 lg:pl-2.5",
-      )}
-      style={{
-        color: on ? accent : "var(--text-primary)",
-        fontWeight: on ? 500 : 400,
-      }}
+      className="flex min-h-11 w-full items-center gap-3 px-3.5 text-left text-sm transition-colors hover:bg-black/[0.04] active:bg-black/5 disabled:opacity-50 lg:gap-2 lg:px-2 lg:pointer-fine:min-h-8"
+      style={{ color: "var(--text-primary)" }}
     >
-      <span className="min-w-0">{name}</span>
-      {on && (
-        <span aria-hidden="true" className="shrink-0 text-sm font-semibold tabular-nums">
-          {mark}
+      <span className="flex w-7 shrink-0 justify-center lg:w-auto" aria-hidden="true">
+        <span
+          className="flex h-[18px] w-[18px] items-center justify-center rounded-full border-[1.5px] text-[11px] font-semibold tabular-nums transition-colors"
+          style={on ? { background: accent, borderColor: accent, color: "var(--on-accent)" } : { borderColor: "color-mix(in oklab, var(--text-muted) 55%, transparent)" }}
+        >
+          {on && (mark === "✓" ? <CheckIcon size={11} /> : mark)}
         </span>
-      )}
+      </span>
+      <span className="min-w-0">{name}</span>
     </button>
   );
 }
@@ -1570,9 +1579,9 @@ export default function LogPage() {
     await refreshAfterWrite();
   }
 
-  function renderChip(c: LogCandidate, indent = false) {
+  function renderChip(c: LogCandidate) {
     const logged = (mealCounts.get(c.key) ?? 0) > 0;
-    return <TapRow key={c.key} name={c.item} accent={TYPE_ACCENT.food} mark={logged && "✓"} onTap={() => handleChipTap(c)} indent={indent} busy={pending === c.key} />;
+    return <TapRow key={c.key} name={c.item} accent={TYPE_ACCENT.food} mark={logged && "✓"} onTap={() => handleChipTap(c)} busy={pending === c.key} />;
   }
 
   // --- Habits / Supplements / Symptoms: full-width rows grouped into the
@@ -1711,19 +1720,19 @@ export default function LogPage() {
   /** A plain tracked item — Habits, and Supplements (a supplement tap logs
    * it for the time of day selected above; the M/A/N split is the "which
    * dose", so the row itself is just a toggle, no per-row counter). */
-  function renderHabitRow(c: LogCandidate, accent: string, indent = true) {
+  function renderHabitRow(c: LogCandidate, accent: string) {
     // Measures (Sleep's bands, a duration stepper) normally render in their
     // own section — this fallthrough only matters if one is ever shown
     // inside a category card directly.
     if (INPUT_KIND[c.item]) return renderMeasureRow(c, accent);
     const logged = (mealCounts.get(c.key) ?? 0) > 0;
-    return <TapRow key={c.key} name={c.item} accent={accent} mark={logged && "✓"} onTap={() => handleChipTap(c)} indent={indent} busy={pending === c.key} />;
+    return <TapRow key={c.key} name={c.item} accent={accent} mark={logged && "✓"} onTap={() => handleChipTap(c)} busy={pending === c.key} />;
   }
 
   /** Symptoms: one tap marks it at intensity 1; each further tap raises it
    * (2, 3); a tap past 3 clears it. The level shows as a small digit in the
    * shared left-hand marker slot, so names stay aligned. */
-  function renderSymptomRow(c: LogCandidate, accent: string, indent = true) {
+  function renderSymptomRow(c: LogCandidate, accent: string) {
     const current = symptomDisplayValue(c.itemIdentity);
     return (
       <TapRow
@@ -1733,7 +1742,6 @@ export default function LogPage() {
         mark={current != null && current}
         onTap={() => cycleSymptom(c)}
         label={current != null ? `${c.item}, intensity ${current} of 3 — tap to change` : `Mark ${c.item}`}
-        indent={indent}
         busy={pending === c.key}
       />
     );
@@ -1753,76 +1761,174 @@ export default function LogPage() {
     return chrome.iconKey ? <CustomIcon icon={chrome.iconKey} size={14} /> : type === "food" ? FOOD_CATEGORY_ICON[category] : undefined;
   }
 
-  /** Food's browse view: a scrolling category strip on top, the selected
-   * category's items as one list below — switching category replaces the
-   * list instead of stacking every category down the page. */
+  /** Browse-by-category, shared by Food and the other list tabs. On a phone
+   * the categories are a scrolling rail above the list; from `lg` up they
+   * become a sidebar (Mac Reminders-style) with each category's logged
+   * count, so every category stays in view and the list gets the width. */
+  function renderCategoryBrowser({
+    ariaLabel,
+    accent,
+    tabs,
+    activeId,
+    onSelect,
+    body,
+  }: {
+    ariaLabel: string;
+    accent: string;
+    tabs: { id: string; label: string; icon?: ReactNode; logged: number }[];
+    activeId: string;
+    onSelect: (id: string) => void;
+    body: ReactNode;
+  }) {
+    const activeLabel = tabs.find((t) => t.id === activeId)?.label;
+    return (
+      <div className="flex flex-col gap-3 lg:grid lg:grid-cols-[13rem_minmax(0,1fr)] lg:items-start lg:gap-4">
+        <TabRail
+          ariaLabel={ariaLabel}
+          wrap={false}
+          className="border-b lg:hidden"
+          style={{ borderColor: "var(--border-hairline)" }}
+          items={tabs.map((t) => ({ id: t.id, label: t.label, accent, icon: t.icon }))}
+          activeId={activeId}
+          onSelect={onSelect}
+          tall
+        />
+        <nav
+          aria-label={ariaLabel}
+          className="hidden flex-col gap-0.5 rounded-xl border p-1.5 lg:sticky lg:top-4 lg:flex"
+          style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}
+        >
+          {tabs.map((t) => {
+            const active = t.id === activeId;
+            return (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => onSelect(t.id)}
+                aria-current={active ? "true" : undefined}
+                className={clsx("flex min-h-11 items-center gap-2.5 rounded-lg px-2.5 pointer-fine:min-h-8 text-left text-sm transition-colors", !active && "hover:bg-[var(--page-plane)]")}
+                style={{
+                  background: active ? `color-mix(in oklab, ${accent} 14%, transparent)` : "transparent",
+                  color: "var(--text-primary)",
+                  fontWeight: active ? 600 : 400,
+                }}
+              >
+                <span className="flex w-4 shrink-0 justify-center" style={{ color: active ? accent : "var(--text-muted)" }} aria-hidden="true">
+                  {t.icon}
+                </span>
+                <span className="min-w-0 flex-1 truncate">{t.label}</span>
+                {t.logged > 0 && (
+                  <span className="shrink-0 text-xs font-medium tabular-nums" style={{ color: accent }}>
+                    {t.logged}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </nav>
+        <div className="flex min-w-0 flex-col gap-1.5">
+          <p className="hidden px-3.5 text-xs font-semibold tracking-wide uppercase lg:block" style={{ color: "var(--text-muted)" }}>
+            {activeLabel}
+          </p>
+          {body}
+        </div>
+      </div>
+    );
+  }
+
+  /** The item list for one category, A–Z: grouped rows on a phone; from
+   * `lg` up as many newspaper columns as fit, reading down each column. */
+  function renderItemList(items: LogCandidate[], renderItem: (c: LogCandidate) => ReactNode) {
+    const sorted = [...items].sort((a, b) => a.item.localeCompare(b.item));
+    return (
+      <div
+        className="inset-rows rounded-xl border [--row-inset:3.375rem] lg:columns-[10rem] lg:gap-x-2 lg:p-1 lg:[&>*]:break-inside-avoid lg:[&>*]:rounded-lg lg:[&>*::before]:hidden"
+        style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}
+      >
+        {sorted.map((c) => renderItem(c))}
+      </div>
+    );
+  }
+
+  /** What's already logged for the selected meal, as removable chips above
+   * the browser — so the meal so far is readable at a glance, whichever
+   * category is open. */
+  function renderLoggedForMeal(groups: { category: string; items: LogCandidate[] }[]) {
+    const seen = new Set<string>();
+    const logged = groups
+      .flatMap((g) => g.items)
+      .filter((c) => (mealCounts.get(c.key) ?? 0) > 0 && !seen.has(c.key) && seen.add(c.key))
+      .sort((x, y) => x.item.localeCompare(y.item));
+    if (logged.length === 0) return null;
+    const accent = TYPE_ACCENT.food;
+    return (
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span className="mr-1 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
+          {meal} · {logged.length}
+        </span>
+        {logged.map((c) => (
+          <button
+            key={c.key}
+            type="button"
+            onClick={() => handleChipTap(c)}
+            disabled={pending === c.key}
+            aria-label={`Remove ${c.item} from ${meal}`}
+            className={CHIP_CLS}
+            style={chipStyle(true, accent)}
+          >
+            {c.item}
+            <CloseIcon size={12} />
+          </button>
+        ))}
+      </div>
+    );
+  }
+
+  function loggedIn(items: LogCandidate[]) {
+    return items.filter((c) => (mealCounts.get(c.key) ?? 0) > 0).length;
+  }
+
   function renderFoodByCategory(groups: { category: string; items: LogCandidate[] }[]) {
     if (groups.length === 0) return null;
     const usual = frequentFoods.length >= 3 ? { category: USUAL_TAB, items: frequentFoods } : null;
     const picks = hasSeasonalPicks ? { category: PICKS_TAB, items: [] } : null;
     const tabs = [usual, picks, ...groups].filter((g): g is { category: string; items: LogCandidate[] } => g !== null);
     const active = tabs.find((g) => g.category === foodCategory) ?? tabs[0];
-    const { visibleItems } = active === usual ? { visibleItems: active.items } : previewFoodItems(active.items);
     return (
       <div className="flex flex-col gap-3">
-        <TabRail
-          ariaLabel="Food category"
-          wrap={false}
-          className="border-b"
-          style={{ borderColor: "var(--border-hairline)" }}
-          items={tabs.map((g) => ({
+        {renderLoggedForMeal(groups)}
+        {renderCategoryBrowser({
+          ariaLabel: "Food category",
+          accent: TYPE_ACCENT.food,
+          tabs: tabs.map((g) => ({
             id: g.category,
             label: g.category === USUAL_TAB ? "Usual" : g.category === PICKS_TAB ? `${monthShort} picks` : g.category,
-            accent: TYPE_ACCENT.food,
-            icon: g.category === USUAL_TAB || g.category === PICKS_TAB ? undefined : railIcon("food", g.category),
-          }))}
-          activeId={active.category}
-          onSelect={setFoodCategory}
-          tall
-        />
-        {active === picks ? (
-          seasonalPicksPanel
-        ) : (
-          <div
-            className="inset-rows rounded-xl border [--row-inset:0.875rem] lg:grid lg:grid-cols-[repeat(auto-fill,minmax(9.5rem,1fr))] lg:gap-x-1 lg:p-1 lg:[&>*::before]:hidden"
-            style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}
-          >
-            {visibleItems.map((c) => renderChip(c))}
-          </div>
-        )}
+            icon: g.category === USUAL_TAB ? USUAL_ICON : g.category === PICKS_TAB ? PICKS_ICON : railIcon("food", g.category),
+            logged: g === picks ? 0 : loggedIn(g.items),
+          })),
+          activeId: active.category,
+          onSelect: setFoodCategory,
+          body: active === picks ? seasonalPicksPanel : renderItemList(active.items, renderChip),
+        })}
       </div>
     );
   }
 
-  /** Same browse-by-category strip as Food, for Symptoms/Supplements/Habits
-   * once they have more than one category — the accordion below stays for a
-   * single-category tab or a search, same as Food falls back to it too. */
+  /** Same browser as Food, for Symptoms/Supplements/Habits once they have
+   * more than one category — the grouped cards below stay for a
+   * single-category tab or a search. */
   function renderTrackerByCategory(groups: { category: string; items: LogCandidate[] }[], renderItem: (c: LogCandidate) => ReactNode) {
     if (!tabConfig || groups.length === 0) return null;
     const type = tabConfig.type;
-    const accent = TYPE_ACCENT[type];
     const active = groups.find((g) => g.category === trackerCategory) ?? groups[0];
-    const { visibleItems } = previewFoodItems(active.items);
-    return (
-      <div className="flex flex-col gap-3">
-        <TabRail
-          ariaLabel={`${tabConfig.label} category`}
-          wrap={false}
-          className="border-b"
-          style={{ borderColor: "var(--border-hairline)" }}
-          items={groups.map((g) => ({ id: g.category, label: g.category, accent, icon: railIcon(type, g.category) }))}
-          activeId={active.category}
-          onSelect={setTrackerCategory}
-          tall
-        />
-        <div
-          className="inset-rows rounded-xl border [--row-inset:0.875rem] lg:grid lg:grid-cols-[repeat(auto-fill,minmax(9.5rem,1fr))] lg:gap-x-1 lg:p-1 lg:[&>*::before]:hidden"
-          style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}
-        >
-          {visibleItems.map((c) => renderItem(c))}
-        </div>
-      </div>
-    );
+    return renderCategoryBrowser({
+      ariaLabel: `${tabConfig.label} category`,
+      accent: TYPE_ACCENT[type],
+      tabs: groups.map((g) => ({ id: g.category, label: g.category, icon: railIcon(type, g.category), logged: loggedIn(g.items) })),
+      activeId: active.category,
+      onSelect: setTrackerCategory,
+      body: renderItemList(active.items, renderItem),
+    });
   }
 
   /** The grouped category list every Log tab shares: one rounded card, an
@@ -1899,7 +2005,7 @@ export default function LogPage() {
     return (
       <div className="flex flex-col gap-3">
         {!searchQuery && plainGroups.length > 1
-          ? renderTrackerByCategory(plainGroups, (c) => (tab === "outcome" ? renderSymptomRow(c, accent, false) : renderHabitRow(c, accent, false)))
+          ? renderTrackerByCategory(plainGroups, (c) => (tab === "outcome" ? renderSymptomRow(c, accent) : renderHabitRow(c, accent)))
           : renderCategoryCards(plainGroups, (c) => (tab === "outcome" ? renderSymptomRow(c, accent) : renderHabitRow(c, accent)))}
         {measureItems.length > 0 && (
           <div className={box} style={boxStyle}>
@@ -2360,7 +2466,7 @@ export default function LogPage() {
 
               {tab === "food"
                 ? searchQuery
-                  ? renderCategoryCards(groupedByCategory, (c) => renderChip(c, true))
+                  ? renderCategoryCards(groupedByCategory, (c) => renderChip(c))
                   : renderFoodByCategory(groupedByCategory)
                 : renderTrackerList()}
 
