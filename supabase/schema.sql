@@ -1559,10 +1559,14 @@ create policy "household_task_completions_delete_pair" on public.household_task_
 --   select net.http_post(
 --     url := 'https://YOUR_PROJECT_REF.supabase.co/functions/v1/reminder-cron',
 --     headers := jsonb_build_object('Authorization', 'Bearer YOUR_ANON_KEY', 'Content-Type', 'application/json'),
---     body := '{}'::jsonb
+--     body := '{}'::jsonb,
+--     timeout_milliseconds := 150000
 --   );
 --   $$
 -- );
+--
+-- A run takes over a minute, so the request timeout sits at the Edge
+-- Function's own 150s limit; pg_net's 5s default logs a timeout every run.
 --
 -- pg_cron appends a row to cron.job_run_details on every job run and never
 -- prunes it, so it grows without bound. This second, independent job trims it
