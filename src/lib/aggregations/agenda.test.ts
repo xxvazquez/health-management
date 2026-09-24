@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildAgenda, type AgendaSources } from "./agenda";
+import { buildAgenda, notePreview, type AgendaSources } from "./agenda";
 import type { ExpirationItem, TaskItem } from "@/lib/reminders";
 import type { DoctorFollowUpTask } from "@/lib/supabase/doctors";
 
@@ -121,5 +121,17 @@ describe("buildAgenda", () => {
   it("treats a date-only expiry as due today, not overdue, at midday", () => {
     const entries = buildAgenda(sources({ personalExpiry: [expiry({ expiresOn: TODAY })] }), { today: TODAY, now: NOW });
     expect(entries[0].bucket).toBe("today");
+  });
+});
+
+describe("notePreview", () => {
+  it("drops list markers and joins lines", () => {
+    expect(notePreview("- Sink and faucet\n- Shower glass\n\n1. Floor\n- [x] Mirror")).toBe("Sink and faucet · Shower glass · Floor · Mirror");
+  });
+
+  it("keeps a plain note as it is and skips an empty one", () => {
+    expect(notePreview("Bring the form")).toBe("Bring the form");
+    expect(notePreview("  \n ")).toBeUndefined();
+    expect(notePreview(null)).toBeUndefined();
   });
 });

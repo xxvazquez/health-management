@@ -116,7 +116,7 @@ function reminderEntries(tasks: TaskItem[], scope: AgendaScope, nowMs: number, t
       scope,
       bucket,
       title: t.title,
-      subtitle: t.notes ?? undefined,
+      subtitle: notePreview(t.notes),
       dueMs,
       when: done ? "" : timing(bucket, dueMs, clock, today, nowMs),
       recurring,
@@ -225,3 +225,14 @@ export function buildAgenda(sources: AgendaSources, opts: { today: string; now?:
     return a.title.localeCompare(b.title);
   });
 }
+/** A note as a one-line preview: Markdown list markers dropped, lines
+ * joined with " · " rather than running together. */
+export function notePreview(notes: string | null | undefined): string | undefined {
+  if (!notes) return undefined;
+  const lines = notes
+    .split("\n")
+    .map((l) => l.replace(/^\s*(?:[-*+]|\d+\.)\s+(?:\[[ xX]\]\s+)?/, "").trim())
+    .filter(Boolean);
+  return lines.length > 0 ? lines.join(" · ") : undefined;
+}
+
