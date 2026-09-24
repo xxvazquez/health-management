@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { NUTRITION_GROUP_EXAMPLES, NUTRITION_GROUPS, nutritionGroupsForFood } from "./nutritionGroups";
+import { NUTRITION_GROUP_EXAMPLES, NUTRITION_GROUPS, nutritionGroupsForFood, plantFamilyForFood } from "./nutritionGroups";
 
 describe("nutritionGroupsForFood", () => {
   it("splits vegetables into research-backed subgroups", () => {
@@ -38,6 +38,13 @@ describe("nutritionGroupsForFood", () => {
 
   it("tags a food that genuinely serves two roles", () => {
     expect(nutritionGroupsForFood("Avocado")).toEqual(["other_fruit", "other_unsaturated_fat"]);
+  });
+
+  it("matches keywords only at the start of a word", () => {
+    expect(nutritionGroupsForFood("Chamomille")).toEqual([]);
+    expect(nutritionGroupsForFood("Ham sandwich")).toEqual(["processed_meat"]);
+    expect(nutritionGroupsForFood("Rapeseed oil")).toEqual(["other_unsaturated_fat"]);
+    expect(plantFamilyForFood("Pineapple")).toBeNull();
   });
 
   it("returns nothing for an item with no confident fit", () => {

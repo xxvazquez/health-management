@@ -309,6 +309,7 @@ const GROUP_KEYWORDS: Record<string, NutritionGroupId[]> = {
 
   // Fats
   "olive oil": ["olive_oil"], "extra virgin olive oil": ["olive_oil"], "extra-virgin olive oil": ["olive_oil"],
+  "rapeseed oil": ["other_unsaturated_fat"], "canola oil": ["other_unsaturated_fat"],
 
   // Discretionary / highly processed
   chocolate: ["highly_processed"], candy: ["highly_processed"], cake: ["highly_processed"],
@@ -321,6 +322,15 @@ const KEYWORD_ENTRIES = Object.entries(GROUP_KEYWORDS).sort((a, b) => b[0].lengt
 
 function normalize(name: string): string {
   return name.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+/** True when `keyword` starts a word in `norm` — so "ham" matches "Ham
+ * sandwich" but not "Chamomile", while plurals ("chickpeas") still match. */
+function startsWord(norm: string, keyword: string): boolean {
+  for (let i = norm.indexOf(keyword); i !== -1; i = norm.indexOf(keyword, i + 1)) {
+    if (i === 0 || !/\p{L}/u.test(norm[i - 1])) return true;
+  }
+  return false;
 }
 
 /**
@@ -338,7 +348,7 @@ export function nutritionGroupsForFood(canonicalItemName: string, overrides?: Re
   const override = overrides?.[norm];
   if (override) return [override];
   for (const [keyword, groups] of KEYWORD_ENTRIES) {
-    if (norm === keyword || norm.includes(keyword)) return groups;
+    if (startsWord(norm, keyword)) return groups;
   }
   return [];
 }
@@ -383,7 +393,7 @@ const PLANT_FAMILY_ENTRIES = Object.entries(PLANT_FAMILY_KEYWORDS).sort((a, b) =
 export function plantFamilyForFood(canonicalItemName: string): string | null {
   const norm = normalize(canonicalItemName);
   for (const [keyword, family] of PLANT_FAMILY_ENTRIES) {
-    if (norm === keyword || norm.includes(keyword)) return family;
+    if (startsWord(norm, keyword)) return family;
   }
   return null;
 }
