@@ -1789,6 +1789,9 @@ export default function LogPage() {
     body: ReactNode;
   }) {
     const activeLabel = tabs.find((t) => t.id === activeId)?.label;
+    // Names stay flush left when no category has an icon; once any does,
+    // the rest get a dot so every name lines up.
+    const anyIcon = tabs.some((t) => t.icon);
     return (
       <div className="flex flex-col gap-3 lg:grid lg:grid-cols-[13rem_minmax(0,1fr)] lg:items-start lg:gap-4">
         <TabRail
@@ -1821,9 +1824,11 @@ export default function LogPage() {
                   fontWeight: active ? 600 : 400,
                 }}
               >
-                <span className="flex w-4 shrink-0 justify-center" style={{ color: active ? accent : "var(--text-muted)" }} aria-hidden="true">
-                  {t.icon}
-                </span>
+                {anyIcon && (
+                  <span className="flex w-4 shrink-0 justify-center" style={{ color: active ? accent : "var(--text-muted)" }} aria-hidden="true">
+                    {t.icon ?? <span className="h-1.5 w-1.5 rounded-full bg-current" />}
+                  </span>
+                )}
                 <span className="min-w-0 flex-1 truncate">{t.label}</span>
                 {t.logged > 0 && (
                   <span className="shrink-0 text-xs font-medium tabular-nums" style={{ color: accent }}>
