@@ -2709,41 +2709,45 @@ export default function LogPage() {
                   </FormGroup>
                 )}
 
-                {!isDemoData &&
-                  (confirmingDeleteKeys.has(entry.key) ? (
-                    <div className="flex items-center gap-3">
-                      <Button
-                        type="button"
-                        accent="var(--status-critical)"
-                        disabled={busy}
-                        onClick={() => {
-                          void handleDeleteEntry(entry);
-                          setDetailKey(null);
-                        }}
-                      >
-                        Delete
-                      </Button>
+                {!isDemoData && (
+                  <FormGroup>
+                    {confirmingDeleteKeys.has(entry.key) ? (
+                      <div className="flex min-h-11 items-center justify-between gap-4 px-3.5">
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => {
+                            void handleDeleteEntry(entry);
+                            setDetailKey(null);
+                          }}
+                          className="min-h-11 text-sm font-semibold disabled:opacity-40"
+                          style={{ color: "var(--status-critical)" }}
+                        >
+                          Delete entry
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => toggleConfirmDelete(entry.key)}
+                          disabled={busy}
+                          className="min-h-11 text-sm disabled:opacity-40"
+                          style={{ color: "var(--text-secondary)" }}
+                        >
+                          Keep
+                        </button>
+                      </div>
+                    ) : (
                       <button
                         type="button"
                         onClick={() => toggleConfirmDelete(entry.key)}
                         disabled={busy}
-                        className="text-sm font-medium disabled:opacity-40"
-                        style={{ color: "var(--text-muted)" }}
+                        className="flex min-h-11 w-full items-center px-3.5 text-left text-sm disabled:opacity-40"
+                        style={{ color: "var(--status-critical)" }}
                       >
-                        Keep
+                        Delete
                       </button>
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => toggleConfirmDelete(entry.key)}
-                      disabled={busy}
-                      className="self-start text-sm font-medium disabled:opacity-40"
-                      style={{ color: "var(--status-critical)" }}
-                    >
-                      Delete this entry
-                    </button>
-                  ))}
+                    )}
+                  </FormGroup>
+                )}
               </div>
             </Sheet>
           );
