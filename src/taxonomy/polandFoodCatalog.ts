@@ -33,7 +33,7 @@ export const POLAND_FOOD_CATALOG: Record<string, string[]> = {
     "Bulgur", "Couscous", "Quinoa", "Corn", "Polenta", "Crackers", "Tortilla",
   ],
   Dairy: ["Milk", "Yoghurt", "Kefir", "Cheese", "Cottage cheese", "Feta", "Cream", "Eggs"],
-  "Dairy Alternatives": ["Oat milk", "Almond milk", "Soy milk", "Rice milk", "Millet milk", "Coconut milk"],
+  "Dairy Alt": ["Oat milk", "Almond milk", "Soy milk", "Rice milk", "Millet milk", "Coconut milk"],
   Meat: ["Chicken", "Turkey", "Beef", "Pork", "Sausage", "Ham", "Bacon"],
   Fish: ["Salmon", "Trout", "Herring", "Mackerel", "Cod", "Tuna"],
   "Nuts & Seeds": [

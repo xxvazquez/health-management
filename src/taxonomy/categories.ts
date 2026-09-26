@@ -23,7 +23,7 @@ const FOOD_CATEGORIES = [
   "Legumes",
   "Grains",
   "Dairy",
-  "Dairy Alternatives",
+  "Dairy Alt",
   "Meat",
   "Fish",
   "Nuts & Seeds",
@@ -135,7 +135,7 @@ const CATEGORY_SLOT: Record<string, string> = {
   "Nuts & Seeds": "var(--series-8)", // plum, distinct from Grains
   Fats: "var(--series-magenta)", // magenta
   Legumes: "var(--series-berry)", // rose/plum blend
-  "Dairy Alternatives": "var(--series-slate)", // grey
+  "Dairy Alt": "var(--series-slate)", // grey
 };
 const CATEGORY_SLOT_OTHER = "var(--series-other)";
 

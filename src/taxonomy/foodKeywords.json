@@ -1,5 +1,5 @@
 {
-  "_comment": "Fallback dictionary used only when a new 'Eat X' / 'Drink X' habit shows up in a future import that isn't in overrides.json yet. Maps a food keyword to one of the real food categories in categories.ts (Veggies, Fruit, Legumes, Grains, Dairy, 'Dairy Alternatives', Meat, Fish, 'Nuts & Seeds', Fats, Spices, Misc), never an invented category. Anything unmatched falls into food/Misc and is flagged for review rather than guessed. Extended with produce common in the Polish market/growing season (see src/lib/seasonalProduce.ts) so seasonal items classify correctly the first time they're logged, not just after a manual override.",
+  "_comment": "Fallback dictionary used only when a new 'Eat X' / 'Drink X' habit shows up in a future import that isn't in overrides.json yet. Maps a food keyword to one of the real food categories in categories.ts (Veggies, Fruit, Legumes, Grains, Dairy, 'Dairy Alt', Meat, Fish, 'Nuts & Seeds', Fats, Spices, Misc), never an invented category. Anything unmatched falls into food/Misc and is flagged for review rather than guessed. Extended with produce common in the Polish market/growing season (see src/lib/seasonalProduce.ts) so seasonal items classify correctly the first time they're logged, not just after a manual override.",
   "vegetable": "Veggies", "veggie": "Veggies", "spinach": "Veggies", "kale": "Veggies", "lettuce": "Veggies",
   "cabbage": "Veggies", "cucumber": "Veggies", "celery": "Veggies", "asparagus": "Veggies", "eggplant": "Veggies",
   "aubergine": "Veggies", "pumpkin": "Veggies", "squash": "Veggies", "radish": "Veggies", "beet": "Veggies",
@@ -37,9 +37,9 @@
   "milk": "Dairy", "cheese": "Dairy", "yoghurt": "Dairy", "yogurt": "Dairy", "cream": "Dairy",
   "kefir": "Dairy", "egg": "Dairy", "eggs": "Dairy", "feta": "Dairy",
 
-  "oat milk": "Dairy Alternatives", "almond milk": "Dairy Alternatives", "soy milk": "Dairy Alternatives",
-  "coconut milk": "Dairy Alternatives", "cashew milk": "Dairy Alternatives", "rice milk": "Dairy Alternatives",
-  "millet milk": "Dairy Alternatives",
+  "oat milk": "Dairy Alt", "almond milk": "Dairy Alt", "soy milk": "Dairy Alt",
+  "coconut milk": "Dairy Alt", "cashew milk": "Dairy Alt", "rice milk": "Dairy Alt",
+  "millet milk": "Dairy Alt",
 
   "fish": "Fish", "salmon": "Fish", "tuna": "Fish", "shrimp": "Fish",
   "prawn": "Fish", "cod": "Fish", "sardine": "Fish", "mackerel": "Fish",

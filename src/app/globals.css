@@ -94,7 +94,7 @@
    * category stays a shade or blend of the brand arc rather than an
    * independent hue. */
   --series-berry: color-mix(in oklab, var(--series-4) 55%, var(--series-8) 45%); /* Legumes */
-  --series-slate: #5f7a8c; /* Dairy Alternatives */
+  --series-slate: #5f7a8c; /* Dairy Alt */
 
   /* Sequential (blue), used for ordinal/magnitude encodings (e.g. Bristol scale) */
   --seq-100: #dbeaf5;
