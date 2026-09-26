@@ -547,8 +547,8 @@ export default function LogPage() {
     // The visible tab names work too (symptoms → outcome, supplements → supplement).
     const requested = param ? (TAB_ALIASES[param] ?? param) : null;
     const tabs: string[] = [...TABS.map((t) => t.type), "stool", "workout", "cycle", "coffee", "summary"];
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (requested && tabs.includes(requested)) setTab(requested as LogTab);
+    // Through selectTab, so the meal / time-of-day menu matches the tab.
+    if (requested && tabs.includes(requested)) selectTab(requested as LogTab);
   }, []);
   // If the tab you're sitting on gets hidden from under you (toggled off
   // in Manage, in another tab, or restored from a stale saved choice),
