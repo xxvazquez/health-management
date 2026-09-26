@@ -1359,9 +1359,8 @@ function demoCoffeeOptionRows(): CoffeeOption[] {
 
 /** Every coffee-tracking config in one place: the currency shown next to
  * every price, the three editable chip lists the Log page's Coffee dialog
- * offers, and the coffee catalog itself (edit/archive/delete only — new
- * coffees are added from Log → Coffee, where brand is typed once against
- * the actual cup being logged; see CoffeeTab). */
+ * offers, and the coffee catalog itself — add, edit, hide or delete; Log →
+ * Coffee can also add one while logging a cup (see CoffeeTab). */
 function CoffeeCard({ isDemoData, searchQuery }: { isDemoData: boolean; searchQuery: string }) {
   const coffee = useCoffee();
   const [rows, setRows] = useState<CoffeeOption[]>(() => (isDemoData ? demoCoffeeOptionRows() : []));
@@ -1463,6 +1462,19 @@ function CoffeeCard({ isDemoData, searchQuery }: { isDemoData: boolean; searchQu
 
   const editingCoffee = coffee.items.data.find((it) => it.id === editingItemId) ?? null;
 
+  const { setVisible } = useVisibleDomains();
+  const [newCoffee, setNewCoffee] = useState("");
+  // Adding a coffee here also shows the Coffee tab on Log, which otherwise
+  // stays hidden until the first cup is logged.
+  async function handleAddCoffee(e: FormEvent) {
+    e.preventDefault();
+    const name = newCoffee.trim();
+    if (!name) return;
+    setNewCoffee("");
+    await coffee.items.add({ name, brand: "", notes: "" });
+    setVisible("coffee", true);
+  }
+
   async function saveItemEdit() {
     const item = coffee.items.data.find((it) => it.id === editingItemId);
     if (!item) return;
@@ -1530,8 +1542,9 @@ function CoffeeCard({ isDemoData, searchQuery }: { isDemoData: boolean; searchQu
             <h3 className="px-4 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
               Your coffees
             </h3>
+            <AddRow value={newCoffee} onChange={setNewCoffee} onSubmit={(e) => void handleAddCoffee(e)} placeholder="New coffee" maxLength={80} />
             {items.length === 0 ? (
-              <GroupNote>{isSearching ? "No coffee matches that search." : "Nothing logged yet."}</GroupNote>
+              <GroupNote>{isSearching ? "No coffee matches that search." : "No coffees yet."}</GroupNote>
             ) : (
               <ul className={GROUP_CLS} style={GROUP_STYLE}>
                 {items.map((it) => {
@@ -1560,7 +1573,7 @@ function CoffeeCard({ isDemoData, searchQuery }: { isDemoData: boolean; searchQu
                 })}
               </ul>
             )}
-            <GroupNote>New coffees are added from Log → Coffee, not here — edit or hide existing ones above.</GroupNote>
+            <GroupNote>Coffees are also added from Log → Coffee while you log a cup.</GroupNote>
             {editingCoffee && (
               <Sheet
                 title={editingCoffee.name}
