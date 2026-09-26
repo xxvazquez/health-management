@@ -29,7 +29,7 @@ Five main areas, in the phone tab bar and the desktop sidebar. Messages appears 
 | Area | Route | What it's for |
 |---|---|---|
 | **Log** | `/log` | Tap-to-log for every tracking domain, plus a Summary of the day |
-| **Agenda** | `/agenda` | One urgency-sorted list: reminders, expiring products, doctor follow-ups, appointments |
+| **Agenda** | `/agenda` | One urgency-sorted list: reminders, expiring products, doctor follow-ups, appointments; a switcher narrows it to Mine, Shared, Expiry or Medical |
 | **Trends** | `/analytics` | A dashboard per Log domain, plus Patterns |
 | **Health** | `/medical` | Visits, lab Results, Vitals, Doctors |
 | **Notes** | `/personal` | Journal, Wishlist, shared discount Codes |

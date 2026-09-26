@@ -5,7 +5,7 @@ import { CONTROL_CLS, CONTROL_STYLE } from "@/components/ui/Chip";
 import { useMemo, useState, type FormEvent } from "react";
 import Link from "next/link";
 import clsx from "clsx";
-import { AGENDA_BUCKET_LABEL, AGENDA_BUCKET_ORDER, type AgendaBucket, type AgendaEntry, type AgendaKind, type AgendaScope, recurrenceLabel } from "@/lib/aggregations/agenda";
+import { AGENDA_BUCKET_LABEL, AGENDA_BUCKET_ORDER, type AgendaBucket, type AgendaEntry, recurrenceLabel } from "@/lib/aggregations/agenda";
 import { isRecurringTask, type TaskSubitem } from "@/lib/reminders";
 import { todayLocalISODate } from "@/lib/aggregations/common";
 import type { ReminderList } from "@/lib/supabase/personalReminders";
@@ -17,6 +17,7 @@ import { ErrorState, InlineEmpty } from "@/components/ui/EmptyState";
 import { ListSkeleton } from "@/components/ui/Skeleton";
 import { FormShell } from "@/components/ui/FormShell";
 import { AddMenu } from "@/components/ui/AddMenu";
+import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
 import { PencilIcon, TrashIcon } from "@/components/ui/Notebook";
 import { ChevronIcon } from "@/components/ui/icons";
 import { ROW_INLINE_CLS, ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
@@ -37,8 +38,18 @@ function UndoIcon({ size = 15 }: { size?: number }) {
   );
 }
 
-const SCOPE_LABEL: Record<"all" | AgendaScope, string> = { all: "All", mine: "Mine", shared: "Shared", medical: "Medical" };
-const TYPE_LABEL: Record<"all" | AgendaKind, string> = { all: "All", reminder: "Reminders", expiry: "Expiring", followup: "Follow-ups", appointment: "Appointments" };
+/** The views across the top of Agenda. Mine/Shared split by owner (with a
+ * linked partner), Reminders stands in for them without one; Expiry is every
+ * expiring product, Medical the follow-ups and appointments. */
+type AgendaView = "all" | "mine" | "shared" | "reminders" | "expiry" | "medical";
+const VIEW_LABEL: Record<AgendaView, string> = { all: "All", mine: "Mine", shared: "Shared", reminders: "Reminders", expiry: "Expiry", medical: "Medical" };
+
+function inView(e: AgendaEntry, view: AgendaView): boolean {
+  if (view === "all") return true;
+  if (view === "mine" || view === "shared" || view === "medical") return e.scope === view;
+  if (view === "reminders") return e.kind === "reminder";
+  return e.kind === "expiry";
+}
 
 function FunnelIcon({ size = 13 }: { size?: number }) {
   return (
@@ -49,10 +60,6 @@ function FunnelIcon({ size = 13 }: { size?: number }) {
 }
 
 interface FilterState {
-  typeFilter: "all" | AgendaKind;
-  setTypeFilter: (v: "all" | AgendaKind) => void;
-  scopeFilter: "all" | AgendaScope;
-  setScopeFilter: (v: "all" | AgendaScope) => void;
   listFilter: string | "all";
   setListFilter: (v: string | "all") => void;
 }
@@ -83,73 +90,28 @@ function FilterButton({ open, count, onToggle }: { open: boolean; count: number;
   );
 }
 
-/** The expandable filter panel — type / scope / list pickers as grouped
- * rows, plus a Clear all once anything is on. Rendered full-width under the
- * heading. */
-function FilterPanel({
-  partnerLinked,
-  showList,
-  lists,
-  filters,
-}: {
-  partnerLinked: boolean;
-  showList: boolean;
-  lists: ReminderList[];
-  filters: FilterState;
-}) {
-  const { typeFilter, setTypeFilter, scopeFilter, setScopeFilter, listFilter, setListFilter } = filters;
-  const listShown = showList && (typeFilter === "all" || typeFilter === "reminder");
-  const anyActive = typeFilter !== "all" || scopeFilter !== "all" || listFilter !== "all";
-
+/** The expandable filter panel — which reminder list to show, plus Clear
+ * once one is picked. Rendered full-width under the view switcher. */
+function FilterPanel({ lists, filters }: { lists: ReminderList[]; filters: FilterState }) {
+  const { listFilter, setListFilter } = filters;
   return (
     <div className="flex flex-col gap-2">
       <FormGroup>
-        <Field label="Show" inline>
-          <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value as typeof typeFilter)} className={ROW_INLINE_CLS} style={ROW_STYLE}>
-            {(["all", "reminder", "expiry", "appointment"] as const).map((t) => (
-              <option key={t} value={t}>
-                {TYPE_LABEL[t]}
+        <Field label="List" inline>
+          <select value={listFilter} onChange={(e) => setListFilter(e.target.value)} className={ROW_INLINE_CLS} style={ROW_STYLE}>
+            <option value="all">All lists</option>
+            <option value="__default__">Reminders</option>
+            {lists.map((l) => (
+              <option key={l.id} value={l.id}>
+                {l.name}
               </option>
             ))}
           </select>
         </Field>
-        {partnerLinked && (
-          <Field label="Scope" inline>
-            <select value={scopeFilter} onChange={(e) => setScopeFilter(e.target.value as typeof scopeFilter)} className={ROW_INLINE_CLS} style={ROW_STYLE}>
-              {(["all", "mine", "shared", "medical"] as const).map((sc) => (
-                <option key={sc} value={sc}>
-                  {SCOPE_LABEL[sc]}
-                </option>
-              ))}
-            </select>
-          </Field>
-        )}
-        {listShown && (
-          <Field label="List" inline>
-            <select value={listFilter} onChange={(e) => setListFilter(e.target.value)} className={ROW_INLINE_CLS} style={ROW_STYLE}>
-              <option value="all">All lists</option>
-              <option value="__default__">Reminders</option>
-              {lists.map((l) => (
-                <option key={l.id} value={l.id}>
-                  {l.name}
-                </option>
-              ))}
-            </select>
-          </Field>
-        )}
       </FormGroup>
-      {anyActive && (
-        <button
-          type="button"
-          onClick={() => {
-            setTypeFilter("all");
-            setScopeFilter("all");
-            setListFilter("all");
-          }}
-          className="self-start px-3.5 text-sm font-medium"
-          style={{ color: "var(--ui-accent)" }}
-        >
-          Clear all
+      {listFilter !== "all" && (
+        <button type="button" onClick={() => setListFilter("all")} className="self-start px-3.5 text-sm font-medium" style={{ color: "var(--ui-accent)" }}>
+          Clear
         </button>
       )}
     </div>
@@ -239,28 +201,27 @@ type AddState =
 
 export function AgendaBoard(props: AgendaBoardProps) {
   const { entries, subtitle, lists, partnerLinked, loading, error, assignable } = props;
-  const [typeFilter, setTypeFilter] = useState<"all" | AgendaKind>("all");
-  const [scopeFilter, setScopeFilter] = useState<"all" | AgendaScope>("all");
+  const [view, setView] = useState<AgendaView>("all");
   const [listFilter, setListFilter] = useState<string | "all">("all");
   const [filterOpen, setFilterOpen] = useState(false);
   const [add, setAdd] = useState<AddState>(null);
   const [editing, setEditing] = useState<AgendaEntry | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState<string | null>(null);
 
-  const filters: FilterState = { typeFilter, setTypeFilter, scopeFilter, setScopeFilter, listFilter, setListFilter };
-  const activeCount = (typeFilter !== "all" ? 1 : 0) + (scopeFilter !== "all" ? 1 : 0) + (listFilter !== "all" ? 1 : 0);
+  const filters: FilterState = { listFilter, setListFilter };
+  const activeCount = listFilter !== "all" ? 1 : 0;
+  const views: AgendaView[] = partnerLinked ? ["all", "mine", "shared", "expiry", "medical"] : ["all", "reminders", "expiry", "medical"];
 
   const filtered = useMemo(() => {
     return entries.filter((e) => {
-      if (typeFilter !== "all" && e.kind !== typeFilter) return false;
-      if (scopeFilter !== "all" && e.scope !== scopeFilter) return false;
+      if (!inView(e, view)) return false;
       if (listFilter !== "all") {
         if (e.kind !== "reminder") return false;
         if ((e.reminder?.listId ?? null) !== (listFilter === "__default__" ? null : listFilter)) return false;
       }
       return true;
     });
-  }, [entries, typeFilter, scopeFilter, listFilter]);
+  }, [entries, view, listFilter]);
 
   const grouped = useMemo(() => {
     const map = new Map<AgendaBucket, AgendaEntry[]>();
@@ -323,7 +284,7 @@ export function AgendaBoard(props: AgendaBoardProps) {
         actions={
           ready ? (
             <div className="flex items-center gap-2">
-              <FilterButton open={filterOpen} count={activeCount} onToggle={() => setFilterOpen((o) => !o)} />
+              {showList && <FilterButton open={filterOpen} count={activeCount} onToggle={() => setFilterOpen((o) => !o)} />}
               <AddMenu
                 accent={ACCENT}
                 options={[
@@ -340,14 +301,27 @@ export function AgendaBoard(props: AgendaBoardProps) {
         Agenda
       </PageHeading>
 
-      {ready && filterOpen && <FilterPanel partnerLinked={partnerLinked} showList={showList} lists={lists} filters={filters} />}
+      {ready && (
+        <SegmentedTabs
+          items={views.map((v) => ({ id: v, label: VIEW_LABEL[v], accent: ACCENT }))}
+          activeId={view}
+          onSelect={setView}
+          ariaLabel="Agenda view"
+        />
+      )}
+
+      {ready && showList && filterOpen && <FilterPanel lists={lists} filters={filters} />}
 
       {loading ? (
         <ListSkeleton />
       ) : error ? (
         <ErrorState what="your agenda" />
       ) : filtered.length === 0 ? (
-        <InlineEmpty title="Nothing on your agenda" description="Reminders, expiring products and upcoming appointments show up here, soonest first." />
+        view === "all" ? (
+          <InlineEmpty title="Nothing on your agenda" description="Reminders, expiring products and upcoming appointments show up here, soonest first." />
+        ) : (
+          <InlineEmpty title={`Nothing in ${VIEW_LABEL[view]}`} description="Switch to All to see everything." />
+        )
       ) : (
         <div className="flex flex-col gap-3">
           {AGENDA_BUCKET_ORDER.map((bucket) => {
@@ -357,12 +331,14 @@ export function AgendaBoard(props: AgendaBoardProps) {
               bucket === "overdue" ? "var(--status-critical)" : bucket === "today" ? "var(--status-serious)" : undefined;
             return (
               <ListSection
-                key={bucket}
+                // Keyed by view too, so switching views resets which open.
+                key={`${view}:${bucket}`}
                 label={AGENDA_BUCKET_LABEL[bucket]}
                 count={rows.length}
                 accent={tone}
                 collapsible
-                defaultOpen={!COLLAPSED_BUCKETS.has(bucket)}
+                // A narrowed view is short, so only Done starts folded there.
+                defaultOpen={view === "all" ? !COLLAPSED_BUCKETS.has(bucket) : bucket !== "done"}
               >
                 <div className="flex flex-col">
                   {rows.map((e) => (
