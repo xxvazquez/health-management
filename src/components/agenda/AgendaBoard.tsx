@@ -5,7 +5,7 @@ import { CONTROL_CLS, CONTROL_STYLE } from "@/components/ui/Chip";
 import { useMemo, useState, type FormEvent } from "react";
 import Link from "next/link";
 import clsx from "clsx";
-import { AGENDA_BUCKET_LABEL, AGENDA_BUCKET_ORDER, EXPIRY_GROUP_LABEL, EXPIRY_GROUP_ORDER, expiryGroup, type AgendaBucket, type AgendaEntry, recurrenceLabel } from "@/lib/aggregations/agenda";
+import { AGENDA_BUCKET_LABEL, AGENDA_BUCKET_ORDER, EXPIRY_GROUP_LABEL, EXPIRY_GROUP_ORDER, expiryGroup, type AgendaBucket, type AgendaEntry, type ExpiryGroup, recurrenceLabel } from "@/lib/aggregations/agenda";
 import { isRecurringTask, type TaskSubitem } from "@/lib/reminders";
 import { todayLocalISODate } from "@/lib/aggregations/common";
 import type { ReminderList } from "@/lib/supabase/personalReminders";
@@ -25,6 +25,29 @@ import { FormGroup } from "@/components/ui/FormGroup";
 import { useSwipeReveal, SWIPE_REVEAL_CLASS } from "@/lib/useSwipeReveal";
 
 const ACCENT = "var(--series-berry)";
+
+// Each time section's colour, warm to cool as it gets further away: it tints
+// the section heading, the row's date, its dot and its checkbox ring.
+const BUCKET_TONE: Record<AgendaBucket, string | undefined> = {
+  overdue: "var(--status-critical)",
+  today: "var(--status-serious)",
+  tomorrow: "var(--status-warning)",
+  week: "var(--series-2)",
+  later: "var(--series-slate)",
+  someday: undefined,
+  done: undefined,
+};
+const EXPIRY_TONE: Record<ExpiryGroup, string | undefined> = {
+  expired: "var(--status-critical)",
+  today: "var(--status-serious)",
+  thisWeek: "var(--status-warning)",
+  nextWeek: "var(--series-2)",
+  twoWeeks: "var(--series-indigo)",
+  nextMonth: "var(--series-3)",
+  sixMonths: "var(--series-1)",
+  nextYear: "var(--series-slate)",
+  later: undefined,
+};
 
 // Buckets that open collapsed — the "not now" tail of the list.
 const COLLAPSED_BUCKETS: ReadonlySet<AgendaBucket> = new Set(["later", "someday", "done"]);
@@ -240,7 +263,7 @@ export function AgendaBoard(props: AgendaBoardProps) {
         id: g,
         label: EXPIRY_GROUP_LABEL[g],
         rows: filtered.filter((e) => e.expiry && expiryGroup(e.expiry.expiresOn, today) === g),
-        tone: g === "expired" ? "var(--status-critical)" : g === "today" ? "var(--status-serious)" : undefined,
+        tone: EXPIRY_TONE[g],
         open: true,
       }));
     }
@@ -248,7 +271,7 @@ export function AgendaBoard(props: AgendaBoardProps) {
       id: bucket,
       label: AGENDA_BUCKET_LABEL[bucket],
       rows: grouped.get(bucket) ?? [],
-      tone: bucket === "overdue" ? "var(--status-critical)" : bucket === "today" ? "var(--status-serious)" : undefined,
+      tone: BUCKET_TONE[bucket],
       // A narrowed view is short, so only Done starts folded there.
       open: view === "all" ? !COLLAPSED_BUCKETS.has(bucket) : bucket !== "done",
     }));
@@ -364,6 +387,7 @@ export function AgendaBoard(props: AgendaBoardProps) {
                     <AgendaRow
                       key={e.key}
                       entry={e}
+                      tone={tone}
                       confirming={confirmingDelete === e.key}
                       onComplete={() => void props.onCompleteReminder(e)}
                       onUncomplete={() => void props.onUncompleteReminder(e)}
@@ -390,6 +414,7 @@ export function AgendaBoard(props: AgendaBoardProps) {
 
 function AgendaRow({
   entry,
+  tone,
   confirming,
   onComplete,
   onUncomplete,
@@ -400,6 +425,8 @@ function AgendaRow({
   onToggleSubitem,
 }: {
   entry: AgendaEntry;
+  /** The row's time-section colour. */
+  tone?: string;
   confirming: boolean;
   onComplete: () => void;
   onUncomplete: () => void;
@@ -439,7 +466,7 @@ function AgendaRow({
   const whenEl = e.when ? (
     <span
       className="w-[4.25rem] shrink-0 pt-0.5 text-right text-xs leading-tight tabular-nums"
-      style={{ color: overdue ? "var(--status-critical)" : "var(--text-muted)", fontWeight: overdue ? 600 : 400 }}
+      style={{ color: tone ?? "var(--text-muted)", fontWeight: overdue ? 600 : 500 }}
     >
       {e.when}
     </span>
@@ -458,7 +485,7 @@ function AgendaRow({
           }
           className="mt-0.5 flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full border transition-colors hover:border-[var(--status-good)] hover:bg-[var(--page-plane)]"
           style={{
-            borderColor: done ? "var(--status-good)" : overdue ? "var(--status-critical)" : "var(--text-secondary)",
+            borderColor: done ? "var(--status-good)" : (tone ?? "var(--text-secondary)"),
             background: done ? "var(--status-good)" : "transparent",
           }}
         >
@@ -474,7 +501,7 @@ function AgendaRow({
         // left — only the mark inside is smaller, since there's nothing to
         // tap here.
         <span className="mt-0.5 flex h-[18px] w-[18px] shrink-0 items-center justify-center" aria-hidden="true">
-          <span className="h-1.5 w-1.5 rounded-full" style={{ background: overdue ? "var(--status-critical)" : "var(--text-muted)" }} />
+          <span className="h-2 w-2 rounded-full" style={{ background: tone ?? "var(--text-muted)" }} />
         </span>
       )}
       <div className="min-w-0 flex-1">
