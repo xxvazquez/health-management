@@ -5,7 +5,7 @@ import { CONTROL_CLS, CONTROL_STYLE } from "@/components/ui/Chip";
 import { useMemo, useState, type FormEvent } from "react";
 import Link from "next/link";
 import clsx from "clsx";
-import { AGENDA_BUCKET_LABEL, AGENDA_BUCKET_ORDER, type AgendaBucket, type AgendaEntry, type AgendaKind, type AgendaScope } from "@/lib/aggregations/agenda";
+import { AGENDA_BUCKET_LABEL, AGENDA_BUCKET_ORDER, type AgendaBucket, type AgendaEntry, type AgendaKind, type AgendaScope, recurrenceLabel } from "@/lib/aggregations/agenda";
 import { isRecurringTask, type TaskSubitem } from "@/lib/reminders";
 import { todayLocalISODate } from "@/lib/aggregations/common";
 import type { ReminderList } from "@/lib/supabase/personalReminders";
@@ -427,16 +427,15 @@ function AgendaRow({
   // is more useful than a dead bullet.
   const checkable = isReminder || (e.kind === "expiry" && overdue);
 
+  // The note preview gets its own line; repeat and "Shared" share one.
+  const details = [recurring && e.reminder?.recurrenceDays != null ? recurrenceLabel(e.reminder.recurrenceDays) : null, e.scope === "shared" ? "Shared" : null]
+    .filter(Boolean)
+    .join(" · ");
   const meta =
-    e.subtitle || recurring || e.scope === "shared" ? (
-      <span className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs" style={{ color: "var(--text-muted)" }}>
+    e.subtitle || details ? (
+      <span className="mt-0.5 flex flex-col gap-0.5 text-xs" style={{ color: "var(--text-muted)" }}>
         {e.subtitle && <span className="truncate">{e.subtitle}</span>}
-        {recurring && e.reminder?.recurrenceDays != null && (
-          <span className="font-medium" style={{ color: ACCENT }}>
-            every {e.reminder.recurrenceDays}d
-          </span>
-        )}
-        {e.scope === "shared" && <span>{e.subtitle || recurring ? "· shared" : "shared"}</span>}
+        {details && <span>{details}</span>}
       </span>
     ) : null;
 

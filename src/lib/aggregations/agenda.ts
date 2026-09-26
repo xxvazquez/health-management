@@ -93,7 +93,18 @@ function timing(bucket: AgendaBucket, dueMs: number | null, hasClock: boolean, t
     const weekday = d.toLocaleDateString(undefined, { weekday: "short" });
     return hasClock ? `${weekday} ${clock}` : weekday;
   }
-  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  // A date in another year carries it, so next July isn't read as this one.
+  const otherYear = String(d.getFullYear()) !== today.slice(0, 4);
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: otherYear ? "numeric" : undefined });
+}
+
+/** A repeat interval the way Reminders says it: "Daily", "Weekly",
+ * "Every 2 weeks", "Every 10 days". */
+export function recurrenceLabel(days: number): string {
+  if (days === 1) return "Daily";
+  if (days === 7) return "Weekly";
+  if (days % 7 === 0) return `Every ${days / 7} weeks`;
+  return `Every ${days} days`;
 }
 
 function hasClockTime(iso: string): boolean {
@@ -136,7 +147,7 @@ function expiryEntries(items: ExpirationItem[], scope: AgendaScope, today: strin
       scope,
       bucket,
       title: it.name,
-      subtitle: it.remindDaysBefore > 0 ? `remind ${it.remindDaysBefore}d before` : undefined,
+      subtitle: bucket === "overdue" ? "Expired" : bucket === "today" ? "Expires today" : "Expires",
       dueMs,
       when: timing(bucket, dueMs, false, today, Date.now()),
       expiry: it,

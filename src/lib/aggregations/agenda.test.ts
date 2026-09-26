@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildAgenda, notePreview, type AgendaSources } from "./agenda";
+import { buildAgenda, notePreview, recurrenceLabel, type AgendaSources } from "./agenda";
 import type { ExpirationItem, TaskItem } from "@/lib/reminders";
 import type { DoctorFollowUpTask } from "@/lib/supabase/doctors";
 
@@ -133,5 +133,11 @@ describe("notePreview", () => {
     expect(notePreview("Bring the form")).toBe("Bring the form");
     expect(notePreview("  \n ")).toBeUndefined();
     expect(notePreview(null)).toBeUndefined();
+  });
+});
+
+describe("recurrenceLabel", () => {
+  it("names common intervals the way Reminders does", () => {
+    expect([1, 7, 14, 10].map(recurrenceLabel)).toEqual(["Daily", "Weekly", "Every 2 weeks", "Every 10 days"]);
   });
 });
