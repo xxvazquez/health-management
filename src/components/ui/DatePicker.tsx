@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { Sheet } from "@/components/ui/Sheet";
+import { getDefaultTime } from "@/lib/defaultDateTime";
 import { useDialogA11y } from "@/components/ui/useDialogA11y";
 import { Calendar, MonthGrid } from "@/components/ui/pickers/Calendar";
 import { TimeWheels } from "@/components/ui/pickers/TimeWheels";
@@ -315,8 +316,9 @@ export function DateTimePicker({
   const id = useId();
   const { date, time } = splitDateTime(value);
   const display = date ? `${formatDateValue(date)}, ${time || "00:00"}` : "";
-  // An unset time starts at the next full hour, as in Reminders/Calendar.
-  const nowTime = `${pad2((new Date().getHours() + 1) % 24)}:00`;
+  // An unset time starts at the chosen default time, else the next full
+  // hour, as in Reminders/Calendar.
+  const nowTime = getDefaultTime() ?? `${pad2((new Date().getHours() + 1) % 24)}:00`;
   return (
     <PickerShell
       title={title}

@@ -98,6 +98,7 @@ import type { Doctor, DoctorPatch } from "@/lib/supabase/doctors";
 import { ComboBox, DoctorName, LanguageChips, RatingChips } from "@/components/doctors/shared";
 import { useFoodProducts } from "@/lib/useFoodProducts";
 import type { FoodProduct, FoodProductPatch } from "@/lib/supabase/foodProducts";
+import { getDefaultTime, setDefaultTime } from "@/lib/defaultDateTime";
 
 // Log tab order — Food, Symptoms, Supplements, Habits, Stool, Workout,
 // Cycle — so the toggle list reads left-to-right the same way the tabs
@@ -746,6 +747,13 @@ function ReminderListsCard({ isDemoData, searchQuery }: { isDemoData: boolean; s
     if (!isDemoData) await deleteReminderList(id).catch((err) => console.error("deleteReminderList failed", err));
   }
 
+  // Read after mount — localStorage isn't there during the static render.
+  const [defaultTime, setDefaultTimeState] = useState<string | null>(null);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reads an external store (localStorage) once on mount
+    setDefaultTimeState(getDefaultTime());
+  }, []);
+
   const query = searchQuery.trim().toLowerCase();
   const isSearching = query.length > 0;
   const visibleLists = (isSearching ? lists.filter((l) => l.name.toLowerCase().includes(query)) : lists)
@@ -760,6 +768,21 @@ function ReminderListsCard({ isDemoData, searchQuery }: { isDemoData: boolean; s
       forceOpen={isSearching}
       bare
     >
+      <FormGroup footer="Where a new reminder or date picks up a time before you choose one.">
+        <EditorField label="New dates start at">
+          <TimePicker
+            value={defaultTime ?? ""}
+            onChange={(t) => {
+              setDefaultTime(t || null);
+              setDefaultTimeState(t || null);
+            }}
+            optional
+            placeholder="Next hour"
+            title="Default time"
+          />
+        </EditorField>
+      </FormGroup>
+
       <AddRow value={newName} onChange={setNewName} onSubmit={handleAdd} placeholder="New list name" maxLength={40} label="Add list" />
 
       {loading ? (
