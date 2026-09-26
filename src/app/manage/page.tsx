@@ -3044,7 +3044,7 @@ function toManageable(item: RawItem, itemsWithHistory: Set<string>): ManageableI
 }
 
 export default function ManagePage() {
-  const { status, isDemoData, refresh: refreshShared } = useData();
+  const { status, events, isDemoData, refresh: refreshShared } = useData();
   const careLog = useCareLog();
   const [rawItems, setRawItems] = useState<RawItem[] | null>(null);
   const [categoryRows, setCategoryRows] = useState<RawCategory[]>([]);
@@ -3112,14 +3112,16 @@ export default function ManagePage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- loads an external system (IndexedDB) on status change, not a React-state sync loop
     void loadLocalSnapshot();
     // Re-loads whenever the shared data status changes (sign-in pull,
-    // initial mount). Deliberately calls the status-neutral snapshot
+    // initial mount) and after every shared refresh (a new `events` array),
+    // since a background pull refills the cache without changing status.
+    // Deliberately calls the status-neutral snapshot
     // loader here, not the mutation-triggering `refresh` below — `refresh`
     // itself calls `refreshShared`, which cycles `status` through
     // "loading" → a terminal state; if this effect called `refresh` (or
     // anything that touches `refreshShared`) it would re-trigger itself on
     // every one of those transitions and loop forever.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status]);
+  }, [status, events]);
 
   const refresh = useCallback(async () => {
     await loadLocalSnapshot();
