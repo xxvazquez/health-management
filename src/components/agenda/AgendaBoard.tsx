@@ -444,10 +444,10 @@ function AgendaRow({
   const recurring = e.reminder ? isRecurringTask(e.reminder) : false;
   const subitems = e.reminder?.subitems ?? [];
   const { revealed, onTouchStart, onTouchEnd } = useSwipeReveal();
-  // Reminders always toggle done. An expired product has no "done" state,
-  // but once it's overdue a checkbox to clear it from the list (a delete)
-  // is more useful than a dead bullet.
-  const checkable = isReminder || (e.kind === "expiry" && overdue);
+  // Reminders toggle done. An expiring product has no "done" state, so its
+  // circle means "used up": it asks first, then clears it from the list.
+  const checkable = isReminder || e.kind === "expiry";
+  const [usedUp, setUsedUp] = useState(false);
 
   // The note preview gets its own line; repeat and "Shared" share one.
   const details = [recurring && e.reminder?.recurrenceDays != null ? recurrenceLabel(e.reminder.recurrenceDays) : null, e.scope === "shared" ? "Shared" : null]
@@ -479,10 +479,17 @@ function AgendaRow({
       {checkable ? (
         <button
           type="button"
-          onClick={isReminder ? (done ? onUncomplete : onComplete) : onConfirmDelete}
-          aria-label={
-            isReminder ? (done ? "Mark not done" : recurring ? "Mark done for this cycle" : "Mark done") : "Clear this expired item"
+          onClick={
+            isReminder
+              ? done
+                ? onUncomplete
+                : onComplete
+              : () => {
+                  setUsedUp(true);
+                  onAskDelete();
+                }
           }
+          aria-label={isReminder ? (done ? "Mark not done" : recurring ? "Mark done for this cycle" : "Mark done") : `Mark ${e.title} as used up`}
           className="mt-0.5 flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full border transition-colors hover:border-[var(--status-good)] hover:bg-[var(--page-plane)]"
           style={{
             borderColor: done ? "var(--status-good)" : (tone ?? "var(--text-secondary)"),
@@ -571,10 +578,23 @@ function AgendaRow({
           {whenEl}
           {confirming ? (
             <span className="flex shrink-0 items-center gap-1">
-              <button type="button" onClick={onConfirmDelete} className="min-h-9 rounded-md px-3 text-sm font-semibold" style={{ color: "var(--status-critical)" }}>
-                Delete
+              <button
+                type="button"
+                onClick={onConfirmDelete}
+                className="min-h-9 rounded-md px-3 text-sm font-semibold"
+                style={{ color: usedUp ? "var(--status-good)" : "var(--status-critical)" }}
+              >
+                {usedUp ? "Used up" : "Delete"}
               </button>
-              <button type="button" onClick={onCancelDelete} className="min-h-9 rounded-md px-3 text-sm font-medium" style={{ color: "var(--text-muted)" }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setUsedUp(false);
+                  onCancelDelete();
+                }}
+                className="min-h-9 rounded-md px-3 text-sm font-medium"
+                style={{ color: "var(--text-muted)" }}
+              >
                 Keep
               </button>
             </span>
@@ -588,7 +608,16 @@ function AgendaRow({
               <button type="button" onClick={onEdit} aria-label="Edit" className="p-1" style={{ color: "var(--text-muted)" }}>
                 <PencilIcon size={15} />
               </button>
-              <button type="button" onClick={onAskDelete} aria-label="Delete" className="p-1" style={{ color: "var(--text-muted)" }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setUsedUp(false);
+                  onAskDelete();
+                }}
+                aria-label="Delete"
+                className="p-1"
+                style={{ color: "var(--text-muted)" }}
+              >
                 <TrashIcon size={15} />
               </button>
             </div>
