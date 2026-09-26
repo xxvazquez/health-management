@@ -278,7 +278,7 @@ function ProgressSection({
 }
 
 export function WorkoutDashboard() {
-  const { status, workoutLogs } = useData();
+  const { status, events, workoutLogs } = useData();
   const today = useMemo(() => todayLocalISODate(), []);
   const [compareExercise, setCompareExercise] = useState<WorkoutExercise | null>(null);
 
@@ -288,7 +288,8 @@ export function WorkoutDashboard() {
   // workout_items row, so this page reads that directly, the same pattern
   // Manage/Log use for their own local snapshots. Without this, every
   // figure on this page silently assumed "kg" even for an exercise
-  // configured as minutes or reps.
+  // configured as minutes or reps. Re-read after every shared refresh (a
+  // new `events` array), so a unit changed on another device shows up.
   const [unitByExercise, setUnitByExercise] = useState<Map<string, WorkoutUnit>>(new Map());
   useEffect(() => {
     if (status === "loading") return;
@@ -300,7 +301,7 @@ export function WorkoutDashboard() {
     return () => {
       cancelled = true;
     };
-  }, [status]);
+  }, [status, events]);
 
   const { span, range, setRange, filtered: filteredWorkoutLogs } = useDateRangeFilter(workoutLogs);
 
