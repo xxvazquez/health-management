@@ -248,7 +248,6 @@ export function AdherenceCardGrid({
               ariaLabel="Filter by category"
               wrap={false}
               tall
-              className="border-b"
               style={{ borderColor: "var(--border-hairline)" }}
               items={["all", ...categories].map((c) => ({ id: c, label: c === "all" ? "All" : c, accent }))}
               activeId={categoryFilter}

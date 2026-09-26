@@ -259,7 +259,6 @@ export function CoffeeTab({
           <TabRail
             ariaLabel="Coffee brand"
             wrap={false}
-            className="border-b"
             style={{ borderColor: "var(--border-hairline)" }}
             items={groupedByBrand.map((g) => ({ id: g.brand, label: g.brand, accent }))}
             activeId={activeGroup.brand}

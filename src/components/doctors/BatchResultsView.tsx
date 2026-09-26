@@ -146,7 +146,6 @@ export function BatchResultsView({
             ariaLabel="Filter by panel"
             wrap={false}
             tall
-            className="border-b"
             style={{ borderColor: "var(--border-hairline)" }}
             items={chips.map((c) => ({ id: c.id, label: c.label, accent }))}
             activeId={panelFilter}

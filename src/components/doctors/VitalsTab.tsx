@@ -388,7 +388,6 @@ export function VitalsTab({ accent }: { accent: string }) {
         ariaLabel="Vitals type"
         wrap={false}
         tall
-        className="border-b"
         style={{ borderColor: "var(--border-hairline)" }}
         items={[
           { id: "bp" as const, label: "Blood pressure", accent },

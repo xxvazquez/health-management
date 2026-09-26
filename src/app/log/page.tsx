@@ -1767,7 +1767,7 @@ export default function LogPage() {
         <TabRail
           ariaLabel={ariaLabel}
           wrap={false}
-          className="border-b lg:hidden"
+          className="lg:hidden"
           style={{ borderColor: "var(--border-hairline)" }}
           items={tabs.map((t) => ({ id: t.id, label: t.label, accent, icon: t.icon }))}
           activeId={activeId}

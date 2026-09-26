@@ -477,7 +477,6 @@ function ViewTabs({ view, onChange }: { view: NoteView; onChange: (v: NoteView) 
       ariaLabel="Message folders"
       wrap={false}
       tall
-      className="border-b"
       style={{ borderColor: "var(--border-hairline)" }}
       items={VIEWS.map((v) => ({ id: v.id, label: v.label, accent: ACCENT }))}
       activeId={view}

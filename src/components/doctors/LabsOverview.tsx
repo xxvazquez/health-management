@@ -269,7 +269,6 @@ export function LabsOverview({
           ariaLabel="Filter by panel"
           wrap={false}
           tall
-          className="border-b"
           style={{ borderColor: "var(--border-hairline)" }}
           items={[{ id: "", name: "All panels" }, ...panelSections].map((s) => ({ id: s.id, label: s.name, accent: ACCENT }))}
           activeId={effectiveFilter ?? ""}

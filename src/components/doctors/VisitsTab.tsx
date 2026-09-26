@@ -164,7 +164,6 @@ export function VisitsTab({ api, accent }: { api: DoctorsApi; accent: string }) 
             ariaLabel="Filter notes by specialty"
             wrap={false}
             tall
-            className="border-b"
             style={{ borderColor: "var(--border-hairline)" }}
             items={[{ id: "", name: "All notes" }, ...specialtiesWithEntries].map((s) => ({ id: s.id, label: s.name, accent }))}
             activeId={filterSpecialty}

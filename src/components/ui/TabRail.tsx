@@ -28,7 +28,8 @@ const LONG_PRESS_MS = 500;
  * off-edge; from `sm` up it's a single row that scrolls with a soft edge
  * fade. Pass `wrap={false}` to stay a single scrolling row at every width —
  * for a sticky bar, where an extra wrapped row costs too much height.
- * Every tab sits on a hairline baseline so a wrapped bar reads as a grid.
+ * Every tab sits on a hairline baseline so a wrapped bar reads as a grid;
+ * a single row draws that baseline itself, so callers add no border.
  *
  * `iconOnly` swaps the label for just the icon at every width (instead of
  * hiding the icon below `sm`) — a tap still switches the tab immediately;
@@ -72,8 +73,14 @@ export function TabRail<T extends string>({
 
   // Keep the active tab in view when the bar scrolls sideways (it can't fit
   // every tab, so a selection made off-screen would otherwise stay hidden).
+  // Scrolls the rail sideways only — scrollIntoView would also nudge the
+  // rail and the page vertically.
   useEffect(() => {
-    activeRef.current?.scrollIntoView({ block: "nearest", inline: "center" });
+    const tab = activeRef.current;
+    const rail = tab?.parentElement;
+    if (!tab || !rail || rail.scrollWidth <= rail.clientWidth) return;
+    const offset = tab.getBoundingClientRect().left - rail.getBoundingClientRect().left;
+    rail.scrollTo({ left: rail.scrollLeft + offset - (rail.clientWidth - tab.offsetWidth) / 2 });
   }, [activeId]);
 
   function clearLongPress(id: T) {
@@ -107,12 +114,18 @@ export function TabRail<T extends string>({
       aria-label={ariaLabel}
       className={clsx(
         "no-scrollbar fade-x flex items-center gap-x-5 touch-pan-x",
+        // A scrolling row moves sideways only — each tab's invisible 44px
+        // tap area reaches past the row and would otherwise let it scroll
+        // up and down too.
         wrap
-          ? "flex-wrap gap-y-2 sm:flex-nowrap sm:gap-5 sm:overflow-x-auto"
-          : "flex-nowrap gap-y-2 overflow-x-auto sm:gap-5",
+          ? "flex-wrap gap-y-2 sm:flex-nowrap sm:gap-5 sm:overflow-x-auto sm:overflow-y-hidden"
+          : "flex-nowrap gap-y-2 overflow-x-auto overflow-y-hidden sm:gap-5",
         className,
       )}
-      style={style}
+      // A single row draws its baseline as an inset shadow, which takes no
+      // height: a real border would leave the 44px tabs 1px taller than the
+      // scroller's inside, and it would then scroll vertically too.
+      style={wrap ? style : { boxShadow: "inset 0 -1px 0 var(--border-hairline)", ...style }}
     >
       {items.map((t) => {
         const active = t.id === activeId;
@@ -138,10 +151,9 @@ export function TabRail<T extends string>({
               color: active ? t.accent : "var(--text-secondary)",
               fontWeight: active ? 600 : 500,
               // Wrapped rows each need their own baseline, so inactive tabs
-              // carry a hairline. A single scrolling row sits on one
-              // continuous rail (the caller's border-b) instead.
+              // carry a hairline. A single scrolling row sits on the rail's
+              // own baseline instead (see the nav's box-shadow).
               borderBottom: `2px solid ${active ? t.accent : wrap ? "var(--border-hairline)" : "transparent"}`,
-              marginBottom: wrap ? undefined : "-1px",
             }}
           >
             {iconOnly ? (
