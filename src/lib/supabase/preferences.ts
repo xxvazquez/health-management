@@ -1,0 +1,42 @@
+import { supabase } from "./client";
+import { upsertDirect } from "./directWrite";
+
+const TABLE = "user_preferences";
+
+/** Account-wide preferences, shared by every device — list orders, which
+ * sections show, the default time for new dates. One row per user, one
+ * JSON object. */
+export interface Preferences {
+  /** Custom order per list, as ordered keys (ids or names). */
+  orders?: Record<string, string[]>;
+  /** Explicit show/hide per tracked section (see visibleDomains.tsx). */
+  domainVisibility?: Record<string, boolean>;
+  /** "HH:MM" a new date picks up before a time is chosen; unset = next hour. */
+  defaultTime?: string | null;
+}
+
+async function currentUserId(): Promise<string | null> {
+  if (!supabase) return null;
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  return session?.user.id ?? null;
+}
+
+export async function fetchPreferences(): Promise<Preferences> {
+  if (!supabase) return {};
+  const myUserId = await currentUserId();
+  if (!myUserId) return {};
+  const { data, error } = await supabase.from(TABLE).select("prefs").eq("user_id", myUserId).maybeSingle();
+  if (error) throw error;
+  const prefs: unknown = data?.prefs;
+  return prefs && typeof prefs === "object" && !Array.isArray(prefs) ? (prefs as Preferences) : {};
+}
+
+/** Replaces the whole preferences object. Offline it queues; see
+ * directWrite.ts. */
+export async function savePreferences(prefs: Preferences): Promise<void> {
+  const myUserId = await currentUserId();
+  if (!myUserId) throw new Error("Sign in first.");
+  await upsertDirect(myUserId, TABLE, myUserId, { user_id: myUserId, prefs, updated_at: new Date().toISOString() });
+}

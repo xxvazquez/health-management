@@ -26,6 +26,7 @@ import { buildDemoPersonalItems, buildDemoPersonalTasks, buildDemoReminderLists 
 import { isRecurringTask, nextRecurringDueAt, type TaskItem, type TaskSubitem } from "@/lib/reminders";
 import type { TaskFormValues } from "@/components/reminders/TaskForm";
 import { useSnapshotCache } from "@/lib/useSnapshotCache";
+import { applyOrder, usePreferences } from "@/lib/usePreferences";
 
 const PERSONAL_REMINDER_TABLES = ["personal_tasks", "personal_items", "reminder_lists", "personal_task_completions"] as const;
 
@@ -104,7 +105,12 @@ export function usePersonalReminderBoards() {
   // --- Lists ---
   // Alphabetical everywhere they show (tab chips, list pickers) — there's no
   // manual reorder UI, and it keeps Log in step with the Manage page.
-  const sortedLists = useMemo(() => [...lists].sort((a, b) => a.name.localeCompare(b.name)), [lists]);
+  // A–Z, then the account's own order from Settings (drag ≡).
+  const { prefs } = usePreferences();
+  const sortedLists = useMemo(
+    () => applyOrder([...lists].sort((a, b) => a.name.localeCompare(b.name)), prefs.orders?.reminderLists, (l) => l.id),
+    [lists, prefs.orders],
+  );
 
   const createList = useCallback(
     async (name: string): Promise<string> => {

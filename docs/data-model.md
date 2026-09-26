@@ -711,15 +711,23 @@ instead triggers an immediate web push to the recipient via the `notify-note`
 Edge Function (client-invoked on send); the digest is the fallback for users
 without push.
 
+## Preferences
+
+`user_preferences` — one row per user (`user_id` primary key, upserted
+whole, direct-to-Supabase like `color_palette`) with `prefs jsonb`, the
+account-wide settings every device shares
+([`src/lib/usePreferences.ts`](../src/lib/usePreferences.ts)):
+
+| Key | What |
+|---|---|
+| `orders` | Custom order per list, as ordered keys: `domains` (Log/Trends tabs), `reminderLists`, `wishlistLists`, `labPanels` (ids), `doctorTypes` (lowercase names), `coffee:<kind>` / `stool:<kind>` (option ids). Unlisted entries follow in their normal order (`applyOrder`). |
+| `domainVisibility` | Settings → Visible sections: explicit show/hide per tracked section; absent = automatic (shows once it has data, or while the account is empty). |
+| `defaultTime` | "HH:MM" a new date picks up before a time is chosen; absent = the next full hour. |
+
+Categories keep their order in `categories.sort_order` instead (above).
+
 ## Not in Postgres
 
-- **Which tracked domains are visible** in the Log and Trends tab rails is
-  automatic — a section shows once it has logged data (and every section
-  shows while the account is empty). Manage → Visible sections overrides
-  this per domain either way; those overrides are a per-device localStorage
-  preference ([`src/lib/visibleDomains.tsx`](../src/lib/visibleDomains.tsx)),
-  deliberately not synced — "I don't track this" is a statement about the
-  person using this device, not about the data.
 - **The PWA app-shell cache** (`public/sw.js`) is separate from both
   Supabase and the IndexedDB data cache.
 - **The direct-feature read snapshots** (`snapshots` store in the

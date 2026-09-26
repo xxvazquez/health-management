@@ -36,6 +36,7 @@ import {
 import { buildDemoDoctorAppointments, buildDemoDoctorFollowUpTasks, buildDemoDoctorSpecialties, buildDemoDoctors } from "@/lib/demoDoctors";
 import { useCareLog } from "@/lib/useCareLog";
 import { useSnapshotCache } from "@/lib/useSnapshotCache";
+import { applyOrder, usePreferences } from "@/lib/usePreferences";
 
 const DOCTORS_TABLES = ["doctor_specialties", "doctors", "doctor_appointments", "doctor_appointment_tasks"] as const;
 
@@ -75,6 +76,7 @@ export function useDoctors() {
   const isDemo = !authLoading && !session;
   const seed = cache && cache.userId === userId ? cache : null;
 
+  const { prefs } = usePreferences();
   const [specialties, setSpecialties] = useState<DoctorSpecialty[]>(() => seed?.specialties ?? buildDemoDoctorSpecialties());
   const [doctors, setDoctors] = useState<Doctor[]>(() => seed?.doctors ?? buildDemoDoctors());
   const [appointments, setAppointments] = useState<DoctorAppointment[]>(() => seed?.appointments ?? buildDemoDoctorAppointments());
@@ -388,11 +390,14 @@ export function useDoctors() {
     [isDemo],
   );
 
+  // Doctor types in the account's own order from Settings (drag ≡).
+  const orderedSpecialties = applyOrder(specialties, prefs.orders?.doctorTypes, (sp) => sp.name.toLowerCase());
+
   return {
     isDemo,
     loading: (!isDemo && loading) || careLog.loading,
     error: error || careLog.error,
-    specialties: { data: specialties, ensure: ensureSpecialties, create: createSpecialty, rename: renameSpecialty, archive: archiveSpecialty, remove: removeSpecialty, setNextAppointment },
+    specialties: { data: orderedSpecialties, ensure: ensureSpecialties, create: createSpecialty, rename: renameSpecialty, archive: archiveSpecialty, remove: removeSpecialty, setNextAppointment },
     doctors: { data: doctors, create: addDoctor, edit: editDoctor, remove: removeDoctor },
     appointments: { data: appointments, log: logAppointment, edit: editAppointment, remove: removeAppointment },
     tasks: { data: tasks, add: addTask, edit: editTask, setComplete: setTaskComplete, remove: removeTask },

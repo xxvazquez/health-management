@@ -463,7 +463,7 @@ const TAB_ALIASES: Record<string, string> = { symptoms: "outcome", supplements: 
 
 export default function LogPage() {
   const { refresh, isDemoData, status, events } = useData();
-  const { isVisible } = useVisibleDomains();
+  const { isVisible, domainOrder } = useVisibleDomains();
   const { openPanel } = useAuth();
   // Observation-type care-log entries (Health → Visits) — surfaced on
   // the Symptoms tab as one-offs that aren't tracked day to day.
@@ -559,10 +559,10 @@ export default function LogPage() {
   // partial data and would bounce you off a tab that's about to appear.
   useEffect(() => {
     if (status === "loading" || tab === "summary" || isVisible(tab)) return;
-    const fallback = ([...TABS.map((t) => t.type), "stool", "workout", "cycle", "coffee"] as TrackedDomain[]).find((t) => isVisible(t));
+    const fallback = domainOrder.find((t) => isVisible(t));
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (fallback) setTab(fallback);
-  }, [tab, isVisible, status]);
+  }, [tab, isVisible, status, domainOrder]);
   const [confirmingDeleteKeys, setConfirmingDeleteKeys] = useState<Set<string>>(new Set());
   // Which Summary-tab timeline entry has its editable detail sheet open —
   // the row itself is a compact, fixed-height tap target (Apple's own
@@ -667,8 +667,12 @@ export default function LogPage() {
       // it's a read-back-over-everything-else view, so it always shows.
       { id: "summary", label: "Summary", accent: SUMMARY_ACCENT },
     ];
-    return all.filter((t) => !t.domain || isVisible(t.domain));
-  }, [isVisible]);
+    // In the account's chosen order (Settings → Visible sections); Summary,
+    // which isn't a tracked section, stays last.
+    return all
+      .filter((t) => !t.domain || isVisible(t.domain))
+      .sort((a, b) => (a.domain ? domainOrder.indexOf(a.domain) : 99) - (b.domain ? domainOrder.indexOf(b.domain) : 99));
+  }, [isVisible, domainOrder]);
 
   // For the Food tab specifically, a chip's checkmark reflects whether it
   // was logged for the *currently selected meal*, not the whole day — so

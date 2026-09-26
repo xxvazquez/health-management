@@ -33,8 +33,15 @@ const TABS: { id: string; label: string; domain?: TrackedDomain; accent: string;
 ];
 
 export default function AnalyticsPage() {
-  const { isVisible } = useVisibleDomains();
-  const visibleTabs = useMemo(() => TABS.filter((t) => !t.domain || isVisible(t.domain)), [isVisible]);
+  const { isVisible, domainOrder } = useVisibleDomains();
+  // Same order as Log's tabs (Settings → Visible sections).
+  const visibleTabs = useMemo(
+    () =>
+      TABS.filter((t) => !t.domain || isVisible(t.domain)).sort(
+        (a, b) => (a.domain ? domainOrder.indexOf(a.domain) : 99) - (b.domain ? domainOrder.indexOf(b.domain) : 99),
+      ),
+    [isVisible, domainOrder],
+  );
 
   // Starts at the first tab ("food") for a match with the statically-
   // rendered HTML, then syncs to the URL hash on mount (and on every

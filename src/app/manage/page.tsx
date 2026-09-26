@@ -9,6 +9,7 @@ import { PageSkeleton } from "@/components/ui/Skeleton";
 import { SearchField } from "@/components/ui/SearchField";
 import { ChevronIcon, CloseIcon, GripIcon, PlusIcon } from "@/components/ui/icons";
 import { ManageRow } from "@/components/ui/ManageRow";
+import { ReorderGrip, useManageOrder } from "@/components/manage/Reorder";
 import { PageHeading } from "@/components/ui/PageHeading";
 import { CustomIcon, customColorValue, defaultCategoryIcon } from "@/components/ui/customIcons";
 import { DuplicateItemDialog } from "@/components/ui/DuplicateItemDialog";
@@ -100,7 +101,7 @@ import type { Doctor, DoctorPatch } from "@/lib/supabase/doctors";
 import { ComboBox, DoctorName, LanguageChips, RatingChips } from "@/components/doctors/shared";
 import { useFoodProducts } from "@/lib/useFoodProducts";
 import type { FoodProduct, FoodProductPatch } from "@/lib/supabase/foodProducts";
-import { getDefaultTime, setDefaultTime } from "@/lib/defaultDateTime";
+import { usePreferences } from "@/lib/usePreferences";
 
 // Log tab order — Food, Symptoms, Supplements, Habits, Stool, Workout,
 // Cycle — so the toggle list reads left-to-right the same way the tabs
@@ -184,7 +185,8 @@ function AppearanceCard() {
  * they have data; these toggles override that in either direction. Purely
  * a local display preference (see visibleDomains.tsx), not synced. */
 function VisibleSectionsCard({ isDemoData }: { isDemoData: boolean }) {
-  const { isVisible, toggle } = useVisibleDomains();
+  const { isVisible, toggle, domainOrder, setDomainOrder } = useVisibleDomains();
+  const drag = useDragReorder(domainOrder, (next) => setDomainOrder(next as TrackedDomain[]));
   const [reminders, setReminders] = useState<HabitReminderTimes>({});
   const [remindersLoading, setRemindersLoading] = useState(!isDemoData);
   const [busyDomain, setBusyDomain] = useState<TrackedDomain | null>(null);
@@ -224,12 +226,17 @@ function VisibleSectionsCard({ isDemoData }: { isDemoData: boolean }) {
   return (
     <CollapsibleManageCard title="Visible sections" subtitle={`${shownCount} of ${DOMAIN_TOGGLE_ORDER.length} on`} bare>
       <div className={GROUP_CLS} style={GROUP_STYLE}>
-        {DOMAIN_TOGGLE_ORDER.map((domain) => {
+        {(drag.order as TrackedDomain[]).map((domain) => {
           const on = isVisible(domain);
           const reminderTime = reminders[domain];
           const busy = busyDomain === domain;
           return (
-            <div key={domain} className="flex min-h-11 w-full items-center gap-3 px-3.5">
+            <div
+              key={domain}
+              ref={drag.rowRef(domain)}
+              className="flex min-h-11 w-full items-center gap-3 pl-3.5"
+              style={drag.dragging === domain ? { background: "var(--surface-1)", boxShadow: "var(--menu-shadow)", position: "relative", zIndex: 1, borderRadius: 10 } : undefined}
+            >
               <span className="flex-1 truncate text-sm" style={{ color: "var(--text-primary)" }}>
                 {DOMAIN_LABELS[domain]}
               </span>
@@ -267,14 +274,24 @@ function VisibleSectionsCard({ isDemoData }: { isDemoData: boolean }) {
               >
                 <SwitchKnob on={on} />
               </button>
+              <span
+                {...drag.handleProps(domain)}
+                role="button"
+                tabIndex={0}
+                aria-label={`Reorder ${DOMAIN_LABELS[domain]} — drag, or use the arrow keys`}
+                className="tap-target flex h-11 w-10 shrink-0 items-center justify-center"
+                style={{ ...drag.handleProps(domain).style, color: "var(--text-muted)" }}
+              >
+                <GripIcon size={16} />
+              </span>
             </div>
           );
         })}
       </div>
       <GroupNote>
         A section shows on the Log tabs (and its Trends dashboard, if it has one) once you&apos;ve logged something in it. Turn
-        one on to start tracking it sooner, or off to hide it even with data — on this device only. Nothing is deleted or
-        archived.
+        one on to start tracking it sooner, or off to hide it even with data. Drag ≡ to change the order of the tabs on Log and
+        Trends. Applies on every device; nothing is deleted or archived.
         {!isDemoData && " A daily reminder is skipped automatically once you've already logged that day."}
       </GroupNote>
     </CollapsibleManageCard>
@@ -337,9 +354,13 @@ function WishlistListsCard({ isDemoData, searchQuery }: { isDemoData: boolean; s
 
   const query = searchQuery.trim().toLowerCase();
   const isSearching = query.length > 0;
-  const visibleLists = (isSearching ? lists.filter((l) => l.name.toLowerCase().includes(query)) : lists)
-    .slice()
-    .sort((a, b) => a.name.localeCompare(b.name));
+  const byName = lists.slice().sort((a, b) => a.name.localeCompare(b.name));
+  // Your own order (drag ≡), shared with every screen that shows these lists.
+  const listOrder = useManageOrder("wishlistLists", byName.map((l) => l.id));
+  const listById = new Map(lists.map((l) => [l.id, l]));
+  const visibleLists = listOrder.order
+    .map((id) => listById.get(id))
+    .filter((l): l is (typeof lists)[number] => !!l && (!isSearching || l.name.toLowerCase().includes(query)));
   if (isSearching && visibleLists.length === 0) return null;
 
   return (
@@ -367,6 +388,9 @@ function WishlistListsCard({ isDemoData, searchQuery }: { isDemoData: boolean; s
               key={l.id}
               name={l.name}
               maxLength={40}
+              rowRef={listOrder.rowRef(l.id)}
+              lifted={listOrder.dragging === l.id}
+              trailing={isSearching ? undefined : <ReorderGrip drag={listOrder} id={l.id} label={l.name} />}
               appearance={{
                 icon: l.icon,
                 color: l.color,
@@ -530,7 +554,11 @@ function LabResultsCard({ searchQuery }: { searchQuery: string }) {
   const panels = labs.panels.data;
   const markerMatches = (name: string) => !isSearching || name.toLowerCase().includes(query);
   const shownMarkers = markers.filter((m) => markerMatches(m.name));
-  const shownPanels = panels.filter((p) => !isSearching || p.name.toLowerCase().includes(query));
+  const panelOrder = useManageOrder("labPanels", panels.map((p) => p.id));
+  const panelById = new Map(panels.map((p) => [p.id, p]));
+  const shownPanels = panelOrder.order
+    .map((id) => panelById.get(id))
+    .filter((p): p is (typeof panels)[number] => !!p && (!isSearching || p.name.toLowerCase().includes(query)));
 
   const groups = [
     ...panels.map((p) => ({ id: p.id, name: p.name, markers: shownMarkers.filter((m) => m.panelId === p.id) })),
@@ -578,6 +606,9 @@ function LabResultsCard({ searchQuery }: { searchQuery: string }) {
                     key={p.id}
                     name={p.name}
                     maxLength={60}
+                    rowRef={panelOrder.rowRef(p.id)}
+                    lifted={panelOrder.dragging === p.id}
+                    trailing={isSearching ? undefined : <ReorderGrip drag={panelOrder} id={p.id} label={p.name} />}
                     appearance={{
                       icon: p.icon,
                       color: p.color,
@@ -749,18 +780,18 @@ function ReminderListsCard({ isDemoData, searchQuery }: { isDemoData: boolean; s
     if (!isDemoData) await deleteReminderList(id).catch((err) => console.error("deleteReminderList failed", err));
   }
 
-  // Read after mount — localStorage isn't there during the static render.
-  const [defaultTime, setDefaultTimeState] = useState<string | null>(null);
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- reads an external store (localStorage) once on mount
-    setDefaultTimeState(getDefaultTime());
-  }, []);
+  const { prefs, update: updatePrefs } = usePreferences();
+  const defaultTime = prefs.defaultTime ?? null;
 
   const query = searchQuery.trim().toLowerCase();
   const isSearching = query.length > 0;
-  const visibleLists = (isSearching ? lists.filter((l) => l.name.toLowerCase().includes(query)) : lists)
-    .slice()
-    .sort((a, b) => a.name.localeCompare(b.name));
+  const byName = lists.slice().sort((a, b) => a.name.localeCompare(b.name));
+  // Your own order (drag ≡), shared with every screen that shows these lists.
+  const listOrder = useManageOrder("reminderLists", byName.map((l) => l.id));
+  const listById = new Map(lists.map((l) => [l.id, l]));
+  const visibleLists = listOrder.order
+    .map((id) => listById.get(id))
+    .filter((l): l is (typeof lists)[number] => !!l && (!isSearching || l.name.toLowerCase().includes(query)));
   if (isSearching && visibleLists.length === 0) return null;
 
   return (
@@ -774,10 +805,7 @@ function ReminderListsCard({ isDemoData, searchQuery }: { isDemoData: boolean; s
         <EditorField label="New dates start at">
           <TimePicker
             value={defaultTime ?? ""}
-            onChange={(t) => {
-              setDefaultTime(t || null);
-              setDefaultTimeState(t || null);
-            }}
+            onChange={(t) => updatePrefs({ defaultTime: t || null })}
             optional
             placeholder="Next hour"
             title="Default time"
@@ -803,6 +831,9 @@ function ReminderListsCard({ isDemoData, searchQuery }: { isDemoData: boolean; s
               key={l.id}
               name={l.name}
               maxLength={40}
+              rowRef={listOrder.rowRef(l.id)}
+              lifted={listOrder.dragging === l.id}
+              trailing={isSearching ? undefined : <ReorderGrip drag={listOrder} id={l.id} label={l.name} />}
               appearance={{
                 icon: l.icon,
                 color: l.color,
@@ -857,7 +888,13 @@ function DoctorSpecialtiesCard({ isDemoData, searchQuery }: { isDemoData: boolea
   const query = searchQuery.trim().toLowerCase();
   const isSearching = query.length > 0;
   const matchesQuery = (e: { name: string }) => !isSearching || e.name.toLowerCase().includes(query);
-  const active = entries.filter((e) => !e.isArchived && matchesQuery(e)).sort((a, b) => a.name.localeCompare(b.name));
+  // Your own order (drag ≡), shared with every screen that lists doctor types.
+  const typeOrder = useManageOrder(
+    "doctorTypes",
+    entries.filter((e) => !e.isArchived).sort((a, b) => a.name.localeCompare(b.name)).map((e) => e.key),
+  );
+  const entryByKey = new Map(entries.map((e) => [e.key, e]));
+  const active = typeOrder.order.map((k) => entryByKey.get(k)).filter((e): e is (typeof entries)[number] => !!e && !e.isArchived && matchesQuery(e));
   const hidden = entries.filter((e) => e.isArchived && matchesQuery(e)).sort((a, b) => a.name.localeCompare(b.name));
 
   if (isSearching && active.length === 0 && hidden.length === 0) return null;
@@ -971,6 +1008,9 @@ function DoctorSpecialtiesCard({ isDemoData, searchQuery }: { isDemoData: boolea
       name={e.name}
       isArchived={e.isArchived}
       busy={busy}
+      rowRef={e.isArchived ? undefined : typeOrder.rowRef(e.key)}
+      lifted={typeOrder.dragging === e.key}
+      trailing={e.isArchived || isSearching ? undefined : <ReorderGrip drag={typeOrder} id={e.key} label={e.name} />}
       appearance={{
         icon: e.icon,
         color: e.color,
@@ -1072,6 +1112,7 @@ function OptionKindGroup<T extends { id: string; label: string; isArchived: bool
   onPatch,
   onDelete,
   withSwatch = false,
+  orderKey,
 }: {
   title: string;
   placeholder: string;
@@ -1087,13 +1128,24 @@ function OptionKindGroup<T extends { id: string; label: string; isArchived: bool
   onPatch: (option: T, patch: { label?: string; isArchived?: boolean; swatch?: string }) => void;
   onDelete: (option: T) => void;
   withSwatch?: boolean;
+  /** Preferences key for this kind's order (drag ≡) — shared with the Log
+   * chips that show these options. */
+  orderKey: string;
 }) {
+  // While searching the list is filtered, so it can't be reordered.
+  const reorderable = canToggleHidden;
+  const order = useManageOrder(orderKey, active.map((o) => o.id));
+  const activeById = new Map(active.map((o) => [o.id, o]));
+  const orderedActive = order.order.map((id) => activeById.get(id)).filter((o): o is T => !!o);
   const row = (o: T) => (
     <ManageRow
       key={o.id}
       name={o.label}
       isArchived={o.isArchived}
       busy={busy}
+      rowRef={o.isArchived ? undefined : order.rowRef(o.id)}
+      lifted={order.dragging === o.id}
+      trailing={o.isArchived || !reorderable ? undefined : <ReorderGrip drag={order} id={o.id} label={o.label} />}
       swatch={withSwatch ? { value: o.swatch ?? "#8a5a34", onChange: (value) => onPatch(o, { swatch: value }) } : undefined}
       onRename={(next) => onPatch(o, { label: next })}
       onToggleHide={() => onPatch(o, { isArchived: !o.isArchived })}
@@ -1123,7 +1175,7 @@ function OptionKindGroup<T extends { id: string; label: string; isArchived: bool
               Nothing here yet.
             </li>
           ) : (
-            active.map(row)
+            orderedActive.map(row)
           )}
         </ul>
       )}
@@ -1306,6 +1358,7 @@ function StoolOptionsCard({ isDemoData, searchQuery }: { isDemoData: boolean; se
                 onPatch={(o, patchValue) => void patch(o, patchValue)}
                 onDelete={(o) => void removeOption(o)}
                 withSwatch={kind === "color"}
+                orderKey={`stool:${kind}`}
               />
             );
           })}
@@ -1536,6 +1589,7 @@ function CoffeeCard({ isDemoData, searchQuery }: { isDemoData: boolean; searchQu
                 busy={busy}
                 onPatch={(o, patchValue) => void patch(o, patchValue)}
                 onDelete={(o) => void removeOption(o)}
+                orderKey={`coffee:${kind}`}
               />
             );
           })}

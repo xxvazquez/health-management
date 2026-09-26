@@ -62,6 +62,7 @@ const TABLES: { table: string; owner: string }[] = [
   { table: "weight_logs", owner: "user_id" },
   { table: "weight_target", owner: "user_id" },
   { table: "color_palette", owner: "user_id" },
+  { table: "user_preferences", owner: "user_id" },
   { table: "wishlist_categories", owner: "owner_id" },
   { table: "wishlist_items", owner: "owner_id" },
   { table: "household_notes", owner: "owner_id" },
@@ -84,7 +85,7 @@ export const EXPORT_SECTIONS: { label: string; tables: string[] }[] = [
   { label: "Stool", tables: ["stool_logs", "stool_options"] },
   { label: "Cycle", tables: ["period_logs"] },
   { label: "Coffee", tables: ["coffee_items", "coffee_logs", "coffee_options", "coffee_settings"] },
-  { label: "Categories, colours and reminders", tables: ["categories", "color_palette", "habit_reminders"] },
+  { label: "Categories, colours and reminders", tables: ["categories", "color_palette", "user_preferences", "habit_reminders"] },
   { label: "Journal", tables: ["journal_entries"] },
   {
     label: "Personal notes & reminders",

@@ -24,6 +24,7 @@ import { getPartnerLink } from "@/lib/supabase/partner";
 import { buildDemoHouseholdCodes, DEMO_HOME_ME_ID, DEMO_HOME_PARTNER_ID } from "@/lib/demoHousehold";
 import { buildDemoWishlist } from "@/lib/demoWishlist";
 import { useSnapshotCache } from "@/lib/useSnapshotCache";
+import { applyOrder, usePreferences } from "@/lib/usePreferences";
 
 /** Survives navigation, keyed by user id — same pattern as
  * `usePersonalReminderBoards`. */
@@ -57,6 +58,7 @@ export function useKeepBoards() {
   const [codesLoading, setCodesLoading] = useState(seed === null);
   const [codesError, setCodesError] = useState(false);
 
+  const { prefs } = usePreferences();
   const [wishlist, setWishlist] = useState<WishlistCategory[]>(() => seed?.wishlist ?? buildDemoWishlist());
   const [wishlistLoading, setWishlistLoading] = useState(seed === null);
   const [wishlistError, setWishlistError] = useState(false);
@@ -276,13 +278,16 @@ export function useKeepBoards() {
     [isDemo],
   );
 
+  // The lists in the account's own order from Settings (drag ≡).
+  const orderedWishlist = applyOrder(wishlist, prefs.orders?.wishlistLists, (c) => c.id);
+
   return {
     isDemo,
     myUserId,
     partnerId,
     codes: { data: codes, loading: codesLoading, error: codesError, create: createCode, edit: editCode, remove: deleteCode },
     wishlist: {
-      data: wishlist,
+      data: orderedWishlist,
       loading: wishlistLoading,
       error: wishlistError,
       refresh: loadWishlist,

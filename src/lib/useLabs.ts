@@ -26,6 +26,7 @@ import {
 import type { CustomAppearance } from "@/components/ui/customIcons";
 import { buildDemoLabMarkers, buildDemoLabPanels } from "@/lib/demoLabs";
 import { useSnapshotCache } from "@/lib/useSnapshotCache";
+import { applyOrder, usePreferences } from "@/lib/usePreferences";
 
 /** Module-level cache so the Medical → Results tab keeps one shared
  * lab-results state across client-side navigation — same cross-nav cache
@@ -47,6 +48,7 @@ export function useLabs() {
   const isDemo = !authLoading && !session;
   const seed = cache && cache.userId === userId ? cache : null;
 
+  const { prefs } = usePreferences();
   const [panels, setPanels] = useState<LabPanel[]>(() => seed?.panels ?? buildDemoLabPanels());
   const [markers, setMarkers] = useState<LabMarker[]>(() => seed?.markers ?? buildDemoLabMarkers());
   const [loading, setLoading] = useState(seed === null);
@@ -313,11 +315,14 @@ export function useLabs() {
     [isDemo],
   );
 
+  // Panels in the account's own order from Settings (drag ≡).
+  const orderedPanels = applyOrder(panels, prefs.orders?.labPanels, (p) => p.id);
+
   return {
     isDemo,
     loading: !isDemo && loading,
     error,
-    panels: { data: panels, create: createPanel, rename: renamePanel, remove: removePanel },
+    panels: { data: orderedPanels, create: createPanel, rename: renamePanel, remove: removePanel },
     markers: { data: markers, create: createMarker, edit: editMarker, remove: removeMarker },
     results: { add: addResult, addMany: addManyResults, edit: editResult, remove: removeResult },
   };

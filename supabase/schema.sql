@@ -435,6 +435,15 @@ create table public.color_palette (
   updated_at timestamptz not null default now()
 );
 
+-- Account-wide preferences shared by every device: list orders, which
+-- tracked sections show, the default time for new dates. One JSON object
+-- per user (see src/lib/supabase/preferences.ts).
+create table public.user_preferences (
+  user_id uuid primary key default auth.uid() references auth.users(id),
+  prefs jsonb not null default '{}'::jsonb,
+  updated_at timestamptz not null default now()
+);
+
 create table public.workout_logs (
   id uuid not null default gen_random_uuid(),
   user_id uuid not null default auth.uid(),
@@ -1309,6 +1318,7 @@ alter table public.coffee_options enable row level security;
 alter table public.coffee_logs enable row level security;
 alter table public.coffee_settings enable row level security;
 alter table public.color_palette enable row level security;
+alter table public.user_preferences enable row level security;
 alter table public.workout_logs enable row level security;
 alter table public.workout_plans enable row level security;
 alter table public.period_logs enable row level security;
@@ -1374,6 +1384,7 @@ create policy "coffee_options_all_own" on public.coffee_options for all using (a
 create policy "coffee_logs_all_own" on public.coffee_logs for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "coffee_settings_all_own" on public.coffee_settings for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "color_palette_all_own" on public.color_palette for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "user_preferences_all_own" on public.user_preferences for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "workout_logs_all_own" on public.workout_logs for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "workout_plans_all_own" on public.workout_plans for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "period_logs_all_own" on public.period_logs for all using (auth.uid() = user_id) with check (auth.uid() = user_id);

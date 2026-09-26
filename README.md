@@ -74,7 +74,8 @@ Tabs: **Food · Symptoms · Supplements · Habits · Stool · Workout · Cycle �
 
 A grouped list (Tracking, Health, Lists, App) where each row opens its own screen. From here you can:
 
-- Add, rename, archive or delete items and categories, drag categories into your own order (≡ grip), including a category icon and colour (every built-in category starts with its own icon; a new one gets its tab's icon until you pick one)
+- Add, rename, archive or delete items and categories, drag categories into your own order (≡ grip), including a category icon and colour
+- Drag ≡ to reorder anything listed in Settings — Log/Trends tabs (Visible sections), reminder and wishlist lists, doctor types, lab panels, coffee and stool options; orders, visible sections and the default time sync to every device (every built-in category starts with its own icon; a new one gets its tab's icon until you pick one)
 - Pick icons and colours for anything that has them (categories, wishlist and reminder lists, doctor types, lab panels):
   - ~1,900 searchable icons: Lauva's own plus the full [Lucide](https://lucide.dev) set
   - Any colour via + (system colour picker); it's saved to **Your colours** and offered in every other picker; in dark mode a very dark pick is lightened just enough to stay visible
