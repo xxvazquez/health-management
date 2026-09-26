@@ -94,6 +94,15 @@ export function UpDownChevronIcon({ size = 12 }: { size?: number }) {
 
 const CHEVRON_ROTATION = { right: 0, down: 90, left: 180, up: 270 } as const;
 
+/** The ≡ grip that marks a row as draggable. */
+export function GripIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
+      <path d="M4 7h12M4 10h12M4 13h12" />
+    </svg>
+  );
+}
+
 export function ChevronIcon({ dir = "right", size = 16 }: { dir?: keyof typeof CHEVRON_ROTATION; size?: number }) {
   const deg = CHEVRON_ROTATION[dir];
   return (

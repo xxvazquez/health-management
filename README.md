@@ -50,7 +50,7 @@ Old routes redirect: `/overview` → `/agenda`, `/doctors` → `/medical`, `/hom
 Tabs: **Food · Symptoms · Supplements · Habits · Stool · Workout · Cycle · Coffee · Summary**
 
 - **Toolbar:** search (or add), meal / time of day, time. On desktop it sits beside the page title.
-- **Categories:** a scrolling category rail on a phone; a sidebar with per-category logged counts on desktop. Items are A–Z, in as many columns as fit on desktop.
+- **Categories:** a scrolling category rail on a phone; a sidebar with per-category logged counts on desktop, in the order you arrange them in Settings (A–Z until you do). Items are A–Z, in as many columns as fit on desktop.
 - **Food's current meal** shows above the list as removable chips ("Dinner · 3"). "Copy to…" logs the same items under another meal or day.
 - **Food extras:**
   - "Usual" tab: what you log most at the chosen meal
@@ -74,7 +74,7 @@ Tabs: **Food · Symptoms · Supplements · Habits · Stool · Workout · Cycle �
 
 A grouped list (Tracking, Health, Lists, App) where each row opens its own screen. From here you can:
 
-- Add, rename, archive or delete items and categories, including a category icon and colour (every built-in category starts with its own icon; a new one gets its tab's icon until you pick one)
+- Add, rename, archive or delete items and categories, drag categories into your own order (≡ grip), including a category icon and colour (every built-in category starts with its own icon; a new one gets its tab's icon until you pick one)
 - Pick icons and colours for anything that has them (categories, wishlist and reminder lists, doctor types, lab panels):
   - ~1,900 searchable icons: Lauva's own plus the full [Lucide](https://lucide.dev) set
   - Any colour via + (system colour picker); it's saved to **Your colours** and offered in every other picker; in dark mode a very dark pick is lightened just enough to stay visible

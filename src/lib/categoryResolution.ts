@@ -109,6 +109,17 @@ export async function setCategoryAppearanceAndSync(
   if (row) await putCategoryAndSync({ ...row, icon: appearance.icon, color: appearance.color });
 }
 
+/** Saves the order the user dragged a type's categories into: each gets its
+ * position, seeding any built-in default that has no row yet. */
+export async function setCategoryOrderAndSync(itemType: ItemType, orderedNames: readonly string[]): Promise<void> {
+  for (const name of orderedNames) await ensureCategoryId(itemType, name);
+  const rows = (await getAllCategories()).filter((c) => c.itemType === itemType);
+  for (const [position, name] of orderedNames.entries()) {
+    const row = rows.find((c) => normalizeName(c.name) === normalizeName(name));
+    if (row && row.sortOrder !== position) await putCategoryAndSync({ ...row, sortOrder: position });
+  }
+}
+
 /** Same seeding logic as `ensureCategoryId`, but as plain rows for demo
  * mode's in-memory state instead of writing to IndexedDB/Supabase. */
 export function categoryRowsToSeedForDemo(itemType: ItemType, name: string, existing: RawCategory[]): RawCategory[] {

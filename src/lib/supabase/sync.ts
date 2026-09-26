@@ -147,7 +147,11 @@ function buildDiaryRow(entry: RawDiaryEntry, userId: string): Record<string, unk
 }
 
 function buildCategoryRow(entry: RawCategory, userId: string): Record<string, unknown> {
-  return { id: entry.id, user_id: userId, item_type: DB_TYPE[entry.itemType], name: entry.name, icon: entry.icon, color: entry.color };
+  const row: Record<string, unknown> = { id: entry.id, user_id: userId, item_type: DB_TYPE[entry.itemType], name: entry.name, icon: entry.icon, color: entry.color };
+  // Only sent once a category has been ordered, so accounts that haven't
+  // added the column yet keep syncing.
+  if (entry.sortOrder != null) row.sort_order = entry.sortOrder;
+  return row;
 }
 
 function buildStoolLogRow(log: RawStoolLog, userId: string): Record<string, unknown> {
@@ -508,6 +512,7 @@ interface CategoryRow {
   name: string;
   icon: string | null;
   color: string | null;
+  sort_order?: number | null;
 }
 
 interface StoolLogRow {
@@ -1085,7 +1090,7 @@ export async function pullFromCloud(): Promise<void> {
 // exactly the way a server row would be.
 
 function categoryFromRow(row: CategoryRow): RawCategory {
-  return { id: row.id, itemType: dbTypeToItemType(row.item_type), name: row.name, icon: row.icon ?? null, color: row.color ?? null };
+  return { id: row.id, itemType: dbTypeToItemType(row.item_type), name: row.name, icon: row.icon ?? null, color: row.color ?? null, sortOrder: row.sort_order ?? null };
 }
 
 function itemFromRow(row: ItemRow, itemType: ItemType, categoryNameById: Map<string, string>): RawItem {

@@ -27,6 +27,9 @@ create table public.categories (
   -- a `#rrggbb` hex). Null falls back to the built-in look.
   icon text,
   color text,
+  -- Position the user dragged the category to in Settings; null sorts A–Z
+  -- after the arranged ones.
+  sort_order integer,
   unique (user_id, item_type, name_key),
   unique (user_id, id, item_type)
 );

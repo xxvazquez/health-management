@@ -7,7 +7,7 @@ import { useVisibleDomains, DOMAIN_LABELS, type TrackedDomain } from "@/lib/visi
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageSkeleton } from "@/components/ui/Skeleton";
 import { SearchField } from "@/components/ui/SearchField";
-import { ChevronIcon, CloseIcon, PlusIcon } from "@/components/ui/icons";
+import { ChevronIcon, CloseIcon, GripIcon, PlusIcon } from "@/components/ui/icons";
 import { ManageRow } from "@/components/ui/ManageRow";
 import { PageHeading } from "@/components/ui/PageHeading";
 import { CustomIcon, customColorValue, defaultCategoryIcon } from "@/components/ui/customIcons";
@@ -22,7 +22,9 @@ import { TimePicker } from "@/components/ui/DatePicker";
 import { useItemActions, type ManageableItem } from "@/lib/useItemActions";
 import { getAllItems, getAllCategories, getItemIdentitiesWithHistory, withDataLock } from "@/lib/db/indexedDb";
 import { putItemAndSync, deleteCategoryAndSync } from "@/lib/supabase/sync";
-import { ensureCategoryId, categoryRowsToSeedForDemo, setCategoryAppearanceAndSync } from "@/lib/categoryResolution";
+import { ensureCategoryId, categoryRowsToSeedForDemo, setCategoryAppearanceAndSync, setCategoryOrderAndSync } from "@/lib/categoryResolution";
+import { categoryComparator } from "@/lib/categoryOrder";
+import { useDragReorder } from "@/lib/useDragReorder";
 import { useCareLog } from "@/lib/useCareLog";
 import type { CareEntry } from "@/lib/supabase/careLog";
 import { lookupFoodCategory } from "@/taxonomy/classify";
@@ -2181,7 +2183,7 @@ const TYPE_SECTIONS: { type: ItemType; label: string; placeholder: string }[] = 
  * down to just the one category that happened to trigger it. */
 function displayCategoryNames(itemType: ItemType, rows: RawCategory[]): string[] {
   const used = rows.filter((r) => r.itemType === itemType).map((r) => r.name);
-  if (used.length > 0) return used.sort((a, b) => a.localeCompare(b));
+  if (used.length > 0) return used.sort(categoryComparator(rows, itemType));
   return [...CATEGORIES_BY_TYPE[itemType]];
 }
 
@@ -2303,6 +2305,7 @@ function CategoryManager({
   onAddCategory,
   onRemoveCategory,
   onSetAppearance,
+  onReorder,
 }: {
   itemType: ItemType;
   categories: readonly string[];
@@ -2311,8 +2314,10 @@ function CategoryManager({
   onAddCategory: (name: string) => Promise<void>;
   onRemoveCategory: (name: string) => Promise<void>;
   onSetAppearance: (name: string, appearance: { icon: string | null; color: string | null }) => Promise<void>;
+  onReorder: (orderedNames: string[]) => Promise<void>;
 }) {
   const [open, setOpen] = useState(false);
+  const drag = useDragReorder(categories, (next) => void onReorder(next));
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -2342,10 +2347,24 @@ function CategoryManager({
       </button>
       {open && (
         <ul className="inset-rows border-t" style={{ borderColor: "var(--gridline)" }}>
-          {categories.map((c) => (
+          {drag.order.map((c) => (
             <ManageRow
               key={c}
               name={c}
+              rowRef={drag.rowRef(c)}
+              lifted={drag.dragging === c}
+              trailing={
+                <span
+                  {...drag.handleProps(c)}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Reorder ${c} — drag, or use the arrow keys`}
+                  className="tap-target flex h-11 w-10 shrink-0 items-center justify-center"
+                  style={{ ...drag.handleProps(c).style, color: "var(--text-muted)" }}
+                >
+                  <GripIcon size={16} />
+                </span>
+              }
               appearance={{
                 icon: appearanceFor(c).icon,
                 color: appearanceFor(c).color,
@@ -2781,6 +2800,7 @@ function ItemSection({
   onAddCategory,
   onRemoveCategory,
   onSetCategoryAppearance,
+  onReorderCategories,
   categoryAppearanceByName,
   onHideCatalogFood,
   onSetReminderTime,
@@ -2805,6 +2825,7 @@ function ItemSection({
   onAddCategory: (name: string) => Promise<void>;
   onRemoveCategory: (name: string) => Promise<void>;
   onSetCategoryAppearance: (name: string, appearance: { icon: string | null; color: string | null }) => Promise<void>;
+  onReorderCategories: (orderedNames: string[]) => Promise<void>;
   categoryAppearanceByName: Map<string, { icon: string | null; color: string | null }>;
   /** Food only — materializes a catalog-only suggestion as a real,
    * archived item so it stops being offered on the Log page. */
@@ -2863,7 +2884,12 @@ function ItemSection({
     else groups.set(item.category, [item]);
   }
   const grouped = items.filter((i) => !i.isArchived).length > GROUP_THRESHOLD;
-  const sortedGroups = Array.from(groups.entries()).sort(([a], [b]) => a.localeCompare(b));
+  // In the order the categories are arranged (the `categories` prop).
+  const rank = (c: string) => {
+    const i = categories.indexOf(c);
+    return i === -1 ? Number.MAX_SAFE_INTEGER : i;
+  };
+  const sortedGroups = Array.from(groups.entries()).sort(([a], [b]) => rank(a) - rank(b) || a.localeCompare(b));
 
   function toggleCategory(category: string) {
     setOpenCategories((prev) => {
@@ -3013,6 +3039,7 @@ function ItemSection({
             onAddCategory={onAddCategory}
             onRemoveCategory={onRemoveCategory}
             onSetAppearance={onSetCategoryAppearance}
+            onReorder={onReorderCategories}
           />
         )}
 
@@ -3301,6 +3328,11 @@ export default function ManagePage() {
     await refresh();
   }
 
+  async function handleReorderCategories(itemType: ItemType, names: string[]) {
+    await setCategoryOrderAndSync(itemType, names);
+    await refresh();
+  }
+
   async function handleSetCategoryAppearance(itemType: ItemType, name: string, appearance: { icon: string | null; color: string | null }) {
     await setCategoryAppearanceAndSync(itemType, name, appearance);
     await refresh();
@@ -3454,6 +3486,17 @@ export default function ManagePage() {
     return Promise.resolve();
   }
 
+  function demoReorderCategories(itemType: ItemType, names: string[]): Promise<void> {
+    for (const name of names) demoEnsureCategoryId(itemType, name);
+    setDemoCategoryRows((prev) =>
+      prev.map((c) => {
+        const i = c.itemType === itemType ? names.findIndex((n) => normalizeName(n) === normalizeName(c.name)) : -1;
+        return i === -1 ? c : { ...c, sortOrder: i };
+      }),
+    );
+    return Promise.resolve();
+  }
+
   function demoSetCategoryAppearance(itemType: ItemType, name: string, appearance: { icon: string | null; color: string | null }): Promise<void> {
     const id = demoEnsureCategoryId(itemType, name);
     setDemoCategoryRows((prev) => prev.map((c) => (c.id === id ? { ...c, ...appearance } : c)));
@@ -3544,6 +3587,7 @@ export default function ManagePage() {
           onAddCategory={(name) => (isDemoData ? demoAddCategory(section.type, name) : handleAddCategory(section.type, name))}
           onRemoveCategory={(name) => (isDemoData ? demoRemoveCategory(section.type, name) : handleRemoveCategory(section.type, name))}
           categoryAppearanceByName={categoryAppearanceByType[section.type]}
+          onReorderCategories={(names) => (isDemoData ? demoReorderCategories(section.type, names) : handleReorderCategories(section.type, names))}
           onSetCategoryAppearance={(name, appearance) =>
             isDemoData ? demoSetCategoryAppearance(section.type, name, appearance) : handleSetCategoryAppearance(section.type, name, appearance)
           }

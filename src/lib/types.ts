@@ -187,6 +187,9 @@ export interface RawCategory {
    * shown on the Settings category chip. */
   icon: string | null;
   color: string | null;
+  /** Position the user dragged it to in Settings; unset sorts A–Z after
+   * the ordered ones (see categoryOrder.ts). */
+  sortOrder?: number | null;
 }
 
 /** A free-text note tied to a specific item + day — Supabase's `<type>_diary` tables. */

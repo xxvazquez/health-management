@@ -35,6 +35,11 @@ One `*_items` table, one `*_logs` table, and one `*_diary` table per
 tracked type, all pointing into a shared `categories` table. This is the
 shape the browser cache mirrors and the analytics dashboards read.
 
+`categories.sort_order` is the position the user dragged a category to in
+Settings (null = not arranged). Every category list — Log's rail and
+sidebar, Settings' lists — sorts arranged categories first by position,
+then the rest A–Z (`categoryComparator` in `src/lib/categoryOrder.ts`).
+
 ```mermaid
 %%{init: {"theme": "base", "themeVariables": {
   "primaryColor": "#eef5f3", "primaryBorderColor": "#5c8a7a",

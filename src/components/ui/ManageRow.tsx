@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useRef, useState, type FormEvent } from "react";
+import { useId, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { CustomIcon } from "@/components/ui/customIcons";
 import { ChevronIcon } from "@/components/ui/icons";
 import { IconColorPicker } from "@/components/ui/IconColorPicker";
@@ -40,6 +40,9 @@ export function ManageRow({
   onRename,
   onDelete,
   onToggleHide,
+  trailing,
+  rowRef,
+  lifted = false,
 }: {
   name: string;
   isArchived?: boolean;
@@ -53,6 +56,12 @@ export function ManageRow({
   onRename?: (next: string) => void;
   onDelete: () => void;
   onToggleHide?: () => void;
+  /** Sits after the chevron, outside the tappable row — a drag grip. */
+  trailing?: ReactNode;
+  /** Registers the row's element (for drag-to-reorder measuring). */
+  rowRef?: (el: HTMLElement | null) => void;
+  /** Lifted look while it's being dragged. */
+  lifted?: boolean;
 }) {
   const titleId = useId();
   const [open, setOpen] = useState(false);
@@ -78,7 +87,11 @@ export function ManageRow({
   }
 
   return (
-    <li>
+    <li
+      ref={rowRef}
+      className={trailing ? "flex items-center" : undefined}
+      style={lifted ? { background: "var(--surface-1)", boxShadow: "var(--menu-shadow)", position: "relative", zIndex: 1, borderRadius: 10 } : undefined}
+    >
       <button
         type="button"
         onClick={() => {
@@ -111,6 +124,7 @@ export function ManageRow({
           <ChevronIcon dir="right" size={14} />
         </span>
       </button>
+      {trailing}
 
       {open && (
         <Sheet title={name} titleId={titleId} onClose={close}>

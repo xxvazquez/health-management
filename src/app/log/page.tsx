@@ -44,6 +44,7 @@ import { buildCanonicalEvents } from "@/lib/canonical/buildCanonicalEvents";
 import { createTimeOrderedId } from "@/lib/sortableId";
 import { fitColumnWidth } from "@/lib/fitColumnWidth";
 import { ensureCategoryId, ensureDefaultWorkoutItems } from "@/lib/categoryResolution";
+import { categoryComparator } from "@/lib/categoryOrder";
 import { hiddenPicksForMonth, seasonalPicksForMonth, weeklyCategoryPriority } from "@/lib/aggregations/seasonal";
 import { useHiddenSeasonalPicks } from "@/lib/useHiddenSeasonalPicks";
 import { formatMinutes, todayLocalISODate } from "@/lib/aggregations/common";
@@ -758,6 +759,11 @@ export default function LogPage() {
   // `categories` table, falling back to the built-in defaults only as a
   // bootstrap seed (see `effectiveCategoryList`'s own doc comment). Never
   // re-merges those defaults once real rows exist.
+  // The order the user arranged this tab's categories in Settings.
+  const compareCategory = useMemo(
+    () => (tabConfig ? categoryComparator(effective.categories, tabConfig.type) : (a: string, b: string) => a.localeCompare(b)),
+    [effective.categories, tabConfig],
+  );
   const categoryNamesForTab = useMemo(() => {
     if (!tabConfig) return [];
     const custom = effective.categories.filter((c) => c.itemType === tabConfig.type).map((c) => c.name);
@@ -831,8 +837,8 @@ export default function LogPage() {
     return Array.from(allCategoryNames)
       .map((category) => ({ category, items: byCategory.get(category) ?? [] }))
       .filter((group) => group.items.length > 0)
-      .sort((a, b) => a.category.localeCompare(b.category));
-  }, [tabCandidates, tab, tabConfig, categoryNamesForTab, effective.items, search]);
+      .sort((a, b) => compareCategory(a.category, b.category));
+  }, [tabCandidates, tab, tabConfig, categoryNamesForTab, effective.items, search, compareCategory]);
 
   const dayTimeline = useMemo(
     () => dayTimelineEntries(effective.items, effective.logs, effective.diary, date),
@@ -888,11 +894,12 @@ export default function LogPage() {
     for (const list of byCategory.values()) {
       list.sort((a, b) => a.rawName.localeCompare(b.rawName, undefined, { sensitivity: "base" }) || a.rawName.localeCompare(b.rawName));
     }
+    const compareWorkoutCategory = categoryComparator(effective.categories, "workout");
     const allCategoryNames = new Set([...categoryNames, ...byCategory.keys()]);
     return Array.from(allCategoryNames)
       .map((category) => ({ category, items: byCategory.get(category) ?? [], chrome: categoryChrome("workout", category) }))
       .filter((group) => group.items.length > 0)
-      .sort((a, b) => a.category.localeCompare(b.category));
+      .sort((a, b) => compareWorkoutCategory(a.category, b.category));
   }, [workoutItems, effective.categories, categoryChrome]);
 
   // Stool and Workout have no item/category of their own the way
