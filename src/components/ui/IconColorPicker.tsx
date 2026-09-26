@@ -161,13 +161,13 @@ function ColourField({ color, onChange }: { color: string | null; onChange: (col
       </legend>
       <div className="flex flex-wrap items-center gap-2">
         {CUSTOM_COLOR_CHOICES.map((choice) => (
-          <Swatch key={choice.key} value={choice.value} label={choice.key} selected={color === choice.key} onClick={() => onChange(color === choice.key ? null : choice.key)} />
+          <Swatch key={choice.key} value={choice.value} label={choice.name} selected={color === choice.key} onClick={() => onChange(color === choice.key ? null : choice.key)} />
         ))}
         {(palette.colors.length > 0 || unsaved) && <span className="mx-0.5 h-5 w-px" style={{ background: "var(--border-hairline)" }} aria-hidden="true" />}
         {palette.colors.map((hex) => (
-          <Swatch key={hex} value={hex} label={hex} selected={custom === hex} onClick={() => onChange(custom === hex ? null : hex)} />
+          <Swatch key={hex} value={hex} label={`Your colour ${hex}`} selected={custom === hex} onClick={() => onChange(custom === hex ? null : hex)} />
         ))}
-        {unsaved && <Swatch value={unsaved} label={unsaved} selected onClick={() => onChange(null)} />}
+        {unsaved && <Swatch value={unsaved} label={`Custom colour ${unsaved}`} selected onClick={() => onChange(null)} />}
         <AddColourSwatch
           onPick={(hex) => {
             palette.add(hex);

@@ -419,17 +419,17 @@ export function CustomIcon({ icon, size = 15 }: { icon: string | null; size?: nu
 /** Brand series hues offered as a per-grouping colour. The key is stored
  * in that table's `color` column; the value is the CSS variable used to
  * paint the glyph, accents and that grouping's forms. */
-export const CUSTOM_COLOR_CHOICES: { key: string; value: string }[] = [
-  { key: "series-1", value: "var(--series-1)" },
-  { key: "series-2", value: "var(--series-2)" },
-  { key: "series-8", value: "var(--series-8)" },
-  { key: "series-3", value: "var(--series-3)" },
-  { key: "series-6", value: "var(--series-6)" },
-  { key: "series-4", value: "var(--series-4)" },
-  { key: "series-indigo", value: "var(--series-indigo)" },
-  { key: "series-magenta", value: "var(--series-magenta)" },
-  { key: "series-berry", value: "var(--series-berry)" },
-  { key: "series-slate", value: "var(--series-slate)" },
+export const CUSTOM_COLOR_CHOICES: { key: string; value: string; name: string }[] = [
+  { key: "series-1", value: "var(--series-1)", name: "Sage" },
+  { key: "series-2", value: "var(--series-2)", name: "Blue" },
+  { key: "series-8", value: "var(--series-8)", name: "Plum" },
+  { key: "series-3", value: "var(--series-3)", name: "Lavender" },
+  { key: "series-6", value: "var(--series-6)", name: "Green" },
+  { key: "series-4", value: "var(--series-4)", name: "Rose" },
+  { key: "series-indigo", value: "var(--series-indigo)", name: "Indigo" },
+  { key: "series-magenta", value: "var(--series-magenta)", name: "Orchid" },
+  { key: "series-berry", value: "var(--series-berry)", name: "Berry" },
+  { key: "series-slate", value: "var(--series-slate)", name: "Slate" },
 ];
 
 /** A colour picked freely in the picker is stored as its `#rrggbb` hex. */
