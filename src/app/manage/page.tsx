@@ -10,7 +10,6 @@ import { SearchField } from "@/components/ui/SearchField";
 import { ChevronIcon, CloseIcon, PlusIcon } from "@/components/ui/icons";
 import { ManageRow } from "@/components/ui/ManageRow";
 import { PageHeading } from "@/components/ui/PageHeading";
-import { IconColorPicker } from "@/components/ui/IconColorPicker";
 import { CustomIcon, customColorValue, defaultCategoryIcon } from "@/components/ui/customIcons";
 import { DuplicateItemDialog } from "@/components/ui/DuplicateItemDialog";
 import { DemoNotice } from "@/components/ui/DemoNotice";
@@ -1306,7 +1305,7 @@ const COFFEE_OPTION_KINDS: { kind: CoffeeOptionKind; title: string; placeholder:
 function CoffeeDeleteRow({ cups, onDelete }: { cups: number; onDelete: () => void }) {
   const [confirming, setConfirming] = useState(false);
   return (
-    <div className="flex min-h-11 items-center gap-4 px-3.5">
+    <div className="flex min-h-11 items-center justify-between gap-4 px-3.5">
       {cups > 0 ? (
         <p className="text-sm" style={{ color: "var(--text-muted)" }}>
           Logged {cups} time{cups === 1 ? "" : "s"} — hide it instead of deleting.
@@ -1314,15 +1313,15 @@ function CoffeeDeleteRow({ cups, onDelete }: { cups: number; onDelete: () => voi
       ) : confirming ? (
         <>
           <button type="button" onClick={onDelete} className="min-h-11 text-sm font-semibold" style={{ color: "var(--status-critical)" }}>
-            Delete coffee
+            Delete for good
           </button>
           <button type="button" onClick={() => setConfirming(false)} className="min-h-11 text-sm" style={{ color: "var(--text-secondary)" }}>
             Keep
           </button>
         </>
       ) : (
-        <button type="button" onClick={() => setConfirming(true)} className="min-h-11 text-sm" style={{ color: "var(--status-critical)" }}>
-          Delete coffee
+        <button type="button" onClick={() => setConfirming(true)} className="min-h-11 flex-1 text-left text-sm" style={{ color: "var(--status-critical)" }}>
+          Delete
         </button>
       )}
     </div>
@@ -1439,6 +1438,8 @@ function CoffeeCard({ isDemoData, searchQuery }: { isDemoData: boolean; searchQu
     setDraftNotes(item.notes ?? "");
   }
 
+  const editingCoffee = coffee.items.data.find((it) => it.id === editingItemId) ?? null;
+
   async function saveItemEdit() {
     const item = coffee.items.data.find((it) => it.id === editingItemId);
     if (!item) return;
@@ -1511,15 +1512,12 @@ function CoffeeCard({ isDemoData, searchQuery }: { isDemoData: boolean; searchQu
             ) : (
               <ul className={GROUP_CLS} style={GROUP_STYLE}>
                 {items.map((it) => {
-                  const editing = editingItemId === it.id;
-                  const changed =
-                    draftName.trim() !== it.name || draftBrand.trim() !== (it.brand ?? "") || draftNotes.trim() !== (it.notes ?? "");
                   return (
                     <li key={it.id}>
                       <button
                         type="button"
-                        onClick={() => (editing ? setEditingItemId(null) : startEditItem(it))}
-                        aria-expanded={editing}
+                        onClick={() => startEditItem(it)}
+                        aria-haspopup="dialog"
                         className="flex min-h-11 w-full items-center gap-2 px-3.5 text-left"
                       >
                         <span className="min-w-0 flex-1 truncate text-sm" style={{ color: it.isArchived ? "var(--text-muted)" : "var(--text-primary)" }}>
@@ -1531,60 +1529,66 @@ function CoffeeCard({ isDemoData, searchQuery }: { isDemoData: boolean; searchQu
                           </span>
                         )}
                         <span className="shrink-0" style={{ color: "var(--text-muted)" }}>
-                          <ChevronIcon dir={editing ? "down" : "right"} size={14} />
+                          <ChevronIcon dir="right" size={14} />
                         </span>
                       </button>
-                      {editing && (
-                        <form
-                          onSubmit={(e) => {
-                            e.preventDefault();
-                            void saveItemEdit();
-                          }}
-                          className="inset-rows border-t"
-                          style={{ borderColor: "var(--gridline)" }}
-                        >
-                          {(
-                            [
-                              ["Name", draftName, setDraftName],
-                              ["Brand", draftBrand, setDraftBrand],
-                              ["Notes", draftNotes, setDraftNotes],
-                            ] as const
-                          ).map(([label, value, set]) => (
-                            <label key={label} className="flex min-h-11 items-center gap-3 px-3.5">
-                              <span className="w-14 shrink-0 text-sm" style={{ color: "var(--text-primary)" }}>
-                                {label}
-                              </span>
-                              <input value={value} onChange={(e) => set(e.target.value)} className={FIELD_VALUE} style={FIELD_VALUE_STYLE} />
-                            </label>
-                          ))}
-                          <div className="flex min-h-11 items-center justify-between gap-4 px-3.5">
-                            <button
-                              type="button"
-                              onClick={() => void coffee.items.edit(it, { isArchived: !it.isArchived })}
-                              className="min-h-11 text-sm"
-                              style={{ color: "var(--ui-accent)" }}
-                            >
-                              {it.isArchived ? "Show" : "Hide"}
-                            </button>
-                            <button type="submit" disabled={!changed} className="min-h-11 text-sm font-semibold disabled:opacity-40" style={{ color: "var(--ui-accent)" }}>
-                              Save
-                            </button>
-                          </div>
-                          <CoffeeDeleteRow
-                            cups={coffee.logs.data.filter((l) => l.itemId === it.id).length}
-                            onDelete={() => {
-                              setEditingItemId(null);
-                              void coffee.items.remove(it.id);
-                            }}
-                          />
-                        </form>
-                      )}
                     </li>
                   );
                 })}
               </ul>
             )}
             <GroupNote>New coffees are added from Log → Coffee, not here — edit or hide existing ones above.</GroupNote>
+            {editingCoffee && (
+              <Sheet
+                title={editingCoffee.name}
+                titleId="coffee-item-title"
+                onClose={() => {
+                  // Closing saves, like every other Settings sheet.
+                  const changed =
+                    draftName.trim() !== editingCoffee.name ||
+                    draftBrand.trim() !== (editingCoffee.brand ?? "") ||
+                    draftNotes.trim() !== (editingCoffee.notes ?? "");
+                  if (changed && draftName.trim()) void saveItemEdit();
+                  setEditingItemId(null);
+                }}
+              >
+                <div className="flex flex-col gap-4">
+                  <FormGroup>
+                    {(
+                      [
+                        ["Name", draftName, setDraftName],
+                        ["Brand", draftBrand, setDraftBrand],
+                        ["Notes", draftNotes, setDraftNotes],
+                      ] as const
+                    ).map(([label, value, set]) => (
+                      <EditorField key={label} label={label}>
+                        <input value={value} onChange={(e) => set(e.target.value)} className={FIELD_VALUE} style={FIELD_VALUE_STYLE} />
+                      </EditorField>
+                    ))}
+                  </FormGroup>
+                  <FormGroup>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void coffee.items.edit(editingCoffee, { isArchived: !editingCoffee.isArchived });
+                        setEditingItemId(null);
+                      }}
+                      className="flex min-h-11 w-full items-center px-3.5 text-left text-sm"
+                      style={{ color: "var(--ui-accent)" }}
+                    >
+                      {editingCoffee.isArchived ? "Show" : "Hide"}
+                    </button>
+                    <CoffeeDeleteRow
+                      cups={coffee.logs.data.filter((l) => l.itemId === editingCoffee.id).length}
+                      onDelete={() => {
+                        setEditingItemId(null);
+                        void coffee.items.remove(editingCoffee.id);
+                      }}
+                    />
+                  </FormGroup>
+                </div>
+              </Sheet>
+            )}
           </div>
         </div>
       )}
@@ -2275,7 +2279,6 @@ function CategoryManager({
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
-  const [expanded, setExpanded] = useState<string | null>(null);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -2303,49 +2306,21 @@ function CategoryManager({
       </button>
       {open && (
         <ul className="inset-rows border-t" style={{ borderColor: "var(--gridline)" }}>
-          {categories.map((c) => {
-            const icon = appearanceFor(c).icon ?? defaultCategoryIcon(itemType, c);
-            return (
-              <li key={c} className="px-3.5">
-                <div className="flex min-h-11 items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setExpanded((prev) => (prev === c ? null : c))}
-                    aria-label={`Change ${c}'s icon and colour`}
-                    aria-pressed={expanded === c}
-                    className="tap-target flex h-7 w-7 shrink-0 items-center justify-center rounded-md"
-                    style={{ color: accentFor(c), background: `color-mix(in oklab, ${accentFor(c)} 14%, transparent)` }}
-                  >
-                    <CustomIcon icon={icon} size={15} />
-                  </button>
-                  <span className="min-w-0 flex-1 truncate text-sm" style={{ color: "var(--text-primary)" }}>
-                    {c}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => void onRemoveCategory(c)}
-                    aria-label={`Remove category ${c}`}
-                    className="tap-target flex h-7 w-7 shrink-0 items-center justify-center"
-                    style={{ color: "var(--text-muted)" }}
-                  >
-                    <CloseIcon size={13} />
-                  </button>
-                </div>
-                {expanded === c && (
-                  <div className="pb-3">
-                    <IconColorPicker
-                      icon={appearanceFor(c).icon}
-                      color={appearanceFor(c).color}
-                      onIconChange={(next) => void onSetAppearance(c, { ...appearanceFor(c), icon: next })}
-                      onColorChange={(color) => void onSetAppearance(c, { ...appearanceFor(c), color })}
-                      accent={accentFor(c)}
-                      defaultIcon={defaultCategoryIcon(itemType, c)}
-                    />
-                  </div>
-                )}
-              </li>
-            );
-          })}
+          {categories.map((c) => (
+            <ManageRow
+              key={c}
+              name={c}
+              appearance={{
+                icon: appearanceFor(c).icon,
+                color: appearanceFor(c).color,
+                accent: accentFor(c),
+                defaultIcon: defaultCategoryIcon(itemType, c),
+                onIconChange: (next) => void onSetAppearance(c, { ...appearanceFor(c), icon: next }),
+                onColorChange: (color) => void onSetAppearance(c, { ...appearanceFor(c), color }),
+              }}
+              onDelete={() => void onRemoveCategory(c)}
+            />
+          ))}
           <li>
             <form onSubmit={handleSubmit} className="flex min-h-11 items-center gap-2 px-3.5">
               <input
