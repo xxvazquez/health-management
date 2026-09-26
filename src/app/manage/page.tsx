@@ -29,7 +29,7 @@ import { lookupFoodCategory } from "@/taxonomy/classify";
 import { POLAND_FOOD_CATALOG } from "@/taxonomy/polandFoodCatalog";
 import { normalizeName, titleCaseFallback } from "@/taxonomy/normalizeName";
 import { CATEGORIES_BY_TYPE, TYPE_ACCENT, type ItemType } from "@/taxonomy/categories";
-import { NUTRITION_GROUPS, NUTRITION_GROUP_LABEL, nutritionGroupsForFood, type NutritionGroupId } from "@/taxonomy/nutritionGroups";
+import { NOT_COUNTED, NUTRITION_GROUPS, NUTRITION_GROUP_LABEL, nutritionGroupsForFood, type NutritionGroupOverride } from "@/taxonomy/nutritionGroups";
 import { useFoodNutritionGroupOverrides } from "@/lib/useFoodNutritionGroupOverrides";
 import { todayLocalISODate } from "@/lib/aggregations/common";
 import { buildDemoDataset } from "@/lib/demoData";
@@ -2444,9 +2444,9 @@ function NutritionGroupSelect({
   onSetNutritionGroup,
 }: {
   itemName: string;
-  override: NutritionGroupId | undefined;
+  override: NutritionGroupOverride | undefined;
   busy: boolean;
-  onSetNutritionGroup: (groupId: NutritionGroupId | null) => void;
+  onSetNutritionGroup: (groupId: NutritionGroupOverride | null) => void;
 }) {
   const autoGroups = useMemo(() => nutritionGroupsForFood(itemName), [itemName]);
   const autoLabel = autoGroups.length > 0 ? autoGroups.map((g) => NUTRITION_GROUP_LABEL[g]).join(", ") : "unclassified";
@@ -2455,12 +2455,13 @@ function NutritionGroupSelect({
     <select
       value={override ?? ""}
       disabled={busy}
-      onChange={(e) => onSetNutritionGroup(e.target.value ? (e.target.value as NutritionGroupId) : null)}
+      onChange={(e) => onSetNutritionGroup(e.target.value ? (e.target.value as NutritionGroupOverride) : null)}
       aria-label={`Nutrition group for ${itemName}`}
       className={FIELD_VALUE}
       style={{ color: override ? "var(--ui-accent)" : "var(--text-secondary)" }}
     >
       <option value="">Auto ({autoLabel})</option>
+      <option value={NOT_COUNTED}>Not counted</option>
       {NUTRITION_GROUPS.map((g) => (
         <option key={g} value={g}>
           {NUTRITION_GROUP_LABEL[g]}
@@ -2548,8 +2549,8 @@ function ItemEditorSheet({
   knownUnits: WorkoutUnit[];
   /** Food only — the current per-user override, if any (undefined means
    * automatic keyword classification). */
-  nutritionGroupOverride?: NutritionGroupId;
-  onSetNutritionGroup?: (groupId: NutritionGroupId | null) => void;
+  nutritionGroupOverride?: NutritionGroupOverride;
+  onSetNutritionGroup?: (groupId: NutritionGroupOverride | null) => void;
   onDelete: () => void;
 }) {
   const [draft, setDraft] = useState(item.item);
@@ -2780,8 +2781,8 @@ function ItemSection({
   onSetUnit?: (item: ManageableItem, unit: WorkoutUnit) => void;
   /** Food only — current overrides keyed by normalized item name, and the
    * setter (`null` clears back to automatic), both gated inside ItemRow. */
-  nutritionGroupOverrides?: Record<string, NutritionGroupId>;
-  onSetNutritionGroup?: (item: ManageableItem, groupId: NutritionGroupId | null) => void;
+  nutritionGroupOverrides?: Record<string, NutritionGroupOverride>;
+  onSetNutritionGroup?: (item: ManageableItem, groupId: NutritionGroupOverride | null) => void;
   onDelete: (item: ManageableItem) => void;
 }) {
   const [archivedOpen, setArchivedOpen] = useState(false);
@@ -2846,7 +2847,7 @@ function ItemSection({
     const summary =
       ((itemType === "supplement" || itemType === "habit") && onSetReminderTime && item.reminderTime) ||
       (itemType === "workout" && onSetUnit && workoutUnitLabel(item.unit ?? "kg")) ||
-      (override && NUTRITION_GROUP_LABEL[override]) ||
+      (override && (override === NOT_COUNTED ? "Not counted" : NUTRITION_GROUP_LABEL[override])) ||
       (!grouped || opts.archivedRow ? item.category : "");
     return <ItemRow key={item.itemIdentity} item={item} summary={summary} nested={grouped && !opts.archivedRow} onOpen={() => setEditingIdentity(item.itemIdentity)} />;
   }

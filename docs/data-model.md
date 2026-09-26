@@ -91,7 +91,8 @@ item)`) is a small, separate, direct-to-Supabase table — not part of the
 outbox-mirrored shape above. One row overrides `nutritionGroupsForFood`'s
 keyword classification (`src/taxonomy/nutritionGroups.ts`) for that exact
 food name, skipping the keyword lookup entirely for it; no row means
-automatic classification still applies. Keyed by the food's name text
+automatic classification still applies. A `group_id` of `none` ("Not
+counted" in Settings) keeps the food out of every group. Keyed by the food's name text
 (normalized the same way as the keyword match) rather than a FK to
 `food_items`, so the override survives a rename or a delete-and-re-add.
 Owner-only, one group per override (an override replaces every

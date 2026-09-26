@@ -8,12 +8,12 @@ import {
   setFoodNutritionGroupOverride,
 } from "@/lib/supabase/foodNutritionGroups";
 import { normalizeName } from "@/taxonomy/normalizeName";
-import type { NutritionGroupId } from "@/taxonomy/nutritionGroups";
+import type { NutritionGroupOverride } from "@/taxonomy/nutritionGroups";
 
 /** Module-level cache so the Manage page and the Food dashboard share one
  * fetch and see each other's edits without a reload — same pattern as
  * useVitals / useLabs. Keyed by user id, cleared on sign-out. */
-let cache: { userId: string; overrides: Record<string, NutritionGroupId> } | null = null;
+let cache: { userId: string; overrides: Record<string, NutritionGroupOverride> } | null = null;
 
 export function useFoodNutritionGroupOverrides() {
   const { session, loading: authLoading } = useAuth();
@@ -21,7 +21,7 @@ export function useFoodNutritionGroupOverrides() {
   const isDemo = !authLoading && !session;
   const seed = cache && cache.userId === userId ? cache.overrides : null;
 
-  const [overrides, setOverrides] = useState<Record<string, NutritionGroupId>>(seed ?? {});
+  const [overrides, setOverrides] = useState<Record<string, NutritionGroupOverride>>(seed ?? {});
   const [loading, setLoading] = useState(seed === null && !isDemo);
 
   const load = useCallback(async () => {
@@ -50,7 +50,7 @@ export function useFoodNutritionGroupOverrides() {
     void load();
   }, [authLoading, isDemo, userId, load]);
 
-  const setOverride = useCallback(async (item: string, groupId: NutritionGroupId) => {
+  const setOverride = useCallback(async (item: string, groupId: NutritionGroupOverride) => {
     await setFoodNutritionGroupOverride(item, groupId);
     setOverrides((prev) => ({ ...prev, [normalizeName(item)]: groupId }));
   }, []);

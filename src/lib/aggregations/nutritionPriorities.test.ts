@@ -94,6 +94,18 @@ describe("computeNutritionPriorities", () => {
     expect(withOverride.pillars.find((p) => p.pillar === "legumes")!.daysInRange).toBe(15);
   });
 
+  it("stops counting a food marked Not counted", () => {
+    const events = Array.from({ length: 15 }, (_, i) =>
+      makeEvent({ itemType: "food", item: "Lentils", category: "Legumes", date: `2026-01-${String(i + 1).padStart(2, "0")}`, completed: true }),
+    );
+    const range = { start: "2026-01-01", end: "2026-01-15" };
+    const counted = computeNutritionPriorities(events, range);
+    const excluded = computeNutritionPriorities(events, range, { lentils: "none" });
+    const days = (r: typeof counted) => r.pillars.reduce((sum, p) => sum + p.daysInRange, 0);
+    expect(days(counted)).toBeGreaterThan(0);
+    expect(days(excluded)).toBe(0);
+  });
+
   it("excludes the Spices category from variety and coverage entirely", () => {
     const base = Array.from({ length: 12 }, (_, i) =>
       makeEvent({ itemType: "food", item: "Rice", category: "Grains", date: `2026-01-${String(i + 1).padStart(2, "0")}`, completed: true }),

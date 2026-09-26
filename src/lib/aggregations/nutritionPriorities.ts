@@ -12,6 +12,7 @@ import {
   pillarForGroup,
   plantFamilyForFood,
   type NutritionGroupId,
+  type NutritionGroupOverride,
   type PillarId,
 } from "@/taxonomy/nutritionGroups";
 import { evidenceForGroup } from "@/lib/nutritionEvidence";
@@ -244,7 +245,7 @@ function foodEvents(events: CanonicalEvent[]): CanonicalEvent[] {
 // computeNutritionPriorities call (its own doc comment explains why) — safe
 // because every other function in this file is a private helper only ever
 // called synchronously, within one such call, never re-entrantly.
-let currentOverrides: Record<string, NutritionGroupId> = {};
+let currentOverrides: Record<string, NutritionGroupOverride> = {};
 const groupCache = new Map<string, NutritionGroupId[]>();
 function groupsFor(item: string): NutritionGroupId[] {
   let g = groupCache.get(item);
@@ -494,7 +495,7 @@ const emptyVariety: VarietyMetrics = {
 export function computeNutritionPriorities(
   events: CanonicalEvent[],
   range: DateRange | null,
-  overrides: Record<string, NutritionGroupId> = {},
+  overrides: Record<string, NutritionGroupOverride> = {},
 ): NutritionPriorities {
   currentOverrides = overrides;
   groupCache.clear();

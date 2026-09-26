@@ -305,7 +305,8 @@ const GROUP_KEYWORDS: Record<string, NutritionGroupId[]> = {
   // before the bare "milk" above (KEYWORD_ENTRIES sorts longest-first), so
   // they shadow it instead of falling through to dairy_other.
   "oat milk": [], "almond milk": [], "soy milk": [], "coconut milk": [], "cashew milk": [],
-  "rice milk": [], "millet milk": [],
+  "rice milk": [], "millet milk": [], "spelt milk": [], "buckwheat milk": [], "quinoa milk": [], "barley milk": [],
+  "hemp milk": [], "pea milk": [], "hazelnut milk": [],
 
   // Fats
   "olive oil": ["olive_oil"], "extra virgin olive oil": ["olive_oil"], "extra-virgin olive oil": ["olive_oil"],
@@ -333,6 +334,11 @@ function startsWord(norm: string, keyword: string): boolean {
   return false;
 }
 
+/** A per-user override value that keeps a food out of every nutrition
+ * group (vanilla, sugar, oat milk…). Stored as the group id "none". */
+export const NOT_COUNTED = "none";
+export type NutritionGroupOverride = NutritionGroupId | typeof NOT_COUNTED;
+
 /**
  * Nutrition group(s) for a canonical food item name. `overrides` (a
  * per-user correction map from Manage, keyed by normalized item name —
@@ -342,10 +348,13 @@ function startsWord(norm: string, keyword: string): boolean {
  * returns an empty array when the food can't be reliably placed — that's a
  * valid, expected result for herbs, condiments, plant-milks, and other
  * items with no clean fit; callers must not guess a group in that case.
+ * An override of `NOT_COUNTED` also returns an empty array — the user's way
+ * to keep a flavouring or plant milk out of every group.
  */
-export function nutritionGroupsForFood(canonicalItemName: string, overrides?: Record<string, NutritionGroupId>): NutritionGroupId[] {
+export function nutritionGroupsForFood(canonicalItemName: string, overrides?: Record<string, NutritionGroupOverride>): NutritionGroupId[] {
   const norm = normalize(canonicalItemName);
   const override = overrides?.[norm];
+  if (override === NOT_COUNTED) return [];
   if (override) return [override];
   for (const [keyword, groups] of KEYWORD_ENTRIES) {
     if (startsWord(norm, keyword)) return groups;

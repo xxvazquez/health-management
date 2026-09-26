@@ -1,6 +1,6 @@
 import type { CanonicalEvent } from "@/lib/types";
 import { addDaysToDate, daysBetween, getDatasetSpan, pct, type DateRange } from "./common";
-import { nutritionGroupsForFood, type NutritionGroupId } from "@/taxonomy/nutritionGroups";
+import { nutritionGroupsForFood, type NutritionGroupOverride } from "@/taxonomy/nutritionGroups";
 import type { GroupState } from "./nutritionPriorities";
 
 function foodEvents(events: CanonicalEvent[]): CanonicalEvent[] {
@@ -247,7 +247,7 @@ export function repetitionInsights(
   groupStates: GroupState[],
   hasCoreGaps: boolean,
   topN = 8,
-  overrides: Record<string, NutritionGroupId> = {},
+  overrides: Record<string, NutritionGroupOverride> = {},
 ): RepetitionEntry[] {
   const totalOccurrences = ranked.reduce((sum, r) => sum + r.count, 0);
   const statusByGroup = new Map(groupStates.map((s) => [s.group, s.status]));
