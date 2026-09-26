@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildAgenda, notePreview, recurrenceLabel, type AgendaSources } from "./agenda";
+import { buildAgenda, expiryGroup, notePreview, recurrenceLabel, type AgendaSources } from "./agenda";
 import type { ExpirationItem, TaskItem } from "@/lib/reminders";
 import type { DoctorFollowUpTask } from "@/lib/supabase/doctors";
 
@@ -139,5 +139,12 @@ describe("notePreview", () => {
 describe("recurrenceLabel", () => {
   it("names common intervals the way Reminders does", () => {
     expect([1, 7, 14, 10].map(recurrenceLabel)).toEqual(["Daily", "Weekly", "Every 2 weeks", "Every 10 days"]);
+  });
+});
+
+describe("expiryGroup", () => {
+  it("files a date by how far off it is", () => {
+    const at = ["2026-08-28", "2026-08-29", "2026-09-05", "2026-09-12", "2026-09-19", "2026-10-20", "2027-01-15", "2027-08-01", "2028-01-01"];
+    expect(at.map((d) => expiryGroup(d, TODAY))).toEqual(["expired", "today", "thisWeek", "nextWeek", "twoWeeks", "nextMonth", "sixMonths", "nextYear", "later"]);
   });
 });

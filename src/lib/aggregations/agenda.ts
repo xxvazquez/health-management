@@ -98,6 +98,36 @@ function timing(bucket: AgendaBucket, dueMs: number | null, hasClock: boolean, t
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: otherYear ? "numeric" : undefined });
 }
 
+/** How far off an expiry date is, for the Expiry view's sections. */
+export type ExpiryGroup = "expired" | "today" | "thisWeek" | "nextWeek" | "twoWeeks" | "nextMonth" | "sixMonths" | "nextYear" | "later";
+export const EXPIRY_GROUP_ORDER: ExpiryGroup[] = ["expired", "today", "thisWeek", "nextWeek", "twoWeeks", "nextMonth", "sixMonths", "nextYear", "later"];
+export const EXPIRY_GROUP_LABEL: Record<ExpiryGroup, string> = {
+  expired: "Expired",
+  today: "Today",
+  thisWeek: "This week",
+  nextWeek: "Next week",
+  twoWeeks: "In two weeks",
+  nextMonth: "Next month",
+  sixMonths: "In 6 months",
+  nextYear: "Next year",
+  later: "Later",
+};
+
+/** Days from today, in steps: a week, two, three, about two months, half a
+ * year, a year, then anything further out. */
+export function expiryGroup(expiresOn: string, today: string): ExpiryGroup {
+  const days = daysBetween(today, expiresOn);
+  if (days < 0) return "expired";
+  if (days === 0) return "today";
+  if (days <= 7) return "thisWeek";
+  if (days <= 14) return "nextWeek";
+  if (days <= 21) return "twoWeeks";
+  if (days <= 62) return "nextMonth";
+  if (days <= 183) return "sixMonths";
+  if (days <= 365) return "nextYear";
+  return "later";
+}
+
 /** A repeat interval the way Reminders says it: "Daily", "Weekly",
  * "Every 2 weeks", "Every 10 days". */
 export function recurrenceLabel(days: number): string {

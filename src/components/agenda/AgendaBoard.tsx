@@ -5,7 +5,7 @@ import { CONTROL_CLS, CONTROL_STYLE } from "@/components/ui/Chip";
 import { useMemo, useState, type FormEvent } from "react";
 import Link from "next/link";
 import clsx from "clsx";
-import { AGENDA_BUCKET_LABEL, AGENDA_BUCKET_ORDER, type AgendaBucket, type AgendaEntry, recurrenceLabel } from "@/lib/aggregations/agenda";
+import { AGENDA_BUCKET_LABEL, AGENDA_BUCKET_ORDER, EXPIRY_GROUP_LABEL, EXPIRY_GROUP_ORDER, expiryGroup, type AgendaBucket, type AgendaEntry, recurrenceLabel } from "@/lib/aggregations/agenda";
 import { isRecurringTask, type TaskSubitem } from "@/lib/reminders";
 import { todayLocalISODate } from "@/lib/aggregations/common";
 import type { ReminderList } from "@/lib/supabase/personalReminders";
@@ -231,6 +231,29 @@ export function AgendaBoard(props: AgendaBoardProps) {
     return map;
   }, [filtered]);
 
+  // The list's sections: urgency buckets, or — in the Expiry view — how far
+  // off each product's date is.
+  const sections = useMemo(() => {
+    if (view === "expiry") {
+      const today = todayLocalISODate();
+      return EXPIRY_GROUP_ORDER.map((g) => ({
+        id: g,
+        label: EXPIRY_GROUP_LABEL[g],
+        rows: filtered.filter((e) => e.expiry && expiryGroup(e.expiry.expiresOn, today) === g),
+        tone: g === "expired" ? "var(--status-critical)" : g === "today" ? "var(--status-serious)" : undefined,
+        open: true,
+      }));
+    }
+    return AGENDA_BUCKET_ORDER.map((bucket) => ({
+      id: bucket,
+      label: AGENDA_BUCKET_LABEL[bucket],
+      rows: grouped.get(bucket) ?? [],
+      tone: bucket === "overdue" ? "var(--status-critical)" : bucket === "today" ? "var(--status-serious)" : undefined,
+      // A narrowed view is short, so only Done starts folded there.
+      open: view === "all" ? !COLLAPSED_BUCKETS.has(bucket) : bucket !== "done",
+    }));
+  }, [view, filtered, grouped]);
+
   // ---- add / edit forms take over the whole surface, same as the boards
   if (add?.mode === "reminder" || editing?.kind === "reminder") {
     const scope = editing ? (editing.scope as "mine" | "shared") : (add as { scope: "mine" | "shared" }).scope;
@@ -324,21 +347,17 @@ export function AgendaBoard(props: AgendaBoardProps) {
         )
       ) : (
         <div className="flex flex-col gap-3">
-          {AGENDA_BUCKET_ORDER.map((bucket) => {
-            const rows = grouped.get(bucket) ?? [];
+          {sections.map(({ id: bucket, label, rows, tone, open }) => {
             if (rows.length === 0) return null;
-            const tone =
-              bucket === "overdue" ? "var(--status-critical)" : bucket === "today" ? "var(--status-serious)" : undefined;
             return (
               <ListSection
                 // Keyed by view too, so switching views resets which open.
                 key={`${view}:${bucket}`}
-                label={AGENDA_BUCKET_LABEL[bucket]}
+                label={label}
                 count={rows.length}
                 accent={tone}
                 collapsible
-                // A narrowed view is short, so only Done starts folded there.
-                defaultOpen={view === "all" ? !COLLAPSED_BUCKETS.has(bucket) : bucket !== "done"}
+                defaultOpen={open}
               >
                 <div className="flex flex-col">
                   {rows.map((e) => (
