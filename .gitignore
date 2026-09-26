@@ -18,6 +18,10 @@
 /out/
 /out */
 
+# Git's own data, renamed so iCloud Drive doesn't sync it (".git" is a
+# one-line pointer to it)
+/.git.nosync/
+
 # iCloud Drive leaves "name 2.ext" duplicates when it syncs this folder
 * [0-9].*
 * [0-9]
