@@ -3,6 +3,8 @@
 import { createContext, useContext, type FormEvent, type ReactNode } from "react";
 import Link from "next/link";
 import { ChevronIcon } from "@/components/ui/icons";
+import { CustomIcon } from "@/components/ui/customIcons";
+import { TYPE_ACCENT } from "@/taxonomy/categories";
 
 /** Which Settings section is open as its own screen (`null` = the list of
  * sections). Provided by the Settings page; each section reads it to decide
@@ -23,12 +25,45 @@ export function useSectionMode(title: string, searching: boolean): SectionMode {
   return active === title ? "detail" : "hidden";
 }
 
-/** One tappable row in the Settings list: name on the left, a short summary
- * and a chevron on the right. */
+/** Each Settings section's icon tile, in the colour its part of the app
+ * uses (Food's green, Workout's teal…) — like the tiles in iOS Settings. */
+const SECTION_ICON: Record<string, { icon: string; color: string }> = {
+  Food: { icon: "fork", color: TYPE_ACCENT.food },
+  "Food products": { icon: "carton", color: TYPE_ACCENT.food },
+  Symptoms: { icon: "stomach", color: TYPE_ACCENT.outcome },
+  Supplements: { icon: "pill", color: TYPE_ACCENT.supplement },
+  Habits: { icon: "sparkle", color: TYPE_ACCENT.habit },
+  Workout: { icon: "dumbbell", color: "var(--series-6)" },
+  "Workout plans": { icon: "calendar", color: "var(--series-6)" },
+  Coffee: { icon: "mug", color: "var(--series-slate)" },
+  "Stool options": { icon: "drop", color: "var(--series-indigo)" },
+  Doctors: { icon: "cross", color: "var(--series-2)" },
+  "Doctor types": { icon: "clipboard", color: "var(--series-2)" },
+  "Lab results": { icon: "flask", color: "var(--series-3)" },
+  "Weight goal": { icon: "activity", color: "var(--series-4)" },
+  "Reminder lists": { icon: "bell", color: "var(--series-berry)" },
+  "Wishlist lists": { icon: "gift", color: "var(--series-magenta)" },
+  Appearance: { icon: "sun", color: "var(--ui-accent)" },
+  "Visible sections": { icon: "eye", color: "var(--ui-accent)" },
+  "Your data": { icon: "folder", color: "var(--ui-accent)" },
+};
+
+/** One tappable row in the Settings list: icon tile and name on the left, a
+ * short summary and a chevron on the right. */
 export function SectionRow({ title, subtitle }: { title: string; subtitle?: string }) {
   const { open } = useContext(ManageNavContext);
+  const tile = SECTION_ICON[title];
   return (
-    <button type="button" onClick={() => open(title)} className="flex min-h-11 w-full items-center gap-2 px-4 text-left">
+    <button type="button" onClick={() => open(title)} className="flex min-h-11 w-full items-center gap-3 px-3.5 text-left">
+      {tile && (
+        <span
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md"
+          style={{ color: tile.color, background: `color-mix(in oklab, ${tile.color} 14%, transparent)` }}
+          aria-hidden="true"
+        >
+          <CustomIcon icon={tile.icon} size={15} />
+        </span>
+      )}
       <span className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
         {title}
       </span>
