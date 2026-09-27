@@ -97,8 +97,8 @@ Deno.serve(async (req) => {
   const isReply = Boolean(note.thread_root_id);
   const threadRootId = (note.thread_root_id as string | null) ?? note.id;
   const payload = JSON.stringify({
-    title: isReply ? `${senderName} replied` : `${senderName} sent you a message`,
-    body: "",
+    title: senderName,
+    body: isReply ? "Replied to your message" : "Sent you a message",
     tag: `note:${threadRootId}`,
     url: `/notes?thread=${threadRootId}`,
   });

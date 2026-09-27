@@ -100,7 +100,9 @@ self.addEventListener("push", (event) => {
     self.registration.showNotification(data.title, {
       body: data.body,
       icon: "/icons/icon-192.png",
-      badge: "/icons/icon-192.png",
+      // Android masks the status-bar badge to its alpha, so it must be a
+      // white-on-transparent silhouette, not the full-colour icon.
+      badge: "/icons/badge-96.png",
       tag: data.tag,
       data: { url: data.url || null },
     })

@@ -162,7 +162,8 @@ A static site can't run anything in the background, so Supabase's `pg_cron` / `p
 | 2. Due things | Push + email for due tasks, expiring items, follow-up tasks past `reminder_at`, and care entries on their `remind_on` date |
 | 3. Message digest | After 09:00 Warsaw time, one "N unread messages" email + push per user, at most once a day |
 
-- **Instant message push:** sending a message calls `notify-note`, which pushes "*X* sent you a message", with no content in the payload
+- **Instant message push:** sending a message calls `notify-note`, which pushes the sender's name with "Sent you a message", with no content in the payload
+- **Push layout:** iOS-style — a short one-line title (sender, "Supplements", "Due", "Expiring soon"…) and the item's own text in the body, since Android truncates the title to one line but expands the body. The status-bar badge is `public/icons/badge-96.png`, a white-on-transparent silhouette of the logo mark
 - **Push to every device:** `push_subscriptions` is keyed on `(user_id, endpoint)`, so each of a user's devices gets the push. Never a partner's devices
 - **Cleanup:** a second cron job trims `cron.job_run_details` to 7 days
 - **Digest sender name:** the partner's `display_name` from Supabase auth metadata, else a name made from their email

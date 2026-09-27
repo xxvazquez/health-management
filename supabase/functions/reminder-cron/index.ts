@@ -135,13 +135,15 @@ async function sendReminderEmail(toEmail: string, subject: string, bodyText: str
  * enabled on, since one person can have several devices (phone, laptop).
  * Drops a subscription on a 404/410 exactly like the per-item loop above. A
  * user with no push subscription at all is a normal, expected case (email
- * is the reliable channel), not something worth logging as a failure. */
-async function sendPushToUser(subsByUser: Map<string, Subscription[]>, userId: string, title: string, tag: string): Promise<void> {
+ * is the reliable channel), not something worth logging as a failure.
+ * `title` is a short one-line heading (Android never wraps it); the
+ * user-written text goes in `body`, which expands to several lines. */
+async function sendPushToUser(subsByUser: Map<string, Subscription[]>, userId: string, title: string, body: string, tag: string): Promise<void> {
   const subs = subsByUser.get(userId);
   if (!subs || subs.length === 0) return;
   for (const sub of subs) {
     try {
-      await webpush.sendNotification({ endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth_key } }, JSON.stringify({ title, body: "", tag }));
+      await webpush.sendNotification({ endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth_key } }, JSON.stringify({ title, body, tag }));
     } catch (err) {
       const statusCode = (err as { statusCode?: number }).statusCode;
       if (statusCode === 404 || statusCode === 410) {
@@ -207,8 +209,8 @@ interface ReminderItemRow {
 }
 
 const REMINDER_SOURCES = [
-  { itemTable: "supplement_items", logTable: "supplement_logs" },
-  { itemTable: "habit_items", logTable: "habit_logs" },
+  { itemTable: "supplement_items", logTable: "supplement_logs", label: "Supplements" },
+  { itemTable: "habit_items", logTable: "habit_logs", label: "Habits" },
 ] as const;
 
 interface DomainReminderRow {
@@ -315,7 +317,7 @@ Deno.serve(async (req) => {
       continue; // unrecognized timezone string — skip rather than fail the whole run
     }
 
-    for (const { itemTable, logTable } of REMINDER_SOURCES) {
+    for (const { itemTable, logTable, label } of REMINDER_SOURCES) {
       const { data: items } = await supabase
         .from(itemTable)
         .select("id, name, reminder_time, reminder_last_sent_date")
@@ -334,7 +336,7 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        await sendPushToUser(subsByUser, userId, `Time for ${item.name}`, `reminder:${item.id}`);
+        await sendPushToUser(subsByUser, userId, label, `Time for ${item.name}`, `reminder:${item.id}`);
         sent++;
         await markResolved(itemTable, item.id, local.date);
       }
@@ -359,7 +361,7 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      await sendPushToUser(subsByUser, userId, `Log your ${DOMAIN_LABEL[dr.domain] ?? dr.domain} today`, `habit-reminder:${dr.domain}`);
+      await sendPushToUser(subsByUser, userId, "Reminder", `Log your ${DOMAIN_LABEL[dr.domain] ?? dr.domain} today`, `habit-reminder:${dr.domain}`);
       sent++;
       await markDomainReminderResolved(userId, dr.domain, local.date);
     }
@@ -389,7 +391,7 @@ Deno.serve(async (req) => {
     if (!isTaskRowDue(task.due_at, task.reminder_sent_at, nowDate)) continue;
     const email = await getUserEmail(task.user_id);
     if (email) await sendReminderEmail(email, `Reminder: ${task.title}`, `"${task.title}" is due on Lauva.`);
-    await sendPushToUser(subsByUser, task.user_id, `Due: ${task.title}`, `personal-task:${task.id}`);
+    await sendPushToUser(subsByUser, task.user_id, "Due", task.title, `personal-task:${task.id}`);
     await supabase.from("personal_tasks").update({ reminder_sent_at: nowDate.toISOString() }).eq("id", task.id);
     dueSent++;
   }
@@ -411,7 +413,7 @@ Deno.serve(async (req) => {
     for (const userId of recipientIds) {
       const email = await getUserEmail(userId);
       if (email) await sendReminderEmail(email, `Home reminder: ${task.title}`, `"${task.title}" is due in Home on Lauva.`);
-      await sendPushToUser(subsByUser, userId, `Home: ${task.title}`, `household-task:${task.id}`);
+      await sendPushToUser(subsByUser, userId, "Home", task.title, `household-task:${task.id}`);
     }
     await supabase.from("household_tasks").update({ reminder_sent_at: nowDate.toISOString() }).eq("id", task.id);
     dueSent++;
@@ -427,7 +429,7 @@ Deno.serve(async (req) => {
     for (const userId of [item.owner_id, partnerId].filter((id): id is string => id != null)) {
       const email = await getUserEmail(userId);
       if (email) await sendReminderEmail(email, `${item.name} is ${label}`, `"${item.name}" (expires ${item.expires_on}) is ${label} — check Home on Lauva.`);
-      await sendPushToUser(subsByUser, userId, `${item.name} is ${label}`, `household-item:${item.id}`);
+      await sendPushToUser(subsByUser, userId, expired ? "Expired" : "Expiring soon", item.name, `household-item:${item.id}`);
     }
     await supabase.from("household_items").update({ reminder_sent_at: nowDate.toISOString() }).eq("id", item.id);
     dueSent++;
@@ -445,7 +447,7 @@ Deno.serve(async (req) => {
     const label = item.expires_on < today ? "expired" : "expiring soon";
     const email = await getUserEmail(item.user_id);
     if (email) await sendReminderEmail(email, `${item.name} is ${label}`, `"${item.name}" (expires ${item.expires_on}) is ${label} — check Lauva.`);
-    await sendPushToUser(subsByUser, item.user_id, `${item.name} is ${label}`, `personal-item:${item.id}`);
+    await sendPushToUser(subsByUser, item.user_id, item.expires_on < today ? "Expired" : "Expiring soon", item.name, `personal-item:${item.id}`);
     await supabase.from("personal_items").update({ reminder_sent_at: nowDate.toISOString() }).eq("id", item.id);
     dueSent++;
   }
@@ -469,7 +471,7 @@ Deno.serve(async (req) => {
     const doctorName = (doctor as { name: string } | null)?.name ?? "your doctor";
     const email = await getUserEmail(task.user_id);
     if (email) await sendReminderEmail(email, `Follow-up: ${task.description}`, `"${task.description}" — a follow-up from your visit with ${doctorName}.`);
-    await sendPushToUser(subsByUser, task.user_id, `Follow-up: ${task.description}`, `doctor-task:${task.id}`);
+    await sendPushToUser(subsByUser, task.user_id, "Follow-up", task.description, `doctor-task:${task.id}`);
     await supabase.from("doctor_appointment_tasks").update({ reminder_sent_at: nowDate.toISOString() }).eq("id", task.id);
     dueSent++;
   }
@@ -488,7 +490,7 @@ Deno.serve(async (req) => {
     if (entry.remind_on > today) continue;
     const email = await getUserEmail(entry.user_id);
     if (email) await sendReminderEmail(email, `Revisit: ${entry.title}`, `"${entry.title}" — a care-log entry you wanted to come back to.`);
-    await sendPushToUser(subsByUser, entry.user_id, `Revisit: ${entry.title}`, `care-entry:${entry.id}`);
+    await sendPushToUser(subsByUser, entry.user_id, "Revisit", entry.title, `care-entry:${entry.id}`);
     await supabase.from("care_entries").update({ reminder_sent_at: nowDate.toISOString() }).eq("id", entry.id);
     dueSent++;
   }
@@ -540,7 +542,7 @@ Deno.serve(async (req) => {
             `You have ${unread} unread ${noun} from ${partnerName}. Open Lauva to read ${unread === 1 ? "it" : "them"}.`,
           );
         }
-        await sendPushToUser(subsByUser, userId, `${unread} unread ${noun} from ${partnerName}`, "notes-digest");
+        await sendPushToUser(subsByUser, userId, partnerName, `${unread} unread ${noun}`, "notes-digest");
         digestSent++;
       }
       await supabase.from("notes_digest_state").upsert({ user_id: userId, last_sent_date: digestLocal.date, updated_at: nowDate.toISOString() });
