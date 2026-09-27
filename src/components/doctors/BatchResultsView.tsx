@@ -100,8 +100,8 @@ export function BatchResultsView({
     ...(grouped.ungrouped.length > 0 ? [{ id: OTHER, label: "Other" }] : []),
   ];
 
-  const saveButton = (
-    <Button type="button" size="lg" onClick={save} disabled={!canSave} accent={accent} className="transition-opacity hover:opacity-90">
+  const saveButton = (size: "sm" | "lg") => (
+    <Button type="button" size={size} onClick={save} disabled={!canSave} accent={accent} className="shrink-0 transition-opacity hover:opacity-90">
       {saving
         ? "Saving…"
         : inputs.length === 0
@@ -121,15 +121,14 @@ export function BatchResultsView({
             One date and lab for the batch — fill a value beside each marker you have.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => onDone(null)}
-          className="shrink-0 text-sm font-medium"
-          style={{ color: accent }}
-        >
-          Cancel
-        </button>
+        <div className="flex shrink-0 items-center gap-3">
+          <button type="button" onClick={() => onDone(null)} className="hit-slop text-sm font-medium" style={{ color: accent }}>
+            Cancel
+          </button>
+          {saveButton("sm")}
+        </div>
       </div>
+      {error && <p className="-mt-2 text-xs" style={{ color: "var(--status-critical)" }}>{error}</p>}
 
       <FormGroup>
         <Field label="Date" inline>
@@ -155,11 +154,6 @@ export function BatchResultsView({
         <SearchField value={query} onChange={setQuery} placeholder="Search markers" className="w-full" />
       </div>
 
-      <div className="flex items-center gap-3">
-        {saveButton}
-        {error && <span className="text-xs" style={{ color: "var(--status-critical)" }}>{error}</span>}
-      </div>
-
       {visible.sections.length === 0 && visible.ungrouped.length === 0 ? (
         <p className="py-8 text-center text-xs" style={{ color: "var(--text-muted)" }}>
           No markers match. Add markers first, or clear the filter.
@@ -182,7 +176,7 @@ export function BatchResultsView({
       )}
 
       <div className="flex items-center gap-3">
-        {saveButton}
+        {saveButton("lg")}
         {error && <span className="text-xs" style={{ color: "var(--status-critical)" }}>{error}</span>}
       </div>
     </div>
@@ -203,7 +197,7 @@ function MarkerGroup({
   setValues: (fn: (prev: Record<string, string>) => Record<string, string>) => void;
 }) {
   return (
-    <FormGroup title={<span className="flex items-center justify-between"><span className="truncate">{title}</span><span className="tabular-nums">{markers.length}</span></span>}>
+    <FormGroup title={<span className="flex items-baseline gap-1.5">{title}<span className="font-normal tabular-nums">{markers.length}</span></span>}>
       {markers.map((m) => {
         const raw = values[m.id] ?? "";
         const parsed = parseNum(raw);
@@ -214,7 +208,7 @@ function MarkerGroup({
           <div key={m.id} className="flex min-h-11 items-center gap-3 px-3.5 py-2">
             <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: statusColor(status) }} aria-hidden="true" />
             <div className="min-w-0 flex-1">
-              <span className="block truncate text-sm" style={{ color: "var(--text-primary)" }}>{m.name}</span>
+              <span className="block text-sm" style={{ color: "var(--text-primary)" }}>{m.name}</span>
               {ref && <span className="text-xs" style={{ color: "var(--text-muted)" }}>Ref {ref}</span>}
               {dupe && raw.trim() !== "" && (
                 <span className="block text-xs" style={{ color: "var(--status-warning)" }}>Already has a value on this date</span>
