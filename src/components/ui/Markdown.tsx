@@ -1,8 +1,10 @@
 "use client";
 
-import { useRef, useState, type AnchorHTMLAttributes } from "react";
+import { useRef, useState, type AnchorHTMLAttributes, type ReactNode } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { AutoGrowTextarea } from "@/components/ui/AutoGrowTextarea";
+import { LABEL_CLS, LABEL_STYLE, ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
 
 /** Open entry links in a new tab so the app (an installed PWA) isn't
  * navigated away from. `node` is react-markdown's AST handle — dropped. */
@@ -71,7 +73,10 @@ function ToolbarDivider() {
 /** Markdown editor: a formatting toolbar over a plain textarea, plus a
  * Write / Preview switch. The textarea stays the source of truth — the
  * toolbar just splices syntax around the current selection. Renders flush
- * (no outer border) so the parent can frame it inside a card. */
+ * (no outer border) so the parent can frame it inside a card. With `label`
+ * it's a `FormGroup` row instead: label above a growing text field, the
+ * toolbar as a quiet strip under it that shows only while the field is in
+ * use. */
 export function MarkdownField({
   value,
   onChange,
@@ -79,7 +84,9 @@ export function MarkdownField({
   rows = 10,
   autoFocus = false,
   required = true,
+  label,
 }: {
+  label?: ReactNode;
   value: string;
   onChange: (next: string) => void;
   placeholder?: string;
@@ -92,6 +99,7 @@ export function MarkdownField({
   // can blur the textarea before the handler runs.
   const selRef = useRef<[number, number]>([0, 0]);
   const [preview, setPreview] = useState(false);
+  const [editing, setEditing] = useState(false);
 
   function currentSel(): [number, number] {
     const [s, e] = selRef.current;
@@ -145,45 +153,94 @@ export function MarkdownField({
     apply(next, urlAt, urlAt + 3);
   }
 
+  const tools = (
+    <>
+      <div className="no-scrollbar fade-x flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto py-1">
+        <ToolbarButton label="B" name="Bold" extra="font-semibold" onPress={() => wrap("**", "bold")} />
+        <ToolbarButton label="I" name="Italic" extra="italic" onPress={() => wrap("_", "italic")} />
+        <ToolbarDivider />
+        <ToolbarButton label="H1" name="Heading" onPress={() => prefixLines("# ")} />
+        <ToolbarButton label="H2" name="Subheading" onPress={() => prefixLines("## ")} />
+        <ToolbarDivider />
+        <ToolbarButton label="List" name="Bulleted list" onPress={() => prefixLines("- ")} />
+        <ToolbarButton label="1." name="Numbered list" onPress={() => prefixLines("1. ", true)} />
+        <ToolbarButton label="Task" name="Checklist" onPress={() => prefixLines("- [ ] ")} />
+        <ToolbarButton label="Quote" name="Quote" onPress={() => prefixLines("> ")} />
+        <ToolbarButton label="Link" name="Link" onPress={insertLink} />
+      </div>
+      <button
+        type="button"
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={() => setPreview((v) => !v)}
+        className={`${TOOLBAR_BTN} font-medium`}
+        style={{ color: "var(--ui-accent)" }}
+      >
+        {preview ? "Write" : "Preview"}
+      </button>
+    </>
+  );
+
+  const nothingYet = (
+    <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+      Nothing to preview yet.
+    </p>
+  );
+
+  if (label) {
+    return (
+      <div
+        className="flex flex-col"
+        onFocus={() => setEditing(true)}
+        onBlur={(e) => {
+          if (!e.currentTarget.contains(e.relatedTarget)) setEditing(false);
+        }}
+      >
+        <label className="flex flex-col gap-0.5 px-3.5 py-2.5">
+          <span className={LABEL_CLS} style={LABEL_STYLE}>
+            {label}
+          </span>
+          {preview ? (
+            <div className="py-0.5">{value.trim() ? <MarkdownContent>{value}</MarkdownContent> : nothingYet}</div>
+          ) : (
+            <AutoGrowTextarea
+              ref={ref}
+              required={required}
+              autoFocus={autoFocus}
+              value={value}
+              onChange={(e) => onChange(e.target.value)}
+              onSelect={(e) => {
+                selRef.current = [e.currentTarget.selectionStart, e.currentTarget.selectionEnd];
+              }}
+              rows={rows}
+              maxRows={16}
+              placeholder={placeholder}
+              className={`${ROW_TEXT_CLS} resize-none leading-relaxed`}
+              style={ROW_STYLE}
+            />
+          )}
+        </label>
+        <div
+          className={`ml-3.5 items-center gap-1 border-t pr-2 ${editing || preview ? "flex" : "hidden"}`}
+          style={{ borderColor: "var(--gridline)", color: "var(--text-secondary)" }}
+        >
+          {tools}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col">
       <div
         className="flex items-center gap-1 border-y pr-2 pl-2"
         style={{ borderColor: "var(--gridline)", background: "var(--page-backdrop)", color: "var(--text-secondary)" }}
       >
-        <div className="no-scrollbar fade-x flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto py-1">
-          <ToolbarButton label="B" name="Bold" extra="font-semibold" onPress={() => wrap("**", "bold")} />
-          <ToolbarButton label="I" name="Italic" extra="italic" onPress={() => wrap("_", "italic")} />
-          <ToolbarDivider />
-          <ToolbarButton label="H1" name="Heading" onPress={() => prefixLines("# ")} />
-          <ToolbarButton label="H2" name="Subheading" onPress={() => prefixLines("## ")} />
-          <ToolbarDivider />
-          <ToolbarButton label="List" name="Bulleted list" onPress={() => prefixLines("- ")} />
-          <ToolbarButton label="1." name="Numbered list" onPress={() => prefixLines("1. ", true)} />
-          <ToolbarButton label="Task" name="Checklist" onPress={() => prefixLines("- [ ] ")} />
-          <ToolbarButton label="Quote" name="Quote" onPress={() => prefixLines("> ")} />
-          <ToolbarButton label="Link" name="Link" onPress={insertLink} />
-        </div>
-        <button
-          type="button"
-          onMouseDown={(e) => e.preventDefault()}
-          onClick={() => setPreview((v) => !v)}
-          className={`${TOOLBAR_BTN} font-medium`}
-          style={{ color: "var(--ui-accent)" }}
-        >
-          {preview ? "Write" : "Preview"}
-        </button>
+        {tools}
       </div>
 
       {preview ? (
         <div className="min-h-[12rem] px-4 py-3.5">
-          {value.trim() ? (
-            <MarkdownContent>{value}</MarkdownContent>
-          ) : (
-            <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-              Nothing to preview yet.
-            </p>
-          )}
+          {value.trim() ? <MarkdownContent>{value}</MarkdownContent> : nothingYet}
         </div>
       ) : (
         <textarea

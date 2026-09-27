@@ -11,6 +11,7 @@ import { FormGroup } from "@/components/ui/FormGroup";
 import { ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
 import { FormShell } from "@/components/ui/FormShell";
 import { MarkdownField } from "@/components/ui/Markdown";
+import { AutoGrowTextarea } from "@/components/ui/AutoGrowTextarea";
 import { todayLocalISODate } from "@/lib/aggregations/common";
 
 interface TaskDraft {
@@ -161,16 +162,24 @@ export function AppointmentForm({
 
       <FormGroup>
         <Field label={<>Reason for appointment <span style={{ color: "var(--text-muted)" }}>· optional</span></>}>
-          <textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={2} placeholder="Why you went" className={`${ROW_TEXT_CLS} resize-none leading-relaxed`} style={ROW_STYLE} />
+          <AutoGrowTextarea value={reason} onChange={(e) => setReason(e.target.value)} rows={2} maxRows={8} placeholder="Why you went" className={`${ROW_TEXT_CLS} resize-none leading-relaxed`} style={ROW_STYLE} />
         </Field>
-      </FormGroup>
-
-      <FormGroup title="Follow-up notes · optional">
-        <MarkdownField value={followUpNotes} onChange={setFollowUpNotes} rows={4} required={false} placeholder="What was discussed, results, what to watch" />
-      </FormGroup>
-
-      <FormGroup title="Comments · optional">
-        <MarkdownField value={notes} onChange={setNotes} rows={4} required={false} placeholder="Anything else worth noting" />
+        <MarkdownField
+          label={<>Follow-up notes <span style={{ color: "var(--text-muted)" }}>· optional</span></>}
+          value={followUpNotes}
+          onChange={setFollowUpNotes}
+          rows={3}
+          required={false}
+          placeholder="What was discussed, results, what to watch"
+        />
+        <MarkdownField
+          label={<>Comments <span style={{ color: "var(--text-muted)" }}>· optional</span></>}
+          value={notes}
+          onChange={setNotes}
+          rows={2}
+          required={false}
+          placeholder="Anything else worth noting"
+        />
       </FormGroup>
 
       {!editing && (

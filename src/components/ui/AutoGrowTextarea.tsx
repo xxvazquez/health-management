@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect, useRef, type TextareaHTMLAttributes } from "react";
+import { useLayoutEffect, useRef, type Ref, type TextareaHTMLAttributes } from "react";
 
 /** A <textarea> that grows with its content instead of scrolling. `rows`
  * is the starting/minimum height; once the text passes `maxRows` it stops
@@ -9,8 +9,9 @@ export function AutoGrowTextarea({
   value,
   rows = 2,
   maxRows = 10,
+  ref: outerRef,
   ...props
-}: TextareaHTMLAttributes<HTMLTextAreaElement> & { maxRows?: number }) {
+}: TextareaHTMLAttributes<HTMLTextAreaElement> & { maxRows?: number; ref?: Ref<HTMLTextAreaElement> }) {
   const ref = useRef<HTMLTextAreaElement>(null);
 
   useLayoutEffect(() => {
@@ -32,5 +33,16 @@ export function AutoGrowTextarea({
     el.style.overflowY = contentHeight > maxHeight ? "auto" : "hidden";
   }, [value, rows, maxRows]);
 
-  return <textarea ref={ref} rows={rows} value={value} {...props} />;
+  return (
+    <textarea
+      ref={(el) => {
+        ref.current = el;
+        if (typeof outerRef === "function") outerRef(el);
+        else if (outerRef) outerRef.current = el;
+      }}
+      rows={rows}
+      value={value}
+      {...props}
+    />
+  );
 }
