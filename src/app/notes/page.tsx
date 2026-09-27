@@ -470,7 +470,7 @@ function NotesHeader({
               <span className="hidden sm:inline">Mark all as read</span>
             </button>
             )}
-            <PrimaryAction label="New message" accent={ACCENT} onClick={onCompose} />
+            <PrimaryAction label="New message" compact accent={ACCENT} onClick={onCompose} />
           </div>
         )
       }
