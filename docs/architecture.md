@@ -114,7 +114,7 @@ Parent-and-child writes (an appointment with tasks, a whole blood draw) queue pa
 - **Messages** (`notes`)
   - Two accounts link by redeeming an invite code (`redeem_partner_invite`), creating a `partner_links` row
   - A reply is a `notes` row with `thread_root_id`; a trigger keeps `last_message_at` and read state current
-  - Read state and archive are per side; favourite is shared
+  - Read state is per side; favourite is shared; deleting a conversation removes it for both
 - **Personal vs household**
   - `personal_*` tables are owner-only
   - `household_*` tables are visible to the creator and their linked partner (`is_household_member()`)

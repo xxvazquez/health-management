@@ -30,7 +30,6 @@ export function buildDemoThreads(): NoteThread[] {
       isSeenByPartner: true,
       partnerReadAt: iso(2 * 60 * 60 * 1000),
       isFavouritedByMe: false,
-      isArchivedByMe: false,
       isMine: false,
     },
     {
@@ -46,7 +45,6 @@ export function buildDemoThreads(): NoteThread[] {
       isSeenByPartner: true,
       partnerReadAt: iso(20 * 60 * 60 * 1000),
       isFavouritedByMe: false,
-      isArchivedByMe: false,
       isMine: true,
     },
     {
@@ -62,7 +60,6 @@ export function buildDemoThreads(): NoteThread[] {
       isSeenByPartner: true,
       partnerReadAt: iso(3 * DAY),
       isFavouritedByMe: true,
-      isArchivedByMe: false,
       isMine: false,
     },
     {
@@ -70,15 +67,14 @@ export function buildDemoThreads(): NoteThread[] {
       senderId: DEMO_ME_ID,
       recipientId: DEMO_PARTNER_ID,
       category: "note",
-      subject: "Old gym schedule",
-      body: "Keeping this out of the way — we don't need it anymore.",
+      subject: "New gym schedule",
+      body: "Classes move to Tuesday and Thursday evenings from next month.",
       createdAt: iso(20 * DAY),
       lastMessageAt: iso(20 * DAY),
       isUnreadForMe: false,
       isSeenByPartner: true,
       partnerReadAt: iso(20 * DAY),
       isFavouritedByMe: false,
-      isArchivedByMe: true,
       isMine: true,
     },
     {
@@ -94,7 +90,6 @@ export function buildDemoThreads(): NoteThread[] {
       isSeenByPartner: false,
       partnerReadAt: null,
       isFavouritedByMe: false,
-      isArchivedByMe: false,
       isMine: true,
     },
   ];

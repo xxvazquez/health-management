@@ -12,8 +12,8 @@ import {
   markThreadRead,
   markThreadUnread,
   replyToNote,
+  deleteThread,
   sendNote,
-  setThreadArchived,
   setThreadFavourited,
   type NewNoteInput,
   type NoteMessage,
@@ -42,7 +42,6 @@ const VIEWS: { id: NoteView; label: string }[] = [
   { id: "inbox", label: "Inbox" },
   { id: "sent", label: "Sent" },
   { id: "favourites", label: "Favourites" },
-  { id: "archived", label: "Archived" },
 ];
 
 const NOTES_TABLES = ["notes"] as const;
@@ -53,10 +52,9 @@ const NOTES_TABLES = ["notes"] as const;
 let partnerLinkCache: { userId: string; link: PartnerLink | null } | null = null;
 
 function matchesView(t: NoteThread, view: NoteView): boolean {
-  if (view === "inbox") return !t.isMine && !t.isArchivedByMe;
-  if (view === "sent") return t.isMine && !t.isArchivedByMe;
-  if (view === "favourites") return t.isFavouritedByMe;
-  return t.isArchivedByMe;
+  if (view === "inbox") return !t.isMine;
+  if (view === "sent") return t.isMine;
+  return t.isFavouritedByMe;
 }
 
 /** Connect -> Notes: private partner-to-partner messages, deliberately
@@ -170,10 +168,10 @@ export default function NotesPage() {
     await setThreadFavourited(threadId, isMine, next);
   }, [patchThread]);
 
-  const toggleArchive = useCallback(async (threadId: string, isMine: boolean, next: boolean) => {
-    patchThread(threadId, { isArchivedByMe: next });
-    await setThreadArchived(threadId, isMine, next);
-  }, [patchThread]);
+  const removeThread = useCallback(async (threadId: string) => {
+    await deleteThread(threadId);
+    setThreads((prev) => prev.filter((t) => t.id !== threadId));
+  }, []);
 
   const send = useCallback(async (input: NewNoteInput) => {
     const id = await sendNote(input);
@@ -193,7 +191,6 @@ export default function NotesPage() {
           isSeenByPartner: false,
           partnerReadAt: null,
           isFavouritedByMe: false,
-          isArchivedByMe: false,
           isMine: true,
         },
         ...prev,
@@ -281,10 +278,9 @@ export default function NotesPage() {
     async (threadId: string, _isMine: boolean, next: boolean) => demoSetField(threadId, { isFavouritedByMe: next }),
     [demoSetField],
   );
-  const demoToggleArchive = useCallback(
-    async (threadId: string, _isMine: boolean, next: boolean) => demoSetField(threadId, { isArchivedByMe: next }),
-    [demoSetField],
-  );
+  const demoDelete = useCallback(async (threadId: string) => {
+    setDemoThreads((prev) => prev.filter((t) => t.id !== threadId));
+  }, []);
   const demoReply = useCallback(async (rootId: string, _recipientId: string, body: string): Promise<NoteMessage> => {
     const message: NoteMessage = { id: `demo-reply-${Date.now()}`, senderId: DEMO_ME_ID, isMine: true, body, createdAt: new Date().toISOString() };
     demoRepliesRef.current = { ...demoRepliesRef.current, [rootId]: [...(demoRepliesRef.current[rootId] ?? []), message] };
@@ -307,7 +303,6 @@ export default function NotesPage() {
         isSeenByPartner: false,
         partnerReadAt: null,
         isFavouritedByMe: false,
-        isArchivedByMe: false,
         isMine: true,
       },
       ...prev,
@@ -340,7 +335,7 @@ export default function NotesPage() {
             onMarkRead={demoMarkRead}
             onMarkUnread={demoMarkUnread}
             onToggleFavourite={demoToggleFavourite}
-            onToggleArchive={demoToggleArchive}
+            onDelete={demoDelete}
             onReply={demoReply}
           />
         ) : (
@@ -406,7 +401,7 @@ export default function NotesPage() {
           onMarkRead={markRead}
           onMarkUnread={markUnread}
           onToggleFavourite={toggleFavourite}
-          onToggleArchive={toggleArchive}
+          onDelete={removeThread}
           onReply={reply}
         />
       ) : (

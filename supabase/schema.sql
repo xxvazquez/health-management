@@ -596,7 +596,7 @@ create table public.notes (
   id uuid primary key default gen_random_uuid(),
   sender_id uuid not null default auth.uid() references auth.users(id),
   recipient_id uuid not null references auth.users(id),
-  thread_root_id uuid references public.notes(id),
+  thread_root_id uuid references public.notes(id) on delete cascade,
   category text not null default 'note' check (category in ('note', 'reminder', 'appreciation', 'question')),
   subject text,
   body text not null check (char_length(trim(body)) > 0),
@@ -613,13 +613,10 @@ create table public.notes (
   -- Root-only. Favourite is a *shared* thread flag: the app writes both
   -- columns together (see setThreadFavourited in lib/supabase/notes.ts), so
   -- starring a thread favourites it for both partners and either can clear
-  -- it. Archive stays per-side — archiving something you sent doesn't
-  -- affect your partner's view of it. Both are writable by either
-  -- participant under the notes_update_participant policy below.
+  -- it. Writable by either participant under the notes_update_participant
+  -- policy below.
   sender_favourited boolean not null default false,
-  recipient_favourited boolean not null default false,
-  sender_archived boolean not null default false,
-  recipient_archived boolean not null default false
+  recipient_favourited boolean not null default false
 );
 
 create index notes_recipient_idx on public.notes (recipient_id, last_message_at desc) where thread_root_id is null;
@@ -657,7 +654,7 @@ create trigger notes_touch_thread_trigger
 -- participant can UPDATE" policy below leaves open (RLS's WITH CHECK on
 -- UPDATE only constrains the *new* row, not whether it matches the old
 -- one — see this table's own policies for why that's fine for
--- read/favourite/archive but not for identity).
+-- read/favourite but not for identity).
 create or replace function public.notes_lock_identity_columns() returns trigger
 language plpgsql as $$
 begin
@@ -1432,11 +1429,11 @@ create policy "partner_links_delete_participant" on public.partner_links for del
 -- your actual linked partner (not any user_id a buggy/malicious client
 -- might set — see the exists() subquery against partner_links), and a
 -- reply's thread_root_id must point at a thread you're actually part of.
--- Update is shared between both participants (read/favourite/archive are
--- all legitimately theirs to set) — see notes_lock_identity_columns above
+-- Update is shared between both participants (read/favourite are both
+-- legitimately theirs to set) — see notes_lock_identity_columns above
 -- for why sender_id/recipient_id/thread_root_id don't ride along on that
--- same policy. No delete policy: archiving is the retirement path, same
--- "no hard delete" rule as every item type elsewhere in this schema.
+-- same policy. Either participant can delete a conversation: deleting the
+-- root removes it for both, and its replies go with it (on delete cascade).
 create policy "notes_select_participant" on public.notes for select using (auth.uid() = sender_id or auth.uid() = recipient_id);
 -- The thread_root_id reference inside the exists() below MUST be qualified
 -- as `notes.thread_root_id` (the new row being inserted), not left bare —
@@ -1463,6 +1460,7 @@ create policy "notes_insert_to_partner" on public.notes for insert with check (
   )
 );
 create policy "notes_update_participant" on public.notes for update using (auth.uid() = sender_id or auth.uid() = recipient_id) with check (auth.uid() = sender_id or auth.uid() = recipient_id);
+create policy "notes_delete_participant" on public.notes for delete using (auth.uid() = sender_id or auth.uid() = recipient_id);
 
 -- household_notes/household_tasks/household_items: visible to the owner and
 -- their linked partner (is_household_member, defined with these tables

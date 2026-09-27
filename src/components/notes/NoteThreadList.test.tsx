@@ -24,7 +24,6 @@ function thread(overrides: Partial<NoteThread>): NoteThread {
     isSeenByPartner: false,
     partnerReadAt: null,
     isFavouritedByMe: false,
-    isArchivedByMe: false,
     isMine: true,
     ...overrides,
   };

@@ -27,7 +27,8 @@ Every table follows the same rules unless noted otherwise:
   case-insensitive uniqueness per user.
 - **`on delete restrict`** on every `*_logs` / `*_diary` FK — an item with
   any history can only be archived (`is_archived`), never hard-deleted.
-  Notes and tasks follow the same "archive, don't delete" rule.
+  Tasks follow the same "archive, don't delete" rule; partner messages
+  (`notes`) are deleted outright.
 
 ## Tracked-domain core (Food, Supplement, Habit, Symptom, Workout)
 
@@ -302,18 +303,21 @@ erDiagram
         timestamptz last_message_at "root row only"
         timestamptz sender_read_at "root row only"
         timestamptz recipient_read_at "root row only"
-        boolean     per_side_flags "favourited + archived, per side, root only"
+        boolean     favourited "sender_ + recipient_, shared, root only"
     }
 ```
 
 - A **reply is just another `notes` row** with `thread_root_id` set — no
-  replies table. The `last_message_at` / `*_read_at` / `*_favourited` /
-  `*_archived` columns are meaningful on the root row only; the
+  replies table. The `last_message_at` / `*_read_at` / `*_favourited`
+  columns are meaningful on the root row only; the
   `notes_touch_thread` trigger keeps them current as replies arrive, which
   is what makes a thread unread again for the other side without a
   read-receipt table.
 - `notes_lock_identity_columns` (BEFORE UPDATE trigger) rejects any change
   to `sender_id` / `recipient_id` / `thread_root_id` after insert.
+- Either participant can delete a conversation (`notes_delete_participant`);
+  deleting the root removes it for both, and `thread_root_id … on delete
+  cascade` takes the replies with it.
 - `partner_links` has **no INSERT/UPDATE policy** — the only way a link is
   created is `redeem_partner_invite()`. Participants can SELECT their own
   link and DELETE it (unlink).

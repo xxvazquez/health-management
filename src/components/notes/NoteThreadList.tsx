@@ -48,7 +48,6 @@ const VIEW_EMPTY_COPY: Record<NoteView, { title: string; description: string }> 
   inbox: { title: "Nothing in your inbox", description: "Messages your partner sends you will show up here." },
   sent: { title: "Nothing sent yet", description: "Tap New message to send your partner something." },
   favourites: { title: "No favourites yet", description: "Star a message to keep it easy to find here." },
-  archived: { title: "Nothing archived", description: "Messages you archive will show up here." },
 };
 
 /** Compact per-row action — same visual language as NoteThreadView's
@@ -193,7 +192,7 @@ export function NoteThreadList({
   view: NoteView;
   partnerLabel: string;
   onOpen: (id: string) => void;
-  /** Favourite and read/unread work without opening a note first (archive
+  /** Favourite and read/unread work without opening a note first (delete
    * lives inside the open thread). Injected
    * (not called directly) for the same demo/real split as NoteThreadView. */
   onToggleFavourite: (threadId: string, isMine: boolean, next: boolean) => Promise<void>;

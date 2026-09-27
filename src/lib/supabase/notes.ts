@@ -1,6 +1,6 @@
 import { supabase, supabaseConfigured } from "./client";
 import { createTimeOrderedId } from "@/lib/sortableId";
-import { insertDirect, updateDirect } from "./directWrite";
+import { deleteDirect, insertDirect, updateDirect } from "./directWrite";
 import { readSnapshot, writeSnapshot } from "@/lib/db/indexedDb";
 
 /** Same "is cloud set up" flag as auth/sync/bug-reporting. Notes has no
@@ -22,12 +22,12 @@ export const NOTE_CATEGORY_LABEL: Record<NoteCategory, string> = {
   question: "Question",
 };
 
-export type NoteView = "inbox" | "sent" | "favourites" | "archived";
+export type NoteView = "inbox" | "sent" | "favourites";
 
 /** One row per top-level note (`thread_root_id is null`) — the unit the
- * Notes page's four lists are built from. Replies live under it (see
+ * Notes page's three lists are built from. Replies live under it (see
  * `fetchThreadMessages`) but never appear as their own list entry; a
- * thread's read/favourite/archive state always reflects the *root's* own
+ * thread's read/favourite state always reflects the *root's* own
  * columns, resolved to "mine" vs "theirs" via `isMine` here so nothing
  * downstream has to know which of sender/recipient the viewer is. */
 export interface NoteThread {
@@ -41,7 +41,7 @@ export interface NoteThread {
    * "latest reply preview" was deliberately left out). */
   body: string;
   createdAt: string;
-  /** Root or reply, whichever happened most recently — what the four
+  /** Root or reply, whichever happened most recently — what the three
    * lists sort by. */
   lastMessageAt: string;
   isUnreadForMe: boolean;
@@ -51,11 +51,10 @@ export interface NoteThread {
   /** When the other side last opened the thread — Sent's "Read …" stamp. */
   partnerReadAt: string | null;
   /** Shared between both partners — either can star or unstar a thread and
-   * it shows under Favourites for both. (Archive stays per-side.) */
+   * it shows under Favourites for both. */
   isFavouritedByMe: boolean;
-  isArchivedByMe: boolean;
   /** Did *I* send the root note — i.e. is this "my" note from Sent, or one
-   * I received into Inbox. Favourites/Archived cut across both. */
+   * I received into Inbox. Favourites cuts across both. */
   isMine: boolean;
 }
 
@@ -81,8 +80,6 @@ interface NoteRow {
   recipient_read_at: string | null;
   sender_favourited: boolean;
   recipient_favourited: boolean;
-  sender_archived: boolean;
-  recipient_archived: boolean;
 }
 
 /** The Nav sidebar's unread badge lives in a completely different
@@ -131,30 +128,27 @@ function toThread(row: NoteRow, myUserId: string): NoteThread {
     isSeenByPartner: !!partnerReadAt && partnerReadAt >= row.last_message_at,
     partnerReadAt,
     isFavouritedByMe: row.sender_favourited || row.recipient_favourited,
-    isArchivedByMe: isMine ? row.sender_archived : row.recipient_archived,
     isMine,
   };
 }
 
 const THREAD_COLUMNS =
-  "id, sender_id, recipient_id, thread_root_id, category, subject, body, created_at, last_message_at, sender_read_at, recipient_read_at, sender_favourited, recipient_favourited, sender_archived, recipient_archived";
+  "id, sender_id, recipient_id, thread_root_id, category, subject, body, created_at, last_message_at, sender_read_at, recipient_read_at, sender_favourited, recipient_favourited";
 
-/** The four Notes page lists. Inbox/Sent split by who sent the root note
+/** The three Notes page lists. Inbox/Sent split by who sent the root note
  * (classic email semantics — a partner's reply doesn't move a thread out
  * of Sent, it just makes it unread there again); Favourites is a shared
- * thread flag (either side toggles it for both); Archived stays per-side. */
+ * thread flag (either side toggles it for both). */
 export async function fetchNoteThreads(view: NoteView): Promise<NoteThread[]> {
   if (!supabase) return [];
   const myUserId = await currentUserId();
   if (!myUserId) return [];
 
   let query = supabase.from("notes").select(THREAD_COLUMNS).is("thread_root_id", null);
-  if (view === "inbox") query = query.eq("recipient_id", myUserId).eq("recipient_archived", false);
-  else if (view === "sent") query = query.eq("sender_id", myUserId).eq("sender_archived", false);
-  else if (view === "favourites")
-    // Shared flag — RLS already scopes this to threads I'm part of.
-    query = query.or("sender_favourited.eq.true,recipient_favourited.eq.true");
-  else query = query.or(`and(sender_id.eq.${myUserId},sender_archived.eq.true),and(recipient_id.eq.${myUserId},recipient_archived.eq.true)`);
+  if (view === "inbox") query = query.eq("recipient_id", myUserId);
+  else if (view === "sent") query = query.eq("sender_id", myUserId);
+  // Shared flag — RLS already scopes this to threads I'm part of.
+  else query = query.or("sender_favourited.eq.true,recipient_favourited.eq.true");
 
   const { data, error } = await query.order("last_message_at", { ascending: false });
   if (error) throw error;
@@ -164,7 +158,7 @@ export async function fetchNoteThreads(view: NoteView): Promise<NoteThread[]> {
 /** One specific thread by its root id, regardless of which of the four
  * tabs it'd normally show up under — for a deep link (`/notes?thread=<id>`)
  * that has to resolve a thread without knowing or caring whether it's
- * currently in Inbox, Sent, Favourites, or Archived. RLS still applies as normal (only
+ * currently in Inbox, Sent or Favourites. RLS still applies as normal (only
  * a participant's own query returns anything), so this can't leak a
  * thread that `fetchNoteThreads` wouldn't eventually surface anyway. */
 export async function fetchNoteThread(id: string): Promise<NoteThread | null> {
@@ -180,7 +174,7 @@ export async function fetchNoteThread(id: string): Promise<NoteThread | null> {
  * supplied value, not against another column in the same row, so "is this
  * thread unread" (read_at is null OR older than last_message_at) can't be
  * expressed as a server-side filter — this fetches the small set of
- * non-archived threads the viewer is part of and finishes the comparison
+ * threads the viewer is part of and finishes the comparison
  * in JS, same as `toThread` already does for the list views. Fine at this
  * app's scale (one partner's worth of notes, not a shared inbox). */
 export async function unreadNoteCount(): Promise<number> {
@@ -189,17 +183,13 @@ export async function unreadNoteCount(): Promise<number> {
   if (!myUserId) return 0;
   const { data, error } = await supabase
     .from("notes")
-    .select("sender_id, recipient_id, last_message_at, sender_read_at, recipient_read_at, sender_archived, recipient_archived")
+    .select("sender_id, recipient_id, last_message_at, sender_read_at, recipient_read_at")
     .is("thread_root_id", null)
     .or(`sender_id.eq.${myUserId},recipient_id.eq.${myUserId}`);
   if (error) throw error;
-  type Row = Pick<
-    NoteRow,
-    "sender_id" | "recipient_id" | "last_message_at" | "sender_read_at" | "recipient_read_at" | "sender_archived" | "recipient_archived"
-  >;
+  type Row = Pick<NoteRow, "sender_id" | "recipient_id" | "last_message_at" | "sender_read_at" | "recipient_read_at">;
   return (data as Row[]).filter((row) => {
     const isMine = row.sender_id === myUserId;
-    if (isMine ? row.sender_archived : row.recipient_archived) return false;
     const myReadAt = isMine ? row.sender_read_at : row.recipient_read_at;
     return !myReadAt || myReadAt < row.last_message_at;
   }).length;
@@ -302,11 +292,11 @@ export async function replyToNote(rootId: string, recipientId: string, body: str
 async function updateMyThreadState(
   threadId: string,
   isMine: boolean,
-  patch: { readAt?: string | null; favourited?: boolean; archived?: boolean },
+  patch: { readAt?: string | null; favourited?: boolean },
 ): Promise<void> {
   const myUserId = await currentUserId();
   if (!myUserId) return;
-  // Only my own read/archive column, or both favourite columns — never an
+  // Only my own read column, or both favourite columns — never an
   // identity column, so the notes_lock_identity_columns trigger is happy.
   const update: Record<string, unknown> = { id: threadId };
   if (patch.readAt !== undefined) update[isMine ? "sender_read_at" : "recipient_read_at"] = patch.readAt;
@@ -317,9 +307,8 @@ async function updateMyThreadState(
     update.sender_favourited = patch.favourited;
     update.recipient_favourited = patch.favourited;
   }
-  if (patch.archived !== undefined) update[isMine ? "sender_archived" : "recipient_archived"] = patch.archived;
   await updateDirect(myUserId, "notes", threadId, update);
-  // read/unread and archive both change what counts as unread — cheap
+  // read/unread changes what counts as unread — cheap
   // enough to fire for favourite too rather than threading a "does this
   // actually affect the badge" flag through every call site.
   notifyNotesChanged();
@@ -334,8 +323,13 @@ export function markThreadUnread(threadId: string, isMine: boolean): Promise<voi
 export function setThreadFavourited(threadId: string, isMine: boolean, favourited: boolean): Promise<void> {
   return updateMyThreadState(threadId, isMine, { favourited });
 }
-export function setThreadArchived(threadId: string, isMine: boolean, archived: boolean): Promise<void> {
-  return updateMyThreadState(threadId, isMine, { archived });
+/** Deletes a whole conversation for both partners — the root row, with
+ * every reply removed by the database's cascade. */
+export async function deleteThread(threadId: string): Promise<void> {
+  const myUserId = await currentUserId();
+  if (!myUserId) throw new Error("Sign in first.");
+  await deleteDirect(myUserId, "notes", threadId);
+  notifyNotesChanged();
 }
 
 /** Clears unread across every thread at once — both the ones sent to the

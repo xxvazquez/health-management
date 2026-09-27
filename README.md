@@ -33,7 +33,7 @@ Five main areas, in the phone tab bar and the desktop sidebar. Messages appears 
 | **Trends** | `/analytics` | A dashboard per Log domain, plus Patterns |
 | **Health** | `/medical` | Visits, lab Results, Vitals, Doctors |
 | **Notes** | `/personal` | Journal, Wishlist, shared discount Codes |
-| **Messages** | `/notes` | Private messages with a linked partner |
+| **Messages** | `/notes` | Private messages with a linked partner: Inbox, Sent, Favourites; delete a conversation (for both) after a confirmation |
 
 Secondary pages:
 

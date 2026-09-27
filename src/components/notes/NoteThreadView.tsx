@@ -2,9 +2,11 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { NOTE_CATEGORY_LABEL, type NoteMessage, type NoteThread } from "@/lib/supabase/notes";
-import { ArchiveIcon, CategoryIcon, EyeOffIcon, StarIcon } from "./icons";
+import { CategoryIcon, EyeOffIcon, StarIcon } from "./icons";
 import { formatNoteTimestamp } from "./NoteThreadList";
 import { AutoGrowTextarea } from "@/components/ui/AutoGrowTextarea";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { TrashIcon } from "@/components/ui/Notebook";
 
 const ACCENT = "var(--series-magenta)";
 
@@ -37,7 +39,7 @@ function ActionButton({
 }
 
 /** One open thread — every message (root + replies) plus a reply box and
- * the four per-thread actions (favourite, mark unread, archive; "mark
+ * the per-thread actions (favourite, mark unread, delete; "mark
  * read" itself isn't a button, it just happens on open). Opening a thread
  * you're the recipient of marks it read immediately, same as any inbox.
  * Every action is injected rather than calling supabase/notes.ts directly,
@@ -53,7 +55,7 @@ export function NoteThreadView({
   onMarkRead,
   onMarkUnread,
   onToggleFavourite,
-  onToggleArchive,
+  onDelete,
   onReply,
 }: {
   thread: NoteThread;
@@ -64,7 +66,8 @@ export function NoteThreadView({
   onMarkRead: (threadId: string, isMine: boolean) => Promise<void>;
   onMarkUnread: (threadId: string, isMine: boolean) => Promise<void>;
   onToggleFavourite: (threadId: string, isMine: boolean, next: boolean) => Promise<void>;
-  onToggleArchive: (threadId: string, isMine: boolean, next: boolean) => Promise<void>;
+  /** Deletes the whole conversation, every reply included, for both partners. */
+  onDelete: (threadId: string) => Promise<void>;
   onReply: (rootId: string, recipientId: string, body: string) => Promise<NoteMessage>;
 }) {
   const [messages, setMessages] = useState<NoteMessage[] | null>(null);
@@ -73,6 +76,8 @@ export function NoteThreadView({
   const [replying, setReplying] = useState(false);
   const [replyError, setReplyError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -128,12 +133,18 @@ export function NoteThreadView({
     }
   }
 
-  async function toggleArchive() {
+  async function handleDelete() {
     setBusy(true);
+    setDeleteError(null);
     try {
-      await onToggleArchive(thread.id, thread.isMine, !thread.isArchivedByMe);
+      await onDelete(thread.id);
+      setConfirmingDelete(false);
       onChanged();
       onBack();
+    } catch (err) {
+      console.error("onDelete failed", err);
+      setConfirmingDelete(false);
+      setDeleteError("Couldn't delete this conversation — try again.");
     } finally {
       setBusy(false);
     }
@@ -174,11 +185,28 @@ export function NoteThreadView({
           <ActionButton onClick={() => void markUnread()} label="Mark as unread" disabled={busy}>
             <EyeOffIcon />
           </ActionButton>
-          <ActionButton onClick={() => void toggleArchive()} label={thread.isArchivedByMe ? "Unarchive" : "Archive"} disabled={busy}>
-            <ArchiveIcon />
+          <ActionButton onClick={() => setConfirmingDelete(true)} label="Delete" disabled={busy}>
+            <TrashIcon size={16} />
           </ActionButton>
         </div>
       </div>
+
+      {confirmingDelete && (
+        <ConfirmDialog
+          title="Delete this conversation?"
+          message={`Every message in it is removed for you and ${partnerLabel}. This can't be undone.`}
+          confirmLabel="Delete"
+          destructive
+          busy={busy}
+          onConfirm={() => void handleDelete()}
+          onClose={() => setConfirmingDelete(false)}
+        />
+      )}
+      {deleteError && (
+        <p className="text-sm" style={{ color: "var(--status-critical)" }}>
+          {deleteError}
+        </p>
+      )}
 
       {messages === null && !loadError && (
         <p className="text-sm" style={{ color: "var(--text-muted)" }}>

@@ -80,16 +80,6 @@ export function StarIcon({ filled, size = 15 }: { filled: boolean; size?: number
   );
 }
 
-export function ArchiveIcon({ size = 15 }: { size?: number }) {
-  return (
-    <IconWrap size={size}>
-      <rect x="3.2" y="4" width="13.6" height="3.2" rx="0.8" />
-      <path d="M4.4 7.2v7c0 .7.6 1.3 1.3 1.3h8.6c.7 0 1.3-.6 1.3-1.3v-7" />
-      <path d="M8 10.2h4" />
-    </IconWrap>
-  );
-}
-
 export function EyeIcon({ size = 15 }: { size?: number }) {
   return (
     <IconWrap size={size}>

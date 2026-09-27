@@ -643,7 +643,7 @@ select public.test_assert(
   'notes: a reply bumps its thread root''s last_message_at (notes_touch_thread)'
 );
 
--- Read/favourite/archive: either participant can update their own side's
+-- Read/favourite: either participant can update their own side's
 -- state on the root note.
 update public.notes set sender_favourited = true, sender_read_at = now() where id = 'd1000000-0000-0000-0000-0000000000d1';
 select public.test_assert(
@@ -659,6 +659,21 @@ select public.test_assert_raises_any(
   $sql$update public.notes set recipient_id = '33333333-3333-3333-3333-333333333333'
        where id = 'd1000000-0000-0000-0000-0000000000d1'$sql$,
   'notes: recipient_id cannot be changed after creation, even by a participant (notes_lock_identity_columns)'
+);
+
+-- Delete: an outsider can't remove a conversation; a participant can, and
+-- its replies go with the root (on delete cascade).
+select public.test_switch_user('33333333-3333-3333-3333-333333333333');
+delete from public.notes where id = 'd1000000-0000-0000-0000-0000000000d1';
+select public.test_switch_user('11111111-1111-1111-1111-111111111111');
+select public.test_assert(
+  (select count(*) from public.notes where id = 'd1000000-0000-0000-0000-0000000000d1') = 1,
+  'notes: user C (not a participant) cannot DELETE A''s note to B'
+);
+delete from public.notes where id = 'd1000000-0000-0000-0000-0000000000d1';
+select public.test_assert(
+  (select count(*) from public.notes where id in ('d1000000-0000-0000-0000-0000000000d1', 'd4000000-0000-0000-0000-0000000000d4')) = 0,
+  'notes: a participant can DELETE a conversation, and its replies go with it'
 );
 
 -- ============================================================================
