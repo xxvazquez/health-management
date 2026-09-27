@@ -65,7 +65,7 @@ Tabs: **Food · Symptoms · Supplements · Habits · Stool · Workout · Cycle �
 
 | Tab | Contents |
 |---|---|
-| Visits | "Before your next visit" (upcoming dates and open notes/decisions) and "Past visits" |
+| Visits | Grouped lists: upcoming dates, decisions/notes/observations (filter by specialty), past visits with open follow-ups; each visit opens in a sheet |
 | Results | Every lab marker on a reference-range bar. Tap one for its trend chart and history |
 | Vitals | Blood pressure and weight, ACC/AHA categories, optional weight-goal band |
 | Doctors | Read-only directory; editing is in Settings |

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useDoctors } from "@/lib/useDoctors";
-import { VisitsTab } from "@/components/doctors/VisitsTab";
+import { VisitsAddMenu, VisitsTab, type VisitsAddMode } from "@/components/doctors/VisitsTab";
 import { DoctorsTab } from "@/components/doctors/DoctorsTab";
 import { ResultsTab } from "@/components/doctors/ResultsTab";
 import { VitalsTab } from "@/components/doctors/VitalsTab";
@@ -50,6 +50,7 @@ function resolveTab(v: string): MedicalTabId | null {
 export default function MedicalPage() {
   const api = useDoctors();
   const [tab, setTab] = useState<MedicalTabId>("visits");
+  const [visitsAdd, setVisitsAdd] = useState<VisitsAddMode>(null);
 
   useEffect(() => {
     /* eslint-disable react-hooks/set-state-in-effect */
@@ -89,7 +90,9 @@ export default function MedicalPage() {
 
   return (
     <div className="flex flex-col gap-5">
-      <PageHeading>Health</PageHeading>
+      <PageHeading actions={tab === "visits" && !api.loading && !api.error ? <VisitsAddMenu accent={HEALTH_ACCENT} onAdd={setVisitsAdd} /> : undefined}>
+        Health
+      </PageHeading>
 
       <SegmentedTabs
         ariaLabel="Health sections"
@@ -106,7 +109,7 @@ export default function MedicalPage() {
         <ListSkeleton />
       ) : (
         <>
-          {tab === "visits" && <VisitsTab api={api} accent={HEALTH_ACCENT} />}
+          {tab === "visits" && <VisitsTab api={api} accent={HEALTH_ACCENT} add={visitsAdd} setAdd={setVisitsAdd} />}
           {tab === "results" && <ResultsTab accent={HEALTH_ACCENT} />}
           {tab === "vitals" && <VitalsTab accent={HEALTH_ACCENT} />}
           {tab === "doctors" && <DoctorsTab api={api} accent={HEALTH_ACCENT} />}

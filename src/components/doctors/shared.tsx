@@ -1,12 +1,10 @@
 "use client";
 
-import { CONTROL_CLS, CONTROL_STYLE, Chip } from "@/components/ui/Chip";
+import { Chip } from "@/components/ui/Chip";
 import { useMemo, useState, type ReactNode } from "react";
 import { DOCTOR_LANGUAGES, DOCTOR_RATINGS, isBadDoctor, type DoctorLanguage } from "@/lib/doctors";
 
 export { PencilIcon, TrashIcon } from "@/components/ui/Notebook";
-import { CalendarIcon, CloseIcon } from "@/components/ui/icons";
-import { DatePicker } from "@/components/ui/DatePicker";
 import { ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
 
 export function formatDateTime(iso: string): string {
@@ -17,6 +15,19 @@ export function formatDate(value: string): string {
   // Accepts a full ISO timestamp or a bare YYYY-MM-DD.
   const d = value.length <= 10 ? new Date(`${value}T00:00:00`) : new Date(value);
   return d.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+}
+
+/** A list row's date: "13 Sept", with the year only when it isn't this
+ * year, and "Tue 6 Oct" when `weekday` is set (upcoming dates). */
+export function formatShortDate(value: string, { weekday = false } = {}): string {
+  const d = value.length <= 10 ? new Date(`${value}T00:00:00`) : new Date(value);
+  const sameYear = d.getFullYear() === new Date().getFullYear();
+  return d.toLocaleDateString(undefined, {
+    weekday: weekday ? "short" : undefined,
+    day: "numeric",
+    month: "short",
+    year: sameYear ? undefined : "numeric",
+  });
 }
 
 /** ISO timestamp -> the `YYYY-MM-DDTHH:mm` a `datetime-local` input wants,
@@ -217,52 +228,6 @@ export function ComboBox({
             </li>
           )}
         </ul>
-      )}
-    </div>
-  );
-}
-
-/** The one editable next-appointment date for a specialty — a compact
- * filled date control with an icon clear button. Shown in
- * both the Specialty and Doctor history headers; both write the same
- * specialty-level value. `hideLabel` drops the "Next appointment" caption
- * where the surrounding section already makes it obvious. */
-export function NextAppointmentField({
-  date,
-  onChange,
-  accent,
-  hideLabel = false,
-}: {
-  date: string | null;
-  onChange: (date: string | null) => void;
-  accent: string;
-  hideLabel?: boolean;
-}) {
-  return (
-    <div className="flex flex-wrap items-center gap-1.5">
-      {!hideLabel && (
-        <span className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
-          Next appointment
-        </span>
-      )}
-      <DatePicker
-        value={date ?? ""}
-        onChange={(v) => onChange(v || null)}
-        optional
-        title="Next appointment"
-        renderTrigger={(open) => (
-          <button type="button" onClick={open} aria-label="Next appointment date" className={CONTROL_CLS} style={CONTROL_STYLE}>
-            <span style={{ color: date ? accent : "var(--text-muted)" }}>
-              <CalendarIcon size={13} />
-            </span>
-            <span className="tabular-nums">{date ? formatDate(date) : "Set a date"}</span>
-          </button>
-        )}
-      />
-      {date && (
-        <IconAction label="Clear next appointment" onClick={() => onChange(null)}>
-          <CloseIcon size={13} />
-        </IconAction>
       )}
     </div>
   );

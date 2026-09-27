@@ -133,7 +133,7 @@ const GROUPS: { title: string; items: Entry[] }[] = [
     items: [
       {
         title: "Visits",
-        body: "Two sections. \"Before your next visit\" holds your upcoming appointment dates (one per specialty, editable here) plus the observations and notes you've tagged for a visit, filterable by specialty. \"Past visits\" is the log of appointments you've had, newest first, each carrying its own follow-up tasks.",
+        body: "Upcoming lists your next appointment date per specialty; tap one to change or clear it. Below it are the decisions, notes and observations you've tagged for a visit, filterable by specialty. Past visits is the log of appointments you've had, newest first, with any open follow-ups you can tick off right there; tap a visit to see its notes, edit it or add a follow-up. Add, next to the page title, records something to raise or a past appointment.",
       },
       {
         title: "Results",

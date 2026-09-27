@@ -1,16 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import type { useDoctors } from "@/lib/useDoctors";
 import type { DoctorAppointment } from "@/lib/supabase/doctors";
 import { resolveSpecialtyNames } from "@/lib/doctors";
 import { AppointmentCard } from "./AppointmentCard";
 import { AppointmentForm } from "./AppointmentForm";
+import { Sheet } from "@/components/ui/Sheet";
+import { todayLocalISODate } from "@/lib/aggregations/common";
+import { DoctorName, formatShortDate } from "./shared";
 
 type DoctorsApi = ReturnType<typeof useDoctors>;
 
-/** A history list of appointment cards with a shared inline edit form —
- * used by Visits and by both doctor / specialty history views. */
+/** A history list of appointments as grouped rows — doctor, date, reason
+ * and any open follow-ups (tickable in place). Tapping a row opens the
+ * visit's full card in a sheet, where it's edited or deleted. Used by
+ * Visits and by the doctor history view. */
 export function AppointmentList({
   api,
   appointments,
@@ -25,6 +30,9 @@ export function AppointmentList({
   emptyMessage: string;
 }) {
   const [editing, setEditing] = useState<DoctorAppointment | null>(null);
+  const [openId, setOpenId] = useState<string | null>(null);
+  const sheetTitleId = useId();
+  const open = openId ? (appointments.find((a) => a.id === openId) ?? null) : null;
 
   const specialtyOptions = resolveSpecialtyNames(
     api.specialties.data,
@@ -56,25 +64,98 @@ export function AppointmentList({
     );
   }
 
+  const openDoctor = open ? api.doctors.data.find((d) => d.id === open.doctorId) : undefined;
+
   return (
-    <div className="flex flex-col gap-3">
+    <>
+      {open && (
+        <Sheet
+          title={showDoctor ? (openDoctor?.name ?? "Unknown doctor") : open.specialty}
+          titleId={sheetTitleId}
+          onClose={() => setOpenId(null)}
+        >
+          <AppointmentCard
+            appointment={open}
+            doctor={openDoctor}
+            tasks={api.tasks.data.filter((t) => t.appointmentId === open.id)}
+            accent={accent}
+            showDoctor={false}
+            onEdit={() => setEditing(open)}
+            onDelete={() => {
+              setOpenId(null);
+              void api.appointments.remove(open.id);
+            }}
+            onAddTask={(input) => void api.tasks.add(open.id, input)}
+            onEditTask={(id, patch) => void api.tasks.edit(id, patch)}
+            onToggleTask={(id, done) => void api.tasks.setComplete(id, done)}
+            onDeleteTask={(id) => void api.tasks.remove(id)}
+          />
+        </Sheet>
+      )}
       {editSheet}
-      {appointments.map((appt) => (
-        <AppointmentCard
-          key={appt.id}
-          appointment={appt}
-          doctor={api.doctors.data.find((d) => d.id === appt.doctorId)}
-          tasks={api.tasks.data.filter((t) => t.appointmentId === appt.id)}
-          accent={accent}
-          showDoctor={showDoctor}
-          onEdit={() => setEditing(appt)}
-          onDelete={() => void api.appointments.remove(appt.id)}
-          onAddTask={(input) => void api.tasks.add(appt.id, input)}
-          onEditTask={(id, patch) => void api.tasks.edit(id, patch)}
-          onToggleTask={(id, done) => void api.tasks.setComplete(id, done)}
-          onDeleteTask={(id) => void api.tasks.remove(id)}
-        />
-      ))}
-    </div>
+      <ul className="inset-rows flex flex-col rounded-xl border" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
+        {appointments.map((appt) => {
+          const doctor = api.doctors.data.find((d) => d.id === appt.doctorId);
+          const tasks = api.tasks.data.filter((t) => t.appointmentId === appt.id);
+          const openTasks = tasks.filter((t) => !t.completedAt);
+          const doneCount = tasks.length - openTasks.length;
+          return (
+            <li key={appt.id} className="flex flex-col px-3.5 py-2.5">
+              <button type="button" onClick={() => setOpenId(appt.id)} className="flex min-h-9 w-full flex-col gap-0.5 text-left">
+                <span className="flex w-full items-baseline justify-between gap-3">
+                  <span className="min-w-0 text-sm">
+                    {showDoctor ? (
+                      <>
+                        <DoctorName name={doctor?.name ?? "Unknown doctor"} rating={doctor?.rating ?? null} />
+                        <span style={{ color: "var(--text-muted)" }}> · {appt.specialty}</span>
+                      </>
+                    ) : (
+                      <span className="font-medium" style={{ color: "var(--text-primary)" }}>
+                        {appt.specialty}
+                      </span>
+                    )}
+                  </span>
+                  <span className="shrink-0 text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>
+                    {formatShortDate(appt.appointmentAt)}
+                  </span>
+                </span>
+                {(appt.reason || (openTasks.length === 0 && doneCount > 0)) && (
+                  <span className="line-clamp-1 text-xs" style={{ color: "var(--text-secondary)" }}>
+                    {appt.reason}
+                    {openTasks.length === 0 && doneCount > 0 && (
+                      <span style={{ color: "var(--text-muted)" }}>
+                        {appt.reason ? " · " : ""}
+                        {doneCount} follow-up{doneCount === 1 ? "" : "s"} done
+                      </span>
+                    )}
+                  </span>
+                )}
+              </button>
+              {openTasks.map((task) => (
+                <div key={task.id} className="flex min-h-9 items-center gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => void api.tasks.setComplete(task.id, true)}
+                    aria-label={`Mark "${task.description}" done`}
+                    className="tap-target flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full border transition-colors hover:border-[var(--status-good)]"
+                    style={{ borderColor: "var(--text-secondary)" }}
+                  />
+                  <button type="button" onClick={() => setOpenId(appt.id)} className="flex min-w-0 flex-1 items-baseline justify-between gap-3 text-left">
+                    <span className="min-w-0 text-sm" style={{ color: "var(--text-primary)" }}>
+                      {task.description}
+                    </span>
+                    {task.dueDate && (
+                      <span className="shrink-0 text-xs tabular-nums" style={{ color: task.dueDate < todayLocalISODate() ? "var(--status-critical)" : "var(--text-muted)" }}>
+                        Due {formatShortDate(task.dueDate)}
+                      </span>
+                    )}
+                  </button>
+                </div>
+              ))}
+            </li>
+          );
+        })}
+      </ul>
+    </>
   );
 }

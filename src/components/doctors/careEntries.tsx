@@ -15,7 +15,7 @@ import { FormShell } from "@/components/ui/FormShell";
 import { Field } from "@/components/ui/Field";
 import { DriveFilePicker } from "@/components/googleDrive/DriveFilePicker";
 import { driveFileIcon } from "@/components/icons/DriveFileIcons";
-import { IconAction, PencilIcon, TrashIcon, formatDate } from "./shared";
+import { IconAction, PencilIcon, TrashIcon, formatDate, formatShortDate } from "./shared";
 import { FormGroup } from "@/components/ui/FormGroup";
 import { ROW_INLINE_CLS, ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
 
@@ -400,17 +400,28 @@ export function CareEntryRow({
       onTouchEnd={onTouchEnd}
     >
       <div className="flex items-start gap-3">
-        <button type="button" onClick={onOpen} className="flex min-w-0 flex-1 flex-col gap-1 text-left">
-          <CareEntryMeta entry={entry} accent={accent} />
-          <span className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
-            {entry.title}
+        <button type="button" onClick={onOpen} className="flex min-w-0 flex-1 flex-col gap-0.5 text-left">
+          <span className="flex items-baseline justify-between gap-3">
+            <span className="min-w-0 text-sm font-medium" style={{ color: "var(--text-primary)" }}>
+              {entry.title}
+            </span>
+            <span className="shrink-0 text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>
+              {formatShortDate(entry.happenedOn)}
+            </span>
           </span>
           {entry.body && (
-            <span className="line-clamp-2 text-xs leading-snug" style={{ color: "var(--text-secondary)" }}>
+            <span className="line-clamp-1 text-xs leading-snug" style={{ color: "var(--text-secondary)" }}>
               {entry.body}
             </span>
           )}
-          <CareEntryTags specialtyNames={specialtyNames} supplementName={supplementName} accent={accent} />
+          <span className="flex flex-wrap items-center gap-x-1.5 text-xs" style={{ color: "var(--text-muted)" }}>
+            <CareEntryTags specialtyNames={specialtyNames} supplementName={supplementName} accent={accent} />
+            {entry.remindOn && (
+              <span className="tabular-nums" style={{ color: accent }}>
+                {specialtyNames.length > 0 || supplementName ? "· " : ""}revisit {formatShortDate(entry.remindOn)}
+              </span>
+            )}
+          </span>
         </button>
 
         <div
