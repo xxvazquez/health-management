@@ -325,6 +325,7 @@ export default function NotesPage() {
         <NotesHeader
           onCompose={() => setComposeOpen(true)}
           onMarkAllRead={() => void demoMarkAllRead()}
+          hasUnread={demoThreads.some((t) => t.isUnreadForMe)}
           showActions={!selectedDemoThread}
         />
         <DemoNotice />
@@ -387,6 +388,7 @@ export default function NotesPage() {
       <NotesHeader
         onCompose={() => setComposeOpen(true)}
         onMarkAllRead={() => void handleMarkAllRead()}
+        hasUnread={threads.some((t) => t.isUnreadForMe)}
         showActions={!selectedThread}
       />
 
@@ -440,10 +442,13 @@ export default function NotesPage() {
 function NotesHeader({
   onCompose,
   onMarkAllRead,
+  hasUnread,
   showActions = true,
 }: {
   onCompose: () => void;
   onMarkAllRead: () => void;
+  /** "Mark all as read" only shows when something is unread, as in Mail. */
+  hasUnread: boolean;
   /** Off while a message is open — its own actions live in the message. */
   showActions?: boolean;
 }) {
@@ -452,6 +457,7 @@ function NotesHeader({
       actions={
         showActions && (
           <div className="flex shrink-0 items-center gap-2">
+            {hasUnread && (
             <button
               type="button"
               onClick={onMarkAllRead}
@@ -463,6 +469,7 @@ function NotesHeader({
               <CheckIcon size={16} />
               <span className="hidden sm:inline">Mark all as read</span>
             </button>
+            )}
             <PrimaryAction label="New message" accent={ACCENT} onClick={onCompose} />
           </div>
         )
