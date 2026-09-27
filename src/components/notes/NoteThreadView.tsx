@@ -237,7 +237,7 @@ export function NoteThreadView({
           maxRows={6}
           aria-label={`Reply to ${partnerLabel}`}
           placeholder={`Reply to ${partnerLabel}…`}
-          className="min-w-0 flex-1 resize-none bg-transparent px-2.5 py-2 text-sm leading-5 outline-none"
+          className="row-control min-w-0 flex-1 resize-none bg-transparent px-2.5 py-2 text-sm leading-5 outline-none"
           style={{ color: "var(--text-primary)" }}
         />
         <button

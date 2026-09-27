@@ -98,7 +98,7 @@ export function MarkerForm({
     <FormShell title={initial ? "Edit marker" : "New marker"} onSubmit={handleSubmit} onCancel={onCancel} submitLabel={initial ? "Done" : "Add"} submitDisabled={!canSave || saving} busy={saving} accent={accent}>
       <FormGroup>
         <Field label="Marker" plain>
-          <ComboBox bare value={name} onChange={setName} options={markerNameOptions} placeholder="Search or add a marker…" accent={accent} />
+          <ComboBox value={name} onChange={setName} options={markerNameOptions} placeholder="Search or add a marker…" accent={accent} />
         </Field>
         <Field label="Unit" inline>
           <input

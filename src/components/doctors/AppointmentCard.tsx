@@ -2,8 +2,8 @@
 
 import { useState, type FormEvent } from "react";
 import type { Doctor, DoctorAppointment, DoctorFollowUpTask, FollowUpTaskPatch, NewFollowUpTaskInput } from "@/lib/supabase/doctors";
-import { DoctorName, IconAction, LABEL_STYLE, PencilIcon, TrashIcon, formatDate } from "./shared";
-import { ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
+import { DoctorName, IconAction, PencilIcon, TrashIcon, formatDate } from "./shared";
+import { LABEL_STYLE, ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
 import { MarkdownContent } from "@/components/ui/Markdown";
 import { FollowUpTaskRow } from "./FollowUpTaskRow";
 

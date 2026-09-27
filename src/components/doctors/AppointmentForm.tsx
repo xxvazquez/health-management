@@ -128,7 +128,6 @@ export function AppointmentForm({
             </span>
           ) : (
             <ComboBox
-              bare
               value={doctorName}
               onChange={setDoctorName}
               options={doctors.map((d) => d.name)}
@@ -149,7 +148,7 @@ export function AppointmentForm({
       {isNewDoctor && (
         <FormGroup title="New doctor" footer="Saved for reuse.">
           <Field label="Specialty" plain>
-            <ComboBox bare value={specialty} onChange={setSpecialty} options={specialtyOptions} placeholder="Search or add a specialty…" accent={accent} />
+            <ComboBox value={specialty} onChange={setSpecialty} options={specialtyOptions} placeholder="Search or add a specialty…" accent={accent} />
           </Field>
           <Field label={<>Rating <span style={{ color: "var(--text-muted)" }}>· optional</span></>} plain className="gap-1.5">
             <RatingChips value={rating} onChange={setRating} accent={accent} />

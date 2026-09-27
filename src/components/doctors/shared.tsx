@@ -7,8 +7,7 @@ import { DOCTOR_LANGUAGES, DOCTOR_RATINGS, isBadDoctor, type DoctorLanguage } fr
 export { PencilIcon, TrashIcon } from "@/components/ui/Notebook";
 import { CalendarIcon, CloseIcon } from "@/components/ui/icons";
 import { DatePicker } from "@/components/ui/DatePicker";
-import { FIELD_CLS, FIELD_STYLE, LABEL_CLS, LABEL_STYLE, ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
-export { FIELD_CLS, FIELD_STYLE, LABEL_CLS, LABEL_STYLE };
+import { ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
 
 export function formatDateTime(iso: string): string {
   return new Date(iso).toLocaleString(undefined, { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
@@ -130,7 +129,6 @@ export function ComboBox({
   allowCreate = true,
   renderOption,
   accent,
-  bare = false,
 }: {
   value: string;
   onChange: (value: string) => void;
@@ -139,8 +137,6 @@ export function ComboBox({
   allowCreate?: boolean;
   renderOption?: (option: string) => ReactNode;
   accent: string;
-  /** Borderless, for a row inside a `FormGroup`. */
-  bare?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -183,8 +179,8 @@ export function ComboBox({
             commit(filtered.length === 1 ? filtered[0] : query.trim());
           }
         }}
-        className={bare ? ROW_TEXT_CLS : `${FIELD_CLS} w-full`}
-        style={bare ? ROW_STYLE : FIELD_STYLE}
+        className={ROW_TEXT_CLS}
+        style={ROW_STYLE}
       />
       {open && (filtered.length > 0 || showCreate) && (
         <ul
