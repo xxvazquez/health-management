@@ -103,37 +103,35 @@ export function SegmentedTabs<T extends string>({
         setEqualShare(false);
         return;
       }
-      // Not every item clears an equal share. Before falling back to
-      // natural-width segments — which visibly mismatches a short label
-      // like "Food" against a longer one like "Symptoms" — look for a
-      // smaller visible count whose own labels DO clear an equal share,
-      // with the trailing "More"/active-overflow segment as one of those
-      // equal shares too rather than a separately-sized leftover slot. An
-      // iOS segmented control keeps every segment the same width, folded
-      // one included, so there's never a stray gap next to it.
+      // Not every item fits. Two ways to fold the rest into "More": equal
+      // segments (the iOS look — the trailing segment an equal share too),
+      // or segments at their own label widths. Take whichever keeps more
+      // items visible, preferring equal segments on a tie — on a phone
+      // natural widths often show a third tab where equal ones show two.
+      let equalN = 0;
       for (let n = items.length - 1; n >= 1; n--) {
         const trailingWidth = trailingFor(n);
         const share = (avail - n * gap) / (n + 1);
         const maxVisibleWidth = Math.max(...widths.slice(0, n));
         if (share >= maxVisibleWidth + SLACK && share >= trailingWidth + SLACK) {
-          setVisibleCount(n);
-          setEqualShare(true);
-          return;
+          equalN = n;
+          break;
         }
       }
-      // Equal share doesn't work even at a single visible segment — fall
-      // back to packing segments at their own natural width instead — this
-      // can still fit every item (just unevenly sized) rather than
-      // actually needing to fold any into "More".
       let used = 0;
-      let n = 0;
+      let naturalN = 0;
       for (let i = 0; i < items.length - 1; i++) {
         used += widths[i] + SLACK + gap;
         const moreSlot = trailingFor(i + 1);
-        if (used + moreSlot <= avail) n = i + 1;
+        if (used + moreSlot <= avail) naturalN = i + 1;
       }
-      setVisibleCount(Math.max(1, n));
-      setEqualShare(false);
+      if (equalN >= naturalN && equalN > 0) {
+        setVisibleCount(equalN);
+        setEqualShare(true);
+      } else {
+        setVisibleCount(Math.max(1, naturalN));
+        setEqualShare(false);
+      }
     };
 
     compute();
