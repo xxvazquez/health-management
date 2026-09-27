@@ -466,7 +466,7 @@ function AgendaRow({
   // list. Bold red once overdue.
   const whenEl = e.when ? (
     <span
-      className="w-[4.25rem] shrink-0 pt-0.5 text-right text-xs leading-tight tabular-nums"
+      className="min-w-[4.25rem] shrink-0 pt-0.5 text-right text-xs leading-tight whitespace-nowrap tabular-nums"
       style={{ color: tone ?? "var(--text-muted)", fontWeight: overdue ? 600 : 500 }}
     >
       {e.when}
@@ -554,7 +554,7 @@ function AgendaRow({
     // Tapping the row opens it for editing, as in Reminders; its own
     // buttons (checkbox, checklist, swipe actions) keep their taps.
     <div
-      className={clsx("group flex items-start gap-3 border-t py-3 first:border-t-0", !readOnly && "cursor-pointer")}
+      className={clsx("group relative flex items-start gap-3 border-t py-3 first:border-t-0", !readOnly && "cursor-pointer")}
       style={{ borderColor: "var(--gridline)", touchAction: "pan-y" }}
       onTouchStart={readOnly ? undefined : onTouchStart}
       onTouchEnd={readOnly ? undefined : onTouchEnd}
@@ -600,7 +600,15 @@ function AgendaRow({
               </button>
             </span>
           ) : (
-            <div className={clsx("flex shrink-0 items-center gap-3 transition-opacity", revealed ? SWIPE_REVEAL_CLASS.shown : SWIPE_REVEAL_CLASS.hidden)}>
+            // On desktop the hover actions float over the row's right edge
+            // instead of keeping an empty gap beside the date.
+            <div
+              className={clsx(
+                "flex shrink-0 items-center gap-3 transition-opacity lg:absolute lg:inset-y-0 lg:right-0 lg:min-w-24 lg:justify-end lg:pl-3",
+                revealed ? SWIPE_REVEAL_CLASS.shown : SWIPE_REVEAL_CLASS.hidden,
+              )}
+              style={{ background: "var(--surface-1)" }}
+            >
               {done && (
                 <button type="button" onClick={onUncomplete} aria-label="Undo last done" className="p-1" style={{ color: "var(--text-muted)" }}>
                   <UndoIcon size={15} />

@@ -177,7 +177,8 @@ function expiryEntries(items: ExpirationItem[], scope: AgendaScope, today: strin
       scope,
       bucket,
       title: it.name,
-      subtitle: bucket === "overdue" ? "Expired" : bucket === "today" ? "Expires today" : "Expires",
+      // Only when it adds something: a later expiry's date already says it.
+      subtitle: bucket === "overdue" ? "Expired" : bucket === "today" ? "Expires today" : undefined,
       dueMs,
       when: timing(bucket, dueMs, false, today, Date.now()),
       expiry: it,
