@@ -3,6 +3,7 @@
 import { CHIP_CLS, chipStyle } from "@/components/ui/Chip";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import clsx from "clsx";
+import Link from "next/link";
 import { useSwipeReveal, SWIPE_REVEAL_CLASS } from "@/lib/useSwipeReveal";
 import { TruncatedTooltip } from "@/components/ui/TruncatedTooltip";
 import { PencilIcon, TrashIcon } from "@/components/ui/Notebook";
@@ -378,7 +379,7 @@ function CategoryDetail({
 }) {
   return (
     <div className="flex flex-col gap-3">
-      <button type="button" onClick={onBack} className="flex items-center gap-1 self-start text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+      <button type="button" onClick={onBack} className="hit-slop flex min-h-9 items-center gap-1 self-start text-sm font-medium" style={{ color: "var(--ui-accent)" }}>
         <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <path d="M12.5 5 7.5 10 12.5 15" />
         </svg>
@@ -390,15 +391,16 @@ function CategoryDetail({
         <h2 className="min-w-0 flex-1 text-base font-semibold" style={{ color: "var(--text-primary)" }}>
           <TruncatedTooltip text={category.name} />
         </h2>
-        <Button href="/manage" variant="tinted" size="xs" accent={accent} className="shrink-0">
-          Edit in Settings
-        </Button>
+        <Link href="/manage" className="hit-slop shrink-0 text-sm font-medium" style={{ color: accent }}>
+          Edit
+        </Link>
+        <PrimaryAction label="Add link" accent={accent} onClick={onAddItem} />
       </div>
 
       <div className="flex flex-col rounded-xl border px-3" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
         {category.items.length === 0 ? (
           <p className="py-4 text-sm" style={{ color: "var(--text-muted)" }}>
-            Nothing here yet — add the first link below.
+            Nothing here yet — add the first link.
           </p>
         ) : (
           category.items.map((item) => (
@@ -414,9 +416,6 @@ function CategoryDetail({
         )}
       </div>
 
-      <Button type="button" onClick={onAddItem} accent={accent} className="self-start transition-opacity hover:opacity-90">
-        + Add link
-      </Button>
     </div>
   );
 }
@@ -511,7 +510,7 @@ function PhoneSetup({ share, accent, onBack }: { share: WishlistShareToPhone; ac
 
   return (
     <div className="flex flex-col gap-4">
-      <button type="button" onClick={onBack} className="flex items-center gap-1 self-start text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+      <button type="button" onClick={onBack} className="hit-slop flex min-h-9 items-center gap-1 self-start text-sm font-medium" style={{ color: "var(--ui-accent)" }}>
         <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <path d="M12.5 5 7.5 10 12.5 15" />
         </svg>
