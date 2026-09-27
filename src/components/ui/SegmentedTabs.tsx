@@ -60,8 +60,9 @@ export function SegmentedTabs<T extends string>({
   // resize. Starts at the full set so a wide layout never flashes collapsed.
   useEffect(() => {
     const root = rootRef.current;
+    const track = trackRef.current;
     const measure = measureRef.current;
-    if (!root || !measure) return;
+    if (!root || !track || !measure) return;
 
     const compute = () => {
       const samples = Array.from(measure.children) as HTMLElement[];
@@ -75,7 +76,9 @@ export function SegmentedTabs<T extends string>({
       // from the menu can't push the bar past the edge.
       const activeIndex = items.findIndex((t) => t.id === activeId);
       const trailingFor = (n: number) => (activeIndex >= n ? Math.max(morePlaceholderW, withChevronWidths[activeIndex] ?? 0) : morePlaceholderW);
-      const avail = root.clientWidth - 4; // track padding
+      // The track, not the root: a caller can pad the root (Trends' sticky
+      // bar does), and that padding isn't room for segments.
+      const avail = track.clientWidth - 4; // track padding
       // A few px of slack on every reservation below — the hidden measuring
       // copies and the real flex-laid-out segments can land a couple of
       // pixels apart (subpixel flex rounding, a font metric not fully
@@ -160,7 +163,9 @@ export function SegmentedTabs<T extends string>({
   useLayoutEffect(() => {
     const track = trackRef.current;
     if (!track || visibleCount <= 1) return;
-    const spills = Array.from(track.children).some((el) => el.scrollWidth > el.clientWidth + 1);
+    // The trailing segment's label sits in its own truncating span.
+    const clipped = (el: Element | null) => !!el && el.scrollWidth > el.clientWidth + 1;
+    const spills = Array.from(track.children).some((el) => clipped(el) || clipped(el.querySelector("span")));
     if (spills) {
       setVisibleCount((n) => Math.min(n, visibleCount - 1));
       setEqualShare(true);
