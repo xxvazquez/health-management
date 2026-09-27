@@ -10,6 +10,7 @@ import { SearchField } from "@/components/ui/SearchField";
 import { ListSkeleton } from "@/components/ui/Skeleton";
 import { ErrorState, InlineEmpty } from "@/components/ui/EmptyState";
 import { PrimaryAction } from "@/components/ui/PrimaryAction";
+import { AddMenu } from "@/components/ui/AddMenu";
 import { Button } from "@/components/ui/Button";
 import { FormShell } from "@/components/ui/FormShell";
 import { Field } from "@/components/ui/Field";
@@ -59,14 +60,15 @@ export interface WishlistPeople {
 }
 
 /** iOS-list-app flourish: the list's icon in its colour, carried in a soft
- * rounded square, so a wall of categories reads at a glance. */
+ * rounded square, so a wall of categories reads at a glance. A list with
+ * no icon chosen shows a shopping bag rather than an empty square. */
 function CategoryGlyph({ accent, icon = null, size = 34 }: { accent: string; icon?: string | null; size?: number }) {
   return (
     <span
       className="flex shrink-0 items-center justify-center rounded-[9px]"
       style={{ width: size, height: size, background: `color-mix(in oklab, ${accent} 16%, var(--surface-1))`, color: accent }}
     >
-      <CustomIcon icon={icon} size={Math.round(size * 0.5)} />
+      <CustomIcon icon={icon ?? "bag"} size={Math.round(size * 0.5)} />
     </span>
   );
 }
@@ -779,20 +781,8 @@ export function WishlistBoard({
   return (
     <div className="flex flex-col gap-3">
       {itemSheet}
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <SearchField value={search} onChange={setSearch} placeholder="Search wishlist…" />
-          {shareToPhone && (
-            <button
-              type="button"
-              onClick={() => setView({ mode: "phone" })}
-              className={`${CHIP_CLS} shrink-0`}
-              style={chipStyle(false)}
-              title="Set up sharing links from your phone into Lauva"
-            >
-              Add from phone
-            </button>
-          )}
+      <div className="flex items-center gap-2">
+          <SearchField value={search} onChange={setSearch} placeholder="Search wishlist…" className="min-w-0 flex-1" />
           {onRefresh && (
             <button
               type="button"
@@ -820,8 +810,17 @@ export function WishlistBoard({
               </svg>
             </button>
           )}
-        </div>
-        <PrimaryAction label="New item" accent={accent} onClick={() => setView({ mode: "item", returnTo: "list" })} />
+        {shareToPhone ? (
+          <AddMenu
+            accent={accent}
+            options={[
+              { label: "New item", onClick: () => setView({ mode: "item", returnTo: "list" }) },
+              { label: "Add from your phone…", onClick: () => setView({ mode: "phone" }) },
+            ]}
+          />
+        ) : (
+          <PrimaryAction label="New item" accent={accent} onClick={() => setView({ mode: "item", returnTo: "list" })} />
+        )}
       </div>
 
       {loading ? (
