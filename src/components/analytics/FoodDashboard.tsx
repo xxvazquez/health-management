@@ -700,7 +700,7 @@ function FavoriteCombosByMeal({ combos, mealInstanceCount }: { combos: MealCombo
     <Card tier="raw">
       <CardTitle
         size="sm"
-        subtitle="The exact sets of ingredients logged together most often in the same meal."
+        subtitle="Ingredients you most often have together in the same meal — anything else in that meal doesn't matter."
       >
         Favorite combinations by meal
       </CardTitle>
@@ -714,40 +714,33 @@ function FavoriteCombosByMeal({ combos, mealInstanceCount }: { combos: MealCombo
           No combination of 2 or more ingredients has repeated together often enough yet in any meal.
         </p>
       ) : (
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-x-8 gap-y-5 sm:grid-cols-2 lg:grid-cols-4">
           {orderedTags.map((mealTag) => {
             const mealCombos = combos.filter((c) => c.mealTag === mealTag).slice(0, 5);
-            const maxCount = Math.max(...mealCombos.map((c) => c.count), 1);
             return (
-              <div key={mealTag}>
-                <p className="mb-2.5 text-xs font-semibold" style={{ color: "var(--text-secondary)" }}>
+              <section key={mealTag} className="flex min-w-0 flex-col gap-1">
+                <h3 className="text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
                   {mealTag}
-                </p>
+                </h3>
                 {mealCombos.length === 0 ? (
-                  <p className="text-xs" style={{ color: "var(--text-muted)" }}>No repeated combination yet.</p>
+                  <p className="py-2 text-sm" style={{ color: "var(--text-muted)" }}>
+                    No repeated combination yet.
+                  </p>
                 ) : (
-                  <ul className="flex flex-col gap-3">
+                  <ul className="inset-rows">
                     {mealCombos.map((c) => (
-                      <li key={c.items.join("+")}>
-                        <div className="flex items-baseline justify-between gap-2">
-                          <span className="text-sm" style={{ color: "var(--text-primary)" }}>
-                            {c.items.join(" + ")}
-                          </span>
-                          <span className="shrink-0 tabular-nums text-xs whitespace-nowrap" style={{ color: "var(--text-muted)" }}>
-                            {c.count}×
-                          </span>
-                        </div>
-                        <div className="mt-1.5 h-1.5 w-full rounded-full" style={{ background: "var(--gridline)" }}>
-                          <div
-                            className="h-1.5 rounded-full"
-                            style={{ width: `${Math.max(6, Math.round((c.count / maxCount) * 100))}%`, background: TYPE_ACCENT.food }}
-                          />
-                        </div>
+                      <li key={c.items.join("+")} className="flex min-h-11 items-center justify-between gap-4 py-2">
+                        <span className="text-sm leading-snug" style={{ color: "var(--text-primary)" }}>
+                          {c.items.join(" + ")}
+                        </span>
+                        <span className="shrink-0 text-sm tabular-nums" style={{ color: "var(--text-muted)" }}>
+                          {c.count}×
+                        </span>
                       </li>
                     ))}
                   </ul>
                 )}
-              </div>
+              </section>
             );
           })}
         </div>
@@ -840,7 +833,7 @@ const MEAL_HUE: Record<string, string> = {
 const MEAL_TINT_STEP = [7, 13, 21, 31];
 const mealTintStep = (n: number) => (n <= 3 ? 0 : n <= 7 ? 1 : n <= 10 ? 2 : 3);
 
-const MEAL_GRID = "80px repeat(4, minmax(0, 1fr)) 30px";
+const MEAL_GRID = "minmax(5rem, 7rem) repeat(4, minmax(0, 1fr)) 2.5rem";
 
 function MealHeatCell({ count, meal }: { count: number; meal: string }) {
   if (count === 0) return <span />;
@@ -882,18 +875,29 @@ function MealTypePatternsSection({
         </p>
       ) : (
         <div className="overflow-x-auto">
-          <div className="min-w-[19rem] max-w-[27rem]">
+          <div className="min-w-[19rem] max-w-[40rem]">
+            {/* On a phone the columns are too narrow for the meal names, so
+                the header shows each meal's colour and this line names them. */}
+            <p className="mb-2 flex flex-wrap gap-x-3 gap-y-1 text-xs sm:hidden" style={{ color: "var(--text-secondary)" }}>
+              {MEAL_TAG_ORDER.map((m) => (
+                <span key={m} className="inline-flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-full" style={{ background: MEAL_HUE[m] ?? "var(--series-slate)" }} aria-hidden="true" />
+                  {m}
+                </span>
+              ))}
+            </p>
             <div
               className="grid items-end border-b pb-1.5 text-xs"
               style={{ gridTemplateColumns: MEAL_GRID, borderColor: "var(--gridline)", color: "var(--text-muted)" }}
             >
               <span />
               {MEAL_TAG_ORDER.map((m) => (
-                <span key={m} className="text-center">
-                  {m.slice(0, 3)}
+                <span key={m} className="flex justify-center">
+                  <span className="h-2 w-2 rounded-full sm:hidden" style={{ background: MEAL_HUE[m] ?? "var(--series-slate)" }} aria-hidden="true" />
+                  <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">{m}</span>
                 </span>
               ))}
-              <span className="text-right">Tot</span>
+              <span className="text-right">Total</span>
             </div>
             {matrix.map((r, i) => (
               <div
