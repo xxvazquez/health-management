@@ -7,55 +7,74 @@ import { DoctorName, formatDate } from "./shared";
 import { AppointmentList } from "./AppointmentList";
 import { DetailPlaceholder, MedicalSplit, useIsDesktop } from "./MedicalSplit";
 import { InlineEmpty } from "@/components/ui/EmptyState";
-import { Button } from "@/components/ui/Button";
+import Link from "next/link";
+import { ChevronIcon } from "@/components/ui/icons";
 
 type DoctorsApi = ReturnType<typeof useDoctors>;
 
 /** Read-only view of one doctor — the name/rating/language/specialty are
- * all edited from Settings now (one place for everything editable); this
- * tab shows the doctor and their visit history. */
+ * all edited from Settings (one place for everything editable), which the
+ * Edit link opens; this tab shows the doctor, their notes and visits. */
 function DoctorHistory({ api, doctor, accent, onBack }: { api: DoctorsApi; doctor: Doctor; accent: string; onBack?: () => void }) {
   const { appointments, specialties } = api;
   const theirAppointments = appointments.data.filter((a) => a.doctorId === doctor.id);
   const nextAppt = specialties.data.find((s) => s.name.toLowerCase() === doctor.specialty.toLowerCase())?.nextAppointmentDate ?? null;
 
+  const editLink = (
+    <Link href="/manage" className="hit-slop text-sm font-medium" style={{ color: accent }}>
+      Edit
+    </Link>
+  );
+
   return (
     <div className="flex flex-col gap-4">
       {onBack && (
-        <button type="button" onClick={onBack} className="self-start text-xs font-medium" style={{ color: "var(--text-muted)" }}>
-          ← All doctors
-        </button>
+        <div className="flex min-h-11 items-center justify-between gap-3">
+          <button type="button" onClick={onBack} className="-ml-1 flex min-h-11 items-center gap-0.5 text-sm font-medium" style={{ color: accent }}>
+            <ChevronIcon dir="left" size={16} />
+            Doctors
+          </button>
+          {editLink}
+        </div>
       )}
 
-      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 border-b pb-3" style={{ borderColor: "var(--gridline)" }}>
-        <p className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-          <DoctorName name={doctor.name} rating={doctor.rating} className="text-sm" />
-          <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-            {[
-              doctor.specialty || "No specialty",
-              doctor.rating != null ? `rated ${doctor.rating}/3` : null,
-              doctor.language,
-              `next visit ${nextAppt ? formatDate(nextAppt) : "not set"}`,
-            ]
-              .filter(Boolean)
-              .join(" · ")}
-          </span>
+      <div className="flex flex-col gap-0.5">
+        <h2 className="flex items-baseline justify-between gap-3 text-base font-semibold">
+          <DoctorName name={doctor.name} rating={doctor.rating} weight="font-semibold" />
+          {!onBack && editLink}
+        </h2>
+        <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
+          {[doctor.specialty || "No specialty", doctor.rating != null ? `rated ${doctor.rating}/3` : null, doctor.language]
+            .filter(Boolean)
+            .join(" · ")}
         </p>
-        <Button href="/manage" variant="tinted" size="xs" accent={accent} className="shrink-0">
-          Edit in Settings
-        </Button>
+        {nextAppt && (
+          <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
+            Next visit {formatDate(nextAppt)}
+          </p>
+        )}
       </div>
 
       {doctor.notes && (
-        <p className="text-sm whitespace-pre-wrap [overflow-wrap:anywhere]" style={{ color: "var(--text-secondary)" }}>
-          {doctor.notes}
-        </p>
+        <section className="flex flex-col gap-1.5">
+          <h3 className="px-4 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
+            Notes
+          </h3>
+          <p
+            className="rounded-xl border px-3.5 py-3 text-sm whitespace-pre-wrap [overflow-wrap:anywhere]"
+            style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
+          >
+            {doctor.notes}
+          </p>
+        </section>
       )}
 
-      <h3 className="text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
-        Appointments ({theirAppointments.length})
-      </h3>
-      <AppointmentList api={api} appointments={theirAppointments} accent={accent} showDoctor={false} emptyMessage={`No appointments with ${doctor.name} yet.`} />
+      <section className="flex flex-col gap-1.5">
+        <h3 className="px-4 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
+          Appointments
+        </h3>
+        <AppointmentList api={api} appointments={theirAppointments} accent={accent} showDoctor={false} emptyMessage={`No appointments with ${doctor.name} yet.`} />
+      </section>
     </div>
   );
 }
