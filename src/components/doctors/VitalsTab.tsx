@@ -40,6 +40,7 @@ const BP_LEGEND_LINES = [
   { label: "Diastolic", color: "var(--series-2)" },
 ];
 const BP_LEGEND_ZONES = [
+  { label: "Low (under 90/60)", color: "var(--series-6)" },
   { label: "Elevated", color: "var(--series-3)" },
   { label: "Stage 1", color: "var(--status-warning)" },
   { label: "Stage 2", color: "var(--status-critical)" },
@@ -432,7 +433,7 @@ export function VitalsTab({ accent, composing, setComposing }: { accent: string;
                       </span>
                     ))}
                   </span>
-                  <span className="flex items-center gap-4">
+                  <span className="flex flex-wrap items-center gap-x-4 gap-y-2">
                     {BP_LEGEND_ZONES.map((z) => (
                       <span key={z.label} className="inline-flex items-center gap-1.5">
                         <span className="h-2.5 w-2.5 rounded-[3px]" style={{ background: `color-mix(in srgb, ${z.color} 22%, transparent)` }} aria-hidden="true" />

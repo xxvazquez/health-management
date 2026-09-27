@@ -17,6 +17,7 @@ export function buildDemoBloodPressure(): BloodPressureReading[] {
     [28, 131, 84, 72, "After starting to walk daily."],
     [21, 129, 82, 68, null],
     [14, 126, 80, 71, null],
+    [10, 89, 58, 64, "Light-headed after standing up quickly."],
     [7, 124, 79, 69, "Feeling less tense this week."],
     [1, 122, 78, 70, null],
   ];

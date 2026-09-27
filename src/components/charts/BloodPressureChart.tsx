@@ -12,6 +12,24 @@ import {
   YAxis,
 } from "recharts";
 import { DAY, toMs, tooltipDate, windowAxis } from "./timeAxis";
+import { BP_LOW_DIASTOLIC, BP_LOW_SYSTOLIC } from "@/lib/aggregations/vitals";
+
+const LOW = "var(--series-6)";
+
+/** A reading's dot — enlarged and ringed in the low colour when that value
+ * is under its low threshold, so low readings stand out on the line. */
+function lowDot(color: string, threshold: number) {
+  function Dot({ cx, cy, value, index }: { cx?: number; cy?: number; value?: number; index?: number }) {
+    if (cx == null || cy == null) return <g key={index} />;
+    const low = value != null && value < threshold;
+    return low ? (
+      <circle key={index} cx={cx} cy={cy} r={4} fill={LOW} stroke="var(--surface-1)" strokeWidth={1.5} />
+    ) : (
+      <circle key={index} cx={cx} cy={cy} r={2.2} fill={color} />
+    );
+  }
+  return Dot;
+}
 
 export interface BloodPressurePoint {
   /** ISO timestamp. */
@@ -22,9 +40,11 @@ export interface BloodPressurePoint {
   note?: string | null;
 }
 
-/** Systolic and diastolic over time, with the ACC/AHA systolic category
- * zones shaded (elevated 120–129, stage 1 130–139, stage 2 140+) and the
- * diastolic stage lines at 80 and 90. Reference only, not a diagnosis.
+/** Systolic and diastolic over time. Low blood pressure is marked most
+ * clearly: a shaded zone under diastolic 60, a dashed line at systolic 90,
+ * and enlarged dots on any reading under either. The ACC/AHA systolic zones
+ * are shaded faintly above (elevated 120–129, stage 1 130–139, stage 2
+ * 140+). Reference only, not a diagnosis.
  * `windowStart` / `windowEnd` pin the x-axis to the selected window so it
  * shows every month (or year) in it even when readings are sparse. */
 export function BloodPressureChart({
@@ -45,7 +65,7 @@ export function BloodPressureChart({
   const sys = rows.map((d) => d.systolic);
   const dia = rows.map((d) => d.diastolic);
   const top = Math.max(...sys, 145) + 8;
-  const bottom = Math.min(...dia, 70) - 6;
+  const bottom = Math.min(...dia, BP_LOW_DIASTOLIC - 4) - 4;
 
   const dataMin = rows.length ? rows[0].t : 0;
   const dataMax = rows.length ? rows[rows.length - 1].t : 0;
@@ -63,8 +83,8 @@ export function BloodPressureChart({
         <ReferenceArea y1={120} y2={130} fill="var(--series-3)" fillOpacity={0.08} strokeOpacity={0} />
         <ReferenceArea y1={130} y2={140} fill="var(--status-warning)" fillOpacity={0.08} strokeOpacity={0} />
         <ReferenceArea y1={140} y2={top} fill="var(--status-critical)" fillOpacity={0.08} strokeOpacity={0} />
-        <ReferenceLine y={80} stroke="var(--status-warning)" strokeDasharray="3 3" strokeOpacity={0.5} />
-        <ReferenceLine y={90} stroke="var(--status-critical)" strokeDasharray="3 3" strokeOpacity={0.5} />
+        <ReferenceArea y1={Math.floor(bottom)} y2={BP_LOW_DIASTOLIC} fill={LOW} fillOpacity={0.18} strokeOpacity={0} />
+        <ReferenceLine y={BP_LOW_SYSTOLIC} stroke={LOW} strokeDasharray="4 3" strokeOpacity={0.8} />
         <CartesianGrid vertical={false} stroke="var(--gridline)" />
         <XAxis
           type="number"
@@ -108,7 +128,7 @@ export function BloodPressureChart({
           dataKey="systolic"
           stroke="var(--series-magenta)"
           strokeWidth={1.8}
-          dot={{ r: 2.2, fill: "var(--series-magenta)", strokeWidth: 0 }}
+          dot={lowDot("var(--series-magenta)", BP_LOW_SYSTOLIC)}
           activeDot={{ r: 4, strokeWidth: 0 }}
           isAnimationActive={false}
         />
@@ -117,7 +137,7 @@ export function BloodPressureChart({
           dataKey="diastolic"
           stroke="var(--series-2)"
           strokeWidth={1.8}
-          dot={{ r: 2.2, fill: "var(--series-2)", strokeWidth: 0 }}
+          dot={lowDot("var(--series-2)", BP_LOW_DIASTOLIC)}
           activeDot={{ r: 4, strokeWidth: 0 }}
           isAnimationActive={false}
         />

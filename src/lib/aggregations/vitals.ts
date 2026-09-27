@@ -1,7 +1,7 @@
 /** Blood-pressure classification and small vitals helpers — pure, shared
  * by the Health → Vitals tab and the Results tab's overview. */
 
-type BpCategory = "normal" | "elevated" | "stage1" | "stage2" | "crisis";
+type BpCategory = "low" | "normal" | "elevated" | "stage1" | "stage2" | "crisis";
 
 export interface BpCategoryInfo {
   id: BpCategory;
@@ -10,7 +10,12 @@ export interface BpCategoryInfo {
   color: string;
 }
 
+/** Low blood pressure: systolic under 90 or diastolic under 60 mmHg. */
+export const BP_LOW_SYSTOLIC = 90;
+export const BP_LOW_DIASTOLIC = 60;
+
 const CATEGORY_INFO: Record<BpCategory, BpCategoryInfo> = {
+  low: { id: "low", label: "Low", color: "var(--series-6)" },
   normal: { id: "normal", label: "Normal", color: "var(--status-good)" },
   elevated: { id: "elevated", label: "Elevated", color: "var(--series-3)" },
   stage1: { id: "stage1", label: "Stage 1", color: "var(--status-warning)" },
@@ -18,13 +23,15 @@ const CATEGORY_INFO: Record<BpCategory, BpCategoryInfo> = {
   crisis: { id: "crisis", label: "Crisis", color: "var(--status-serious)" },
 };
 
-/** ACC/AHA 2017 categories. A reading takes the higher of what its
- * systolic and diastolic each imply. Shown for reference, not as a
- * diagnosis. */
+/** ACC/AHA 2017 categories, plus "Low" (under 90/60). A reading takes the
+ * higher of what its systolic and diastolic each imply; a low reading that
+ * isn't Stage 1 or worse counts as Low rather than Elevated. Shown for
+ * reference, not as a diagnosis. */
 export function bpCategory(systolic: number, diastolic: number): BpCategoryInfo {
   if (systolic > 180 || diastolic > 120) return CATEGORY_INFO.crisis;
   if (systolic >= 140 || diastolic >= 90) return CATEGORY_INFO.stage2;
   if (systolic >= 130 || diastolic >= 80) return CATEGORY_INFO.stage1;
+  if (systolic < BP_LOW_SYSTOLIC || diastolic < BP_LOW_DIASTOLIC) return CATEGORY_INFO.low;
   if (systolic >= 120) return CATEGORY_INFO.elevated;
   return CATEGORY_INFO.normal;
 }

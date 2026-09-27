@@ -530,7 +530,8 @@ row is one `kg` value with a `note`. Two purpose-named tables rather than a gene
 `vitals(kind, value)` — they read differently and are never queried together.
 Owner-only, direct-to-Supabase, same class as `care_entries` / `lab_*`. The
 Vitals tab classifies each blood-pressure reading with the ACC/AHA 2017
-categories (Normal / Elevated / Stage 1 / Stage 2), shown for reference only.
+categories (Normal / Elevated / Stage 1 / Stage 2) plus Low (under 90/60), shown
+for reference only; the chart marks low readings most prominently.
 `weight_target` is one optional goal range per user (`user_id` primary key —
 the client upserts on it, deletes by it) with `low_kg` / `high_kg`; it shades
 a band on the weight chart, nothing more. It is set and cleared from the
