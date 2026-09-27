@@ -224,7 +224,7 @@ export default function HelpPage() {
     <div className="flex flex-col gap-6">
       <PageHeading>Help</PageHeading>
 
-      <SearchField value={query} onChange={setQuery} placeholder="Search help…" className="w-full sm:w-72" />
+      <SearchField value={query} onChange={setQuery} placeholder="Search help…" className="w-full" />
 
       {matches !== null ? (
         matches.length === 0 ? (
