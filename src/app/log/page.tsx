@@ -1582,12 +1582,6 @@ export default function LogPage() {
   //     (accent tick + tint + left bar). Sleep gets range buckets on its
   //     row, supplements a dose count, a present symptom a 1/2/3 selector.
 
-  /** Cell look for a tracked item: white and hairline-bordered at rest, tinted
-   * in the tab's accent once logged — the same cell Food's grid uses. */
-  function trackCellStyle(active: boolean, accent: string) {
-    return chipStyle(active, accent);
-  }
-
   /** The intensity to show for a symptom right now — the optimistic target
    * while taps are still settling, otherwise whatever's actually logged. */
   function symptomDisplayValue(identity: string): number | null {
@@ -1658,9 +1652,8 @@ export default function LogPage() {
 
   /** A "roughly how much" measure (Sleep) — lives in its own Measures
    * section rather than mixed into the tap-to-log category cards. Name on
-   * the left, a compact segmented control on the right: full-width on
-   * mobile, natural width on desktop. One tap sets it; tapping the active
-   * band clears it. */
+   * top, its bands as one full-width segmented control under it. One tap
+   * sets it; tapping the active band clears it. */
   function renderMeasureRow(c: LogCandidate, accent: string) {
     if (INPUT_KIND[c.item] === "duration") return renderDurationRow(c, accent);
     const current = durationValueForDate.get(c.itemIdentity);
@@ -1672,7 +1665,7 @@ export default function LogPage() {
         <span className="text-sm" style={{ color: "var(--text-primary)" }}>
           {c.item}
         </span>
-        <div className="flex gap-1.5">
+        <div className="flex rounded-[10px] p-0.5" style={{ background: "var(--segment-track)", boxShadow: "inset 0 0 0 0.5px var(--border-hairline)" }}>
           {bands.map((o) => {
             const isActive = active === o.value;
             return (
@@ -1682,8 +1675,8 @@ export default function LogPage() {
                 disabled={busy}
                 onClick={() => void handleSetBand(c, o.value, isActive)}
                 aria-pressed={isActive}
-                className="min-h-10 flex-1 rounded-[10px] border px-2 text-center text-sm transition-colors disabled:opacity-50"
-                style={trackCellStyle(isActive, accent)}
+                className={`min-h-9 flex-1 rounded-lg px-1 text-center text-sm whitespace-nowrap tabular-nums transition-colors disabled:opacity-50 ${isActive ? "control-surface font-medium" : ""}`}
+                style={{ color: isActive ? accent : "var(--text-secondary)" }}
               >
                 {o.label}
               </button>
@@ -2591,7 +2584,7 @@ export default function LogPage() {
                     className="flex min-h-11 w-full items-center gap-2.5 px-3.5 text-left"
                   >
                     <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: TYPE_ACCENT.food }} aria-hidden="true" />
-                    <span className="w-11 shrink-0 font-mono text-xs" style={{ color: "var(--text-muted)" }}>
+                    <span className="w-11 shrink-0 text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>
                       {latest.time}
                     </span>
                     <span className="min-w-0 flex-1 truncate text-sm" style={{ color: "var(--text-primary)" }}>
@@ -2629,7 +2622,7 @@ export default function LogPage() {
                   style={{ opacity: pending === entry.key ? 0.5 : 1 }}
                 >
                   <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: accent }} aria-hidden="true" />
-                  <span className="w-11 shrink-0 font-mono text-xs" style={{ color: "var(--text-muted)" }}>
+                  <span className="w-11 shrink-0 text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>
                     {entry.time}
                   </span>
                   <span className="min-w-0 flex-1 truncate text-sm" style={{ color: "var(--text-primary)" }}>
@@ -2671,7 +2664,7 @@ export default function LogPage() {
                 style={{ opacity: pending === entry.key ? 0.5 : 1 }}
               >
                 {!mealSheetSharedTime && (
-                  <span className="w-11 shrink-0 font-mono text-xs" style={{ color: "var(--text-muted)" }}>
+                  <span className="w-11 shrink-0 text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>
                     {entry.time}
                   </span>
                 )}
@@ -2709,7 +2702,7 @@ export default function LogPage() {
                       Time
                     </span>
                     {isDemoData ? (
-                      <span className="font-mono text-sm" style={{ color: "var(--text-muted)" }}>
+                      <span className="text-sm tabular-nums" style={{ color: "var(--text-muted)" }}>
                         {entry.time}
                       </span>
                     ) : (
