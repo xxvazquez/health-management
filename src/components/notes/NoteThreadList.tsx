@@ -35,6 +35,13 @@ function formatNoteTimestampShort(iso: string): string {
   return d.toLocaleDateString(undefined, { day: "2-digit", month: "2-digit", year: "2-digit" });
 }
 
+/** "Read" stamp for Sent: today → time, otherwise the short day plus time. */
+function formatReadAt(iso: string): string {
+  const time = new Date(iso).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+  const day = formatNoteTimestampShort(iso);
+  return day === time ? time : `${day} ${time}`;
+}
+
 const VIEW_EMPTY_COPY: Record<NoteView, { title: string; description: string }> = {
   inbox: { title: "Nothing in your inbox", description: "Messages your partner sends you will show up here." },
   sent: { title: "Nothing sent yet", description: "Tap New message to send your partner something." },
@@ -130,30 +137,39 @@ export function NoteThreadList({
   }
 
   return (
-    <div className="inset-rows rounded-xl border [--row-inset:2rem]" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
+    <div className="inset-rows rounded-xl border [--row-inset:1.5rem]" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
       {threads.map((t) => {
         const busy = busyId === t.id;
-        // Sent rows also bold while your partner hasn't read the message
-        // yet — separate signal from `isUnreadForMe` (a reply you haven't
-        // opened), so a still-unseen sent note stays bold even once you've
-        // reread it yourself.
-        const bold = t.isUnreadForMe || (view === "sent" && !t.isSeenByPartner);
+        // On Sent the dot also means "your partner hasn't opened it yet" —
+        // separate from `isUnreadForMe` (a reply you haven't opened), so a
+        // still-unseen note stays flagged even once you've reread it.
+        const sent = view === "sent";
+        const flagged = t.isUnreadForMe || (sent && !t.isSeenByPartner);
+        const sentStatus = !sent
+          ? null
+          : t.isUnreadForMe
+            ? "New reply"
+            : !t.isSeenByPartner
+              ? "Not read yet"
+              : t.partnerReadAt
+                ? `Read ${formatReadAt(t.partnerReadAt)}`
+                : null;
         return (
           <div
             key={t.id}
-            className="flex items-start gap-1 pr-1 pl-3.5 transition-colors hover:bg-black/[0.03]"
+            className="flex items-start gap-1 pr-1 pl-2.5 transition-colors hover:bg-black/[0.03]"
           >
             <button
               type="button"
               onClick={() => onOpen(t.id)}
-              className="flex min-w-0 flex-1 items-start gap-2 py-2.5 text-left"
+              className="flex min-w-0 flex-1 items-start gap-1.5 py-2.5 text-left"
             >
               <span className="mt-1.5 flex h-2 w-2 shrink-0 items-center justify-center">
-                {t.isUnreadForMe && <span className="h-2 w-2 rounded-full" style={{ background: ACCENT }} aria-hidden="true" />}
+                {flagged && <span className="h-2 w-2 rounded-full" style={{ background: ACCENT }} aria-hidden="true" />}
               </span>
               <span className="min-w-0 flex-1">
                 <span className="flex items-center gap-1.5">
-                  <span className="min-w-0 flex-1 truncate text-sm" style={{ fontWeight: bold ? 600 : 500, color: "var(--text-primary)" }}>
+                  <span className="min-w-0 flex-1 truncate text-sm" style={{ fontWeight: flagged ? 600 : 500, color: "var(--text-primary)" }}>
                     {t.subject || t.body.slice(0, 60)}
                   </span>
                   <span className="shrink-0 text-xs whitespace-nowrap tabular-nums" style={{ color: "var(--text-muted)" }}>
@@ -168,7 +184,13 @@ export function NoteThreadList({
                     <CategoryIcon category={t.category} size={11} />
                     {NOTE_CATEGORY_LABEL[t.category]}
                   </span>
-                  <span className="truncate">{t.isMine ? `To ${partnerLabel}` : `From ${partnerLabel}`}</span>
+                  {sentStatus ? (
+                    <span className="truncate" style={{ color: flagged ? ACCENT : undefined }}>
+                      {sentStatus}
+                    </span>
+                  ) : (
+                    <span className="truncate">{t.isMine ? `To ${partnerLabel}` : `From ${partnerLabel}`}</span>
+                  )}
                 </span>
               </span>
             </button>
@@ -182,7 +204,7 @@ export function NoteThreadList({
               >
                 <StarIcon filled={t.isFavouritedByMe} size={14} />
               </RowAction>
-              {t.isUnreadForMe ? (
+              {sent ? null : t.isUnreadForMe ? (
                 <RowAction onClick={() => void run(t.id, () => onMarkRead(t.id, t.isMine))} label="Mark as read" disabled={busy}>
                   <EyeIcon size={15} />
                 </RowAction>

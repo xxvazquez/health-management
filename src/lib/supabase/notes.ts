@@ -46,8 +46,10 @@ export interface NoteThread {
   lastMessageAt: string;
   isUnreadForMe: boolean;
   /** Has the other side read up to the thread's latest message yet — what
-   * Sent uses to bold a message your partner hasn't opened. */
+   * Sent uses to flag a message your partner hasn't opened. */
   isSeenByPartner: boolean;
+  /** When the other side last opened the thread — Sent's "Read …" stamp. */
+  partnerReadAt: string | null;
   /** Shared between both partners — either can star or unstar a thread and
    * it shows under Favourites for both. (Archive stays per-side.) */
   isFavouritedByMe: boolean;
@@ -127,6 +129,7 @@ function toThread(row: NoteRow, myUserId: string): NoteThread {
     lastMessageAt: row.last_message_at,
     isUnreadForMe: !myReadAt || myReadAt < row.last_message_at,
     isSeenByPartner: !!partnerReadAt && partnerReadAt >= row.last_message_at,
+    partnerReadAt,
     isFavouritedByMe: row.sender_favourited || row.recipient_favourited,
     isArchivedByMe: isMine ? row.sender_archived : row.recipient_archived,
     isMine,
