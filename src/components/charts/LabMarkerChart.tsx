@@ -20,16 +20,15 @@ export interface LabMarkerChartPoint {
   value: number;
 }
 
-/** One marker's values over time as a single chronological line. The lab
- * reference range and (where set) the tighter optimal band are shaded
- * green behind it, keeping blue and red for low and high readings; the
- * most recent reading gets an enlarged dot. With `colorByRange`, every
- * reading's dot is coloured by its status against the optimal band (or the
- * lab range) — green in range, blue low, red high — and out-of-range ones
- * are drawn larger. `windowStart` / `windowEnd` pin the x-axis to the
- * selected time window so it shows every month (or year) in that window
- * even when the readings are sparse — without them the axis just spans the
- * data. */
+/** One marker's values over time, drawn the way Apple Health draws a
+ * measurement: a straight line through the readings, the lab reference
+ * range (and, where set, the tighter optimal band) shaded green behind it,
+ * the scale on the right, and dots only where they mean something — on
+ * each out-of-range reading (blue low, red high, with `colorByRange`) and
+ * a larger one on the latest. `windowStart` / `windowEnd` pin the x-axis
+ * to the chosen period so it spans the whole window even when readings are
+ * sparse. With `onScrub`, dragging a finger (or hovering) reports the
+ * reading under it instead of showing a tooltip box. */
 export function LabMarkerChart({
   data,
   unit,
@@ -40,9 +39,9 @@ export function LabMarkerChart({
   windowStart = null,
   windowEnd = null,
   color = "var(--series-indigo)",
-  endColor,
   colorByRange = false,
-  height = 240,
+  onScrub,
+  height = 220,
 }: {
   data: LabMarkerChartPoint[];
   unit: string | null;
@@ -53,14 +52,13 @@ export function LabMarkerChart({
   windowStart?: string | null;
   windowEnd?: string | null;
   color?: string;
-  endColor?: string;
   colorByRange?: boolean;
+  onScrub?: (point: LabMarkerChartPoint | null) => void;
   height?: number;
 }) {
   const band = effectiveRange({ refLow, refHigh, optimalLow, optimalHigh });
   const statusOf = (v: number) => rangeStatus(v, band.low, band.high);
-  const dotColor = (v: number) => (colorByRange ? optimalStatusColor(statusOf(v)) : color);
-  const rows = data.map((d) => ({ t: toMs(d.date), value: d.value })).sort((a, b) => a.t - b.t);
+  const rows = data.map((d) => ({ t: toMs(d.date), date: d.date, value: d.value })).sort((a, b) => a.t - b.t);
 
   const values = rows.map((r) => r.value);
   const bounds = [
@@ -86,23 +84,36 @@ export function LabMarkerChart({
   }
   const axis = windowAxis(minMs, maxMs);
   const last = rows[rows.length - 1] ?? null;
+  const lastColor = colorByRange && last ? optimalStatusColor(statusOf(last.value)) : color;
+
+  const scrub = (state: { activeTooltipIndex?: number | string | null }) => {
+    const row = rows[Number(state.activeTooltipIndex)];
+    onScrub?.(row ? { date: row.date, value: row.value } : null);
+  };
 
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <LineChart data={rows} margin={{ top: 8, right: 16, bottom: 8, left: 0 }}>
+      <LineChart
+        data={rows}
+        margin={{ top: 8, right: 0, bottom: 0, left: 14 }}
+        onMouseMove={onScrub ? scrub : undefined}
+        onMouseLeave={onScrub ? () => onScrub(null) : undefined}
+        onTouchMove={onScrub ? scrub : undefined}
+        onTouchEnd={onScrub ? () => onScrub(null) : undefined}
+      >
         {refLow != null && refHigh != null && (
-          <ReferenceArea y1={refLow} y2={refHigh} fill="var(--status-good)" fillOpacity={0.08} strokeOpacity={0} />
+          <ReferenceArea y1={refLow} y2={refHigh} fill="var(--status-good)" fillOpacity={0.14} strokeOpacity={0} />
         )}
         {(optimalLow != null || optimalHigh != null) && (
           <ReferenceArea
             y1={optimalLow ?? yFloor}
             y2={optimalHigh ?? yCeil}
             fill="var(--status-good)"
-            fillOpacity={0.14}
+            fillOpacity={0.22}
             strokeOpacity={0}
           />
         )}
-        <CartesianGrid vertical={false} stroke="var(--gridline)" />
+        <CartesianGrid vertical={false} stroke="var(--gridline)" strokeOpacity={0.7} />
         <XAxis
           type="number"
           dataKey="t"
@@ -111,57 +122,57 @@ export function LabMarkerChart({
           ticks={axis.ticks}
           interval={0}
           tickFormatter={axis.format}
-          tickLine={{ stroke: "var(--baseline)" }}
+          tickLine={false}
           axisLine={{ stroke: "var(--baseline)" }}
           tick={{ fill: "var(--text-muted)", fontSize: 12 }}
-          angle={axis.vertical ? -90 : 0}
-          textAnchor={axis.vertical ? "end" : "middle"}
-          height={axis.vertical ? 50 : 22}
-          tickMargin={axis.vertical ? 4 : 8}
+          height={24}
+          tickMargin={6}
         />
         <YAxis
+          orientation="right"
           domain={[yFloor, yCeil]}
           tickLine={false}
           axisLine={false}
           tick={{ fill: "var(--text-muted)", fontSize: 12 }}
-          width={40}
+          width={36}
         />
-        <Tooltip
-          contentStyle={{
-            background: "var(--surface-1)",
-            border: "1px solid var(--border-hairline)",
-            borderRadius: 8,
-            fontSize: 12,
-            color: "var(--text-primary)",
-          }}
-          labelStyle={{ color: "var(--text-secondary)" }}
-          labelFormatter={(label) => tooltipDate(Number(label))}
-          formatter={(v) => [unit ? `${v} ${unit}` : String(v), "Value"]}
-        />
-        <Line
-          type="monotone"
-          dataKey="value"
-          stroke={color}
-          strokeWidth={1.5}
-          dot={(props: { cx?: number; cy?: number; value?: number; index?: number }) => {
-            const { cx, cy, value, index } = props;
-            if (cx == null || cy == null || value == null) return <g key={index} />;
-            const out = colorByRange && (statusOf(value) === "low" || statusOf(value) === "high");
-            return <circle key={index} cx={cx} cy={cy} r={out ? 3 : 1.8} fill={dotColor(value)} />;
-          }}
-          activeDot={{ r: 4, fill: color, strokeWidth: 0 }}
-          isAnimationActive={false}
-        />
-        {last && (
-          <ReferenceDot
-            x={last.t}
-            y={last.value}
-            r={4}
-            fill={endColor ?? dotColor(last.value)}
-            stroke="var(--surface-1)"
-            strokeWidth={1.5}
+        {onScrub ? (
+          <Tooltip content={() => null} cursor={{ stroke: "var(--text-secondary)", strokeWidth: 1 }} />
+        ) : (
+          <Tooltip
+            contentStyle={{
+              background: "var(--surface-1)",
+              border: "1px solid var(--border-hairline)",
+              borderRadius: 8,
+              fontSize: 12,
+              color: "var(--text-primary)",
+            }}
+            labelStyle={{ color: "var(--text-secondary)" }}
+            labelFormatter={(label) => tooltipDate(Number(label))}
+            formatter={(v) => [unit ? `${v} ${unit}` : String(v), "Value"]}
           />
         )}
+        <Line
+          type="linear"
+          dataKey="value"
+          stroke={color}
+          strokeWidth={1.75}
+          strokeLinejoin="round"
+          dot={(props: { cx?: number; cy?: number; value?: number; index?: number }) => {
+            const { cx, cy, value, index } = props;
+            const status = value != null ? statusOf(value) : null;
+            if (!colorByRange || cx == null || cy == null || (status !== "low" && status !== "high")) return <g key={index} />;
+            return <circle key={index} cx={cx} cy={cy} r={2.5} fill={optimalStatusColor(status)} />;
+          }}
+          activeDot={(props: { cx?: number; cy?: number; value?: number; index?: number }) => {
+            const { cx, cy, value, index } = props;
+            if (cx == null || cy == null) return <g key={index} />;
+            const fill = colorByRange && value != null ? optimalStatusColor(statusOf(value)) : color;
+            return <circle key={index} cx={cx} cy={cy} r={5} fill={fill} stroke="var(--surface-1)" strokeWidth={2} />;
+          }}
+          isAnimationActive={false}
+        />
+        {last && <ReferenceDot x={last.t} y={last.value} r={4.5} fill={lastColor} stroke="var(--surface-1)" strokeWidth={2} />}
       </LineChart>
     </ResponsiveContainer>
   );

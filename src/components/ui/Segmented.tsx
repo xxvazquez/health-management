@@ -11,16 +11,19 @@ export function Segmented<T extends string>({
   onChange,
   options,
   accent = "var(--ui-accent)",
+  fill = false,
 }: {
   value: T;
   onChange: (v: T) => void;
   options: readonly (readonly [T, ReactNode])[];
   accent?: string;
+  /** Stretch across the container with equal segments, like an iOS period picker. */
+  fill?: boolean;
 }) {
   const ids = options.map(([v]) => v);
   const { registerRef, handleKeyDown, tabIndex } = useRovingTabs(ids, value, onChange);
   return (
-    <div className="inline-flex w-fit rounded-[10px] p-0.5" style={{ background: "var(--segment-track)", boxShadow: "inset 0 0 0 0.5px var(--border-hairline)" }}>
+    <div className={`${fill ? "flex w-full" : "inline-flex w-fit"} rounded-[10px] p-0.5`} style={{ background: "var(--segment-track)", boxShadow: "inset 0 0 0 0.5px var(--border-hairline)" }}>
       {options.map(([v, label]) => (
         <button
           key={v}
@@ -30,7 +33,7 @@ export function Segmented<T extends string>({
           onKeyDown={(e) => handleKeyDown(e, v)}
           tabIndex={tabIndex(v)}
           aria-pressed={value === v}
-          className={`hit-slop min-h-8 rounded-lg px-3 text-sm font-medium ${value === v ? "control-surface" : ""}`}
+          className={`hit-slop min-h-8 rounded-lg px-3 text-sm font-medium ${fill ? "flex-1" : ""} ${value === v ? "control-surface" : ""}`}
           style={{
             color: value === v ? accent : "var(--text-secondary)",
             // iOS Safari can leave a stale paint on a background-color-only

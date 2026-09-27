@@ -24,7 +24,7 @@ import {
   type WorkoutExerciseStats,
   type WorkoutRecentSession,
 } from "@/lib/aggregations/workout";
-import { formatMonthYear, todayLocalISODate } from "@/lib/aggregations/common";
+import { todayLocalISODate } from "@/lib/aggregations/common";
 import { TYPE_ACCENT } from "@/taxonomy/categories";
 import { getAllItems, withDataLock } from "@/lib/db/indexedDb";
 import { workoutUnitLabel, type WorkoutExercise, type WorkoutUnit } from "@/lib/types";
@@ -267,9 +267,7 @@ function ProgressSection({
             color={ACCENT}
             valueLabel={`${selectedStats.exercise} (${workoutUnitLabel(selectedStats.unit)})`}
             height={140}
-            linear
             showDots
-            xTickFormatter={formatMonthYear}
             yTickFormatter={(v) => `${v} ${workoutUnitLabel(selectedStats.unit)}`}
           />
         </div>
@@ -354,8 +352,6 @@ export function WorkoutDashboard() {
     }
   }
 
-  const rangeIsAllTime = !!span && !!range && range.start === span.start && range.end === span.end;
-  const rangeLabel = range ? (rangeIsAllTime ? "all time" : `${formatWorkoutDate(range.start)} – ${formatWorkoutDate(range.end)}`) : "";
 
   return (
     <div className="flex flex-col gap-6">
@@ -366,12 +362,9 @@ export function WorkoutDashboard() {
       {stats.length > 0 && <ProgressSection sortedStats={sortedStats} selectedStats={selectedStats} onSelect={setCompareExercise} />}
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+        <h3 className="text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
           Training patterns
-          <span className="ml-2 text-xs font-normal" style={{ color: "var(--text-muted)" }}>
-            {rangeLabel}
-          </span>
-        </p>
+        </h3>
         {span && range && <DateRangeFilter span={span} value={range} onChange={setRange} accent={ACCENT} />}
       </div>
 
@@ -387,8 +380,6 @@ export function WorkoutDashboard() {
             data={monthlySessions.map((m) => ({ date: m.monthStart, value: m.sessions }))}
             color={ACCENT}
             valueLabel="Sessions"
-            xTickFormatter={formatMonthYear}
-            showEveryTick
           />
         ) : (
           <p className="text-sm" style={{ color: "var(--text-muted)" }}>Not enough data yet to show a monthly trend.</p>

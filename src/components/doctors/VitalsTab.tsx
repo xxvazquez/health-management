@@ -1,61 +1,42 @@
 "use client";
 
 import { DateTimePicker } from "@/components/ui/DatePicker";
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, type ReactNode } from "react";
+import Link from "next/link";
+import clsx from "clsx";
+import { useSwipeReveal, SWIPE_REVEAL_CLASS } from "@/lib/useSwipeReveal";
 import { useVitals } from "@/lib/useVitals";
-import { addDaysToDate, todayLocalISODate, type DateRange } from "@/lib/aggregations/common";
+import { todayLocalISODate } from "@/lib/aggregations/common";
 import { Segmented } from "@/components/ui/Segmented";
-import { DateRangeFilter, type DateRangePreset } from "@/components/ui/DateRangeFilter";
 import type { BloodPressureReading, WeightReading, WeightTarget } from "@/lib/supabase/vitals";
 import { bpCategory } from "@/lib/aggregations/vitals";
-import { LabMarkerChart } from "@/components/charts/LabMarkerChart";
-import { BloodPressureChart } from "@/components/charts/BloodPressureChart";
+import { LabMarkerChart, type LabMarkerChartPoint } from "@/components/charts/LabMarkerChart";
+import { BloodPressureChart, type BloodPressurePoint } from "@/components/charts/BloodPressureChart";
+import { TrendCard, TrendHeadline, periodLabel, periodWindow, type ChartPeriod } from "@/components/charts/TrendCard";
 import { ListSkeleton } from "@/components/ui/Skeleton";
 import { ErrorState, InlineEmpty } from "@/components/ui/EmptyState";
-import { Button } from "@/components/ui/Button";
 import { FormShell } from "@/components/ui/FormShell";
-import { IconAction, PencilIcon, TrashIcon, formatDateTime, toLocalInput } from "./shared";
+import { IconAction, TrashIcon, formatDate, formatDateTime, toLocalInput } from "./shared";
 import { Field } from "@/components/ui/Field";
 import { FormGroup } from "@/components/ui/FormGroup";
 import { ROW_INLINE_CLS, ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
 
 type Kind = "bp" | "weight";
 
-/** Same rolling-window wording as every other analytics dashboard's
- * `DateRangeFilter`, anchored at today rather than the dataset's own end —
- * a vitals reading is meant to be read against "how long ago", not against
- * whenever the last one happened to be logged. */
-const VITALS_DATE_PRESETS: DateRangePreset[] = [
-  { label: "1 month", days: 30 },
-  { label: "3 months", days: 91 },
-  { label: "6 months", days: 182 },
-  { label: "1 year", days: 365 },
-  { label: "All time", days: "all" },
-];
-
-/** Legend for the blood-pressure chart: its two lines, then the shaded
- * category zones in the same tints the chart draws them with. */
+/** Legend for the blood-pressure chart: its two lines, then what the
+ * shaded zones and dots mean — green normal, blue low, red high. */
 const BP_LEGEND_LINES = [
-  { label: "Systolic", color: "var(--series-magenta)" },
-  { label: "Diastolic", color: "var(--series-2)" },
+  { label: "Systolic", color: "var(--text-secondary)" },
+  { label: "Diastolic", color: "var(--series-other)" },
 ];
 const BP_LEGEND_ZONES = [
-  { label: "Low (under 90/60)", color: "var(--series-6)" },
-  { label: "Elevated", color: "var(--series-3)" },
-  { label: "Stage 1", color: "var(--status-warning)" },
-  { label: "Stage 2", color: "var(--status-critical)" },
+  { label: "Normal", color: "var(--status-good)" },
+  { label: "Low (under 90/60)", color: "var(--series-2)" },
+  { label: "High", color: "var(--status-critical)" },
 ];
 
 function nowLocalInput(): string {
   return toLocalInput(new Date().toISOString());
-}
-
-function WindowEmpty() {
-  return (
-    <p className="py-10 text-center text-xs" style={{ color: "var(--text-muted)" }}>
-      No readings in this window — widen it above.
-    </p>
-  );
 }
 
 function parseIntOrNull(raw: string): number | null {
@@ -226,7 +207,7 @@ function BpRow({ reading, onEdit, onDelete }: { reading: BloodPressureReading; o
   const [confirming, setConfirming] = useState(false);
   const cat = bpCategory(reading.systolic, reading.diastolic);
   return (
-    <li className="flex items-start gap-3 px-3.5 py-2.5">
+    <ReadingRow onEdit={onEdit} onDelete={onDelete} confirming={confirming} setConfirming={setConfirming}>
       <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full" style={{ background: cat.color }} aria-hidden="true" />
       <div className="min-w-0 flex-1">
         <span className="text-sm font-medium tabular-nums" style={{ color: "var(--text-primary)" }}>
@@ -240,8 +221,7 @@ function BpRow({ reading, onEdit, onDelete }: { reading: BloodPressureReading; o
         <p className="mt-0.5 text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>{formatDateTime(reading.measuredAt)}</p>
         {reading.note && <p className="mt-0.5 text-xs" style={{ color: "var(--text-secondary)" }}>{reading.note}</p>}
       </div>
-      <RowActions confirming={confirming} setConfirming={setConfirming} onEdit={onEdit} onDelete={onDelete} />
-    </li>
+    </ReadingRow>
   );
 }
 
@@ -249,7 +229,7 @@ function WeightRow({ reading, previousKg, onEdit, onDelete }: { reading: WeightR
   const [confirming, setConfirming] = useState(false);
   const delta = previousKg != null ? Math.round((reading.kg - previousKg) * 10) / 10 : null;
   return (
-    <li className="flex items-start gap-3 px-3.5 py-2.5">
+    <ReadingRow onEdit={onEdit} onDelete={onDelete} confirming={confirming} setConfirming={setConfirming}>
       <div className="min-w-0 flex-1">
         <span className="text-sm font-medium tabular-nums" style={{ color: "var(--text-primary)" }}>
           {reading.kg} <span className="text-xs font-normal" style={{ color: "var(--text-muted)" }}>kg</span>
@@ -262,75 +242,85 @@ function WeightRow({ reading, previousKg, onEdit, onDelete }: { reading: WeightR
         <p className="mt-0.5 text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>{formatDateTime(reading.measuredAt)}</p>
         {reading.note && <p className="mt-0.5 text-xs" style={{ color: "var(--text-secondary)" }}>{reading.note}</p>}
       </div>
-      <RowActions confirming={confirming} setConfirming={setConfirming} onEdit={onEdit} onDelete={onDelete} />
-    </li>
+    </ReadingRow>
   );
 }
 
-function RowActions({
-  confirming,
-  setConfirming,
+/** One reading in the list: tap it to edit, as in iOS; delete sits behind
+ * a left swipe on a phone and appears on hover from `lg`, then asks once. */
+function ReadingRow({
   onEdit,
   onDelete,
+  confirming,
+  setConfirming,
+  children,
 }: {
-  confirming: boolean;
-  setConfirming: (v: boolean) => void;
   onEdit: () => void;
   onDelete: () => void;
+  confirming: boolean;
+  setConfirming: (v: boolean) => void;
+  children: ReactNode;
 }) {
+  const { revealed, onTouchStart, onTouchEnd } = useSwipeReveal();
   return (
-    <div className="flex shrink-0 items-center gap-3 self-center">
-      {confirming ? (
-        <>
-          <button type="button" onClick={onDelete} className="text-xs font-semibold" style={{ color: "var(--status-critical)" }}>Delete</button>
-          <button type="button" onClick={() => setConfirming(false)} className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>Keep</button>
-        </>
-      ) : (
-        <>
-          <IconAction onClick={onEdit} label="Edit reading"><PencilIcon size={14} /></IconAction>
-          <IconAction onClick={() => setConfirming(true)} label="Delete reading" tone="critical"><TrashIcon size={14} /></IconAction>
-        </>
-      )}
-    </div>
+    <li
+      className="group flex cursor-pointer items-start gap-3 px-3.5 py-2.5"
+      style={{ touchAction: "pan-y" }}
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
+      onClick={(ev) => {
+        if (confirming || (ev.target as HTMLElement).closest("button")) return;
+        onEdit();
+      }}
+    >
+      {children}
+      <div className="flex shrink-0 items-center gap-3 self-center">
+        {confirming ? (
+          <>
+            <button type="button" onClick={onDelete} className="min-h-9 px-2 text-sm font-semibold" style={{ color: "var(--status-critical)" }}>
+              Delete
+            </button>
+            <button type="button" onClick={() => setConfirming(false)} className="min-h-9 px-2 text-sm font-medium" style={{ color: "var(--text-muted)" }}>
+              Keep
+            </button>
+          </>
+        ) : (
+          <span className={clsx("transition-opacity", revealed ? SWIPE_REVEAL_CLASS.shown : SWIPE_REVEAL_CLASS.hidden)}>
+            <IconAction onClick={() => setConfirming(true)} label="Delete reading" tone="critical">
+              <TrashIcon size={14} />
+            </IconAction>
+          </span>
+        )}
+      </div>
+    </li>
   );
 }
 
 // --- Weight target -----------------------------------------------
 
-/** The optional weight-goal range — shown above the weight chart, where it
- * also draws as a shaded band. Read-only: the range is set and cleared from
- * Settings, one place for everything editable. */
-function WeightTargetControl({ target, accent }: { target: WeightTarget | null; accent: string }) {
+/** The optional weight-goal range, as a small link on the Blood pressure /
+ * Weight row — it also draws as the shaded band on the weight chart. It's
+ * set and cleared from Settings, so tapping it goes there. */
+function WeightGoalLink({ target, accent }: { target: WeightTarget | null; accent: string }) {
   return (
-    <div className="flex items-center gap-3 text-xs" style={{ color: "var(--text-secondary)" }}>
-      <span>
-        {target ? (
-          <>
-            Target{" "}
-            <span className="font-semibold tabular-nums" style={{ color: accent }}>
-              {target.lowKg}–{target.highKg} kg
-            </span>
-          </>
-        ) : (
-          "No weight goal set"
-        )}
-      </span>
-      <Button href="/manage" variant="tinted" size="xs" accent={accent} className="shrink-0">
-        Edit in Settings
-      </Button>
-    </div>
+    <Link href="/manage" className="hit-slop ml-auto text-sm font-medium whitespace-nowrap tabular-nums" style={{ color: accent }}>
+      {target ? `Goal ${target.lowKg}–${target.highKg} kg` : "Set a goal"}
+    </Link>
   );
 }
 
 // --- Tab -------------------------------------------------------
 
-/** Vitals: a blood pressure / weight switch with the date window beside it,
- * the chart, then the readings. Its "+ Add" sits in the Health page's title
+/** Vitals: a blood pressure / weight switch, the trend card (period
+ * picker, latest reading as a headline, the chart), then the readings. Its "+ Add" sits in the Health page's title
  * row; `composing` / `setComposing` open the new-reading form from there. */
 export function VitalsTab({ accent, composing, setComposing }: { accent: string; composing: boolean; setComposing: (open: boolean) => void }) {
   const vitals = useVitals();
   const [kind, setKind] = useState<Kind>("bp");
-  const [range, setRange] = useState<DateRange | null>(null);
+  const [period, setPeriod] = useState<ChartPeriod>("1Y");
+  const [offset, setOffset] = useState(0);
+  const [bpScrub, setBpScrub] = useState<BloodPressurePoint | null>(null);
+  const [weightScrub, setWeightScrub] = useState<LabMarkerChartPoint | null>(null);
   const [editingBp, setEditingBp] = useState<BloodPressureReading | null>(null);
   const [editingWeight, setEditingWeight] = useState<WeightReading | null>(null);
 
@@ -368,20 +358,41 @@ export function VitalsTab({ accent, composing, setComposing }: { accent: string;
   const weightAsc = [...vitals.weight.data].slice().reverse();
 
   const today = todayLocalISODate();
-  const allDates = [...vitals.bp.data, ...vitals.weight.data].map((r) => r.measuredAt.slice(0, 10));
+  const allDates = (kind === "bp" ? vitals.bp.data : vitals.weight.data).map((r) => r.measuredAt.slice(0, 10));
   const earliest = allDates.length > 0 ? allDates.reduce((a, b) => (a < b ? a : b)) : today;
-  // Reach back at least a year so every preset shows its full length, even
-  // when the first reading is more recent than that.
-  const yearAgo = addDaysToDate(today, -364);
-  const span: DateRange = { start: earliest < yearAgo ? earliest : yearAgo, end: today };
-  const effectiveRange = range ?? span;
+  const span = periodWindow(period, offset, earliest, today);
   const inWindow = (measuredAt: string) => {
     const d = measuredAt.slice(0, 10);
-    return d >= effectiveRange.start && d <= effectiveRange.end;
+    return d >= span.start && d <= span.end;
   };
   const bpWindowed = bpAsc.filter((r) => inWindow(r.measuredAt));
   const weightWindowed = weightAsc.filter((r) => inWindow(r.measuredAt));
-  const hasChartData = kind === "bp" ? vitals.bp.data.length > 0 : vitals.weight.data.length > 0;
+
+  const latestBp = vitals.bp.data[0] ?? null;
+  const shownBp = bpScrub ?? (latestBp ? { at: latestBp.measuredAt, systolic: latestBp.systolic, diastolic: latestBp.diastolic } : null);
+  const shownBpCategory = shownBp ? bpCategory(shownBp.systolic, shownBp.diastolic) : null;
+  const latestWeight = vitals.weight.data[0] ?? null;
+  const shownWeight = weightScrub ?? (latestWeight ? { date: latestWeight.measuredAt.slice(0, 10), value: latestWeight.kg } : null);
+
+  const trendCard = (headline: ReactNode, chart: ReactNode) => (
+    <TrendCard
+      period={period}
+      onPeriod={setPeriod}
+      offset={offset}
+      onOffset={setOffset}
+      earliest={earliest}
+      today={today}
+      accent={accent}
+      headline={headline}
+    >
+      {chart}
+    </TrendCard>
+  );
+  const emptyPeriod = (
+    <p className="flex h-[220px] items-center justify-center text-xs" style={{ color: "var(--text-muted)" }}>
+      No readings in this period.
+    </p>
+  );
 
   return (
     <div className="flex flex-col gap-3">
@@ -389,16 +400,17 @@ export function VitalsTab({ accent, composing, setComposing }: { accent: string;
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <Segmented
           value={kind}
-          onChange={setKind}
+          onChange={(k) => {
+            setKind(k);
+            setOffset(0);
+          }}
           accent={accent}
           options={[
             ["bp", "Blood pressure"],
             ["weight", "Weight"],
           ]}
         />
-        {!vitals.loading && !vitals.error && hasChartData && (
-          <DateRangeFilter span={span} value={effectiveRange} onChange={setRange} presets={VITALS_DATE_PRESETS} accent={accent} />
-        )}
+        {kind === "weight" && !vitals.loading && !vitals.error && <WeightGoalLink target={vitals.weight.target} accent={accent} />}
       </div>
 
       {vitals.loading ? (
@@ -413,18 +425,48 @@ export function VitalsTab({ accent, composing, setComposing }: { accent: string;
           />
         ) : (
           <>
-            {bpAsc.length >= 2 && (
-              <div className="rounded-xl border p-3" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
-                {bpWindowed.length >= 2 ? (
+            {trendCard(
+              offset > 0 && !bpScrub ? (
+                <TrendHeadline
+                  caption="Average"
+                  value={
+                    bpWindowed.length > 0
+                      ? `${Math.round(bpWindowed.reduce((n, r) => n + r.systolic, 0) / bpWindowed.length)}/${Math.round(bpWindowed.reduce((n, r) => n + r.diastolic, 0) / bpWindowed.length)}`
+                      : "—"
+                  }
+                  unit={bpWindowed.length > 0 ? "mmHg" : undefined}
+                  detail={`${periodLabel(span)} · ${bpWindowed.length} reading${bpWindowed.length === 1 ? "" : "s"}`}
+                />
+              ) : (
+              shownBp && shownBpCategory && (
+                <TrendHeadline
+                  caption={bpScrub ? formatDate(shownBp.at) : "Latest"}
+                  value={`${shownBp.systolic}/${shownBp.diastolic}`}
+                  unit="mmHg"
+                  color={shownBpCategory.color}
+                  detail={
+                    <>
+                      <span className="font-semibold" style={{ color: shownBpCategory.color }}>
+                        {shownBpCategory.label}
+                      </span>
+                      {bpScrub ? null : ` · ${formatDate(shownBp.at)}`}
+                    </>
+                  }
+                />
+              )
+              ),
+              <>
+                {bpWindowed.length >= 1 ? (
                   <BloodPressureChart
                     data={bpWindowed.map((r) => ({ at: r.measuredAt, systolic: r.systolic, diastolic: r.diastolic, note: r.note }))}
-                    windowStart={effectiveRange.start}
-                    windowEnd={effectiveRange.end}
+                    windowStart={span.start}
+                    windowEnd={span.end}
+                    onScrub={setBpScrub}
                   />
                 ) : (
-                  <WindowEmpty />
+                  emptyPeriod
                 )}
-                <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 px-1 text-xs" style={{ color: "var(--text-secondary)" }}>
+                <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs" style={{ color: "var(--text-secondary)" }}>
                   <span className="flex items-center gap-4">
                     {BP_LEGEND_LINES.map((l) => (
                       <span key={l.label} className="inline-flex items-center gap-1.5">
@@ -436,13 +478,13 @@ export function VitalsTab({ accent, composing, setComposing }: { accent: string;
                   <span className="flex flex-wrap items-center gap-x-4 gap-y-2">
                     {BP_LEGEND_ZONES.map((z) => (
                       <span key={z.label} className="inline-flex items-center gap-1.5">
-                        <span className="h-2.5 w-2.5 rounded-[3px]" style={{ background: `color-mix(in srgb, ${z.color} 22%, transparent)` }} aria-hidden="true" />
+                        <span className="h-2.5 w-2.5 rounded-[3px]" style={{ background: `color-mix(in srgb, ${z.color} 35%, transparent)` }} aria-hidden="true" />
                         {z.label}
                       </span>
                     ))}
                   </span>
                 </div>
-              </div>
+              </>,
             )}
             <ul className="inset-rows flex flex-col rounded-xl border" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
               {vitals.bp.data.map((r) => (
@@ -452,29 +494,45 @@ export function VitalsTab({ accent, composing, setComposing }: { accent: string;
           </>
         )
       ) : vitals.weight.data.length === 0 ? (
-        <>
-          <WeightTargetControl target={vitals.weight.target} accent={accent} />
-          <InlineEmpty title="No weigh-ins yet" description="Add a weight and the trend line builds up over time." />
-        </>
+        <InlineEmpty title="No weigh-ins yet" description="Add a weight and the trend line builds up over time." />
       ) : (
         <>
-          <WeightTargetControl target={vitals.weight.target} accent={accent} />
-          {weightAsc.length >= 2 && (
-            <div className="rounded-xl border p-3" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
-              {weightWindowed.length >= 2 ? (
-                <LabMarkerChart
-                  data={weightWindowed.map((r) => ({ date: r.measuredAt.slice(0, 10), value: r.kg }))}
-                  unit="kg"
-                  refLow={vitals.weight.target?.lowKg ?? null}
-                  refHigh={vitals.weight.target?.highKg ?? null}
-                  windowStart={effectiveRange.start}
-                  windowEnd={effectiveRange.end}
-                  color={accent}
-                />
-              ) : (
-                <WindowEmpty />
-              )}
-            </div>
+          {trendCard(
+            offset > 0 && !weightScrub ? (
+              <TrendHeadline
+                caption="Range"
+                value={
+                  weightWindowed.length > 0
+                    ? `${Math.min(...weightWindowed.map((r) => r.kg))}–${Math.max(...weightWindowed.map((r) => r.kg))}`
+                    : "—"
+                }
+                unit={weightWindowed.length > 0 ? "kg" : undefined}
+                detail={`${periodLabel(span)} · ${weightWindowed.length} weigh-in${weightWindowed.length === 1 ? "" : "s"}`}
+              />
+            ) : (
+            shownWeight && (
+              <TrendHeadline
+                caption={weightScrub ? formatDate(shownWeight.date) : "Latest"}
+                value={String(shownWeight.value)}
+                unit="kg"
+                detail={weightScrub ? null : formatDate(shownWeight.date)}
+              />
+            )
+            ),
+            weightWindowed.length >= 1 ? (
+              <LabMarkerChart
+                data={weightWindowed.map((r) => ({ date: r.measuredAt.slice(0, 10), value: r.kg }))}
+                unit="kg"
+                refLow={vitals.weight.target?.lowKg ?? null}
+                refHigh={vitals.weight.target?.highKg ?? null}
+                windowStart={span.start}
+                windowEnd={span.end}
+                color={accent}
+                onScrub={setWeightScrub}
+              />
+            ) : (
+              emptyPeriod
+            ),
           )}
           <ul className="inset-rows flex flex-col rounded-xl border" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
             {vitals.weight.data.map((r, i) => (

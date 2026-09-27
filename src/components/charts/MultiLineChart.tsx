@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { formatAxisDate } from "@/lib/aggregations/common";
+import { DAY, toMs, tooltipDate, windowAxis } from "./timeAxis";
 
 export interface Series {
   key: string;
@@ -32,20 +32,34 @@ export function MultiLineChart({
     });
   }
 
+  const rows = data.map((d) => ({ ...d, t: toMs(String(d.date)) })).sort((a, b) => a.t - b.t);
+  let minMs = rows[0]?.t ?? 0;
+  let maxMs = rows[rows.length - 1]?.t ?? 0;
+  if (maxMs - minMs < DAY * 30) {
+    minMs -= DAY * 15;
+    maxMs += DAY * 15;
+  }
+  const axis = windowAxis(minMs, maxMs);
+
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <LineChart data={data} margin={{ top: 8, right: 20, bottom: 8, left: 0 }}>
-        <CartesianGrid vertical={false} stroke="var(--gridline)" />
+      <LineChart data={rows} margin={{ top: 8, right: 0, bottom: 0, left: 14 }}>
+        <CartesianGrid vertical={false} stroke="var(--gridline)" strokeOpacity={0.7} />
         <XAxis
-          dataKey="date"
+          type="number"
+          dataKey="t"
+          scale="time"
+          domain={[minMs, maxMs]}
+          ticks={axis.ticks}
+          interval={0}
+          tickFormatter={axis.format}
           tickLine={false}
           axisLine={{ stroke: "var(--baseline)" }}
           tick={{ fill: "var(--text-muted)", fontSize: 12 }}
-          tickFormatter={formatAxisDate}
-          tickMargin={8}
-          minTickGap={28}
+          height={24}
+          tickMargin={6}
         />
-        <YAxis tickLine={false} axisLine={false} tick={{ fill: "var(--text-muted)", fontSize: 12 }} width={32} />
+        <YAxis orientation="right" tickLine={false} axisLine={false} tick={{ fill: "var(--text-muted)", fontSize: 12 }} width={36} />
         <Tooltip
           contentStyle={{
             background: "var(--surface-1)",
@@ -54,6 +68,7 @@ export function MultiLineChart({
             fontSize: 12,
             color: "var(--text-primary)",
           }}
+          labelFormatter={(label) => tooltipDate(Number(label))}
         />
         <Legend
           wrapperStyle={{ fontSize: 12, cursor: "pointer", paddingTop: 14 }}
@@ -74,13 +89,14 @@ export function MultiLineChart({
         {series.map((s) => (
           <Line
             key={s.key}
-            type="monotone"
+            type="linear"
             dataKey={s.key}
             name={s.label}
             stroke={s.color}
             strokeWidth={2}
             dot={false}
             hide={hidden.has(s.key)}
+            isAnimationActive={false}
           />
         ))}
       </LineChart>

@@ -5,7 +5,6 @@ import {
   Line,
   LineChart,
   ReferenceArea,
-  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -14,52 +13,53 @@ import {
 import { DAY, toMs, tooltipDate, windowAxis } from "./timeAxis";
 import { BP_LOW_DIASTOLIC, BP_LOW_SYSTOLIC } from "@/lib/aggregations/vitals";
 
-const LOW = "var(--series-6)";
-
-/** A reading's dot — enlarged and ringed in the low colour when that value
- * is under its low threshold, so low readings stand out on the line. */
-function lowDot(color: string, threshold: number) {
-  function Dot({ cx, cy, value, index }: { cx?: number; cy?: number; value?: number; index?: number }) {
-    if (cx == null || cy == null) return <g key={index} />;
-    const low = value != null && value < threshold;
-    return low ? (
-      <circle key={index} cx={cx} cy={cy} r={4} fill={LOW} stroke="var(--surface-1)" strokeWidth={1.5} />
-    ) : (
-      <circle key={index} cx={cx} cy={cy} r={2.2} fill={color} />
-    );
-  }
-  return Dot;
-}
+const LOW = "var(--series-2)";
+const HIGH = "var(--status-critical)";
+const SYSTOLIC = "var(--text-secondary)";
+const DIASTOLIC = "var(--series-other)";
 
 export interface BloodPressurePoint {
   /** ISO timestamp. */
   at: string;
   systolic: number;
   diastolic: number;
-  /** The reading's own comment, shown in the tooltip when present. */
+  /** The reading's own comment. */
   note?: string | null;
 }
 
-/** Systolic and diastolic over time. Low blood pressure is marked most
- * clearly: a shaded zone under diastolic 60, a dashed line at systolic 90,
- * and enlarged dots on any reading under either. The ACC/AHA systolic zones
- * are shaded faintly above (elevated 120–129, stage 1 130–139, stage 2
- * 140+). Reference only, not a diagnosis.
- * `windowStart` / `windowEnd` pin the x-axis to the selected window so it
- * shows every month (or year) in it even when readings are sparse. */
+/** Blue below the low threshold, red at or above the high one, none in between. */
+function statusDot(low: number, high: number) {
+  function Dot({ cx, cy, value, index }: { cx?: number; cy?: number; value?: number; index?: number }) {
+    if (cx == null || cy == null || value == null || (value >= low && value < high)) return <g key={index} />;
+    return <circle key={index} cx={cx} cy={cy} r={2.75} fill={value < low ? LOW : HIGH} />;
+  }
+  return Dot;
+}
+
+/** Systolic (darker line) and diastolic (lighter line) over time, drawn
+ * the way Apple Health draws a measurement: straight lines, the scale on
+ * the right, and colour only where it means something. Each line has its
+ * normal band shaded green (systolic 90–119, diastolic 60–79); below
+ * diastolic 60 is shaded blue for low, and systolic 130+ faintly amber then
+ * red. A dot marks each low (blue) or high (red, systolic 140+ / diastolic
+ * 90+) reading. Reference only, not a diagnosis. `windowStart` /
+ * `windowEnd` pin the x-axis to the chosen period. With `onScrub`,
+ * dragging a finger (or hovering) reports the reading under it. */
 export function BloodPressureChart({
   data,
   windowStart = null,
   windowEnd = null,
-  height = 240,
+  onScrub,
+  height = 220,
 }: {
   data: BloodPressurePoint[];
   windowStart?: string | null;
   windowEnd?: string | null;
+  onScrub?: (point: BloodPressurePoint | null) => void;
   height?: number;
 }) {
   const rows = data
-    .map((d) => ({ t: toMs(d.at), systolic: d.systolic, diastolic: d.diastolic, note: d.note }))
+    .map((d) => ({ t: toMs(d.at), at: d.at, systolic: d.systolic, diastolic: d.diastolic, note: d.note }))
     .sort((a, b) => a.t - b.t);
 
   const sys = rows.map((d) => d.systolic);
@@ -76,16 +76,36 @@ export function BloodPressureChart({
     maxMs += DAY * 15;
   }
   const axis = windowAxis(minMs, maxMs);
+  // Round, meaningful gridlines — the low and normal thresholds — rather
+  // than whatever the data's extremes divide into.
+  const yTicks = [40, 60, 90, 120, 140, 160, 180, 200].filter((t) => t >= bottom && t <= top);
+
+  const scrub = (state: { activeTooltipIndex?: number | string | null }) => {
+    const row = rows[Number(state.activeTooltipIndex)];
+    onScrub?.(row ? { at: row.at, systolic: row.systolic, diastolic: row.diastolic, note: row.note } : null);
+  };
+  const activeDot = (color: string) =>
+    function ActiveDot({ cx, cy, index }: { cx?: number; cy?: number; index?: number }) {
+      if (cx == null || cy == null) return <g key={index} />;
+      return <circle key={index} cx={cx} cy={cy} r={4.5} fill={color} stroke="var(--surface-1)" strokeWidth={2} />;
+    };
 
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <LineChart data={rows} margin={{ top: 8, right: 16, bottom: 8, left: 0 }}>
-        <ReferenceArea y1={120} y2={130} fill="var(--series-3)" fillOpacity={0.08} strokeOpacity={0} />
+      <LineChart
+        data={rows}
+        margin={{ top: 8, right: 0, bottom: 0, left: 14 }}
+        onMouseMove={onScrub ? scrub : undefined}
+        onMouseLeave={onScrub ? () => onScrub(null) : undefined}
+        onTouchMove={onScrub ? scrub : undefined}
+        onTouchEnd={onScrub ? () => onScrub(null) : undefined}
+      >
+        <ReferenceArea y1={Math.floor(bottom)} y2={BP_LOW_DIASTOLIC} fill={LOW} fillOpacity={0.14} strokeOpacity={0} />
+        <ReferenceArea y1={BP_LOW_DIASTOLIC} y2={80} fill="var(--status-good)" fillOpacity={0.18} strokeOpacity={0} />
+        <ReferenceArea y1={BP_LOW_SYSTOLIC} y2={120} fill="var(--status-good)" fillOpacity={0.18} strokeOpacity={0} />
         <ReferenceArea y1={130} y2={140} fill="var(--status-warning)" fillOpacity={0.08} strokeOpacity={0} />
-        <ReferenceArea y1={140} y2={top} fill="var(--status-critical)" fillOpacity={0.08} strokeOpacity={0} />
-        <ReferenceArea y1={Math.floor(bottom)} y2={BP_LOW_DIASTOLIC} fill={LOW} fillOpacity={0.18} strokeOpacity={0} />
-        <ReferenceLine y={BP_LOW_SYSTOLIC} stroke={LOW} strokeDasharray="4 3" strokeOpacity={0.8} />
-        <CartesianGrid vertical={false} stroke="var(--gridline)" />
+        <ReferenceArea y1={140} y2={Math.ceil(top)} fill={HIGH} fillOpacity={0.08} strokeOpacity={0} />
+        <CartesianGrid vertical={false} stroke="var(--gridline)" strokeOpacity={0.7} />
         <XAxis
           type="number"
           dataKey="t"
@@ -94,53 +114,53 @@ export function BloodPressureChart({
           ticks={axis.ticks}
           interval={0}
           tickFormatter={axis.format}
-          tickLine={{ stroke: "var(--baseline)" }}
+          tickLine={false}
           axisLine={{ stroke: "var(--baseline)" }}
           tick={{ fill: "var(--text-muted)", fontSize: 12 }}
-          angle={axis.vertical ? -90 : 0}
-          textAnchor={axis.vertical ? "end" : "middle"}
-          height={axis.vertical ? 50 : 22}
-          tickMargin={axis.vertical ? 4 : 8}
+          height={24}
+          tickMargin={6}
         />
         <YAxis
+          orientation="right"
           domain={[Math.floor(bottom), Math.ceil(top)]}
+          ticks={yTicks}
           tickLine={false}
           axisLine={false}
           tick={{ fill: "var(--text-muted)", fontSize: 12 }}
-          width={34}
+          width={36}
         />
-        <Tooltip
-          contentStyle={{
-            background: "var(--surface-1)",
-            border: "1px solid var(--border-hairline)",
-            borderRadius: 8,
-            fontSize: 12,
-            color: "var(--text-primary)",
-          }}
-          labelStyle={{ color: "var(--text-secondary)", maxWidth: 200, whiteSpace: "normal" }}
-          labelFormatter={(label, payload) => {
-            const note = (payload?.[0]?.payload as { note?: string | null } | undefined)?.note;
-            const when = tooltipDate(Number(label));
-            return note ? `${when} — ${note}` : when;
-          }}
-          formatter={(v, name) => [`${v} mmHg`, name === "systolic" ? "Systolic" : "Diastolic"]}
-        />
+        {onScrub ? (
+          <Tooltip content={() => null} cursor={{ stroke: "var(--text-secondary)", strokeWidth: 1 }} />
+        ) : (
+          <Tooltip
+            contentStyle={{
+              background: "var(--surface-1)",
+              border: "1px solid var(--border-hairline)",
+              borderRadius: 8,
+              fontSize: 12,
+              color: "var(--text-primary)",
+            }}
+            labelStyle={{ color: "var(--text-secondary)", maxWidth: 200, whiteSpace: "normal" }}
+            labelFormatter={(label) => tooltipDate(Number(label))}
+            formatter={(v, name) => [`${v} mmHg`, name === "systolic" ? "Systolic" : "Diastolic"]}
+          />
+        )}
         <Line
-          type="monotone"
+          type="linear"
           dataKey="systolic"
-          stroke="var(--series-magenta)"
-          strokeWidth={1.8}
-          dot={lowDot("var(--series-magenta)", BP_LOW_SYSTOLIC)}
-          activeDot={{ r: 4, strokeWidth: 0 }}
+          stroke={SYSTOLIC}
+          strokeWidth={1.75}
+          dot={statusDot(BP_LOW_SYSTOLIC, 140)}
+          activeDot={activeDot(SYSTOLIC)}
           isAnimationActive={false}
         />
         <Line
-          type="monotone"
+          type="linear"
           dataKey="diastolic"
-          stroke="var(--series-2)"
-          strokeWidth={1.8}
-          dot={lowDot("var(--series-2)", BP_LOW_DIASTOLIC)}
-          activeDot={{ r: 4, strokeWidth: 0 }}
+          stroke={DIASTOLIC}
+          strokeWidth={1.75}
+          dot={statusDot(BP_LOW_DIASTOLIC, 90)}
+          activeDot={activeDot(DIASTOLIC)}
           isAnimationActive={false}
         />
       </LineChart>

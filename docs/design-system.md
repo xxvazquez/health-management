@@ -68,6 +68,7 @@ One sans-serif family: SF Pro on Apple devices, Inter elsewhere (`--font-app`).
 | Section or category switch | `TabRail` (underlined text tabs) |
 | Two-way mode / chart window | `Segmented` |
 | Rolling date window | `DateRangeFilter` (one popover, never a row of range pills) |
+| Measurement chart period | `TrendCard`: 6M / 1Y / 2Y / 5Y / All, paged with ‹ › or a swipe |
 
 ### Controls
 
@@ -99,6 +100,7 @@ One sans-serif family: SF Pro on Apple devices, Inter elsewhere (`--font-app`).
 - **`.inset-rows`:** iOS grouped-list separators. Rows are at least 44px tall, with vertical padding so a wrapped two-line label still breathes
 - **Multi-column lists** (Log items on desktop) size their columns with `fitColumnWidth` (`src/lib/fitColumnWidth.ts`): wide enough for the longest label, clamped 10–22rem, so long names don't wrap into slivers
 - **`ListSection`:** the section header above a card
+- **Time charts** (`components/charts/`): straight lines, a real time axis with horizontal labels from `windowAxis` (short months, month initials, then years — never rotated), the scale on the right, dots only on out-of-range readings and the latest one. Blue is low, red is high, green is the normal band. Measurement charts sit in `TrendCard` with a headline that shows the reading under your finger while you drag
 - **Headline figures:** several stats go in `StatGrid` / `Stat` (`ui/StatGrid.tsx`): an aligned grid, two columns on a phone, each a small label above its number. `StatChip` is only for one figure inline in a sentence or card
 - **Metadata** (kind, specialty, "shared") is plain text, not a badge
 - **Row actions** (favourite, read/unread, edit, delete) sit behind a left swipe on a phone and appear on hover from `lg` (`useSwipeReveal`), not as icons on every row

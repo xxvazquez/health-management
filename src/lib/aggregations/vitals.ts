@@ -15,7 +15,7 @@ export const BP_LOW_SYSTOLIC = 90;
 export const BP_LOW_DIASTOLIC = 60;
 
 const CATEGORY_INFO: Record<BpCategory, BpCategoryInfo> = {
-  low: { id: "low", label: "Low", color: "var(--series-6)" },
+  low: { id: "low", label: "Low", color: "var(--series-2)" },
   normal: { id: "normal", label: "Normal", color: "var(--status-good)" },
   elevated: { id: "elevated", label: "Elevated", color: "var(--series-3)" },
   stage1: { id: "stage1", label: "Stage 1", color: "var(--status-warning)" },

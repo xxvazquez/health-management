@@ -14,12 +14,11 @@ import { Methodology } from "@/components/ui/Methodology";
 import { SampleTierBadge } from "@/components/ui/SampleTierBadge";
 import { RankedBarChart } from "@/components/charts/RankedBarChart";
 import { BristolScoreChart } from "@/components/charts/BristolScoreChart";
-import { TrendAreaChart } from "@/components/charts/TrendAreaChart";
 import { MultiLineChart } from "@/components/charts/MultiLineChart";
 import { ComparisonBars } from "@/components/charts/ComparisonBars";
 import { AdherenceStrip } from "@/components/charts/AdherenceStrip";
 import { useDateRangeFilter } from "@/lib/useDateRangeFilter";
-import { addDaysToDate, daysBetween, formatMonthYear, filterByDateRange } from "@/lib/aggregations/common";
+import { addDaysToDate, daysBetween, filterByDateRange } from "@/lib/aggregations/common";
 import { buildStateByDate } from "@/lib/aggregations/adherence";
 import {
   bristolBandDistribution,
@@ -153,13 +152,7 @@ export function DigestionDashboard() {
         </CardTitle>
         {showMonthlyScoreView ? (
           monthlyScoreAverage.length > 0 ? (
-            <TrendAreaChart
-              data={monthlyScoreAverage.map((m) => ({ date: m.monthStart, value: m.avgScore }))}
-              color={ACCENT}
-              valueLabel="Avg Bristol score"
-              xTickFormatter={formatMonthYear}
-              showEveryTick
-            />
+            <BristolScoreChart data={monthlyScoreAverage.map((m) => ({ date: m.monthStart, value: m.avgScore }))} color={ACCENT} />
           ) : (
             <p className="text-sm" style={{ color: "var(--text-muted)" }}>No Bristol data in this range.</p>
           )

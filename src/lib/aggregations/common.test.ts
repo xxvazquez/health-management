@@ -7,7 +7,6 @@ import {
   filterByDateRange,
   formatMinutes,
   formatAxisDate,
-  formatMonthYear,
   getDatasetSpan,
   isoWeekStart,
   listDatesBetween,
@@ -211,12 +210,6 @@ describe("monthStart", () => {
   it("truncates any date in a month to that month's first day", () => {
     expect(monthStart("2026-07-19")).toBe("2026-07-01");
     expect(monthStart("2026-07-01")).toBe("2026-07-01");
-  });
-});
-
-describe("formatMonthYear", () => {
-  it("formats as \"Mon 'YY\"", () => {
-    expect(formatMonthYear("2026-08-26")).toBe("Aug '26");
   });
 });
 

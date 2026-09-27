@@ -13,50 +13,45 @@ export function tooltipDate(ms: number): string {
   return new Date(ms).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 }
 
-/** Most horizontal tick labels a phone-width chart fits side by side. */
-const MAX_LABELS = 7;
-/** Most vertical month labels before ticks step further apart. */
-const MAX_VERTICAL = 22;
-/** Month steps a long window can use, so ticks land on regular months. */
-const MONTH_STEPS = [1, 2, 3, 4, 6, 12, 24];
+/** Most year labels a phone-width chart fits side by side. */
+const MAX_YEAR_LABELS = 6;
 
-function monthShort(ms: number): string {
-  return new Date(ms).toLocaleDateString("en-GB", { month: "short", timeZone: "UTC" });
-}
-
-/** Ticks for the whole selected window, not just where readings land.
- * Up to a year: one tick per month reading "Sep", January shown as its
- * year, labels horizontal (every n-th one past `MAX_LABELS`). Longer: a
- * tick every 1–24 months on regular months (Jan, Apr, Jul, Oct for a
- * three-month step), each labelled "Jan 17" and turned vertical so many
- * fit without overlapping. */
-export function windowAxis(minMs: number, maxMs: number): { ticks: number[]; format: (ms: number) => string; vertical: boolean } {
+/** Ticks for the whole selected window, not just where readings land —
+ * always horizontal, the way Apple Health labels its charts: up to about
+ * seven months a tick per month reading "Sep", up to about 14 months one
+ * per month as its initial ("J F M…"), and beyond that one per year
+ * ("2019"), labelling every n-th year when there are too many to fit. A
+ * January tick in the month views shows its year instead, so the turn of
+ * the year stays readable. */
+export function windowAxis(minMs: number, maxMs: number): { ticks: number[]; format: (ms: number) => string } {
   const months = (maxMs - minMs) / (DAY * 30.44);
-  const first = new Date(minMs);
-  const startIndex = first.getUTCFullYear() * 12 + first.getUTCMonth() + (Date.UTC(first.getUTCFullYear(), first.getUTCMonth(), 1) < minMs ? 1 : 0);
-  const monthStarts = (step: number) => {
+  if (months <= 14) {
+    const first = new Date(minMs);
+    let cur = Date.UTC(first.getUTCFullYear(), first.getUTCMonth(), 1);
+    if (cur < minMs) cur = Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + 1, 1);
     const ticks: number[] = [];
-    for (let m = Math.ceil(startIndex / step) * step; ; m += step) {
-      const t = Date.UTC(Math.floor(m / 12), m % 12, 1);
-      if (t > maxMs) break;
-      ticks.push(t);
+    while (cur <= maxMs) {
+      ticks.push(cur);
+      const c = new Date(cur);
+      cur = Date.UTC(c.getUTCFullYear(), c.getUTCMonth() + 1, 1);
     }
-    return ticks;
-  };
-
-  if (months <= 12.5) {
-    const ticks = monthStarts(1);
-    const step = Math.ceil(ticks.length / MAX_LABELS);
-    const labelled = new Set(ticks.filter((_, i) => i % step === 0));
-    const label = (ms: number) => (new Date(ms).getUTCMonth() === 0 ? String(new Date(ms).getUTCFullYear()) : monthShort(ms));
-    return { ticks, format: (ms) => (labelled.has(ms) ? label(ms) : ""), vertical: false };
+    const short = months <= 7.5;
+    return {
+      ticks,
+      format: (ms) => {
+        const d = new Date(ms);
+        if (d.getUTCMonth() === 0 && short) return String(d.getUTCFullYear());
+        const name = d.toLocaleDateString("en-GB", { month: "short", timeZone: "UTC" });
+        return short ? name : name.charAt(0);
+      },
+    };
   }
-
-  const step = MONTH_STEPS.find((n) => months / n <= MAX_VERTICAL) ?? 24;
-  const ticks = monthStarts(step);
-  return {
-    ticks,
-    format: (ms) => `${monthShort(ms)} ${String(new Date(ms).getUTCFullYear()).slice(-2)}`,
-    vertical: true,
-  };
+  const ticks: number[] = [];
+  for (let y = new Date(minMs).getUTCFullYear(); y <= new Date(maxMs).getUTCFullYear(); y++) {
+    const t = Date.UTC(y, 0, 1);
+    if (t >= minMs && t <= maxMs) ticks.push(t);
+  }
+  const step = Math.ceil(ticks.length / MAX_YEAR_LABELS);
+  const labelled = new Set(ticks.filter((_, i) => (ticks.length - 1 - i) % step === 0));
+  return { ticks, format: (ms) => (labelled.has(ms) ? String(new Date(ms).getUTCFullYear()) : "") };
 }

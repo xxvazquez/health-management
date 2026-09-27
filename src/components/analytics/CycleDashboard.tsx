@@ -11,7 +11,7 @@ import { DateRangeFilter } from "@/components/ui/DateRangeFilter";
 import { TrendAreaChart } from "@/components/charts/TrendAreaChart";
 import { useDateRangeFilter } from "@/lib/useDateRangeFilter";
 import { groupIntoPeriodRuns, currentCycleStatus, predictUpcomingPeriods, periodDelayDays, cycleAnalysis, cycleLengthTrend, periodLengthTrend } from "@/lib/aggregations/cycle";
-import { daysBetween, formatMonthYear, todayLocalISODate } from "@/lib/aggregations/common";
+import { daysBetween, todayLocalISODate } from "@/lib/aggregations/common";
 
 // Same rose accent as the Log page's Cycle tab.
 const ACCENT = "var(--series-4)";
@@ -103,7 +103,7 @@ export function CycleDashboard() {
               Cycle length
             </CardTitle>
             {cycleTrend.length > 1 ? (
-              <TrendAreaChart data={cycleTrend} color={ACCENT} valueLabel="Cycle length (days)" xTickFormatter={formatMonthYear} yTickFormatter={(v) => `${v}d`} showDots />
+              <TrendAreaChart data={cycleTrend} color={ACCENT} valueLabel="Cycle length (days)" yTickFormatter={(v) => `${v}d`} showDots />
             ) : (
               <p className="text-sm" style={{ color: "var(--text-muted)" }}>Not enough completed cycles in this range yet.</p>
             )}
@@ -114,7 +114,7 @@ export function CycleDashboard() {
               Period duration
             </CardTitle>
             {periodTrend.length > 1 ? (
-              <TrendAreaChart data={periodTrend} color={ACCENT} valueLabel="Period length (days)" xTickFormatter={formatMonthYear} yTickFormatter={(v) => `${v}d`} showDots />
+              <TrendAreaChart data={periodTrend} color={ACCENT} valueLabel="Period length (days)" yTickFormatter={(v) => `${v}d`} showDots />
             ) : (
               <p className="text-sm" style={{ color: "var(--text-muted)" }}>Not enough recorded periods in this range yet.</p>
             )}

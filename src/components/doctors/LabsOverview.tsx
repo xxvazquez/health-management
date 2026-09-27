@@ -20,9 +20,10 @@ import { InlineEmpty, ErrorState } from "@/components/ui/EmptyState";
 import { ListSkeleton } from "@/components/ui/Skeleton";
 import { Card } from "@/components/ui/Card";
 import { Methodology } from "@/components/ui/Methodology";
-import { LabMarkerChart } from "@/components/charts/LabMarkerChart";
+import { LabMarkerChart, type LabMarkerChartPoint } from "@/components/charts/LabMarkerChart";
+import { TrendCard, TrendHeadline, periodLabel, periodWindow, type ChartPeriod } from "@/components/charts/TrendCard";
 import { CustomIcon, customColorValue } from "@/components/ui/customIcons";
-import { DateRangeFilter, describeDateRange, type DateRangePreset } from "@/components/ui/DateRangeFilter";
+import { DateRangeFilter, type DateRangePreset } from "@/components/ui/DateRangeFilter";
 import { TabRail } from "@/components/ui/TabRail";
 import { DetailPlaceholder, MedicalSplit, useIsDesktop } from "./MedicalSplit";
 
@@ -60,12 +61,6 @@ const VIEW_LABEL: Record<`${Mode}:${SortKey}`, string> = {
   "average:panel": "Average · By panel",
   "average:name": "Average · A–Z",
 };
-
-/** "1 year" / "2 years" / "5 years" / "all-time" — the active preset's own
- * label, lowercased to sit inline in a sentence ("… in the last 1 year"). */
-function windowWord(label: string): string {
-  return label === "All time" ? "all-time" : label.toLowerCase();
-}
 
 /** The read/analysis view of Health → Results: the panel list — every
  * marker on its reference-range bar with the optimal band marked — grouped
@@ -154,6 +149,9 @@ export function LabsOverview({
   // placeholder; mobile stays list-first until one is tapped.
   const activeId = listedMarkers.some((m) => m.id === openId) ? openId : desktop ? (listedMarkers[0]?.id ?? null) : null;
   const openMarker = activeId ? inRange.find((m) => m.id === activeId) ?? null : null;
+  // The detail has its own period picker, so it gets every reading, not
+  // just the ones inside the list's window.
+  const openMarkerFull = openMarker ? allMarkers.find((m) => m.id === openMarker.id) ?? null : null;
 
   // On a phone the marker detail replaces the list: open it at the top, and
   // come back to the same place in the list.
@@ -172,12 +170,9 @@ export function LabsOverview({
   if (openMarker && !desktop) {
     return (
       <MarkerDetailView
-        marker={openMarker}
-        dateSpan={dateSpan}
-        range={activeRange}
-        onRangeChange={setRange}
-        windowStart={activeRange.start}
-        windowEnd={activeRange.end}
+        key={openMarker.id}
+        marker={openMarkerFull ?? openMarker}
+        today={today}
         onBack={backToList}
         onAddValue={onAddValue ? () => onAddValue(openMarker.id) : undefined}
         onEditValue={onEditValue ? (r) => onEditValue(openMarker.id, r) : undefined}
@@ -262,12 +257,9 @@ export function LabsOverview({
         detail={
           openMarker && (
             <MarkerDetailView
-              marker={openMarker}
-              dateSpan={dateSpan}
-              range={activeRange}
-              onRangeChange={setRange}
-              windowStart={activeRange.start}
-              windowEnd={activeRange.end}
+              key={openMarker.id}
+              marker={openMarkerFull ?? openMarker}
+              today={today}
               onAddValue={onAddValue ? () => onAddValue(openMarker.id) : undefined}
               onEditValue={onEditValue ? (r) => onEditValue(openMarker.id, r) : undefined}
             />
@@ -476,109 +468,127 @@ function SummaryRow({ label, value }: { label: string; value: string }) {
 
 function MarkerDetailView({
   marker,
-  dateSpan,
-  range,
-  onRangeChange,
-  windowStart,
-  windowEnd,
+  today,
   onBack,
   onAddValue,
   onEditValue,
 }: {
   marker: LabMarker;
-  dateSpan: DateRange;
-  range: DateRange;
-  onRangeChange: (v: DateRange) => void;
-  windowStart: string;
-  windowEnd: string;
-  /** Set on mobile, where the detail replaces the list; the desktop pane sits beside it and has neither a back link nor its own window control. */
+  today: string;
+  /** Set on mobile, where the detail replaces the list; the desktop pane sits beside it and has no back link. */
   onBack?: () => void;
   onAddValue?: () => void;
   onEditValue?: (result: LabResult) => void;
 }) {
   const [showAll, setShowAll] = useState(false);
+  const [period, setPeriod] = useState<ChartPeriod>("All");
+  const [offset, setOffset] = useState(0);
+  const [scrub, setScrub] = useState<LabMarkerChartPoint | null>(null);
 
   const ascending = [...marker.results].sort((a, b) => a.measuredOn.localeCompare(b.measuredOn));
   const newest = [...ascending].reverse();
+  const earliest = ascending[0]?.measuredOn ?? today;
+  const span = periodWindow(period, offset, earliest, today);
+  const inPeriod = ascending.filter((r) => r.measuredOn >= span.start && r.measuredOn <= span.end);
   const summary = summariseWindow(marker.results);
+  const periodSummary = summariseWindow(inPeriod);
   const { low, high } = effectiveRange(marker);
-  const status = summary ? rangeStatus(summary.latest, low, high) : null;
-  const tone = optimalStatusColor(status);
-  const change = summary && summary.previous != null ? summary.latest - summary.previous : null;
-  const changePct = change != null && summary!.previous !== 0 ? (change / Math.abs(summary!.previous!)) * 100 : null;
-  const signed = (v: number, text: string) => (v > 0 ? `+${text}` : v < 0 ? `−${text.replace("-", "")}` : text);
-
-  const win = windowWord(describeDateRange(LAB_DATE_PRESETS, dateSpan, range));
   const rangeText = (lo: number | null, hi: number | null) =>
     lo != null && hi != null ? `${fmtNum(lo)}–${fmtNum(hi)}` : lo != null ? `≥ ${fmtNum(lo)}` : hi != null ? `≤ ${fmtNum(hi)}` : null;
   const normal = rangeText(marker.refLow, marker.refHigh);
   const optimal = rangeText(marker.optimalLow, marker.optimalHigh);
+
+  const shownValue = scrub ? scrub.value : summary?.latest ?? null;
+  const shownDate = scrub ? scrub.date : summary?.latestOn ?? null;
+  const status = shownValue != null ? rangeStatus(shownValue, low, high) : null;
+  const tone = optimalStatusColor(status);
   const statusWord = status === "high" ? "High" : status === "low" ? "Low" : status === "in" ? "In range" : null;
+  const change = summary && summary.previous != null ? summary.latest - summary.previous : null;
+  const changePct = change != null && summary!.previous !== 0 ? (change / Math.abs(summary!.previous!)) * 100 : null;
+  const signed = (v: number, text: string) => (v > 0 ? `+${text}` : v < 0 ? `−${text.replace("-", "")}` : text);
 
   const shown = showAll ? newest : newest.slice(0, 12);
 
   return (
     <div className="flex flex-col gap-4">
       {onBack && (
-        <div className="flex items-center justify-between gap-3">
-          <button type="button" onClick={onBack} className="-ml-1 flex min-h-11 items-center gap-0.5 text-sm font-medium" style={{ color: ACCENT }}>
-            <ChevronIcon dir="left" size={16} />
-            Results
-          </button>
-          <DateRangeFilter span={dateSpan} value={range} onChange={onRangeChange} presets={LAB_DATE_PRESETS} accent={ACCENT} />
-        </div>
+        <button type="button" onClick={onBack} className="-ml-1 flex min-h-11 items-center gap-0.5 self-start text-sm font-medium" style={{ color: ACCENT }}>
+          <ChevronIcon dir="left" size={16} />
+          Results
+        </button>
       )}
 
-      <div className="flex flex-col gap-1">
-        <h2 className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>
-          {marker.name}
-        </h2>
-        {summary && (
-          <>
-            <p className="flex items-baseline gap-1.5">
-              <span className="text-2xl leading-tight font-semibold tabular-nums" style={{ color: status ? tone : "var(--text-primary)" }}>
-                {fmtNum(summary.latest)}
-              </span>
-              {marker.unit && (
-                <span className="text-sm" style={{ color: "var(--text-muted)" }}>
-                  {marker.unit}
-                </span>
-              )}
-            </p>
-            <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-              {statusWord && (
-                <>
-                  <span className="font-semibold" style={{ color: tone }}>
-                    {statusWord}
-                  </span>
-                  {" · "}
-                </>
-              )}
-              {[formatDate(summary.latestOn), normal && `normal ${normal}`, optimal && `optimal ${optimal}`].filter(Boolean).join(" · ")}
-            </p>
-          </>
-        )}
-      </div>
+      <h2 className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>
+        {marker.name}
+      </h2>
 
-      {ascending.length >= 2 ? (
-        <Card tier="raw" className="p-3">
-          <LabMarkerChart
-            data={ascending.map((r) => ({ date: r.measuredOn, value: r.value }))}
-            unit={marker.unit}
-            refLow={marker.refLow}
-            refHigh={marker.refHigh}
-            optimalLow={marker.optimalLow}
-            optimalHigh={marker.optimalHigh}
-            windowStart={windowStart}
-            windowEnd={windowEnd}
-            color="var(--series-other)"
-            colorByRange
-          />
-        </Card>
-      ) : (
-        <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-          Add a second value in this window to see the trend.
-        </p>
+      {ascending.length > 0 && (
+        <TrendCard
+          period={period}
+          onPeriod={setPeriod}
+          offset={offset}
+          onOffset={setOffset}
+          earliest={earliest}
+          today={today}
+          accent={ACCENT}
+          headline={
+            offset > 0 && !scrub ? (
+              periodSummary ? (
+                <TrendHeadline
+                  caption="Range"
+                  value={periodSummary.count >= 2 ? `${fmtNum(periodSummary.min)}–${fmtNum(periodSummary.max)}` : fmtNum(periodSummary.latest)}
+                  unit={marker.unit}
+                  detail={`${periodLabel(span)} · ${periodSummary.count} reading${periodSummary.count === 1 ? "" : "s"}`}
+                />
+              ) : (
+                <TrendHeadline caption="Range" value="—" detail={periodLabel(span)} />
+              )
+            ) : (
+            shownValue != null &&
+            shownDate && (
+              <TrendHeadline
+                caption={scrub ? formatDate(shownDate) : "Latest"}
+                value={fmtNum(shownValue)}
+                unit={marker.unit}
+                color={status ? tone : undefined}
+                detail={
+                  <>
+                    {statusWord && (
+                      <>
+                        <span className="font-semibold" style={{ color: tone }}>
+                          {statusWord}
+                        </span>
+                        {" · "}
+                      </>
+                    )}
+                    {[scrub ? null : formatDate(shownDate), normal && `normal ${normal}`, optimal && `optimal ${optimal}`].filter(Boolean).join(" · ")}
+                  </>
+                }
+              />
+            )
+            )
+          }
+        >
+          {inPeriod.length > 0 ? (
+            <LabMarkerChart
+              data={inPeriod.map((r) => ({ date: r.measuredOn, value: r.value }))}
+              unit={marker.unit}
+              refLow={marker.refLow}
+              refHigh={marker.refHigh}
+              optimalLow={marker.optimalLow}
+              optimalHigh={marker.optimalHigh}
+              windowStart={span.start}
+              windowEnd={span.end}
+              color="var(--series-other)"
+              colorByRange
+              onScrub={setScrub}
+            />
+          ) : (
+            <p className="flex h-[220px] items-center justify-center text-xs" style={{ color: "var(--text-muted)" }}>
+              No readings in this period.
+            </p>
+          )}
+        </TrendCard>
       )}
 
       {summary && (change != null || summary.count >= 2) && (
@@ -589,7 +599,9 @@ function MarkerDetailView({
               value={`${signed(change, fmtNum(Math.abs(change)))}${changePct != null ? ` (${signed(changePct, `${Math.abs(Math.round(changePct))}%`)})` : ""}`}
             />
           )}
-          {summary.count >= 2 && <SummaryRow label={win === "all-time" ? "Average" : `Average, last ${win}`} value={fmtMean(summary.mean)} />}
+          {periodSummary && periodSummary.count >= 2 && (
+            <SummaryRow label={period === "All" ? "Average" : `Average, ${periodLabel(span)}`} value={fmtMean(periodSummary.mean)} />
+          )}
         </Card>
       )}
 
