@@ -189,7 +189,7 @@ function ProgressSection({
                 </div>
 
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+                  <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
                     {s.exercise}
                   </p>
                   <p className="text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>

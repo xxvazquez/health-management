@@ -37,6 +37,7 @@ import {
 } from "@/lib/aggregations/food";
 import {
   computeNutritionPriorities,
+  MIN_FOOD_DAYS_FOR_CONFIDENCE,
   type CoverageRow,
   type GroupStatus,
   type DietBalanceStatus,
@@ -92,7 +93,7 @@ function PillarStatRow({ row }: { row: PillarStat }) {
       <div className="flex items-baseline justify-between gap-3">
         <span className="flex min-w-0 flex-1 items-center gap-1.5">
           <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: tone }} aria-hidden="true" />
-          <span className="min-w-0 truncate text-sm" style={{ color: "var(--text-primary)" }}>
+          <span className="min-w-0 text-sm" style={{ color: "var(--text-primary)" }}>
             {row.label}
           </span>
         </span>
@@ -135,7 +136,7 @@ function StapleRow({ entry }: { entry: StapleEntry }) {
   return (
     <li>
       <div className="flex items-baseline justify-between gap-3">
-        <span className="min-w-0 flex-1 truncate text-sm" style={{ color: "var(--text-primary)" }}>
+        <span className="min-w-0 flex-1 text-sm" style={{ color: "var(--text-primary)" }}>
           {entry.item}
         </span>
         <span className="shrink-0 text-sm font-semibold tabular-nums" style={{ color: STAPLE_TONE }}>
@@ -155,7 +156,7 @@ function StapleRow({ entry }: { entry: StapleEntry }) {
 function FallenOutRow({ entry }: { entry: FallenOutEntry }) {
   return (
     <li className="flex items-baseline justify-between gap-3">
-      <span className="min-w-0 flex-1 truncate text-sm" style={{ color: "var(--text-primary)" }}>
+      <span className="min-w-0 flex-1 text-sm" style={{ color: "var(--text-primary)" }}>
         {entry.item}
       </span>
       <span className="shrink-0 text-xs" style={{ color: "var(--text-muted)" }}>
@@ -329,14 +330,7 @@ export function FoodDashboard() {
   // clamped actual span, so the prose can't disagree with the filter and
   // the header above it.
   const rangeSuffix = rangeLabel ? ` over ${rangeLabel}` : "";
-  const foodInsight = priorities.insufficientData
-    ? {
-        label: "What stands out",
-        headline: `Only ${priorities.daysWithFoodTracked} day${priorities.daysWithFoodTracked === 1 ? "" : "s"} of food logged in this range.`,
-        detail: "Widen the range or keep logging, and this page's recommendations fill in.",
-        tone: "neutral" as const,
-      }
-    : underPillars.length > 0
+  const foodInsight = underPillars.length > 0
       ? {
           label: "What stands out",
           headline: `${underPillars.slice(0, 2).map((p) => p.label).join(" and ")} ${
@@ -384,22 +378,24 @@ export function FoodDashboard() {
         </TrendsActions>
       )}
 
-      <Insight
-        label={foodInsight.label}
-        headline={foodInsight.headline}
-        detail={foodInsight.detail}
-        tone={foodInsight.tone}
-        stat={
-          !priorities.insufficientData && diversity ? (
-            <StatChip
-              label="Unique ingredients"
-              value={String(diversity.current)}
-              accent={TYPE_ACCENT.food}
-              detail={ingredientDelta != null ? `${ingredientDelta > 0 ? "+" : ""}${ingredientDelta} vs prev.` : undefined}
-            />
-          ) : undefined
-        }
-      />
+      {!priorities.insufficientData && (
+        <Insight
+          label={foodInsight.label}
+          headline={foodInsight.headline}
+          detail={foodInsight.detail}
+          tone={foodInsight.tone}
+          stat={
+            diversity ? (
+              <StatChip
+                label="Unique ingredients"
+                value={String(diversity.current)}
+                accent={TYPE_ACCENT.food}
+                detail={ingredientDelta != null ? `${ingredientDelta > 0 ? "+" : ""}${ingredientDelta} vs prev.` : undefined}
+              />
+            ) : undefined
+          }
+        />
+      )}
 
       {/* The sticky section tabs and the section they render share one
           parent, so the tabs have room to stay pinned while a long section
@@ -409,12 +405,10 @@ export function FoodDashboard() {
       <PageSection id="overview" activeId={activeSection} headingLabel="Overview">
         {priorities.insufficientData ? (
           <Card tier="supporting">
-            <CardTitle subtitle="This page needs a bit more logged history before its recommendations are trustworthy.">
-              Not enough data yet
-            </CardTitle>
+            <CardTitle>Not enough history yet</CardTitle>
             <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-              Only {priorities.daysWithFoodTracked} day{priorities.daysWithFoodTracked === 1 ? "" : "s"} with food
-              logged in this range. Widen the range or keep logging on the Log page and this page fills in.
+              Recommendations need at least {MIN_FOOD_DAYS_FOR_CONFIDENCE} days of food history. Pick a longer range, and
+              this page fills in.
             </p>
           </Card>
         ) : (

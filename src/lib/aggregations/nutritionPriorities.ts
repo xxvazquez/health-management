@@ -22,7 +22,7 @@ import { evidenceForGroup } from "@/lib/nutritionEvidence";
  * "never logged" is indistinguishable from "hasn't logged much of anything
  * yet". A short range (e.g. "7 days") will often land here, which is
  * correct: a week of data isn't enough to judge a pattern of eating. */
-const MIN_FOOD_DAYS_FOR_CONFIDENCE = 10;
+export const MIN_FOOD_DAYS_FOR_CONFIDENCE = 10;
 
 const CONSISTENCY_RARE_CUTOFF = 0.34;
 const CONSISTENCY_OCCASIONAL_CUTOFF = 0.7;

@@ -101,7 +101,7 @@ export function ManageRow({
           setOpen(true);
         }}
         aria-haspopup="dialog"
-        className="flex min-h-11 w-full items-center gap-3 px-3.5 text-left"
+        className="flex min-h-11 w-full items-center gap-3 px-3.5 py-2 text-left"
       >
         {appearance && (
           <span
@@ -112,7 +112,7 @@ export function ManageRow({
           </span>
         )}
         {swatch && <span className="h-5 w-5 shrink-0 rounded-full border" style={{ background: swatch.value, borderColor: "var(--border-hairline)" }} />}
-        <span className="min-w-0 flex-1 truncate text-sm" style={{ color: isArchived ? "var(--text-muted)" : "var(--text-primary)" }}>
+        <span className="min-w-0 flex-1 text-sm" style={{ color: isArchived ? "var(--text-muted)" : "var(--text-primary)" }}>
           {name}
         </span>
         {isArchived && (

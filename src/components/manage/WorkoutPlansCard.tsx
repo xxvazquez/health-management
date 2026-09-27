@@ -613,8 +613,8 @@ export function WorkoutPlansCard({ isDemoData, searchQuery, workoutItems }: { is
         <>
           <div className={GROUP_CLS} style={GROUP_STYLE}>
             {plans.map((plan) => (
-              <button key={plan.id} type="button" onClick={() => setEditing(draftFromPlan(plan))} className="flex min-h-11 w-full items-center gap-3 px-3.5 text-left">
-                <span className="flex-1 truncate text-sm" style={{ color: "var(--text-primary)" }}>
+              <button key={plan.id} type="button" onClick={() => setEditing(draftFromPlan(plan))} className="flex min-h-11 w-full items-center gap-3 px-3.5 py-2 text-left">
+                <span className="min-w-0 flex-1 text-sm" style={{ color: "var(--text-primary)" }}>
                   {plan.name}
                 </span>
                 <span className="flex shrink-0 items-center gap-1.5 text-sm" style={{ color: "var(--text-muted)" }}>

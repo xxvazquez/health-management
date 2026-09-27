@@ -1776,7 +1776,7 @@ export default function LogPage() {
                 <span className="flex w-4 shrink-0 justify-center" style={{ color: active ? accent : "var(--text-muted)" }} aria-hidden="true">
                   {t.icon}
                 </span>
-                <span className="min-w-0 flex-1 truncate">{t.label}</span>
+                <span className="min-w-0 flex-1">{t.label}</span>
                 {t.logged > 0 && (
                   <span className="shrink-0 text-xs font-medium tabular-nums" style={{ color: accent }}>
                     {t.logged}
@@ -2080,10 +2080,10 @@ export default function LogPage() {
                 type="button"
                 onClick={() => void handleQuickLogSeasonal(pick.item)}
                 disabled={pending === `seasonal:${normalizeName(pick.item)}`}
-                className="flex min-h-11 min-w-0 flex-1 items-center gap-1.5 rounded-lg pl-3.5 text-left text-sm transition-colors hover:bg-black/[0.04] active:bg-black/5 disabled:opacity-50 lg:pl-2.5 lg:pointer-fine:min-h-9"
+                className="flex min-h-11 min-w-0 flex-1 items-center gap-1.5 rounded-lg py-2 pl-3.5 text-left text-sm transition-colors hover:bg-black/[0.04] active:bg-black/5 disabled:opacity-50 lg:pl-2.5 lg:pointer-fine:min-h-9"
                 style={{ color: "var(--text-primary)" }}
               >
-                <span className="truncate">{pick.item}</span>
+                <span className="min-w-0">{pick.item}</span>
                 <span className="shrink-0 text-xs" style={{ color: "var(--text-muted)" }}>
                   {pick.weeksSinceLastEaten === null ? "never" : pick.weeksSinceLastEaten === 0 ? "this week" : `${pick.weeksSinceLastEaten}w ago`}
                 </span>
@@ -2634,7 +2634,7 @@ export default function LogPage() {
                 key={entry.key}
                 type="button"
                 onClick={() => setDetailKey(entry.key)}
-                className="flex min-h-11 w-full items-center gap-2.5 px-3.5 text-left"
+                className="flex min-h-11 w-full items-center gap-2.5 px-3.5 py-2 text-left"
                 style={{ opacity: pending === entry.key ? 0.5 : 1 }}
               >
                 {!mealSheetSharedTime && (
@@ -2642,7 +2642,7 @@ export default function LogPage() {
                     {entry.time}
                   </span>
                 )}
-                <span className="min-w-0 flex-1 truncate text-sm" style={{ color: "var(--text-primary)" }}>
+                <span className="min-w-0 flex-1 text-sm" style={{ color: "var(--text-primary)" }}>
                   {entry.productId ? `${entry.item} (${productNameById.get(entry.productId) ?? "product"})` : entry.item}
                 </span>
                 <ChevronIcon dir="right" size={13} />

@@ -80,8 +80,8 @@ export function ProductForm({
 
       <FormGroup title="Ingredients" footer="Anything you haven't tracked yet is added to your foods automatically.">
         {ingredients.map((ing) => (
-          <div key={ing} className="flex min-h-11 items-center gap-3 px-3.5 text-sm" style={{ color: "var(--text-primary)" }}>
-            <span className="min-w-0 flex-1 truncate">{ing}</span>
+          <div key={ing} className="flex min-h-11 items-center gap-3 px-3.5 py-2 text-sm" style={{ color: "var(--text-primary)" }}>
+            <span className="min-w-0 flex-1">{ing}</span>
             <button
               type="button"
               onClick={() => setIngredients((prev) => prev.filter((i) => i !== ing))}
