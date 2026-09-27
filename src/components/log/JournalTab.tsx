@@ -85,10 +85,20 @@ function JournalEntryForm({
         <h3 className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>
           {editing ? "Edit entry" : "New entry"}
         </h3>
-        <button type="button" onClick={onCancel} className="min-h-9 text-sm font-medium" style={{ color: "var(--ui-accent)" }}>
-          Cancel
-        </button>
+        <div className="flex shrink-0 items-center gap-3">
+          <button type="button" onClick={onCancel} className="min-h-9 text-sm font-medium" style={{ color: "var(--ui-accent)" }}>
+            Cancel
+          </button>
+          <Button type="submit" size="sm" accent={accent} disabled={saving || !body.trim()}>
+            {saving ? "Saving…" : "Save"}
+          </Button>
+        </div>
       </div>
+      {error && (
+        <p className="-mt-2 px-0.5 text-xs" style={{ color: "var(--status-critical)" }}>
+          {error}
+        </p>
+      )}
 
       <FormGroup>
         <Field label="Date" inline>
@@ -105,17 +115,6 @@ function JournalEntryForm({
         />
         <MarkdownField value={body} onChange={setBody} placeholder="Write whatever's on your mind…" autoFocus={!editing} />
       </FormGroup>
-
-      <div className="flex items-center gap-3">
-        <Button type="submit" size="lg" accent={accent} disabled={saving || !body.trim()}>
-          {saving ? "Saving…" : editing ? "Save changes" : "Save entry"}
-        </Button>
-        {error && (
-          <span className="text-xs" style={{ color: "var(--status-critical)" }}>
-            {error}
-          </span>
-        )}
-      </div>
 
       {onDelete && (
         <FormGroup>
