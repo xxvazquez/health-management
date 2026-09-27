@@ -149,46 +149,78 @@ export function mealInstances(events: CanonicalEvent[]): MealInstance[] {
 
 export interface MealComboEntry {
   mealTag: string;
-  /** Sorted, always at least 2 items — the exact set logged together. */
+  /** Sorted, 2–4 items logged together in the same meal. */
   items: string[];
   count: number;
 }
 
 const MIN_COMBO_COUNT = 2;
 
+/** Largest combination counted — bigger sets almost never recur exactly. */
+const MAX_COMBO_SIZE = 4;
+/** Above this many ingredients in one meal, only pairs are counted, so a
+ * very long meal can't blow up the number of subsets. */
+const MAX_ITEMS_FOR_LARGER_COMBOS = 16;
+
 /**
- * The exact multi-ingredient sets that recur together within the same meal
+ * The groups of 2–4 ingredients that recur together within the same meal
  * instance (one date + meal tag) — "what do I most commonly eat together
- * for breakfast/lunch/dinner/snack", not a ranking of individual foods and
- * not just pairs. Two meal instances count as the same combination only
- * when they share the exact same set of items; a combination needs at
- * least 2 ingredients, and to have recurred at least `minCount` times, to
- * count as a favorite rather than a one-off.
+ * for breakfast/lunch/dinner/snack". A combination counts every meal that
+ * contains it, not only meals that are exactly that set, so "Decaf coffee +
+ * Milk" is found even when other foods were logged in the same meal. It has
+ * to recur at least `minCount` times to count as a favorite.
+ *
+ * A combination is dropped when a bigger one containing it recurs just as
+ * often — "Banana + Milk" adds nothing if "Banana + Chocolate + Milk" came
+ * up every one of those times. Sorted by count, then by size.
  *
  * Takes already-computed `MealInstance[]` rather than raw events so a
  * caller that also needs the instance count/list (the Food page does, for
  * its "not enough meals tagged yet" gate) can compute `mealInstances` once
- * and share it, instead of this function silently re-deriving it internally.
+ * and share it.
  *
  * Keys each combo by mealTag + JSON-stringified item list rather than a
- * plain `items.join("+")` — item names are free text (any user can rename
- * an item to anything via the Manage page), so a joined string can collide:
- * items `["A+B", "C"]` and `["A", "B+C"]` would otherwise both serialize to
- * "A+B+C" and get merged into one miscounted entry.
+ * plain `items.join("+")` — item names are free text, so a joined string
+ * can collide: `["A+B", "C"]` and `["A", "B+C"]` would both be "A+B+C".
  */
 export function favoriteCombosByMeal(instances: MealInstance[], minCount = MIN_COMBO_COUNT): MealComboEntry[] {
   const counts = new Map<string, MealComboEntry>();
   for (const instance of instances) {
-    if (instance.items.length < 2) continue;
-    const items = [...instance.items].sort((a, b) => a.localeCompare(b));
-    const key = `${instance.mealTag}|${JSON.stringify(items)}`;
-    const entry = counts.get(key) ?? { mealTag: instance.mealTag, items, count: 0 };
-    entry.count++;
-    counts.set(key, entry);
+    const items = Array.from(new Set(instance.items)).sort((a, b) => a.localeCompare(b));
+    if (items.length < 2) continue;
+    const maxSize = items.length > MAX_ITEMS_FOR_LARGER_COMBOS ? 2 : Math.min(MAX_COMBO_SIZE, items.length);
+    for (const combo of subsets(items, maxSize)) {
+      const key = `${instance.mealTag}|${JSON.stringify(combo)}`;
+      const entry = counts.get(key) ?? { mealTag: instance.mealTag, items: combo, count: 0 };
+      entry.count++;
+      counts.set(key, entry);
+    }
   }
-  return Array.from(counts.values())
-    .filter((e) => e.count >= minCount)
-    .sort((a, b) => b.count - a.count);
+  const frequent = Array.from(counts.values()).filter((e) => e.count >= minCount);
+  const coveredByBigger = (e: MealComboEntry) =>
+    frequent.some(
+      (other) =>
+        other.mealTag === e.mealTag &&
+        other.count === e.count &&
+        other.items.length > e.items.length &&
+        e.items.every((item) => other.items.includes(item)),
+    );
+  return frequent
+    .filter((e) => !coveredByBigger(e))
+    .sort((a, b) => b.count - a.count || b.items.length - a.items.length || a.items.join().localeCompare(b.items.join()));
+}
+
+/** Every subset of `items` with 2 to `maxSize` members, each kept in the
+ * input's order. */
+function subsets(items: string[], maxSize: number): string[][] {
+  const out: string[][] = [];
+  const walk = (start: number, current: string[]) => {
+    if (current.length >= 2) out.push(current);
+    if (current.length === maxSize) return;
+    for (let i = start; i < items.length; i++) walk(i + 1, [...current, items[i]]);
+  };
+  walk(0, []);
+  return out;
 }
 
 export interface IngredientDiversity {

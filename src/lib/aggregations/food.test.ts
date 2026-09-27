@@ -159,6 +159,27 @@ describe("favoriteCombosByMeal", () => {
     expect(favoriteCombosByMeal(instances, 1)).toHaveLength(2);
   });
 
+  it("finds a combination inside bigger meals that never repeat exactly", () => {
+    const instances = [
+      { date: "2026-01-01", mealTag: "Breakfast", items: ["Coffee", "Milk", "Toast"] },
+      { date: "2026-01-02", mealTag: "Breakfast", items: ["Coffee", "Milk", "Banana"] },
+      { date: "2026-01-03", mealTag: "Breakfast", items: ["Oats", "Coffee", "Milk"] },
+    ];
+    expect(favoriteCombosByMeal(instances)).toEqual([{ mealTag: "Breakfast", items: ["Coffee", "Milk"], count: 3 }]);
+  });
+
+  it("keeps the bigger combination when its parts only ever came with it", () => {
+    const instances = [
+      { date: "2026-01-01", mealTag: "Snack", items: ["Banana", "Chocolate", "Milk"] },
+      { date: "2026-01-02", mealTag: "Snack", items: ["Banana", "Chocolate", "Milk"] },
+      { date: "2026-01-03", mealTag: "Snack", items: ["Banana", "Milk"] },
+    ];
+    expect(favoriteCombosByMeal(instances)).toEqual([
+      { mealTag: "Snack", items: ["Banana", "Milk"], count: 3 },
+      { mealTag: "Snack", items: ["Banana", "Chocolate", "Milk"], count: 2 },
+    ]);
+  });
+
   it("respects a custom minCount threshold", () => {
     const instances = [
       { date: "2026-01-01", mealTag: "Lunch", items: ["Rice", "Beans"] },
