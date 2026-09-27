@@ -2901,6 +2901,8 @@ function ItemSection({
 }) {
   const [archivedOpen, setArchivedOpen] = useState(false);
   const [openCategories, setOpenCategories] = useState<Set<string>>(new Set());
+  // The grouped list's own ≡ grips reorder the categories directly.
+  const categoryDrag = useDragReorder(categories, (next) => void onReorderCategories(next));
   const [editingIdentity, setEditingIdentity] = useState<string | null>(null);
   const [localQuery, setLocalQuery] = useState("");
   const globalQuery = searchQuery.trim().toLowerCase();
@@ -2941,9 +2943,9 @@ function ItemSection({
     else groups.set(item.category, [item]);
   }
   const grouped = items.filter((i) => !i.isArchived).length > GROUP_THRESHOLD;
-  // In the order the categories are arranged (the `categories` prop).
+  // In the order the categories are arranged — live while one is dragged.
   const rank = (c: string) => {
-    const i = categories.indexOf(c);
+    const i = categoryDrag.order.indexOf(c);
     return i === -1 ? Number.MAX_SAFE_INTEGER : i;
   };
   const sortedGroups = Array.from(groups.entries()).sort(([a], [b]) => rank(a) - rank(b) || a.localeCompare(b));
@@ -3021,13 +3023,18 @@ function ItemSection({
               const appearance = categoryAppearanceByName.get(category);
               const accent = customColorValue(appearance?.color ?? null) ?? TYPE_ACCENT[itemType];
               return (
-                <div key={category}>
+                <div
+                  key={category}
+                  ref={categoryDrag.rowRef(category)}
+                  style={categoryDrag.dragging === category ? { background: "var(--surface-1)", boxShadow: "var(--shadow-card)", position: "relative", zIndex: 1 } : undefined}
+                >
+                  <div className="flex items-center">
                   <button
                     type="button"
                     onClick={() => toggleCategory(category)}
                     disabled={isFiltering}
                     aria-expanded={groupOpen}
-                    className="flex min-h-11 w-full items-center gap-3 px-3.5 text-left"
+                    className="flex min-h-11 min-w-0 flex-1 items-center gap-3 pl-3.5 text-left"
                   >
                     <span
                       className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md"
@@ -3047,6 +3054,21 @@ function ItemSection({
                       )}
                     </span>
                   </button>
+                  {isFiltering ? (
+                    <span className="w-3.5 shrink-0" />
+                  ) : (
+                    <span
+                      {...categoryDrag.handleProps(category)}
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`Reorder ${category} — drag, or use the arrow keys`}
+                      className="tap-target flex h-11 w-10 shrink-0 items-center justify-center"
+                      style={{ ...categoryDrag.handleProps(category).style, color: "var(--text-muted)" }}
+                    >
+                      <GripIcon size={16} />
+                    </span>
+                  )}
+                  </div>
                   {groupOpen && (
                     <ul className="inset-rows relative [--row-inset:3.375rem] before:absolute before:top-0 before:right-0 before:left-[3.375rem] before:border-t before:border-[var(--gridline)]">
                       {rows.map((item) => renderRow(item))}
