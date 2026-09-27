@@ -119,7 +119,7 @@ function ThreadRow({
 
   return (
     <div
-      className="group flex items-start gap-1 pr-3.5 pl-2.5 transition-colors hover:bg-black/[0.03] lg:pr-1"
+      className="group flex items-start gap-1 pr-3.5 pl-2.5 transition-colors hover:bg-black/[0.03]"
       style={{ touchAction: "pan-y" }}
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}

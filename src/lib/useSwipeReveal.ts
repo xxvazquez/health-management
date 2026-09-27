@@ -36,11 +36,12 @@ export function useSwipeReveal() {
   return { revealed, onTouchStart, onTouchEnd };
 }
 
-/** Tailwind classes for a row's trailing actions container. On a phone the
- * hidden actions take no room (a swipe opens them); from `lg` they keep their
- * place and appear on row hover/focus. */
+/** Tailwind classes for a row's trailing actions container. Hidden actions
+ * take no room (out of the layout, so no flex gap either), so a row's trailing text (a date, a count) sits at its edge;
+ * a swipe opens them on a phone, and from `lg` hovering or focusing the row
+ * does. */
 export const SWIPE_REVEAL_CLASS = {
   shown: "opacity-100",
   hidden:
-    "w-0 overflow-hidden pointer-events-none opacity-0 lg:w-auto lg:overflow-visible lg:group-hover:pointer-events-auto lg:group-hover:opacity-100 lg:group-focus-within:pointer-events-auto lg:group-focus-within:opacity-100",
+    "absolute w-0 overflow-hidden pointer-events-none opacity-0 lg:group-hover:static lg:group-hover:-my-1 lg:group-hover:w-auto lg:group-hover:overflow-visible lg:group-hover:pointer-events-auto lg:group-hover:opacity-100 lg:group-focus-within:static lg:group-focus-within:-my-1 lg:group-focus-within:w-auto lg:group-focus-within:overflow-visible lg:group-focus-within:pointer-events-auto lg:group-focus-within:opacity-100",
 };
