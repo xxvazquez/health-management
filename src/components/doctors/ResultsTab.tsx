@@ -126,17 +126,15 @@ export function ResultsTab({ accent }: { accent: string }) {
 
   if (labs.error) return <ErrorState what="your results" />;
 
-  if (view.mode === "marker-form") {
-    return (
-      <MarkerForm
-        labs={labs}
-        accent={accent}
-        fields="basic"
-        onSaved={() => setView({ mode: "list" })}
-        onCancel={() => setView({ mode: "list" })}
-      />
-    );
-  }
+  const markerFormSheet = view.mode === "marker-form" ? (
+    <MarkerForm
+      labs={labs}
+      accent={accent}
+      fields="basic"
+      onSaved={() => setView({ mode: "list" })}
+      onCancel={() => setView({ mode: "list" })}
+    />
+  ) : null;
 
   if (view.mode === "batch") {
     return (
@@ -154,23 +152,23 @@ export function ResultsTab({ accent }: { accent: string }) {
   }
 
   const editingResultMarker = view.mode === "result-form" ? findMarker(view.markerId) : null;
-  if (view.mode === "result-form" && editingResultMarker) {
-    return (
-      <ResultForm
-        labs={labs}
-        accent={accent}
-        marker={editingResultMarker}
-        initial={view.resultId ? editingResultMarker.results.find((r) => r.id === view.resultId) : undefined}
-        onDone={() => setView({ mode: "list" })}
-        onCancel={() => setView({ mode: "list" })}
-      />
-    );
-  }
+  const resultFormSheet = view.mode === "result-form" && editingResultMarker ? (
+    <ResultForm
+      labs={labs}
+      accent={accent}
+      marker={editingResultMarker}
+      initial={view.resultId ? editingResultMarker.results.find((r) => r.id === view.resultId) : undefined}
+      onDone={() => setView({ mode: "list" })}
+      onCancel={() => setView({ mode: "list" })}
+    />
+  ) : null;
 
   const hasMarkers = labs.markers.data.length > 0;
 
   return (
     <div className="flex flex-col gap-4">
+      {resultFormSheet}
+      {markerFormSheet}
       {flash && (
         <p
           className="rounded-[10px] border px-3 py-2 text-xs font-medium"

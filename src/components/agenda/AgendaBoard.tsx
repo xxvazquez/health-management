@@ -2,7 +2,7 @@
 
 import { DatePicker } from "@/components/ui/DatePicker";
 import { CONTROL_CLS, CONTROL_STYLE } from "@/components/ui/Chip";
-import { useMemo, useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent, type ReactNode } from "react";
 import Link from "next/link";
 import clsx from "clsx";
 import { AGENDA_BUCKET_LABEL, AGENDA_BUCKET_ORDER, EXPIRY_GROUP_LABEL, EXPIRY_GROUP_ORDER, expiryGroup, type AgendaBucket, type AgendaEntry, type ExpiryGroup, recurrenceLabel } from "@/lib/aggregations/agenda";
@@ -277,10 +277,11 @@ export function AgendaBoard(props: AgendaBoardProps) {
     }));
   }, [view, filtered, grouped]);
 
-  // ---- add / edit forms take over the whole surface, same as the boards
+  // Add/edit forms open as sheets over the agenda.
+  let formSheet: ReactNode = null;
   if (add?.mode === "reminder" || editing?.kind === "reminder") {
     const scope = editing ? (editing.scope as "mine" | "shared") : (add as { scope: "mine" | "shared" }).scope;
-    return (
+    formSheet = (
       <TaskForm
         accent={ACCENT}
         recurrenceMode="optional"
@@ -299,11 +300,10 @@ export function AgendaBoard(props: AgendaBoardProps) {
         }}
       />
     );
-  }
-  if (add?.mode === "expiry" || editing?.kind === "expiry") {
+  } else if (add?.mode === "expiry" || editing?.kind === "expiry") {
     const scope = editing ? (editing.scope as "mine" | "shared") : (add as { scope: "mine" | "shared" }).scope;
     const it = editing?.expiry;
-    return (
+    formSheet = (
       <ExpiryForm
         initial={it ? { name: it.name, expiresOn: it.expiresOn, remindDaysBefore: it.remindDaysBefore } : undefined}
         onSave={async (name, on, remind) => {
@@ -325,6 +325,7 @@ export function AgendaBoard(props: AgendaBoardProps) {
 
   return (
     <div className="flex flex-col gap-5">
+      {formSheet}
       <PageHeading
         subtitle={subtitle}
         actions={

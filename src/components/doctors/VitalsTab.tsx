@@ -326,34 +326,29 @@ export function VitalsTab({ accent }: { accent: string }) {
     setEditingWeight(null);
   };
 
-  if (composing || editingBp || editingWeight) {
-    if (kind === "bp") {
-      return (
-        <BpForm
-          accent={accent}
-          initial={editingBp ?? undefined}
-          onSave={async (v) => {
-            if (editingBp) await vitals.bp.edit(editingBp.id, v);
-            else await vitals.bp.add(v);
-            closeForm();
-          }}
-          onCancel={closeForm}
-        />
-      );
-    }
-    return (
-      <WeightForm
-        accent={accent}
-        initial={editingWeight ?? undefined}
-        onSave={async (v) => {
-          if (editingWeight) await vitals.weight.edit(editingWeight.id, v);
-          else await vitals.weight.add(v);
-          closeForm();
-        }}
-        onCancel={closeForm}
-      />
-    );
-  }
+  const formSheet = !(composing || editingBp || editingWeight) ? null : kind === "bp" ? (
+    <BpForm
+      accent={accent}
+      initial={editingBp ?? undefined}
+      onSave={async (v) => {
+        if (editingBp) await vitals.bp.edit(editingBp.id, v);
+        else await vitals.bp.add(v);
+        closeForm();
+      }}
+      onCancel={closeForm}
+    />
+  ) : (
+    <WeightForm
+      accent={accent}
+      initial={editingWeight ?? undefined}
+      onSave={async (v) => {
+        if (editingWeight) await vitals.weight.edit(editingWeight.id, v);
+        else await vitals.weight.add(v);
+        closeForm();
+      }}
+      onCancel={closeForm}
+    />
+  );
 
   const bpAsc = [...vitals.bp.data].slice().reverse();
   const weightAsc = [...vitals.weight.data].slice().reverse();
@@ -373,6 +368,7 @@ export function VitalsTab({ accent }: { accent: string }) {
 
   return (
     <div className="flex flex-col gap-3">
+      {formSheet}
       <div className="flex flex-wrap items-center justify-between gap-2">
         {!vitals.loading && !vitals.error && hasChartData && (
           <DateRangeFilter span={span} value={effectiveRange} onChange={setRange} presets={VITALS_DATE_PRESETS} accent={accent} />

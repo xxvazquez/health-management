@@ -315,28 +315,25 @@ export function CodeBoard({
 
   const groups = useMemo(() => groupByShop(codes.filter((c) => matchesSearch(c, search)), sort), [codes, search, sort]);
 
-  if (composing || editingCode) {
-    return (
-      <CodeForm
-        key={editingCode?.id ?? "new"}
-        accent={accent}
-        initial={editingCode ?? undefined}
-        onSave={async (input) => {
-          if (editingCode) await onEdit(editingCode.id, input);
-          else await onCreate(input);
-          setComposing(false);
-          setEditingId(null);
-        }}
-        onCancel={() => {
-          setComposing(false);
-          setEditingId(null);
-        }}
-      />
-    );
-  }
-
   return (
     <div className="flex flex-col gap-3">
+      {(composing || editingCode) && (
+        <CodeForm
+          key={editingCode?.id ?? "new"}
+          accent={accent}
+          initial={editingCode ?? undefined}
+          onSave={async (input) => {
+            if (editingCode) await onEdit(editingCode.id, input);
+            else await onCreate(input);
+            setComposing(false);
+            setEditingId(null);
+          }}
+          onCancel={() => {
+            setComposing(false);
+            setEditingId(null);
+          }}
+        />
+      )}
       <div className="flex items-center gap-2">
         <SearchField value={search} onChange={setSearch} placeholder="Search codes…" className="min-w-0 flex-1 sm:w-64 sm:flex-none" />
         <button

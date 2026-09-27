@@ -656,9 +656,8 @@ function LabResultsCard({ searchQuery }: { searchQuery: string }) {
                               type="button"
                               onClick={() => {
                                 setConfirmingMarker(null);
-                                setEditingMarkerId(isEditing ? null : m.id);
+                                setEditingMarkerId(m.id);
                               }}
-                              aria-expanded={isEditing}
                               className="flex min-h-11 w-full items-center gap-2 px-3.5 text-left"
                             >
                               <span className="min-w-0 flex-1 truncate text-sm" style={{ color: "var(--text-primary)" }}>
@@ -670,15 +669,14 @@ function LabResultsCard({ searchQuery }: { searchQuery: string }) {
                                 </span>
                               )}
                               <span className="shrink-0" style={{ color: "var(--text-muted)" }}>
-                                <ChevronIcon dir={isEditing ? "down" : "right"} size={14} />
+                                <ChevronIcon dir="right" size={14} />
                               </span>
                             </button>
                             {isEditing && (
-                              <div className="flex flex-col gap-2 border-t p-3" style={{ borderColor: "var(--gridline)" }}>
-                                <MarkerForm labs={labs} accent={accent} fields="all" initial={m} onSaved={() => setEditingMarkerId(null)} onCancel={() => setEditingMarkerId(null)} />
-                                <div className="flex min-h-11 items-center justify-end gap-4">
+                              <MarkerForm labs={labs} accent={accent} fields="all" initial={m} onSaved={() => setEditingMarkerId(null)} onCancel={() => setEditingMarkerId(null)}>
+                                <FormGroup>
                                   {confirmingMarker === m.id ? (
-                                    <>
+                                    <div className="flex min-h-11 items-center justify-center gap-6">
                                       <button
                                         type="button"
                                         onClick={() => {
@@ -694,14 +692,19 @@ function LabResultsCard({ searchQuery }: { searchQuery: string }) {
                                       <button type="button" onClick={() => setConfirmingMarker(null)} className="min-h-11 text-sm" style={{ color: "var(--text-secondary)" }}>
                                         Keep
                                       </button>
-                                    </>
+                                    </div>
                                   ) : (
-                                    <button type="button" onClick={() => setConfirmingMarker(m.id)} className="min-h-11 text-sm" style={{ color: "var(--status-critical)" }}>
+                                    <button
+                                      type="button"
+                                      onClick={() => setConfirmingMarker(m.id)}
+                                      className="flex min-h-11 w-full items-center justify-center text-sm"
+                                      style={{ color: "var(--status-critical)" }}
+                                    >
                                       Delete marker
                                     </button>
                                   )}
-                                </div>
-                              </div>
+                                </FormGroup>
+                              </MarkerForm>
                             )}
                           </li>
                         );

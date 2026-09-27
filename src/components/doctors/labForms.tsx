@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent, type ReactNode } from "react";
 import type { useLabs } from "@/lib/useLabs";
 import type { LabMarker } from "@/lib/supabase/labs";
 import { ComboBox } from "./shared";
@@ -24,6 +24,7 @@ export function MarkerForm({
   fields = "all",
   onSaved,
   onCancel,
+  children,
 }: {
   labs: ReturnType<typeof useLabs>;
   accent: string;
@@ -31,6 +32,8 @@ export function MarkerForm({
   fields?: "all" | "basic";
   onSaved: (markerId: string) => void;
   onCancel: () => void;
+  /** Extra rows at the end of the sheet, e.g. Delete on an edit. */
+  children?: ReactNode;
 }) {
   const [name, setName] = useState(initial?.name ?? "");
   const [unit, setUnit] = useState(initial?.unit ?? "");
@@ -156,6 +159,7 @@ export function MarkerForm({
       <div className="flex items-center gap-3">
         {error && <span className="text-xs" style={{ color: "var(--status-critical)" }}>{error}</span>}
       </div>
+      {children}
     </FormShell>
   );
 }

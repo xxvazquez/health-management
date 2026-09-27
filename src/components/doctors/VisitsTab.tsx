@@ -73,62 +73,63 @@ export function VisitsTab({ api, accent }: { api: DoctorsApi; accent: string }) 
     return api.specialties.data.filter((s) => ids.has(s.id)).sort((a, b) => a.name.localeCompare(b.name));
   }, [entries, api.specialties.data]);
 
-  if (add === "appointment") {
-    return (
-      <AppointmentForm
-        accent={accent}
-        doctors={api.doctors.data}
-        specialtyOptions={specialtyOptions}
-        onCreate={async (input) => {
-          await api.appointments.log(input);
-          setAdd(null);
-        }}
-        onEdit={async () => undefined}
-        onCancel={() => setAdd(null)}
-      />
-    );
-  }
+  const appointmentSheet = add === "appointment" ? (
+    <AppointmentForm
+      accent={accent}
+      doctors={api.doctors.data}
+      specialtyOptions={specialtyOptions}
+      onCreate={async (input) => {
+        await api.appointments.log(input);
+        setAdd(null);
+      }}
+      onEdit={async () => undefined}
+      onCancel={() => setAdd(null)}
+    />
+  ) : null;
 
-  if (viewing && !editingEntry && add !== "note") {
-    return (
-      <CareEntryDetail
-        entry={viewing}
-        specialtyNames={namesFor(viewing.specialtyIds)}
-        supplementName={viewing.supplementItemId ? supplementNameById.get(viewing.supplementItemId) : null}
-        accent={accent}
-        onBack={() => setViewingId(null)}
-        onEdit={() => setEditingEntry(viewing)}
-        onDelete={() => {
-          void api.careLog.remove(viewing.id);
-          setViewingId(null);
-        }}
-      />
-    );
-  }
+  const entrySheet = add === "note" || editingEntry ? (
+    <CareEntryForm
+      api={api}
+      accent={accent}
+      initial={editingEntry ?? undefined}
+      supplements={api.careLog.supplements}
+      onSave={async (input) => {
+        if (editingEntry) await api.careLog.edit(editingEntry.id, input);
+        else await api.careLog.add(input);
+        setAdd(null);
+        setEditingEntry(null);
+      }}
+      onCancel={() => {
+        setAdd(null);
+        setEditingEntry(null);
+      }}
+    />
+  ) : null;
 
-  if (add === "note" || editingEntry) {
+  if (viewing) {
     return (
-      <CareEntryForm
-        api={api}
-        accent={accent}
-        initial={editingEntry ?? undefined}
-        supplements={api.careLog.supplements}
-        onSave={async (input) => {
-          if (editingEntry) await api.careLog.edit(editingEntry.id, input);
-          else await api.careLog.add(input);
-          setAdd(null);
-          setEditingEntry(null);
-        }}
-        onCancel={() => {
-          setAdd(null);
-          setEditingEntry(null);
-        }}
-      />
+      <>
+        {entrySheet}
+        <CareEntryDetail
+          entry={viewing}
+          specialtyNames={namesFor(viewing.specialtyIds)}
+          supplementName={viewing.supplementItemId ? supplementNameById.get(viewing.supplementItemId) : null}
+          accent={accent}
+          onBack={() => setViewingId(null)}
+          onEdit={() => setEditingEntry(viewing)}
+          onDelete={() => {
+            void api.careLog.remove(viewing.id);
+            setViewingId(null);
+          }}
+        />
+      </>
     );
   }
 
   return (
     <div className="flex flex-col gap-5">
+      {entrySheet}
+      {appointmentSheet}
       <section className="flex flex-col gap-3">
         <div className="flex items-start justify-between gap-3">
           <SectionHeading hint="Upcoming dates, and what you want to bring up.">Before your next visit</SectionHeading>

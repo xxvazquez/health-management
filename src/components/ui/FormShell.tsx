@@ -1,10 +1,12 @@
-import type { FormEvent, ReactNode } from "react";
+import { useId, type FormEvent, type ReactNode } from "react";
+import { Sheet } from "@/components/ui/Sheet";
 
 /**
- * The shared frame for every Lauva create/edit form — an iOS sheet header
- * (Cancel on the left, the title centred, Add/Done on the right) above
- * grouped rows (`FormGroup`), passed as children. Keeping the framing in one
- * place is what stops these forms drifting apart.
+ * The shared frame for every Lauva create/edit form — an iOS sheet with the
+ * form bar (Cancel on the left, the title centred, Add/Done on the right)
+ * above grouped rows (`FormGroup`), passed as children. It opens over the
+ * page it was started from, which stays in place behind it. Keeping the
+ * framing in one place is what stops these forms drifting apart.
  *
  * Journal's writing sheet (`JournalEntryForm`) deliberately opts out of
  * this — a journal entry shouldn't feel like filling in a form. Nothing
@@ -36,28 +38,10 @@ export function FormShell({
   headerActions?: ReactNode;
   children: ReactNode;
 }) {
+  const titleId = useId();
   return (
-    <form onSubmit={onSubmit} className="flex flex-col gap-4">
-      <div className="grid min-h-11 grid-cols-[1fr_auto_1fr] items-center gap-3 px-0.5">
-        <button type="button" onClick={onCancel} className="hit-slop justify-self-start text-sm" style={{ color: accent }}>
-          Cancel
-        </button>
-        <h3 className="truncate text-center text-base font-semibold" style={{ color: "var(--text-primary)" }}>
-          {title}
-        </h3>
-        <div className="flex items-center justify-self-end gap-3">
-          {headerActions}
-          <button
-            type="submit"
-            disabled={submitDisabled}
-            className="hit-slop text-sm font-semibold whitespace-nowrap disabled:opacity-40"
-            style={{ color: accent }}
-          >
-            {busy ? "Saving…" : submitLabel}
-          </button>
-        </div>
-      </div>
+    <Sheet title={title} titleId={titleId} onClose={onCancel} form={{ onSubmit, submitLabel, submitDisabled, busy, accent, headerActions }}>
       {children}
-    </form>
+    </Sheet>
   );
 }

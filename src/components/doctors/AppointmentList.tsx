@@ -32,23 +32,21 @@ export function AppointmentList({
     api.doctors.data.map((d) => d.specialty),
   );
 
-  if (editing) {
-    return (
-      <AppointmentForm
-        accent={accent}
-        doctors={api.doctors.data}
-        specialtyOptions={specialtyOptions}
-        initial={editing}
-        initialDoctor={api.doctors.data.find((d) => d.id === editing.doctorId)}
-        onCreate={async () => undefined}
-        onEdit={async (id, patch) => {
-          await api.appointments.edit(id, patch);
-          setEditing(null);
-        }}
-        onCancel={() => setEditing(null)}
-      />
-    );
-  }
+  const editSheet = editing ? (
+    <AppointmentForm
+      accent={accent}
+      doctors={api.doctors.data}
+      specialtyOptions={specialtyOptions}
+      initial={editing}
+      initialDoctor={api.doctors.data.find((d) => d.id === editing.doctorId)}
+      onCreate={async () => undefined}
+      onEdit={async (id, patch) => {
+        await api.appointments.edit(id, patch);
+        setEditing(null);
+      }}
+      onCancel={() => setEditing(null)}
+    />
+  ) : null;
 
   if (appointments.length === 0) {
     return (
@@ -60,6 +58,7 @@ export function AppointmentList({
 
   return (
     <div className="flex flex-col gap-3">
+      {editSheet}
       {appointments.map((appt) => (
         <AppointmentCard
           key={appt.id}

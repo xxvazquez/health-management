@@ -727,53 +727,58 @@ export function WishlistBoard({
     );
   }, [categories, search]);
 
-  if (view.mode === "item") {
-    const back = () => setView(view.returnTo === "detail" && view.categoryId ? { mode: "detail", categoryId: view.categoryId } : { mode: "list" });
-    return (
-      <ItemForm
-        categories={categories}
-        accent={view.categoryId ? accentByCategoryId.get(view.categoryId) ?? accent : accent}
-        initial={view.editing}
-        presetCategoryId={view.categoryId}
-        presetUrl={view.presetUrl}
-        people={people}
-        onFetchTitle={onFetchTitle}
-        onSave={async (input, newCategoryName) => {
-          let categoryId = input.categoryId;
-          if (newCategoryName) categoryId = (await onCreateCategory(newCategoryName)).id;
-          const finalInput = { ...input, categoryId };
-          if (view.editing) await onUpdateItem(view.editing.id, finalInput);
-          else await onCreateItem(finalInput);
-          setView(view.returnTo === "detail" ? { mode: "detail", categoryId } : { mode: "list" });
-        }}
-        onCancel={back}
-      />
-    );
-  }
+  // The item form opens as a sheet over the view it was started from.
+  const base: View =
+    view.mode !== "item" ? view : view.returnTo === "detail" && view.categoryId ? { mode: "detail", categoryId: view.categoryId } : { mode: "list" };
+  const itemSheet =
+    view.mode === "item" ? (
+        <ItemForm
+          categories={categories}
+          accent={view.categoryId ? accentByCategoryId.get(view.categoryId) ?? accent : accent}
+          initial={view.editing}
+          presetCategoryId={view.categoryId}
+          presetUrl={view.presetUrl}
+          people={people}
+          onFetchTitle={onFetchTitle}
+          onSave={async (input, newCategoryName) => {
+            let categoryId = input.categoryId;
+            if (newCategoryName) categoryId = (await onCreateCategory(newCategoryName)).id;
+            const finalInput = { ...input, categoryId };
+            if (view.editing) await onUpdateItem(view.editing.id, finalInput);
+            else await onCreateItem(finalInput);
+            setView(view.returnTo === "detail" ? { mode: "detail", categoryId } : { mode: "list" });
+          }}
+          onCancel={() => setView(base)}
+        />
+    ) : null;
 
-  if (view.mode === "phone" && shareToPhone) {
+  if (base.mode === "phone" && shareToPhone) {
     return <PhoneSetup share={shareToPhone} accent={accent} onBack={() => setView({ mode: "list" })} />;
   }
 
-  const detailCategory = view.mode === "detail" ? openCategory(view.categoryId) : null;
-  if (view.mode === "detail" && detailCategory) {
+  const detailCategory = base.mode === "detail" ? openCategory(base.categoryId) : null;
+  if (detailCategory) {
     const catAccent = accentByCategoryId.get(detailCategory.id) ?? accent;
     return (
-      <CategoryDetail
-        category={detailCategory}
-        accent={catAccent}
-        forLabel={forLabel}
-        onBack={() => setView({ mode: "list" })}
-        onAddItem={() => setView({ mode: "item", categoryId: detailCategory.id, returnTo: "detail" })}
-        onEditItem={(item) => setView({ mode: "item", categoryId: detailCategory.id, editing: item, returnTo: "detail" })}
-        onDeleteItem={(id) => void onDeleteItem(id)}
-      />
+      <>
+        {itemSheet}
+        <CategoryDetail
+          category={detailCategory}
+          accent={catAccent}
+          forLabel={forLabel}
+          onBack={() => setView({ mode: "list" })}
+          onAddItem={() => setView({ mode: "item", categoryId: detailCategory.id, returnTo: "detail" })}
+          onEditItem={(item) => setView({ mode: "item", categoryId: detailCategory.id, editing: item, returnTo: "detail" })}
+          onDeleteItem={(id) => void onDeleteItem(id)}
+        />
+      </>
     );
   }
 
   // list view (also the fallback when a detail category was deleted out from under us)
   return (
     <div className="flex flex-col gap-3">
+      {itemSheet}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <SearchField value={search} onChange={setSearch} placeholder="Search wishlist…" />
