@@ -74,7 +74,7 @@ export function AccountMenuButton({ collapsed, onOpen }: { collapsed?: boolean; 
         color: session ? "var(--text-primary)" : "var(--ui-accent)",
       }}
     >
-      <span className="shrink-0"><PersonIcon /></span>
+      {!session && <span className="shrink-0"><PersonIcon /></span>}
       <span className="min-w-0 [overflow-wrap:anywhere]">{label}</span>
       {session && <span className="mr-1 ml-auto h-2 w-2 shrink-0 rounded-full" style={{ background: dotColor ?? "transparent" }} />}
     </button>
