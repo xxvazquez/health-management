@@ -74,6 +74,7 @@ import { Field } from "@/components/ui/Field";
 import { FormGroup } from "@/components/ui/FormGroup";
 import { Sheet } from "@/components/ui/Sheet";
 import { ROW_INLINE_CLS, ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
+import { AutoGrowTextarea } from "@/components/ui/AutoGrowTextarea";
 import { CheckIcon, ChevronIcon, CloseIcon, NoteIcon, PlusIcon, UpDownChevronIcon } from "@/components/ui/icons";
 import { CustomIcon, customColorValue, defaultCategoryIcon } from "@/components/ui/customIcons";
 import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
@@ -183,8 +184,8 @@ function formatDateLabel(date: string, today: string): string {
   return new Date(y, m - 1, d).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", year: sameYear ? undefined : "numeric" });
 }
 
-/** Optional note for one timeline entry's item+day — collapsed to a small
- * "+ note" affordance when empty, never a required field or a diary form. */
+/** The note row in a timeline entry's sheet — a borderless text field,
+ * saved when it loses focus or the sheet closes. Read-only for demo data. */
 function TimelineNote({
   note,
   busy,
@@ -196,75 +197,48 @@ function TimelineNote({
   hidden: boolean;
   onSave: (content: string) => void;
 }) {
-  const [editing, setEditing] = useState(false);
   const [text, setText] = useState(note ?? "");
+  // What was last saved, and the latest text — the unmount save below reads
+  // both after the component's own state is gone.
+  const saved = useRef((note ?? "").trim());
+  const latest = useRef(text);
+  const onSaveRef = useRef(onSave);
+  useEffect(() => {
+    onSaveRef.current = onSave;
+  }, [onSave]);
+
+  const commit = useCallback(() => {
+    const next = latest.current.trim();
+    if (next === saved.current) return;
+    saved.current = next;
+    onSaveRef.current(next);
+  }, []);
+  useEffect(() => commit, [commit]);
 
   if (hidden) {
     return note ? (
-      <p className="w-full text-xs break-words whitespace-pre-wrap" style={{ color: "var(--text-secondary)" }}>
+      <p className="text-sm break-words whitespace-pre-wrap" style={{ color: "var(--text-secondary)" }}>
         {note}
       </p>
     ) : null;
   }
 
-  if (editing) {
-    return (
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          setEditing(false);
-          onSave(text);
-        }}
-        className="flex w-full flex-col items-start gap-1"
-      >
-        <input
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          autoFocus
-          placeholder="Add a note…"
-          className="w-full min-w-0 border-b bg-transparent px-0.5 py-1 text-xs outline-none"
-          style={{ borderColor: "var(--baseline)", color: "var(--text-primary)" }}
-        />
-        <button type="submit" className="text-xs font-medium" style={{ color: "var(--status-good)" }}>
-          Save
-        </button>
-      </form>
-    );
-  }
-
-  return note ? (
-    <button
-      type="button"
-      onClick={() => setEditing(true)}
+  return (
+    <AutoGrowTextarea
+      value={text}
+      onChange={(e) => {
+        setText(e.target.value);
+        latest.current = e.target.value;
+      }}
+      onBlur={commit}
+      rows={1}
+      maxRows={8}
       disabled={busy}
-      className="flex w-full items-start gap-1 text-left text-xs disabled:opacity-40"
-      style={{ color: "var(--text-secondary)" }}
-    >
-      <svg
-        width="11"
-        height="11"
-        viewBox="0 0 20 20"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        className="mt-0.5 shrink-0 opacity-70"
-      >
-        <path d="M13.5 3.5 16.5 6.5 7 16H4v-3Z" />
-      </svg>
-      <span className="break-words whitespace-pre-wrap">{note}</span>
-    </button>
-  ) : (
-    <button
-      type="button"
-      onClick={() => setEditing(true)}
-      disabled={busy}
-      className="self-start text-xs whitespace-nowrap font-medium disabled:opacity-40"
-      style={{ color: "var(--ui-accent)" }}
-    >
-      + note
-    </button>
+      placeholder="Add a note"
+      aria-label="Note"
+      className={`${ROW_TEXT_CLS} resize-none`}
+      style={ROW_STYLE}
+    />
   );
 }
 
@@ -2618,14 +2592,14 @@ export default function LogPage() {
                   key={entry.key}
                   type="button"
                   onClick={() => setDetailKey(entry.key)}
-                  className="flex min-h-11 w-full items-center gap-2.5 px-3.5 text-left"
+                  className="flex min-h-11 w-full items-center gap-2.5 px-3.5 py-2 text-left"
                   style={{ opacity: pending === entry.key ? 0.5 : 1 }}
                 >
                   <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: accent }} aria-hidden="true" />
                   <span className="w-11 shrink-0 text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>
                     {entry.time}
                   </span>
-                  <span className="min-w-0 flex-1 truncate text-sm" style={{ color: "var(--text-primary)" }}>
+                  <span className="min-w-0 flex-1 text-sm" style={{ color: "var(--text-primary)" }}>
                     {entry.item}
                   </span>
                   {meta && (
@@ -2812,7 +2786,7 @@ export default function LogPage() {
                 {!isDemoData && (
                   <FormGroup>
                     {confirmingDeleteKeys.has(entry.key) ? (
-                      <div className="flex min-h-11 items-center justify-between gap-4 px-3.5">
+                      <div className="flex min-h-11 items-center justify-center gap-6 px-3.5">
                         <button
                           type="button"
                           disabled={busy}
@@ -2840,7 +2814,7 @@ export default function LogPage() {
                         type="button"
                         onClick={() => toggleConfirmDelete(entry.key)}
                         disabled={busy}
-                        className="flex min-h-11 w-full items-center px-3.5 text-left text-sm disabled:opacity-40"
+                        className="flex min-h-11 w-full items-center justify-center px-3.5 text-sm disabled:opacity-40"
                         style={{ color: "var(--status-critical)" }}
                       >
                         Delete
