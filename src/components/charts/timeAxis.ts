@@ -55,3 +55,29 @@ export function windowAxis(minMs: number, maxMs: number): { ticks: number[]; for
   const labelled = new Set(ticks.filter((_, i) => (ticks.length - 1 - i) % step === 0));
   return { ticks, format: (ms) => (labelled.has(ms) ? String(new Date(ms).getUTCFullYear()) : "") };
 }
+
+/** The row nearest to time `t`, or null for no rows. */
+export function nearestByTime<T extends { t: number }>(rows: readonly T[], t: number): T | null {
+  let best: T | null = null;
+  for (const r of rows) if (!best || Math.abs(r.t - t) < Math.abs(best.t - t)) best = r;
+  return best;
+}
+
+/** Touch handlers for the element around a time chart: a finger on the chart
+ * picks the reading nearest it along the time axis (`minMs`–`maxMs` across
+ * the plot area), lifting it clears the pick. Worked out from the finger's
+ * own position rather than the chart library's hover state, which updates a
+ * frame late on touch. */
+export function touchScrub<T extends { t: number }>(rows: readonly T[], minMs: number, maxMs: number, onPick: (row: T | null) => void) {
+  const pick = (e: { touches: { length: number; [i: number]: { clientX: number } }; currentTarget: Element }) => {
+    const touch = e.touches[0];
+    if (!touch) return;
+    const plot = e.currentTarget.querySelector(".recharts-cartesian-grid") ?? e.currentTarget;
+    const r = plot.getBoundingClientRect();
+    if (!r.width) return;
+    const f = Math.min(1, Math.max(0, (touch.clientX - r.left) / r.width));
+    onPick(nearestByTime(rows, minMs + f * (maxMs - minMs)));
+  };
+  const clear = () => onPick(null);
+  return { onTouchStart: pick, onTouchMove: pick, onTouchEnd: clear, onTouchCancel: clear };
+}

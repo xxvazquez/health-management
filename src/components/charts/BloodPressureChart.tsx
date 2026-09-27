@@ -1,16 +1,18 @@
 "use client";
 
+import { useState } from "react";
 import {
   CartesianGrid,
   Line,
   LineChart,
   ReferenceArea,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
-import { DAY, toMs, tooltipDate, windowAxis } from "./timeAxis";
+import { DAY, toMs, tooltipDate, windowAxis, touchScrub } from "./timeAxis";
 import { BP_LOW_DIASTOLIC, BP_LOW_SYSTOLIC } from "@/lib/aggregations/vitals";
 
 const LOW = "var(--series-2)";
@@ -58,6 +60,8 @@ export function BloodPressureChart({
   onScrub?: (point: BloodPressurePoint | null) => void;
   height?: number;
 }) {
+  const [touchT, setTouchT] = useState<number | null>(null);
+  const [touched, setTouched] = useState(false);
   const rows = data
     .map((d) => ({ t: toMs(d.at), at: d.at, systolic: d.systolic, diastolic: d.diastolic, note: d.note }))
     .sort((a, b) => a.t - b.t);
@@ -90,15 +94,32 @@ export function BloodPressureChart({
       return <circle key={index} cx={cx} cy={cy} r={4.5} fill={color} stroke="var(--surface-1)" strokeWidth={2} />;
     };
 
+  // A finger draws its own line at the picked reading; the library's hover
+  // cursor would stay stuck where the finger lifted, so it's off from the
+  // first touch until a mouse moves over the chart again.
+  const touch = onScrub
+    ? touchScrub(rows, minMs, maxMs, (row) => {
+        setTouchT(row?.t ?? null);
+        setTouched(true);
+        onScrub(row ? { at: row.at, systolic: row.systolic, diastolic: row.diastolic, note: row.note } : null);
+      })
+    : undefined;
+
   return (
+    <div {...touch}>
     <ResponsiveContainer width="100%" height={height}>
       <LineChart
         data={rows}
         margin={{ top: 8, right: 0, bottom: 0, left: 14 }}
-        onMouseMove={onScrub ? scrub : undefined}
+        onMouseMove={
+          onScrub
+            ? (state) => {
+                setTouched(false);
+                scrub(state);
+              }
+            : undefined
+        }
         onMouseLeave={onScrub ? () => onScrub(null) : undefined}
-        onTouchMove={onScrub ? scrub : undefined}
-        onTouchEnd={onScrub ? () => onScrub(null) : undefined}
       >
         <ReferenceArea y1={Math.floor(bottom)} y2={BP_LOW_DIASTOLIC} fill={LOW} fillOpacity={0.14} strokeOpacity={0} />
         <ReferenceArea y1={BP_LOW_DIASTOLIC} y2={80} fill="var(--status-good)" fillOpacity={0.18} strokeOpacity={0} />
@@ -130,7 +151,7 @@ export function BloodPressureChart({
           width={36}
         />
         {onScrub ? (
-          <Tooltip content={() => null} cursor={{ stroke: "var(--text-secondary)", strokeWidth: 1 }} />
+          <Tooltip active={touched ? false : undefined} content={() => null} cursor={{ stroke: "var(--text-secondary)", strokeWidth: 1 }} />
         ) : (
           <Tooltip
             contentStyle={{
@@ -145,6 +166,7 @@ export function BloodPressureChart({
             formatter={(v, name) => [`${v} mmHg`, name === "systolic" ? "Systolic" : "Diastolic"]}
           />
         )}
+        {touchT != null && <ReferenceLine x={touchT} stroke="var(--text-secondary)" strokeWidth={1} />}
         <Line
           type="linear"
           dataKey="systolic"
@@ -165,5 +187,6 @@ export function BloodPressureChart({
         />
       </LineChart>
     </ResponsiveContainer>
+    </div>
   );
 }

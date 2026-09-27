@@ -1,17 +1,19 @@
 "use client";
 
+import { useState } from "react";
 import {
   CartesianGrid,
   Line,
   LineChart,
   ReferenceArea,
+  ReferenceLine,
   ReferenceDot,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
-import { DAY, toMs, tooltipDate, windowAxis } from "./timeAxis";
+import { DAY, toMs, tooltipDate, windowAxis, touchScrub } from "./timeAxis";
 import { effectiveRange, rangeStatus } from "@/lib/aggregations/labs";
 import { optimalStatusColor } from "@/components/doctors/labStatus";
 
@@ -58,6 +60,8 @@ export function LabMarkerChart({
 }) {
   const band = effectiveRange({ refLow, refHigh, optimalLow, optimalHigh });
   const statusOf = (v: number) => rangeStatus(v, band.low, band.high);
+  const [touchT, setTouchT] = useState<number | null>(null);
+  const [touched, setTouched] = useState(false);
   const rows = data.map((d) => ({ t: toMs(d.date), date: d.date, value: d.value })).sort((a, b) => a.t - b.t);
 
   const values = rows.map((r) => r.value);
@@ -91,15 +95,32 @@ export function LabMarkerChart({
     onScrub?.(row ? { date: row.date, value: row.value } : null);
   };
 
+  // A finger draws its own line at the picked reading; the library's hover
+  // cursor would stay stuck where the finger lifted, so it's off from the
+  // first touch until a mouse moves over the chart again.
+  const touch = onScrub
+    ? touchScrub(rows, minMs, maxMs, (row) => {
+        setTouchT(row?.t ?? null);
+        setTouched(true);
+        onScrub(row ? { date: row.date, value: row.value } : null);
+      })
+    : undefined;
+
   return (
+    <div {...touch}>
     <ResponsiveContainer width="100%" height={height}>
       <LineChart
         data={rows}
         margin={{ top: 8, right: 0, bottom: 0, left: 14 }}
-        onMouseMove={onScrub ? scrub : undefined}
+        onMouseMove={
+          onScrub
+            ? (state) => {
+                setTouched(false);
+                scrub(state);
+              }
+            : undefined
+        }
         onMouseLeave={onScrub ? () => onScrub(null) : undefined}
-        onTouchMove={onScrub ? scrub : undefined}
-        onTouchEnd={onScrub ? () => onScrub(null) : undefined}
       >
         {refLow != null && refHigh != null && (
           <ReferenceArea y1={refLow} y2={refHigh} fill="var(--band-good)" strokeOpacity={0} />
@@ -136,7 +157,7 @@ export function LabMarkerChart({
           width={36}
         />
         {onScrub ? (
-          <Tooltip content={() => null} cursor={{ stroke: "var(--text-secondary)", strokeWidth: 1 }} />
+          <Tooltip active={touched ? false : undefined} content={() => null} cursor={{ stroke: "var(--text-secondary)", strokeWidth: 1 }} />
         ) : (
           <Tooltip
             contentStyle={{
@@ -151,6 +172,7 @@ export function LabMarkerChart({
             formatter={(v) => [unit ? `${v} ${unit}` : String(v), "Value"]}
           />
         )}
+        {touchT != null && <ReferenceLine x={touchT} stroke="var(--text-secondary)" strokeWidth={1} />}
         <Line
           type="linear"
           dataKey="value"
@@ -174,6 +196,7 @@ export function LabMarkerChart({
         {last && <ReferenceDot x={last.t} y={last.value} r={4.5} fill={lastColor} stroke="var(--surface-1)" strokeWidth={2} />}
       </LineChart>
     </ResponsiveContainer>
+    </div>
   );
 }
 
