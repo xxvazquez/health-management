@@ -179,7 +179,8 @@ function formatDateLabel(date: string, today: string): string {
   if (date === today) return "Today";
   if (date === addDaysLocal(today, -1)) return "Yesterday";
   const [y, m, d] = date.split("-").map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+  const sameYear = y === Number(today.slice(0, 4));
+  return new Date(y, m - 1, d).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", year: sameYear ? undefined : "numeric" });
 }
 
 /** Optional note for one timeline entry's item+day — collapsed to a small
@@ -2198,8 +2199,8 @@ export default function LogPage() {
             max={today}
             title="Go to date"
             renderTrigger={(open) => (
-              <button type="button" onClick={open} aria-label="Pick a date" className="flex h-9 w-20 shrink-0 items-center justify-center rounded-lg px-1">
-                <span className="truncate text-sm font-medium whitespace-nowrap" style={{ color: "var(--text-primary)" }}>
+              <button type="button" onClick={open} aria-label="Pick a date" className="flex h-9 min-w-20 shrink-0 items-center justify-center rounded-lg px-1.5">
+                <span className="text-sm font-medium whitespace-nowrap" style={{ color: "var(--text-primary)" }}>
                   {formatDateLabel(date, today)}
                 </span>
               </button>
