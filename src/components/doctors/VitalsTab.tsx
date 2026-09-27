@@ -369,29 +369,29 @@ export function VitalsTab({ accent }: { accent: string }) {
   return (
     <div className="flex flex-col gap-3">
       {formSheet}
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        {!vitals.loading && !vitals.error && hasChartData && (
-          <DateRangeFilter span={span} value={effectiveRange} onChange={setRange} presets={VITALS_DATE_PRESETS} accent={accent} />
-        )}
-        <PrimaryAction
-          label={kind === "bp" ? "New reading" : "New weigh-in"}
-          accent={accent}
-          onClick={() => setComposing(true)}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <TabRail
+          ariaLabel="Vitals type"
+          wrap={false}
+          tall
+          className="shrink-0"
+          style={{ borderColor: "var(--border-hairline)" }}
+          items={[
+            { id: "bp" as const, label: "Blood pressure", accent },
+            { id: "weight" as const, label: "Weight", accent },
+          ]}
+          activeId={kind}
+          onSelect={setKind}
         />
+        <div className="flex flex-1 items-center gap-2">
+          {!vitals.loading && !vitals.error && hasChartData && (
+            <DateRangeFilter span={span} value={effectiveRange} onChange={setRange} presets={VITALS_DATE_PRESETS} accent={accent} />
+          )}
+          <div className="ml-auto">
+            <PrimaryAction label="Add" accent={accent} onClick={() => setComposing(true)} />
+          </div>
+        </div>
       </div>
-
-      <TabRail
-        ariaLabel="Vitals type"
-        wrap={false}
-        tall
-        style={{ borderColor: "var(--border-hairline)" }}
-        items={[
-          { id: "bp" as const, label: "Blood pressure", accent },
-          { id: "weight" as const, label: "Weight", accent },
-        ]}
-        activeId={kind}
-        onSelect={setKind}
-      />
 
       {vitals.loading ? (
         <ListSkeleton />
