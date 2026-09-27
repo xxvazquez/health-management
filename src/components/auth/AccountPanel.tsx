@@ -243,7 +243,10 @@ export function AccountPanel() {
                 style={ROW_STYLE}
               />
             </Field>
+            {/* A plain row, not a <label>: a label would pass any tap on
+                the row to its first button, "Forgot?". */}
             <Field
+              plain
               label={
                 <span className="flex items-center justify-between gap-2">
                   Password
@@ -257,6 +260,7 @@ export function AccountPanel() {
             >
               <input
                 type="password"
+                aria-label="Password"
                 required
                 autoComplete={mode === "signIn" ? "current-password" : "new-password"}
                 value={password}
