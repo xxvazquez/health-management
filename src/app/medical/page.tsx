@@ -10,6 +10,7 @@ import { ErrorState } from "@/components/ui/EmptyState";
 import { ListSkeleton } from "@/components/ui/Skeleton";
 import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
 import { PageHeading } from "@/components/ui/PageHeading";
+import { PrimaryAction } from "@/components/ui/PrimaryAction";
 import { DemoNotice } from "@/components/ui/DemoNotice";
 
 // One hue for the whole Health section — the h1 rule, the tab bar, and
@@ -51,6 +52,7 @@ export default function MedicalPage() {
   const api = useDoctors();
   const [tab, setTab] = useState<MedicalTabId>("visits");
   const [visitsAdd, setVisitsAdd] = useState<VisitsAddMode>(null);
+  const [vitalsComposing, setVitalsComposing] = useState(false);
 
   useEffect(() => {
     /* eslint-disable react-hooks/set-state-in-effect */
@@ -90,7 +92,15 @@ export default function MedicalPage() {
 
   return (
     <div className="flex flex-col gap-5">
-      <PageHeading actions={tab === "visits" && !api.loading && !api.error ? <VisitsAddMenu accent={HEALTH_ACCENT} onAdd={setVisitsAdd} /> : undefined}>
+      <PageHeading
+        actions={
+          tab === "visits" && !api.loading && !api.error ? (
+            <VisitsAddMenu accent={HEALTH_ACCENT} onAdd={setVisitsAdd} />
+          ) : tab === "vitals" ? (
+            <PrimaryAction label="Add" accent={HEALTH_ACCENT} onClick={() => setVitalsComposing(true)} />
+          ) : undefined
+        }
+      >
         Health
       </PageHeading>
 
@@ -111,7 +121,7 @@ export default function MedicalPage() {
         <>
           {tab === "visits" && <VisitsTab api={api} accent={HEALTH_ACCENT} add={visitsAdd} setAdd={setVisitsAdd} />}
           {tab === "results" && <ResultsTab accent={HEALTH_ACCENT} />}
-          {tab === "vitals" && <VitalsTab accent={HEALTH_ACCENT} />}
+          {tab === "vitals" && <VitalsTab accent={HEALTH_ACCENT} composing={vitalsComposing} setComposing={setVitalsComposing} />}
           {tab === "doctors" && <DoctorsTab api={api} accent={HEALTH_ACCENT} />}
         </>
       )}

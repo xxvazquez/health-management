@@ -29,13 +29,6 @@ export function bpCategory(systolic: number, diastolic: number): BpCategoryInfo 
   return CATEGORY_INFO.normal;
 }
 
-export const BP_CATEGORIES: BpCategoryInfo[] = [
-  CATEGORY_INFO.normal,
-  CATEGORY_INFO.elevated,
-  CATEGORY_INFO.stage1,
-  CATEGORY_INFO.stage2,
-];
-
 /** Is this reading Stage 1 or worse — the "worth a look" threshold used
  * for the dashboard flag. */
 export function bpElevated(systolic: number, diastolic: number): boolean {

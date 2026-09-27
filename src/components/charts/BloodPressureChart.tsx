@@ -59,7 +59,7 @@ export function BloodPressureChart({
 
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <LineChart data={rows} margin={{ top: 8, right: 16, bottom: axis.vertical ? 26 : 8, left: 0 }}>
+      <LineChart data={rows} margin={{ top: 8, right: 16, bottom: 8, left: 0 }}>
         <ReferenceArea y1={120} y2={130} fill="var(--series-3)" fillOpacity={0.08} strokeOpacity={0} />
         <ReferenceArea y1={130} y2={140} fill="var(--status-warning)" fillOpacity={0.08} strokeOpacity={0} />
         <ReferenceArea y1={140} y2={top} fill="var(--status-critical)" fillOpacity={0.08} strokeOpacity={0} />
@@ -77,10 +77,8 @@ export function BloodPressureChart({
           tickLine={{ stroke: "var(--baseline)" }}
           axisLine={{ stroke: "var(--baseline)" }}
           tick={{ fill: "var(--text-muted)", fontSize: 12 }}
-          angle={axis.vertical ? -90 : 0}
-          textAnchor={axis.vertical ? "end" : "middle"}
-          height={axis.vertical ? 52 : 22}
-          tickMargin={axis.vertical ? 2 : 8}
+          height={22}
+          tickMargin={8}
         />
         <YAxis
           domain={[Math.floor(bottom), Math.ceil(top)]}

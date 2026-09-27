@@ -3,16 +3,15 @@
 import { DateTimePicker } from "@/components/ui/DatePicker";
 import { useState, type FormEvent } from "react";
 import { useVitals } from "@/lib/useVitals";
-import { todayLocalISODate, type DateRange } from "@/lib/aggregations/common";
-import { TabRail } from "@/components/ui/TabRail";
+import { addDaysToDate, todayLocalISODate, type DateRange } from "@/lib/aggregations/common";
+import { Segmented } from "@/components/ui/Segmented";
 import { DateRangeFilter, type DateRangePreset } from "@/components/ui/DateRangeFilter";
 import type { BloodPressureReading, WeightReading, WeightTarget } from "@/lib/supabase/vitals";
-import { bpCategory, BP_CATEGORIES } from "@/lib/aggregations/vitals";
+import { bpCategory } from "@/lib/aggregations/vitals";
 import { LabMarkerChart } from "@/components/charts/LabMarkerChart";
 import { BloodPressureChart } from "@/components/charts/BloodPressureChart";
 import { ListSkeleton } from "@/components/ui/Skeleton";
 import { ErrorState, InlineEmpty } from "@/components/ui/EmptyState";
-import { PrimaryAction } from "@/components/ui/PrimaryAction";
 import { Button } from "@/components/ui/Button";
 import { FormShell } from "@/components/ui/FormShell";
 import { IconAction, PencilIcon, TrashIcon, formatDateTime, toLocalInput } from "./shared";
@@ -32,6 +31,18 @@ const VITALS_DATE_PRESETS: DateRangePreset[] = [
   { label: "6 months", days: 182 },
   { label: "1 year", days: 365 },
   { label: "All time", days: "all" },
+];
+
+/** Legend for the blood-pressure chart: its two lines, then the shaded
+ * category zones in the same tints the chart draws them with. */
+const BP_LEGEND_LINES = [
+  { label: "Systolic", color: "var(--series-magenta)" },
+  { label: "Diastolic", color: "var(--series-2)" },
+];
+const BP_LEGEND_ZONES = [
+  { label: "Elevated", color: "var(--series-3)" },
+  { label: "Stage 1", color: "var(--status-warning)" },
+  { label: "Stage 2", color: "var(--status-critical)" },
 ];
 
 function nowLocalInput(): string {
@@ -312,11 +323,13 @@ function WeightTargetControl({ target, accent }: { target: WeightTarget | null; 
 
 // --- Tab -------------------------------------------------------
 
-export function VitalsTab({ accent }: { accent: string }) {
+/** Vitals: a blood pressure / weight switch with the date window beside it,
+ * the chart, then the readings. Its "+ Add" sits in the Health page's title
+ * row; `composing` / `setComposing` open the new-reading form from there. */
+export function VitalsTab({ accent, composing, setComposing }: { accent: string; composing: boolean; setComposing: (open: boolean) => void }) {
   const vitals = useVitals();
   const [kind, setKind] = useState<Kind>("bp");
   const [range, setRange] = useState<DateRange | null>(null);
-  const [composing, setComposing] = useState(false);
   const [editingBp, setEditingBp] = useState<BloodPressureReading | null>(null);
   const [editingWeight, setEditingWeight] = useState<WeightReading | null>(null);
 
@@ -356,7 +369,10 @@ export function VitalsTab({ accent }: { accent: string }) {
   const today = todayLocalISODate();
   const allDates = [...vitals.bp.data, ...vitals.weight.data].map((r) => r.measuredAt.slice(0, 10));
   const earliest = allDates.length > 0 ? allDates.reduce((a, b) => (a < b ? a : b)) : today;
-  const span: DateRange = { start: earliest, end: today };
+  // Reach back at least a year so every preset shows its full length, even
+  // when the first reading is more recent than that.
+  const yearAgo = addDaysToDate(today, -364);
+  const span: DateRange = { start: earliest < yearAgo ? earliest : yearAgo, end: today };
   const effectiveRange = range ?? span;
   const inWindow = (measuredAt: string) => {
     const d = measuredAt.slice(0, 10);
@@ -370,27 +386,18 @@ export function VitalsTab({ accent }: { accent: string }) {
     <div className="flex flex-col gap-3">
       {formSheet}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-        <TabRail
-          ariaLabel="Vitals type"
-          wrap={false}
-          tall
-          className="shrink-0"
-          style={{ borderColor: "var(--border-hairline)" }}
-          items={[
-            { id: "bp" as const, label: "Blood pressure", accent },
-            { id: "weight" as const, label: "Weight", accent },
+        <Segmented
+          value={kind}
+          onChange={setKind}
+          accent={accent}
+          options={[
+            ["bp", "Blood pressure"],
+            ["weight", "Weight"],
           ]}
-          activeId={kind}
-          onSelect={setKind}
         />
-        <div className="flex flex-1 items-center gap-2">
-          {!vitals.loading && !vitals.error && hasChartData && (
-            <DateRangeFilter span={span} value={effectiveRange} onChange={setRange} presets={VITALS_DATE_PRESETS} accent={accent} />
-          )}
-          <div className="ml-auto">
-            <PrimaryAction label="Add" accent={accent} onClick={() => setComposing(true)} />
-          </div>
-        </div>
+        {!vitals.loading && !vitals.error && hasChartData && (
+          <DateRangeFilter span={span} value={effectiveRange} onChange={setRange} presets={VITALS_DATE_PRESETS} accent={accent} />
+        )}
       </div>
 
       {vitals.loading ? (
@@ -416,19 +423,23 @@ export function VitalsTab({ accent }: { accent: string }) {
                 ) : (
                   <WindowEmpty />
                 )}
-                <div className="mt-2 flex flex-col gap-1 text-xs" style={{ color: "var(--text-muted)" }}>
-                  <p className="flex flex-wrap gap-x-3">
-                    <span><span className="mr-1 inline-block h-2 w-2 rounded-full align-middle" style={{ background: "var(--series-magenta)" }} aria-hidden="true" />Systolic</span>
-                    <span><span className="mr-1 inline-block h-2 w-2 rounded-full align-middle" style={{ background: "var(--series-2)" }} aria-hidden="true" />Diastolic</span>
-                  </p>
-                  <p className="flex flex-wrap gap-x-3 gap-y-1">
-                    {BP_CATEGORIES.map((c) => (
-                      <span key={c.id}>
-                        <span className="mr-1 inline-block h-2 w-2 rounded-full align-middle" style={{ background: c.color }} aria-hidden="true" />
-                        {c.label}
+                <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 px-1 text-xs" style={{ color: "var(--text-secondary)" }}>
+                  <span className="flex items-center gap-4">
+                    {BP_LEGEND_LINES.map((l) => (
+                      <span key={l.label} className="inline-flex items-center gap-1.5">
+                        <span className="h-0.5 w-3.5 rounded-full" style={{ background: l.color }} aria-hidden="true" />
+                        {l.label}
                       </span>
                     ))}
-                  </p>
+                  </span>
+                  <span className="flex items-center gap-4">
+                    {BP_LEGEND_ZONES.map((z) => (
+                      <span key={z.label} className="inline-flex items-center gap-1.5">
+                        <span className="h-2.5 w-2.5 rounded-[3px]" style={{ background: `color-mix(in srgb, ${z.color} 22%, transparent)` }} aria-hidden="true" />
+                        {z.label}
+                      </span>
+                    ))}
+                  </span>
                 </div>
               </div>
             )}
