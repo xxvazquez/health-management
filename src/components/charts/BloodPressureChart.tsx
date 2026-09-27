@@ -97,8 +97,10 @@ export function BloodPressureChart({
           tickLine={{ stroke: "var(--baseline)" }}
           axisLine={{ stroke: "var(--baseline)" }}
           tick={{ fill: "var(--text-muted)", fontSize: 12 }}
-          height={22}
-          tickMargin={8}
+          angle={axis.vertical ? -90 : 0}
+          textAnchor={axis.vertical ? "end" : "middle"}
+          height={axis.vertical ? 50 : 22}
+          tickMargin={axis.vertical ? 4 : 8}
         />
         <YAxis
           domain={[Math.floor(bottom), Math.ceil(top)]}

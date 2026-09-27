@@ -12,6 +12,8 @@ import {
   YAxis,
 } from "recharts";
 import { DAY, toMs, tooltipDate, windowAxis } from "./timeAxis";
+import { effectiveRange, rangeStatus } from "@/lib/aggregations/labs";
+import { optimalStatusColor } from "@/components/doctors/labStatus";
 
 export interface LabMarkerChartPoint {
   date: string;
@@ -20,8 +22,10 @@ export interface LabMarkerChartPoint {
 
 /** One marker's values over time as a single chronological line. The lab
  * reference range and (where set) the tighter optimal band are shaded
- * behind it; the most recent reading gets an enlarged dot coloured by its
- * status. `windowStart` / `windowEnd` pin the x-axis to the selected time
+ * behind it; the most recent reading gets an enlarged dot. With
+ * `colorByRange`, every reading's dot is coloured by its status against the
+ * optimal band (or the lab range) — green in range, blue low, red high —
+ * and out-of-range ones are drawn larger. `windowStart` / `windowEnd` pin the x-axis to the selected time
  * window so it shows every year (or month) in that window even when the
  * readings are sparse — without them the axis just spans the data. */
 export function LabMarkerChart({
@@ -35,6 +39,7 @@ export function LabMarkerChart({
   windowEnd = null,
   color = "var(--series-indigo)",
   endColor,
+  colorByRange = false,
   height = 240,
 }: {
   data: LabMarkerChartPoint[];
@@ -47,8 +52,12 @@ export function LabMarkerChart({
   windowEnd?: string | null;
   color?: string;
   endColor?: string;
+  colorByRange?: boolean;
   height?: number;
 }) {
+  const band = effectiveRange({ refLow, refHigh, optimalLow, optimalHigh });
+  const statusOf = (v: number) => rangeStatus(v, band.low, band.high);
+  const dotColor = (v: number) => (colorByRange ? optimalStatusColor(statusOf(v)) : color);
   const rows = data.map((d) => ({ t: toMs(d.date), value: d.value })).sort((a, b) => a.t - b.t);
 
   const values = rows.map((r) => r.value);
@@ -103,8 +112,10 @@ export function LabMarkerChart({
           tickLine={{ stroke: "var(--baseline)" }}
           axisLine={{ stroke: "var(--baseline)" }}
           tick={{ fill: "var(--text-muted)", fontSize: 12 }}
-          height={22}
-          tickMargin={8}
+          angle={axis.vertical ? -90 : 0}
+          textAnchor={axis.vertical ? "end" : "middle"}
+          height={axis.vertical ? 50 : 22}
+          tickMargin={axis.vertical ? 4 : 8}
         />
         <YAxis
           domain={[yFloor, yCeil]}
@@ -130,7 +141,12 @@ export function LabMarkerChart({
           dataKey="value"
           stroke={color}
           strokeWidth={1.5}
-          dot={{ r: 1.8, fill: color, strokeWidth: 0 }}
+          dot={(props: { cx?: number; cy?: number; value?: number; index?: number }) => {
+            const { cx, cy, value, index } = props;
+            if (cx == null || cy == null || value == null) return <g key={index} />;
+            const out = colorByRange && (statusOf(value) === "low" || statusOf(value) === "high");
+            return <circle key={index} cx={cx} cy={cy} r={out ? 3 : 1.8} fill={dotColor(value)} />;
+          }}
           activeDot={{ r: 4, fill: color, strokeWidth: 0 }}
           isAnimationActive={false}
         />
@@ -139,7 +155,7 @@ export function LabMarkerChart({
             x={last.t}
             y={last.value}
             r={4}
-            fill={endColor ?? color}
+            fill={endColor ?? dotColor(last.value)}
             stroke="var(--surface-1)"
             strokeWidth={1.5}
           />

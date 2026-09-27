@@ -13,41 +13,50 @@ export function tooltipDate(ms: number): string {
   return new Date(ms).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 }
 
-/** Most tick labels a phone-width chart fits side by side. */
+/** Most horizontal tick labels a phone-width chart fits side by side. */
 const MAX_LABELS = 7;
+/** Most vertical month labels before ticks step further apart. */
+const MAX_VERTICAL = 22;
+/** Month steps a long window can use, so ticks land on regular months. */
+const MONTH_STEPS = [1, 2, 3, 4, 6, 12, 24];
 
-/** Ticks for the whole selected window, not just where readings land — one
- * per month up to ~2.5 years, one per year beyond that. Months read "Sep",
- * with January shown as its year ("2027") so year boundaries stay clear.
- * Every tick keeps its mark, but past `MAX_LABELS` only every n-th one is
- * labelled, so labels stay horizontal and never overlap. */
-export function windowAxis(minMs: number, maxMs: number): { ticks: number[]; format: (ms: number) => string } {
+function monthShort(ms: number): string {
+  return new Date(ms).toLocaleDateString("en-GB", { month: "short", timeZone: "UTC" });
+}
+
+/** Ticks for the whole selected window, not just where readings land.
+ * Up to a year: one tick per month reading "Sep", January shown as its
+ * year, labels horizontal (every n-th one past `MAX_LABELS`). Longer: a
+ * tick every 1–24 months on regular months (Jan, Apr, Jul, Oct for a
+ * three-month step), each labelled "Jan 17" and turned vertical so many
+ * fit without overlapping. */
+export function windowAxis(minMs: number, maxMs: number): { ticks: number[]; format: (ms: number) => string; vertical: boolean } {
   const months = (maxMs - minMs) / (DAY * 30.44);
-  const ticks: number[] = [];
-  let label: (ms: number) => string;
-  if (months <= 30) {
-    const d = new Date(minMs);
-    let cur = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1);
-    if (cur < minMs) cur = Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1);
-    while (cur <= maxMs) {
-      ticks.push(cur);
-      const c = new Date(cur);
-      cur = Date.UTC(c.getUTCFullYear(), c.getUTCMonth() + 1, 1);
+  const first = new Date(minMs);
+  const startIndex = first.getUTCFullYear() * 12 + first.getUTCMonth() + (Date.UTC(first.getUTCFullYear(), first.getUTCMonth(), 1) < minMs ? 1 : 0);
+  const monthStarts = (step: number) => {
+    const ticks: number[] = [];
+    for (let m = Math.ceil(startIndex / step) * step; ; m += step) {
+      const t = Date.UTC(Math.floor(m / 12), m % 12, 1);
+      if (t > maxMs) break;
+      ticks.push(t);
     }
-    label = (ms) => {
-      const d = new Date(ms);
-      return d.getUTCMonth() === 0 ? String(d.getUTCFullYear()) : d.toLocaleDateString("en-GB", { month: "short", timeZone: "UTC" });
-    };
-  } else {
-    const startYear = new Date(minMs).getUTCFullYear();
-    const endYear = new Date(maxMs).getUTCFullYear();
-    for (let y = startYear; y <= endYear; y++) {
-      const t = Date.UTC(y, 0, 1);
-      if (t >= minMs && t <= maxMs) ticks.push(t);
-    }
-    label = (ms) => String(new Date(ms).getUTCFullYear());
+    return ticks;
+  };
+
+  if (months <= 12.5) {
+    const ticks = monthStarts(1);
+    const step = Math.ceil(ticks.length / MAX_LABELS);
+    const labelled = new Set(ticks.filter((_, i) => i % step === 0));
+    const label = (ms: number) => (new Date(ms).getUTCMonth() === 0 ? String(new Date(ms).getUTCFullYear()) : monthShort(ms));
+    return { ticks, format: (ms) => (labelled.has(ms) ? label(ms) : ""), vertical: false };
   }
-  const step = Math.ceil(ticks.length / MAX_LABELS);
-  const labelled = new Set(ticks.filter((_, i) => i % step === 0));
-  return { ticks, format: (ms) => (labelled.has(ms) ? label(ms) : "") };
+
+  const step = MONTH_STEPS.find((n) => months / n <= MAX_VERTICAL) ?? 24;
+  const ticks = monthStarts(step);
+  return {
+    ticks,
+    format: (ms) => `${monthShort(ms)} ${String(new Date(ms).getUTCFullYear()).slice(-2)}`,
+    vertical: true,
+  };
 }

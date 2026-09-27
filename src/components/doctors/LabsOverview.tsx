@@ -89,6 +89,7 @@ export function LabsOverview({
   const [sort, setSort] = useState<SortKey>("panel");
   const [panelFilter, setPanelFilter] = useState<string | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
+  const [listScroll, setListScroll] = useState(0);
   const desktop = useIsDesktop();
 
   const today = todayLocalISODate();
@@ -154,6 +155,20 @@ export function LabsOverview({
   const activeId = listedMarkers.some((m) => m.id === openId) ? openId : desktop ? (listedMarkers[0]?.id ?? null) : null;
   const openMarker = activeId ? inRange.find((m) => m.id === activeId) ?? null : null;
 
+  // On a phone the marker detail replaces the list: open it at the top, and
+  // come back to the same place in the list.
+  const openRow = (id: string) => {
+    if (!desktop) {
+      setListScroll(window.scrollY);
+      window.scrollTo(0, 0);
+    }
+    setOpenId(id);
+  };
+  const backToList = () => {
+    setOpenId(null);
+    requestAnimationFrame(() => window.scrollTo(0, listScroll));
+  };
+
   if (openMarker && !desktop) {
     return (
       <MarkerDetailView
@@ -163,7 +178,7 @@ export function LabsOverview({
         onRangeChange={setRange}
         windowStart={activeRange.start}
         windowEnd={activeRange.end}
-        onBack={() => setOpenId(null)}
+        onBack={backToList}
         onAddValue={onAddValue ? () => onAddValue(openMarker.id) : undefined}
         onEditValue={onEditValue ? (r) => onEditValue(openMarker.id, r) : undefined}
       />
@@ -173,7 +188,7 @@ export function LabsOverview({
   const rows = (markers: LabMarker[]) => (
     <MarkerGrid>
       {markers.map((m, i) => (
-        <MarkerRow key={m.id} marker={m} mode={mode} first={i === 0} active={desktop && m.id === activeId} onOpen={() => setOpenId(m.id)} />
+        <MarkerRow key={m.id} marker={m} mode={mode} first={i === 0} active={desktop && m.id === activeId} onOpen={() => openRow(m.id)} />
       ))}
     </MarkerGrid>
   );
@@ -489,7 +504,8 @@ function MarkerDetailView({
             optimalHigh={marker.optimalHigh}
             windowStart={windowStart}
             windowEnd={windowEnd}
-            endColor={tone}
+            color="var(--series-other)"
+            colorByRange
           />
         </Card>
       ) : (
