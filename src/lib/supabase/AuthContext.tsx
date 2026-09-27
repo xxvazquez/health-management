@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
-import { supabase, supabaseConfigured } from "./client";
+import { AUTH_STORAGE_KEY, supabase, supabaseConfigured } from "./client";
 
 interface AuthContextValue {
   configured: boolean;
@@ -31,6 +31,22 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+/** The session saved on this device, read straight from storage. getSession()
+ * refreshes an expired token over the network before it resolves, so this
+ * lets the app open on the cached data without waiting for that round trip.
+ * Anything unexpected reads as "none" and falls back to getSession(). */
+function readStoredSession(): Session | null {
+  if (!AUTH_STORAGE_KEY) return null;
+  try {
+    const raw = window.localStorage.getItem(AUTH_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<Session> | null;
+    return parsed?.refresh_token && parsed.user?.id ? (parsed as Session) : null;
+  } catch {
+    return null;
+  }
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(supabaseConfigured);
@@ -40,6 +56,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!supabase) return;
     let cancelled = false;
+    const stored = readStoredSession();
+    if (stored) {
+      // Reading persisted storage on mount — not a render-state sync loop.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSession(stored);
+      setLoading(false);
+    }
     supabase.auth.getSession().then(({ data }) => {
       if (cancelled) return;
       setSession(data.session);

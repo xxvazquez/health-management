@@ -146,6 +146,7 @@ Parent-and-child writes (an appointment with tasks, a whole blood draw) queue pa
 - `public/manifest.webmanifest` + `public/sw.js` cache the app shell separately from the data cache
 - The service worker cache name includes the deploy's git SHA, so each deploy gets a fresh cache
 - Pages are network-first, but a slow network gets 3s before the cached page is served; the request carries on and refreshes the cache
+- The loading splash clears as soon as a saved session is found on the device (`readStoredSession` in `AuthContext.tsx`) instead of waiting for `getSession()` to refresh an expired token over the network
 - Pinch-zoom and rubber-band scrolling are off, so the installed app holds still
 - `PullToRefresh.tsx` syncs with Supabase when you pull down from the top
 

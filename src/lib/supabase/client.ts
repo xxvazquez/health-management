@@ -15,6 +15,11 @@ export const supabaseConfigured = Boolean(url && anonKey);
 export const supabaseUrl = url ?? null;
 export const supabaseAnonKey = anonKey ?? null;
 
+/** Where the session is persisted in localStorage — the same key supabase-js
+ * derives by default, set explicitly so `AuthContext` can read the saved
+ * session without waiting on the client. */
+export const AUTH_STORAGE_KEY = url ? `sb-${new URL(url).hostname.split(".")[0]}-auth-token` : null;
+
 export const supabase: SupabaseClient | null = supabaseConfigured
-  ? createClient(url as string, anonKey as string)
+  ? createClient(url as string, anonKey as string, { auth: { storageKey: AUTH_STORAGE_KEY as string } })
   : null;
