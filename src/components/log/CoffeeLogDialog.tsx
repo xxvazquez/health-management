@@ -7,7 +7,6 @@ import { Field } from "@/components/ui/Field";
 import { FormGroup } from "@/components/ui/FormGroup";
 import { ROW_INLINE_CLS, ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
 import { AutoGrowTextarea } from "@/components/ui/AutoGrowTextarea";
-import { Button } from "@/components/ui/Button";
 import { NumberStepper } from "@/components/ui/NumberStepper";
 import { TimeField } from "@/components/ui/TimeField";
 import { defaultLogTimeValue } from "@/lib/logCandidates";
@@ -107,6 +106,16 @@ export function CoffeeLogDialog({
       title={item.name}
       titleId="coffee-log-title"
       onClose={onClose}
+      form={{
+        onSubmit: (e) => {
+          e.preventDefault();
+          void handleSave();
+        },
+        submitLabel: editingLog ? "Done" : "Add",
+        busy: saving,
+        submitDisabled: saving || isDemoData,
+        accent,
+      }}
       subtitle={
         item.brand && (
           <span className="text-xs font-medium" style={{ color: accent }}>
@@ -203,9 +212,11 @@ export function CoffeeLogDialog({
         </Field>
       </FormGroup>
 
-      <Button type="button" size="lg" accent={accent} disabled={saving || isDemoData} onClick={() => void handleSave()}>
-        {isDemoData ? "Sign in to log" : saving ? "Saving…" : editingLog ? "Update log" : "Save log"}
-      </Button>
+      {isDemoData && (
+        <p className="px-3.5 text-xs" style={{ color: "var(--text-muted)" }}>
+          Sign in to log a cup.
+        </p>
+      )}
     </Sheet>
   );
 }

@@ -8,7 +8,6 @@ import { Field } from "@/components/ui/Field";
 import { FormGroup } from "@/components/ui/FormGroup";
 import { ROW_INLINE_CLS, ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
 import { AutoGrowTextarea } from "@/components/ui/AutoGrowTextarea";
-import { Button } from "@/components/ui/Button";
 import { NAV_LABEL } from "@/components/navLabels";
 
 const ACCENT = "var(--ui-accent)";
@@ -75,7 +74,16 @@ export function BugReportDialog({ open, onClose }: { open: boolean; onClose: () 
   }
 
   return (
-    <Sheet title="Feedback" titleId="bug-report-title" onClose={onClose}>
+    <Sheet
+      title="Feedback"
+      titleId="bug-report-title"
+      onClose={onClose}
+      form={
+        bugReportingConfigured && !submitted
+          ? { onSubmit: handleSubmit, submitLabel: "Send", busy: submitting, busyLabel: "Sending…", submitDisabled: submitting, accent: ACCENT }
+          : undefined
+      }
+    >
       {!bugReportingConfigured && (
         <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
           Feedback isn&apos;t set up for this deployment yet.
@@ -89,7 +97,7 @@ export function BugReportDialog({ open, onClose }: { open: boolean; onClose: () 
       )}
 
       {bugReportingConfigured && !submitted && (
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <>
           <FormGroup>
             <Field label="Type" inline>
               <select value={bugType} onChange={(e) => setBugType(e.target.value as BugType)} className={ROW_INLINE_CLS} style={ROW_STYLE}>
@@ -115,15 +123,12 @@ export function BugReportDialog({ open, onClose }: { open: boolean; onClose: () 
               />
             </Field>
           </FormGroup>
-          <Button type="submit" disabled={submitting} accent={ACCENT}>
-            {submitting ? "Sending…" : "Send"}
-          </Button>
           {error && (
             <span className="text-xs" style={{ color: "var(--status-critical)" }}>
               {error}
             </span>
           )}
-        </form>
+        </>
       )}
     </Sheet>
   );

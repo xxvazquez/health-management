@@ -90,7 +90,7 @@ One sans-serif family: SF Pro on Apple devices, Inter elsewhere (`--font-app`).
 ### Dialogs
 
 - **`AddMenu`:** "+ Add" for a section with more than one kind of thing to create (Agenda, Visits, Results) opens an iOS pull-down menu, not an inline picker card
-- **`Sheet`:** every modal. A bottom sheet on phones (swipe down to close), centred from `sm`
+- **`Sheet`:** every modal. A bottom sheet on phones (swipe down to close), centred from `sm`. Pass `form` for a create/edit/send form: the header becomes Cancel · title · action (Add, Done, Send) and there's no button at the bottom
 - **`DuplicateItemDialog`:** the iOS-style alert
 
 ### Lists

@@ -4,7 +4,6 @@ import { useState, type FormEvent } from "react";
 import { Field } from "@/components/ui/Field";
 import { FormGroup } from "@/components/ui/FormGroup";
 import { ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
-import { Button } from "@/components/ui/Button";
 import { createPartnerInvite, redeemPartnerInvite, type PartnerInvite } from "@/lib/supabase/partner";
 
 const ACCENT = "var(--series-magenta)";
@@ -96,7 +95,7 @@ export function PartnerLinkPanel({ onLinked }: { onLinked: () => void }) {
         )}
       </FormGroup>
 
-      <form onSubmit={handleRedeem} className="flex flex-col gap-3">
+      <form onSubmit={handleRedeem}>
         <FormGroup
           title="Have a code?"
           footer={
@@ -110,19 +109,27 @@ export function PartnerLinkPanel({ onLinked }: { onLinked: () => void }) {
             </>
           }
         >
-          <Field label="Code">
-            <input
-              value={codeInput}
-              onChange={(e) => setCodeInput(e.target.value.toUpperCase())}
-              placeholder="e.g. AB3D9KQZ"
-              className={`${ROW_TEXT_CLS} tracking-[0.15em] uppercase`}
-              style={ROW_STYLE}
-            />
+          <Field label="Code" plain>
+            <div className="flex items-center gap-3">
+              <input
+                value={codeInput}
+                onChange={(e) => setCodeInput(e.target.value.toUpperCase())}
+                placeholder="e.g. AB3D9KQZ"
+                aria-label="Partner code"
+                className={`${ROW_TEXT_CLS} min-w-0 flex-1 tracking-[0.15em] uppercase`}
+                style={ROW_STYLE}
+              />
+              <button
+                type="submit"
+                disabled={redeeming || !codeInput.trim()}
+                className="hit-slop shrink-0 text-sm font-semibold disabled:opacity-40"
+                style={{ color: ACCENT }}
+              >
+                {redeeming ? "Linking…" : "Link"}
+              </button>
+            </div>
           </Field>
         </FormGroup>
-        <Button type="submit" size="lg" accent={ACCENT} disabled={redeeming || !codeInput.trim()}>
-          {redeeming ? "Linking…" : "Link"}
-        </Button>
       </form>
     </div>
   );

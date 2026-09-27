@@ -1,15 +1,12 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { CategoryIcon } from "./icons";
 import { Sheet } from "@/components/ui/Sheet";
-import { Segmented } from "@/components/ui/Segmented";
 import { Field } from "@/components/ui/Field";
 import { FormGroup } from "@/components/ui/FormGroup";
-import { ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
+import { ROW_INLINE_CLS, ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
 import { AutoGrowTextarea } from "@/components/ui/AutoGrowTextarea";
 import { NOTE_CATEGORIES, NOTE_CATEGORY_LABEL, type NewNoteInput, type NoteCategory } from "@/lib/supabase/notes";
-import { Button } from "@/components/ui/Button";
 
 const ACCENT = "var(--series-magenta)";
 
@@ -77,55 +74,44 @@ export function ComposeNoteDialog({
       title="New message"
       titleId="compose-note-title"
       onClose={onClose}
+      form={{ onSubmit: handleSubmit, submitLabel: "Send", busy: sending, busyLabel: "Sending…", submitDisabled: sending || !body.trim(), accent: ACCENT }}
       subtitle={
         <p className="text-xs" style={{ color: "var(--text-muted)" }}>
           To <span style={{ color: "var(--text-secondary)" }}>{partnerLabel}</span>
         </p>
       }
     >
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        <Segmented
-          value={category}
-          onChange={setCategory}
-          accent={ACCENT}
-          options={NOTE_CATEGORIES.map(
-            (c) =>
-              [
-                c,
-                <span key={c} className="flex items-center gap-1.5">
-                  <CategoryIcon category={c} size={13} />
-                  {NOTE_CATEGORY_LABEL[c]}
-                </span>,
-              ] as const,
-          )}
-        />
+      <FormGroup>
+        <Field label="Kind" inline>
+          <select value={category} onChange={(e) => setCategory(e.target.value as NoteCategory)} className={ROW_INLINE_CLS} style={{ color: ACCENT }}>
+            {NOTE_CATEGORIES.map((c) => (
+              <option key={c} value={c}>
+                {NOTE_CATEGORY_LABEL[c]}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Subject · optional">
+          <input value={subject} onChange={(e) => setSubject(e.target.value)} maxLength={120} className={ROW_TEXT_CLS} style={ROW_STYLE} />
+        </Field>
+        <Field label="Message">
+          <AutoGrowTextarea
+            required
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            rows={5}
+            maxRows={10}
+            className={`${ROW_TEXT_CLS} resize-none leading-relaxed`}
+            style={ROW_STYLE}
+          />
+        </Field>
+      </FormGroup>
 
-        <FormGroup>
-          <Field label="Subject · optional">
-            <input value={subject} onChange={(e) => setSubject(e.target.value)} maxLength={120} className={ROW_TEXT_CLS} style={ROW_STYLE} />
-          </Field>
-          <Field label="Message">
-            <AutoGrowTextarea
-              required
-              value={body}
-              onChange={(e) => setBody(e.target.value)}
-              rows={5}
-              maxRows={10}
-              className={`${ROW_TEXT_CLS} resize-none leading-relaxed`}
-              style={ROW_STYLE}
-            />
-          </Field>
-        </FormGroup>
-
-        <Button type="submit" accent={ACCENT} disabled={sending || !body.trim()}>
-          {sending ? "Sending…" : "Send"}
-        </Button>
-        {error && (
-          <span className="text-xs" style={{ color: "var(--status-critical)" }}>
-            {error}
-          </span>
-        )}
-      </form>
+      {error && (
+        <span className="text-xs" style={{ color: "var(--status-critical)" }}>
+          {error}
+        </span>
+      )}
     </Sheet>
   );
 }

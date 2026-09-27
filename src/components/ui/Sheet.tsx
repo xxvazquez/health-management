@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type FormEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { CloseIcon } from "@/components/ui/icons";
 import { useDialogA11y } from "@/components/ui/useDialogA11y";
@@ -18,13 +18,32 @@ const DISMISS_VELOCITY = 0.6;
  * white rows on it. Render it only while open; it slides in, locks the page
  * scroll behind it, traps focus and closes on Escape or a tap on the
  * backdrop. Rendered in a portal on `document.body`.
+ *
+ * Pass `form` to make it a create/edit form: the panel becomes the `<form>`
+ * and the header turns into the iOS form bar — Cancel on the left, the title
+ * centred, the submit action on the right — in place of the close button.
  */
+export interface SheetForm {
+  onSubmit: (e: FormEvent) => void;
+  /** "Add" for a new record, "Done" when editing one, "Send" for a message. */
+  submitLabel: string;
+  submitDisabled?: boolean;
+  /** Shows `busyLabel` in place of the label while a save is in flight. */
+  busy?: boolean;
+  busyLabel?: string;
+  /** Tint for Cancel and the submit action — the form's domain colour. */
+  accent?: string;
+  /** Extra controls left of the submit action, e.g. Delete on an edit form. */
+  headerActions?: ReactNode;
+}
+
 export function Sheet({
   title,
   subtitle,
   icon,
   titleId,
   onClose,
+  form,
   children,
 }: {
   title: string;
@@ -34,6 +53,7 @@ export function Sheet({
   /** Id for the title, wired to `aria-labelledby`. */
   titleId: string;
   onClose: () => void;
+  form?: SheetForm;
   children: ReactNode;
 }) {
   const [closing, setClosing] = useState(false);
@@ -52,7 +72,7 @@ export function Sheet({
     [],
   );
   const containerRef = useDialogA11y(true, requestClose);
-  const panelRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement & HTMLFormElement>(null);
   const drag = useRef<{ startY: number; startT: number; dy: number } | null>(null);
 
   useEffect(() => {
@@ -61,6 +81,8 @@ export function Sheet({
       if (--scrollLocks === 0) document.body.style.overflow = "";
     };
   }, []);
+
+  const Panel = form ? "form" : "div";
 
   const phone = () => typeof window !== "undefined" && window.matchMedia("(max-width: 639px)").matches;
 
@@ -98,8 +120,9 @@ export function Sheet({
   return createPortal(
     <div ref={containerRef} className="fixed inset-0 z-50 flex items-end justify-center px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby={titleId}>
       <div className="sheet-backdrop absolute inset-0 bg-black/40" data-closing={closing ? "" : undefined} onClick={requestClose} />
-      <div
+      <Panel
         ref={panelRef}
+        onSubmit={form?.onSubmit}
         data-closing={closing ? "" : undefined}
         className="sheet-panel relative flex max-h-[92dvh] w-full max-w-md flex-col gap-4 overflow-y-auto overscroll-contain rounded-[20px] p-4 pb-6 shadow-xl"
         style={{ background: "var(--page-plane)" }}
@@ -113,29 +136,57 @@ export function Sheet({
           onPointerCancel={onDragEnd}
         >
           <div aria-hidden="true" className="mx-auto -mt-1 h-1 w-9 shrink-0 rounded-full sm:hidden" style={{ background: "var(--baseline)" }} />
-          <div className="flex items-start justify-between gap-3 px-0.5">
-            <div className="flex min-w-0 flex-col gap-0.5">
-              <span className="flex items-center gap-2">
-                {icon}
-                <h2 id={titleId} className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>
-                  {title}
-                </h2>
-              </span>
-              {subtitle}
+          {form ? (
+            <div className="grid min-h-11 grid-cols-[1fr_auto_1fr] items-center gap-3 px-0.5">
+              <button type="button" onClick={requestClose} className="hit-slop justify-self-start text-sm" style={{ color: form.accent ?? "var(--ui-accent)" }}>
+                Cancel
+              </button>
+              <div className="flex min-w-0 flex-col items-center gap-0.5 text-center">
+                <span className="flex max-w-full items-center gap-2">
+                  {icon}
+                  <h2 id={titleId} className="truncate text-base font-semibold" style={{ color: "var(--text-primary)" }}>
+                    {title}
+                  </h2>
+                </span>
+                {subtitle}
+              </div>
+              <div className="flex items-center justify-self-end gap-3">
+                {form.headerActions}
+                <button
+                  type="submit"
+                  disabled={form.submitDisabled}
+                  className="hit-slop text-sm font-semibold whitespace-nowrap disabled:opacity-40"
+                  style={{ color: form.accent ?? "var(--ui-accent)" }}
+                >
+                  {form.busy ? (form.busyLabel ?? "Saving…") : form.submitLabel}
+                </button>
+              </div>
             </div>
-            <button
-              type="button"
-              onClick={requestClose}
-              aria-label="Close"
-              className="control-surface hit-slop flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
-              style={{ color: "var(--text-secondary)" }}
-            >
-              <CloseIcon />
-            </button>
-          </div>
+          ) : (
+            <div className="flex items-start justify-between gap-3 px-0.5">
+              <div className="flex min-w-0 flex-col gap-0.5">
+                <span className="flex items-center gap-2">
+                  {icon}
+                  <h2 id={titleId} className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>
+                    {title}
+                  </h2>
+                </span>
+                {subtitle}
+              </div>
+              <button
+                type="button"
+                onClick={requestClose}
+                aria-label="Close"
+                className="control-surface hit-slop flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
+                style={{ color: "var(--text-secondary)" }}
+              >
+                <CloseIcon />
+              </button>
+            </div>
+          )}
         </div>
         {children}
-      </div>
+      </Panel>
     </div>,
     document.body,
   );
