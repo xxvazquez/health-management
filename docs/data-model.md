@@ -726,6 +726,7 @@ account-wide settings every device shares
 | `orders` | Custom order per list, as ordered keys: `domains` (Log/Trends tabs), `reminderLists`, `wishlistLists`, `labPanels` (ids), `doctorTypes` (lowercase names), `coffee:<kind>` / `stool:<kind>` (option ids). Unlisted entries follow in their normal order (`applyOrder`). |
 | `domainVisibility` | Settings → Visible sections: explicit show/hide per tracked section; absent = automatic (shows once it has data, or while the account is empty). |
 | `defaultTime` | "HH:MM" a new date picks up before a time is chosen; absent = the next full hour. |
+| `appearance` | Settings → Appearance: `theme` (`light`/`dark`/`system`), `light` and `dark` palette ids. Each device also caches it in localStorage so the first paint needs no fetch. |
 
 Categories keep their order in `categories.sort_order` instead (above).
 

@@ -1,6 +1,7 @@
 "use client";
 
-import { useThemePref, setThemePref, type ThemePref } from "@/lib/theme";
+import { useSetAppearance } from "@/components/ThemeManager";
+import { useThemePref, type ThemePref } from "@/lib/theme";
 
 const NEXT: Record<ThemePref, ThemePref> = { light: "dark", dark: "system", system: "light" };
 const PREF_LABEL: Record<ThemePref, string> = { light: "Light", dark: "Dark", system: "System" };
@@ -35,10 +36,11 @@ function ThemeIcon({ pref }: { pref: ThemePref }) {
  * on Settings → Appearance. */
 export function ThemeToggleRow({ collapsed }: { collapsed?: boolean }) {
   const pref = useThemePref();
+  const { setTheme } = useSetAppearance();
   return (
     <button
       type="button"
-      onClick={() => setThemePref(NEXT[pref])}
+      onClick={() => setTheme(NEXT[pref])}
       aria-label={`Appearance: ${PREF_LABEL[pref]}. Tap to change.`}
       title={collapsed ? `Appearance: ${PREF_LABEL[pref]}` : undefined}
       className={`tap-target flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium whitespace-nowrap transition-colors hover:bg-[var(--page-plane)] lg:py-2 ${collapsed ? "justify-center px-0" : ""}`}

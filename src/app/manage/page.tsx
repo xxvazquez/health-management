@@ -49,11 +49,9 @@ import { MarkerForm } from "@/components/doctors/labForms";
 import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
 import { Sheet } from "@/components/ui/Sheet";
 import { FormGroup } from "@/components/ui/FormGroup";
+import { useSetAppearance } from "@/components/ThemeManager";
 import {
-  setThemePref,
   useThemePref,
-  setLightPalette,
-  setDarkPalette,
   useLightPalette,
   useDarkPalette,
   PALETTE_INFO,
@@ -134,34 +132,35 @@ function PaletteRow<T extends string>({ id, active, onClick }: { id: T; active: 
 
 const THEME_LABEL = { light: "Light", dark: "Dark", system: "System" } as const;
 
-/** Light / Dark / System, plus which ground palette each mode uses — all
- * per-device choices (localStorage, applied by a pre-paint script +
- * ThemeManager), not synced. The palette lists show every option regardless
- * of which mode is currently active, since System can resolve to either. */
+/** Light / Dark / System, plus which ground palette each mode uses — synced
+ * to the account (see ThemeManager). The palette lists show every option
+ * regardless of which mode is currently active, since System can resolve to
+ * either. */
 function AppearanceCard() {
   const pref = useThemePref();
   const lightPalette = useLightPalette();
   const darkPalette = useDarkPalette();
+  const { setTheme, setLight, setDark } = useSetAppearance();
   return (
     <CollapsibleManageCard title="Appearance" subtitle={THEME_LABEL[pref]} bare>
       <SegmentedTabs
         ariaLabel="Theme"
         activeId={pref}
-        onSelect={setThemePref}
+        onSelect={setTheme}
         items={[
           { id: "light", label: "Light" },
           { id: "dark", label: "Dark" },
           { id: "system", label: "System" },
         ]}
       />
-      <GroupNote>Light, dark, or match your device. This device only.</GroupNote>
+      <GroupNote>Light, dark, or match your device.</GroupNote>
       <div className="mt-3 flex flex-col gap-1.5">
         <h3 className="px-4 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
           Light palette
         </h3>
         <div className={GROUP_CLS} style={GROUP_STYLE}>
           {LIGHT_PALETTES.map((id) => (
-            <PaletteRow key={id} id={id} active={id === lightPalette} onClick={() => setLightPalette(id)} />
+            <PaletteRow key={id} id={id} active={id === lightPalette} onClick={() => setLight(id)} />
           ))}
         </div>
       </div>
@@ -171,7 +170,7 @@ function AppearanceCard() {
         </h3>
         <div className={GROUP_CLS} style={GROUP_STYLE}>
           {DARK_PALETTES.map((id) => (
-            <PaletteRow key={id} id={id} active={id === darkPalette} onClick={() => setDarkPalette(id)} />
+            <PaletteRow key={id} id={id} active={id === darkPalette} onClick={() => setDark(id)} />
           ))}
         </div>
       </div>
@@ -182,8 +181,8 @@ function AppearanceCard() {
 /** Turns a tracked type on/off everywhere it appears — its Log tab and,
  * for Food/Workout/Cycle, its Analytics dashboard link — without deleting
  * or archiving anything underneath. Sections show up on their own once
- * they have data; these toggles override that in either direction. Purely
- * a local display preference (see visibleDomains.tsx), not synced. */
+ * they have data; these toggles override that in either direction. An
+ * account-wide display preference (see visibleDomains.tsx). */
 function VisibleSectionsCard({ isDemoData }: { isDemoData: boolean }) {
   const { isVisible, toggle, domainOrder, setDomainOrder } = useVisibleDomains();
   const drag = useDragReorder(domainOrder, (next) => setDomainOrder(next as TrackedDomain[]));

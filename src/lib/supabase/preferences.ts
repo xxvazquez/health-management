@@ -4,7 +4,7 @@ import { upsertDirect } from "./directWrite";
 const TABLE = "user_preferences";
 
 /** Account-wide preferences, shared by every device — list orders, which
- * sections show, the default time for new dates. One row per user, one
+ * sections show, the default time for new dates, the appearance. One row per user, one
  * JSON object. */
 export interface Preferences {
   /** Custom order per list, as ordered keys (ids or names). */
@@ -13,6 +13,8 @@ export interface Preferences {
   domainVisibility?: Record<string, boolean>;
   /** "HH:MM" a new date picks up before a time is chosen; unset = next hour. */
   defaultTime?: string | null;
+  /** Settings → Appearance: light/dark/system and each mode's palette. */
+  appearance?: { theme?: string; light?: string; dark?: string };
 }
 
 async function currentUserId(): Promise<string | null> {

@@ -22,7 +22,8 @@ Lauva aims to look like a native **iOS 26** app while still working as a normal 
 | Modes | Light / Dark / System, in Settings → Appearance (`src/lib/theme.ts`) |
 | Palettes | Light: L1, L3 (default), L4, L5 · Dark: D1 (default), D2, D4 |
 | Dark mode | A token-only override under `:root[data-theme="dark"]`; muted, never neon |
-| First paint | A script in `layout.tsx` sets `data-theme` before render; `ThemeManager` follows the OS live |
+| Sync | The choice lives in the account's `user_preferences.prefs.appearance`, so every device follows it; localStorage caches it per device |
+| First paint | A script in `layout.tsx` sets `data-theme` from that cache before render; `ThemeManager` applies the synced choice and follows the OS live |
 
 ---
 

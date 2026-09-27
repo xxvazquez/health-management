@@ -2,11 +2,13 @@
 
 import { useSyncExternalStore } from "react";
 
-/** Appearance preference — a per-device choice, never synced. `system`
- * tracks the OS `prefers-color-scheme`. */
+/** Appearance preference. `system` tracks the OS `prefers-color-scheme`.
+ * The account's synced preferences hold the choice (ThemeManager applies
+ * them); localStorage caches it so the pre-paint script can apply it before
+ * anything loads. */
 export type ThemePref = "light" | "dark" | "system";
 
-/** Ground palettes within each mode — also per-device, never synced. `l3`
+/** Ground palettes within each mode, stored the same way. `l3`
  * ("Cool Studio White") and `d1` ("Midnight Slate") are the defaults; the
  * others are the alternates offered in Settings → Appearance. Adding one
  * means adding its `[data-palette="…"]` block in globals.css and its entry
@@ -51,6 +53,16 @@ export const PALETTE_INFO: Record<LightPalette | DarkPalette, { name: string; bg
 
 export const LIGHT_PALETTES: readonly LightPalette[] = ["l3", "l1", "l4", "l5"];
 export const DARK_PALETTES: readonly DarkPalette[] = ["d1", "d2", "d4"];
+
+export function isThemePref(v: unknown): v is ThemePref {
+  return v === "light" || v === "dark" || v === "system";
+}
+export function isLightPalette(v: unknown): v is LightPalette {
+  return (LIGHT_PALETTES as readonly unknown[]).includes(v);
+}
+export function isDarkPalette(v: unknown): v is DarkPalette {
+  return (DARK_PALETTES as readonly unknown[]).includes(v);
+}
 
 export function readThemePref(): ThemePref {
   try {

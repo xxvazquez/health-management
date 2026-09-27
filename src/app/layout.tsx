@@ -87,8 +87,8 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col lg:flex-row">
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT }} />
         <RegisterServiceWorker />
-        <ThemeManager />
         <AuthProvider>
+          <ThemeManager />
           <AppLoadingSplash />
           <DataProvider>
             <VisibleDomainsProvider>
