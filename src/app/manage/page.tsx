@@ -657,9 +657,9 @@ function LabResultsCard({ searchQuery }: { searchQuery: string }) {
                                 setConfirmingMarker(null);
                                 setEditingMarkerId(m.id);
                               }}
-                              className="flex min-h-11 w-full items-center gap-2 px-3.5 text-left"
+                              className="flex min-h-11 py-2 w-full items-center gap-2 px-3.5 text-left"
                             >
-                              <span className="min-w-0 flex-1 truncate text-sm" style={{ color: "var(--text-primary)" }}>
+                              <span className="min-w-0 flex-1 text-sm" style={{ color: "var(--text-primary)" }}>
                                 {m.name}
                               </span>
                               {m.unit && (
@@ -1612,9 +1612,9 @@ function CoffeeCard({ isDemoData, searchQuery }: { isDemoData: boolean; searchQu
                         type="button"
                         onClick={() => startEditItem(it)}
                         aria-haspopup="dialog"
-                        className="flex min-h-11 w-full items-center gap-2 px-3.5 text-left"
+                        className="flex min-h-11 py-2 w-full items-center gap-2 px-3.5 text-left"
                       >
-                        <span className="min-w-0 flex-1 truncate text-sm" style={{ color: it.isArchived ? "var(--text-muted)" : "var(--text-primary)" }}>
+                        <span className="min-w-0 flex-1 text-sm" style={{ color: it.isArchived ? "var(--text-muted)" : "var(--text-primary)" }}>
                           {it.name}
                         </span>
                         {(it.brand || it.isArchived) && (
@@ -2175,8 +2175,8 @@ function ProductEditRow({
       </label>
 
       {product.ingredientItemIds.map((itemId) => (
-        <div key={itemId} className="flex min-h-11 items-center gap-3 px-3.5">
-          <span className="min-w-0 flex-1 truncate text-sm" style={{ color: "var(--text-primary)" }}>
+        <div key={itemId} className="flex min-h-11 py-2 items-center gap-3 px-3.5">
+          <span className="min-w-0 flex-1 text-sm" style={{ color: "var(--text-primary)" }}>
             {nameById.get(itemId) ?? justAddedNames.get(itemId) ?? "Unknown item"}
           </span>
           <button
