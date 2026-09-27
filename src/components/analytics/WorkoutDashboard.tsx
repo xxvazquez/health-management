@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import { useData } from "@/lib/DataContext";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageSkeleton } from "@/components/ui/Skeleton";
-import { DashboardHeader } from "@/components/analytics/DashboardHeader";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { Insight } from "@/components/ui/Insight";
 import { StatChip } from "@/components/ui/StatChip";
@@ -358,12 +357,6 @@ export function WorkoutDashboard() {
 
   return (
     <div className="flex flex-col gap-6">
-      <DashboardHeader
-        subtitle="Charts and progression from what you've logged."
-      >
-        Workout
-      </DashboardHeader>
-
       {insight && <Insight label="What stands out" headline={insight.headline} detail={insight.detail} tone={insight.tone} />}
 
       {recentSessions.length > 0 && <RecentActivityTimeline sessions={recentSessions} />}

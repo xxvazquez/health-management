@@ -4,9 +4,9 @@ import { useMemo } from "react";
 import { useData } from "@/lib/DataContext";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageSkeleton } from "@/components/ui/Skeleton";
-import { DashboardHeader } from "@/components/analytics/DashboardHeader";
 import { StatChip } from "@/components/ui/StatChip";
 import { Card, CardTitle } from "@/components/ui/Card";
+import { TrendsActions } from "@/components/analytics/TrendsActions";
 import { DateRangeFilter } from "@/components/ui/DateRangeFilter";
 import { Insight } from "@/components/ui/Insight";
 import { BulletList } from "@/components/ui/BulletList";
@@ -128,10 +128,11 @@ export function DigestionDashboard() {
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
-        <DashboardHeader>Digestion</DashboardHeader>
-        {span && range && <DateRangeFilter span={span} value={range} onChange={setRange} accent={ACCENT} />}
-      </div>
+      {span && range && (
+        <TrendsActions>
+          <DateRangeFilter span={span} value={range} onChange={setRange} accent={ACCENT} />
+        </TrendsActions>
+      )}
 
       <Insight label="What stands out" headline={insight.headline} detail={insight.detail} tone={insight.tone} />
 

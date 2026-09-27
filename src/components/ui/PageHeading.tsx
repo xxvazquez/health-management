@@ -6,8 +6,7 @@ import { MobileMenuButton } from "@/components/MobileMenuButton";
  * subtitle and a trailing actions slot) — a large title flush with the
  * page content, like an iOS large-title navigation bar.
  *
- * `DashboardHeader` (Trends) and `BoardPage` (Notes) render
- * this same block — keep the three in step.
+ * `BoardPage` (Notes) renders this same block — keep the two in step.
  */
 export function PageHeading({
   children,

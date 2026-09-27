@@ -13,13 +13,14 @@ import { CycleDashboard } from "@/components/analytics/CycleDashboard";
 import { PatternsDashboard } from "@/components/analytics/PatternsDashboard";
 import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
 import { PageHeading } from "@/components/ui/PageHeading";
+import { TrendsActionsSlot } from "@/components/analytics/TrendsActions";
 
 /** One page for every analytics dashboard, switched by a Log-style tab bar
  * (`/analytics#food`) instead of one sidebar entry each. Each tab is gated
  * by the same Manage visibility rule its Log tab uses (`isVisible`);
  * Patterns follows Symptoms since it's built on symptom associations. The
- * dashboard components are unchanged — they still render their own `<h1>`
- * and empty states — they just live under `src/components/analytics/` now.
+ * dashboards render their own empty states; a date-range filter goes into
+ * the title row through `TrendsActions`.
  * Each tab mirrors a Log tracking domain. Blood/lab analysis lives on
  * Health → Results, not here. */
 const TABS: { id: string; label: string; domain?: TrackedDomain; accent: string; Component: ComponentType; hasSections?: boolean }[] = [
@@ -48,6 +49,7 @@ export default function AnalyticsPage() {
   // back/forward) — reading `location` in the initializer would be a
   // hydration mismatch.
   const [tabId, setTabId] = useState<string>(TABS[0].id);
+  const [actionsSlot, setActionsSlot] = useState<HTMLElement | null>(null);
 
   useEffect(() => {
     const fromHash = () => {
@@ -90,7 +92,7 @@ export default function AnalyticsPage() {
           lives on the tab rail and the charts (the Log↔Trends mirror),
           not on the page chrome, which shouldn't flip through eight hues
           as you switch tabs. */}
-      <PageHeading>Trends</PageHeading>
+      <PageHeading actions={<div ref={setActionsSlot} className="flex items-center" />}>Trends</PageHeading>
 
       {/* Sticky on mobile for the plain single-scroll dashboards, so the
           domain switcher stays reachable. On Food it isn't — Food's own
@@ -107,7 +109,9 @@ export default function AnalyticsPage() {
         )}
       />
 
-      <ActiveDashboard />
+      <TrendsActionsSlot.Provider value={actionsSlot}>
+        <ActiveDashboard />
+      </TrendsActionsSlot.Provider>
     </div>
   );
 }

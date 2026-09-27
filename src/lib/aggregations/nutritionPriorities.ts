@@ -20,7 +20,7 @@ import { evidenceForGroup } from "@/lib/nutritionEvidence";
 /** Distinct food-tracked days needed, WITHIN THE SELECTED RANGE, before the
  * engine trusts its own ranking enough to produce priorities — below this,
  * "never logged" is indistinguishable from "hasn't logged much of anything
- * yet". A short range (e.g. "This week") will often land here, which is
+ * yet". A short range (e.g. "7 days") will often land here, which is
  * correct: a week of data isn't enough to judge a pattern of eating. */
 const MIN_FOOD_DAYS_FOR_CONFIDENCE = 10;
 

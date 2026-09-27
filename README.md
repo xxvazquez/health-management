@@ -97,7 +97,7 @@ A grouped list (Tracking, Health, Lists, App) where each row opens its own scree
 - **Time is editable** per entry, and the date stepper opens a calendar.
 - **"Not logged" never means "didn't happen".** Empty days are left out of percentages, not counted as zero.
 - **Cycle** stores only period days. Cycle length and predictions are always derived, never stored.
-- **Hiding a section** in Settings hides it from both Log and Trends, on that device only.
+- **Hiding a section** in Settings hides it from both Log and Trends, on every device.
 
 ---
 

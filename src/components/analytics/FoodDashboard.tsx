@@ -7,11 +7,11 @@ import { PageSkeleton } from "@/components/ui/Skeleton";
 import { StatChip } from "@/components/ui/StatChip";
 import { Insight } from "@/components/ui/Insight";
 import { Card, CardTitle } from "@/components/ui/Card";
+import { TrendsActions } from "@/components/analytics/TrendsActions";
 import { DateRangeFilter, describeDateRange, type DateRangePreset } from "@/components/ui/DateRangeFilter";
 import { Methodology } from "@/components/ui/Methodology";
 import { SectionNav, type SectionNavItem } from "@/components/ui/SectionNav";
 import { ShowMore } from "@/components/ui/ShowMore";
-import { DashboardHeader } from "@/components/analytics/DashboardHeader";
 import { RankedBarChart } from "@/components/charts/RankedBarChart";
 import { MultiLineChart } from "@/components/charts/MultiLineChart";
 import { useDateRangeFilter } from "@/lib/useDateRangeFilter";
@@ -202,14 +202,14 @@ function PageSection({ id, activeId, headingLabel, subtitle, children }: {
   );
 }
 
-/** This week / 2 weeks / 1 month / 6 months / 1 year / All time — Food's
+/** 7 days / 2 weeks / 1 month / 6 months / 1 year / All time — Food's
  * own preset wording, distinct from the "Last N days" phrasing every other
  * analytics page still uses (DateRangeFilter's `presets` prop is opt-in
  * precisely so this doesn't change those other pages). Arbitrary custom
  * ranges (3 weeks, 3 months, ...) are already covered by the component's
  * existing manual date inputs — no separate mechanism needed. */
 const FOOD_DATE_PRESETS: DateRangePreset[] = [
-  { label: "This week", days: 7 },
+  { label: "7 days", days: 7 },
   { label: "2 weeks", days: 14 },
   { label: "1 month", days: 30 },
   { label: "6 months", days: 182 },
@@ -221,7 +221,7 @@ const FOOD_DATE_PRESETS: DateRangePreset[] = [
  * back into the "Showing …" sentence. A custom (non-preset) range falls
  * through as its formatted date span. */
 const RANGE_PHRASE: Record<string, string> = {
-  "This week": "this week",
+  "7 days": "the last 7 days",
   "2 weeks": "the last 2 weeks",
   "1 month": "the last month",
   "6 months": "the last 6 months",
@@ -377,19 +377,11 @@ export function FoodDashboard() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
-        <DashboardHeader>
-          Food
-          {span && range && (
-            <span className="ml-2.5 text-sm font-normal" style={{ color: "var(--text-muted)" }}>
-              {rangeLabel}
-            </span>
-          )}
-        </DashboardHeader>
-        {span && range && (
+      {span && range && (
+        <TrendsActions>
           <DateRangeFilter span={span} value={range} onChange={setRange} presets={FOOD_DATE_PRESETS} accent={TYPE_ACCENT.food} />
-        )}
-      </div>
+        </TrendsActions>
+      )}
 
       <Insight
         label={foodInsight.label}

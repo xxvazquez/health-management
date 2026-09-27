@@ -5,9 +5,9 @@ import { useMemo, useState } from "react";
 import { useData } from "@/lib/DataContext";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageSkeleton } from "@/components/ui/Skeleton";
-import { DashboardHeader } from "@/components/analytics/DashboardHeader";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { Insight } from "@/components/ui/Insight";
+import { TrendsActions } from "@/components/analytics/TrendsActions";
 import { DateRangeFilter } from "@/components/ui/DateRangeFilter";
 import { Methodology } from "@/components/ui/Methodology";
 import { SampleTierBadge } from "@/components/ui/SampleTierBadge";
@@ -46,12 +46,11 @@ export function PatternsDashboard() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <DashboardHeader subtitle="For when you want to dig deeper — associations and correlations in your own data. Descriptive only, never causal.">
-          Patterns
-        </DashboardHeader>
-        {span && range && <DateRangeFilter span={span} value={range} onChange={setRange} />}
-      </div>
+      {span && range && (
+        <TrendsActions>
+          <DateRangeFilter span={span} value={range} onChange={setRange} />
+        </TrendsActions>
+      )}
 
       {topPatterns.length > 0 ? (
         <Card tier="supporting" className="flex flex-col gap-3">
@@ -144,6 +143,11 @@ export function PatternsDashboard() {
       <LagExplorer events={filtered} workoutLogs={filteredWorkoutLogs} />
 
       <ToleratedFoods events={filtered} />
+
+      <Methodology>
+        Associations and correlations in your own data, for when you want to dig deeper. They&apos;re descriptive only,
+        never causal: two things showing up together doesn&apos;t mean one caused the other.
+      </Methodology>
     </div>
   );
 }

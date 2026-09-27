@@ -4,7 +4,6 @@ import { useMemo } from "react";
 import { useData } from "@/lib/DataContext";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageSkeleton } from "@/components/ui/Skeleton";
-import { DashboardHeader } from "@/components/analytics/DashboardHeader";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { Insight } from "@/components/ui/Insight";
 import { StatChip } from "@/components/ui/StatChip";
@@ -52,12 +51,6 @@ export function CycleDashboard() {
 
   return (
     <div className="flex flex-col gap-6">
-      <DashboardHeader
-        subtitle="Patterns from what you've logged."
-      >
-        Cycle
-      </DashboardHeader>
-
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         {(currentStatus.onPeriod || currentStatus.cycleDay !== null) && (
           <span

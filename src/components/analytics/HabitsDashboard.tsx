@@ -4,7 +4,6 @@ import { useMemo } from "react";
 import { useData } from "@/lib/DataContext";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageSkeleton } from "@/components/ui/Skeleton";
-import { DashboardHeader } from "@/components/analytics/DashboardHeader";
 import { Methodology } from "@/components/ui/Methodology";
 import { AdherenceCardGrid } from "@/components/analytics/AdherenceCardGrid";
 import { habitStats } from "@/lib/aggregations/habits";
@@ -19,12 +18,6 @@ export function HabitsDashboard() {
 
   return (
     <div className="flex flex-col gap-5">
-      <DashboardHeader
-        subtitle="Consistency for every habit you've logged."
-      >
-        Habits
-      </DashboardHeader>
-
       <AdherenceCardGrid stats={stats} events={events} accent={TYPE_ACCENT.habit} noun="habit" />
 
       <Methodology>
