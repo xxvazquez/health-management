@@ -100,6 +100,8 @@ One sans-serif family: SF Pro on Apple devices, Inter elsewhere (`--font-app`).
 - **Multi-column lists** (Log items on desktop) size their columns with `fitColumnWidth` (`src/lib/fitColumnWidth.ts`): wide enough for the longest label, clamped 10–22rem, so long names don't wrap into slivers
 - **`ListSection`:** the section header above a card
 - **Metadata** (kind, specialty, "shared") is plain text, not a badge
+- **Row actions** (favourite, read/unread, edit, delete) sit behind a left swipe on a phone and appear on hover from `lg` (`useSwipeReveal`), not as icons on every row
+- **Conversations** (Messages) follow iMessage: received bubbles left, yours right, a centred time over each burst, and the reply bar pinned to the bottom above the tab bar
 
 ---
 

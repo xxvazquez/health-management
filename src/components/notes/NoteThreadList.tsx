@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
+import clsx from "clsx";
+import { SWIPE_REVEAL_CLASS, useSwipeReveal } from "@/lib/useSwipeReveal";
 import { CategoryIcon, EyeIcon, EyeOffIcon, StarIcon } from "./icons";
 import { ErrorState, InlineEmpty } from "@/components/ui/EmptyState";
 import { NOTE_CATEGORY_LABEL, type NoteThread, type NoteView } from "@/lib/supabase/notes";
@@ -79,6 +81,100 @@ function RowAction({
   );
 }
 
+/** One thread in a folder. Favourite and read/unread sit behind a left
+ * swipe on a phone and appear on hover from `lg`, like Mail's row actions;
+ * a small star by the time marks a favourite without opening them. */
+function ThreadRow({
+  thread: t,
+  view,
+  partnerLabel,
+  busy,
+  onOpen,
+  onToggleFavourite,
+  onMarkRead,
+  onMarkUnread,
+}: {
+  thread: NoteThread;
+  view: NoteView;
+  partnerLabel: string;
+  busy: boolean;
+  onOpen: (id: string) => void;
+  onToggleFavourite: () => void;
+  onMarkRead: () => void;
+  onMarkUnread: () => void;
+}) {
+  const { revealed, onTouchStart, onTouchEnd } = useSwipeReveal();
+  // On Sent the dot also means "your partner hasn't opened it yet" —
+  // separate from `isUnreadForMe` (a reply you haven't opened), so a
+  // still-unseen note stays flagged even once you've reread it.
+  const sent = view === "sent";
+  const flagged = t.isUnreadForMe || (sent && !t.isSeenByPartner);
+  let detail: string | null = null;
+  if (sent) {
+    if (t.isUnreadForMe) detail = "New reply";
+    else if (!t.isSeenByPartner) detail = "Not read yet";
+    else if (t.partnerReadAt) detail = `Read ${formatReadAt(t.partnerReadAt)}`;
+  } else if (view !== "inbox") {
+    detail = t.isMine ? `To ${partnerLabel}` : `From ${partnerLabel}`;
+  }
+
+  return (
+    <div
+      className="group flex items-start gap-1 pr-1 pl-2.5 transition-colors hover:bg-black/[0.03]"
+      style={{ touchAction: "pan-y" }}
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
+    >
+      <button type="button" onClick={() => onOpen(t.id)} className="flex min-w-0 flex-1 items-start gap-1.5 py-2.5 text-left">
+        <span className="mt-1.5 flex h-2 w-2 shrink-0 items-center justify-center">
+          {flagged && <span className="h-2 w-2 rounded-full" style={{ background: ACCENT }} aria-hidden="true" />}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="flex items-center gap-1.5">
+            <span className="min-w-0 flex-1 truncate text-sm" style={{ fontWeight: flagged ? 600 : 500, color: "var(--text-primary)" }}>
+              {t.subject || t.body.slice(0, 60)}
+            </span>
+            {t.isFavouritedByMe && (
+              <span className="shrink-0" style={{ color: ACCENT }} role="img" aria-label="Favourite">
+                <StarIcon filled size={11} />
+              </span>
+            )}
+            <span className="shrink-0 text-xs whitespace-nowrap tabular-nums" style={{ color: "var(--text-muted)" }}>
+              {formatNoteTimestampShort(t.lastMessageAt)}
+            </span>
+          </span>
+          <span className="mt-0.5 flex items-center gap-1.5 text-xs" style={{ color: "var(--text-muted)" }}>
+            <span className="inline-flex shrink-0 items-center gap-1 text-xs font-medium" style={{ color: CATEGORY_TONE[t.category] }}>
+              <CategoryIcon category={t.category} size={11} />
+              {NOTE_CATEGORY_LABEL[t.category]}
+            </span>
+            {detail && (
+              <span className="truncate" style={{ color: sent && flagged ? ACCENT : undefined }}>
+                {detail}
+              </span>
+            )}
+          </span>
+        </span>
+      </button>
+
+      <div className={clsx("flex shrink-0 items-center gap-0.5 self-center transition-opacity", revealed ? SWIPE_REVEAL_CLASS.shown : SWIPE_REVEAL_CLASS.hidden)}>
+        <RowAction onClick={onToggleFavourite} active={t.isFavouritedByMe} label={t.isFavouritedByMe ? "Remove favourite" : "Favourite"} disabled={busy}>
+          <StarIcon filled={t.isFavouritedByMe} size={14} />
+        </RowAction>
+        {sent ? null : t.isUnreadForMe ? (
+          <RowAction onClick={onMarkRead} label="Mark as read" disabled={busy}>
+            <EyeIcon size={15} />
+          </RowAction>
+        ) : (
+          <RowAction onClick={onMarkUnread} label="Mark as unread" disabled={busy}>
+            <EyeOffIcon size={15} />
+          </RowAction>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function NoteThreadList({
   threads,
   loading,
@@ -138,85 +234,19 @@ export function NoteThreadList({
 
   return (
     <div className="inset-rows rounded-xl border [--row-inset:1.5rem]" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
-      {threads.map((t) => {
-        const busy = busyId === t.id;
-        // On Sent the dot also means "your partner hasn't opened it yet" —
-        // separate from `isUnreadForMe` (a reply you haven't opened), so a
-        // still-unseen note stays flagged even once you've reread it.
-        const sent = view === "sent";
-        const flagged = t.isUnreadForMe || (sent && !t.isSeenByPartner);
-        const sentStatus = !sent
-          ? null
-          : t.isUnreadForMe
-            ? "New reply"
-            : !t.isSeenByPartner
-              ? "Not read yet"
-              : t.partnerReadAt
-                ? `Read ${formatReadAt(t.partnerReadAt)}`
-                : null;
-        return (
-          <div
-            key={t.id}
-            className="flex items-start gap-1 pr-1 pl-2.5 transition-colors hover:bg-black/[0.03]"
-          >
-            <button
-              type="button"
-              onClick={() => onOpen(t.id)}
-              className="flex min-w-0 flex-1 items-start gap-1.5 py-2.5 text-left"
-            >
-              <span className="mt-1.5 flex h-2 w-2 shrink-0 items-center justify-center">
-                {flagged && <span className="h-2 w-2 rounded-full" style={{ background: ACCENT }} aria-hidden="true" />}
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="flex items-center gap-1.5">
-                  <span className="min-w-0 flex-1 truncate text-sm" style={{ fontWeight: flagged ? 600 : 500, color: "var(--text-primary)" }}>
-                    {t.subject || t.body.slice(0, 60)}
-                  </span>
-                  <span className="shrink-0 text-xs whitespace-nowrap tabular-nums" style={{ color: "var(--text-muted)" }}>
-                    {formatNoteTimestampShort(t.lastMessageAt)}
-                  </span>
-                </span>
-                <span className="mt-0.5 flex items-center gap-1.5 text-xs" style={{ color: "var(--text-muted)" }}>
-                  <span
-                    className="inline-flex shrink-0 items-center gap-1 text-xs font-medium"
-                    style={{ color: CATEGORY_TONE[t.category] }}
-                  >
-                    <CategoryIcon category={t.category} size={11} />
-                    {NOTE_CATEGORY_LABEL[t.category]}
-                  </span>
-                  {sentStatus ? (
-                    <span className="truncate" style={{ color: flagged ? ACCENT : undefined }}>
-                      {sentStatus}
-                    </span>
-                  ) : (
-                    <span className="truncate">{t.isMine ? `To ${partnerLabel}` : `From ${partnerLabel}`}</span>
-                  )}
-                </span>
-              </span>
-            </button>
-
-            <div className="flex shrink-0 items-center gap-0.5 pt-1.5">
-              <RowAction
-                onClick={() => void run(t.id, () => onToggleFavourite(t.id, t.isMine, !t.isFavouritedByMe))}
-                active={t.isFavouritedByMe}
-                label={t.isFavouritedByMe ? "Remove favourite" : "Favourite"}
-                disabled={busy}
-              >
-                <StarIcon filled={t.isFavouritedByMe} size={14} />
-              </RowAction>
-              {sent ? null : t.isUnreadForMe ? (
-                <RowAction onClick={() => void run(t.id, () => onMarkRead(t.id, t.isMine))} label="Mark as read" disabled={busy}>
-                  <EyeIcon size={15} />
-                </RowAction>
-              ) : (
-                <RowAction onClick={() => void run(t.id, () => onMarkUnread(t.id, t.isMine))} label="Mark as unread" disabled={busy}>
-                  <EyeOffIcon size={15} />
-                </RowAction>
-              )}
-            </div>
-          </div>
-        );
-      })}
+      {threads.map((t) => (
+        <ThreadRow
+          key={t.id}
+          thread={t}
+          view={view}
+          partnerLabel={partnerLabel}
+          busy={busyId === t.id}
+          onOpen={onOpen}
+          onToggleFavourite={() => void run(t.id, () => onToggleFavourite(t.id, t.isMine, !t.isFavouritedByMe))}
+          onMarkRead={() => void run(t.id, () => onMarkRead(t.id, t.isMine))}
+          onMarkUnread={() => void run(t.id, () => onMarkUnread(t.id, t.isMine))}
+        />
+      ))}
     </div>
   );
 }
