@@ -271,16 +271,14 @@ export function AdherenceCardGrid({
                     className="flex flex-col gap-2 rounded-xl border p-2.5"
                     style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}
                   >
-                    <span
-                      className="truncate text-sm leading-snug font-medium"
-                      style={{ color: "var(--text-primary)" }}
-                      title={it.item}
-                    >
+                    {/* The name wraps instead of being cut off; mt-auto on the
+                        chart keeps the calendars level across a row. */}
+                    <span className="text-sm leading-snug font-medium" style={{ color: "var(--text-primary)" }}>
                       {it.item}
                     </span>
 
                     {view === "month" ? (
-                      <div className="flex flex-col gap-1 self-center">
+                      <div className="mt-auto flex flex-col gap-1 self-center">
                         <HabitGridWeekdays />
                         <HabitMonthGrid monthAnchor={anchor} completedDates={done} firstTrackedDate={it.firstTrackedDate} today={today} color={color} />
                       </div>
