@@ -5,6 +5,7 @@ import { useData } from "@/lib/DataContext";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageSkeleton } from "@/components/ui/Skeleton";
 import { StatChip } from "@/components/ui/StatChip";
+import { Stat, StatGrid } from "@/components/ui/StatGrid";
 import { Insight } from "@/components/ui/Insight";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { TrendsActions } from "@/components/analytics/TrendsActions";
@@ -639,21 +640,24 @@ function VarietySection({ variety }: { variety: ReturnType<typeof computeNutriti
       <CardTitle size="sm" subtitle="Distinct foods logged in the selected range">
         Variety
       </CardTitle>
-      <div className="flex flex-wrap gap-2">
-        <StatChip label="Food variety" value={String(variety.totalUniqueFoods)} detail="unique foods" />
-        <StatChip label="Plant variety" value={String(variety.uniquePlantFoods)} detail="plant foods" accent="var(--status-good)" />
-        <StatChip
-          label="Plant-group variety"
-          value={`${variety.plantGroupsRepresented} / ${variety.totalPlantGroups}`}
-          detail="groups"
-        />
-        <StatChip label="Vegetables" value={String(variety.uniqueVegetables)} />
-        <StatChip label="Fruit" value={String(variety.uniqueFruit)} />
-        <StatChip label="Legumes" value={String(variety.uniqueLegumes)} />
-        <StatChip label="Nuts & seeds" value={String(variety.uniqueNutsSeeds)} />
-        {variety.plantFamiliesRepresented > 0 && (
-          <StatChip label="Plant families" value={String(variety.plantFamiliesRepresented)} />
-        )}
+      <div className="flex flex-col gap-5">
+        <StatGrid>
+          <Stat label="Unique foods" value={String(variety.totalUniqueFoods)} />
+          <Stat label="Plant foods" value={String(variety.uniquePlantFoods)} accent="var(--status-good)" />
+          <Stat label="Plant groups" value={`${variety.plantGroupsRepresented} of ${variety.totalPlantGroups}`} />
+        </StatGrid>
+        <section className="flex flex-col gap-2.5">
+          <h3 className="text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
+            Different plant foods
+          </h3>
+          <StatGrid>
+            <Stat label="Vegetables" value={String(variety.uniqueVegetables)} />
+            <Stat label="Fruit" value={String(variety.uniqueFruit)} />
+            <Stat label="Legumes" value={String(variety.uniqueLegumes)} />
+            <Stat label="Nuts & seeds" value={String(variety.uniqueNutsSeeds)} />
+            {variety.plantFamiliesRepresented > 0 && <Stat label="Plant families" value={String(variety.plantFamiliesRepresented)} />}
+          </StatGrid>
+        </section>
       </div>
     </Card>
   );

@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import { useData } from "@/lib/DataContext";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageSkeleton } from "@/components/ui/Skeleton";
-import { StatChip } from "@/components/ui/StatChip";
+import { Stat, StatGrid } from "@/components/ui/StatGrid";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { TrendsActions } from "@/components/analytics/TrendsActions";
 import { DateRangeFilter } from "@/components/ui/DateRangeFilter";
@@ -170,24 +170,24 @@ export function DigestionDashboard() {
         )}
       </Card>
 
-      <div>
-        <p className="mb-2 text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-          At a glance — last 30 days
-        </p>
-        <div className="flex flex-wrap gap-2">
-          <StatChip
+      <section className="flex flex-col gap-2.5">
+        <h3 className="text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
+          Last 30 days
+        </h3>
+        <StatGrid>
+          <Stat
             label="In target range (3–4)"
             value={rangeChange.recentPct !== null ? `${Math.round(rangeChange.recentPct)}%` : "—"}
             detail={deltaDetail(rangeChange.recentPct, rangeChange.priorPct)}
             accent={ACCENT}
           />
-          <StatChip
+          <Stat
             label="Digestive symptom rate"
             value={symptomRateChange.recentPct !== null ? `${Math.round(symptomRateChange.recentPct)}%` : "—"}
             detail={deltaDetail(symptomRateChange.recentPct, symptomRateChange.priorPct)}
           />
-        </div>
-      </div>
+        </StatGrid>
+      </section>
 
       <Card tier="raw">
         <CardTitle size="sm" subtitle="Grouped into three bands for a quicker read than seven separate types">

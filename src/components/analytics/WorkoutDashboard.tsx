@@ -6,7 +6,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { PageSkeleton } from "@/components/ui/Skeleton";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { Insight } from "@/components/ui/Insight";
-import { StatChip } from "@/components/ui/StatChip";
+import { Stat, StatGrid } from "@/components/ui/StatGrid";
 import { DateRangeFilter } from "@/components/ui/DateRangeFilter";
 import { TrendAreaChart } from "@/components/charts/TrendAreaChart";
 import { RankedBarChart } from "@/components/charts/RankedBarChart";
@@ -232,28 +232,30 @@ function ProgressSection({
 
       {selectedStats && (
         <div className="mt-5 border-t pt-4" style={{ borderColor: "var(--gridline)" }}>
-          <div className="mb-3 flex flex-wrap gap-2">
-            <StatChip
+          <div className="mb-4">
+          <StatGrid>
+            <Stat
               label="Started"
               value={`${selectedStats.started.weightKg} ${workoutUnitLabel(selectedStats.unit)}`}
               detail={formatWorkoutDate(selectedStats.started.date)}
             />
-            <StatChip
+            <Stat
               label="Current"
               value={`${selectedStats.current.weightKg} ${workoutUnitLabel(selectedStats.unit)}`}
               detail={formatWorkoutDate(selectedStats.current.date)}
             />
-            <StatChip
+            <Stat
               label="Best"
               value={`${selectedStats.best.weightKg} ${workoutUnitLabel(selectedStats.unit)}`}
               detail={formatWorkoutDate(selectedStats.best.date)}
             />
-            <StatChip
+            <Stat
               label="Change"
               value={`${signed(selectedStats.changeKg)} ${workoutUnitLabel(selectedStats.unit)}`}
               detail={selectedStats.changePct !== null ? `${signed(selectedStats.changePct)}%` : undefined}
               accent={DIRECTION_COLOR[changeDirection(selectedStats.changeKg)]}
             />
+          </StatGrid>
           </div>
 
           <p className="mb-3 text-sm" style={{ color: "var(--text-secondary)" }}>

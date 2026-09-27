@@ -6,7 +6,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { PageSkeleton } from "@/components/ui/Skeleton";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { Insight } from "@/components/ui/Insight";
-import { StatChip } from "@/components/ui/StatChip";
+import { Stat, StatGrid } from "@/components/ui/StatGrid";
 import { DateRangeFilter } from "@/components/ui/DateRangeFilter";
 import { TrendAreaChart } from "@/components/charts/TrendAreaChart";
 import { useDateRangeFilter } from "@/lib/useDateRangeFilter";
@@ -90,12 +90,12 @@ export function CycleDashboard() {
               Record at least two periods in {rangeLabel === "all time" ? "your history" : "this range"} to see cycle statistics.
             </p>
           ) : (
-            <div className="flex flex-wrap gap-2">
-              <StatChip label="Last cycle" value={String(analysis.lastCycleLength)} detail="days" accent={ACCENT} />
-              <StatChip label="Average cycle" value={String(analysis.averageCycleLength)} detail="days" />
-              <StatChip label="Cycle variation" value={`± ${analysis.cycleLengthVariation ?? 0}`} detail="days" />
-              <StatChip label="Average period" value={String(analysis.averagePeriodLength)} detail="days" />
-            </div>
+            <StatGrid>
+              <Stat label="Last cycle" value={String(analysis.lastCycleLength)} detail="days" accent={ACCENT} />
+              <Stat label="Average cycle" value={String(analysis.averageCycleLength)} detail="days" />
+              <Stat label="Cycle variation" value={`± ${analysis.cycleLengthVariation ?? 0}`} detail="days" />
+              <Stat label="Average period" value={String(analysis.averagePeriodLength)} detail="days" />
+            </StatGrid>
           )}
 
           <Card tier="raw">
