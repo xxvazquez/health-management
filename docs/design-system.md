@@ -59,6 +59,10 @@ One sans-serif family: SF Pro on Apple devices, Inter elsewhere (`--font-app`).
 
 ---
 
+## Page width
+
+`ContentContainer` caps each page's width by type (Messages 2xl, Agenda 720px, Help 3xl, Log and Trends 6xl, everything else 4xl) but never centres it: every page starts at the same left edge beside the sidebar, so the title doesn't shift when switching pages.
+
 ## Components
 
 ### Navigation and switching

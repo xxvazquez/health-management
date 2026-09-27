@@ -50,7 +50,7 @@ export function PartnerLinkPanel({ onLinked }: { onLinked: () => void }) {
   }
 
   return (
-    <div className="mx-auto flex max-w-md flex-col gap-5">
+    <div className="flex max-w-md flex-col gap-5">
       <div>
         <h1 className="text-2xl leading-tight font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
           Connect with your partner
