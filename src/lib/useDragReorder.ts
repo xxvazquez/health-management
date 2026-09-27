@@ -32,47 +32,62 @@ export function useDragReorder(keys: readonly string[], onCommit: (next: string[
 
   function moveTo(key: string, clientY: number) {
     const others = orderRef.current.filter((k) => k !== key);
+    // Land just after the last row on screen that the pointer has passed.
+    // Keys with no row (a list can hide some, like empty categories) can't
+    // be measured, so they keep their place relative to the visible ones
+    // instead of throwing the count off.
     let index = 0;
-    for (const k of others) {
+    others.forEach((k, i) => {
       const rect = rows.current.get(k)?.getBoundingClientRect();
-      if (rect && clientY > rect.top + rect.height / 2) index++;
-    }
+      if (rect && clientY > rect.top + rect.height / 2) index = i + 1;
+    });
     const next = [...others.slice(0, index), key, ...others.slice(index)];
     if (next.join("\u0000") !== orderRef.current.join("\u0000")) setOrder(next);
   }
+
+  // While a row is held, follow the pointer on the whole window rather than
+  // on the grip: reordering moves the grip's element in the page, and a
+  // browser can drop pointer capture when that happens, which left a drag
+  // stuck after a single step.
+  useEffect(() => {
+    if (!dragging) return;
+    const move = (e: globalThis.PointerEvent) => moveTo(dragging, e.clientY);
+    const up = () => {
+      setDragging(null);
+      commit(orderRef.current);
+    };
+    const cancel = () => {
+      setDragging(null);
+      setOrder([...keys]);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+    window.addEventListener("pointercancel", cancel);
+    return () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointercancel", cancel);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- rebinds per drag, not per render
+  }, [dragging]);
 
   function handleProps(key: string) {
     return {
       onPointerDown: (e: PointerEvent<HTMLElement>) => {
         e.preventDefault();
-        try {
-          e.currentTarget.setPointerCapture(e.pointerId);
-        } catch {
-          // No active pointer to capture (e.g. a synthetic event) — moves
-          // still arrive while the pointer stays over the grip.
-        }
         setDragging(key);
-      },
-      onPointerMove: (e: PointerEvent<HTMLElement>) => {
-        if (dragging === key) moveTo(key, e.clientY);
-      },
-      onPointerUp: () => {
-        if (dragging !== key) return;
-        setDragging(null);
-        commit(orderRef.current);
-      },
-      onPointerCancel: () => {
-        setDragging(null);
-        setOrder([...keys]);
       },
       onKeyDown: (e: KeyboardEvent<HTMLElement>) => {
         if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
         e.preventDefault();
+        // Step past neighbours that aren't on screen, so one press moves one visible row.
         const i = order.indexOf(key);
-        const j = e.key === "ArrowUp" ? i - 1 : i + 1;
+        const dir = e.key === "ArrowUp" ? -1 : 1;
+        let j = i + dir;
+        while (j >= 0 && j < order.length && !rows.current.has(order[j])) j += dir;
         if (j < 0 || j >= order.length) return;
-        const next = [...order];
-        [next[i], next[j]] = [next[j], next[i]];
+        const next = order.filter((k) => k !== key);
+        next.splice(next.indexOf(order[j]) + (dir > 0 ? 1 : 0), 0, key);
         setOrder(next);
         commit(next);
       },
