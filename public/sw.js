@@ -9,6 +9,7 @@
 // this cache-first strategy stores just accumulates forever (the `activate`
 // cleanup below only ever runs when CACHE_NAME itself changes).
 const CACHE_NAME = "lauva-shell-__BUILD_ID__";
+const NETWORK_TIMEOUT_MS = 3000;
 
 self.addEventListener("install", (event) => {
   self.skipWaiting();
@@ -56,18 +57,32 @@ self.addEventListener("fetch", (event) => {
 
   // Everything else (pages, icons, manifest): network-first, falling back to
   // cache so the app shell still loads offline once it's been visited once.
+  // A slow network gets NETWORK_TIMEOUT_MS before the cached copy is served
+  // instead; the request keeps running and refreshes the cache for next time.
+  let cacheUpdate = Promise.resolve();
+  const network = fetch(request).then((response) => {
+    // Same reasoning as the cache-first branch above — don't let a
+    // failed response become the offline fallback.
+    if (response.ok) {
+      const copy = response.clone();
+      cacheUpdate = caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+    }
+    return response;
+  });
+  event.waitUntil(network.then(() => cacheUpdate, () => {}));
   event.respondWith(
-    fetch(request)
-      .then((response) => {
-        // Same reasoning as the cache-first branch above — don't let a
-        // failed response become the offline fallback.
-        if (response.ok) {
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
-        }
-        return response;
-      })
-      .catch(() => caches.match(request).then((cached) => cached || caches.match("/")))
+    new Promise((resolve) => {
+      network.then(resolve, () =>
+        resolve(caches.match(request).then((cached) => cached || caches.match("/")))
+      );
+      // With nothing cached (a first visit) this resolves nothing, so the
+      // page keeps waiting on the network as before.
+      setTimeout(() => {
+        caches.match(request).then((cached) => {
+          if (cached) resolve(cached);
+        });
+      }, NETWORK_TIMEOUT_MS);
+    })
   );
 });
 
