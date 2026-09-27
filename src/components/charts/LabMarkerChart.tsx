@@ -22,12 +22,14 @@ export interface LabMarkerChartPoint {
 
 /** One marker's values over time as a single chronological line. The lab
  * reference range and (where set) the tighter optimal band are shaded
- * behind it; the most recent reading gets an enlarged dot. With
- * `colorByRange`, every reading's dot is coloured by its status against the
- * optimal band (or the lab range) — green in range, blue low, red high —
- * and out-of-range ones are drawn larger. `windowStart` / `windowEnd` pin the x-axis to the selected time
- * window so it shows every year (or month) in that window even when the
- * readings are sparse — without them the axis just spans the data. */
+ * green behind it, keeping blue and red for low and high readings; the
+ * most recent reading gets an enlarged dot. With `colorByRange`, every
+ * reading's dot is coloured by its status against the optimal band (or the
+ * lab range) — green in range, blue low, red high — and out-of-range ones
+ * are drawn larger. `windowStart` / `windowEnd` pin the x-axis to the
+ * selected time window so it shows every month (or year) in that window
+ * even when the readings are sparse — without them the axis just spans the
+ * data. */
 export function LabMarkerChart({
   data,
   unit,
@@ -89,7 +91,7 @@ export function LabMarkerChart({
     <ResponsiveContainer width="100%" height={height}>
       <LineChart data={rows} margin={{ top: 8, right: 16, bottom: 8, left: 0 }}>
         {refLow != null && refHigh != null && (
-          <ReferenceArea y1={refLow} y2={refHigh} fill="var(--series-2)" fillOpacity={0.07} strokeOpacity={0} />
+          <ReferenceArea y1={refLow} y2={refHigh} fill="var(--status-good)" fillOpacity={0.08} strokeOpacity={0} />
         )}
         {(optimalLow != null || optimalHigh != null) && (
           <ReferenceArea
