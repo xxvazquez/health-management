@@ -24,15 +24,15 @@ function useSyncDotColor(): string | null {
   return "var(--status-good)";
 }
 
-/** The main menu's account entry — "Log in" when signed out, "Hi, name"
- * when signed in. Both states open the single shared AccountPanel. */
+/** The main menu's account entry — "Log in" when signed out, the account
+ * name when signed in (wrapping rather than cut off when it's long). Both states open the single shared AccountPanel. */
 export function AccountMenuButton({ collapsed, onOpen }: { collapsed?: boolean; onOpen?: () => void }) {
   const { configured, session, loading, openPanel } = useAuth();
   const dotColor = useSyncDotColor();
 
   if (!configured || loading) return null;
 
-  const label = session ? `Hi, ${displayNameFromEmail(session.user.email ?? "")}` : "Log in";
+  const label = session ? displayNameFromEmail(session.user.email ?? "") : "Log in";
 
   function handleOpen() {
     onOpen?.();
@@ -68,14 +68,14 @@ export function AccountMenuButton({ collapsed, onOpen }: { collapsed?: boolean; 
     <button
       type="button"
       onClick={handleOpen}
-      className={`flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded-[10px] px-3 text-sm font-medium whitespace-nowrap transition-colors ${session ? "control-surface" : ""}`}
+      className={`flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded-[10px] px-3 py-2 text-left text-sm font-medium transition-colors ${session ? "control-surface" : ""}`}
       style={{
         background: session ? undefined : "color-mix(in oklab, var(--ui-accent) 14%, var(--surface-1))",
         color: session ? "var(--text-primary)" : "var(--ui-accent)",
       }}
     >
       <span className="shrink-0"><PersonIcon /></span>
-      <span className="min-w-0 truncate">{label}</span>
+      <span className="min-w-0 [overflow-wrap:anywhere]">{label}</span>
       {session && <span className="mr-1 ml-auto h-2 w-2 shrink-0 rounded-full" style={{ background: dotColor ?? "transparent" }} />}
     </button>
   );
