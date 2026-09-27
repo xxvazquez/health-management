@@ -1,10 +1,10 @@
 "use client";
 
 import { CHIP_CLS, CONTROL_CLS, CONTROL_STYLE, chipStyle } from "@/components/ui/Chip";
-import { UpDownChevronIcon } from "@/components/ui/icons";
+import { ChevronIcon, UpDownChevronIcon } from "@/components/ui/icons";
 import { useState, type ReactNode } from "react";
 import type { useLabs } from "@/lib/useLabs";
-import { formatDMY, todayLocalISODate, type DateRange } from "@/lib/aggregations/common";
+import { todayLocalISODate, type DateRange } from "@/lib/aggregations/common";
 import {
   clipMarkers,
   effectiveRange,
@@ -14,8 +14,7 @@ import {
   summariseWindow,
 } from "@/lib/aggregations/labs";
 import { optimalStatusColor } from "./labStatus";
-import { IconAction, PencilIcon } from "./shared";
-import { Button } from "@/components/ui/Button";
+import { formatDate } from "./shared";
 import type { LabMarker, LabResult } from "@/lib/supabase/labs";
 import { InlineEmpty, ErrorState } from "@/components/ui/EmptyState";
 import { ListSkeleton } from "@/components/ui/Skeleton";
@@ -42,14 +41,15 @@ const LAB_DATE_PRESETS: DateRangePreset[] = [
   { label: "All time", days: "all" },
 ];
 
-/** Trim padding artefacts off a widened track end (2.749999 → 2.7). */
+/** A lab value as entered — lab results often carry two or three decimals
+ * (0.03, 2.15), so only floating-point noise is trimmed, never real digits. */
 function fmtNum(v: number): string {
-  const r = Math.round(v * 10) / 10;
-  return Number.isInteger(r) ? String(r) : r.toFixed(1);
+  return String(Math.round(v * 1000) / 1000);
 }
 
-function fmtValue(v: number, unit: string | null): string {
-  return unit ? `${fmtNum(v)} ${unit}` : fmtNum(v);
+/** A computed figure (an average) — two decimals is plenty. */
+function fmtMean(v: number): string {
+  return String(Math.round(v * 100) / 100);
 }
 
 /** The one "what to show" menu: the value (latest or window average) and
@@ -387,7 +387,7 @@ function MarkerRow({
       )}
 
       <span className="pl-3 text-right text-sm leading-4 tabular-nums" style={{ color: status ? tone : "var(--text-primary)" }}>
-        {reading != null ? fmtNum(reading) : "—"}
+        {reading == null ? "—" : mode === "average" ? fmtMean(reading) : fmtNum(reading)}
       </span>
       <span className="pl-1 text-xs leading-4 whitespace-nowrap" style={{ color: "var(--text-muted)" }}>
         {marker.unit ?? ""}
@@ -402,15 +402,74 @@ function MarkerRow({
 
 // --- Detail ------------------------------------------------------
 
-function Stat({ k, v, tone }: { k: string; v: string; tone?: string }) {
+/** A marker's history, newest first — the same columns as the Results list
+ * (value right-aligned, unit, H/L flag) with the date on the left. Tapping
+ * a row edits that reading. */
+function ReadingRows({
+  results,
+  unit,
+  low,
+  high,
+  onEdit,
+}: {
+  results: LabResult[];
+  unit: string | null;
+  low: number | null;
+  high: number | null;
+  onEdit?: (result: LabResult) => void;
+}) {
   return (
-    <div>
-      <div className="text-xs" style={{ color: "var(--text-muted)" }}>
-        {k}
-      </div>
-      <div className="text-sm font-semibold tabular-nums" style={{ color: tone ?? "var(--text-primary)" }}>
-        {v}
-      </div>
+    <Card tier="raw" padded={false} className="grid grid-cols-[minmax(0,1fr)_auto_auto_auto] px-3.5">
+      {results.map((r, i) => {
+        const st = rangeStatus(r.value, low, high);
+        const tone = optimalStatusColor(st);
+        const flag = st === "high" ? "H" : st === "low" ? "L" : "";
+        const cells = (
+          <>
+            <span className="text-sm tabular-nums" style={{ color: "var(--text-primary)" }}>
+              {formatDate(r.measuredOn)}
+            </span>
+            <span className="pl-3 text-right text-sm tabular-nums" style={{ color: st ? tone : "var(--text-primary)" }}>
+              {fmtNum(r.value)}
+            </span>
+            <span className="pl-1 text-xs whitespace-nowrap" style={{ color: "var(--text-muted)" }}>
+              {unit ?? ""}
+            </span>
+            <span className="min-w-2.5 pl-2 text-center text-sm font-semibold" style={{ color: tone }}>
+              {flag}
+              {flag && <span className="sr-only">{flag === "H" ? " (high)" : " (low)"}</span>}
+            </span>
+            {r.note && (
+              <span className="col-span-full pb-1 text-xs" style={{ color: "var(--text-secondary)" }}>
+                {r.note}
+              </span>
+            )}
+          </>
+        );
+        const rowCls = "col-span-full grid min-h-11 grid-cols-subgrid items-center py-2 text-left";
+        const rowStyle = { borderTop: i === 0 ? undefined : "1px solid var(--border-hairline)" };
+        return onEdit ? (
+          <button key={r.id} type="button" onClick={() => onEdit(r)} aria-label={`Edit the ${formatDate(r.measuredOn)} reading`} className={rowCls} style={rowStyle}>
+            {cells}
+          </button>
+        ) : (
+          <div key={r.id} className={rowCls} style={rowStyle}>
+            {cells}
+          </div>
+        );
+      })}
+    </Card>
+  );
+}
+
+/** One row of the marker summary list: label left, value right. */
+function SummaryRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex min-h-11 items-center justify-between gap-3 text-sm">
+      <span style={{ color: "var(--text-primary)" }}>{label}</span>
+      <span className="tabular-nums" style={{ color: "var(--text-secondary)" }}>
+        {value}
+      </span>
     </div>
   );
 }
@@ -445,26 +504,16 @@ function MarkerDetailView({
   const { low, high } = effectiveRange(marker);
   const status = summary ? rangeStatus(summary.latest, low, high) : null;
   const tone = optimalStatusColor(status);
-  const deltaPct =
-    summary && summary.previous != null && summary.previous !== 0
-      ? ((summary.latest - summary.previous) / Math.abs(summary.previous)) * 100
-      : null;
+  const change = summary && summary.previous != null ? summary.latest - summary.previous : null;
+  const changePct = change != null && summary!.previous !== 0 ? (change / Math.abs(summary!.previous!)) * 100 : null;
+  const signed = (v: number, text: string) => (v > 0 ? `+${text}` : v < 0 ? `−${text.replace("-", "")}` : text);
 
   const win = windowWord(describeDateRange(LAB_DATE_PRESETS, dateSpan, range));
-  const winCap = win.charAt(0).toUpperCase() + win.slice(1);
-
-  const refLabel =
-    marker.refLow != null || marker.refHigh != null
-      ? `range ${fmtNum(marker.refLow ?? 0)}–${marker.refHigh != null ? fmtNum(marker.refHigh) : "∞"}`
-      : null;
-  const optLabel =
-    marker.optimalLow != null || marker.optimalHigh != null
-      ? `optimal ${marker.optimalLow != null ? fmtNum(marker.optimalLow) : "0"}–${
-          marker.optimalHigh != null ? fmtNum(marker.optimalHigh) : "∞"
-        }`
-      : null;
-  const n = summary?.count ?? 0;
-  const drawWord = `${n} draw${n === 1 ? "" : "s"}${win === "all-time" ? "" : ` in the last ${win}`}`;
+  const rangeText = (lo: number | null, hi: number | null) =>
+    lo != null && hi != null ? `${fmtNum(lo)}–${fmtNum(hi)}` : lo != null ? `≥ ${fmtNum(lo)}` : hi != null ? `≤ ${fmtNum(hi)}` : null;
+  const normal = rangeText(marker.refLow, marker.refHigh);
+  const optimal = rangeText(marker.optimalLow, marker.optimalHigh);
+  const statusWord = status === "high" ? "High" : status === "low" ? "Low" : status === "in" ? "In range" : null;
 
   const shown = showAll ? newest : newest.slice(0, 12);
 
@@ -472,25 +521,43 @@ function MarkerDetailView({
     <div className="flex flex-col gap-4">
       {onBack && (
         <div className="flex items-center justify-between gap-3">
-          <button type="button" onClick={onBack} className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
-            ← All results
+          <button type="button" onClick={onBack} className="-ml-1 flex min-h-11 items-center gap-0.5 text-sm font-medium" style={{ color: ACCENT }}>
+            <ChevronIcon dir="left" size={16} />
+            Results
           </button>
           <DateRangeFilter span={dateSpan} value={range} onChange={onRangeChange} presets={LAB_DATE_PRESETS} accent={ACCENT} />
         </div>
       )}
 
-      <div>
+      <div className="flex flex-col gap-1">
         <h2 className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>
           {marker.name}
-          {marker.unit && (
-            <span className="ml-1 text-xs font-normal" style={{ color: "var(--text-muted)" }}>
-              {marker.unit}
-            </span>
-          )}
         </h2>
-        <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-          {[refLabel, optLabel, drawWord].filter(Boolean).join(" · ")}
-        </p>
+        {summary && (
+          <>
+            <p className="flex items-baseline gap-1.5">
+              <span className="text-2xl leading-tight font-semibold tabular-nums" style={{ color: status ? tone : "var(--text-primary)" }}>
+                {fmtNum(summary.latest)}
+              </span>
+              {marker.unit && (
+                <span className="text-sm" style={{ color: "var(--text-muted)" }}>
+                  {marker.unit}
+                </span>
+              )}
+            </p>
+            <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+              {statusWord && (
+                <>
+                  <span className="font-semibold" style={{ color: tone }}>
+                    {statusWord}
+                  </span>
+                  {" · "}
+                </>
+              )}
+              {[formatDate(summary.latestOn), normal && `normal ${normal}`, optimal && `optimal ${optimal}`].filter(Boolean).join(" · ")}
+            </p>
+          </>
+        )}
       </div>
 
       {ascending.length >= 2 ? (
@@ -514,69 +581,43 @@ function MarkerDetailView({
         </p>
       )}
 
-      {summary && (
-        <div className="grid grid-cols-3 gap-x-3 gap-y-3">
-          <Stat k={`Latest · ${formatDMY(summary.latestOn)}`} v={fmtNum(summary.latest)} tone={tone} />
-          <Stat k="Previous" v={summary.previous != null ? fmtNum(summary.previous) : "—"} />
-          <Stat
-            k="Change"
-            v={
-              deltaPct == null
-                ? "—"
-                : `${deltaPct > 0 ? "▲ " : deltaPct < 0 ? "▼ " : ""}${Math.abs(Math.round(deltaPct))}%`
-            }
-            tone={deltaPct != null && status && status !== "in" ? tone : undefined}
-          />
-          <Stat k={`${winCap} average`} v={fmtNum(summary.mean)} />
-          <Stat k={`${winCap} range`} v={summary.count >= 2 ? `${fmtNum(summary.min)}–${fmtNum(summary.max)}` : "—"} />
-          <Stat k="Draws" v={String(summary.count)} />
-        </div>
-      )}
-
-      {newest.length > 0 && (
-        <Card tier="raw" padded={false} className="px-3.5">
-          <ul className="flex flex-col inset-rows">
-            {shown.map((r) => {
-              const st = rangeStatus(r.value, low, high);
-              return (
-                <li key={r.id} className="grid items-center gap-x-3 py-2" style={{ gridTemplateColumns: onEditValue ? "1fr auto auto" : "1fr auto" }}>
-                  <span className="text-sm font-semibold tabular-nums" style={{ color: optimalStatusColor(st) }}>
-                    {fmtValue(r.value, marker.unit)}
-                  </span>
-                  <span className="text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>
-                    {formatDMY(r.measuredOn)}
-                  </span>
-                  {onEditValue && (
-                    <IconAction onClick={() => onEditValue(r)} label="Edit value">
-                      <PencilIcon size={13} />
-                    </IconAction>
-                  )}
-                  {r.note && (
-                    <p className="mt-0.5 text-xs" style={{ gridColumn: "1 / -1", color: "var(--text-secondary)" }}>
-                      {r.note}
-                    </p>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-          {newest.length > 12 && (
-            <button
-              type="button"
-              onClick={() => setShowAll((v) => !v)}
-              className="w-full py-2 text-center text-xs font-medium"
-              style={{ color: "var(--text-muted)" }}
-            >
-              {showAll ? "Show less" : `+ ${newest.length - 12} older`}
-            </button>
+      {summary && (change != null || summary.count >= 2) && (
+        <Card tier="raw" padded={false} className="inset-rows px-3.5">
+          {change != null && (
+            <SummaryRow
+              label="Change since previous"
+              value={`${signed(change, fmtNum(Math.abs(change)))}${changePct != null ? ` (${signed(changePct, `${Math.abs(Math.round(changePct))}%`)})` : ""}`}
+            />
           )}
+          {summary.count >= 2 && <SummaryRow label={win === "all-time" ? "Average" : `Average, last ${win}`} value={fmtMean(summary.mean)} />}
         </Card>
       )}
 
-      {onAddValue && (
-        <Button type="button" accent={ACCENT} onClick={onAddValue} className="self-start transition-opacity hover:opacity-90">
-          + Add value
-        </Button>
+      {newest.length > 0 && (
+        <section className="flex flex-col gap-1.5">
+          <div className="flex items-center justify-between px-4">
+            <h3 className="text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
+              Readings
+            </h3>
+            {onAddValue && (
+              <button type="button" onClick={onAddValue} className="hit-slop text-sm font-medium" style={{ color: ACCENT }}>
+                Add
+              </button>
+            )}
+          </div>
+          <ReadingRows results={shown} unit={marker.unit} low={low} high={high} onEdit={onEditValue} />
+          {newest.length > 12 && (
+            <button type="button" onClick={() => setShowAll((v) => !v)} className="min-h-11 text-sm font-medium" style={{ color: ACCENT }}>
+              {showAll ? "Show less" : `Show ${newest.length - 12} more`}
+            </button>
+          )}
+        </section>
+      )}
+
+      {newest.length === 0 && onAddValue && (
+        <button type="button" onClick={onAddValue} className="self-start text-sm font-medium" style={{ color: ACCENT }}>
+          Add a reading
+        </button>
       )}
     </div>
   );
