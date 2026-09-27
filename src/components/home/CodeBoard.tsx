@@ -17,6 +17,7 @@ import { FormShell } from "@/components/ui/FormShell";
 import { Field } from "@/components/ui/Field";
 import { FormGroup } from "@/components/ui/FormGroup";
 import { ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
+import { AutoGrowTextarea } from "@/components/ui/AutoGrowTextarea";
 import { ClockIcon } from "@/components/ui/icons";
 import type { HouseholdCode, NewHouseholdCodeInput } from "@/lib/supabase/household";
 
@@ -54,13 +55,13 @@ function MicButton({ onStart, onText }: { onStart?: () => void; onText: (text: s
       }}
       aria-label="Dictate the code"
       aria-pressed={listening}
-      className="control-surface flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] transition-colors"
+      className="tap-target flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-colors"
       style={{
-        background: listening ? "color-mix(in oklab, var(--status-critical) 12%, var(--surface-1))" : undefined,
-        color: listening ? "var(--status-critical)" : "var(--text-secondary)",
+        background: listening ? "color-mix(in oklab, var(--status-critical) 12%, transparent)" : undefined,
+        color: listening ? "var(--status-critical)" : "var(--ui-accent)",
       }}
     >
-      <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+      <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
         <rect x="7.2" y="2.5" width="5.6" height="9" rx="2.8" />
         <path d="M4.5 10.2a5.5 5.5 0 0 0 11 0M10 15.7v2" />
       </svg>
@@ -123,7 +124,7 @@ function CodeForm({
               onChange={(e) => setCode(e.target.value)}
               placeholder="e.g. SUMMER20"
               maxLength={200}
-              className={`${ROW_TEXT_CLS} min-w-0 flex-1 font-mono`}
+              className={`${ROW_TEXT_CLS} min-w-0 flex-1 font-mono placeholder:font-sans`}
               style={ROW_STYLE}
             />
             <MicButton
@@ -141,7 +142,16 @@ function CodeForm({
           <input required value={name} onChange={(e) => setName(e.target.value)} placeholder="Where it works" maxLength={150} className={`${ROW_TEXT_CLS} font-medium`} style={ROW_STYLE} />
         </Field>
         <Field label={<>Comment <span style={{ color: "var(--text-muted)" }}>· optional</span></>}>
-          <input value={comment} onChange={(e) => setComment(e.target.value)} placeholder="What it's for, any conditions" maxLength={300} className={ROW_TEXT_CLS} style={ROW_STYLE} />
+          <AutoGrowTextarea
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+            rows={2}
+            maxRows={12}
+            placeholder="What it's for, any conditions"
+            maxLength={2000}
+            className={`${ROW_TEXT_CLS} resize-none leading-relaxed`}
+            style={ROW_STYLE}
+          />
         </Field>
         <Field label={<>Expires on <span style={{ color: "var(--text-muted)" }}>· optional</span></>} inline>
           <DatePicker value={expiresOn} onChange={setExpiresOn} min={todayLocalISODate()} optional title="Expires on" />
@@ -230,7 +240,7 @@ function CodeItem({ code, accent, onEdit, onDelete }: { code: HouseholdCode; acc
           </span>
         </button>
         {code.comment && (
-          <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
+          <p className="text-sm whitespace-pre-line" style={{ color: "var(--text-secondary)" }}>
             {code.comment}
           </p>
         )}

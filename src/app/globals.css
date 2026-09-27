@@ -464,6 +464,11 @@ select:focus-visible {
   box-shadow: 0 0 0 2px color-mix(in oklab, var(--ui-accent) 55%, transparent);
   border-radius: 6px;
 }
+/* Borderless text rows in a form group show only the caret when focused,
+   like iOS grouped forms — no box drawn around the text. */
+:is(input, textarea).row-control:focus-visible {
+  box-shadow: none;
+}
 
 @layer components {
   /* The raised surface every toolbar control shares — search, menus, date

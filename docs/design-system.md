@@ -105,7 +105,7 @@ One sans-serif family: SF Pro on Apple devices, Inter elsewhere (`--font-app`).
 ## Accessibility floor
 
 - Every tap target is at least **44px** (`.hit-slop`, `.tap-target`)
-- Keyboard focus shows a 2px accent ring (`:focus-visible`)
+- Keyboard focus shows a 2px accent ring (`:focus-visible`); borderless text rows in a form group (`ROW_TEXT_CLS`/`ROW_INLINE_CLS`, tagged `.row-control`) show only the caret, no box
 - Text on a solid accent fill uses `--on-accent`
 - Motion respects `prefers-reduced-motion`
 
