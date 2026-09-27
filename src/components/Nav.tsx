@@ -243,7 +243,7 @@ function NavLinkList({
                 />
               ) : (
                 <span
-                  className="ml-auto flex h-4.5 min-w-4.5 items-center justify-center rounded-full px-1 text-xs font-semibold text-white tabular-nums"
+                  className="ml-auto flex h-4.5 min-w-4.5 items-center justify-center rounded-full px-1 text-xs font-semibold text-[color:var(--on-accent)] tabular-nums"
                   style={{ background: "var(--series-magenta)" }}
                 >
                   {badge > 99 ? "99+" : badge}

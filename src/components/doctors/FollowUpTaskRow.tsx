@@ -54,7 +54,7 @@ export function FollowUpTaskRow({
               onEdit({ description: description.trim(), dueDate: dueDate || null, reminderAt: reminderAt ? new Date(reminderAt).toISOString() : null });
               setEditing(false);
             }}
-            className="min-h-9 rounded-[10px] px-3 text-sm font-semibold text-white"
+            className="min-h-9 rounded-[10px] px-3 text-sm font-semibold text-[color:var(--on-accent)]"
             style={{ background: accent }}
           >
             Save
@@ -77,7 +77,7 @@ export function FollowUpTaskRow({
         style={{ borderColor: done ? "var(--status-good)" : "var(--text-secondary)", background: done ? "var(--status-good)" : "transparent" }}
       >
         {done && (
-          <svg width="10" height="10" viewBox="0 0 20 20" fill="none" stroke="white" strokeWidth="2.6" strokeLinecap="round">
+          <svg width="10" height="10" viewBox="0 0 20 20" fill="none" stroke="var(--on-accent)" strokeWidth="2.6" strokeLinecap="round">
             <path d="M4 10.5 8 14.5 16 5.5" />
           </svg>
         )}

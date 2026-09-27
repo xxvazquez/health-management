@@ -133,7 +133,7 @@ export function AppointmentCard({
         {addingTask ? (
           <form onSubmit={submitTask} className="flex items-center gap-2 py-2">
             <input autoFocus value={newTask} onChange={(e) => setNewTask(e.target.value)} placeholder="e.g. Do the USG" className={`${ROW_TEXT_CLS} min-h-11 flex-1`} style={ROW_STYLE} />
-            <button type="submit" disabled={!newTask.trim()} className="shrink-0 min-h-9 rounded-[10px] px-3 text-sm font-semibold text-white disabled:opacity-40" style={{ background: accent }}>
+            <button type="submit" disabled={!newTask.trim()} className="shrink-0 min-h-9 rounded-[10px] px-3 text-sm font-semibold text-[color:var(--on-accent)] disabled:opacity-40" style={{ background: accent }}>
               Add
             </button>
             <button type="button" onClick={() => setAddingTask(false)} className="text-xs" style={LABEL_STYLE}>

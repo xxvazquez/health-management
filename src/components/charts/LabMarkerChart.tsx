@@ -102,14 +102,13 @@ export function LabMarkerChart({
         onTouchEnd={onScrub ? () => onScrub(null) : undefined}
       >
         {refLow != null && refHigh != null && (
-          <ReferenceArea y1={refLow} y2={refHigh} fill="var(--status-good)" fillOpacity={0.14} strokeOpacity={0} />
+          <ReferenceArea y1={refLow} y2={refHigh} fill="var(--band-good)" strokeOpacity={0} />
         )}
         {(optimalLow != null || optimalHigh != null) && (
           <ReferenceArea
             y1={optimalLow ?? yFloor}
             y2={optimalHigh ?? yCeil}
-            fill="var(--status-good)"
-            fillOpacity={0.22}
+            fill="var(--band-good-strong)"
             strokeOpacity={0}
           />
         )}

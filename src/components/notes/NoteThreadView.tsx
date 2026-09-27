@@ -238,7 +238,7 @@ export function NoteThreadView({
                   style={{
                     alignSelf: m.isMine ? "flex-end" : "flex-start",
                     background: m.isMine ? ACCENT : "var(--surface-1)",
-                    color: m.isMine ? "#fff" : "var(--text-primary)",
+                    color: m.isMine ? "var(--on-accent)" : "var(--text-primary)",
                     boxShadow: m.isMine ? "none" : "inset 0 0 0 1px var(--border-hairline)",
                   }}
                 >
@@ -274,7 +274,7 @@ export function NoteThreadView({
             type="submit"
             disabled={replying || !replyBody.trim()}
             aria-label={replying ? "Sending reply" : "Send reply"}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-white transition-opacity disabled:opacity-40"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[color:var(--on-accent)] transition-opacity disabled:opacity-40"
             style={{ background: ACCENT }}
           >
             <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

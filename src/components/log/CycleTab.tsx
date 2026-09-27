@@ -186,7 +186,7 @@ function MonthGrid({
                     : fertile
                       ? FERTILE_FILL
                       : "transparent",
-                color: fillPercent != null ? (fillPercent >= 55 ? "#ffffff" : "var(--text-primary)") : inMonth ? "var(--text-primary)" : "var(--text-muted)",
+                color: fillPercent != null ? (fillPercent >= 80 ? "var(--on-accent)" : fillPercent >= 55 ? "var(--on-accent-mid)" : "var(--text-primary)") : inMonth ? "var(--text-primary)" : "var(--text-muted)",
                 border: isSelected ? `2px solid ${accent}` : isToday ? `1px solid ${accent}` : "1px solid transparent",
                 // Only a bare (untracked) day dims for being outside the
                 // current month — a recorded, predicted or fertile day

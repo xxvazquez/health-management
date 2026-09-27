@@ -56,6 +56,14 @@
   /* Text on a solid --ui-accent fill (selected calendar day): white on the
      light accents, dark on the pale dark-mode accents. */
   --on-accent: #ffffff;
+  /* Text on a cell filled 55–80% with an accent over the surface: already
+     dark enough for white in light mode, still dark enough for the normal
+     text in dark mode. Above 80% use --on-accent, below 55% the text colour. */
+  --on-accent-mid: var(--on-accent);
+  /* A chart's normal-range band and its narrower optimal band. Stronger in
+     dark mode, where the same tint vanishes into the card. */
+  --band-good: color-mix(in oklab, var(--status-good) 14%, transparent);
+  --band-good-strong: color-mix(in oklab, var(--status-good) 22%, transparent);
   /* Lightness floor (oklch) for colours users pick freely — see
      `customColorValue`. None in light mode; dark mode lifts only a colour
      too dark to see on the dark ground, keeping its hue. */
@@ -151,6 +159,9 @@
   --border-hairline: rgba(238, 242, 244, 0.1);
   --ui-accent: #4fb3ab;
   --on-accent: #0e1418;
+  --on-accent-mid: var(--text-primary);
+  --band-good: color-mix(in oklab, var(--status-good) 26%, transparent);
+  --band-good-strong: color-mix(in oklab, var(--status-good) 36%, transparent);
   --custom-color-min-l: 0.6;
   --gridline: color-mix(in oklab, var(--text-muted) 20%, var(--surface-1));
   --baseline: color-mix(in oklab, var(--text-muted) 45%, var(--surface-1));
