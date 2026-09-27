@@ -457,8 +457,8 @@ export function FoodDashboard() {
                   </h3>
                   {!rotation.trendAvailable ? (
                     <p className="mt-2 text-xs" style={{ color: "var(--text-muted)" }}>
-                      Needs an equal-length period before this range to compare against — pick a shorter range than
-                      &quot;all time&quot; to see it.
+                      Needs as much history before this range as the range itself, to compare against. Pick a shorter
+                      range to see it.
                     </p>
                   ) : rotation.fallenOutOfRotation.length === 0 ? (
                     <p className="mt-2 text-xs" style={{ color: "var(--text-muted)" }}>
