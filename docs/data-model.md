@@ -511,8 +511,10 @@ group into user-named `lab_panels` (Hormones, Liver…) via `lab_markers.panel_i
 null` — deleting a panel ungroups its markers); `lab_results → lab_markers` is
 `on delete cascade`. Owner-only, plain `auth.uid() = user_id`. The Results tab
 (`LabsOverview`, all `useLabs` with no extra query) is the marker list — each
-marker a reference-range bar with the optimal band marked, grouped by panel or
-A–Z, with a time-window control and an Average/Last switch; a marker's detail
+marker a range bar whose normal band (optimal where set, else the lab range)
+sits in the same place on every row, with its value, unit and an H/L flag in
+aligned columns, grouped by panel or A–Z, with a time-window control and an
+Average/Last choice; a marker's detail
 adds its trend, window stats and history. Values are entered from that detail
 (**+ Add value**) one at a time, or a whole blood draw at once from the **Add
 results** batch view (one date and lab, a value per marker — one `lab_results`

@@ -137,7 +137,7 @@ const GROUPS: { title: string; items: Entry[] }[] = [
       },
       {
         title: "Results",
-        body: "The marker list — every marker on a reference-range bar, grouped by panel or A–Z, with panel filter chips to jump to one panel, a time-window control and an Average/Last switch. Tap a marker for its trend, window stats and full history, where you also add or edit its values (a single reading or a whole blood draw at once). A new marker gets a quick-add here; its reference and optimal ranges, renames and panels are managed in Settings.",
+        body: "The marker list — every marker on a range bar whose normal band sits in the same place on every row, so a dot to its left is low (L, blue) and to its right is high (H, red). Values and units line up in columns on the right. Group by panel or A–Z and pick Last or Average from the menu beside the time window, or jump to one panel with the tabs. Tap a marker for its trend, window stats and full history, where you also add or edit its values (a single reading or a whole blood draw at once). A new marker gets a quick-add here; its reference and optimal ranges, renames and panels are managed in Settings.",
       },
       {
         title: "Vitals",

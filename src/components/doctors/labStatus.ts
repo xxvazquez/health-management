@@ -14,9 +14,10 @@ export function statusColor(status: RangeStatus): string {
 
 /** The Results overview reads each value against its optimal band (or the
  * lab range where none is set) and colours the number by it: green in
- * band, red outside, muted when the marker has no range at all. */
+ * band, red above, blue below, muted when the marker has no range at all. */
 export function optimalStatusColor(status: RangeStatus): string {
   if (status === "in") return "var(--status-good)";
-  if (status === "low" || status === "high") return "var(--status-critical)";
+  if (status === "high") return "var(--status-critical)";
+  if (status === "low") return "var(--series-2)";
   return "var(--text-muted)";
 }

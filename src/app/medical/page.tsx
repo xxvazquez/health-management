@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useDoctors } from "@/lib/useDoctors";
 import { VisitsAddMenu, VisitsTab, type VisitsAddMode } from "@/components/doctors/VisitsTab";
 import { DoctorsTab } from "@/components/doctors/DoctorsTab";
-import { ResultsTab } from "@/components/doctors/ResultsTab";
+import { ResultsAddMenu, ResultsTab, type ResultsView } from "@/components/doctors/ResultsTab";
 import { VitalsTab } from "@/components/doctors/VitalsTab";
 import { ErrorState } from "@/components/ui/EmptyState";
 import { ListSkeleton } from "@/components/ui/Skeleton";
@@ -53,6 +53,7 @@ export default function MedicalPage() {
   const [tab, setTab] = useState<MedicalTabId>("visits");
   const [visitsAdd, setVisitsAdd] = useState<VisitsAddMode>(null);
   const [vitalsComposing, setVitalsComposing] = useState(false);
+  const [resultsView, setResultsView] = useState<ResultsView>({ mode: "list" });
 
   useEffect(() => {
     /* eslint-disable react-hooks/set-state-in-effect */
@@ -96,6 +97,8 @@ export default function MedicalPage() {
         actions={
           tab === "visits" && !api.loading && !api.error ? (
             <VisitsAddMenu accent={HEALTH_ACCENT} onAdd={setVisitsAdd} />
+          ) : tab === "results" ? (
+            <ResultsAddMenu accent={HEALTH_ACCENT} onAdd={setResultsView} />
           ) : tab === "vitals" ? (
             <PrimaryAction label="Add" accent={HEALTH_ACCENT} onClick={() => setVitalsComposing(true)} />
           ) : undefined
@@ -120,7 +123,7 @@ export default function MedicalPage() {
       ) : (
         <>
           {tab === "visits" && <VisitsTab api={api} accent={HEALTH_ACCENT} add={visitsAdd} setAdd={setVisitsAdd} />}
-          {tab === "results" && <ResultsTab accent={HEALTH_ACCENT} />}
+          {tab === "results" && <ResultsTab accent={HEALTH_ACCENT} view={resultsView} setView={setResultsView} />}
           {tab === "vitals" && <VitalsTab accent={HEALTH_ACCENT} composing={vitalsComposing} setComposing={setVitalsComposing} />}
           {tab === "doctors" && <DoctorsTab api={api} accent={HEALTH_ACCENT} />}
         </>

@@ -1,6 +1,7 @@
 "use client";
 
-import { CHIP_CLS, chipStyle } from "@/components/ui/Chip";
+import { CHIP_CLS, CONTROL_CLS, CONTROL_STYLE, chipStyle } from "@/components/ui/Chip";
+import { UpDownChevronIcon } from "@/components/ui/icons";
 import { useState, type ReactNode } from "react";
 import type { useLabs } from "@/lib/useLabs";
 import { formatDMY, todayLocalISODate, type DateRange } from "@/lib/aggregations/common";
@@ -11,7 +12,6 @@ import {
   rangeBar,
   rangeStatus,
   summariseWindow,
-  type RangeStatus,
 } from "@/lib/aggregations/labs";
 import { optimalStatusColor } from "./labStatus";
 import { IconAction, PencilIcon } from "./shared";
@@ -24,7 +24,6 @@ import { Methodology } from "@/components/ui/Methodology";
 import { LabMarkerChart } from "@/components/charts/LabMarkerChart";
 import { CustomIcon, customColorValue } from "@/components/ui/customIcons";
 import { DateRangeFilter, describeDateRange, type DateRangePreset } from "@/components/ui/DateRangeFilter";
-import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
 import { TabRail } from "@/components/ui/TabRail";
 import { DetailPlaceholder, MedicalSplit, useIsDesktop } from "./MedicalSplit";
 
@@ -32,7 +31,6 @@ const ACCENT = "var(--ui-accent)";
 
 type Mode = "average" | "last";
 type SortKey = "panel" | "name";
-type Basis = "optimal" | "reference" | null;
 
 /** Same rolling-window family as every other date-range control in the app
  * (`DateRangeFilter`'s own defaults, Vitals) — years expressed as days so
@@ -54,22 +52,14 @@ function fmtValue(v: number, unit: string | null): string {
   return unit ? `${fmtNum(v)} ${unit}` : fmtNum(v);
 }
 
-function statusWord(status: RangeStatus, basis: Basis): string {
-  const band = basis === "optimal" ? "optimal" : "norm";
-  if (status === "low") return `below ${band}`;
-  if (status === "high") return `above ${band}`;
-  if (status === "in") return basis === "optimal" ? "optimal" : "in norm";
-  return "no range set";
-}
-
-/** The label for the highlighted band under the bar. */
-function bandLabel(basis: Basis, low: number | null, high: number | null): string | null {
-  if (low == null && high == null) return null;
-  const noun = basis === "optimal" ? "optimal" : "norm";
-  if (low != null && high != null) return `${noun} ${fmtNum(low)}–${fmtNum(high)}`;
-  if (low != null) return `${noun} ≥ ${fmtNum(low)}`;
-  return `${noun} ≤ ${fmtNum(high as number)}`;
-}
+/** The one "what to show" menu: the value (latest or window average) and
+ * the order (grouped by panel or flat A–Z), as its four combinations. */
+const VIEW_LABEL: Record<`${Mode}:${SortKey}`, string> = {
+  "last:panel": "Last · By panel",
+  "last:name": "Last · A–Z",
+  "average:panel": "Average · By panel",
+  "average:name": "Average · A–Z",
+};
 
 /** "1 year" / "2 years" / "5 years" / "all-time" — the active preset's own
  * label, lowercased to sit inline in a sentence ("… in the last 1 year"). */
@@ -85,15 +75,11 @@ function windowWord(label: string): string {
  * plus add/edit for its values. Marker and panel config lives in Settings. */
 export function LabsOverview({
   labs,
-  actions,
   onNewMarker,
   onAddValue,
   onEditValue,
 }: {
   labs: ReturnType<typeof useLabs>;
-  /** Control shown beside the time-window switch — the one primary action,
-   * so it shares the first row instead of taking its own. */
-  actions?: ReactNode;
   onNewMarker?: () => void;
   onAddValue?: (markerId: string) => void;
   onEditValue?: (markerId: string, result: LabResult) => void;
@@ -113,9 +99,6 @@ export function LabsOverview({
   const dateSpan: DateRange = { start: span?.start ?? today, end: today };
   const activeRange = range ?? dateSpan;
   const inRange = clipMarkers(allMarkers, activeRange.start);
-
-  const panelNameById = new Map(labs.panels.data.map((p) => [p.id, p.name] as const));
-  const panelName = (m: LabMarker) => (m.panelId ? panelNameById.get(m.panelId) ?? null : null);
 
   const panelSections = (() => {
     const byPanel = new Map<string, LabMarker[]>();
@@ -140,7 +123,6 @@ export function LabsOverview({
   const flatMarkers = [...inRange]
     .filter((m) => !effectiveFilter || inFilter(m))
     .sort((a, b) => a.name.localeCompare(b.name));
-  const shownCount = effectiveFilter ? shownSections.reduce((n, s) => n + s.markers.length, 0) : allMarkers.length;
 
   if (labs.loading) return <ListSkeleton />;
   if (labs.error) return <ErrorState what="your results" />;
@@ -188,80 +170,61 @@ export function LabsOverview({
     );
   }
 
-  const yearSpan = span ? `${span.start.slice(0, 4)}–${span.end.slice(0, 4)}` : null;
-  const win = windowWord(describeDateRange(LAB_DATE_PRESETS, dateSpan, activeRange));
+  const rows = (markers: LabMarker[]) => (
+    <MarkerGrid>
+      {markers.map((m, i) => (
+        <MarkerRow key={m.id} marker={m} mode={mode} first={i === 0} active={desktop && m.id === activeId} onOpen={() => setOpenId(m.id)} />
+      ))}
+    </MarkerGrid>
+  );
 
   const markerList =
     sort === "panel" ? (
-        <div className="flex flex-col gap-4">
-          {shownSections.map((s) => (
-            <div key={s.id} className="flex flex-col gap-1.5">
-              <div className="flex items-center gap-1.5 px-4">
-                {s.icon && (
-                  <span style={{ color: customColorValue(s.color) ?? ACCENT }}>
-                    <CustomIcon icon={s.icon} size={13} />
-                  </span>
-                )}
-                <h3 className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>
-                  {s.name}
-                </h3>
-              </div>
-              <Card tier="raw" padded={false} className="px-3.5">
-                <div className="flex flex-col">
-                  {s.markers.map((m, i) => (
-                    <MarkerRow key={m.id} marker={m} mode={mode} last={i === s.markers.length - 1} active={desktop && m.id === activeId}
-                      onOpen={() => setOpenId(m.id)} />
-                  ))}
-                </div>
-              </Card>
+      <div className="flex flex-col gap-4">
+        {shownSections.map((s) => (
+          <div key={s.id} className="flex flex-col gap-1.5">
+            <div className="flex items-center gap-1.5 px-4">
+              {s.icon && (
+                <span style={{ color: customColorValue(s.color) ?? ACCENT }}>
+                  <CustomIcon icon={s.icon} size={13} />
+                </span>
+              )}
+              <h3 className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>
+                {s.name}
+              </h3>
             </div>
-          ))}
-        </div>
-      ) : (
-        <Card tier="raw" padded={false} className="px-3.5">
-          <div className="flex flex-col">
-            {flatMarkers.map((m, i) => (
-              <MarkerRow
-                key={m.id}
-                marker={m}
-                mode={mode}
-                subPrefix={panelName(m)}
-                last={i === flatMarkers.length - 1}
-                active={desktop && m.id === activeId}
-                    onOpen={() => setOpenId(m.id)}
-              />
-            ))}
+            {rows(s.markers)}
           </div>
-        </Card>
-      );
+        ))}
+      </div>
+    ) : (
+      rows(flatMarkers)
+    );
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-2.5">
-        <div className="flex flex-wrap items-center gap-2.5">
-          <DateRangeFilter span={dateSpan} value={activeRange} onChange={setRange} presets={LAB_DATE_PRESETS} accent={ACCENT} />
-          {actions}
-        </div>
-        <div className="grid grid-cols-2 gap-2.5">
-          <SegmentedTabs
-            ariaLabel="Value shown"
-            activeId={mode}
-            onSelect={setMode}
-            items={[
-              { id: "average", label: "Average" },
-              { id: "last", label: "Last" },
-            ]}
-          />
-          <SegmentedTabs
-            ariaLabel="Sort"
-            activeId={sort}
-            onSelect={setSort}
-            items={[
-              { id: "panel", label: "Panel" },
-              { id: "name", label: "A–Z" },
-            ]}
-          />
-        </div>
+      <div className="flex flex-wrap items-center gap-2.5">
+        <DateRangeFilter span={dateSpan} value={activeRange} onChange={setRange} presets={LAB_DATE_PRESETS} accent={ACCENT} />
+        <label className={`${CONTROL_CLS} relative`} style={{ ...CONTROL_STYLE, color: ACCENT }}>
+          {VIEW_LABEL[`${mode}:${sort}`]}
+          <UpDownChevronIcon size={11} />
+          {/* z-10: CONTROL_CLS's .hit-slop overlay would otherwise sit above the select. */}
+          <select
+            value={`${mode}:${sort}`}
+            onChange={(e) => {
+              const [m, k] = e.target.value.split(":") as [Mode, SortKey];
+              setMode(m);
+              setSort(k);
+            }}
+            className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0"
+          >
+            {Object.entries(VIEW_LABEL).map(([value, text]) => (
+              <option key={value} value={value}>
+                {text}
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
 
       {panelSections.length >= 2 && (
@@ -270,18 +233,11 @@ export function LabsOverview({
           wrap={false}
           tall
           style={{ borderColor: "var(--border-hairline)" }}
-          items={[{ id: "", name: "All panels" }, ...panelSections].map((s) => ({ id: s.id, label: s.name, accent: ACCENT }))}
+          items={[{ id: "", name: "All" }, ...panelSections].map((s) => ({ id: s.id, label: s.name, accent: ACCENT }))}
           activeId={effectiveFilter ?? ""}
           onSelect={(id) => setPanelFilter(id || null)}
         />
       )}
-
-      <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-        {mode === "average"
-          ? `Each bar is the mean of every reading ${win !== "all-time" ? `in the last ${win}` : "on record"} — the whisker is its lowest-to-highest spread.`
-          : `Each bar is the most recent reading${win !== "all-time" ? ` in the last ${win}` : ""}.`}
-        {` · ${shownCount} marker${shownCount === 1 ? "" : "s"}${yearSpan ? ` · ${yearSpan}` : ""}`}
-      </p>
 
       <MedicalSplit
         selected={!!openMarker}
@@ -309,100 +265,78 @@ export function LabsOverview({
         This view only describes your own recorded results. Pick a time window at the top: <strong>Average</strong> reads the
         mean of every draw in it (the whisker on the bar is the lowest-to-highest spread), <strong>Last</strong> shows only the
         most recent draw. Each value is read against your optimal range where you&rsquo;ve set one, otherwise the lab reference
-        low/high — both are lab- and sometimes age-specific, so treat a flag as a prompt to look, not a diagnosis. The bar marks
-        where the value sits, with the optimal band in green and the scale ends labelled. Open a marker for its full trend and
-        history.
+        low/high — both are lab- and sometimes age-specific, so treat a flag as a prompt to look, not a diagnosis. Every bar puts
+        that range in the same place, with its limits underneath, so a dot left of it is low (L) and right of it is high (H).
+        Open a marker for its full trend and history.
       </Methodology>
     </div>
   );
 }
 
-// --- Controls -----------------------------------------------------
-
-/** One pill in the panel filter row — same accent treatment as `Segmented`,
- * but standalone so the row can scroll sideways on a narrow screen. */
 // --- Row -----------------------------------------------------------
 
-/** One marker: a compact name + value block, the horizontal range bar
- * (reference track + optimal band + the reading, plus a spread whisker in
- * Average mode) and the status word. Tap to open the marker. */
+/** One card of marker rows. The rows share its columns (bar, value, unit,
+ * flag) through CSS subgrid, so each column is as wide as its widest entry
+ * in the card and every value, unit and flag lines up down the list. */
+function MarkerGrid({ children }: { children: ReactNode }) {
+  return (
+    <Card tier="raw" padded={false} className="grid grid-cols-[minmax(0,1fr)_auto_auto_auto] px-3.5">
+      {children}
+    </Card>
+  );
+}
+
+/** One marker: its name, then the range bar (normal band in the same place
+ * on every row, the band's limits under its ends, a spread whisker in
+ * Average mode), the value right-aligned, the unit, and an H or L flag when
+ * out of range. Tap to open the marker. */
 function MarkerRow({
   marker,
   mode,
-  last,
-  subPrefix,
+  first,
   active = false,
   onOpen,
 }: {
   marker: LabMarker;
   mode: Mode;
-  last: boolean;
+  first: boolean;
   /** The row whose detail is showing in the desktop right pane. */
   active?: boolean;
-  /** Panel name shown before the sub-label when the list is flat A–Z. */
-  subPrefix?: string | null;
   onOpen: () => void;
 }) {
   const summary = summariseWindow(marker.results);
-  const { low, high, basis } = effectiveRange(marker);
+  const { low, high } = effectiveRange(marker);
   const reading = summary ? (mode === "average" ? summary.mean : summary.latest) : null;
   const status = reading != null ? rangeStatus(reading, low, high) : null;
   const tone = optimalStatusColor(status);
-  const bar = reading != null ? rangeBar(reading, marker.refLow, marker.refHigh, marker.optimalLow, marker.optimalHigh) : null;
-  const label = bandLabel(basis, low, high);
-
-  const track = bar ? bar.trackHigh - bar.trackLow : 0;
-  const pctOf = (v: number) => (track > 0 ? Math.max(0, Math.min(100, ((v - bar!.trackLow) / track) * 100)) : 0);
+  const bar = rangeBar(low, high);
   const showWhisker = mode === "average" && !!bar && !!summary && summary.count >= 2 && summary.max > summary.min;
-  const wLeft = showWhisker ? pctOf(summary!.min) : 0;
-  const wRight = showWhisker ? pctOf(summary!.max) : 0;
-
-  const sub =
-    summary == null ? "—" : mode === "average" ? `avg ×${summary.count}` : formatDMY(summary.latestOn);
+  const flag = status === "high" ? "H" : status === "low" ? "L" : "";
+  const limitColor = "color-mix(in oklab, var(--status-good) 70%, var(--text-muted))";
 
   return (
     <button
       type="button"
       onClick={onOpen}
       aria-current={active ? "true" : undefined}
-      className={`-mx-1.5 grid w-[calc(100%+0.75rem)] items-center gap-3 px-1.5 py-2 text-left ${active ? "rounded-lg" : ""}`}
+      className={`col-span-full -mx-1.5 grid grid-cols-subgrid px-1.5 pt-2.5 pb-2 text-left ${active ? "rounded-lg" : ""}`}
       style={{
-        gridTemplateColumns: "4.75rem minmax(0,1fr) 3rem",
-        borderBottom: last ? undefined : `1px solid ${active ? "transparent" : "var(--border-hairline)"}`,
+        borderTop: first ? undefined : `1px solid ${active ? "transparent" : "var(--border-hairline)"}`,
         background: active ? "var(--page-plane)" : undefined,
       }}
     >
-      <span className="min-w-0">
-        <span className="block leading-tight font-semibold text-xs" style={{ color: "var(--text-primary)" }}>
-          {marker.name}
-        </span>
-        <span
-          className="block text-xs font-semibold tabular-nums"
-          style={{ color: reading != null && status ? tone : "var(--text-primary)" }}
-        >
-          {reading != null ? fmtNum(reading) : "—"}
-          {marker.unit && (
-            <span className="ml-0.5 text-xs font-normal" style={{ color: "var(--text-muted)" }}>
-              {marker.unit}
-            </span>
-          )}
-        </span>
-        <span className="block text-xs leading-tight tabular-nums" style={{ color: "var(--text-muted)" }}>
-          {subPrefix ? `${subPrefix} · ${sub}` : sub}
-        </span>
+      <span className="col-span-full pb-2 text-sm leading-tight font-medium" style={{ color: "var(--text-primary)" }}>
+        {marker.name}
       </span>
 
-      {bar ? (
-        <span className="relative block h-[26px]">
-          <span
-            className="absolute inset-x-0 top-[5px] block h-[5px] rounded-full"
-            style={{ background: "color-mix(in oklab, var(--gridline) 65%, var(--surface-1))" }}
-          />
+      {bar && reading != null ? (
+        <span className="relative mr-2 ml-1.5 block h-8" aria-hidden="true">
+          <span className="absolute inset-x-0 top-[5px] block h-[5px] rounded-full" style={{ background: "color-mix(in oklab, var(--gridline) 65%, var(--surface-1))" }} />
           <span
             className="absolute top-[3px] block h-[9px] rounded-full"
             style={{
               left: `${bar.bandLeftPct}%`,
-              width: `${Math.max(bar.bandRightPct - bar.bandLeftPct, 2)}%`,
+              width: `${bar.bandRightPct - bar.bandLeftPct}%`,
               background: "color-mix(in oklab, var(--status-good) 22%, var(--gridline))",
             }}
           />
@@ -410,37 +344,42 @@ function MarkerRow({
             <span
               className="absolute top-[7px] block h-[2px] rounded-full"
               style={{
-                left: `${wLeft}%`,
-                width: `${Math.max(wRight - wLeft, 1)}%`,
+                left: `${bar.pct(summary!.min)}%`,
+                width: `${Math.max(bar.pct(summary!.max) - bar.pct(summary!.min), 1)}%`,
                 background: "color-mix(in oklab, var(--text-secondary) 60%, transparent)",
               }}
             />
           )}
           <span
             className="absolute top-[1.5px] block h-[11px] w-[11px] rounded-full"
-            style={{ left: `calc(${bar.valuePct}% - 5.5px)`, background: tone, boxShadow: "0 0 0 2.5px var(--surface-1)" }}
+            style={{ left: `calc(${bar.pct(reading)}% - 5.5px)`, background: tone, boxShadow: "0 0 0 2.5px var(--surface-1)" }}
           />
-          <span
-            className="absolute inset-x-0 top-[15px] flex items-center justify-between gap-1 text-xs tabular-nums"
-            style={{ color: "var(--text-muted)" }}
-          >
-            <span>{fmtNum(bar.trackLow)}</span>
-            {label && (
-              <span className="truncate" style={{ color: "color-mix(in oklab, var(--status-good) 70%, var(--text-muted))" }}>
-                {label}
-              </span>
-            )}
-            <span>{fmtNum(bar.trackHigh)}</span>
-          </span>
+          {low != null && (
+            <span className="absolute top-[15px] -translate-x-1/2 text-xs tabular-nums" style={{ left: `${bar.bandLeftPct}%`, color: limitColor }}>
+              {fmtNum(low)}
+            </span>
+          )}
+          {high != null && (
+            <span className="absolute top-[15px] -translate-x-1/2 text-xs tabular-nums" style={{ left: `${bar.bandRightPct}%`, color: limitColor }}>
+              {fmtNum(high)}
+            </span>
+          )}
         </span>
       ) : (
-        <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-          No range set
+        <span className="ml-1.5 block h-8 text-xs" style={{ color: "var(--text-muted)" }}>
+          {reading == null ? "No reading in this window" : "No range set"}
         </span>
       )}
 
-      <span className="text-right text-xs leading-tight" style={{ color: tone }}>
-        {reading != null && basis ? statusWord(status, basis) : ""}
+      <span className="pl-3 text-right text-sm leading-4 tabular-nums" style={{ color: status ? tone : "var(--text-primary)" }}>
+        {reading != null ? fmtNum(reading) : "—"}
+      </span>
+      <span className="pl-1 text-xs leading-4 whitespace-nowrap" style={{ color: "var(--text-muted)" }}>
+        {marker.unit ?? ""}
+      </span>
+      <span className="min-w-2.5 pl-2 text-center text-sm leading-4 font-semibold" style={{ color: tone }}>
+        {flag}
+        {flag && <span className="sr-only">{flag === "H" ? " (high)" : " (low)"}</span>}
       </span>
     </button>
   );

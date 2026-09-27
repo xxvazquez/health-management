@@ -66,7 +66,7 @@ Tabs: **Food · Symptoms · Supplements · Habits · Stool · Workout · Cycle �
 | Tab | Contents |
 |---|---|
 | Visits | Grouped lists: upcoming dates, decisions/notes/observations (filter by specialty), past visits with open follow-ups; each visit opens in a sheet |
-| Results | Every lab marker on a reference-range bar. Tap one for its trend chart and history |
+| Results | Every lab marker on a range bar (same band position on every row), value and unit in aligned columns, H/L flags. Tap one for its trend chart and history |
 | Vitals | Blood pressure (low readings marked, ACC/AHA categories) and weight, optional weight-goal band |
 | Doctors | Read-only directory; editing is in Settings |
 

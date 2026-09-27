@@ -5,6 +5,8 @@ import {
   effectiveRange,
   labsSpan,
   parseNum,
+  BAND_LEFT_PCT,
+  BAND_RIGHT_PCT,
   rangeBar,
   rangeCutoff,
   rangeStatus,
@@ -68,39 +70,43 @@ describe("effectiveRange", () => {
 });
 
 describe("rangeBar", () => {
-  it("puts the value on the reference-range track with the optimal band inside it", () => {
-    const bar = rangeBar(78, 50, 150, 100, 150);
-    expect(bar).not.toBeNull();
-    expect(bar!.trackLow).toBe(50);
-    expect(bar!.trackHigh).toBe(150);
-    expect(bar!.valuePct).toBeCloseTo(28);
-    expect(bar!.bandLeftPct).toBeCloseTo(50);
-    expect(bar!.bandRightPct).toBeCloseTo(100);
+  it("puts every band in the same place", () => {
+    const a = rangeBar(80, 95)!;
+    const b = rangeBar(0.4, 4)!;
+    expect(a.bandLeftPct).toBe(BAND_LEFT_PCT);
+    expect(a.bandRightPct).toBe(BAND_RIGHT_PCT);
+    expect(b.bandLeftPct).toBe(a.bandLeftPct);
+    expect(b.bandRightPct).toBe(a.bandRightPct);
   });
-  it("keeps the band inset from both ends when only the lab range is known", () => {
-    const bar = rangeBar(13.4, 12, 15.5, null, null);
-    expect(bar!.trackLow).toBeLessThan(12);
-    expect(bar!.trackHigh).toBeGreaterThan(15.5);
-    expect(bar!.bandLeftPct).toBeGreaterThan(0);
-    expect(bar!.bandRightPct).toBeLessThan(100);
+  it("places in-band values inside the band, proportionally", () => {
+    const bar = rangeBar(80, 95)!;
+    expect(bar.pct(80)).toBe(BAND_LEFT_PCT);
+    expect(bar.pct(95)).toBe(BAND_RIGHT_PCT);
+    expect(bar.pct(87.5)).toBeCloseTo(50);
   });
-  it("keeps a below-band value low on the track and clamps a wild one to the end", () => {
-    const below = rangeBar(5, 15, 150, null, null)!;
-    expect(below.valuePct).toBeLessThan(below.bandLeftPct);
-    expect(below.valuePct).toBeGreaterThanOrEqual(0);
-    expect(rangeBar(4000, 15, 150, null, null)!.valuePct).toBe(100);
+  it("puts low values left and high values right, stopping short of the ends", () => {
+    const bar = rangeBar(1.9, 7)!;
+    expect(bar.pct(1.3)).toBeLessThan(BAND_LEFT_PCT);
+    expect(bar.pct(1.3)).toBeGreaterThan(0);
+    expect(bar.pct(-1000)).toBeCloseTo(2);
+    expect(bar.pct(7.2)).toBeGreaterThan(BAND_RIGHT_PCT);
+    expect(bar.pct(10_000)).toBeCloseTo(98);
   });
-  it("does not push the track below zero for a non-negative marker", () => {
-    expect(rangeBar(2, 0, 5, null, null)!.trackLow).toBe(0);
+  it("runs a one-sided band to its open end", () => {
+    const low = rangeBar(40, null)!;
+    expect(low.bandRightPct).toBe(100);
+    expect(low.pct(30)).toBeLessThan(BAND_LEFT_PCT);
+    expect(low.pct(60)).toBeGreaterThan(BAND_LEFT_PCT);
+    expect(low.pct(1e6)).toBeLessThanOrEqual(100);
+    const high = rangeBar(null, 5)!;
+    expect(high.bandLeftPct).toBe(0);
+    expect(high.pct(6)).toBeGreaterThan(BAND_RIGHT_PCT);
+    expect(high.pct(2)).toBeLessThan(BAND_RIGHT_PCT);
+    expect(high.pct(-1e6)).toBeGreaterThanOrEqual(0);
   });
-  it("widens the optimal range into a track when there is no reference range", () => {
-    const bar = rangeBar(8, null, null, 5, 8);
-    expect(bar).not.toBeNull();
-    expect(bar!.valuePct).toBeGreaterThan(bar!.bandLeftPct);
-    expect(bar!.bandRightPct).toBeLessThan(100);
-  });
-  it("is null with neither range", () => {
-    expect(rangeBar(5, null, null, null, null)).toBeNull();
+  it("is null without a usable range", () => {
+    expect(rangeBar(null, null)).toBeNull();
+    expect(rangeBar(5, 5)).toBeNull();
   });
 });
 

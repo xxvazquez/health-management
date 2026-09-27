@@ -25,64 +25,59 @@ export function effectiveRange(m: {
   return { low: null, high: null, basis: null };
 }
 
+/** Where the normal band sits on every Results bar, as % of the track. */
+export const BAND_LEFT_PCT = 30;
+export const BAND_RIGHT_PCT = 70;
+/** How far outside the band a value can land before it stops at the end. */
+const OUTSIDE_PCT = 28;
+
 export interface RangeBar {
-  /** The track's numeric ends — the scale labels either side of the bar. */
-  trackLow: number;
-  trackHigh: number;
-  /** 0–100, clamped — where the value marker sits on the track. */
-  valuePct: number;
-  /** 0–100 — the highlighted band's edges on the track. Always inset from
-   * at least one end, so the band reads as a segment, never the whole bar. */
+  /** 0–100 — the band's edges on the track. */
   bandLeftPct: number;
   bandRightPct: number;
+  /** 0–100 — where a value sits on the track. */
+  pct: (value: number) => number;
 }
 
-/** Geometry for the horizontal range bar on the Results overview. The
- * highlighted band is the optimal range where one is set, otherwise the
- * lab reference range. The track is the lab reference range when the band
- * sits inside it, otherwise the band widened by ~35% of its width each
- * side — so there's always visible track (and a scale number) beyond the
- * band. Null when neither range is set. */
-export function rangeBar(
-  value: number,
-  refLow: number | null,
-  refHigh: number | null,
-  optLow: number | null,
-  optHigh: number | null,
-): RangeBar | null {
-  const hasOpt = optLow != null || optHigh != null;
-  const hasRef = refLow != null && refHigh != null && refHigh > refLow;
-  const bandLo = hasOpt ? optLow : hasRef ? refLow : null;
-  const bandHi = hasOpt ? optHigh : hasRef ? refHigh : null;
-  if (bandLo == null && bandHi == null) return null;
-
-  let lo: number;
-  let hi: number;
-  if (
-    hasRef &&
-    (bandLo == null || (refLow as number) <= bandLo) &&
-    (bandHi == null || (refHigh as number) >= bandHi) &&
-    ((refLow as number) < (bandLo ?? Infinity) || (refHigh as number) > (bandHi ?? -Infinity))
-  ) {
-    // The lab reference range already contains the band with room to spare.
-    lo = refLow as number;
-    hi = refHigh as number;
-  } else {
-    const a = bandLo ?? (bandHi as number);
-    const b = bandHi ?? (bandLo as number);
-    const pad = (b - a || Math.abs(b) || 1) * 0.35;
-    lo = a - pad;
-    hi = b + pad;
-    if ((bandLo ?? 0) >= 0 && lo < 0) lo = 0;
+/** Geometry for the range bar on the Results overview. Every marker's
+ * normal band sits in the same place, so the rows line up and an
+ * out-of-range dot sticks out to the left or right. A value outside the
+ * band moves out by how many band-widths it is away, stopping near the
+ * track end. A one-sided range (only a low or only a high) runs its band
+ * to that end of the track. Null when neither bound is set. */
+export function rangeBar(low: number | null, high: number | null): RangeBar | null {
+  const out = (d: number) => Math.min(1, Math.max(0, d)) * OUTSIDE_PCT;
+  if (low != null && high != null) {
+    if (high <= low) return null;
+    const w = high - low;
+    return {
+      bandLeftPct: BAND_LEFT_PCT,
+      bandRightPct: BAND_RIGHT_PCT,
+      pct: (v) => {
+        const t = (v - low) / w;
+        if (t < 0) return BAND_LEFT_PCT - out(-t);
+        if (t > 1) return BAND_RIGHT_PCT + out(t - 1);
+        return BAND_LEFT_PCT + t * (BAND_RIGHT_PCT - BAND_LEFT_PCT);
+      },
+    };
   }
-  if (hi <= lo) return null;
-  const clamp = (v: number) => Math.max(0, Math.min(100, ((v - lo) / (hi - lo)) * 100));
+  const bound = low ?? high;
+  if (bound == null) return null;
+  const w = Math.abs(bound) || 1;
+  // A one-sided band has no width to scale by, so an in-range value moves
+  // into it by how far it is from the bound, relative to the bound itself.
+  const into = (d: number) => Math.min(1, Math.max(0, d)) * 50;
+  if (low != null) {
+    return {
+      bandLeftPct: BAND_LEFT_PCT,
+      bandRightPct: 100,
+      pct: (v) => (v < low ? BAND_LEFT_PCT - out((low - v) / w) : BAND_LEFT_PCT + into((v - low) / w)),
+    };
+  }
   return {
-    trackLow: lo,
-    trackHigh: hi,
-    valuePct: clamp(value),
-    bandLeftPct: clamp(bandLo ?? lo),
-    bandRightPct: clamp(bandHi ?? hi),
+    bandLeftPct: 0,
+    bandRightPct: BAND_RIGHT_PCT,
+    pct: (v) => (v > bound ? BAND_RIGHT_PCT + out((v - bound) / w) : BAND_RIGHT_PCT - into((bound - v) / w)),
   };
 }
 

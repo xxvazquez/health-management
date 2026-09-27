@@ -6,7 +6,6 @@ import { useLabs } from "@/lib/useLabs";
 import { todayLocalISODate } from "@/lib/aggregations/common";
 import type { LabMarker, LabResult } from "@/lib/supabase/labs";
 import { ErrorState } from "@/components/ui/EmptyState";
-import { PrimaryAction } from "@/components/ui/PrimaryAction";
 import { AddMenu } from "@/components/ui/AddMenu";
 import { formatDate } from "./shared";
 import { Field } from "@/components/ui/Field";
@@ -101,19 +100,34 @@ function ResultForm({
 
 // --- Tab -------------------------------------------------------------
 
-type View =
+export type ResultsView =
   | { mode: "list" }
   | { mode: "batch" }
   | { mode: "marker-form" }
   | { mode: "result-form"; markerId: string; resultId?: string };
 
+/** The "+ Add" menu for Results — rendered in the Health page's title row. */
+export function ResultsAddMenu({ accent, onAdd }: { accent: string; onAdd: (view: ResultsView) => void }) {
+  return (
+    <AddMenu
+      accent={accent}
+      options={[
+        { label: "Add results", onClick: () => onAdd({ mode: "batch" }) },
+        { label: "New marker", onClick: () => onAdd({ mode: "marker-form" }) },
+      ]}
+    />
+  );
+}
+
 /** Health → Results: the read/analysis overview (LabsOverview) plus value
  * entry — a single value, or a whole blood draw at once. Markers get a
  * quick-add here (name, unit, panel); their reference and optimal ranges,
- * renames and panels are managed from Settings. */
-export function ResultsTab({ accent }: { accent: string }) {
+ * renames and panels are managed from Settings. `view` lives in the page so
+ * `ResultsAddMenu` in the title row can open a form. */
+export function ResultsTab({ accent, view: requested, setView }: { accent: string; view: ResultsView; setView: (view: ResultsView) => void }) {
   const labs = useLabs();
-  const [view, setView] = useState<View>({ mode: "list" });
+  // "Add results" needs markers to fill in; with none yet, start a marker.
+  const view: ResultsView = requested.mode === "batch" && !labs.loading && labs.markers.data.length === 0 ? { mode: "marker-form" } : requested;
   const [flash, setFlash] = useState<string | null>(null);
 
   useEffect(() => {
@@ -163,8 +177,6 @@ export function ResultsTab({ accent }: { accent: string }) {
     />
   ) : null;
 
-  const hasMarkers = labs.markers.data.length > 0;
-
   return (
     <div className="flex flex-col gap-4">
       {resultFormSheet}
@@ -180,19 +192,6 @@ export function ResultsTab({ accent }: { accent: string }) {
 
       <LabsOverview
         labs={labs}
-        actions={
-          hasMarkers ? (
-            <AddMenu
-              accent={accent}
-              options={[
-                { label: "Add results", onClick: () => setView({ mode: "batch" }) },
-                { label: "New marker", onClick: () => setView({ mode: "marker-form" }) },
-              ]}
-            />
-          ) : (
-            <PrimaryAction label="New marker" accent={accent} onClick={() => setView({ mode: "marker-form" })} />
-          )
-        }
         onNewMarker={() => setView({ mode: "marker-form" })}
         onAddValue={(markerId) => setView({ mode: "result-form", markerId })}
         onEditValue={(markerId, result) => setView({ mode: "result-form", markerId, resultId: result.id })}

@@ -13,7 +13,7 @@ describe("statusColor", () => {
 describe("optimalStatusColor", () => {
   it("is green in band, red outside, muted with no range", () => {
     expect(optimalStatusColor("in")).toBe("var(--status-good)");
-    expect(optimalStatusColor("low")).toBe("var(--status-critical)");
+    expect(optimalStatusColor("low")).toBe("var(--series-2)");
     expect(optimalStatusColor("high")).toBe("var(--status-critical)");
     expect(optimalStatusColor(null)).toBe("var(--text-muted)");
   });
