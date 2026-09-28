@@ -69,6 +69,7 @@ import { useCoffeeOptions } from "@/lib/useCoffeeOptions";
 import { DuplicateItemDialog } from "@/components/ui/DuplicateItemDialog";
 import { SearchField } from "@/components/ui/SearchField";
 import { Button } from "@/components/ui/Button";
+import { FormShell } from "@/components/ui/FormShell";
 import { DatePicker, TimePicker } from "@/components/ui/DatePicker";
 import { Field } from "@/components/ui/Field";
 import { FormGroup } from "@/components/ui/FormGroup";
@@ -2505,23 +2506,32 @@ export default function LogPage() {
               )}
 
               {addingNew && (
-                <form
+                <FormShell
+                  title={`New ${tabConfig.singular}`}
                   onSubmit={(e) => {
                     e.preventDefault();
                     void handleAddNew();
                   }}
-                  className="flex flex-col gap-3"
+                  onCancel={() => {
+                    setAddingNew(false);
+                    setNewItemText("");
+                    setNewItemCategory("");
+                  }}
+                  submitLabel="Add"
+                  submitDisabled={!newItemText.trim()}
+                  busy={pending === "__new__"}
+                  accent={TYPE_ACCENT[tabConfig.type]}
                 >
                   <FormGroup
                     footer={
                       newItemNeedsCategory
-                        ? undefined
+                        ? `Adds it and logs it${tabConfig.countable ? ` for ${meal}` : ""}.`
                         : newItemText.trim()
-                          ? "Already recognized — will file under its usual category automatically."
+                          ? `Already recognized — it'll file under its usual category and be logged${tabConfig.countable ? ` for ${meal}` : ""}.`
                           : undefined
                     }
                   >
-                    <Field label="New item">
+                    <Field label="Name">
                       <input
                         autoFocus
                         type="text"
@@ -2544,24 +2554,7 @@ export default function LogPage() {
                       </Field>
                     )}
                   </FormGroup>
-                  <div className="flex items-center gap-3">
-                    <Button type="submit" accent={TYPE_ACCENT[tabConfig.type]} disabled={!newItemText.trim() || pending === "__new__"}>
-                      Add &amp; log
-                    </Button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setAddingNew(false);
-                        setNewItemText("");
-                        setNewItemCategory("");
-                      }}
-                      className="text-sm font-medium"
-                      style={{ color: "var(--ui-accent)" }}
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </form>
+                </FormShell>
               )}
 
               {tab === "food" && matchingProducts.length > 0 && (
