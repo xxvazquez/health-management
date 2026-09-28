@@ -87,6 +87,8 @@ import { TimeField } from "@/components/ui/TimeField";
 import { DemoNotice } from "@/components/ui/DemoNotice";
 import { ErrorState } from "@/components/ui/EmptyState";
 import { MobileMenuButton } from "@/components/MobileMenuButton";
+import { usePreferences } from "@/lib/usePreferences";
+import { currentCycleStatus, groupIntoPeriodRuns } from "@/lib/aggregations/cycle";
 import { useOverflowFade } from "@/lib/useOverflowFade";
 import {
   workoutUnitLabel,
@@ -436,9 +438,43 @@ interface Snapshot {
 
 const TAB_ALIASES: Record<string, string> = { symptoms: "outcome", supplements: "supplement", habits: "habit" };
 
+/** The icon on each row of the phone's section list — the same glyphs as
+ * the matching Settings rows. */
+const SECTION_ICON: Record<LogTab, string> = {
+  food: "fork",
+  outcome: "stomach",
+  supplement: "pill",
+  habit: "sparkle",
+  stool: "drop",
+  workout: "dumbbell",
+  cycle: "heart",
+  coffee: "mug",
+  summary: "calendar",
+};
+
+const ALL_LOG_TABS: readonly string[] = [...TABS.map((t) => t.type), "stool", "workout", "cycle", "coffee", "summary"];
+
+/** A section id from a `?tab=` value or saved preference — the visible
+ * names work too (symptoms → outcome, supplements → supplement). */
+function parseLogTab(value: string | null): LogTab | null {
+  if (!value) return null;
+  const id = TAB_ALIASES[value] ?? value;
+  return ALL_LOG_TABS.includes(id) ? (id as LogTab) : null;
+}
+
+function tabFromUrl(): LogTab | null {
+  return parseLogTab(new URLSearchParams(window.location.search).get("tab"));
+}
+
+/** Desktop keeps the tab row; phones drill down from the section list. */
+function isDesktop(): boolean {
+  return window.matchMedia("(min-width: 1024px)").matches;
+}
+
 export default function LogPage() {
   const { refresh, isDemoData, status, events } = useData();
   const { isVisible, domainOrder } = useVisibleDomains();
+  const { prefs, loaded: prefsLoaded, update: updatePrefs } = usePreferences();
   const { openPanel } = useAuth();
   // Observation-type care-log entries (Health → Visits) — surfaced on
   // the Symptoms tab as one-offs that aren't tracked day to day.
@@ -518,13 +554,37 @@ export default function LogPage() {
   }, []);
   // `/log/?tab=workout` (the links back from Settings) opens on that tab;
   // the hidden-tab fallback below still applies.
+  // With no `?tab=`, a phone opens on the section list (Summary) and a
+  // desktop on Food — then either reopens the section last used, the list
+  // kept underneath in history so Back returns to it.
+  const restoredTab = useRef(false);
   useEffect(() => {
-    const param = new URLSearchParams(window.location.search).get("tab");
-    // The visible tab names work too (symptoms → outcome, supplements → supplement).
-    const requested = param ? (TAB_ALIASES[param] ?? param) : null;
-    const tabs: string[] = [...TABS.map((t) => t.type), "stool", "workout", "cycle", "coffee", "summary"];
-    // Through selectTab, so the meal / time-of-day menu matches the tab.
-    if (requested && tabs.includes(requested)) selectTab(requested as LogTab);
+    const requested = tabFromUrl();
+    if (requested) {
+      restoredTab.current = true;
+      selectTab(requested, "none");
+      return;
+    }
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- the start screen depends on the viewport
+    if (!isDesktop()) setTab("summary");
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, on arrival
+  }, []);
+  useEffect(() => {
+    if (!prefsLoaded || restoredTab.current) return;
+    restoredTab.current = true;
+    const last = parseLogTab(prefs.lastLogTab ?? null);
+    if (!last) return;
+    if (isDesktop()) selectTab(last, "replace");
+    else if (last !== "summary") selectTab(last, "push");
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, when preferences arrive
+  }, [prefsLoaded]);
+  // Back / forward (or the phone's edge swipe) moves between the list and a
+  // section, or between sections.
+  useEffect(() => {
+    const onPop = () => selectTab(tabFromUrl() ?? (isDesktop() ? "food" : "summary"), "none");
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- selectTab only sets state
   }, []);
   // If the tab you're sitting on gets hidden from under you (toggled off
   // in Manage, in another tab, or restored from a stale saved choice),
@@ -610,11 +670,26 @@ export default function LogPage() {
     [demo, snapshot],
   );
 
-  function selectTab(t: LogTab) {
+  /** Opens a section. `history` says whether the URL gets a new entry (a
+   * tap), replaces the current one, or is left alone (it already says so). */
+  function selectTab(t: LogTab, history: "push" | "replace" | "none" = "push") {
     setTab(t);
     setSearch("");
     if (t === "food") setMeal(defaultMealForTime());
     else if (t === "supplement") setMeal(defaultSupplementTimeForTime());
+    if (history !== "none") {
+      const url = t === "summary" && !isDesktop() ? window.location.pathname : `${window.location.pathname}?tab=${t}`;
+      if (history === "push") window.history.pushState({ logSection: true }, "", url);
+      else window.history.replaceState(null, "", url);
+    }
+    if (prefs.lastLogTab !== t) updatePrefs({ lastLogTab: t });
+  }
+
+  /** "‹ Log" on a phone: back to the list, through history when the list is
+   * the page underneath. */
+  function backToList() {
+    if (window.history.state?.logSection) window.history.back();
+    else selectTab("summary", "replace");
   }
 
   const candidates = useMemo(() => buildLogCandidates(effective.items, effective.logs), [effective]);
@@ -707,6 +782,25 @@ export default function LogPage() {
     () => effective.workoutLogs.filter((g) => g.date === date).sort((a, b) => b.updatedAt - a.updatedAt),
     [effective, date],
   );
+
+  // The one figure each row of the phone's section list shows for the day:
+  // how many things were logged, or the period day for Cycle.
+  const sectionFigure = useMemo(() => {
+    const figures = new Map<LogTab, string>();
+    const perType = new Map<string, number>();
+    for (const l of effective.logs) {
+      if (l.date !== date || (l.value ?? 0) <= 0) continue;
+      perType.set(l.itemType, (perType.get(l.itemType) ?? 0) + 1);
+    }
+    for (const [type, n] of perType) figures.set(type as LogTab, String(n));
+    if (stoolEntriesForDate.length > 0) figures.set("stool", String(stoolEntriesForDate.length));
+    if (workoutEntriesForDate.length > 0) figures.set("workout", String(workoutEntriesForDate.length));
+    const cups = coffee.logs.data.filter((l) => l.date === date).length;
+    if (cups > 0) figures.set("coffee", String(cups));
+    const cycle = currentCycleStatus(groupIntoPeriodRuns(effective.periodLogs), date);
+    if (cycle.onPeriod) figures.set("cycle", `Day ${cycle.periodDay}`);
+    return figures;
+  }, [effective, date, stoolEntriesForDate, workoutEntriesForDate, coffee.logs.data]);
 
   // Most recent weight per exercise across all history (not just this day)
   // — WorkoutTab's prefill convenience, same idea as the old Workout-page
@@ -2144,11 +2238,25 @@ export default function LogPage() {
        * Desktop: the controls move up into the title row so the tabs get a
        * full row of their own. */}
       <div className="flex flex-wrap items-center gap-x-2 gap-y-3">
+        {/* Phones drill down: a section opens from the list with "‹ Log"
+         * above its own title, like an iOS navigation stack. */}
+        {tab !== "summary" && (
+          <button
+            type="button"
+            onClick={backToList}
+            className="-mb-2 -ml-1 flex min-h-9 w-full items-center gap-0.5 text-sm font-medium lg:hidden"
+            style={{ color: "var(--ui-accent)" }}
+          >
+            <ChevronIcon dir="left" size={16} />
+            Log
+          </button>
+        )}
         <h1
           className="min-w-0 flex-1 text-2xl leading-tight font-semibold tracking-tight lg:mr-2 lg:flex-none"
           style={{ color: "var(--text-primary)" }}
         >
-          Log
+          <span className="lg:hidden">{tab === "summary" ? "Log" : (logTabs.find((t) => t.id === tab)?.label ?? "Log")}</span>
+          <span className="hidden lg:inline">Log</span>
         </h1>
         <div className="control-surface flex h-9 shrink-0 items-center rounded-[10px] lg:order-3 lg:ml-auto">
           <button
@@ -2194,8 +2302,8 @@ export default function LogPage() {
           ariaLabel="Tracking domain"
           items={logTabs.map((t) => ({ id: t.id, label: t.label, accent: t.accent }))}
           activeId={tab}
-          onSelect={selectTab}
-          className="order-5 w-full min-w-0"
+          onSelect={(t) => selectTab(t)}
+          className="order-5 hidden w-full min-w-0 lg:block"
         />
         {tabConfig && (
           <div className="order-6 flex w-full items-center gap-2 lg:order-2 lg:w-auto lg:flex-1">
@@ -2344,7 +2452,37 @@ export default function LogPage() {
             onNavigateToDate={setDate}
           />
         )
-      ) : tab === "summary" ? null : (
+      ) : tab === "summary" ? (
+        <div className="inset-rows rounded-xl border [--row-inset:3.375rem] lg:hidden" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
+          {logTabs
+            .filter((t) => t.id !== "summary")
+            .map((t) => {
+              const figure = sectionFigure.get(t.id);
+              return (
+                <button key={t.id} type="button" onClick={() => selectTab(t.id)} className="flex min-h-11 w-full items-center gap-3 px-3.5 py-2 text-left">
+                  <span
+                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md"
+                    style={{ color: t.accent, background: `color-mix(in oklab, ${t.accent} 14%, transparent)` }}
+                    aria-hidden="true"
+                  >
+                    <CustomIcon icon={SECTION_ICON[t.id]} size={15} />
+                  </span>
+                  <span className="min-w-0 flex-1 text-sm font-medium" style={{ color: "var(--text-primary)" }}>
+                    {t.label}
+                  </span>
+                  {figure && (
+                    <span className="shrink-0 text-sm tabular-nums" style={{ color: "var(--text-secondary)" }}>
+                      {figure}
+                    </span>
+                  )}
+                  <span style={{ color: "var(--text-muted)" }}>
+                    <ChevronIcon dir="right" size={14} />
+                  </span>
+                </button>
+              );
+            })}
+        </div>
+      ) : (
         <>
           {!dataReady || !tabConfig ? (
             <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
@@ -2527,7 +2665,7 @@ export default function LogPage() {
           {mealGroups.length > 0 && (
             <div className="flex flex-col gap-1.5">
               <p className="px-3.5 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
-                Meals today
+                Meals — {formatDateLabel(date, today).toLowerCase()}
               </p>
               {mealGroups.map((g) => (
                 <MealGroupCard

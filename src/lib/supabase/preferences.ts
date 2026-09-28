@@ -15,6 +15,8 @@ export interface Preferences {
   defaultTime?: string | null;
   /** Settings → Appearance: light/dark/system and each mode's palette. */
   appearance?: { theme?: string; light?: string; dark?: string };
+  /** The Log section last open, so Log reopens there. */
+  lastLogTab?: string;
 }
 
 async function currentUserId(): Promise<string | null> {

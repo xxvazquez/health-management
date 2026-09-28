@@ -731,6 +731,7 @@ account-wide settings every device shares
 | `domainVisibility` | Settings → Visible sections: explicit show/hide per tracked section; absent = automatic (shows once it has data, or while the account is empty). |
 | `defaultTime` | "HH:MM" a new date picks up before a time is chosen; absent = the next full hour. |
 | `appearance` | Settings → Appearance: `theme` (`light`/`dark`/`system`), `light` and `dark` palette ids. Each device also caches it in localStorage so the first paint needs no fetch. |
+| `lastLogTab` | The Log section (or `summary`) last open, so Log reopens there on every device. |
 
 Categories keep their order in `categories.sort_order` instead (above).
 

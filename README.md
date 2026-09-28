@@ -47,7 +47,10 @@ Old routes redirect: `/overview` → `/agenda`, `/doctors` → `/medical`, `/hom
 
 ### Log
 
-Tabs: **Food · Symptoms · Supplements · Habits · Stool · Workout · Cycle · Coffee · Summary**
+Sections: **Food · Symptoms · Supplements · Habits · Stool · Workout · Cycle · Coffee · Summary**
+
+- **Phone:** Log opens on a list of your sections, each with the day's count (or the period day for Cycle), and the Summary below it. Tap a section to log; "‹ Log", Back or an edge swipe returns to the list. Log reopens on whichever screen you left.
+- **Desktop:** the sections are a tab row, with Summary as the last tab.
 
 - **Toolbar:** search (or add), meal / time of day, time. On desktop it sits beside the page title.
 - **Categories:** a scrolling category rail on a phone; a sidebar with per-category logged counts on desktop, in the order you arrange them in Settings (A–Z until you do). Items are A–Z, in as many columns as fit on desktop.
@@ -58,7 +61,7 @@ Tabs: **Food · Symptoms · Supplements · Habits · Stool · Workout · Cycle �
   - Products: log a whole product's ingredients in one tap
 - **Workout:** a Log / Plan switch, with Charts (Trends → Workout) and Manage beside it. Log lists every exercise by category with a `− value +` stepper (drag or tap the number for fine steps) and a Log button. Plan shows the day's targets from your active workout plans, with an iOS-style week row (done, missed or short per day). Logging a plan set writes an ordinary workout log.
 - **Coffee:** grouped by brand. Tapping a coffee opens a per-cup form (café, price, brewing, water temp, tasting notes).
-- **Deep link:** `/log/?tab=workout` opens Log on that tab; any tab name works, e.g. `symptoms`, `supplements`, `summary`. Settings → Workout and Workout plans link back this way.
+- **Deep link:** `/log/?tab=workout` opens Log on that section; any tab name works, e.g. `symptoms`, `supplements`, `summary`. Settings → Workout and Workout plans link back this way.
 - **Summary:** the day's meals with their notes, then a timeline of everything logged. Each meal's foods are one row ("Dinner · 9 foods") that opens the list of foods; tap any entry to edit or delete it.
 
 ### Health
