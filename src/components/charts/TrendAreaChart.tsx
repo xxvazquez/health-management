@@ -18,6 +18,7 @@ export function TrendAreaChart({
   valueLabel = "Value",
   yTickFormatter,
   showDots = false,
+  wholeNumbers = false,
 }: {
   data: TrendPoint[];
   color?: string;
@@ -29,6 +30,8 @@ export function TrendAreaChart({
    * (e.g. one dot per logged session) where the reader should be able to
    * tell "how many observations" from the line itself. */
   showDots?: boolean;
+  /** Counts (sessions, days): whole-number ticks only, never 0.75. */
+  wholeNumbers?: boolean;
 }) {
   // Must be a valid SVG id with no characters that could break a url(#id)
   // reference (parens, slashes, etc. from a label like "Unique foods (7d)").
@@ -71,6 +74,7 @@ export function TrendAreaChart({
           axisLine={false}
           tick={{ fill: "var(--text-muted)", fontSize: 12 }}
           tickFormatter={yTickFormatter}
+          allowDecimals={!wholeNumbers}
           width={yTickFormatter ? 60 : 36}
         />
         <Tooltip

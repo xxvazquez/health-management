@@ -27,7 +27,7 @@ import {
 import { todayLocalISODate } from "@/lib/aggregations/common";
 import { TYPE_ACCENT } from "@/taxonomy/categories";
 import { getAllItems, withDataLock } from "@/lib/db/indexedDb";
-import { workoutUnitLabel, type WorkoutExercise, type WorkoutUnit } from "@/lib/types";
+import { workoutUnitLabel, workoutValueLabel, type WorkoutExercise, type WorkoutUnit } from "@/lib/types";
 
 // Same accent as every other Workout surface (Log's Workout tab, its
 // timeline entries, Manage's Workout section) — color is otherwise
@@ -139,6 +139,12 @@ function RecentActivityTimeline({ sessions }: { sessions: WorkoutRecentSession[]
  * Card instead of two separate ones. Defaults to the top-ranked lift so
  * there's something useful to read before tapping anything; tapping another
  * row swaps the chart below without a second, redundant picker control. */
+/** Time-based exercises (a walk, a run) — a shorter session isn't a
+ * regression, so they're never scored as progress. */
+function isDuration(unit: string): boolean {
+  return workoutValueLabel(unit) === "Duration";
+}
+
 function ProgressSection({
   sortedStats,
   selectedStats,
@@ -148,24 +154,25 @@ function ProgressSection({
   selectedStats: WorkoutExerciseStats | null;
   onSelect: (exercise: WorkoutExercise) => void;
 }) {
-  const trending = useMemo(() => sortedStats.filter((s) => s.recordsCount >= 2), [sortedStats]);
+  const trending = useMemo(() => sortedStats.filter((s) => s.recordsCount >= 2 && !isDuration(s.unit)), [sortedStats]);
   const improving = useMemo(() => trending.filter((s) => s.changeKg > 0).length, [trending]);
   const maxAbsChangeKg = useMemo(
-    () => Math.max(1, ...sortedStats.filter((s) => s.recordsCount >= 2).map((s) => Math.abs(s.changeKg))),
-    [sortedStats],
+    () => Math.max(1, ...trending.map((s) => Math.abs(s.changeKg))),
+    [trending],
   );
 
   const subtitle =
     trending.length > 0
-      ? `${improving} of ${trending.length} lifts up since first recorded · ranked by kg change, full history — tap a lift for its chart.`
-      : "Log an exercise a second time to start tracking a trend. Full history, not affected by the range filter below.";
+      ? `${improving} of ${trending.length} up since first recorded · full history — tap an exercise for its chart.`
+      : "Full history, not affected by the range filter below — tap an exercise for its chart.";
 
   return (
     <Card tier="primary">
       <CardTitle subtitle={subtitle}>Progress</CardTitle>
       <div className="flex flex-col">
         {sortedStats.map((s) => {
-          const hasTrend = s.recordsCount >= 2;
+          const timed = isDuration(s.unit);
+          const hasTrend = s.recordsCount >= 2 && !timed;
           const active = s.exercise === selectedStats?.exercise;
           const direction = changeDirection(s.changeKg);
           const changeColor = DIRECTION_COLOR[direction];
@@ -193,7 +200,7 @@ function ProgressSection({
                     {s.exercise}
                   </p>
                   <p className="text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>
-                    {s.started.weightKg} → {s.current.weightKg} {unit}
+                    {timed ? `${s.recordsCount} session${s.recordsCount === 1 ? "" : "s"}` : `${s.started.weightKg} → ${s.current.weightKg} ${unit}`}
                   </p>
                 </div>
 
@@ -208,6 +215,15 @@ function ProgressSection({
                           {signed(Math.round(s.changePct))}%
                         </p>
                       )}
+                    </>
+                  ) : timed ? (
+                    <>
+                      <p className="text-sm tabular-nums" style={{ color: "var(--text-primary)" }}>
+                        {s.current.weightKg} {unit}
+                      </p>
+                      <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                        latest
+                      </p>
                     </>
                   ) : (
                     <p className="text-sm" style={{ color: "var(--text-muted)" }}>
@@ -226,13 +242,30 @@ function ProgressSection({
           );
         })}
       </div>
-      <p className="mt-4 text-xs" style={{ color: "var(--text-muted)" }}>
-        Start = first recorded weight · Current = most recent · Best = personal record
-      </p>
+      {trending.length > 0 && (
+        <p className="mt-4 text-xs" style={{ color: "var(--text-muted)" }}>
+          Start = first recorded · Current = most recent · Best = personal record
+        </p>
+      )}
 
       {selectedStats && (
         <div className="mt-5 border-t pt-4" style={{ borderColor: "var(--gridline)" }}>
           <div className="mb-4">
+          {isDuration(selectedStats.unit) ? (
+            <StatGrid>
+              <Stat
+                label="Latest"
+                value={`${selectedStats.current.weightKg} ${workoutUnitLabel(selectedStats.unit)}`}
+                detail={formatWorkoutDate(selectedStats.current.date)}
+              />
+              <Stat
+                label="Longest"
+                value={`${selectedStats.best.weightKg} ${workoutUnitLabel(selectedStats.unit)}`}
+                detail={formatWorkoutDate(selectedStats.best.date)}
+              />
+              <Stat label="Sessions" value={String(selectedStats.recordsCount)} />
+            </StatGrid>
+          ) : (
           <StatGrid>
             <Stat
               label="Started"
@@ -256,11 +289,14 @@ function ProgressSection({
               accent={DIRECTION_COLOR[changeDirection(selectedStats.changeKg)]}
             />
           </StatGrid>
+          )}
           </div>
 
-          <p className="mb-3 text-sm" style={{ color: "var(--text-secondary)" }}>
-            {describeProgression(selectedStats)}
-          </p>
+          {!isDuration(selectedStats.unit) && (
+            <p className="mb-3 text-sm" style={{ color: "var(--text-secondary)" }}>
+              {describeProgression(selectedStats)}
+            </p>
+          )}
 
           <TrendAreaChart
             data={selectedStats.entries.map((e) => ({ date: e.date, value: e.weightKg }))}
@@ -369,7 +405,7 @@ export function WorkoutDashboard() {
       </div>
 
       <Card tier="raw">
-        <CardTitle size="sm" subtitle="Any day at least one lift was logged, by month, in this range">Training frequency</CardTitle>
+        <CardTitle size="sm" subtitle="Days with any exercise logged, by month, in this range">Training frequency</CardTitle>
         {frequencyCaptions.length > 0 && (
           <p className="mb-3 text-xs" style={{ color: "var(--text-secondary)" }}>
             {frequencyCaptions.join(" · ")}
@@ -380,6 +416,7 @@ export function WorkoutDashboard() {
             data={monthlySessions.map((m) => ({ date: m.monthStart, value: m.sessions }))}
             color={ACCENT}
             valueLabel="Sessions"
+            wholeNumbers
           />
         ) : (
           <p className="text-sm" style={{ color: "var(--text-muted)" }}>Not enough data yet to show a monthly trend.</p>
@@ -389,7 +426,7 @@ export function WorkoutDashboard() {
       {exerciseFrequency.length > 0 && (
         <Card tier="raw">
           <CardTitle size="sm" subtitle="Sessions each exercise appeared in — logging frequency, not training volume or load">
-            Which lifts you train most
+            Which exercises you train most
           </CardTitle>
           <RankedBarChart data={exerciseFrequency.map((e) => ({ label: e.exercise, value: e.sessionCount }))} color={ACCENT} />
         </Card>
