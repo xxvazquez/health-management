@@ -1862,7 +1862,7 @@ export default function LogPage() {
                 aria-current={active ? "true" : undefined}
                 className={clsx("flex min-h-11 items-center gap-2.5 rounded-lg px-2.5 pointer-fine:min-h-8 text-left text-sm transition-colors", !active && "hover:bg-[var(--page-plane)]")}
                 style={{
-                  background: active ? `color-mix(in oklab, ${accent} 14%, transparent)` : "transparent",
+                  background: active ? `color-mix(in oklab, ${accent} var(--tint-pct), transparent)` : "transparent",
                   color: "var(--text-primary)",
                   fontWeight: active ? 600 : 400,
                 }}
@@ -2034,7 +2034,7 @@ export default function LogPage() {
               >
                 <span
                   className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md"
-                  style={{ color: accent, background: `color-mix(in oklab, ${accent} 14%, transparent)` }}
+                  style={{ color: accent, background: `color-mix(in oklab, ${accent} var(--tint-pct), transparent)` }}
                 >
                   {icon ?? <span className="text-xs font-semibold">{group.category.charAt(0)}</span>}
                 </span>
@@ -2462,7 +2462,7 @@ export default function LogPage() {
                 <button key={t.id} type="button" onClick={() => selectTab(t.id)} className="flex min-h-11 w-full items-center gap-3 px-3.5 py-2 text-left">
                   <span
                     className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md"
-                    style={{ color: t.accent, background: `color-mix(in oklab, ${t.accent} 14%, transparent)` }}
+                    style={{ color: t.accent, background: `color-mix(in oklab, ${t.accent} var(--tint-pct), transparent)` }}
                     aria-hidden="true"
                   >
                     <CustomIcon icon={SECTION_ICON[t.id]} size={15} />

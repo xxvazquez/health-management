@@ -3037,7 +3037,7 @@ function ItemSection({
                   >
                     <span
                       className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md"
-                      style={{ color: accent, background: `color-mix(in oklab, ${accent} 14%, transparent)` }}
+                      style={{ color: accent, background: `color-mix(in oklab, ${accent} var(--tint-pct), transparent)` }}
                     >
                       <CustomIcon icon={appearance?.icon ?? defaultCategoryIcon(itemType, category)} size={15} />
                     </span>

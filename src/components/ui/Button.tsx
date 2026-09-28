@@ -39,7 +39,7 @@ type ButtonAsLink = CommonProps & { href: string } & Omit<AnchorHTMLAttributes<H
 function variantStyle(variant: ButtonVariant, accent: string): CSSProperties {
   if (variant === "primary") return { background: accent, color: "var(--on-accent)" };
   if (variant === "outline") return { color: "var(--text-primary)" };
-  if (variant === "tinted") return { background: `color-mix(in oklab, ${accent} 14%, transparent)`, color: accent };
+  if (variant === "tinted") return { background: `color-mix(in oklab, ${accent} var(--tint-pct), transparent)`, color: accent };
   return { color: "var(--text-secondary)" };
 }
 

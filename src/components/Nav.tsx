@@ -225,7 +225,7 @@ function NavLinkList({
               !active && "hover:bg-[var(--page-plane)]",
             )}
             style={{
-              background: active ? "color-mix(in oklab, var(--ui-accent) 14%, transparent)" : "transparent",
+              background: active ? "color-mix(in oklab, var(--ui-accent) var(--tint-pct), transparent)" : "transparent",
               color: active ? "var(--text-primary)" : "var(--text-secondary)",
               fontWeight: active ? 600 : 500,
             }}

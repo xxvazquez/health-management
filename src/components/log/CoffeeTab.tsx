@@ -127,7 +127,7 @@ export function CoffeeTab({
         className={`flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left ${bordered ? "border-t" : ""}`}
         style={bordered ? { borderColor: "var(--gridline)" } : undefined}
       >
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md" style={{ background: `color-mix(in oklab, ${accent} 14%, transparent)`, color: accent }}>
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md" style={{ background: `color-mix(in oklab, ${accent} var(--tint-pct), transparent)`, color: accent }}>
           <CupIcon />
         </span>
         <span className="min-w-0 flex-1">

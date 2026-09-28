@@ -60,6 +60,9 @@
      dark enough for white in light mode, still dark enough for the normal
      text in dark mode. Above 80% use --on-accent, below 55% the text colour. */
   --on-accent-mid: var(--on-accent);
+  /* How strongly an accent tints a soft fill (icon tiles, selected rows,
+     tinted buttons). Stronger in dark mode, where 14% vanishes. */
+  --tint-pct: 14%;
   /* A chart's normal-range band and its narrower optimal band. Stronger in
      dark mode, where the same tint vanishes into the card. */
   --band-good: color-mix(in oklab, var(--status-good) 14%, transparent);
@@ -160,6 +163,7 @@
   --ui-accent: #4fb3ab;
   --on-accent: #0e1418;
   --on-accent-mid: var(--text-primary);
+  --tint-pct: 24%;
   --band-good: color-mix(in oklab, var(--status-good) 26%, transparent);
   --band-good-strong: color-mix(in oklab, var(--status-good) 36%, transparent);
   --custom-color-min-l: 0.6;

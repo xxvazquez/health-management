@@ -58,7 +58,7 @@ export function SectionRow({ title, subtitle }: { title: string; subtitle?: stri
       {tile && (
         <span
           className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md"
-          style={{ color: tile.color, background: `color-mix(in oklab, ${tile.color} 14%, transparent)` }}
+          style={{ color: tile.color, background: `color-mix(in oklab, ${tile.color} var(--tint-pct), transparent)` }}
           aria-hidden="true"
         >
           <CustomIcon icon={tile.icon} size={15} />

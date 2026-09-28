@@ -106,7 +106,7 @@ export function ManageRow({
         {appearance && (
           <span
             className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md"
-            style={{ color: appearance.accent, background: `color-mix(in oklab, ${appearance.accent} 14%, transparent)` }}
+            style={{ color: appearance.accent, background: `color-mix(in oklab, ${appearance.accent} var(--tint-pct), transparent)` }}
           >
             <CustomIcon icon={appearance.icon ?? appearance.defaultIcon ?? null} size={15} />
           </span>

@@ -119,6 +119,7 @@ One sans-serif family: SF Pro on Apple devices, Inter elsewhere (`--font-app`).
 - Keyboard focus shows a 2px accent ring (`:focus-visible`); borderless text rows in a form group (`ROW_TEXT_CLS`/`ROW_INLINE_CLS`, tagged `.row-control`) show only the caret, no box
 - Text on a solid accent fill (any accent, not just `--ui-accent`) uses `--on-accent`: white in light mode, near-black in dark, where the accents are lighter. A partial fill (55–80%) uses `--on-accent-mid`
 - Chart normal/optimal bands use `--band-good` / `--band-good-strong`, stronger in dark mode
+- Soft accent fills (icon tiles, selected rows, tinted buttons) mix the accent at `--tint-pct` (14% light, 24% dark): `color-mix(in oklab, <accent> var(--tint-pct), transparent)`
 - Motion respects `prefers-reduced-motion`
 
 ---
