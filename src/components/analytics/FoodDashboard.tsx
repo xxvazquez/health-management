@@ -4,12 +4,11 @@ import { useMemo, useRef, useState, type ReactNode } from "react";
 import { useData } from "@/lib/DataContext";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageSkeleton } from "@/components/ui/Skeleton";
-import { StatChip } from "@/components/ui/StatChip";
+import { ComparisonKey, ComparisonRow, ShowAllRow, SplitStatCard, TrendGroup, TrendRow } from "@/components/analytics/TrendList";
 import { Stat, StatGrid } from "@/components/ui/StatGrid";
-import { Insight } from "@/components/ui/Insight";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { TrendsActions } from "@/components/analytics/TrendsActions";
-import { DateRangeFilter, describeDateRange, type DateRangePreset } from "@/components/ui/DateRangeFilter";
+import { DateRangeFilter, type DateRangePreset } from "@/components/ui/DateRangeFilter";
 import { Methodology } from "@/components/ui/Methodology";
 import { SectionNav, type SectionNavItem } from "@/components/ui/SectionNav";
 import { ShowMore } from "@/components/ui/ShowMore";
@@ -28,28 +27,19 @@ import {
   mealInstances,
   rankedFoods,
   repetitionInsights,
-  STAPLE_MIN_PERCENT,
   varietyTrendDirection,
-  type FallenOutEntry,
   type IngredientMealRow,
   type MealComboEntry,
-  type StapleEntry,
 } from "@/lib/aggregations/food";
 import {
   computeNutritionPriorities,
   MIN_FOOD_DAYS_FOR_CONFIDENCE,
   type CoverageRow,
   type GroupStatus,
-  type DietBalanceStatus,
   type PillarRow as PillarStat,
 } from "@/lib/aggregations/nutritionPriorities";
 import { TYPE_ACCENT } from "@/taxonomy/categories";
 
-/** A nutrition-group name shown inside a sentence — lowercased so
- * "other veg" and "citrus fruit" read as terms rather than proper nouns. */
-function CatTerm({ children }: { children: ReactNode }) {
-  return <span className="lowercase">{children}</span>;
-}
 
 const STATUS_COLOR: Record<GroupStatus, string> = {
   "not-enough-data": "var(--text-muted)",
@@ -59,15 +49,18 @@ const STATUS_COLOR: Record<GroupStatus, string> = {
   strong: "var(--status-good)",
 };
 
-// Same severity ramp as STATUS_COLOR above, applied to the coarser
-// per-pillar diet-balance verdict shown on Overview.
-const DIET_BALANCE_COLOR: Record<DietBalanceStatus, string> = {
-  "not-enough-data": "var(--text-muted)",
-  underrepresented: "var(--status-warning)",
-  "could-use-more-variety": "var(--series-4)",
-  "well-represented": "var(--series-1)",
-  "strongly-represented": "var(--status-good)",
-};
+/** A food group counts as on target from this share of its weekly target. */
+const ON_TARGET_PERCENT = 85;
+
+/** A food-group row's bar colour, from the same numbers the row shows: on
+ * target, close to it, or well short. */
+function pillarTone(row: PillarStat): string {
+  if (row.percentOfTarget >= ON_TARGET_PERCENT) return "var(--status-good)";
+  return row.percentOfTarget < 50 ? "var(--status-serious)" : "var(--status-warning)";
+}
+
+/** How many rows a trimmed Trends list shows before "Show all". */
+const SHORT_LIST = 3;
 
 function StatusPill({ status, label, color }: { status: string; label: string; color: string }) {
   return (
@@ -81,90 +74,9 @@ function StatusPill({ status, label, color }: { status: string; label: string; c
   );
 }
 
-/** One pillar's row in the Overview balance card: the pillar name, how
- * often any of its core groups was logged as a percentage of the range,
- * the verdict, and a matching bar. The card lists all six pillars
- * worst-first, so this is the whole "how balanced is what I eat" picture
- * in one place. */
-function PillarStatRow({ row }: { row: PillarStat }) {
-  const tone = DIET_BALANCE_COLOR[row.status];
-  return (
-    <li>
-      <div className="flex items-baseline justify-between gap-3">
-        <span className="flex min-w-0 flex-1 items-center gap-1.5">
-          <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: tone }} aria-hidden="true" />
-          <span className="min-w-0 text-sm" style={{ color: "var(--text-primary)" }}>
-            {row.label}
-          </span>
-        </span>
-        {row.notTracked ? (
-          <span
-            className="shrink-0 text-xs font-medium"
-            style={{ color: "var(--text-muted)" }}
-          >
-            Not tracked
-          </span>
-        ) : (
-          <span className="shrink-0 text-sm font-semibold tabular-nums" style={{ color: tone }}>
-            {row.percentOfTarget}%
-          </span>
-        )}
-      </div>
 
-      <div className="mt-0.5 flex items-baseline justify-between gap-3 text-xs" style={{ color: "var(--text-muted)" }}>
-        <span className="min-w-0 flex-1 truncate">{row.statusLabel}</span>
-        {!row.notTracked && (
-          <span className="shrink-0 tabular-nums">
-            {row.rateInRangePerWeek.toFixed(1)}×/week · target {row.targetPerWeek}×/week
-          </span>
-        )}
-      </div>
 
-      <div className="mt-1.5 h-1.5 w-full rounded-full" style={{ background: "var(--gridline)" }}>
-        <div
-          className="h-1.5 rounded-full"
-          style={{ width: row.notTracked ? "0%" : `${Math.min(100, Math.max(3, row.percentOfTarget))}%`, background: tone }}
-        />
-      </div>
-    </li>
-  );
-}
 
-const STAPLE_TONE = "var(--status-good)";
-
-function StapleRow({ entry }: { entry: StapleEntry }) {
-  return (
-    <li>
-      <div className="flex items-baseline justify-between gap-3">
-        <span className="min-w-0 flex-1 text-sm" style={{ color: "var(--text-primary)" }}>
-          {entry.item}
-        </span>
-        <span className="shrink-0 text-sm font-semibold tabular-nums" style={{ color: STAPLE_TONE }}>
-          {entry.percent}%
-        </span>
-      </div>
-      <div className="mt-0.5 text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>
-        {entry.daysInRange} / {entry.rangeLengthDays} days
-      </div>
-      <div className="mt-1.5 h-1.5 w-full rounded-full" style={{ background: "var(--gridline)" }}>
-        <div className="h-1.5 rounded-full" style={{ width: `${Math.max(3, entry.percent)}%`, background: STAPLE_TONE }} />
-      </div>
-    </li>
-  );
-}
-
-function FallenOutRow({ entry }: { entry: FallenOutEntry }) {
-  return (
-    <li className="flex items-baseline justify-between gap-3">
-      <span className="min-w-0 flex-1 text-sm" style={{ color: "var(--text-primary)" }}>
-        {entry.item}
-      </span>
-      <span className="shrink-0 text-xs" style={{ color: "var(--text-muted)" }}>
-        {entry.daysBefore} day{entry.daysBefore === 1 ? "" : "s"} before, {entry.daysInRange > 0 ? `${entry.daysInRange} now` : "none since"}
-      </span>
-    </li>
-  );
-}
 
 /** Each section's `<h2>` is a landmark but not shown — the SectionNav
  * above already names the current section. A subtitle, where one is given,
@@ -219,19 +131,6 @@ const FOOD_DATE_PRESETS: DateRangePreset[] = [
   { label: "All time", days: "all" },
 ];
 
-/** The preset labels are Title Case for the filter button; these read them
- * back into the "Showing …" sentence. A custom (non-preset) range falls
- * through as its formatted date span. */
-const RANGE_PHRASE: Record<string, string> = {
-  "7 days": "the last 7 days",
-  "2 weeks": "the last 2 weeks",
-  "1 month": "the last month",
-  "6 months": "the last 6 months",
-  "1 year": "the last year",
-  "All time": "all time",
-};
-
-
 const REPETITION_DEFAULT_COUNT = 10;
 const INGREDIENTS_DEFAULT_COUNT = 10;
 
@@ -267,6 +166,7 @@ export function FoodDashboard() {
   const contentRef = useRef<HTMLDivElement>(null);
   const [showAllRepetition, setShowAllRepetition] = useState(false);
   const [showAllIngredients, setShowAllIngredients] = useState(false);
+  const [showAllEatingLess, setShowAllEatingLess] = useState(false);
 
   function selectSection(id: string) {
     setActiveSection(id);
@@ -320,55 +220,9 @@ export function FoodDashboard() {
 
   const topFoods = ranked.slice(0, 10).map((f) => ({ label: f.item, value: f.count }));
 
-  const rangeDescription = span && range ? describeDateRange(FOOD_DATE_PRESETS, span, range) : "";
-  const rangeLabel = RANGE_PHRASE[rangeDescription] ?? rangeDescription;
-
-  // Pillars logged least often — the headline names these rather than the
-  // finer group gaps (which the balance card and coverage table carry).
-  const underPillars = priorities.pillars.filter((p) => p.status === "underrepresented");
-  // Always the picker's own wording ("the last 6 months"), never the
-  // clamped actual span, so the prose can't disagree with the filter and
-  // the header above it.
-  const rangeSuffix = rangeLabel ? ` over ${rangeLabel}` : "";
-  const foodInsight = underPillars.length > 0
-      ? {
-          label: "What stands out",
-          headline: `${underPillars.slice(0, 2).map((p) => p.label).join(" and ")} ${
-            underPillars.length === 1 ? "is" : "are"
-          } logged least often${rangeSuffix}.`,
-          detail:
-            priorities.missing.length > underPillars.length
-              ? "A few specific groups are also lighter than they could be — see the coverage table."
-              : null,
-          tone: "attention" as const,
-        }
-      : priorities.missing.length > 0
-        ? {
-            label: "What stands out",
-            headline: `Your pillars look balanced${rangeSuffix}, but a few specific groups could show up more often.`,
-            detail: "The coverage table on the Variety tab lists each one.",
-            tone: "attention" as const,
-          }
-        : {
-            label: "What stands out",
-            headline: `Your intake looks balanced across the tracked food groups${rangeSuffix}.`,
-            detail:
-              priorities.doingWell.length > 0 ? (
-                <>
-                  {priorities.doingWell.slice(0, 2).map((b, i) => (
-                    <span key={b.label}>
-                      {i > 0 && " and "}
-                      <CatTerm>{b.label}</CatTerm>
-                    </span>
-                  ))}
-                  {" especially."}
-                </>
-              ) : null,
-            tone: "good" as const,
-          };
-
   const ingredientDelta =
     diversity && diversity.previous != null && diversity.current !== diversity.previous ? diversity.current - diversity.previous : null;
+  const pillarsOnTarget = priorities.pillars.filter((p) => p.percentOfTarget >= ON_TARGET_PERCENT).length;
 
   return (
     <div className="flex flex-col gap-4">
@@ -378,24 +232,6 @@ export function FoodDashboard() {
         </TrendsActions>
       )}
 
-      {!priorities.insufficientData && (
-        <Insight
-          label={foodInsight.label}
-          headline={foodInsight.headline}
-          detail={foodInsight.detail}
-          tone={foodInsight.tone}
-          stat={
-            diversity ? (
-              <StatChip
-                label="Unique ingredients"
-                value={String(diversity.current)}
-                accent={TYPE_ACCENT.food}
-                detail={ingredientDelta != null ? `${ingredientDelta > 0 ? "+" : ""}${ingredientDelta} vs prev.` : undefined}
-              />
-            ) : undefined
-          }
-        />
-      )}
 
       {/* The sticky section tabs and the section they render share one
           parent, so the tabs have room to stay pinned while a long section
@@ -412,69 +248,53 @@ export function FoodDashboard() {
             </p>
           </Card>
         ) : (
-          <>
-            <Card tier="raw">
-              <CardTitle
-                size="sm"
-                subtitle={`How each food-group pillar's weekly rate compares to its own target${rangeSuffix} — least represented first`}
-              >
-                Diet balance
-              </CardTitle>
-              <ul className="mt-1 grid grid-cols-1 gap-x-10 gap-y-4 sm:grid-cols-2">
-                {priorities.pillars.map((row) => (
-                  <PillarStatRow key={row.pillar} row={row} />
-                ))}
-              </ul>
-            </Card>
+          <div className="flex flex-col gap-4">
+            <SplitStatCard
+              items={[
+                {
+                  caption: "Ingredients",
+                  value: String(diversity?.current ?? 0),
+                  detail: ingredientDelta != null ? `${ingredientDelta > 0 ? "+" : ""}${ingredientDelta} vs previous ${rangeLengthDays} days` : undefined,
+                  detailColor: ingredientDelta != null ? (ingredientDelta > 0 ? "var(--status-good)" : "var(--status-serious)") : undefined,
+                },
+                { caption: "Groups on target", value: String(pillarsOnTarget), unit: `of ${priorities.pillars.length}` },
+              ]}
+            />
 
-            <Card tier="raw">
-              <CardTitle
-                size="sm"
-                subtitle={`What's become a staple, and what's dropped off,${rangeSuffix || " over the selected range"} — concrete ingredients, not groups`}
-              >
-                Ingredient rotation
-              </CardTitle>
-              <div className="mt-1 grid grid-cols-1 gap-x-10 gap-y-4 sm:grid-cols-2">
-                <div>
-                  <h3 className="text-xs font-semibold" style={{ color: STAPLE_TONE }}>
-                    Staples
-                  </h3>
-                  {rotation.staples.length === 0 ? (
-                    <p className="mt-2 text-xs" style={{ color: "var(--text-muted)" }}>
-                      Nothing logged on {STAPLE_MIN_PERCENT}% or more of days in this range yet.
-                    </p>
-                  ) : (
-                    <ul className="mt-2 flex flex-col gap-3">
-                      {rotation.staples.map((s) => (
-                        <StapleRow key={s.item} entry={s} />
-                      ))}
-                    </ul>
+            <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
+            <TrendGroup caption="Per week vs target">
+              {priorities.pillars.map((row) => (
+                <TrendRow
+                  key={row.pillar}
+                  label={row.label}
+                  value={`${row.rateInRangePerWeek.toFixed(1)} of ${row.targetPerWeek}`}
+                  bar={{ pct: row.percentOfTarget, color: pillarTone(row) }}
+                />
+              ))}
+            </TrendGroup>
+
+            {rotation.trendAvailable && rotation.fallenOutOfRotation.length > 0 && (
+              <div className="flex flex-col gap-1.5">
+                <TrendGroup caption={`Eating less than the previous ${rangeLengthDays} days`}>
+                  {(showAllEatingLess ? rotation.fallenOutOfRotation : rotation.fallenOutOfRotation.slice(0, SHORT_LIST)).map((f) => (
+                    <ComparisonRow
+                      key={f.item}
+                      label={f.item}
+                      before={f.daysBefore}
+                      now={f.daysInRange}
+                      max={Math.max(...rotation.fallenOutOfRotation.map((x) => x.daysBefore))}
+                      color="var(--status-serious)"
+                    />
+                  ))}
+                  {rotation.fallenOutOfRotation.length > SHORT_LIST && (
+                    <ShowAllRow total={rotation.fallenOutOfRotation.length} expanded={showAllEatingLess} onToggle={() => setShowAllEatingLess((v) => !v)} />
                   )}
-                </div>
-                <div>
-                  <h3 className="text-xs font-semibold" style={{ color: "var(--status-warning)" }}>
-                    Fallen out of rotation
-                  </h3>
-                  {!rotation.trendAvailable ? (
-                    <p className="mt-2 text-xs" style={{ color: "var(--text-muted)" }}>
-                      Needs as much history before this range as the range itself, to compare against. Pick a shorter
-                      range to see it.
-                    </p>
-                  ) : rotation.fallenOutOfRotation.length === 0 ? (
-                    <p className="mt-2 text-xs" style={{ color: "var(--text-muted)" }}>
-                      Nothing you used to eat regularly has dropped off.
-                    </p>
-                  ) : (
-                    <ul className="mt-2 flex flex-col gap-2.5">
-                      {rotation.fallenOutOfRotation.map((f) => (
-                        <FallenOutRow key={f.item} entry={f} />
-                      ))}
-                    </ul>
-                  )}
-                </div>
+                </TrendGroup>
+                <ComparisonKey color="var(--status-serious)" unit="days" />
               </div>
-            </Card>
-          </>
+            )}
+            </div>
+          </div>
         )}
       </PageSection>
 
