@@ -48,9 +48,11 @@ function fmtNum(v: number): string {
   return String(Math.round(v * 1000) / 1000);
 }
 
-/** A computed figure (an average) — two decimals is plenty. */
-function fmtMean(v: number): string {
-  return String(Math.round(v * 100) / 100);
+/** A computed figure (an average): one decimal more than the readings it
+ * comes from carry, at most two — whole-number readings average to 52.4. */
+function fmtMean(v: number, readings: readonly number[]): string {
+  const places = Math.min(2, Math.max(0, ...readings.map((r) => (String(r).split(".")[1] ?? "").length)) + 1);
+  return String(Number(v.toFixed(places)));
 }
 
 /** The one "what to show" menu: the value (latest or window average) and
@@ -379,7 +381,7 @@ function MarkerRow({
       )}
 
       <span className="pl-3 text-right text-sm leading-4 tabular-nums" style={{ color: status ? tone : "var(--text-primary)" }}>
-        {reading == null ? "—" : mode === "average" ? fmtMean(reading) : fmtNum(reading)}
+        {reading == null ? "—" : mode === "average" ? fmtMean(reading, marker.results.map((r) => r.value)) : fmtNum(reading)}
       </span>
       <span className="pl-1 text-xs leading-4 whitespace-nowrap" style={{ color: "var(--text-muted)" }}>
         {marker.unit ?? ""}
@@ -600,7 +602,7 @@ function MarkerDetailView({
             />
           )}
           {periodSummary && periodSummary.count >= 2 && (
-            <SummaryRow label={period === "All" ? "Average" : `Average, ${periodLabel(span)}`} value={fmtMean(periodSummary.mean)} />
+            <SummaryRow label={period === "All" ? "Average" : `Average, ${periodLabel(span)}`} value={fmtMean(periodSummary.mean, inPeriod.map((r) => r.value))} />
           )}
         </Card>
       )}
