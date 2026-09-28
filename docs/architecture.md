@@ -154,7 +154,7 @@ Parent-and-child writes (an appointment with tasks, a whole blood draw) queue pa
 
 ## Background jobs
 
-A static site can't run anything in the background, so Supabase's `pg_cron` / `pg_net` calls `reminder-cron` every 15 minutes with a 150s request timeout (setup SQL is commented out in `schema.sql`).
+A static site can't run anything in the background, so Supabase's `pg_cron` / `pg_net` calls `reminder-cron` every 15 minutes with a 150s request timeout (setup SQL is commented out in `schema.sql`). The job sends the project's secret key, kept in Supabase Vault, on the `apikey` header; the function is deployed without the JWT gate and checks that key itself.
 
 | Phase | Sends |
 |---|---|

@@ -1555,14 +1555,17 @@ create policy "household_task_completions_delete_pair" on public.household_task_
 -- habit item's reminder_time, plus personal_tasks/household_tasks (due_at)
 -- and personal_items/household_items (expires_on - remind_days_before) for
 -- anything due, and sends the daily unread-notes digest.
--- Run this once, filling in your own project ref and anon key (Dashboard ->
--- Project Settings -> API) — the anon key is public by design (see the
--- note in .github/workflows/deploy.yml), so it's fine inline here. Needs
--- the pg_cron and pg_net extensions, enabled below (Database -> Extensions
--- in the dashboard works too, if you'd rather click than paste SQL).
+-- Run this once, filling in your own project ref. The job authenticates
+-- with the project's secret key (Dashboard -> Project Settings -> API Keys ->
+-- Secret keys), kept in Supabase Vault rather than typed into the job, and
+-- sent on the `apikey` header — reminder-cron is deployed without the JWT
+-- gate and checks that key itself. Needs the pg_cron and pg_net extensions,
+-- enabled below (Database -> Extensions in the dashboard works too).
 --
 -- create extension if not exists pg_cron with schema extensions;
 -- create extension if not exists pg_net with schema extensions;
+--
+-- select vault.create_secret('YOUR_SB_SECRET_KEY', 'reminder_cron_key');
 --
 -- select cron.schedule(
 --   'reminder-cron',
@@ -1570,7 +1573,10 @@ create policy "household_task_completions_delete_pair" on public.household_task_
 --   $$
 --   select net.http_post(
 --     url := 'https://YOUR_PROJECT_REF.supabase.co/functions/v1/reminder-cron',
---     headers := jsonb_build_object('Authorization', 'Bearer YOUR_ANON_KEY', 'Content-Type', 'application/json'),
+--     headers := jsonb_build_object(
+--       'apikey', (select decrypted_secret from vault.decrypted_secrets where name = 'reminder_cron_key'),
+--       'Content-Type', 'application/json'
+--     ),
 --     body := '{}'::jsonb,
 --     timeout_milliseconds := 150000
 --   );

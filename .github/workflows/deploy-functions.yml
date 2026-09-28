@@ -40,7 +40,10 @@ jobs:
             fn="$(basename "$dir")"
             # _shared holds modules the functions import, not a function.
             case "$fn" in _*) continue ;; esac
-            supabase functions deploy "$fn" --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}"
+            # reminder-cron checks the scheduler's key itself (see isScheduledCall).
+            flags=""
+            if [ "$fn" = "reminder-cron" ]; then flags="--no-verify-jwt"; fi
+            supabase functions deploy "$fn" --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}" $flags
           done
 
       # Every secret an Edge Function needs is pushed into Supabase's own

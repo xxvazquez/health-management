@@ -270,21 +270,28 @@ async function markDomainReminderResolved(userId: string, domain: string, date: 
   }
 }
 
-/** The role and issue/expiry times of the key this function talks to
- * Supabase with (never the key itself), for the failure log below. */
+/** Which kind of key this function talks to Supabase with (a short prefix,
+ * never the key itself), for the failure log below. */
 function describeServiceKey(): Record<string, unknown> {
-  const key = serviceKey ?? "";
-  try {
-    const payload = JSON.parse(atob(key.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
-    const iso = (t?: number) => (t ? new Date(t * 1000).toISOString() : null);
-    return { role: payload.role, iat: iso(payload.iat), exp: iso(payload.exp), now: new Date().toISOString() };
-  } catch {
-    return { format: key ? `not a JWT, starts with ${key.slice(0, 6)}` : "missing", now: new Date().toISOString() };
-  }
+  const key = secretKey() ?? "";
+  return { format: key ? `starts with ${key.slice(0, 9)}` : "missing", now: new Date().toISOString() };
+}
+
+/** The pg_cron job sends the project's secret key on the `apikey` header
+ * (read from Supabase Vault). The legacy anon JWT on Authorization is still
+ * accepted while the job is being moved over; it stops working once
+ * Supabase turns legacy keys off. */
+function isScheduledCall(req: Request): boolean {
+  const secret = secretKey();
+  const apikey = req.headers.get("apikey");
+  if (secret && apikey === secret) return true;
+  const legacyAnon = Deno.env.get("SUPABASE_ANON_KEY");
+  return !!legacyAnon && req.headers.get("Authorization") === `Bearer ${legacyAnon}`;
 }
 
 Deno.serve(async (req) => {
   if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
+  if (!isScheduledCall(req)) return new Response("Unauthorized", { status: 401 });
 
   const { data: subs, error } = await supabase.from("push_subscriptions").select("*");
   if (error) {
