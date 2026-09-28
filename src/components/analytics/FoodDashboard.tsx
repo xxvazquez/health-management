@@ -56,7 +56,7 @@ const ON_TARGET_PERCENT = 85;
  * target, close to it, or well short. */
 function pillarTone(row: PillarStat): string {
   if (row.percentOfTarget >= ON_TARGET_PERCENT) return "var(--status-good)";
-  return row.percentOfTarget < 50 ? "var(--status-serious)" : "var(--status-warning)";
+  return row.percentOfTarget < 50 ? "var(--status-critical)" : "var(--status-warning)";
 }
 
 /** How many rows a trimmed Trends list shows before "Show all". */
@@ -255,9 +255,9 @@ export function FoodDashboard() {
                   caption: "Ingredients",
                   value: String(diversity?.current ?? 0),
                   detail: ingredientDelta != null ? `${ingredientDelta > 0 ? "+" : ""}${ingredientDelta} vs previous ${rangeLengthDays} days` : undefined,
-                  detailColor: ingredientDelta != null ? (ingredientDelta > 0 ? "var(--status-good)" : "var(--status-serious)") : undefined,
+                  detailColor: ingredientDelta != null ? (ingredientDelta > 0 ? "var(--status-good)" : "var(--status-critical)") : undefined,
                 },
-                { caption: "Groups on target", value: String(pillarsOnTarget), unit: `of ${priorities.pillars.length}` },
+                { caption: "Groups on target", value: String(pillarsOnTarget), unit: `of ${priorities.pillars.length}`, detail: `${ON_TARGET_PERCENT}% of target or more` },
               ]}
             />
 
@@ -283,14 +283,14 @@ export function FoodDashboard() {
                       before={f.daysBefore}
                       now={f.daysInRange}
                       max={Math.max(...rotation.fallenOutOfRotation.map((x) => x.daysBefore))}
-                      color="var(--status-serious)"
+                      color="var(--status-critical)"
                     />
                   ))}
                   {rotation.fallenOutOfRotation.length > SHORT_LIST && (
                     <ShowAllRow total={rotation.fallenOutOfRotation.length} expanded={showAllEatingLess} onToggle={() => setShowAllEatingLess((v) => !v)} />
                   )}
                 </TrendGroup>
-                <ComparisonKey color="var(--status-serious)" unit="days" />
+                <ComparisonKey color="var(--status-critical)" unit="days" />
               </div>
             )}
             </div>

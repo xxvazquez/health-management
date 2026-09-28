@@ -9,7 +9,7 @@ import { ChevronIcon } from "@/components/ui/icons";
  * comparisons. One shape everywhere, so pages scan the same way. */
 
 /** The previous period in a comparison — a quiet grey next to the coloured "now". */
-const BEFORE_COLOR = "color-mix(in oklab, var(--text-muted) 40%, var(--surface-1))";
+const BEFORE_COLOR = "color-mix(in oklab, var(--text-muted) 60%, var(--surface-1))";
 
 const GROUP_STYLE = { borderColor: "var(--border-hairline)", background: "var(--surface-1)" } as const;
 
