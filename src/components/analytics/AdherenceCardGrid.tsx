@@ -134,6 +134,37 @@ function monthlyConsistency(year: number, doneDates: Set<string>, firstTracked: 
   });
 }
 
+/** The footer figures for the period the card is showing — the month or
+ * year on the calendar, from the item's first tracked day up to today —
+ * so the numbers always describe the squares above them. */
+function periodStats(
+  view: View,
+  anchor: string,
+  done: Set<string>,
+  firstTracked: string,
+  today: string,
+  currentStreak: number,
+): { pct: number; days: number; streak: number; streakKind: "current" | "longest" } | null {
+  const year = anchor.slice(0, 4);
+  const periodStart = view === "month" ? anchor : `${year}-01-01`;
+  const lastOfMonth = new Date(Number(year), Number(anchor.slice(5, 7)), 0).getDate();
+  const periodEnd = view === "month" ? `${anchor.slice(0, 7)}-${String(lastOfMonth).padStart(2, "0")}` : `${year}-12-31`;
+  const start = periodStart < firstTracked ? firstTracked : periodStart;
+  const end = periodEnd > today ? today : periodEnd;
+  if (start > end) return null;
+  const dates = listDatesBetween(start, end);
+  const days = dates.filter((d) => done.has(d)).length;
+  // In a month that includes today, the streak that matters is the one still
+  // running; any other period shows its longest run instead.
+  const includesToday = periodEnd >= today;
+  return {
+    pct: Math.round((days / dates.length) * 100),
+    days,
+    streak: view === "month" && includesToday ? currentStreak : computeLongestStreak(dates, done),
+    streakKind: view === "month" && includesToday ? "current" : "longest",
+  };
+}
+
 function Ico({ children }: { children: ReactNode }) {
   return (
     <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="shrink-0">
@@ -264,7 +295,7 @@ export function AdherenceCardGrid({
               {rows.map((it) => {
                 const done = doneByItem.get(it.item) ?? new Set<string>();
                 const color = colorByItem.get(it.item) ?? accent;
-                const longest = view === "year" ? computeLongestStreak(listDatesBetween(it.firstTrackedDate, today), done) : 0;
+                const period = periodStats(view, anchor, done, it.firstTrackedDate, today, it.currentStreak);
                 return (
                   <div
                     key={it.itemIdentity}
@@ -286,26 +317,24 @@ export function AdherenceCardGrid({
                       <HabitYearBars monthly={monthlyConsistency(anchorYear, done, it.firstTrackedDate, today)} color={color} />
                     )}
 
-                    <div
-                      className="flex items-center gap-2.5 overflow-hidden border-t pt-2 whitespace-nowrap"
-                      style={{ borderColor: "var(--gridline)" }}
-                    >
-                      <Stat icon={<DonutIcon />} label="Consistency">
-                        {it.consistencyPct}%
-                      </Stat>
-                      <Stat icon={<CheckIcon />} label="Days completed">
-                        {it.daysCompleted}
-                      </Stat>
-                      {view === "month" ? (
-                        <Stat icon={<FlameIcon />} label="Current streak">
-                          {it.currentStreak}
+                    {period && (
+                      <div
+                        className="flex items-center gap-2.5 overflow-hidden border-t pt-2 whitespace-nowrap"
+                        style={{ borderColor: "var(--gridline)" }}
+                      >
+                        <Stat icon={<DonutIcon />} label="Consistency">
+                          {period.pct}%
                         </Stat>
-                      ) : (
-                        <Stat icon={<TrophyIcon />} label="Longest streak">
-                          {longest}
+                        <Stat icon={<CheckIcon />} label="Days completed">
+                          {period.days}
                         </Stat>
-                      )}
-                    </div>
+                        {period.streak >= 2 && (
+                          <Stat icon={period.streakKind === "current" ? <FlameIcon /> : <TrophyIcon />} label={period.streakKind === "current" ? "Current streak" : "Longest streak"}>
+                            {period.streak}
+                          </Stat>
+                        )}
+                      </div>
+                    )}
                   </div>
                 );
               })}
