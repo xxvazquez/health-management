@@ -7,6 +7,7 @@ import { PageSkeleton } from "@/components/ui/Skeleton";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { Insight } from "@/components/ui/Insight";
 import { Stat, StatGrid } from "@/components/ui/StatGrid";
+import { TrendsActions } from "@/components/analytics/TrendsActions";
 import { DateRangeFilter } from "@/components/ui/DateRangeFilter";
 import { TrendAreaChart } from "@/components/charts/TrendAreaChart";
 import { useDateRangeFilter } from "@/lib/useDateRangeFilter";
@@ -66,9 +67,9 @@ export function CycleDashboard() {
           </span>
         )}
         {span && range && (
-          <div className="ml-auto">
+          <TrendsActions>
             <DateRangeFilter span={span} value={range} onChange={setRange} accent={ACCENT} />
-          </div>
+          </TrendsActions>
         )}
       </div>
 
