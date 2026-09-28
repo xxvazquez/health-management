@@ -38,6 +38,8 @@ jobs:
         run: |
           for dir in supabase/functions/*/; do
             fn="$(basename "$dir")"
+            # _shared holds modules the functions import, not a function.
+            case "$fn" in _*) continue ;; esac
             supabase functions deploy "$fn" --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}"
           done
 

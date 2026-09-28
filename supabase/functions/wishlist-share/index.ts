@@ -5,11 +5,13 @@
 // JWT gate. Android adds links through the PWA share target and never hits
 // this.
 //
-// Deployed by .github/workflows/deploy-functions.yml. SUPABASE_URL and
-// SUPABASE_SERVICE_ROLE_KEY are injected automatically for every Edge
-// Function; this needs no other secrets.
+// Deployed by .github/workflows/deploy-functions.yml. SUPABASE_URL and the
+// project's secret key are injected automatically for every Edge Function;
+// this needs no other secrets.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { secretKey } from "../_shared/keys.ts";
+import { fetchPageTitle } from "../_shared/linkTitle.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -27,11 +29,7 @@ function json(body: unknown, status = 200): Response {
 // on first use. The user re-files items into their own lists in the app.
 const DEFAULT_LIST = "Saved from phone";
 
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-// SERVICE_ROLE_JWT (a legacy JWT service_role key, set by hand) overrides the
-// built-in key, which can be a newer sb_secret_ key PostgREST rejects.
-const SERVICE_ROLE_KEY = (Deno.env.get("SERVICE_ROLE_JWT") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"))!;
-const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
+const admin = createClient(Deno.env.get("SUPABASE_URL")!, secretKey()!);
 
 function safeDecode(s: string): string {
   try {
@@ -64,19 +62,8 @@ function cleanUrl(raw: unknown): string | null {
 async function titleFor(url: string, provided: unknown): Promise<string> {
   const given = typeof provided === "string" ? provided.trim() : "";
   if (given) return given.slice(0, 300);
-  try {
-    const res = await fetch(`${SUPABASE_URL}/functions/v1/fetch-link-metadata`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${SERVICE_ROLE_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ url }),
-    });
-    if (res.ok) {
-      const data = await res.json();
-      if (typeof data?.title === "string" && data.title.trim()) return data.title.trim().slice(0, 300);
-    }
-  } catch {
-    // fall through to the hostname
-  }
+  const fetched = await fetchPageTitle(url);
+  if (fetched) return fetched;
   try {
     return new URL(url).hostname.replace(/^www\./, "");
   } catch {

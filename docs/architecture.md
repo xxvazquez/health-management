@@ -191,5 +191,5 @@ A static site can't run anything in the background, so Supabase's `pg_cron` / `p
 
 - **App:** `deploy.yml` builds with full git history (for the version number) and publishes to GitHub Pages
 - **Edge Functions:** `deploy-functions.yml` deploys on changes to `supabase/functions/` and pushes only secrets that have a value, so an empty GitHub secret can't wipe one set by hand. Changing a secret's value alone doesn't trigger it; run it manually
-- **Service key:** functions prefer `SERVICE_ROLE_JWT` (a legacy `service_role` JWT, set by hand) over the built-in `SUPABASE_SERVICE_ROLE_KEY`, whose `sb_secret_` form PostgREST rejects with `PGRST303`
+- **API keys:** functions read the project's new keys from the injected `SUPABASE_SECRET_KEYS` / `SUPABASE_PUBLISHABLE_KEYS` (`_shared/keys.ts`), falling back to the legacy `SUPABASE_SERVICE_ROLE_KEY` / `SUPABASE_ANON_KEY` only if those are missing. Shared code lives in `supabase/functions/_shared/`, which the deploy loop skips
 - **RLS tests:** CI applies `schema.sql` to a throwaway Postgres and runs `supabase/tests/rls.test.sql`; `sync.test.ts` covers the client's own `user_id` scoping, including an account switch

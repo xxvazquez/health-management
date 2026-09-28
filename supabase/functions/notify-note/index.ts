@@ -8,12 +8,13 @@
 // dropped for being noisy (see reminder-cron's notes-digest phase). The push
 // carries no subject or body, only that something arrived — read it in Lauva.
 //
-// SUPABASE_URL, SUPABASE_ANON_KEY and SUPABASE_SERVICE_ROLE_KEY are injected
+// SUPABASE_URL and the project's publishable and secret keys are injected
 // into every Edge Function automatically; only the VAPID keys need setting by
 // hand (see .github/workflows/deploy-functions.yml).
 
 import webpush from "npm:web-push@3.6.7";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { publishableKey, secretKey } from "../_shared/keys.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -48,12 +49,10 @@ Deno.serve(async (req) => {
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
-  const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
-  // SERVICE_ROLE_JWT (a legacy JWT service_role key, set by hand) overrides the
-  // built-in key, which can be a newer sb_secret_ key PostgREST rejects.
-  const serviceRoleKey = Deno.env.get("SERVICE_ROLE_JWT") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  const anonKey = publishableKey();
+  const serviceRoleKey = secretKey();
   if (!supabaseUrl || !anonKey || !serviceRoleKey || !Deno.env.get("VAPID_PUBLIC_KEY")) {
-    console.error("notify-note: missing SUPABASE_URL / SUPABASE_ANON_KEY / SUPABASE_SERVICE_ROLE_KEY / VAPID_PUBLIC_KEY");
+    console.error("notify-note: missing SUPABASE_URL / publishable key / secret key / VAPID_PUBLIC_KEY");
     return json({ error: "Server not configured" }, 500);
   }
 
