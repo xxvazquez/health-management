@@ -1,5 +1,6 @@
 import { supabase } from "./client";
 import { upsertDirect } from "./directWrite";
+import type { FoodTargetsPref } from "@/lib/foodTargets";
 
 const TABLE = "user_preferences";
 
@@ -17,6 +18,8 @@ export interface Preferences {
   appearance?: { theme?: string; light?: string; dark?: string };
   /** The Log section last open, so Log reopens there. */
   lastLogTab?: string;
+  /** Settings → Food targets: diet plus per-group weekly targets. */
+  foodTargets?: FoodTargetsPref;
 }
 
 async function currentUserId(): Promise<string | null> {

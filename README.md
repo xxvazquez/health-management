@@ -84,6 +84,7 @@ A grouped list (Tracking, Health, Lists, App) where each row opens its own scree
   - Any colour via + (system colour picker); it's saved to **Your colours** and offered in every other picker; in dark mode a very dark pick is lightened just enough to stay visible
 - Edit products, reminder lists, wishlist lists, lab markers and panels, doctors and doctor types
 - Edit the Stool and Coffee option chips, the coffee currency, and add or edit coffees (adding one shows the Coffee tab on Log)
+- Set food targets: a diet (Everything, Pescatarian, Vegetarian, Vegan) that fills in each food group's times-a-week target, adjustable per group or Off; Trends → Food measures against them (`/manage/?section=Food%20targets` opens it)
 - Build weekly workout plans: lifts, each with a starting weight and its own weekly gain, and which days get +kg or % of that week's base
 - Show or hide tracked sections, each with an optional daily "remind me to log" time
 - Export your data as JSON (whole account) or CSV (one section or everything)

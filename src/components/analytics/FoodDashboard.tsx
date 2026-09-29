@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState, type ReactNode } from "react";
+import Link from "next/link";
 import { useData } from "@/lib/DataContext";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageSkeleton } from "@/components/ui/Skeleton";
@@ -16,6 +17,8 @@ import { RankedBarChart } from "@/components/charts/RankedBarChart";
 import { MultiLineChart } from "@/components/charts/MultiLineChart";
 import { useDateRangeFilter } from "@/lib/useDateRangeFilter";
 import { useFoodNutritionGroupOverrides } from "@/lib/useFoodNutritionGroupOverrides";
+import { usePreferences } from "@/lib/usePreferences";
+import { resolveFoodTargets } from "@/lib/foodTargets";
 import { daysBetween } from "@/lib/aggregations/common";
 import {
   favoriteCombosByMeal,
@@ -159,6 +162,9 @@ export function FoodDashboard() {
   const { status, events } = useData();
   const { span, range, setRange, filtered } = useDateRangeFilter(events);
   const { overrides: nutritionGroupOverrides } = useFoodNutritionGroupOverrides();
+  const { prefs } = usePreferences();
+  const foodTargetsPref = prefs.foodTargets;
+  const foodTargets = useMemo(() => resolveFoodTargets(foodTargetsPref), [foodTargetsPref]);
   // One section at a time, like the Log page — SectionNav swaps which
   // section renders rather than scrolling to it, so reaching "Repetition"
   // or "Ingredients" never means scrolling past everything above.
@@ -189,8 +195,8 @@ export function FoodDashboard() {
   // the selected range, so switching the date-range control recalculates
   // everything on this page, not just the charts.
   const priorities = useMemo(
-    () => computeNutritionPriorities(events, range ?? null, nutritionGroupOverrides),
-    [events, range, nutritionGroupOverrides],
+    () => computeNutritionPriorities(events, range ?? null, nutritionGroupOverrides, foodTargets),
+    [events, range, nutritionGroupOverrides, foodTargets],
   );
   const rotation = useMemo(
     () => (range ? ingredientRotation(events, range) : { staples: [], fallenOutOfRotation: [], trendAvailable: false }),
@@ -262,7 +268,17 @@ export function FoodDashboard() {
             />
 
             <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
-            <TrendGroup caption="Per week vs target">
+            <TrendGroup
+              caption="Per week vs target"
+              note={
+                <>
+                  Targets from{" "}
+                  <Link href="/manage/?section=Food%20targets" className="underline" style={{ color: "var(--series-1)" }}>
+                    your settings
+                  </Link>
+                </>
+              }
+            >
               {priorities.pillars.map((row) => (
                 <TrendRow
                   key={row.pillar}

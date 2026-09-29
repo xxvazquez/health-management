@@ -17,6 +17,7 @@ import { DemoNotice } from "@/components/ui/DemoNotice";
 import { PushNotificationsToggle } from "@/components/PushNotificationsToggle";
 import { DataExportCard } from "@/components/manage/DataExportCard";
 import { WorkoutPlansCard } from "@/components/manage/WorkoutPlansCard";
+import { FoodTargetsCard } from "@/components/manage/FoodTargetsCard";
 import { AddRow, CollapsibleManageCard, GROUP_CLS, GROUP_STYLE, GroupNote, ManageNavContext, OpenInLogRow, SectionRow, useSectionMode } from "@/components/manage/ManageSection";
 import { SwitchKnob } from "@/components/ui/Switch";
 import { TimePicker } from "@/components/ui/DatePicker";
@@ -3185,6 +3186,16 @@ export default function ManagePage() {
     if (window.history.state?.manageSection) window.history.back();
     else setActiveSection(null);
   }, []);
+  // `/manage/?section=<title>` (links from other pages) opens that section.
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const linked = url.searchParams.get("section");
+    if (!linked) return;
+    url.searchParams.delete("section");
+    window.history.replaceState(window.history.state, "", url);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- the section comes from the URL, read once on arrival
+    openSection(linked);
+  }, [openSection]);
   useEffect(() => {
     const onPop = (e: PopStateEvent) => setActiveSection(e.state?.manageSection ?? null);
     window.addEventListener("popstate", onPop);
@@ -3622,6 +3633,7 @@ export default function ManagePage() {
         />
       ),
     },
+    { label: "Food targets", el: <FoodTargetsCard key="food-targets" searchQuery={searchQuery} /> },
     { label: "Doctor types", el: <DoctorSpecialtiesCard key="doctor-types" isDemoData={isDemoData} searchQuery={searchQuery} /> },
     { label: "Lab results", el: <LabResultsCard key="lab-results" searchQuery={searchQuery} /> },
     { label: "Stool options", el: <StoolOptionsCard key="stool-options" isDemoData={isDemoData} searchQuery={searchQuery} /> },
@@ -3694,7 +3706,7 @@ export default function ManagePage() {
   for (const sec of appSections) sectionByLabel.set(sec.label, sec.el);
 
   const groups: { title: string; labels: string[] }[] = [
-    { title: "Tracking", labels: ["Food", "Food products", "Symptoms", "Supplements", "Habits", "Workout", "Workout plans", "Coffee", "Stool options"] },
+    { title: "Tracking", labels: ["Food", "Food products", "Food targets", "Symptoms", "Supplements", "Habits", "Workout", "Workout plans", "Coffee", "Stool options"] },
     { title: "Health", labels: ["Doctors", "Doctor types", "Lab results", "Weight goal"] },
     { title: "Lists", labels: ["Reminder lists", "Wishlist lists"] },
     { title: "App", labels: ["Appearance", "Visible sections", "Your data"] },

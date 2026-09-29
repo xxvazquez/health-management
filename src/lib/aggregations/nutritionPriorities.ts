@@ -16,6 +16,7 @@ import {
   type PillarId,
 } from "@/taxonomy/nutritionGroups";
 import { evidenceForGroup } from "@/lib/nutritionEvidence";
+import { DEFAULT_FOOD_TARGETS, DIET_DEFAULTS, type ResolvedFoodTargets, type TargetPillar } from "@/lib/foodTargets";
 
 /** Distinct food-tracked days needed, WITHIN THE SELECTED RANGE, before the
  * engine trusts its own ranking enough to produce priorities — below this,
@@ -333,9 +334,27 @@ function computeAggregateState(
   };
 }
 
-function computeGroupState(group: NutritionGroupId, foods: CanonicalEvent[], range: DateRange, insufficientData: boolean): GroupState {
-  const evidence = evidenceForGroup(group);
-  return computeAggregateState([group], evidence?.targetPerWeek ?? null, NUTRITION_GROUP_LABEL[group], pillarForGroup(group), foods, range, insufficientData);
+/** A group's weekly target under the user's food targets: its evidence
+ * default scaled by how far the user moved its pillar's target, or null
+ * when that pillar is switched off. */
+function groupTarget(group: NutritionGroupId, targets: ResolvedFoodTargets): number | null {
+  const base = evidenceForGroup(group)?.targetPerWeek ?? null;
+  const pillar = pillarForGroup(group);
+  if (!(pillar in targets)) return base;
+  const pillarTarget = targets[pillar as TargetPillar];
+  if (pillarTarget == null) return null;
+  if (base == null) return null;
+  return Math.max(1, Math.round((base * pillarTarget) / DIET_DEFAULTS.everything[pillar as TargetPillar]));
+}
+
+function computeGroupState(
+  group: NutritionGroupId,
+  targetPerWeek: number | null,
+  foods: CanonicalEvent[],
+  range: DateRange,
+  insufficientData: boolean,
+): GroupState {
+  return computeAggregateState([group], targetPerWeek, NUTRITION_GROUP_LABEL[group], pillarForGroup(group), foods, range, insufficientData);
 }
 
 const ADD_PHRASE: Partial<Record<NutritionGroupId, string>> = {
@@ -491,11 +510,15 @@ const emptyVariety: VarietyMetrics = {
  * item name) corrects a food's nutrition group before every group-based
  * metric below is computed from it — see nutritionGroupsForFood's own
  * comment for how an override interacts with the keyword lookup.
+ *
+ * `targets` are the user's weekly targets per pillar (Settings → Food
+ * targets); a pillar set to off is left out of every figure.
  */
 export function computeNutritionPriorities(
   events: CanonicalEvent[],
   range: DateRange | null,
   overrides: Record<string, NutritionGroupOverride> = {},
+  targets: ResolvedFoodTargets = DEFAULT_FOOD_TARGETS,
 ): NutritionPriorities {
   currentOverrides = overrides;
   groupCache.clear();
@@ -523,8 +546,10 @@ export function computeNutritionPriorities(
   const daysWithFoodTracked = new Set(foodsInRange.map((e) => e.date)).size;
   const insufficientData = daysWithFoodTracked < MIN_FOOD_DAYS_FOR_CONFIDENCE;
 
-  const allGroupStates = PRIORITY_ELIGIBLE_GROUPS.map((g) => computeGroupState(g, foods, range, insufficientData));
-  const otherSeafoodState = computeGroupState("other_seafood", foods, range, insufficientData);
+  const allGroupStates = PRIORITY_ELIGIBLE_GROUPS.filter((g) => groupTarget(g, targets) != null).map((g) =>
+    computeGroupState(g, groupTarget(g, targets), foods, range, insufficientData),
+  );
+  const otherSeafoodState = computeGroupState("other_seafood", null, foods, range, insufficientData);
 
   // ---- Priority candidates (group gaps + pillar variety gaps) ----
   const groupCandidates: PriorityCandidate[] = allGroupStates
@@ -553,9 +578,9 @@ export function computeNutritionPriorities(
   }
 
   const varietyCandidates = [
-    pillarVarietyCandidate("vegetables", VEGETABLE_VARIETY_THRESHOLD, allGroupStates, foods, range),
-    pillarVarietyCandidate("fruit", FRUIT_VARIETY_THRESHOLD, allGroupStates, foods, range),
-    pillarVarietyCandidate("nuts_seeds", NUTS_SEEDS_VARIETY_THRESHOLD, allGroupStates, foods, range),
+    targets.vegetables != null ? pillarVarietyCandidate("vegetables", VEGETABLE_VARIETY_THRESHOLD, allGroupStates, foods, range) : null,
+    targets.fruit != null ? pillarVarietyCandidate("fruit", FRUIT_VARIETY_THRESHOLD, allGroupStates, foods, range) : null,
+    targets.nuts_seeds != null ? pillarVarietyCandidate("nuts_seeds", NUTS_SEEDS_VARIETY_THRESHOLD, allGroupStates, foods, range) : null,
   ].filter((c): c is PriorityCandidate => c !== null);
 
   const sortedGroupCandidates = [...groupCandidates].sort((a, b) => b.score - a.score);
@@ -564,7 +589,7 @@ export function computeNutritionPriorities(
   // ---- Doing well / missing, built pillar-by-pillar so a mixed pillar
   // (e.g. good other-vegetables, rare cruciferous) names the specific gap
   // rather than a vague pillar-wide verdict. ----
-  const CORE_PILLARS: PillarId[] = ["vegetables", "fruit", "legumes", "grains", "nuts_seeds", "fish"];
+  const CORE_PILLARS: PillarId[] = (["vegetables", "fruit", "legumes", "grains", "nuts_seeds", "fish"] as const).filter((p) => targets[p] != null);
   const doingWell: Bullet[] = [];
   const missing: Bullet[] = [];
 
@@ -622,24 +647,25 @@ export function computeNutritionPriorities(
 
   // ---- Coverage table: the fixed compact set from the design brief ----
   const byGroup = new Map(allGroupStates.map((s) => [s.group, s]));
-  const vegState = computeAggregateState(CORE_VEGETABLE_GROUPS, 7, "Vegetables (overall)", "vegetables", foods, range, insufficientData);
-  const fruitState = computeAggregateState(CORE_FRUIT_GROUPS, 7, "Fruit (overall)", "fruit", foods, range, insufficientData);
-  const nutsSeedsState = computeAggregateState(["nuts", "seeds"], 5, "Nuts & seeds", "nuts_seeds", foods, range, insufficientData);
+  const vegState = computeAggregateState(CORE_VEGETABLE_GROUPS, targets.vegetables, "Vegetables (overall)", "vegetables", foods, range, insufficientData);
+  const fruitState = computeAggregateState(CORE_FRUIT_GROUPS, targets.fruit, "Fruit (overall)", "fruit", foods, range, insufficientData);
+  const nutsSeedsState = computeAggregateState(["nuts", "seeds"], targets.nuts_seeds, "Nuts & seeds", "nuts_seeds", foods, range, insufficientData);
 
-  const coverageTable: CoverageRow[] = [
-    rowFor("Leafy greens", byGroup.get("leafy_greens")!),
-    rowFor("Cruciferous", byGroup.get("cruciferous")!),
-    rowFor("Red & orange veg", byGroup.get("red_orange_veg")!),
-    rowFor("Onion family", byGroup.get("alliums")!),
-    rowFor("Berries", byGroup.get("berries")!),
-    rowFor("Citrus", byGroup.get("citrus")!),
-    rowFor("Legumes", byGroup.get("legumes")!),
-    rowFor("Whole grains", byGroup.get("whole_grains")!),
-    rowFor("Nuts & seeds", nutsSeedsState),
-    rowFor("Fatty fish", byGroup.get("fatty_fish")!),
-    rowFor("Vegetables (overall)", vegState),
-    rowFor("Fruit (overall)", fruitState),
+  const coverageRows: [string, GroupState | undefined][] = [
+    ["Leafy greens", byGroup.get("leafy_greens")],
+    ["Cruciferous", byGroup.get("cruciferous")],
+    ["Red & orange veg", byGroup.get("red_orange_veg")],
+    ["Onion family", byGroup.get("alliums")],
+    ["Berries", byGroup.get("berries")],
+    ["Citrus", byGroup.get("citrus")],
+    ["Legumes", byGroup.get("legumes")],
+    ["Whole grains", byGroup.get("whole_grains")],
+    ["Nuts & seeds", targets.nuts_seeds != null ? nutsSeedsState : undefined],
+    ["Fatty fish", byGroup.get("fatty_fish")],
+    ["Vegetables (overall)", targets.vegetables != null ? vegState : undefined],
+    ["Fruit (overall)", targets.fruit != null ? fruitState : undefined],
   ];
+  const coverageTable: CoverageRow[] = coverageRows.flatMap(([label, state]) => (state ? [rowFor(label, state)] : []));
 
   // ---- Pillar balance — keyed off the same union-based aggregate state as
   // the coverage table, so the Overview card never contradicts what the
@@ -720,7 +746,9 @@ export function computeNutritionPriorities(
         { label: "Berry exposure (days)", current: exposureDays(currentFoods, "berries"), previous: exposureDays(previousFoods, "berries") },
         { label: "Legume exposure (days)", current: exposureDays(currentFoods, "legumes"), previous: exposureDays(previousFoods, "legumes") },
         { label: "Whole-grain exposure (days)", current: exposureDays(currentFoods, "whole_grains"), previous: exposureDays(previousFoods, "whole_grains") },
-        { label: "Fatty-fish exposure (days)", current: exposureDays(currentFoods, "fatty_fish"), previous: exposureDays(previousFoods, "fatty_fish") },
+        ...(targets.fish != null
+          ? [{ label: "Fatty-fish exposure (days)", current: exposureDays(currentFoods, "fatty_fish"), previous: exposureDays(previousFoods, "fatty_fish") }]
+          : []),
         {
           label: "Nut/seed exposure (days)",
           current: exposureDays(currentFoods, "nuts") + exposureDays(currentFoods, "seeds"),
