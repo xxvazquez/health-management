@@ -150,6 +150,7 @@ export function WorkoutPlanView({
   isDemoData,
   accent,
   onLog,
+  onOpenEntry,
   onNavigateToDate,
 }: {
   plans: WorkoutPlan[];
@@ -162,6 +163,7 @@ export function WorkoutPlanView({
   isDemoData: boolean;
   accent: string;
   onLog: (exercise: string, value: number) => Promise<void>;
+  onOpenEntry: (id: string) => void;
   onNavigateToDate: (date: string) => void;
 }) {
   const logged = useLoggedValues(allLogs, itemsById);
@@ -234,11 +236,12 @@ export function WorkoutPlanView({
                       key={`${set.itemId}:${i}:${set.targetKg}`}
                       item={item}
                       lastValue={set.targetKg}
-                      todaysSets={entries.filter((e) => e.exercise === item.rawName).map((e) => e.weightKg)}
+                      todaysSets={entries.filter((e) => e.exercise === item.rawName).sort((a, b) => a.updatedAt - b.updatedAt)}
                       isDemoData={isDemoData}
                       accent={accent}
                       detail={<StatusLine set={set} />}
                       onLog={(value) => onLog(item.rawName, value)}
+                      onOpenEntry={onOpenEntry}
                     />
                   );
                 })

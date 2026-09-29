@@ -74,6 +74,7 @@ import { DatePicker, TimePicker } from "@/components/ui/DatePicker";
 import { Field } from "@/components/ui/Field";
 import { FormGroup } from "@/components/ui/FormGroup";
 import { Sheet } from "@/components/ui/Sheet";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { ROW_INLINE_CLS, ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
 import { AutoGrowTextarea } from "@/components/ui/AutoGrowTextarea";
 import { CheckIcon, ChevronIcon, CloseIcon, NoteIcon, PlusIcon, UpDownChevronIcon } from "@/components/ui/icons";
@@ -608,6 +609,9 @@ export default function LogPage() {
   // time, new meal tag, ...) is reflected immediately instead of showing
   // the stale value the sheet was opened with.
   const [detailKey, setDetailKey] = useState<string | null>(null);
+  // A timed/counted workout logged again on a day that already has it —
+  // asks before adding the new value onto the existing entry.
+  const [workoutMerge, setWorkoutMerge] = useState<{ existing: RawWorkoutLog; value: number; unit: WorkoutUnit } | null>(null);
   // Summary's timeline shows each meal's foods as one row; this is the meal
   // whose food list sheet is open (a food's own sheet opens on top of it).
   const [mealSheetTag, setMealSheetTag] = useState<string | null>(null);
@@ -1603,6 +1607,14 @@ export default function LogPage() {
 
   async function handleSaveWorkoutEntry(entry: NewWorkoutEntry) {
     if (isDemoData) return;
+    // Strength sets stay separate; minutes, hours and reps add up into the
+    // day's one entry for that exercise.
+    const unit: WorkoutUnit = workoutItemById.get(workoutItemIdByName.get(normalizeName(entry.exercise)) ?? "")?.unit ?? "kg";
+    const existing = unit === "kg" ? undefined : workoutEntriesForDate.find((g) => g.exercise === entry.exercise);
+    if (existing) {
+      setWorkoutMerge({ existing, value: Number(entry.weightKg), unit });
+      return;
+    }
     logHaptic();
     const log: RawWorkoutLog = {
       id: createTimeOrderedId(),
@@ -1613,6 +1625,17 @@ export default function LogPage() {
     };
     await putWorkoutLogAndSync(log);
     await refreshAfterWrite();
+  }
+
+  async function handleConfirmWorkoutMerge() {
+    if (!workoutMerge) return;
+    const { existing, value } = workoutMerge;
+    logHaptic();
+    setPending(existing.id);
+    await putWorkoutLogAndSync({ ...existing, weightKg: Math.round((existing.weightKg + value) * 100) / 100 });
+    await refreshAfterWrite();
+    setPending(null);
+    setWorkoutMerge(null);
   }
 
   /** Reuses the given date's existing period_logs id when one already
@@ -2427,6 +2450,7 @@ export default function LogPage() {
                 isDemoData={isDemoData}
                 accent={WORKOUT_ACCENT}
                 onLog={(exercise, value) => handleSaveWorkoutEntry({ exercise, weightKg: String(value), time: workoutTime })}
+                onOpenEntry={setDetailKey}
                 onNavigateToDate={setDate}
               />
             ) : (
@@ -2438,6 +2462,7 @@ export default function LogPage() {
                 accent={WORKOUT_ACCENT}
                 time={workoutTime}
                 onSave={handleSaveWorkoutEntry}
+                onOpenEntry={setDetailKey}
               />
             )}
           </div>
@@ -2747,6 +2772,22 @@ export default function LogPage() {
       )}
         </div>
       )}
+      {workoutMerge &&
+        (() => {
+          const { existing, value, unit } = workoutMerge;
+          const label = workoutUnitLabel(unit);
+          const total = Math.round((existing.weightKg + value) * 100) / 100;
+          return (
+            <ConfirmDialog
+              title={`${existing.exercise} is already logged`}
+              message={`${existing.weightKg} ${label} so far today. Add ${value} ${label} to make ${total} ${label}?`}
+              confirmLabel="Add"
+              busy={pending === existing.id}
+              onConfirm={() => void handleConfirmWorkoutMerge()}
+              onClose={() => setWorkoutMerge(null)}
+            />
+          );
+        })()}
       {mealSheetTag && mealSheetEntries && !detailEntry && (
         <Sheet
           title={mealSheetTag}

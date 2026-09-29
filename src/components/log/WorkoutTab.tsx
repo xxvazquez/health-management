@@ -232,8 +232,8 @@ const DEFAULT_FOR_UNKNOWN_UNIT = 10;
 /** One row per exercise, grouped by category — set the value on the
  * stepper (± for the coarse step, drag or tap the number for fine), tap
  * Log. Every exercise is already on screen and ready to log, so logging a
- * second lift right after doesn't mean re-picking it from a list. A logged
- * set's own edit/delete/note lives in the day timeline on Summary. */
+ * second lift right after doesn't mean re-picking it from a list. Tapping a
+ * value already logged today opens that entry's sheet (edit, note, delete). */
 export function ExerciseRow({
   item,
   lastValue,
@@ -241,16 +241,18 @@ export function ExerciseRow({
   isDemoData,
   accent,
   onLog,
+  onOpenEntry,
   detail,
 }: {
   item: RawItem;
   lastValue: number | undefined;
-  /** This exercise's own already-logged values today, oldest first —
-   * read-only summary; edit/delete that entry from the day timeline. */
-  todaysSets: number[];
+  /** This exercise's own entries logged today, oldest first. */
+  todaysSets: RawWorkoutLog[];
   isDemoData: boolean;
   accent: string;
   onLog: (value: number) => Promise<void>;
+  /** Opens a logged entry's detail sheet. */
+  onOpenEntry: (id: string) => void;
   /** Extra line under the name — the Plan view's target and status. */
   detail?: ReactNode;
 }) {
@@ -276,9 +278,22 @@ export function ExerciseRow({
         </p>
         {detail}
         {todaysSets.length > 0 && (
-          <p className="flex items-center gap-1 text-xs tabular-nums" style={{ color: accent }}>
+          <p className="flex flex-wrap items-center gap-x-1 text-xs tabular-nums" style={{ color: accent }}>
             <CheckIcon size={11} />
-            {todaysSets.join(", ")} {unitLabel} today
+            {todaysSets.map((set, i) => (
+              <span key={set.id}>
+                <button
+                  type="button"
+                  onClick={() => onOpenEntry(set.id)}
+                  aria-label={`Edit or delete ${item.rawName}, ${set.weightKg} ${unitLabel}`}
+                  className="hit-slop font-medium"
+                >
+                  {set.weightKg} {unitLabel}
+                </button>
+                {i < todaysSets.length - 1 && ","}
+              </span>
+            ))}
+            <span>today</span>
           </p>
         )}
       </div>
@@ -307,13 +322,13 @@ export function WorkoutTab({
   accent,
   time,
   onSave,
+  onOpenEntry,
 }: {
   /** Active exercises grouped by category, A-Z within each — see
    * log/page.tsx's `workoutGroupedByCategory`. `chrome` carries the
    * category's custom header colour / icon key, null where unset. */
   groups: { category: string; items: RawItem[]; chrome: { color: string | null; iconKey: string | null } }[];
-  /** Today's already-logged sets — used only for the read-only "Logged
-   * today" summary per row; edited/deleted from the shared day timeline. */
+  /** Today's already-logged sets, shown under each row. */
   entries: RawWorkoutLog[];
   /** Most recently logged value per exercise, across all history (not
    * just today), in whatever unit that exercise is configured for —
@@ -324,6 +339,7 @@ export function WorkoutTab({
   accent: string;
   time: string;
   onSave: (entry: NewWorkoutEntry) => Promise<void>;
+  onOpenEntry: (id: string) => void;
 }) {
   if (groups.length === 0) {
     return (
@@ -350,10 +366,11 @@ export function WorkoutTab({
                 key={item.identity}
                 item={item}
                 lastValue={lastValues[item.rawName]}
-                todaysSets={entries.filter((e) => e.exercise === item.rawName).map((e) => e.weightKg)}
+                todaysSets={entries.filter((e) => e.exercise === item.rawName).sort((a, b) => a.updatedAt - b.updatedAt)}
                 isDemoData={isDemoData}
                 accent={accent}
                 onLog={(value) => onSave({ exercise: item.rawName, weightKg: String(value), time })}
+                onOpenEntry={onOpenEntry}
               />
             ))}
           </div>
