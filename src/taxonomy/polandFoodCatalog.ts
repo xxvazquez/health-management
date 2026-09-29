@@ -18,7 +18,7 @@ export const POLAND_FOOD_CATALOG: Record<string, string[]> = {
     "Cauliflower", "Broccoli", "Brussels sprouts", "Kohlrabi", "Beetroot", "Celeriac",
     "Parsnip", "Turnip", "Leek", "Cucumber", "Tomato", "Bell pepper", "Zucchini",
     "Eggplant", "Pumpkin", "Radish", "Spinach", "Kale", "Lettuce", "Mushrooms",
-    "Asparagus", "Fennel", "Chives", "Ginger", "Jerusalem artichoke",
+    "Asparagus", "Fennel", "Ginger", "Jerusalem artichoke",
   ],
   Fruit: [
     "Apple", "Pear", "Banana", "Orange", "Mandarin", "Lemon", "Lime", "Grapefruit",
@@ -41,11 +41,12 @@ export const POLAND_FOOD_CATALOG: Record<string, string[]> = {
     "Pistachios", "Sunflower seeds", "Pumpkin seeds", "Flaxseeds", "Chia", "Sesame seeds", "Tahini",
   ],
   Fats: ["Butter", "Ghee", "Olive oil", "Rapeseed oil"],
+  Herbs: ["Parsley", "Dill", "Chives", "Basil", "Mint", "Coriander leaves", "Lovage"],
   Spices: [
     "Salt", "Black pepper", "Paprika", "Smoked paprika", "Chilli flakes", "Cayenne",
     "Cinnamon", "Cumin", "Turmeric", "Ground ginger", "Nutmeg", "Cloves", "Cardamom",
-    "Coriander", "Bay leaf", "Oregano", "Basil", "Thyme", "Rosemary", "Marjoram",
-    "Dill", "Parsley", "Curry powder", "Garlic powder", "Onion powder", "Allspice",
+    "Coriander", "Bay leaf", "Oregano", "Thyme", "Rosemary", "Marjoram",
+    "Dried dill", "Dried parsley", "Curry powder", "Garlic powder", "Onion powder", "Allspice",
     "Caraway", "Mustard seed", "Vanilla",
   ],
   Misc: ["Coffee", "Tea", "Chocolate", "Honey", "Sugar", "Vinegar", "Mustard", "Broth"],

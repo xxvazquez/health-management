@@ -16,6 +16,8 @@ export type ItemType = "food" | "supplement" | "outcome" | "habit" | "workout";
 // milks aren't dairy, and fats (butter, oils) aren't "misc". Spices are
 // their own bucket so seasonings can be logged without skewing the
 // nutrition-priority engine (which ignores the Spices category entirely).
+// Herbs holds fresh herbs (parsley, dill, chives…) — dried ones stay under
+// Spices — and, unlike Spices, counts toward plant-food variety.
 // Don't add a category here speculatively; add it when a real tracked item needs it.
 const FOOD_CATEGORIES = [
   "Veggies",
@@ -28,6 +30,7 @@ const FOOD_CATEGORIES = [
   "Fish",
   "Nuts & Seeds",
   "Fats",
+  "Herbs",
   "Spices",
   "Misc",
 ] as const;
@@ -118,8 +121,8 @@ export const TYPE_ACCENT: Record<ItemType, string> = {
 /**
  * Fixed category -> categorical slot assignment, used only where several
  * categories must share one chart at once (e.g. the food category
- * timeline). Most food categories get their own stable color; Misc and
- * Spices deliberately fall through to CATEGORY_SLOT_OTHER (gray) rather
+ * timeline). Most food categories get their own stable color; Misc,
+ * Herbs and Spices deliberately fall through to CATEGORY_SLOT_OTHER (gray) rather
  * than claiming another hue — fitting for the catch-all/seasoning
  * categories, and charts stop being colorblind-safe well past 8 series
  * anyway. Keyed by category identity so a category always gets the same

@@ -1,5 +1,5 @@
 {
-  "_comment": "Fallback dictionary used only when a new 'Eat X' / 'Drink X' habit shows up in a future import that isn't in overrides.json yet. Maps a food keyword to one of the real food categories in categories.ts (Veggies, Fruit, Legumes, Grains, Dairy, 'Dairy Alt', Meat, Fish, 'Nuts & Seeds', Fats, Spices, Misc), never an invented category. Anything unmatched falls into food/Misc and is flagged for review rather than guessed. Extended with produce common in the Polish market/growing season (see src/lib/seasonalProduce.ts) so seasonal items classify correctly the first time they're logged, not just after a manual override.",
+  "_comment": "Fallback dictionary used only when a new 'Eat X' / 'Drink X' habit shows up in a future import that isn't in overrides.json yet. Maps a food keyword to one of the real food categories in categories.ts (Veggies, Fruit, Legumes, Grains, Dairy, 'Dairy Alt', Meat, Fish, 'Nuts & Seeds', Fats, Herbs, Spices, Misc), never an invented category. Anything unmatched falls into food/Misc and is flagged for review rather than guessed. Extended with produce common in the Polish market/growing season (see src/lib/seasonalProduce.ts) so seasonal items classify correctly the first time they're logged, not just after a manual override.",
   "vegetable": "Veggies", "veggie": "Veggies", "spinach": "Veggies", "kale": "Veggies", "lettuce": "Veggies",
   "cabbage": "Veggies", "cucumber": "Veggies", "celery": "Veggies", "asparagus": "Veggies", "eggplant": "Veggies",
   "aubergine": "Veggies", "pumpkin": "Veggies", "squash": "Veggies", "radish": "Veggies", "beet": "Veggies",
@@ -7,7 +7,7 @@
   "kohlrabi": "Veggies", "watercress": "Veggies", "endive": "Veggies", "chicory": "Veggies", "fennel": "Veggies",
   "zucchini": "Veggies", "courgette": "Veggies", "brussels sprout": "Veggies", "parsnip": "Veggies",
   "turnip": "Veggies", "jerusalem artichoke": "Veggies", "wild garlic": "Veggies", "nettle": "Veggies",
-  "sorrel": "Veggies", "chives": "Veggies", "mushroom": "Veggies", "chanterelle": "Veggies", "leek": "Veggies",
+  "sorrel": "Veggies", "chives": "Herbs", "mushroom": "Veggies", "chanterelle": "Veggies", "leek": "Veggies",
   "celeriac": "Veggies", "broccoli": "Veggies", "cauliflower": "Veggies", "bell pepper": "Veggies", "pepper": "Veggies",
   "onion": "Veggies", "garlic": "Veggies", "carrot": "Veggies", "ginger": "Veggies",
 
@@ -63,6 +63,9 @@
   "broth": "Misc", "cacao": "Misc",
 
   "spice": "Spices", "seasoning": "Spices", "salt": "Spices", "black pepper": "Spices",
+  "parsley": "Herbs", "parsley root": "Veggies", "dill": "Herbs", "basil": "Herbs", "mint": "Herbs",
+  "mint tea": "Misc", "cilantro": "Herbs", "fresh coriander": "Herbs", "coriander leaves": "Herbs",
+  "lovage": "Herbs", "tarragon": "Herbs", "fresh thyme": "Herbs", "fresh rosemary": "Herbs", "fresh oregano": "Herbs",
   "white pepper": "Spices", "peppercorn": "Spices", "paprika": "Spices", "smoked paprika": "Spices",
   "chilli": "Spices", "chili": "Spices", "chilli flakes": "Spices", "cayenne": "Spices",
   "cinnamon": "Spices", "cumin": "Spices", "turmeric": "Spices", "ground ginger": "Spices",

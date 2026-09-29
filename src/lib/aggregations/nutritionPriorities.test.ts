@@ -120,6 +120,19 @@ describe("computeNutritionPriorities", () => {
     expect(withSpices.variety.totalUniqueFoods).toBe(withoutSpices.variety.totalUniqueFoods);
     expect(withSpices.daysWithFoodTracked).toBe(withoutSpices.daysWithFoodTracked);
   });
+  it("counts fresh herbs as plant foods, unlike spices", () => {
+    const base = Array.from({ length: 12 }, (_, i) =>
+      makeEvent({ itemType: "food", item: "Rice", category: "Grains", date: `2026-01-${String(i + 1).padStart(2, "0")}`, completed: true }),
+    );
+    const range = { start: "2026-01-01", end: "2026-01-12" };
+    const without = computeNutritionPriorities(base, range);
+    const withHerbs = computeNutritionPriorities(
+      [...base, ...["Parsley", "Dill"].map((item, i) => makeEvent({ itemType: "food", item, category: "Herbs", date: `2026-01-0${i + 1}`, completed: true }))],
+      range,
+    );
+    expect(withHerbs.variety.uniquePlantFoods).toBe(without.variety.uniquePlantFoods + 2);
+  });
+
   it("judges each pillar against the user's targets and leaves out a pillar set to off", () => {
     const events = Array.from({ length: 20 }, (_, i) =>
       makeEvent({ itemType: "food", item: "Lentils", category: "Legumes", date: `2026-01-${String(i + 1).padStart(2, "0")}`, completed: true }),

@@ -373,6 +373,7 @@ const DEFAULT_CATEGORY_ICONS: Record<string, Record<string, string>> = {
     fish: "fish",
     "nuts & seeds": "nut",
     fats: "oil",
+    herbs: "leaf",
     spices: "jar",
     misc: "tin",
   },

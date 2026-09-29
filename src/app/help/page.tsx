@@ -73,8 +73,8 @@ const GROUPS: { title: string; items: Entry[] }[] = [
         body: "Tap \"+ Can't find it? Add it\" under the grid to add an item inline, or the \"Manage items\" link next to it to open Settings. Signed out, that button prompts you to sign in first.",
       },
       {
-        title: "Spices",
-        body: "The Spices food category is kept out of the nutrition-priority analysis, so logging seasonings doesn't skew it.",
+        title: "Herbs and spices",
+        body: "The Spices food category is kept out of the nutrition-priority analysis, so logging seasonings doesn't skew it. Fresh herbs (parsley, dill, chives…) have their own Herbs category and count toward plant-food variety; dried ones belong under Spices.",
       },
       {
         title: "“Not logged”",

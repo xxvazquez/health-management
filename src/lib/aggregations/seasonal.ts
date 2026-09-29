@@ -63,9 +63,9 @@ export interface WeeklyCategoryStat {
 
 // Categories that should never surface as "this week's priority" regardless
 // of how rarely they're logged — deliberate, not neglected. Meat: rarely
-// eating it is the intent, not a gap. Spices: a seasoning, not a food group
-// to eat more of.
-const NEVER_PRIORITIZE_CATEGORIES = new Set(["meat", "spices"]);
+// eating it is the intent, not a gap. Herbs and Spices: seasoning, not a
+// food group to eat more of.
+const NEVER_PRIORITIZE_CATEGORIES = new Set(["meat", "herbs", "spices"]);
 
 /**
  * Food-category counts over the trailing 7 days (today inclusive), so "this

@@ -491,11 +491,17 @@ function groupWellSentence(state: GroupState): Bullet {
   };
 }
 
+/** A plant food for variety counts: anything in a plant nutrition group,
+ * plus fresh herbs, which belong to no group of their own. */
+function isPlantFood(e: CanonicalEvent): boolean {
+  return e.category === "Herbs" || groupsFor(e.item).some((g) => PLANT_GROUPS.includes(g));
+}
+
 /** Distinct plant foods in the 30 days ending on each day of `range`. */
 function rollingPlantSeries(foods: CanonicalEvent[], range: DateRange): { date: string; plants: number }[] {
   const plantsByDate = new Map<string, Set<string>>();
   for (const e of foods) {
-    if (!groupsFor(e.item).some((g) => PLANT_GROUPS.includes(g))) continue;
+    if (!isPlantFood(e)) continue;
     const set = plantsByDate.get(e.date) ?? new Set<string>();
     set.add(e.item);
     plantsByDate.set(e.date, set);
@@ -518,7 +524,7 @@ function previousPlants30(foods: CanonicalEvent[], range: DateRange, dataStart: 
   const plants = new Set<string>();
   for (const e of foods) {
     if (e.date < start || e.date > end) continue;
-    if (groupsFor(e.item).some((g) => PLANT_GROUPS.includes(g))) plants.add(e.item);
+    if (isPlantFood(e)) plants.add(e.item);
   }
   return plants.size;
 }
@@ -733,6 +739,7 @@ export function computeNutritionPriorities(
   const grainItems = new Set<string>();
   const families = new Set<string>();
   for (const e of foodsInRange) {
+    if (e.category === "Herbs") plantItems.add(e.item);
     const groups = groupsFor(e.item);
     for (const g of groups) {
       if (PLANT_GROUPS.includes(g)) {
@@ -777,7 +784,7 @@ export function computeNutritionPriorities(
     const currentFoods = foodsInRange;
     const previousFoods = foods.filter((e) => e.date >= prevStart && e.date <= prevEnd);
 
-    const uniquePlants = (list: CanonicalEvent[]) => new Set(list.filter((e) => groupsFor(e.item).some((g) => PLANT_GROUPS.includes(g))).map((e) => e.item)).size;
+    const uniquePlants = (list: CanonicalEvent[]) => new Set(list.filter(isPlantFood).map((e) => e.item)).size;
     const uniqueVeg = (list: CanonicalEvent[]) =>
       new Set(list.filter((e) => groupsFor(e.item).some((g) => CORE_VEGETABLE_GROUPS.includes(g))).map((e) => e.item)).size;
     const exposureDays = (list: CanonicalEvent[], group: NutritionGroupId) => new Set(list.filter((e) => groupsFor(e.item).includes(group)).map((e) => e.date)).size;
