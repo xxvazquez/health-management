@@ -6,7 +6,6 @@ import { useData } from "@/lib/DataContext";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageSkeleton } from "@/components/ui/Skeleton";
 import { ComparisonKey, ComparisonRow, ShowAllRow, SplitStatCard, TrendGroup, TrendRow } from "@/components/analytics/TrendList";
-import { Stat, StatGrid } from "@/components/ui/StatGrid";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { TrendsActions } from "@/components/analytics/TrendsActions";
 import { DateRangeFilter, type DateRangePreset } from "@/components/ui/DateRangeFilter";
@@ -14,7 +13,6 @@ import { Methodology } from "@/components/ui/Methodology";
 import { SectionNav, type SectionNavItem } from "@/components/ui/SectionNav";
 import { ShowMore } from "@/components/ui/ShowMore";
 import { RankedBarChart } from "@/components/charts/RankedBarChart";
-import { MultiLineChart } from "@/components/charts/MultiLineChart";
 import { useDateRangeFilter } from "@/lib/useDateRangeFilter";
 import { useFoodNutritionGroupOverrides } from "@/lib/useFoodNutritionGroupOverrides";
 import { usePreferences } from "@/lib/usePreferences";
@@ -23,59 +21,52 @@ import { daysBetween } from "@/lib/aggregations/common";
 import {
   favoriteCombosByMeal,
   foodCategoryDistribution,
-  foodVarietyOverTime,
   ingredientDiversity,
   ingredientMealMatrix,
   ingredientRotation,
   mealInstances,
   rankedFoods,
   repetitionInsights,
-  varietyTrendDirection,
   type IngredientMealRow,
   type MealComboEntry,
 } from "@/lib/aggregations/food";
 import {
   computeNutritionPriorities,
   MIN_FOOD_DAYS_FOR_CONFIDENCE,
-  type CoverageRow,
-  type GroupStatus,
   type PillarRow as PillarStat,
+  type GroupState,
 } from "@/lib/aggregations/nutritionPriorities";
-import { TYPE_ACCENT } from "@/taxonomy/categories";
+import { TYPE_ACCENT, colorForCategorySlot } from "@/taxonomy/categories";
+import { TrendHeadline } from "@/components/charts/TrendCard";
+import { LabMarkerChart, type LabMarkerChartPoint } from "@/components/charts/LabMarkerChart";
+import { formatShortDate } from "@/components/doctors/shared";
 
-
-const STATUS_COLOR: Record<GroupStatus, string> = {
-  "not-enough-data": "var(--text-muted)",
-  priority: "var(--status-warning)",
-  increase: "var(--series-4)",
-  good: "var(--series-1)",
-  strong: "var(--status-good)",
-};
 
 /** A food group counts as on target from this share of its weekly target. */
 const ON_TARGET_PERCENT = 85;
 
-/** A food-group row's bar colour, from the same numbers the row shows: on
- * target, close to it, or well short. */
-function pillarTone(row: PillarStat): string {
-  if (row.percentOfTarget >= ON_TARGET_PERCENT) return "var(--status-good)";
-  return row.percentOfTarget < 50 ? "var(--status-critical)" : "var(--status-warning)";
+/** A bar's colour from its share of target, the same number the row shows:
+ * on target, close to it, or well short. */
+function toneForPercent(percent: number): string {
+  if (percent >= ON_TARGET_PERCENT) return "var(--status-good)";
+  return percent < 50 ? "var(--status-critical)" : "var(--status-warning)";
 }
+
+function pillarTone(row: PillarStat): string {
+  return toneForPercent(row.percentOfTarget);
+}
+
+/** A food group's weekly rate as a share of its target, 0 when it has none. */
+function targetPercent(g: GroupState): number {
+  return g.targetPerWeek ? Math.round((g.rateInRangePerWeek / g.targetPerWeek) * 100) : 0;
+}
+
+/** Rows "Eaten least" shows before "Show all". */
+const EATEN_LEAST_SHORT = 4;
 
 /** How many rows a trimmed Trends list shows before "Show all". */
 const SHORT_LIST = 3;
 
-function StatusPill({ status, label, color }: { status: string; label: string; color: string }) {
-  return (
-    <span
-      key={status}
-      className="inline-flex items-center text-xs font-medium whitespace-nowrap"
-      style={{ color }}
-    >
-      {label}
-    </span>
-  );
-}
 
 
 
@@ -173,6 +164,8 @@ export function FoodDashboard() {
   const [showAllRepetition, setShowAllRepetition] = useState(false);
   const [showAllIngredients, setShowAllIngredients] = useState(false);
   const [showAllEatingLess, setShowAllEatingLess] = useState(false);
+  const [showAllEatenLeast, setShowAllEatenLeast] = useState(false);
+  const [plantScrub, setPlantScrub] = useState<LabMarkerChartPoint | null>(null);
 
   function selectSection(id: string) {
     setActiveSection(id);
@@ -185,10 +178,6 @@ export function FoodDashboard() {
   // Length of the selected range, reused everywhere a label needs to name
   // the exact comparison window instead of a hardcoded number.
   const rangeLengthDays = range ? daysBetween(range.start, range.end) + 1 : 0;
-  // Wording only ("this week" vs. the generic phrasing) — any 7-day-long
-  // range reads as "this week" regardless of which control produced it
-  // (the This-week preset or a manually picked 7-day custom range).
-  const isThisWeek = rangeLengthDays === 7;
 
   // Every metric below — including the dietary-pattern synthesis (priorities,
   // coverage, doing-well/missing, pattern, trend, variety) — is scoped to
@@ -204,7 +193,6 @@ export function FoodDashboard() {
   );
 
   const distribution = useMemo(() => foodCategoryDistribution(filtered), [filtered]);
-  const varietySeries = useMemo(() => foodVarietyOverTime(filtered), [filtered]);
   const ranked = useMemo(() => rankedFoods(filtered), [filtered]);
   const mealInstancesList = useMemo(() => mealInstances(filtered), [filtered]);
   const mealInstanceCount = mealInstancesList.length;
@@ -216,19 +204,29 @@ export function FoodDashboard() {
     [ranked, mealInstancesList, priorities.groupStates, hasCoreGaps, nutritionGroupOverrides],
   );
   const mealMatrix = useMemo(() => ingredientMealMatrix(mealInstancesList), [mealInstancesList]);
-  // Chart-local trend (rolling-30-day line, recent stretch vs. the stretch
-  // before it) — describes the shape of the "Ingredient variety over time"
-  // chart specifically, distinct from diversityTrend above.
-  const trendDirection = useMemo(() => varietyTrendDirection(varietySeries), [varietySeries]);
 
   if (status === "loading") return <PageSkeleton />;
   if (status === "empty") return <EmptyState />;
 
-  const topFoods = ranked.slice(0, 10).map((f) => ({ label: f.item, value: f.count }));
-
   const ingredientDelta =
     diversity && diversity.previous != null && diversity.current !== diversity.previous ? diversity.current - diversity.previous : null;
   const pillarsOnTarget = priorities.pillars.filter((p) => p.percentOfTarget >= ON_TARGET_PERCENT).length;
+  const plantsLast30 = priorities.variety.plantSeries.at(-1)?.plants ?? null;
+  const plantDelta =
+    plantsLast30 != null && priorities.variety.previousPlants30 != null && plantsLast30 !== priorities.variety.previousPlants30
+      ? plantsLast30 - priorities.variety.previousPlants30
+      : null;
+  const plantGroups = [
+    { label: "Vegetables", count: priorities.variety.uniqueVegetables, color: colorForCategorySlot("Veggies") },
+    { label: "Fruit", count: priorities.variety.uniqueFruit, color: colorForCategorySlot("Fruit") },
+    { label: "Nuts & seeds", count: priorities.variety.uniqueNutsSeeds, color: colorForCategorySlot("Nuts & Seeds") },
+    { label: "Legumes", count: priorities.variety.uniqueLegumes, color: colorForCategorySlot("Legumes") },
+    { label: "Grains", count: priorities.variety.uniqueGrains, color: colorForCategorySlot("Grains") },
+  ].sort((a, b) => b.count - a.count);
+  const plantGroupsMax = Math.max(1, ...plantGroups.map((g) => g.count));
+  const eatenLeast = priorities.groupStates
+    .filter((g) => g.targetPerWeek != null && targetPercent(g) < ON_TARGET_PERCENT)
+    .sort((a, b) => targetPercent(a) - targetPercent(b));
 
   return (
     <div className="flex flex-col gap-4">
@@ -315,59 +313,63 @@ export function FoodDashboard() {
       </PageSection>
 
       <PageSection id="variety" activeId={activeSection} headingLabel="Variety">
-        {!priorities.insufficientData && <VarietySection variety={priorities.variety} />}
-
-        {/* The two ranking cards pair up on a wide screen — a grid row so
-            they stay the same height rather than leaving a ragged edge. */}
-        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-          <Card tier="raw">
-            <CardTitle
-              size="sm"
-              subtitle={isThisWeek ? "What you ate most this week" : "Most frequently tracked foods in this range"}
-            >
-              Top ingredients
-            </CardTitle>
-            {topFoods.length > 0 ? (
-              <RankedBarChart data={topFoods} color={TYPE_ACCENT.food} />
-            ) : (
-              <p className="text-sm" style={{ color: "var(--text-muted)" }}>No data.</p>
-            )}
-          </Card>
-
-          <Card tier="raw">
-            <CardTitle size="sm" subtitle="Days logged in this range, per food group — not servings or grams.">
-              Food-group coverage
-            </CardTitle>
-            {priorities.coverageTable.length > 0 ? (
-              <CoverageTableRows rows={priorities.coverageTable} rangeLengthDays={rangeLengthDays} />
-            ) : (
-              <p className="text-sm" style={{ color: "var(--text-muted)" }}>Not enough data yet.</p>
-            )}
-          </Card>
-        </div>
-
-        <Card tier="raw">
-          <CardTitle size="sm" subtitle="Rolling 7-day and 30-day unique food counts">
-            Ingredient variety over time
-          </CardTitle>
-          {varietySeries.length > 0 ? (
-            <>
-              <MultiLineChart
-                data={varietySeries.map((v) => ({ date: v.date, "7-day": v.rolling7dUniqueFoods, "30-day": v.rolling30dUniqueFoods }))}
-                series={[
-                  { key: "7-day", label: "7-day variety", color: "var(--series-1)" },
-                  { key: "30-day", label: "30-day variety", color: "var(--series-2)" },
-                ]}
-                height={280}
+        {priorities.insufficientData ? null : (
+          <div className="flex flex-col gap-4">
+            <div className="rounded-xl border px-3.5 py-3" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
+              <TrendHeadline
+                caption={plantScrub ? `Plant foods · 30 days to ${formatShortDate(plantScrub.date)}` : "Plant foods · last 30 days"}
+                value={String(plantScrub?.value ?? plantsLast30 ?? priorities.variety.uniquePlantFoods)}
+                detail={
+                  plantDelta != null && !plantScrub ? (
+                    <span style={{ color: plantDelta >= 0 ? "var(--status-good)" : "var(--status-serious)" }}>
+                      {plantDelta > 0 ? "+" : ""}
+                      {plantDelta} vs previous 30 days
+                    </span>
+                  ) : undefined
+                }
               />
-              <p className="mt-2 text-xs" style={{ color: "var(--text-muted)" }}>
-                30-day variety is {VARIETY_TREND_LABEL[trendDirection]} compared to the 30 days before that.
-              </p>
-            </>
-          ) : (
-            <p className="text-sm" style={{ color: "var(--text-muted)" }}>No data.</p>
-          )}
-        </Card>
+              {priorities.variety.plantSeries.length > 1 && (
+                <div className="mt-2">
+                  <LabMarkerChart
+                    data={priorities.variety.plantSeries.map((p) => ({ date: p.date, value: p.plants }))}
+                    unit={null}
+                    refLow={null}
+                    refHigh={null}
+                    windowStart={range?.start ?? null}
+                    windowEnd={range?.end ?? null}
+                    color="var(--series-1)"
+                    onScrub={setPlantScrub}
+                    height={170}
+                  />
+                </div>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
+              <TrendGroup caption="Different plant foods by group">
+                {plantGroups.map((g) => (
+                  <TrendRow key={g.label} label={g.label} value={g.count} bar={{ pct: (g.count / plantGroupsMax) * 100, color: g.color }} />
+                ))}
+              </TrendGroup>
+
+              {eatenLeast.length > 0 && (
+                <TrendGroup caption="Eaten least · per week vs target">
+                  {(showAllEatenLeast ? eatenLeast : eatenLeast.slice(0, EATEN_LEAST_SHORT)).map((g) => (
+                    <TrendRow
+                      key={g.group}
+                      label={g.label}
+                      value={`${g.rateInRangePerWeek.toFixed(1)} of ${g.targetPerWeek}`}
+                      bar={{ pct: targetPercent(g), color: toneForPercent(targetPercent(g)) }}
+                    />
+                  ))}
+                  {eatenLeast.length > EATEN_LEAST_SHORT && (
+                    <ShowAllRow total={eatenLeast.length} expanded={showAllEatenLeast} onToggle={() => setShowAllEatenLeast((v) => !v)} />
+                  )}
+                </TrendGroup>
+              )}
+            </div>
+          </div>
+        )}
       </PageSection>
 
       <PageSection id="repetition" activeId={activeSection} headingLabel="Repetition">
@@ -429,69 +431,7 @@ export function FoodDashboard() {
   );
 }
 
-const VARIETY_TREND_LABEL: Record<ReturnType<typeof varietyTrendDirection>, string> = {
-  increasing: "increasing",
-  decreasing: "decreasing",
-  stable: "holding steady",
-};
 
-function CoverageTableRows({ rows, rangeLengthDays }: { rows: CoverageRow[]; rangeLengthDays: number }) {
-  return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="text-left text-xs whitespace-nowrap" style={{ color: "var(--text-muted)" }}>
-            <th className="pb-2 pr-2 font-medium">Food group</th>
-            <th className="pb-2 pr-2 text-right font-medium">Days in range</th>
-            <th className="pb-2 text-right font-medium">Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((r) => (
-            <tr key={r.label} className="border-t" style={{ borderColor: "var(--gridline)" }}>
-              <td className="py-2 pr-2" style={{ color: "var(--text-primary)" }}>{r.label}</td>
-              <td className="py-2 pr-2 text-right tabular-nums whitespace-nowrap" style={{ color: "var(--text-secondary)" }}>
-                {r.daysInRange} / {rangeLengthDays}
-              </td>
-              <td className="py-2 text-right">
-                <StatusPill status={r.status} label={r.statusLabel} color={STATUS_COLOR[r.status]} />
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-function VarietySection({ variety }: { variety: ReturnType<typeof computeNutritionPriorities>["variety"] }) {
-  return (
-    <Card tier="raw">
-      <CardTitle size="sm" subtitle="Distinct foods logged in the selected range">
-        Variety
-      </CardTitle>
-      <div className="flex flex-col gap-5">
-        <StatGrid>
-          <Stat label="Unique foods" value={String(variety.totalUniqueFoods)} />
-          <Stat label="Plant foods" value={String(variety.uniquePlantFoods)} accent="var(--status-good)" />
-          <Stat label="Plant groups" value={`${variety.plantGroupsRepresented} of ${variety.totalPlantGroups}`} />
-        </StatGrid>
-        <section className="flex flex-col gap-2.5">
-          <h3 className="text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
-            Different plant foods
-          </h3>
-          <StatGrid>
-            <Stat label="Vegetables" value={String(variety.uniqueVegetables)} />
-            <Stat label="Fruit" value={String(variety.uniqueFruit)} />
-            <Stat label="Legumes" value={String(variety.uniqueLegumes)} />
-            <Stat label="Nuts & seeds" value={String(variety.uniqueNutsSeeds)} />
-            {variety.plantFamiliesRepresented > 0 && <Stat label="Plant families" value={String(variety.plantFamiliesRepresented)} />}
-          </StatGrid>
-        </section>
-      </div>
-    </Card>
-  );
-}
 
 function TrendSection({ trend }: { trend: ReturnType<typeof computeNutritionPriorities>["trend"] }) {
   return (

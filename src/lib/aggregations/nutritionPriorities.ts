@@ -196,7 +196,13 @@ interface VarietyMetrics {
   uniqueFruit: number;
   uniqueLegumes: number;
   uniqueNutsSeeds: number;
+  uniqueGrains: number;
   plantFamiliesRepresented: number;
+  /** Distinct plant foods over the rolling 30 days ending on each day of
+   * the range — the Variety chart's line. */
+  plantSeries: { date: string; plants: number }[];
+  /** Distinct plant foods in the 30 days before the series' last 30. */
+  previousPlants30: number | null;
 }
 
 interface TrendPoint {
@@ -485,6 +491,38 @@ function groupWellSentence(state: GroupState): Bullet {
   };
 }
 
+/** Distinct plant foods in the 30 days ending on each day of `range`. */
+function rollingPlantSeries(foods: CanonicalEvent[], range: DateRange): { date: string; plants: number }[] {
+  const plantsByDate = new Map<string, Set<string>>();
+  for (const e of foods) {
+    if (!groupsFor(e.item).some((g) => PLANT_GROUPS.includes(g))) continue;
+    const set = plantsByDate.get(e.date) ?? new Set<string>();
+    set.add(e.item);
+    plantsByDate.set(e.date, set);
+  }
+  const series: { date: string; plants: number }[] = [];
+  for (let d = range.start; d <= range.end; d = addDaysToDate(d, 1)) {
+    const window = new Set<string>();
+    for (let w = addDaysToDate(d, -29); w <= d; w = addDaysToDate(w, 1)) plantsByDate.get(w)?.forEach((item) => window.add(item));
+    series.push({ date: d, plants: window.size });
+  }
+  return series;
+}
+
+/** Distinct plant foods in the 30 days before the last 30 days of `range`,
+ * or null when that stretch starts before the data does. */
+function previousPlants30(foods: CanonicalEvent[], range: DateRange, dataStart: string): number | null {
+  const end = addDaysToDate(range.end, -30);
+  const start = addDaysToDate(end, -29);
+  if (start < dataStart) return null;
+  const plants = new Set<string>();
+  for (const e of foods) {
+    if (e.date < start || e.date > end) continue;
+    if (groupsFor(e.item).some((g) => PLANT_GROUPS.includes(g))) plants.add(e.item);
+  }
+  return plants.size;
+}
+
 const emptyVariety: VarietyMetrics = {
   totalUniqueFoods: 0,
   uniquePlantFoods: 0,
@@ -494,7 +532,10 @@ const emptyVariety: VarietyMetrics = {
   uniqueFruit: 0,
   uniqueLegumes: 0,
   uniqueNutsSeeds: 0,
+  uniqueGrains: 0,
   plantFamiliesRepresented: 0,
+  plantSeries: [],
+  previousPlants30: null,
 };
 
 /**
@@ -689,6 +730,7 @@ export function computeNutritionPriorities(
   const fruitItems = new Set<string>();
   const legumeItems = new Set<string>();
   const nutSeedItems = new Set<string>();
+  const grainItems = new Set<string>();
   const families = new Set<string>();
   for (const e of foodsInRange) {
     const groups = groupsFor(e.item);
@@ -701,6 +743,7 @@ export function computeNutritionPriorities(
       if (CORE_FRUIT_GROUPS.includes(g)) fruitItems.add(e.item);
       if (g === "legumes") legumeItems.add(e.item);
       if (g === "nuts" || g === "seeds") nutSeedItems.add(e.item);
+      if (g === "whole_grains" || g === "refined_grains") grainItems.add(e.item);
     }
     const family = plantFamilyForFood(e.item);
     if (family) families.add(family);
@@ -715,7 +758,10 @@ export function computeNutritionPriorities(
     uniqueFruit: fruitItems.size,
     uniqueLegumes: legumeItems.size,
     uniqueNutsSeeds: nutSeedItems.size,
+    uniqueGrains: grainItems.size,
     plantFamiliesRepresented: families.size,
+    plantSeries: rollingPlantSeries(foods, range),
+    previousPlants30: previousPlants30(foods, range, span.start),
   };
 
   // ---- Longitudinal trend: selected range vs. the equal-length period

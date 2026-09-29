@@ -55,52 +55,6 @@ export function rankedFoods(events: CanonicalEvent[]): FoodRankEntry[] {
 }
 
 
-export interface DailyVarietyPoint {
-  date: string;
-  uniqueFoodsThatDay: number;
-  rolling7dUniqueFoods: number;
-  rolling30dUniqueFoods: number;
-}
-
-/** Daily + rolling-window unique-food-count series, purely descriptive. */
-export function foodVarietyOverTime(events: CanonicalEvent[]): DailyVarietyPoint[] {
-  const foods = foodEvents(events);
-  if (foods.length === 0) return [];
-
-  const byDate = new Map<string, Set<string>>();
-  for (const e of foods) {
-    const set = byDate.get(e.date) ?? new Set<string>();
-    set.add(e.item);
-    byDate.set(e.date, set);
-  }
-
-  const dates = Array.from(byDate.keys()).sort();
-  const points: DailyVarietyPoint[] = [];
-
-  for (let i = 0; i < dates.length; i++) {
-    const date = dates[i];
-    const window7Start = addDaysToDate(date, -6);
-    const window30Start = addDaysToDate(date, -29);
-    const set7 = new Set<string>();
-    const set30 = new Set<string>();
-    for (const d of dates) {
-      if (d > date) break;
-      if (d >= window30Start) {
-        byDate.get(d)!.forEach((f) => set30.add(f));
-        if (d >= window7Start) byDate.get(d)!.forEach((f) => set7.add(f));
-      }
-    }
-    points.push({
-      date,
-      uniqueFoodsThatDay: byDate.get(date)!.size,
-      rolling7dUniqueFoods: set7.size,
-      rolling30dUniqueFoods: set30.size,
-    });
-  }
-
-  return points;
-}
-
 export interface NewFoodEntry {
   item: string;
   category: string;
@@ -328,29 +282,6 @@ export function ingredientMealMatrix(instances: MealInstance[], topN = 12): Ingr
     }))
     .sort((a, b) => b.total - a.total || a.item.localeCompare(b.item))
     .slice(0, topN);
-}
-
-export type VarietyTrendDirection = "increasing" | "decreasing" | "stable";
-
-/**
- * Whether rolling 30-day ingredient variety is trending up, down, or flat —
- * compares the mean of the most recent points to the mean of the equal-size
- * window before that, ignoring differences under 5% as noise. Requires at
- * least `sampleSize * 2` points; anything shorter reports "stable" rather
- * than reading a trend into too little data.
- */
-export function varietyTrendDirection(series: DailyVarietyPoint[], sampleSize = 4): VarietyTrendDirection {
-  if (series.length < sampleSize * 2) return "stable";
-  const recent = series.slice(-sampleSize);
-  const prior = series.slice(-sampleSize * 2, -sampleSize);
-  const avg = (pts: DailyVarietyPoint[]) => pts.reduce((sum, p) => sum + p.rolling30dUniqueFoods, 0) / pts.length;
-  const recentAvg = avg(recent);
-  const priorAvg = avg(prior);
-  const diff = recentAvg - priorAvg;
-  const threshold = Math.max(1, priorAvg * 0.05);
-  if (diff > threshold) return "increasing";
-  if (diff < -threshold) return "decreasing";
-  return "stable";
 }
 
 export interface StapleEntry {

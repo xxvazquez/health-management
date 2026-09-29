@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { favoriteCombosByMeal, foodCategoryDistribution, foodVarietyOverTime, ingredientMealMatrix, ingredientRotation, mealInstances, newFoodsOverTime, rankedFoods } from "./food";
+import { favoriteCombosByMeal, foodCategoryDistribution, ingredientMealMatrix, ingredientRotation, mealInstances, newFoodsOverTime, rankedFoods } from "./food";
 import { makeEvent } from "@/lib/testFixtures";
 
 const inRangeDay = (n: number) => `2026-02-${String(n).padStart(2, "0")}`;
@@ -57,37 +57,6 @@ describe("rankedFoods", () => {
     ];
     expect(rankedFoods(events).map((f) => f.item)).toEqual(["Rice", "Beans"]);
     expect(rankedFoods(events)[0].count).toBe(2);
-  });
-});
-
-describe("foodVarietyOverTime", () => {
-  it("returns an empty array for no food events", () => {
-    expect(foodVarietyOverTime([])).toEqual([]);
-  });
-
-  it("counts unique foods per day and rolling 7d/30d windows", () => {
-    const events = [
-      makeEvent({ itemType: "food", item: "Apple", date: "2026-01-01" }),
-      makeEvent({ itemType: "food", item: "Pear", date: "2026-01-01" }),
-      makeEvent({ itemType: "food", item: "Apple", date: "2026-01-02" }), // repeat, not new to the window
-      makeEvent({ itemType: "food", item: "Banana", date: "2026-01-02" }),
-    ];
-    const points = foodVarietyOverTime(events);
-    expect(points).toHaveLength(2);
-    expect(points[0]).toMatchObject({ date: "2026-01-01", uniqueFoodsThatDay: 2, rolling7dUniqueFoods: 2 });
-    expect(points[1]).toMatchObject({ date: "2026-01-02", uniqueFoodsThatDay: 2, rolling7dUniqueFoods: 3 });
-  });
-
-  it("does not let a window bleed in a day outside its range", () => {
-    const events = [
-      makeEvent({ itemType: "food", item: "Old", date: "2026-01-01" }),
-      makeEvent({ itemType: "food", item: "New", date: "2026-01-20" }), // >7 days after the first
-    ];
-    const points = foodVarietyOverTime(events);
-    const last = points[points.length - 1];
-    expect(last.date).toBe("2026-01-20");
-    expect(last.rolling7dUniqueFoods).toBe(1); // "Old" is outside the 7-day window by then
-    expect(last.rolling30dUniqueFoods).toBe(2); // still inside the 30-day window
   });
 });
 
