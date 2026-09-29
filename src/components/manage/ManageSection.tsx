@@ -37,6 +37,7 @@ const SECTION_ICON: Record<string, { icon: string; color: string }> = {
   "Workout plans": { icon: "calendar", color: "var(--series-6)" },
   Coffee: { icon: "mug", color: "var(--series-slate)" },
   "Stool options": { icon: "drop", color: "var(--series-indigo)" },
+  "Hidden links": { icon: "eye", color: TYPE_ACCENT.outcome },
   Doctors: { icon: "cross", color: "var(--series-2)" },
   "Doctor types": { icon: "clipboard", color: "var(--series-2)" },
   "Lab results": { icon: "flask", color: "var(--series-3)" },

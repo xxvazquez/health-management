@@ -18,6 +18,7 @@ import { PushNotificationsToggle } from "@/components/PushNotificationsToggle";
 import { DataExportCard } from "@/components/manage/DataExportCard";
 import { WorkoutPlansCard } from "@/components/manage/WorkoutPlansCard";
 import { FoodTargetsCard } from "@/components/manage/FoodTargetsCard";
+import { HiddenLinksCard } from "@/components/manage/HiddenLinksCard";
 import { AddRow, CollapsibleManageCard, GROUP_CLS, GROUP_STYLE, GroupNote, ManageNavContext, OpenInLogRow, SectionRow, useSectionMode } from "@/components/manage/ManageSection";
 import { SwitchKnob } from "@/components/ui/Switch";
 import { TimePicker } from "@/components/ui/DatePicker";
@@ -3634,6 +3635,7 @@ export default function ManagePage() {
       ),
     },
     { label: "Food targets", el: <FoodTargetsCard key="food-targets" searchQuery={searchQuery} /> },
+    { label: "Hidden links", el: <HiddenLinksCard key="hidden-links" searchQuery={searchQuery} /> },
     { label: "Doctor types", el: <DoctorSpecialtiesCard key="doctor-types" isDemoData={isDemoData} searchQuery={searchQuery} /> },
     { label: "Lab results", el: <LabResultsCard key="lab-results" searchQuery={searchQuery} /> },
     { label: "Stool options", el: <StoolOptionsCard key="stool-options" isDemoData={isDemoData} searchQuery={searchQuery} /> },
@@ -3706,7 +3708,7 @@ export default function ManagePage() {
   for (const sec of appSections) sectionByLabel.set(sec.label, sec.el);
 
   const groups: { title: string; labels: string[] }[] = [
-    { title: "Tracking", labels: ["Food", "Food products", "Food targets", "Symptoms", "Supplements", "Habits", "Workout", "Workout plans", "Coffee", "Stool options"] },
+    { title: "Tracking", labels: ["Food", "Food products", "Food targets", "Symptoms", "Supplements", "Habits", "Workout", "Workout plans", "Coffee", "Stool options", "Hidden links"] },
     { title: "Health", labels: ["Doctors", "Doctor types", "Lab results", "Weight goal"] },
     { title: "Lists", labels: ["Reminder lists", "Wishlist lists"] },
     { title: "App", labels: ["Appearance", "Visible sections", "Your data"] },

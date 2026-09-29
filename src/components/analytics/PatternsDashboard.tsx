@@ -1,28 +1,31 @@
 "use client";
 
-import { CONTROL_CLS, CONTROL_STYLE } from "@/components/ui/Chip";
 import { useMemo, useState } from "react";
 import { useData } from "@/lib/DataContext";
+import { usePreferences } from "@/lib/usePreferences";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageSkeleton } from "@/components/ui/Skeleton";
-import { Card, CardTitle } from "@/components/ui/Card";
-import { Insight } from "@/components/ui/Insight";
-import { TrendsActions } from "@/components/analytics/TrendsActions";
-import { DateRangeFilter } from "@/components/ui/DateRangeFilter";
-import { Methodology } from "@/components/ui/Methodology";
-import { SampleTierBadge } from "@/components/ui/SampleTierBadge";
-import { ComparisonBars } from "@/components/charts/ComparisonBars";
-import { useDateRangeFilter } from "@/lib/useDateRangeFilter";
+import { Sheet } from "@/components/ui/Sheet";
+import { FormGroup } from "@/components/ui/FormGroup";
+import { Field } from "@/components/ui/Field";
+import { ChevronIcon } from "@/components/ui/icons";
+import { ComboBox } from "@/components/doctors/shared";
+import { TrendGroup, TrendRow } from "@/components/analytics/TrendList";
 import {
   allCauseOptions,
   computeLaggedAssociations,
   generateTopPatterns,
-  lowSymptomAssociationFoods,
+  linkByDelay,
   matchItem,
-  MULTIPLE_COMPARISONS_NOTE,
+  patternLinkKey,
+  type AssociationResult,
 } from "@/lib/aggregations/patterns";
-import { colorForCategorySlot } from "@/taxonomy/categories";
-import type { CanonicalEvent, RawWorkoutLog } from "@/lib/types";
+import { TYPE_ACCENT } from "@/taxonomy/categories";
+import type { CanonicalEvent } from "@/lib/types";
+
+const WITHOUT_COLOR = "color-mix(in oklab, var(--text-muted) 60%, var(--surface-1))";
+
+const FOOTNOTE = "Share of days the symptom appeared. Links, not proof of cause.";
 
 /** "the same day as X" / "the day after X" / "2 days after X" */
 function lagPhrase(lagDays: number): string {
@@ -31,310 +34,223 @@ function lagPhrase(lagDays: number): string {
   return `${lagDays} days after`;
 }
 
+function delayLabel(lagDays: number): string {
+  if (lagDays === 0) return "Same day";
+  if (lagDays === 1) return "Next day";
+  return `${lagDays} days later`;
+}
+
+/** "More often the day after Milk" */
+function linkSentence(link: AssociationResult): string {
+  return `${link.diffPct > 0 ? "More" : "Less"} often ${lagPhrase(link.lagDays)} ${link.causeLabel}`;
+}
+
+function withColor(link: AssociationResult): string {
+  return link.diffPct > 0 ? "var(--status-serious)" : "var(--status-good)";
+}
+
+/** "Since January", with the year once it isn't this year's January. */
+function sinceLabel(events: CanonicalEvent[]): string {
+  let first: string | null = null;
+  for (const e of events) if (!first || e.date < first) first = e.date;
+  if (!first) return "";
+  const d = new Date(`${first}T00:00:00`);
+  const sameYear = d.getFullYear() === new Date().getFullYear();
+  return `Since ${d.toLocaleDateString(undefined, { month: "long", year: sameYear ? undefined : "numeric" })}`;
+}
+
+/** With / Without as two thin bars, each filled to its share of days. */
+function PairedBars({ link, withLabel = "With", withoutLabel = "Without" }: { link: AssociationResult; withLabel?: string; withoutLabel?: string }) {
+  const rows = [
+    { label: withLabel, pct: link.withPct, color: withColor(link) },
+    { label: withoutLabel, pct: link.withoutPct, color: WITHOUT_COLOR },
+  ];
+  return (
+    <span className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-2.5 gap-y-1 text-xs">
+      {rows.map((r) => (
+        <span key={r.label} className="contents">
+          <span style={{ color: "var(--text-secondary)" }}>{r.label}</span>
+          <span className="block h-[5px] overflow-hidden rounded-full" style={{ background: "var(--gridline)" }} aria-hidden="true">
+            <span className="block h-full rounded-full" style={{ width: `${Math.max(r.pct > 0 ? 2 : 0, r.pct)}%`, background: r.color }} />
+          </span>
+          <span className="text-right tabular-nums" style={{ color: "var(--text-primary)" }}>
+            {Math.round(r.pct)}%
+          </span>
+        </span>
+      ))}
+    </span>
+  );
+}
+
 export function PatternsDashboard() {
   const { status, events, workoutLogs } = useData();
-  const { span, range, setRange, filtered } = useDateRangeFilter(events);
-  const filteredWorkoutLogs = useMemo(
-    () => (range ? workoutLogs.filter((g) => g.date >= range.start && g.date <= range.end) : workoutLogs),
-    [workoutLogs, range],
-  );
-
-  const topPatterns = useMemo(() => generateTopPatterns(filtered, filteredWorkoutLogs), [filtered, filteredWorkoutLogs]);
+  const { prefs, update } = usePreferences();
+  const hiddenLinks = prefs.hiddenPatternLinks;
+  const hidden = useMemo(() => new Set((hiddenLinks ?? []).map((l) => patternLinkKey(l.symptom, l.trigger))), [hiddenLinks]);
+  // Links need the whole history — a month holds too few days on each side
+  // of a comparison — so this tab has no range filter.
+  const links = useMemo(() => generateTopPatterns(events, hidden), [events, hidden]);
+  const [openLink, setOpenLink] = useState<AssociationResult | null>(null);
+  const [exploring, setExploring] = useState(false);
 
   if (status === "loading") return <PageSkeleton />;
   if (status === "empty") return <EmptyState />;
 
+  function hideLink(link: AssociationResult) {
+    update({ hiddenPatternLinks: [...(hiddenLinks ?? []), { symptom: link.outcomeLabel, trigger: link.causeLabel }] });
+    setOpenLink(null);
+  }
+
   return (
     <div className="flex flex-col gap-6">
-      {span && range && (
-        <TrendsActions>
-          <DateRangeFilter span={span} value={range} onChange={setRange} />
-        </TrendsActions>
-      )}
-
-      {topPatterns.length > 0 ? (
-        <Card tier="supporting" className="flex flex-col gap-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <span
-              className="text-xs font-semibold tracking-wide uppercase"
-              style={{ color: "var(--ui-accent)" }}
+      {links.length > 0 ? (
+        <TrendGroup caption={`Possible links · ${sinceLabel(events)}`} note={FOOTNOTE}>
+          {links.map((link) => (
+            <button
+              key={patternLinkKey(link.outcomeLabel, link.causeLabel)}
+              type="button"
+              onClick={() => setOpenLink(link)}
+              className="block min-h-11 w-full px-3.5 py-2.5 text-left"
             >
-              Strongest signal
-            </span>
-            <SampleTierBadge tier={topPatterns[0].sampleTier} />
-          </div>
-          <p className="text-sm leading-snug" style={{ color: "var(--text-primary)" }}>
-            <strong className="font-semibold">{topPatterns[0].outcomeLabel}</strong>{" "}
-            {topPatterns[0].diffPct > 0 ? "occurred more often" : "occurred less often"} {lagPhrase(topPatterns[0].lagDays)}{" "}
-            <strong className="font-semibold">{topPatterns[0].causeLabel}</strong>.
-          </p>
-          <ComparisonBars
-            withLabel={`With ${topPatterns[0].causeLabel}`}
-            withPct={topPatterns[0].withPct}
-            withCount={topPatterns[0].withCount}
-            withTotal={topPatterns[0].withTotal}
-            withoutLabel={`Without ${topPatterns[0].causeLabel}`}
-            withoutPct={topPatterns[0].withoutPct}
-            withoutCount={topPatterns[0].withoutCount}
-            withoutTotal={topPatterns[0].withoutTotal}
-            direction={topPatterns[0].diffPct > 0 ? "more" : "less"}
-          />
-          <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-            Association only, never proof of cause — from {topPatterns[0].withTotal + topPatterns[0].withoutTotal} days of
-            overlapping tracking.
-          </p>
-        </Card>
+              <span className="flex items-center gap-3">
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+                    {link.outcomeLabel}
+                  </span>
+                  <span className="block text-xs" style={{ color: "var(--text-secondary)" }}>
+                    {linkSentence(link)}
+                  </span>
+                </span>
+                <span className="shrink-0" style={{ color: "var(--text-muted)" }}>
+                  <ChevronIcon dir="right" size={14} />
+                </span>
+              </span>
+              <span className="mt-2 block">
+                <PairedBars link={link} />
+              </span>
+            </button>
+          ))}
+        </TrendGroup>
       ) : (
-        <Insight
-          label="Patterns"
-          headline="Nothing stands out strongly yet."
-          detail="Each association needs about 10 days with the thing and 5 without before it shows here. Keep logging both sides."
-          tone="neutral"
-        />
+        <TrendGroup caption={`Possible links · ${sinceLabel(events)}`}>
+          <div className="px-3.5 py-3">
+            <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+              No clear links yet
+            </p>
+            <p className="mt-0.5 text-xs" style={{ color: "var(--text-secondary)" }}>
+              A link shows once a food or supplement has two weeks of days with it and without it, and the difference holds up after every
+              combination is checked together.
+            </p>
+          </div>
+        </TrendGroup>
       )}
 
-      <Card tier="raw">
-        <CardTitle size="sm" subtitle="Each pair shows whichever of 4 lags (same day to +3 days) has the strongest signal.">
-          Other associations
-        </CardTitle>
-        {topPatterns.length > 1 ? (
-          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-            {topPatterns.slice(1).map((p, i) => (
-              <div key={i} className="rounded-xl border p-3.5" style={{ borderColor: "var(--gridline)" }}>
-                <div className="mb-2 flex items-start justify-between gap-2">
-                  <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
-                    {p.outcomeLabel}{" "}
-                    <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>
-                      {p.diffPct > 0 ? "occurred more often" : "occurred less often"}
-                    </span>{" "}
-                    {lagPhrase(p.lagDays)} {p.causeLabel}
-                  </p>
-                  <SampleTierBadge tier={p.sampleTier} />
-                </div>
-                <ComparisonBars
-                  withLabel={`With ${p.causeLabel}`}
-                  withPct={p.withPct}
-                  withCount={p.withCount}
-                  withTotal={p.withTotal}
-                  withoutLabel={`Without ${p.causeLabel}`}
-                  withoutPct={p.withoutPct}
-                  withoutCount={p.withoutCount}
-                  withoutTotal={p.withoutTotal}
-                  direction={p.diffPct > 0 ? "more" : "less"}
-                />
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-            {topPatterns.length === 1
-              ? "That's the only association that cleared the bar in this range."
-              : "Not enough data yet to surface a reliable association (each comparison needs at least 10 exposed days and 5 unexposed days, at every lag checked)."}
-          </p>
-        )}
-        <p className="mt-4 text-xs" style={{ color: "var(--text-muted)" }}>
-          Association only, not evidence of cause.
-        </p>
-        <div className="mt-2">
-          <Methodology label="Why so few results?">{MULTIPLE_COMPARISONS_NOTE}</Methodology>
-        </div>
-      </Card>
+      <TrendGroup caption="Explore">
+        <TrendRow label="Compare a symptom and a food…" onClick={() => setExploring(true)} />
+      </TrendGroup>
 
-      <LagExplorer events={filtered} workoutLogs={filteredWorkoutLogs} />
-
-      <ToleratedFoods events={filtered} />
-
-      <Methodology>
-        Associations and correlations in your own data, for when you want to dig deeper. They&apos;re descriptive only,
-        never causal: two things showing up together doesn&apos;t mean one caused the other.
-      </Methodology>
+      {openLink && <LinkSheet link={openLink} events={events} onHide={() => hideLink(openLink)} onClose={() => setOpenLink(null)} />}
+      {exploring && <ExploreSheet events={events} workoutLogs={workoutLogs} onClose={() => setExploring(false)} />}
     </div>
   );
 }
 
-function LagExplorer({ events, workoutLogs }: { events: CanonicalEvent[]; workoutLogs: RawWorkoutLog[] }) {
-  const causeOptions = useMemo(() => allCauseOptions(events, workoutLogs), [events, workoutLogs]);
-
-  const outcomeOptions = useMemo(() => {
-    const items = Array.from(
-      new Set(events.filter((e) => e.itemType === "outcome").map((e) => e.item)),
-    );
-    return items.map((item) => ({ label: item, value: item }));
-  }, [events]);
-
-  const [cause, setCause] = useState(causeOptions[0]?.label ?? "");
-  const [outcome, setOutcome] = useState(outcomeOptions[0]?.value ?? "");
-
-  // Falls back to the first available option not just when nothing's been
-  // picked yet, but also when the previously-picked one no longer exists in
-  // the current options — e.g. narrowing the date range filter above until
-  // the selected cause has zero occurrences left. Without this, the select
-  // would sit on a value with no matching option and the results grid would
-  // just go silently blank.
-  const effectiveCause = causeOptions.some((o) => o.label === cause) ? cause : (causeOptions[0]?.label ?? "");
-  const effectiveOutcome = outcomeOptions.some((o) => o.value === outcome) ? outcome : (outcomeOptions[0]?.value ?? "");
-
-  const results = useMemo(() => {
-    if (!effectiveCause || !effectiveOutcome) return [];
-    const causeOption = causeOptions.find((o) => o.label === effectiveCause);
-    if (!causeOption) return [];
-    const outcomeMatcher = matchItem(effectiveOutcome);
-    return computeLaggedAssociations(events, causeOption.label, causeOption.dates, outcomeMatcher, [0, 1, 2, 3]);
-  }, [events, causeOptions, effectiveCause, effectiveOutcome]);
-
-  if (causeOptions.length === 0 || outcomeOptions.length === 0) return null;
-
+/** Each delay from the same day to 3 days after, as With / Without bars. */
+function DelayRows({ results, causeLabel }: { results: AssociationResult[]; causeLabel: string }) {
   return (
-    <Card tier="raw">
-      <CardTitle size="sm" subtitle="Does the association get stronger 1–3 days after the cause instead of the same day?">
-        Time-lag explorer
-      </CardTitle>
-      <div className="mb-4 flex flex-wrap gap-3">
-        <select
-          value={effectiveCause}
-          onChange={(e) => setCause(e.target.value)}
-          className={CONTROL_CLS}
-          style={CONTROL_STYLE}
-        >
-          {causeOptions.map((o) => (
-            <option key={o.label} value={o.label}>
-              {o.label}
-            </option>
-          ))}
-        </select>
-        <span className="self-center text-sm" style={{ color: "var(--text-muted)" }}>
-          →
-        </span>
-        <select
-          value={effectiveOutcome}
-          onChange={(e) => setOutcome(e.target.value)}
-          className={CONTROL_CLS}
-          style={CONTROL_STYLE}
-        >
-          {outcomeOptions.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </select>
-      </div>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {results.map((r) => (
-          <div key={r.lagDays} className="rounded-xl border p-3" style={{ borderColor: "var(--gridline)" }}>
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
-                {r.lagDays === 0 ? "Same day" : `+${r.lagDays} day${r.lagDays > 1 ? "s" : ""} later`}
-              </p>
-              <SampleTierBadge tier={r.sampleTier} />
-            </div>
-            {r.sampleTier !== "insufficient" ? (
-              <>
-                <p className="mt-1 text-sm font-semibold tabular-nums" style={{ color: "var(--text-primary)" }}>
-                  {r.diffPct > 0 ? "+" : ""}
-                  {r.diffPct} pts
-                </p>
-                <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
-                  {r.withPct}% with ({r.withCount}/{r.withTotal}) vs {r.withoutPct}% without ({r.withoutCount}/
-                  {r.withoutTotal})
-                </p>
-              </>
-            ) : (
-              <p className="mt-1 text-xs" style={{ color: "var(--text-muted)" }}>
-                Not enough data ({r.withTotal + r.withoutTotal} days)
-              </p>
+    <FormGroup title="By delay" footer={FOOTNOTE}>
+      {results.map((r) => (
+        <div key={r.lagDays} className="px-3.5 py-2.5">
+          <p className="mb-1.5 flex items-baseline justify-between gap-3 text-sm" style={{ color: "var(--text-primary)" }}>
+            <span>{delayLabel(r.lagDays)}</span>
+            {r.sampleTier === "insufficient" && (
+              <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+                Not enough days
+              </span>
             )}
-          </div>
-        ))}
-      </div>
-    </Card>
+          </p>
+          {r.sampleTier !== "insufficient" && <PairedBars link={r} withLabel={`With ${causeLabel}`} />}
+        </div>
+      ))}
+    </FormGroup>
   );
 }
 
-function ToleratedFoods({ events }: { events: CanonicalEvent[] }) {
-  const foods = useMemo(() => lowSymptomAssociationFoods(events), [events]);
+function LinkSheet({ link, events, onHide, onClose }: { link: AssociationResult; events: CanonicalEvent[]; onHide: () => void; onClose: () => void }) {
+  const byDelay = useMemo(() => linkByDelay(events, link.causeLabel, link.outcomeLabel), [events, link]);
+  return (
+    <Sheet title={link.outcomeLabel} subtitle={linkSentence(link)} titleId="pattern-link-title" onClose={onClose}>
+      <div className="flex flex-col gap-5">
+        <FormGroup title={delayLabel(link.lagDays)}>
+          {[
+            { label: `With ${link.causeLabel}`, count: link.withCount, total: link.withTotal, pct: link.withPct, color: withColor(link) },
+            { label: "Without", count: link.withoutCount, total: link.withoutTotal, pct: link.withoutPct, color: "var(--text-primary)" },
+          ].map((r) => (
+            <div key={r.label} className="flex min-h-11 items-center gap-3 px-3.5">
+              <span className="min-w-0 flex-1 text-sm" style={{ color: "var(--text-primary)" }}>
+                {r.label}
+              </span>
+              <span className="text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>
+                {r.count} of {r.total} days
+              </span>
+              <span className="w-10 text-right text-sm font-semibold tabular-nums" style={{ color: r.color }}>
+                {Math.round(r.pct)}%
+              </span>
+            </div>
+          ))}
+        </FormGroup>
+
+        <DelayRows results={byDelay} causeLabel={link.causeLabel} />
+
+        <FormGroup footer="Hides this link for good. You can bring it back in Settings → Hidden links.">
+          <button type="button" onClick={onHide} className="flex min-h-11 w-full items-center px-3.5 text-left text-sm font-medium" style={{ color: "var(--ui-accent)" }}>
+            Not related
+          </button>
+        </FormGroup>
+      </div>
+    </Sheet>
+  );
+}
+
+const CAUSE_PREFIX = /^(Food|Food category|Supplement|Habit|Workout): /;
+
+function ExploreSheet({ events, workoutLogs, onClose }: { events: CanonicalEvent[]; workoutLogs: ReturnType<typeof useData>["workoutLogs"]; onClose: () => void }) {
+  const causeOptions = useMemo(() => allCauseOptions(events, workoutLogs), [events, workoutLogs]);
+  const symptomOptions = useMemo(
+    () => Array.from(new Set(events.filter((e) => e.itemType === "outcome").map((e) => e.item))).sort((a, b) => a.localeCompare(b)),
+    [events],
+  );
+  const [symptom, setSymptom] = useState("");
+  const [cause, setCause] = useState("");
+
+  const causeOption = causeOptions.find((o) => o.label === cause);
+  const results = useMemo(
+    () => (causeOption && symptomOptions.includes(symptom) ? computeLaggedAssociations(events, causeOption.label, causeOption.dates, matchItem(symptom)) : []),
+    [events, causeOption, symptom, symptomOptions],
+  );
+  const causeName = cause.replace(CAUSE_PREFIX, "");
 
   return (
-    <Card tier="raw">
-      <CardTitle size="sm" subtitle="Foods eaten on 20+ tracked days with no meaningfully elevated same-day symptom rate. Not a 'safe foods' list.">
-        Low observed symptom association
-      </CardTitle>
-      {foods.length === 0 && (
-        <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-          No food currently clears this bar — either nothing is eaten on 20+ tracked days yet, or every
-          frequently-eaten food shows at least one symptom with a meaningfully elevated same-day rate in this
-          data. That&apos;s a real finding worth noting on its own, not an error.
-        </p>
-      )}
-      {foods.length > 0 &&
-        (() => {
-          const maxDays = Math.max(...foods.map((f) => f.exposureDays), 1);
-          return (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-left text-xs whitespace-nowrap" style={{ color: "var(--text-muted)" }}>
-                    <th className="pb-2 pr-6 font-medium">Food</th>
-                    <th className="pb-2 pr-6 font-medium">Days eaten</th>
-                    <th className="pb-2 text-right font-medium">Largest symptom diff</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {foods.map((f) => {
-                    const worse = f.worstSymptomLabel != null && f.worstSymptomDiffPct > 0;
-                    return (
-                      <tr key={f.item} className="border-t" style={{ borderColor: "var(--gridline)" }}>
-                        <td className="py-2.5 pr-6">
-                          <span className="flex items-center gap-2">
-                            <span
-                              className="h-2 w-2 shrink-0 rounded-full"
-                              style={{ background: colorForCategorySlot(f.category) }}
-                              aria-hidden="true"
-                            />
-                            <span style={{ color: "var(--text-primary)" }}>{f.item}</span>
-                            <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-                              {f.category}
-                            </span>
-                          </span>
-                        </td>
-                        <td className="py-2.5 pr-6">
-                          <span className="flex items-center gap-2">
-                            <span className="h-1.5 w-16 shrink-0 rounded-full" style={{ background: "var(--page-plane)" }}>
-                              <span
-                                className="block h-1.5 rounded-full"
-                                style={{ width: `${(f.exposureDays / maxDays) * 100}%`, background: "var(--series-1)" }}
-                              />
-                            </span>
-                            <span className="tabular-nums text-xs" style={{ color: "var(--text-secondary)" }}>
-                              {f.exposureDays}
-                            </span>
-                          </span>
-                        </td>
-                        <td className="py-2.5 text-right whitespace-nowrap tabular-nums">
-                          {f.worstSymptomLabel ? (
-                            <>
-                              <span
-                                className="font-medium"
-                                style={{ color: worse ? "var(--status-warning)" : "var(--status-good)" }}
-                              >
-                                {f.worstSymptomDiffPct > 0 ? "+" : ""}
-                                {f.worstSymptomDiffPct} pts
-                              </span>{" "}
-                              <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-                                {f.worstSymptomLabel}
-                              </span>
-                            </>
-                          ) : (
-                            <span style={{ color: "var(--text-muted)" }}>—</span>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          );
-        })()}
-    </Card>
+    <Sheet title="Compare" titleId="pattern-explore-title" onClose={onClose}>
+      {/* Tall from the start, so the pickers' suggestions have room below them. */}
+      <div className="flex min-h-[60dvh] flex-col gap-5">
+        <FormGroup>
+          <Field label="Symptom" plain>
+            <ComboBox value={symptom} onChange={setSymptom} options={symptomOptions} placeholder="Search symptoms" allowCreate={false} accent={TYPE_ACCENT.outcome} />
+          </Field>
+          <Field label="Food, supplement or habit" plain>
+            <ComboBox
+              value={cause}
+              onChange={setCause}
+              options={causeOptions.map((o) => o.label)}
+              placeholder="Search foods, supplements, habits"
+              allowCreate={false}
+              accent={TYPE_ACCENT.food}
+            />
+          </Field>
+        </FormGroup>
+        {results.length > 0 && <DelayRows results={results} causeLabel={causeName} />}
+      </div>
+    </Sheet>
   );
 }

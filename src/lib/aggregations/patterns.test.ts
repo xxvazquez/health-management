@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { computeAssociationFromDateSets, generateTopPatterns, matchCategory, matchItem } from "./patterns";
+import { computeAssociationFromDateSets, fisherExactP, generateTopPatterns, matchCategory, matchItem, patternLinkKey, plausibleLags } from "./patterns";
 import { makeEvent } from "@/lib/testFixtures";
+import { addDaysToDate } from "./common";
 
 describe("matchItem / matchCategory", () => {
   it("matchItem matches only the exact item name, and only when completed", () => {
@@ -77,6 +78,44 @@ describe("computeAssociationFromDateSets", () => {
 
 describe("generateTopPatterns", () => {
   it("returns an empty array for no events", () => {
-    expect(generateTopPatterns([], [])).toEqual([]);
+    expect(generateTopPatterns([])).toEqual([]);
+  });
+
+  // 60 days: Milk every third day, Bloating the day after each Milk day.
+  const day = (n: number) => addDaysToDate("2026-03-01", n);
+  const linked = Array.from({ length: 60 }, (_, n) => n).flatMap((n) => [
+    makeEvent({ itemType: "food", item: "Bread", category: "Grains", date: day(n) }),
+    ...(n % 3 === 0 ? [makeEvent({ itemType: "food", item: "Milk", category: "Dairy", date: day(n) })] : []),
+    ...(n % 3 === 1 ? [makeEvent({ itemType: "outcome", item: "Bloating", category: "Digestive Symptom", date: day(n) })] : []),
+  ]);
+
+  it("finds a link that holds up, at its plausible delay", () => {
+    const [link] = generateTopPatterns(linked);
+    expect(link).toMatchObject({ outcomeLabel: "Bloating", causeLabel: "Milk", lagDays: 1 });
+  });
+
+  it("skips a pair the user marked not related", () => {
+    const links = generateTopPatterns(linked, new Set([patternLinkKey("Bloating", "Milk")]));
+    expect(links.some((l) => l.causeLabel === "Milk")).toBe(false);
+  });
+});
+
+describe("fisherExactP", () => {
+  it("matches the textbook tea-tasting value", () => {
+    // [[3, 1], [1, 3]] — two-sided p = 0.486
+    expect(fisherExactP(3, 1, 1, 3)).toBeCloseTo(0.486, 3);
+  });
+
+  it("is 1 when there is no difference", () => {
+    expect(fisherExactP(5, 5, 5, 5)).toBeCloseTo(1, 5);
+  });
+});
+
+describe("plausibleLags", () => {
+  it("allows longer delays for gut symptoms than for tiredness, and never tests menstrual ones", () => {
+    expect(plausibleLags("Digestive Symptom")).toEqual([0, 1, 2]);
+    expect(plausibleLags("Pain")).toEqual([0, 1]);
+    expect(plausibleLags("Other Symptom")).toEqual([0]);
+    expect(plausibleLags("Menstrual")).toEqual([]);
   });
 });

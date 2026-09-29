@@ -20,6 +20,13 @@ export interface Preferences {
   lastLogTab?: string;
   /** Settings → Food targets: diet plus per-group weekly targets. */
   foodTargets?: FoodTargetsPref;
+  /** Trends → Patterns links marked "Not related", never shown again. */
+  hiddenPatternLinks?: HiddenPatternLink[];
+}
+
+export interface HiddenPatternLink {
+  symptom: string;
+  trigger: string;
 }
 
 async function currentUserId(): Promise<string | null> {

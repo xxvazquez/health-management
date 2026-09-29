@@ -733,6 +733,7 @@ account-wide settings every device shares
 | `appearance` | Settings → Appearance: `theme` (`light`/`dark`/`system`), `light` and `dark` palette ids. Each device also caches it in localStorage so the first paint needs no fetch. |
 | `lastLogTab` | The Log section (or `summary`) last open, so Log reopens there on every device. |
 | `foodTargets` | Settings → Food targets: `diet` (`everything`/`pescatarian`/`vegetarian`/`vegan`) and `perWeek`, each food group changed from that diet's default (`vegetables`, `fruit`, `legumes`, `grains`, `nuts_seeds`, `fish`; times a week, `0` = off). Resolved by `resolveFoodTargets` in `src/lib/foodTargets.ts`. |
+| `hiddenPatternLinks` | Trends → Patterns links marked "Not related", as `{ symptom, trigger }` pairs; never tested or shown again until unhidden in Settings → Hidden links. |
 
 Categories keep their order in `categories.sort_order` instead (above).
 
