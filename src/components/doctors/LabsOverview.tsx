@@ -289,7 +289,7 @@ export function LabsOverview({
  * in the card and every value, unit and flag lines up down the list. */
 function MarkerGrid({ children }: { children: ReactNode }) {
   return (
-    <Card tier="raw" padded={false} className="grid grid-cols-[minmax(0,1fr)_auto_auto_auto] px-3.5">
+    <Card tier="raw" padded={false} className="grid grid-cols-[minmax(0,1fr)_auto_auto_auto] overflow-hidden">
       {children}
     </Card>
   );
@@ -328,9 +328,9 @@ function MarkerRow({
       type="button"
       onClick={onOpen}
       aria-current={active ? "true" : undefined}
-      className={`col-span-full -mx-1.5 grid grid-cols-subgrid px-1.5 pt-2.5 pb-2 text-left ${active ? "rounded-lg" : ""}`}
+      className={`relative col-span-full grid grid-cols-subgrid px-3.5 pt-2.5 pb-2 text-left ${first ? "" : "before:absolute before:top-0 before:right-0 before:left-3.5 before:border-t before:border-[var(--border-hairline)]"}`}
       style={{
-        borderTop: first ? undefined : `1px solid ${active ? "transparent" : "var(--border-hairline)"}`,
+        // The whole cell tints, edge to edge, with its separators kept — a selected iOS row.
         background: active ? `color-mix(in oklab, ${ACCENT} var(--tint-pct), transparent)` : undefined,
       }}
     >
@@ -342,7 +342,7 @@ function MarkerRow({
         <span className="relative mr-2 ml-1.5 block h-8" aria-hidden="true">
           <span className="absolute inset-x-0 top-[5px] block h-[5px] rounded-full" style={{ background: "color-mix(in oklab, var(--gridline) 65%, var(--surface-1))" }} />
           <span
-            className="absolute top-[3px] block h-[9px] rounded-full"
+            className="absolute top-[5px] block h-[5px] rounded-full"
             style={{
               left: `${bar.bandLeftPct}%`,
               width: `${bar.bandRightPct - bar.bandLeftPct}%`,
