@@ -47,7 +47,7 @@ import { ensureCategoryId, ensureDefaultWorkoutItems } from "@/lib/categoryResol
 import { categoryComparator } from "@/lib/categoryOrder";
 import { hiddenPicksForMonth, seasonalPicksForMonth, weeklyCategoryPriority } from "@/lib/aggregations/seasonal";
 import { useHiddenSeasonalPicks } from "@/lib/useHiddenSeasonalPicks";
-import { formatMinutes, todayLocalISODate } from "@/lib/aggregations/common";
+import { addDaysToDate, formatMinutes, todayLocalISODate } from "@/lib/aggregations/common";
 import { buildDemoDataset } from "@/lib/demoData";
 import { normalizeName, titleCaseFallback } from "@/taxonomy/normalizeName";
 import { TYPE_ACCENT, colorForCategorySlot, effectiveCategoryList, type ItemType } from "@/taxonomy/categories";
@@ -140,6 +140,8 @@ const SUMMARY_ACCENT = "var(--series-other)";
 const EXPANDED_CATEGORIES_STORAGE_KEY = "lauva.log.expandedCategories";
 /** The Food category strip's first tab — what's logged most at this meal. */
 const USUAL_TAB = "__usual__";
+/** How far back "Usual" looks first when ranking a meal's foods. */
+const USUAL_RECENT_DAYS = 60;
 const PICKS_TAB = "__picks__";
 const RECIPES_TAB = "__recipes__";
 
@@ -730,20 +732,27 @@ export default function LogPage() {
   // not a scroll. Hidden until there's a real pattern to show.
   const frequentFoods = useMemo(() => {
     if (tab !== "food") return [];
+    // What's eaten at this meal lately ranks first, so a change of habit
+    // shows up within weeks; all-time counts break ties.
+    const recentFrom = addDaysToDate(date, -USUAL_RECENT_DAYS);
+    const recent = new Map<string, number>();
     const atMeal = new Map<string, number>();
     for (const l of effective.logs) {
-      if (l.mealTag === meal) atMeal.set(l.itemIdentity, (atMeal.get(l.itemIdentity) ?? 0) + 1);
+      if (l.mealTag !== meal) continue;
+      atMeal.set(l.itemIdentity, (atMeal.get(l.itemIdentity) ?? 0) + 1);
+      if (l.date >= recentFrom && l.date <= date) recent.set(l.itemIdentity, (recent.get(l.itemIdentity) ?? 0) + 1);
     }
     return candidates
       .filter((c) => c.itemType === "food" && c.count > 0)
       .sort(
         (a, b) =>
+          (recent.get(b.itemIdentity) ?? 0) - (recent.get(a.itemIdentity) ?? 0) ||
           (atMeal.get(b.itemIdentity) ?? 0) - (atMeal.get(a.itemIdentity) ?? 0) ||
           b.count - a.count ||
           a.item.localeCompare(b.item),
       )
       .slice(0, 8);
-  }, [candidates, effective.logs, meal, tab]);
+  }, [candidates, effective.logs, meal, tab, date]);
 
   const productNameById = useMemo(() => new Map(foodProducts.data.map((p) => [p.id, p.name])), [foodProducts.data]);
 
@@ -1922,8 +1931,8 @@ export default function LogPage() {
   /** The item list for one category, A–Z: grouped rows on a phone; from
    * `lg` up as many newspaper columns as fit, reading down each column,
    * each wide enough for the longest name. */
-  function renderItemList(items: LogCandidate[], renderItem: (c: LogCandidate) => ReactNode) {
-    const sorted = [...items].sort((a, b) => a.item.localeCompare(b.item));
+  function renderItemList(items: LogCandidate[], renderItem: (c: LogCandidate) => ReactNode, ranked = false) {
+    const sorted = ranked ? items : [...items].sort((a, b) => a.item.localeCompare(b.item));
     return (
       <div
         className="inset-rows rounded-xl border text-sm [--row-inset:3.375rem] lg:columns-(--col-w) lg:gap-x-3 lg:p-1.5 lg:[&>*]:break-inside-avoid lg:[&>*]:rounded-lg lg:[&>*::before]:hidden"
@@ -2024,7 +2033,7 @@ export default function LogPage() {
             ) : active === recipesTab ? (
               <RecipeList recipes={recipes} accent={TYPE_ACCENT.food} onLog={isDemoData ? undefined : (r) => void handleLogRecipe(r)} pendingId={pending?.startsWith("recipe:") ? pending.slice(7) : null} />
             ) : (
-              renderItemList(active.items, renderChip)
+              renderItemList(active.items, renderChip, active === usual)
             ),
         })}
       </div>
