@@ -25,6 +25,22 @@ export const TARGET_LABEL: Record<TargetGroup, string> = {
   sweets: "Ultra-processed",
 };
 
+/** What counts toward each group, for the one line under its setting. */
+export const TARGET_EXAMPLES: Record<TargetGroup, string> = {
+  vegetables: "Leafy greens, broccoli, carrots, onions and the like. Potatoes don't count.",
+  fruit: "Any fresh or frozen fruit, berries and citrus included.",
+  legumes: "Beans, lentils, chickpeas, peas and tofu.",
+  grains: "Oats, buckwheat, brown rice, wholemeal bread. White bread and pasta don't count.",
+  nuts_seeds: "A handful of nuts, seeds or nut butter.",
+  fish: "Any fish or seafood; salmon, mackerel and herring are the oily ones.",
+  fats: "Olive oil, rapeseed oil and avocado.",
+  meat: "Beef, pork, lamb, sausage, ham and bacon.",
+  poultry: "Chicken and turkey.",
+  eggs: "Eggs, however they're cooked.",
+  dairy: "Milk, yoghurt, kefir and cheese.",
+  sweets: "Sweets, cake, crisps and other ultra-processed snacks.",
+};
+
 /** Which nutrition groups a day has to include to count toward a target. */
 export const TARGET_NUTRITION_GROUPS: Record<TargetGroup, NutritionGroupId[]> = {
   vegetables: ["leafy_greens", "cruciferous", "red_orange_veg", "alliums", "other_vegetables"],

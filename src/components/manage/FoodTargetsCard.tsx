@@ -1,33 +1,47 @@
 "use client";
 
+import { useId, useState } from "react";
 import { CollapsibleManageCard, GROUP_CLS, GROUP_STYLE, GroupNote } from "@/components/manage/ManageSection";
-import { CheckIcon, UpDownChevronIcon } from "@/components/ui/icons";
+import { ChevronIcon, UpDownChevronIcon } from "@/components/ui/icons";
 import { NumberStepper } from "@/components/ui/NumberStepper";
+import { Segmented } from "@/components/ui/Segmented";
+import { Sheet } from "@/components/ui/Sheet";
+import { FormGroup } from "@/components/ui/FormGroup";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { usePreferences } from "@/lib/usePreferences";
 import {
   DIETS,
   DIET_DEFAULTS,
   DIET_LABEL,
   MAX_TARGET_PER_WEEK,
+  TARGET_EXAMPLES,
   TARGET_GROUPS,
   TARGET_LABEL,
   dietOf,
   resolveAllFoodTargets,
   type Diet,
+  type GroupTarget,
   type TargetGroup,
   type TargetMode,
 } from "@/lib/foodTargets";
 import { TYPE_ACCENT } from "@/taxonomy/categories";
 
 const CAPTION_CLS = "px-4 text-xs font-semibold tracking-wide uppercase";
+const ACCENT = TYPE_ACCENT.food;
 
-const MODE_LABEL: Record<TargetMode, string> = { min: "At least", max: "At most", off: "Off" };
+const SECTIONS: { mode: TargetMode; caption: string; footer?: string }[] = [
+  { mode: "min", caption: "Goals", footer: "Meals a week that include each group." },
+  { mode: "max", caption: "Limits" },
+  { mode: "off", caption: "Not measured" },
+];
 
-/** Settings → Food targets: a diet as a starting point, then every food
- * group with its own goal — at least or at most so many meals a week, or
- * off — which Trends → Food measures against. */
+/** Settings → Food targets, laid out like iOS Settings: the diet as a menu
+ * row, then every food group under Goals, Limits or Not measured with its
+ * weekly count, each opening a sheet to change it. */
 export function FoodTargetsCard({ searchQuery }: { searchQuery: string }) {
   const { prefs, update } = usePreferences();
+  const [editing, setEditing] = useState<TargetGroup | null>(null);
+  const [pendingDiet, setPendingDiet] = useState<Diet | null>(null);
   const query = searchQuery.trim().toLowerCase();
   const isSearching = query.length > 0;
   if (isSearching && !`food targets diet vegetarian vegan pescatarian ${TARGET_GROUPS.map((g) => TARGET_LABEL[g]).join(" ")}`.toLowerCase().includes(query)) return null;
@@ -42,106 +56,153 @@ export function FoodTargetsCard({ searchQuery }: { searchQuery: string }) {
     update({ foodTargets: { diet: next } });
   }
 
-  function setGroup(group: TargetGroup, mode: TargetMode, perWeek: number) {
-    // A group switched on from 0 starts at once a week.
-    const value = mode !== "off" && perWeek === 0 ? 1 : perWeek;
-    update({ foodTargets: { diet, groups: { ...pref?.groups, ...legacyAsGroups(), [group]: { mode, perWeek: value } } } });
+  function chooseDiet(next: Diet) {
+    if (next === diet) return;
+    // Switching diet replaces every target, so confirm when some were changed by hand.
+    if (customised) setPendingDiet(next);
+    else setDiet(next);
   }
 
-  // Carries targets saved in the older numbers-only shape into `groups`.
-  function legacyAsGroups() {
-    if (!pref?.perWeek) return {};
-    const out: Partial<Record<TargetGroup, { mode: TargetMode; perWeek: number }>> = {};
-    for (const g of Object.keys(pref.perWeek) as TargetGroup[]) if (!pref.groups?.[g]) out[g] = all[g];
-    return out;
+  function setGroup(group: TargetGroup, next: GroupTarget) {
+    const perWeek = next.mode !== "off" && next.perWeek === 0 ? 1 : next.perWeek;
+    const groups: Partial<Record<TargetGroup, GroupTarget>> = { ...pref?.groups };
+    // Carries targets saved in the older numbers-only shape into `groups`.
+    for (const g of Object.keys(pref?.perWeek ?? {}) as TargetGroup[]) groups[g] ??= all[g];
+    groups[group] = { mode: next.mode, perWeek };
+    update({ foodTargets: { diet, groups } });
   }
 
   const onCount = TARGET_GROUPS.filter((g) => all[g].mode !== "off").length;
 
   return (
-    <CollapsibleManageCard title="Food targets" subtitle={`${DIET_LABEL[diet]}${customised ? ", custom" : ""} · ${onCount} on`} forceOpen={isSearching} bare>
+    <CollapsibleManageCard title="Food targets" subtitle={`${DIET_LABEL[diet]} · ${onCount} on`} forceOpen={isSearching} bare>
       <div className="flex flex-col gap-1.5">
-        <h3 className={CAPTION_CLS} style={{ color: "var(--text-muted)" }}>
-          Diet
-        </h3>
         <div className={GROUP_CLS} style={GROUP_STYLE}>
-          {DIETS.map((d) => (
-            <button key={d} type="button" onClick={() => setDiet(d)} aria-pressed={d === diet} className="flex min-h-11 w-full items-center gap-3 px-3.5 text-left">
-              <span className="flex-1 text-sm" style={{ color: "var(--text-primary)" }}>
-                {DIET_LABEL[d]}
-              </span>
-              {d === diet && (
-                <span aria-hidden="true" style={{ color: "var(--ui-accent)" }}>
-                  <CheckIcon size={14} />
-                </span>
-              )}
-            </button>
-          ))}
+          <label className="relative flex min-h-11 items-center gap-3 px-3.5">
+            <span className="flex-1 text-sm" style={{ color: "var(--text-primary)" }}>
+              Diet
+            </span>
+            <span className="flex items-center gap-1 text-sm" style={{ color: ACCENT }}>
+              {DIET_LABEL[diet]}
+              <UpDownChevronIcon size={11} />
+            </span>
+            <select
+              value={diet}
+              onChange={(e) => chooseDiet(e.target.value as Diet)}
+              aria-label="Diet"
+              className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0"
+            >
+              {DIETS.map((d) => (
+                <option key={d} value={d}>
+                  {DIET_LABEL[d]}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
-        <GroupNote>A starting point. Choosing a diet resets every group below to its defaults.</GroupNote>
+        <GroupNote>Choosing a diet sets every target to its defaults.</GroupNote>
       </div>
 
-      <div className="flex flex-col gap-1.5">
-        <h3 className={CAPTION_CLS} style={{ color: "var(--text-muted)" }}>
-          Meals a week
-        </h3>
+      {SECTIONS.map(({ mode, caption, footer }) => {
+        const groups = TARGET_GROUPS.filter((g) => all[g].mode === mode);
+        if (groups.length === 0) return null;
+        return (
+          <div key={mode} className="flex flex-col gap-1.5">
+            <h3 className={CAPTION_CLS} style={{ color: "var(--text-muted)" }}>
+              {caption}
+            </h3>
+            <div className={GROUP_CLS} style={GROUP_STYLE}>
+              {groups.map((group) => (
+                <button
+                  key={group}
+                  type="button"
+                  onClick={() => setEditing(group)}
+                  aria-haspopup="dialog"
+                  className="flex min-h-11 w-full items-center gap-3 px-3.5 py-2 text-left"
+                >
+                  <span className="min-w-0 flex-1 text-sm" style={{ color: "var(--text-primary)" }}>
+                    {TARGET_LABEL[group]}
+                  </span>
+                  {mode !== "off" && (
+                    <span className="shrink-0 text-sm tabular-nums" style={{ color: "var(--text-secondary)" }}>
+                      {all[group].perWeek} a week
+                    </span>
+                  )}
+                  <span className="shrink-0" style={{ color: "var(--text-muted)" }}>
+                    <ChevronIcon dir="right" size={14} />
+                  </span>
+                </button>
+              ))}
+            </div>
+            {footer && <GroupNote>{footer}</GroupNote>}
+          </div>
+        );
+      })}
+
+      {customised && (
         <div className={GROUP_CLS} style={GROUP_STYLE}>
-          {TARGET_GROUPS.map((group) => {
-            const t = all[group];
-            return (
-              <div key={group} className="flex min-h-11 items-center gap-2 px-3.5 py-1.5">
-                <span className="min-w-0 flex-1 text-sm" style={{ color: t.mode === "off" ? "var(--text-muted)" : "var(--text-primary)" }}>
-                  {TARGET_LABEL[group]}
-                </span>
-                <label className="hit-slop relative inline-flex shrink-0 items-center gap-1 text-sm" style={{ color: t.mode === "off" ? "var(--text-muted)" : TYPE_ACCENT.food }}>
-                  {MODE_LABEL[t.mode]}
-                  <UpDownChevronIcon size={11} />
-                  <select
-                    value={t.mode}
-                    onChange={(e) => setGroup(group, e.target.value as TargetMode, t.perWeek)}
-                    aria-label={`${TARGET_LABEL[group]} goal`}
-                    className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0"
-                  >
-                    {(Object.keys(MODE_LABEL) as TargetMode[]).map((m) => (
-                      <option key={m} value={m}>
-                        {MODE_LABEL[m]}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                {t.mode !== "off" && (
-                  <NumberStepper
-                    value={t.perWeek}
-                    onChange={(v) => setGroup(group, t.mode, v)}
-                    unit={` meals a week with ${TARGET_LABEL[group].toLowerCase()}`}
-                    accent={TYPE_ACCENT.food}
-                    step={1}
-                    min={1}
-                    max={MAX_TARGET_PER_WEEK}
-                    compact
-                    format={(v) => String(v)}
-                  />
-                )}
-              </div>
-            );
-          })}
-          {customised && (
-            <button
-              type="button"
-              onClick={() => setDiet(diet)}
-              className="flex min-h-11 w-full items-center px-3.5 text-left text-sm font-medium"
-              style={{ color: "var(--ui-accent)" }}
-            >
-              Reset to {DIET_LABEL[diet].toLowerCase()} defaults
-            </button>
-          )}
+          <button type="button" onClick={() => setDiet(diet)} className="flex min-h-11 w-full items-center px-3.5 text-left text-sm" style={{ color: "var(--ui-accent)" }}>
+            Reset to {DIET_LABEL[diet].toLowerCase()} defaults
+          </button>
         </div>
-        <GroupNote>
-          Trends → Food counts every meal (breakfast, lunch, dinner or snack) that included something from a group, so vegetables at lunch and
-          dinner every day make 14 a week. Healthy fats means olive oil, rapeseed oil and avocado; ultra-processed covers sweets, cake and
-          crisps. At least: a goal to reach. At most: a limit to stay under. Off: not measured.
-        </GroupNote>
-      </div>
+      )}
+
+      {editing && <TargetSheet group={editing} target={all[editing]} onChange={(next) => setGroup(editing, next)} onClose={() => setEditing(null)} />}
+      {pendingDiet && (
+        <ConfirmDialog
+          title={`Switch to ${DIET_LABEL[pendingDiet]}?`}
+          message="Every target will be set to that diet's defaults, replacing the ones you changed."
+          confirmLabel="Switch"
+          onConfirm={() => {
+            setDiet(pendingDiet);
+            setPendingDiet(null);
+          }}
+          onClose={() => setPendingDiet(null)}
+        />
+      )}
     </CollapsibleManageCard>
+  );
+}
+
+const MODE_OPTIONS = [
+  ["min", "At least"],
+  ["max", "At most"],
+  ["off", "Off"],
+] as const;
+
+/** One group's target: goal, limit or off, and how many meals a week. */
+function TargetSheet({ group, target, onChange, onClose }: { group: TargetGroup; target: GroupTarget; onChange: (next: GroupTarget) => void; onClose: () => void }) {
+  const titleId = useId();
+  return (
+    <Sheet title={TARGET_LABEL[group]} titleId={titleId} onClose={onClose}>
+      <div className="flex flex-col gap-4">
+        <Segmented fill value={target.mode} onChange={(mode) => onChange({ ...target, mode })} options={MODE_OPTIONS} accent={ACCENT} />
+        {target.mode !== "off" && (
+          <FormGroup footer={TARGET_EXAMPLES[group]}>
+            <div className="flex min-h-11 items-center gap-3 px-3.5 py-1.5">
+              <span className="flex-1 text-sm" style={{ color: "var(--text-primary)" }}>
+                Meals a week
+              </span>
+              <NumberStepper
+                value={target.perWeek}
+                onChange={(perWeek) => onChange({ ...target, perWeek })}
+                unit=" meals a week"
+                accent={ACCENT}
+                step={1}
+                min={1}
+                max={MAX_TARGET_PER_WEEK}
+                compact
+                format={(v) => String(v)}
+              />
+            </div>
+          </FormGroup>
+        )}
+        {target.mode === "off" && (
+          <p className="px-4 text-xs" style={{ color: "var(--text-muted)" }}>
+            Not measured on Trends. {TARGET_EXAMPLES[group]}
+          </p>
+        )}
+      </div>
+    </Sheet>
   );
 }
