@@ -11,7 +11,7 @@ export interface SectionNavItem {
  * Section switcher for a long analytics dashboard — same show-one-section-
  * at-a-time model as the page's own domain tabs, one level down. Selecting
  * an item swaps which section renders rather than scrolling to it, so
- * getting to "Repetition" or "Ingredients" never means scrolling past
+ * getting to "Combinations" or "Ingredients" never means scrolling past
  * everything else first.
  *
  * A thin wrapper over `TabRail` (the app's one tab shape) that stays pinned

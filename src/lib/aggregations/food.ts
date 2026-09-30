@@ -1,7 +1,5 @@
 import type { CanonicalEvent } from "@/lib/types";
 import { addDaysToDate, daysBetween, getDatasetSpan, pct, type DateRange } from "./common";
-import { nutritionGroupsForFood, type NutritionGroupOverride } from "@/taxonomy/nutritionGroups";
-import type { GroupState } from "./nutritionPriorities";
 
 function foodEvents(events: CanonicalEvent[]): CanonicalEvent[] {
   return events.filter((e) => e.itemType === "food" && e.completed);
@@ -201,58 +199,6 @@ export function ingredientDiversity(filtered: CanonicalEvent[], range: DateRange
 
   const prevFoods = foodEvents(allEvents).filter((e) => e.date >= prevStart && e.date <= prevEnd);
   return { current, previous: new Set(prevFoods.map((e) => e.item)).size };
-}
-
-type RepetitionTag = "beneficial" | "worth-noting" | "neutral";
-
-export interface RepetitionEntry {
-  item: string;
-  count: number;
-  shareOfOccurrences: number;
-  mealInstanceCount: number;
-  tag: RepetitionTag;
-}
-
-const DOMINANT_SHARE_THRESHOLD = 15;
-
-/**
- * Most-repeated ingredients, each tagged by whether the repetition itself
- * is worth a second look — never by frequency alone. A food is "beneficial"
- * (repetition is fine, full stop) whenever any of its nutrition groups is
- * already "good"/"strong" in `groupStates`, regardless of what else is
- * happening elsewhere in the diet — that's a separate, already-surfaced
- * concern (the Overview balance card), not this item's
- * fault. Only an item with no such backing, that also dominates total
- * occurrences, gets "worth-noting" — and only when `hasCoreGaps` is true
- * (some other core-pillar group is actually missing), so a dominant but
- * otherwise unremarkable food doesn't get flagged just for being common.
- */
-export function repetitionInsights(
-  ranked: FoodRankEntry[],
-  instances: MealInstance[],
-  groupStates: GroupState[],
-  hasCoreGaps: boolean,
-  topN = 8,
-  overrides: Record<string, NutritionGroupOverride> = {},
-): RepetitionEntry[] {
-  const totalOccurrences = ranked.reduce((sum, r) => sum + r.count, 0);
-  const statusByGroup = new Map(groupStates.map((s) => [s.group, s.status]));
-
-  return ranked.slice(0, topN).map((r) => {
-    const shareOfOccurrences = pct(r.count, totalOccurrences);
-    const mealInstanceCount = instances.filter((i) => i.items.includes(r.item)).length;
-    const groups = nutritionGroupsForFood(r.item, overrides);
-    const beneficial = groups.some((g) => {
-      const status = statusByGroup.get(g);
-      return status === "good" || status === "strong";
-    });
-
-    let tag: RepetitionTag = "neutral";
-    if (beneficial) tag = "beneficial";
-    else if (hasCoreGaps && shareOfOccurrences >= DOMINANT_SHARE_THRESHOLD) tag = "worth-noting";
-
-    return { item: r.item, count: r.count, shareOfOccurrences, mealInstanceCount, tag };
-  });
 }
 
 export interface IngredientMealRow {

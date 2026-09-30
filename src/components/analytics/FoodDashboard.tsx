@@ -26,7 +26,6 @@ import {
   ingredientRotation,
   mealInstances,
   rankedFoods,
-  repetitionInsights,
   type IngredientMealRow,
   type MealComboEntry,
 } from "@/lib/aggregations/food";
@@ -132,13 +131,11 @@ const FOOD_DATE_PRESETS: DateRangePreset[] = [
   { label: "All time", days: "all" },
 ];
 
-const REPETITION_DEFAULT_COUNT = 10;
 const INGREDIENTS_DEFAULT_COUNT = 10;
 
 const SECTION_NAV_ITEMS: SectionNavItem[] = [
   { id: "overview", label: "Overview" },
   { id: "variety", label: "Variety" },
-  { id: "repetition", label: "Repetition" },
   { id: "meal-patterns", label: "Meal patterns" },
   { id: "combinations", label: "Combinations" },
   { id: "ingredients", label: "Ingredients" },
@@ -165,11 +162,10 @@ export function FoodDashboard() {
   const foodTargets = useMemo(() => resolveFoodTargets(foodTargetsPref), [foodTargetsPref]);
   const extraTargets = useMemo(() => extraFoodTargets(foodTargetsPref), [foodTargetsPref]);
   // One section at a time, like the Log page — SectionNav swaps which
-  // section renders rather than scrolling to it, so reaching "Repetition"
+  // section renders rather than scrolling to it, so reaching "Combinations"
   // or "Ingredients" never means scrolling past everything above.
   const [activeSection, setActiveSection] = useState<string>(SECTION_NAV_ITEMS[0].id);
   const contentRef = useRef<HTMLDivElement>(null);
-  const [showAllRepetition, setShowAllRepetition] = useState(false);
   const [showAllIngredients, setShowAllIngredients] = useState(false);
   const [showAllEatingLess, setShowAllEatingLess] = useState(false);
   const [showAllEatenLeast, setShowAllEatenLeast] = useState(false);
@@ -206,11 +202,6 @@ export function FoodDashboard() {
   const mealInstanceCount = mealInstancesList.length;
   const combos = useMemo(() => favoriteCombosByMeal(mealInstancesList), [mealInstancesList]);
   const diversity = useMemo(() => (range ? ingredientDiversity(filtered, range, events) : null), [filtered, range, events]);
-  const hasCoreGaps = priorities.missing.length > 0;
-  const repetition = useMemo(
-    () => repetitionInsights(ranked, mealInstancesList, priorities.groupStates, hasCoreGaps, 20, nutritionGroupOverrides),
-    [ranked, mealInstancesList, priorities.groupStates, hasCoreGaps, nutritionGroupOverrides],
-  );
   const mealMatrix = useMemo(() => ingredientMealMatrix(mealInstancesList), [mealInstancesList]);
 
   if (status === "loading") return <PageSkeleton />;
@@ -390,10 +381,6 @@ export function FoodDashboard() {
         )}
       </PageSection>
 
-      <PageSection id="repetition" activeId={activeSection} headingLabel="Repetition">
-        <RepetitionSection repetition={repetition} expanded={showAllRepetition} onToggle={() => setShowAllRepetition((v) => !v)} />
-      </PageSection>
-
       <PageSection id="meal-patterns" activeId={activeSection} headingLabel="Meal patterns">
         <MealTypePatternsSection matrix={mealMatrix} mealInstanceCount={mealInstanceCount} />
       </PageSection>
@@ -537,74 +524,6 @@ function FavoriteCombosByMeal({ combos, mealInstanceCount }: { combos: MealCombo
             );
           })}
         </div>
-      )}
-    </Card>
-  );
-}
-
-// A verdict on the repetition itself, not on group coverage — kept clear
-// of the "Underrepresented / Well represented" vocabulary the coverage
-// pills use, since a repeated food and a covered food group aren't the
-// same axis.
-const REPETITION_TAG_LABEL: Record<ReturnType<typeof repetitionInsights>[number]["tag"], string> = {
-  beneficial: "Fine to repeat",
-  "worth-noting": "Worth a look",
-  neutral: "Frequent",
-};
-const REPETITION_TAG_COLOR: Record<ReturnType<typeof repetitionInsights>[number]["tag"], string> = {
-  beneficial: "var(--status-good)",
-  "worth-noting": "var(--status-warning)",
-  neutral: "var(--text-muted)",
-};
-
-/**
- * Repetition is never itself the problem — a food eaten often that's
- * already evidence-backed and well covered is tagged "beneficial" and
- * described as such, never flagged. Only a dominant food with no such
- * backing, while other core-pillar groups are actually missing, gets
- * "worth-noting" (see repetitionInsights' own doc comment for the exact
- * rule). Everything else is purely descriptive ("neutral").
- */
-function RepetitionSection({
-  repetition,
-  expanded,
-  onToggle,
-}: {
-  repetition: ReturnType<typeof repetitionInsights>;
-  expanded: boolean;
-  onToggle: () => void;
-}) {
-  const visible = expanded ? repetition : repetition.slice(0, REPETITION_DEFAULT_COUNT);
-  return (
-    <Card tier="raw">
-      <CardTitle size="sm" subtitle="Foods that appear regularly in your meals">
-        Repetition
-      </CardTitle>
-      {repetition.length > 0 ? (
-        <>
-        <ul className="flex flex-col inset-rows">
-          {visible.map((r) => (
-            <li key={r.item} className="flex items-center justify-between gap-3 py-2 text-sm">
-              <div className="flex min-w-0 flex-col">
-                <span className="font-medium" style={{ color: "var(--text-primary)" }}>{r.item}</span>
-                <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-                  {r.shareOfOccurrences}% of logged occurrences
-                  {r.mealInstanceCount > 0 && ` · in ${r.mealInstanceCount} meal${r.mealInstanceCount === 1 ? "" : "s"}`}
-                </span>
-              </div>
-              <span
-                className="shrink-0 text-xs font-medium whitespace-nowrap"
-                style={{ color: REPETITION_TAG_COLOR[r.tag] }}
-              >
-                {REPETITION_TAG_LABEL[r.tag]}
-              </span>
-            </li>
-          ))}
-        </ul>
-        <ShowMore className="mt-2" hiddenCount={repetition.length - REPETITION_DEFAULT_COUNT} expanded={expanded} onClick={onToggle} />
-        </>
-      ) : (
-        <p className="text-sm" style={{ color: "var(--text-muted)" }}>No data.</p>
       )}
     </Card>
   );
