@@ -166,6 +166,34 @@ create table public.food_product_ingredients (
   foreign key (user_id, item_id) references public.food_items (user_id, id) on delete restrict
 );
 
+-- A meal worth making again: its foods with optional amounts, the steps,
+-- and how much it's liked. Often saved straight from a logged meal.
+create table public.recipes (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id),
+  name text not null check (char_length(trim(name)) > 0),
+  meal_tag text,
+  rating smallint check (rating between 1 and 5),
+  steps text[] not null default '{}',
+  note text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (user_id, id)
+);
+
+-- One food in a recipe, with an optional amount (e.g. 200 g, 1 tbsp).
+create table public.recipe_ingredients (
+  user_id uuid not null default auth.uid() references auth.users(id),
+  recipe_id uuid not null,
+  item_id uuid not null,
+  amount numeric check (amount > 0),
+  unit text check (unit in ('g', 'ml', 'pcs', 'tsp', 'tbsp', 'cup')),
+  sort_order smallint not null default 0,
+  primary key (user_id, recipe_id, item_id),
+  foreign key (user_id, recipe_id) references public.recipes (user_id, id) on delete cascade,
+  foreign key (user_id, item_id) references public.food_items (user_id, id) on delete restrict
+);
+
 create table public.food_logs (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null default auth.uid() references auth.users(id),
@@ -193,6 +221,8 @@ create table public.meals (
   date date not null,
   meal_tag text not null,
   note text,
+  -- How much the meal was liked, 1–5; feeds "Combos I love" on Recipes.
+  rating smallint check (rating between 1 and 5),
   updated_at timestamptz not null default now(),
   primary key (user_id, date, meal_tag)
 );
@@ -1294,6 +1324,8 @@ alter table public.categories enable row level security;
 alter table public.food_items enable row level security;
 alter table public.food_products enable row level security;
 alter table public.food_product_ingredients enable row level security;
+alter table public.recipes enable row level security;
+alter table public.recipe_ingredients enable row level security;
 alter table public.supplement_items enable row level security;
 alter table public.habit_items enable row level security;
 alter table public.symptom_items enable row level security;
@@ -1360,6 +1392,8 @@ create policy "categories_all_own" on public.categories for all using (auth.uid(
 create policy "food_items_all_own" on public.food_items for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "food_products_all_own" on public.food_products for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "food_product_ingredients_all_own" on public.food_product_ingredients for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "recipes_all_own" on public.recipes for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "recipe_ingredients_all_own" on public.recipe_ingredients for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "supplement_items_all_own" on public.supplement_items for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "habit_items_all_own" on public.habit_items for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "symptom_items_all_own" on public.symptom_items for all using (auth.uid() = user_id) with check (auth.uid() = user_id);

@@ -39,6 +39,7 @@ import {
 import { TYPE_ACCENT, colorForCategorySlot } from "@/taxonomy/categories";
 import { TrendHeadline } from "@/components/charts/TrendCard";
 import { LabMarkerChart, type LabMarkerChartPoint } from "@/components/charts/LabMarkerChart";
+import { LovedCombos } from "@/components/recipes/Recipes";
 import { formatShortDate } from "@/components/doctors/shared";
 
 
@@ -398,6 +399,7 @@ export function FoodDashboard() {
       </PageSection>
 
       <PageSection id="combinations" activeId={activeSection} headingLabel="Combinations">
+        <LovedCombos accent={TYPE_ACCENT.food} />
         <FavoriteCombosByMeal combos={combos} mealInstanceCount={mealInstanceCount} />
       </PageSection>
 

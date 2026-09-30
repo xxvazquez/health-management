@@ -77,7 +77,11 @@ import { Sheet } from "@/components/ui/Sheet";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { ROW_INLINE_CLS, ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
 import { AutoGrowTextarea } from "@/components/ui/AutoGrowTextarea";
-import { CheckIcon, ChevronIcon, CloseIcon, NoteIcon, PlusIcon, UpDownChevronIcon } from "@/components/ui/icons";
+import { StarRating } from "@/components/ui/StarRating";
+import { useRecipes } from "@/lib/useRecipes";
+import { RecipeList } from "@/components/recipes/Recipes";
+import type { Recipe } from "@/lib/supabase/recipes";
+import { CheckIcon, ChevronIcon, CloseIcon, PlusIcon, UpDownChevronIcon } from "@/components/ui/icons";
 import { CustomIcon, customColorValue, defaultCategoryIcon } from "@/components/ui/customIcons";
 import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
 import { useMeals } from "@/lib/useMeals";
@@ -137,6 +141,7 @@ const EXPANDED_CATEGORIES_STORAGE_KEY = "lauva.log.expandedCategories";
 /** The Food category strip's first tab — what's logged most at this meal. */
 const USUAL_TAB = "__usual__";
 const PICKS_TAB = "__picks__";
+const RECIPES_TAB = "__recipes__";
 
 function categoryStorageKey(itemType: ItemType, category: string): string {
   return `${itemType}:${category}`;
@@ -289,87 +294,51 @@ function TapRow({
   );
 }
 
-/** One meal, grouped — "Breakfast: Eggs, Banana, Milk" — with its own note,
- * separate from any single ingredient's. The note lives in the `meals`
- * table (`src/lib/useMeals.ts`), keyed by date + meal tag, so it survives
- * ingredients being added or removed freely. */
+/** One meal, grouped — "Breakfast: Eggs, Banana, Milk" — with its rating
+ * and note. Tapping it opens the meal's sheet, where both are edited; the
+ * note and rating live in the `meals` table (`src/lib/useMeals.ts`), keyed
+ * by date + meal tag, so they survive ingredients being added or removed. */
 function MealGroupCard({
   mealTag,
   items,
   accent,
   note,
-  onSaveNote,
+  rating,
+  onOpen,
 }: {
   mealTag: string;
   items: string[];
   accent: string;
   note: string;
-  onSaveNote: (note: string) => void;
+  rating: number | null;
+  onOpen: () => void;
 }) {
-  const [editing, setEditing] = useState(false);
-  const [text, setText] = useState(note);
-
   return (
-    <div className="flex flex-col gap-1 rounded-xl border p-2.5" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
-      <div className="flex items-baseline gap-2">
-        <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
-          <span className="text-sm font-semibold" style={{ color: accent }}>
-            {mealTag}
-          </span>
-          <span className="text-xs" style={{ color: "var(--text-secondary)" }}>
-            {items.join(", ")}
-          </span>
-        </div>
-        {!editing && (
-          <button
-            type="button"
-            onClick={() => {
-              setText(note);
-              setEditing(true);
-            }}
-            aria-label={note ? "Edit meal note" : "Add a note for this meal"}
-            className="tap-target ml-auto shrink-0 p-0.5"
-            style={{ color: note ? "var(--ui-accent)" : "var(--text-muted)" }}
-          >
-            <NoteIcon size={15} />
-          </button>
-        )}
-      </div>
-      {editing ? (
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            setEditing(false);
-            onSaveNote(text);
-          }}
-          className="flex items-start gap-2"
-        >
-          <input
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            autoFocus
-            placeholder="Add a note for this meal…"
-            className="min-w-0 flex-1 min-h-11 rounded-[10px] px-3 text-sm outline-none"
-            style={{ borderColor: "var(--border-hairline)", background: "var(--page-plane)", color: "var(--text-primary)" }}
-          />
-          <button type="submit" className="shrink-0 text-xs font-medium" style={{ color: "var(--status-good)" }}>
-            Save
-          </button>
-        </form>
-      ) : note ? (
-        <button
-          type="button"
-          onClick={() => {
-            setText(note);
-            setEditing(true);
-          }}
-          className="self-start text-left text-xs break-words whitespace-pre-wrap"
-          style={{ color: "var(--text-secondary)" }}
-        >
+    <button
+      type="button"
+      onClick={onOpen}
+      aria-haspopup="dialog"
+      className="flex w-full flex-col gap-1 rounded-xl border px-3.5 py-2.5 text-left"
+      style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}
+    >
+      <span className="flex w-full items-center gap-2">
+        <span className="text-sm font-semibold" style={{ color: accent }}>
+          {mealTag}
+        </span>
+        <span className="ml-auto flex items-center gap-2" style={{ color: "var(--text-muted)" }}>
+          <StarRating value={rating} size="sm" accent={accent} />
+          <ChevronIcon dir="right" size={13} />
+        </span>
+      </span>
+      <span className="text-sm" style={{ color: "var(--text-secondary)" }}>
+        {items.join(", ")}
+      </span>
+      {note && (
+        <span className="text-sm break-words whitespace-pre-wrap" style={{ color: "var(--text-primary)" }}>
           {note}
-        </button>
-      ) : null}
-    </div>
+        </span>
+      )}
+    </button>
   );
 }
 
@@ -615,6 +584,9 @@ export default function LogPage() {
   // Summary's timeline shows each meal's foods as one row; this is the meal
   // whose food list sheet is open (a food's own sheet opens on top of it).
   const [mealSheetTag, setMealSheetTag] = useState<string | null>(null);
+  const recipes = useRecipes();
+  // The meal (date|tag) just saved as a recipe, so its sheet links there.
+  const [savedRecipeFor, setSavedRecipeFor] = useState<string | null>(null);
   const foodProductsRef = useOverflowFade<HTMLDivElement>();
   const loggedMealRef = useOverflowFade<HTMLDivElement>();
 
@@ -1057,6 +1029,20 @@ export default function LogPage() {
   }, [combinedTimeline]);
   const mealSheetEntries = mealSheetTag ? (timelineRows.find((r) => r.kind === "meal" && r.mealTag === mealSheetTag) as { entries: TimelineEntry[] } | undefined)?.entries ?? null : null;
   // Logged all at once, a meal's foods share one time — shown once then.
+  async function saveMealAsRecipe(mealTag: string, entries: TimelineEntry[]) {
+    const note = meals.noteFor(date, mealTag).trim();
+    const itemIds = Array.from(new Set(entries.filter((e) => e.itemType === "food").map((e) => e.itemIdentity)));
+    await recipes.create({
+      name: (note.split("\n")[0] || `${mealTag}, ${formatDateLabel(date, today)}`).slice(0, 80),
+      mealTag,
+      rating: meals.ratingFor(date, mealTag),
+      steps: [],
+      note: null,
+      ingredients: itemIds.map((itemId) => ({ itemId, amount: null, unit: null })),
+    });
+    setSavedRecipeFor(`${date}|${mealTag}`);
+  }
+
   const mealSheetSharedTime = mealSheetEntries?.every((e) => e.time === mealSheetEntries[0].time) ? mealSheetEntries[0].time : null;
   // Close the meal sheet once its last food is gone, or on another day.
   useEffect(() => {
@@ -1154,6 +1140,18 @@ export default function LogPage() {
     setPending(pendingKey);
     for (const itemIdentity of product.ingredientItemIds) {
       const log = await incrementDailyLogAndSync(itemIdentity, "food", date, meal, product.id);
+      await applyLogTime(log);
+    }
+    await refreshAfterWrite();
+    setPending(null);
+  }
+
+  /** Logs every food in a recipe for the current meal, like a product. */
+  async function handleLogRecipe(recipe: Recipe) {
+    if (isDemoData || recipe.ingredients.length === 0) return;
+    setPending(`recipe:${recipe.id}`);
+    for (const ing of recipe.ingredients) {
+      const log = await incrementDailyLogAndSync(ing.itemId, "food", date, meal, null);
       await applyLogTime(log);
     }
     await refreshAfterWrite();
@@ -1994,7 +1992,8 @@ export default function LogPage() {
     if (groups.length === 0) return null;
     const usual = frequentFoods.length >= 3 ? { category: USUAL_TAB, items: frequentFoods } : null;
     const picks = hasSeasonalPicks ? { category: PICKS_TAB, items: [] } : null;
-    const tabs = [usual, picks, ...groups].filter((g): g is { category: string; items: LogCandidate[] } => g !== null);
+    const recipesTab = { category: RECIPES_TAB, items: [] };
+    const tabs = [usual, picks, recipesTab, ...groups].filter((g): g is { category: string; items: LogCandidate[] } => g !== null);
     const active = tabs.find((g) => g.category === foodCategory) ?? tabs[0];
     return (
       <div className="flex flex-col gap-3">
@@ -2004,13 +2003,29 @@ export default function LogPage() {
           accent: TYPE_ACCENT.food,
           tabs: tabs.map((g) => ({
             id: g.category,
-            label: g.category === USUAL_TAB ? "Usual" : g.category === PICKS_TAB ? `${monthShort} picks` : g.category,
-            icon: g.category === USUAL_TAB ? <CustomIcon icon="star" size={14} /> : g.category === PICKS_TAB ? <CustomIcon icon="calendar" size={14} /> : railIcon("food", g.category),
-            logged: g === picks ? 0 : loggedIn(g.items),
+            label: g.category === USUAL_TAB ? "Usual" : g.category === PICKS_TAB ? `${monthShort} picks` : g === recipesTab ? "Recipes" : g.category,
+            icon:
+              g.category === USUAL_TAB ? (
+                <CustomIcon icon="star" size={14} />
+              ) : g.category === PICKS_TAB ? (
+                <CustomIcon icon="calendar" size={14} />
+              ) : g === recipesTab ? (
+                <CustomIcon icon="book" size={14} />
+              ) : (
+                railIcon("food", g.category)
+              ),
+            logged: g === picks || g === recipesTab ? 0 : loggedIn(g.items),
           })),
           activeId: active.category,
           onSelect: setFoodCategory,
-          body: active === picks ? seasonalPicksPanel : renderItemList(active.items, renderChip),
+          body:
+            active === picks ? (
+              seasonalPicksPanel
+            ) : active === recipesTab ? (
+              <RecipeList recipes={recipes} accent={TYPE_ACCENT.food} onLog={isDemoData ? undefined : (r) => void handleLogRecipe(r)} pendingId={pending?.startsWith("recipe:") ? pending.slice(7) : null} />
+            ) : (
+              renderItemList(active.items, renderChip)
+            ),
         })}
       </div>
     );
@@ -2699,7 +2714,8 @@ export default function LogPage() {
                   items={g.items.map((it) => (it.productId ? `${it.name} (${productNameById.get(it.productId) ?? "product"})` : it.name))}
                   accent={TYPE_ACCENT.food}
                   note={meals.noteFor(date, g.mealTag)}
-                  onSaveNote={(note) => void meals.setNote(date, g.mealTag, note)}
+                  rating={meals.ratingFor(date, g.mealTag)}
+                  onOpen={() => setMealSheetTag(g.mealTag)}
                 />
               ))}
             </div>
@@ -2807,7 +2823,24 @@ export default function LogPage() {
             </span>
           }
         >
-          <div className="inset-rows rounded-xl border" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
+          <div className="flex flex-col gap-4">
+            <FormGroup>
+              <div className="flex min-h-11 items-center justify-between gap-3 pr-1.5 pl-3.5">
+                <span className="text-sm" style={{ color: "var(--text-primary)" }}>
+                  Rating
+                </span>
+                <StarRating
+                  value={meals.ratingFor(date, mealSheetTag)}
+                  onChange={(r) => void meals.setRating(date, mealSheetTag, r)}
+                  accent={TYPE_ACCENT.food}
+                  label={`Rate ${mealSheetTag}`}
+                />
+              </div>
+              <div className="px-3.5 py-1">
+                <TimelineNote key={`${date}|${mealSheetTag}`} note={meals.noteFor(date, mealSheetTag)} busy={false} hidden={false} onSave={(note) => void meals.setNote(date, mealSheetTag, note)} />
+              </div>
+            </FormGroup>
+            <div className="inset-rows rounded-xl border" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
             {[...mealSheetEntries].reverse().map((entry) => (
               <button
                 key={entry.key}
@@ -2827,6 +2860,30 @@ export default function LogPage() {
                 <ChevronIcon dir="right" size={13} />
               </button>
             ))}
+          </div>
+            <FormGroup>
+              {savedRecipeFor === `${date}|${mealSheetTag}` ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMealSheetTag(null);
+                    setFoodCategory(RECIPES_TAB);
+                    selectTab("food");
+                  }}
+                  className="flex min-h-11 w-full items-center gap-2 px-3.5 text-left text-sm"
+                  style={{ color: TYPE_ACCENT.food }}
+                >
+                  Saved to Food → Recipes
+                  <span className="ml-auto" style={{ color: "var(--text-muted)" }}>
+                    <ChevronIcon dir="right" size={13} />
+                  </span>
+                </button>
+              ) : (
+                <button type="button" onClick={() => void saveMealAsRecipe(mealSheetTag, mealSheetEntries)} className="flex min-h-11 w-full items-center px-3.5 text-left text-sm font-medium" style={{ color: TYPE_ACCENT.food }}>
+                  Save as recipe
+                </button>
+              )}
+            </FormGroup>
           </div>
         </Sheet>
       )}

@@ -59,6 +59,8 @@ Sections: **Food · Symptoms · Supplements · Habits · Stool · Workout · Cyc
   - "Usual" tab: what you log most at the chosen meal
   - "Sep picks" tab: in-season foods you haven't eaten lately
   - Products: log a whole product's ingredients in one tap
+  - "Recipes" tab: tap a recipe to log all its foods; ⓘ edits its foods, amounts (g, ml…), steps and rating
+- **Meals (Summary):** each meal opens a sheet to rate it (1–5 stars), add a note, or "Save as recipe". Trends → Food → Combinations then shows the combos you rate highest.
 - **Workout:** a Log / Plan switch, with Charts (Trends → Workout) and Manage beside it. Log lists every exercise by category with a `− value +` stepper (drag or tap the number for fine steps) and a Log button. Plan shows the day's targets from your active workout plans, with an iOS-style week row (done, missed or short per day). Logging a plan set writes an ordinary workout log. Logging a timed or counted exercise (minutes, hours, reps) that's already in today asks first, then adds the value onto that entry; kg sets stay separate. Tap a value in a row's "today" line to edit or delete it.
 - **Coffee:** grouped by brand. Tapping a coffee opens a per-cup form (café, price, brewing, water temp, tasting notes).
 - **Deep link:** `/log/?tab=workout` opens Log on that section; any tab name works, e.g. `symptoms`, `supplements`, `summary`. Settings → Workout and Workout plans link back this way.

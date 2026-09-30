@@ -10,6 +10,8 @@ export interface MealNote {
   date: string;
   mealTag: string;
   note: string;
+  /** 1–5, or null when the meal hasn't been rated. */
+  rating: number | null;
 }
 
 const TABLE = "meals";
@@ -26,23 +28,28 @@ export async function fetchMeals(): Promise<MealNote[]> {
   if (!supabase) return [];
   const myUserId = await currentUserId();
   if (!myUserId) return [];
-  const { data, error } = await supabase.from(TABLE).select("date, meal_tag, note").eq("user_id", myUserId);
+  const { data, error } = await supabase.from(TABLE).select("date, meal_tag, note, rating").eq("user_id", myUserId);
   if (error) throw error;
-  return (data ?? []).map((r) => ({ date: r.date as string, mealTag: r.meal_tag as string, note: (r.note as string | null) ?? "" }));
+  return (data ?? []).map((r) => ({
+    date: r.date as string,
+    mealTag: r.meal_tag as string,
+    note: (r.note as string | null) ?? "",
+    rating: typeof r.rating === "number" ? r.rating : null,
+  }));
 }
 
-/** Sets (or clears) a meal's note — one row per (user, date, meal tag), so
- * this upserts on that natural key. Offline / mid-outage it queues; see
- * directWrite.ts. */
-export async function setMealNote(date: string, mealTag: string, note: string): Promise<void> {
+/** Saves a meal's note and rating together — one row per (user, date,
+ * meal tag), upserted whole so neither field is lost when the other
+ * changes. Offline / mid-outage it queues; see directWrite.ts. */
+export async function saveMeal(date: string, mealTag: string, note: string, rating: number | null): Promise<void> {
   const myUserId = await currentUserId();
   if (!myUserId) throw new Error("Sign in first.");
-  const trimmed = note.trim();
   await upsertDirect(myUserId, TABLE, `${date}_${mealTag}`, {
     user_id: myUserId,
     date,
     meal_tag: mealTag,
-    note: trimmed || null,
+    note: note.trim() || null,
+    rating,
     updated_at: new Date().toISOString(),
   });
 }

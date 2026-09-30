@@ -122,6 +122,20 @@ from Settings ("Food products" card); not part of the outbox-mirrored
 items/logs/diary/categories shape above — a "direct" feature like
 `food_nutrition_groups`, `meals`, or `lab_panels`.
 
+`meals` (`user_id, date, meal_tag, note, rating`, primary key on the first
+three) holds one row per meal occurrence: its note and a 1–5 `rating`, both
+set from the meal's sheet on Log → Summary and always written together.
+
+`recipes` (`id, user_id, name, meal_tag, rating, steps text[], note`) + the
+join table `recipe_ingredients` (`user_id, recipe_id, item_id, amount,
+unit, sort_order`, primary key on the first three; `unit` one of
+`g/ml/pcs/tsp/tbsp/cup`, set only with an `amount`) are meals worth making
+again, usually saved from a logged meal ("Save as recipe") and kept on
+Log → Food → Recipes. Direct-to-Supabase like `food_products`; ingredients
+cascade with the recipe, and `item_id` is `on delete restrict` like every
+other `food_items` reference. Rated meals and rated recipes feed "Combos
+you love" (`src/lib/aggregations/favouriteCombos.ts`).
+
 ## Standalone logs (Stool, Workout sets, Cycle)
 
 These don't fit the item/log/diary shape — a bowel movement or a lift

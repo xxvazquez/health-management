@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/lib/supabase/AuthContext";
-import { fetchMeals, setMealNote as setMealNoteRemote, type MealNote } from "@/lib/supabase/meals";
+import { fetchMeals, saveMeal, type MealNote } from "@/lib/supabase/meals";
 import { buildDemoMeals } from "@/lib/demoMeals";
 import { useSnapshotCache } from "@/lib/useSnapshotCache";
 
@@ -51,25 +51,27 @@ export function useMeals() {
     }
   }, [userId, isDemo, loading, meals, persist]);
 
-  const noteFor = useCallback((date: string, mealTag: string) => meals.find((m) => m.date === date && m.mealTag === mealTag)?.note ?? "", [meals]);
+  const find = useCallback((date: string, mealTag: string) => meals.find((m) => m.date === date && m.mealTag === mealTag), [meals]);
+  const noteFor = useCallback((date: string, mealTag: string) => find(date, mealTag)?.note ?? "", [find]);
+  const ratingFor = useCallback((date: string, mealTag: string) => find(date, mealTag)?.rating ?? null, [find]);
 
-  const setNote = useCallback(
-    async (date: string, mealTag: string, note: string) => {
-      if (isDemo) {
-        setMeals((prev) => {
-          const rest = prev.filter((m) => !(m.date === date && m.mealTag === mealTag));
-          return note.trim() ? [...rest, { date, mealTag, note: note.trim() }] : rest;
-        });
-        return;
-      }
+  // Note and rating share one row, so every change writes both.
+  const save = useCallback(
+    async (date: string, mealTag: string, patch: { note?: string; rating?: number | null }) => {
+      const current = find(date, mealTag);
+      const note = (patch.note ?? current?.note ?? "").trim();
+      const rating = patch.rating !== undefined ? patch.rating : (current?.rating ?? null);
       setMeals((prev) => {
         const rest = prev.filter((m) => !(m.date === date && m.mealTag === mealTag));
-        return note.trim() ? [...rest, { date, mealTag, note: note.trim() }] : rest;
+        return note || rating != null ? [...rest, { date, mealTag, note, rating }] : rest;
       });
-      await setMealNoteRemote(date, mealTag, note);
+      if (!isDemo) await saveMeal(date, mealTag, note, rating);
     },
-    [isDemo],
+    [isDemo, find],
   );
 
-  return { meals, loading, error, noteFor, setNote };
+  const setNote = useCallback((date: string, mealTag: string, note: string) => save(date, mealTag, { note }), [save]);
+  const setRating = useCallback((date: string, mealTag: string, rating: number | null) => save(date, mealTag, { rating }), [save]);
+
+  return { meals, loading, error, noteFor, setNote, ratingFor, setRating };
 }
