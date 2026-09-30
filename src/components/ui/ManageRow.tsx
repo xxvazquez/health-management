@@ -43,6 +43,7 @@ export function ManageRow({
   trailing,
   rowRef,
   lifted = false,
+  label,
 }: {
   name: string;
   isArchived?: boolean;
@@ -62,6 +63,9 @@ export function ManageRow({
   rowRef?: (el: HTMLElement | null) => void;
   /** Lifted look while it's being dragged. */
   lifted?: boolean;
+  /** Row text in place of the name and its icon tile — an "Edit…" row
+   * that opens this sheet for something shown elsewhere. */
+  label?: ReactNode;
 }) {
   const titleId = useId();
   const [open, setOpen] = useState(false);
@@ -103,7 +107,7 @@ export function ManageRow({
         aria-haspopup="dialog"
         className="flex min-h-11 w-full items-center gap-3 px-3.5 py-2 text-left"
       >
-        {appearance && (
+        {appearance && !label && (
           <span
             className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md"
             style={{ color: appearance.accent, background: `color-mix(in oklab, ${appearance.accent} var(--tint-pct), transparent)` }}
@@ -113,7 +117,7 @@ export function ManageRow({
         )}
         {swatch && <span className="h-5 w-5 shrink-0 rounded-full border" style={{ background: swatch.value, borderColor: "var(--border-hairline)" }} />}
         <span className="min-w-0 flex-1 text-sm" style={{ color: isArchived ? "var(--text-muted)" : "var(--text-primary)" }}>
-          {name}
+          {label ?? name}
         </span>
         {isArchived && (
           <span className="shrink-0 text-sm" style={{ color: "var(--text-muted)" }}>

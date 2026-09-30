@@ -2353,108 +2353,6 @@ function AddItemForm({
   );
 }
 
-/** Add/remove which categories a type offers, and give each one a custom
- * icon/colour. Unset icons show the built-in default the Log page uses. */
-function CategoryManager({
-  itemType,
-  categories,
-  appearanceByName,
-  typeAccent,
-  onAddCategory,
-  onRemoveCategory,
-  onSetAppearance,
-  onReorder,
-}: {
-  itemType: ItemType;
-  categories: readonly string[];
-  appearanceByName: Map<string, { icon: string | null; color: string | null }>;
-  typeAccent: string;
-  onAddCategory: (name: string) => Promise<void>;
-  onRemoveCategory: (name: string) => Promise<void>;
-  onSetAppearance: (name: string, appearance: { icon: string | null; color: string | null }) => Promise<void>;
-  onReorder: (orderedNames: string[]) => Promise<void>;
-}) {
-  const [open, setOpen] = useState(false);
-  const drag = useDragReorder(categories, (next) => void onReorder(next));
-  const [name, setName] = useState("");
-  const [busy, setBusy] = useState(false);
-
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault();
-    const trimmed = name.trim();
-    if (!trimmed || busy) return;
-    setBusy(true);
-    await onAddCategory(trimmed);
-    setName("");
-    setBusy(false);
-  }
-
-  const appearanceFor = (c: string) => appearanceByName.get(normalizeName(c)) ?? { icon: null, color: null };
-  const accentFor = (c: string) => customColorValue(appearanceFor(c).color) ?? typeAccent;
-
-  return (
-    <div className="rounded-xl" style={{ background: "var(--surface-1)" }}>
-      <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} className="flex min-h-11 w-full items-center gap-2 px-3.5 text-left">
-        <span className="text-sm" style={{ color: "var(--text-primary)" }}>
-          Categories
-        </span>
-        <span className="ml-auto flex items-center gap-1.5 text-sm" style={{ color: "var(--text-muted)" }}>
-          {categories.length}
-          <ChevronIcon dir={open ? "down" : "right"} size={14} />
-        </span>
-      </button>
-      {open && (
-        <ul className="inset-rows border-t" style={{ borderColor: "var(--gridline)" }}>
-          {drag.order.map((c) => (
-            <ManageRow
-              key={c}
-              name={c}
-              rowRef={drag.rowRef(c)}
-              lifted={drag.dragging === c}
-              trailing={
-                <span
-                  {...drag.handleProps(c)}
-                  role="button"
-                  tabIndex={0}
-                  aria-label={`Reorder ${c} — drag, or use the arrow keys`}
-                  className="tap-target flex h-11 w-10 shrink-0 items-center justify-center"
-                  style={{ ...drag.handleProps(c).style, color: "var(--text-muted)" }}
-                >
-                  <GripIcon size={16} />
-                </span>
-              }
-              appearance={{
-                icon: appearanceFor(c).icon,
-                color: appearanceFor(c).color,
-                accent: accentFor(c),
-                defaultIcon: defaultCategoryIcon(itemType, c),
-                onIconChange: (next) => void onSetAppearance(c, { ...appearanceFor(c), icon: next }),
-                onColorChange: (color) => void onSetAppearance(c, { ...appearanceFor(c), color }),
-              }}
-              onDelete={() => void onRemoveCategory(c)}
-            />
-          ))}
-          <li>
-            <form onSubmit={handleSubmit} className="flex min-h-11 items-center gap-2 px-3.5">
-              <input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="New category"
-                aria-label="New category name"
-                className="min-w-0 flex-1 bg-transparent py-2 text-sm outline-none"
-                style={{ color: "var(--text-primary)" }}
-              />
-              <button type="submit" disabled={!name.trim() || busy} className="shrink-0 py-2 pl-2 text-sm font-semibold disabled:opacity-40" style={{ color: "var(--ui-accent)" }}>
-                Add
-              </button>
-            </form>
-          </li>
-        </ul>
-      )}
-    </div>
-  );
-}
-
 /** A catalog suggestion (src/taxonomy/polandFoodCatalog.ts) with no real
  * `food_items` row yet — `item.itemIdentity` is the empty-string sentinel
  * the Log page already uses for the same case. Nothing to rename, archive,
@@ -2906,6 +2804,8 @@ function ItemSection({
   const categoryDrag = useDragReorder(categories, (next) => void onReorderCategories(next));
   const [editingIdentity, setEditingIdentity] = useState<string | null>(null);
   const [localQuery, setLocalQuery] = useState("");
+  const [newCategory, setNewCategory] = useState("");
+  const [addingCategory, setAddingCategory] = useState(false);
   const globalQuery = searchQuery.trim().toLowerCase();
   const mode = useSectionMode(label, globalQuery.length > 0);
   const query = globalQuery || localQuery.trim().toLowerCase();
@@ -2943,13 +2843,26 @@ function ItemSection({
     if (list) list.push(item);
     else groups.set(item.category, [item]);
   }
-  const grouped = items.filter((i) => !i.isArchived).length > GROUP_THRESHOLD;
+  // On the section's own page every category is listed, empty ones too, so
+  // this one list is where categories are arranged, edited and added.
+  const grouped = mode === "detail" || items.filter((i) => !i.isArchived).length > GROUP_THRESHOLD;
+  if (mode === "detail" && !isFiltering) for (const c of categories) if (!groups.has(c)) groups.set(c, []);
   // In the order the categories are arranged — live while one is dragged.
   const rank = (c: string) => {
     const i = categoryDrag.order.indexOf(c);
     return i === -1 ? Number.MAX_SAFE_INTEGER : i;
   };
   const sortedGroups = Array.from(groups.entries()).sort(([a], [b]) => rank(a) - rank(b) || a.localeCompare(b));
+
+  async function addCategory(e: FormEvent) {
+    e.preventDefault();
+    const name = newCategory.trim();
+    if (!name || addingCategory) return;
+    setAddingCategory(true);
+    await onAddCategory(name);
+    setNewCategory("");
+    setAddingCategory(false);
+  }
 
   function toggleCategory(category: string) {
     setOpenCategories((prev) => {
@@ -3021,7 +2934,7 @@ function ItemSection({
           <div className={listBox} style={listBoxStyle}>
             {sortedGroups.map(([category, rows]) => {
               const groupOpen = isFiltering || openCategories.has(category);
-              const appearance = categoryAppearanceByName.get(category);
+              const appearance = categoryAppearanceByName.get(normalizeName(category));
               const accent = customColorValue(appearance?.color ?? null) ?? TYPE_ACCENT[itemType];
               return (
                 <div
@@ -3073,11 +2986,46 @@ function ItemSection({
                   {groupOpen && (
                     <ul className="inset-rows relative [--row-inset:3.375rem] before:absolute before:top-0 before:right-0 before:left-[3.375rem] before:border-t before:border-[var(--gridline)]">
                       {rows.map((item) => renderRow(item))}
+                      {mode === "detail" && !isFiltering && (
+                        <ManageRow
+                          name={category}
+                          label={
+                            // Inset to line up with the item names above it.
+                            <span className="block pl-10" style={{ color: "var(--ui-accent)" }}>
+                              Edit category
+                            </span>
+                          }
+                          appearance={{
+                            icon: appearance?.icon ?? null,
+                            color: appearance?.color ?? null,
+                            accent,
+                            defaultIcon: defaultCategoryIcon(itemType, category),
+                            onIconChange: (icon) => void onSetCategoryAppearance(category, { icon, color: appearance?.color ?? null }),
+                            onColorChange: (color) => void onSetCategoryAppearance(category, { icon: appearance?.icon ?? null, color }),
+                          }}
+                          onDelete={() => void onRemoveCategory(category)}
+                        />
+                      )}
                     </ul>
                   )}
                 </div>
               );
             })}
+            {mode === "detail" && !isFiltering && (
+              <form onSubmit={addCategory} className="flex min-h-11 items-center gap-2 px-3.5">
+                <input
+                  value={newCategory}
+                  onChange={(e) => setNewCategory(e.target.value)}
+                  placeholder="New category"
+                  aria-label="New category name"
+                  className="min-w-0 flex-1 bg-transparent py-2 text-sm outline-none"
+                  style={{ color: "var(--text-primary)" }}
+                />
+                <button type="submit" disabled={!newCategory.trim() || addingCategory} className="shrink-0 py-2 pl-2 text-sm font-semibold disabled:opacity-40" style={{ color: "var(--ui-accent)" }}>
+                  Add
+                </button>
+              </form>
+            )}
           </div>
         ) : (
           <ul className={listBox} style={listBoxStyle}>
@@ -3108,19 +3056,6 @@ function ItemSection({
               </ul>
             )}
           </div>
-        )}
-
-        {mode === "detail" && (
-          <CategoryManager
-            itemType={itemType}
-            categories={categories}
-            appearanceByName={categoryAppearanceByName}
-            typeAccent={TYPE_ACCENT[itemType]}
-            onAddCategory={onAddCategory}
-            onRemoveCategory={onRemoveCategory}
-            onSetAppearance={onSetCategoryAppearance}
-            onReorder={onReorderCategories}
-          />
         )}
 
         {mode === "detail" && itemType === "workout" && <OpenInLogRow tab="workout" label="Go to Workout in Log" />}
