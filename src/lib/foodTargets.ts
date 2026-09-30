@@ -3,7 +3,7 @@ import type { NutritionGroupId } from "@/taxonomy/nutritionGroups";
 /** Every food group that can carry a weekly target, in the order Settings
  * lists them. The first six feed the full nutrition analysis on Trends →
  * Food; the rest are measured as plain times-a-week counts. */
-export const TARGET_GROUPS = ["vegetables", "fruit", "legumes", "grains", "nuts_seeds", "fish", "meat", "eggs", "dairy", "fats", "sweets"] as const;
+export const TARGET_GROUPS = ["vegetables", "fruit", "legumes", "grains", "nuts_seeds", "fish", "fats", "meat", "poultry", "eggs", "dairy", "sweets"] as const;
 export type TargetGroup = (typeof TARGET_GROUPS)[number];
 
 /** The groups the nutrition analysis understands as "eat at least this". */
@@ -14,14 +14,15 @@ export const TARGET_LABEL: Record<TargetGroup, string> = {
   vegetables: "Vegetables",
   fruit: "Fruit",
   legumes: "Legumes",
-  grains: "Grains",
+  grains: "Whole grains",
   nuts_seeds: "Nuts & seeds",
   fish: "Fish & seafood",
-  meat: "Meat",
+  meat: "Red & processed meat",
+  poultry: "Poultry",
   eggs: "Eggs",
   dairy: "Dairy",
-  fats: "Fats & oils",
-  sweets: "Sweets & snacks",
+  fats: "Healthy fats",
+  sweets: "Ultra-processed",
 };
 
 /** Which nutrition groups a day has to include to count toward a target. */
@@ -31,8 +32,9 @@ export const TARGET_NUTRITION_GROUPS: Record<TargetGroup, NutritionGroupId[]> = 
   legumes: ["legumes"],
   grains: ["whole_grains"],
   nuts_seeds: ["nuts", "seeds"],
-  fish: ["fatty_fish"],
-  meat: ["poultry", "red_meat", "processed_meat"],
+  fish: ["fatty_fish", "other_seafood"],
+  meat: ["red_meat", "processed_meat"],
+  poultry: ["poultry"],
   eggs: ["eggs"],
   dairy: ["fermented_dairy", "dairy_other"],
   fats: ["olive_oil", "other_unsaturated_fat"],
@@ -61,21 +63,26 @@ const min = (perWeek: number): GroupTarget => ({ mode: "min", perWeek });
 const max = (perWeek: number): GroupTarget => ({ mode: "max", perWeek });
 const off = (perWeek: number): GroupTarget => ({ mode: "off", perWeek });
 
-/** Guideline-based starting points: vegetables, fruit and whole grains most
- * days, nuts 5×, legumes 3×, fatty fish 2×, meat and sweets kept down.
- * Without fish, legumes and nuts take over more of the protein. */
+/** Evidence-based starting points, in meals a week. Vegetables and fruit at
+ * two meals a day (benefit keeps rising toward ~800 g/day combined); whole
+ * grains at two (~90 g/day is linked to lower mortality); legumes most days
+ * and nuts daily (both among the strongest longevity associations); fish
+ * twice, one oily; olive oil daily. Red and processed meat capped at three
+ * (WCRF); sweets and ultra-processed foods at three. Poultry, eggs and
+ * dairy are broadly neutral in the evidence, so they start off. Without
+ * fish or meat, legumes and nuts carry more of the protein. */
 export const DIET_DEFAULTS: Record<Diet, Record<TargetGroup, GroupTarget>> = {
-  everything: { vegetables: min(7), fruit: min(7), legumes: min(3), grains: min(7), nuts_seeds: min(5), fish: min(2), meat: max(4), eggs: off(4), dairy: off(7), fats: off(7), sweets: max(3) },
-  pescatarian: { vegetables: min(7), fruit: min(7), legumes: min(3), grains: min(7), nuts_seeds: min(5), fish: min(2), meat: off(0), eggs: off(4), dairy: off(7), fats: off(7), sweets: max(3) },
-  vegetarian: { vegetables: min(7), fruit: min(7), legumes: min(5), grains: min(7), nuts_seeds: min(7), fish: off(0), meat: off(0), eggs: off(4), dairy: off(7), fats: off(7), sweets: max(3) },
-  vegan: { vegetables: min(7), fruit: min(7), legumes: min(7), grains: min(7), nuts_seeds: min(7), fish: off(0), meat: off(0), eggs: off(0), dairy: off(0), fats: off(7), sweets: max(3) },
+  everything: { vegetables: min(14), fruit: min(14), legumes: min(5), grains: min(14), nuts_seeds: min(7), fish: min(2), fats: min(7), meat: max(3), poultry: off(3), eggs: off(5), dairy: off(7), sweets: max(3) },
+  pescatarian: { vegetables: min(14), fruit: min(14), legumes: min(5), grains: min(14), nuts_seeds: min(7), fish: min(3), fats: min(7), meat: off(0), poultry: off(0), eggs: off(5), dairy: off(7), sweets: max(3) },
+  vegetarian: { vegetables: min(14), fruit: min(14), legumes: min(7), grains: min(14), nuts_seeds: min(7), fish: off(0), fats: min(7), meat: off(0), poultry: off(0), eggs: off(5), dairy: off(7), sweets: max(3) },
+  vegan: { vegetables: min(14), fruit: min(14), legumes: min(10), grains: min(14), nuts_seeds: min(10), fish: off(0), fats: min(7), meat: off(0), poultry: off(0), eggs: off(0), dairy: off(0), sweets: max(3) },
 };
 
-/** Targets count days, so a week holds at most seven. */
-export const MAX_TARGET_PER_WEEK = 7;
+/** Targets count meals (breakfast, lunch, dinner, snack), so four a day. */
+export const MAX_TARGET_PER_WEEK = 28;
 
 /** Stored in `user_preferences.prefs.foodTargets`: the chosen diet plus any
- * group the user changed from that diet's default. `perWeek` is the older
+ * group the user changed from that diet's default, in meals a week. `perWeek` is the older
  * shape (a number per group, 0 = off), still read for accounts saved
  * before `groups` existed. */
 export interface FoodTargetsPref {
@@ -147,10 +154,10 @@ export const DEFAULT_FOOD_TARGETS: ResolvedFoodTargets = resolveFoodTargets(unde
 
 /** The "at least" defaults the per-subgroup targets are scaled against. */
 export const BASE_CORE_TARGETS: Record<CoreTargetGroup, number> = {
-  vegetables: 7,
-  fruit: 7,
-  legumes: 3,
-  grains: 7,
-  nuts_seeds: 5,
+  vegetables: 14,
+  fruit: 14,
+  legumes: 5,
+  grains: 14,
+  nuts_seeds: 7,
   fish: 2,
 };

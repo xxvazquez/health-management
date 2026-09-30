@@ -44,10 +44,12 @@ describe("computeNutritionPriorities", () => {
   });
 
   it("builds the six pillars worst-represented first, with the frequency behind each verdict", () => {
-    // Spinach (leafy greens) every day of a 20-day range; nothing else.
+    // Spinach (leafy greens) at lunch and dinner every day of a 20-day range; nothing else.
     const events = Array.from({ length: 20 }, (_, i) =>
-      makeEvent({ itemType: "food", item: "Spinach", category: "Veggies", date: `2026-01-${String(i + 1).padStart(2, "0")}`, completed: true }),
-    );
+      ["Lunch", "Dinner"].map((mealTag) =>
+        makeEvent({ itemType: "food", item: "Spinach", category: "Veggies", mealTag, date: `2026-01-${String(i + 1).padStart(2, "0")}`, completed: true }),
+      ),
+    ).flat();
     const range = { start: "2026-01-01", end: "2026-01-20" };
     const { pillars } = computeNutritionPriorities(events, range);
 
@@ -59,12 +61,26 @@ describe("computeNutritionPriorities", () => {
     const veg = pillars.find((p) => p.pillar === "vegetables")!;
     expect(veg.daysInRange).toBe(20);
     expect(veg.rangeLengthDays).toBe(20);
-    expect(veg.percentOfTarget).toBe(100); // 7/week rate against a 7/week target
+    expect(veg.percentOfTarget).toBe(100); // 14 meals a week against a 14-meal target
     expect(veg.notTracked).toBe(false);
 
     const legumes = pillars.find((p) => p.pillar === "legumes")!;
     expect(legumes.notTracked).toBe(true);
     expect(legumes.percentOfTarget).toBe(0);
+  });
+
+  it("counts meals that included a group, not foods or days", () => {
+    const day = (n: number) => `2026-01-${String(n).padStart(2, "0")}`;
+    // Every day: carrot and spinach together at lunch (one meal), spinach again at dinner.
+    const events = Array.from({ length: 14 }, (_, i) => [
+      makeEvent({ itemType: "food", item: "Carrot", category: "Veggies", mealTag: "Lunch", date: day(i + 1), completed: true }),
+      makeEvent({ itemType: "food", item: "Spinach", category: "Veggies", mealTag: "Lunch", date: day(i + 1), completed: true }),
+      makeEvent({ itemType: "food", item: "Spinach", category: "Veggies", mealTag: "Dinner", date: day(i + 1), completed: true }),
+    ]).flat();
+    const { pillars } = computeNutritionPriorities(events, { start: day(1), end: day(14) });
+    const veg = pillars.find((p) => p.pillar === "vegetables")!;
+    expect(veg.rateInRangePerWeek).toBe(14);
+    expect(veg.daysInRange).toBe(14);
   });
 
   it("shows progress toward each pillar's own weekly target, not a raw day-coverage percentage", () => {
@@ -151,9 +167,9 @@ describe("computeNutritionPriorities", () => {
     expect(legumes.percentOfTarget).toBe(50);
   });
 
-  it("measures a limit like meat as days a week against its maximum", () => {
+  it("measures a limit like red meat as meals a week against its maximum", () => {
     const events = Array.from({ length: 14 }, (_, i) =>
-      makeEvent({ itemType: "food", item: "Chicken", category: "Meat", date: `2026-01-${String(i + 1).padStart(2, "0")}`, completed: true }),
+      makeEvent({ itemType: "food", item: "Beef", category: "Meat", date: `2026-01-${String(i + 1).padStart(2, "0")}`, completed: true }),
     );
     const range = { start: "2026-01-01", end: "2026-01-14" };
     const { extraRows } = computeNutritionPriorities(events, range, {}, resolveFoodTargets(undefined), [{ group: "meat", mode: "max", perWeek: 4 }]);
@@ -167,9 +183,9 @@ describe("computeNutritionPriorities", () => {
       makeEvent({ itemType: "food", item: "Rice", category: "Grains", date: `2026-01-${String(i + 1).padStart(2, "0")}`, completed: true }),
     );
     const range = { start: "2026-01-01", end: "2026-01-12" };
-    const halved = resolveFoodTargets({ perWeek: { nuts_seeds: 3 } });
-    const { groupStates } = computeNutritionPriorities(events, range, {}, halved);
-    expect(groupStates.find((s) => s.group === "nuts")!.targetPerWeek).toBe(3);
+    const doubled = resolveFoodTargets({ groups: { fish: { mode: "min", perWeek: 4 } } });
+    const { groupStates } = computeNutritionPriorities(events, range, {}, doubled);
+    expect(groupStates.find((s) => s.group === "fatty_fish")!.targetPerWeek).toBe(4);
     expect(groupStates.find((s) => s.group === "leafy_greens")!.targetPerWeek).toBe(4);
   });
 });

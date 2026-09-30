@@ -24,7 +24,7 @@ const CAPTION_CLS = "px-4 text-xs font-semibold tracking-wide uppercase";
 const MODE_LABEL: Record<TargetMode, string> = { min: "At least", max: "At most", off: "Off" };
 
 /** Settings → Food targets: a diet as a starting point, then every food
- * group with its own goal — at least or at most so many days a week, or
+ * group with its own goal — at least or at most so many meals a week, or
  * off — which Trends → Food measures against. */
 export function FoodTargetsCard({ searchQuery }: { searchQuery: string }) {
   const { prefs, update } = usePreferences();
@@ -83,7 +83,7 @@ export function FoodTargetsCard({ searchQuery }: { searchQuery: string }) {
 
       <div className="flex flex-col gap-1.5">
         <h3 className={CAPTION_CLS} style={{ color: "var(--text-muted)" }}>
-          Days a week
+          Meals a week
         </h3>
         <div className={GROUP_CLS} style={GROUP_STYLE}>
           {TARGET_GROUPS.map((group) => {
@@ -113,7 +113,7 @@ export function FoodTargetsCard({ searchQuery }: { searchQuery: string }) {
                   <NumberStepper
                     value={t.perWeek}
                     onChange={(v) => setGroup(group, t.mode, v)}
-                    unit={` days a week of ${TARGET_LABEL[group].toLowerCase()}`}
+                    unit={` meals a week with ${TARGET_LABEL[group].toLowerCase()}`}
                     accent={TYPE_ACCENT.food}
                     step={1}
                     min={1}
@@ -137,8 +137,9 @@ export function FoodTargetsCard({ searchQuery }: { searchQuery: string }) {
           )}
         </div>
         <GroupNote>
-          Trends → Food counts how many days each week you ate something from a group and compares it with these. At least: a goal to reach. At most:
-          a limit to stay under. Off: not measured.
+          Trends → Food counts every meal (breakfast, lunch, dinner or snack) that included something from a group, so vegetables at lunch and
+          dinner every day make 14 a week. Healthy fats means olive oil, rapeseed oil and avocado; ultra-processed covers sweets, cake and
+          crisps. At least: a goal to reach. At most: a limit to stay under. Off: not measured.
         </GroupNote>
       </div>
     </CollapsibleManageCard>

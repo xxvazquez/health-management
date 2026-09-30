@@ -332,6 +332,7 @@ function computeAggregateState(
   foods: CanonicalEvent[],
   range: DateRange,
   insufficientData: boolean,
+  unit: "days" | "meals" = "days",
 ): GroupState {
   const rangeLengthDays = daysBetween(range.start, range.end) + 1;
   const groupSet = new Set(groups);
@@ -341,7 +342,10 @@ function computeAggregateState(
   const distinctFoodsInRange = Array.from(new Set(inRangeEvents.map((e) => e.item)));
   const totalLogsAllTime = matchEvents.length;
 
-  const rateInRangePerWeek = (daysInRange * 7) / rangeLengthDays;
+  // "meals" counts each meal that included the group (a food logged without
+  // a meal counts once for its day), so veg at lunch and dinner counts twice.
+  const occurrences = unit === "meals" ? new Set(inRangeEvents.map((e) => `${e.date}|${e.mealTag ?? ""}`)).size : daysInRange;
+  const rateInRangePerWeek = (occurrences * 7) / rangeLengthDays;
   const ratio = targetPerWeek ? rateInRangePerWeek / targetPerWeek : 0;
 
   const consistency = bandConsistency(totalLogsAllTime, daysInRange, ratio);
@@ -372,7 +376,7 @@ function groupTarget(group: NutritionGroupId, targets: ResolvedFoodTargets): num
   const pillarTarget = targets[pillar as CoreTargetGroup];
   if (pillarTarget == null) return null;
   if (base == null) return null;
-  return Math.max(1, Math.round((base * pillarTarget) / BASE_CORE_TARGETS[pillar as CoreTargetGroup]));
+  return Math.min(7, Math.max(1, Math.round((base * pillarTarget) / BASE_CORE_TARGETS[pillar as CoreTargetGroup])));
 }
 
 function computeGroupState(
@@ -718,9 +722,15 @@ export function computeNutritionPriorities(
 
   // ---- Coverage table: the fixed compact set from the design brief ----
   const byGroup = new Map(allGroupStates.map((s) => [s.group, s]));
-  const vegState = computeAggregateState(CORE_VEGETABLE_GROUPS, targets.vegetables, "Vegetables (overall)", "vegetables", foods, range, insufficientData);
-  const fruitState = computeAggregateState(CORE_FRUIT_GROUPS, targets.fruit, "Fruit (overall)", "fruit", foods, range, insufficientData);
-  const nutsSeedsState = computeAggregateState(["nuts", "seeds"], targets.nuts_seeds, "Nuts & seeds", "nuts_seeds", foods, range, insufficientData);
+  // The user's targets count meals; the per-subgroup evidence targets
+  // above stay in days, since spreading a group across days is the point.
+  const vegState = computeAggregateState(CORE_VEGETABLE_GROUPS, targets.vegetables, "Vegetables (overall)", "vegetables", foods, range, insufficientData, "meals");
+  const fruitState = computeAggregateState(CORE_FRUIT_GROUPS, targets.fruit, "Fruit (overall)", "fruit", foods, range, insufficientData, "meals");
+  const nutsSeedsState = computeAggregateState(["nuts", "seeds"], targets.nuts_seeds, "Nuts & seeds", "nuts_seeds", foods, range, insufficientData, "meals");
+  const mealState = (group: CoreTargetGroup, pillar: PillarId) =>
+    targets[group] != null
+      ? computeAggregateState(TARGET_NUTRITION_GROUPS[group], targets[group], TARGET_LABEL[group], pillar, foods, range, insufficientData, "meals")
+      : undefined;
 
   const coverageRows: [string, GroupState | undefined][] = [
     ["Leafy greens", byGroup.get("leafy_greens")],
@@ -744,17 +754,17 @@ export function computeNutritionPriorities(
   const aggregateStateByPillar: Partial<Record<PillarId, GroupState>> = {
     vegetables: vegState,
     fruit: fruitState,
-    legumes: byGroup.get("legumes"),
-    grains: byGroup.get("whole_grains"),
+    legumes: mealState("legumes", "legumes"),
+    grains: mealState("grains", "grains"),
     nuts_seeds: nutsSeedsState,
-    fish: byGroup.get("fatty_fish"),
+    fish: mealState("fish", "fish"),
   };
   const pillars: PillarRow[] = CORE_PILLARS.map((pillar) =>
     pillarRow(pillar, aggregateStateByPillar[pillar]!, varietyCandidates, insufficientData),
   ).sort((a, b) => PILLAR_SEVERITY[a.status] - PILLAR_SEVERITY[b.status] || a.percentOfTarget - b.percentOfTarget);
 
   const extraRows: ExtraTargetRow[] = extraTargets.map((t) => {
-    const state = computeAggregateState(TARGET_NUTRITION_GROUPS[t.group], t.perWeek, TARGET_LABEL[t.group], "discretionary", foods, range, insufficientData);
+    const state = computeAggregateState(TARGET_NUTRITION_GROUPS[t.group], t.perWeek, TARGET_LABEL[t.group], "discretionary", foods, range, insufficientData, "meals");
     const rate = state.rateInRangePerWeek;
     return {
       group: t.group,
@@ -910,7 +920,7 @@ function pillarRow(pillar: PillarId, aggregate: GroupState, varietyCandidates: P
   const percentOfTarget = Math.round((aggregate.rateInRangePerWeek / targetPerWeek) * 100);
   return {
     pillar,
-    label: verdict.label,
+    label: TARGET_LABEL[pillar as CoreTargetGroup] ?? verdict.label,
     daysInRange: aggregate.daysInRange,
     rangeLengthDays: aggregate.rangeLengthDays,
     rateInRangePerWeek: aggregate.rateInRangePerWeek,

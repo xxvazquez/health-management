@@ -276,7 +276,7 @@ export function FoodDashboard() {
 
             <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
             <TrendGroup
-              caption="Per week vs target"
+              caption="Meals a week vs target"
               note={
                 <>
                   Targets from{" "}
@@ -370,7 +370,7 @@ export function FoodDashboard() {
               </TrendGroup>
 
               {eatenLeast.length > 0 && (
-                <TrendGroup caption="Eaten least · per week vs target">
+                <TrendGroup caption="Eaten least · days a week vs target">
                   {(showAllEatenLeast ? eatenLeast : eatenLeast.slice(0, EATEN_LEAST_SHORT)).map((g) => (
                     <TrendRow
                       key={g.group}
