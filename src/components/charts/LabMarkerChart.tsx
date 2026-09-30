@@ -72,11 +72,7 @@ export function LabMarkerChart({
     ...(optimalLow != null ? [optimalLow] : []),
     ...(optimalHigh != null ? [optimalHigh] : []),
   ];
-  const lo = Math.min(...bounds);
-  const hi = Math.max(...bounds);
-  const pad = (hi - lo || Math.abs(hi) || 1) * 0.12;
-  const yFloor = lo >= 0 ? Math.max(0, Math.floor(lo - pad)) : Math.floor(lo - pad);
-  const yCeil = Math.ceil(hi + pad);
+  const { floor: yFloor, ceil: yCeil, ticks: yTicks } = niceScale(Math.min(...bounds), Math.max(...bounds));
 
   const dataMin = rows.length ? rows[0].t : 0;
   const dataMax = rows.length ? rows[rows.length - 1].t : 0;
@@ -151,6 +147,8 @@ export function LabMarkerChart({
         <YAxis
           orientation="right"
           domain={[yFloor, yCeil]}
+          ticks={yTicks}
+          allowDataOverflow
           tickLine={false}
           axisLine={false}
           tick={{ fill: "var(--text-muted)", fontSize: 12 }}
@@ -198,6 +196,25 @@ export function LabMarkerChart({
     </ResponsiveContainer>
     </div>
   );
+}
+
+/** A y-scale fitted to the readings at their own magnitude: 3–5 ticks on
+ * a 1/2/2.5/5 × 10ⁿ step, a little headroom either side, never below 0
+ * for non-negative data — so a marker around 0.07 gets 0–0.12, not 0–1. */
+export function niceScale(lo: number, hi: number): { floor: number; ceil: number; ticks: number[] } {
+  const span = hi - lo || Math.abs(hi) || 1;
+  const padded = { lo: lo - span * 0.1, hi: hi + span * 0.1 };
+  const rough = (padded.hi - padded.lo) / 4;
+  const magnitude = 10 ** Math.floor(Math.log10(rough));
+  const step = [1, 2, 2.5, 5, 10].map((m) => m * magnitude).find((s) => s >= rough) ?? 10 * magnitude;
+  const decimals = Math.max(0, -Math.floor(Math.log10(step)) + (step / magnitude === 2.5 ? 1 : 0));
+  const round = (n: number) => Number(n.toFixed(decimals));
+  let floor = round(Math.floor(padded.lo / step) * step);
+  if (lo >= 0 && floor < 0) floor = 0;
+  const ceil = round(Math.ceil(padded.hi / step) * step);
+  const ticks: number[] = [];
+  for (let t = floor; t <= ceil + step / 2; t += step) ticks.push(round(t));
+  return { floor, ceil, ticks };
 }
 
 /** Compact inline trend for a marker row — no axes, just the shape of the

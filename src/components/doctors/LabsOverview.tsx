@@ -331,7 +331,7 @@ function MarkerRow({
       className={`col-span-full -mx-1.5 grid grid-cols-subgrid px-1.5 pt-2.5 pb-2 text-left ${active ? "rounded-lg" : ""}`}
       style={{
         borderTop: first ? undefined : `1px solid ${active ? "transparent" : "var(--border-hairline)"}`,
-        background: active ? "var(--page-plane)" : undefined,
+        background: active ? `color-mix(in oklab, ${ACCENT} var(--tint-pct), transparent)` : undefined,
       }}
     >
       <span className="col-span-full pb-2 text-sm leading-tight font-medium" style={{ color: "var(--text-primary)" }}>
