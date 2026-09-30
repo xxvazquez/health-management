@@ -49,22 +49,53 @@ Old routes redirect: `/overview` → `/agenda`, `/doctors` → `/medical`, `/hom
 
 Sections: **Food · Symptoms · Supplements · Habits · Stool · Workout · Cycle · Coffee · Summary**
 
-- **Phone:** Log opens on a list of your sections, each with the day's count (or the period day for Cycle), and the Summary below it. Tap a section to log; "‹ Log", Back or an edge swipe returns to the list. Log reopens on whichever screen you left.
-- **Desktop:** the sections are a tab row, with Summary as the last tab.
+#### Getting around
 
+- **Phone:** Log opens on a list of your sections, each with the day's count (or the period day for Cycle), with Summary below it. "‹ Log", Back or an edge swipe returns to the list.
+- **Desktop:** the sections are a tab row, with Summary as the last tab.
+- Log reopens on whichever section you used last.
+- **Deep links:** `/log/?tab=<section>` opens a section, e.g. `?tab=workout` or `?tab=summary`. Settings → Workout links back this way.
 - **Toolbar:** search (or add), meal / time of day, time. On desktop it sits beside the page title.
-- **Categories:** a scrolling category rail on a phone; a sidebar with per-category logged counts on desktop, in the order you arrange them in Settings (A–Z until you do). Items are A–Z, in as many columns as fit on desktop.
-- **Food's current meal** shows above the list as removable chips ("Dinner · 3"). "Copy to…" logs the same items under another meal or day.
-- **Food extras:**
-  - "Usual" tab: what you log most at the chosen meal, most-logged first (the last 60 days count first)
-  - "Sep picks" tab: in-season foods you haven't eaten lately
-  - Products: log a whole product's ingredients in one tap
-  - "Recipes" tab: tap a recipe to log all its foods; ⓘ edits its foods, amounts (g, ml…), steps and rating
-- **Meals (Summary):** each meal opens a sheet to rate it (1–5 stars), add a note, or "Save as recipe". Trends → Food → Combinations then shows the combos you rate highest.
-- **Workout:** a Log / Plan switch, with Charts (Trends → Workout) and Manage beside it. Log lists every exercise by category with a `− value +` stepper (drag or tap the number for fine steps) and a Log button. Plan shows the day's targets from your active workout plans, with an iOS-style week row (done, missed or short per day). Logging a plan set writes an ordinary workout log. Logging a timed or counted exercise (minutes, hours, reps) that's already in today asks first, then adds the value onto that entry; kg sets stay separate. Tap a value in a row's "today" line to edit or delete it.
-- **Coffee:** grouped by brand. Tapping a coffee opens a per-cup form (café, price, brewing, water temp, tasting notes).
-- **Deep link:** `/log/?tab=workout` opens Log on that section; any tab name works, e.g. `symptoms`, `supplements`, `summary`. Settings → Workout and Workout plans link back this way.
-- **Summary:** the day's meals with their notes, then a timeline of everything logged. Each meal's foods are one row ("Dinner · 9 foods") that opens the list of foods; tap any entry to edit or delete it.
+- **Categories:** a scrolling rail on a phone, a sidebar with logged counts on desktop. They follow your order from Settings (A–Z until you set one); items inside are A–Z.
+
+#### Food
+
+- The current meal's foods sit above the list as removable chips ("Dinner · 3"). "Copy to…" logs them under another meal or day.
+- **Usual:** what you log most at the chosen meal, most-logged first (the last 60 days count first).
+- **Month picks** (e.g. "Oct picks"): in-season foods you haven't eaten lately.
+- **Recipes:** tap one to log all its foods; ⓘ edits its foods, amounts (g, ml…), steps and rating.
+- **Products:** log a whole product's ingredients in one tap.
+
+#### Summary
+
+- The day's meals with their notes, then a timeline of everything logged.
+- A meal is one timeline row ("Dinner · 9 foods"). It opens a sheet to see its foods, rate it (1–5 stars), add a note or "Save as recipe".
+- Other rows show the useful detail on the right: a symptom's intensity, the sleep band, a supplement's time of day. Tap any row to edit or delete it.
+
+#### Workout
+
+- A Log / Plan switch, with Charts (Trends → Workout) and Manage beside it.
+- **Log:** every exercise by category, with a `− value +` stepper (drag or tap the number for fine steps).
+- **Plan:** the day's targets from your active plans, and a week row showing done, missed or short days. Logging a plan set writes a normal workout log.
+- Logging a timed or counted exercise that's already in today asks first, then adds onto that entry. kg sets stay separate.
+- Tap a value in a row's "today" line to edit or delete it.
+
+#### Coffee
+
+- Grouped by brand. Tapping a coffee opens a per-cup form: café, price, brewing, water temperature, tasting notes.
+
+### Trends
+
+One dashboard per Log section, plus Patterns. The time range sits in the title row.
+
+| Dashboard | Shows |
+|---|---|
+| Food | Overview (meals a week against your food targets), Variety, Meal patterns, Combinations (including the combos you rate highest), Ingredients |
+| Patterns | Symptoms that show up more or less often after a food or supplement, tested for chance; Explore compares any pair |
+| Supplements, Habits | A card per item with the days you logged it |
+| Digestion | Bristol types, bowel movements and digestive symptoms |
+| Workout | Recent sessions and each exercise over time |
+| Cycle | Current cycle day, the next period, average cycle and period length |
 
 ### Health
 
@@ -77,19 +108,21 @@ Sections: **Food · Symptoms · Supplements · Habits · Stool · Workout · Cyc
 
 ### Settings
 
-A grouped list (Tracking, Health, Lists, App) where each row opens its own screen. From here you can:
+A grouped list where each row opens its own screen. Everything editable in the app lives here.
 
-- Add, rename, archive or delete items and categories, drag categories into your own order (≡ grip), including a category icon and colour
-- Drag ≡ to reorder anything listed in Settings — Log/Trends tabs (Visible sections), reminder and wishlist lists, doctor types, lab panels, coffee and stool options; orders, visible sections and the default time sync to every device (every built-in category starts with its own icon; a new one gets its tab's icon until you pick one)
-- Pick icons and colours for anything that has them (categories, wishlist and reminder lists, doctor types, lab panels):
-  - ~1,900 searchable icons: Lauva's own plus the full [Lucide](https://lucide.dev) set
-  - Any colour via + (system colour picker); it's saved to **Your colours** and offered in every other picker; in dark mode a very dark pick is lightened just enough to stay visible
-- Edit products, reminder lists, wishlist lists, lab markers and panels, doctors and doctor types
-- Edit the Stool and Coffee option chips, the coffee currency, and add or edit coffees (adding one shows the Coffee tab on Log)
-- Set food targets: a diet (Everything, Pescatarian, Vegetarian, Vegan) as a starting point, then every food group (red meat, poultry, eggs, dairy and ultra-processed included) as at least / at most so many meals a week, or Off; Trends → Food measures against them (`/manage/?section=Food%20targets` opens it)
-- Build weekly workout plans: lifts, each with a starting weight and its own weekly gain, and which days get +kg or % of that week's base
-- Show or hide tracked sections, each with an optional daily "remind me to log" time
-- Export your data as JSON (whole account) or CSV (one section or everything)
+| Group | What you can do |
+|---|---|
+| Tracking | Add, rename, archive or delete items and categories. Edit products, coffees and the Stool and Coffee option chips. Set food targets. Build workout plans |
+| Health | Doctors, doctor types, lab markers and panels, the weight goal |
+| Lists | Reminder lists and wishlist lists |
+| App | Appearance, visible sections, data export |
+
+- **Order:** drag ≡ to reorder categories, sections, lists, doctor types, lab panels and option chips. Orders sync to every device.
+- **Icons and colours:** ~1,900 searchable icons (Lauva's own plus [Lucide](https://lucide.dev)) and any colour via +. A picked colour is saved to **Your colours** and offered in every picker. Built-in categories start with their own icon; a new one gets its section's icon.
+- **Food targets:** start from a diet (Everything, Pescatarian, Vegetarian, Vegan), then set each food group to at least / at most so many meals a week, or Off. Trends → Food measures against them. `/manage/?section=Food%20targets` opens it.
+- **Workout plans:** lifts with a starting weight and weekly gain, and which days get +kg or a % of that week's base.
+- **Visible sections:** show or hide each Log section (also hides it on Trends), each with an optional daily "remind me to log" time.
+- **Your data:** export the whole account as JSON, or one section or everything as CSV.
 
 ---
 
@@ -101,7 +134,7 @@ A grouped list (Tracking, Health, Lists, App) where each row opens its own scree
 - **The day rolls over at 3 AM.** Anything logged before 3 AM counts toward the previous day.
 - **The meal is auto-picked by time:** Breakfast before noon, Lunch before 6pm, Dinner after that.
 - **Time is editable** per entry, and the date stepper opens a calendar.
-- **"Not logged" never means "didn't happen".** Empty days are left out of percentages, not counted as zero.
+- **Days before you start logging an item don't count against it.** A supplement or habit is measured from its first log, and only on days you used the app.
 - **Cycle** stores only period days. Cycle length and predictions are always derived, never stored.
 - **Hiding a section** in Settings hides it from both Log and Trends, on every device.
 
