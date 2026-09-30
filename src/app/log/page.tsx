@@ -845,15 +845,16 @@ export default function LogPage() {
   const categoryNamesForTab = useMemo(() => {
     if (!tabConfig) return [];
     const custom = effective.categories.filter((c) => c.itemType === tabConfig.type).map((c) => c.name);
-    return effectiveCategoryList(tabConfig.type, custom);
-  }, [effective.categories, tabConfig]);
+    // In the order the user arranged them, so a new item defaults to the first one shown.
+    return [...effectiveCategoryList(tabConfig.type, custom)].sort(compareCategory);
+  }, [effective.categories, tabConfig, compareCategory]);
 
   // Same as categoryNamesForTab, but always food's list regardless of the
   // active tab — the seasonal-picks and Poland-catalog quick-log flows are
   // food-only surfaces that stay visible even when a different tab is open.
   const foodCategoryNames = useMemo(() => {
     const custom = effective.categories.filter((c) => c.itemType === "food").map((c) => c.name);
-    return effectiveCategoryList("food", custom);
+    return [...effectiveCategoryList("food", custom)].sort(categoryComparator(effective.categories, "food"));
   }, [effective.categories]);
 
   // Food can often guess its own category from the name; every other type
@@ -1860,7 +1861,7 @@ export default function LogPage() {
   }) {
     const activeLabel = tabs.find((t) => t.id === activeId)?.label;
     return (
-      <div className="flex flex-col gap-3 lg:grid lg:grid-cols-[13rem_minmax(0,1fr)] lg:items-start lg:gap-4">
+      <div className="flex flex-col gap-3 lg:grid lg:grid-cols-[auto_minmax(0,1fr)] lg:items-start lg:gap-4">
         <TabRail
           ariaLabel={ariaLabel}
           wrap={false}
@@ -1873,7 +1874,7 @@ export default function LogPage() {
         />
         <nav
           aria-label={ariaLabel}
-          className="hidden flex-col gap-0.5 rounded-xl border p-1.5 lg:sticky lg:top-4 lg:flex"
+          className="hidden flex-col gap-0.5 rounded-xl border p-1.5 lg:sticky lg:top-4 lg:flex lg:min-w-52 lg:max-w-72"
           style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}
         >
           {tabs.map((t) => {
@@ -1894,7 +1895,13 @@ export default function LogPage() {
                 <span className="flex w-4 shrink-0 justify-center" style={{ color: active ? accent : "var(--text-muted)" }} aria-hidden="true">
                   {t.icon}
                 </span>
-                <span className="min-w-0 flex-1">{t.label}</span>
+                {/* The hidden semibold copy keeps the width the same whichever row is selected. */}
+                <span className="grid min-w-0 flex-1">
+                  <span>{t.label}</span>
+                  <span className="invisible h-0 font-semibold" aria-hidden="true">
+                    {t.label}
+                  </span>
+                </span>
                 {t.logged > 0 && (
                   <span className="shrink-0 text-xs font-medium tabular-nums" style={{ color: accent }}>
                     {t.logged}
