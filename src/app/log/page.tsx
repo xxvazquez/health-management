@@ -1,7 +1,7 @@
 "use client";
 
 import { CHIP_CLS, CHIP_SM_CLS, CONTROL_CLS, CONTROL_STYLE, chipStyle } from "@/components/ui/Chip";
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import Link from "next/link";
 import clsx from "clsx";
 import { useData } from "@/lib/DataContext";
@@ -530,8 +530,9 @@ export default function LogPage() {
   // With no `?tab=`, a phone opens on the section list (Summary) and a
   // desktop on Food — then either reopens the section last used, the list
   // kept underneath in history so Back returns to it.
+  // Before paint, so the first frame is already the right screen.
   const restoredTab = useRef(false);
-  useEffect(() => {
+  useLayoutEffect(() => {
     const requested = tabFromUrl();
     if (requested) {
       restoredTab.current = true;
@@ -685,7 +686,7 @@ export default function LogPage() {
   // The whole tab bar as data — the seven tracking domains, each dropping
   // out when hidden from Settings. (Journal and private notes are their own
   // Notes area; reminders and expiry are on Agenda.)
-  const logTabs = useMemo(() => {
+  const allLogTabs = useMemo(() => {
     const all: { id: LogTab; label: string; accent: string; domain?: TrackedDomain }[] = [
       ...TABS.map((t) => ({ id: t.type as LogTab, label: t.label, accent: TYPE_ACCENT[t.type], domain: t.type })),
       { id: "stool", label: "Stool", accent: STOOL_ACCENT, domain: "stool" },
@@ -696,12 +697,15 @@ export default function LogPage() {
       // it's a read-back-over-everything-else view, so it always shows.
       { id: "summary", label: "Summary", accent: SUMMARY_ACCENT },
     ];
+    return all;
+  }, []);
+  const logTabs = useMemo(() => {
     // In the account's chosen order (Settings → Visible sections); Summary,
     // which isn't a tracked section, stays last.
-    return all
+    return allLogTabs
       .filter((t) => !t.domain || isVisible(t.domain))
       .sort((a, b) => (a.domain ? domainOrder.indexOf(a.domain) : 99) - (b.domain ? domainOrder.indexOf(b.domain) : 99));
-  }, [isVisible, domainOrder]);
+  }, [allLogTabs, isVisible, domainOrder]);
 
   // For the Food tab specifically, a chip's checkmark reflects whether it
   // was logged for the *currently selected meal*, not the whole day — so
@@ -2310,7 +2314,7 @@ export default function LogPage() {
           className="min-w-0 flex-1 text-2xl leading-tight font-semibold tracking-tight lg:mr-2 lg:flex-none"
           style={{ color: "var(--text-primary)" }}
         >
-          <span className="lg:hidden">{tab === "summary" ? "Log" : (logTabs.find((t) => t.id === tab)?.label ?? "Log")}</span>
+          <span className="lg:hidden">{tab === "summary" ? "Log" : allLogTabs.find((t) => t.id === tab)?.label}</span>
           <span className="hidden lg:inline">Log</span>
         </h1>
         <div className="control-surface flex h-9 shrink-0 items-center rounded-[10px] lg:order-3 lg:ml-auto">
@@ -2769,9 +2773,10 @@ export default function LogPage() {
                     : INPUT_KIND[entry.item] === "duration"
                       ? formatMinutes(entry.value)
                       : entry.itemType === "outcome" && entry.value >= 1
-                        ? `intensity ${entry.value}`
+                        ? `Intensity ${entry.value}`
                         : null;
-              const meta = entry.mealTag || entry.category || valueSuffix || null;
+              // A value or time of day says more than a symptom's or habit's category.
+              const meta = valueSuffix || entry.mealTag || (entry.itemType === "workout" ? entry.category : null) || null;
               return (
                 // A fixed-height row, tap-through to a detail sheet for
                 // anything editable — same idea as Reminders and Calendar,
