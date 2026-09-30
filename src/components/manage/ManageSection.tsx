@@ -30,6 +30,7 @@ export function useSectionMode(title: string, searching: boolean): SectionMode {
 const SECTION_ICON: Record<string, { icon: string; color: string }> = {
   Food: { icon: "fork", color: TYPE_ACCENT.food },
   "Food products": { icon: "carton", color: TYPE_ACCENT.food },
+  "Food targets": { icon: "flag", color: TYPE_ACCENT.food },
   Symptoms: { icon: "stomach", color: TYPE_ACCENT.outcome },
   Supplements: { icon: "pill", color: TYPE_ACCENT.supplement },
   Habits: { icon: "sparkle", color: TYPE_ACCENT.habit },
