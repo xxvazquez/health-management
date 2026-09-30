@@ -16,7 +16,7 @@ import { RankedBarChart } from "@/components/charts/RankedBarChart";
 import { useDateRangeFilter } from "@/lib/useDateRangeFilter";
 import { useFoodNutritionGroupOverrides } from "@/lib/useFoodNutritionGroupOverrides";
 import { usePreferences } from "@/lib/usePreferences";
-import { resolveFoodTargets } from "@/lib/foodTargets";
+import { extraFoodTargets, resolveFoodTargets } from "@/lib/foodTargets";
 import { daysBetween } from "@/lib/aggregations/common";
 import {
   favoriteCombosByMeal,
@@ -50,6 +50,12 @@ const ON_TARGET_PERCENT = 85;
 function toneForPercent(percent: number): string {
   if (percent >= ON_TARGET_PERCENT) return "var(--status-good)";
   return percent < 50 ? "var(--status-critical)" : "var(--status-warning)";
+}
+
+/** An "at most" bar: fine up to the limit, amber just over, red well over. */
+function limitTone(percent: number): string {
+  if (percent <= 100) return "var(--status-good)";
+  return percent <= 125 ? "var(--status-warning)" : "var(--status-critical)";
 }
 
 function pillarTone(row: PillarStat): string {
@@ -156,6 +162,7 @@ export function FoodDashboard() {
   const { prefs } = usePreferences();
   const foodTargetsPref = prefs.foodTargets;
   const foodTargets = useMemo(() => resolveFoodTargets(foodTargetsPref), [foodTargetsPref]);
+  const extraTargets = useMemo(() => extraFoodTargets(foodTargetsPref), [foodTargetsPref]);
   // One section at a time, like the Log page — SectionNav swaps which
   // section renders rather than scrolling to it, so reaching "Repetition"
   // or "Ingredients" never means scrolling past everything above.
@@ -184,8 +191,8 @@ export function FoodDashboard() {
   // the selected range, so switching the date-range control recalculates
   // everything on this page, not just the charts.
   const priorities = useMemo(
-    () => computeNutritionPriorities(events, range ?? null, nutritionGroupOverrides, foodTargets),
-    [events, range, nutritionGroupOverrides, foodTargets],
+    () => computeNutritionPriorities(events, range ?? null, nutritionGroupOverrides, foodTargets, extraTargets),
+    [events, range, nutritionGroupOverrides, foodTargets, extraTargets],
   );
   const rotation = useMemo(
     () => (range ? ingredientRotation(events, range) : { staples: [], fallenOutOfRotation: [], trendAvailable: false }),
@@ -210,7 +217,9 @@ export function FoodDashboard() {
 
   const ingredientDelta =
     diversity && diversity.previous != null && diversity.current !== diversity.previous ? diversity.current - diversity.previous : null;
-  const pillarsOnTarget = priorities.pillars.filter((p) => p.percentOfTarget >= ON_TARGET_PERCENT).length;
+  const pillarsOnTarget =
+    priorities.pillars.filter((p) => p.percentOfTarget >= ON_TARGET_PERCENT).length + priorities.extraRows.filter((r) => r.onTarget).length;
+  const targetCount = priorities.pillars.length + priorities.extraRows.length;
   const plantsLast30 = priorities.variety.plantSeries.at(-1)?.plants ?? null;
   const plantDelta =
     plantsLast30 != null && priorities.variety.previousPlants30 != null && plantsLast30 !== priorities.variety.previousPlants30
@@ -261,7 +270,7 @@ export function FoodDashboard() {
                   detail: ingredientDelta != null ? `${ingredientDelta > 0 ? "+" : ""}${ingredientDelta} vs previous ${rangeLengthDays} days` : undefined,
                   detailColor: ingredientDelta != null ? (ingredientDelta > 0 ? "var(--status-good)" : "var(--status-critical)") : undefined,
                 },
-                { caption: "Groups on target", value: String(pillarsOnTarget), unit: `of ${priorities.pillars.length}`, detail: `${ON_TARGET_PERCENT}% of target or more` },
+                { caption: "Groups on target", value: String(pillarsOnTarget), unit: `of ${targetCount}` },
               ]}
             />
 
@@ -283,6 +292,14 @@ export function FoodDashboard() {
                   label={row.label}
                   value={`${row.rateInRangePerWeek.toFixed(1)} of ${row.targetPerWeek}`}
                   bar={{ pct: row.percentOfTarget, color: pillarTone(row) }}
+                />
+              ))}
+              {priorities.extraRows.map((row) => (
+                <TrendRow
+                  key={row.group}
+                  label={row.label}
+                  value={`${row.rateInRangePerWeek.toFixed(1)} of ${row.mode === "max" ? "max " : ""}${row.targetPerWeek}`}
+                  bar={{ pct: row.percentOfTarget, color: row.mode === "max" ? limitTone(row.percentOfTarget) : toneForPercent(row.percentOfTarget) }}
                 />
               ))}
             </TrendGroup>

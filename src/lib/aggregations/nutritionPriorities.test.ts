@@ -134,11 +134,12 @@ describe("computeNutritionPriorities", () => {
   });
 
   it("judges each pillar against the user's targets and leaves out a pillar set to off", () => {
-    const events = Array.from({ length: 20 }, (_, i) =>
-      makeEvent({ itemType: "food", item: "Lentils", category: "Legumes", date: `2026-01-${String(i + 1).padStart(2, "0")}`, completed: true }),
+    // Lentils every other day: 3.5 days a week.
+    const events = Array.from({ length: 10 }, (_, i) =>
+      makeEvent({ itemType: "food", item: "Lentils", category: "Legumes", date: `2026-01-${String(i * 2 + 1).padStart(2, "0")}`, completed: true }),
     );
     const range = { start: "2026-01-01", end: "2026-01-20" };
-    const targets = resolveFoodTargets({ diet: "vegetarian", perWeek: { legumes: 14 } });
+    const targets = resolveFoodTargets({ diet: "vegetarian", groups: { legumes: { mode: "min", perWeek: 7 } } });
     const result = computeNutritionPriorities(events, range, {}, targets);
 
     expect(result.pillars.map((p) => p.pillar)).not.toContain("fish");
@@ -146,8 +147,19 @@ describe("computeNutritionPriorities", () => {
     expect(result.coverageTable.map((r) => r.label)).not.toContain("Fatty fish");
 
     const legumes = result.pillars.find((p) => p.pillar === "legumes")!;
-    expect(legumes.targetPerWeek).toBe(14);
+    expect(legumes.targetPerWeek).toBe(7);
     expect(legumes.percentOfTarget).toBe(50);
+  });
+
+  it("measures a limit like meat as days a week against its maximum", () => {
+    const events = Array.from({ length: 14 }, (_, i) =>
+      makeEvent({ itemType: "food", item: "Chicken", category: "Meat", date: `2026-01-${String(i + 1).padStart(2, "0")}`, completed: true }),
+    );
+    const range = { start: "2026-01-01", end: "2026-01-14" };
+    const { extraRows } = computeNutritionPriorities(events, range, {}, resolveFoodTargets(undefined), [{ group: "meat", mode: "max", perWeek: 4 }]);
+    expect(extraRows).toHaveLength(1);
+    expect(extraRows[0]).toMatchObject({ group: "meat", mode: "max", targetPerWeek: 4, onTarget: false });
+    expect(extraRows[0].rateInRangePerWeek).toBe(7);
   });
 
   it("scales a pillar's subgroup targets with the pillar", () => {

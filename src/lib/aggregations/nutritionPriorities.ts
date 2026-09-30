@@ -16,7 +16,7 @@ import {
   type PillarId,
 } from "@/taxonomy/nutritionGroups";
 import { evidenceForGroup } from "@/lib/nutritionEvidence";
-import { DEFAULT_FOOD_TARGETS, DIET_DEFAULTS, type ResolvedFoodTargets, type TargetPillar } from "@/lib/foodTargets";
+import { BASE_CORE_TARGETS, DEFAULT_FOOD_TARGETS, TARGET_LABEL, TARGET_NUTRITION_GROUPS, type CoreTargetGroup, type ResolvedFoodTargets, type TargetGroup } from "@/lib/foodTargets";
 
 /** Distinct food-tracked days needed, WITHIN THE SELECTED RANGE, before the
  * engine trusts its own ranking enough to produce priorities — below this,
@@ -178,6 +178,26 @@ export interface PillarRow {
   notTracked: boolean;
 }
 
+/** A target Trends measures as a plain times-a-week count (Meat, Eggs…, or
+ * a core group the user set as a limit): "at least" or "at most" `targetPerWeek`. */
+export interface ExtraTarget {
+  group: TargetGroup;
+  mode: "min" | "max";
+  perWeek: number;
+}
+
+export interface ExtraTargetRow {
+  group: TargetGroup;
+  label: string;
+  mode: "min" | "max";
+  rateInRangePerWeek: number;
+  targetPerWeek: number;
+  /** `rateInRangePerWeek / targetPerWeek`, rounded. */
+  percentOfTarget: number;
+  /** An "at least" target reached, or an "at most" one not exceeded. */
+  onTarget: boolean;
+}
+
 /** Worst first, so the pillar card sorts the same way it's meant to read. */
 const PILLAR_SEVERITY: Record<DietBalanceStatus, number> = {
   underrepresented: 0,
@@ -237,6 +257,8 @@ export interface NutritionPriorities {
   /** The six core pillars, worst-represented first — the Food Overview's
    * one balance card. */
   pillars: PillarRow[];
+  /** The rest of the user's targets (see `ExtraTarget`), in Settings order. */
+  extraRows: ExtraTargetRow[];
   variety: VarietyMetrics;
   trend: TrendSummary;
 }
@@ -347,10 +369,10 @@ function groupTarget(group: NutritionGroupId, targets: ResolvedFoodTargets): num
   const base = evidenceForGroup(group)?.targetPerWeek ?? null;
   const pillar = pillarForGroup(group);
   if (!(pillar in targets)) return base;
-  const pillarTarget = targets[pillar as TargetPillar];
+  const pillarTarget = targets[pillar as CoreTargetGroup];
   if (pillarTarget == null) return null;
   if (base == null) return null;
-  return Math.max(1, Math.round((base * pillarTarget) / DIET_DEFAULTS.everything[pillar as TargetPillar]));
+  return Math.max(1, Math.round((base * pillarTarget) / BASE_CORE_TARGETS[pillar as CoreTargetGroup]));
 }
 
 function computeGroupState(
@@ -566,6 +588,7 @@ export function computeNutritionPriorities(
   range: DateRange | null,
   overrides: Record<string, NutritionGroupOverride> = {},
   targets: ResolvedFoodTargets = DEFAULT_FOOD_TARGETS,
+  extraTargets: ExtraTarget[] = [],
 ): NutritionPriorities {
   currentOverrides = overrides;
   groupCache.clear();
@@ -583,6 +606,7 @@ export function computeNutritionPriorities(
       coverageTable: [],
       groupStates: [],
       pillars: [],
+      extraRows: [],
       variety: emptyVariety,
       trend: { available: false, rangeLengthDays: 0, points: [] },
     };
@@ -729,6 +753,20 @@ export function computeNutritionPriorities(
     pillarRow(pillar, aggregateStateByPillar[pillar]!, varietyCandidates, insufficientData),
   ).sort((a, b) => PILLAR_SEVERITY[a.status] - PILLAR_SEVERITY[b.status] || a.percentOfTarget - b.percentOfTarget);
 
+  const extraRows: ExtraTargetRow[] = extraTargets.map((t) => {
+    const state = computeAggregateState(TARGET_NUTRITION_GROUPS[t.group], t.perWeek, TARGET_LABEL[t.group], "discretionary", foods, range, insufficientData);
+    const rate = state.rateInRangePerWeek;
+    return {
+      group: t.group,
+      label: TARGET_LABEL[t.group],
+      mode: t.mode,
+      rateInRangePerWeek: rate,
+      targetPerWeek: t.perWeek,
+      percentOfTarget: Math.round((rate / t.perWeek) * 100),
+      onTarget: t.mode === "max" ? rate <= t.perWeek : rate / t.perWeek >= 0.85,
+    };
+  });
+
   // ---- Variety metrics: distinct foods within the selected range ----
   const plantItems = new Set<string>();
   const plantGroupsSeen = new Set<NutritionGroupId>();
@@ -822,6 +860,7 @@ export function computeNutritionPriorities(
     coverageTable,
     groupStates: allGroupStates,
     pillars,
+    extraRows,
     variety,
     trend,
   };
