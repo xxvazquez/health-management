@@ -20,6 +20,8 @@ export interface Preferences {
   lastLogTab?: string;
   /** Settings → Food targets: diet plus per-group weekly targets. */
   foodTargets?: FoodTargetsPref;
+  /** Health → Results: show panel and marker names in Polish or English. */
+  labNameLanguage?: "pl" | "en";
   /** Trends → Patterns links marked "Not related", never shown again. */
   hiddenPatternLinks?: HiddenPatternLink[];
 }

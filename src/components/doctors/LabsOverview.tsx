@@ -4,6 +4,7 @@ import { CHIP_CLS, CONTROL_CLS, CONTROL_STYLE, chipStyle } from "@/components/ui
 import { ChevronIcon, UpDownChevronIcon } from "@/components/ui/icons";
 import { useState, type ReactNode } from "react";
 import type { useLabs } from "@/lib/useLabs";
+import type { LabNameLanguage } from "@/lib/labNames";
 import { todayLocalISODate, type DateRange } from "@/lib/aggregations/common";
 import {
   clipMarkers,
@@ -75,8 +76,13 @@ export function LabsOverview({
   onNewMarker,
   onAddValue,
   onEditValue,
+  nameLanguage = "pl",
+  onNameLanguageChange,
 }: {
   labs: ReturnType<typeof useLabs>;
+  /** Which language the panel and marker names are shown in (see labNames.ts). */
+  nameLanguage?: LabNameLanguage;
+  onNameLanguageChange?: (lang: LabNameLanguage) => void;
   onNewMarker?: () => void;
   onAddValue?: (markerId: string) => void;
   onEditValue?: (markerId: string, result: LabResult) => void;
@@ -237,6 +243,18 @@ export function LabsOverview({
             ))}
           </select>
         </label>
+        {onNameLanguageChange && (
+          <button
+            type="button"
+            onClick={() => onNameLanguageChange(nameLanguage === "pl" ? "en" : "pl")}
+            aria-label={nameLanguage === "pl" ? "Names in Polish. Show them in English" : "Names in English. Show them in Polish"}
+            className={CONTROL_CLS}
+            style={{ ...CONTROL_STYLE, color: ACCENT }}
+          >
+            <GlobeIcon />
+            {nameLanguage === "pl" ? "PL" : "EN"}
+          </button>
+        )}
       </div>
 
       {panelSections.length >= 2 && (
@@ -279,6 +297,15 @@ export function LabsOverview({
         Open a marker for its full trend and history.
       </Methodology>
     </div>
+  );
+}
+
+function GlobeIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
+      <circle cx="10" cy="10" r="7" />
+      <path d="M3 10h14M10 3c2 2 3 4.4 3 7s-1 5-3 7c-2-2-3-4.4-3-7s1-5 3-7Z" />
+    </svg>
   );
 }
 

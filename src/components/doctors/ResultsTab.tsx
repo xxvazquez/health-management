@@ -1,7 +1,9 @@
 "use client";
 
 import { DatePicker } from "@/components/ui/DatePicker";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { usePreferences } from "@/lib/usePreferences";
+import { localizeLabs } from "@/lib/labNames";
 import { useLabs } from "@/lib/useLabs";
 import { todayLocalISODate } from "@/lib/aggregations/common";
 import type { LabMarker, LabResult } from "@/lib/supabase/labs";
@@ -125,7 +127,11 @@ export function ResultsAddMenu({ accent, onAdd }: { accent: string; onAdd: (view
  * renames and panels are managed from Settings. `view` lives in the page so
  * `ResultsAddMenu` in the title row can open a form. */
 export function ResultsTab({ accent, view: requested, setView }: { accent: string; view: ResultsView; setView: (view: ResultsView) => void }) {
-  const labs = useLabs();
+  const rawLabs = useLabs();
+  const { prefs, update } = usePreferences();
+  const nameLanguage = prefs.labNameLanguage === "en" ? "en" : "pl";
+  // Names shown in the chosen language; forms that write names get `rawLabs`.
+  const labs = useMemo(() => localizeLabs(rawLabs, nameLanguage), [rawLabs, nameLanguage]);
   // "Add results" needs markers to fill in; with none yet, start a marker.
   const view: ResultsView = requested.mode === "batch" && !labs.loading && labs.markers.data.length === 0 ? { mode: "marker-form" } : requested;
   const [flash, setFlash] = useState<string | null>(null);
@@ -142,7 +148,7 @@ export function ResultsTab({ accent, view: requested, setView }: { accent: strin
 
   const markerFormSheet = view.mode === "marker-form" ? (
     <MarkerForm
-      labs={labs}
+      labs={rawLabs}
       accent={accent}
       fields="basic"
       onSaved={() => setView({ mode: "list" })}
@@ -192,6 +198,8 @@ export function ResultsTab({ accent, view: requested, setView }: { accent: strin
 
       <LabsOverview
         labs={labs}
+        nameLanguage={nameLanguage}
+        onNameLanguageChange={(lang) => update({ labNameLanguage: lang })}
         onNewMarker={() => setView({ mode: "marker-form" })}
         onAddValue={(markerId) => setView({ mode: "result-form", markerId })}
         onEditValue={(markerId, result) => setView({ mode: "result-form", markerId, resultId: result.id })}

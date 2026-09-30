@@ -69,7 +69,7 @@ Sections: **Food · Symptoms · Supplements · Habits · Stool · Workout · Cyc
 | Tab | Contents |
 |---|---|
 | Visits | Grouped lists: upcoming dates, decisions/notes/observations (filter by specialty), past visits with open follow-ups; each visit opens in a sheet |
-| Results | Every lab marker on a range bar (same band position on every row), value and unit in aligned columns, H/L flags. Tap one for an Apple Health-style trend (6M–All, drag to read a point, swipe through time) and its readings |
+| Results | Every lab marker on a range bar (same band position on every row), value and unit in aligned columns, H/L flags. Tap one for an Apple Health-style trend (6M–All, drag to read a point, swipe through time) and its readings. A PL/EN switch shows panel and marker names in Polish or English |
 | Vitals | Blood pressure (low readings marked, ACC/AHA categories) and weight, in the same trend card as Results; optional weight-goal band |
 | Doctors | Read-only directory; editing is in Settings |
 

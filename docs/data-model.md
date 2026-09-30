@@ -734,6 +734,7 @@ account-wide settings every device shares
 | `lastLogTab` | The Log section (or `summary`) last open, so Log reopens there on every device. |
 | `foodTargets` | Settings → Food targets: `diet` (`everything`/`pescatarian`/`vegetarian`/`vegan`, a starting point) and `groups`, each food group changed from that diet's default as `{ mode, perWeek }` — `mode` is `min` (at least), `max` (at most) or `off`; `perWeek` is meals a week (1–28), counting each meal that included the group. Groups: `vegetables`, `fruit`, `legumes`, `grains` (whole grains), `nuts_seeds`, `fish`, `fats`, `meat` (red & processed), `poultry`, `eggs`, `dairy`, `sweets` (ultra-processed). An older `perWeek` map (a number per group, `0` = off) is still read. Resolved by `resolveAllFoodTargets` in `src/lib/foodTargets.ts`. |
 | `hiddenPatternLinks` | Trends → Patterns links marked "Not related", as `{ symptom, trigger }` pairs; never tested or shown again until unhidden in Settings → Hidden links. |
+| `labNameLanguage` | Health → Results: `pl` or `en` — panel and marker names shown in Polish or English through the fixed dictionary in `src/lib/labNames.ts` (display only; stored names never change). Absent = `pl`. |
 
 Categories keep their order in `categories.sort_order` instead (above).
 
