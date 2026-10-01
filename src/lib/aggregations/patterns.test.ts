@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { computeAssociationFromDateSets, fisherExactP, generateTopPatterns, matchCategory, matchItem, patternLinkKey, plausibleLags } from "./patterns";
-import { makeEvent } from "@/lib/testFixtures";
+import { makeEvent, makePeriodLog } from "@/lib/testFixtures";
 import { addDaysToDate } from "./common";
 
 describe("matchItem / matchCategory", () => {
@@ -74,6 +74,26 @@ describe("computeAssociationFromDateSets", () => {
     expect(result.withoutPct).toBe(0);
   });
 
+  it("skips cause dates outside the cause's own tracked days", () => {
+    const tracked = new Set(["2026-01-01", "2026-01-02", "2026-01-03"]);
+    const causeTracked = new Set(["2026-01-02", "2026-01-03"]);
+    const result = computeAssociationFromDateSets(new Set(["2026-01-02"]), new Set(["2026-01-01"]), tracked, 0, "Cause", "Outcome", {
+      causeTrackedDates: causeTracked,
+    });
+    expect(result.withTotal + result.withoutTotal).toBe(2);
+    expect(result.withoutCount).toBe(0);
+  });
+
+  it("skips a same-day pair where the cause was logged after the outcome", () => {
+    const tracked = new Set(["2026-01-01", "2026-01-02"]);
+    const both = new Set(["2026-01-01", "2026-01-02"]);
+    const at = (d: string, h: number) => Date.parse(`${d}T${String(h).padStart(2, "0")}:00:00Z`);
+    const result = computeAssociationFromDateSets(both, both, tracked, 0, "Cause", "Outcome", {
+      causeTimes: new Map([["2026-01-01", at("2026-01-01", 8)], ["2026-01-02", at("2026-01-02", 20)]]),
+      outcomeTimes: new Map([["2026-01-01", at("2026-01-01", 12)], ["2026-01-02", at("2026-01-02", 12)]]),
+    });
+    expect(result.withTotal).toBe(1);
+  });
 });
 
 describe("generateTopPatterns", () => {
@@ -81,12 +101,13 @@ describe("generateTopPatterns", () => {
     expect(generateTopPatterns([])).toEqual([]);
   });
 
-  // 60 days: Milk every third day, Bloating the day after each Milk day.
+  // 60 days: Milk every third day, Bloating the day after each Milk day
+  // and now and then on other days too.
   const day = (n: number) => addDaysToDate("2026-03-01", n);
   const linked = Array.from({ length: 60 }, (_, n) => n).flatMap((n) => [
     makeEvent({ itemType: "food", item: "Bread", category: "Grains", date: day(n) }),
     ...(n % 3 === 0 ? [makeEvent({ itemType: "food", item: "Milk", category: "Dairy", date: day(n) })] : []),
-    ...(n % 3 === 1 ? [makeEvent({ itemType: "outcome", item: "Bloating", category: "Digestive Symptom", date: day(n) })] : []),
+    ...(n % 3 === 1 || n % 9 === 5 ? [makeEvent({ itemType: "outcome", item: "Bloating", category: "Digestive Symptom", date: day(n) })] : []),
   ]);
 
   it("finds a link that holds up, at its plausible delay", () => {
@@ -97,6 +118,40 @@ describe("generateTopPatterns", () => {
   it("skips a pair the user marked not related", () => {
     const links = generateTopPatterns(linked, new Set([patternLinkKey("Bloating", "Milk")]));
     expect(links.some((l) => l.causeLabel === "Milk")).toBe(false);
+  });
+
+  it("drops a link where one side is near 0%", () => {
+    const perfect = linked.filter((e) => !(e.item === "Bloating" && e.date !== day(0) && [5, 14, 23, 32, 41, 50, 59].map(day).includes(e.date)));
+    expect(generateTopPatterns(perfect).some((l) => l.causeLabel === "Milk")).toBe(false);
+  });
+
+  it("finds no link when the supplement and the symptom were tracked in different months", () => {
+    // Vitamin D every other day for 120 days, then stopped; symptom logging
+    // only starts on day 90. Food is logged throughout.
+    const events = Array.from({ length: 180 }, (_, n) => n).flatMap((n) => [
+      makeEvent({ itemType: "food", item: "Bread", category: "Grains", date: day(n) }),
+      ...(n < 120 && n % 2 === 0 ? [makeEvent({ itemType: "supplement", item: "Vitamin D", category: "Vitamins", date: day(n) })] : []),
+      ...(n >= 90 && n % 3 !== 1 ? [makeEvent({ itemType: "outcome", item: "Tiredness", category: "Other Symptom", date: day(n) })] : []),
+    ]);
+    expect(generateTopPatterns(events).some((l) => l.causeLabel === "Vitamin D")).toBe(false);
+  });
+
+  it("tests cycle phases as triggers", () => {
+    // 28-day cycles with a 5-day period; a headache on every luteal day.
+    const periodLogs = Array.from({ length: 7 }, (_, c) => c).flatMap((c) =>
+      Array.from({ length: 5 }, (_, i) => makePeriodLog({ date: day(c * 28 + i) })),
+    );
+    const events = Array.from({ length: 168 }, (_, n) => n).flatMap((n) => {
+      const cycleDay = n % 28;
+      const luteal = cycleDay >= 15;
+      return [
+        makeEvent({ itemType: "food", item: "Bread", category: "Grains", date: day(n) }),
+        ...(luteal ? [makeEvent({ itemType: "outcome", item: "Headache", category: "Pain", date: day(n) })] : []),
+        ...(!luteal && n % 7 === 3 ? [makeEvent({ itemType: "outcome", item: "Headache", category: "Pain", date: day(n) })] : []),
+      ];
+    });
+    const links = generateTopPatterns(events, new Set(), periodLogs);
+    expect(links.some((l) => l.causeLabel === "Luteal phase" && l.diffPct > 0)).toBe(true);
   });
 });
 

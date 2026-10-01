@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { groupIntoPeriodRuns, cycleLengthsFromRuns, currentCycleStatus, predictUpcomingPeriods, cycleAnalysis, cycleLengthTrend, periodLengthTrend } from "./cycle";
+import { groupIntoPeriodRuns, cycleLengthsFromRuns, cyclePhaseByDate, currentCycleStatus, predictUpcomingPeriods, cycleAnalysis, cycleLengthTrend, periodLengthTrend } from "./cycle";
 import type { RawPeriodLog } from "@/lib/types";
 
 function makeLog(date: string, overrides: Partial<RawPeriodLog> = {}): RawPeriodLog {
@@ -185,5 +185,22 @@ describe("cycleAnalysis", () => {
     const analysis = cycleAnalysis(groupIntoPeriodRuns(logs), "2026-01-30"); // today = the last run's own last logged day
     expect(analysis.averagePeriodLength).toBe(3); // only the first (completed) 3-day run counts
     expect(analysis.periodsAnalyzed).toBe(1);
+  });
+});
+
+describe("cyclePhaseByDate", () => {
+  it("labels each day of a completed cycle and leaves the current one out", () => {
+    const logs = ["2026-03-01", "2026-03-02", "2026-03-03", "2026-03-29", "2026-03-30"].map((d) => makeLog(d));
+    const phases = cyclePhaseByDate(groupIntoPeriodRuns(logs));
+    expect(phases.get("2026-03-02")).toBe("Menstrual");
+    expect(phases.get("2026-03-08")).toBe("Follicular");
+    expect(phases.get("2026-03-15")).toBe("Ovulation");
+    expect(phases.get("2026-03-20")).toBe("Luteal");
+    expect(phases.has("2026-03-29")).toBe(false);
+  });
+
+  it("skips a gap-sized cycle", () => {
+    const logs = ["2026-01-01", "2026-03-01"].map((d) => makeLog(d));
+    expect(cyclePhaseByDate(groupIntoPeriodRuns(logs)).size).toBe(0);
   });
 });

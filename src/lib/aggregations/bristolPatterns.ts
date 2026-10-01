@@ -1,6 +1,8 @@
 import type { CanonicalEvent, RawWorkoutLog, RawStoolLog } from "@/lib/types";
 import { bristolAssessedDates, bristolTypeDates } from "./digestion";
+import { trackedDatesForType } from "./common";
 import {
+  bothSidesObserved,
   computeAssociationFromDateSets,
   crossDomainCauseCandidates,
   datesWhereValueMeets,
@@ -8,6 +10,7 @@ import {
   SAMPLE_TIER_RANK,
   SCAN_LAGS,
   type AssociationResult,
+  type CauseOption,
 } from "./patterns";
 
 const SLEEP_DURATION_ITEM = "Sleep duration";
@@ -44,15 +47,23 @@ export function generateBristolPatterns(events: CanonicalEvent[], stoolLogs: Raw
   if (trackedSet.size === 0) return [];
 
   const outcomeDates = bristolTypeDates(stoolLogs, BRISTOL_COMPARISON_TYPES);
+  const outcomeTimes = new Map<string, number>();
+  for (const s of stoolLogs) {
+    const t = Date.parse(s.loggedAt);
+    if (Number.isNaN(t) || !outcomeDates.has(s.date)) continue;
+    const prev = outcomeTimes.get(s.date);
+    if (prev === undefined || t < prev) outcomeTimes.set(s.date, t);
+  }
 
   const hasSleepDuration = events.some((e) => e.item === SLEEP_DURATION_ITEM);
-  const causeCandidates = [
+  const causeCandidates: CauseOption[] = [
     ...crossDomainCauseCandidates(events, workoutLogs),
     ...(hasSleepDuration
       ? [
           {
             label: `${SLEEP_DURATION_ITEM} ≥7h`,
             dates: datesWhereValueMeets(events, SLEEP_DURATION_ITEM, (v) => v >= SLEEP_THRESHOLD_MINUTES),
+            tracked: trackedDatesForType(events, "habit"),
           },
         ]
       : []),
@@ -62,8 +73,12 @@ export function generateBristolPatterns(events: CanonicalEvent[], stoolLogs: Raw
   for (const cause of causeCandidates) {
     let best: AssociationResult | null = null;
     for (const lag of SCAN_LAGS) {
-      const assoc = computeAssociationFromDateSets(cause.dates, outcomeDates, trackedSet, lag, cause.label, BRISTOL_COMPARISON_LABEL);
-      if (assoc.sampleTier === "insufficient") continue;
+      const assoc = computeAssociationFromDateSets(cause.dates, outcomeDates, trackedSet, lag, cause.label, BRISTOL_COMPARISON_LABEL, {
+        causeTrackedDates: cause.tracked,
+        causeTimes: cause.times,
+        outcomeTimes,
+      });
+      if (assoc.sampleTier === "insufficient" || !bothSidesObserved(assoc)) continue;
       if (!best || Math.abs(assoc.diffPct) > Math.abs(best.diffPct)) best = assoc;
     }
     if (best && Math.abs(best.diffPct) >= MIN_INTERESTING_DIFF_PCT) {

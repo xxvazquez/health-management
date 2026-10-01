@@ -1,4 +1,4 @@
-import type { CanonicalEvent, RawDiaryEntry, RawItem, RawLog, RawStoolLog } from "@/lib/types";
+import type { CanonicalEvent, RawDiaryEntry, RawItem, RawLog, RawPeriodLog, RawStoolLog } from "@/lib/types";
 import type { ItemType } from "@/taxonomy/categories";
 
 /** Minimal-but-valid fixture factories for the app's core data shapes, used
@@ -86,6 +86,17 @@ export function makeStoolLog(overrides: Partial<RawStoolLog> = {}): RawStoolLog 
     timeOnToiletMinutes: 5,
     note: null,
     updatedAt: "2026-01-01T09:00:00.000Z",
+    ...overrides,
+  };
+}
+
+export function makePeriodLog(overrides: Partial<RawPeriodLog> = {}): RawPeriodLog {
+  return {
+    id: nextId("period"),
+    date: "2026-01-01",
+    intensity: "Medium",
+    collectionMethods: [],
+    updatedAt: 0,
     ...overrides,
   };
 }

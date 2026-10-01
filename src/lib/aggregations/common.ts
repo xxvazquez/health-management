@@ -67,6 +67,52 @@ export function trackedCalendarDates(events: CanonicalEvent[]): Set<string> {
   return new Set(events.map((e) => e.date));
 }
 
+/** Silence longer than this in a section means it wasn't being tracked. */
+export const SECTION_GAP_DAYS = 14;
+/** Symptoms can rightly go unlogged for weeks, so they get a longer gap. */
+export const SYMPTOM_GAP_DAYS = 30;
+
+/**
+ * Days a section (food, supplements, symptoms, …) was really being tracked:
+ * app-use days (`activeDates`) from the section's first entry on, minus any
+ * stretch where the section went quiet for longer than `gapDays`. The tail
+ * after the last entry counts for up to `gapDays`. Only on these days does
+ * "nothing logged" mean "didn't happen".
+ */
+export function sectionTrackedDates(sectionDates: Iterable<string>, activeDates: Iterable<string>, gapDays = SECTION_GAP_DAYS): Set<string> {
+  const logged = Array.from(new Set(sectionDates)).sort();
+  const result = new Set<string>();
+  if (logged.length === 0) return result;
+  const loggedSet = new Set(logged);
+  let next = 0;
+  for (const d of Array.from(new Set([...activeDates, ...logged])).sort()) {
+    while (next < logged.length && logged[next] < d) next++;
+    if (loggedSet.has(d)) {
+      result.add(d);
+      continue;
+    }
+    const prev = next > 0 ? logged[next - 1] : null;
+    if (!prev) continue;
+    const following = next < logged.length ? logged[next] : null;
+    if (following ? daysBetween(prev, following) <= gapDays : daysBetween(prev, d) <= gapDays) result.add(d);
+  }
+  return result;
+}
+
+/** `sectionTrackedDates` for one item type of the canonical events. */
+export function trackedDatesForType(events: CanonicalEvent[], itemType: CanonicalEvent["itemType"], gapDays = SECTION_GAP_DAYS): Set<string> {
+  return sectionTrackedDates(
+    events.filter((e) => e.itemType === itemType && e.completed).map((e) => e.date),
+    trackedCalendarDates(events),
+    gapDays,
+  );
+}
+
+/** Days symptom logging was active — when a symptom's absence means it didn't happen. */
+export function symptomTrackedDates(events: CanonicalEvent[]): Set<string> {
+  return trackedDatesForType(events, "outcome", SYMPTOM_GAP_DAYS);
+}
+
 /**
  * Current streak over an item's *tracked* days only — gaps where the item
  * wasn't tracked at all don't count as breaks. This avoids penalizing a

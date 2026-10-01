@@ -35,6 +35,32 @@ export function groupIntoPeriodRuns(logs: RawPeriodLog[]): PeriodRun[] {
   return runs;
 }
 
+export type CyclePhase = "Menstrual" | "Follicular" | "Ovulation" | "Luteal";
+
+/** Longer than this between two period starts is treated as a logging gap. */
+const MAX_PHASE_CYCLE_DAYS = 45;
+
+/**
+ * The phase of every day inside a completed cycle: logged period days are
+ * menstrual, the three days centred 14 days before the next start are
+ * ovulation, with follicular before and luteal after. The current cycle
+ * (no next start yet) and gap-sized cycles are left out.
+ */
+export function cyclePhaseByDate(runs: PeriodRun[]): Map<string, CyclePhase> {
+  const phases = new Map<string, CyclePhase>();
+  for (let i = 0; i < runs.length - 1; i++) {
+    const run = runs[i];
+    const nextStart = runs[i + 1].startDate;
+    if (daysBetween(run.startDate, nextStart) > MAX_PHASE_CYCLE_DAYS) continue;
+    const ovulation = addDaysToDate(nextStart, -14);
+    for (let d = run.startDate; d < nextStart; d = addDaysToDate(d, 1)) {
+      const fromOvulation = daysBetween(ovulation, d);
+      phases.set(d, d <= run.endDate ? "Menstrual" : Math.abs(fromOvulation) <= 1 ? "Ovulation" : fromOvulation < 0 ? "Follicular" : "Luteal");
+    }
+  }
+  return phases;
+}
+
 /** Days between the start of each run and the start of the next — the
  * definition of "cycle length" used throughout this module. One shorter
  * than `runs.length` since the most recent run has no "next start" yet. */

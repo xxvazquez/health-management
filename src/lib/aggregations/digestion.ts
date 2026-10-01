@@ -1,5 +1,5 @@
 import type { CanonicalEvent, RawStoolLog } from "@/lib/types";
-import { addDaysToDate, getDatasetSpan, isoWeekStart, monthStart, pct, round1, trackedCalendarDates } from "./common";
+import { addDaysToDate, getDatasetSpan, isoWeekStart, monthStart, pct, round1, symptomTrackedDates } from "./common";
 import { computeItemStatsForFilter, type ItemStats } from "./itemStats";
 import type { Bullet, InsightTone } from "./insights";
 
@@ -256,11 +256,12 @@ export interface DigestiveSymptomRateChange {
 /**
  * Last-30-days vs previous-30-days share of tracked days with a digestive
  * symptom logged — the "at a glance" companion to `bristolTargetRangeChange`.
- * Uses every tracked (not just Bristol-assessed) day as the denominator,
- * since a symptom day is meaningful whether or not a stool was also logged.
+ * Uses every day symptoms were being tracked (not just Bristol-assessed
+ * days) as the denominator, since a symptom day is meaningful whether or
+ * not a stool was also logged.
  */
 export function digestiveSymptomRateChange(events: CanonicalEvent[]): DigestiveSymptomRateChange {
-  const trackedDates = Array.from(trackedCalendarDates(events)).sort();
+  const trackedDates = Array.from(symptomTrackedDates(events)).sort();
   if (trackedDates.length === 0) return { insufficientData: true, recentPct: null, priorPct: null };
   const lastDate = trackedDates[trackedDates.length - 1];
   const recentStart = addDaysToDate(lastDate, -(SYMPTOM_RATE_WINDOW_DAYS - 1));
@@ -384,7 +385,7 @@ export function digestionInsight(events: CanonicalEvent[], stoolLogs: RawStoolLo
 
   const windowStart = addDaysToDate(span.end, -(RECENT_WINDOW_DAYS - 1));
 
-  const trackedDates = Array.from(trackedCalendarDates(events)).sort();
+  const trackedDates = Array.from(symptomTrackedDates(events)).sort();
   const recentTrackedDates = trackedDates.filter((d) => d >= windowStart);
   if (trackedDates.length >= MIN_TRACKED_DAYS_FOR_SYMPTOM_COMPARE && recentTrackedDates.length >= 5) {
     const recentEvents = events.filter((e) => e.date >= windowStart);

@@ -91,7 +91,7 @@ One dashboard per Log section, plus Patterns. The time range sits in the title r
 | Dashboard | Shows |
 |---|---|
 | Food | Overview (meals a week against your food targets), Variety, Meal patterns, Combinations (including the combos you rate highest), Ingredients |
-| Patterns | Symptoms that show up more or less often after a food or supplement, tested for chance; Explore compares any pair |
+| Patterns | Symptoms that show up more or less often after a food or supplement, or in a cycle phase, tested for chance; Explore compares any pair |
 | Supplements, Habits | A card per item with the days you logged it |
 | Digestion | Bristol types, bowel movements and digestive symptoms |
 | Workout | Recent sessions and each exercise over time |
@@ -135,6 +135,7 @@ A grouped list where each row opens its own screen. Everything editable in the a
 - **The meal is auto-picked by time:** Breakfast before noon, Lunch before 6pm, Dinner after that.
 - **Time is editable** per entry, and the date stepper opens a calendar.
 - **Days before you start logging an item don't count against it.** A supplement or habit is measured from its first log, and only on days you used the app.
+- **Patterns only compare days both sides were tracked.** A section counts as tracked from its first entry, on days you used the app, until it goes quiet for two weeks (a month for symptoms).
 - **Cycle** stores only period days. Cycle length and predictions are always derived, never stored.
 - **Hiding a section** in Settings hides it from both Log and Trends, on every device.
 

@@ -21,7 +21,7 @@ import {
   type AssociationResult,
 } from "@/lib/aggregations/patterns";
 import { TYPE_ACCENT } from "@/taxonomy/categories";
-import type { CanonicalEvent } from "@/lib/types";
+import type { CanonicalEvent, RawPeriodLog } from "@/lib/types";
 
 const WITHOUT_COLOR = "color-mix(in oklab, var(--text-muted) 60%, var(--surface-1))";
 
@@ -40,9 +40,20 @@ function delayLabel(lagDays: number): string {
   return `${lagDays} days later`;
 }
 
-/** "More often the day after Milk" */
+function isPhase(causeLabel: string): boolean {
+  return causeLabel.endsWith(" phase");
+}
+
+/** "With Milk" / "In the luteal phase" */
+function withLabel(causeLabel: string): string {
+  return isPhase(causeLabel) ? `In the ${causeLabel.toLowerCase()}` : `With ${causeLabel}`;
+}
+
+/** "More often the day after Milk" / "More often in the luteal phase" */
 function linkSentence(link: AssociationResult): string {
-  return `${link.diffPct > 0 ? "More" : "Less"} often ${lagPhrase(link.lagDays)} ${link.causeLabel}`;
+  const more = link.diffPct > 0 ? "More" : "Less";
+  if (isPhase(link.causeLabel)) return `${more} often in the ${link.causeLabel.toLowerCase()}`;
+  return `${more} often ${lagPhrase(link.lagDays)} ${link.causeLabel}`;
 }
 
 function withColor(link: AssociationResult): string {
@@ -83,13 +94,13 @@ function PairedBars({ link, withLabel = "With", withoutLabel = "Without" }: { li
 }
 
 export function PatternsDashboard() {
-  const { status, events, workoutLogs } = useData();
+  const { status, events, workoutLogs, periodLogs } = useData();
   const { prefs, update } = usePreferences();
   const hiddenLinks = prefs.hiddenPatternLinks;
   const hidden = useMemo(() => new Set((hiddenLinks ?? []).map((l) => patternLinkKey(l.symptom, l.trigger))), [hiddenLinks]);
   // Links need the whole history — a month holds too few days on each side
   // of a comparison — so this tab has no range filter.
-  const links = useMemo(() => generateTopPatterns(events, hidden), [events, hidden]);
+  const links = useMemo(() => generateTopPatterns(events, hidden, periodLogs), [events, hidden, periodLogs]);
   const [openLink, setOpenLink] = useState<AssociationResult | null>(null);
   const [exploring, setExploring] = useState(false);
 
@@ -126,7 +137,7 @@ export function PatternsDashboard() {
                 </span>
               </span>
               <span className="mt-2 block">
-                <PairedBars link={link} />
+                {isPhase(link.causeLabel) ? <PairedBars link={link} withLabel="In phase" withoutLabel="Other days" /> : <PairedBars link={link} />}
               </span>
             </button>
           ))}
@@ -149,42 +160,55 @@ export function PatternsDashboard() {
         <TrendRow label="Compare a symptom and a food…" onClick={() => setExploring(true)} />
       </TrendGroup>
 
-      {openLink && <LinkSheet link={openLink} events={events} onHide={() => hideLink(openLink)} onClose={() => setOpenLink(null)} />}
-      {exploring && <ExploreSheet events={events} workoutLogs={workoutLogs} onClose={() => setExploring(false)} />}
+      {openLink && <LinkSheet link={openLink} events={events} periodLogs={periodLogs} onHide={() => hideLink(openLink)} onClose={() => setOpenLink(null)} />}
+      {exploring && <ExploreSheet events={events} workoutLogs={workoutLogs} periodLogs={periodLogs} onClose={() => setExploring(false)} />}
     </div>
   );
 }
 
 /** Each delay from the same day to 3 days after, as With / Without bars. */
 function DelayRows({ results, causeLabel }: { results: AssociationResult[]; causeLabel: string }) {
+  const phase = isPhase(causeLabel);
   return (
-    <FormGroup title="By delay" footer={FOOTNOTE}>
+    <FormGroup title={phase ? undefined : "By delay"} footer={FOOTNOTE}>
       {results.map((r) => (
         <div key={r.lagDays} className="px-3.5 py-2.5">
           <p className="mb-1.5 flex items-baseline justify-between gap-3 text-sm" style={{ color: "var(--text-primary)" }}>
-            <span>{delayLabel(r.lagDays)}</span>
+            <span>{phase ? causeLabel : delayLabel(r.lagDays)}</span>
             {r.sampleTier === "insufficient" && (
               <span className="text-xs" style={{ color: "var(--text-muted)" }}>
                 Not enough days
               </span>
             )}
           </p>
-          {r.sampleTier !== "insufficient" && <PairedBars link={r} withLabel={`With ${causeLabel}`} />}
+          {r.sampleTier !== "insufficient" && <PairedBars link={r} withLabel={withLabel(causeLabel)} withoutLabel={phase ? "Other days" : "Without"} />}
         </div>
       ))}
     </FormGroup>
   );
 }
 
-function LinkSheet({ link, events, onHide, onClose }: { link: AssociationResult; events: CanonicalEvent[]; onHide: () => void; onClose: () => void }) {
-  const byDelay = useMemo(() => linkByDelay(events, link.causeLabel, link.outcomeLabel), [events, link]);
+function LinkSheet({
+  link,
+  events,
+  periodLogs,
+  onHide,
+  onClose,
+}: {
+  link: AssociationResult;
+  events: CanonicalEvent[];
+  periodLogs: RawPeriodLog[];
+  onHide: () => void;
+  onClose: () => void;
+}) {
+  const byDelay = useMemo(() => linkByDelay(events, link.causeLabel, link.outcomeLabel, periodLogs), [events, link, periodLogs]);
   return (
     <Sheet title={link.outcomeLabel} subtitle={linkSentence(link)} titleId="pattern-link-title" onClose={onClose}>
       <div className="flex flex-col gap-5">
         <FormGroup title={delayLabel(link.lagDays)}>
           {[
-            { label: `With ${link.causeLabel}`, count: link.withCount, total: link.withTotal, pct: link.withPct, color: withColor(link) },
-            { label: "Without", count: link.withoutCount, total: link.withoutTotal, pct: link.withoutPct, color: "var(--text-primary)" },
+            { label: withLabel(link.causeLabel), count: link.withCount, total: link.withTotal, pct: link.withPct, color: withColor(link) },
+            { label: isPhase(link.causeLabel) ? "Other days" : "Without", count: link.withoutCount, total: link.withoutTotal, pct: link.withoutPct, color: "var(--text-primary)" },
           ].map((r) => (
             <div key={r.label} className="flex min-h-11 items-center gap-3 px-3.5">
               <span className="min-w-0 flex-1 text-sm" style={{ color: "var(--text-primary)" }}>
@@ -200,7 +224,7 @@ function LinkSheet({ link, events, onHide, onClose }: { link: AssociationResult;
           ))}
         </FormGroup>
 
-        <DelayRows results={byDelay} causeLabel={link.causeLabel} />
+        {!isPhase(link.causeLabel) && <DelayRows results={byDelay} causeLabel={link.causeLabel} />}
 
         <FormGroup footer="Hides this link for good. You can bring it back in Settings → Hidden links.">
           <button type="button" onClick={onHide} className="flex min-h-11 w-full items-center px-3.5 text-left text-sm font-medium" style={{ color: "var(--ui-accent)" }}>
@@ -212,10 +236,20 @@ function LinkSheet({ link, events, onHide, onClose }: { link: AssociationResult;
   );
 }
 
-const CAUSE_PREFIX = /^(Food|Food category|Supplement|Habit|Workout): /;
+const CAUSE_PREFIX = /^(Food|Food category|Supplement|Habit|Workout|Cycle): /;
 
-function ExploreSheet({ events, workoutLogs, onClose }: { events: CanonicalEvent[]; workoutLogs: ReturnType<typeof useData>["workoutLogs"]; onClose: () => void }) {
-  const causeOptions = useMemo(() => allCauseOptions(events, workoutLogs), [events, workoutLogs]);
+function ExploreSheet({
+  events,
+  workoutLogs,
+  periodLogs,
+  onClose,
+}: {
+  events: CanonicalEvent[];
+  workoutLogs: ReturnType<typeof useData>["workoutLogs"];
+  periodLogs: RawPeriodLog[];
+  onClose: () => void;
+}) {
+  const causeOptions = useMemo(() => allCauseOptions(events, workoutLogs, periodLogs), [events, workoutLogs, periodLogs]);
   const symptomOptions = useMemo(
     () => Array.from(new Set(events.filter((e) => e.itemType === "outcome").map((e) => e.item))).sort((a, b) => a.localeCompare(b)),
     [events],
@@ -224,11 +258,14 @@ function ExploreSheet({ events, workoutLogs, onClose }: { events: CanonicalEvent
   const [cause, setCause] = useState("");
 
   const causeOption = causeOptions.find((o) => o.label === cause);
-  const results = useMemo(
-    () => (causeOption && symptomOptions.includes(symptom) ? computeLaggedAssociations(events, causeOption.label, causeOption.dates, matchItem(symptom)) : []),
-    [events, causeOption, symptom, symptomOptions],
-  );
   const causeName = cause.replace(CAUSE_PREFIX, "");
+  const results = useMemo(
+    () =>
+      causeOption && symptomOptions.includes(symptom)
+        ? computeLaggedAssociations(events, causeOption, matchItem(symptom), isPhase(causeName) ? [0] : undefined)
+        : [],
+    [events, causeOption, causeName, symptom, symptomOptions],
+  );
 
   return (
     <Sheet title="Compare" titleId="pattern-explore-title" onClose={onClose}>
@@ -238,12 +275,12 @@ function ExploreSheet({ events, workoutLogs, onClose }: { events: CanonicalEvent
           <Field label="Symptom" plain>
             <ComboBox value={symptom} onChange={setSymptom} options={symptomOptions} placeholder="Search symptoms" allowCreate={false} accent={TYPE_ACCENT.outcome} />
           </Field>
-          <Field label="Food, supplement or habit" plain>
+          <Field label="Compare with" plain>
             <ComboBox
               value={cause}
               onChange={setCause}
               options={causeOptions.map((o) => o.label)}
-              placeholder="Search foods, supplements, habits"
+              placeholder="Food, supplement, habit or cycle phase"
               allowCreate={false}
               accent={TYPE_ACCENT.food}
             />

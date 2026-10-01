@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   addDaysToDate,
+  sectionTrackedDates,
   computeCurrentStreak,
   computeLongestStreak,
   daysBetween,
@@ -237,5 +238,28 @@ describe("formatMinutes", () => {
 
   it("formats 0 minutes as '0m'", () => {
     expect(formatMinutes(0)).toBe("0m");
+  });
+});
+
+describe("sectionTrackedDates", () => {
+  const day = (n: number) => addDaysToDate("2026-03-01", n);
+  const active = Array.from({ length: 60 }, (_, n) => day(n));
+
+  it("starts at the section's first entry and bridges short gaps", () => {
+    const tracked = sectionTrackedDates([day(10), day(15)], active, 14);
+    expect(tracked.has(day(9))).toBe(false);
+    expect(tracked.has(day(12))).toBe(true);
+  });
+
+  it("drops a long silence and keeps a short tail after the last entry", () => {
+    const tracked = sectionTrackedDates([day(0), day(30)], active, 14);
+    expect(tracked.has(day(10))).toBe(false);
+    expect(tracked.has(day(44))).toBe(true);
+    expect(tracked.has(day(45))).toBe(false);
+  });
+
+  it("only counts days the app was used", () => {
+    const tracked = sectionTrackedDates([day(0), day(4)], [day(0), day(2), day(4)], 14);
+    expect(Array.from(tracked).sort()).toEqual([day(0), day(2), day(4)]);
   });
 });
