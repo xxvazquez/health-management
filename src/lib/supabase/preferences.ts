@@ -22,6 +22,9 @@ export interface Preferences {
   foodTargets?: FoodTargetsPref;
   /** Health → Results: show panel and marker names in Polish or English. */
   labNameLanguage?: "pl" | "en";
+  /** Settings → Usual times: "HH:MM" per meal / supplement time of day,
+   * for entries logged after the fact. Unset slots use DEFAULT_SLOT_TIMES. */
+  slotTimes?: Record<string, string>;
   /** Trends → Patterns links marked "Not related", never shown again. */
   hiddenPatternLinks?: HiddenPatternLink[];
 }

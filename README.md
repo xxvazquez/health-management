@@ -115,7 +115,7 @@ A grouped list where each row opens its own screen. Everything editable in the a
 | Tracking | Add, rename, archive or delete items and categories. Edit products, coffees and the Stool and Coffee option chips. Set food targets. Build workout plans |
 | Health | Doctors, doctor types, lab markers and panels, the weight goal |
 | Lists | Reminder lists and wishlist lists |
-| App | Appearance, visible sections, data export |
+| App | Appearance, visible sections, usual meal times, data export |
 
 - **Order:** drag ≡ to reorder categories, sections, lists, doctor types, lab panels and option chips. Orders sync to every device.
 - **Icons and colours:** ~1,900 searchable icons (Lauva's own plus [Lucide](https://lucide.dev)) and any colour via +. A picked colour is saved to **Your colours** and offered in every picker. Built-in categories start with their own icon; a new one gets its section's icon.
@@ -134,6 +134,7 @@ A grouped list where each row opens its own screen. Everything editable in the a
 - **The day rolls over at 3 AM.** Anything logged before 3 AM counts toward the previous day.
 - **The meal is auto-picked by time:** Breakfast before noon, Lunch before 6pm, Dinner after that.
 - **Time is editable** per entry, and the date stepper opens a calendar.
+- **Logging later uses the usual time.** Another meal, or a past day, starts at that meal's time from Settings → Usual times (Breakfast 08:00 … Dinner 19:00), never later than now. A symptom's sheet asks when it started.
 - **Days before you start logging an item don't count against it.** A supplement or habit is measured from its first log, and only on days you used the app.
 - **A day with no food logged never counts as zero.** Food targets and staples divide by the days with food logged in the range, not the calendar.
 - **Patterns only compare days both sides were tracked.** A section counts as tracked from its first entry, on days you used the app, until it goes quiet for two weeks (a month for symptoms).

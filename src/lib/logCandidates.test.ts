@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { combineDateAndTime, dayTimelineEntries, decideChipTapAction, defaultLogTimeValue, groupMealsByTag, loggedCountsForDate, toTimeInputValue, type LogCandidate, type TimelineEntry } from "./logCandidates";
+import { autoLogTime, combineDateAndTime, dayTimelineEntries, decideChipTapAction, defaultLogTimeValue, groupMealsByTag, loggedCountsForDate, toTimeInputValue, type LogCandidate, type TimelineEntry } from "./logCandidates";
 import type { RawItem, RawLog } from "@/lib/types";
 import { createTimeOrderedId } from "@/lib/sortableId";
 
@@ -197,5 +197,35 @@ describe("combineDateAndTime", () => {
   it("round-trips through toTimeInputValue back to the same HH:MM", () => {
     const iso = combineDateAndTime("2026-06-01", "23:45");
     expect(toTimeInputValue(iso)).toBe("23:45");
+  });
+});
+
+describe("autoLogTime", () => {
+  const now = new Date(2026, 9, 1, 21, 0);
+  const base = { today: "2026-10-01", currentSlot: "Dinner", now };
+
+  it("uses now for the current meal today", () => {
+    expect(autoLogTime({ ...base, date: "2026-10-01", slot: "Dinner" })).toBe("21:00");
+  });
+
+  it("uses the slot's usual time for another meal today", () => {
+    expect(autoLogTime({ ...base, date: "2026-10-01", slot: "Breakfast" })).toBe("08:00");
+  });
+
+  it("uses the usual time on a past day, even for the current meal", () => {
+    expect(autoLogTime({ ...base, date: "2026-09-30", slot: "Dinner" })).toBe("19:00");
+  });
+
+  it("follows the user's own times", () => {
+    expect(autoLogTime({ ...base, date: "2026-10-01", slot: "Lunch", slotTimes: { Lunch: "12:15" } })).toBe("12:15");
+  });
+
+  it("never picks a time later than now", () => {
+    expect(autoLogTime({ ...base, now: new Date(2026, 9, 1, 11, 30), currentSlot: "Breakfast", date: "2026-10-01", slot: "Lunch" })).toBe("11:30");
+  });
+
+  it("uses now for a snack today and for a tab with no slots", () => {
+    expect(autoLogTime({ ...base, date: "2026-10-01", slot: "Snack" })).toBe("21:00");
+    expect(autoLogTime({ ...base, date: "2026-10-01", slot: null })).toBe("21:00");
   });
 });

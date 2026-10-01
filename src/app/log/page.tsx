@@ -33,6 +33,7 @@ import {
   combineDateAndTime,
   dayTimelineEntries,
   decideChipTapAction,
+  autoLogTime,
   defaultLogTimeValue,
   groupMealsByTag,
   loggedCountsForDate,
@@ -473,13 +474,11 @@ export default function LogPage() {
   // selectTab whenever you switch between them, since a value from one set
   // ("Lunch") isn't meaningful in the other.
   const [meal, setMeal] = useState<string>(defaultMealForTime);
-  // What time a tap logs something as — lets you log at 9pm something you
-  // actually did at 10am, same idea as Stool's own time field. Stays as
-  // set (doesn't reset after each tap) so logging several things at the
-  // same earlier time doesn't mean re-picking it every time; doesn't reset
-  // on date navigation either, since the time-of-day is independent of
-  // which day it's applied to.
-  const [logTime, setLogTime] = useState(() => defaultLogTimeValue());
+  // A time picked by hand for taps — lets you log at 9pm something you
+  // actually did at 10am. Kept (not reset after each tap) while the day,
+  // section and meal stay the same; otherwise `logTime` below falls back
+  // to "now" or the meal's usual time.
+  const [pickedTime, setPickedTime] = useState<{ key: string; time: string } | null>(null);
   // Target of Food's "Copy to…" sheet — null while it's closed.
   const [copyTarget, setCopyTarget] = useState<{ meal: string; date: string } | null>(null);
   // Workout's own copy of the same idea as `logTime` above — it renders
@@ -677,6 +676,21 @@ export default function LogPage() {
   const counts = useMemo(() => loggedCountsForDate(effective.logs, date), [effective, date]);
 
   const tabConfig = TABS.find((t) => t.type === tab);
+
+  const logTimeKey = `${date}|${tab}|${meal}`;
+  const logTime =
+    pickedTime?.key === logTimeKey
+      ? pickedTime.time
+      : autoLogTime({
+          date,
+          today,
+          slot: tabConfig?.countable ? meal : null,
+          currentSlot: tab === "food" ? defaultMealForTime() : tab === "supplement" ? defaultSupplementTimeForTime() : null,
+          slotTimes: prefs.slotTimes,
+        });
+  function setLogTime(time: string) {
+    setPickedTime({ key: logTimeKey, time });
+  }
 
   const isolatedObservations = useMemo(
     () => careLog.data.filter((e) => e.kind === "observation"),
@@ -1178,7 +1192,10 @@ export default function LogPage() {
     setPending("__copy-meal__");
     const existing = loggedCountsForDate(effective.logs, target.date, target.meal);
     const seen = new Set<string>();
-    const iso = combineDateAndTime(target.date, logTime);
+    const iso = combineDateAndTime(
+      target.date,
+      autoLogTime({ date: target.date, today, slot: target.meal, currentSlot: defaultMealForTime(), slotTimes: prefs.slotTimes }),
+    );
     for (const l of effective.logs) {
       if (l.itemType !== "food" || l.date !== date || (l.value ?? 0) <= 0) continue;
       if (l.mealTag !== meal && l.mealTag != null) continue;
@@ -2923,7 +2940,7 @@ export default function LogPage() {
                 <FormGroup>
                   <div className="flex min-h-11 items-center justify-between gap-3 px-3.5">
                     <span className="text-sm" style={{ color: "var(--text-primary)" }}>
-                      Time
+                      {entry.itemType === "outcome" ? "Started" : "Time"}
                     </span>
                     {isDemoData ? (
                       <span className="text-sm tabular-nums" style={{ color: "var(--text-muted)" }}>
@@ -2934,8 +2951,8 @@ export default function LogPage() {
                         value={toTimeInputValue(entry.updatedAt)}
                         disabled={busy}
                         onChange={(t) => void handleChangeEntryTime(entry, t)}
-                        ariaLabel={`Change time for ${entry.item}`}
-                        title="Time"
+                        ariaLabel={entry.itemType === "outcome" ? `When ${entry.item} started` : `Change time for ${entry.item}`}
+                        title={entry.itemType === "outcome" ? "When did it start?" : "Time"}
                       />
                     )}
                   </div>

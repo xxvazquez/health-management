@@ -85,6 +85,47 @@ export function defaultLogTimeValue(now: Date = new Date()): string {
   return toTimeInputValue(now.toISOString());
 }
 
+/** The usual time of each meal and supplement time of day, used when an
+ * entry is logged after the fact. Settings → Usual times overrides them. */
+export const DEFAULT_SLOT_TIMES: Record<string, string> = {
+  Breakfast: "08:00",
+  Lunch: "13:00",
+  Snack: "16:00",
+  Dinner: "19:00",
+  Morning: "08:00",
+  Afternoon: "14:00",
+  Night: "21:00",
+};
+
+/**
+ * The time a new log starts on. Logging today for the slot it is now (or a
+ * snack, or a tab with no slots) means "now"; logging another meal, or a
+ * past day, uses that slot's usual time — never a time later than now.
+ */
+export function autoLogTime({
+  date,
+  today,
+  slot,
+  currentSlot,
+  slotTimes = {},
+  now = new Date(),
+}: {
+  date: string;
+  today: string;
+  slot: string | null;
+  currentSlot: string | null;
+  slotTimes?: Record<string, string>;
+  now?: Date;
+}): string {
+  const nowValue = defaultLogTimeValue(now);
+  if (!slot) return nowValue;
+  const usual = slotTimes[slot] ?? DEFAULT_SLOT_TIMES[slot];
+  if (!usual) return nowValue;
+  if (date < today) return usual;
+  if (slot === currentSlot || slot === "Snack") return nowValue;
+  return usual < nowValue ? usual : nowValue;
+}
+
 export type ChipTapAction = "create" | "increment" | "decrement" | "toggle";
 
 /**

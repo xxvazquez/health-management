@@ -19,6 +19,7 @@ import { DataExportCard } from "@/components/manage/DataExportCard";
 import { WorkoutPlansCard } from "@/components/manage/WorkoutPlansCard";
 import { FoodTargetsCard } from "@/components/manage/FoodTargetsCard";
 import { HiddenLinksCard } from "@/components/manage/HiddenLinksCard";
+import { UsualTimesCard } from "@/components/manage/UsualTimesCard";
 import { AddRow, CollapsibleManageCard, GROUP_CLS, GROUP_STYLE, GroupNote, ManageNavContext, OpenInLogRow, SectionRow, useSectionMode } from "@/components/manage/ManageSection";
 import { SwitchKnob } from "@/components/ui/Switch";
 import { TimePicker } from "@/components/ui/DatePicker";
@@ -3638,6 +3639,7 @@ export default function ManagePage() {
   const appSections: { label: string; el: ReactNode }[] = [
     { label: "Appearance", el: <AppearanceCard key="appearance" /> },
     { label: "Visible sections", el: <VisibleSectionsCard key="visible-sections" isDemoData={isDemoData} /> },
+    { label: "Usual times", el: <UsualTimesCard key="usual-times" searchQuery={searchQuery} /> },
     { label: "Your data", el: <DataExportCard key="your-data" isDemoData={isDemoData} /> },
   ];
   for (const sec of appSections) sectionByLabel.set(sec.label, sec.el);
@@ -3646,7 +3648,7 @@ export default function ManagePage() {
     { title: "Tracking", labels: ["Food", "Food products", "Food targets", "Symptoms", "Supplements", "Habits", "Workout", "Workout plans", "Coffee", "Stool options", "Hidden links"] },
     { title: "Health", labels: ["Doctors", "Doctor types", "Lab results", "Weight goal"] },
     { title: "Lists", labels: ["Reminder lists", "Wishlist lists"] },
-    { title: "App", labels: ["Appearance", "Visible sections", "Your data"] },
+    { title: "App", labels: ["Appearance", "Visible sections", "Usual times", "Your data"] },
   ];
   const isSearching = searchQuery.trim().length > 0;
   const groupBox = "inset-rows rounded-xl border";
