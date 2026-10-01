@@ -144,6 +144,7 @@ A grouped list where each row opens its own screen. Everything editable in the a
 - **A day with no food logged never counts as zero.** Food targets and staples divide by the days with food logged in the range, not the calendar. A "vs previous period" figure only shows when both periods were logged on a similar number of days.
 - **Patterns only compare days both sides were tracked.** A section counts as tracked from its first entry, on days you used the app, until it goes quiet for two weeks (a month for symptoms).
 - **Cycle** stores only period days. Cycle length and predictions are always derived, never stored.
+- **Cycle gaps:** one unlogged day inside a period is bridged. A cycle under 15 days or about twice the usual length looks like a missed log, so averages, variation, predictions and the length chart leave it out.
 - **Hiding a section** in Settings hides it from both Log and Trends, on every device.
 
 ---

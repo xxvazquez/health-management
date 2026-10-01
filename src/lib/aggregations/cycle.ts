@@ -2,11 +2,10 @@ import type { RawPeriodLog } from "@/lib/types";
 import type { CheckIn } from "@/lib/supabase/checkins";
 import { addDaysToDate, daysBetween } from "./common";
 
-/** A run of consecutive calendar dates logged as a period — one period,
- * derived on the fly from `RawPeriodLog` rows rather than stored as its
- * own range object. A gap of even one day starts a new run — no
- * tolerance for an unlogged day in the middle, so a run's length is
- * always exactly what was recorded. */
+/** A run of logged period dates — one period, derived on the fly from
+ * `RawPeriodLog` rows rather than stored as its own range object. A single
+ * unlogged day inside a period is treated as forgotten and bridged; two or
+ * more start a new run. */
 export interface PeriodRun {
   startDate: string;
   endDate: string;
@@ -26,7 +25,7 @@ export function groupIntoPeriodRuns(logs: RawPeriodLog[]): PeriodRun[] {
   const runs: PeriodRun[] = [];
   for (const log of sorted) {
     const current = runs.at(-1);
-    if (current && daysBetween(current.endDate, log.date) <= 1) {
+    if (current && daysBetween(current.endDate, log.date) <= 2) {
       current.endDate = log.date;
       current.days.push(log);
     } else {
@@ -98,6 +97,26 @@ export function cycleLengthsFromRuns(runs: PeriodRun[]): number[] {
     lengths.push(daysBetween(runs[i].startDate, runs[i + 1].startDate));
   }
   return lengths;
+}
+
+/** Shorter than this between two period starts is a logging slip, not a cycle. */
+const MIN_CYCLE_DAYS = 15;
+/** This many times the usual length or more looks like a missed period log. */
+const MISSED_PERIOD_FACTOR = 1.75;
+
+/** Whether a cycle length looks like a logging gap rather than a real
+ * cycle: under 15 days, or (with at least 3 cycles to judge by) about
+ * twice the median. */
+export function isGapCycle(length: number, allLengths: number[]): boolean {
+  if (length < MIN_CYCLE_DAYS) return true;
+  return allLengths.length >= 3 && length >= MISSED_PERIOD_FACTOR * median(allLengths);
+}
+
+/** Cycle lengths with logging gaps left out — what averages, variation
+ * and predictions are based on. */
+function reliableCycleLengths(runs: PeriodRun[]): number[] {
+  const lengths = cycleLengthsFromRuns(runs);
+  return lengths.filter((l) => !isGapCycle(l, lengths));
 }
 
 /** The recent runs' own lengths (days), for period-length averages/medians
@@ -182,8 +201,7 @@ export interface PredictedPeriod {
 export function predictUpcomingPeriods(runs: PeriodRun[], count: number, today: string): PredictedPeriod[] {
   if (runs.length === 0) return [];
   const lastStart = runs.at(-1)!.startDate;
-  const allCycleLengths = cycleLengthsFromRuns(runs);
-  const recentCycleLengths = allCycleLengths.slice(-RECENT_CYCLES_WINDOW);
+  const recentCycleLengths = reliableCycleLengths(runs).slice(-RECENT_CYCLES_WINDOW);
 
   // No completed cycle yet (a single logged period) — nothing to base a
   // cycle length on, so no prediction rather than a made-up default.
@@ -224,7 +242,7 @@ export interface CycleAnalysis {
 
 export function cycleAnalysis(runs: PeriodRun[], today: string): CycleAnalysis {
   const allCycleLengths = cycleLengthsFromRuns(runs);
-  const recentCycleLengths = allCycleLengths.slice(-RECENT_CYCLES_WINDOW);
+  const recentCycleLengths = reliableCycleLengths(runs).slice(-RECENT_CYCLES_WINDOW);
   const recentLengths = recentPeriodLengths(runs, today);
 
   return {
@@ -264,11 +282,13 @@ const CYCLE_METRICS_MIN_DATE = "2022-01-01";
 
 /** One point per completed cycle, dated at the LATER period's start (the
  * only point in time the cycle's length is actually known) — for the
- * Cycle analytics page's "cycle length over time" chart. */
+ * Cycle analytics page's "cycle length over time" chart. Logging gaps
+ * (see `isGapCycle`) are left out. */
 export function cycleLengthTrend(runs: PeriodRun[]): DatedValue[] {
+  const lengths = cycleLengthsFromRuns(runs);
   const points: DatedValue[] = [];
   for (let i = 0; i < runs.length - 1; i++) {
-    points.push({ date: runs[i + 1].startDate, value: daysBetween(runs[i].startDate, runs[i + 1].startDate) });
+    if (!isGapCycle(lengths[i], lengths)) points.push({ date: runs[i + 1].startDate, value: lengths[i] });
   }
   return points.filter((p) => p.date >= CYCLE_METRICS_MIN_DATE);
 }

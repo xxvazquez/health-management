@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { checkInsByPhase, groupIntoPeriodRuns, cycleLengthsFromRuns, cyclePhaseByDate, currentCycleStatus, predictUpcomingPeriods, cycleAnalysis, cycleLengthTrend, periodLengthTrend } from "./cycle";
+import { checkInsByPhase, isGapCycle, groupIntoPeriodRuns, cycleLengthsFromRuns, cyclePhaseByDate, currentCycleStatus, predictUpcomingPeriods, cycleAnalysis, cycleLengthTrend, periodLengthTrend } from "./cycle";
 import type { RawPeriodLog } from "@/lib/types";
 
 function makeLog(date: string, overrides: Partial<RawPeriodLog> = {}): RawPeriodLog {
@@ -26,9 +26,14 @@ describe("groupIntoPeriodRuns", () => {
     expect(runs[0].days).toHaveLength(3);
   });
 
-  it("splits into a separate run as soon as a single day is skipped", () => {
-    const logs = [makeLog("2026-01-01"), makeLog("2026-01-03")];
-    const runs = groupIntoPeriodRuns(logs);
+  it("bridges a single unlogged day inside a period", () => {
+    const runs = groupIntoPeriodRuns([makeLog("2026-01-01"), makeLog("2026-01-03")]);
+    expect(runs).toHaveLength(1);
+    expect(runs[0].endDate).toBe("2026-01-03");
+  });
+
+  it("splits into a separate run after two unlogged days", () => {
+    const runs = groupIntoPeriodRuns([makeLog("2026-01-01"), makeLog("2026-01-04")]);
     expect(runs).toHaveLength(2);
   });
 
@@ -157,6 +162,15 @@ describe("predictUpcomingPeriods", () => {
   });
 });
 
+describe("isGapCycle", () => {
+  it("flags very short cycles and ones about twice the usual length", () => {
+    expect(isGapCycle(12, [12])).toBe(true);
+    expect(isGapCycle(56, [28, 29, 56, 28])).toBe(true);
+    expect(isGapCycle(35, [28, 29, 35, 28])).toBe(false);
+    expect(isGapCycle(56, [28, 56])).toBe(false);
+  });
+});
+
 describe("cycleAnalysis", () => {
   it("reports zero/null for no recorded periods", () => {
     const analysis = cycleAnalysis([], "2026-01-01");
@@ -171,6 +185,17 @@ describe("cycleAnalysis", () => {
     expect(analysis.lastCycleLength).toBe(30);
     expect(analysis.averageCycleLength).toBe(29);
     expect(analysis.cyclesAnalyzed).toBe(2);
+  });
+
+  it("leaves a missed-period-sized cycle out of the average and variation", () => {
+    // 28, 29, 56 (a period never logged), 28.
+    const logs = ["2026-01-01", "2026-01-29", "2026-02-27", "2026-04-24", "2026-05-22"].map((d) => makeLog(d));
+    const analysis = cycleAnalysis(groupIntoPeriodRuns(logs), "2026-06-01");
+    expect(analysis.lastCycleLength).toBe(28);
+    expect(analysis.averageCycleLength).toBe(28.3);
+    expect(analysis.cyclesAnalyzed).toBe(3);
+    expect(predictUpcomingPeriods(groupIntoPeriodRuns(logs), 1, "2026-06-01")[0].latestStart).toBe("2026-06-20");
+    expect(cycleLengthTrend(groupIntoPeriodRuns(logs)).map((p) => p.value)).toEqual([28, 29, 28]);
   });
 
   it("computes average period length from run lengths, once they're all complete", () => {
