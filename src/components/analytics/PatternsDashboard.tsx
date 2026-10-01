@@ -7,9 +7,8 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { PageSkeleton } from "@/components/ui/Skeleton";
 import { Sheet } from "@/components/ui/Sheet";
 import { FormGroup } from "@/components/ui/FormGroup";
-import { Field } from "@/components/ui/Field";
-import { ChevronIcon } from "@/components/ui/icons";
-import { ComboBox } from "@/components/doctors/shared";
+import { CheckIcon, ChevronIcon } from "@/components/ui/icons";
+import { SearchField } from "@/components/ui/SearchField";
 import { TrendGroup, TrendRow } from "@/components/analytics/TrendList";
 import {
   allCauseOptions,
@@ -20,7 +19,6 @@ import {
   patternLinkKey,
   type AssociationResult,
 } from "@/lib/aggregations/patterns";
-import { TYPE_ACCENT } from "@/taxonomy/categories";
 import type { CanonicalEvent, RawPeriodLog, RawStoolLog } from "@/lib/types";
 import type { CheckIn } from "@/lib/supabase/checkins";
 import { useCheckIns } from "@/lib/useCheckIns";
@@ -266,6 +264,7 @@ function ExploreSheet({
   const symptomOptions = useMemo(() => outcomeOptions.map((o) => o.label), [outcomeOptions]);
   const [symptom, setSymptom] = useState("");
   const [cause, setCause] = useState("");
+  const [picking, setPicking] = useState<"symptom" | "cause" | null>(null);
 
   const causeOption = causeOptions.find((o) => o.label === cause);
   const outcomeOption = outcomeOptions.find((o) => o.label === symptom);
@@ -275,27 +274,87 @@ function ExploreSheet({
     [causeOption, outcomeOption, causeName],
   );
 
+  if (picking) {
+    const isSymptom = picking === "symptom";
+    return (
+      <Sheet title={isSymptom ? "Symptom" : "Compare with"} titleId="pattern-explore-title" onClose={onClose} back={{ label: "Compare", onClick: () => setPicking(null) }}>
+        <div className="flex flex-col gap-3">
+          <PickerList
+            options={isSymptom ? symptomOptions : causeOptions.map((o) => o.label)}
+            selected={isSymptom ? symptom : cause}
+            placeholder={isSymptom ? "Search symptoms" : "Search foods, supplements, habits…"}
+            onPick={(v) => {
+              if (isSymptom) setSymptom(v);
+              else setCause(v);
+              setPicking(null);
+            }}
+          />
+        </div>
+      </Sheet>
+    );
+  }
+
   return (
     <Sheet title="Compare" titleId="pattern-explore-title" onClose={onClose}>
-      {/* Tall from the start, so the pickers' suggestions have room below them. */}
-      <div className="flex min-h-[60dvh] flex-col gap-5">
+      <div className="flex flex-col gap-5">
         <FormGroup>
-          <Field label="Symptom" plain>
-            <ComboBox value={symptom} onChange={setSymptom} options={symptomOptions} placeholder="Search symptoms" allowCreate={false} accent={TYPE_ACCENT.outcome} />
-          </Field>
-          <Field label="Compare with" plain>
-            <ComboBox
-              value={cause}
-              onChange={setCause}
-              options={causeOptions.map((o) => o.label)}
-              placeholder="Food, supplement, habit or cycle phase"
-              allowCreate={false}
-              accent={TYPE_ACCENT.food}
-            />
-          </Field>
+          {[
+            { id: "symptom" as const, label: "Symptom", value: symptom },
+            { id: "cause" as const, label: "Compare with", value: causeName },
+          ].map((row) => (
+            <button key={row.id} type="button" onClick={() => setPicking(row.id)} className="flex min-h-11 w-full items-center gap-3 px-3.5 text-left">
+              <span className="shrink-0 text-sm" style={{ color: "var(--text-primary)" }}>
+                {row.label}
+              </span>
+              <span className="ml-auto min-w-0 truncate text-sm" style={{ color: row.value ? "var(--text-secondary)" : "var(--text-muted)" }}>
+                {row.value || "Choose"}
+              </span>
+              <span className="shrink-0" style={{ color: "var(--text-muted)" }}>
+                <ChevronIcon dir="right" size={14} />
+              </span>
+            </button>
+          ))}
         </FormGroup>
         {results.length > 0 && <DelayRows results={results} causeLabel={causeName} />}
       </div>
     </Sheet>
+  );
+}
+
+/** A searchable list of choices, grouped under captions when the labels
+ * carry a "Kind: " prefix (Food: Banana, Supplement: Iron…). */
+function PickerList({ options, selected, placeholder, onPick }: { options: string[]; selected: string; placeholder: string; onPick: (value: string) => void }) {
+  const [query, setQuery] = useState("");
+  const q = query.trim().toLowerCase();
+  const groups = new Map<string, { value: string; name: string }[]>();
+  for (const value of options) {
+    const kind = value.match(CAUSE_PREFIX)?.[1] ?? "";
+    const name = value.replace(CAUSE_PREFIX, "");
+    if (q && !name.toLowerCase().includes(q)) continue;
+    const list = groups.get(kind) ?? [];
+    list.push({ value, name });
+    groups.set(kind, list);
+  }
+  return (
+    <div className="flex flex-col gap-4">
+      <SearchField value={query} onChange={setQuery} placeholder={placeholder} className="w-full" />
+      {groups.size === 0 && (
+        <p className="py-6 text-center text-sm" style={{ color: "var(--text-muted)" }}>
+          No matches
+        </p>
+      )}
+      {[...groups].map(([kind, items]) => (
+        <FormGroup key={kind} title={kind || undefined}>
+          {items
+            .sort((a, b) => a.name.localeCompare(b.name))
+            .map((it) => (
+              <button key={it.value} type="button" onClick={() => onPick(it.value)} className="flex min-h-11 w-full items-center px-3.5 text-left text-sm" style={{ color: it.value === selected ? "var(--ui-accent)" : "var(--text-primary)" }}>
+                <span className="min-w-0 flex-1">{it.name}</span>
+                {it.value === selected && <CheckIcon size={14} />}
+              </button>
+            ))}
+        </FormGroup>
+      ))}
+    </div>
   );
 }

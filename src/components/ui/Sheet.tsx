@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type FormEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { CloseIcon } from "@/components/ui/icons";
+import { ChevronIcon, CloseIcon } from "@/components/ui/icons";
 import { useDialogA11y } from "@/components/ui/useDialogA11y";
 
 // Open sheets, so page scrolling is locked until the last one closes.
@@ -44,6 +44,7 @@ export function Sheet({
   titleId,
   onClose,
   form,
+  back,
   children,
 }: {
   title: string;
@@ -54,6 +55,8 @@ export function Sheet({
   titleId: string;
   onClose: () => void;
   form?: SheetForm;
+  /** A pushed screen inside the sheet: "‹ label" on the left of a centred title. */
+  back?: { label: string; onClick: () => void };
   children: ReactNode;
 }) {
   const [closing, setClosing] = useState(false);
@@ -161,6 +164,25 @@ export function Sheet({
                   {form.busy ? (form.busyLabel ?? "Saving…") : form.submitLabel}
                 </button>
               </div>
+            </div>
+          ) : back ? (
+            <div className="grid min-h-11 grid-cols-[1fr_auto_1fr] items-center gap-3 px-0.5">
+              <button type="button" onClick={back.onClick} className="hit-slop -ml-1 flex items-center gap-0.5 justify-self-start text-sm" style={{ color: "var(--ui-accent)" }}>
+                <ChevronIcon dir="left" size={16} />
+                {back.label}
+              </button>
+              <h2 id={titleId} className="truncate text-base font-semibold" style={{ color: "var(--text-primary)" }}>
+                {title}
+              </h2>
+              <button
+                type="button"
+                onClick={requestClose}
+                aria-label="Close"
+                className="control-surface hit-slop flex h-8 w-8 shrink-0 items-center justify-center justify-self-end rounded-full"
+                style={{ color: "var(--text-secondary)" }}
+              >
+                <CloseIcon />
+              </button>
             </div>
           ) : (
             <div className="flex items-start justify-between gap-3 px-0.5">
