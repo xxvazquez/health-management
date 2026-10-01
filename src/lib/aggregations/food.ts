@@ -234,8 +234,9 @@ export interface StapleEntry {
   item: string;
   /** Distinct days logged within the selected range. */
   daysInRange: number;
-  rangeLengthDays: number;
-  /** `daysInRange / rangeLengthDays`, 0–100, rounded. */
+  /** Days in the range with any food logged. */
+  foodDays: number;
+  /** `daysInRange / foodDays`, 0–100, rounded. */
   percent: number;
 }
 
@@ -256,7 +257,7 @@ const FALLEN_OUT_MAX_DAYS_IN_RANGE = 1;
 /**
  * Ingredient-level consistency — the finer-grained, no-taxonomy counterpart
  * to the Overview's pillar-level "Diet balance" card. **Staples** are foods
- * logged on a real share of days within the selected range. Foods that have
+ * logged on a real share of the days with food logged in the selected range. Foods that have
  * **fallen out of rotation** were logged regularly in the equal-length
  * period immediately before the range but are now rarely or never logged —
  * the "I used to eat this and stopped" angle the pillar/group-level view
@@ -278,6 +279,7 @@ export function ingredientRotation(
   const foods = foodEvents(events);
   const rangeLengthDays = daysBetween(range.start, range.end) + 1;
   const inRangeFoods = foods.filter((e) => e.date >= range.start && e.date <= range.end);
+  const foodDays = new Set(inRangeFoods.map((e) => e.date)).size;
 
   const daysByItem = (list: CanonicalEvent[]) => {
     const byItem = new Map<string, Set<string>>();
@@ -292,7 +294,7 @@ export function ingredientRotation(
   const daysInRangeByItem = daysByItem(inRangeFoods);
 
   const staples: StapleEntry[] = Array.from(daysInRangeByItem.entries())
-    .map(([item, days]) => ({ item, daysInRange: days.size, rangeLengthDays, percent: pct(days.size, rangeLengthDays) }))
+    .map(([item, days]) => ({ item, daysInRange: days.size, foodDays, percent: pct(days.size, foodDays) }))
     .filter((s) => s.percent >= STAPLE_MIN_PERCENT)
     .sort((a, b) => b.percent - a.percent || a.item.localeCompare(b.item))
     .slice(0, staplesTopN);

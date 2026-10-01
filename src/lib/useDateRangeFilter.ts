@@ -1,13 +1,17 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { filterByDateRange, getDatasetSpan, type DateRange } from "@/lib/aggregations/common";
+import { addDaysToDate, filterByDateRange, getDatasetSpan, type DateRange } from "@/lib/aggregations/common";
 
-const STORAGE_KEY = "lauva.analytics.range";
+const STORAGE_KEY = "lauva.analytics.range.v2";
+
+/** Trends opens on the last 30 days: targets are weekly habits, and a year
+ * hides change. */
+export const DEFAULT_RANGE_DAYS = 30;
 
 /** The last range picked on any analytics dashboard, so it carries to the
- * next one instead of resetting to "all time" every navigation. Stored as a
- * plain start/end and re-clamped to each dataset's own span on load. */
+ * next one instead of resetting every navigation. Stored as a plain
+ * start/end and re-clamped to each dataset's own span on load. */
 function readStoredRange(): DateRange | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -24,8 +28,9 @@ function readStoredRange(): DateRange | null {
 
 /** Generic over anything date-stamped, so the same range control drives
  * every analytics page (CanonicalEvent-based pages and Workout's
- * RawWorkoutLog alike). */
-export function useDateRangeFilter<T extends { date: string }>(events: T[]) {
+ * RawWorkoutLog alike). Until a range is picked it shows the last
+ * `defaultDays` days, or the whole span when that's omitted. */
+export function useDateRangeFilter<T extends { date: string }>(events: T[], defaultDays?: number) {
   const span = useMemo(() => getDatasetSpan(events), [events]);
   const [range, setRangeState] = useState<DateRange | null>(null);
 
@@ -52,7 +57,13 @@ export function useDateRangeFilter<T extends { date: string }>(events: T[]) {
     }
   }, []);
 
-  const effectiveRange = range ?? span ?? undefined;
+  const defaultRange = useMemo<DateRange | null>(() => {
+    if (!span || !defaultDays) return span;
+    const start = addDaysToDate(span.end, -(defaultDays - 1));
+    return { start: start < span.start ? span.start : start, end: span.end };
+  }, [span, defaultDays]);
+
+  const effectiveRange = range ?? defaultRange ?? undefined;
   const filtered = useMemo(() => filterByDateRange(events, effectiveRange ?? undefined), [events, effectiveRange]);
 
   return { span, range: effectiveRange, setRange, filtered };

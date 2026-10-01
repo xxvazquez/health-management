@@ -1,7 +1,8 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { ChevronIcon } from "@/components/ui/icons";
+import { InfoButton } from "@/components/ui/InfoButton";
 
 /** The building blocks every Trends page is made of: iOS inset-grouped
  * sections of one-line rows (name left, one value right, an optional thin
@@ -21,11 +22,39 @@ export function TrendCaption({ children, color }: { children: ReactNode; color?:
   );
 }
 
-/** A captioned inset-grouped card of rows, with an optional quiet note under it. */
-export function TrendGroup({ caption, captionColor, note, children }: { caption?: ReactNode; captionColor?: string; note?: ReactNode; children: ReactNode }) {
+/** A captioned inset-grouped card of rows, with an optional quiet note under
+ * it and an optional explanation behind an ⓘ beside the caption. */
+export function TrendGroup({
+  caption,
+  captionColor,
+  note,
+  info,
+  children,
+}: {
+  caption?: ReactNode;
+  captionColor?: string;
+  note?: ReactNode;
+  info?: ReactNode;
+  children: ReactNode;
+}) {
+  const [infoOpen, setInfoOpen] = useState(false);
   return (
     <section className="flex flex-col gap-1.5">
-      {caption && <TrendCaption color={captionColor}>{caption}</TrendCaption>}
+      {caption && info ? (
+        <div className="flex items-center gap-1 pr-3.5">
+          <TrendCaption color={captionColor}>{caption}</TrendCaption>
+          <span className="-ml-2.5">
+            <InfoButton open={infoOpen} onToggle={() => setInfoOpen((o) => !o)} size={12} />
+          </span>
+        </div>
+      ) : (
+        caption && <TrendCaption color={captionColor}>{caption}</TrendCaption>
+      )}
+      {info && infoOpen && (
+        <p className="px-3.5 text-xs" style={{ color: "var(--text-secondary)" }}>
+          {info}
+        </p>
+      )}
       <div className="inset-rows overflow-hidden rounded-xl border" style={GROUP_STYLE}>
         {children}
       </div>

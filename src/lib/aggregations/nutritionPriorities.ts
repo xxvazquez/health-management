@@ -72,10 +72,11 @@ export interface GroupState {
   pillar: PillarId;
   /** Distinct days this group was logged, within the selected range. */
   daysInRange: number;
-  /** Length of the selected range in days — carried on the state so display
-   * code (groupCandidateDetail) can describe `daysInRange` against it
-   * without threading the range through separately. */
+  /** Length of the selected range in days, for naming the span in words. */
   rangeLengthDays: number;
+  /** Days in the range with any food logged — the denominator for every
+   * rate and share, so a day nothing was logged never counts as zero. */
+  foodDays: number;
   /** Ever logged, across the full dataset — not scoped to the range. Keeps
    * "never eaten, ever" distinguishable from "eaten before, just not within
    * this range" (the `not-recent` consistency band). */
@@ -90,9 +91,9 @@ export interface GroupState {
 interface BulletFrequency {
   /** Distinct days the group was logged, within the selected range. */
   daysInRange: number;
-  /** Length of the selected range in days — the denominator. */
-  rangeLengthDays: number;
-  /** `daysInRange / rangeLengthDays`, 0–100, rounded. */
+  /** Days in the range with any food logged — the denominator. */
+  foodDays: number;
+  /** `daysInRange / foodDays`, 0–100, rounded. */
   percent: number;
   /** A few member foods, for a muted sub-line under the group name. */
   examples: string[];
@@ -163,7 +164,8 @@ export interface PillarRow {
   label: string;
   /** Distinct days any core group in the pillar was logged, within range. */
   daysInRange: number;
-  rangeLengthDays: number;
+  /** Days in the range with any food logged. */
+  foodDays: number;
   /** This pillar's average weekly rate within the range. */
   rateInRangePerWeek: number;
   /** The pillar's own weekly target this rate is judged against. */
@@ -335,6 +337,7 @@ function computeAggregateState(
   unit: "days" | "meals" = "days",
 ): GroupState {
   const rangeLengthDays = daysBetween(range.start, range.end) + 1;
+  const foodDays = new Set(foods.filter((e) => e.date >= range.start && e.date <= range.end).map((e) => e.date)).size;
   const groupSet = new Set(groups);
   const matchEvents = foods.filter((e) => groupsFor(e.item).some((g) => groupSet.has(g)));
   const inRangeEvents = matchEvents.filter((e) => e.date >= range.start && e.date <= range.end);
@@ -345,7 +348,7 @@ function computeAggregateState(
   // "meals" counts each meal that included the group (a food logged without
   // a meal counts once for its day), so veg at lunch and dinner counts twice.
   const occurrences = unit === "meals" ? new Set(inRangeEvents.map((e) => `${e.date}|${e.mealTag ?? ""}`)).size : daysInRange;
-  const rateInRangePerWeek = (occurrences * 7) / rangeLengthDays;
+  const rateInRangePerWeek = foodDays > 0 ? (occurrences * 7) / foodDays : 0;
   const ratio = targetPerWeek ? rateInRangePerWeek / targetPerWeek : 0;
 
   const consistency = bandConsistency(totalLogsAllTime, daysInRange, ratio);
@@ -357,6 +360,7 @@ function computeAggregateState(
     pillar,
     daysInRange,
     rangeLengthDays,
+    foodDays,
     totalLogsAllTime,
     distinctFoodsInRange,
     consistency,
@@ -421,8 +425,8 @@ function rangeInWords(days: number): string {
 function bulletFrequency(state: GroupState): BulletFrequency {
   return {
     daysInRange: state.daysInRange,
-    rangeLengthDays: state.rangeLengthDays,
-    percent: state.rangeLengthDays > 0 ? Math.round((state.daysInRange / state.rangeLengthDays) * 100) : 0,
+    foodDays: state.foodDays,
+    percent: state.foodDays > 0 ? Math.round((state.daysInRange / state.foodDays) * 100) : 0,
     examples: NUTRITION_GROUP_EXAMPLES[state.group].split(", "),
     notTracked: state.daysInRange === 0,
   };
@@ -430,7 +434,8 @@ function bulletFrequency(state: GroupState): BulletFrequency {
 
 function groupCandidateDetail(state: GroupState): string {
   const span = rangeInWords(state.rangeLengthDays);
-  const pct = state.rangeLengthDays > 0 ? Math.round((state.daysInRange / state.rangeLengthDays) * 100) : 0;
+  const pct = state.foodDays > 0 ? Math.round((state.daysInRange / state.foodDays) * 100) : 0;
+  const ofDays = `${state.daysInRange} of ${state.foodDays} day${state.foodDays === 1 ? "" : "s"} with food logged`;
   const base = (() => {
     switch (state.consistency) {
       case "never":
@@ -438,9 +443,9 @@ function groupCandidateDetail(state: GroupState): string {
       case "not-recent":
         return `Logged before, but not in ${span}.`;
       case "rare":
-        return `Only appeared on ${state.daysInRange} of ${state.rangeLengthDays} day${state.rangeLengthDays === 1 ? "" : "s"} in ${span} — ${pct}%.`;
+        return `Only appeared on ${ofDays} in ${span} — ${pct}%.`;
       case "occasional":
-        return `Logged on ${state.daysInRange} of ${state.rangeLengthDays} days in ${span} — ${pct}%.`;
+        return `Logged on ${ofDays} in ${span} — ${pct}%.`;
       default:
         return "";
     }
@@ -922,7 +927,7 @@ function pillarRow(pillar: PillarId, aggregate: GroupState, varietyCandidates: P
     pillar,
     label: TARGET_LABEL[pillar as CoreTargetGroup] ?? verdict.label,
     daysInRange: aggregate.daysInRange,
-    rangeLengthDays: aggregate.rangeLengthDays,
+    foodDays: aggregate.foodDays,
     rateInRangePerWeek: aggregate.rateInRangePerWeek,
     targetPerWeek,
     percentOfTarget,

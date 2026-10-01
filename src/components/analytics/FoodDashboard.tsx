@@ -13,7 +13,7 @@ import { Methodology } from "@/components/ui/Methodology";
 import { SectionNav, type SectionNavItem } from "@/components/ui/SectionNav";
 import { ShowMore } from "@/components/ui/ShowMore";
 import { RankedBarChart } from "@/components/charts/RankedBarChart";
-import { useDateRangeFilter } from "@/lib/useDateRangeFilter";
+import { DEFAULT_RANGE_DAYS, useDateRangeFilter } from "@/lib/useDateRangeFilter";
 import { useFoodNutritionGroupOverrides } from "@/lib/useFoodNutritionGroupOverrides";
 import { usePreferences } from "@/lib/usePreferences";
 import { extraFoodTargets, resolveFoodTargets } from "@/lib/foodTargets";
@@ -155,7 +155,7 @@ const MEAL_ORDER = ["Breakfast", "Lunch", "Dinner", "Snack"];
 
 export function FoodDashboard() {
   const { status, events } = useData();
-  const { span, range, setRange, filtered } = useDateRangeFilter(events);
+  const { span, range, setRange, filtered } = useDateRangeFilter(events, DEFAULT_RANGE_DAYS);
   const { overrides: nutritionGroupOverrides } = useFoodNutritionGroupOverrides();
   const { prefs } = usePreferences();
   const foodTargetsPref = prefs.foodTargets;
@@ -269,6 +269,7 @@ export function FoodDashboard() {
             <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
             <TrendGroup
               caption="Meals a week vs target"
+              info={`Based on the ${priorities.daysWithFoodTracked} days with food logged — a day with nothing logged doesn't count as zero.`}
               note={
                 <>
                   Targets from{" "}

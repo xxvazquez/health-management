@@ -60,13 +60,26 @@ describe("computeNutritionPriorities", () => {
 
     const veg = pillars.find((p) => p.pillar === "vegetables")!;
     expect(veg.daysInRange).toBe(20);
-    expect(veg.rangeLengthDays).toBe(20);
+    expect(veg.foodDays).toBe(20);
     expect(veg.percentOfTarget).toBe(100); // 14 meals a week against a 14-meal target
     expect(veg.notTracked).toBe(false);
 
     const legumes = pillars.find((p) => p.pillar === "legumes")!;
     expect(legumes.notTracked).toBe(true);
     expect(legumes.percentOfTarget).toBe(0);
+  });
+
+  it("divides by days with food logged, never the calendar range", () => {
+    // Spinach at lunch and dinner on the first 10 days of a 30-day range; nothing logged after.
+    const events = Array.from({ length: 10 }, (_, i) =>
+      ["Lunch", "Dinner"].map((mealTag) =>
+        makeEvent({ itemType: "food", item: "Spinach", category: "Veggies", mealTag, date: `2026-01-${String(i + 1).padStart(2, "0")}`, completed: true }),
+      ),
+    ).flat();
+    const { pillars } = computeNutritionPriorities(events, { start: "2026-01-01", end: "2026-01-30" });
+    const veg = pillars.find((p) => p.pillar === "vegetables")!;
+    expect(veg.foodDays).toBe(10);
+    expect(veg.rateInRangePerWeek).toBe(14);
   });
 
   it("counts meals that included a group, not foods or days", () => {
@@ -150,10 +163,13 @@ describe("computeNutritionPriorities", () => {
   });
 
   it("judges each pillar against the user's targets and leaves out a pillar set to off", () => {
-    // Lentils every other day: 3.5 days a week.
-    const events = Array.from({ length: 10 }, (_, i) =>
-      makeEvent({ itemType: "food", item: "Lentils", category: "Legumes", date: `2026-01-${String(i * 2 + 1).padStart(2, "0")}`, completed: true }),
-    );
+    // Rice every day, lentils every other day: 3.5 days a week.
+    const events = Array.from({ length: 20 }, (_, i) => [
+      makeEvent({ itemType: "food", item: "Rice", category: "Grains", date: `2026-01-${String(i + 1).padStart(2, "0")}`, completed: true }),
+      ...(i % 2 === 0
+        ? [makeEvent({ itemType: "food", item: "Lentils", category: "Legumes", date: `2026-01-${String(i + 1).padStart(2, "0")}`, completed: true })]
+        : []),
+    ]).flat();
     const range = { start: "2026-01-01", end: "2026-01-20" };
     const targets = resolveFoodTargets({ diet: "vegetarian", groups: { legumes: { mode: "min", perWeek: 7 } } });
     const result = computeNutritionPriorities(events, range, {}, targets);

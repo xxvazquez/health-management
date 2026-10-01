@@ -10,7 +10,7 @@ import { Stat, StatGrid } from "@/components/ui/StatGrid";
 import { DateRangeFilter } from "@/components/ui/DateRangeFilter";
 import { TrendAreaChart } from "@/components/charts/TrendAreaChart";
 import { RankedBarChart } from "@/components/charts/RankedBarChart";
-import { useDateRangeFilter } from "@/lib/useDateRangeFilter";
+import { DEFAULT_RANGE_DAYS, useDateRangeFilter } from "@/lib/useDateRangeFilter";
 import {
   describeProgression,
   workoutConsistencySummary,
@@ -338,7 +338,7 @@ export function WorkoutDashboard() {
     };
   }, [status, events]);
 
-  const { span, range, setRange, filtered: filteredWorkoutLogs } = useDateRangeFilter(workoutLogs);
+  const { span, range, setRange, filtered: filteredWorkoutLogs } = useDateRangeFilter(workoutLogs, DEFAULT_RANGE_DAYS);
 
   // Strength progress and Progression track a lift since its very first
   // recorded weight — filtering those to the range picker below would make

@@ -181,15 +181,22 @@ describe("ingredientMealMatrix", () => {
 });
 
 describe("ingredientRotation", () => {
-  it("flags a staple — logged on a real share of days within the range", () => {
-    const events = Array.from({ length: 8 }, (_, i) => makeEvent({ item: "Oats", date: inRangeDay(i + 1) })); // 8 of 10 days
+  const rice = Array.from({ length: 10 }, (_, i) => makeEvent({ item: "Rice", date: inRangeDay(i + 1) }));
+
+  it("flags a staple — logged on a real share of the days with food logged", () => {
+    const events = [...rice, ...Array.from({ length: 8 }, (_, i) => makeEvent({ item: "Oats", date: inRangeDay(i + 1) }))]; // 8 of 10 days
     const { staples } = ingredientRotation(events, RANGE);
-    expect(staples).toEqual([{ item: "Oats", daysInRange: 8, rangeLengthDays: 10, percent: 80 }]);
+    expect(staples).toContainEqual({ item: "Oats", daysInRange: 8, foodDays: 10, percent: 80 });
   });
 
   it("excludes an item below the staple threshold", () => {
-    const events = Array.from({ length: 2 }, (_, i) => makeEvent({ item: "Truffle", date: inRangeDay(i + 1) })); // 2 of 10 days = 20%
-    expect(ingredientRotation(events, RANGE).staples).toEqual([]);
+    const events = [...rice, ...Array.from({ length: 2 }, (_, i) => makeEvent({ item: "Truffle", date: inRangeDay(i + 1) }))]; // 2 of 10 days = 20%
+    expect(ingredientRotation(events, RANGE).staples.some((s) => s.item === "Truffle")).toBe(false);
+  });
+
+  it("doesn't count days with nothing logged against a staple", () => {
+    const events = Array.from({ length: 4 }, (_, i) => makeEvent({ item: "Oats", date: inRangeDay(i + 1) })); // 4 logged days of 10
+    expect(ingredientRotation(events, RANGE).staples).toEqual([{ item: "Oats", daysInRange: 4, foodDays: 4, percent: 100 }]);
   });
 
   it("flags an item logged regularly before the range but not within it", () => {

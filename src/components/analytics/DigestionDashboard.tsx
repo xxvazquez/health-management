@@ -17,7 +17,7 @@ import { BristolScoreChart } from "@/components/charts/BristolScoreChart";
 import { MultiLineChart } from "@/components/charts/MultiLineChart";
 import { ComparisonBars } from "@/components/charts/ComparisonBars";
 import { AdherenceStrip } from "@/components/charts/AdherenceStrip";
-import { useDateRangeFilter } from "@/lib/useDateRangeFilter";
+import { DEFAULT_RANGE_DAYS, useDateRangeFilter } from "@/lib/useDateRangeFilter";
 import { addDaysToDate, daysBetween, filterByDateRange } from "@/lib/aggregations/common";
 import { buildStateByDate } from "@/lib/aggregations/adherence";
 import {
@@ -77,7 +77,7 @@ function deltaDetail(recentPct: number | null, priorPct: number | null): string 
 
 export function DigestionDashboard() {
   const { status, events, workoutLogs, stoolLogs } = useData();
-  const { span, range, setRange, filtered } = useDateRangeFilter(events);
+  const { span, range, setRange, filtered } = useDateRangeFilter(events, DEFAULT_RANGE_DAYS);
   const filteredWorkoutLogs = useMemo(
     () => (range ? workoutLogs.filter((g) => g.date >= range.start && g.date <= range.end) : workoutLogs),
     [workoutLogs, range],

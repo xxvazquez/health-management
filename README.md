@@ -86,7 +86,7 @@ Sections: **Food · Symptoms · Supplements · Habits · Stool · Workout · Cyc
 
 ### Trends
 
-One dashboard per Log section, plus Patterns. The time range sits in the title row.
+One dashboard per Log section, plus Patterns. The time range sits in the title row and opens on the last 30 days.
 
 | Dashboard | Shows |
 |---|---|
@@ -135,6 +135,7 @@ A grouped list where each row opens its own screen. Everything editable in the a
 - **The meal is auto-picked by time:** Breakfast before noon, Lunch before 6pm, Dinner after that.
 - **Time is editable** per entry, and the date stepper opens a calendar.
 - **Days before you start logging an item don't count against it.** A supplement or habit is measured from its first log, and only on days you used the app.
+- **A day with no food logged never counts as zero.** Food targets and staples divide by the days with food logged in the range, not the calendar.
 - **Patterns only compare days both sides were tracked.** A section counts as tracked from its first entry, on days you used the app, until it goes quiet for two weeks (a month for symptoms).
 - **Cycle** stores only period days. Cycle length and predictions are always derived, never stored.
 - **Hiding a section** in Settings hides it from both Log and Trends, on every device.
