@@ -14,6 +14,8 @@ import { PatternsDashboard } from "@/components/analytics/PatternsDashboard";
 import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
 import { PageHeading } from "@/components/ui/PageHeading";
 import { TrendsActionsSlot } from "@/components/analytics/TrendsActions";
+import { PageSkeleton } from "@/components/ui/Skeleton";
+import { useData } from "@/lib/DataContext";
 
 /** One page for every analytics dashboard, switched by a Log-style tab bar
  * (`/analytics#food`) instead of one sidebar entry each. Each tab is gated
@@ -35,6 +37,7 @@ const TABS: { id: string; label: string; domain?: TrackedDomain; accent: string;
 
 export default function AnalyticsPage() {
   const { isVisible, domainOrder } = useVisibleDomains();
+  const { status } = useData();
   // Same order as Log's tabs (Settings → Visible sections).
   const visibleTabs = useMemo(
     () =>
@@ -73,6 +76,9 @@ export default function AnalyticsPage() {
 
   const active = visibleTabs.find((t) => t.id === tabId) ?? visibleTabs[0];
 
+  // Which sections show depends on the data, so wait for it rather than
+  // flashing "every section is hidden".
+  if (!active && status === "loading") return <PageSkeleton />;
   if (!active) {
     return (
       <div className="flex flex-col gap-6">
