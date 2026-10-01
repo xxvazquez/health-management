@@ -2244,8 +2244,7 @@ const TYPE_SECTIONS: { type: ItemType; label: string; placeholder: string }[] = 
  * down to just the one category that happened to trigger it. */
 function displayCategoryNames(itemType: ItemType, rows: RawCategory[]): string[] {
   const used = rows.filter((r) => r.itemType === itemType).map((r) => r.name);
-  if (used.length > 0) return used.sort(categoryComparator(rows, itemType));
-  return [...CATEGORIES_BY_TYPE[itemType]];
+  return (used.length > 0 ? used : [...CATEGORIES_BY_TYPE[itemType]]).sort(categoryComparator(rows, itemType));
 }
 
 /** Borderless, right-aligned value that sits in an EditorField row. */
@@ -2954,9 +2953,8 @@ function ItemSection({
 
   const editing = editingIdentity ? items.find((i) => i.itemIdentity === editingIdentity) : undefined;
 
-  const categoryCounts = new Map<string, number>();
-  for (const i of items) if (!i.isArchived && categories.includes(i.category)) categoryCounts.set(i.category, (categoryCounts.get(i.category) ?? 0) + 1);
-  const mostUsedCategory = [...categoryCounts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0]?.[0];
+  // A new item starts in the first category, in the order arranged here.
+  const firstCategory = categories[0];
 
   const listBox = "inset-rows rounded-xl";
   const listBoxStyle = { background: "var(--surface-1)" } as const;
@@ -2971,7 +2969,7 @@ function ItemSection({
       <div className="flex flex-col gap-4">
         {mode === "detail" ? (
           <AddItemForm
-            defaultCategory={mostUsedCategory}
+            defaultCategory={firstCategory}
             itemType={itemType}
             placeholder={placeholder}
             categories={categories}
@@ -2984,7 +2982,7 @@ function ItemSection({
             }}
           />
         ) : (
-          <AddItemForm itemType={itemType} placeholder={placeholder} categories={categories} onAdd={onAdd} defaultCategory={mostUsedCategory} />
+          <AddItemForm itemType={itemType} placeholder={placeholder} categories={categories} onAdd={onAdd} defaultCategory={firstCategory} />
         )}
 
         {active.length === 0 ? (
