@@ -20,7 +20,7 @@ import { WorkoutPlansCard } from "@/components/manage/WorkoutPlansCard";
 import { FoodTargetsCard } from "@/components/manage/FoodTargetsCard";
 import { HiddenLinksCard } from "@/components/manage/HiddenLinksCard";
 import { UsualTimesCard } from "@/components/manage/UsualTimesCard";
-import { AddRow, CollapsibleManageCard, GROUP_CLS, GROUP_STYLE, GroupNote, ManageNavContext, OpenInLogRow, SectionRow, useSectionMode } from "@/components/manage/ManageSection";
+import { AddRow, CollapsibleManageCard, GROUP_CLS, GROUP_STYLE, GroupNote, ManageNavContext, OpenInLogRow, SECTION_PARENT, SectionRow, useSectionMode } from "@/components/manage/ManageSection";
 import { SwitchKnob } from "@/components/ui/Switch";
 import { TimePicker } from "@/components/ui/DatePicker";
 import { useItemActions, type ManageableItem } from "@/lib/useItemActions";
@@ -3166,6 +3166,7 @@ function toManageable(item: RawItem, itemsWithHistory: Set<string>): ManageableI
 export default function ManagePage() {
   const { status, events, isDemoData, refresh: refreshShared } = useData();
   const careLog = useCareLog();
+  const { isVisible: isDomainVisible } = useVisibleDomains();
   const [rawItems, setRawItems] = useState<RawItem[] | null>(null);
   const [categoryRows, setCategoryRows] = useState<RawCategory[]>([]);
   // Item identities with at least one log/diary entry — an item in this
@@ -3179,9 +3180,14 @@ export default function ManagePage() {
   // Each open pushes a history entry so the phone's back gesture returns to
   // the list rather than leaving Settings.
   const [activeSection, setActiveSection] = useState<string | null>(null);
+  // The screen the back button returns to: the section a sub-section was
+  // opened from, else the Settings list.
+  const [backLabel, setBackLabel] = useState("Settings");
   const openSection = useCallback((title: string) => {
-    window.history.pushState({ ...window.history.state, manageSection: title }, "");
+    const from = window.history.state?.manageSection ?? null;
+    window.history.pushState({ ...window.history.state, manageSection: title, manageFrom: from }, "");
     setActiveSection(title);
+    setBackLabel(from ?? "Settings");
     window.scrollTo(0, 0);
   }, []);
   const closeSection = useCallback(() => {
@@ -3199,7 +3205,10 @@ export default function ManagePage() {
     openSection(linked);
   }, [openSection]);
   useEffect(() => {
-    const onPop = (e: PopStateEvent) => setActiveSection(e.state?.manageSection ?? null);
+    const onPop = (e: PopStateEvent) => {
+      setActiveSection(e.state?.manageSection ?? null);
+      setBackLabel(e.state?.manageFrom ?? "Settings");
+    };
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, []);
@@ -3709,8 +3718,23 @@ export default function ManagePage() {
   ];
   for (const sec of appSections) sectionByLabel.set(sec.label, sec.el);
 
+  // Tracking sections turned off in Visible sections drop out of Settings too.
+  const sectionDomain: Record<string, TrackedDomain> = {
+    Food: "food",
+    "Food products": "food",
+    "Food targets": "food",
+    Symptoms: "outcome",
+    Supplements: "supplement",
+    Habits: "habit",
+    Workout: "workout",
+    "Workout plans": "workout",
+    Coffee: "coffee",
+    "Stool options": "stool",
+  };
+  const isShown = (label: string) => !(label in sectionDomain) || isDomainVisible(sectionDomain[label]);
+  const subSections = Object.entries(SECTION_PARENT).filter(([, parent]) => parent === activeSection).map(([label]) => label).filter(isShown);
   const groups: { title: string; labels: string[] }[] = [
-    { title: "Tracking", labels: ["Food", "Food products", "Food targets", "Symptoms", "Supplements", "Habits", "Workout", "Workout plans", "Coffee", "Stool options", "Hidden links"] },
+    { title: "Tracking", labels: ["Food", "Food targets", "Symptoms", "Supplements", "Habits", "Workout", "Coffee", "Stool options", "Hidden links"] },
     { title: "Health", labels: ["Doctors", "Doctor types", "Lab results", "Weight goal"] },
     { title: "Lists", labels: ["Reminder lists", "Wishlist lists"] },
     { title: "App", labels: ["Appearance", "Visible sections", "Usual times", "Your data"] },
@@ -3731,7 +3755,7 @@ export default function ManagePage() {
               style={{ color: "var(--ui-accent)" }}
             >
               <ChevronIcon dir="left" size={16} />
-              Settings
+              {backLabel}
             </button>
           )}
           <PageHeading actions={!isDemoData && activeSection === null && <PushNotificationsToggle />}>
@@ -3750,9 +3774,16 @@ export default function ManagePage() {
         )}
 
         {activeSection !== null && !isSearching ? (
-          sectionByLabel.get(activeSection)
+          <>
+            {sectionByLabel.get(activeSection)}
+            {subSections.length > 0 && (
+              <div className={groupBox} style={groupBoxStyle}>
+                {subSections.map((label) => sectionByLabel.get(label))}
+              </div>
+            )}
+          </>
         ) : isSearching ? (
-          <div className="flex flex-col gap-3">{manageSections.map((sec) => sec.el)}</div>
+          <div className="flex flex-col gap-3">{manageSections.filter((sec) => isShown(sec.label)).map((sec) => sec.el)}</div>
         ) : (
           groups.map((group) => (
             <div key={group.title} className="flex flex-col gap-1.5">
@@ -3760,7 +3791,7 @@ export default function ManagePage() {
                 {group.title}
               </h2>
               <div className={groupBox} style={groupBoxStyle}>
-                {group.labels.map((label) => sectionByLabel.get(label))}
+                {group.labels.filter(isShown).map((label) => sectionByLabel.get(label))}
                 {group.title === "App" && (
                   <Link href="/manage/nutrition-evidence" className="flex min-h-11 items-center gap-2 px-4">
                     <span className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>

@@ -16,13 +16,20 @@ export const ManageNavContext = createContext<{ active: string | null; open: (ti
 
 type SectionMode = "row" | "detail" | "inline" | "hidden";
 
+/** Sections reached from a row inside another section's screen rather
+ * than from the Settings list. */
+export const SECTION_PARENT: Record<string, string> = {
+  "Food products": "Food",
+  "Workout plans": "Workout",
+};
+
 /** `searching` (a live query on the Settings search box) shows every
  * matching section expanded in place instead of navigating into one. */
 export function useSectionMode(title: string, searching: boolean): SectionMode {
   const { active } = useContext(ManageNavContext);
   if (searching) return "inline";
-  if (active === null) return "row";
-  return active === title ? "detail" : "hidden";
+  if (active === title) return "detail";
+  return (SECTION_PARENT[title] ?? null) === active ? "row" : "hidden";
 }
 
 /** Each Settings section's icon tile, in the colour its part of the app

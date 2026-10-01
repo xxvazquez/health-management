@@ -121,8 +121,9 @@ A grouped list where each row opens its own screen. Everything editable in the a
 - **Order:** drag ≡ to reorder categories, sections, lists, doctor types, lab panels and option chips. Orders sync to every device.
 - **Icons and colours:** ~1,900 searchable icons (Lauva's own plus [Lucide](https://lucide.dev)) and any colour via +. A picked colour is saved to **Your colours** and offered in every picker. Built-in categories start with their own icon; a new one gets its section's icon.
 - **Food targets:** start from a diet (Everything, Pescatarian, Vegetarian, Vegan), then set each food group to at least / at most so many meals a week, or Off. Trends → Food measures against them. `/manage/?section=Food%20targets` opens it.
+- **Food products** and **Workout plans** open from a row at the bottom of the Food and Workout screens.
 - **Workout plans:** lifts with a starting weight and weekly gain, and which days get +kg or a % of that week's base.
-- **Visible sections:** show or hide each Log section (also hides it on Trends), each with an optional daily "remind me to log" time.
+- **Visible sections:** show or hide each Log section (also hides it on Trends and its rows in Settings), each with an optional daily "remind me to log" time.
 - **Your data:** export the whole account as JSON, or one section or everything as CSV.
 
 ---
