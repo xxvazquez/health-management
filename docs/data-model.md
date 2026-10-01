@@ -98,7 +98,8 @@ outbox-mirrored shape above. One row overrides `nutritionGroupsForFood`'s
 keyword classification (`src/taxonomy/nutritionGroups.ts`) for that exact
 food name, skipping the keyword lookup entirely for it; no row means
 automatic classification still applies. A `group_id` of `none` ("Not
-counted" in Settings) keeps the food out of every group. Keyed by the food's name text
+counted" in Settings) keeps the food out of every group; `garnish` keeps
+the keyword group but marks the food as a garnish (no target serving). Keyed by the food's name text
 (normalized the same way as the keyword match) rather than a FK to
 `food_items`, so the override survives a rename or a delete-and-re-add.
 Owner-only, one group per override (an override replaces every

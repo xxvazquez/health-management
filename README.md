@@ -139,7 +139,8 @@ A grouped list where each row opens its own screen. Everything editable in the a
 - **Logging later uses the usual time.** Another meal, or a past day, starts at that meal's time from Settings → Usual times (Breakfast 08:00 … Dinner 19:00), never later than now. A symptom's sheet asks when it started.
 - **Days before you start logging an item don't count against it.** A supplement or habit is measured from its first log; an archived one stops at its last log.
 - **Supplements and habits can have a schedule:** every day (default), N× a week, or specific weekdays. Consistency on Trends is measured against it; days off the schedule and today (until logged) never count as misses.
-- **A garnish isn't a serving.** Lemon, garlic, ginger, any juice or powder, breadcrumbs count toward variety but not toward food targets; picking a group for one in Settings counts it. Syrups and honey count toward the Sweets & sugar limit.
+- **A garnish isn't a serving.** Lemon, garlic, ginger, any juice or powder, breadcrumbs count toward variety but not toward food targets. In Settings, picking a group for one counts it, and "Garnish" marks any other food as one.
+- **Sweets:** syrups, honey and milk chocolate count toward the Sweets & sugar limit; dark chocolate doesn't.
 - **A day with no food logged never counts as zero.** Food targets and staples divide by the days with food logged in the range, not the calendar. A "vs previous period" figure only shows when both periods were logged on a similar number of days.
 - **Patterns only compare days both sides were tracked.** A section counts as tracked from its first entry, on days you used the app, until it goes quiet for two weeks (a month for symptoms).
 - **Cycle** stores only period days. Cycle length and predictions are always derived, never stored.

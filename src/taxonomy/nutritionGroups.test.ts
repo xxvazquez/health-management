@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { NUTRITION_GROUP_EXAMPLES, NUTRITION_GROUPS, isGarnishFood, nutritionGroupsForFood, plantFamilyForFood } from "./nutritionGroups";
+import { GARNISH, NUTRITION_GROUP_EXAMPLES, NUTRITION_GROUPS, isGarnishFood, nutritionGroupsForFood, plantFamilyForFood } from "./nutritionGroups";
 
 describe("nutritionGroupsForFood", () => {
   it("splits vegetables into research-backed subgroups", () => {
@@ -92,6 +92,19 @@ describe("isGarnishFood", () => {
 
   it("counts a garnish as a serving once the user picks its group", () => {
     expect(isGarnishFood("Lemon", { lemon: "citrus" })).toBe(false);
+  });
+
+  it("marks a food as a garnish when the user says so, keeping its group", () => {
+    expect(isGarnishFood("Spinach", { spinach: GARNISH })).toBe(true);
+    expect(nutritionGroupsForFood("Spinach", { spinach: GARNISH })).toEqual(nutritionGroupsForFood("Spinach"));
+  });
+});
+
+describe("chocolate", () => {
+  it("counts milk chocolate as a sweet but not dark chocolate", () => {
+    expect(nutritionGroupsForFood("Milk chocolate")).toEqual(["highly_processed"]);
+    expect(nutritionGroupsForFood("Chocolate")).toEqual(["highly_processed"]);
+    expect(nutritionGroupsForFood("Dark chocolate")).toEqual([]);
   });
 });
 

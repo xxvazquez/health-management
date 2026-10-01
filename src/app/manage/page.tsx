@@ -35,7 +35,7 @@ import { lookupFoodCategory } from "@/taxonomy/classify";
 import { POLAND_FOOD_CATALOG } from "@/taxonomy/polandFoodCatalog";
 import { normalizeName, titleCaseFallback } from "@/taxonomy/normalizeName";
 import { CATEGORIES_BY_TYPE, TYPE_ACCENT, type ItemType } from "@/taxonomy/categories";
-import { NOT_COUNTED, NUTRITION_GROUPS, NUTRITION_GROUP_LABEL, isGarnishFood, nutritionGroupsForFood, type NutritionGroupOverride } from "@/taxonomy/nutritionGroups";
+import { GARNISH, NOT_COUNTED, NUTRITION_GROUPS, NUTRITION_GROUP_LABEL, isGarnishFood, nutritionGroupsForFood, type NutritionGroupOverride } from "@/taxonomy/nutritionGroups";
 import { useFoodNutritionGroupOverrides } from "@/lib/useFoodNutritionGroupOverrides";
 import { todayLocalISODate } from "@/lib/aggregations/common";
 import { buildDemoDataset } from "@/lib/demoData";
@@ -2476,6 +2476,7 @@ function NutritionGroupSelect({
     >
       <option value="">Auto ({autoLabel})</option>
       <option value={NOT_COUNTED}>Not counted</option>
+      {autoGroups.length > 0 && !garnish && <option value={GARNISH}>Garnish ({autoGroups.map((g) => NUTRITION_GROUP_LABEL[g]).join(", ")})</option>}
       {NUTRITION_GROUPS.map((g) => (
         <option key={g} value={g}>
           {NUTRITION_GROUP_LABEL[g]}
@@ -2948,7 +2949,7 @@ function ItemSection({
     const summary =
       scheduleSummary ||
       (itemType === "workout" && onSetUnit && workoutUnitLabel(item.unit ?? "kg")) ||
-      (override && (override === NOT_COUNTED ? "Not counted" : NUTRITION_GROUP_LABEL[override])) ||
+      (override && (override === NOT_COUNTED ? "Not counted" : override === GARNISH ? "Garnish" : NUTRITION_GROUP_LABEL[override])) ||
       (!grouped || opts.archivedRow ? item.category : "");
     return <ItemRow key={item.itemIdentity} item={item} summary={summary} nested={grouped && !opts.archivedRow} onOpen={() => setEditingIdentity(item.itemIdentity)} />;
   }

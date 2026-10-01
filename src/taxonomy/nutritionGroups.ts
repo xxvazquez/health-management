@@ -315,7 +315,9 @@ const GROUP_KEYWORDS: Record<string, NutritionGroupId[]> = {
   "garlic oil": ["other_unsaturated_fat"],
 
   // Sweets and added sugar — what the "at most" sweets target counts.
-  chocolate: ["highly_processed"], candy: ["highly_processed"], cake: ["highly_processed"],
+  // Dark chocolate is a small bitter portion, not a sweet — only milk and
+  // plain "chocolate" count toward the sweets limit.
+  chocolate: ["highly_processed"], "dark chocolate": [], "bittersweet chocolate": [], candy: ["highly_processed"], cake: ["highly_processed"],
   cookie: ["highly_processed"], dessert: ["highly_processed"], "ice cream": ["highly_processed"],
   sugar: ["highly_processed"], pastry: ["highly_processed"], syrup: ["highly_processed"],
   "maple syrup": ["highly_processed"], honey: ["highly_processed"], agave: ["highly_processed"],
@@ -351,7 +353,10 @@ function startsWord(norm: string, keyword: string): boolean {
 /** A per-user override value that keeps a food out of every nutrition
  * group (vanilla, sugar, oat milk…). Stored as the group id "none". */
 export const NOT_COUNTED = "none";
-export type NutritionGroupOverride = NutritionGroupId | typeof NOT_COUNTED;
+/** A per-user override value that keeps a food's automatic group but
+ * marks it as a garnish (see GARNISH_KEYWORDS). */
+export const GARNISH = "garnish";
+export type NutritionGroupOverride = NutritionGroupId | typeof NOT_COUNTED | typeof GARNISH;
 
 /**
  * Nutrition group(s) for a canonical food item name. `overrides` (a
@@ -363,24 +368,27 @@ export type NutritionGroupOverride = NutritionGroupId | typeof NOT_COUNTED;
  * valid, expected result for herbs, condiments, plant-milks, and other
  * items with no clean fit; callers must not guess a group in that case.
  * An override of `NOT_COUNTED` also returns an empty array — the user's way
- * to keep a flavouring or plant milk out of every group.
+ * to keep a flavouring or plant milk out of every group. An override of
+ * `GARNISH` keeps the keyword lookup's group.
  */
 export function nutritionGroupsForFood(canonicalItemName: string, overrides?: Record<string, NutritionGroupOverride>): NutritionGroupId[] {
   const norm = normalize(canonicalItemName);
   const override = overrides?.[norm];
   if (override === NOT_COUNTED) return [];
-  if (override) return [override];
+  if (override && override !== GARNISH) return [override];
   for (const [keyword, groups] of KEYWORD_ENTRIES) {
     if (startsWord(norm, keyword)) return groups;
   }
   return [];
 }
 
-/** True for a garnish (see GARNISH_KEYWORDS). A per-user group override
- * means the user counts it as a real serving, so it's never a garnish. */
+/** True for a garnish (see GARNISH_KEYWORDS) or a food the user marked as
+ * one. Any other per-user group override means the user counts it as a
+ * real serving, so it's never a garnish. */
 export function isGarnishFood(canonicalItemName: string, overrides?: Record<string, NutritionGroupOverride>): boolean {
   const norm = normalize(canonicalItemName);
-  if (overrides?.[norm]) return false;
+  const override = overrides?.[norm];
+  if (override) return override === GARNISH;
   if (GARNISH_WORDS.test(norm)) return true;
   const garnish = GARNISH_KEYWORDS.filter((k) => startsWord(norm, k)).sort((a, b) => b.length - a.length)[0];
   if (!garnish) return false;
