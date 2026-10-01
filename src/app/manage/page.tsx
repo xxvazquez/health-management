@@ -7,7 +7,8 @@ import { useVisibleDomains, DOMAIN_LABELS, type TrackedDomain } from "@/lib/visi
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageSkeleton } from "@/components/ui/Skeleton";
 import { SearchField } from "@/components/ui/SearchField";
-import { ChevronIcon, CloseIcon, GripIcon, PlusIcon } from "@/components/ui/icons";
+import { ChevronIcon, CloseIcon, GripIcon, PlusIcon, UpDownChevronIcon } from "@/components/ui/icons";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { ManageRow } from "@/components/ui/ManageRow";
 import { ReorderGrip, useManageOrder } from "@/components/manage/Reorder";
 import { PageHeading } from "@/components/ui/PageHeading";
@@ -2298,17 +2299,11 @@ function AddItemForm({
   }
 
   const categoryRow = needsCategory && (
-    <label className="flex min-h-11 items-center gap-3 px-3.5">
+    <label className="flex min-h-11 items-center justify-between gap-3 px-3.5">
       <span className="shrink-0 text-sm" style={{ color: "var(--text-primary)" }}>
         Category
       </span>
-      <select value={category} onChange={(e) => setCategory(e.target.value)} className={FIELD_VALUE} style={FIELD_VALUE_STYLE}>
-        {categories.map((c) => (
-          <option key={c} value={c}>
-            {c}
-          </option>
-        ))}
-      </select>
+      <RowMenu value={category} onChange={setCategory} ariaLabel="Category" options={categories.map((c) => ({ value: c, label: c }))} />
     </label>
   );
 
@@ -2376,12 +2371,39 @@ function CatalogFoodRow({ item, nested, onHide }: { item: ManageableItem; nested
 
 const CUSTOM_UNIT_SENTINEL = "__custom__";
 
-/** Same interaction shape as the category `<select>` next to it — pick
- * from what's already in use with one click — with a "Custom…" escape
- * hatch for a genuinely new unit, since units are free text (see
- * WORKOUT_UNITS' own comment), not a fixed list a `<select>` alone could
- * ever fully cover. Replaces the old free-text-input-with-a-datalist,
- * which looked and behaved nothing like every other picker on this page. */
+/** A row's menu value: the current choice in the accent with an up-down
+ * chevron, the native picker laid invisibly over it. */
+function RowMenu({
+  value,
+  options,
+  onChange,
+  disabled,
+  ariaLabel,
+}: {
+  value: string;
+  options: { value: string; label: string }[];
+  onChange: (value: string) => void;
+  disabled?: boolean;
+  ariaLabel: string;
+}) {
+  const label = options.find((o) => o.value === value)?.label ?? value;
+  return (
+    <span className="relative flex min-w-0 items-center gap-1 text-sm" style={{ color: "var(--ui-accent)", opacity: disabled ? 0.4 : 1 }}>
+      <span className="truncate">{label}</span>
+      <UpDownChevronIcon size={11} />
+      <select value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)} aria-label={ariaLabel} className="absolute inset-0 w-full cursor-pointer opacity-0">
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+    </span>
+  );
+}
+
+/** Picks from the units already in use, with "Custom…" for a new one —
+ * units are free text (see WORKOUT_UNITS). */
 function UnitSelect({
   unit,
   knownUnits,
@@ -2423,24 +2445,16 @@ function UnitSelect({
   }
 
   return (
-    <select
+    <RowMenu
       value={unit}
       disabled={busy}
-      onChange={(e) => {
-        if (e.target.value === CUSTOM_UNIT_SENTINEL) setCustomEntry("");
-        else onSetUnit(e.target.value);
+      onChange={(v) => {
+        if (v === CUSTOM_UNIT_SENTINEL) setCustomEntry("");
+        else onSetUnit(v);
       }}
-      aria-label={`Unit for ${itemName}`}
-      className={FIELD_VALUE}
-      style={FIELD_VALUE_STYLE}
-    >
-      {options.map((u) => (
-        <option key={u} value={u}>
-          {workoutUnitLabel(u)}
-        </option>
-      ))}
-      <option value={CUSTOM_UNIT_SENTINEL}>Custom…</option>
-    </select>
+      ariaLabel={`Unit for ${itemName}`}
+      options={[...options.map((u) => ({ value: u, label: workoutUnitLabel(u) })), { value: CUSTOM_UNIT_SENTINEL, label: "Custom…" }]}
+    />
   );
 }
 
@@ -2466,23 +2480,18 @@ function NutritionGroupSelect({
   const autoLabel = autoGroups.length > 0 ? autoGroups.map((g) => NUTRITION_GROUP_LABEL[g]).join(", ") + (garnish ? ", garnish" : "") : "unclassified";
 
   return (
-    <select
+    <RowMenu
       value={override ?? ""}
       disabled={busy}
-      onChange={(e) => onSetNutritionGroup(e.target.value ? (e.target.value as NutritionGroupOverride) : null)}
-      aria-label={`Nutrition group for ${itemName}`}
-      className={FIELD_VALUE}
-      style={{ color: override ? "var(--ui-accent)" : "var(--text-secondary)" }}
-    >
-      <option value="">Auto ({autoLabel})</option>
-      <option value={NOT_COUNTED}>Not counted</option>
-      {autoGroups.length > 0 && !garnish && <option value={GARNISH}>Garnish ({autoGroups.map((g) => NUTRITION_GROUP_LABEL[g]).join(", ")})</option>}
-      {NUTRITION_GROUPS.map((g) => (
-        <option key={g} value={g}>
-          {NUTRITION_GROUP_LABEL[g]}
-        </option>
-      ))}
-    </select>
+      onChange={(v) => onSetNutritionGroup(v ? (v as NutritionGroupOverride) : null)}
+      ariaLabel={`Nutrition group for ${itemName}`}
+      options={[
+        { value: "", label: override ? `Auto (${autoLabel})` : "Auto" },
+        { value: NOT_COUNTED, label: "Not counted" },
+        ...(autoGroups.length > 0 && !garnish ? [{ value: GARNISH, label: `Garnish (${autoGroups.map((g) => NUTRITION_GROUP_LABEL[g]).join(", ")})` }] : []),
+        ...NUTRITION_GROUPS.map((g) => ({ value: g, label: NUTRITION_GROUP_LABEL[g] })),
+      ]}
+    />
   );
 }
 
@@ -2630,14 +2639,13 @@ function ItemEditorSheet({
             )}
           </form>
           <EditorField label="Category">
-            <select value={item.category} disabled={busy} onChange={(e) => onChangeCategory(e.target.value)} className={FIELD_VALUE} style={FIELD_VALUE_STYLE}>
-              {!categories.includes(item.category) && <option value={item.category}>{item.category}</option>}
-              {categories.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
+            <RowMenu
+              value={item.category}
+              disabled={busy}
+              onChange={onChangeCategory}
+              ariaLabel={`Category for ${item.item}`}
+              options={(categories.includes(item.category) ? categories : [item.category, ...categories]).map((c) => ({ value: c, label: c }))}
+            />
           </EditorField>
           {canSetNutritionGroup && (
             <EditorField label="Nutrition">
@@ -2651,27 +2659,21 @@ function ItemEditorSheet({
           )}
           {canRemind && (
             <EditorField label="Schedule">
-              <select
+              <RowMenu
                 value={!schedule ? "daily" : schedule.kind === "weekly" ? `weekly:${schedule.times}` : "days"}
                 disabled={busy}
-                onChange={(e) => {
-                  const v = e.target.value;
+                onChange={(v) => {
                   if (v === "daily") setSchedule(undefined);
                   else if (v === "days") setSchedule({ kind: "days", days: [0, 2, 4] });
                   else setSchedule({ kind: "weekly", times: Number(v.split(":")[1]) });
                 }}
-                aria-label={`Schedule for ${item.item}`}
-                className={FIELD_VALUE}
-                style={FIELD_VALUE_STYLE}
-              >
-                <option value="daily">Every day</option>
-                {[1, 2, 3, 4, 5, 6].map((n) => (
-                  <option key={n} value={`weekly:${n}`}>
-                    {n}× a week
-                  </option>
-                ))}
-                <option value="days">Specific days</option>
-              </select>
+                ariaLabel={`Schedule for ${item.item}`}
+                options={[
+                  { value: "daily", label: "Every day" },
+                  ...[1, 2, 3, 4, 5, 6].map((n) => ({ value: `weekly:${n}`, label: `${n}× a week` })),
+                  { value: "days", label: "Specific days" },
+                ]}
+              />
             </EditorField>
           )}
           {canRemind && schedule?.kind === "days" && (
@@ -2716,7 +2718,7 @@ function ItemEditorSheet({
           </FormGroup>
         )}
 
-        <FormGroup footer={item.isArchived ? "Unarchiving puts it back on the Log page." : "Archiving hides it from the Log page and keeps its history."}>
+        <FormGroup>
           <button
             type="button"
             onClick={() => {
@@ -2729,37 +2731,33 @@ function ItemEditorSheet({
           >
             {item.isArchived ? "Unarchive" : "Archive"}
           </button>
-          {canDelete &&
-            (confirmingDelete ? (
-              <div className="flex min-h-11 items-center justify-between gap-4 px-3.5">
-                <button
-                  type="button"
-                  onClick={() => {
-                    onDelete();
-                    onClose();
-                  }}
-                  className="min-h-11 text-sm font-semibold"
-                  style={{ color: "var(--status-critical)" }}
-                >
-                  Delete for good
-                </button>
-                <button type="button" onClick={() => setConfirmingDelete(false)} className="min-h-11 text-sm" style={{ color: "var(--text-secondary)" }}>
-                  Keep
-                </button>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setConfirmingDelete(true)}
-                disabled={busy}
-                className="flex min-h-11 w-full items-center px-3.5 text-left text-sm disabled:opacity-40"
-                style={{ color: "var(--status-critical)" }}
-              >
-                Delete
-              </button>
-            ))}
+          {canDelete && (
+            <button
+              type="button"
+              onClick={() => setConfirmingDelete(true)}
+              disabled={busy}
+              className="flex min-h-11 w-full items-center px-3.5 text-left text-sm disabled:opacity-40"
+              style={{ color: "var(--status-critical)" }}
+            >
+              Delete
+            </button>
+          )}
         </FormGroup>
       </div>
+      {confirmingDelete && (
+        <ConfirmDialog
+          title={`Delete ${item.item}?`}
+          message="This can't be undone."
+          confirmLabel="Delete"
+          destructive
+          busy={busy}
+          onConfirm={() => {
+            onDelete();
+            onClose();
+          }}
+          onClose={() => setConfirmingDelete(false)}
+        />
+      )}
     </Sheet>
   );
 }
