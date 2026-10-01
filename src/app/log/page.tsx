@@ -36,7 +36,6 @@ import {
   decideChipTapAction,
   autoLogTime,
   defaultLogTimeValue,
-  groupMealsByTag,
   loggedCountsForDate,
   toTimeInputValue,
   type LogCandidate,
@@ -294,54 +293,6 @@ function TapRow({
         </span>
       </span>
       <span className="min-w-0">{name}</span>
-    </button>
-  );
-}
-
-/** One meal, grouped — "Breakfast: Eggs, Banana, Milk" — with its rating
- * and note. Tapping it opens the meal's sheet, where both are edited; the
- * note and rating live in the `meals` table (`src/lib/useMeals.ts`), keyed
- * by date + meal tag, so they survive ingredients being added or removed. */
-function MealGroupCard({
-  mealTag,
-  items,
-  accent,
-  note,
-  rating,
-  onOpen,
-}: {
-  mealTag: string;
-  items: string[];
-  accent: string;
-  note: string;
-  rating: number | null;
-  onOpen: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onOpen}
-      aria-haspopup="dialog"
-      className="flex w-full flex-col gap-1 rounded-xl border px-3.5 py-2.5 text-left"
-      style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}
-    >
-      <span className="flex w-full items-center gap-2">
-        <span className="text-sm font-semibold" style={{ color: accent }}>
-          {mealTag}
-        </span>
-        <span className="ml-auto flex items-center gap-2" style={{ color: "var(--text-muted)" }}>
-          <StarRating value={rating} size="sm" accent={accent} />
-          <ChevronIcon dir="right" size={13} />
-        </span>
-      </span>
-      <span className="text-sm" style={{ color: "var(--text-secondary)" }}>
-        {items.join(", ")}
-      </span>
-      {note && (
-        <span className="text-sm break-words whitespace-pre-wrap" style={{ color: "var(--text-primary)" }}>
-          {note}
-        </span>
-      )}
     </button>
   );
 }
@@ -924,11 +875,6 @@ export default function LogPage() {
     [effective, date],
   );
 
-  // Food entries on this day, grouped by meal — "Breakfast: Eggs, Banana,
-  // Milk" instead of three separate timeline rows, in the order of the day
-  // (see groupMealsByTag).
-  const mealGroups = useMemo(() => groupMealsByTag(dayTimeline), [dayTimeline]);
-
   // The icon/colour a category was given in Settings, keyed `type:name`.
   // Used to tint a category header (and show its glyph) only where one is
   // actually set — everything else keeps its built-in look.
@@ -1034,8 +980,7 @@ export default function LogPage() {
   const detailEntry = combinedTimeline.find((e) => e.key === detailKey) ?? null;
 
   // The timeline with each meal's foods folded into one row at the time of
-  // that meal's latest entry — the meal cards above already list the foods,
-  // so repeating each one here only made the day longer to scan.
+  // that meal's latest entry; the row opens a sheet listing the foods.
   const timelineRows = useMemo(() => {
     type Row = { kind: "entry"; entry: TimelineEntry } | { kind: "meal"; mealTag: string; entries: TimelineEntry[] };
     const rows: Row[] = [];
@@ -2734,27 +2679,7 @@ export default function LogPage() {
           )}
         </>
       )}
-      {tab === "summary" && (mealGroups.length > 0 || combinedTimeline.length > 0) && (
-        <div className="flex flex-col gap-5">
-          {mealGroups.length > 0 && (
-            <div className="flex flex-col gap-1.5">
-              <p className="px-3.5 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
-                Meals — {formatDateLabel(date, today).toLowerCase()}
-              </p>
-              {mealGroups.map((g) => (
-                <MealGroupCard
-                  key={g.mealTag}
-                  mealTag={g.mealTag}
-                  items={g.items.map((it) => (it.productId ? `${it.name} (${productNameById.get(it.productId) ?? "product"})` : it.name))}
-                  accent={TYPE_ACCENT.food}
-                  note={meals.noteFor(date, g.mealTag)}
-                  rating={meals.ratingFor(date, g.mealTag)}
-                  onOpen={() => setMealSheetTag(g.mealTag)}
-                />
-              ))}
-            </div>
-          )}
-          {combinedTimeline.length > 0 && (
+      {tab === "summary" && combinedTimeline.length > 0 && (
         <div className="flex flex-col gap-2">
           <h2 className="px-0.5 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
             Timeline — {formatDateLabel(date, today).toLowerCase()}
@@ -2763,11 +2688,13 @@ export default function LogPage() {
             {timelineRows.map((row) => {
               if (row.kind === "meal") {
                 const latest = row.entries[0];
+                const rating = meals.ratingFor(date, row.mealTag);
                 return (
                   <button
                     key={`meal:${row.mealTag}`}
                     type="button"
                     onClick={() => setMealSheetTag(row.mealTag)}
+                    aria-haspopup="dialog"
                     className="flex min-h-11 w-full items-center gap-2.5 px-3.5 text-left"
                   >
                     <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: TYPE_ACCENT.food }} aria-hidden="true" />
@@ -2777,6 +2704,7 @@ export default function LogPage() {
                     <span className="min-w-0 flex-1 truncate text-sm" style={{ color: "var(--text-primary)" }}>
                       {row.mealTag}
                     </span>
+                    {rating != null && <StarRating value={rating} size="sm" accent={TYPE_ACCENT.food} />}
                     <span className="shrink-0 text-right text-xs" style={{ color: "var(--text-secondary)" }}>
                       {row.entries.length} {row.entries.length === 1 ? "food" : "foods"}
                     </span>
@@ -2826,8 +2754,6 @@ export default function LogPage() {
               );
             })}
           </div>
-        </div>
-      )}
         </div>
       )}
       {workoutMerge &&

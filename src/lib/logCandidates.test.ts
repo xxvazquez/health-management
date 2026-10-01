@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { autoLogTime, combineDateAndTime, dayTimelineEntries, decideChipTapAction, defaultLogTimeValue, groupMealsByTag, loggedCountsForDate, toTimeInputValue, type LogCandidate, type TimelineEntry } from "./logCandidates";
+import { autoLogTime, combineDateAndTime, dayTimelineEntries, decideChipTapAction, defaultLogTimeValue, loggedCountsForDate, toTimeInputValue, type LogCandidate } from "./logCandidates";
 import type { RawItem, RawLog } from "@/lib/types";
 import { createTimeOrderedId } from "@/lib/sortableId";
 
@@ -117,49 +117,6 @@ describe("dayTimelineEntries", () => {
     // sort silently relying on pre-sort array order.
     const entries = dayTimelineEntries(items, [first, second], [], "2026-01-01");
     expect(entries.map((e) => e.item)).toEqual(["Banana", "Apple"]);
-  });
-});
-
-describe("groupMealsByTag", () => {
-  function makeEntry(overrides: Partial<TimelineEntry> = {}): TimelineEntry {
-    return {
-      key: "log-1",
-      item: "Apple",
-      itemType: "food",
-      itemIdentity: "item-1",
-      time: "10:00",
-      updatedAt: "2026-01-01T10:00:00.000Z",
-      mealTag: "Breakfast",
-      productId: null,
-      value: 1,
-      note: null,
-      category: "Fruit",
-      unit: null,
-      ...overrides,
-    };
-  }
-
-  it("orders boxes Breakfast, Lunch, Dinner, Snack however late each was logged", () => {
-    // Newest-first, as dayTimelineEntries always returns it — all logged in
-    // the evening, breakfast last of all.
-    const dayTimeline = [
-      makeEntry({ key: "log-4", item: "Eggs", mealTag: "Breakfast", updatedAt: "2026-01-01T23:00:00.000Z" }),
-      makeEntry({ key: "log-3", item: "Chips", mealTag: "Snack", updatedAt: "2026-01-01T22:30:00.000Z" }),
-      makeEntry({ key: "log-2", item: "Rice", mealTag: "Dinner", updatedAt: "2026-01-01T22:00:00.000Z" }),
-      makeEntry({ key: "log-1", item: "Soup", mealTag: "Lunch", updatedAt: "2026-01-01T21:00:00.000Z" }),
-    ];
-    expect(groupMealsByTag(dayTimeline).map((g) => g.mealTag)).toEqual(["Breakfast", "Lunch", "Dinner", "Snack"]);
-  });
-
-  it("lists items within a box oldest-logged first", () => {
-    // dayTimeline newest-first: Potatoes logged after Milk.
-    const dayTimeline = [
-      makeEntry({ key: "log-2", item: "Potatoes", mealTag: "Dinner", updatedAt: "2026-01-01T22:03:04.000Z" }),
-      makeEntry({ key: "log-1", item: "Milk", mealTag: "Dinner", updatedAt: "2026-01-01T22:03:03.000Z" }),
-    ];
-    expect(groupMealsByTag(dayTimeline)).toEqual([
-      { mealTag: "Dinner", items: [{ name: "Milk", productId: null }, { name: "Potatoes", productId: null }] },
-    ]);
   });
 });
 
