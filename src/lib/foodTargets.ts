@@ -22,7 +22,7 @@ export const TARGET_LABEL: Record<TargetGroup, string> = {
   eggs: "Eggs",
   dairy: "Dairy",
   fats: "Healthy fats",
-  sweets: "Ultra-processed",
+  sweets: "Sweets & sugar",
 };
 
 /** What counts toward each group, for the one line under its setting. */
@@ -38,7 +38,7 @@ export const TARGET_EXAMPLES: Record<TargetGroup, string> = {
   poultry: "Chicken and turkey.",
   eggs: "Eggs, however they're cooked.",
   dairy: "Milk, yoghurt, kefir and cheese.",
-  sweets: "Sweets, cake, crisps and other ultra-processed snacks.",
+  sweets: "Sweets, cake, chocolate, and added sugar like syrup or honey.",
 };
 
 /** Which nutrition groups a day has to include to count toward a target. */
@@ -84,7 +84,7 @@ const off = (perWeek: number): GroupTarget => ({ mode: "off", perWeek });
  * grains at two (~90 g/day is linked to lower mortality); legumes most days
  * and nuts daily (both among the strongest longevity associations); fish
  * twice, one oily; olive oil daily. Red and processed meat capped at three
- * (WCRF); sweets and ultra-processed foods at three. Poultry, eggs and
+ * (WCRF); sweets and added sugar at three. Poultry, eggs and
  * dairy are broadly neutral in the evidence, so they start off. Without
  * fish or meat, legumes and nuts carry more of the protein. */
 export const DIET_DEFAULTS: Record<Diet, Record<TargetGroup, GroupTarget>> = {

@@ -68,7 +68,7 @@ export const NUTRITION_GROUP_LABEL: Record<NutritionGroupId, string> = {
   other_unsaturated_fat: "Other unsaturated fats",
   processed_meat: "Processed meat",
   red_meat: "Red meat",
-  highly_processed: "Highly processed foods",
+  highly_processed: "Sweets & sugar",
 };
 
 /**
@@ -102,7 +102,7 @@ export const NUTRITION_GROUP_EXAMPLES: Record<NutritionGroupId, string> = {
   other_unsaturated_fat: "avocado, seed & nut oils",
   processed_meat: "bacon, sausage, ham",
   red_meat: "beef, pork, lamb",
-  highly_processed: "sweets, cake, crisps",
+  highly_processed: "chocolate, cake, syrup, honey",
 };
 
 /** Broad dietary "pillars" — the level most insight copy is written at. */
@@ -312,11 +312,25 @@ const GROUP_KEYWORDS: Record<string, NutritionGroupId[]> = {
   "olive oil": ["olive_oil"], "extra virgin olive oil": ["olive_oil"], "extra-virgin olive oil": ["olive_oil"],
   "rapeseed oil": ["other_unsaturated_fat"], "canola oil": ["other_unsaturated_fat"],
 
-  // Discretionary / highly processed
+  "garlic oil": ["other_unsaturated_fat"],
+
+  // Sweets and added sugar — what the "at most" sweets target counts.
   chocolate: ["highly_processed"], candy: ["highly_processed"], cake: ["highly_processed"],
   cookie: ["highly_processed"], dessert: ["highly_processed"], "ice cream": ["highly_processed"],
-  sugar: ["highly_processed"], pastry: ["highly_processed"],
+  sugar: ["highly_processed"], pastry: ["highly_processed"], syrup: ["highly_processed"],
+  "maple syrup": ["highly_processed"], honey: ["highly_processed"], agave: ["highly_processed"],
+  jam: ["highly_processed"],
 };
+
+/**
+ * Foods usually eaten as a pinch or a splash rather than a portion — a
+ * squeeze of lemon, a clove of garlic, breadcrumbs as a coating. They keep
+ * their group for variety and plant diversity but never count as a serving
+ * toward a food target. Matched like GROUP_KEYWORDS (longest keyword wins,
+ * so "wild garlic" stays a leafy green); any juice or powder is a garnish too.
+ */
+const GARNISH_KEYWORDS = ["garlic", "chives", "ginger", "lemon", "lime", "breadcrumbs", "cacao", "cocoa"];
+const GARNISH_WORDS = /\b(juice|powder|zest)\b/;
 
 /** Longest-keyword-first, same strategy as classify.ts's food-keyword lookup. */
 const KEYWORD_ENTRIES = Object.entries(GROUP_KEYWORDS).sort((a, b) => b[0].length - a[0].length);
@@ -360,6 +374,18 @@ export function nutritionGroupsForFood(canonicalItemName: string, overrides?: Re
     if (startsWord(norm, keyword)) return groups;
   }
   return [];
+}
+
+/** True for a garnish (see GARNISH_KEYWORDS). A per-user group override
+ * means the user counts it as a real serving, so it's never a garnish. */
+export function isGarnishFood(canonicalItemName: string, overrides?: Record<string, NutritionGroupOverride>): boolean {
+  const norm = normalize(canonicalItemName);
+  if (overrides?.[norm]) return false;
+  if (GARNISH_WORDS.test(norm)) return true;
+  const garnish = GARNISH_KEYWORDS.filter((k) => startsWord(norm, k)).sort((a, b) => b.length - a.length)[0];
+  if (!garnish) return false;
+  const group = KEYWORD_ENTRIES.find(([k]) => startsWord(norm, k))?.[0];
+  return !group || group.length <= garnish.length;
 }
 
 /**

@@ -8,6 +8,7 @@ import {
   PILLAR_LABEL,
   PLANT_GROUPS,
   PRIORITY_ELIGIBLE_GROUPS,
+  isGarnishFood,
   nutritionGroupsForFood,
   pillarForGroup,
   plantFamilyForFood,
@@ -287,6 +288,12 @@ function groupsFor(item: string): NutritionGroupId[] {
   return g;
 }
 
+/** Groups a food counts toward as a serving — none for a garnish, which
+ * still counts toward variety through `groupsFor`. */
+function servingGroupsFor(item: string): NutritionGroupId[] {
+  return isGarnishFood(item, currentOverrides) ? [] : groupsFor(item);
+}
+
 function statusFromConsistency(consistency: Consistency, insufficientData: boolean): GroupStatus {
   if (insufficientData) return "not-enough-data";
   switch (consistency) {
@@ -339,7 +346,7 @@ function computeAggregateState(
   const rangeLengthDays = daysBetween(range.start, range.end) + 1;
   const foodDays = new Set(foods.filter((e) => e.date >= range.start && e.date <= range.end).map((e) => e.date)).size;
   const groupSet = new Set(groups);
-  const matchEvents = foods.filter((e) => groupsFor(e.item).some((g) => groupSet.has(g)));
+  const matchEvents = foods.filter((e) => servingGroupsFor(e.item).some((g) => groupSet.has(g)));
   const inRangeEvents = matchEvents.filter((e) => e.date >= range.start && e.date <= range.end);
   const daysInRange = new Set(inRangeEvents.map((e) => e.date)).size;
   const distinctFoodsInRange = Array.from(new Set(inRangeEvents.map((e) => e.item)));

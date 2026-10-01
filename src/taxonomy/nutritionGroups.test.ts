@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { NUTRITION_GROUP_EXAMPLES, NUTRITION_GROUPS, nutritionGroupsForFood, plantFamilyForFood } from "./nutritionGroups";
+import { NUTRITION_GROUP_EXAMPLES, NUTRITION_GROUPS, isGarnishFood, nutritionGroupsForFood, plantFamilyForFood } from "./nutritionGroups";
 
 describe("nutritionGroupsForFood", () => {
   it("splits vegetables into research-backed subgroups", () => {
@@ -74,5 +74,32 @@ describe("NUTRITION_GROUP_EXAMPLES", () => {
     for (const g of NUTRITION_GROUPS) {
       expect(NUTRITION_GROUP_EXAMPLES[g]).toBeTruthy();
     }
+  });
+});
+
+describe("isGarnishFood", () => {
+  it("treats a squeeze, a clove, juices and powders as garnishes", () => {
+    for (const name of ["Lemon juice", "Lemon", "Garlic", "Garlic powder", "Apple juice", "Date powder", "Breadcrumbs", "Ginger"]) {
+      expect(isGarnishFood(name), name).toBe(true);
+    }
+  });
+
+  it("keeps real portions as servings", () => {
+    for (const name of ["Onion", "Apple", "Wild garlic", "Garlic oil", "Bread", "Orange", "Dried potatoes"]) {
+      expect(isGarnishFood(name), name).toBe(false);
+    }
+  });
+
+  it("counts a garnish as a serving once the user picks its group", () => {
+    expect(isGarnishFood("Lemon", { lemon: "citrus" })).toBe(false);
+  });
+});
+
+describe("added sugar", () => {
+  it("counts syrups and honey toward sweets", () => {
+    expect(nutritionGroupsForFood("Maple syrup")).toEqual(["highly_processed"]);
+    expect(nutritionGroupsForFood("Honey")).toEqual(["highly_processed"]);
+    expect(nutritionGroupsForFood("Jamón serrano")).toEqual(["processed_meat"]);
+    expect(nutritionGroupsForFood("Garlic oil")).toEqual(["other_unsaturated_fat"]);
   });
 });

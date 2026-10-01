@@ -431,7 +431,9 @@ export function FoodDashboard() {
           evidence-backed food often is never treated as a problem on its own — only actual gaps, or a food dominating
           intake while other food groups are missing, get surfaced. The underlying research is on the Nutrition
           evidence page (linked from Settings), kept separate from this page. &quot;Not logged&quot; only ever means not logged, never &quot;not
-          eaten&quot; — this reflects logging frequency, not quantity or what you actually ate.
+          eaten&quot; — this reflects logging frequency, not quantity or what you actually ate. Garnishes — a squeeze
+          of lemon, garlic, juice, powders, breadcrumbs — count toward variety but not as a serving; pick a group for
+          one in Settings to count it.
         </Methodology>
       </div>
     </div>

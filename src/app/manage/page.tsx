@@ -35,7 +35,7 @@ import { lookupFoodCategory } from "@/taxonomy/classify";
 import { POLAND_FOOD_CATALOG } from "@/taxonomy/polandFoodCatalog";
 import { normalizeName, titleCaseFallback } from "@/taxonomy/normalizeName";
 import { CATEGORIES_BY_TYPE, TYPE_ACCENT, type ItemType } from "@/taxonomy/categories";
-import { NOT_COUNTED, NUTRITION_GROUPS, NUTRITION_GROUP_LABEL, nutritionGroupsForFood, type NutritionGroupOverride } from "@/taxonomy/nutritionGroups";
+import { NOT_COUNTED, NUTRITION_GROUPS, NUTRITION_GROUP_LABEL, isGarnishFood, nutritionGroupsForFood, type NutritionGroupOverride } from "@/taxonomy/nutritionGroups";
 import { useFoodNutritionGroupOverrides } from "@/lib/useFoodNutritionGroupOverrides";
 import { todayLocalISODate } from "@/lib/aggregations/common";
 import { buildDemoDataset } from "@/lib/demoData";
@@ -2462,7 +2462,8 @@ function NutritionGroupSelect({
   onSetNutritionGroup: (groupId: NutritionGroupOverride | null) => void;
 }) {
   const autoGroups = useMemo(() => nutritionGroupsForFood(itemName), [itemName]);
-  const autoLabel = autoGroups.length > 0 ? autoGroups.map((g) => NUTRITION_GROUP_LABEL[g]).join(", ") : "unclassified";
+  const garnish = useMemo(() => isGarnishFood(itemName), [itemName]);
+  const autoLabel = autoGroups.length > 0 ? autoGroups.map((g) => NUTRITION_GROUP_LABEL[g]).join(", ") + (garnish ? ", garnish" : "") : "unclassified";
 
   return (
     <select

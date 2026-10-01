@@ -204,4 +204,15 @@ describe("computeNutritionPriorities", () => {
     expect(groupStates.find((s) => s.group === "fatty_fish")!.targetPerWeek).toBe(4);
     expect(groupStates.find((s) => s.group === "leafy_greens")!.targetPerWeek).toBe(4);
   });
+
+  it("doesn't count a garnish as a serving, but keeps it for variety", () => {
+    const day = (n: number) => `2026-01-${String(n).padStart(2, "0")}`;
+    const events = Array.from({ length: 14 }, (_, i) => [
+      makeEvent({ itemType: "food", item: "Rice", category: "Grains", mealTag: "Lunch", date: day(i + 1), completed: true }),
+      makeEvent({ itemType: "food", item: "Lemon juice", category: "Misc", mealTag: "Lunch", date: day(i + 1), completed: true }),
+    ]).flat();
+    const result = computeNutritionPriorities(events, { start: day(1), end: day(14) });
+    expect(result.pillars.find((p) => p.pillar === "fruit")!.rateInRangePerWeek).toBe(0);
+    expect(result.variety.totalUniqueFoods).toBe(2);
+  });
 });
