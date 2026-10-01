@@ -1,5 +1,5 @@
 import type { CanonicalEvent } from "@/lib/types";
-import { addDaysToDate, daysBetween, getDatasetSpan, pct, type DateRange } from "./common";
+import { addDaysToDate, daysBetween, getDatasetSpan, loggedDaysBetween, pct, similarCoverage, type DateRange } from "./common";
 
 function foodEvents(events: CanonicalEvent[]): CanonicalEvent[] {
   return events.filter((e) => e.itemType === "food" && e.completed);
@@ -179,7 +179,8 @@ export interface IngredientDiversity {
   current: number;
   /** Unique-food count over the equivalent-length period immediately
    * preceding the selected range — null (never fabricated) when the
-   * dataset doesn't actually go back that far. */
+   * dataset doesn't go back that far, or the two periods weren't logged on
+   * a similar number of days. */
   previous: number | null;
 }
 
@@ -196,8 +197,10 @@ export function ingredientDiversity(filtered: CanonicalEvent[], range: DateRange
 
   const datasetSpan = getDatasetSpan(allEvents);
   if (!datasetSpan || prevStart < datasetSpan.start) return { current, previous: null };
+  const foods = foodEvents(allEvents);
+  if (!similarCoverage(loggedDaysBetween(foods, range.start, range.end), loggedDaysBetween(foods, prevStart, prevEnd))) return { current, previous: null };
 
-  const prevFoods = foodEvents(allEvents).filter((e) => e.date >= prevStart && e.date <= prevEnd);
+  const prevFoods = foods.filter((e) => e.date >= prevStart && e.date <= prevEnd);
   return { current, previous: new Set(prevFoods.map((e) => e.item)).size };
 }
 
@@ -264,8 +267,9 @@ const FALLEN_OUT_MAX_DAYS_IN_RANGE = 1;
  * can't surface. Same before/after-range comparison
  * computeNutritionPriorities's `trend` section already uses, applied per
  * ingredient instead of per nutrition group. `fallenOutOfRotation` is empty
- * when the dataset doesn't extend back far enough for that comparison
- * (never fabricated), same guard as `trend` — `trendAvailable` says which
+ * when the dataset doesn't extend back far enough for that comparison, or
+ * the earlier period was logged on a very different number of days (never
+ * fabricated), same guard as `trend` — `trendAvailable` says which
  * case it is, so the UI can tell "nothing's dropped off" apart from "can't
  * be checked for this range" (always false for "all time", since there's no
  * earlier period left to compare against).
@@ -302,7 +306,8 @@ export function ingredientRotation(
   const span = getDatasetSpan(events);
   const prevEnd = addDaysToDate(range.start, -1);
   const prevStart = addDaysToDate(prevEnd, -(rangeLengthDays - 1));
-  const trendAvailable = span !== null && prevStart >= span.start;
+  const trendAvailable =
+    span !== null && prevStart >= span.start && similarCoverage(foodDays, loggedDaysBetween(foods, prevStart, prevEnd));
 
   let fallenOutOfRotation: FallenOutEntry[] = [];
   if (trendAvailable) {

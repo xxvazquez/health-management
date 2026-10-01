@@ -67,6 +67,18 @@ export function trackedCalendarDates(events: CanonicalEvent[]): Set<string> {
   return new Set(events.map((e) => e.date));
 }
 
+/** Distinct dates with an entry between `start` and `end`, inclusive. */
+export function loggedDaysBetween<T extends { date: string }>(events: T[], start: string, end: string): number {
+  return new Set(events.filter((e) => e.date >= start && e.date <= end).map((e) => e.date)).size;
+}
+
+/** Two windows are only compared by raw counts (unique foods, days eaten)
+ * when they were logged on a similar number of days — otherwise a month
+ * logged less would read as a month eaten less. */
+export function similarCoverage(daysA: number, daysB: number): boolean {
+  return daysA > 0 && daysB > 0 && Math.min(daysA, daysB) / Math.max(daysA, daysB) >= 0.8;
+}
+
 /** Silence longer than this in a section means it wasn't being tracked. */
 export const SECTION_GAP_DAYS = 14;
 /** Symptoms can rightly go unlogged for weeks, so they get a longer gap. */

@@ -1,5 +1,5 @@
 import type { CanonicalEvent } from "@/lib/types";
-import { addDaysToDate, daysBetween, getDatasetSpan, type DateRange } from "./common";
+import { addDaysToDate, daysBetween, getDatasetSpan, loggedDaysBetween, similarCoverage, type DateRange } from "./common";
 import {
   CORE_FRUIT_GROUPS,
   CORE_VEGETABLE_GROUPS,
@@ -554,11 +554,13 @@ function rollingPlantSeries(foods: CanonicalEvent[], range: DateRange): { date: 
 }
 
 /** Distinct plant foods in the 30 days before the last 30 days of `range`,
- * or null when that stretch starts before the data does. */
+ * or null when that stretch starts before the data does or was logged on
+ * far fewer or more days. */
 function previousPlants30(foods: CanonicalEvent[], range: DateRange, dataStart: string): number | null {
   const end = addDaysToDate(range.end, -30);
   const start = addDaysToDate(end, -29);
   if (start < dataStart) return null;
+  if (!similarCoverage(loggedDaysBetween(foods, addDaysToDate(range.end, -29), range.end), loggedDaysBetween(foods, start, end))) return null;
   const plants = new Set<string>();
   for (const e of foods) {
     if (e.date < start || e.date > end) continue;
@@ -838,7 +840,7 @@ export function computeNutritionPriorities(
   // extends back far enough for that comparison, same guard. ----
   const prevEnd = addDaysToDate(range.start, -1);
   const prevStart = addDaysToDate(prevEnd, -(rangeLengthDays - 1));
-  const trendAvailable = prevStart >= span.start;
+  const trendAvailable = prevStart >= span.start && similarCoverage(daysWithFoodTracked, loggedDaysBetween(foods, prevStart, prevEnd));
   let trend: TrendSummary = { available: false, rangeLengthDays, points: [] };
   if (trendAvailable) {
     const currentFoods = foodsInRange;

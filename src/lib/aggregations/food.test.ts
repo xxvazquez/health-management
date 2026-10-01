@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { favoriteCombosByMeal, foodCategoryDistribution, ingredientMealMatrix, ingredientRotation, mealInstances, newFoodsOverTime, rankedFoods } from "./food";
+import { favoriteCombosByMeal, foodCategoryDistribution, ingredientDiversity, ingredientMealMatrix, ingredientRotation, mealInstances, newFoodsOverTime, rankedFoods } from "./food";
 import { makeEvent } from "@/lib/testFixtures";
 
 const inRangeDay = (n: number) => `2026-02-${String(n).padStart(2, "0")}`;
@@ -199,10 +199,23 @@ describe("ingredientRotation", () => {
     expect(ingredientRotation(events, RANGE).staples).toEqual([{ item: "Oats", daysInRange: 4, foodDays: 4, percent: 100 }]);
   });
 
+  // Bread every day before and during the range, so both periods are logged alike.
+  const bread = [...Array.from({ length: 10 }, (_, i) => makeEvent({ item: "Bread", date: beforeRangeDay(22 + i) })), ...Array.from({ length: 10 }, (_, i) => makeEvent({ item: "Bread", date: inRangeDay(i + 1) }))];
+
   it("flags an item logged regularly before the range but not within it", () => {
-    const events = Array.from({ length: 5 }, (_, i) => makeEvent({ item: "Rice", date: beforeRangeDay(22 + i) })); // 22..26 Jan
+    const events = [...bread, ...Array.from({ length: 5 }, (_, i) => makeEvent({ item: "Rice", date: beforeRangeDay(22 + i) }))]; // 22..26 Jan
     const { fallenOutOfRotation } = ingredientRotation(events, RANGE);
     expect(fallenOutOfRotation).toEqual([{ item: "Rice", daysBefore: 5, daysInRange: 0 }]);
+  });
+
+  it("doesn't compare against a period logged on far fewer days", () => {
+    const events = [
+      ...Array.from({ length: 5 }, (_, i) => makeEvent({ item: "Rice", date: beforeRangeDay(22 + i) })),
+      makeEvent({ item: "Bread", date: inRangeDay(1) }),
+    ];
+    const result = ingredientRotation(events, RANGE);
+    expect(result.trendAvailable).toBe(false);
+    expect(result.fallenOutOfRotation).toEqual([]);
   });
 
   it("does not flag an item still logged regularly within the range, even if also logged before", () => {
@@ -227,5 +240,16 @@ describe("ingredientRotation", () => {
     );
     const { staples } = ingredientRotation(events, RANGE, 2);
     expect(staples.map((s) => s.item)).toEqual(["A", "B"]);
+  });
+});
+
+describe("ingredientDiversity", () => {
+  it("only compares with the previous period when it was logged on a similar number of days", () => {
+    const inRange = Array.from({ length: 10 }, (_, i) => makeEvent({ item: `Food ${i}`, date: inRangeDay(i + 1) }));
+    const thin = [makeEvent({ item: "Rice", date: beforeRangeDay(25) })];
+    const full = Array.from({ length: 10 }, (_, i) => makeEvent({ item: "Rice", date: beforeRangeDay(22 + i) }));
+    const early = makeEvent({ item: "Oats", date: "2026-01-01" });
+    expect(ingredientDiversity(inRange, RANGE, [early, ...thin, ...inRange]).previous).toBeNull();
+    expect(ingredientDiversity(inRange, RANGE, [early, ...full, ...inRange]).previous).toBe(1);
   });
 });
