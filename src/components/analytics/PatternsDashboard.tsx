@@ -7,8 +7,8 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { PageSkeleton } from "@/components/ui/Skeleton";
 import { Sheet } from "@/components/ui/Sheet";
 import { FormGroup } from "@/components/ui/FormGroup";
-import { CheckIcon, ChevronIcon } from "@/components/ui/icons";
-import { SearchField } from "@/components/ui/SearchField";
+import { ChevronIcon } from "@/components/ui/icons";
+import { PickerList } from "@/components/ui/PickerList";
 import { TrendGroup, TrendRow } from "@/components/analytics/TrendList";
 import {
   allCauseOptions,
@@ -280,8 +280,8 @@ function ExploreSheet({
       <Sheet title={isSymptom ? "Symptom" : "Compare with"} titleId="pattern-explore-title" onClose={onClose} back={{ label: "Compare", onClick: () => setPicking(null) }}>
         <div className="flex flex-col gap-3">
           <PickerList
-            options={isSymptom ? symptomOptions : causeOptions.map((o) => o.label)}
-            selected={isSymptom ? symptom : cause}
+            options={(isSymptom ? symptomOptions : causeOptions.map((o) => o.label)).map((v) => ({ value: v, label: v.replace(CAUSE_PREFIX, ""), group: v.match(CAUSE_PREFIX)?.[1] }))}
+            isSelected={(v) => v === (isSymptom ? symptom : cause)}
             placeholder={isSymptom ? "Search symptoms" : "Search foods, supplements, habits…"}
             onPick={(v) => {
               if (isSymptom) setSymptom(v);
@@ -318,43 +318,5 @@ function ExploreSheet({
         {results.length > 0 && <DelayRows results={results} causeLabel={causeName} />}
       </div>
     </Sheet>
-  );
-}
-
-/** A searchable list of choices, grouped under captions when the labels
- * carry a "Kind: " prefix (Food: Banana, Supplement: Iron…). */
-function PickerList({ options, selected, placeholder, onPick }: { options: string[]; selected: string; placeholder: string; onPick: (value: string) => void }) {
-  const [query, setQuery] = useState("");
-  const q = query.trim().toLowerCase();
-  const groups = new Map<string, { value: string; name: string }[]>();
-  for (const value of options) {
-    const kind = value.match(CAUSE_PREFIX)?.[1] ?? "";
-    const name = value.replace(CAUSE_PREFIX, "");
-    if (q && !name.toLowerCase().includes(q)) continue;
-    const list = groups.get(kind) ?? [];
-    list.push({ value, name });
-    groups.set(kind, list);
-  }
-  return (
-    <div className="flex flex-col gap-4">
-      <SearchField value={query} onChange={setQuery} placeholder={placeholder} className="w-full" />
-      {groups.size === 0 && (
-        <p className="py-6 text-center text-sm" style={{ color: "var(--text-muted)" }}>
-          No matches
-        </p>
-      )}
-      {[...groups].map(([kind, items]) => (
-        <FormGroup key={kind} title={kind || undefined}>
-          {items
-            .sort((a, b) => a.name.localeCompare(b.name))
-            .map((it) => (
-              <button key={it.value} type="button" onClick={() => onPick(it.value)} className="flex min-h-11 w-full items-center px-3.5 text-left text-sm" style={{ color: it.value === selected ? "var(--ui-accent)" : "var(--text-primary)" }}>
-                <span className="min-w-0 flex-1">{it.name}</span>
-                {it.value === selected && <CheckIcon size={14} />}
-              </button>
-            ))}
-        </FormGroup>
-      ))}
-    </div>
   );
 }

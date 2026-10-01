@@ -13,7 +13,7 @@ import { Field } from "@/components/ui/Field";
 import { StarRating } from "@/components/ui/StarRating";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { AutoGrowTextarea } from "@/components/ui/AutoGrowTextarea";
-import { ComboBox } from "@/components/doctors/shared";
+import { PickerList } from "@/components/ui/PickerList";
 import { InfoIcon, MinusIcon, UpDownChevronIcon } from "@/components/ui/icons";
 import { TrendGroup, ShowAllRow } from "@/components/analytics/TrendList";
 import { ROW_INLINE_CLS, ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
@@ -231,25 +231,23 @@ function RecipeSheet({
     note: recipe?.note ?? "",
     ingredients: recipe?.ingredients ?? [],
   }));
-  const [adding, setAdding] = useState("");
+  const [pickingFoods, setPickingFoods] = useState(false);
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
-  const idByName = useMemo(() => new Map([...foods].map(([id, name]) => [name.toLocaleLowerCase(), id])), [foods]);
-  const available = useMemo(
-    () => [...foods].filter(([id]) => !draft.ingredients.some((i) => i.itemId === id)).map(([, name]) => name).sort((a, b) => a.localeCompare(b)),
-    [foods, draft.ingredients],
-  );
+  const foodOptions = useMemo(() => [...foods].map(([id, name]) => ({ value: id, label: name })), [foods]);
 
   const set = (patch: Partial<Draft>) => setDraft((d) => ({ ...d, ...patch }));
   const setIngredient = (index: number, patch: Partial<RecipeIngredient>) =>
     set({ ingredients: draft.ingredients.map((ing, i) => (i === index ? { ...ing, ...patch } : ing)) });
 
-  function addIngredient(name: string) {
-    const id = idByName.get(name.toLocaleLowerCase());
-    if (!id) return;
-    set({ ingredients: [...draft.ingredients, { itemId: id, amount: null, unit: null }] });
-    setAdding("");
+  function toggleIngredient(id: string) {
+    setDraft((d) => ({
+      ...d,
+      ingredients: d.ingredients.some((i) => i.itemId === id)
+        ? d.ingredients.filter((i) => i.itemId !== id)
+        : [...d.ingredients, { itemId: id, amount: null, unit: null }],
+    }));
   }
 
   async function submit(e: FormEvent) {
@@ -262,6 +260,20 @@ function RecipeSheet({
       console.error("recipe save failed", err);
       setSaving(false);
     }
+  }
+
+  if (pickingFoods) {
+    return (
+      <Sheet title="Foods" titleId={titleId} onClose={onClose} back={{ label: recipe ? "Recipe" : "New recipe", onClick: () => setPickingFoods(false) }}>
+        <PickerList
+          options={foodOptions}
+          isSelected={(id) => draft.ingredients.some((i) => i.itemId === id)}
+          onPick={toggleIngredient}
+          placeholder="Search your foods"
+          accent={accent}
+        />
+      </Sheet>
+    );
   }
 
   return (
@@ -306,7 +318,7 @@ function RecipeSheet({
           </div>
         </FormGroup>
 
-        <FormGroup title="Foods" footer="Amounts are optional.">
+        <FormGroup title="Foods">
           {draft.ingredients.map((ing, i) => (
             <div key={ing.itemId} className="flex min-h-11 items-center gap-2 pr-2 pl-3.5">
               <button
@@ -351,9 +363,9 @@ function RecipeSheet({
               </label>
             </div>
           ))}
-          <Field label="Add a food" plain>
-            <ComboBox value={adding} onChange={addIngredient} options={available} placeholder="Search your foods" allowCreate={false} accent={accent} />
-          </Field>
+          <button type="button" onClick={() => setPickingFoods(true)} className="flex min-h-11 w-full items-center px-3.5 text-left text-sm font-medium" style={{ color: accent }}>
+            Add foods
+          </button>
         </FormGroup>
 
         <FormGroup title="Steps">

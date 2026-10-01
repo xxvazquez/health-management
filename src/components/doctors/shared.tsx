@@ -176,7 +176,10 @@ export function ComboBox({
           setQuery(value);
           setOpen(true);
         }}
-        onChange={(e) => setQuery(e.target.value)}
+        onChange={(e) => {
+          setQuery(e.target.value);
+          setOpen(true);
+        }}
         onBlur={() => {
           // Runs after any option's onMouseDown (which preventDefault()s the
           // blur when a choice is being made), so reaching here means focus

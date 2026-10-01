@@ -97,7 +97,7 @@ One sans-serif family: SF Pro on Apple devices, Inter elsewhere (`--font-app`).
 ### Dialogs
 
 - **`AddMenu`:** "+ Add" for a section with more than one kind of thing to create (Agenda, Visits, Results) opens an iOS pull-down menu, not an inline picker card
-- **`Sheet`:** every modal. A bottom sheet on phones (swipe down to close), centred from `sm`. Pass `form` for a create/edit/send form: the header becomes Cancel · title · action (Add, Done, Send) and there's no button at the bottom. Pass `back` for a screen pushed inside the sheet (a picker list): the header becomes ‹ label · title · close
+- **`Sheet`:** every modal. A bottom sheet on phones (swipe down to close), centred from `sm`. Pass `form` for a create/edit/send form: the header becomes Cancel · title · action (Add, Done, Send) and there's no button at the bottom. Pass `back` for a screen pushed inside the sheet: the header becomes ‹ label · title · close. **`PickerList`** is that screen for choosing from a long list (search on top, A–Z groups, a tick on chosen rows; tap again to untick) — use it instead of a type-ahead when picking several things
 - **`DuplicateItemDialog`:** the iOS-style alert
 
 ### Lists
