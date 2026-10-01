@@ -102,25 +102,65 @@ export function LovedCombos({ accent }: { accent: string }) {
   );
 }
 
-/** Log → Food → Recipes: tap a recipe to log its foods for the current
- * meal; ⓘ opens it to edit. */
-export function RecipeList({
+/** Log → Food's Recipes sheet: tap a recipe to log its foods for the
+ * current meal; ⓘ opens it to edit, in place of the list. */
+export function RecipesSheet({
   recipes,
   accent,
+  meal,
   onLog,
   pendingId,
+  onClose,
 }: {
   /** The page's own `useRecipes()`, so a recipe saved elsewhere on it shows here at once. */
   recipes: ReturnType<typeof useRecipes>;
   accent: string;
+  meal: string;
   onLog?: (recipe: Recipe) => void;
   pendingId?: string | null;
+  onClose: () => void;
 }) {
   const foods = useFoodNames();
   const [editing, setEditing] = useState<Recipe | "new" | null>(null);
 
+  if (editing) {
+    return (
+      <RecipeSheet
+        key={editing === "new" ? "new" : editing.id}
+        recipe={editing === "new" ? null : editing}
+        foods={foods}
+        accent={accent}
+        onSave={async (draft) => {
+          if (editing === "new") await recipes.create(draft);
+          else await recipes.save({ ...editing, ...draft });
+          setEditing(null);
+        }}
+        onDelete={
+          editing === "new"
+            ? undefined
+            : async () => {
+                await recipes.remove(editing.id);
+                setEditing(null);
+              }
+        }
+        onClose={() => setEditing(null)}
+      />
+    );
+  }
+
   return (
-    <>
+    <Sheet
+      title="Recipes"
+      titleId="recipes-sheet-title"
+      subtitle={
+        onLog && recipes.data.length > 0 ? (
+          <span className="text-xs" style={{ color: "var(--text-secondary)" }}>
+            Tap one to log it for {meal}
+          </span>
+        ) : undefined
+      }
+      onClose={onClose}
+    >
       <div className="inset-rows rounded-xl border" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
         {recipes.data.map((r) => (
           <div key={r.id} className="flex items-center" style={{ opacity: pendingId === r.id ? 0.5 : 1 }}>
@@ -145,7 +185,6 @@ export function RecipeList({
               type="button"
               onClick={() => setEditing(r)}
               aria-label={`Edit ${r.name}`}
-              aria-haspopup="dialog"
               className="flex h-11 w-11 shrink-0 items-center justify-center"
               style={{ color: accent }}
             >
@@ -157,30 +196,7 @@ export function RecipeList({
           New recipe
         </button>
       </div>
-
-      {editing && (
-        <RecipeSheet
-          key={editing === "new" ? "new" : editing.id}
-          recipe={editing === "new" ? null : editing}
-          foods={foods}
-          accent={accent}
-          onSave={async (draft) => {
-            if (editing === "new") await recipes.create(draft);
-            else await recipes.save({ ...editing, ...draft });
-            setEditing(null);
-          }}
-          onDelete={
-            editing === "new"
-              ? undefined
-              : async () => {
-                  await recipes.remove(editing.id);
-                  setEditing(null);
-                }
-          }
-          onClose={() => setEditing(null)}
-        />
-      )}
-    </>
+    </Sheet>
   );
 }
 

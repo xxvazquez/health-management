@@ -62,8 +62,8 @@ Sections: **Food · Symptoms · Supplements · Habits · Stool · Workout · Cyc
 
 - The current meal's foods sit above the list as removable chips ("Dinner · 3"). "Copy to…" logs them under another meal or day.
 - **Usual:** what you log most at the chosen meal, most-logged first (the last 60 days count first).
-- **Month picks** (e.g. "Oct picks"): in-season foods you haven't eaten lately.
-- **Recipes:** tap one to log all its foods; ⓘ edits its foods, amounts (g, ml…), steps and rating.
+- **In season** (under Usual): this month's in-season foods you haven't eaten lately; tap to log, × to hide.
+- **Recipes** (a row under Usual, opens a sheet): tap one to log all its foods; ⓘ edits its foods, amounts (g, ml…), steps and rating.
 - **Products:** log a whole product's ingredients in one tap.
 
 #### Summary

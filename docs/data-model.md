@@ -138,7 +138,7 @@ join table `recipe_ingredients` (`user_id, recipe_id, item_id, amount,
 unit, sort_order`, primary key on the first three; `unit` one of
 `g/ml/pcs/tsp/tbsp/cup`, set only with an `amount`) are meals worth making
 again, usually saved from a logged meal ("Save as recipe") and kept on
-Log → Food → Recipes. Direct-to-Supabase like `food_products`; ingredients
+Log → Food → Usual → Recipes. Direct-to-Supabase like `food_products`; ingredients
 cascade with the recipe, and `item_id` is `on delete restrict` like every
 other `food_items` reference. Rated meals and rated recipes feed "Combos
 you love" (`src/lib/aggregations/favouriteCombos.ts`).

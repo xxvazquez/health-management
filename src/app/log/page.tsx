@@ -80,7 +80,7 @@ import { ROW_INLINE_CLS, ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formFie
 import { AutoGrowTextarea } from "@/components/ui/AutoGrowTextarea";
 import { StarRating } from "@/components/ui/StarRating";
 import { useRecipes } from "@/lib/useRecipes";
-import { RecipeList } from "@/components/recipes/Recipes";
+import { RecipesSheet } from "@/components/recipes/Recipes";
 import type { Recipe } from "@/lib/supabase/recipes";
 import { CheckIcon, ChevronIcon, CloseIcon, PlusIcon, UpDownChevronIcon } from "@/components/ui/icons";
 import { CustomIcon, customColorValue, defaultCategoryIcon } from "@/components/ui/customIcons";
@@ -143,8 +143,6 @@ const EXPANDED_CATEGORIES_STORAGE_KEY = "lauva.log.expandedCategories";
 const USUAL_TAB = "__usual__";
 /** How far back "Usual" looks first when ranking a meal's foods. */
 const USUAL_RECENT_DAYS = 60;
-const PICKS_TAB = "__picks__";
-const RECIPES_TAB = "__recipes__";
 
 function categoryStorageKey(itemType: ItemType, category: string): string {
   return `${itemType}:${category}`;
@@ -541,6 +539,7 @@ export default function LogPage() {
   const recipes = useRecipes();
   // The meal (date|tag) just saved as a recipe, so its sheet links there.
   const [savedRecipeFor, setSavedRecipeFor] = useState<string | null>(null);
+  const [recipesOpen, setRecipesOpen] = useState(false);
   const foodProductsRef = useOverflowFade<HTMLDivElement>();
   const loggedMealRef = useOverflowFade<HTMLDivElement>();
 
@@ -1966,10 +1965,9 @@ export default function LogPage() {
 
   function renderFoodByCategory(groups: { category: string; items: LogCandidate[] }[]) {
     if (groups.length === 0) return null;
-    const usual = frequentFoods.length >= 3 ? { category: USUAL_TAB, items: frequentFoods } : null;
-    const picks = hasSeasonalPicks ? { category: PICKS_TAB, items: [] } : null;
-    const recipesTab = { category: RECIPES_TAB, items: [] };
-    const tabs = [usual, picks, recipesTab, ...groups].filter((g): g is { category: string; items: LogCandidate[] } => g !== null);
+    // Usual also holds the month's seasonal picks, so it shows whenever either has something.
+    const usual = frequentFoods.length >= 3 || hasSeasonalPicks ? { category: USUAL_TAB, items: frequentFoods.length >= 3 ? frequentFoods : [] } : null;
+    const tabs = usual ? [usual, ...groups] : groups;
     const active = tabs.find((g) => g.category === foodCategory) ?? tabs[0];
     return (
       <div className="flex flex-col gap-3">
@@ -1979,28 +1977,43 @@ export default function LogPage() {
           accent: TYPE_ACCENT.food,
           tabs: tabs.map((g) => ({
             id: g.category,
-            label: g.category === USUAL_TAB ? "Usual" : g.category === PICKS_TAB ? `${monthShort} picks` : g === recipesTab ? "Recipes" : g.category,
-            icon:
-              g.category === USUAL_TAB ? (
-                <CustomIcon icon="star" size={14} />
-              ) : g.category === PICKS_TAB ? (
-                <CustomIcon icon="calendar" size={14} />
-              ) : g === recipesTab ? (
-                <CustomIcon icon="book" size={14} />
-              ) : (
-                railIcon("food", g.category)
-              ),
-            logged: g === picks || g === recipesTab ? 0 : loggedIn(g.items),
+            label: g === usual ? "Usual" : g.category,
+            icon: g === usual ? <CustomIcon icon="star" size={14} /> : railIcon("food", g.category),
+            logged: loggedIn(g.items),
           })),
           activeId: active.category,
           onSelect: setFoodCategory,
           body:
-            active === picks ? (
-              seasonalPicksPanel
-            ) : active === recipesTab ? (
-              <RecipeList recipes={recipes} accent={TYPE_ACCENT.food} onLog={isDemoData ? undefined : (r) => void handleLogRecipe(r)} pendingId={pending?.startsWith("recipe:") ? pending.slice(7) : null} />
+            active === usual ? (
+              <div className="flex flex-col gap-4">
+                {usual.items.length > 0 && renderItemList(usual.items, renderChip, true)}
+                <button
+                  type="button"
+                  onClick={() => setRecipesOpen(true)}
+                  aria-haspopup="dialog"
+                  className="flex min-h-11 w-full items-center gap-3 rounded-xl border px-3.5 text-left text-sm"
+                  style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
+                >
+                  <span style={{ color: TYPE_ACCENT.food }}>
+                    <CustomIcon icon="book" size={16} />
+                  </span>
+                  <span className="flex-1">Recipes</span>
+                  <span style={{ color: "var(--text-secondary)" }}>{recipes.data.length || ""}</span>
+                  <span style={{ color: "var(--text-muted)" }}>
+                    <ChevronIcon dir="right" size={13} />
+                  </span>
+                </button>
+                {hasSeasonalPicks && (
+                  <section className="flex flex-col gap-1.5">
+                    <h3 className="px-3.5 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
+                      In season · {monthShort}
+                    </h3>
+                    {seasonalPicksPanel}
+                  </section>
+                )}
+              </div>
             ) : (
-              renderItemList(active.items, renderChip, active === usual)
+              renderItemList(active.items, renderChip)
             ),
         })}
       </div>
@@ -2756,6 +2769,24 @@ export default function LogPage() {
           </div>
         </div>
       )}
+      {recipesOpen && (
+        <RecipesSheet
+          recipes={recipes}
+          accent={TYPE_ACCENT.food}
+          meal={meal}
+          onLog={
+            isDemoData
+              ? undefined
+              : (r) =>
+                  void handleLogRecipe(r).then(() => {
+                    setRecipesOpen(false);
+                    selectTab("food");
+                  })
+          }
+          pendingId={pending?.startsWith("recipe:") ? pending.slice(7) : null}
+          onClose={() => setRecipesOpen(false)}
+        />
+      )}
       {workoutMerge &&
         (() => {
           const { existing, value, unit } = workoutMerge;
@@ -2828,13 +2859,12 @@ export default function LogPage() {
                   type="button"
                   onClick={() => {
                     setMealSheetTag(null);
-                    setFoodCategory(RECIPES_TAB);
-                    selectTab("food");
+                    setRecipesOpen(true);
                   }}
                   className="flex min-h-11 w-full items-center gap-2 px-3.5 text-left text-sm"
                   style={{ color: TYPE_ACCENT.food }}
                 >
-                  Saved to Food → Recipes
+                  Saved to Recipes
                   <span className="ml-auto" style={{ color: "var(--text-muted)" }}>
                     <ChevronIcon dir="right" size={13} />
                   </span>
