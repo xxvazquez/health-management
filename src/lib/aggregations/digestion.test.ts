@@ -3,18 +3,17 @@ import {
   averageTimeOnToiletMinutes,
   bristolAssessedDates,
   bristolBandDistribution,
-  bristolMonthlyScoreAverage,
   bristolScoreSeries,
-  bristolTargetRangeChange,
   bristolTypeDates,
-  digestionInsight,
-  digestiveSymptomRateChange,
+  digestiveSymptomDays,
+  digestiveSymptomDetail,
   hygieneDistribution,
-  stoolCharacteristicStats,
   stoolColorDistribution,
-  stoolSymptomStats,
+  movementSummary,
+  timeOfDay,
+  withMovementStats,
 } from "./digestion";
-import { makeStoolLog } from "@/lib/testFixtures";
+import { makeEvent, makeStoolLog } from "@/lib/testFixtures";
 
 describe("bristolAssessedDates", () => {
   it("returns every logged date", () => {
@@ -61,56 +60,6 @@ describe("bristolBandDistribution", () => {
   });
 });
 
-describe("bristolTargetRangeChange", () => {
-  it("reports insufficientData for no logs", () => {
-    const result = bristolTargetRangeChange([]);
-    expect(result.insufficientData).toBe(true);
-    expect(result.recentPct).toBeNull();
-  });
-
-  it("reports insufficientData when the recent window has fewer than 4 entries", () => {
-    const logs = [makeStoolLog({ date: "2026-01-01" }), makeStoolLog({ date: "2026-01-02" })];
-    const result = bristolTargetRangeChange(logs);
-    expect(result.insufficientData).toBe(true);
-    expect(result.recentTotal).toBe(2);
-  });
-
-  it("computes recentPct with no prior-window comparison when the prior window lacks data", () => {
-    const logs = [
-      makeStoolLog({ date: "2026-01-01", bristolScores: [4] }),
-      makeStoolLog({ date: "2026-01-02", bristolScores: [4] }),
-      makeStoolLog({ date: "2026-01-03", bristolScores: [1] }),
-      makeStoolLog({ date: "2026-01-04", bristolScores: [4] }),
-    ];
-    const result = bristolTargetRangeChange(logs);
-    expect(result.insufficientData).toBe(false);
-    expect(result.recentPct).toBe(75); // 3 of 4 entries have a Normal (3-4) reading
-    expect(result.priorPct).toBeNull();
-  });
-
-  it("counts an entry as in-target if any one of its multiple scores lands in the 3-4 band", () => {
-    const logs = [
-      makeStoolLog({ date: "2026-01-01", bristolScores: [1, 4] }), // has a 4, counts
-      makeStoolLog({ date: "2026-01-02", bristolScores: [1, 2] }), // no 3/4, doesn't count
-      makeStoolLog({ date: "2026-01-03", bristolScores: [3] }),
-      makeStoolLog({ date: "2026-01-04", bristolScores: [4] }),
-    ];
-    const result = bristolTargetRangeChange(logs);
-    expect(result.recentPct).toBe(75); // 3 of 4 entries
-  });
-
-  it("counts every entry in the denominator, not just in-target ones", () => {
-    const logs = [
-      makeStoolLog({ date: "2026-01-01", bristolScores: [4] }),
-      makeStoolLog({ date: "2026-01-02", bristolScores: [1] }),
-      makeStoolLog({ date: "2026-01-03", bristolScores: [1] }),
-      makeStoolLog({ date: "2026-01-04", bristolScores: [6] }),
-    ];
-    const result = bristolTargetRangeChange(logs);
-    expect(result.recentPct).toBe(25); // only 1 of 4 entries is in target
-  });
-});
-
 describe("bristolScoreSeries", () => {
   it("excludes entries with no scores", () => {
     const logs = [makeStoolLog({ bristolScores: [] })];
@@ -133,45 +82,6 @@ describe("bristolScoreSeries", () => {
     ];
     const series = bristolScoreSeries(logs);
     expect(series.map((p) => p.value)).toEqual([1, 7, 4]);
-  });
-});
-
-describe("bristolMonthlyScoreAverage", () => {
-  it("averages every individual score (including from multi-score entries) within a month", () => {
-    const logs = [
-      makeStoolLog({ date: "2026-01-05", bristolScores: [2, 6] }), // avg contribution: 2 and 6
-      makeStoolLog({ date: "2026-01-20", bristolScores: [4] }),
-    ];
-    const [point] = bristolMonthlyScoreAverage(logs);
-    expect(point.monthStart).toBe("2026-01-01");
-    expect(point.count).toBe(3);
-    expect(point.avgScore).toBe(4); // (2 + 6 + 4) / 3
-  });
-
-  it("keeps separate months separate", () => {
-    const logs = [makeStoolLog({ date: "2026-01-15", bristolScores: [4] }), makeStoolLog({ date: "2026-02-15", bristolScores: [2] })];
-    const points = bristolMonthlyScoreAverage(logs);
-    expect(points.map((p) => p.monthStart)).toEqual(["2026-01-01", "2026-02-01"]);
-  });
-});
-
-describe("stoolCharacteristicStats", () => {
-  it("omits a characteristic with zero occurrences", () => {
-    const logs = [makeStoolLog({ characteristics: [] })];
-    expect(stoolCharacteristicStats(logs)).toEqual([]);
-  });
-
-  it("counts and sorts characteristics by frequency descending", () => {
-    const logs = [
-      makeStoolLog({ characteristics: ["Sticky"] }),
-      makeStoolLog({ characteristics: ["Sticky", "Smelly"] }),
-      makeStoolLog({ characteristics: ["Sticky"] }),
-      makeStoolLog({ characteristics: ["Smelly"] }),
-    ];
-    const stats = stoolCharacteristicStats(logs);
-    expect(stats.map((s) => s.label)).toEqual(["Sticky", "Smelly"]);
-    expect(stats[0]).toMatchObject({ label: "Sticky", count: 3 });
-    expect(stats[1]).toMatchObject({ label: "Smelly", count: 2 });
   });
 });
 
@@ -199,19 +109,6 @@ describe("stoolColorDistribution / hygieneDistribution", () => {
   });
 });
 
-describe("stoolSymptomStats", () => {
-  it("counts each symptom across entries, sorted by frequency", () => {
-    const logs = [
-      makeStoolLog({ symptoms: ["Urgency", "Mucus"] }),
-      makeStoolLog({ symptoms: ["Urgency"] }),
-      makeStoolLog({ symptoms: [] }),
-    ];
-    const stats = stoolSymptomStats(logs);
-    expect(stats[0]).toMatchObject({ label: "Urgency", count: 2 });
-    expect(stats.find((s) => s.label === "Mucus")).toMatchObject({ count: 1 });
-  });
-});
-
 describe("averageTimeOnToiletMinutes", () => {
   it("returns null when nothing recorded a duration", () => {
     expect(averageTimeOnToiletMinutes([makeStoolLog({ timeOnToiletMinutes: null })])).toBeNull();
@@ -223,58 +120,46 @@ describe("averageTimeOnToiletMinutes", () => {
   });
 });
 
-describe("digestiveSymptomRateChange", () => {
-  it("reports insufficientData for no tracked dates", () => {
-    expect(digestiveSymptomRateChange([]).insufficientData).toBe(true);
+describe("movementSummary", () => {
+  it("averages a day from the first movement ever logged, not the whole range", () => {
+    const logs = ["2026-01-05", "2026-01-06", "2026-01-06", "2026-01-08"].map((date) => makeStoolLog({ date }));
+    expect(movementSummary(logs, { start: "2026-01-01", end: "2026-01-08" })).toEqual({ count: 4, perDay: 1 });
   });
 });
 
-describe("digestionInsight", () => {
-  it("reports insufficientData for no stool logs at all", () => {
-    const result = digestionInsight([], []);
-    expect(result.insufficientData).toBe(true);
-    expect(result.detail).toBeNull();
+describe("digestive symptom days", () => {
+  const symptom = (date: string, item = "Bloating", updatedAt: string | null = null) =>
+    makeEvent({ date, item, itemType: "outcome", category: "Digestive Symptom", value: 1, completed: true, updatedAt });
+  const other = (date: string) => makeEvent({ date, item: "Headache", itemType: "outcome", category: "Other Symptom", value: 1, completed: true });
+
+  it("counts days with a digestive symptom out of the days symptoms were logged", () => {
+    const events = [symptom("2026-01-02"), symptom("2026-01-02", "Gas"), other("2026-01-03"), symptom("2026-01-04")];
+    const { now } = digestiveSymptomDays(events, { start: "2026-01-02", end: "2026-01-04" });
+    expect(now).toEqual({ days: 2, trackedDays: 3 });
   });
 
-  it("mentions older data exists when there is history but not enough in the recent window", () => {
-    const logs = [makeStoolLog({ date: "2020-01-01" }), makeStoolLog({ date: "2020-01-02" })];
-    const result = digestionInsight([], logs);
-    expect(result.insufficientData).toBe(true);
-    expect(result.detail).toContain("older data");
+  it("gives a symptom's bars, usual time of day and last occurrence", () => {
+    const events = [symptom("2026-01-02", "Bloating", "2026-01-02T19:30:00"), other("2026-01-03"), symptom("2026-01-04", "Bloating", "2026-01-04T20:15:00")];
+    const detail = digestiveSymptomDetail(events, "Bloating", { start: "2026-01-01", end: "2026-01-04" });
+    expect(detail.bars.map((b) => b.value)).toEqual([null, 1, 0, 1]);
+    expect(detail.mostOften).toBe("Evening");
+    expect(detail.last).toEqual({ date: "2026-01-04", at: "2026-01-04T20:15:00" });
+    expect(detail.now).toEqual({ days: 2, trackedDays: 3 });
   });
+});
 
-  it("produces a headline percentage once there's enough recent data", () => {
-    const logs = [
-      makeStoolLog({ date: "2026-01-01", bristolScores: [4] }),
-      makeStoolLog({ date: "2026-01-02", bristolScores: [4] }),
-      makeStoolLog({ date: "2026-01-03", bristolScores: [4] }),
-      makeStoolLog({ date: "2026-01-04", bristolScores: [4] }),
-    ];
-    const result = digestionInsight([], logs);
-    expect(result.insufficientData).toBe(false);
-    expect(result.headline).toContain("100%");
+describe("timeOfDay", () => {
+  it("splits the day into morning, afternoon, evening and night", () => {
+    expect([4, 5, 12, 17, 22].map(timeOfDay)).toEqual(["Night", "Morning", "Afternoon", "Evening", "Night"]);
   });
+});
 
-  it("says 'held steady' when the recent vs prior share barely moved", () => {
-    const logs = [
-      // Recent 30-day window — all in the 3–4 band
-      ...["2026-02-10", "2026-02-11", "2026-02-12", "2026-02-13"].map((date) => makeStoolLog({ date, bristolScores: [4] })),
-      // Prior 30-day window — also all in the 3–4 band
-      ...["2025-12-20", "2025-12-21", "2025-12-22", "2025-12-23"].map((date) => makeStoolLog({ date, bristolScores: [4] })),
-    ];
-    const result = digestionInsight([], logs);
-    expect(result.headline).toContain("held steady");
-    expect(result.headline).not.toContain("compared with");
-    expect(result.detail).toBeNull();
-  });
-
-  it("names the direction when the share shifted by more than the noise threshold", () => {
-    const logs = [
-      ...["2026-02-10", "2026-02-11", "2026-02-12", "2026-02-13"].map((date) => makeStoolLog({ date, bristolScores: [4] })),
-      ...["2025-12-20", "2025-12-21", "2025-12-22", "2025-12-23"].map((date) => makeStoolLog({ date, bristolScores: [6] })),
-    ];
-    const result = digestionInsight([], logs);
-    expect(result.headline).toContain("up from 0%");
-    expect(result.detail).toContain("higher");
+describe("withMovementStats", () => {
+  it("merges characteristics and movement symptoms, counted once per movement", () => {
+    const logs = [makeStoolLog({ characteristics: ["Sticky"], symptoms: ["Urgency"] }), makeStoolLog({ characteristics: [], symptoms: ["Urgency"] })];
+    expect(withMovementStats(logs)).toEqual([
+      { label: "Urgency", count: 2, total: 2 },
+      { label: "Sticky", count: 1, total: 2 },
+    ]);
   });
 });

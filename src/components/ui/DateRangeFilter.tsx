@@ -27,7 +27,7 @@ interface Props {
   accent?: string;
 }
 
-const DEFAULT_PRESETS: DateRangePreset[] = [
+export const DEFAULT_PRESETS: DateRangePreset[] = [
   { label: "7 days", days: 7 },
   { label: "30 days", days: 30 },
   { label: "90 days", days: 90 },

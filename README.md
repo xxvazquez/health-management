@@ -94,7 +94,7 @@ One dashboard per Log section, plus Patterns. The time range sits in the title r
 | Food | Overview (meals a week against your food targets), Variety, Meal patterns, Combinations (including the combos you rate highest), Ingredients |
 | Patterns | Symptoms, low mood and low energy (a check-in of 1–2) that show up more or less often after a food or supplement, or in a cycle phase, tested for chance; Explore compares any pair |
 | Supplements, Habits | A card per item with the days you logged it and consistency against its schedule; archived ones list their course dates and consistency |
-| Digestion | Bristol types, bowel movements and digestive symptoms |
+| Digestion | Every Bristol reading on a dot chart (hard / normal / loose counts under it), movements a day, symptom days against the previous period, each digestive symptom with its own day-by-day screen, what came with bowel movements, usual colour, hygiene and time |
 | Workout | Recent sessions and each exercise over time |
 | Cycle | Current cycle day, the next period, average cycle and period length, average mood and energy per phase |
 

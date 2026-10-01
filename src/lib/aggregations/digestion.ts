@@ -1,7 +1,6 @@
 import type { CanonicalEvent, RawStoolLog } from "@/lib/types";
-import { addDaysToDate, getDatasetSpan, isoWeekStart, monthStart, pct, round1, symptomTrackedDates } from "./common";
+import { addDaysToDate, daysBetween, listDatesBetween, pct, round1, symptomTrackedDates, type DateRange } from "./common";
 import { computeItemStatsForFilter, type ItemStats } from "./itemStats";
-import type { Bullet, InsightTone } from "./insights";
 
 /**
  * Dates any bowel movement was logged — "we know the outcome that day" for
@@ -72,56 +71,6 @@ export function bristolBandDistribution(stoolLogs: RawStoolLog[]): BristolBandEn
     .map((band) => ({ band, count: counts.get(band) ?? 0, sharePct: pct(counts.get(band) ?? 0, total) }));
 }
 
-const TARGET_RANGE_WINDOW_DAYS = 30;
-const MIN_WINDOW_ENTRIES = 4;
-
-export interface BristolTargetRangeChange {
-  /** True only when even the most recent window lacks enough data to say anything. */
-  insufficientData: boolean;
-  recentPct: number | null;
-  recentTotal: number;
-  /** Null when the prior window doesn't have enough data — no comparison offered, but recentPct still stands alone. */
-  priorPct: number | null;
-  priorTotal: number;
-}
-
-/**
- * Last-30-days vs previous-30-days share of entries in the 3–4 target
- * band — the quantified "how often am I actually in my desired range, and
- * is that changing" comparison the hero insight and the target-range stat
- * tile are built from.
- */
-export function bristolTargetRangeChange(stoolLogs: RawStoolLog[]): BristolTargetRangeChange {
-  if (stoolLogs.length === 0) {
-    return { insufficientData: true, recentPct: null, recentTotal: 0, priorPct: null, priorTotal: 0 };
-  }
-  const lastDate = stoolLogs.reduce((max, s) => (s.date > max ? s.date : max), stoolLogs[0].date);
-  const recentStart = addDaysToDate(lastDate, -(TARGET_RANGE_WINDOW_DAYS - 1));
-  const priorEnd = addDaysToDate(recentStart, -1);
-  const priorStart = addDaysToDate(priorEnd, -(TARGET_RANGE_WINDOW_DAYS - 1));
-
-  const recent = stoolLogs.filter((s) => s.date >= recentStart && s.date <= lastDate);
-  const prior = stoolLogs.filter((s) => s.date >= priorStart && s.date <= priorEnd);
-
-  if (recent.length < MIN_WINDOW_ENTRIES) {
-    return { insufficientData: true, recentPct: null, recentTotal: recent.length, priorPct: null, priorTotal: prior.length };
-  }
-
-  // Denominator is every logged entry (matches the headline's "share of
-  // recorded stools" framing). An entry with more than one score counts
-  // toward the numerator if any one of them lands in the target band.
-  const shareInTarget = (list: RawStoolLog[]) =>
-    pct(list.filter((s) => s.bristolScores.some((sc) => bandForScore(sc) === "Normal (3–4)")).length, list.length);
-
-  return {
-    insufficientData: false,
-    recentPct: shareInTarget(recent),
-    recentTotal: recent.length,
-    priorPct: prior.length >= MIN_WINDOW_ENTRIES ? shareInTarget(prior) : null,
-    priorTotal: prior.length,
-  };
-}
-
 export interface BristolScorePoint {
   id: string;
   date: string;
@@ -141,68 +90,6 @@ export function bristolScoreSeries(stoolLogs: RawStoolLog[]): BristolScorePoint[
       return a.loggedAt.localeCompare(b.loggedAt);
     })
     .map(({ id, date, score }, i) => ({ id: `${id}:${i}`, date, value: score }));
-}
-
-export interface BristolMonthlyAveragePoint {
-  monthStart: string;
-  avgScore: number;
-  count: number;
-}
-
-/**
- * Monthly average Bristol score — used in place of `bristolScoreSeries`
- * only once a selected range is long enough (roughly 4+ months) that
- * plotting every individual observation would be an unreadable wall of
- * points.
- */
-export function bristolMonthlyScoreAverage(stoolLogs: RawStoolLog[]): BristolMonthlyAveragePoint[] {
-  const scored = flattenedBristolScores(stoolLogs).map((s) => ({ month: monthStart(s.date), value: s.score }));
-
-  const byMonth = new Map<string, { sum: number; count: number }>();
-  for (const e of scored) {
-    const bucket = byMonth.get(e.month) ?? { sum: 0, count: 0 };
-    bucket.sum += e.value;
-    bucket.count += 1;
-    byMonth.set(e.month, bucket);
-  }
-
-  return Array.from(byMonth.entries())
-    .map(([month, { sum, count }]) => ({ monthStart: month, avgScore: round1(sum / count), count }))
-    .sort((a, b) => a.monthStart.localeCompare(b.monthStart));
-}
-
-export interface StoolCharacteristicCount {
-  label: string;
-  count: number;
-  sharePct: number;
-}
-
-/** How often each stool property (Sticky, Smelly, Straining by default;
- * user-editable) showed up, out of every logged entry. Symptoms tied to
- * the movement are counted separately (`stoolSymptomStats`). */
-export function stoolCharacteristicStats(stoolLogs: RawStoolLog[]): StoolCharacteristicCount[] {
-  const total = stoolLogs.length;
-  if (total === 0) return [];
-  const counts = new Map<string, number>();
-  for (const s of stoolLogs) {
-    for (const label of s.characteristics) counts.set(label, (counts.get(label) ?? 0) + 1);
-  }
-  return [...counts.entries()]
-    .map(([label, count]) => ({ label, count, sharePct: pct(count, total) }))
-    .filter((c) => c.count > 0)
-    .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
-}
-
-/** How often each movement-level symptom (urgency, mucus, cramps, …) was
- * logged, out of every entry. */
-export function stoolSymptomStats(stoolLogs: RawStoolLog[]): StoolCharacteristicCount[] {
-  const total = stoolLogs.length;
-  if (total === 0) return [];
-  const counts = new Map<string, number>();
-  for (const s of stoolLogs) for (const sym of s.symptoms) counts.set(sym, (counts.get(sym) ?? 0) + 1);
-  return Array.from(counts.entries())
-    .map(([label, count]) => ({ label, count, sharePct: pct(count, total) }))
-    .sort((a, b) => b.count - a.count);
 }
 
 export interface StoolDistributionEntry {
@@ -244,167 +131,125 @@ export function averageTimeOnToiletMinutes(stoolLogs: RawStoolLog[]): number | n
   return round1(withDuration.reduce((sum, s) => sum + (s.timeOnToiletMinutes as number), 0) / withDuration.length);
 }
 
-const SYMPTOM_RATE_WINDOW_DAYS = 30;
-const MIN_SYMPTOM_WINDOW_TRACKED_DAYS = 5;
-
-export interface DigestiveSymptomRateChange {
-  insufficientData: boolean;
-  recentPct: number | null;
-  priorPct: number | null;
-}
-
-/**
- * Last-30-days vs previous-30-days share of tracked days with a digestive
- * symptom logged — the "at a glance" companion to `bristolTargetRangeChange`.
- * Uses every day symptoms were being tracked (not just Bristol-assessed
- * days) as the denominator, since a symptom day is meaningful whether or
- * not a stool was also logged.
- */
-export function digestiveSymptomRateChange(events: CanonicalEvent[]): DigestiveSymptomRateChange {
-  const trackedDates = Array.from(symptomTrackedDates(events)).sort();
-  if (trackedDates.length === 0) return { insufficientData: true, recentPct: null, priorPct: null };
-  const lastDate = trackedDates[trackedDates.length - 1];
-  const recentStart = addDaysToDate(lastDate, -(SYMPTOM_RATE_WINDOW_DAYS - 1));
-  const priorEnd = addDaysToDate(recentStart, -1);
-  const priorStart = addDaysToDate(priorEnd, -(SYMPTOM_RATE_WINDOW_DAYS - 1));
-
-  const symptomDates = new Set(events.filter((e) => e.category === "Digestive Symptom" && e.completed).map((e) => e.date));
-  const recentTracked = trackedDates.filter((d) => d >= recentStart && d <= lastDate);
-  const priorTracked = trackedDates.filter((d) => d >= priorStart && d <= priorEnd);
-
-  if (recentTracked.length < MIN_SYMPTOM_WINDOW_TRACKED_DAYS) {
-    return { insufficientData: true, recentPct: null, priorPct: null };
-  }
-  return {
-    insufficientData: false,
-    recentPct: pct(recentTracked.filter((d) => symptomDates.has(d)).length, recentTracked.length),
-    priorPct:
-      priorTracked.length >= MIN_SYMPTOM_WINDOW_TRACKED_DAYS
-        ? pct(priorTracked.filter((d) => symptomDates.has(d)).length, priorTracked.length)
-        : null,
-  };
-}
-
 export function digestiveSymptomStats(events: CanonicalEvent[]): ItemStats[] {
   return computeItemStatsForFilter(events, (e) => e.category === "Digestive Symptom");
 }
 
-export function otherSymptomStats(events: CanonicalEvent[]): ItemStats[] {
-  return computeItemStatsForFilter(events, (e) => e.category === "Other Symptom");
+/** The same-length period just before `range`. */
+export function previousRange(range: DateRange): DateRange {
+  const len = daysBetween(range.start, range.end) + 1;
+  return { start: addDaysToDate(range.start, -len), end: addDaysToDate(range.start, -1) };
 }
 
-/** Fiber intake (still logged via the Supplements tab, since it's something
- * taken rather than an outcome) — surfaced here instead of on the
- * Supplements dashboard, since fiber is tracked for its digestive relevance. */
-export function fiberStats(events: CanonicalEvent[]): ItemStats[] {
-  return computeItemStatsForFilter(events, (e) => e.itemType === "supplement" && e.category === "Fiber");
+function inRange(date: string, range: DateRange): boolean {
+  return date >= range.start && date <= range.end;
 }
 
-export interface SymptomWeeklyPoint {
-  weekStart: string;
-  counts: Record<string, number>;
+export interface MovementSummary {
+  count: number;
+  /** Bowel movements a day, over the range from the first one ever logged. */
+  perDay: number | null;
 }
 
-/** Weekly symptom-occurrence counts per symptom item, for a trend chart. */
-export function symptomFrequencyOverTime(events: CanonicalEvent[]): SymptomWeeklyPoint[] {
-  const symptomEvents = events.filter(
-    (e) => (e.category === "Digestive Symptom" || e.category === "Other Symptom") && e.completed,
+export function movementSummary(stoolLogs: RawStoolLog[], range: DateRange): MovementSummary {
+  const first = stoolLogs.reduce<string | null>((min, s) => (min === null || s.date < min ? s.date : min), null);
+  const count = stoolLogs.filter((s) => inRange(s.date, range)).length;
+  if (!first || first > range.end) return { count, perDay: null };
+  const start = first > range.start ? first : range.start;
+  return { count, perDay: round1(count / (daysBetween(start, range.end) + 1)) };
+}
+
+export interface SymptomDaysCount {
+  /** Days with at least one matching symptom. */
+  days: number;
+  /** Days symptoms were being logged at all — the honest denominator. */
+  trackedDays: number;
+}
+
+function symptomDays(events: CanonicalEvent[], range: DateRange, tracked: Set<string>, item?: string): SymptomDaysCount {
+  const present = new Set(
+    events.filter((e) => e.category === "Digestive Symptom" && e.completed && (!item || e.item === item) && inRange(e.date, range)).map((e) => e.date),
   );
-  const byWeek = new Map<string, Record<string, number>>();
-  for (const e of symptomEvents) {
-    const week = isoWeekStart(e.date);
-    const rec = byWeek.get(week) ?? {};
-    rec[e.item] = (rec[e.item] ?? 0) + 1;
-    byWeek.set(week, rec);
-  }
-  return Array.from(byWeek.entries())
-    .map(([weekStart, counts]) => ({ weekStart, counts }))
-    .sort((a, b) => a.weekStart.localeCompare(b.weekStart));
+  return { days: present.size, trackedDays: [...tracked].filter((d) => inRange(d, range)).length };
 }
 
-export interface DigestionInsight {
-  insufficientData: boolean;
-  headline: string;
-  detail: string | null;
-  /** Always "neutral" — this page describes what changed, never whether a
-   * pattern is good or bad. Bristol banding has an established clinical
-   * reading, but Lauva doesn't apply it as a verdict on a person's own
-   * data; kept as a field for consistency with other pages' Insight usage,
-   * not because a value judgment is ever made here. */
-  tone: InsightTone;
-  changed: Bullet[];
+/** Days with any digestive symptom in `range` and the period before it. */
+export function digestiveSymptomDays(events: CanonicalEvent[], range: DateRange): { now: SymptomDaysCount; before: SymptomDaysCount } {
+  const tracked = symptomTrackedDates(events);
+  return { now: symptomDays(events, range, tracked), before: symptomDays(events, previousRange(range), tracked) };
 }
 
-const RECENT_WINDOW_DAYS = 21;
-const MIN_TRACKED_DAYS_FOR_SYMPTOM_COMPARE = 10;
-const SYMPTOM_RATE_DRIFT_PP = 15;
-/** Minimum percentage-point gap between the two 30-day windows worth calling out in `detail` — below this, the two windows read as "about the same" rather than manufacturing a direction out of noise. */
-const TARGET_RANGE_NOTABLE_DIFF_PP = 10;
+export type TimeOfDay = "Morning" | "Afternoon" | "Evening" | "Night";
 
-/**
- * "What stands out" — the primary Digestion-page insight. Leads with the
- * quantified last-30-days-vs-previous-30-days share of entries in the 3–4
- * target range (the actual question this page exists to answer — "how
- * often am I in my desired range, and is that changing"), then adds
- * digestive-symptom-frequency drift as a supporting bullet. Never a
- * diagnosis — describes what was logged, not what it means medically (no
- * "constipation", "IBS", etc.).
- */
-export function digestionInsight(events: CanonicalEvent[], stoolLogs: RawStoolLog[]): DigestionInsight {
-  const rangeChange = bristolTargetRangeChange(stoolLogs);
-  if (rangeChange.insufficientData) {
-    return {
-      insufficientData: true,
-      headline: "Not enough recent observations to identify a stable pattern.",
-      detail: stoolLogs.length > 0 ? "There's older data on this page, but not enough logged in the last 30 days to say anything current." : null,
-      tone: "neutral",
-      changed: [],
-    };
+export function timeOfDay(hour: number): TimeOfDay {
+  if (hour >= 5 && hour < 12) return "Morning";
+  if (hour >= 12 && hour < 17) return "Afternoon";
+  if (hour >= 17 && hour < 22) return "Evening";
+  return "Night";
+}
+
+export interface SymptomPeriodBar {
+  date: string;
+  /** Share of the bucket's tracked days with the symptom, 0–1; null when
+   * symptoms weren't logged at all then. */
+  value: number | null;
+}
+
+export interface DigestiveSymptomDetail {
+  now: SymptomDaysCount;
+  before: SymptomDaysCount;
+  /** One bar a day for ranges up to 92 days, one a week beyond that. */
+  bars: SymptomPeriodBar[];
+  barUnit: "day" | "week";
+  mostOften: TimeOfDay | null;
+  /** The most recent occurrence ever: its date and, when known, its log time. */
+  last: { date: string; at: string | null } | null;
+}
+
+const MAX_DAILY_BARS = 92;
+
+export function digestiveSymptomDetail(events: CanonicalEvent[], item: string, range: DateRange): DigestiveSymptomDetail {
+  const tracked = symptomTrackedDates(events);
+  const occurrences = events.filter((e) => e.category === "Digestive Symptom" && e.completed && e.item === item);
+  const presentDates = new Set(occurrences.map((e) => e.date));
+
+  const dates = listDatesBetween(range.start, range.end);
+  const barUnit = dates.length > MAX_DAILY_BARS ? "week" : "day";
+  const step = barUnit === "week" ? 7 : 1;
+  const bars: SymptomPeriodBar[] = [];
+  for (let i = 0; i < dates.length; i += step) {
+    const bucket = dates.slice(i, i + step).filter((d) => tracked.has(d));
+    bars.push({ date: dates[i], value: bucket.length === 0 ? null : bucket.filter((d) => presentDates.has(d)).length / bucket.length });
   }
 
-  const recentRounded = Math.round(rangeChange.recentPct!);
-  const priorRounded = rangeChange.priorPct !== null ? Math.round(rangeChange.priorPct) : null;
-  // A move under the notable threshold is noise — the headline says
-  // "held steady" rather than presenting a 1-point wobble as news.
-  const notableShift = priorRounded !== null && Math.abs(recentRounded - priorRounded) >= TARGET_RANGE_NOTABLE_DIFF_PP;
-  const headline =
-    priorRounded === null
-      ? `Bristol 3–4 made up ${recentRounded}% of recorded stools in the last 30 days.`
-      : notableShift
-        ? `Bristol 3–4 made up ${recentRounded}% of recorded stools in the last 30 days, ${recentRounded > priorRounded ? "up" : "down"} from ${priorRounded}% the 30 days before.`
-        : `Bristol 3–4 has held steady around ${recentRounded}% of recorded stools over the last two months.`;
-  const detail = notableShift
-    ? `That's a ${recentRounded > priorRounded ? "higher" : "lower"} share of your stools in the target range than the previous 30 days.`
-    : null;
-  const tone: InsightTone = "neutral";
-
-  const changed: Bullet[] = [];
-
-  const span = getDatasetSpan(events);
-  if (!span) return { insufficientData: false, headline, detail, tone, changed };
-
-  const windowStart = addDaysToDate(span.end, -(RECENT_WINDOW_DAYS - 1));
-
-  const trackedDates = Array.from(symptomTrackedDates(events)).sort();
-  const recentTrackedDates = trackedDates.filter((d) => d >= windowStart);
-  if (trackedDates.length >= MIN_TRACKED_DAYS_FOR_SYMPTOM_COMPARE && recentTrackedDates.length >= 5) {
-    const recentEvents = events.filter((e) => e.date >= windowStart);
-    const overallSymptomRate = pct(
-      new Set(events.filter((e) => e.category === "Digestive Symptom" && e.completed).map((e) => e.date)).size,
-      trackedDates.length,
-    );
-    const recentSymptomRate = pct(
-      new Set(recentEvents.filter((e) => e.category === "Digestive Symptom" && e.completed).map((e) => e.date)).size,
-      recentTrackedDates.length,
-    );
-    const diff = recentSymptomRate - overallSymptomRate;
-    const compact = `${Math.round(recentSymptomRate)}% recently · ${Math.round(overallSymptomRate)}% usual`;
-    if (diff >= SYMPTOM_RATE_DRIFT_PP) {
-      changed.push({ label: "Digestive symptoms", detail: "Logged more often than usual over the last 3 weeks.", compact });
-    } else if (diff <= -SYMPTOM_RATE_DRIFT_PP) {
-      changed.push({ label: "Digestive symptoms", detail: "Logged less often than usual over the last 3 weeks.", compact });
-    }
+  const counts = new Map<TimeOfDay, number>();
+  for (const e of occurrences) {
+    if (!inRange(e.date, range) || !e.updatedAt) continue;
+    const t = timeOfDay(new Date(e.updatedAt).getHours());
+    counts.set(t, (counts.get(t) ?? 0) + 1);
   }
+  const mostOften = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
 
-  return { insufficientData: false, headline, detail, tone, changed };
+  const latest = occurrences.reduce<CanonicalEvent | null>(
+    (best, e) => (!best || e.date > best.date || (e.date === best.date && (e.updatedAt ?? "") > (best.updatedAt ?? "")) ? e : best),
+    null,
+  );
+
+  return {
+    now: symptomDays(events, range, tracked, item),
+    before: symptomDays(events, previousRange(range), tracked, item),
+    bars,
+    barUnit,
+    mostOften,
+    last: latest ? { date: latest.date, at: latest.updatedAt } : null,
+  };
+}
+
+/** Stool characteristics and movement symptoms as one list — how many of
+ * the range's bowel movements had each. */
+export function withMovementStats(stoolLogs: RawStoolLog[]): { label: string; count: number; total: number }[] {
+  const total = stoolLogs.length;
+  const counts = new Map<string, number>();
+  for (const s of stoolLogs) for (const label of new Set([...s.characteristics, ...s.symptoms])) counts.set(label, (counts.get(label) ?? 0) + 1);
+  return [...counts.entries()].map(([label, count]) => ({ label, count, total })).sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
 }

@@ -18,12 +18,31 @@ const MAX_YEAR_LABELS = 6;
 
 /** Ticks for the whole selected window, not just where readings land —
  * always horizontal, the way Apple Health labels its charts: up to about
- * seven months a tick per month reading "Sep", up to about 14 months one
+ * seven weeks a tick a week ("8 Sept", "15"…; a tick a day within ten
+ * days), up to about seven months a tick per month reading "Sep", up to about 14 months one
  * per month as its initial ("J F M…"), and beyond that one per year
  * ("2019"), labelling every n-th year when there are too many to fit. A
  * January tick in the month views shows its year instead, so the turn of
  * the year stays readable. */
 export function windowAxis(minMs: number, maxMs: number): { ticks: number[]; format: (ms: number) => string } {
+  const days = (maxMs - minMs) / DAY;
+  if (days <= 50) {
+    // A tick a day for a week, else a tick a week, read as "8 Sept", "15", "22"…
+    const step = days <= 10 ? 1 : 7;
+    const ticks: number[] = [];
+    // Weekly ticks stay a couple of days in from both edges so no label is clipped.
+    const first = Math.ceil(minMs / DAY) * DAY + (step === 7 ? DAY * 2 : 0);
+    for (let t = first; t <= maxMs - (step === 7 ? DAY * 2 : 0); t += DAY * step) ticks.push(t);
+    return {
+      ticks,
+      format: (ms) => {
+        const d = new Date(ms);
+        const prev = new Date(ms - DAY * step);
+        const showMonth = ms === ticks[0] || prev.getUTCMonth() !== d.getUTCMonth();
+        return showMonth ? d.toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" }) : String(d.getUTCDate());
+      },
+    };
+  }
   const months = (maxMs - minMs) / (DAY * 30.44);
   if (months <= 14) {
     const first = new Date(minMs);
