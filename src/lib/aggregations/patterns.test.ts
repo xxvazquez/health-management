@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { checkInOutcomes, computeAssociationFromDateSets, fisherExactP, generateTopPatterns, matchCategory, matchItem, patternLinkKey, plausibleLags } from "./patterns";
-import { makeEvent, makePeriodLog } from "@/lib/testFixtures";
+import { checkInOutcomes, stoolOutcomes, computeAssociationFromDateSets, fisherExactP, generateTopPatterns, matchCategory, matchItem, patternLinkKey, plausibleLags } from "./patterns";
+import { makeEvent, makePeriodLog, makeStoolLog } from "@/lib/testFixtures";
 import { addDaysToDate } from "./common";
 
 describe("matchItem / matchCategory", () => {
@@ -199,5 +199,24 @@ describe("check-in outcomes", () => {
     const checkIns = Array.from({ length: 90 }, (_, n) => ({ date: day(n), mood: 3, energy: n % 3 === 0 || n % 10 === 1 ? 2 : 4, note: "" }));
     const links = generateTopPatterns(events, new Set(), [], checkIns);
     expect(links.some((l) => l.outcomeLabel === "Low energy" && l.causeLabel === "Pasta" && l.diffPct > 0)).toBe(true);
+  });
+});
+
+describe("stoolOutcomes", () => {
+  it("tests hard and loose stools out of the days a bowel movement was logged", () => {
+    const logs = [
+      makeStoolLog({ date: "2026-01-01", bristolScores: [1] }),
+      makeStoolLog({ date: "2026-01-02", bristolScores: [4] }),
+      makeStoolLog({ date: "2026-01-03", bristolScores: [3, 6] }),
+    ];
+    const [hard, loose] = stoolOutcomes(logs);
+    expect(hard.label).toBe("Hard stool");
+    expect(hard.dates).toEqual(new Set(["2026-01-01"]));
+    expect(loose.dates).toEqual(new Set(["2026-01-03"]));
+    expect(loose.tracked.size).toBe(3);
+  });
+
+  it("adds nothing without stool logs", () => {
+    expect(stoolOutcomes([])).toEqual([]);
   });
 });

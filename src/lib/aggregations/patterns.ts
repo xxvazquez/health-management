@@ -1,4 +1,4 @@
-import type { CanonicalEvent, RawPeriodLog, RawWorkoutLog } from "@/lib/types";
+import type { CanonicalEvent, RawPeriodLog, RawStoolLog, RawWorkoutLog } from "@/lib/types";
 import type { ItemType } from "@/taxonomy/categories";
 import type { CheckIn } from "@/lib/supabase/checkins";
 import {
@@ -12,6 +12,7 @@ import {
   trackedDatesForType,
 } from "./common";
 import { cyclePhaseByDate, groupIntoPeriodRuns, type CyclePhase } from "./cycle";
+import { bristolAssessedDates, bristolTypeDates } from "./digestion";
 import { foodCategoryDistribution, rankedFoods } from "./food";
 import { supplementStats } from "./supplements";
 import { habitStats } from "./habits";
@@ -91,29 +92,6 @@ export interface AssociationResult {
 }
 
 export type SampleTier = "insufficient" | "exploratory" | "moderate" | "strong";
-
-export const SAMPLE_TIER_LABEL: Record<SampleTier, string> = {
-  insufficient: "Insufficient data",
-  exploratory: "Exploratory",
-  moderate: "Moderate",
-  strong: "Stronger",
-};
-
-/** Ordering weight for "strongest first" lists — a comparison backed by
- * more tracked days outranks a larger raw effect seen on fewer days. */
-export const SAMPLE_TIER_RANK: Record<SampleTier, number> = {
-  insufficient: 0,
-  exploratory: 1,
-  moderate: 2,
-  strong: 3,
-};
-
-export const SAMPLE_TIER_EXPLANATION: Record<SampleTier, string> = {
-  insufficient: "Fewer than 10 exposed days (or fewer than 5 unexposed days) tracked — not shown as a finding.",
-  exploratory: "10–19 exposed days tracked. Worth noting, but easily wrong by chance — treat as a hypothesis, not a finding.",
-  moderate: "20–29 exposed days tracked. A more stable comparison, still purely descriptive.",
-  strong: "30+ exposed days tracked. The most stable comparisons this app can produce — still not evidence of causation.",
-};
 
 /**
  * Tiers by exposed-day sample size (the harder-to-satisfy side in practice),
@@ -205,22 +183,6 @@ export function computeAssociationFromDateSets(
   };
 }
 
-/**
- * Date-set builder for a numeric-value threshold on one item (e.g. "sleep
- * duration >= 7h") — the sibling to `ItemMatcher` for causes that aren't a
- * simple occurred/didn't-occur tap, needed because `ItemMatcher.test` always
- * requires `.completed`, which doesn't make sense for a magnitude.
- */
-export function datesWhereValueMeets(
-  events: CanonicalEvent[],
-  item: string,
-  predicate: (value: number) => boolean,
-): Set<string> {
-  return new Set(
-    events.filter((e) => e.item === item && e.value != null && predicate(e.value)).map((e) => e.date),
-  );
-}
-
 /** Something Patterns looks for links to: a logged symptom, or low mood /
  * low energy from the daily check-in. */
 export interface OutcomeOption {
@@ -250,8 +212,27 @@ export function checkInOutcomes(checkIns: CheckIn[]): OutcomeOption[] {
   return [outcome("Low mood", (c) => c.mood), outcome("Low energy", (c) => c.energy)].filter((o) => o.tracked.size > 0);
 }
 
-/** Every outcome Patterns tests: each logged symptom plus the check-in ones. */
-export function patternOutcomes(events: CanonicalEvent[], checkIns: CheckIn[] = []): OutcomeOption[] {
+/** Hard (Bristol 1–2) and loose (5–7) stools, out of the days any bowel
+ * movement was logged. */
+export function stoolOutcomes(stoolLogs: RawStoolLog[]): OutcomeOption[] {
+  const tracked = bristolAssessedDates(stoolLogs);
+  if (tracked.size === 0) return [];
+  const outcome = (label: string, scores: number[]): OutcomeOption => {
+    const dates = bristolTypeDates(stoolLogs, scores);
+    const times = new Map<string, number>();
+    for (const s of stoolLogs) {
+      const t = Date.parse(s.loggedAt);
+      if (Number.isNaN(t) || !s.bristolScores.some((sc) => scores.includes(sc))) continue;
+      const prev = times.get(s.date);
+      if (prev === undefined || t < prev) times.set(s.date, t);
+    }
+    return { label, category: "Stool", dates, tracked, times };
+  };
+  return [outcome("Hard stool", [1, 2]), outcome("Loose stool", [5, 6, 7])];
+}
+
+/** Every outcome Patterns tests: each logged symptom, the check-in ones and hard or loose stools. */
+export function patternOutcomes(events: CanonicalEvent[], checkIns: CheckIn[] = [], stoolLogs: RawStoolLog[] = []): OutcomeOption[] {
   const categories = new Map<string, string>();
   for (const e of events) if (e.itemType === "outcome" && !categories.has(e.item)) categories.set(e.item, e.category);
   const symptomTracked = symptomTrackedDates(events);
@@ -260,7 +241,7 @@ export function patternOutcomes(events: CanonicalEvent[], checkIns: CheckIn[] = 
     const dates = dateSetForMatcher(events, matcher);
     return { label, category, dates, tracked: outcomeTracked(events, dates, symptomTracked), times: firstTimeByDate(events, matcher) };
   });
-  return [...symptoms, ...checkInOutcomes(checkIns)];
+  return [...symptoms, ...checkInOutcomes(checkIns), ...stoolOutcomes(stoolLogs)];
 }
 
 export function computeLaggedAssociations(cause: CauseOption, outcome: OutcomeOption, lags: number[] = [0, 1, 2, 3]): AssociationResult[] {
@@ -280,23 +261,15 @@ export function linkByDelay(
   outcomeLabel: string,
   periodLogs: RawPeriodLog[] = [],
   checkIns: CheckIn[] = [],
+  stoolLogs: RawStoolLog[] = [],
 ): AssociationResult[] {
   const cause = patternCauses(events, periodLogs).find((c) => c.label === causeLabel);
-  const outcome = patternOutcomes(events, checkIns).find((o) => o.label === outcomeLabel);
+  const outcome = patternOutcomes(events, checkIns, stoolLogs).find((o) => o.label === outcomeLabel);
   return cause && outcome ? computeLaggedAssociations(cause, outcome) : [];
 }
 
 export const MIN_INTERESTING_DIFF_PCT = 15;
 const TOP_CANDIDATE_FOODS = 12;
-/**
- * Digestive symptoms don't necessarily show up same-day — with slower
- * motility a symptom can lag the food/supplement that (maybe) relates to
- * it by a day or more. So each cause/outcome pair is scanned across these
- * lags and the strongest signal is what surfaces, rather than only ever
- * checking same-day. Exported so other cross-domain scans (e.g.
- * `bristolPatterns.ts`) use the same lag window rather than picking their own.
- */
-export const SCAN_LAGS = [0, 1, 2, 3];
 
 /**
  * Supplement categories excluded from the cause-candidate pool:
@@ -380,24 +353,6 @@ export function allCauseOptions(events: CanonicalEvent[], workoutLogs: RawWorkou
   return [...foods, ...categories, ...supplements, ...habits, ...workoutCause(events, workoutLogs), ...phases];
 }
 
-/**
- * The scan candidate pool shared by every auto-generated cross-domain scan
- * (`generateTopPatterns` here, and `generateBristolPatterns` in
- * `bristolPatterns.ts`) — specific top-tracked foods (never a whole
- * category — "bloating after Veggies" isn't actionable, "bloating after
- * Onion" is), non-reactive supplements, every tracked habit, and a
- * workout-trained day when workout data exists. One definition so both scans stay
- * in sync rather than drifting apart.
- */
-export function crossDomainCauseCandidates(events: CanonicalEvent[], workoutLogs: RawWorkoutLog[] = []): CauseOption[] {
-  const habit = causesForType(events, "habit");
-  return [
-    ...foodAndSupplementCauses(events),
-    ...habitCauseCandidates(events).map((m) => habit(m.label, m)),
-    ...workoutCause(events, workoutLogs),
-  ];
-}
-
 /** Top-tracked foods and non-reactive supplements, by their plain names. */
 function foodAndSupplementCauses(events: CanonicalEvent[]): CauseOption[] {
   const food = causesForType(events, "food");
@@ -416,19 +371,6 @@ function foodAndSupplementCauses(events: CanonicalEvent[]): CauseOption[] {
 export function patternCauses(events: CanonicalEvent[], periodLogs: RawPeriodLog[] = []): CauseOption[] {
   return [...foodAndSupplementCauses(events), ...cyclePhaseCauses(periodLogs)];
 }
-
-/**
- * Every scan this module runs (12 foods + N supplements + every tracked
- * habit + workout, against every outcome, across 4 lags) is a
- * multiple-comparisons setup: the more pairs checked, the more likely *some*
- * pair clears the diff-pct bar by chance alone, even with an adequate
- * per-pair sample size. Dropping the habit-category allowlist widens this
- * scan meaningfully — treat every entry here as a hypothesis worth
- * watching, never a conclusion, more so now than before.
- * Surfaced in the UI wherever `generateTopPatterns` results are shown.
- */
-export const MULTIPLE_COMPARISONS_NOTE =
-  "This list is generated by scanning many food/supplement/habit/exercise × symptom × timing combinations and keeping only the strongest gaps. With that many comparisons, some apparently strong associations are expected to appear by chance alone — treat every entry here as a hypothesis worth watching, not a conclusion.";
 
 /** Days needed on each side (with the trigger, and without it) before a
  * comparison is tested at all — below this the "without" group is a
@@ -501,8 +443,9 @@ export function generateTopPatterns(
   hidden: ReadonlySet<string> = new Set(),
   periodLogs: RawPeriodLog[] = [],
   checkIns: CheckIn[] = [],
+  stoolLogs: RawStoolLog[] = [],
 ): AssociationResult[] {
-  const outcomes = patternOutcomes(events, checkIns);
+  const outcomes = patternOutcomes(events, checkIns, stoolLogs);
   if (outcomes.length === 0) return [];
 
   const causes = patternCauses(events, periodLogs);

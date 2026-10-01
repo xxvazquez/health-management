@@ -21,7 +21,7 @@ import {
   type AssociationResult,
 } from "@/lib/aggregations/patterns";
 import { TYPE_ACCENT } from "@/taxonomy/categories";
-import type { CanonicalEvent, RawPeriodLog } from "@/lib/types";
+import type { CanonicalEvent, RawPeriodLog, RawStoolLog } from "@/lib/types";
 import type { CheckIn } from "@/lib/supabase/checkins";
 import { useCheckIns } from "@/lib/useCheckIns";
 
@@ -96,7 +96,7 @@ function PairedBars({ link, withLabel = "With", withoutLabel = "Without" }: { li
 }
 
 export function PatternsDashboard() {
-  const { status, events, workoutLogs, periodLogs } = useData();
+  const { status, events, workoutLogs, periodLogs, stoolLogs } = useData();
   const { checkIns: allCheckIns, loading: checkInsLoading, error: checkInsError } = useCheckIns();
   const checkIns = useMemo(() => (checkInsLoading || checkInsError ? [] : allCheckIns), [allCheckIns, checkInsLoading, checkInsError]);
   const { prefs, update } = usePreferences();
@@ -104,7 +104,7 @@ export function PatternsDashboard() {
   const hidden = useMemo(() => new Set((hiddenLinks ?? []).map((l) => patternLinkKey(l.symptom, l.trigger))), [hiddenLinks]);
   // Links need the whole history — a month holds too few days on each side
   // of a comparison — so this tab has no range filter.
-  const links = useMemo(() => generateTopPatterns(events, hidden, periodLogs, checkIns), [events, hidden, periodLogs, checkIns]);
+  const links = useMemo(() => generateTopPatterns(events, hidden, periodLogs, checkIns, stoolLogs), [events, hidden, periodLogs, checkIns, stoolLogs]);
   const [openLink, setOpenLink] = useState<AssociationResult | null>(null);
   const [exploring, setExploring] = useState(false);
 
@@ -164,8 +164,8 @@ export function PatternsDashboard() {
         <TrendRow label="Compare a symptom and a food…" onClick={() => setExploring(true)} />
       </TrendGroup>
 
-      {openLink && <LinkSheet link={openLink} events={events} periodLogs={periodLogs} checkIns={checkIns} onHide={() => hideLink(openLink)} onClose={() => setOpenLink(null)} />}
-      {exploring && <ExploreSheet events={events} workoutLogs={workoutLogs} periodLogs={periodLogs} checkIns={checkIns} onClose={() => setExploring(false)} />}
+      {openLink && <LinkSheet link={openLink} events={events} periodLogs={periodLogs} checkIns={checkIns} stoolLogs={stoolLogs} onHide={() => hideLink(openLink)} onClose={() => setOpenLink(null)} />}
+      {exploring && <ExploreSheet events={events} workoutLogs={workoutLogs} periodLogs={periodLogs} checkIns={checkIns} stoolLogs={stoolLogs} onClose={() => setExploring(false)} />}
     </div>
   );
 }
@@ -197,6 +197,7 @@ function LinkSheet({
   events,
   periodLogs,
   checkIns,
+  stoolLogs,
   onHide,
   onClose,
 }: {
@@ -204,10 +205,11 @@ function LinkSheet({
   events: CanonicalEvent[];
   periodLogs: RawPeriodLog[];
   checkIns: CheckIn[];
+  stoolLogs: RawStoolLog[];
   onHide: () => void;
   onClose: () => void;
 }) {
-  const byDelay = useMemo(() => linkByDelay(events, link.causeLabel, link.outcomeLabel, periodLogs, checkIns), [events, link, periodLogs, checkIns]);
+  const byDelay = useMemo(() => linkByDelay(events, link.causeLabel, link.outcomeLabel, periodLogs, checkIns, stoolLogs), [events, link, periodLogs, checkIns, stoolLogs]);
   return (
     <Sheet title={link.outcomeLabel} subtitle={linkSentence(link)} titleId="pattern-link-title" onClose={onClose}>
       <div className="flex flex-col gap-5">
@@ -249,16 +251,18 @@ function ExploreSheet({
   workoutLogs,
   periodLogs,
   checkIns,
+  stoolLogs,
   onClose,
 }: {
   events: CanonicalEvent[];
   workoutLogs: ReturnType<typeof useData>["workoutLogs"];
   periodLogs: RawPeriodLog[];
   checkIns: CheckIn[];
+  stoolLogs: RawStoolLog[];
   onClose: () => void;
 }) {
   const causeOptions = useMemo(() => allCauseOptions(events, workoutLogs, periodLogs), [events, workoutLogs, periodLogs]);
-  const outcomeOptions = useMemo(() => patternOutcomes(events, checkIns).sort((a, b) => a.label.localeCompare(b.label)), [events, checkIns]);
+  const outcomeOptions = useMemo(() => patternOutcomes(events, checkIns, stoolLogs).sort((a, b) => a.label.localeCompare(b.label)), [events, checkIns, stoolLogs]);
   const symptomOptions = useMemo(() => outcomeOptions.map((o) => o.label), [outcomeOptions]);
   const [symptom, setSymptom] = useState("");
   const [cause, setCause] = useState("");

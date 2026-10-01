@@ -2,8 +2,8 @@ import { WORKOUT_EXERCISES, workoutUnitLabel, type WorkoutExercise, type Workout
 import type { InsightTone } from "./insights";
 import { addDaysToDate, daysBetween, monthStart, pct, round1 } from "./common";
 
-/** Bridges workout data into the cross-domain association engine (`patterns.ts`,
- * `bristolPatterns.ts`) as a plain date-set — "did a workout session happen
+/** Bridges workout data into the cross-domain association engine (`patterns.ts`)
+ * as a plain date-set — "did a workout session happen
  * that day" — without pulling in the full items/logs infra this simple
  * check doesn't need. */
 export function workoutTrainedDates(logs: RawWorkoutLog[]): Set<string> {
