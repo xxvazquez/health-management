@@ -9,8 +9,9 @@ import { Disclosure } from "@/components/ui/Disclosure";
 import { ChevronIcon } from "@/components/ui/icons";
 import { HabitGridWeekdays, HabitMonthGrid, HabitYearBars } from "@/components/charts/HabitMonthGrid";
 import { buildStateByDate } from "@/lib/aggregations/adherence";
-import { addDaysToDate, computeLongestStreak, getDatasetSpan, listDatesBetween, monthStart, pct, todayLocalISODate } from "@/lib/aggregations/common";
+import { getDatasetSpan, listDatesBetween, monthStart, todayLocalISODate } from "@/lib/aggregations/common";
 import type { ItemStats } from "@/lib/aggregations/itemStats";
+import { isScheduledDay, scheduledAdherence, scheduledStreak, type ItemSchedule } from "@/lib/aggregations/schedule";
 import type { CanonicalEvent } from "@/lib/types";
 
 // A spread of palette hues so each row reads as its own thing at a glance —
@@ -114,9 +115,16 @@ function PeriodNav({
   );
 }
 
-/** Per calendar month of `year`: the consistency %, and how many days the
- * item was completed. `pct` is null for a month with no tracked days. */
-function monthlyConsistency(year: number, doneDates: Set<string>, firstTracked: string, today: string): { pct: number | null; done: number }[] {
+/** Per calendar month of `year`: adherence against the schedule, and how
+ * many days the item was completed. `pct` is null for a month with nothing
+ * expected. */
+function monthlyConsistency(
+  year: number,
+  doneDates: Set<string>,
+  firstTracked: string,
+  today: string,
+  schedule: ItemSchedule | undefined,
+): { pct: number | null; done: number }[] {
   return Array.from({ length: 12 }, (_, m) => {
     const prefix = `${year}-${String(m + 1).padStart(2, "0")}`;
     const first = `${prefix}-01`;
@@ -124,13 +132,7 @@ function monthlyConsistency(year: number, doneDates: Set<string>, firstTracked: 
     const start = first < firstTracked ? firstTracked : first;
     const end = last > today ? today : last;
     if (start > end) return { pct: null, done: 0 };
-    let tracked = 0;
-    let done = 0;
-    for (let d = start; d <= end; d = addDaysToDate(d, 1)) {
-      tracked++;
-      if (doneDates.has(d)) done++;
-    }
-    return { pct: tracked === 0 ? null : pct(done, tracked), done };
+    return scheduledAdherence(listDatesBetween(start, end), doneDates, schedule, today);
   });
 }
 
@@ -143,8 +145,8 @@ function periodStats(
   done: Set<string>,
   firstTracked: string,
   today: string,
-  currentStreak: number,
-): { pct: number; days: number; streak: number; streakKind: "current" | "longest" } | null {
+  schedule: ItemSchedule | undefined,
+): { pct: number | null; days: number; streak: number | null; streakKind: "current" | "longest" } | null {
   const year = anchor.slice(0, 4);
   const periodStart = view === "month" ? anchor : `${year}-01-01`;
   const lastOfMonth = new Date(Number(year), Number(anchor.slice(5, 7)), 0).getDate();
@@ -153,16 +155,21 @@ function periodStats(
   const end = periodEnd > today ? today : periodEnd;
   if (start > end) return null;
   const dates = listDatesBetween(start, end);
-  const days = dates.filter((d) => done.has(d)).length;
+  const { pct, done: days } = scheduledAdherence(dates, done, schedule, today);
   // In a month that includes today, the streak that matters is the one still
   // running; any other period shows its longest run instead.
-  const includesToday = periodEnd >= today;
-  return {
-    pct: Math.round((days / dates.length) * 100),
-    days,
-    streak: view === "month" && includesToday ? currentStreak : computeLongestStreak(dates, done),
-    streakKind: view === "month" && includesToday ? "current" : "longest",
-  };
+  const streakKind = view === "month" && periodEnd >= today ? "current" : "longest";
+  const streakDates = streakKind === "current" ? listDatesBetween(firstTracked, today) : dates;
+  return { pct, days, streak: scheduledStreak(streakDates, done, schedule, streakKind, today), streakKind };
+}
+
+/** "Mar – May" (with the year when it isn't this year's). */
+function courseLabel(first: string, last: string, today: string): string {
+  const fmt = (d: string) =>
+    new Date(`${d}T00:00:00`).toLocaleDateString(undefined, { month: "short", year: d.slice(0, 4) === today.slice(0, 4) ? undefined : "numeric" });
+  const a = fmt(first);
+  const b = fmt(last);
+  return a === b ? a : `${a} – ${b}`;
 }
 
 function Ico({ children }: { children: ReactNode }) {
@@ -216,9 +223,12 @@ export function AdherenceCardGrid({
   events,
   accent,
   noun,
+  schedules = {},
 }: {
   /** Every item, active and archived — split internally. */
   stats: ItemStats[];
+  /** Per item id, how often it's meant to happen; absent = every day. */
+  schedules?: Record<string, ItemSchedule>;
   events: CanonicalEvent[];
   /** Domain accent — toggle/chips colour and the fallback card hue. */
   accent: string;
@@ -250,9 +260,9 @@ export function AdherenceCardGrid({
 
   const doneByItem = useMemo(() => {
     const m = new Map<string, Set<string>>();
-    for (const s of active) m.set(s.item, new Set(buildStateByDate(events, s.item).keys()));
+    for (const s of stats) m.set(s.item, new Set(buildStateByDate(events, s.item).keys()));
     return m;
-  }, [events, active]);
+  }, [events, stats]);
 
   if (active.length === 0 && archived.length === 0) return null;
 
@@ -295,7 +305,8 @@ export function AdherenceCardGrid({
               {rows.map((it) => {
                 const done = doneByItem.get(it.item) ?? new Set<string>();
                 const color = colorByItem.get(it.item) ?? accent;
-                const period = periodStats(view, anchor, done, it.firstTrackedDate, today, it.currentStreak);
+                const schedule = schedules[it.itemIdentity];
+                const period = periodStats(view, anchor, done, it.firstTrackedDate, today, schedule);
                 return (
                   <div
                     key={it.itemIdentity}
@@ -311,10 +322,17 @@ export function AdherenceCardGrid({
                     {view === "month" ? (
                       <div className="mt-auto flex flex-col gap-1 self-center">
                         <HabitGridWeekdays />
-                        <HabitMonthGrid monthAnchor={anchor} completedDates={done} firstTrackedDate={it.firstTrackedDate} today={today} color={color} />
+                        <HabitMonthGrid
+                          monthAnchor={anchor}
+                          completedDates={done}
+                          firstTrackedDate={it.firstTrackedDate}
+                          today={today}
+                          color={color}
+                          isScheduled={(d) => isScheduledDay(schedule, d)}
+                        />
                       </div>
                     ) : (
-                      <HabitYearBars monthly={monthlyConsistency(anchorYear, done, it.firstTrackedDate, today)} color={color} />
+                      <HabitYearBars monthly={monthlyConsistency(anchorYear, done, it.firstTrackedDate, today, schedule)} color={color} />
                     )}
 
                     {period && (
@@ -323,12 +341,12 @@ export function AdherenceCardGrid({
                         style={{ borderColor: "var(--gridline)" }}
                       >
                         <Stat icon={<DonutIcon />} label="Consistency">
-                          {period.pct}%
+                          {period.pct == null ? "—" : `${Math.round(period.pct)}%`}
                         </Stat>
                         <Stat icon={<CheckIcon />} label="Days completed">
                           {period.days}
                         </Stat>
-                        {period.streak >= 2 && (
+                        {period.streak != null && period.streak >= 2 && (
                           <Stat icon={period.streakKind === "current" ? <FlameIcon /> : <TrophyIcon />} label={period.streakKind === "current" ? "Current streak" : "Longest streak"}>
                             {period.streak}
                           </Stat>
@@ -347,15 +365,23 @@ export function AdherenceCardGrid({
         <Card tier="raw">
           <Disclosure label="Archived" count={archived.length}>
             <ul className="mt-3 flex flex-col gap-2">
-              {archived.map((it) => (
-                <li
-                  key={it.itemIdentity}
-                  className="border-t pt-2 text-sm"
-                  style={{ borderColor: "var(--gridline)", color: "var(--text-secondary)" }}
-                >
-                  {it.item}
-                </li>
-              ))}
+              {archived.map((it) => {
+                const end = it.stoppedDate ?? it.lastTrackedDate;
+                const course = scheduledAdherence(listDatesBetween(it.firstTrackedDate, end), doneByItem.get(it.item) ?? new Set(), schedules[it.itemIdentity], today);
+                return (
+                  <li
+                    key={it.itemIdentity}
+                    className="flex items-baseline justify-between gap-3 border-t pt-2 text-sm"
+                    style={{ borderColor: "var(--gridline)", color: "var(--text-secondary)" }}
+                  >
+                    <span className="min-w-0">{it.item}</span>
+                    <span className="shrink-0 text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>
+                      {courseLabel(it.firstTrackedDate, end, today)}
+                      {course.pct != null && ` · ${Math.round(course.pct)}%`}
+                    </span>
+                  </li>
+                );
+              })}
             </ul>
           </Disclosure>
         </Card>

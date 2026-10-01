@@ -92,7 +92,7 @@ One dashboard per Log section, plus Patterns. The time range sits in the title r
 |---|---|
 | Food | Overview (meals a week against your food targets), Variety, Meal patterns, Combinations (including the combos you rate highest), Ingredients |
 | Patterns | Symptoms that show up more or less often after a food or supplement, or in a cycle phase, tested for chance; Explore compares any pair |
-| Supplements, Habits | A card per item with the days you logged it |
+| Supplements, Habits | A card per item with the days you logged it and consistency against its schedule; archived ones list their course dates and consistency |
 | Digestion | Bristol types, bowel movements and digestive symptoms |
 | Workout | Recent sessions and each exercise over time |
 | Cycle | Current cycle day, the next period, average cycle and period length |
@@ -135,7 +135,8 @@ A grouped list where each row opens its own screen. Everything editable in the a
 - **The meal is auto-picked by time:** Breakfast before noon, Lunch before 6pm, Dinner after that.
 - **Time is editable** per entry, and the date stepper opens a calendar.
 - **Logging later uses the usual time.** Another meal, or a past day, starts at that meal's time from Settings → Usual times (Breakfast 08:00 … Dinner 19:00), never later than now. A symptom's sheet asks when it started.
-- **Days before you start logging an item don't count against it.** A supplement or habit is measured from its first log, and only on days you used the app.
+- **Days before you start logging an item don't count against it.** A supplement or habit is measured from its first log; an archived one stops at its last log.
+- **Supplements and habits can have a schedule:** every day (default), N× a week, or specific weekdays. Consistency on Trends is measured against it; days off the schedule and today (until logged) never count as misses.
 - **A day with no food logged never counts as zero.** Food targets and staples divide by the days with food logged in the range, not the calendar.
 - **Patterns only compare days both sides were tracked.** A section counts as tracked from its first entry, on days you used the app, until it goes quiet for two weeks (a month for symptoms).
 - **Cycle** stores only period days. Cycle length and predictions are always derived, never stored.

@@ -15,6 +15,9 @@ export interface ItemStats {
    * more than one raw item identity, this is the most recently touched one. */
   itemIdentity: string;
   isArchived: boolean;
+  /** For an archived item, its last log — the course ended there, so
+   * nothing after it counts as missed. Null while the item is active. */
+  stoppedDate: string | null;
 }
 
 /**
@@ -28,7 +31,9 @@ export interface ItemStats {
  * a consistent logger, a day with no entry for an item that's otherwise
  * part of their routine means it didn't happen, not "unknown". Days before
  * the item's first occurrence are excluded rather than counted as misses,
- * since the item wasn't necessarily part of the routine yet.
+ * since the item wasn't necessarily part of the routine yet. An archived
+ * item stops at its last log the same way — a finished course doesn't keep
+ * piling up misses.
  */
 export function computeItemStats(events: CanonicalEvent[], activeDates: string[]): ItemStats[] {
   const byItem = new Map<string, CanonicalEvent[]>();
@@ -44,10 +49,11 @@ export function computeItemStats(events: CanonicalEvent[], activeDates: string[]
     const firstOccurrence = sorted[0].date;
     const lastOccurrence = sorted[sorted.length - 1].date;
     const completedDates = new Set(sorted.filter((e) => e.completed).map((e) => e.date));
-    const trackedDates = activeDates.filter((d) => d >= firstOccurrence);
+    const mostRecent = sorted[sorted.length - 1];
+    const stoppedDate = mostRecent.isArchived ? lastOccurrence : null;
+    const trackedDates = activeDates.filter((d) => d >= firstOccurrence && (stoppedDate === null || d <= stoppedDate));
     const currentStreak = computeCurrentStreak(trackedDates, completedDates);
 
-    const mostRecent = sorted[sorted.length - 1];
     stats.push({
       item,
       category: sorted[0].category,
@@ -59,6 +65,7 @@ export function computeItemStats(events: CanonicalEvent[], activeDates: string[]
       lastTrackedDate: lastOccurrence,
       itemIdentity: mostRecent.itemIdentity,
       isArchived: mostRecent.isArchived,
+      stoppedDate,
     });
   }
 

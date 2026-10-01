@@ -102,4 +102,16 @@ describe("computeItemStatsForFilter", () => {
     const events = [makeEvent({ itemType: "food" })];
     expect(computeItemStatsForFilter(events, (e) => e.itemType === "habit")).toEqual([]);
   });
+
+  it("ends an archived item's tracked days at its last log", () => {
+    const activeDates = ["2026-01-01", "2026-01-02", "2026-01-03", "2026-01-04"];
+    const events = [
+      makeEvent({ item: "Iron", date: "2026-01-01", isArchived: true }),
+      makeEvent({ item: "Iron", date: "2026-01-02", isArchived: true }),
+    ];
+    const [stat] = computeItemStats(events, activeDates);
+    expect(stat.stoppedDate).toBe("2026-01-02");
+    expect(stat.daysTracked).toBe(2);
+    expect(stat.consistencyPct).toBe(100);
+  });
 });

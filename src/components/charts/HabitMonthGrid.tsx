@@ -27,13 +27,15 @@ export function HabitGridWeekdays() {
 
 /** One month of a habit's history as a small calendar grid — a solid
  * accent cell for every completed day, a faint one for every other day in
- * the month, fainter still for days outside the habit's tracked window. */
+ * the month, fainter still for days outside the habit's tracked window or
+ * off its schedule. */
 export function HabitMonthGrid({
   monthAnchor,
   completedDates,
   firstTrackedDate,
   today,
   color,
+  isScheduled = () => true,
 }: {
   /** Any YYYY-MM-DD inside the month to show. */
   monthAnchor: string;
@@ -41,6 +43,8 @@ export function HabitMonthGrid({
   firstTrackedDate: string;
   today: string;
   color: string;
+  /** False for a day the schedule doesn't expect. */
+  isScheduled?: (date: string) => boolean;
 }) {
   const ym = monthAnchor.slice(0, 7);
   const firstOfMonth = `${ym}-01`;
@@ -58,7 +62,7 @@ export function HabitMonthGrid({
         const inMonth = date.slice(0, 7) === ym;
         if (!inMonth) return <span key={date} style={{ width: CELL, height: CELL }} aria-hidden="true" />;
         const done = completedDates.has(date);
-        const inPlay = date <= today && date >= firstTrackedDate;
+        const inPlay = date <= today && date >= firstTrackedDate && isScheduled(date);
         return (
           <span
             key={date}

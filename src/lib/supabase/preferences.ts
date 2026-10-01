@@ -1,6 +1,7 @@
 import { supabase } from "./client";
 import { upsertDirect } from "./directWrite";
 import type { FoodTargetsPref } from "@/lib/foodTargets";
+import type { ItemSchedule } from "@/lib/aggregations/schedule";
 
 const TABLE = "user_preferences";
 
@@ -25,6 +26,9 @@ export interface Preferences {
   /** Settings → Usual times: "HH:MM" per meal / supplement time of day,
    * for entries logged after the fact. Unset slots use DEFAULT_SLOT_TIMES. */
   slotTimes?: Record<string, string>;
+  /** Settings → a supplement's or habit's Schedule, keyed by item id.
+   * Absent = every day. Trends measures adherence against it. */
+  itemSchedules?: Record<string, ItemSchedule>;
   /** Trends → Patterns links marked "Not related", never shown again. */
   hiddenPatternLinks?: HiddenPatternLink[];
 }

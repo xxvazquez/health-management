@@ -103,6 +103,7 @@ import { ComboBox, DoctorName, LanguageChips, RatingChips } from "@/components/d
 import { useFoodProducts } from "@/lib/useFoodProducts";
 import type { FoodProduct, FoodProductPatch } from "@/lib/supabase/foodProducts";
 import { usePreferences } from "@/lib/usePreferences";
+import { scheduleLabel, type ItemSchedule } from "@/lib/aggregations/schedule";
 
 // Log tab order — Food, Symptoms, Supplements, Habits, Stool, Workout,
 // Cycle — so the toggle list reads left-to-right the same way the tabs
@@ -2569,6 +2570,19 @@ function ItemEditorSheet({
   const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   const canRemind = onSetReminderTime && (itemType === "supplement" || itemType === "habit");
+  const { prefs, update: updatePrefs } = usePreferences();
+  const schedule = prefs.itemSchedules?.[item.itemIdentity];
+  function setSchedule(next: ItemSchedule | undefined) {
+    const all = { ...prefs.itemSchedules };
+    if (next) all[item.itemIdentity] = next;
+    else delete all[item.itemIdentity];
+    updatePrefs({ itemSchedules: all });
+  }
+  function toggleDay(day: number) {
+    if (schedule?.kind !== "days") return;
+    const days = schedule.days.includes(day) ? schedule.days.filter((d) => d !== day) : [...schedule.days, day].sort();
+    if (days.length > 0) setSchedule(days.length === 7 ? undefined : { kind: "days", days });
+  }
   const canSetUnit = onSetUnit && itemType === "workout";
   const canSetNutritionGroup = onSetNutritionGroup && itemType === "food";
   // Delete is only ever offered for an item with zero logged history — see
@@ -2632,6 +2646,51 @@ function ItemEditorSheet({
             <EditorField label="Unit">
               <UnitSelect unit={item.unit ?? "kg"} knownUnits={knownUnits} busy={busy} onSetUnit={onSetUnit} itemName={item.item} />
             </EditorField>
+          )}
+          {canRemind && (
+            <EditorField label="Schedule">
+              <select
+                value={!schedule ? "daily" : schedule.kind === "weekly" ? `weekly:${schedule.times}` : "days"}
+                disabled={busy}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (v === "daily") setSchedule(undefined);
+                  else if (v === "days") setSchedule({ kind: "days", days: [0, 2, 4] });
+                  else setSchedule({ kind: "weekly", times: Number(v.split(":")[1]) });
+                }}
+                aria-label={`Schedule for ${item.item}`}
+                className={FIELD_VALUE}
+                style={FIELD_VALUE_STYLE}
+              >
+                <option value="daily">Every day</option>
+                {[1, 2, 3, 4, 5, 6].map((n) => (
+                  <option key={n} value={`weekly:${n}`}>
+                    {n}× a week
+                  </option>
+                ))}
+                <option value="days">Specific days</option>
+              </select>
+            </EditorField>
+          )}
+          {canRemind && schedule?.kind === "days" && (
+            <div className="flex min-h-11 items-center justify-between gap-1 px-3.5" role="group" aria-label="Days">
+              {["M", "T", "W", "T", "F", "S", "S"].map((letter, day) => {
+                const on = schedule.days.includes(day);
+                return (
+                  <button
+                    key={day}
+                    type="button"
+                    onClick={() => toggleDay(day)}
+                    aria-pressed={on}
+                    aria-label={["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"][day]}
+                    className="hit-slop flex size-8 items-center justify-center rounded-full text-sm font-medium"
+                    style={on ? { background: "var(--ui-accent)", color: "var(--on-accent)" } : { color: "var(--text-secondary)" }}
+                  >
+                    {letter}
+                  </button>
+                );
+              })}
+            </div>
           )}
           {canRemind && (
             <EditorField label="Reminder">
@@ -2800,6 +2859,7 @@ function ItemSection({
   onDelete: (item: ManageableItem) => void;
 }) {
   const [archivedOpen, setArchivedOpen] = useState(false);
+  const { prefs } = usePreferences();
   const [openCategories, setOpenCategories] = useState<Set<string>>(new Set());
   // The grouped list's own ≡ grips reorder the categories directly.
   const categoryDrag = useDragReorder(categories, (next) => void onReorderCategories(next));
@@ -2880,8 +2940,12 @@ function ItemSection({
       return <CatalogFoodRow key={`catalog:${item.item}`} item={item} nested={grouped} onHide={() => void onHideCatalogFood(item.item, item.category)} />;
     }
     const override = nutritionGroupOverrides?.[normalizeName(item.item)];
+    const schedule = prefs.itemSchedules?.[item.itemIdentity];
+    const scheduleSummary = (itemType === "supplement" || itemType === "habit") && onSetReminderTime && (schedule || item.reminderTime)
+      ? [schedule && scheduleLabel(schedule), item.reminderTime].filter(Boolean).join(" · ")
+      : "";
     const summary =
-      ((itemType === "supplement" || itemType === "habit") && onSetReminderTime && item.reminderTime) ||
+      scheduleSummary ||
       (itemType === "workout" && onSetUnit && workoutUnitLabel(item.unit ?? "kg")) ||
       (override && (override === NOT_COUNTED ? "Not counted" : NUTRITION_GROUP_LABEL[override])) ||
       (!grouped || opts.archivedRow ? item.category : "");

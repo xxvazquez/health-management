@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { useData } from "@/lib/DataContext";
+import { usePreferences } from "@/lib/usePreferences";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageSkeleton } from "@/components/ui/Skeleton";
 import { Methodology } from "@/components/ui/Methodology";
@@ -11,6 +12,7 @@ import { TYPE_ACCENT } from "@/taxonomy/categories";
 
 export function HabitsDashboard() {
   const { status, events } = useData();
+  const { prefs } = usePreferences();
   const stats = useMemo(() => habitStats(events), [events]);
 
   if (status === "loading") return <PageSkeleton />;
@@ -18,13 +20,13 @@ export function HabitsDashboard() {
 
   return (
     <div className="flex flex-col gap-5">
-      <AdherenceCardGrid stats={stats} events={events} accent={TYPE_ACCENT.habit} noun="habit" />
+      <AdherenceCardGrid stats={stats} events={events} accent={TYPE_ACCENT.habit} noun="habit" schedules={prefs.itemSchedules} />
 
       <Methodology>
-        A day counts as tracked once the habit has been logged at least once, through to today; gaps count as
-        misses, days before the first log don&apos;t. Consistency is completed days over tracked days; the streak
-        is consecutive tracked days completed. Archiving only hides a habit from new logging — its history stays
-        in every view here.
+        A day counts once the habit has been logged at least once, through to today — or, for an archived
+        habit, to its last log. Consistency is measured against its schedule (Settings → the habit →
+        Schedule): every day by default, a set number of times a week, or specific weekdays, where days off the
+        schedule never count as misses. Archiving hides it from new logging; its history stays here.
       </Methodology>
     </div>
   );
