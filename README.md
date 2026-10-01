@@ -68,6 +68,7 @@ Sections: **Food · Symptoms · Supplements · Habits · Stool · Workout · Cyc
 
 #### Summary
 
+- **Check-in** at the top: mood and energy, 1 (low) to 5 (high), plus an optional note. Tap a level again to clear it. On a phone it sits above the section list.
 - The day's meals with their notes, then a timeline of everything logged.
 - A meal is one timeline row ("Dinner · 9 foods"). It opens a sheet to see its foods, rate it (1–5 stars), add a note or "Save as recipe".
 - Other rows show the useful detail on the right: a symptom's intensity, the sleep band, a supplement's time of day. Tap any row to edit or delete it.
@@ -91,11 +92,11 @@ One dashboard per Log section, plus Patterns. The time range sits in the title r
 | Dashboard | Shows |
 |---|---|
 | Food | Overview (meals a week against your food targets), Variety, Meal patterns, Combinations (including the combos you rate highest), Ingredients |
-| Patterns | Symptoms that show up more or less often after a food or supplement, or in a cycle phase, tested for chance; Explore compares any pair |
+| Patterns | Symptoms, low mood and low energy (a check-in of 1–2) that show up more or less often after a food or supplement, or in a cycle phase, tested for chance; Explore compares any pair |
 | Supplements, Habits | A card per item with the days you logged it and consistency against its schedule; archived ones list their course dates and consistency |
 | Digestion | Bristol types, bowel movements and digestive symptoms |
 | Workout | Recent sessions and each exercise over time |
-| Cycle | Current cycle day, the next period, average cycle and period length |
+| Cycle | Current cycle day, the next period, average cycle and period length, average mood and energy per phase |
 
 ### Health
 

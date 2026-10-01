@@ -229,6 +229,19 @@ create table public.meals (
 
 create index meals_user_date_idx on public.meals (user_id, date);
 
+-- One mood and energy check-in per day from Log → Summary, each 1 (low) to
+-- 5 (high); either can be left unset. Read by Trends → Patterns (low mood /
+-- low energy as outcomes) and Trends → Cycle (by phase).
+create table public.checkins (
+  user_id uuid not null default auth.uid() references auth.users(id),
+  date date not null,
+  mood smallint check (mood between 1 and 5),
+  energy smallint check (energy between 1 and 5),
+  note text,
+  updated_at timestamptz not null default now(),
+  primary key (user_id, date)
+);
+
 create table public.supplement_logs (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null default auth.uid() references auth.users(id),
@@ -1332,6 +1345,7 @@ alter table public.symptom_items enable row level security;
 alter table public.workout_items enable row level security;
 alter table public.food_logs enable row level security;
 alter table public.meals enable row level security;
+alter table public.checkins enable row level security;
 alter table public.supplement_logs enable row level security;
 alter table public.habit_logs enable row level security;
 alter table public.symptom_logs enable row level security;
@@ -1400,6 +1414,7 @@ create policy "symptom_items_all_own" on public.symptom_items for all using (aut
 create policy "workout_items_all_own" on public.workout_items for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "food_logs_all_own" on public.food_logs for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "meals_all_own" on public.meals for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "checkins_all_own" on public.checkins for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "supplement_logs_all_own" on public.supplement_logs for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "habit_logs_all_own" on public.habit_logs for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "symptom_logs_all_own" on public.symptom_logs for all using (auth.uid() = user_id) with check (auth.uid() = user_id);

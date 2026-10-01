@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { groupIntoPeriodRuns, cycleLengthsFromRuns, cyclePhaseByDate, currentCycleStatus, predictUpcomingPeriods, cycleAnalysis, cycleLengthTrend, periodLengthTrend } from "./cycle";
+import { checkInsByPhase, groupIntoPeriodRuns, cycleLengthsFromRuns, cyclePhaseByDate, currentCycleStatus, predictUpcomingPeriods, cycleAnalysis, cycleLengthTrend, periodLengthTrend } from "./cycle";
 import type { RawPeriodLog } from "@/lib/types";
 
 function makeLog(date: string, overrides: Partial<RawPeriodLog> = {}): RawPeriodLog {
@@ -202,5 +202,15 @@ describe("cyclePhaseByDate", () => {
   it("skips a gap-sized cycle", () => {
     const logs = ["2026-01-01", "2026-03-01"].map((d) => makeLog(d));
     expect(cyclePhaseByDate(groupIntoPeriodRuns(logs)).size).toBe(0);
+  });
+});
+
+describe("checkInsByPhase", () => {
+  it("averages each phase and holds back a phase with too few ratings", () => {
+    const runs = groupIntoPeriodRuns(["2026-03-01", "2026-03-02", "2026-03-03", "2026-03-29"].map((d) => makeLog(d)));
+    const checkIns = ["2026-03-01", "2026-03-02", "2026-03-03", "2026-03-20"].map((date, i) => ({ date, mood: i < 3 ? 2 : 5, energy: null, note: "" }));
+    const [menstrual, , , luteal] = checkInsByPhase(runs, checkIns);
+    expect(menstrual).toMatchObject({ phase: "Menstrual", days: 3, mood: 2, energy: null });
+    expect(luteal).toMatchObject({ phase: "Luteal", days: 1, mood: null });
   });
 });

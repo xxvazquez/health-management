@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeAssociationFromDateSets, fisherExactP, generateTopPatterns, matchCategory, matchItem, patternLinkKey, plausibleLags } from "./patterns";
+import { checkInOutcomes, computeAssociationFromDateSets, fisherExactP, generateTopPatterns, matchCategory, matchItem, patternLinkKey, plausibleLags } from "./patterns";
 import { makeEvent, makePeriodLog } from "@/lib/testFixtures";
 import { addDaysToDate } from "./common";
 
@@ -172,5 +172,32 @@ describe("plausibleLags", () => {
     expect(plausibleLags("Pain")).toEqual([0, 1]);
     expect(plausibleLags("Other Symptom")).toEqual([0]);
     expect(plausibleLags("Menstrual")).toEqual([]);
+  });
+});
+
+describe("check-in outcomes", () => {
+  const day = (n: number) => addDaysToDate("2026-03-01", n);
+
+  it("treats 1–2 as low, and only knows days with that rating", () => {
+    const [mood, energy] = checkInOutcomes([
+      { date: day(0), mood: 2, energy: null, note: "" },
+      { date: day(1), mood: 4, energy: 1, note: "" },
+    ]);
+    expect(mood.label).toBe("Low mood");
+    expect([...mood.dates]).toEqual([day(0)]);
+    expect(mood.tracked.size).toBe(2);
+    expect(energy.label).toBe("Low energy");
+    expect(energy.tracked.size).toBe(1);
+  });
+
+  it("links low energy to a trigger", () => {
+    // Low energy on every Pasta day, and now and then otherwise.
+    const events = Array.from({ length: 90 }, (_, n) => [
+      makeEvent({ itemType: "food", item: "Bread", category: "Grains", date: day(n) }),
+      ...(n % 3 === 0 ? [makeEvent({ itemType: "food", item: "Pasta", category: "Grains", date: day(n) })] : []),
+    ]).flat();
+    const checkIns = Array.from({ length: 90 }, (_, n) => ({ date: day(n), mood: 3, energy: n % 3 === 0 || n % 10 === 1 ? 2 : 4, note: "" }));
+    const links = generateTopPatterns(events, new Set(), [], checkIns);
+    expect(links.some((l) => l.outcomeLabel === "Low energy" && l.causeLabel === "Pasta" && l.diffPct > 0)).toBe(true);
   });
 });

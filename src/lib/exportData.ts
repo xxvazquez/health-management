@@ -20,6 +20,7 @@ const TABLES: { table: string; owner: string }[] = [
   { table: "workout_items", owner: "user_id" },
   { table: "food_logs", owner: "user_id" },
   { table: "meals", owner: "user_id" },
+  { table: "checkins", owner: "user_id" },
   { table: "food_products", owner: "user_id" },
   { table: "food_product_ingredients", owner: "user_id" },
   { table: "recipes", owner: "user_id" },
@@ -89,6 +90,7 @@ export const EXPORT_SECTIONS: { label: string; tables: string[] }[] = [
   { label: "Coffee", tables: ["coffee_items", "coffee_logs", "coffee_options", "coffee_settings"] },
   { label: "Categories, colours and reminders", tables: ["categories", "color_palette", "user_preferences", "habit_reminders"] },
   { label: "Journal", tables: ["journal_entries"] },
+  { label: "Mood and energy", tables: ["checkins"] },
   {
     label: "Personal notes & reminders",
     tables: ["personal_notes", "reminder_lists", "personal_tasks", "personal_task_completions", "personal_task_subitems", "personal_items"],

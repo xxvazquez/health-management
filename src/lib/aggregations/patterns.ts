@@ -1,5 +1,6 @@
 import type { CanonicalEvent, RawPeriodLog, RawWorkoutLog } from "@/lib/types";
 import type { ItemType } from "@/taxonomy/categories";
+import type { CheckIn } from "@/lib/supabase/checkins";
 import {
   addDaysToDate,
   pct,
@@ -220,28 +221,69 @@ export function datesWhereValueMeets(
   );
 }
 
-export function computeLaggedAssociations(
-  events: CanonicalEvent[],
-  cause: CauseOption,
-  outcome: ItemMatcher,
-  lags: number[] = [0, 1, 2, 3],
-): AssociationResult[] {
-  const outcomeDates = dateSetForMatcher(events, outcome);
-  const trackedSet = outcomeTracked(events, outcomeDates);
-  const outcomeTimes = firstTimeByDate(events, outcome);
+/** Something Patterns looks for links to: a logged symptom, or low mood /
+ * low energy from the daily check-in. */
+export interface OutcomeOption {
+  label: string;
+  /** Symptom category — decides which delays are plausible. */
+  category: string;
+  dates: Set<string>;
+  /** Days we know whether it happened. */
+  tracked: Set<string>;
+  times?: Map<string, number>;
+}
+
+/** A check-in at or below this counts as low. */
+const LOW_CHECKIN_LEVEL = 2;
+
+/** "Low mood" and "Low energy", each known only on days that field was checked in. */
+export function checkInOutcomes(checkIns: CheckIn[]): OutcomeOption[] {
+  const outcome = (label: string, pick: (c: CheckIn) => number | null): OutcomeOption => {
+    const rated = checkIns.filter((c) => pick(c) != null);
+    return {
+      label,
+      category: "Mood",
+      dates: new Set(rated.filter((c) => pick(c)! <= LOW_CHECKIN_LEVEL).map((c) => c.date)),
+      tracked: new Set(rated.map((c) => c.date)),
+    };
+  };
+  return [outcome("Low mood", (c) => c.mood), outcome("Low energy", (c) => c.energy)].filter((o) => o.tracked.size > 0);
+}
+
+/** Every outcome Patterns tests: each logged symptom plus the check-in ones. */
+export function patternOutcomes(events: CanonicalEvent[], checkIns: CheckIn[] = []): OutcomeOption[] {
+  const categories = new Map<string, string>();
+  for (const e of events) if (e.itemType === "outcome" && !categories.has(e.item)) categories.set(e.item, e.category);
+  const symptomTracked = symptomTrackedDates(events);
+  const symptoms = Array.from(categories, ([label, category]) => {
+    const matcher = matchItem(label);
+    const dates = dateSetForMatcher(events, matcher);
+    return { label, category, dates, tracked: outcomeTracked(events, dates, symptomTracked), times: firstTimeByDate(events, matcher) };
+  });
+  return [...symptoms, ...checkInOutcomes(checkIns)];
+}
+
+export function computeLaggedAssociations(cause: CauseOption, outcome: OutcomeOption, lags: number[] = [0, 1, 2, 3]): AssociationResult[] {
   return lags.map((lag) =>
-    computeAssociationFromDateSets(cause.dates, outcomeDates, trackedSet, lag, cause.label, outcome.label, {
+    computeAssociationFromDateSets(cause.dates, outcome.dates, outcome.tracked, lag, cause.label, outcome.label, {
       causeTrackedDates: cause.tracked,
       causeTimes: cause.times,
-      outcomeTimes,
+      outcomeTimes: outcome.times,
     }),
   );
 }
 
 /** One link's comparison at every delay from the same day to 3 days after. */
-export function linkByDelay(events: CanonicalEvent[], causeLabel: string, outcomeLabel: string, periodLogs: RawPeriodLog[] = []): AssociationResult[] {
+export function linkByDelay(
+  events: CanonicalEvent[],
+  causeLabel: string,
+  outcomeLabel: string,
+  periodLogs: RawPeriodLog[] = [],
+  checkIns: CheckIn[] = [],
+): AssociationResult[] {
   const cause = patternCauses(events, periodLogs).find((c) => c.label === causeLabel);
-  return cause ? computeLaggedAssociations(events, cause, matchItem(outcomeLabel)) : [];
+  const outcome = patternOutcomes(events, checkIns).find((o) => o.label === outcomeLabel);
+  return cause && outcome ? computeLaggedAssociations(cause, outcome) : [];
 }
 
 export const MIN_INTERESTING_DIFF_PCT = 15;
@@ -458,27 +500,22 @@ export function generateTopPatterns(
   events: CanonicalEvent[],
   hidden: ReadonlySet<string> = new Set(),
   periodLogs: RawPeriodLog[] = [],
+  checkIns: CheckIn[] = [],
 ): AssociationResult[] {
-  const outcomes = new Map<string, string>();
-  for (const e of events) if (e.itemType === "outcome" && !outcomes.has(e.item)) outcomes.set(e.item, e.category);
-  if (outcomes.size === 0) return [];
+  const outcomes = patternOutcomes(events, checkIns);
+  if (outcomes.length === 0) return [];
 
   const causes = patternCauses(events, periodLogs);
-  const symptomTracked = symptomTrackedDates(events);
 
   const tests: { assoc: AssociationResult; p: number }[] = [];
-  for (const [outcomeName, category] of outcomes) {
-    const outcomeMatcher = matchItem(outcomeName);
-    const outcomeDates = dateSetForMatcher(events, outcomeMatcher);
-    const trackedSet = outcomeTracked(events, outcomeDates, symptomTracked);
-    const outcomeTimes = firstTimeByDate(events, outcomeMatcher);
+  for (const outcome of outcomes) {
     for (const cause of causes) {
-      if (cause.label === outcomeName || hidden.has(patternLinkKey(outcomeName, cause.label))) continue;
-      for (const lag of plausibleLags(category, cause.label)) {
-        const assoc = computeAssociationFromDateSets(cause.dates, outcomeDates, trackedSet, lag, cause.label, outcomeName, {
+      if (cause.label === outcome.label || hidden.has(patternLinkKey(outcome.label, cause.label))) continue;
+      for (const lag of plausibleLags(outcome.category, cause.label)) {
+        const assoc = computeAssociationFromDateSets(cause.dates, outcome.dates, outcome.tracked, lag, cause.label, outcome.label, {
           causeTrackedDates: cause.tracked,
           causeTimes: cause.times,
-          outcomeTimes,
+          outcomeTimes: outcome.times,
         });
         if (assoc.withTotal < MIN_CONTRAST_DAYS || assoc.withoutTotal < MIN_CONTRAST_DAYS) continue;
         if (!bothSidesObserved(assoc)) continue;

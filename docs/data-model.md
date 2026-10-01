@@ -126,6 +126,12 @@ items/logs/diary/categories shape above — a "direct" feature like
 three) holds one row per meal occurrence: its note and a 1–5 `rating`, both
 set from the meal's sheet on Log → Summary and always written together.
 
+`checkins` (`user_id, date, mood, energy, note`, primary key on the first
+two) is the daily check-in from Log → Summary: `mood` and `energy` are each
+1–5 or null. Direct-to-Supabase like `meals` (`useCheckIns`). Trends →
+Patterns reads a 1–2 as "Low mood" / "Low energy", known only on days that
+field was rated; Trends → Cycle averages both per cycle phase.
+
 `recipes` (`id, user_id, name, meal_tag, rating, steps text[], note`) + the
 join table `recipe_ingredients` (`user_id, recipe_id, item_id, amount,
 unit, sort_order`, primary key on the first three; `unit` one of

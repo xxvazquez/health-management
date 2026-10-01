@@ -11,7 +11,9 @@ import { TrendsActions } from "@/components/analytics/TrendsActions";
 import { DateRangeFilter } from "@/components/ui/DateRangeFilter";
 import { TrendAreaChart } from "@/components/charts/TrendAreaChart";
 import { useDateRangeFilter } from "@/lib/useDateRangeFilter";
-import { groupIntoPeriodRuns, currentCycleStatus, predictUpcomingPeriods, periodDelayDays, cycleAnalysis, cycleLengthTrend, periodLengthTrend } from "@/lib/aggregations/cycle";
+import { TrendGroup, TrendRow } from "@/components/analytics/TrendList";
+import { useCheckIns } from "@/lib/useCheckIns";
+import { checkInsByPhase, groupIntoPeriodRuns, currentCycleStatus, predictUpcomingPeriods, periodDelayDays, cycleAnalysis, cycleLengthTrend, periodLengthTrend } from "@/lib/aggregations/cycle";
 import { daysBetween, todayLocalISODate } from "@/lib/aggregations/common";
 
 // Same rose accent as the Log page's Cycle tab.
@@ -43,6 +45,10 @@ export function CycleDashboard() {
   const analysis = useMemo(() => cycleAnalysis(filteredRuns, today), [filteredRuns, today]);
   const cycleTrend = useMemo(() => cycleLengthTrend(filteredRuns), [filteredRuns]);
   const periodTrend = useMemo(() => periodLengthTrend(filteredRuns), [filteredRuns]);
+  const { checkIns, loading: checkInsLoading, error: checkInsError } = useCheckIns();
+  // Phases need the whole history, so this ignores the range.
+  const byPhase = useMemo(() => (checkInsLoading || checkInsError ? [] : checkInsByPhase(allRuns, checkIns)), [allRuns, checkIns, checkInsLoading, checkInsError]);
+  const showByPhase = byPhase.some((p) => p.mood != null || p.energy != null);
 
   if (status === "loading") return <PageSkeleton />;
   if (status === "empty") return <EmptyState />;
@@ -97,6 +103,19 @@ export function CycleDashboard() {
               <Stat label="Cycle variation" value={`± ${analysis.cycleLengthVariation ?? 0}`} detail="days" />
               <Stat label="Average period" value={String(analysis.averagePeriodLength)} detail="days" />
             </StatGrid>
+          )}
+
+          {showByPhase && (
+            <TrendGroup caption="Mood and energy by phase" note="Average check-in, 1 low to 5 high, over completed cycles.">
+              {byPhase.map((p) => (
+                <TrendRow
+                  key={p.phase}
+                  label={p.phase}
+                  sublabel={`${p.days} day${p.days === 1 ? "" : "s"}`}
+                  value={`Mood ${p.mood?.toFixed(1) ?? "—"} · Energy ${p.energy?.toFixed(1) ?? "—"}`}
+                />
+              ))}
+            </TrendGroup>
           )}
 
           <Card tier="raw">

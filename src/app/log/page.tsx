@@ -1,5 +1,6 @@
 "use client";
 
+import { CheckInCard } from "@/components/log/CheckInCard";
 import { CHIP_CLS, CHIP_SM_CLS, CONTROL_CLS, CONTROL_STYLE, chipStyle } from "@/components/ui/Chip";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import Link from "next/link";
@@ -2531,6 +2532,8 @@ export default function LogPage() {
           />
         )
       ) : tab === "summary" ? (
+        <>
+        <CheckInCard date={date} />
         <div className="inset-rows rounded-xl border [--row-inset:3.375rem] lg:hidden" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
           {logTabs
             .filter((t) => t.id !== "summary")
@@ -2560,6 +2563,7 @@ export default function LogPage() {
               );
             })}
         </div>
+        </>
       ) : (
         <>
           {!dataReady || !tabConfig ? (

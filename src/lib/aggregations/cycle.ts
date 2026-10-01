@@ -1,4 +1,5 @@
 import type { RawPeriodLog } from "@/lib/types";
+import type { CheckIn } from "@/lib/supabase/checkins";
 import { addDaysToDate, daysBetween } from "./common";
 
 /** A run of consecutive calendar dates logged as a period — one period,
@@ -59,6 +60,33 @@ export function cyclePhaseByDate(runs: PeriodRun[]): Map<string, CyclePhase> {
     }
   }
   return phases;
+}
+
+export interface PhaseCheckIns {
+  phase: CyclePhase;
+  /** Check-ins that fell in this phase. */
+  days: number;
+  /** Average 1–5, or null with fewer than 3 ratings. */
+  mood: number | null;
+  energy: number | null;
+}
+
+const MIN_PHASE_RATINGS = 3;
+
+/** Average mood and energy per cycle phase, over completed cycles. */
+export function checkInsByPhase(runs: PeriodRun[], checkIns: CheckIn[]): PhaseCheckIns[] {
+  const phases = cyclePhaseByDate(runs);
+  const order: CyclePhase[] = ["Menstrual", "Follicular", "Ovulation", "Luteal"];
+  const avg = (values: number[]) => (values.length >= MIN_PHASE_RATINGS ? Math.round((values.reduce((a, b) => a + b, 0) / values.length) * 10) / 10 : null);
+  return order.map((phase) => {
+    const inPhase = checkIns.filter((c) => phases.get(c.date) === phase);
+    return {
+      phase,
+      days: inPhase.length,
+      mood: avg(inPhase.flatMap((c) => (c.mood == null ? [] : [c.mood]))),
+      energy: avg(inPhase.flatMap((c) => (c.energy == null ? [] : [c.energy]))),
+    };
+  });
 }
 
 /** Days between the start of each run and the start of the next — the
