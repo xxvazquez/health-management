@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { workoutExerciseSummaries, workoutRecentEntries, workoutTrainedDates, workoutWeeklySessions } from "./workout";
+import { workoutExerciseSummaries, workoutTrainedDates, workoutWeeklySessions } from "./workout";
 import type { RawWorkoutLog } from "@/lib/types";
 
 function makeWorkoutLog(overrides: Partial<RawWorkoutLog> = {}): RawWorkoutLog {
@@ -54,22 +54,6 @@ describe("workoutExerciseSummaries", () => {
   it("treats an exercise without a known unit as kg", () => {
     const [s] = workoutExerciseSummaries([makeWorkoutLog({ exercise: "Row", date: "2026-01-02" })], range);
     expect(s).toMatchObject({ unit: "kg", timed: false });
-  });
-});
-
-describe("workoutRecentEntries", () => {
-  it("lists one entry per exercise per day across all history, newest first", () => {
-    const logs = [
-      makeWorkoutLog({ date: "2025-12-01" }),
-      makeWorkoutLog({ date: "2026-01-05", weightKg: 40 }),
-      makeWorkoutLog({ date: "2026-01-05", weightKg: 45 }),
-      makeWorkoutLog({ date: "2026-01-06", exercise: "Walking", weightKg: 30 }),
-    ];
-    expect(workoutRecentEntries(logs, units).map((e) => [e.date, e.exercise, e.value])).toEqual([
-      ["2026-01-06", "Walking", 30],
-      ["2026-01-05", "Squat", 45],
-      ["2025-12-01", "Squat", 50],
-    ]);
   });
 });
 

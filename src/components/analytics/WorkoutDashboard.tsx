@@ -6,15 +6,14 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { PageSkeleton } from "@/components/ui/Skeleton";
 import { ChevronIcon } from "@/components/ui/icons";
 import { TrendsActions } from "@/components/analytics/TrendsActions";
-import { ShowAllRow, SplitStatCard, TrendCaption, TrendGroup, TrendRow } from "@/components/analytics/TrendList";
+import { SplitStatCard, TrendCaption } from "@/components/analytics/TrendList";
 import { DEFAULT_PRESETS, DateRangeFilter, describeDateRange } from "@/components/ui/DateRangeFilter";
 import { LabMarkerChart, LabSparkline, type LabMarkerChartPoint } from "@/components/charts/LabMarkerChart";
 import { TrendHeadline } from "@/components/charts/TrendCard";
 import { DEFAULT_RANGE_DAYS, useDateRangeFilter } from "@/lib/useDateRangeFilter";
-import { addDaysToDate, formatMinutes, todayLocalISODate, type DateRange } from "@/lib/aggregations/common";
+import { addDaysToDate, daysBetween, formatMinutes, round1, todayLocalISODate, type DateRange } from "@/lib/aggregations/common";
 import {
   workoutExerciseSummaries,
-  workoutRecentEntries,
   workoutTrainedDates,
   workoutWeeklySessions,
   type WorkoutExerciseSummary,
@@ -24,7 +23,6 @@ import { getAllItems, withDataLock } from "@/lib/db/indexedDb";
 import { workoutUnitLabel, workoutValueLabel, type WorkoutUnit } from "@/lib/types";
 
 const ACCENT = TYPE_ACCENT.workout;
-const RECENT_SHOWN = 3;
 
 /** "Last 30 days", "All time" or "3 Sept – 1 Oct" — the caption suffix. */
 function rangeText(span: DateRange, range: DateRange): string {
@@ -223,7 +221,6 @@ export function WorkoutDashboard() {
   const { status, events, workoutLogs } = useData();
   const today = useMemo(() => todayLocalISODate(), []);
   const [openExercise, setOpenExercise] = useState<string | null>(null);
-  const [showAllRecent, setShowAllRecent] = useState(false);
 
   // A workout log has no unit of its own; its exercise's unit lives on the
   // matching workout_items row, re-read after every shared refresh.
@@ -256,7 +253,6 @@ export function WorkoutDashboard() {
   const { span, range, setRange } = useDateRangeFilter(workoutLogs, DEFAULT_RANGE_DAYS);
   const weeks = useMemo(() => (range ? workoutWeeklySessions(workoutLogs, range) : []), [workoutLogs, range]);
   const exercises = useMemo(() => (range ? workoutExerciseSummaries(workoutLogs, range, unitByExercise) : []), [workoutLogs, range, unitByExercise]);
-  const recent = useMemo(() => workoutRecentEntries(workoutLogs, unitByExercise), [workoutLogs, unitByExercise]);
 
   if (status === "loading") return <PageSkeleton />;
   if (status === "empty") return <EmptyState />;
@@ -279,8 +275,8 @@ export function WorkoutDashboard() {
     );
   }
 
-  const sessionCount = [...workoutTrainedDates(workoutLogs)].filter((d) => d >= range.start && d <= range.end).length;
-  const shownRecent = showAllRecent ? recent : recent.slice(0, RECENT_SHOWN);
+  const trainedDays = [...workoutTrainedDates(workoutLogs)].filter((d) => d >= range.start && d <= range.end).length;
+  const perWeek = round1((trainedDays * 7) / (daysBetween(range.start, range.end) + 1));
 
   return (
     <div className="flex flex-col gap-4">
@@ -297,28 +293,15 @@ export function WorkoutDashboard() {
         </section>
       )}
 
-      <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-2">
-        {recent.length > 0 && (
-          <TrendGroup caption="Recent">
-            {shownRecent.map((r) => (
-              <TrendRow key={`${r.exercise}-${r.date}`} label={r.exercise} sublabel={shortDate(r.date, today)} value={amount(r.value, r.unit)} />
-            ))}
-            {recent.length > RECENT_SHOWN && <ShowAllRow total={recent.length} expanded={showAllRecent} onToggle={() => setShowAllRecent((v) => !v)} />}
-          </TrendGroup>
-        )}
-
-        <HealthCard caption={`Training days · ${when}`}>
-          <p className="flex items-baseline gap-1.5">
-            <span className="text-2xl leading-tight font-semibold tabular-nums" style={{ color: "var(--text-primary)" }}>
-              {sessionCount}
-            </span>
-            <span className="text-sm" style={{ color: "var(--text-muted)" }}>
-              {sessionCount === 1 ? "day" : "days"}
-            </span>
-          </p>
-          {weeks.length > 0 && <WeeklyBars weeks={weeks} today={today} />}
-        </HealthCard>
-      </div>
+      <HealthCard caption={`Training days · ${when}`}>
+        <TrendHeadline
+          caption="Average"
+          value={String(perWeek)}
+          unit={perWeek === 1 ? "day a week" : "days a week"}
+          detail={`${trainedDays} ${trainedDays === 1 ? "day" : "days"} in total`}
+        />
+        {weeks.length > 0 && <WeeklyBars weeks={weeks} today={today} />}
+      </HealthCard>
     </div>
   );
 }

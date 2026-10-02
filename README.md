@@ -96,7 +96,7 @@ One dashboard per Log section, plus Patterns. The time range sits in the title r
 | Patterns | Symptoms, hard or loose stools (Bristol 1–2 / 5–7), low mood and low energy (a check-in of 1–2) that show up more or less often after a food or supplement, or in a cycle phase, tested for chance; a link's sheet compares how strong the symptom was (1–3) with and without the trigger; Compare picks any symptom and trigger from searchable lists |
 | Supplements, Habits | A card per item with the days you logged it and consistency against its schedule; Sleep shades each day by hours slept and shows the typical band instead; archived ones list their course dates and consistency |
 | Digestion | Every Bristol reading on a dot chart (hard / normal / loose counts under it), movements a day, symptom days against the previous period, each digestive symptom with its own day-by-day screen, what came with bowel movements, usual colour, hygiene and time |
-| Workout | Each exercise first (latest value, change and a sparkline), then recent sessions and days trained per week (whole Monday–Sunday weeks); an exercise opens its per-session chart with best, average and last |
+| Workout | Each exercise first (latest value, change and a sparkline), then training days: the weekly average and a bar per Monday–Sunday week; an exercise opens its per-session chart with best, average and last |
 | Cycle | Current cycle day and the next period (or how late it is), average cycle, period and variation, every cycle as a history row, a length chart from three cycles, mood and energy per phase |
 
 ### Health

@@ -77,21 +77,6 @@ export function workoutExerciseSummaries(
   }).sort((a, b) => b.sessions.length - a.sessions.length || a.exercise.localeCompare(b.exercise));
 }
 
-export interface WorkoutRecentEntry extends WorkoutSession {
-  exercise: WorkoutExercise;
-  unit: WorkoutUnit;
-}
-
-/** Every exercise session across the whole history, newest first. */
-export function workoutRecentEntries(logs: RawWorkoutLog[], unitByExercise: ReadonlyMap<string, WorkoutUnit> = new Map()): WorkoutRecentEntry[] {
-  const out: WorkoutRecentEntry[] = [];
-  for (const [exercise, sessions] of sessionsByExercise(logs, unitByExercise)) {
-    const unit = unitByExercise.get(exercise) ?? "kg";
-    for (const s of sessions) out.push({ ...s, exercise, unit });
-  }
-  return out.sort((a, b) => b.date.localeCompare(a.date) || a.exercise.localeCompare(b.exercise));
-}
-
 export interface WorkoutWeek {
   /** Monday of the week. */
   weekStart: string;
