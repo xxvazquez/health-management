@@ -7,7 +7,7 @@ import { useVisibleDomains, DOMAIN_LABELS, type TrackedDomain } from "@/lib/visi
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageSkeleton } from "@/components/ui/Skeleton";
 import { SearchField } from "@/components/ui/SearchField";
-import { ChevronIcon, CloseIcon, GripIcon, PlusIcon, UpDownChevronIcon } from "@/components/ui/icons";
+import { ChevronIcon, CloseIcon, GripIcon, PlusIcon } from "@/components/ui/icons";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { ManageRow } from "@/components/ui/ManageRow";
 import { ReorderGrip, useManageOrder } from "@/components/manage/Reorder";
@@ -22,7 +22,7 @@ import { HealthImportCard } from "@/components/manage/HealthImportCard";
 import { FoodTargetsCard } from "@/components/manage/FoodTargetsCard";
 import { HiddenLinksCard } from "@/components/manage/HiddenLinksCard";
 import { UsualTimesCard } from "@/components/manage/UsualTimesCard";
-import { AddRow, CollapsibleManageCard, GROUP_CLS, GROUP_STYLE, GroupNote, ManageNavContext, OpenInLogRow, SECTION_PARENT, SectionRow, useSectionMode } from "@/components/manage/ManageSection";
+import { AddRow, CollapsibleManageCard, GROUP_CLS, GROUP_STYLE, GroupNote, ManageNavContext, OpenInLogRow, RowMenu, SECTION_PARENT, SectionRow, useSectionMode } from "@/components/manage/ManageSection";
 import { SwitchKnob } from "@/components/ui/Switch";
 import { TimePicker } from "@/components/ui/DatePicker";
 import { useItemActions, type ManageableItem } from "@/lib/useItemActions";
@@ -2385,37 +2385,6 @@ function CatalogFoodRow({ item, nested, onHide }: { item: ManageableItem; nested
 }
 
 const CUSTOM_UNIT_SENTINEL = "__custom__";
-
-/** A row's menu value: the current choice in the accent with an up-down
- * chevron, the native picker laid invisibly over it. */
-function RowMenu({
-  value,
-  options,
-  onChange,
-  disabled,
-  ariaLabel,
-}: {
-  value: string;
-  options: { value: string; label: string }[];
-  onChange: (value: string) => void;
-  disabled?: boolean;
-  ariaLabel: string;
-}) {
-  const label = options.find((o) => o.value === value)?.label ?? value;
-  return (
-    <span className="relative flex min-w-0 items-center gap-1 text-sm" style={{ color: "var(--ui-accent)", opacity: disabled ? 0.4 : 1 }}>
-      <span className="truncate">{label}</span>
-      <UpDownChevronIcon size={11} />
-      <select value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)} aria-label={ariaLabel} className="absolute inset-0 w-full cursor-pointer opacity-0">
-        {options.map((o) => (
-          <option key={o.value} value={o.value}>
-            {o.label}
-          </option>
-        ))}
-      </select>
-    </span>
-  );
-}
 
 /** Picks from the units already in use, with "Custom…" for a new one —
  * units are free text (see WORKOUT_UNITS). */

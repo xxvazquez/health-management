@@ -2,7 +2,7 @@
 
 import { createContext, useContext, type FormEvent, type ReactNode } from "react";
 import Link from "next/link";
-import { ChevronIcon } from "@/components/ui/icons";
+import { ChevronIcon, UpDownChevronIcon } from "@/components/ui/icons";
 import { CustomIcon } from "@/components/ui/customIcons";
 import { TYPE_ACCENT } from "@/taxonomy/categories";
 
@@ -198,5 +198,36 @@ export function CollapsibleManageCard({
         </div>
       )}
     </div>
+  );
+}
+
+/** A row's menu value: the current choice in the accent with an up-down
+ * chevron, the native picker laid invisibly over it. */
+export function RowMenu({
+  value,
+  options,
+  onChange,
+  disabled,
+  ariaLabel,
+}: {
+  value: string;
+  options: { value: string; label: string }[];
+  onChange: (value: string) => void;
+  disabled?: boolean;
+  ariaLabel: string;
+}) {
+  const label = options.find((o) => o.value === value)?.label ?? value;
+  return (
+    <span className="relative flex min-w-0 items-center gap-1 text-sm" style={{ color: "var(--ui-accent)", opacity: disabled ? 0.4 : 1 }}>
+      <span className="truncate">{label}</span>
+      <UpDownChevronIcon size={11} />
+      <select value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)} aria-label={ariaLabel} className="absolute inset-0 w-full cursor-pointer opacity-0">
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+    </span>
   );
 }

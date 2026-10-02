@@ -3,7 +3,7 @@
 import { useId, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { useAuth } from "@/lib/supabase/AuthContext";
 import { useData } from "@/lib/DataContext";
-import { CollapsibleManageCard, GROUP_CLS, GROUP_STYLE, GroupNote } from "@/components/manage/ManageSection";
+import { CollapsibleManageCard, GROUP_CLS, GROUP_STYLE, GroupNote, RowMenu } from "@/components/manage/ManageSection";
 import { FormGroup } from "@/components/ui/FormGroup";
 import { Sheet } from "@/components/ui/Sheet";
 import { buildExport, downloadExport, downloadSectionCsv, EXPORT_SECTIONS, type ExportBundle } from "@/lib/exportData";
@@ -102,25 +102,18 @@ export function DataExportCard({ isDemoData }: { isDemoData: boolean }) {
       )}
 
       <div className={`${GROUP_CLS} mt-3`} style={GROUP_STYLE}>
-        <label className="flex min-h-11 items-center gap-3 px-3.5">
+        <div className="flex min-h-11 items-center justify-between gap-3 px-3.5">
           <span className="shrink-0 text-sm" style={{ color: "var(--text-primary)" }}>
             Section
           </span>
-          <select
+          <RowMenu
             value={sectionLabel}
-            onChange={(e) => setSectionLabel(e.target.value)}
+            onChange={setSectionLabel}
             disabled={busy}
-            className="min-w-0 flex-1 bg-transparent py-2 text-right text-sm outline-none [text-align-last:right]"
-            style={{ color: "var(--text-secondary)" }}
-            aria-label="Section to export as CSV"
-          >
-            {EXPORT_SECTIONS.map((s) => (
-              <option key={s.label} value={s.label}>
-                {s.label}
-              </option>
-            ))}
-          </select>
-        </label>
+            ariaLabel="Section to export as CSV"
+            options={EXPORT_SECTIONS.map((s) => ({ value: s.label, label: s.label }))}
+          />
+        </div>
         <button type="button" onClick={exportCsv} disabled={busy} className={rowCls} style={{ color: "var(--ui-accent)" }}>
           {csv === "working" ? "Gathering…" : "Download section (CSV)"}
         </button>
