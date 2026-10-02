@@ -98,6 +98,7 @@ One sans-serif family: SF Pro on Apple devices, Inter elsewhere (`--font-app`).
 
 - **`AddMenu`:** "+ Add" for a section with more than one kind of thing to create (Agenda, Visits, Results) opens an iOS pull-down menu, not an inline picker card
 - **`Sheet`:** every modal. A bottom sheet on phones (swipe down to close), centred from `sm`. Pass `form` for a create/edit/send form: the header becomes Cancel · title · action (Add, Done, Send) and there's no button at the bottom. Pass `back` for a screen pushed inside the sheet: the header becomes ‹ label · title · close. **`PickerList`** is that screen for choosing from a long list (search on top, A–Z groups, a tick on chosen rows; tap again to untick) — use it instead of a type-ahead when picking several things
+- **`CopyRow` / `Step`** (`ui/ShortcutSetup.tsx`): the iOS Shortcut setup screens (Settings → Workout → Apple Health, Wishlist → Add from your phone) — a label + value + Copy row, and numbered one-line steps inside a `FormGroup`
 - **`ConfirmDialog`:** the iOS-style alert behind every delete or discard (raised Cancel, red action when `destructive`). Never an inline Delete / Keep pair in the row. Portalled to `<body>`, so it opens cleanly from a sheet or swipe row
 - **`DuplicateItemDialog`:** the same alert shape, for an item that already exists
 

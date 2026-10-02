@@ -1,6 +1,5 @@
 "use client";
 
-import { CHIP_CLS, chipStyle } from "@/components/ui/Chip";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import clsx from "clsx";
 import Link from "next/link";
@@ -12,10 +11,10 @@ import { ListSkeleton } from "@/components/ui/Skeleton";
 import { ErrorState, InlineEmpty } from "@/components/ui/EmptyState";
 import { PrimaryAction } from "@/components/ui/PrimaryAction";
 import { AddMenu } from "@/components/ui/AddMenu";
-import { Button } from "@/components/ui/Button";
 import { FormShell } from "@/components/ui/FormShell";
 import { Field } from "@/components/ui/Field";
 import { FormGroup } from "@/components/ui/FormGroup";
+import { CopyRow, Step } from "@/components/ui/ShortcutSetup";
 import { ROW_INLINE_CLS, ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
 import type {
   NewWishlistItemInput,
@@ -435,48 +434,14 @@ export interface WishlistShareToPhone {
   disable: () => Promise<void>;
 }
 
-function CopyRow({ label, value }: { label: string; value: string }) {
-  const [copied, setCopied] = useState(false);
-  return (
-    <div className="flex flex-col gap-1">
-      <span className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
-        {label}
-      </span>
-      <div className="flex items-center gap-2">
-        <code
-          className="min-w-0 flex-1 truncate min-h-9 rounded-[10px] border px-3 text-sm"
-          style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-secondary)" }}
-        >
-          {value}
-        </code>
-        <button
-          type="button"
-          onClick={async () => {
-            try {
-              await navigator.clipboard.writeText(value);
-              setCopied(true);
-              window.setTimeout(() => setCopied(false), 1500);
-            } catch {
-              // Clipboard blocked — the value stays visible to select by hand.
-            }
-          }}
-          className={`${CHIP_CLS} tap-target shrink-0`}
-          style={chipStyle(false)}
-        >
-          {copied ? "Copied" : "Copy"}
-        </button>
-      </div>
-    </div>
-  );
-}
-
 /** iOS has no PWA share target, so a link gets into the wishlist from a
  * phone via a Shortcut that POSTs to the wishlist-share Edge Function,
  * standing in for a session with a per-account token. Android already has
  * the PWA share target and needs none of this. */
-function PhoneSetup({ share, accent, onBack }: { share: WishlistShareToPhone; accent: string; onBack: () => void }) {
+function PhoneSetup({ share, onBack }: { share: WishlistShareToPhone; onBack: () => void }) {
   const [token, setToken] = useState<WishlistShareToken | null>(null);
-  const [state, setState] = useState<"loading" | "ready" | "working">("loading");
+  const [state, setState] = useState<"loading" | "ready" | "working" | "error">("loading");
+  const [confirmOff, setConfirmOff] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -489,7 +454,7 @@ function PhoneSetup({ share, accent, onBack }: { share: WishlistShareToPhone; ac
         }
       })
       .catch(() => {
-        if (active) setState("ready");
+        if (active) setState("error");
       });
     return () => {
       active = false;
@@ -500,17 +465,16 @@ function PhoneSetup({ share, accent, onBack }: { share: WishlistShareToPhone; ac
     setState("working");
     try {
       setToken(await fn());
+      setState("ready");
     } catch (err) {
       console.error("wishlist share token action failed", err);
-    } finally {
-      setState("ready");
+      setState("error");
     }
   };
 
-  const busy = state !== "ready";
-  const keyedEndpoint = token ? `${share.endpoint}?token=${encodeURIComponent(token.token)}&for=either` : "";
-  const curl =
-    keyedEndpoint && `curl -X POST '${keyedEndpoint}&url=https://example.com' -H 'Authorization: ${share.authHeader}'`;
+  const busy = state === "loading" || state === "working";
+  const link = token ? `${share.endpoint}?token=${encodeURIComponent(token.token)}&for=either` : "";
+  const rowCls = "flex min-h-11 w-full items-center px-3.5 text-left text-sm disabled:opacity-50";
 
   return (
     <div className="flex flex-col gap-4">
@@ -521,125 +485,86 @@ function PhoneSetup({ share, accent, onBack }: { share: WishlistShareToPhone; ac
         All lists
       </button>
 
-      <div>
-        <h2 className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>
-          Add from your phone
-        </h2>
-        <p className="mt-1 text-sm" style={{ color: "var(--text-secondary)" }}>
-          <strong>Android:</strong> open a link, tap Share, choose Lauva — it opens the add-item form. Nothing to set up.
-        </p>
-        <p className="mt-1 text-sm" style={{ color: "var(--text-secondary)" }}>
-          <strong>iPhone</strong> has no share target, so build this one-time Shortcut. It then works from Safari, Chrome or
-          any app with a Share button.
-        </p>
-      </div>
+      <h2 className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>
+        Add from your phone
+      </h2>
 
-      {state === "loading" ? (
-        <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-          Loading…
-        </p>
-      ) : !token ? (
-        <Button type="button" onClick={() => act(share.regenerate)} disabled={busy} accent={accent} className="self-start transition-opacity hover:opacity-90">
-          Create a phone key
-        </Button>
+      <FormGroup title="Android" footer="Nothing to set up.">
+        <Step n={1}>
+          Open a link → <strong>Share</strong> → <strong>Lauva</strong>.
+        </Step>
+      </FormGroup>
+
+      {!token ? (
+        <FormGroup title="iPhone" footer="One Shortcut adds Save to Lauva to every app's Share menu.">
+          <button type="button" onClick={() => void act(share.regenerate)} disabled={busy} className={`${rowCls} font-medium`} style={{ color: "var(--ui-accent)" }}>
+            {state === "loading" ? "Loading…" : "Set up iPhone shortcut"}
+          </button>
+        </FormGroup>
       ) : (
         <>
-          <div className="flex flex-col gap-3 rounded-xl border p-3" style={{ borderColor: "var(--border-hairline)", background: "var(--page-plane)" }}>
-            <CopyRow label="Endpoint — has your key, keep private" value={keyedEndpoint} />
-            <CopyRow label="Header — Authorization" value={share.authHeader} />
-          </div>
+          <FormGroup title="For the shortcut" footer="The link carries your private key. Don't share it.">
+            <CopyRow label="Link" value={link} />
+            <CopyRow label="Authorization" value={share.authHeader} />
+          </FormGroup>
 
-          <div className="text-sm" style={{ color: "var(--text-secondary)" }}>
-            <p className="font-medium" style={{ color: "var(--text-primary)" }}>
-              iPhone Shortcut (iOS 18–26)
-            </p>
-            <ol className="mt-1 list-decimal space-y-2 pl-5">
-              <li>
-                <strong>Shortcuts</strong> app → <strong>+</strong> (top right) → tap the name, rename it{" "}
-                <strong>Save to Lauva</strong>.
-              </li>
-              <li>
-                Tap the <strong>ⓘ</strong> in the bottom toolbar → turn on <strong>Show in Share Sheet</strong>. A “Receive …
-                from Share Sheet” bar appears at the top — tap its blue type and leave only <strong>URLs</strong> on.
-              </li>
-              <li>
-                In <strong>Search Actions</strong>, add <strong>Get Contents of URL</strong>.
-              </li>
-              <li>
-                Tap the blue <code>URL</code> → paste the <strong>Endpoint</strong> above, then type <code>&url=</code> right
-                after it and tap <strong>Shortcut Input</strong> in the strip above the keyboard so a blue token lands at the
-                very end. (URL field, not the body — variables always take here.)
-              </li>
-              <li>
-                Tap the small <strong>⌄</strong> → set <strong>Method</strong> to <strong>POST</strong>, then{" "}
-                <strong>Headers</strong> → <strong>Add new header</strong> → <code>Authorization</code> = the string above.
-                Leave Request Body empty.
-              </li>
-              <li>Tap <strong>‹</strong> (top left) to save.</li>
-            </ol>
-            <p className="mt-2" style={{ color: "var(--text-muted)" }}>
-              Use it: any browser → <strong>Share</strong> → <strong>Save to Lauva</strong>. Links land in a “Saved from
-              phone” list. For a wish that’s for your partner, change <code>for=either</code> to <code>for=partner</code> in
-              the endpoint; your partner can set the shortcut up from their own account too.
-            </p>
-            <details className="mt-2">
-              <summary className="cursor-pointer text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
-                Make it ask each time (optional)
-              </summary>
-              <p className="mt-1 text-xs" style={{ color: "var(--text-muted)" }}>
-                Before <strong>Get Contents of URL</strong>, add an <strong>Ask for Input</strong> (Text, “Title?”) and a{" "}
-                <strong>Choose from Menu</strong> listing your list names. Then in the URL, after the endpoint, insert{" "}
-                <code>&list=</code> + the menu result and <code>&title=</code> + the Ask-for-Input result, before{" "}
-                <code>&url=</code> + Shortcut Input. Unknown list names are created; leave a field blank to skip it.
-              </p>
-            </details>
-          </div>
+          <FormGroup
+            title="On your iPhone"
+            footer="Then: any app → Share → Save to Lauva. Links land in “Saved from phone”."
+            info={
+              <>
+                For wishes meant for your partner, change <code>for=either</code> to <code>for=partner</code> in the link. To pick
+                a list and title each time, add <strong>Ask for Input</strong> and <strong>Choose from Menu</strong> first, then
+                put <code>&amp;title=</code> and <code>&amp;list=</code> with their results before <code>&amp;url=</code>.
+              </>
+            }
+          >
+            <Step n={1}>
+              Shortcuts → <strong>+</strong> → name it <strong>Save to Lauva</strong>.
+            </Step>
+            <Step n={2}>
+              <strong>ⓘ</strong> → turn on <strong>Show in Share Sheet</strong>, receiving only <strong>URLs</strong>.
+            </Step>
+            <Step n={3}>
+              Add <strong>Get Contents of URL</strong>.
+            </Step>
+            <Step n={4}>
+              URL: paste the Link, type <code>&amp;url=</code>, then insert <strong>Shortcut Input</strong>.
+            </Step>
+            <Step n={5}>
+              Method <strong>POST</strong>, header <strong>Authorization</strong> = the value above.
+            </Step>
+          </FormGroup>
 
-          {curl && (
-            <div className="flex flex-col gap-1">
-              <span className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
-                Test it from a computer
-              </span>
-              <div className="flex items-center gap-2">
-                <code
-                  className="min-w-0 flex-1 truncate min-h-9 rounded-[10px] border px-3 text-sm"
-                  style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-secondary)" }}
-                >
-                  {curl}
-                </code>
-                <button
-                  type="button"
-                  onClick={() => void navigator.clipboard?.writeText(curl).catch(() => {})}
-                  className={`${CHIP_CLS} tap-target shrink-0`}
-                  style={chipStyle(false)}
-                >
-                  Copy
-                </button>
-              </div>
-            </div>
-          )}
-
-          <div className="flex items-center gap-4">
-            <button
-              type="button"
-              onClick={() => act(share.regenerate)}
-              disabled={busy}
-              className="text-xs font-medium disabled:opacity-50"
-              style={{ color: "var(--text-secondary)" }}
-            >
-              Regenerate key
+          <FormGroup footer="A new key stops the old shortcut until you paste the new link.">
+            <button type="button" onClick={() => void act(share.regenerate)} disabled={busy} className={rowCls} style={{ color: "var(--ui-accent)" }}>
+              New key
             </button>
-            <button
-              type="button"
-              onClick={() => act(() => share.disable().then(() => null))}
-              disabled={busy}
-              className="text-xs font-medium disabled:opacity-50"
-              style={{ color: "var(--status-critical)" }}
-            >
+            <button type="button" onClick={() => setConfirmOff(true)} disabled={busy} className={rowCls} style={{ color: "var(--status-critical)" }}>
               Turn off
             </button>
-          </div>
+          </FormGroup>
         </>
+      )}
+
+      {state === "error" && (
+        <p className="px-3.5 text-xs" style={{ color: "var(--status-critical)" }}>
+          That didn&apos;t work — try again.
+        </p>
+      )}
+
+      {confirmOff && (
+        <ConfirmDialog
+          title="Turn off saving from iPhone?"
+          message="The Save to Lauva shortcut stops working. Links already saved stay in your wishlist."
+          confirmLabel="Turn off"
+          destructive
+          onConfirm={() => {
+            setConfirmOff(false);
+            void act(() => share.disable().then(() => null));
+          }}
+          onClose={() => setConfirmOff(false)}
+        />
       )}
     </div>
   );
@@ -758,7 +683,7 @@ export function WishlistBoard({
     ) : null;
 
   if (base.mode === "phone" && shareToPhone) {
-    return <PhoneSetup share={shareToPhone} accent={accent} onBack={() => setView({ mode: "list" })} />;
+    return <PhoneSetup share={shareToPhone} onBack={() => setView({ mode: "list" })} />;
   }
 
   const detailCategory = base.mode === "detail" ? openCategory(base.categoryId) : null;

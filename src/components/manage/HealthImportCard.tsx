@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { CopyRow, Step } from "@/components/ui/ShortcutSetup";
 import { CollapsibleManageCard } from "@/components/manage/ManageSection";
 import { FormGroup } from "@/components/ui/FormGroup";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -11,48 +12,6 @@ const TABLE = "health_import_tokens";
 function lastImport(token: PhoneToken | null): string {
   if (!token?.lastUsedAt) return "Not yet";
   return new Date(token.lastUsedAt).toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
-}
-
-/** A row with a value to paste into Shortcuts and a Copy button. */
-function CopyRow({ label, value }: { label: string; value: string }) {
-  const [copied, setCopied] = useState(false);
-  return (
-    <div className="flex min-h-11 items-center gap-3 px-3.5">
-      <span className="shrink-0 text-sm" style={{ color: "var(--text-primary)" }}>
-        {label}
-      </span>
-      <span className="min-w-0 flex-1 truncate text-right text-xs" style={{ color: "var(--text-muted)" }}>
-        {value}
-      </span>
-      <button
-        type="button"
-        onClick={() =>
-          void navigator.clipboard
-            ?.writeText(value)
-            .then(() => {
-              setCopied(true);
-              window.setTimeout(() => setCopied(false), 1500);
-            })
-            .catch(() => {})
-        }
-        className="hit-slop shrink-0 text-sm font-medium"
-        style={{ color: "var(--ui-accent)" }}
-      >
-        {copied ? "Copied" : "Copy"}
-      </button>
-    </div>
-  );
-}
-
-function Step({ n, children }: { n: number; children: React.ReactNode }) {
-  return (
-    <div className="flex min-h-11 items-start gap-3 px-3.5 py-2.5 text-sm" style={{ color: "var(--text-primary)" }}>
-      <span className="w-4 shrink-0 text-right tabular-nums" style={{ color: "var(--text-muted)" }}>
-        {n}
-      </span>
-      <span className="min-w-0 flex-1">{children}</span>
-    </div>
-  );
 }
 
 /** Settings → Workout → Apple Health: a nightly iOS Shortcut sends the day's
