@@ -981,8 +981,13 @@ export default function LogPage() {
 
   // The timeline with each meal's foods folded into one row at the time of
   // that meal's latest entry; the row opens a sheet listing the foods.
+  // Coffee cups join it by time and open the Coffee section.
+  const coffeeShown = logTabs.some((t) => t.id === "coffee");
   const timelineRows = useMemo(() => {
-    type Row = { kind: "entry"; entry: TimelineEntry } | { kind: "meal"; mealTag: string; entries: TimelineEntry[] };
+    type Row =
+      | { kind: "entry"; entry: TimelineEntry }
+      | { kind: "meal"; mealTag: string; entries: TimelineEntry[] }
+      | { kind: "coffee"; key: string; at: string; time: string; name: string };
     const rows: Row[] = [];
     const mealRows = new Map<string, TimelineEntry[]>();
     for (const entry of combinedTimeline) {
@@ -998,8 +1003,20 @@ export default function LogPage() {
         rows.push({ kind: "meal", mealTag: entry.mealTag, entries });
       }
     }
-    return rows;
-  }, [combinedTimeline]);
+    if (!coffeeShown) return rows;
+    const coffeeNames = new Map(coffee.items.data.map((c) => [c.id, c.name]));
+    const at = (r: Row) => (r.kind === "entry" ? r.entry.updatedAt : r.kind === "meal" ? r.entries[0].updatedAt : r.at);
+    const cups: Row[] = coffee.logs.data
+      .filter((c) => c.date === date)
+      .map((c) => ({
+        kind: "coffee",
+        key: c.id,
+        at: new Date(c.loggedAt).toISOString(),
+        time: new Date(c.loggedAt).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }),
+        name: coffeeNames.get(c.itemId) ?? "Coffee",
+      }));
+    return [...rows, ...cups].sort((a, b) => at(b).localeCompare(at(a)));
+  }, [combinedTimeline, coffeeShown, coffee.items.data, coffee.logs.data, date]);
   const mealSheetEntries = mealSheetTag ? (timelineRows.find((r) => r.kind === "meal" && r.mealTag === mealSheetTag) as { entries: TimelineEntry[] } | undefined)?.entries ?? null : null;
   // Logged all at once, a meal's foods share one time — shown once then.
   async function saveMealAsRecipe(mealTag: string, entries: TimelineEntry[]) {
@@ -2693,7 +2710,7 @@ export default function LogPage() {
           )}
         </>
       )}
-      {tab === "summary" && combinedTimeline.length > 0 && (
+      {tab === "summary" && timelineRows.length > 0 && (
         <div className="flex flex-col gap-2">
           <h2 className="px-0.5 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
             Timeline — {formatDateLabel(date, today).toLowerCase()}
@@ -2721,6 +2738,28 @@ export default function LogPage() {
                     {rating != null && <StarRating value={rating} size="sm" accent={TYPE_ACCENT.food} />}
                     <span className="shrink-0 text-right text-xs" style={{ color: "var(--text-secondary)" }}>
                       {row.entries.length} {row.entries.length === 1 ? "food" : "foods"}
+                    </span>
+                    <ChevronIcon dir="right" size={13} />
+                  </button>
+                );
+              }
+              if (row.kind === "coffee") {
+                return (
+                  <button
+                    key={`coffee:${row.key}`}
+                    type="button"
+                    onClick={() => selectTab("coffee")}
+                    className="flex min-h-11 w-full items-center gap-2.5 px-3.5 py-2 text-left"
+                  >
+                    <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: COFFEE_ACCENT }} aria-hidden="true" />
+                    <span className="w-11 shrink-0 text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>
+                      {row.time}
+                    </span>
+                    <span className="min-w-0 flex-1 text-sm" style={{ color: "var(--text-primary)" }}>
+                      {row.name}
+                    </span>
+                    <span className="shrink-0 text-xs" style={{ color: "var(--text-secondary)" }}>
+                      Coffee
                     </span>
                     <ChevronIcon dir="right" size={13} />
                   </button>
