@@ -697,10 +697,13 @@ per-slot rainbow for Food, the domain accent elsewhere). The Trends
 dashboards are untouched.
 
 `health_import_tokens` has the same shape and rules: one per account, for
-the iOS Shortcut that POSTs a day's walking minutes from Apple Health to
-the `health-import` Edge Function. The function writes a `workout_logs` row
-whose id is derived from (user, exercise, date), so each day has one
-imported entry that a re-run overwrites and a 0 deletes.
+the iOS Shortcut that POSTs a day's walking minutes, steps, weight and
+blood pressure from Apple Health to the `health-import` Edge Function. The
+function writes `workout_logs` rows (Walking, and a Steps exercise with
+unit `steps` it creates on first use) and `weight_logs` / `blood_pressure`
+readings at midday, each with an id derived from (user, kind, date), so
+each day has one imported entry per kind that a re-run overwrites and a 0
+deletes.
 
 `wishlist_share_tokens` (one row per account, `unique (owner_id)`) is a
 capture token for a phone Share Sheet shortcut: iOS has no PWA share

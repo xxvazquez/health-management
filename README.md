@@ -80,7 +80,8 @@ Sections: **Food · Symptoms · Supplements · Habits · Stool · Workout · Cyc
 - **Plan:** the day's targets from your active plans, and a week row showing done, missed or short days. Logging a plan set writes a normal workout log.
 - Logging a timed or counted exercise that's already in today asks first, then adds onto that entry. kg sets stay separate.
 - Tap a value in a row's "today" line to edit or delete it.
-- **Apple Health:** an iOS Shortcut can send each day's walking minutes to Walking every evening (Settings → Workout → Apple Health). One entry per day; a re-run replaces it, and it replaces a walk typed in by hand that day. Log marks it "Apple Health".
+- **Apple Health:** an iOS Shortcut can send each day's walking minutes and steps every evening (Settings → Workout → Apple Health). They land on Walking and Steps (created on first import); weight and blood pressure go to Health → Vitals.
+- One imported entry per kind per day: a re-run replaces it, and it replaces one typed in by hand that day. Log and Vitals mark it "Apple Health".
 
 #### Coffee
 
@@ -105,7 +106,7 @@ One dashboard per Log section, plus Patterns. The time range sits in the title r
 |---|---|
 | Visits | Grouped lists: upcoming dates, decisions/notes/observations (filter by specialty), past visits with open follow-ups; each visit opens in a sheet |
 | Results | Opens on the last blood test: markers out of range, back in range, or notably moved since the result before. Below it, every lab marker on a range bar (same band position on every row), value and unit in aligned columns, H/L flags. Tap one for an Apple Health-style trend (6M–All, drag to read a point, swipe through time) and its readings. A PL/EN switch shows panel and marker names in Polish or English |
-| Vitals | Blood pressure (low readings marked, ACC/AHA categories) and weight, in the same trend card as Results; optional weight-goal band |
+| Vitals | Blood pressure (low readings marked, ACC/AHA categories) and weight, in the same trend card as Results; optional weight-goal band. Readings can come in from Apple Health |
 | Doctors | Read-only directory; editing is in Settings. Each doctor has a Visit summary (`/medical/summary/?doctor=<id>`): symptoms, blood results, vitals, supplements, that specialty's notes, open follow-ups and visits over 3, 6 or 12 months, ready to print or save as a PDF |
 
 ### Settings

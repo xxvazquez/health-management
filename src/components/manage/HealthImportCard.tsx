@@ -15,8 +15,9 @@ function lastImport(token: PhoneToken | null): string {
 }
 
 /** Settings → Workout → Apple Health: a nightly iOS Shortcut sends the day's
- * walking minutes from Apple Health to the health-import Edge Function,
- * which saves them as that day's Walking entry. */
+ * walking minutes, steps, weight and blood pressure from Apple Health to the
+ * health-import Edge Function, which saves them as that day's Walking and
+ * Steps entries and Vitals readings. */
 export function HealthImportCard({ isDemoData, searchQuery }: { isDemoData: boolean; searchQuery: string }) {
   const [token, setToken] = useState<PhoneToken | null>(null);
   const [state, setState] = useState<"loading" | "ready" | "busy" | "error">("loading");
@@ -56,13 +57,13 @@ export function HealthImportCard({ isDemoData, searchQuery }: { isDemoData: bool
   return (
     <CollapsibleManageCard title="Apple Health" subtitle={subtitle} forceOpen={searchQuery.trim().length > 0} bare>
       {isDemoData || !endpoint || !auth ? (
-        <FormGroup footer="Sign in to bring your walking time in from Apple Health.">
+        <FormGroup footer="Sign in to bring walking, steps, weight and blood pressure in from Apple Health.">
           <div className="flex min-h-11 items-center px-3.5 text-sm" style={{ color: "var(--text-secondary)" }}>
-            Walking from Apple Health
+            Walking, steps, weight, blood pressure
           </div>
         </FormGroup>
       ) : !token ? (
-        <FormGroup footer="Your iPhone sends each day's walking minutes to Workout → Walking, so you don't type them in.">
+        <FormGroup footer="Your iPhone sends each day's walking time and steps to Workout, and weight and blood pressure to Health → Vitals.">
           <button
             type="button"
             onClick={() => void act(() => regeneratePhoneToken(TABLE))}
@@ -87,20 +88,23 @@ export function HealthImportCard({ isDemoData, searchQuery }: { isDemoData: bool
             <CopyRow label="Authorization" value={auth} />
           </FormGroup>
 
-          <FormGroup title="On your iPhone" footer="It then runs every evening on its own. Re-running it the same day replaces that day's value.">
+          <FormGroup title="On your iPhone" footer="Leave out anything you don't track. It runs every evening; a re-run the same day replaces that day's values.">
             <Step n={1}>Shortcuts → Automation → + → Time of Day → 23:00, Daily, Run Immediately.</Step>
             <Step n={2}>
-              Add <strong>Find Health Samples</strong>: Type is Workouts, Workout Type is Walking, Start Date is Today.
+              Walking: <strong>Find Health Samples</strong> (Workouts, Walking, today) → Duration → <strong>Calculate Statistics</strong> → Sum.
             </Step>
             <Step n={3}>
-              Add <strong>Get Details of Health Sample</strong> → Duration, then <strong>Calculate Statistics</strong> → Sum.
+              Steps: <strong>Find Health Samples</strong> (Steps, today) → <strong>Calculate Statistics</strong> → Sum.
             </Step>
             <Step n={4}>
-              Add <strong>Get Contents of URL</strong> with the Link above, Method POST, header Authorization.
+              Weight, Systolic, Diastolic: <strong>Find Health Samples</strong> (today, latest first, Limit 1) for each.
             </Step>
             <Step n={5}>
-              Request Body JSON: <code>minutes</code> = the Sum (in minutes), <code>date</code> = Current Date formatted as{" "}
-              <code>yyyy-MM-dd</code>.
+              Add <strong>Get Contents of URL</strong> with the Link above, Method POST, header Authorization.
+            </Step>
+            <Step n={6}>
+              Request Body JSON, Number fields: <code>minutes</code>, <code>steps</code>, <code>weight</code> (kg), <code>systolic</code>,{" "}
+              <code>diastolic</code>; Text <code>date</code> = Current Date as <code>yyyy-MM-dd</code>.
             </Step>
           </FormGroup>
 
@@ -134,7 +138,7 @@ export function HealthImportCard({ isDemoData, searchQuery }: { isDemoData: bool
           {confirmOff && (
             <ConfirmDialog
               title="Turn off Apple Health import?"
-              message="The shortcut stops working. Walks already imported stay in your log."
+              message="The shortcut stops working. Everything already imported stays."
               confirmLabel="Turn off"
               destructive
               onConfirm={() => {

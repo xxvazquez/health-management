@@ -1315,7 +1315,7 @@ create table public.wishlist_share_tokens (
 );
 
 -- Log -> Workout: a personal token so an iOS Shortcut reading Apple Health
--- can POST a day's walking minutes to the health-import Edge Function
+-- can POST a day's walking, steps, weight and blood pressure to the health-import Edge Function
 -- without a Supabase session. Separate from the wishlist token so each
 -- shortcut can only do its one job. Same shape: one per person, rotated by
 -- delete + insert, read by the function with the service-role key.

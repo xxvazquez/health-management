@@ -22,6 +22,7 @@ import { FormGroup } from "@/components/ui/FormGroup";
 import { ROW_INLINE_CLS, ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { settingsHref } from "@/components/manage/ManageSection";
+import { useAppleHealthVitalIds } from "@/lib/appleHealth";
 
 type Kind = "bp" | "weight";
 
@@ -205,7 +206,17 @@ function WeightForm({
 
 // --- Reading rows ------------------------------------------------
 
-function BpRow({ reading, onEdit, onDelete }: { reading: BloodPressureReading; onEdit: () => void; onDelete: () => void }) {
+/** When a reading was taken; an Apple Health import is a whole day's
+ * figure, so it shows the date and its source rather than a clock time. */
+function ReadingWhen({ measuredAt, fromHealth }: { measuredAt: string; fromHealth: boolean }) {
+  return (
+    <p className="mt-0.5 text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>
+      {fromHealth ? `${formatDate(measuredAt)} · Apple Health` : formatDateTime(measuredAt)}
+    </p>
+  );
+}
+
+function BpRow({ reading, fromHealth, onEdit, onDelete }: { reading: BloodPressureReading; fromHealth: boolean; onEdit: () => void; onDelete: () => void }) {
   const [confirming, setConfirming] = useState(false);
   const cat = bpCategory(reading.systolic, reading.diastolic);
   return (
@@ -220,14 +231,14 @@ function BpRow({ reading, onEdit, onDelete }: { reading: BloodPressureReading; o
         {reading.pulse != null && (
           <span className="ml-2 text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>· {reading.pulse} bpm</span>
         )}
-        <p className="mt-0.5 text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>{formatDateTime(reading.measuredAt)}</p>
+        <ReadingWhen measuredAt={reading.measuredAt} fromHealth={fromHealth} />
         {reading.note && <p className="mt-0.5 text-xs" style={{ color: "var(--text-secondary)" }}>{reading.note}</p>}
       </div>
     </ReadingRow>
   );
 }
 
-function WeightRow({ reading, previousKg, onEdit, onDelete }: { reading: WeightReading; previousKg: number | null; onEdit: () => void; onDelete: () => void }) {
+function WeightRow({ reading, previousKg, fromHealth, onEdit, onDelete }: { reading: WeightReading; previousKg: number | null; fromHealth: boolean; onEdit: () => void; onDelete: () => void }) {
   const [confirming, setConfirming] = useState(false);
   const delta = previousKg != null ? Math.round((reading.kg - previousKg) * 10) / 10 : null;
   return (
@@ -241,7 +252,7 @@ function WeightRow({ reading, previousKg, onEdit, onDelete }: { reading: WeightR
             {delta > 0 ? "+" : ""}{delta} kg
           </span>
         )}
-        <p className="mt-0.5 text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>{formatDateTime(reading.measuredAt)}</p>
+        <ReadingWhen measuredAt={reading.measuredAt} fromHealth={fromHealth} />
         {reading.note && <p className="mt-0.5 text-xs" style={{ color: "var(--text-secondary)" }}>{reading.note}</p>}
       </div>
     </ReadingRow>
@@ -357,6 +368,9 @@ export function VitalsTab({ accent, composing, setComposing }: { accent: string;
       onCancel={closeForm}
     />
   );
+
+  const bpFromHealth = useAppleHealthVitalIds("bp", vitals.bp.data.map((r) => r.measuredAt));
+  const weightFromHealth = useAppleHealthVitalIds("weight", vitals.weight.data.map((r) => r.measuredAt));
 
   const bpAsc = [...vitals.bp.data].slice().reverse();
   const weightAsc = [...vitals.weight.data].slice().reverse();
@@ -492,7 +506,7 @@ export function VitalsTab({ accent, composing, setComposing }: { accent: string;
             )}
             <ul className="inset-rows flex flex-col rounded-xl border" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
               {vitals.bp.data.map((r) => (
-                <BpRow key={r.id} reading={r} onEdit={() => setEditingBp(r)} onDelete={() => void vitals.bp.remove(r.id)} />
+                <BpRow key={r.id} reading={r} fromHealth={bpFromHealth.has(r.id)} onEdit={() => setEditingBp(r)} onDelete={() => void vitals.bp.remove(r.id)} />
               ))}
             </ul>
           </>
@@ -544,6 +558,7 @@ export function VitalsTab({ accent, composing, setComposing }: { accent: string;
                 key={r.id}
                 reading={r}
                 previousKg={vitals.weight.data[i + 1]?.kg ?? null}
+                fromHealth={weightFromHealth.has(r.id)}
                 onEdit={() => setEditingWeight(r)}
                 onDelete={() => void vitals.weight.remove(r.id)}
               />
