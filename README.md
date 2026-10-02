@@ -92,7 +92,7 @@ One dashboard per Log section, plus Patterns. The time range sits in the title r
 | Dashboard | Shows |
 |---|---|
 | Food | Overview (meals a week against your food targets), Variety, Meal patterns, Combinations (including the combos you rate highest), Ingredients |
-| Patterns | Symptoms, hard or loose stools (Bristol 1–2 / 5–7), low mood and low energy (a check-in of 1–2) that show up more or less often after a food or supplement, or in a cycle phase, tested for chance; Compare picks any symptom and trigger from searchable lists |
+| Patterns | Symptoms, hard or loose stools (Bristol 1–2 / 5–7), low mood and low energy (a check-in of 1–2) that show up more or less often after a food or supplement, or in a cycle phase, tested for chance; a link's sheet compares how strong the symptom was (1–3) with and without the trigger; Compare picks any symptom and trigger from searchable lists |
 | Supplements, Habits | A card per item with the days you logged it and consistency against its schedule; archived ones list their course dates and consistency |
 | Digestion | Every Bristol reading on a dot chart (hard / normal / loose counts under it), movements a day, symptom days against the previous period, each digestive symptom with its own day-by-day screen, what came with bowel movements, usual colour, hygiene and time |
 | Workout | Recent sessions and each exercise over time |
@@ -143,6 +143,7 @@ A grouped list where each row opens its own screen. Everything editable in the a
 - **Sweets:** syrups, honey and milk chocolate count toward the Sweets & sugar limit; dark chocolate doesn't.
 - **A day with no food logged never counts as zero.** Food targets and staples divide by the days with food logged in the range, not the calendar. A "vs previous period" figure only shows when both periods were logged on a similar number of days.
 - **Patterns only compare days both sides were tracked.** A section counts as tracked from its first entry, on days you used the app, until it goes quiet for two weeks (a month for symptoms).
+- **Patterns check foods and supplements within each cycle phase** once cycles are logged, so a food eaten mostly before a period doesn't take the blame for that phase's symptoms.
 - **Cycle** stores only period days. Cycle length and predictions are always derived, never stored.
 - **Cycle gaps:** one unlogged day inside a period is bridged. A cycle under 15 days or about twice the usual length looks like a missed log, so averages, variation, predictions and the length chart leave it out.
 - **Hiding a section** in Settings hides it from both Log and Trends, on every device.

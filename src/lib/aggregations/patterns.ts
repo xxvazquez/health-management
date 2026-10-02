@@ -89,6 +89,8 @@ export interface AssociationResult {
   /** Percentage-point difference, with-minus-without. Positive = more common alongside the cause. */
   diffPct: number;
   sampleTier: SampleTier;
+  /** Tested within each cycle phase, so the phase can't explain it. */
+  phaseAdjusted?: boolean;
 }
 
 export type SampleTier = "insufficient" | "exploratory" | "moderate" | "strong";
@@ -131,21 +133,23 @@ export interface AssociationOptions {
   outcomeTimes?: Map<string, number>;
 }
 
-export function computeAssociationFromDateSets(
+interface ComparedDay {
+  outcomeDate: string;
+  hadCause: boolean;
+  occurred: boolean;
+}
+
+/** Every outcome-tracked day the comparison can use, with whether the
+ * cause (shifted by the lag) and the outcome happened. */
+function compareDays(
   causeDates: Set<string>,
   outcomeOccurredDates: Set<string>,
   outcomeTrackedDates: Set<string>,
   lagDays: number,
-  causeLabel: string,
-  outcomeLabel: string,
   options: AssociationOptions = {},
-): AssociationResult {
+): ComparedDay[] {
   const { causeTrackedDates, causeTimes, outcomeTimes } = options;
-  let withCount = 0;
-  let withTotal = 0;
-  let withoutCount = 0;
-  let withoutTotal = 0;
-
+  const days: ComparedDay[] = [];
   for (const outcomeDate of outcomeTrackedDates) {
     const causeDate = addDaysToDate(outcomeDate, -lagDays);
     if (causeTrackedDates && !causeTrackedDates.has(causeDate)) continue;
@@ -156,26 +160,46 @@ export function computeAssociationFromDateSets(
       const outcomeAt = outcomeTimes.get(outcomeDate);
       if (causeAt !== undefined && outcomeAt !== undefined && causeAt > outcomeAt) continue;
     }
-    if (hadCause) {
-      withTotal++;
-      if (occurred) withCount++;
-    } else {
-      withoutTotal++;
-      if (occurred) withoutCount++;
-    }
+    days.push({ outcomeDate, hadCause, occurred });
   }
+  return days;
+}
 
-  const withPct = pct(withCount, withTotal);
-  const withoutPct = pct(withoutCount, withoutTotal);
+/** A 2×2 table as [with & occurred, with & not, without & occurred, without & not]. */
+type Table = [number, number, number, number];
 
+function tally(days: ComparedDay[]): Table {
+  const t: Table = [0, 0, 0, 0];
+  for (const d of days) t[(d.hadCause ? 0 : 2) + (d.occurred ? 0 : 1)]++;
+  return t;
+}
+
+export function computeAssociationFromDateSets(
+  causeDates: Set<string>,
+  outcomeOccurredDates: Set<string>,
+  outcomeTrackedDates: Set<string>,
+  lagDays: number,
+  causeLabel: string,
+  outcomeLabel: string,
+  options: AssociationOptions = {},
+): AssociationResult {
+  const days = compareDays(causeDates, outcomeOccurredDates, outcomeTrackedDates, lagDays, options);
+  return associationFromTable(tally(days), lagDays, causeLabel, outcomeLabel);
+}
+
+function associationFromTable([a, b, c, d]: Table, lagDays: number, causeLabel: string, outcomeLabel: string): AssociationResult {
+  const withTotal = a + b;
+  const withoutTotal = c + d;
+  const withPct = pct(a, withTotal);
+  const withoutPct = pct(c, withoutTotal);
   return {
     causeLabel,
     outcomeLabel,
     lagDays,
-    withCount,
+    withCount: a,
     withTotal,
     withPct,
-    withoutCount,
+    withoutCount: c,
     withoutTotal,
     withoutPct,
     diffPct: round1(withPct - withoutPct),
@@ -193,6 +217,8 @@ export interface OutcomeOption {
   /** Days we know whether it happened. */
   tracked: Set<string>;
   times?: Map<string, number>;
+  /** Highest logged intensity (1–3) per date, for symptoms. */
+  levels?: Map<string, number>;
 }
 
 /** A check-in at or below this counts as low. */
@@ -239,7 +265,12 @@ export function patternOutcomes(events: CanonicalEvent[], checkIns: CheckIn[] = 
   const symptoms = Array.from(categories, ([label, category]) => {
     const matcher = matchItem(label);
     const dates = dateSetForMatcher(events, matcher);
-    return { label, category, dates, tracked: outcomeTracked(events, dates, symptomTracked), times: firstTimeByDate(events, matcher) };
+    const levels = new Map<string, number>();
+    for (const e of events) {
+      if (!matcher.test(e) || e.value == null) continue;
+      levels.set(e.date, Math.max(levels.get(e.date) ?? 0, Math.min(3, e.value)));
+    }
+    return { label, category, dates, tracked: outcomeTracked(events, dates, symptomTracked), times: firstTimeByDate(events, matcher), levels };
   });
   return [...symptoms, ...checkInOutcomes(checkIns), ...stoolOutcomes(stoolLogs)];
 }
@@ -254,6 +285,19 @@ export function computeLaggedAssociations(cause: CauseOption, outcome: OutcomeOp
   );
 }
 
+function findLink(
+  events: CanonicalEvent[],
+  causeLabel: string,
+  outcomeLabel: string,
+  periodLogs: RawPeriodLog[],
+  checkIns: CheckIn[],
+  stoolLogs: RawStoolLog[],
+): { cause: CauseOption; outcome: OutcomeOption } | null {
+  const cause = patternCauses(events, periodLogs).find((c) => c.label === causeLabel);
+  const outcome = patternOutcomes(events, checkIns, stoolLogs).find((o) => o.label === outcomeLabel);
+  return cause && outcome ? { cause, outcome } : null;
+}
+
 /** One link's comparison at every delay from the same day to 3 days after. */
 export function linkByDelay(
   events: CanonicalEvent[],
@@ -263,9 +307,46 @@ export function linkByDelay(
   checkIns: CheckIn[] = [],
   stoolLogs: RawStoolLog[] = [],
 ): AssociationResult[] {
-  const cause = patternCauses(events, periodLogs).find((c) => c.label === causeLabel);
-  const outcome = patternOutcomes(events, checkIns, stoolLogs).find((o) => o.label === outcomeLabel);
-  return cause && outcome ? computeLaggedAssociations(cause, outcome) : [];
+  const link = findLink(events, causeLabel, outcomeLabel, periodLogs, checkIns, stoolLogs);
+  return link ? computeLaggedAssociations(link.cause, link.outcome) : [];
+}
+
+export interface IntensityComparison {
+  /** Average 1–3 on the days the symptom happened, with and without the trigger. */
+  withAvg: number;
+  withDays: number;
+  withoutAvg: number;
+  withoutDays: number;
+}
+
+/** Fewer symptom days than this on either side and an average says nothing. */
+const MIN_INTENSITY_DAYS = 3;
+
+/** How strong the symptom was when it happened, with the trigger vs
+ * without, at the link's delay. Null for outcomes without a level (mood,
+ * stool), a symptom only ever logged at one level, or too few days. */
+export function linkIntensity(
+  events: CanonicalEvent[],
+  link: AssociationResult,
+  periodLogs: RawPeriodLog[] = [],
+  checkIns: CheckIn[] = [],
+  stoolLogs: RawStoolLog[] = [],
+): IntensityComparison | null {
+  const found = findLink(events, link.causeLabel, link.outcomeLabel, periodLogs, checkIns, stoolLogs);
+  const levels = found?.outcome.levels;
+  if (!found || !levels || new Set(levels.values()).size < 2) return null;
+  const { cause, outcome } = found;
+  const days = compareDays(cause.dates, outcome.dates, outcome.tracked, link.lagDays, {
+    causeTrackedDates: cause.tracked,
+    causeTimes: cause.times,
+    outcomeTimes: outcome.times,
+  });
+  const side = (hadCause: boolean) => days.flatMap((d) => (d.occurred && d.hadCause === hadCause && levels.has(d.outcomeDate) ? [levels.get(d.outcomeDate)!] : []));
+  const withLevels = side(true);
+  const withoutLevels = side(false);
+  if (withLevels.length < MIN_INTENSITY_DAYS || withoutLevels.length < MIN_INTENSITY_DAYS) return null;
+  const avg = (v: number[]) => round1(v.reduce((a, b) => a + b, 0) / v.length);
+  return { withAvg: avg(withLevels), withDays: withLevels.length, withoutAvg: avg(withoutLevels), withoutDays: withoutLevels.length };
 }
 
 export const MIN_INTERESTING_DIFF_PCT = 15;
@@ -326,8 +407,7 @@ function workoutCause(events: CanonicalEvent[], workoutLogs: RawWorkoutLog[]): C
 }
 
 /** One cause per cycle phase, over the days inside completed cycles. */
-function cyclePhaseCauses(periodLogs: RawPeriodLog[]): CauseOption[] {
-  const phases = cyclePhaseByDate(groupIntoPeriodRuns(periodLogs));
+function cyclePhaseCauses(periodLogs: RawPeriodLog[], phases = cyclePhaseByDate(groupIntoPeriodRuns(periodLogs))): CauseOption[] {
   if (phases.size === 0) return [];
   const tracked = new Set(phases.keys());
   const byPhase = new Map<CyclePhase, Set<string>>();
@@ -421,6 +501,41 @@ export function fisherExactP(a: number, b: number, c: number, d: number): number
   return Math.min(1, p);
 }
 
+/** Complementary error function (Numerical Recipes' erfcc, error < 1.2e-7). */
+function erfc(x: number): number {
+  const z = Math.abs(x);
+  const t = 1 / (1 + 0.5 * z);
+  const r =
+    t *
+    Math.exp(
+      -z * z - 1.26551223 + t * (1.00002368 + t * (0.37409196 + t * (0.09678418 + t * (-0.18628806 + t * (0.27886807 + t * (-1.13520398 + t * (1.48851587 + t * (-0.82215223 + t * 0.17087277)))))))),
+    );
+  return x >= 0 ? r : 2 - r;
+}
+
+/** Cochran–Mantel–Haenszel test across 2×2 tables, one per stratum
+ * (continuity-corrected, 1 df). `excess` is observed minus expected
+ * "with & occurred" days summed over strata: positive means the outcome
+ * is more common with the cause within strata. Strata where one margin
+ * is empty carry no information and drop out. */
+export function mantelHaenszelP(tables: Table[]): { p: number; excess: number; strata: number } {
+  let excess = 0;
+  let variance = 0;
+  let strata = 0;
+  for (const [a, b, c, d] of tables) {
+    const n = a + b + c + d;
+    const row1 = a + b;
+    const col1 = a + c;
+    if (n < 2 || row1 === 0 || row1 === n || col1 === 0 || col1 === n) continue;
+    excess += a - (row1 * col1) / n;
+    variance += (row1 * (n - row1) * col1 * (n - col1)) / (n * n * (n - 1));
+    strata++;
+  }
+  if (variance === 0) return { p: 1, excess, strata };
+  const chi2 = Math.max(0, Math.abs(excess) - 0.5) ** 2 / variance;
+  return { p: erfc(Math.sqrt(chi2 / 2)), excess, strata };
+}
+
 /** Key for a symptom × trigger pair, for matching one against the hidden ones. */
 export function patternLinkKey(outcomeLabel: string, causeLabel: string): string {
   return `${outcomeLabel}\u0000${causeLabel}`;
@@ -429,10 +544,11 @@ export function patternLinkKey(outcomeLabel: string, causeLabel: string): string
 /**
  * The Patterns tab's links: for every symptom × food/supplement/cycle
  * phase × plausible lag with enough days on both sides, a Fisher's exact
- * test. Only days both the symptom's and the trigger's sections were really
- * tracked are compared, and a link with either side near 0% is dropped as a
- * coverage artefact. The p-values
- * of every test run are then corrected together (Benjamini–Hochberg), and
+ * test — or, once cycle phases are known, a Mantel–Haenszel test within
+ * each phase for foods and supplements. Only days both the symptom's and
+ * the trigger's sections were really tracked are compared, and a link with
+ * either side near 0% is dropped as a coverage artefact. The p-values of
+ * every test run are then corrected together (Benjamini–Hochberg), and
  * only links that survive — at most one lag per pair, strongest first,
  * capped at five — are returned. Habits and routines aren't tested as
  * triggers, nor medicines taken in response to symptoms. Pairs in
@@ -448,24 +564,44 @@ export function generateTopPatterns(
   const outcomes = patternOutcomes(events, checkIns, stoolLogs);
   if (outcomes.length === 0) return [];
 
-  const causes = patternCauses(events, periodLogs);
+  const phases = cyclePhaseByDate(groupIntoPeriodRuns(periodLogs));
+  const causes = [...foodAndSupplementCauses(events), ...cyclePhaseCauses(periodLogs, phases)];
 
   const tests: { assoc: AssociationResult; p: number }[] = [];
   for (const outcome of outcomes) {
     for (const cause of causes) {
       if (cause.label === outcome.label || hidden.has(patternLinkKey(outcome.label, cause.label))) continue;
+      const stratify = phases.size > 0 && !cause.label.endsWith(" phase");
       for (const lag of plausibleLags(outcome.category, cause.label)) {
-        const assoc = computeAssociationFromDateSets(cause.dates, outcome.dates, outcome.tracked, lag, cause.label, outcome.label, {
+        const days = compareDays(cause.dates, outcome.dates, outcome.tracked, lag, {
           causeTrackedDates: cause.tracked,
           causeTimes: cause.times,
           outcomeTimes: outcome.times,
         });
+        const table = tally(days);
+        const assoc = associationFromTable(table, lag, cause.label, outcome.label);
         if (assoc.withTotal < MIN_CONTRAST_DAYS || assoc.withoutTotal < MIN_CONTRAST_DAYS) continue;
         if (!bothSidesObserved(assoc)) continue;
         const exposedShare = assoc.withTotal / (assoc.withTotal + assoc.withoutTotal);
         if (exposedShare < MIN_EXPOSED_SHARE || exposedShare > MAX_EXPOSED_SHARE) continue;
-        const p = fisherExactP(assoc.withCount, assoc.withTotal - assoc.withCount, assoc.withoutCount, assoc.withoutTotal - assoc.withoutCount);
-        tests.push({ assoc, p });
+        if (stratify) {
+          // Compare within each cycle phase (days outside a completed cycle
+          // form their own group) so a food eaten more in one phase can't
+          // borrow that phase's symptoms.
+          const byPhase = new Map<string, ComparedDay[]>();
+          for (const d of days) {
+            const key = phases.get(d.outcomeDate) ?? "";
+            byPhase.set(key, [...(byPhase.get(key) ?? []), d]);
+          }
+          const mh = mantelHaenszelP(Array.from(byPhase.values(), tally));
+          if (mh.strata >= 2) {
+            // Within phases the link must point the same way as overall.
+            if (Math.sign(mh.excess) !== Math.sign(assoc.diffPct)) continue;
+            tests.push({ assoc: { ...assoc, phaseAdjusted: true }, p: mh.p });
+            continue;
+          }
+        }
+        tests.push({ assoc, p: fisherExactP(...table) });
       }
     }
   }

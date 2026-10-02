@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { checkInOutcomes, stoolOutcomes, computeAssociationFromDateSets, fisherExactP, generateTopPatterns, matchCategory, matchItem, patternLinkKey, plausibleLags } from "./patterns";
+import { checkInOutcomes, stoolOutcomes, computeAssociationFromDateSets, fisherExactP, generateTopPatterns, linkIntensity, mantelHaenszelP, matchCategory, matchItem, patternLinkKey, plausibleLags } from "./patterns";
 import { makeEvent, makePeriodLog, makeStoolLog } from "@/lib/testFixtures";
 import { addDaysToDate } from "./common";
 
@@ -218,5 +218,65 @@ describe("stoolOutcomes", () => {
 
   it("adds nothing without stool logs", () => {
     expect(stoolOutcomes([])).toEqual([]);
+  });
+});
+
+describe("cycle-phase stratification", () => {
+  const day = (n: number) => addDaysToDate("2026-03-01", n);
+  // 28-day cycles with a 5-day period over 168 days; a headache on every
+  // luteal day and now and then otherwise.
+  const periodLogs = Array.from({ length: 7 }, (_, c) => c).flatMap((c) => Array.from({ length: 5 }, (_, i) => makePeriodLog({ date: day(c * 28 + i) })));
+  const luteal = (n: number) => n % 28 >= 15;
+  const build = (chocolateOn: (n: number) => boolean) =>
+    Array.from({ length: 168 }, (_, n) => n).flatMap((n) => [
+      makeEvent({ itemType: "food", item: "Bread", category: "Grains", date: day(n) }),
+      ...(chocolateOn(n) ? [makeEvent({ itemType: "food", item: "Chocolate", category: "Sweets", date: day(n) })] : []),
+      ...(luteal(n) || n % 7 === 3 ? [makeEvent({ itemType: "outcome", item: "Headache", category: "Other Symptom", date: day(n) })] : []),
+    ]);
+
+  it("doesn't credit a food eaten mostly in the luteal phase with that phase's symptoms", () => {
+    // Chocolate on most luteal days and few others: a strong crude link
+    // that disappears within phases.
+    const events = build((n) => (luteal(n) ? n % 4 !== 0 : n % 9 === 0));
+    const crude = generateTopPatterns(events);
+    expect(crude.some((l) => l.causeLabel === "Chocolate")).toBe(true);
+    const adjusted = generateTopPatterns(events, new Set(), periodLogs);
+    expect(adjusted.some((l) => l.causeLabel === "Chocolate")).toBe(false);
+  });
+
+  it("returns 1 for strata that carry no information", () => {
+    expect(mantelHaenszelP([[3, 0, 0, 0], [0, 0, 2, 2]]).p).toBe(1);
+  });
+
+  it("matches a known Mantel–Haenszel statistic", () => {
+    // Two identical strata [[10, 5], [3, 12]]: 3.5 more "with & occurred" days than expected in each.
+    const { p, excess } = mantelHaenszelP([[10, 5, 3, 12], [10, 5, 3, 12]]);
+    expect(excess).toBeCloseTo(7, 5);
+    expect(p).toBeLessThan(0.001);
+  });
+});
+
+describe("linkIntensity", () => {
+  const day = (n: number) => addDaysToDate("2026-03-01", n);
+  it("averages the symptom's level with and without the trigger", () => {
+    const events = Array.from({ length: 60 }, (_, n) => n).flatMap((n) => [
+      makeEvent({ itemType: "food", item: "Bread", category: "Grains", date: day(n) }),
+      ...(n % 3 === 0 ? [makeEvent({ itemType: "food", item: "Milk", category: "Dairy", date: day(n) })] : []),
+      ...(n % 3 === 1 ? [makeEvent({ itemType: "outcome", item: "Bloating", category: "Digestive Symptom", date: day(n), value: 3 })] : []),
+      ...(n % 9 === 5 ? [makeEvent({ itemType: "outcome", item: "Bloating", category: "Digestive Symptom", date: day(n), value: 1 })] : []),
+    ]);
+    const [link] = generateTopPatterns(events);
+    const intensity = linkIntensity(events, link);
+    expect(intensity).toMatchObject({ withAvg: 3, withoutAvg: 1 });
+  });
+
+  it("is null for a symptom only ever logged at one level", () => {
+    const events = Array.from({ length: 60 }, (_, n) => n).flatMap((n) => [
+      makeEvent({ itemType: "food", item: "Bread", category: "Grains", date: day(n) }),
+      ...(n % 3 === 0 ? [makeEvent({ itemType: "food", item: "Milk", category: "Dairy", date: day(n) })] : []),
+      ...(n % 3 === 1 || n % 9 === 5 ? [makeEvent({ itemType: "outcome", item: "Bloating", category: "Digestive Symptom", date: day(n) })] : []),
+    ]);
+    const [link] = generateTopPatterns(events);
+    expect(linkIntensity(events, link)).toBeNull();
   });
 });

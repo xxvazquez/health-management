@@ -15,6 +15,7 @@ import {
   computeLaggedAssociations,
   generateTopPatterns,
   linkByDelay,
+  linkIntensity,
   patternOutcomes,
   patternLinkKey,
   type AssociationResult,
@@ -208,13 +209,15 @@ function LinkSheet({
   onClose: () => void;
 }) {
   const byDelay = useMemo(() => linkByDelay(events, link.causeLabel, link.outcomeLabel, periodLogs, checkIns, stoolLogs), [events, link, periodLogs, checkIns, stoolLogs]);
+  const intensity = useMemo(() => linkIntensity(events, link, periodLogs, checkIns, stoolLogs), [events, link, periodLogs, checkIns, stoolLogs]);
+  const withoutLabel = isPhase(link.causeLabel) ? "Other days" : "Without";
   return (
     <Sheet title={link.outcomeLabel} subtitle={linkSentence(link)} titleId="pattern-link-title" onClose={onClose}>
       <div className="flex flex-col gap-5">
-        <FormGroup title={delayLabel(link.lagDays)}>
+        <FormGroup title={delayLabel(link.lagDays)} footer={link.phaseAdjusted ? "Holds within each phase of your cycle." : undefined}>
           {[
             { label: withLabel(link.causeLabel), count: link.withCount, total: link.withTotal, pct: link.withPct, color: withColor(link) },
-            { label: isPhase(link.causeLabel) ? "Other days" : "Without", count: link.withoutCount, total: link.withoutTotal, pct: link.withoutPct, color: "var(--text-primary)" },
+            { label: withoutLabel, count: link.withoutCount, total: link.withoutTotal, pct: link.withoutPct, color: "var(--text-primary)" },
           ].map((r) => (
             <div key={r.label} className="flex min-h-11 items-center gap-3 px-3.5">
               <span className="min-w-0 flex-1 text-sm" style={{ color: "var(--text-primary)" }}>
@@ -229,6 +232,27 @@ function LinkSheet({
             </div>
           ))}
         </FormGroup>
+
+        {intensity && (
+          <FormGroup title="Average intensity" footer="On the days it happened, on the 1–3 scale you log.">
+            {[
+              { label: withLabel(link.causeLabel), days: intensity.withDays, avg: intensity.withAvg },
+              { label: withoutLabel, days: intensity.withoutDays, avg: intensity.withoutAvg },
+            ].map((r) => (
+              <div key={r.label} className="flex min-h-11 items-center gap-3 px-3.5">
+                <span className="min-w-0 flex-1 text-sm" style={{ color: "var(--text-primary)" }}>
+                  {r.label}
+                </span>
+                <span className="text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>
+                  {r.days} days
+                </span>
+                <span className="w-10 text-right text-sm font-semibold tabular-nums" style={{ color: "var(--text-primary)" }}>
+                  {r.avg.toFixed(1)}
+                </span>
+              </div>
+            ))}
+          </FormGroup>
+        )}
 
         {!isPhase(link.causeLabel) && <DelayRows results={byDelay} causeLabel={link.causeLabel} />}
 
