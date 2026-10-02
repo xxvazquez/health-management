@@ -6,6 +6,7 @@ import { CheckIcon, MinusIcon, PlusIcon } from "@/components/ui/icons";
 import { workoutUnitLabel, type RawWorkoutLog, type RawItem, type WorkoutUnit } from "@/lib/types";
 import { UNIT_STEP_PRESETS } from "@/components/ui/NumberStepper";
 import { CustomIcon } from "@/components/ui/customIcons";
+import { useAppleHealthLogId } from "@/lib/appleHealth";
 
 /** Vertical drag distance, in px, worth one `step` of value change — tuned
  * so a natural swipe adjusts a useful range without feeling twitchy or
@@ -269,6 +270,7 @@ export function ExerciseRow({
   }
 
   const unitLabel = workoutUnitLabel(unit);
+  const healthId = useAppleHealthLogId(item.identity, todaysSets[0]?.date);
 
   return (
     <div className="flex min-h-11 items-center gap-3 px-3.5 py-2">
@@ -289,6 +291,7 @@ export function ExerciseRow({
                   className="hit-slop font-medium"
                 >
                   {set.weightKg} {unitLabel}
+                  {set.id === healthId && <span style={{ color: "var(--text-muted)" }}> · Apple Health</span>}
                 </button>
                 {i < todaysSets.length - 1 && ","}
               </span>

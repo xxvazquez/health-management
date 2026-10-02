@@ -130,7 +130,7 @@ Parent-and-child writes (an appointment with tasks, a whole blood draw) queue pa
   - Link titles come from the `fetch-link-metadata` Edge Function (the browser can't, because of CORS)
   - Android shares straight in via the PWA `share_target` (`/personal/?url=…`)
   - iOS uses a Shortcut that posts to the `wishlist-share` function with a per-account token
-- **Apple Health import:** a nightly iOS Shortcut posts the day's walking minutes to `health-import` with its own token (`health_import_tokens`, shared helpers in `phoneTokens.ts`); the function upserts one Walking `workout_logs` row per day under a stable id, and the next sync pull brings it into the app
+- **Apple Health import:** a nightly iOS Shortcut posts the day's walking minutes to `health-import` with its own token (`health_import_tokens`, shared helpers in `phoneTokens.ts`); the function upserts one Walking `workout_logs` row per day under a stable id (deleting any typed Walking row for that day, so nothing double-counts; `appleHealthLogId` in `src/lib/appleHealth.ts` recomputes the id so Log can label it), and the next sync pull brings it into the app
 - **Health** (`doctor_*`, `care_entries`, `lab_*`)
   - The route is `/medical`, but the code and tables keep the `doctor_` name
   - An appointment freezes a copy of the doctor's specialty, so later edits never rewrite history

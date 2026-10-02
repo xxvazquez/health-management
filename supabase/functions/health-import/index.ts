@@ -6,7 +6,9 @@
 //
 // One entry per day: the row id is derived from (user, exercise, date), so
 // running the shortcut again the same day replaces the value instead of
-// adding a second entry. A day with 0 minutes removes the imported entry.
+// adding a second entry. Apple Health is that day's record: a walk typed in
+// by hand for the same exercise and day is removed so it isn't counted twice.
+// A day with 0 minutes removes the imported entry and leaves typed ones.
 //
 // Deployed by .github/workflows/deploy-functions.yml. SUPABASE_URL and the
 // project's secret key are injected automatically; no other secrets.
@@ -138,6 +140,14 @@ async function handle(req: Request): Promise<Response> {
       console.error("health-import: upsert failed", error.message);
       return json({ error: "Server error" }, 500);
     }
+    const { error: dupErr } = await admin
+      .from("workout_logs")
+      .delete()
+      .eq("user_id", ownerId)
+      .eq("item_id", item.id)
+      .eq("date", date)
+      .neq("id", id);
+    if (dupErr) console.error("health-import: removing typed entries failed", dupErr.message);
   }
 
   await admin.from("health_import_tokens").update({ last_used_at: new Date().toISOString() }).eq("token", token);

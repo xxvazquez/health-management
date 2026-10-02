@@ -80,7 +80,7 @@ Sections: **Food · Symptoms · Supplements · Habits · Stool · Workout · Cyc
 - **Plan:** the day's targets from your active plans, and a week row showing done, missed or short days. Logging a plan set writes a normal workout log.
 - Logging a timed or counted exercise that's already in today asks first, then adds onto that entry. kg sets stay separate.
 - Tap a value in a row's "today" line to edit or delete it.
-- **Apple Health:** an iOS Shortcut can send each day's walking minutes to Walking every evening (Settings → Workout → Apple Health). One entry per day; a re-run replaces it.
+- **Apple Health:** an iOS Shortcut can send each day's walking minutes to Walking every evening (Settings → Workout → Apple Health). One entry per day; a re-run replaces it, and it replaces a walk typed in by hand that day. Log marks it "Apple Health".
 
 #### Coffee
 
