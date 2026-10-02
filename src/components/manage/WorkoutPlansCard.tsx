@@ -7,6 +7,7 @@ import { Field } from "@/components/ui/Field";
 import { Segmented } from "@/components/ui/Segmented";
 import { KgWheels, NumberWheel, numberRange } from "@/components/ui/NumberWheels";
 import { Sheet } from "@/components/ui/Sheet";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { DatePicker } from "@/components/ui/DatePicker";
 import { SwitchRow } from "@/components/ui/Switch";
 import { ROW_INLINE_CLS, ROW_STYLE } from "@/components/ui/formField";
@@ -529,25 +530,22 @@ function PlanEditor({
             Save plan
           </button>
         </div>
-        {onDelete &&
-          (confirmDelete ? (
-            <div className="flex min-h-11 items-center justify-between px-3.5 text-sm">
-              <span style={{ color: "var(--text-secondary)" }}>Delete this plan? Your logged sets stay.</span>
-              <span className="flex gap-4">
-                <button type="button" onClick={() => setConfirmDelete(false)} style={{ color: "var(--text-secondary)" }}>
-                  Keep
-                </button>
-                <button type="button" onClick={onDelete} className="font-semibold" style={{ color: "var(--status-critical)" }}>
-                  Delete
-                </button>
-              </span>
-            </div>
-          ) : (
-            <button type="button" onClick={() => setConfirmDelete(true)} className="flex min-h-11 w-full items-center px-3.5 text-left text-sm" style={{ color: "var(--status-critical)" }}>
-              Delete plan
-            </button>
-          ))}
+        {onDelete && (
+          <button type="button" onClick={() => setConfirmDelete(true)} className="flex min-h-11 w-full items-center px-3.5 text-left text-sm" style={{ color: "var(--status-critical)" }}>
+            Delete plan
+          </button>
+        )}
       </div>
+      {confirmDelete && onDelete && (
+        <ConfirmDialog
+          title="Delete this plan?"
+          message="Your logged sets stay."
+          confirmLabel="Delete"
+          destructive
+          onConfirm={onDelete}
+          onClose={() => setConfirmDelete(false)}
+        />
+      )}
     </div>
   );
 }
