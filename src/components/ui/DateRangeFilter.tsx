@@ -70,19 +70,18 @@ export function describeDateRange(presets: DateRangePreset[], span: DateRange, v
  */
 export function DateRangeFilter({ span, value, onChange, presets = DEFAULT_PRESETS, accent = "var(--ui-accent)" }: Props) {
   const [open, setOpen] = useState(false);
-  // Which edge of the trigger the popover hangs from — right by default, but
-  // flipped to the left edge when the trigger sits too close to the screen's
-  // left edge for a right-anchored panel to fit (e.g. Food, where it wraps
-  // onto its own left-aligned line).
+  // Which edge of the trigger the popover hangs from: the left edge when the
+  // trigger sits in the left half of the screen (so it opens into the page,
+  // not over the sidebar), the right edge when it sits in a title row's right.
   const [alignLeft, setAlignLeft] = useState(false);
-  const POPOVER_WIDTH = 224;
+  const POPOVER_WIDTH = 240;
   const rootRef = useRef<HTMLDivElement>(null);
   const panelRef = useDialogA11y(open, () => setOpen(false));
 
   useLayoutEffect(() => {
     if (!open || !rootRef.current) return;
     const rect = rootRef.current.getBoundingClientRect();
-    setAlignLeft(rect.right < POPOVER_WIDTH + 8);
+    setAlignLeft(rect.right < POPOVER_WIDTH + 8 || (rect.left + rect.right) / 2 < window.innerWidth / 2);
   }, [open]);
 
   // Escape and Tab-trapping are handled by useDialogA11y (via panelRef) —
