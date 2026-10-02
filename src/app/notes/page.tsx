@@ -11,6 +11,7 @@ import {
   markAllThreadsRead,
   markThreadRead,
   markThreadUnread,
+  remindPartner,
   replyToNote,
   deleteThread,
   sendNote,
@@ -337,6 +338,7 @@ export default function NotesPage() {
             onToggleFavourite={demoToggleFavourite}
             onDelete={demoDelete}
             onReply={demoReply}
+            onRemind={async () => true}
           />
         ) : (
           <>
@@ -403,6 +405,7 @@ export default function NotesPage() {
           onToggleFavourite={toggleFavourite}
           onDelete={removeThread}
           onReply={reply}
+          onRemind={remindPartner}
         />
       ) : (
         <>

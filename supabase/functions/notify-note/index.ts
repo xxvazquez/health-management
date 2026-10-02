@@ -4,6 +4,10 @@
 // the message from being saved, and the reminder-cron's daily digest still
 // covers anyone without push enabled.
 //
+// With `remind: true` and a thread's root id it instead re-pushes the other
+// participant about a thread they haven't read since its latest message —
+// the Sent side's "Remind" action. A thread they've already read is refused.
+//
 // Push only, no email: the per-message email this function used to send was
 // dropped for being noisy (see reminder-cron's notes-digest phase). The push
 // carries no subject or body, only that something arrived — read it in Lauva.
@@ -64,6 +68,7 @@ Deno.serve(async (req) => {
   }
   const noteId = typeof body.noteId === "string" ? body.noteId : "";
   if (!noteId) return json({ error: "noteId is required" }, 400);
+  const remind = body.remind === true;
 
   // Verify the caller is the message's sender — the push says nothing
   // private, but this keeps a stranger from poking a known noteId to ping
@@ -78,26 +83,40 @@ Deno.serve(async (req) => {
 
   const { data: note, error: noteError } = await admin
     .from("notes")
-    .select("id, sender_id, recipient_id, thread_root_id")
+    .select("id, sender_id, recipient_id, thread_root_id, last_message_at, sender_read_at, recipient_read_at")
     .eq("id", noteId)
     .single();
   if (noteError || !note) return json({ error: "Note not found" }, 404);
-  if (note.sender_id !== callerId) return json({ error: "Not the sender" }, 403);
+
+  // The person being pushed: a new message's recipient, or for a reminder
+  // whichever participant of the thread isn't the caller.
+  let targetId: string;
+  if (remind) {
+    if (note.thread_root_id) return json({ error: "Remind takes a thread's root id" }, 400);
+    if (note.sender_id !== callerId && note.recipient_id !== callerId) return json({ error: "Not a participant" }, 403);
+    const targetIsSender = note.sender_id !== callerId;
+    targetId = targetIsSender ? note.sender_id : note.recipient_id;
+    const readAt = targetIsSender ? note.sender_read_at : note.recipient_read_at;
+    if (readAt && readAt >= note.last_message_at) return json({ error: "Already read" }, 409);
+  } else {
+    if (note.sender_id !== callerId) return json({ error: "Not the sender" }, 403);
+    targetId = note.recipient_id;
+  }
 
   const { data: subs } = await admin
     .from("push_subscriptions")
     .select("endpoint, p256dh, auth_key")
-    .eq("user_id", note.recipient_id);
+    .eq("user_id", targetId);
   // No subscription is a normal case — email digest is the fallback channel.
   if (!subs || subs.length === 0) return json({ ok: true, skipped: "no subscription" });
 
-  const { data: sender } = await admin.auth.admin.getUserById(note.sender_id);
+  const { data: sender } = await admin.auth.admin.getUserById(callerId);
   const senderName = displayName(sender?.user);
   const isReply = Boolean(note.thread_root_id);
   const threadRootId = (note.thread_root_id as string | null) ?? note.id;
   const payload = JSON.stringify({
     title: senderName,
-    body: isReply ? "Replied to your message" : "Sent you a message",
+    body: remind ? "Reminded you about an unread message" : isReply ? "Replied to your message" : "Sent you a message",
     tag: `note:${threadRootId}`,
     url: `/notes?thread=${threadRootId}`,
   });
@@ -110,7 +129,7 @@ Deno.serve(async (req) => {
     } catch (err) {
       const statusCode = (err as { statusCode?: number }).statusCode;
       if (statusCode === 404 || statusCode === 410) {
-        await admin.from("push_subscriptions").delete().eq("user_id", note.recipient_id).eq("endpoint", sub.endpoint);
+        await admin.from("push_subscriptions").delete().eq("user_id", targetId).eq("endpoint", sub.endpoint);
       } else {
         console.error("notify-note: push failed", err);
       }

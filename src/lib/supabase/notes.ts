@@ -235,6 +235,17 @@ function notifyRecipient(noteId: string): void {
   void supabase?.functions.invoke("notify-note", { body: { noteId } }).catch(() => {});
 }
 
+/** Pushes the partner a "you still haven't read this" nudge for a thread
+ * they haven't opened since its latest message. Unlike `notifyRecipient`
+ * this is awaited; resolves false when they have no device with push on
+ * (the daily digest still reaches them). */
+export async function remindPartner(threadId: string): Promise<boolean> {
+  if (!supabase) throw new Error("Sign in first.");
+  const { data, error } = await supabase.functions.invoke("notify-note", { body: { noteId: threadId, remind: true } });
+  if (error) throw error;
+  return !(data as { skipped?: string } | null)?.skipped;
+}
+
 export interface NewNoteInput {
   recipientId: string;
   category: NoteCategory;

@@ -57,6 +57,7 @@ export function NoteThreadView({
   onToggleFavourite,
   onDelete,
   onReply,
+  onRemind,
 }: {
   thread: NoteThread;
   partnerLabel: string;
@@ -69,6 +70,9 @@ export function NoteThreadView({
   /** Deletes the whole conversation, every reply included, for both partners. */
   onDelete: (threadId: string) => Promise<void>;
   onReply: (rootId: string, recipientId: string, body: string) => Promise<NoteMessage>;
+  /** Re-notifies the partner about a thread they haven't read; resolves
+   * false when they have no device with push on. */
+  onRemind: (threadId: string) => Promise<boolean>;
 }) {
   const [messages, setMessages] = useState<NoteMessage[] | null>(null);
   const [loadError, setLoadError] = useState(false);
@@ -78,6 +82,7 @@ export function NoteThreadView({
   const [busy, setBusy] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [remindState, setRemindState] = useState<"idle" | "sending" | "sent" | "no-push" | "error">("idle");
 
   useEffect(() => {
     let cancelled = false;
@@ -86,6 +91,7 @@ export function NoteThreadView({
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setMessages(null);
     setLoadError(false);
+    setRemindState("idle");
     fetchMessages(thread.id)
       .then((m) => {
         if (!cancelled) setMessages(m);
@@ -147,6 +153,16 @@ export function NoteThreadView({
       setDeleteError("Couldn't delete this conversation — try again.");
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function remind() {
+    setRemindState("sending");
+    try {
+      setRemindState((await onRemind(thread.id)) ? "sent" : "no-push");
+    } catch (err) {
+      console.error("onRemind failed", err);
+      setRemindState("error");
     }
   }
 
@@ -248,6 +264,30 @@ export function NoteThreadView({
               </div>
             );
           })}
+          {messages.length > 0 && messages[messages.length - 1].isMine && (
+            <p className="flex justify-end gap-1.5 text-xs" style={{ color: "var(--text-muted)" }}>
+              {thread.isSeenByPartner ? (
+                <span>Read{thread.partnerReadAt ? ` ${formatNoteTimestamp(thread.partnerReadAt)}` : ""}</span>
+              ) : remindState === "sent" ? (
+                <span>Not read yet · Reminder sent</span>
+              ) : remindState === "no-push" ? (
+                <span>Not read yet · Their notifications are off; the daily reminder still goes out</span>
+              ) : (
+                <>
+                  <span>Not read yet ·</span>
+                  <button
+                    type="button"
+                    onClick={() => void remind()}
+                    disabled={remindState === "sending"}
+                    className="hit-slop font-medium disabled:opacity-40"
+                    style={{ color: remindState === "error" ? "var(--status-critical)" : ACCENT }}
+                  >
+                    {remindState === "error" ? "Couldn't send — retry" : "Remind"}
+                  </button>
+                </>
+              )}
+            </p>
+          )}
         </div>
       )}
 
