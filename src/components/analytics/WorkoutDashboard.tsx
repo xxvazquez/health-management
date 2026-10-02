@@ -1,330 +1,179 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useData } from "@/lib/DataContext";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageSkeleton } from "@/components/ui/Skeleton";
-import { Card, CardTitle } from "@/components/ui/Card";
-import { Insight } from "@/components/ui/Insight";
-import { Stat, StatGrid } from "@/components/ui/StatGrid";
-import { DateRangeFilter } from "@/components/ui/DateRangeFilter";
-import { TrendAreaChart } from "@/components/charts/TrendAreaChart";
-import { RankedBarChart } from "@/components/charts/RankedBarChart";
+import { ChevronIcon } from "@/components/ui/icons";
+import { TrendsActions } from "@/components/analytics/TrendsActions";
+import { ShowAllRow, SplitStatCard, TrendCaption, TrendGroup, TrendRow } from "@/components/analytics/TrendList";
+import { DEFAULT_PRESETS, DateRangeFilter, describeDateRange } from "@/components/ui/DateRangeFilter";
+import { LabMarkerChart, type LabMarkerChartPoint } from "@/components/charts/LabMarkerChart";
+import { TrendHeadline } from "@/components/charts/TrendCard";
 import { DEFAULT_RANGE_DAYS, useDateRangeFilter } from "@/lib/useDateRangeFilter";
+import { addDaysToDate, daysBetween, formatMinutes, todayLocalISODate, type DateRange } from "@/lib/aggregations/common";
 import {
-  describeProgression,
-  workoutConsistencySummary,
-  workoutExerciseFrequency,
-  workoutInsight,
-  workoutMonthlySessions,
-  workoutRecentSessions,
-  workoutStatsByExercise,
-  formatWorkoutDate,
-  formatWorkoutDateShort,
-  type WorkoutExerciseStats,
-  type WorkoutRecentSession,
+  workoutExerciseSummaries,
+  workoutRecentEntries,
+  workoutWeeklySessions,
+  type WorkoutExerciseSummary,
 } from "@/lib/aggregations/workout";
-import { todayLocalISODate } from "@/lib/aggregations/common";
 import { TYPE_ACCENT } from "@/taxonomy/categories";
 import { getAllItems, withDataLock } from "@/lib/db/indexedDb";
-import { workoutUnitLabel, workoutValueLabel, type WorkoutExercise, type WorkoutUnit } from "@/lib/types";
+import { workoutUnitLabel, workoutValueLabel, type WorkoutUnit } from "@/lib/types";
 
-// Same accent as every other Workout surface (Log's Workout tab, its
-// timeline entries, Manage's Workout section) — color is otherwise
-// reserved for MEANINGFUL STATE (improved/declined) on this page, not
-// spent distinguishing seven exercises from each other. See DIRECTION_COLOR
-// below for the only place color actually carries meaning on this page.
 const ACCENT = TYPE_ACCENT.workout;
+const RECENT_SHOWN = 3;
 
-type Direction = "up" | "down" | "flat";
-
-function changeDirection(changeKg: number): Direction {
-  return changeKg > 0 ? "up" : changeKg < 0 ? "down" : "flat";
+/** "Last 30 days", "All time" or "3 Sept – 1 Oct" — the caption suffix. */
+function rangeText(span: DateRange, range: DateRange): string {
+  const label = describeDateRange(DEFAULT_PRESETS, span, range);
+  return /^\d/.test(label) ? `Last ${label}` : label;
 }
 
-// "Down" is a normal outcome, not an error — deliberately not red/orange.
-// Same up/down convention as Food's "Over time" trend list.
-const DIRECTION_COLOR: Record<Direction, string> = {
-  up: "var(--status-good)",
-  down: "var(--status-warning)",
-  flat: "var(--text-muted)",
-};
-
-function signed(n: number): string {
-  return n >= 0 ? `+${n}` : String(n);
+function shortDate(date: string, today: string): string {
+  if (date === today) return "Today";
+  if (date === addDaysToDate(today, -1)) return "Yesterday";
+  return new Date(`${date}T00:00:00`).toLocaleDateString(undefined, { day: "numeric", month: "short", year: date.slice(0, 4) === today.slice(0, 4) ? undefined : "numeric" });
 }
 
-/** Ranks by absolute kg change since first recorded — not percentage, which
- * would make a lighter lift's proportionally larger swing outrank a heavier
- * lift's bigger real gain. A single data point has nothing to rank (no
- * second reading to compare against yet), so it always sinks to the bottom
- * rather than reading as "0 kg change". */
-function trendRank(s: WorkoutExerciseStats): number {
-  return s.recordsCount >= 2 ? s.changeKg : -Infinity;
+function amount(value: number, unit: WorkoutUnit): string {
+  return `${value} ${workoutUnitLabel(unit)}`;
 }
 
-/** "SQ", "BP", "OP" — a plain two-letter monogram, not an emoji or icon
- * asset, to keep the row marker calm and data-oriented rather than decorative. */
-function monogram(exercise: WorkoutExercise): string {
-  const words = exercise.split(" ");
-  return words.length >= 2 ? (words[0][0] + words[1][0]).toUpperCase() : exercise.slice(0, 2).toUpperCase();
+/** "Heaviest set per session", "Time per session", "Reps per session". */
+function perSessionCaption(s: WorkoutExerciseSummary): string {
+  const kind = workoutValueLabel(s.unit);
+  if (kind === "Weight") return "Heaviest set per session";
+  if (kind === "Duration") return "Time per session";
+  if (kind === "Reps") return "Reps per session";
+  return "Per session";
 }
 
-/** Small filled-star accent badge for a set that beat every earlier one for
- * that exercise — the app's line-icon style (Nav.tsx) is stroke-only for
- * navigation chrome, but a tiny status accent like this reads better filled,
- * same idea as the app's other filled status dots. */
-function PRBadge() {
+function HealthCard({ caption, children }: { caption: ReactNode; children: ReactNode }) {
   return (
-    <span
-      className="inline-flex shrink-0 items-center gap-1 text-xs font-semibold"
-      style={{ color: "var(--status-good)" }}
-    >
-      <svg width="9" height="9" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-        <path d="M10 1.8l2.36 5.1 5.53.58-4.15 3.83 1.16 5.51L10 13.9l-4.9 2.92 1.16-5.51-4.15-3.83 5.53-.58z" />
-      </svg>
-      PR
-    </span>
-  );
-}
-
-/** First and most prominent section on the page — "what did I just do,
- * and when" — a compact vertical timeline of the last few training days
- * (see `workoutRecentSessions`), always full history so it never reads
- * empty just because a narrow range is selected elsewhere on the page. */
-function RecentActivityTimeline({ sessions }: { sessions: WorkoutRecentSession[] }) {
-  return (
-    <Card tier="supporting">
-      <CardTitle subtitle="Your last few training days, most recent first — full history, not affected by the range filter below">
-        Recent activity
-      </CardTitle>
-      <div className="flex flex-col">
-        {sessions.map((session, i) => {
-          const isLast = i === sessions.length - 1;
-          return (
-            <div key={session.date} className="flex gap-3">
-              <div className="flex flex-col items-center">
-                <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full" style={{ background: ACCENT }} />
-                {!isLast && <span className="w-px flex-1" style={{ background: "var(--gridline)" }} />}
-              </div>
-              <div className={`min-w-0 flex-1 ${isLast ? "" : "pb-3"}`}>
-                <p className="text-xs font-semibold" style={{ color: "var(--text-secondary)" }}>
-                  {formatWorkoutDateShort(session.date)}
-                </p>
-                <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1">
-                  {session.entries.map((e) => (
-                    <div key={e.id} className="flex items-center gap-1.5 text-sm">
-                      <span className="font-medium" style={{ color: "var(--text-primary)" }}>
-                        {e.exercise}
-                      </span>
-                      <span className="tabular-nums" style={{ color: "var(--text-secondary)" }}>
-                        {e.weightKg} {workoutUnitLabel(e.unit)}
-                      </span>
-                      {e.isPR && <PRBadge />}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          );
-        })}
+    <section className="flex flex-col gap-1.5">
+      <TrendCaption>{caption}</TrendCaption>
+      <div className="rounded-xl border px-3.5 py-3" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
+        {children}
       </div>
-    </Card>
+    </section>
   );
 }
 
-/** The page's main analytical section — ranked start→current→change per
- * exercise (answers "which lift has progressed the most" via row order and
- * a proportional bar) with the selected lift's own chart inline, in one
- * Card instead of two separate ones. Defaults to the top-ranked lift so
- * there's something useful to read before tapping anything; tapping another
- * row swaps the chart below without a second, redundant picker control. */
-/** Time-based exercises (a walk, a run) — a shorter session isn't a
- * regression, so they're never scored as progress. */
-function isDuration(unit: string): boolean {
-  return workoutValueLabel(unit) === "Duration";
+/** Training days per week as bars, empty weeks as a grey tick on the baseline, the scale on the right. */
+function WeeklyBars({ weeks, today }: { weeks: { weekStart: string; sessions: number }[]; today: string }) {
+  const max = Math.max(1, ...weeks.map((w) => w.sessions));
+  return (
+    <div className="mt-3">
+      <div className="flex gap-2">
+        <div className="relative flex h-24 min-w-0 flex-1 items-end gap-1 border-b" style={{ borderColor: "var(--gridline)" }}>
+          <span className="absolute inset-x-0 top-0 border-t border-dashed" style={{ borderColor: "var(--gridline)" }} aria-hidden="true" />
+          {weeks.map((w) => (
+            <span key={w.weekStart} className="flex h-full min-w-0 flex-1 items-end justify-center" title={`${w.sessions} in the week of ${shortDate(w.weekStart, today)}`}>
+              <span
+                className="block w-full max-w-8 rounded-t-[3px]"
+                style={w.sessions > 0 ? { height: `${(w.sessions / max) * 100}%`, background: ACCENT } : { height: 3, background: "var(--gridline)" }}
+              />
+            </span>
+          ))}
+        </div>
+        <div className="flex h-24 w-4 flex-col justify-between text-xs tabular-nums" style={{ color: "var(--text-muted)" }} aria-hidden="true">
+          <span className="-mt-2">{max}</span>
+          <span className="-mb-2">0</span>
+        </div>
+      </div>
+      <div className="mt-1 flex justify-between pr-6 text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>
+        <span>{shortDate(weeks[0].weekStart, today)}</span>
+        {weeks.length > 1 && <span>{shortDate(weeks[weeks.length - 1].weekStart, today)}</span>}
+      </div>
+    </div>
+  );
 }
 
-function ProgressSection({
-  sortedStats,
-  selectedStats,
-  onSelect,
-}: {
-  sortedStats: WorkoutExerciseStats[];
-  selectedStats: WorkoutExerciseStats | null;
-  onSelect: (exercise: WorkoutExercise) => void;
-}) {
-  const trending = useMemo(() => sortedStats.filter((s) => s.recordsCount >= 2 && !isDuration(s.unit)), [sortedStats]);
-  const improving = useMemo(() => trending.filter((s) => s.changeKg > 0).length, [trending]);
-  const maxAbsChangeKg = useMemo(
-    () => Math.max(1, ...trending.map((s) => Math.abs(s.changeKg))),
-    [trending],
-  );
+function ExerciseDetail({ summary, when, range, today }: { summary: WorkoutExerciseSummary; when: string; range: DateRange; today: string }) {
+  const [scrub, setScrub] = useState<LabMarkerChartPoint | null>(null);
+  const { sessions, unit, timed, best, last } = summary;
+  const first = sessions[0];
+  const change = Math.round((last.value - first.value) * 10) / 10;
+  const shown = scrub ?? { date: last.date, value: last.value };
+  const lastDay = new Date(`${last.date}T00:00:00`);
 
-  const subtitle =
-    trending.length > 0
-      ? `${improving} of ${trending.length} up since first recorded · full history — tap an exercise for its chart.`
-      : "Full history, not affected by the range filter below — tap an exercise for its chart.";
+  const detail = scrub
+    ? null
+    : !timed && sessions.length >= 2 && change !== 0
+      ? (
+          <span style={{ color: change > 0 ? "var(--status-good)" : "var(--status-serious)" }}>
+            {change > 0 ? "+" : "−"}
+            {amount(Math.abs(change), unit)} since {shortDate(first.date, today)}
+          </span>
+        )
+      : shortDate(last.date, today);
 
   return (
-    <Card tier="primary">
-      <CardTitle subtitle={subtitle}>Progress</CardTitle>
-      <div className="flex flex-col">
-        {sortedStats.map((s) => {
-          const timed = isDuration(s.unit);
-          const hasTrend = s.recordsCount >= 2 && !timed;
-          const active = s.exercise === selectedStats?.exercise;
-          const direction = changeDirection(s.changeKg);
-          const changeColor = DIRECTION_COLOR[direction];
-          const barPct = hasTrend ? Math.max(4, Math.round((Math.abs(s.changeKg) / maxAbsChangeKg) * 100)) : 0;
-          const arrow = direction === "down" ? "↓" : direction === "up" ? "↑" : "→";
-          const unit = workoutUnitLabel(s.unit);
-          return (
-            <button
-              key={s.exercise}
-              type="button"
-              onClick={() => onSelect(s.exercise)}
-              className="flex w-full flex-col gap-2 border-t px-3 py-3 text-left transition-colors first:border-t-0"
-              style={{ borderColor: "var(--gridline)", background: active ? "var(--page-plane)" : "transparent" }}
-            >
-              <div className="flex items-center gap-3">
-                <div
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-xs font-semibold"
-                  style={{ background: `color-mix(in oklab, ${ACCENT} 14%, var(--surface-1))`, color: ACCENT }}
-                >
-                  {monogram(s.exercise)}
-                </div>
-
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-                    {s.exercise}
-                  </p>
-                  <p className="text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>
-                    {timed ? `${s.recordsCount} session${s.recordsCount === 1 ? "" : "s"}` : `${s.started.weightKg} → ${s.current.weightKg} ${unit}`}
-                  </p>
-                </div>
-
-                <div className="shrink-0 text-right">
-                  {hasTrend ? (
-                    <>
-                      <p className="text-sm font-semibold tabular-nums" style={{ color: changeColor }}>
-                        {arrow} {Math.abs(s.changeKg)} {unit}
-                      </p>
-                      {s.changePct !== null && (
-                        <p className="text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>
-                          {signed(Math.round(s.changePct))}%
-                        </p>
-                      )}
-                    </>
-                  ) : timed ? (
-                    <>
-                      <p className="text-sm tabular-nums" style={{ color: "var(--text-primary)" }}>
-                        {s.current.weightKg} {unit}
-                      </p>
-                      <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-                        latest
-                      </p>
-                    </>
-                  ) : (
-                    <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-                      First entry
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              {hasTrend && (
-                <div className="h-1 w-full rounded-full" style={{ background: "var(--gridline)" }}>
-                  <div className="h-1 rounded-full" style={{ width: `${barPct}%`, background: changeColor }} />
-                </div>
-              )}
-            </button>
-          );
-        })}
+    <div className="flex max-w-2xl flex-col gap-4">
+      <div>
+        <button
+          type="button"
+          onClick={() => window.history.back()}
+          className="-ml-1 flex min-h-11 items-center gap-0.5 text-sm font-medium"
+          style={{ color: "var(--ui-accent)" }}
+        >
+          <ChevronIcon dir="left" size={16} />
+          Workout
+        </button>
+        <h2 className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>
+          {summary.exercise}
+        </h2>
       </div>
-      {trending.length > 0 && (
-        <p className="mt-4 text-xs" style={{ color: "var(--text-muted)" }}>
-          Start = first recorded · Current = most recent · Best = personal record
-        </p>
-      )}
-
-      {selectedStats && (
-        <div className="mt-5 border-t pt-4" style={{ borderColor: "var(--gridline)" }}>
-          <div className="mb-4">
-          {isDuration(selectedStats.unit) ? (
-            <StatGrid>
-              <Stat
-                label="Latest"
-                value={`${selectedStats.current.weightKg} ${workoutUnitLabel(selectedStats.unit)}`}
-                detail={formatWorkoutDate(selectedStats.current.date)}
-              />
-              <Stat
-                label="Longest"
-                value={`${selectedStats.best.weightKg} ${workoutUnitLabel(selectedStats.unit)}`}
-                detail={formatWorkoutDate(selectedStats.best.date)}
-              />
-              <Stat label="Sessions" value={String(selectedStats.recordsCount)} />
-            </StatGrid>
-          ) : (
-          <StatGrid>
-            <Stat
-              label="Started"
-              value={`${selectedStats.started.weightKg} ${workoutUnitLabel(selectedStats.unit)}`}
-              detail={formatWorkoutDate(selectedStats.started.date)}
-            />
-            <Stat
-              label="Current"
-              value={`${selectedStats.current.weightKg} ${workoutUnitLabel(selectedStats.unit)}`}
-              detail={formatWorkoutDate(selectedStats.current.date)}
-            />
-            <Stat
-              label="Best"
-              value={`${selectedStats.best.weightKg} ${workoutUnitLabel(selectedStats.unit)}`}
-              detail={formatWorkoutDate(selectedStats.best.date)}
-            />
-            <Stat
-              label="Change"
-              value={`${signed(selectedStats.changeKg)} ${workoutUnitLabel(selectedStats.unit)}`}
-              detail={selectedStats.changePct !== null ? `${signed(selectedStats.changePct)}%` : undefined}
-              accent={DIRECTION_COLOR[changeDirection(selectedStats.changeKg)]}
-            />
-          </StatGrid>
-          )}
-          </div>
-
-          {!isDuration(selectedStats.unit) && (
-            <p className="mb-3 text-sm" style={{ color: "var(--text-secondary)" }}>
-              {describeProgression(selectedStats)}
-            </p>
-          )}
-
-          <TrendAreaChart
-            data={selectedStats.entries.map((e) => ({ date: e.date, value: e.weightKg }))}
+      <HealthCard caption={`${perSessionCaption(summary)} · ${when}`}>
+        <TrendHeadline caption={scrub ? shortDate(scrub.date, today) : "Latest"} value={String(shown.value)} unit={workoutUnitLabel(unit)} detail={detail} />
+        <div className="mt-3">
+          <LabMarkerChart
+            data={sessions}
+            unit={workoutUnitLabel(unit)}
+            refLow={null}
+            refHigh={null}
+            windowStart={range.start}
+            windowEnd={range.end}
             color={ACCENT}
-            valueLabel={`${selectedStats.exercise} (${workoutUnitLabel(selectedStats.unit)})`}
-            height={140}
-            showDots
-            yTickFormatter={(v) => `${v} ${workoutUnitLabel(selectedStats.unit)}`}
+            onScrub={setScrub}
+            height={180}
           />
         </div>
-      )}
-    </Card>
+      </HealthCard>
+      <SplitStatCard
+        items={
+          timed
+            ? [
+                { caption: "Longest", value: String(best.value), unit: workoutUnitLabel(unit), detail: shortDate(best.date, today) },
+                { caption: "Average", value: String(Math.round(summary.average)), unit: workoutUnitLabel(unit) },
+                { caption: "Sessions", value: String(sessions.length), detail: "in range" },
+              ]
+            : [
+                { caption: "Best", value: String(best.value), unit: workoutUnitLabel(unit), detail: shortDate(best.date, today) },
+                { caption: "Sessions", value: String(sessions.length), detail: "in range" },
+                {
+                  caption: "Last",
+                  value: String(lastDay.getDate()),
+                  unit: lastDay.toLocaleDateString(undefined, { month: "short" }),
+                  detail: amount(last.value, unit),
+                },
+              ]
+        }
+      />
+    </div>
   );
 }
 
 export function WorkoutDashboard() {
   const { status, events, workoutLogs } = useData();
   const today = useMemo(() => todayLocalISODate(), []);
-  const [compareExercise, setCompareExercise] = useState<WorkoutExercise | null>(null);
+  const [openExercise, setOpenExercise] = useState<string | null>(null);
+  const [showAllRecent, setShowAllRecent] = useState(false);
 
-  // DataContext doesn't expose raw items (only canonical events/logs), and
-  // a workout log's own row has no unit of its own (see RawWorkoutLog's
-  // doc comment) — its exercise's configured unit lives on the matching
-  // workout_items row, so this page reads that directly, the same pattern
-  // Manage/Log use for their own local snapshots. Without this, every
-  // figure on this page silently assumed "kg" even for an exercise
-  // configured as minutes or reps. Re-read after every shared refresh (a
-  // new `events` array), so a unit changed on another device shows up.
+  // A workout log has no unit of its own; its exercise's unit lives on the
+  // matching workout_items row, re-read after every shared refresh.
   const [unitByExercise, setUnitByExercise] = useState<Map<string, WorkoutUnit>>(new Map());
   useEffect(() => {
     if (status === "loading") return;
@@ -338,99 +187,96 @@ export function WorkoutDashboard() {
     };
   }, [status, events]);
 
-  const { span, range, setRange, filtered: filteredWorkoutLogs } = useDateRangeFilter(workoutLogs, DEFAULT_RANGE_DAYS);
+  // An exercise opens as its own screen with a history entry, so Back and
+  // the edge swipe return to the overview.
+  useEffect(() => {
+    const onPop = (e: PopStateEvent) => setOpenExercise(e.state?.workoutExercise ?? null);
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
+  function openDetail(exercise: string) {
+    window.history.pushState({ ...window.history.state, workoutExercise: exercise }, "");
+    setOpenExercise(exercise);
+    window.scrollTo(0, 0);
+  }
 
-  // Strength progress and Progression track a lift since its very first
-  // recorded weight — filtering those to the range picker below would make
-  // "Started" and "Best" wrong (they'd only reflect whatever's inside the
-  // window), so they always read the full history. Only the frequency-style
-  // cards (how often you trained, which lifts) are scoped to the range.
-  const stats = useMemo(() => workoutStatsByExercise(workoutLogs, unitByExercise), [workoutLogs, unitByExercise]);
-  // Same ranking the Progress section's rows use — read here too so the
-  // default selection (before anything's been tapped) is the top-ranked
-  // lift, not just whatever order it happened to come out of `stats`.
-  const sortedStats = useMemo(() => [...stats].sort((a, b) => trendRank(b) - trendRank(a)), [stats]);
-  const insight = useMemo(() => workoutInsight(workoutLogs, today, unitByExercise), [workoutLogs, today, unitByExercise]);
-  const consistency = useMemo(() => workoutConsistencySummary(workoutLogs, today), [workoutLogs, today]);
-  const monthlySessions = useMemo(() => workoutMonthlySessions(filteredWorkoutLogs), [filteredWorkoutLogs]);
-  const exerciseFrequency = useMemo(() => workoutExerciseFrequency(filteredWorkoutLogs), [filteredWorkoutLogs]);
-  const recentSessions = useMemo(() => workoutRecentSessions(workoutLogs, unitByExercise), [workoutLogs, unitByExercise]);
-
-  const selectedExercise =
-    compareExercise && stats.some((s) => s.exercise === compareExercise) ? compareExercise : (sortedStats[0]?.exercise ?? null);
-  const selectedStats = stats.find((s) => s.exercise === selectedExercise) ?? null;
+  const { span, range, setRange } = useDateRangeFilter(workoutLogs, DEFAULT_RANGE_DAYS);
+  const weeks = useMemo(() => (range ? workoutWeeklySessions(workoutLogs, range) : []), [workoutLogs, range]);
+  const exercises = useMemo(() => (range ? workoutExerciseSummaries(workoutLogs, range, unitByExercise) : []), [workoutLogs, range, unitByExercise]);
+  const recent = useMemo(() => workoutRecentEntries(workoutLogs, unitByExercise), [workoutLogs, unitByExercise]);
 
   if (status === "loading") return <PageSkeleton />;
   if (status === "empty") return <EmptyState />;
+  if (!span || !range) return null;
 
-  // Skip whatever the hero Insight already said outright, so the frequency
-  // captions below add context rather than repeating the headline.
-  const heroCoversFrequencyChange = insight?.headline.startsWith("Training frequency") ?? false;
-  const heroCoversCurrentGap = insight?.headline.startsWith("It's been") ?? false;
+  const when = rangeText(span, range);
+  const filter = (
+    <TrendsActions>
+      <DateRangeFilter span={span} value={range} onChange={setRange} accent={ACCENT} />
+    </TrendsActions>
+  );
 
-  // A compact, single-line answer to "how often am I training" — folded
-  // into the Training frequency card itself rather than a standalone
-  // section, since a lone "longest gap" fact never earned its own heading.
-  const frequencyCaptions: string[] = [];
-  if (!consistency.insufficientData && consistency.recentAvgPerMonth !== null) {
-    frequencyCaptions.push(
-      !heroCoversFrequencyChange && consistency.priorAvgPerMonth !== null && consistency.recentAvgPerMonth !== consistency.priorAvgPerMonth
-        ? `Averaging ${consistency.recentAvgPerMonth}/mo recently, vs ${consistency.priorAvgPerMonth}/mo the 3 months before`
-        : `Averaging ${consistency.recentAvgPerMonth} sessions/month recently`,
+  const opened = openExercise ? exercises.find((e) => e.exercise === openExercise) : null;
+  if (opened) {
+    return (
+      <>
+        {filter}
+        <ExerciseDetail key={opened.exercise} summary={opened} when={when} range={range} today={today} />
+      </>
     );
-    if (consistency.longestGapDays !== null && consistency.longestGapDays >= 10) {
-      frequencyCaptions.push(
-        `Longest gap: ${consistency.longestGapDays} days (${formatWorkoutDate(consistency.longestGapStart!)}–${formatWorkoutDate(consistency.longestGapEnd!)})`,
-      );
-    }
-    if (!heroCoversCurrentGap && consistency.currentGapDays !== null && consistency.currentGapDays >= 10) {
-      frequencyCaptions.push(`${consistency.currentGapDays} days since the last logged session`);
-    }
   }
 
+  const sessionCount = weeks.reduce((n, w) => n + w.sessions, 0);
+  const lastTrained = recent[0]?.date ?? null;
+  const sinceLast = lastTrained ? daysBetween(lastTrained, today) : null;
+  const shownRecent = showAllRecent ? recent : recent.slice(0, RECENT_SHOWN);
 
   return (
-    <div className="flex flex-col gap-6">
-      {insight && <Insight label="What stands out" headline={insight.headline} detail={insight.detail} tone={insight.tone} />}
+    <div className="flex flex-col gap-4">
+      {filter}
 
-      {recentSessions.length > 0 && <RecentActivityTimeline sessions={recentSessions} />}
-
-      {stats.length > 0 && <ProgressSection sortedStats={sortedStats} selectedStats={selectedStats} onSelect={setCompareExercise} />}
-
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h3 className="text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
-          Training patterns
-        </h3>
-        {span && range && <DateRangeFilter span={span} value={range} onChange={setRange} accent={ACCENT} />}
-      </div>
-
-      <Card tier="raw">
-        <CardTitle size="sm" subtitle="Days with any exercise logged, by month, in this range">Training frequency</CardTitle>
-        {frequencyCaptions.length > 0 && (
-          <p className="mb-3 text-xs" style={{ color: "var(--text-secondary)" }}>
-            {frequencyCaptions.join(" · ")}
+      <HealthCard caption={`Sessions · ${when}`}>
+        <p className="flex items-baseline gap-1.5">
+          <span className="text-2xl leading-tight font-semibold tabular-nums" style={{ color: "var(--text-primary)" }}>
+            {sessionCount}
+          </span>
+          <span className="text-sm" style={{ color: "var(--text-muted)" }}>
+            {sessionCount === 1 ? "day" : "days"}
+          </span>
+        </p>
+        {lastTrained && sinceLast !== null && (
+          <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+            Last on {shortDate(lastTrained, today)}
+            {sinceLast > 1 ? ` · ${sinceLast} days ago` : ""}
           </p>
         )}
-        {monthlySessions.length > 1 ? (
-          <TrendAreaChart
-            data={monthlySessions.map((m) => ({ date: m.monthStart, value: m.sessions }))}
-            color={ACCENT}
-            valueLabel="Sessions"
-            wholeNumbers
-          />
-        ) : (
-          <p className="text-sm" style={{ color: "var(--text-muted)" }}>Not enough data yet to show a monthly trend.</p>
-        )}
-      </Card>
+        {weeks.length > 0 && <WeeklyBars weeks={weeks} today={today} />}
+      </HealthCard>
 
-      {exerciseFrequency.length > 0 && (
-        <Card tier="raw">
-          <CardTitle size="sm" subtitle="Sessions each exercise appeared in — logging frequency, not training volume or load">
-            Which exercises you train most
-          </CardTitle>
-          <RankedBarChart data={exerciseFrequency.map((e) => ({ label: e.exercise, value: e.sessionCount }))} color={ACCENT} />
-        </Card>
-      )}
+      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
+        {recent.length > 0 && (
+          <TrendGroup caption="Recent">
+            {shownRecent.map((r) => (
+              <TrendRow key={`${r.exercise}-${r.date}`} label={r.exercise} sublabel={shortDate(r.date, today)} value={amount(r.value, r.unit)} />
+            ))}
+            {recent.length > RECENT_SHOWN && <ShowAllRow total={recent.length} expanded={showAllRecent} onToggle={() => setShowAllRecent((v) => !v)} />}
+          </TrendGroup>
+        )}
+
+        {exercises.length > 0 && (
+          <TrendGroup caption={`By exercise · ${when}`}>
+            {exercises.map((e) => (
+              <TrendRow
+                key={e.exercise}
+                label={e.exercise}
+                sublabel={`${e.sessions.length} ${e.sessions.length === 1 ? "session" : "sessions"}`}
+                value={e.timed ? `${["minutes", "min"].includes(e.unit) && e.total >= 60 ? formatMinutes(e.total) : amount(e.total, e.unit)} total` : `best ${amount(e.best.value, e.unit)}`}
+                onClick={() => openDetail(e.exercise)}
+              />
+            ))}
+          </TrendGroup>
+        )}
+      </div>
     </div>
   );
 }
