@@ -44,18 +44,10 @@ export function useLoggedValues(logs: RawWorkoutLog[], itemsById: Map<string, Ra
   }, [logs, itemsById]);
 }
 
-/** "+5", "−2.5", "80%" — the day's adjustment, short enough to sit beside the target. */
-function sessionShort(set: PlannedSet): string | null {
-  if (set.session.mode === "percent") return `${set.session.amount}%`;
-  if (set.session.amount === 0) return null;
-  return `${set.session.amount > 0 ? "+" : "−"}${Math.abs(set.session.amount)}`;
-}
-
-/** The target with the day's adjustment, then a short or missed set on a
- * line of its own. A done set needs no word: the logged line under it
- * already carries the tick. */
+/** The day's target (how it's built from the base is in Settings), then a
+ * short or missed set on a line of its own. A done set needs no word: the
+ * logged line under it already carries the tick. */
 function StatusLine({ set }: { set: PlannedSet }) {
-  const adjustment = sessionShort(set);
   const status =
     set.status === "short"
       ? `Short: ${set.loggedKg} kg`
@@ -65,7 +57,7 @@ function StatusLine({ set }: { set: PlannedSet }) {
   return (
     <>
       <p className="text-xs tabular-nums" style={{ color: "var(--text-secondary)" }} title={`This day: ${describeSession(set.session)}`}>
-        Target {set.targetKg} kg{adjustment && ` · ${adjustment}`}
+        Target {set.targetKg} kg
       </p>
       {status && (
         <p className="text-xs font-medium tabular-nums" style={{ color: "var(--status-warning)" }}>
@@ -181,9 +173,9 @@ export function WorkoutPlanView({
 
   return (
     <div className="flex flex-col gap-3">
-      {running.length === 0 && (
+      {running.length === 0 && active.length > 0 && (
         <div className="rounded-xl border px-3.5 py-3 text-sm" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-secondary)" }}>
-          {active.length === 0 ? "No active plans yet. Create a weekly plan in Settings → Workout plans." : "No plan runs on this day."}
+          No plan runs on this day.
           {upcoming.map((p) => (
             <p key={p.id} className="mt-1">
               {p.name} starts {shortDate(p.startDate)}.
@@ -258,8 +250,8 @@ export function WorkoutPlanView({
       })}
 
       <div className="inset-rows rounded-xl border" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
-        <Link href="/manage/" className="flex min-h-11 items-center gap-2 px-3.5 text-sm" style={{ color: "var(--text-primary)" }}>
-          Manage plans in Settings
+        <Link href="/manage/?section=Workout%20plans" className="flex min-h-11 items-center gap-2 px-3.5 text-sm" style={{ color: active.length === 0 ? accent : "var(--text-primary)" }}>
+          {active.length === 0 ? "Create a weekly plan" : "Manage plans in Settings"}
           <span className="ml-auto" style={{ color: "var(--text-muted)" }}>
             <ChevronIcon dir="right" size={14} />
           </span>
