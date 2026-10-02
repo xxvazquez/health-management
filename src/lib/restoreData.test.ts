@@ -1,8 +1,46 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { BackupFileError, parseBackup } from "./restoreData";
+import { BackupFileError, parseBackup, restoreBackup } from "./restoreData";
 import { RESTORE_ORDER } from "./exportData";
+
+type Row = Record<string, unknown>;
+
+/** Stands in for Postgres `insert … on conflict (id) do nothing returning *`:
+ * a row whose `name` is already taken by another id fails the whole batch
+ * with a unique violation, as the real constraint would. */
+const db = new Map<string, Map<string, Row>>();
+let offline = false;
+const fakeSupabase = {
+  from(table: string) {
+    return {
+      upsert(rows: Row[], options: { ignoreDuplicates?: boolean }) {
+        expect(options.ignoreDuplicates).toBe(true);
+        return {
+          async select() {
+            if (offline) return { data: null, error: { message: "Failed to fetch" } };
+            const stored = db.get(table) ?? new Map<string, Row>();
+            const names = new Map([...stored.values()].map((r) => [r.name, r.id]));
+            if (rows.some((r) => !stored.has(r.id as string) && names.has(r.name) && names.get(r.name) !== r.id)) {
+              return { data: null, error: { code: "23505", message: "duplicate key value" } };
+            }
+            const inserted = rows.filter((r) => !stored.has(r.id as string));
+            for (const r of inserted) stored.set(r.id as string, r);
+            db.set(table, stored);
+            return { data: inserted, error: null };
+          },
+        };
+      },
+    };
+  },
+};
+
+vi.mock("@/lib/supabase/client", () => ({
+  get supabase() {
+    return fakeSupabase;
+  },
+  supabaseConfigured: true,
+}));
 
 const ME = "11111111-1111-1111-1111-111111111111";
 const PARTNER = "22222222-2222-2222-2222-222222222222";
@@ -71,5 +109,51 @@ describe("RESTORE_ORDER", () => {
         expect(RESTORE_ORDER.indexOf(ref), `${table} -> ${ref}`).toBeLessThan(i);
       }
     }
+  });
+});
+
+describe("restoreBackup", () => {
+  const items = Array.from({ length: 1200 }, (_, i) => ({ id: `f${i}`, user_id: ME, name: `Food ${i}`, name_key: `food ${i}` }));
+  const logs = [{ id: "l1", user_id: ME, item_id: "f1", date: "2026-02-01" }];
+  const file = backup({ food_items: items, food_logs: logs });
+
+  function seed(table: string, rows: Row[]) {
+    db.set(table, new Map(rows.map((r) => [r.id as string, r])));
+  }
+
+  beforeEach(() => {
+    db.clear();
+    offline = false;
+  });
+
+  it("reports every row as already there when restoring the account's own export", async () => {
+    seed("food_items", items);
+    seed("food_logs", logs);
+    const progress: number[] = [];
+    const result = await restoreBackup(parseBackup(file, ME), (done) => progress.push(done));
+    expect(result).toEqual({ added: 0, existing: 1201, failed: 0 });
+    expect(progress.at(-1)).toBe(1201);
+    expect(db.get("food_items")!.get("f0")).toHaveProperty("name_key", "food 0");
+  });
+
+  it("adds only the missing rows and leaves current ones untouched", async () => {
+    const edited = { ...items[0], name: "Renamed" };
+    seed("food_items", [edited, ...items.slice(1, 600)]);
+    const result = await restoreBackup(parseBackup(file, ME));
+    expect(result).toEqual({ added: 601, existing: 600, failed: 0 });
+    expect(db.get("food_items")!.get("f0")).toBe(edited);
+    expect(db.get("food_logs")!.has("l1")).toBe(true);
+  });
+
+  it("skips a row that clashes with newer data and still restores the rest of its batch", async () => {
+    seed("food_items", [{ id: "other", user_id: ME, name: "Food 5" }]);
+    const result = await restoreBackup(parseBackup(file, ME));
+    expect(result).toEqual({ added: 1200, existing: 0, failed: 1 });
+    expect(db.get("food_items")!.has("f5")).toBe(false);
+  });
+
+  it("stops on a connection failure", async () => {
+    offline = true;
+    await expect(restoreBackup(parseBackup(file, ME))).rejects.toThrow("Failed to fetch");
   });
 });
