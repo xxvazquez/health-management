@@ -88,4 +88,12 @@ describe("workoutWeeklySessions", () => {
       { weekStart: "2026-01-19", sessions: 1 },
     ]);
   });
+
+  it("counts the first week whole when the range starts mid-week", () => {
+    const logs = [makeWorkoutLog({ date: "2026-01-05" }), makeWorkoutLog({ date: "2026-01-08" }), makeWorkoutLog({ date: "2026-01-12" })];
+    expect(workoutWeeklySessions(logs, { start: "2026-01-07", end: "2026-01-13" })).toEqual([
+      { weekStart: "2026-01-05", sessions: 2 },
+      { weekStart: "2026-01-12", sessions: 1 },
+    ]);
+  });
 });

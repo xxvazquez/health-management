@@ -95,19 +95,21 @@ export function workoutRecentEntries(logs: RawWorkoutLog[], unitByExercise: Read
 export interface WorkoutWeek {
   /** Monday of the week. */
   weekStart: string;
-  /** Days trained that week, counting only days inside the range. */
+  /** Days trained that week, Monday to Sunday — the first week counts whole
+   * even where the range starts mid-week, so it isn't drawn short. */
   sessions: number;
 }
 
 /** Training days per week for every week the range touches, empty weeks included. */
 export function workoutWeeklySessions(logs: RawWorkoutLog[], range: DateRange): WorkoutWeek[] {
   const counts = new Map<string, number>();
+  const firstWeek = isoWeekStart(range.start);
   for (const date of workoutTrainedDates(logs)) {
-    if (date < range.start || date > range.end) continue;
+    if (date < firstWeek || date > range.end) continue;
     const week = isoWeekStart(date);
     counts.set(week, (counts.get(week) ?? 0) + 1);
   }
   const weeks: WorkoutWeek[] = [];
-  for (let w = isoWeekStart(range.start); w <= range.end; w = addDaysToDate(w, 7)) weeks.push({ weekStart: w, sessions: counts.get(w) ?? 0 });
+  for (let w = firstWeek; w <= range.end; w = addDaysToDate(w, 7)) weeks.push({ weekStart: w, sessions: counts.get(w) ?? 0 });
   return weeks;
 }

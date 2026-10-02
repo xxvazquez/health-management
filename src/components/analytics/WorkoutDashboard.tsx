@@ -15,6 +15,7 @@ import { addDaysToDate, daysBetween, formatMinutes, todayLocalISODate, type Date
 import {
   workoutExerciseSummaries,
   workoutRecentEntries,
+  workoutTrainedDates,
   workoutWeeklySessions,
   type WorkoutExerciseSummary,
 } from "@/lib/aggregations/workout";
@@ -226,7 +227,7 @@ export function WorkoutDashboard() {
     );
   }
 
-  const sessionCount = weeks.reduce((n, w) => n + w.sessions, 0);
+  const sessionCount = [...workoutTrainedDates(workoutLogs)].filter((d) => d >= range.start && d <= range.end).length;
   const lastTrained = recent[0]?.date ?? null;
   const sinceLast = lastTrained ? daysBetween(lastTrained, today) : null;
   const shownRecent = showAllRecent ? recent : recent.slice(0, RECENT_SHOWN);
@@ -246,7 +247,7 @@ export function WorkoutDashboard() {
         </p>
         {lastTrained && sinceLast !== null && (
           <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-            Last on {shortDate(lastTrained, today)}
+            {sinceLast <= 1 ? `Last ${shortDate(lastTrained, today).toLowerCase()}` : `Last on ${shortDate(lastTrained, today)}`}
             {sinceLast > 1 ? ` · ${sinceLast} days ago` : ""}
           </p>
         )}
