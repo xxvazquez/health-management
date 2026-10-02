@@ -28,7 +28,8 @@ export function HabitGridWeekdays() {
 /** One month of a habit's history as a small calendar grid — a solid
  * accent cell for every completed day, a faint one for every other day in
  * the month, fainter still for days outside the habit's tracked window or
- * off its schedule. */
+ * off its schedule. With `shade`, a completed day is lighter or darker by
+ * its logged value (0 = lightest, 1 = full colour). */
 export function HabitMonthGrid({
   monthAnchor,
   completedDates,
@@ -36,6 +37,7 @@ export function HabitMonthGrid({
   today,
   color,
   isScheduled = () => true,
+  shade,
 }: {
   /** Any YYYY-MM-DD inside the month to show. */
   monthAnchor: string;
@@ -45,6 +47,7 @@ export function HabitMonthGrid({
   color: string;
   /** False for a day the schedule doesn't expect. */
   isScheduled?: (date: string) => boolean;
+  shade?: (date: string) => number | null;
 }) {
   const ym = monthAnchor.slice(0, 7);
   const firstOfMonth = `${ym}-01`;
@@ -63,6 +66,7 @@ export function HabitMonthGrid({
         if (!inMonth) return <span key={date} style={{ width: CELL, height: CELL }} aria-hidden="true" />;
         const done = completedDates.has(date);
         const inPlay = date <= today && date >= firstTrackedDate && isScheduled(date);
+        const level = done && shade ? shade(date) : null;
         return (
           <span
             key={date}
@@ -72,7 +76,9 @@ export function HabitMonthGrid({
               height: CELL,
               borderRadius: 3,
               background: done
-                ? color
+                ? level != null
+                  ? `color-mix(in oklab, ${color} ${Math.round(40 + 60 * level)}%, var(--surface-1))`
+                  : color
                 : inPlay
                   ? "var(--gridline)"
                   : "color-mix(in oklab, var(--gridline) 38%, transparent)",

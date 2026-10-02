@@ -26,7 +26,8 @@ export function HabitsDashboard() {
         A day counts once the habit has been logged at least once, through to today — or, for an archived
         habit, to its last log. Consistency is measured against its schedule (Settings → the habit →
         Schedule): every day by default, a set number of times a week, or specific weekdays, where days off the
-        schedule never count as misses. Archiving hides it from new logging; its history stays here.
+        schedule never count as misses. Sleep is measured, not done or skipped: a darker day means longer sleep,
+        and the card shows the band you logged most often. Archiving hides it from new logging; its history stays here.
       </Methodology>
     </div>
   );

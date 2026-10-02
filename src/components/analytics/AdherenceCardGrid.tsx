@@ -9,10 +9,11 @@ import { Disclosure } from "@/components/ui/Disclosure";
 import { ChevronIcon } from "@/components/ui/icons";
 import { HabitGridWeekdays, HabitMonthGrid, HabitYearBars } from "@/components/charts/HabitMonthGrid";
 import { buildStateByDate } from "@/lib/aggregations/adherence";
-import { getDatasetSpan, listDatesBetween, monthStart, todayLocalISODate } from "@/lib/aggregations/common";
+import { formatMinutes, getDatasetSpan, listDatesBetween, monthStart, todayLocalISODate } from "@/lib/aggregations/common";
 import type { ItemStats } from "@/lib/aggregations/itemStats";
 import { isScheduledDay, scheduledAdherence, scheduledStreak, type ItemSchedule } from "@/lib/aggregations/schedule";
 import type { CanonicalEvent } from "@/lib/types";
+import { BAND_OPTIONS, INPUT_KIND, bandLabelForValue } from "@/taxonomy/inputKinds";
 
 // A spread of palette hues so each row reads as its own thing at a glance —
 // adjacent entries sit in different colour families. Softened toward the
@@ -172,6 +173,53 @@ function courseLabel(first: string, last: string, today: string): string {
   return a === b ? a : `${a} – ${b}`;
 }
 
+/** A measured habit's logged value (minutes) per day — the day's largest entry. */
+function valuesByDate(events: CanonicalEvent[], item: string): Map<string, number> {
+  const m = new Map<string, number>();
+  for (const e of events) {
+    if (e.item !== item || !e.completed || e.value == null) continue;
+    m.set(e.date, Math.max(m.get(e.date) ?? 0, e.value));
+  }
+  return m;
+}
+
+/** 0–1 for a value inside the item's band range (or the logged range when it has no bands). */
+function shadeScale(item: string, values: Map<string, number>): (date: string) => number | null {
+  const bands = BAND_OPTIONS[item];
+  const all = bands ? bands.map((b) => b.value) : Array.from(values.values());
+  const lo = Math.min(...all);
+  const hi = Math.max(...all);
+  return (date) => {
+    const v = values.get(date);
+    if (v == null) return null;
+    return hi > lo ? Math.min(1, Math.max(0, (v - lo) / (hi - lo))) : 1;
+  };
+}
+
+/** "7–8h" — the band logged most often in the period, or the median for an exact duration. */
+function typicalValue(item: string, values: Map<string, number>, start: string, end: string): string | null {
+  const inPeriod = Array.from(values).filter(([d]) => d >= start && d <= end).map(([, v]) => v);
+  if (inPeriod.length === 0) return null;
+  if (BAND_OPTIONS[item]) {
+    const counts = new Map<string, number>();
+    for (const v of inPeriod) {
+      const label = bandLabelForValue(item, v)!;
+      counts.set(label, (counts.get(label) ?? 0) + 1);
+    }
+    return [...counts].sort((a, b) => b[1] - a[1])[0][0];
+  }
+  const sorted = [...inPeriod].sort((a, b) => a - b);
+  return formatMinutes(sorted[Math.floor(sorted.length / 2)]);
+}
+
+/** The first and last day of the month or year on the card. */
+function periodBounds(view: View, anchor: string): { start: string; end: string } {
+  const year = anchor.slice(0, 4);
+  if (view === "year") return { start: `${year}-01-01`, end: `${year}-12-31` };
+  const last = new Date(Number(year), Number(anchor.slice(5, 7)), 0).getDate();
+  return { start: anchor, end: `${anchor.slice(0, 7)}-${String(last).padStart(2, "0")}` };
+}
+
 function Ico({ children }: { children: ReactNode }) {
   return (
     <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="shrink-0">
@@ -194,6 +242,11 @@ const TrophyIcon = () => (
   <Ico>
     <path d="M4.5 2.5h7v3a3.5 3.5 0 0 1-7 0Z" />
     <path d="M4.5 3.5H2.7c0 1.6.8 2.6 2 2.8M11.5 3.5h1.8c0 1.6-.8 2.6-2 2.8M6 13.5h4M8 9v4.5" />
+  </Ico>
+);
+const MoonIcon = () => (
+  <Ico>
+    <path d="M13 9.6A5.5 5.5 0 1 1 6.4 3a4.3 4.3 0 0 0 6.6 6.6Z" />
   </Ico>
 );
 const CheckIcon = () => (
@@ -258,6 +311,13 @@ export function AdherenceCardGrid({
     return m;
   }, [active]);
 
+  // Sleep and other measured habits: each day's value, to shade the calendar.
+  const valuesByItem = useMemo(() => {
+    const m = new Map<string, Map<string, number>>();
+    for (const s of stats) if (INPUT_KIND[s.item]) m.set(s.item, valuesByDate(events, s.item));
+    return m;
+  }, [events, stats]);
+
   const doneByItem = useMemo(() => {
     const m = new Map<string, Set<string>>();
     for (const s of stats) m.set(s.item, new Set(buildStateByDate(events, s.item).keys()));
@@ -307,6 +367,9 @@ export function AdherenceCardGrid({
                 const color = colorByItem.get(it.item) ?? accent;
                 const schedule = schedules[it.itemIdentity];
                 const period = periodStats(view, anchor, done, it.firstTrackedDate, today, schedule);
+                const values = valuesByItem.get(it.item);
+                const bounds = periodBounds(view, anchor);
+                const typical = values ? typicalValue(it.item, values, bounds.start, bounds.end) : null;
                 return (
                   <div
                     key={it.itemIdentity}
@@ -329,13 +392,25 @@ export function AdherenceCardGrid({
                           today={today}
                           color={color}
                           isScheduled={(d) => isScheduledDay(schedule, d)}
+                          shade={values ? shadeScale(it.item, values) : undefined}
                         />
                       </div>
                     ) : (
                       <HabitYearBars monthly={monthlyConsistency(anchorYear, done, it.firstTrackedDate, today, schedule)} color={color} />
                     )}
 
-                    {period && (
+                    {values ? (
+                      typical && (
+                        <div className="flex items-center gap-1 border-t pt-2 whitespace-nowrap" style={{ borderColor: "var(--gridline)" }}>
+                          <Stat icon={<MoonIcon />} label="Typical">
+                            {typical}
+                          </Stat>
+                          <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+                            typical
+                          </span>
+                        </div>
+                      )
+                    ) : period && (
                       <div
                         className="flex items-center gap-2.5 overflow-hidden border-t pt-2 whitespace-nowrap"
                         style={{ borderColor: "var(--gridline)" }}
