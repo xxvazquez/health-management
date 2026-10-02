@@ -191,15 +191,6 @@ export interface LastTestItem {
   kind: "out" | "back" | "moved";
 }
 
-export interface LastTestSummary {
-  /** Date of the newest result. */
-  date: string;
-  /** Markers measured in that test. */
-  markerCount: number;
-  /** What's worth a look: out of range first, then back in range, then the biggest moves. */
-  items: LastTestItem[];
-}
-
 function shiftDate(date: string, days: number): string {
   const d = new Date(`${date}T00:00:00Z`);
   d.setUTCDate(d.getUTCDate() + days);
@@ -248,12 +239,10 @@ export function markerHighlights(markers: LabMarker[], start: string, end: strin
   return { measured, items: found.map((f) => f.item) };
 }
 
-/** The most recent blood test and what stood out in it, compared with
- * each marker's result before that test. Null with no results. */
-export function lastTestSummary(markers: LabMarker[]): LastTestSummary | null {
+/** First day of the most recent blood test (its results can land over a
+ * few days), so clipping from it leaves only the markers that test measured.
+ * Null with no results. */
+export function latestTestStart(markers: LabMarker[]): string | null {
   const span = labsSpan(markers);
-  if (!span) return null;
-  const testStart = shiftDate(span.end, -(SAME_TEST_DAYS - 1));
-  const { measured, items } = markerHighlights(markers, testStart, span.end);
-  return { date: span.end, markerCount: measured, items };
+  return span ? shiftDate(span.end, -(SAME_TEST_DAYS - 1)) : null;
 }

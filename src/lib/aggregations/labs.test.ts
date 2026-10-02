@@ -4,7 +4,8 @@ import {
   clipMarkers,
   effectiveRange,
   labsSpan,
-  lastTestSummary,
+  latestTestStart,
+  markerHighlights,
   parseNum,
   BAND_LEFT_PCT,
   BAND_RIGHT_PCT,
@@ -178,11 +179,11 @@ describe("summariseWindow", () => {
   });
 });
 
-describe("lastTestSummary", () => {
+describe("latestTestStart / markerHighlights", () => {
   const r = (measuredOn: string, value: number) => ({ id: `${measuredOn}-${value}`, markerId: "m", measuredOn, value, lab: null, note: null });
 
   it("is null with no results", () => {
-    expect(lastTestSummary([marker({ id: "a", name: "A" })])).toBeNull();
+    expect(latestTestStart([marker({ id: "a", name: "A" })])).toBeNull();
   });
 
   it("lists out-of-range first, then back in range, then notable moves, and skips small moves", () => {
@@ -193,9 +194,10 @@ describe("lastTestSummary", () => {
       marker({ id: "high", name: "High", refLow: 0, refHigh: 10, results: [r("2026-01-01", 9), r("2026-05-08", 11)] }),
       marker({ id: "old", name: "Old", refLow: 0, refHigh: 10, results: [r("2025-01-01", 20)] }),
     ];
-    const summary = lastTestSummary(markers)!;
-    expect(summary.date).toBe("2026-05-11");
-    expect(summary.markerCount).toBe(4);
+    const start = latestTestStart(markers)!;
+    expect(start).toBe("2026-05-05");
+    const summary = markerHighlights(markers, start, "2026-05-11");
+    expect(summary.measured).toBe(4);
     expect(summary.items.map((i) => [i.marker.id, i.kind])).toEqual([
       ["high", "out"],
       ["back", "back"],
@@ -209,6 +211,6 @@ describe("lastTestSummary", () => {
       marker({ id: "a", name: "A", results: [r("2026-01-01", 100), r("2026-05-10", 125)] }),
       marker({ id: "b", name: "B", results: [r("2026-01-01", 100), r("2026-05-10", 110)] }),
     ];
-    expect(lastTestSummary(markers)!.items.map((i) => i.marker.id)).toEqual(["a"]);
+    expect(markerHighlights(markers, latestTestStart(markers)!, "2026-05-10").items.map((i) => i.marker.id)).toEqual(["a"]);
   });
 });

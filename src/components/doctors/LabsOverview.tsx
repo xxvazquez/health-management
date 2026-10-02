@@ -5,21 +5,19 @@ import { ChevronIcon, UpDownChevronIcon } from "@/components/ui/icons";
 import { useState, type ReactNode } from "react";
 import type { useLabs } from "@/lib/useLabs";
 import type { LabNameLanguage } from "@/lib/labNames";
-import { todayLocalISODate, type DateRange } from "@/lib/aggregations/common";
+import { daysBetween, todayLocalISODate, type DateRange } from "@/lib/aggregations/common";
 import {
   clipMarkers,
   effectiveRange,
-  lastTestSummary,
+  latestTestStart,
   labsSpan,
   rangeBar,
   rangeStatus,
   summariseWindow,
   type LastTestItem,
-  type LastTestSummary,
 } from "@/lib/aggregations/labs";
 import { optimalStatusColor } from "./labStatus";
-import { formatDate, formatShortDate } from "./shared";
-import { ShowAllRow, TrendGroup, TrendRow } from "@/components/analytics/TrendList";
+import { formatDate } from "./shared";
 import type { LabMarker, LabResult } from "@/lib/supabase/labs";
 import { InlineEmpty, ErrorState } from "@/components/ui/EmptyState";
 import { ListSkeleton } from "@/components/ui/Skeleton";
@@ -41,6 +39,7 @@ type SortKey = "panel" | "name";
  * (`DateRangeFilter`'s own defaults, Vitals) — years expressed as days so
  * results share the one popover pattern instead of a bespoke pill row. */
 const LAB_DATE_PRESETS: DateRangePreset[] = [
+  { label: "6 months", days: 182 },
   { label: "1 year", days: 365 },
   { label: "2 years", days: 730 },
   { label: "5 years", days: 1826 },
@@ -97,16 +96,20 @@ export function LabsOverview({
   const [panelFilter, setPanelFilter] = useState<string | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
   const [listScroll, setListScroll] = useState(0);
-  const [showAllLastTest, setShowAllLastTest] = useState(false);
   const desktop = useIsDesktop();
 
   const today = todayLocalISODate();
   const allMarkers = labs.markers.data;
   const span = labsSpan(allMarkers);
-  const lastTest = lastTestSummary(allMarkers);
   // Rolling window anchored at today, same as Vitals — not the dataset's own
   // end, so "1 year" always means the last 365 real days.
   const dateSpan: DateRange = { start: span?.start ?? today, end: today };
+  // "Latest test" is the window from the newest test's first day to today,
+  // so only the markers that test measured are listed.
+  const testStart = latestTestStart(allMarkers);
+  const presets = testStart
+    ? [{ label: "Latest test", days: Math.max(1, daysBetween(testStart, today) + 1) }, ...LAB_DATE_PRESETS]
+    : LAB_DATE_PRESETS;
   const activeRange = range ?? dateSpan;
   const inRange = clipMarkers(allMarkers, activeRange.start);
 
@@ -202,20 +205,6 @@ export function LabsOverview({
     </MarkerGrid>
   );
 
-  // On a phone it leads the page; on desktop it heads the list column so a
-  // tapped marker opens in the pane beside it.
-  const lastTestSection = lastTest && (
-    <LastTestSection
-      summary={lastTest}
-      expanded={showAllLastTest}
-      onToggle={() => setShowAllLastTest((v) => !v)}
-      onOpen={(id) => {
-        setPanelFilter(null);
-        openRow(id);
-      }}
-    />
-  );
-
   const markerRows =
     sort === "panel" ? (
       <div className="flex flex-col gap-4">
@@ -238,21 +227,11 @@ export function LabsOverview({
     ) : (
       rows(flatMarkers)
     );
-  const markerList = desktop ? (
-    <div className="flex flex-col gap-4">
-      {lastTestSection}
-      {markerRows}
-    </div>
-  ) : (
-    markerRows
-  );
 
   return (
     <div className="flex flex-col gap-4">
-      {!desktop && lastTestSection}
-
       <div className="flex flex-wrap items-center gap-2.5">
-        <DateRangeFilter span={dateSpan} value={activeRange} onChange={setRange} presets={LAB_DATE_PRESETS} accent={ACCENT} />
+        <DateRangeFilter span={dateSpan} value={activeRange} onChange={setRange} presets={presets} accent={ACCENT} />
         <label className={`${CONTROL_CLS} relative`} style={{ ...CONTROL_STYLE, color: ACCENT }}>
           {VIEW_LABEL[`${mode}:${sort}`]}
           <UpDownChevronIcon size={11} />
@@ -303,7 +282,7 @@ export function LabsOverview({
         selected={!!openMarker}
         listWidth="26rem"
         stickyDetail
-        list={markerList}
+        list={markerRows}
         detail={
           openMarker && (
             <MarkerDetailView
@@ -319,7 +298,8 @@ export function LabsOverview({
       />
 
       <Methodology>
-        This view only describes your own recorded results. Pick a time window at the top: <strong>Average</strong> reads the
+        This view only describes your own recorded results. Pick a time window at the top (<strong>Latest test</strong> lists only the markers your newest blood test
+        measured): <strong>Average</strong> reads the
         mean of every draw in it (the whisker on the bar is the lowest-to-highest spread), <strong>Last</strong> shows only the
         most recent draw. Each value is read against your optimal range where you&rsquo;ve set one, otherwise the lab reference
         low/high — both are lab- and sometimes age-specific, so treat a flag as a prompt to look, not a diagnosis. Every bar puts
@@ -329,8 +309,6 @@ export function LabsOverview({
     </div>
   );
 }
-
-const LAST_TEST_SHOWN = 5;
 
 /** "High · was 1.8 in Mar 2025", "Back in range · was 52", "Up from 30 · Mar 2025". */
 export function lastTestNote(item: LastTestItem): string {
@@ -342,56 +320,6 @@ export function lastTestNote(item: LastTestItem): string {
   }
   if (item.kind === "back") return `Back in range · was ${fmtNum(prev!.value)} in ${when}`;
   return `${item.value > prev!.value ? "Up" : "Down"} from ${fmtNum(prev!.value)} · ${when}`;
-}
-
-/** The newest blood test at the top of Results: what's out of range, what
- * came back into range, and what moved notably since the result before. */
-function LastTestSection({
-  summary,
-  expanded,
-  onToggle,
-  onOpen,
-}: {
-  summary: LastTestSummary;
-  expanded: boolean;
-  onToggle: () => void;
-  onOpen: (markerId: string) => void;
-}) {
-  const shown = expanded ? summary.items : summary.items.slice(0, LAST_TEST_SHOWN);
-  return (
-    <TrendGroup caption={`Last blood test · ${formatShortDate(summary.date)}`}>
-      {summary.items.length === 0 ? (
-        <TrendRow
-          label={`All ${summary.markerCount} ${summary.markerCount === 1 ? "marker" : "markers"} in range`}
-          sublabel="Nothing moved much since the test before"
-        />
-      ) : (
-        shown.map((item) => {
-          const flag = item.status === "high" ? "H" : item.status === "low" ? "L" : "";
-          return (
-            <TrendRow
-              key={item.marker.id}
-              label={item.marker.name}
-              sublabel={lastTestNote(item)}
-              value={
-                <span className="flex items-baseline gap-1">
-                  <span style={{ color: optimalStatusColor(item.status) }}>{fmtNum(item.value)}</span>
-                  {item.marker.unit && <span className="text-xs" style={{ color: "var(--text-muted)" }}>{item.marker.unit}</span>}
-                  {flag && (
-                    <span className="font-semibold" style={{ color: optimalStatusColor(item.status) }}>
-                      {flag}
-                    </span>
-                  )}
-                </span>
-              }
-              onClick={() => onOpen(item.marker.id)}
-            />
-          );
-        })
-      )}
-      {summary.items.length > LAST_TEST_SHOWN && <ShowAllRow total={summary.items.length} expanded={expanded} onToggle={onToggle} />}
-    </TrendGroup>
-  );
 }
 
 function GlobeIcon() {
