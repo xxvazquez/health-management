@@ -225,12 +225,14 @@ export function LabSparkline({
   refHigh,
   width = 72,
   height = 24,
+  color = "var(--series-indigo)",
 }: {
   values: number[];
   refLow: number | null;
   refHigh: number | null;
   width?: number;
   height?: number;
+  color?: string;
 }) {
   if (values.length < 2) return null;
   const lo = Math.min(...values, refLow ?? Infinity);
@@ -247,8 +249,8 @@ export function LabSparkline({
       {bandY1 != null && bandY2 != null && (
         <rect x={0} y={bandY1} width={width} height={Math.max(0, bandY2 - bandY1)} fill="var(--status-good)" fillOpacity={0.14} />
       )}
-      <path d={path} fill="none" stroke="var(--series-indigo)" strokeWidth={1.4} strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx={x(values.length - 1)} cy={y(values[values.length - 1])} r={1.8} fill="var(--series-indigo)" />
+      <path d={path} fill="none" stroke={color} strokeWidth={1.4} strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx={x(values.length - 1)} cy={y(values[values.length - 1])} r={1.8} fill={color} />
     </svg>
   );
 }

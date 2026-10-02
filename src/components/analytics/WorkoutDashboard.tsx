@@ -8,10 +8,10 @@ import { ChevronIcon } from "@/components/ui/icons";
 import { TrendsActions } from "@/components/analytics/TrendsActions";
 import { ShowAllRow, SplitStatCard, TrendCaption, TrendGroup, TrendRow } from "@/components/analytics/TrendList";
 import { DEFAULT_PRESETS, DateRangeFilter, describeDateRange } from "@/components/ui/DateRangeFilter";
-import { LabMarkerChart, type LabMarkerChartPoint } from "@/components/charts/LabMarkerChart";
+import { LabMarkerChart, LabSparkline, type LabMarkerChartPoint } from "@/components/charts/LabMarkerChart";
 import { TrendHeadline } from "@/components/charts/TrendCard";
 import { DEFAULT_RANGE_DAYS, useDateRangeFilter } from "@/lib/useDateRangeFilter";
-import { addDaysToDate, daysBetween, formatMinutes, todayLocalISODate, type DateRange } from "@/lib/aggregations/common";
+import { addDaysToDate, formatMinutes, todayLocalISODate, type DateRange } from "@/lib/aggregations/common";
 import {
   workoutExerciseSummaries,
   workoutRecentEntries,
@@ -49,6 +49,69 @@ function perSessionCaption(s: WorkoutExerciseSummary): string {
   if (kind === "Duration") return "Time per session";
   if (kind === "Reps") return "Reps per session";
   return "Per session";
+}
+
+/** "+5 kg since 31 Aug" for a lift that moved; null when there's no change to show. */
+function progress(s: WorkoutExerciseSummary, today: string): ReactNode {
+  if (s.timed || s.sessions.length < 2) return null;
+  const first = s.sessions[0];
+  const change = Math.round((s.last.value - first.value) * 10) / 10;
+  if (change === 0) return null;
+  return (
+    <span style={{ color: change > 0 ? "var(--status-good)" : "var(--status-serious)" }}>
+      {change > 0 ? "+" : "−"}
+      {amount(Math.abs(change), s.unit)} since {shortDate(first.date, today)}
+    </span>
+  );
+}
+
+function sessionsText(n: number): string {
+  return `${n} ${n === 1 ? "session" : "sessions"}`;
+}
+
+/** An exercise as a Health-style highlight: its name, when it was last
+ * done, the latest value with a sparkline, and how it moved. */
+function ExerciseCard({ summary, today, onOpen }: { summary: WorkoutExerciseSummary; today: string; onOpen: () => void }) {
+  const { exercise, unit, timed, sessions, last, total } = summary;
+  const detail = timed
+    ? `${["minutes", "min"].includes(unit) && total >= 60 ? formatMinutes(total) : amount(total, unit)} in ${sessionsText(sessions.length)}`
+    : (progress(summary, today) ?? sessionsText(sessions.length));
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      className="flex min-w-0 flex-col gap-2 rounded-xl border px-3.5 py-3 text-left"
+      style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}
+    >
+      <span className="flex items-center gap-2">
+        <span className="min-w-0 flex-1 truncate text-sm font-semibold" style={{ color: ACCENT }}>
+          {exercise}
+        </span>
+        <span className="shrink-0 text-xs" style={{ color: "var(--text-muted)" }}>
+          {shortDate(last.date, today)}
+        </span>
+        <span className="shrink-0" style={{ color: "var(--text-muted)" }}>
+          <ChevronIcon dir="right" size={14} />
+        </span>
+      </span>
+      <span className="flex items-end gap-3">
+        <span className="min-w-0 flex-1">
+          <span className="flex items-baseline gap-1.5">
+            <span className="text-2xl leading-tight font-semibold tabular-nums" style={{ color: "var(--text-primary)" }}>
+              {last.value}
+            </span>
+            <span className="text-sm" style={{ color: "var(--text-muted)" }}>
+              {workoutUnitLabel(unit)}
+            </span>
+          </span>
+          <span className="block text-xs" style={{ color: "var(--text-muted)" }}>
+            {detail}
+          </span>
+        </span>
+        <LabSparkline values={sessions.map((x) => x.value)} refLow={null} refHigh={null} width={96} height={32} color={ACCENT} />
+      </span>
+    </button>
+  );
 }
 
 function HealthCard({ caption, children }: { caption: ReactNode; children: ReactNode }) {
@@ -95,21 +158,10 @@ function WeeklyBars({ weeks, today }: { weeks: { weekStart: string; sessions: nu
 function ExerciseDetail({ summary, when, range, today }: { summary: WorkoutExerciseSummary; when: string; range: DateRange; today: string }) {
   const [scrub, setScrub] = useState<LabMarkerChartPoint | null>(null);
   const { sessions, unit, timed, best, last } = summary;
-  const first = sessions[0];
-  const change = Math.round((last.value - first.value) * 10) / 10;
   const shown = scrub ?? { date: last.date, value: last.value };
   const lastDay = new Date(`${last.date}T00:00:00`);
 
-  const detail = scrub
-    ? null
-    : !timed && sessions.length >= 2 && change !== 0
-      ? (
-          <span style={{ color: change > 0 ? "var(--status-good)" : "var(--status-serious)" }}>
-            {change > 0 ? "+" : "−"}
-            {amount(Math.abs(change), unit)} since {shortDate(first.date, today)}
-          </span>
-        )
-      : shortDate(last.date, today);
+  const detail = scrub ? null : (progress(summary, today) ?? shortDate(last.date, today));
 
   return (
     <div className="flex max-w-2xl flex-col gap-4">
@@ -228,33 +280,24 @@ export function WorkoutDashboard() {
   }
 
   const sessionCount = [...workoutTrainedDates(workoutLogs)].filter((d) => d >= range.start && d <= range.end).length;
-  const lastTrained = recent[0]?.date ?? null;
-  const sinceLast = lastTrained ? daysBetween(lastTrained, today) : null;
   const shownRecent = showAllRecent ? recent : recent.slice(0, RECENT_SHOWN);
 
   return (
     <div className="flex flex-col gap-4">
       {filter}
 
-      <HealthCard caption={`Sessions · ${when}`}>
-        <p className="flex items-baseline gap-1.5">
-          <span className="text-2xl leading-tight font-semibold tabular-nums" style={{ color: "var(--text-primary)" }}>
-            {sessionCount}
-          </span>
-          <span className="text-sm" style={{ color: "var(--text-muted)" }}>
-            {sessionCount === 1 ? "day" : "days"}
-          </span>
-        </p>
-        {lastTrained && sinceLast !== null && (
-          <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-            {sinceLast <= 1 ? `Last ${shortDate(lastTrained, today).toLowerCase()}` : `Last on ${shortDate(lastTrained, today)}`}
-            {sinceLast > 1 ? ` · ${sinceLast} days ago` : ""}
-          </p>
-        )}
-        {weeks.length > 0 && <WeeklyBars weeks={weeks} today={today} />}
-      </HealthCard>
+      {exercises.length > 0 && (
+        <section className="flex flex-col gap-1.5">
+          <TrendCaption>{`Exercises · ${when}`}</TrendCaption>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {exercises.map((e) => (
+              <ExerciseCard key={e.exercise} summary={e} today={today} onOpen={() => openDetail(e.exercise)} />
+            ))}
+          </div>
+        </section>
+      )}
 
-      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-2">
         {recent.length > 0 && (
           <TrendGroup caption="Recent">
             {shownRecent.map((r) => (
@@ -264,19 +307,17 @@ export function WorkoutDashboard() {
           </TrendGroup>
         )}
 
-        {exercises.length > 0 && (
-          <TrendGroup caption={`By exercise · ${when}`}>
-            {exercises.map((e) => (
-              <TrendRow
-                key={e.exercise}
-                label={e.exercise}
-                sublabel={`${e.sessions.length} ${e.sessions.length === 1 ? "session" : "sessions"}`}
-                value={e.timed ? `${["minutes", "min"].includes(e.unit) && e.total >= 60 ? formatMinutes(e.total) : amount(e.total, e.unit)} total` : `best ${amount(e.best.value, e.unit)}`}
-                onClick={() => openDetail(e.exercise)}
-              />
-            ))}
-          </TrendGroup>
-        )}
+        <HealthCard caption={`Training days · ${when}`}>
+          <p className="flex items-baseline gap-1.5">
+            <span className="text-2xl leading-tight font-semibold tabular-nums" style={{ color: "var(--text-primary)" }}>
+              {sessionCount}
+            </span>
+            <span className="text-sm" style={{ color: "var(--text-muted)" }}>
+              {sessionCount === 1 ? "day" : "days"}
+            </span>
+          </p>
+          {weeks.length > 0 && <WeeklyBars weeks={weeks} today={today} />}
+        </HealthCard>
       </div>
     </div>
   );
