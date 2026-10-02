@@ -55,6 +55,20 @@ function DoctorHistory({ api, doctor, accent, onBack }: { api: DoctorsApi; docto
         )}
       </div>
 
+      <Link
+        href={`/medical/summary/?doctor=${doctor.id}`}
+        className="flex min-h-11 items-center gap-3 rounded-xl border px-3.5 text-sm"
+        style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
+      >
+        Visit summary
+        <span className="ml-auto text-xs" style={{ color: "var(--text-muted)" }}>
+          Print or PDF
+        </span>
+        <span style={{ color: "var(--text-muted)" }}>
+          <ChevronIcon dir="right" size={14} />
+        </span>
+      </Link>
+
       {doctor.notes && (
         <section className="flex flex-col gap-1.5">
           <h3 className="px-4 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>

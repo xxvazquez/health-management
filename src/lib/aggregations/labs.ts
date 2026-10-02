@@ -206,39 +206,54 @@ function shiftDate(date: string, days: number): string {
   return d.toISOString().slice(0, 10);
 }
 
+/** How one marker's latest reading compares with the one before: out of
+ * range, back in range, a notable move (with its size, 1 = just notable),
+ * or nothing worth a mention. */
+function classifyReading(
+  marker: LabMarker,
+  latest: { value: number },
+  before: { value: number; measuredOn: string } | null,
+): { item: LastTestItem; size: number } | null {
+  const { low, high } = effectiveRange(marker);
+  const status = rangeStatus(latest.value, low, high);
+  const previous = before ? { value: before.value, measuredOn: before.measuredOn } : null;
+  const base = { marker, value: latest.value, status, previous };
+  if (status === "low" || status === "high") return { item: { ...base, kind: "out" }, size: 0 };
+  if (!previous) return null;
+  const prevStatus = rangeStatus(previous.value, low, high);
+  if (prevStatus === "low" || prevStatus === "high") return { item: { ...base, kind: "back" }, size: 0 };
+  const delta = Math.abs(latest.value - previous.value);
+  const size = low != null && high != null && high > low ? delta / (high - low) / NOTABLE_BAND_SHARE : previous.value !== 0 ? delta / Math.abs(previous.value) / NOTABLE_RELATIVE_CHANGE : 0;
+  return size >= 1 ? { item: { ...base, kind: "moved" }, size } : null;
+}
+
+/** Each marker measured between `start` and `end` (inclusive), its latest
+ * reading in that window against its last reading before the window: out
+ * of range first, then back in range, then the biggest moves. */
+export function markerHighlights(markers: LabMarker[], start: string, end: string): { measured: number; items: LastTestItem[] } {
+  const found: { item: LastTestItem; size: number }[] = [];
+  let measured = 0;
+  for (const marker of markers) {
+    const sorted = [...marker.results].sort((a, b) => a.measuredOn.localeCompare(b.measuredOn));
+    const inWindow = sorted.filter((r) => r.measuredOn >= start && r.measuredOn <= end);
+    const latest = inWindow[inWindow.length - 1];
+    if (!latest) continue;
+    measured++;
+    const before = [...sorted].reverse().find((r) => r.measuredOn < start) ?? null;
+    const hit = classifyReading(marker, latest, before);
+    if (hit) found.push(hit);
+  }
+  const order = { out: 0, back: 1, moved: 2 };
+  found.sort((a, b) => order[a.item.kind] - order[b.item.kind] || b.size - a.size || a.item.marker.name.localeCompare(b.item.marker.name));
+  return { measured, items: found.map((f) => f.item) };
+}
+
 /** The most recent blood test and what stood out in it, compared with
  * each marker's result before that test. Null with no results. */
 export function lastTestSummary(markers: LabMarker[]): LastTestSummary | null {
   const span = labsSpan(markers);
   if (!span) return null;
   const testStart = shiftDate(span.end, -(SAME_TEST_DAYS - 1));
-  const items: { item: LastTestItem; size: number }[] = [];
-  let markerCount = 0;
-  for (const marker of markers) {
-    const sorted = [...marker.results].sort((a, b) => a.measuredOn.localeCompare(b.measuredOn));
-    const latest = sorted[sorted.length - 1];
-    if (!latest || latest.measuredOn < testStart) continue;
-    markerCount++;
-    const before = [...sorted].reverse().find((r) => r.measuredOn < testStart) ?? null;
-    const { low, high } = effectiveRange(marker);
-    const status = rangeStatus(latest.value, low, high);
-    const previous = before ? { value: before.value, measuredOn: before.measuredOn } : null;
-    const base = { marker, value: latest.value, status, previous };
-    if (status === "low" || status === "high") {
-      items.push({ item: { ...base, kind: "out" }, size: 0 });
-      continue;
-    }
-    if (!previous) continue;
-    const prevStatus = rangeStatus(previous.value, low, high);
-    if (prevStatus === "low" || prevStatus === "high") {
-      items.push({ item: { ...base, kind: "back" }, size: 0 });
-      continue;
-    }
-    const delta = Math.abs(latest.value - previous.value);
-    const size = low != null && high != null && high > low ? delta / (high - low) / NOTABLE_BAND_SHARE : previous.value !== 0 ? delta / Math.abs(previous.value) / NOTABLE_RELATIVE_CHANGE : 0;
-    if (size >= 1) items.push({ item: { ...base, kind: "moved" }, size });
-  }
-  const order = { out: 0, back: 1, moved: 2 };
-  items.sort((a, b) => order[a.item.kind] - order[b.item.kind] || b.size - a.size || a.item.marker.name.localeCompare(b.item.marker.name));
-  return { date: span.end, markerCount, items: items.map((i) => i.item) };
+  const { measured, items } = markerHighlights(markers, testStart, span.end);
+  return { date: span.end, markerCount: measured, items };
 }

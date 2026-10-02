@@ -136,6 +136,7 @@ Parent-and-child writes (an appointment with tasks, a whole blood draw) queue pa
   - The next-appointment date lives on `doctor_specialties`
   - Care entries are observations, notes or decisions, tagged to specialties. They can carry a `remind_on` date, and a decision can link a supplement
   - Care entries can link Google Drive files (`care_entry_files`), as pointers, never copies
+  - A doctor's Visit summary (`/medical/summary/`) is built entirely client-side from the same hooks (`visitSummary.ts`, `markerHighlights`) and printed by the browser; `print:hidden` drops the app chrome, and it prints in light colours whatever the theme
 - **Icons and colours:** one shared picker (`IconColorPicker.tsx`, `customIcons.tsx`) for categories, wishlist lists, reminder lists, specialties and lab panels — Lauva's own glyphs plus the full Lucide set (`lucide-react`; the grid loads it in one chunk only when a picker opens, a saved icon loads per icon), and brand hues plus any custom colour
 - **Voice input** on Expiration and Codes uses the browser's Web Speech API
 

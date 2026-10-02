@@ -49,7 +49,7 @@ const LAB_DATE_PRESETS: DateRangePreset[] = [
 
 /** A lab value as entered — lab results often carry two or three decimals
  * (0.03, 2.15), so only floating-point noise is trimmed, never real digits. */
-function fmtNum(v: number): string {
+export function fmtNum(v: number): string {
   return String(Math.round(v * 1000) / 1000);
 }
 
@@ -333,7 +333,7 @@ export function LabsOverview({
 const LAST_TEST_SHOWN = 5;
 
 /** "High · was 1.8 in Mar 2025", "Back in range · was 52", "Up from 30 · Mar 2025". */
-function lastTestNote(item: LastTestItem): string {
+export function lastTestNote(item: LastTestItem): string {
   const prev = item.previous;
   const when = prev ? new Date(`${prev.measuredOn}T00:00:00`).toLocaleDateString(undefined, { month: "short", year: "numeric" }) : "";
   if (item.kind === "out") {

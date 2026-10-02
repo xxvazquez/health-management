@@ -337,7 +337,7 @@ export function Nav() {
           collapsible to an icon rail */}
       <aside
         className={clsx(
-          "sticky top-2 relative my-2 ml-2 hidden h-[calc(100dvh-1rem)] shrink-0 flex-col rounded-xl border py-6 transition-[width] duration-200 lg:flex",
+          "sticky top-2 relative my-2 ml-2 hidden h-[calc(100dvh-1rem)] shrink-0 flex-col rounded-xl border py-6 transition-[width] duration-200 lg:flex print:hidden",
           collapsed ? "w-[76px] px-3" : "w-60 px-4",
         )}
         style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", boxShadow: "var(--shadow-card)" }}

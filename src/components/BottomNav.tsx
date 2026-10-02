@@ -23,7 +23,7 @@ export function BottomNav() {
   return (
     <nav
       aria-label="Primary"
-      className="fixed inset-x-0 bottom-0 z-30 flex border-t lg:hidden"
+      className="fixed inset-x-0 bottom-0 z-30 flex border-t lg:hidden print:hidden"
       style={{
         borderColor: "var(--border-hairline)",
         // Solid, not translucent-plus-blur: backdrop-filter on a fixed,
