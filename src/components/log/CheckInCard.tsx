@@ -1,15 +1,102 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { FormGroup } from "@/components/ui/FormGroup";
 import { AutoGrowTextarea } from "@/components/ui/AutoGrowTextarea";
 import { ROW_TEXT_CLS } from "@/components/ui/formField";
 import { useCheckIns } from "@/lib/useCheckIns";
 
-const LEVELS = [1, 2, 3, 4, 5];
-const MOOD_WORDS = ["Very low", "Low", "Okay", "Good", "Great"];
-const ENERGY_WORDS = ["Very low", "Low", "Okay", "Good", "High"];
+const STEPS = 5;
+const MOOD_WORDS = ["Very unpleasant", "Unpleasant", "Neutral", "Pleasant", "Very pleasant"];
+const ENERGY_WORDS = ["Very low", "Low", "Moderate", "High", "Very high"];
 
+/** Stepped 1–5 slider in the iOS style: a thin track with a dot per step,
+ * filled up to a raised thumb; the dots past it mark the steps left. With no value it shows only the dots; the
+ * first tap or drag sets one, tapping the current step clears it. The
+ * value is committed on release. */
+function StepSlider({
+  label,
+  words,
+  value,
+  onChange,
+}: {
+  label: string;
+  words: string[];
+  value: number | null;
+  onChange: (v: number | null) => void;
+}) {
+  const moved = useRef(false);
+  const trackRef = useRef<HTMLDivElement>(null);
+  const [drag, setDrag] = useState<number | null>(null);
+  const shown = drag ?? value;
+
+  const stepAt = (clientX: number) => {
+    const rect = trackRef.current!.getBoundingClientRect();
+    const t = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+    return Math.round(t * (STEPS - 1)) + 1;
+  };
+  const pct = (n: number) => ((n - 1) / (STEPS - 1)) * 100;
+
+  return (
+    <div
+      role="slider"
+      tabIndex={0}
+      aria-label={label}
+      aria-valuemin={1}
+      aria-valuemax={STEPS}
+      aria-valuenow={shown ?? undefined}
+      aria-valuetext={shown ? words[shown - 1] : "Not set"}
+      className="relative h-11 cursor-pointer touch-none select-none rounded-[10px]"
+      onPointerDown={(e) => {
+        e.currentTarget.setPointerCapture(e.pointerId);
+        moved.current = false;
+        setDrag(stepAt(e.clientX));
+      }}
+      onPointerMove={(e) => {
+        if (drag == null) return;
+        const n = stepAt(e.clientX);
+        if (n !== drag) moved.current = true;
+        setDrag(n);
+      }}
+      onPointerUp={() => {
+        if (drag != null && drag !== value) onChange(drag);
+        else if (drag != null && !moved.current) onChange(null);
+        setDrag(null);
+      }}
+      onPointerCancel={() => setDrag(null)}
+      onKeyDown={(e) => {
+        const step = e.key === "ArrowRight" || e.key === "ArrowUp" ? 1 : e.key === "ArrowLeft" || e.key === "ArrowDown" ? -1 : 0;
+        if (!step) return;
+        e.preventDefault();
+        onChange(Math.min(STEPS, Math.max(1, (value ?? (step > 0 ? 0 : STEPS + 1)) + step)));
+      }}
+    >
+      <div ref={trackRef} className="absolute inset-x-3 top-1/2 h-1 -translate-y-1/2 rounded-full" style={{ background: "var(--segment-track)" }}>
+        {shown != null && (
+          <div className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${pct(shown)}%`, background: "var(--ui-accent)" }} />
+        )}
+        {Array.from({ length: STEPS }, (_, i) =>
+          shown != null && i + 1 <= shown ? null : (
+            <span
+              key={i}
+              className="absolute top-1/2 size-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full"
+              style={{ left: `${pct(i + 1)}%`, background: "var(--text-muted)", opacity: 0.45 }}
+            />
+          ),
+        )}
+        {shown != null && (
+          <span
+            className="control-surface absolute top-1/2 size-6 -translate-x-1/2 -translate-y-1/2 rounded-full transition-[left] duration-100"
+            style={{ left: `${pct(shown)}%` }}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** One metric: name followed by the chosen level in words, the slider
+ * underneath. */
 function ScaleRow({
   label,
   words,
@@ -22,35 +109,12 @@ function ScaleRow({
   onChange: (v: number | null) => void;
 }) {
   return (
-    <div className="flex min-h-11 items-center justify-between gap-3 px-3.5 py-1" role="group" aria-label={label}>
-      <span className="flex min-w-0 flex-col">
-        <span className="text-sm" style={{ color: "var(--text-primary)" }}>
-          {label}
-        </span>
-        {value != null && (
-          <span className="text-xs" style={{ color: "var(--ui-accent)" }}>
-            {words[value - 1]}
-          </span>
-        )}
-      </span>
-      <span className="flex items-center gap-1.5">
-        {LEVELS.map((n) => {
-          const on = value === n;
-          return (
-            <button
-              key={n}
-              type="button"
-              onClick={() => onChange(on ? null : n)}
-              aria-pressed={on}
-              aria-label={`${label} ${n} of 5, ${words[n - 1]}`}
-              className="hit-slop flex size-8 items-center justify-center rounded-full text-sm font-medium tabular-nums"
-              style={on ? { background: "var(--ui-accent)", color: "var(--on-accent)" } : { color: "var(--text-secondary)" }}
-            >
-              {n}
-            </button>
-          );
-        })}
-      </span>
+    <div className="px-3.5 pt-2.5">
+      <div className="flex flex-wrap items-baseline gap-x-2 text-sm">
+        <span style={{ color: "var(--text-primary)" }}>{label}</span>
+        {value != null && <span style={{ color: "var(--ui-accent)" }}>{words[value - 1]}</span>}
+      </div>
+      <StepSlider label={label} words={words} value={value} onChange={onChange} />
     </div>
   );
 }
@@ -76,8 +140,8 @@ function NoteRow({ initial, onSave }: { initial: string; onSave: (note: string) 
   );
 }
 
-/** The day's mood and energy check-in on Log → Summary: two 1–5 rows, each
- * naming the chosen level, and a note. Tapping the chosen level again clears it. */
+/** The day's mood and energy check-in on Log → Summary: a 1–5 slider for
+ * each, named in words, and a note. */
 export function CheckInCard({ date }: { date: string }) {
   const { forDate, save, loading, error } = useCheckIns();
   if (loading || error) return null;
