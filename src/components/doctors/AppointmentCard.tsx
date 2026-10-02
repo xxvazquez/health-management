@@ -6,6 +6,7 @@ import { DoctorName, IconAction, PencilIcon, TrashIcon, formatDate } from "./sha
 import { LABEL_STYLE, ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
 import { MarkdownContent } from "@/components/ui/Markdown";
 import { FollowUpTaskRow } from "./FollowUpTaskRow";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
 /** One appointment in a history list: doctor (when shown) + its frozen
  * specialty + date/time, reason, follow-up notes, and the follow-up task
@@ -76,15 +77,17 @@ export function AppointmentCard({
       </div>
 
       {confirmDelete && (
-        <div className="mt-2 flex items-center gap-2 text-xs">
-          <span style={{ color: "var(--text-secondary)" }}>Delete this appointment? Its follow-up tasks go too; the doctor and other visits stay.</span>
-          <button type="button" onClick={onDelete} className="rounded-md px-2 py-1 font-semibold" style={{ color: "var(--status-critical)" }}>
-            Delete
-          </button>
-          <button type="button" onClick={() => setConfirmDelete(false)} className="rounded-md px-2 py-1 font-medium" style={{ color: "var(--text-muted)" }}>
-            Keep
-          </button>
-        </div>
+        <ConfirmDialog
+          title="Delete this appointment?"
+          message="Its follow-up tasks are deleted too. The doctor and other visits stay."
+          confirmLabel="Delete"
+          destructive
+          onConfirm={() => {
+            setConfirmDelete(false);
+            onDelete();
+          }}
+          onClose={() => setConfirmDelete(false)}
+        />
       )}
 
       {appointment.reason && (

@@ -1,6 +1,7 @@
 "use client";
 
 import { Chip } from "@/components/ui/Chip";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { useEffect, useState } from "react";
 import { useData } from "@/lib/DataContext";
 import { ChevronIcon } from "@/components/ui/icons";
@@ -161,23 +162,7 @@ export function SyncStatusBanner() {
                     ({kind.toLowerCase()}
                     {details.length > 0 ? `, ${details.join(", ")}` : ""}, saved {formatSavedAt(entry.createdAt)}) didn&apos;t sync because {reason}. {action}
                   </span>
-                  {confirmingDiscardId === entry.id ? (
-                    <span className="flex shrink-0 items-center gap-1.5">
-                      <span style={{ color: "var(--text-muted)" }}>Give up on the cloud copy?</span>
-                      <button
-                        type="button"
-                        onClick={() => void handleDiscard(entry.id)}
-                        className="min-h-9 rounded-md px-3 text-sm font-semibold"
-                        style={{ color: "var(--status-critical)" }}
-                      >
-                        Discard
-                      </button>
-                      <button type="button" onClick={() => setConfirmingDiscardId(null)} className="min-h-9 rounded-md px-3 text-sm font-medium" style={{ color: "var(--text-muted)" }}>
-                        Keep
-                      </button>
-                    </span>
-                  ) : (
-                    <span className="flex shrink-0 gap-1.5">
+                  <span className="flex shrink-0 gap-1.5">
                       <Chip onClick={() => void handleRetry(entry.id)} disabled={retryingId === entry.id || discardingId === entry.id}>
                         {retryingId === entry.id ? "Retrying…" : "Retry"}
                       </Chip>
@@ -189,6 +174,15 @@ export function SyncStatusBanner() {
                         {discardingId === entry.id ? "Discarding…" : "Discard"}
                       </Chip>
                     </span>
+                  {confirmingDiscardId === entry.id && (
+                    <ConfirmDialog
+                      title="Discard this change?"
+                      message="It won't be saved to your account. The copy on this device stays."
+                      confirmLabel="Discard"
+                      destructive
+                      onConfirm={() => void handleDiscard(entry.id)}
+                      onClose={() => setConfirmingDiscardId(null)}
+                    />
                   )}
                 </li>
               );

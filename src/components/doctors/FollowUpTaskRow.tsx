@@ -6,6 +6,7 @@ import type { DoctorFollowUpTask, FollowUpTaskPatch } from "@/lib/supabase/docto
 import { IconAction, PencilIcon, TrashIcon, formatDate, formatDateTime, toLocalInput } from "./shared";
 import { Field } from "@/components/ui/Field";
 import { ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
 /** One follow-up task — a completion checkbox, its text + due/reminder
  * meta, and edit/delete. Shared by the appointment card and the Follow-ups
@@ -94,24 +95,24 @@ export function FollowUpTaskRow({
         </span>
       </div>
       <div className="flex shrink-0 items-center gap-4 self-center">
-        {confirmingDelete ? (
-          <>
-            <button type="button" onClick={onDelete} className="min-h-9 rounded-md px-3 text-sm font-semibold" style={{ color: "var(--status-critical)" }}>
-              Delete
-            </button>
-            <button type="button" onClick={() => setConfirmingDelete(false)} className="min-h-9 rounded-md px-3 text-sm font-medium" style={{ color: "var(--text-muted)" }}>
-              Keep
-            </button>
-          </>
-        ) : (
-          <>
-            <IconAction onClick={() => setEditing(true)} label="Edit task">
-              <PencilIcon size={15} />
-            </IconAction>
-            <IconAction onClick={() => setConfirmingDelete(true)} label="Delete task" tone="critical">
-              <TrashIcon size={15} />
-            </IconAction>
-          </>
+        <IconAction onClick={() => setEditing(true)} label="Edit task">
+          <PencilIcon size={15} />
+        </IconAction>
+        <IconAction onClick={() => setConfirmingDelete(true)} label="Delete task" tone="critical">
+          <TrashIcon size={15} />
+        </IconAction>
+        {confirmingDelete && (
+          <ConfirmDialog
+            title="Delete this task?"
+            message="This can't be undone."
+            confirmLabel="Delete"
+            destructive
+            onConfirm={() => {
+              setConfirmingDelete(false);
+              onDelete();
+            }}
+            onClose={() => setConfirmingDelete(false)}
+          />
         )}
       </div>
     </div>

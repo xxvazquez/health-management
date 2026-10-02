@@ -17,6 +17,7 @@ import { ListSkeleton } from "@/components/ui/Skeleton";
 import { ErrorState, InlineEmpty } from "@/components/ui/EmptyState";
 import { PrimaryAction } from "@/components/ui/PrimaryAction";
 import { DemoNotice } from "@/components/ui/DemoNotice";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
 function journalMonthLabel(date: string): string {
   return new Date(`${date}T00:00:00`).toLocaleDateString(undefined, { month: "long", year: "numeric" });
@@ -118,19 +119,21 @@ function JournalEntryForm({
 
       {onDelete && (
         <FormGroup>
-          {confirmingDelete ? (
-            <div className="flex min-h-11 items-center justify-center gap-6 text-sm">
-              <button type="button" onClick={onDelete} className="font-semibold" style={{ color: "var(--status-critical)" }}>
-                Delete entry
-              </button>
-              <button type="button" onClick={() => setConfirmingDelete(false)} className="font-medium" style={{ color: "var(--ui-accent)" }}>
-                Keep
-              </button>
-            </div>
-          ) : (
-            <button type="button" onClick={() => setConfirmingDelete(true)} className="flex min-h-11 w-full items-center justify-center text-sm font-medium" style={{ color: "var(--status-critical)" }}>
-              Delete entry
-            </button>
+          <button type="button" onClick={() => setConfirmingDelete(true)} className="flex min-h-11 w-full items-center justify-center text-sm font-medium" style={{ color: "var(--status-critical)" }}>
+            Delete entry
+          </button>
+          {confirmingDelete && (
+            <ConfirmDialog
+              title="Delete this entry?"
+              message="This can't be undone."
+              confirmLabel="Delete"
+              destructive
+              onConfirm={() => {
+                setConfirmingDelete(false);
+                onDelete();
+              }}
+              onClose={() => setConfirmingDelete(false)}
+            />
           )}
         </FormGroup>
       )}
@@ -161,24 +164,24 @@ function JournalEntryView({
           ‹ All entries
         </button>
         <div className="flex items-center gap-4 text-sm">
-          {confirmingDelete ? (
-            <>
-              <button type="button" onClick={onDelete} className="min-h-9 font-semibold" style={{ color: "var(--status-critical)" }}>
-                Delete entry
-              </button>
-              <button type="button" onClick={() => setConfirmingDelete(false)} className="min-h-9 font-medium" style={{ color: "var(--ui-accent)" }}>
-                Keep
-              </button>
-            </>
-          ) : (
-            <>
-              <button type="button" onClick={() => setConfirmingDelete(true)} className="min-h-9 font-medium" style={{ color: "var(--status-critical)" }}>
-                Delete
-              </button>
-              <button type="button" onClick={onEdit} className="min-h-9 font-medium" style={{ color: "var(--ui-accent)" }}>
-                Edit
-              </button>
-            </>
+          <button type="button" onClick={() => setConfirmingDelete(true)} className="min-h-9 font-medium" style={{ color: "var(--status-critical)" }}>
+            Delete
+          </button>
+          <button type="button" onClick={onEdit} className="min-h-9 font-medium" style={{ color: "var(--ui-accent)" }}>
+            Edit
+          </button>
+          {confirmingDelete && (
+            <ConfirmDialog
+              title="Delete this entry?"
+              message="This can't be undone."
+              confirmLabel="Delete"
+              destructive
+              onConfirm={() => {
+                setConfirmingDelete(false);
+                onDelete();
+              }}
+              onClose={() => setConfirmingDelete(false)}
+            />
           )}
         </div>
       </div>

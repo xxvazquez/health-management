@@ -680,35 +680,33 @@ function LabResultsCard({ searchQuery }: { searchQuery: string }) {
                             {isEditing && (
                               <MarkerForm labs={labs} accent={accent} fields="all" initial={m} onSaved={() => setEditingMarkerId(null)} onCancel={() => setEditingMarkerId(null)}>
                                 <FormGroup>
-                                  {confirmingMarker === m.id ? (
-                                    <div className="flex min-h-11 items-center justify-center gap-6">
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          setConfirmingMarker(null);
-                                          setEditingMarkerId(null);
-                                          void labs.markers.remove(m.id);
-                                        }}
-                                        className="min-h-11 text-sm font-semibold"
-                                        style={{ color: "var(--status-critical)" }}
-                                      >
-                                        Delete{m.results.length > 0 ? ` with ${m.results.length} result${m.results.length === 1 ? "" : "s"}` : ""}
-                                      </button>
-                                      <button type="button" onClick={() => setConfirmingMarker(null)} className="min-h-11 text-sm" style={{ color: "var(--text-secondary)" }}>
-                                        Keep
-                                      </button>
-                                    </div>
-                                  ) : (
-                                    <button
-                                      type="button"
-                                      onClick={() => setConfirmingMarker(m.id)}
-                                      className="flex min-h-11 w-full items-center justify-center text-sm"
-                                      style={{ color: "var(--status-critical)" }}
-                                    >
-                                      Delete marker
-                                    </button>
-                                  )}
+                                  <button
+                                    type="button"
+                                    onClick={() => setConfirmingMarker(m.id)}
+                                    className="flex min-h-11 w-full items-center justify-center text-sm"
+                                    style={{ color: "var(--status-critical)" }}
+                                  >
+                                    Delete marker
+                                  </button>
                                 </FormGroup>
+                                {confirmingMarker === m.id && (
+                                  <ConfirmDialog
+                                    title={`Delete ${m.name}?`}
+                                    message={
+                                      m.results.length > 0
+                                        ? `Its ${m.results.length} result${m.results.length === 1 ? "" : "s"} will be deleted too. This can't be undone.`
+                                        : "This can't be undone."
+                                    }
+                                    confirmLabel="Delete"
+                                    destructive
+                                    onConfirm={() => {
+                                      setConfirmingMarker(null);
+                                      setEditingMarkerId(null);
+                                      void labs.markers.remove(m.id);
+                                    }}
+                                    onClose={() => setConfirmingMarker(null)}
+                                  />
+                                )}
                               </MarkerForm>
                             )}
                           </li>
@@ -1388,7 +1386,7 @@ const COFFEE_OPTION_KINDS: { kind: CoffeeOptionKind; title: string; placeholder:
 
 /** Delete for a coffee — only when no cup has been logged with it (the
  * database restricts it otherwise); a logged coffee is hidden instead. */
-function CoffeeDeleteRow({ cups, onDelete }: { cups: number; onDelete: () => void }) {
+function CoffeeDeleteRow({ name, cups, onDelete }: { name: string; cups: number; onDelete: () => void }) {
   const [confirming, setConfirming] = useState(false);
   return (
     <div className="flex min-h-11 items-center justify-between gap-4 px-3.5">
@@ -1396,19 +1394,23 @@ function CoffeeDeleteRow({ cups, onDelete }: { cups: number; onDelete: () => voi
         <p className="text-sm" style={{ color: "var(--text-muted)" }}>
           Logged {cups} time{cups === 1 ? "" : "s"} — hide it instead of deleting.
         </p>
-      ) : confirming ? (
-        <>
-          <button type="button" onClick={onDelete} className="min-h-11 text-sm font-semibold" style={{ color: "var(--status-critical)" }}>
-            Delete for good
-          </button>
-          <button type="button" onClick={() => setConfirming(false)} className="min-h-11 text-sm" style={{ color: "var(--text-secondary)" }}>
-            Keep
-          </button>
-        </>
       ) : (
         <button type="button" onClick={() => setConfirming(true)} className="min-h-11 flex-1 text-left text-sm" style={{ color: "var(--status-critical)" }}>
           Delete
         </button>
+      )}
+      {confirming && (
+        <ConfirmDialog
+          title={`Delete ${name}?`}
+          message="This can't be undone."
+          confirmLabel="Delete"
+          destructive
+          onConfirm={() => {
+            setConfirming(false);
+            onDelete();
+          }}
+          onClose={() => setConfirming(false)}
+        />
       )}
     </div>
   );
@@ -1679,6 +1681,7 @@ function CoffeeCard({ isDemoData, searchQuery }: { isDemoData: boolean; searchQu
                       {editingCoffee.isArchived ? "Show" : "Hide"}
                     </button>
                     <CoffeeDeleteRow
+                      name={editingCoffee.name}
                       cups={coffee.logs.data.filter((l) => l.itemId === editingCoffee.id).length}
                       onDelete={() => {
                         setEditingItemId(null);
@@ -1939,6 +1942,7 @@ function DoctorEditRow({
       </label>
       <div className="flex min-h-11 items-center px-3.5">
         <DoctorDeleteButton
+          name={doctor.name}
           disabled={!canDelete}
           hint={!canDelete ? "Delete their appointments first" : undefined}
           onDelete={onDelete}
@@ -1948,7 +1952,7 @@ function DoctorEditRow({
   );
 }
 
-function DoctorDeleteButton({ disabled, hint, onDelete }: { disabled: boolean; hint?: string; onDelete: () => void }) {
+function DoctorDeleteButton({ name, disabled, hint, onDelete }: { name: string; disabled: boolean; hint?: string; onDelete: () => void }) {
   const [confirming, setConfirming] = useState(false);
   if (disabled) {
     return (
@@ -1957,19 +1961,25 @@ function DoctorDeleteButton({ disabled, hint, onDelete }: { disabled: boolean; h
       </p>
     );
   }
-  return confirming ? (
-    <span className="flex items-center gap-4">
-      <button type="button" onClick={onDelete} className="min-h-11 text-sm font-semibold" style={{ color: "var(--status-critical)" }}>
+  return (
+    <>
+      <button type="button" onClick={() => setConfirming(true)} className="min-h-11 text-sm" style={{ color: "var(--status-critical)" }}>
         Delete doctor
       </button>
-      <button type="button" onClick={() => setConfirming(false)} className="min-h-11 text-sm" style={{ color: "var(--text-secondary)" }}>
-        Keep
-      </button>
-    </span>
-  ) : (
-    <button type="button" onClick={() => setConfirming(true)} className="min-h-11 text-sm" style={{ color: "var(--status-critical)" }}>
-      Delete doctor
-    </button>
+      {confirming && (
+        <ConfirmDialog
+          title={`Delete ${name}?`}
+          message="This can't be undone."
+          confirmLabel="Delete"
+          destructive
+          onConfirm={() => {
+            setConfirming(false);
+            onDelete();
+          }}
+          onClose={() => setConfirming(false)}
+        />
+      )}
+    </>
   );
 }
 
@@ -2207,19 +2217,21 @@ function ProductEditRow({
       </div>
 
       <div className="flex min-h-11 items-center px-3.5">
-        {confirming ? (
-          <span className="flex items-center gap-4">
-            <button type="button" onClick={onDelete} className="min-h-11 text-sm font-semibold" style={{ color: "var(--status-critical)" }}>
-              Delete product
-            </button>
-            <button type="button" onClick={() => setConfirming(false)} className="min-h-11 text-sm" style={{ color: "var(--text-secondary)" }}>
-              Keep
-            </button>
-          </span>
-        ) : (
-          <button type="button" onClick={() => setConfirming(true)} className="min-h-11 text-sm" style={{ color: "var(--status-critical)" }}>
-            Delete product
-          </button>
+        <button type="button" onClick={() => setConfirming(true)} className="min-h-11 text-sm" style={{ color: "var(--status-critical)" }}>
+          Delete product
+        </button>
+        {confirming && (
+          <ConfirmDialog
+            title={`Delete ${product.name}?`}
+            message="This can't be undone."
+            confirmLabel="Delete"
+            destructive
+            onConfirm={() => {
+              setConfirming(false);
+              onDelete();
+            }}
+            onClose={() => setConfirming(false)}
+          />
         )}
       </div>
     </div>

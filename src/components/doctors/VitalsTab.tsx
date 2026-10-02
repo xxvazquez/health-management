@@ -20,6 +20,7 @@ import { IconAction, TrashIcon, formatDate, formatDateTime, toLocalInput } from 
 import { Field } from "@/components/ui/Field";
 import { FormGroup } from "@/components/ui/FormGroup";
 import { ROW_INLINE_CLS, ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
 type Kind = "bp" | "weight";
 
@@ -275,21 +276,23 @@ function ReadingRow({
     >
       {children}
       <div className="flex shrink-0 items-center gap-3 self-center">
-        {confirming ? (
-          <>
-            <button type="button" onClick={onDelete} className="min-h-9 px-2 text-sm font-semibold" style={{ color: "var(--status-critical)" }}>
-              Delete
-            </button>
-            <button type="button" onClick={() => setConfirming(false)} className="min-h-9 px-2 text-sm font-medium" style={{ color: "var(--text-muted)" }}>
-              Keep
-            </button>
-          </>
-        ) : (
-          <span className={clsx("transition-opacity", revealed ? SWIPE_REVEAL_CLASS.shown : SWIPE_REVEAL_CLASS.hidden)}>
-            <IconAction onClick={() => setConfirming(true)} label="Delete reading" tone="critical">
-              <TrashIcon size={14} />
-            </IconAction>
-          </span>
+        <span className={clsx("transition-opacity", revealed ? SWIPE_REVEAL_CLASS.shown : SWIPE_REVEAL_CLASS.hidden)}>
+          <IconAction onClick={() => setConfirming(true)} label="Delete reading" tone="critical">
+            <TrashIcon size={14} />
+          </IconAction>
+        </span>
+        {confirming && (
+          <ConfirmDialog
+            title="Delete this reading?"
+            message="This can't be undone."
+            confirmLabel="Delete"
+            destructive
+            onConfirm={() => {
+              setConfirming(false);
+              onDelete();
+            }}
+            onClose={() => setConfirming(false)}
+          />
         )}
       </div>
     </li>

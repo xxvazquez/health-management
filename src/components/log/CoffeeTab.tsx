@@ -8,6 +8,7 @@ import { CoffeeLogDialog, type CoffeeLogDraft } from "@/components/log/CoffeeLog
 import type { ResolvedCoffeeOptions } from "@/lib/useCoffeeOptions";
 import type { CoffeeItem, CoffeeLog, NewCoffeeItemInput, NewCoffeeLogInput } from "@/lib/supabase/coffee";
 import { combineDateAndTime } from "@/lib/logCandidates";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
 /** What the dialog's draft plus the page's own date/time resolve to — the
  * caller (log/page.tsx) fills in `itemId`/`date` since only it knows which
@@ -333,41 +334,28 @@ export function CoffeeTab({
                       <button type="button" onClick={() => openForEdit(log)} disabled={busy} className="text-xs font-medium disabled:opacity-40" style={{ color: "var(--ui-accent)" }}>
                         Edit
                       </button>
-                      {confirmDeleteId === log.id ? (
-                        <span className="flex items-center gap-2 text-xs whitespace-nowrap">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setConfirmDeleteId(null);
-                              void onDeleteLog(log.id);
-                            }}
-                            disabled={busy}
-                            className="font-semibold disabled:opacity-40"
-                            style={{ color: "var(--status-critical)" }}
-                          >
-                            Delete
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setConfirmDeleteId(null)}
-                            disabled={busy}
-                            className="disabled:opacity-40"
-                            style={{ color: "var(--text-muted)" }}
-                          >
-                            Keep
-                          </button>
-                        </span>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => setConfirmDeleteId(log.id)}
-                          disabled={busy}
-                          aria-label="Delete entry"
-                          className="text-xs font-medium disabled:opacity-40"
-                          style={{ color: "var(--text-secondary)" }}
-                        >
-                          Delete
-                        </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmDeleteId(log.id)}
+                        disabled={busy}
+                        aria-label="Delete entry"
+                        className="text-xs font-medium disabled:opacity-40"
+                        style={{ color: "var(--text-secondary)" }}
+                      >
+                        Delete
+                      </button>
+                      {confirmDeleteId === log.id && (
+                        <ConfirmDialog
+                          title="Delete this cup?"
+                          message="This can't be undone."
+                          confirmLabel="Delete"
+                          destructive
+                          onConfirm={() => {
+                            setConfirmDeleteId(null);
+                            void onDeleteLog(log.id);
+                          }}
+                          onClose={() => setConfirmDeleteId(null)}
+                        />
                       )}
                     </div>
                   )}

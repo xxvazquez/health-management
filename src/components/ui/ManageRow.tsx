@@ -6,6 +6,7 @@ import { ChevronIcon } from "@/components/ui/icons";
 import { IconColorPicker } from "@/components/ui/IconColorPicker";
 import { FormGroup } from "@/components/ui/FormGroup";
 import { Sheet } from "@/components/ui/Sheet";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
 /** A row's custom icon/colour, and how to change it — passed only by a
  * grouping that has `icon`/`color` columns to persist to. Shown as a tile on
@@ -201,27 +202,22 @@ export function ManageRow({
                   {isArchived ? "Show" : "Hide"}
                 </button>
               )}
-              {confirmingDelete ? (
-                <div className="flex min-h-11 items-center justify-between gap-4 px-3.5">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setOpen(false);
-                      onDelete();
-                    }}
-                    className="min-h-11 text-sm font-semibold"
-                    style={{ color: "var(--status-critical)" }}
-                  >
-                    Delete for good
-                  </button>
-                  <button type="button" onClick={() => setConfirmingDelete(false)} className="min-h-11 text-sm" style={{ color: "var(--text-secondary)" }}>
-                    Keep
-                  </button>
-                </div>
-              ) : (
-                <button type="button" onClick={() => setConfirmingDelete(true)} disabled={busy} className={ROW} style={{ color: "var(--status-critical)" }}>
-                  Delete
-                </button>
+              <button type="button" onClick={() => setConfirmingDelete(true)} disabled={busy} className={ROW} style={{ color: "var(--status-critical)" }}>
+                Delete
+              </button>
+              {confirmingDelete && (
+                <ConfirmDialog
+                  title={`Delete ${name}?`}
+                  message="This can't be undone."
+                  confirmLabel="Delete"
+                  destructive
+                  onConfirm={() => {
+                    setConfirmingDelete(false);
+                    setOpen(false);
+                    onDelete();
+                  }}
+                  onClose={() => setConfirmingDelete(false)}
+                />
               )}
             </FormGroup>
           </div>

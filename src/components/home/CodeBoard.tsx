@@ -8,6 +8,7 @@ import { isSpeechToTextSupported, useSpeechToText } from "@/lib/useSpeechToText"
 import { useSwipeReveal, SWIPE_REVEAL_CLASS } from "@/lib/useSwipeReveal";
 import { TruncatedTooltip } from "@/components/ui/TruncatedTooltip";
 import { PencilIcon, TrashIcon } from "@/components/ui/Notebook";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { SearchField } from "@/components/ui/SearchField";
 import { ListSection, SectionIcon } from "@/components/ui/ListSection";
 import { ListSkeleton } from "@/components/ui/Skeleton";
@@ -251,38 +252,40 @@ function CodeItem({ code, accent, onEdit, onDelete }: { code: HouseholdCode; acc
         )}
       </div>
       <div className="flex shrink-0 items-center gap-4">
-        {confirmingDelete ? (
-          <>
-            <button type="button" onClick={onDelete} className="min-h-9 rounded-md px-3 text-sm font-semibold" style={{ color: "var(--status-critical)" }}>
-              Remove
-            </button>
-            <button type="button" onClick={() => setConfirmingDelete(false)} className="min-h-9 rounded-md px-3 text-sm font-medium" style={{ color: "var(--text-muted)" }}>
-              Keep
-            </button>
-          </>
-        ) : (
-          <div className={clsx("flex items-center gap-4 transition-opacity", revealed ? SWIPE_REVEAL_CLASS.shown : SWIPE_REVEAL_CLASS.hidden)}>
-            <button
-              type="button"
-              onClick={onEdit}
-              aria-label="Edit code"
-              title="Edit code"
-              className="tap-target rounded-md p-1.5 transition-colors hover:bg-[var(--page-plane)]"
-              style={{ color: "var(--text-muted)" }}
-            >
-              <PencilIcon size={15} />
-            </button>
-            <button
-              type="button"
-              onClick={() => setConfirmingDelete(true)}
-              aria-label="Remove code"
-              title="Remove code"
-              className="tap-target notebook-danger rounded-md p-1.5 transition-colors hover:bg-[var(--page-plane)]"
-              style={{ color: "var(--text-muted)" }}
-            >
-              <TrashIcon size={15} />
-            </button>
-          </div>
+        <div className={clsx("flex items-center gap-4 transition-opacity", revealed ? SWIPE_REVEAL_CLASS.shown : SWIPE_REVEAL_CLASS.hidden)}>
+          <button
+            type="button"
+            onClick={onEdit}
+            aria-label="Edit code"
+            title="Edit code"
+            className="tap-target rounded-md p-1.5 transition-colors hover:bg-[var(--page-plane)]"
+            style={{ color: "var(--text-muted)" }}
+          >
+            <PencilIcon size={15} />
+          </button>
+          <button
+            type="button"
+            onClick={() => setConfirmingDelete(true)}
+            aria-label="Remove code"
+            title="Remove code"
+            className="tap-target notebook-danger rounded-md p-1.5 transition-colors hover:bg-[var(--page-plane)]"
+            style={{ color: "var(--text-muted)" }}
+          >
+            <TrashIcon size={15} />
+          </button>
+        </div>
+        {confirmingDelete && (
+          <ConfirmDialog
+            title={`Remove ${code.code}?`}
+            message="This can't be undone."
+            confirmLabel="Remove"
+            destructive
+            onConfirm={() => {
+              setConfirmingDelete(false);
+              onDelete();
+            }}
+            onClose={() => setConfirmingDelete(false)}
+          />
         )}
       </div>
     </div>

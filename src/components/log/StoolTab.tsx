@@ -12,6 +12,7 @@ import { TimeField } from "@/components/ui/TimeField";
 import { defaultLogTimeValue, toTimeInputValue } from "@/lib/logCandidates";
 import type { ResolvedStoolOptions } from "@/lib/useStoolOptions";
 import { HYGIENE_OPTIONS, type RawStoolLog, type HygieneOption } from "@/lib/types";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
 const BRISTOL_SCORES = [1, 2, 3, 4, 5, 6, 7];
 
@@ -460,41 +461,28 @@ export function StoolTab({
                     >
                       Edit
                     </button>
-                    {confirmDeleteId === entry.id ? (
-                      <span className="flex items-center gap-2 text-xs whitespace-nowrap">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setConfirmDeleteId(null);
-                            void onDelete(entry.id);
-                          }}
-                          disabled={busy}
-                          className="font-semibold disabled:opacity-40"
-                          style={{ color: "var(--status-critical)" }}
-                        >
-                          Delete
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setConfirmDeleteId(null)}
-                          disabled={busy}
-                          className="disabled:opacity-40"
-                          style={{ color: "var(--text-muted)" }}
-                        >
-                          Keep
-                        </button>
-                      </span>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => setConfirmDeleteId(entry.id)}
-                        disabled={busy}
-                        aria-label="Delete entry"
-                        className="disabled:opacity-40"
-                        style={{ color: "var(--text-secondary)" }}
-                      >
-                        <CloseIcon size={12} />
-                      </button>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmDeleteId(entry.id)}
+                      disabled={busy}
+                      aria-label="Delete entry"
+                      className="disabled:opacity-40"
+                      style={{ color: "var(--text-secondary)" }}
+                    >
+                      <CloseIcon size={12} />
+                    </button>
+                    {confirmDeleteId === entry.id && (
+                      <ConfirmDialog
+                        title="Delete this entry?"
+                        message="This can't be undone."
+                        confirmLabel="Delete"
+                        destructive
+                        onConfirm={() => {
+                          setConfirmDeleteId(null);
+                          void onDelete(entry.id);
+                        }}
+                        onClose={() => setConfirmDeleteId(null)}
+                      />
                     )}
                   </div>
                 )}

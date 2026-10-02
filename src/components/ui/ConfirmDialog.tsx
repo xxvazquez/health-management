@@ -1,11 +1,14 @@
 "use client";
 
 import { useId } from "react";
+import { createPortal } from "react-dom";
 import { useDialogA11y } from "./useDialogA11y";
 
 /** An iOS-style alert asking to confirm an action, with Cancel beside it.
  * `destructive` colours the action red, for anything that can't be undone.
- * Mount it only while it should show. */
+ * Mount it only while it should show. Portalled to <body> so a row or sheet
+ * it is opened from can't clip or offset it; its clicks and touches stop here
+ * so they don't reach that row's own handlers. */
 export function ConfirmDialog({
   title,
   message,
@@ -26,8 +29,13 @@ export function ConfirmDialog({
   const containerRef = useDialogA11y(true, onClose);
   const titleId = useId();
 
-  return (
-    <div ref={containerRef} className="fixed inset-0 z-50 flex items-center justify-center p-6" role="alertdialog" aria-modal="true" aria-labelledby={titleId}>
+  if (typeof document === "undefined") return null;
+  return createPortal(
+    <div ref={containerRef} className="fixed inset-0 z-50 flex items-center justify-center p-6" role="alertdialog" aria-modal="true" aria-labelledby={titleId}
+      onClick={(e) => e.stopPropagation()}
+      onTouchStart={(e) => e.stopPropagation()}
+      onTouchEnd={(e) => e.stopPropagation()}
+    >
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
       <div className="menu-surface relative flex w-full max-w-xs flex-col gap-4 rounded-[20px] p-5">
         <div className="flex flex-col gap-1 text-center">
@@ -60,6 +68,7 @@ export function ConfirmDialog({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

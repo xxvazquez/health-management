@@ -18,6 +18,7 @@ import { driveFileIcon } from "@/components/icons/DriveFileIcons";
 import { IconAction, PencilIcon, TrashIcon, formatDate, formatShortDate } from "./shared";
 import { FormGroup } from "@/components/ui/FormGroup";
 import { ROW_INLINE_CLS, ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
 type DoctorsApi = ReturnType<typeof useDoctors>;
 
@@ -332,24 +333,24 @@ export function CareEntryDetail({
           ← Back
         </button>
         <div className="flex items-center gap-3">
-          {confirmingDelete ? (
-            <>
-              <button type="button" onClick={onDelete} className="text-xs font-semibold" style={{ color: "var(--status-critical)" }}>
-                Delete entry
-              </button>
-              <button type="button" onClick={() => setConfirmingDelete(false)} className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
-                Keep
-              </button>
-            </>
-          ) : (
-            <>
-              <IconAction onClick={onEdit} label="Edit entry">
-                <PencilIcon size={15} />
-              </IconAction>
-              <IconAction onClick={() => setConfirmingDelete(true)} label="Delete entry" tone="critical">
-                <TrashIcon size={15} />
-              </IconAction>
-            </>
+          <IconAction onClick={onEdit} label="Edit entry">
+            <PencilIcon size={15} />
+          </IconAction>
+          <IconAction onClick={() => setConfirmingDelete(true)} label="Delete entry" tone="critical">
+            <TrashIcon size={15} />
+          </IconAction>
+          {confirmingDelete && (
+            <ConfirmDialog
+              title={`Delete ${entry.title}?`}
+              message="This can't be undone."
+              confirmLabel="Delete"
+              destructive
+              onConfirm={() => {
+                setConfirmingDelete(false);
+                onDelete();
+              }}
+              onClose={() => setConfirmingDelete(false)}
+            />
           )}
         </div>
       </div>
@@ -426,29 +427,28 @@ export function CareEntryRow({
 
         <div
           className={clsx(
-            "flex shrink-0 items-center gap-4 self-center",
-            !confirmingDelete && "transition-opacity",
-            !confirmingDelete && (revealed ? SWIPE_REVEAL_CLASS.shown : SWIPE_REVEAL_CLASS.hidden),
+            "flex shrink-0 items-center gap-4 self-center transition-opacity",
+            revealed ? SWIPE_REVEAL_CLASS.shown : SWIPE_REVEAL_CLASS.hidden,
           )}
         >
-          {confirmingDelete ? (
-            <>
-              <button type="button" onClick={onDelete} className="min-h-9 rounded-md px-3 text-sm font-semibold" style={{ color: "var(--status-critical)" }}>
-                Delete
-              </button>
-              <button type="button" onClick={() => setConfirmingDelete(false)} className="min-h-9 rounded-md px-3 text-sm font-medium" style={{ color: "var(--text-muted)" }}>
-                Keep
-              </button>
-            </>
-          ) : (
-            <>
-              <IconAction onClick={onEdit} label="Edit entry">
-                <PencilIcon size={15} />
-              </IconAction>
-              <IconAction onClick={() => setConfirmingDelete(true)} label="Delete entry" tone="critical">
-                <TrashIcon size={15} />
-              </IconAction>
-            </>
+          <IconAction onClick={onEdit} label="Edit entry">
+            <PencilIcon size={15} />
+          </IconAction>
+          <IconAction onClick={() => setConfirmingDelete(true)} label="Delete entry" tone="critical">
+            <TrashIcon size={15} />
+          </IconAction>
+          {confirmingDelete && (
+            <ConfirmDialog
+              title={`Delete ${entry.title}?`}
+              message="This can't be undone."
+              confirmLabel="Delete"
+              destructive
+              onConfirm={() => {
+                setConfirmingDelete(false);
+                onDelete();
+              }}
+              onClose={() => setConfirmingDelete(false)}
+            />
           )}
         </div>
       </div>

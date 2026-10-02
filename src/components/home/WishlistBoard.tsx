@@ -25,6 +25,7 @@ import type {
   WishlistShareToken,
 } from "@/lib/supabase/wishlist";
 import { CustomIcon, CUSTOM_COLOR_CHOICES, customColorValue } from "@/components/ui/customIcons";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
 /** Fallback per-category accent, keyed off the category's position in the
  * (oldest-first) list — see fetchWishlist. Used when the category has no
@@ -286,38 +287,40 @@ function ItemRow({
         )}
       </div>
       <div className="flex shrink-0 items-center gap-4">
-        {confirmingDelete ? (
-          <>
-            <button type="button" onClick={onDelete} className="min-h-9 rounded-md px-3 text-sm font-semibold" style={{ color: "var(--status-critical)" }}>
-              Delete
-            </button>
-            <button type="button" onClick={() => setConfirmingDelete(false)} className="min-h-9 rounded-md px-3 text-sm font-medium" style={{ color: "var(--text-muted)" }}>
-              Keep
-            </button>
-          </>
-        ) : (
-          <div className={clsx("flex items-center gap-4 transition-opacity", revealed ? SWIPE_REVEAL_CLASS.shown : SWIPE_REVEAL_CLASS.hidden)}>
-            <button
-              type="button"
-              onClick={onEdit}
-              aria-label={`Edit ${item.title}`}
-              title="Edit"
-              className="tap-target rounded-md p-1.5 transition-colors hover:bg-[var(--page-plane)]"
-              style={{ color: "var(--text-muted)" }}
-            >
-              <PencilIcon size={15} />
-            </button>
-            <button
-              type="button"
-              onClick={() => setConfirmingDelete(true)}
-              aria-label={`Delete ${item.title}`}
-              title="Delete"
-              className="tap-target notebook-danger rounded-md p-1.5 transition-colors hover:bg-[var(--page-plane)]"
-              style={{ color: "var(--text-muted)" }}
-            >
-              <TrashIcon size={15} />
-            </button>
-          </div>
+        <div className={clsx("flex items-center gap-4 transition-opacity", revealed ? SWIPE_REVEAL_CLASS.shown : SWIPE_REVEAL_CLASS.hidden)}>
+          <button
+            type="button"
+            onClick={onEdit}
+            aria-label={`Edit ${item.title}`}
+            title="Edit"
+            className="tap-target rounded-md p-1.5 transition-colors hover:bg-[var(--page-plane)]"
+            style={{ color: "var(--text-muted)" }}
+          >
+            <PencilIcon size={15} />
+          </button>
+          <button
+            type="button"
+            onClick={() => setConfirmingDelete(true)}
+            aria-label={`Delete ${item.title}`}
+            title="Delete"
+            className="tap-target notebook-danger rounded-md p-1.5 transition-colors hover:bg-[var(--page-plane)]"
+            style={{ color: "var(--text-muted)" }}
+          >
+            <TrashIcon size={15} />
+          </button>
+        </div>
+        {confirmingDelete && (
+          <ConfirmDialog
+            title={`Delete ${item.title}?`}
+            message="This can't be undone."
+            confirmLabel="Delete"
+            destructive
+            onConfirm={() => {
+              setConfirmingDelete(false);
+              onDelete();
+            }}
+            onClose={() => setConfirmingDelete(false)}
+          />
         )}
       </div>
     </div>

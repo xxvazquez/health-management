@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { SyncStatusBanner } from "./SyncStatusBanner";
 import type { OutboxEntry } from "@/lib/db/indexedDb";
@@ -185,12 +185,14 @@ describe("SyncStatusBanner", () => {
     const user = userEvent.setup();
     await user.click(screen.getByText("Details"));
 
-    vi.spyOn(window, "confirm").mockReturnValueOnce(false);
     await user.click(screen.getByRole("button", { name: "Discard" }));
     expect(discardSync).not.toHaveBeenCalled();
+    await user.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+    expect(discardSync).not.toHaveBeenCalled();
 
-    vi.spyOn(window, "confirm").mockReturnValueOnce(true);
     await user.click(screen.getByRole("button", { name: "Discard" }));
+    await user.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: "Discard" }));
     expect(discardSync).toHaveBeenCalledWith("entry-1");
   });
 });

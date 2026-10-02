@@ -3012,40 +3012,28 @@ export default function LogPage() {
 
                 {!isDemoData && (
                   <FormGroup>
-                    {confirmingDeleteKeys.has(entry.key) ? (
-                      <div className="flex min-h-11 items-center justify-center gap-6 px-3.5">
-                        <button
-                          type="button"
-                          disabled={busy}
-                          onClick={() => {
-                            void handleDeleteEntry(entry);
-                            setDetailKey(null);
-                          }}
-                          className="min-h-11 text-sm font-semibold disabled:opacity-40"
-                          style={{ color: "var(--status-critical)" }}
-                        >
-                          Delete entry
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => toggleConfirmDelete(entry.key)}
-                          disabled={busy}
-                          className="min-h-11 text-sm disabled:opacity-40"
-                          style={{ color: "var(--text-secondary)" }}
-                        >
-                          Keep
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => toggleConfirmDelete(entry.key)}
-                        disabled={busy}
-                        className="flex min-h-11 w-full items-center justify-center px-3.5 text-sm disabled:opacity-40"
-                        style={{ color: "var(--status-critical)" }}
-                      >
-                        Delete
-                      </button>
+                    <button
+                      type="button"
+                      onClick={() => toggleConfirmDelete(entry.key)}
+                      disabled={busy}
+                      className="flex min-h-11 w-full items-center justify-center px-3.5 text-sm disabled:opacity-40"
+                      style={{ color: "var(--status-critical)" }}
+                    >
+                      Delete
+                    </button>
+                    {confirmingDeleteKeys.has(entry.key) && (
+                      <ConfirmDialog
+                        title={`Delete ${entry.item}?`}
+                        message={`The ${entry.time} entry will be removed.`}
+                        confirmLabel="Delete"
+                        destructive
+                        busy={busy}
+                        onConfirm={() => {
+                          void handleDeleteEntry(entry);
+                          setDetailKey(null);
+                        }}
+                        onClose={() => toggleConfirmDelete(entry.key)}
+                      />
                     )}
                   </FormGroup>
                 )}

@@ -4,6 +4,7 @@ import { useState, type ReactNode } from "react";
 import clsx from "clsx";
 import { useSwipeReveal, SWIPE_REVEAL_CLASS } from "@/lib/useSwipeReveal";
 import { TruncatedTooltip } from "./TruncatedTooltip";
+import { ConfirmDialog } from "./ConfirmDialog";
 
 /** Shared list surface for Journal — `NoteList` / `NoteRow` render an iOS
  * grouped list, like the rest of the app. The entry editor and reading view live
@@ -96,7 +97,7 @@ export function NoteRow({
           </span>
         </button>
 
-        {onDelete && !confirmingDelete && (
+        {onDelete && (
           <button
             type="button"
             onClick={() => setConfirmingDelete(true)}
@@ -114,14 +115,17 @@ export function NoteRow({
       </div>
 
       {onDelete && confirmingDelete && (
-        <div className="mt-2 flex items-center gap-4 text-sm">
-          <button type="button" onClick={onDelete} className="font-semibold" style={{ color: "var(--status-critical)" }}>
-            Delete
-          </button>
-          <button type="button" onClick={() => setConfirmingDelete(false)} className="font-medium" style={{ color: "var(--ui-accent)" }}>
-            Keep
-          </button>
-        </div>
+        <ConfirmDialog
+          title={`Delete ${heading}?`}
+          message="This can't be undone."
+          confirmLabel="Delete"
+          destructive
+          onConfirm={() => {
+            setConfirmingDelete(false);
+            onDelete();
+          }}
+          onClose={() => setConfirmingDelete(false)}
+        />
       )}
     </li>
   );
