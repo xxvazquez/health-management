@@ -9,6 +9,7 @@ import { DetailPlaceholder, MedicalSplit, useIsDesktop } from "./MedicalSplit";
 import { InlineEmpty } from "@/components/ui/EmptyState";
 import Link from "next/link";
 import { ChevronIcon } from "@/components/ui/icons";
+import { settingsHref } from "@/components/manage/ManageSection";
 
 type DoctorsApi = ReturnType<typeof useDoctors>;
 
@@ -21,7 +22,7 @@ function DoctorHistory({ api, doctor, accent, onBack }: { api: DoctorsApi; docto
   const nextAppt = specialties.data.find((s) => s.name.toLowerCase() === doctor.specialty.toLowerCase())?.nextAppointmentDate ?? null;
 
   const editLink = (
-    <Link href="/manage" className="hit-slop text-sm font-medium" style={{ color: accent }}>
+    <Link href={settingsHref("Doctors", doctor.id)} className="hit-slop text-sm font-medium" style={{ color: accent }}>
       Edit
     </Link>
   );

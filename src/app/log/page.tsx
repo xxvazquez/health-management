@@ -97,6 +97,7 @@ import { MobileMenuButton } from "@/components/MobileMenuButton";
 import { usePreferences } from "@/lib/usePreferences";
 import { currentCycleStatus, groupIntoPeriodRuns } from "@/lib/aggregations/cycle";
 import { useOverflowFade } from "@/lib/useOverflowFade";
+import { settingsHref } from "@/components/manage/ManageSection";
 import {
   workoutUnitLabel,
   workoutValueLabel,
@@ -2382,7 +2383,7 @@ export default function LogPage() {
               explicit={timeIsExplicit}
             />
             {!isDemoData && (
-              <Link href="/manage" className="hidden shrink-0 px-1 text-sm font-medium whitespace-nowrap sm:inline" style={{ color: "var(--ui-accent)" }}>
+              <Link href={settingsHref(tabConfig.label)} className="hidden shrink-0 px-1 text-sm font-medium whitespace-nowrap sm:inline" style={{ color: "var(--ui-accent)" }}>
                 Manage items
               </Link>
             )}
@@ -2440,7 +2441,7 @@ export default function LogPage() {
                 {(
                   [
                     ["/analytics/#workout", "Charts"],
-                    ["/manage/", "Manage"],
+                    [settingsHref("Workout"), "Manage"],
                   ] as const
                 ).map(([href, label]) => (
                   <Link key={href} href={href} className="hit-slop text-sm font-medium whitespace-nowrap" style={{ color: WORKOUT_ACCENT }}>

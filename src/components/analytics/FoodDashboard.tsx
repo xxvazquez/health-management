@@ -40,6 +40,7 @@ import { TrendHeadline } from "@/components/charts/TrendCard";
 import { LabMarkerChart, type LabMarkerChartPoint } from "@/components/charts/LabMarkerChart";
 import { LovedCombos } from "@/components/recipes/Recipes";
 import { formatShortDate } from "@/components/doctors/shared";
+import { settingsHref } from "@/components/manage/ManageSection";
 
 
 /** A food group counts as on target from this share of its weekly target. */
@@ -273,7 +274,7 @@ export function FoodDashboard() {
               note={
                 <>
                   Targets from{" "}
-                  <Link href="/manage/?section=Food%20targets" className="underline" style={{ color: "var(--series-1)" }}>
+                  <Link href={settingsHref("Food targets")} className="underline" style={{ color: "var(--series-1)" }}>
                     your settings
                   </Link>
                 </>

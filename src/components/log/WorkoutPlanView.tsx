@@ -19,6 +19,7 @@ import {
   type WorkoutPlan,
 } from "@/lib/workoutPlans";
 import { ExerciseRow } from "./WorkoutTab";
+import { settingsHref } from "@/components/manage/ManageSection";
 
 function shortDate(iso: string): string {
   const [y, m, d] = iso.split("-").map(Number);
@@ -250,7 +251,7 @@ export function WorkoutPlanView({
       })}
 
       <div className="inset-rows rounded-xl border" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
-        <Link href="/manage/?section=Workout%20plans" className="flex min-h-11 items-center gap-2 px-3.5 text-sm" style={{ color: active.length === 0 ? accent : "var(--text-primary)" }}>
+        <Link href={settingsHref("Workout plans")} className="flex min-h-11 items-center gap-2 px-3.5 text-sm" style={{ color: active.length === 0 ? accent : "var(--text-primary)" }}>
           {active.length === 0 ? "Create a weekly plan" : "Manage plans in Settings"}
           <span className="ml-auto" style={{ color: "var(--text-muted)" }}>
             <ChevronIcon dir="right" size={14} />

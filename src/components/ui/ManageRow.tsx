@@ -45,6 +45,7 @@ export function ManageRow({
   rowRef,
   lifted = false,
   label,
+  defaultOpen = false,
 }: {
   name: string;
   isArchived?: boolean;
@@ -67,9 +68,11 @@ export function ManageRow({
   /** Row text in place of the name and its icon tile — an "Edit…" row
    * that opens this sheet for something shown elsewhere. */
   label?: ReactNode;
+  /** Opens the sheet on mount — for a link that came here to edit this row. */
+  defaultOpen?: boolean;
 }) {
   const titleId = useId();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   const [draft, setDraft] = useState(name);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const committed = useRef(name);

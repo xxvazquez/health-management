@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { useCallback, useContext, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import Link from "next/link";
 import { useData } from "@/lib/DataContext";
 import { useVisibleDomains, DOMAIN_LABELS, type TrackedDomain } from "@/lib/visibleDomains";
@@ -308,6 +308,7 @@ function VisibleSectionsCard({ isDemoData }: { isDemoData: boolean }) {
  * links, with an "Edit in Settings" link. Deleting a list also deletes the
  * links inside it (DB cascade), so the confirm spells that out. */
 function WishlistListsCard({ isDemoData, searchQuery }: { isDemoData: boolean; searchQuery: string }) {
+  const { linkedItem } = useContext(ManageNavContext);
   const [lists, setLists] = useState<WishlistCategory[]>(() => (isDemoData ? buildDemoWishlist() : []));
   const [loading, setLoading] = useState(!isDemoData);
   const [newName, setNewName] = useState("");
@@ -393,6 +394,7 @@ function WishlistListsCard({ isDemoData, searchQuery }: { isDemoData: boolean; s
               key={l.id}
               name={l.name}
               maxLength={40}
+              defaultOpen={l.id === linkedItem}
               rowRef={listOrder.rowRef(l.id)}
               lifted={listOrder.dragging === l.id}
               trailing={isSearching ? undefined : <ReorderGrip drag={listOrder} id={l.id} label={l.name} />}
@@ -1703,7 +1705,8 @@ function CoffeeCard({ isDemoData, searchQuery }: { isDemoData: boolean; searchQu
 
 function DoctorsCard({ searchQuery }: { searchQuery: string }) {
   const api = useDoctors();
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const { linkedItem } = useContext(ManageNavContext);
+  const [editingId, setEditingId] = useState<string | null>(linkedItem);
   const [adding, setAdding] = useState(false);
   const [newName, setNewName] = useState("");
   const [newSpecialty, setNewSpecialty] = useState("");
@@ -3193,6 +3196,7 @@ export default function ManagePage() {
   // The screen the back button returns to: the section a sub-section was
   // opened from, else the Settings list.
   const [backLabel, setBackLabel] = useState("Settings");
+  const [linkedItem, setLinkedItem] = useState<string | null>(null);
   const openSection = useCallback((title: string) => {
     const from = window.history.state?.manageSection ?? null;
     window.history.pushState({ ...window.history.state, manageSection: title, manageFrom: from }, "");
@@ -3201,21 +3205,27 @@ export default function ManagePage() {
     window.scrollTo(0, 0);
   }, []);
   const closeSection = useCallback(() => {
+    setLinkedItem(null);
     if (window.history.state?.manageSection) window.history.back();
     else setActiveSection(null);
   }, []);
-  // `/manage/?section=<title>` (links from other pages) opens that section.
+  // `/manage/?section=<title>&item=<id>` (links from other pages, built by
+  // `settingsHref`) opens that section, and that item in it.
   useEffect(() => {
     const url = new URL(window.location.href);
     const linked = url.searchParams.get("section");
     if (!linked) return;
+    const item = url.searchParams.get("item");
     url.searchParams.delete("section");
+    url.searchParams.delete("item");
     window.history.replaceState(window.history.state, "", url);
     // eslint-disable-next-line react-hooks/set-state-in-effect -- the section comes from the URL, read once on arrival
+    setLinkedItem(item);
     openSection(linked);
   }, [openSection]);
   useEffect(() => {
     const onPop = (e: PopStateEvent) => {
+      setLinkedItem(null);
       setActiveSection(e.state?.manageSection ?? null);
       setBackLabel(e.state?.manageFrom ?? "Settings");
     };
@@ -3756,7 +3766,7 @@ export default function ManagePage() {
   const groupBoxStyle = { borderColor: "var(--border-hairline)", background: "var(--surface-1)" } as const;
 
   return (
-    <ManageNavContext.Provider value={{ active: activeSection, open: openSection }}>
+    <ManageNavContext.Provider value={{ active: activeSection, open: openSection, linkedItem }}>
       <div className="flex max-w-2xl flex-col gap-5">
         <div>
           {activeSection !== null && !isSearching && (

@@ -21,6 +21,7 @@ import { Field } from "@/components/ui/Field";
 import { FormGroup } from "@/components/ui/FormGroup";
 import { ROW_INLINE_CLS, ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { settingsHref } from "@/components/manage/ManageSection";
 
 type Kind = "bp" | "weight";
 
@@ -306,7 +307,7 @@ function ReadingRow({
  * set and cleared from Settings, so tapping it goes there. */
 function WeightGoalLink({ target, accent }: { target: WeightTarget | null; accent: string }) {
   return (
-    <Link href="/manage" className="hit-slop ml-auto text-sm font-medium whitespace-nowrap tabular-nums" style={{ color: accent }}>
+    <Link href={settingsHref("Weight goal")} className="hit-slop ml-auto text-sm font-medium whitespace-nowrap tabular-nums" style={{ color: accent }}>
       {target ? `Goal ${target.lowKg}–${target.highKg} kg` : "Set a goal"}
     </Link>
   );

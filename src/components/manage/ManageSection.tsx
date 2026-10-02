@@ -8,11 +8,21 @@ import { TYPE_ACCENT } from "@/taxonomy/categories";
 
 /** Which Settings section is open as its own screen (`null` = the list of
  * sections). Provided by the Settings page; each section reads it to decide
- * whether to render as a row, as the open screen, or not at all. */
-export const ManageNavContext = createContext<{ active: string | null; open: (title: string) => void }>({
+ * whether to render as a row, as the open screen, or not at all.
+ * `linkedItem` is the id a link asked that section to open straight away. */
+export const ManageNavContext = createContext<{ active: string | null; open: (title: string) => void; linkedItem: string | null }>({
   active: null,
   open: () => {},
+  linkedItem: null,
 });
+
+/** A link from elsewhere in the app to one Settings section, optionally
+ * opening one of its items (a doctor, a list) on arrival. */
+export function settingsHref(section: string, item?: string): string {
+  const params = new URLSearchParams({ section });
+  if (item) params.set("item", item);
+  return `/manage/?${params}`;
+}
 
 type SectionMode = "row" | "detail" | "inline" | "hidden";
 

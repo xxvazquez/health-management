@@ -26,6 +26,7 @@ import type {
 } from "@/lib/supabase/wishlist";
 import { CustomIcon, CUSTOM_COLOR_CHOICES, customColorValue } from "@/components/ui/customIcons";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { settingsHref } from "@/components/manage/ManageSection";
 
 /** Fallback per-category accent, keyed off the category's position in the
  * (oldest-first) list — see fetchWishlist. Used when the category has no
@@ -394,7 +395,7 @@ function CategoryDetail({
         <h2 className="min-w-0 flex-1 text-base font-semibold" style={{ color: "var(--text-primary)" }}>
           <TruncatedTooltip text={category.name} />
         </h2>
-        <Link href="/manage" className="hit-slop shrink-0 text-sm font-medium" style={{ color: accent }}>
+        <Link href={settingsHref("Wishlist lists", category.id)} className="hit-slop shrink-0 text-sm font-medium" style={{ color: accent }}>
           Edit
         </Link>
         <PrimaryAction label="Add link" accent={accent} onClick={onAddItem} />
