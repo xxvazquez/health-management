@@ -630,10 +630,7 @@ export function WorkoutPlansCard({ isDemoData, searchQuery, workoutItems }: { is
               {actionError}
             </p>
           )}
-          <GroupNote>
-            A weekly template: which lifts on which days, each as +kg or % of that week&rsquo;s base. Each lift&rsquo;s base goes up by its own weekly gain, and stays put for a lift if you
-            missed or fell short on it. Follow it from Log → Workout → Plan.
-          </GroupNote>
+          <GroupNote>Lifts by day, with weights that go up each week.</GroupNote>
           <OpenInLogRow tab="workout" label="Go to Workout in Log" />
         </>
       )}
