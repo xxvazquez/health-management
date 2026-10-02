@@ -64,6 +64,8 @@ export interface NoteMessage {
   isMine: boolean;
   body: string;
   createdAt: string;
+  /** The earlier message in the thread this one quotes, if any. */
+  replyToId: string | null;
 }
 
 interface NoteRow {
@@ -207,16 +209,17 @@ export async function fetchThreadMessages(rootId: string): Promise<NoteMessage[]
   try {
     const { data, error } = await supabase
       .from("notes")
-      .select("id, sender_id, body, created_at")
+      .select("id, sender_id, body, created_at, reply_to_id")
       .or(`id.eq.${rootId},thread_root_id.eq.${rootId}`)
       .order("created_at", { ascending: true });
     if (error) throw error;
-    const messages = (data as { id: string; sender_id: string; body: string; created_at: string }[]).map((row) => ({
+    const messages = (data as { id: string; sender_id: string; body: string; created_at: string; reply_to_id: string | null }[]).map((row) => ({
       id: row.id,
       senderId: row.sender_id,
       isMine: row.sender_id === myUserId,
       body: row.body,
       createdAt: row.created_at,
+      replyToId: row.reply_to_id,
     }));
     void writeSnapshot(myUserId, feature, messages, startedAt);
     return messages;
@@ -281,7 +284,7 @@ export async function sendNote(input: NewNoteInput): Promise<string> {
 /** A reply always keeps the root's own category — it's a response inside
  * an existing conversation, not a new one to classify. Returns the new
  * message so the caller can render it without a re-fetch. */
-export async function replyToNote(rootId: string, recipientId: string, body: string): Promise<NoteMessage> {
+export async function replyToNote(rootId: string, recipientId: string, body: string, replyToId: string | null = null): Promise<NoteMessage> {
   const myUserId = await currentUserId();
   if (!myUserId) throw new Error("Sign in first.");
   const id = createTimeOrderedId();
@@ -294,10 +297,11 @@ export async function replyToNote(rootId: string, recipientId: string, body: str
     body: body.trim(),
     created_at: nowIso,
     last_message_at: nowIso,
+    ...(replyToId ? { reply_to_id: replyToId } : {}),
   });
   notifyRecipient(id);
   notifyNotesChanged();
-  return { id, senderId: myUserId, isMine: true, body: body.trim(), createdAt: nowIso };
+  return { id, senderId: myUserId, isMine: true, body: body.trim(), createdAt: nowIso, replyToId };
 }
 
 async function updateMyThreadState(

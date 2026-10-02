@@ -659,7 +659,9 @@ create table public.notes (
   -- it. Writable by either participant under the notes_update_participant
   -- policy below.
   sender_favourited boolean not null default false,
-  recipient_favourited boolean not null default false
+  recipient_favourited boolean not null default false,
+  -- Replies only: the earlier message in the same thread this one quotes.
+  reply_to_id uuid references public.notes(id) on delete set null
 );
 
 create index notes_recipient_idx on public.notes (recipient_id, last_message_at desc) where thread_root_id is null;
@@ -701,8 +703,8 @@ create trigger notes_touch_thread_trigger
 create or replace function public.notes_lock_identity_columns() returns trigger
 language plpgsql as $$
 begin
-  if new.sender_id <> old.sender_id or new.recipient_id <> old.recipient_id or new.thread_root_id is distinct from old.thread_root_id then
-    raise exception 'sender_id, recipient_id, and thread_root_id cannot be changed after a note is created';
+  if new.sender_id <> old.sender_id or new.recipient_id <> old.recipient_id or new.thread_root_id is distinct from old.thread_root_id or new.reply_to_id is distinct from old.reply_to_id then
+    raise exception 'sender_id, recipient_id, thread_root_id and reply_to_id cannot be changed after a note is created';
   end if;
   return new;
 end;

@@ -200,8 +200,8 @@ export default function NotesPage() {
     return id;
   }, [accountId, view]);
 
-  const reply = useCallback(async (rootId: string, recipientId: string, body: string): Promise<NoteMessage> => {
-    const msg = await replyToNote(rootId, recipientId, body);
+  const reply = useCallback(async (rootId: string, recipientId: string, body: string, replyToId: string | null = null): Promise<NoteMessage> => {
+    const msg = await replyToNote(rootId, recipientId, body, replyToId);
     patchThread(rootId, { lastMessageAt: msg.createdAt, isUnreadForMe: false });
     return msg;
   }, [patchThread]);
@@ -282,8 +282,8 @@ export default function NotesPage() {
   const demoDelete = useCallback(async (threadId: string) => {
     setDemoThreads((prev) => prev.filter((t) => t.id !== threadId));
   }, []);
-  const demoReply = useCallback(async (rootId: string, _recipientId: string, body: string): Promise<NoteMessage> => {
-    const message: NoteMessage = { id: `demo-reply-${Date.now()}`, senderId: DEMO_ME_ID, isMine: true, body, createdAt: new Date().toISOString() };
+  const demoReply = useCallback(async (rootId: string, _recipientId: string, body: string, replyToId: string | null = null): Promise<NoteMessage> => {
+    const message: NoteMessage = { id: `demo-reply-${Date.now()}`, senderId: DEMO_ME_ID, isMine: true, body, createdAt: new Date().toISOString(), replyToId };
     demoRepliesRef.current = { ...demoRepliesRef.current, [rootId]: [...(demoRepliesRef.current[rootId] ?? []), message] };
     demoSetField(rootId, { lastMessageAt: message.createdAt });
     return message;

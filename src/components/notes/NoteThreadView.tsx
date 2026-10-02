@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { NOTE_CATEGORY_LABEL, type NoteMessage, type NoteThread } from "@/lib/supabase/notes";
 import { CategoryIcon, EyeOffIcon, StarIcon } from "./icons";
 import { formatNoteTimestamp, formatNoteTimestampShort } from "./NoteThreadList";
@@ -42,7 +42,8 @@ export function NoteThreadView({
   onToggleFavourite: (threadId: string, isMine: boolean, next: boolean) => Promise<void>;
   /** Deletes the whole conversation, every reply included, for both partners. */
   onDelete: (threadId: string) => Promise<void>;
-  onReply: (rootId: string, recipientId: string, body: string) => Promise<NoteMessage>;
+  /** `replyToId` quotes an earlier message in the thread. */
+  onReply: (rootId: string, recipientId: string, body: string, replyToId?: string | null) => Promise<NoteMessage>;
   /** Re-notifies the partner about a thread they haven't read; resolves
    * false when they have no device with push on. */
   onRemind: (threadId: string) => Promise<boolean>;
@@ -55,6 +56,11 @@ export function NoteThreadView({
   const [busy, setBusy] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [replyTo, setReplyTo] = useState<NoteMessage | null>(null);
+  // The bubble whose Reply / Copy menu is open (a long-press on a phone).
+  const [menuFor, setMenuFor] = useState<string | null>(null);
+  const [highlighted, setHighlighted] = useState<string | null>(null);
+  const replyFieldRef = useRef<HTMLTextAreaElement>(null);
   const [remindState, setRemindState] = useState<"idle" | "sending" | "sent" | "no-push" | "error">("idle");
 
   useEffect(() => {
@@ -65,6 +71,7 @@ export function NoteThreadView({
     setMessages(null);
     setLoadError(false);
     setRemindState("idle");
+    setReplyTo(null);
     fetchMessages(thread.id)
       .then((m) => {
         if (!cancelled) setMessages(m);
@@ -90,8 +97,9 @@ export function NoteThreadView({
     setReplyError(null);
     try {
       const recipientId = thread.isMine ? thread.recipientId : thread.senderId;
-      const sent = await onReply(thread.id, recipientId, replyBody);
+      const sent = await onReply(thread.id, recipientId, replyBody, replyTo?.id ?? null);
       setReplyBody("");
+      setReplyTo(null);
       setMessages((prev) => [...(prev ?? []), sent]);
       onChanged();
     } catch (err) {
@@ -149,6 +157,21 @@ export function NoteThreadView({
       setBusy(false);
     }
   }
+
+  function startReply(m: NoteMessage) {
+    setMenuFor(null);
+    setReplyTo(m);
+    replyFieldRef.current?.focus();
+  }
+
+  function jumpTo(id: string) {
+    document.getElementById(`note-msg-${id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    setHighlighted(id);
+    window.setTimeout(() => setHighlighted((h) => (h === id ? null : h)), 1200);
+  }
+
+  const byId = new Map((messages ?? []).map((m) => [m.id, m]));
+  const authorOf = (m: NoteMessage) => (m.isMine ? "You" : partnerLabel);
 
   const lastIsMine = !!messages && messages.length > 0 && messages[messages.length - 1].isMine;
   const canRemind = lastIsMine && !thread.isSeenByPartner && remindState !== "sent" && remindState !== "sending";
@@ -232,18 +255,18 @@ export function NoteThreadView({
                     {formatNoteTimestamp(m.createdAt)}
                   </p>
                 )}
-                <div
-                  className="max-w-[80%] rounded-2xl px-3.5 py-2"
-                  style={{
-                    alignSelf: m.isMine ? "flex-end" : "flex-start",
-                    background: m.isMine ? ACCENT : "var(--surface-1)",
-                    color: m.isMine ? "var(--on-accent)" : "var(--text-primary)",
-                    boxShadow: m.isMine ? "none" : "inset 0 0 0 1px var(--border-hairline)",
-                  }}
-                >
-                  <span className="sr-only">{m.isMine ? "You" : partnerLabel}: </span>
-                  <p className="text-sm whitespace-pre-wrap">{m.body}</p>
-                </div>
+                <MessageBubble
+                  message={m}
+                  quoted={m.replyToId ? (byId.get(m.replyToId) ?? null) : null}
+                  quotedAuthor={(q) => authorOf(q)}
+                  partnerLabel={partnerLabel}
+                  highlighted={highlighted === m.id}
+                  menuOpen={menuFor === m.id}
+                  onOpenMenu={() => setMenuFor(m.id)}
+                  onCloseMenu={() => setMenuFor(null)}
+                  onReply={() => startReply(m)}
+                  onJumpToQuote={jumpTo}
+                />
               </div>
             );
           })}
@@ -271,10 +294,36 @@ export function NoteThreadView({
       >
         <form
           onSubmit={handleReply}
-          className="flex items-end gap-1.5 rounded-[20px] border p-1"
+          className="flex flex-col rounded-[20px] border p-1"
           style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}
         >
+          {replyTo && (
+            <div className="flex items-center gap-2.5 px-2.5 pt-1.5 pb-0.5">
+              <span className="h-8 w-[3px] shrink-0 rounded-full" style={{ background: ACCENT }} aria-hidden="true" />
+              <span className="min-w-0 flex-1">
+                <span className="block text-xs font-semibold" style={{ color: ACCENT }}>
+                  Replying to {authorOf(replyTo) === "You" ? "yourself" : partnerLabel}
+                </span>
+                <span className="block truncate text-xs" style={{ color: "var(--text-secondary)" }}>
+                  {replyTo.body}
+                </span>
+              </span>
+              <button
+                type="button"
+                onClick={() => setReplyTo(null)}
+                aria-label="Cancel reply"
+                className="tap-target flex h-6 w-6 shrink-0 items-center justify-center rounded-full"
+                style={{ color: "var(--text-muted)" }}
+              >
+                <svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
+                  <path d="M5 5l10 10M15 5 5 15" />
+                </svg>
+              </button>
+            </div>
+          )}
+          <div className="flex items-end gap-1.5">
           <AutoGrowTextarea
+            ref={replyFieldRef}
             value={replyBody}
             onChange={(e) => setReplyBody(e.target.value)}
             rows={1}
@@ -295,6 +344,7 @@ export function NoteThreadView({
               <path d="M10 16V4.5M5 9.2l5-4.7 5 4.7" />
             </svg>
           </button>
+          </div>
         </form>
         {replyError && (
           <p className="text-xs" style={{ color: "var(--status-critical)" }}>
@@ -312,5 +362,137 @@ function BellIcon() {
       <path d="M5 8.5a5 5 0 0 1 10 0c0 3.5 1.5 5 1.5 5h-13S5 12 5 8.5Z" />
       <path d="M8.3 16.5a1.8 1.8 0 0 0 3.4 0" />
     </svg>
+  );
+}
+
+const LONG_PRESS_MS = 450;
+
+/** One message. A long-press (phone) or the ↩ that appears on hover
+ * (desktop) offers Reply; a reply shows the message it quotes on top,
+ * tappable to jump back to it — Messages' and Messenger's pattern. */
+function MessageBubble({
+  message: m,
+  quoted,
+  quotedAuthor,
+  partnerLabel,
+  highlighted,
+  menuOpen,
+  onOpenMenu,
+  onCloseMenu,
+  onReply,
+  onJumpToQuote,
+}: {
+  message: NoteMessage;
+  quoted: NoteMessage | null;
+  quotedAuthor: (m: NoteMessage) => string;
+  partnerLabel: string;
+  highlighted: boolean;
+  menuOpen: boolean;
+  onOpenMenu: () => void;
+  onCloseMenu: () => void;
+  onReply: () => void;
+  onJumpToQuote: (id: string) => void;
+}) {
+  const press = useRef<number | null>(null);
+  const cancelPress = () => {
+    if (press.current !== null) window.clearTimeout(press.current);
+    press.current = null;
+  };
+
+  return (
+    <div
+      id={`note-msg-${m.id}`}
+      className={`group relative flex max-w-[80%] items-center gap-1.5 ${m.isMine ? "flex-row-reverse self-end" : "self-start"} ${menuOpen ? "z-30" : ""}`}
+    >
+      <div
+        className={`min-w-0 rounded-2xl px-3.5 py-2 transition-shadow select-none [-webkit-touch-callout:none] sm:select-text ${menuOpen ? "relative z-30" : ""}`}
+        style={{
+          background: m.isMine ? ACCENT : "var(--surface-1)",
+          color: m.isMine ? "var(--on-accent)" : "var(--text-primary)",
+          boxShadow: highlighted
+            ? `0 0 0 3px color-mix(in oklab, ${ACCENT} 35%, transparent)`
+            : m.isMine
+              ? "none"
+              : "inset 0 0 0 1px var(--border-hairline)",
+        }}
+        onTouchStart={() => {
+          cancelPress();
+          press.current = window.setTimeout(() => {
+            press.current = null;
+            navigator.vibrate?.(10);
+            onOpenMenu();
+          }, LONG_PRESS_MS);
+        }}
+        onTouchMove={cancelPress}
+        onTouchEnd={cancelPress}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          onOpenMenu();
+        }}
+      >
+        <span className="sr-only">{m.isMine ? "You" : partnerLabel}: </span>
+        {quoted && (
+          <button
+            type="button"
+            onClick={() => onJumpToQuote(quoted.id)}
+            className="mb-1.5 block w-full rounded-lg px-2.5 py-1.5 text-left"
+            style={{
+              background: m.isMine ? "color-mix(in oklab, var(--on-accent) 18%, transparent)" : "var(--page-plane)",
+              borderLeft: `3px solid ${m.isMine ? "var(--on-accent)" : ACCENT}`,
+            }}
+          >
+            <span className="block text-xs font-semibold" style={{ opacity: 0.9 }}>
+              {quotedAuthor(quoted)}
+            </span>
+            <span className="line-clamp-2 block text-xs" style={{ opacity: 0.85 }}>
+              {quoted.body}
+            </span>
+          </button>
+        )}
+        <p className="text-sm whitespace-pre-wrap">{m.body}</p>
+      </div>
+      <button
+        type="button"
+        onClick={onReply}
+        aria-label="Reply"
+        className="tap-target hidden h-7 w-7 shrink-0 items-center justify-center rounded-full opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 pointer-fine:flex"
+        style={{ color: "var(--text-muted)" }}
+      >
+        <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M8 5 3.5 9.5 8 14" />
+          <path d="M4 9.5h7.5a5 5 0 0 1 5 5V16" />
+        </svg>
+      </button>
+      {menuOpen && (
+        <>
+          <div className="fixed inset-0 z-20 bg-black/20" aria-hidden="true" onClick={onCloseMenu} />
+          <div role="menu" className={`menu-surface absolute top-full z-30 mt-1.5 min-w-44 p-1.5 ${m.isMine ? "right-0" : "left-0"}`}>
+            <button type="button" role="menuitem" onClick={onReply} className="flex min-h-10 w-full items-center gap-3 rounded-lg px-2.5 text-left text-sm" style={{ color: "var(--text-primary)" }}>
+              <span className="flex-1">Reply</span>
+              <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M8 5 3.5 9.5 8 14" />
+                <path d="M4 9.5h7.5a5 5 0 0 1 5 5V16" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                void navigator.clipboard?.writeText(m.body);
+                onCloseMenu();
+              }}
+              className="flex min-h-10 w-full items-center gap-3 rounded-lg px-2.5 text-left text-sm"
+              style={{ color: "var(--text-primary)" }}
+            >
+              <span className="flex-1">Copy</span>
+              <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden="true">
+                <rect x="6.5" y="6.5" width="10" height="10" rx="2" />
+                <path d="M13.5 6.5V5a1.5 1.5 0 0 0-1.5-1.5H5A1.5 1.5 0 0 0 3.5 5v7A1.5 1.5 0 0 0 5 13.5h1.5" />
+              </svg>
+            </button>
+          </div>
+        </>
+      )}
+    </div>
   );
 }

@@ -98,7 +98,7 @@ export function buildDemoThreads(): NoteThread[] {
 export function buildDemoMessages(rootId: string, threads: NoteThread[]): NoteMessage[] {
   const root = threads.find((t) => t.id === rootId);
   if (!root) return [];
-  const rootMessage: NoteMessage = { id: root.id, senderId: root.senderId, isMine: root.isMine, body: root.body, createdAt: root.createdAt };
+  const rootMessage: NoteMessage = { id: root.id, senderId: root.senderId, isMine: root.isMine, body: root.body, createdAt: root.createdAt, replyToId: null };
   if (rootId !== "demo-2") return [rootMessage];
   // demo-2 is the one example thread with a reply, so the demo shows what
   // a threaded conversation looks like, not just single messages.
@@ -110,6 +110,7 @@ export function buildDemoMessages(rootId: string, threads: NoteThread[]): NoteMe
       isMine: false,
       body: "Got it, thanks for the heads up!",
       createdAt: iso(20 * 60 * 60 * 1000),
+      replyToId: root.id,
     },
   ];
 }

@@ -299,6 +299,7 @@ erDiagram
     PARTNER_INVITES ||..o| PARTNER_LINKS : "redeem_partner_invite()"
     PARTNER_LINKS   ||--o{ NOTES         : "scopes who can message"
     NOTES           ||--o{ NOTES         : "thread_root_id replies"
+    NOTES           ||--o{ NOTES         : "reply_to_id quotes"
 
     PARTNER_INVITES {
         uuid        id PK
@@ -325,6 +326,7 @@ erDiagram
         timestamptz sender_read_at "root row only"
         timestamptz recipient_read_at "root row only"
         boolean     favourited "sender_ + recipient_, shared, root only"
+        uuid        reply_to_id FK "replies only: the message it quotes"
     }
 ```
 
@@ -334,8 +336,10 @@ erDiagram
   `notes_touch_thread` trigger keeps them current as replies arrive, which
   is what makes a thread unread again for the other side without a
   read-receipt table.
+- A reply can quote an earlier message in the thread (`reply_to_id`,
+  `on delete set null`, so the quote just disappears if that message goes).
 - `notes_lock_identity_columns` (BEFORE UPDATE trigger) rejects any change
-  to `sender_id` / `recipient_id` / `thread_root_id` after insert.
+  to `sender_id` / `recipient_id` / `thread_root_id` / `reply_to_id` after insert.
 - Either participant can delete a conversation (`notes_delete_participant`);
   deleting the root removes it for both, and `thread_root_id … on delete
   cascade` takes the replies with it.
