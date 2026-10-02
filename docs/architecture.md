@@ -22,6 +22,7 @@ How Lauva stores, syncs and sends data. For the schema itself see [data-model.md
 - IndexedDB is refreshed from Supabase on sign-in, tab focus, reconnect, and every 60 s while the tab is visible.
 - Writes still waiting in the outbox are replayed on top of each fresh copy (`replayUnsyncedWrites`), so they never disappear from the screen.
 - Every pull filters `.eq("user_id", …)` explicitly rather than trusting RLS alone.
+- Tables that can pass Supabase's 1000-row response cap are read page by page in primary-key order (`fetchPaged` in `paged.ts`), so no row is dropped or repeated between pages.
 
 ### Writing
 
@@ -51,7 +52,7 @@ Settings → "Your data" exports straight from Supabase (`src/lib/exportData.ts`
 
 - **JSON:** the whole account in one file
 - **CSV:** one section or everything. One table → a `.csv`; several → a `.zip`
-- Signed-in only; partner messages and sharing/push plumbing are left out
+- Signed-in only; includes messages you sent or received and household reminder checklists; sharing/push/import tokens are left out
 - `exportData.test.ts` fails if a table in `schema.sql` is neither exported nor on its short skip list, so a new table can't be forgotten
 
 ---

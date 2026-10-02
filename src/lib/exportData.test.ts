@@ -11,6 +11,8 @@ const entries = [...source.matchAll(/\{ table: "([a-z_]+)", owner: "([a-z_]+)" \
   owner: m[2],
 }));
 
+const RELATED = [...source.match(/const RELATED_TABLES = \[([^\]]*)\]/)![1].matchAll(/"([a-z_]+)"/g)].map((m) => m[1]);
+
 const schema = readFileSync(join(__dirname, "../../supabase/schema.sql"), "utf8");
 
 describe("export table list", () => {
@@ -28,20 +30,17 @@ describe("export table list", () => {
   });
 
   it("covers every table that holds the person's own data", () => {
-    // Skipped on purpose: two-party messages, partner/push/digest/share
-    // plumbing, and household sub-items (no owner column to scope by).
+    // Skipped on purpose: partner/push/digest/share/import plumbing.
     const NOT_EXPORTED = [
-      "notes",
       "notes_digest_state",
       "partner_invites",
       "partner_links",
       "push_subscriptions",
       "wishlist_share_tokens",
       "health_import_tokens",
-      "household_task_subitems",
     ];
     const all = [...schema.matchAll(/^create table public\.([a-z_]+) \(/gm)].map((m) => m[1]);
-    const exported = new Set(entries.map((e) => e.table));
+    const exported = new Set([...entries.map((e) => e.table), ...RELATED]);
     expect(all.filter((t) => !exported.has(t) && !NOT_EXPORTED.includes(t))).toEqual([]);
   });
 
@@ -58,12 +57,12 @@ describe("EXPORT_SECTIONS", () => {
   it("real sections cover every export table exactly once", () => {
     const sectioned = realSections.flatMap((s) => s.tables);
     expect(new Set(sectioned).size).toBe(sectioned.length);
-    expect([...sectioned].sort()).toEqual([...entries.map((e) => e.table)].sort());
+    expect([...sectioned].sort()).toEqual([...entries.map((e) => e.table), ...RELATED].sort());
   });
 
   it('the "Everything" section is the full table list', () => {
     const everything = EXPORT_SECTIONS.find((s) => s.label === "Everything")!;
-    expect([...everything.tables].sort()).toEqual([...entries.map((e) => e.table)].sort());
+    expect([...everything.tables].sort()).toEqual([...entries.map((e) => e.table), ...RELATED].sort());
   });
 });
 
@@ -88,6 +87,6 @@ describe("buildExport", () => {
   it("returns an empty bundle when Supabase isn't configured", async () => {
     const bundle = await buildExport("00000000-0000-0000-0000-000000000000");
     expect(bundle.totalRows).toBe(0);
-    expect(Object.keys(bundle.tables).length).toBe(entries.length);
+    expect(Object.keys(bundle.tables).length).toBe(entries.length + RELATED.length);
   });
 });

@@ -37,6 +37,9 @@ function makeFakeSupabase(tables: Record<string, unknown[]>) {
             eq() {
               return builder;
             },
+            order() {
+              return builder;
+            },
             range(from: number, to: number) {
               return Promise.resolve({ data: rows.slice(from, to + 1), error: null });
             },

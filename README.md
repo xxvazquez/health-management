@@ -126,7 +126,7 @@ A grouped list where each row opens its own screen. Everything editable in the a
 - **Food products** and **Workout plans** open from a row at the bottom of the Food and Workout screens.
 - **Workout plans:** lifts with a starting weight and weekly gain, and which days get +kg or a % of that week's base.
 - **Visible sections:** show or hide each Log section (also hides it on Trends and its rows in Settings), each with an optional daily "remind me to log" time.
-- **Your data:** export the whole account as JSON, or one section or everything as CSV.
+- **Your data:** export the whole account (messages included) as JSON, or one section or everything as CSV.
 
 ---
 

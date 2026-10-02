@@ -1,16 +1,16 @@
 import JSZip from "jszip";
 import { supabase } from "@/lib/supabase/client";
+import { fetchPaged } from "@/lib/supabase/paged";
 
-const PAGE = 1000;
 
 /** Every table the export reads, with the column that scopes a row to the
  * signed-in user. The filter is applied explicitly rather than trusting
  * row-level security alone — same defence as sync.ts's `fetchAllRows`: RLS
  * is the real boundary, but a table whose policy is ever missing or
  * mis-scoped on the live project would otherwise hand this export another
- * account's rows. Messages (`notes`) are two-party and left out of a
- * one-sided "your data" export for now; `NOT_EXPORTED` in the test lists
- * every other table that's deliberately skipped. */
+ * account's rows. Tables with no single owner column are in
+ * `RELATED_TABLES`; `NOT_EXPORTED` in the test lists every table that's
+ * deliberately skipped. */
 const TABLES: { table: string; owner: string }[] = [
   { table: "categories", owner: "user_id" },
   { table: "food_items", owner: "user_id" },
@@ -75,11 +75,15 @@ const TABLES: { table: string; owner: string }[] = [
   { table: "household_codes", owner: "owner_id" },
 ];
 
+/** Tables scoped some other way: messages you sent or received, and the
+ * checklist lines of your own household reminders. */
+const RELATED_TABLES = ["notes", "household_task_subitems"] as const;
+
 /** The same tables grouped into the sections the app presents, for the
  * per-section CSV picker. Every table in `TABLES` appears exactly once
  * here (guarded by a test). */
 export const EXPORT_SECTIONS: { label: string; tables: string[] }[] = [
-  { label: "Everything", tables: TABLES.map((t) => t.table) },
+  { label: "Everything", tables: [...TABLES.map((t) => t.table), ...RELATED_TABLES] },
   { label: "Food", tables: ["food_items", "food_logs", "food_diary", "meals", "food_products", "food_product_ingredients", "recipes", "recipe_ingredients", "food_nutrition_groups"] },
   { label: "Symptoms", tables: ["symptom_items", "symptom_logs", "symptom_diary"] },
   { label: "Supplements", tables: ["supplement_items", "supplement_logs", "supplement_diary"] },
@@ -101,23 +105,41 @@ export const EXPORT_SECTIONS: { label: string; tables: string[] }[] = [
   },
   { label: "Labs", tables: ["lab_panels", "lab_markers", "lab_results"] },
   { label: "Vitals", tables: ["blood_pressure", "weight_logs", "weight_target"] },
+  { label: "Messages", tables: ["notes"] },
   { label: "Wishlist", tables: ["wishlist_categories", "wishlist_items"] },
   {
     label: "Household",
-    tables: ["household_notes", "household_tasks", "household_task_completions", "household_items", "household_codes"],
+    tables: ["household_notes", "household_tasks", "household_task_completions", "household_task_subitems", "household_items", "household_codes"],
   },
 ];
 
-async function fetchAll(table: string, owner: string, userId: string): Promise<unknown[]> {
-  if (!supabase) return [];
-  const rows: unknown[] = [];
-  for (let from = 0; ; from += PAGE) {
-    const { data, error } = await supabase.from(table).select("*").eq(owner, userId).range(from, from + PAGE - 1);
-    if (error) throw error;
-    rows.push(...(data ?? []));
-    if (!data || data.length < PAGE) break;
-  }
-  return rows;
+/** Primary keys of the tables that have no `id` column, so paging can
+ * order by something unique. */
+const KEY_COLUMNS: Record<string, string[]> = {
+  food_product_ingredients: ["product_id", "item_id"],
+  recipe_ingredients: ["recipe_id", "item_id"],
+  meals: ["date", "meal_tag"],
+  checkins: ["date"],
+  coffee_settings: ["user_id"],
+  color_palette: ["user_id"],
+  user_preferences: ["user_id"],
+  habit_reminders: ["domain"],
+  care_entry_specialties: ["entry_id", "specialty_id"],
+  care_entry_files: ["entry_id", "drive_file_id"],
+  weight_target: ["user_id"],
+  food_nutrition_groups: ["item"],
+};
+
+async function fetchAll(table: string, column: string, values: string | string[]): Promise<unknown[]> {
+  const client = supabase;
+  if (!client) return [];
+  if (Array.isArray(values) && values.length === 0) return [];
+  return fetchPaged((from, to) => {
+    const query = client.from(table).select("*");
+    let scoped = Array.isArray(values) ? query.in(column, values) : query.eq(column, values);
+    for (const key of KEY_COLUMNS[table] ?? ["id"]) scoped = scoped.order(key);
+    return scoped.range(from, to);
+  });
 }
 
 export interface ExportBundle {
@@ -137,6 +159,18 @@ export async function buildExport(userId: string): Promise<ExportBundle> {
     tables[table] = rows;
     totalRows += rows.length;
   }
+
+  const sent = (await fetchAll("notes", "sender_id", userId)) as { id: string }[];
+  const received = (await fetchAll("notes", "recipient_id", userId)) as { id: string }[];
+  const sentIds = new Set(sent.map((n) => n.id));
+  tables.notes = [...sent, ...received.filter((n) => !sentIds.has(n.id))];
+
+  const taskIds = (tables.household_tasks as { id: string }[]).map((t) => t.id);
+  tables.household_task_subitems = [];
+  for (let i = 0; i < taskIds.length; i += 200) {
+    tables.household_task_subitems.push(...(await fetchAll("household_task_subitems", "task_id", taskIds.slice(i, i + 200))));
+  }
+  totalRows += tables.notes.length + tables.household_task_subitems.length;
   return { exportedAt: new Date().toISOString(), userId, tables, totalRows };
 }
 

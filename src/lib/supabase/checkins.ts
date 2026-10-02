@@ -1,4 +1,5 @@
 import { supabase } from "./client";
+import { fetchPaged } from "./paged";
 import { upsertDirect } from "./directWrite";
 
 /** One day's mood and energy check-in, each 1 (low) – 5 (high). One row
@@ -28,9 +29,11 @@ export async function fetchCheckIns(): Promise<CheckIn[]> {
   if (!supabase) return [];
   const myUserId = await currentUserId();
   if (!myUserId) return [];
-  const { data, error } = await supabase.from(TABLE).select("date, mood, energy, note").eq("user_id", myUserId);
-  if (error) throw error;
-  return (data ?? []).map((r) => ({
+  const client = supabase;
+  const data = await fetchPaged<Record<string, unknown>>((from, to) =>
+    client.from(TABLE).select("date, mood, energy, note").eq("user_id", myUserId).order("date").range(from, to),
+  );
+  return data.map((r) => ({
     date: r.date as string,
     mood: scale(r.mood),
     energy: scale(r.energy),

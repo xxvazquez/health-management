@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "./client";
+import { fetchPaged } from "./paged";
 import {
   putItemInternal,
   deleteItemLocalInternal,
@@ -568,45 +569,24 @@ function hasRequiredColumns(table: string, row: unknown): boolean {
   return (REQUIRED_COLUMNS[table] ?? ["id"]).every((column) => typeof record[column] === "string" && record[column] !== "");
 }
 
-const PAGE_SIZE = 1000;
-
-/** Reads an entire table for the signed-in user, paginated — a plain
- * `.select("*")` silently truncates at Postgrest's default max-rows (1000
- * on most projects); paging with `.range()` until a page comes back short
- * is what actually gets everything.
+/** Reads an entire table for the signed-in user via `fetchPaged`, ordered
+ * by `id` so no row is skipped or repeated between pages.
  *
  * Explicitly filters `.eq("user_id", userId)` rather than trusting Supabase
  * row-level security alone to scope every row to the signed-in user: RLS is
  * still the real enforcement boundary (this app's anon key has no way to
  * bypass it), but a table whose RLS policy is missing, disabled, or
  * mis-scoped on the live project would otherwise hand back every user's
- * rows with no client-side check to catch it — exactly the shape of a real
- * cross-account data leak (workout_items/workout_logs/workout_diary were
- * added to this schema after the original tables, via a separate `alter
- * table ... enable row level security` migration — see schema.sql's own
- * comments — which is precisely the kind of manual step that can be missed
- * on a live project). This filter makes the query itself scoped, so this
- * app can never display another account's rows through this path even if a
- * table's RLS is ever wrong. */
+ * rows with no client-side check to catch it. This filter makes the query
+ * itself scoped, so this app can never display another account's rows
+ * through this path even if a table's RLS is ever wrong. */
 async function fetchAllRows<T>(client: SupabaseClient, table: string, userId: string): Promise<T[]> {
-  const out: T[] = [];
-  let from = 0;
-  for (;;) {
-    const { data, error } = await client
-      .from(table)
-      .select("*")
-      .eq("user_id", userId)
-      .range(from, from + PAGE_SIZE - 1);
-    if (error) throw error;
-    const rows = (data ?? []) as T[];
-    for (const row of rows) {
-      if (hasRequiredColumns(table, row)) out.push(row);
-      else console.warn(`Skipping a malformed ${table} row while syncing`);
-    }
-    if (rows.length < PAGE_SIZE) break;
-    from += PAGE_SIZE;
-  }
-  return out;
+  const rows = await fetchPaged<T>((from, to) => client.from(table).select("*").eq("user_id", userId).order("id").range(from, to));
+  return rows.filter((row) => {
+    if (hasRequiredColumns(table, row)) return true;
+    console.warn(`Skipping a malformed ${table} row while syncing`);
+    return false;
+  });
 }
 
 const ITEM_TYPES: ItemType[] = ["food", "supplement", "outcome", "habit"];

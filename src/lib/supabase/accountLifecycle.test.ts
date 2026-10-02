@@ -47,6 +47,9 @@ function makeFakeSupabase() {
             eq() {
               return builder;
             },
+            order() {
+              return builder;
+            },
             range(from: number, to: number) {
               const rows = [...store.values()];
               return Promise.resolve({ data: rows.slice(from, to + 1), error: null });

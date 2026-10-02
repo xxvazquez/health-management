@@ -127,6 +127,9 @@ function makeFakeSupabase(tables: Record<string, unknown[]>, opts: { fetchDelayM
               filters.push([column, value]);
               return builder;
             },
+            order() {
+              return builder;
+            },
             async range(from: number, to: number) {
               rangeCallCounts[table] = (rangeCallCounts[table] ?? 0) + 1;
               if (fetchDelayMs > 0) await sleep(fetchDelayMs);

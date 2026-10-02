@@ -1,4 +1,5 @@
 import { supabase } from "./client";
+import { fetchPaged } from "./paged";
 import { upsertDirect } from "./directWrite";
 
 /** A note against one meal occurrence — `date` + `mealTag` (Breakfast/
@@ -28,9 +29,11 @@ export async function fetchMeals(): Promise<MealNote[]> {
   if (!supabase) return [];
   const myUserId = await currentUserId();
   if (!myUserId) return [];
-  const { data, error } = await supabase.from(TABLE).select("date, meal_tag, note, rating").eq("user_id", myUserId);
-  if (error) throw error;
-  return (data ?? []).map((r) => ({
+  const client = supabase;
+  const data = await fetchPaged<Record<string, unknown>>((from, to) =>
+    client.from(TABLE).select("date, meal_tag, note, rating").eq("user_id", myUserId).order("date").order("meal_tag").range(from, to),
+  );
+  return data.map((r) => ({
     date: r.date as string,
     mealTag: r.meal_tag as string,
     note: (r.note as string | null) ?? "",

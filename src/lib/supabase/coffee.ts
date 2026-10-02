@@ -1,4 +1,5 @@
 import { supabase } from "./client";
+import { fetchPaged } from "./paged";
 import { createTimeOrderedId } from "@/lib/sortableId";
 import { deleteDirect, deleteWhereDirect, upsertDirect } from "./directWrite";
 
@@ -165,9 +166,11 @@ export async function fetchCoffeeLogs(): Promise<CoffeeLog[]> {
   if (!supabase) return [];
   const myUserId = await currentUserId();
   if (!myUserId) return [];
-  const { data, error } = await supabase.from(LOG_TABLE).select(LOG_COLUMNS).eq("user_id", myUserId).order("logged_at", { ascending: false });
-  if (error) throw error;
-  return (data as CoffeeLogRow[]).map(toLog);
+  const client = supabase;
+  const data = await fetchPaged<CoffeeLogRow>((from, to) =>
+    client.from(LOG_TABLE).select(LOG_COLUMNS).eq("user_id", myUserId).order("logged_at", { ascending: false }).order("id").range(from, to),
+  );
+  return data.map(toLog);
 }
 
 export interface NewCoffeeLogInput {
