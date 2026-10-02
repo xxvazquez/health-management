@@ -143,8 +143,8 @@ function NoteRow({ initial, onSave }: { initial: string; onSave: (note: string) 
 /** The day's mood and energy check-in on Log → Summary: a 1–5 slider for
  * each, named in words, and a note. */
 export function CheckInCard({ date }: { date: string }) {
-  const { forDate, save, loading, error } = useCheckIns();
-  if (loading || error) return null;
+  const { forDate, save, loading, error, isDemo } = useCheckIns();
+  if ((loading && !isDemo) || error) return null;
   const today = forDate(date);
   return (
     <FormGroup title="Check-in" className="lg:max-w-xl">
