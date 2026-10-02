@@ -9,13 +9,17 @@ import { todayLocalISODate, type DateRange } from "@/lib/aggregations/common";
 import {
   clipMarkers,
   effectiveRange,
+  lastTestSummary,
   labsSpan,
   rangeBar,
   rangeStatus,
   summariseWindow,
+  type LastTestItem,
+  type LastTestSummary,
 } from "@/lib/aggregations/labs";
 import { optimalStatusColor } from "./labStatus";
-import { formatDate } from "./shared";
+import { formatDate, formatShortDate } from "./shared";
+import { ShowAllRow, TrendGroup, TrendRow } from "@/components/analytics/TrendList";
 import type { LabMarker, LabResult } from "@/lib/supabase/labs";
 import { InlineEmpty, ErrorState } from "@/components/ui/EmptyState";
 import { ListSkeleton } from "@/components/ui/Skeleton";
@@ -93,11 +97,13 @@ export function LabsOverview({
   const [panelFilter, setPanelFilter] = useState<string | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
   const [listScroll, setListScroll] = useState(0);
+  const [showAllLastTest, setShowAllLastTest] = useState(false);
   const desktop = useIsDesktop();
 
   const today = todayLocalISODate();
   const allMarkers = labs.markers.data;
   const span = labsSpan(allMarkers);
+  const lastTest = lastTestSummary(allMarkers);
   // Rolling window anchored at today, same as Vitals — not the dataset's own
   // end, so "1 year" always means the last 365 real days.
   const dateSpan: DateRange = { start: span?.start ?? today, end: today };
@@ -196,7 +202,21 @@ export function LabsOverview({
     </MarkerGrid>
   );
 
-  const markerList =
+  // On a phone it leads the page; on desktop it heads the list column so a
+  // tapped marker opens in the pane beside it.
+  const lastTestSection = lastTest && (
+    <LastTestSection
+      summary={lastTest}
+      expanded={showAllLastTest}
+      onToggle={() => setShowAllLastTest((v) => !v)}
+      onOpen={(id) => {
+        setPanelFilter(null);
+        openRow(id);
+      }}
+    />
+  );
+
+  const markerRows =
     sort === "panel" ? (
       <div className="flex flex-col gap-4">
         {shownSections.map((s) => (
@@ -218,9 +238,19 @@ export function LabsOverview({
     ) : (
       rows(flatMarkers)
     );
+  const markerList = desktop ? (
+    <div className="flex flex-col gap-4">
+      {lastTestSection}
+      {markerRows}
+    </div>
+  ) : (
+    markerRows
+  );
 
   return (
     <div className="flex flex-col gap-4">
+      {!desktop && lastTestSection}
+
       <div className="flex flex-wrap items-center gap-2.5">
         <DateRangeFilter span={dateSpan} value={activeRange} onChange={setRange} presets={LAB_DATE_PRESETS} accent={ACCENT} />
         <label className={`${CONTROL_CLS} relative`} style={{ ...CONTROL_STYLE, color: ACCENT }}>
@@ -297,6 +327,70 @@ export function LabsOverview({
         Open a marker for its full trend and history.
       </Methodology>
     </div>
+  );
+}
+
+const LAST_TEST_SHOWN = 5;
+
+/** "High · was 1.8 in Mar 2025", "Back in range · was 52", "Up from 30 · Mar 2025". */
+function lastTestNote(item: LastTestItem): string {
+  const prev = item.previous;
+  const when = prev ? new Date(`${prev.measuredOn}T00:00:00`).toLocaleDateString(undefined, { month: "short", year: "numeric" }) : "";
+  if (item.kind === "out") {
+    const label = item.status === "high" ? "High" : "Low";
+    return prev ? `${label} · was ${fmtNum(prev.value)} in ${when}` : label;
+  }
+  if (item.kind === "back") return `Back in range · was ${fmtNum(prev!.value)} in ${when}`;
+  return `${item.value > prev!.value ? "Up" : "Down"} from ${fmtNum(prev!.value)} · ${when}`;
+}
+
+/** The newest blood test at the top of Results: what's out of range, what
+ * came back into range, and what moved notably since the result before. */
+function LastTestSection({
+  summary,
+  expanded,
+  onToggle,
+  onOpen,
+}: {
+  summary: LastTestSummary;
+  expanded: boolean;
+  onToggle: () => void;
+  onOpen: (markerId: string) => void;
+}) {
+  const shown = expanded ? summary.items : summary.items.slice(0, LAST_TEST_SHOWN);
+  return (
+    <TrendGroup caption={`Last blood test · ${formatShortDate(summary.date)}`}>
+      {summary.items.length === 0 ? (
+        <TrendRow
+          label={`All ${summary.markerCount} ${summary.markerCount === 1 ? "marker" : "markers"} in range`}
+          sublabel="Nothing moved much since the test before"
+        />
+      ) : (
+        shown.map((item) => {
+          const flag = item.status === "high" ? "H" : item.status === "low" ? "L" : "";
+          return (
+            <TrendRow
+              key={item.marker.id}
+              label={item.marker.name}
+              sublabel={lastTestNote(item)}
+              value={
+                <span className="flex items-baseline gap-1">
+                  <span style={{ color: optimalStatusColor(item.status) }}>{fmtNum(item.value)}</span>
+                  {item.marker.unit && <span className="text-xs" style={{ color: "var(--text-muted)" }}>{item.marker.unit}</span>}
+                  {flag && (
+                    <span className="font-semibold" style={{ color: optimalStatusColor(item.status) }}>
+                      {flag}
+                    </span>
+                  )}
+                </span>
+              }
+              onClick={() => onOpen(item.marker.id)}
+            />
+          );
+        })
+      )}
+      {summary.items.length > LAST_TEST_SHOWN && <ShowAllRow total={summary.items.length} expanded={expanded} onToggle={onToggle} />}
+    </TrendGroup>
   );
 }
 

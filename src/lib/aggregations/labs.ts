@@ -173,3 +173,72 @@ export function summariseWindow(
     previous: sorted.length >= 2 ? sorted[sorted.length - 2].value : null,
   };
 }
+
+/** Results this many days apart still count as one blood test (a draw
+ * whose panels came back on different days). */
+const SAME_TEST_DAYS = 7;
+/** A move worth pointing out: a quarter of the normal band's width, or a
+ * fifth of the previous value for a marker without a two-sided range. */
+const NOTABLE_BAND_SHARE = 0.25;
+const NOTABLE_RELATIVE_CHANGE = 0.2;
+
+export interface LastTestItem {
+  marker: LabMarker;
+  value: number;
+  status: RangeStatus;
+  previous: { value: number; measuredOn: string } | null;
+  /** Out of range now, back in range since the previous result, or a notable move within range. */
+  kind: "out" | "back" | "moved";
+}
+
+export interface LastTestSummary {
+  /** Date of the newest result. */
+  date: string;
+  /** Markers measured in that test. */
+  markerCount: number;
+  /** What's worth a look: out of range first, then back in range, then the biggest moves. */
+  items: LastTestItem[];
+}
+
+function shiftDate(date: string, days: number): string {
+  const d = new Date(`${date}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+/** The most recent blood test and what stood out in it, compared with
+ * each marker's result before that test. Null with no results. */
+export function lastTestSummary(markers: LabMarker[]): LastTestSummary | null {
+  const span = labsSpan(markers);
+  if (!span) return null;
+  const testStart = shiftDate(span.end, -(SAME_TEST_DAYS - 1));
+  const items: { item: LastTestItem; size: number }[] = [];
+  let markerCount = 0;
+  for (const marker of markers) {
+    const sorted = [...marker.results].sort((a, b) => a.measuredOn.localeCompare(b.measuredOn));
+    const latest = sorted[sorted.length - 1];
+    if (!latest || latest.measuredOn < testStart) continue;
+    markerCount++;
+    const before = [...sorted].reverse().find((r) => r.measuredOn < testStart) ?? null;
+    const { low, high } = effectiveRange(marker);
+    const status = rangeStatus(latest.value, low, high);
+    const previous = before ? { value: before.value, measuredOn: before.measuredOn } : null;
+    const base = { marker, value: latest.value, status, previous };
+    if (status === "low" || status === "high") {
+      items.push({ item: { ...base, kind: "out" }, size: 0 });
+      continue;
+    }
+    if (!previous) continue;
+    const prevStatus = rangeStatus(previous.value, low, high);
+    if (prevStatus === "low" || prevStatus === "high") {
+      items.push({ item: { ...base, kind: "back" }, size: 0 });
+      continue;
+    }
+    const delta = Math.abs(latest.value - previous.value);
+    const size = low != null && high != null && high > low ? delta / (high - low) / NOTABLE_BAND_SHARE : previous.value !== 0 ? delta / Math.abs(previous.value) / NOTABLE_RELATIVE_CHANGE : 0;
+    if (size >= 1) items.push({ item: { ...base, kind: "moved" }, size });
+  }
+  const order = { out: 0, back: 1, moved: 2 };
+  items.sort((a, b) => order[a.item.kind] - order[b.item.kind] || b.size - a.size || a.item.marker.name.localeCompare(b.item.marker.name));
+  return { date: span.end, markerCount, items: items.map((i) => i.item) };
+}

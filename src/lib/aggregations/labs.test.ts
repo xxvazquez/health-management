@@ -4,6 +4,7 @@ import {
   clipMarkers,
   effectiveRange,
   labsSpan,
+  lastTestSummary,
   parseNum,
   BAND_LEFT_PCT,
   BAND_RIGHT_PCT,
@@ -174,5 +175,40 @@ describe("summariseWindow", () => {
     const s = summariseWindow([result("2025-01-01", 2)])!;
     expect(s.mean).toBe(2);
     expect(s.previous).toBeNull();
+  });
+});
+
+describe("lastTestSummary", () => {
+  const r = (measuredOn: string, value: number) => ({ id: `${measuredOn}-${value}`, markerId: "m", measuredOn, value, lab: null, note: null });
+
+  it("is null with no results", () => {
+    expect(lastTestSummary([marker({ id: "a", name: "A" })])).toBeNull();
+  });
+
+  it("lists out-of-range first, then back in range, then notable moves, and skips small moves", () => {
+    const markers = [
+      marker({ id: "moved", name: "Moved", refLow: 0, refHigh: 10, results: [r("2026-01-01", 3), r("2026-05-10", 7)] }),
+      marker({ id: "still", name: "Still", refLow: 0, refHigh: 10, results: [r("2026-01-01", 5), r("2026-05-10", 5.5)] }),
+      marker({ id: "back", name: "Back", refLow: 0, refHigh: 10, results: [r("2026-01-01", 12), r("2026-05-11", 9)] }),
+      marker({ id: "high", name: "High", refLow: 0, refHigh: 10, results: [r("2026-01-01", 9), r("2026-05-08", 11)] }),
+      marker({ id: "old", name: "Old", refLow: 0, refHigh: 10, results: [r("2025-01-01", 20)] }),
+    ];
+    const summary = lastTestSummary(markers)!;
+    expect(summary.date).toBe("2026-05-11");
+    expect(summary.markerCount).toBe(4);
+    expect(summary.items.map((i) => [i.marker.id, i.kind])).toEqual([
+      ["high", "out"],
+      ["back", "back"],
+      ["moved", "moved"],
+    ]);
+    expect(summary.items[0].previous).toEqual({ value: 9, measuredOn: "2026-01-01" });
+  });
+
+  it("judges a marker without a two-sided range by relative change", () => {
+    const markers = [
+      marker({ id: "a", name: "A", results: [r("2026-01-01", 100), r("2026-05-10", 125)] }),
+      marker({ id: "b", name: "B", results: [r("2026-01-01", 100), r("2026-05-10", 110)] }),
+    ];
+    expect(lastTestSummary(markers)!.items.map((i) => i.marker.id)).toEqual(["a"]);
   });
 });
