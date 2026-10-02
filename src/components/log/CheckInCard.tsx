@@ -46,7 +46,7 @@ function StepSlider({
       aria-valuemax={STEPS}
       aria-valuenow={shown ?? undefined}
       aria-valuetext={shown ? words[shown - 1] : "Not set"}
-      className="relative h-11 cursor-pointer touch-none select-none rounded-[10px]"
+      className="relative h-11 min-w-0 flex-1 cursor-pointer touch-none select-none rounded-[10px]"
       onPointerDown={(e) => {
         e.currentTarget.setPointerCapture(e.pointerId);
         moved.current = false;
@@ -86,7 +86,7 @@ function StepSlider({
         )}
         {shown != null && (
           <span
-            className="control-surface absolute top-1/2 size-6 -translate-x-1/2 -translate-y-1/2 rounded-full transition-[left] duration-100"
+            className="control-surface absolute top-1/2 size-5 -translate-x-1/2 -translate-y-1/2 rounded-full transition-[left] duration-100"
             style={{ left: `${pct(shown)}%` }}
           />
         )}
@@ -95,8 +95,7 @@ function StepSlider({
   );
 }
 
-/** One metric: name followed by the chosen level in words, the slider
- * underneath. */
+/** One metric on one row: name, slider, then the chosen level in words. */
 function ScaleRow({
   label,
   words,
@@ -109,12 +108,14 @@ function ScaleRow({
   onChange: (v: number | null) => void;
 }) {
   return (
-    <div className="px-3.5 pt-2.5">
-      <div className="flex flex-wrap items-baseline gap-x-2 text-sm">
-        <span style={{ color: "var(--text-primary)" }}>{label}</span>
-        {value != null && <span style={{ color: "var(--ui-accent)" }}>{words[value - 1]}</span>}
-      </div>
+    <div className="flex min-h-11 items-center gap-2 px-3.5">
+      <span className="w-14 shrink-0 text-sm" style={{ color: "var(--text-primary)" }}>
+        {label}
+      </span>
       <StepSlider label={label} words={words} value={value} onChange={onChange} />
+      <span className="w-[6.75rem] shrink-0 text-right text-sm" style={{ color: value != null ? "var(--ui-accent)" : "var(--text-muted)" }}>
+        {value != null ? words[value - 1] : "Not set"}
+      </span>
     </div>
   );
 }

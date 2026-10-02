@@ -68,7 +68,7 @@ Sections: **Food · Symptoms · Supplements · Habits · Stool · Workout · Cyc
 
 #### Summary
 
-- **Check-in** at the top: mood and energy, 1 (low) to 5 (high), on a stepped slider with the chosen level named ("Unpleasant", "High"…), plus a wrapping note. Tap the current step again to clear it. On a phone it sits above the section list.
+- **Check-in** at the top: mood and energy, 1 (low) to 5 (high), each one row: name, stepped slider, and the chosen level named ("Unpleasant", "High"…), plus a wrapping note. Tap the current step again to clear it. On a phone it sits above the section list.
 - A timeline of everything logged that day, coffee included (a cup opens the Coffee section).
 - A meal is one row ("Dinner · 9 foods", its stars if rated). It opens a sheet to see its foods, rate it (1–5 stars), add a note or "Save as recipe".
 - Other rows show the useful detail on the right: a symptom's intensity, the sleep band, a supplement's time of day. Tap any row to edit or delete it.
