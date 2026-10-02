@@ -7,40 +7,13 @@ import { formatNoteTimestamp } from "./NoteThreadList";
 import { AutoGrowTextarea } from "@/components/ui/AutoGrowTextarea";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { TrashIcon } from "@/components/ui/Notebook";
+import { MoreMenu, type MoreMenuItem } from "@/components/ui/MoreMenu";
 
 const ACCENT = "var(--series-magenta)";
 
-function ActionButton({
-  onClick,
-  active,
-  label,
-  disabled,
-  children,
-}: {
-  onClick: () => void;
-  active?: boolean;
-  label: string;
-  disabled?: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      aria-label={label}
-      title={label}
-      className="tap-target flex h-9 w-9 items-center justify-center rounded-lg disabled:opacity-40"
-      style={{ color: active ? ACCENT : "var(--text-secondary)" }}
-    >
-      {children}
-    </button>
-  );
-}
-
 /** One open thread — every message (root + replies) plus a reply box and
- * the per-thread actions (favourite, mark unread, delete; "mark
- * read" itself isn't a button, it just happens on open). Opening a thread
+ * the per-thread actions behind the ⋯ menu (remind, favourite, mark unread,
+ * delete; "mark read" itself isn't a button, it just happens on open). Opening a thread
  * you're the recipient of marks it read immediately, same as any inbox.
  * Every action is injected rather than calling supabase/notes.ts directly,
  * so the Notes page can wire either the real Supabase calls or the
@@ -177,9 +150,27 @@ export function NoteThreadView({
     }
   }
 
+  const lastIsMine = !!messages && messages.length > 0 && messages[messages.length - 1].isMine;
+  const canRemind = lastIsMine && !thread.isSeenByPartner && remindState !== "sent" && remindState !== "sending";
+  const menuItems: MoreMenuItem[] = [
+    ...(canRemind ? [{ label: `Remind ${partnerLabel}`, icon: <BellIcon />, onClick: () => void remind() }] : []),
+    {
+      label: thread.isFavouritedByMe ? "Remove from Favourites" : "Add to Favourites",
+      icon: <StarIcon filled={thread.isFavouritedByMe} size={14} />,
+      onClick: () => void toggleFavourite(),
+    },
+    { label: "Mark as Unread", icon: <EyeOffIcon size={14} />, onClick: () => void markUnread() },
+    { label: "Delete Conversation", icon: <TrashIcon size={14} />, destructive: true, separated: true, onClick: () => setConfirmingDelete(true) },
+  ];
+
   return (
     <div className="flex min-h-[calc(100dvh-13rem)] flex-col gap-4 lg:min-h-[calc(100dvh-10rem)]">
-      <div className="grid grid-cols-[1fr_minmax(0,auto)_1fr] items-center gap-2">
+      {/* Pinned like Messages' navigation bar, so Back and the title stay
+          in reach in a long conversation; it clears the notch on a phone. */}
+      <div
+        className="sticky top-0 z-10 -mx-4 -mt-[env(safe-area-inset-top)] grid grid-cols-[1fr_minmax(0,auto)_1fr] items-center gap-2 px-4 pt-[calc(env(safe-area-inset-top)+0.5rem)] pb-2 sm:-mx-6 sm:px-6 lg:mx-0 lg:px-0"
+        style={{ background: "var(--page-backdrop)", borderBottom: "1px solid var(--border-hairline)" }}
+      >
         <button type="button" onClick={onBack} className="hit-slop justify-self-start text-sm font-medium" style={{ color: ACCENT }}>
           ‹ Back
         </button>
@@ -194,16 +185,8 @@ export function NoteThreadView({
             </h2>
           )}
         </div>
-        <div className="flex items-center gap-0.5 justify-self-end">
-          <ActionButton onClick={() => void toggleFavourite()} active={thread.isFavouritedByMe} label={thread.isFavouritedByMe ? "Unfavourite" : "Favourite"} disabled={busy}>
-            <StarIcon filled={thread.isFavouritedByMe} />
-          </ActionButton>
-          <ActionButton onClick={() => void markUnread()} label="Mark as unread" disabled={busy}>
-            <EyeOffIcon />
-          </ActionButton>
-          <ActionButton onClick={() => setConfirmingDelete(true)} label="Delete" disabled={busy}>
-            <TrashIcon size={16} />
-          </ActionButton>
+        <div className="justify-self-end">
+          <MoreMenu disabled={busy} items={menuItems} />
         </div>
       </div>
 
@@ -264,28 +247,19 @@ export function NoteThreadView({
               </div>
             );
           })}
-          {messages.length > 0 && messages[messages.length - 1].isMine && (
-            <p className="flex justify-end gap-1.5 text-xs" style={{ color: "var(--text-muted)" }}>
-              {thread.isSeenByPartner ? (
-                <span>Read{thread.partnerReadAt ? ` ${formatNoteTimestamp(thread.partnerReadAt)}` : ""}</span>
-              ) : remindState === "sent" ? (
-                <span>Not read yet · Reminder sent</span>
-              ) : remindState === "no-push" ? (
-                <span>Not read yet · Their notifications are off; the daily reminder still goes out</span>
-              ) : (
-                <>
-                  <span>Not read yet ·</span>
-                  <button
-                    type="button"
-                    onClick={() => void remind()}
-                    disabled={remindState === "sending"}
-                    className="hit-slop font-medium disabled:opacity-40"
-                    style={{ color: remindState === "error" ? "var(--status-critical)" : ACCENT }}
-                  >
-                    {remindState === "error" ? "Couldn't send — retry" : "Remind"}
-                  </button>
-                </>
-              )}
+          {lastIsMine && (
+            <p className="text-right text-xs" style={{ color: remindState === "error" ? "var(--status-critical)" : "var(--text-muted)" }}>
+              {thread.isSeenByPartner
+                ? `Read${thread.partnerReadAt ? ` ${formatNoteTimestamp(thread.partnerReadAt)}` : ""}`
+                : remindState === "sent"
+                  ? "Delivered · Reminded just now"
+                  : remindState === "sending"
+                    ? "Delivered · Reminding…"
+                    : remindState === "no-push"
+                      ? `Delivered · ${partnerLabel} has notifications off`
+                      : remindState === "error"
+                        ? "Delivered · Reminder didn't send"
+                        : "Delivered"}
             </p>
           )}
         </div>
@@ -329,5 +303,14 @@ export function NoteThreadView({
         )}
       </div>
     </div>
+  );
+}
+
+function BellIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M5 8.5a5 5 0 0 1 10 0c0 3.5 1.5 5 1.5 5h-13S5 12 5 8.5Z" />
+      <path d="M8.3 16.5a1.8 1.8 0 0 0 3.4 0" />
+    </svg>
   );
 }
