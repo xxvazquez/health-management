@@ -4,7 +4,7 @@ import {
   clipMarkers,
   effectiveRange,
   labsSpan,
-  latestTestStart,
+  latestResults,
   markerHighlights,
   parseNum,
   BAND_LEFT_PCT,
@@ -179,12 +179,24 @@ describe("summariseWindow", () => {
   });
 });
 
-describe("latestTestStart / markerHighlights", () => {
+describe("latestResults", () => {
   const r = (measuredOn: string, value: number) => ({ id: `${measuredOn}-${value}`, markerId: "m", measuredOn, value, lab: null, note: null });
 
-  it("is null with no results", () => {
-    expect(latestTestStart([marker({ id: "a", name: "A" })])).toBeNull();
+  it("keeps each marker's newest result, however old, and drops markers with none", () => {
+    const markers = [
+      marker({ id: "alp", name: "ALP", results: [r("2024-03-01", 70), r("2023-01-01", 60)] }),
+      marker({ id: "fer", name: "Ferritin", results: [r("2025-01-01", 30), r("2026-08-26", 41)] }),
+      marker({ id: "none", name: "None" }),
+    ];
+    expect(latestResults(markers).map((m) => [m.id, m.results.map((x) => x.measuredOn)])).toEqual([
+      ["alp", ["2024-03-01"]],
+      ["fer", ["2026-08-26"]],
+    ]);
   });
+});
+
+describe("markerHighlights", () => {
+  const r = (measuredOn: string, value: number) => ({ id: `${measuredOn}-${value}`, markerId: "m", measuredOn, value, lab: null, note: null });
 
   it("lists out-of-range first, then back in range, then notable moves, and skips small moves", () => {
     const markers = [
@@ -194,9 +206,7 @@ describe("latestTestStart / markerHighlights", () => {
       marker({ id: "high", name: "High", refLow: 0, refHigh: 10, results: [r("2026-01-01", 9), r("2026-05-08", 11)] }),
       marker({ id: "old", name: "Old", refLow: 0, refHigh: 10, results: [r("2025-01-01", 20)] }),
     ];
-    const start = latestTestStart(markers)!;
-    expect(start).toBe("2026-05-05");
-    const summary = markerHighlights(markers, start, "2026-05-11");
+    const summary = markerHighlights(markers, "2026-05-05", "2026-05-11");
     expect(summary.measured).toBe(4);
     expect(summary.items.map((i) => [i.marker.id, i.kind])).toEqual([
       ["high", "out"],
@@ -211,6 +221,6 @@ describe("latestTestStart / markerHighlights", () => {
       marker({ id: "a", name: "A", results: [r("2026-01-01", 100), r("2026-05-10", 125)] }),
       marker({ id: "b", name: "B", results: [r("2026-01-01", 100), r("2026-05-10", 110)] }),
     ];
-    expect(markerHighlights(markers, latestTestStart(markers)!, "2026-05-10").items.map((i) => i.marker.id)).toEqual(["a"]);
+    expect(markerHighlights(markers, "2026-05-04", "2026-05-10").items.map((i) => i.marker.id)).toEqual(["a"]);
   });
 });

@@ -25,6 +25,10 @@ interface Props {
    * accent. Defaults to the app's neutral UI accent for call sites that
    * haven't opted in. */
   accent?: string;
+  /** An option above the presets that isn't a date window (Results'
+   * "Latest"). While it's active the trigger shows its label and no preset
+   * is ticked; picking a preset or custom range is the host's cue to clear it. */
+  lead?: { label: string; active: boolean; onSelect: () => void };
 }
 
 export const DEFAULT_PRESETS: DateRangePreset[] = [
@@ -68,7 +72,7 @@ export function describeDateRange(presets: DateRangePreset[], span: DateRange, v
  * selection reads correctly even after `useDateRangeFilter` rehydrates a
  * range picked on another dashboard.
  */
-export function DateRangeFilter({ span, value, onChange, presets = DEFAULT_PRESETS, accent = "var(--ui-accent)" }: Props) {
+export function DateRangeFilter({ span, value, onChange, presets = DEFAULT_PRESETS, accent = "var(--ui-accent)", lead }: Props) {
   const [open, setOpen] = useState(false);
   // Which edge of the trigger the popover hangs from: the left edge when the
   // trigger sits in the left half of the screen (so it opens into the page,
@@ -105,11 +109,13 @@ export function DateRangeFilter({ span, value, onChange, presets = DEFAULT_PRESE
     };
   }, [open]);
 
-  const activePreset = presets.find((p) => {
-    const r = presetRange(p, span);
-    return r.start === value.start && r.end === value.end;
-  });
-  const triggerLabel = describeDateRange(presets, span, value);
+  const activePreset = lead?.active
+    ? undefined
+    : presets.find((p) => {
+        const r = presetRange(p, span);
+        return r.start === value.start && r.end === value.end;
+      });
+  const triggerLabel = lead?.active ? lead.label : describeDateRange(presets, span, value);
 
   return (
     <div ref={rootRef} className="relative shrink-0">
@@ -151,14 +157,16 @@ export function DateRangeFilter({ span, value, onChange, presets = DEFAULT_PRESE
           className={`menu-surface absolute z-30 mt-1.5 w-60 p-1.5 ${alignLeft ? "left-0" : "right-0"}`}
         >
           <div className="flex flex-col">
-            {presets.map((preset) => {
-              const isActive = preset.label === activePreset?.label;
+            {[...(lead ? [{ label: lead.label, days: "all" as const }] : []), ...presets].map((preset, i) => {
+              const isLead = !!lead && i === 0;
+              const isActive = isLead ? lead.active : preset.label === activePreset?.label;
               return (
                 <button
                   key={preset.label}
                   type="button"
                   onClick={() => {
-                    onChange(presetRange(preset, span));
+                    if (isLead) lead.onSelect();
+                    else onChange(presetRange(preset, span));
                     setOpen(false);
                   }}
                   className="flex min-h-10 items-center justify-between rounded-lg px-2.5 text-left text-sm transition-colors hover:bg-black/[0.04]"

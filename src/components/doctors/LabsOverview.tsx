@@ -5,11 +5,11 @@ import { ChevronIcon, UpDownChevronIcon } from "@/components/ui/icons";
 import { useState, type ReactNode } from "react";
 import type { useLabs } from "@/lib/useLabs";
 import type { LabNameLanguage } from "@/lib/labNames";
-import { daysBetween, todayLocalISODate, type DateRange } from "@/lib/aggregations/common";
+import { todayLocalISODate, type DateRange } from "@/lib/aggregations/common";
 import {
   clipMarkers,
   effectiveRange,
-  latestTestStart,
+  latestResults,
   labsSpan,
   rangeBar,
   rangeStatus,
@@ -67,6 +67,8 @@ const VIEW_LABEL: Record<`${Mode}:${SortKey}`, string> = {
   "average:panel": "Average · By panel",
   "average:name": "Average · A–Z",
 };
+/** In Latest there's one result per marker, so only the order is a choice. */
+const SORT_LABEL: Record<SortKey, string> = { panel: "By panel", name: "A–Z" };
 
 /** The read/analysis view of Health → Results: the panel list — every
  * marker on its reference-range bar with the optimal band marked — grouped
@@ -91,6 +93,8 @@ export function LabsOverview({
   onEditValue?: (markerId: string, result: LabResult) => void;
 }) {
   const [range, setRange] = useState<DateRange | null>(null);
+  // "Latest": every marker's newest result, however old — the default view.
+  const [latestOnly, setLatestOnly] = useState(true);
   const [mode, setMode] = useState<Mode>("last");
   const [sort, setSort] = useState<SortKey>("panel");
   const [panelFilter, setPanelFilter] = useState<string | null>(null);
@@ -104,14 +108,8 @@ export function LabsOverview({
   // Rolling window anchored at today, same as Vitals — not the dataset's own
   // end, so "1 year" always means the last 365 real days.
   const dateSpan: DateRange = { start: span?.start ?? today, end: today };
-  // "Latest test" is the window from the newest test's first day to today,
-  // so only the markers that test measured are listed.
-  const testStart = latestTestStart(allMarkers);
-  const presets = testStart
-    ? [{ label: "Latest test", days: Math.max(1, daysBetween(testStart, today) + 1) }, ...LAB_DATE_PRESETS]
-    : LAB_DATE_PRESETS;
   const activeRange = range ?? dateSpan;
-  const inRange = clipMarkers(allMarkers, activeRange.start);
+  const inRange = latestOnly ? latestResults(allMarkers) : clipMarkers(allMarkers, activeRange.start);
 
   const panelSections = (() => {
     const byPanel = new Map<string, LabMarker[]>();
@@ -200,7 +198,7 @@ export function LabsOverview({
   const rows = (markers: LabMarker[]) => (
     <MarkerGrid>
       {markers.map((m, i) => (
-        <MarkerRow key={m.id} marker={m} mode={mode} first={i === 0} active={desktop && m.id === activeId} onOpen={() => openRow(m.id)} />
+        <MarkerRow key={m.id} marker={m} mode={latestOnly ? "last" : mode} first={i === 0} active={desktop && m.id === activeId} onOpen={() => openRow(m.id)} />
       ))}
     </MarkerGrid>
   );
@@ -231,21 +229,32 @@ export function LabsOverview({
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-2.5">
-        <DateRangeFilter span={dateSpan} value={activeRange} onChange={setRange} presets={presets} accent={ACCENT} />
+        <DateRangeFilter
+          span={dateSpan}
+          value={activeRange}
+          onChange={(r) => {
+            setRange(r);
+            setLatestOnly(false);
+          }}
+          presets={LAB_DATE_PRESETS}
+          accent={ACCENT}
+          lead={{ label: "Latest", active: latestOnly, onSelect: () => setLatestOnly(true) }}
+        />
         <label className={`${CONTROL_CLS} relative`} style={{ ...CONTROL_STYLE, color: ACCENT }}>
-          {VIEW_LABEL[`${mode}:${sort}`]}
+          {latestOnly ? SORT_LABEL[sort] : VIEW_LABEL[`${mode}:${sort}`]}
           <UpDownChevronIcon size={11} />
           {/* z-10: CONTROL_CLS's .hit-slop overlay would otherwise sit above the select. */}
           <select
-            value={`${mode}:${sort}`}
+            value={latestOnly ? sort : `${mode}:${sort}`}
             onChange={(e) => {
+              if (latestOnly) return setSort(e.target.value as SortKey);
               const [m, k] = e.target.value.split(":") as [Mode, SortKey];
               setMode(m);
               setSort(k);
             }}
             className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0"
           >
-            {Object.entries(VIEW_LABEL).map(([value, text]) => (
+            {Object.entries(latestOnly ? SORT_LABEL : VIEW_LABEL).map(([value, text]) => (
               <option key={value} value={value}>
                 {text}
               </option>
@@ -298,8 +307,8 @@ export function LabsOverview({
       />
 
       <Methodology>
-        This view only describes your own recorded results. Pick a time window at the top (<strong>Latest test</strong> lists only the markers your newest blood test
-        measured): <strong>Average</strong> reads the
+        This view only describes your own recorded results. Pick a time window at the top (<strong>Latest</strong> shows each marker&rsquo;s newest result, however old):
+        <strong>Average</strong> reads the
         mean of every draw in it (the whisker on the bar is the lowest-to-highest spread), <strong>Last</strong> shows only the
         most recent draw. Each value is read against your optimal range where you&rsquo;ve set one, otherwise the lab reference
         low/high — both are lab- and sometimes age-specific, so treat a flag as a prompt to look, not a diagnosis. Every bar puts

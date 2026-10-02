@@ -174,9 +174,6 @@ export function summariseWindow(
   };
 }
 
-/** Results this many days apart still count as one blood test (a draw
- * whose panels came back on different days). */
-const SAME_TEST_DAYS = 7;
 /** A move worth pointing out: a quarter of the normal band's width, or a
  * fifth of the previous value for a marker without a two-sided range. */
 const NOTABLE_BAND_SHARE = 0.25;
@@ -189,12 +186,6 @@ export interface LastTestItem {
   previous: { value: number; measuredOn: string } | null;
   /** Out of range now, back in range since the previous result, or a notable move within range. */
   kind: "out" | "back" | "moved";
-}
-
-function shiftDate(date: string, days: number): string {
-  const d = new Date(`${date}T00:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + days);
-  return d.toISOString().slice(0, 10);
 }
 
 /** How one marker's latest reading compares with the one before: out of
@@ -239,10 +230,13 @@ export function markerHighlights(markers: LabMarker[], start: string, end: strin
   return { measured, items: found.map((f) => f.item) };
 }
 
-/** First day of the most recent blood test (its results can land over a
- * few days), so clipping from it leaves only the markers that test measured.
- * Null with no results. */
-export function latestTestStart(markers: LabMarker[]): string | null {
-  const span = labsSpan(markers);
-  return span ? shiftDate(span.end, -(SAME_TEST_DAYS - 1)) : null;
+/** Every marker with a result, cut down to its newest one — however long
+ * ago that was. */
+export function latestResults(markers: LabMarker[]): LabMarker[] {
+  const out: LabMarker[] = [];
+  for (const m of markers) {
+    const newest = m.results.reduce<LabMarker["results"][number] | null>((a, r) => (!a || r.measuredOn > a.measuredOn ? r : a), null);
+    if (newest) out.push({ ...m, results: [newest] });
+  }
+  return out;
 }
