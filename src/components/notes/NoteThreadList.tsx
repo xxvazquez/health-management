@@ -3,20 +3,11 @@
 import { useState, type ReactNode } from "react";
 import clsx from "clsx";
 import { SWIPE_REVEAL_CLASS, useSwipeReveal } from "@/lib/useSwipeReveal";
-import { CategoryIcon, EyeIcon, EyeOffIcon, StarIcon } from "./icons";
+import { EyeIcon, EyeOffIcon, StarIcon } from "./icons";
 import { ErrorState, InlineEmpty } from "@/components/ui/EmptyState";
 import { NOTE_CATEGORY_LABEL, type NoteThread, type NoteView } from "@/lib/supabase/notes";
 
 const ACCENT = "var(--series-magenta)";
-
-/** A muted per-category tint for the inbox row pills — all drawn from the
- * existing palette so the list stays calm. */
-const CATEGORY_TONE: Record<NoteThread["category"], string> = {
-  note: "var(--text-muted)",
-  reminder: "var(--series-indigo)",
-  appreciation: "var(--series-magenta)",
-  question: "var(--series-2)",
-};
 
 export function formatNoteTimestamp(iso: string): string {
   return new Date(iso).toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
@@ -26,7 +17,7 @@ export function formatNoteTimestamp(iso: string): string {
  * tight: today → time, this week → weekday, this year → day + month,
  * older → short numeric date. The full form above still backs the thread
  * view. */
-function formatNoteTimestampShort(iso: string): string {
+export function formatNoteTimestampShort(iso: string): string {
   const d = new Date(iso);
   const now = new Date();
   const dayStart = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
@@ -35,13 +26,6 @@ function formatNoteTimestampShort(iso: string): string {
   if (daysAgo < 7) return d.toLocaleDateString(undefined, { weekday: "short" });
   if (d.getFullYear() === now.getFullYear()) return d.toLocaleDateString(undefined, { day: "numeric", month: "short" });
   return d.toLocaleDateString(undefined, { day: "2-digit", month: "2-digit", year: "2-digit" });
-}
-
-/** "Read" stamp for Sent: today → time, otherwise the short day plus time. */
-function formatReadAt(iso: string): string {
-  const time = new Date(iso).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
-  const day = formatNoteTimestampShort(iso);
-  return day === time ? time : `${day} ${time}`;
 }
 
 const VIEW_EMPTY_COPY: Record<NoteView, { title: string; description: string }> = {
@@ -108,14 +92,16 @@ function ThreadRow({
   // still-unseen note stays flagged even once you've reread it.
   const sent = view === "sent";
   const flagged = t.isUnreadForMe || (sent && !t.isSeenByPartner);
-  let detail: string | null = null;
-  if (sent) {
-    if (t.isUnreadForMe) detail = "New reply";
-    else if (!t.isSeenByPartner) detail = "Not read yet";
-    else if (t.partnerReadAt) detail = `Read ${formatReadAt(t.partnerReadAt)}`;
-  } else if (view !== "inbox") {
-    detail = t.isMine ? `To ${partnerLabel}` : `From ${partnerLabel}`;
-  }
+  // Like Mail: a status only when it asks for something, then the
+  // category when it isn't the everyday one, then a preview of the message.
+  const status = t.isUnreadForMe ? "New reply" : sent && !t.isSeenByPartner ? "Not read yet" : null;
+  const meta = [
+    view === "favourites" ? (t.isMine ? `To ${partnerLabel}` : `From ${partnerLabel}`) : null,
+    t.category !== "note" ? NOTE_CATEGORY_LABEL[t.category] : null,
+  ].filter(Boolean);
+  const [firstLine, ...rest] = t.body.trim().split("\n");
+  const title = t.subject || firstLine;
+  const preview = (t.subject ? t.body : rest.join(" ")).replace(/\s+/g, " ").trim();
 
   return (
     <div
@@ -131,7 +117,7 @@ function ThreadRow({
         <span className="min-w-0 flex-1">
           <span className="flex items-center gap-1.5">
             <span className="min-w-0 flex-1 truncate text-sm" style={{ fontWeight: flagged ? 600 : 500, color: "var(--text-primary)" }}>
-              {t.subject || t.body.slice(0, 60)}
+              {title}
             </span>
             {t.isFavouritedByMe && (
               <span className="shrink-0" style={{ color: ACCENT }} role="img" aria-label="Favourite">
@@ -142,17 +128,25 @@ function ThreadRow({
               {formatNoteTimestampShort(t.lastMessageAt)}
             </span>
           </span>
-          <span className="mt-0.5 flex items-center gap-1.5 text-xs" style={{ color: "var(--text-muted)" }}>
-            <span className="inline-flex shrink-0 items-center gap-1 text-xs font-medium" style={{ color: CATEGORY_TONE[t.category] }}>
-              <CategoryIcon category={t.category} size={11} />
-              {NOTE_CATEGORY_LABEL[t.category]}
+          {(status || meta.length > 0 || preview) && (
+            <span className="mt-0.5 line-clamp-2 text-xs" style={{ color: "var(--text-secondary)" }}>
+              {status && (
+                <>
+                  <span className="font-medium" style={{ color: ACCENT }}>
+                    {status}
+                  </span>
+                  {(meta.length > 0 || preview) && " · "}
+                </>
+              )}
+              {meta.length > 0 && (
+                <>
+                  {meta.join(" · ")}
+                  {preview && " · "}
+                </>
+              )}
+              {preview}
             </span>
-            {detail && (
-              <span className="truncate" style={{ color: sent && flagged ? ACCENT : undefined }}>
-                {detail}
-              </span>
-            )}
-          </span>
+          )}
         </span>
       </button>
 

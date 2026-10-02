@@ -3,7 +3,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { NOTE_CATEGORY_LABEL, type NoteMessage, type NoteThread } from "@/lib/supabase/notes";
 import { CategoryIcon, EyeOffIcon, StarIcon } from "./icons";
-import { formatNoteTimestamp } from "./NoteThreadList";
+import { formatNoteTimestamp, formatNoteTimestampShort } from "./NoteThreadList";
 import { AutoGrowTextarea } from "@/components/ui/AutoGrowTextarea";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { TrashIcon } from "@/components/ui/Notebook";
@@ -250,7 +250,7 @@ export function NoteThreadView({
           {lastIsMine && (
             <p className="text-right text-xs" style={{ color: remindState === "error" ? "var(--status-critical)" : "var(--text-muted)" }}>
               {thread.isSeenByPartner
-                ? `Read${thread.partnerReadAt ? ` ${formatNoteTimestamp(thread.partnerReadAt)}` : ""}`
+                ? `Read${thread.partnerReadAt ? ` ${formatNoteTimestampShort(thread.partnerReadAt)}` : ""}`
                 : remindState === "sent"
                   ? "Delivered · Reminded just now"
                   : remindState === "sending"

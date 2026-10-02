@@ -54,9 +54,10 @@ describe("NoteThreadList on Sent", () => {
     expect(screen.queryByLabelText("Mark as unread")).toBeNull();
   });
 
-  it("shows when the partner read it", () => {
+  it("shows a preview, not a read stamp, once the partner has read it", () => {
     renderSent(thread({ isSeenByPartner: true, partnerReadAt: "2026-09-20T19:30:00.000Z" }));
-    expect(screen.getByText(/^Read /)).toBeTruthy();
+    expect(screen.queryByText(/Read /)).toBeNull();
+    expect(screen.getByText("Pasta tonight?")).toBeTruthy();
     expect(screen.getByText("Dinner plans").style.fontWeight).toBe("500");
   });
 
