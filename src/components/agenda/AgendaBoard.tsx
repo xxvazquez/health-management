@@ -21,6 +21,7 @@ import { PencilIcon, TrashIcon } from "@/components/ui/Notebook";
 import { ChevronIcon } from "@/components/ui/icons";
 import { ROW_INLINE_CLS, ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
 import { FormGroup } from "@/components/ui/FormGroup";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { useSwipeReveal, SWIPE_REVEAL_CLASS } from "@/lib/useSwipeReveal";
 
 const ACCENT = "var(--series-berry)";
@@ -198,7 +199,7 @@ export function AgendaBoard(props: AgendaBoardProps) {
   const [view, setView] = useState<AgendaView>("all");
   const [add, setAdd] = useState<AddState>(null);
   const [editing, setEditing] = useState<AgendaEntry | null>(null);
-  const [confirmingDelete, setConfirmingDelete] = useState<string | null>(null);
+  const [confirmingDelete, setConfirmingDelete] = useState<AgendaEntry | null>(null);
 
   const views: AgendaView[] = partnerLinked ? ["all", "mine", "shared", "expiry", "medical"] : ["all", "reminders", "expiry", "medical"];
 
@@ -291,6 +292,21 @@ export function AgendaBoard(props: AgendaBoardProps) {
   return (
     <div className="flex flex-col gap-5">
       {formSheet}
+      {confirmingDelete && (
+        <ConfirmDialog
+          title={`Delete “${confirmingDelete.title}”?`}
+          message={confirmingDelete.scope === "shared" ? "It's removed for both of you." : "This can't be undone."}
+          confirmLabel="Delete"
+          destructive
+          onConfirm={() => {
+            const e = confirmingDelete;
+            setConfirmingDelete(null);
+            if (e.kind === "reminder") void props.onDeleteReminder(e);
+            else if (e.kind === "expiry") void props.onDeleteExpiry(e);
+          }}
+          onClose={() => setConfirmingDelete(null)}
+        />
+      )}
       <PageHeading
         subtitle={subtitle}
         actions={
@@ -349,17 +365,10 @@ export function AgendaBoard(props: AgendaBoardProps) {
                       key={e.key}
                       entry={e}
                       tone={tone}
-                      confirming={confirmingDelete === e.key}
                       onComplete={() => void props.onCompleteReminder(e)}
                       onUncomplete={() => void props.onUncompleteReminder(e)}
                       onEdit={() => setEditing(e)}
-                      onAskDelete={() => setConfirmingDelete(e.key)}
-                      onCancelDelete={() => setConfirmingDelete(null)}
-                      onConfirmDelete={() => {
-                        setConfirmingDelete(null);
-                        if (e.kind === "reminder") void props.onDeleteReminder(e);
-                        else if (e.kind === "expiry") void props.onDeleteExpiry(e);
-                      }}
+                      onAskDelete={() => setConfirmingDelete(e)}
                     />
                   ))}
                 </div>
@@ -375,24 +384,18 @@ export function AgendaBoard(props: AgendaBoardProps) {
 function AgendaRow({
   entry,
   tone,
-  confirming,
   onComplete,
   onUncomplete,
   onEdit,
   onAskDelete,
-  onCancelDelete,
-  onConfirmDelete,
 }: {
   entry: AgendaEntry;
   /** The row's time-section colour. */
   tone?: string;
-  confirming: boolean;
   onComplete: () => void;
   onUncomplete: () => void;
   onEdit: () => void;
   onAskDelete: () => void;
-  onCancelDelete: () => void;
-  onConfirmDelete: () => void;
 }) {
   const e = entry;
   const done = e.bucket === "done";
@@ -485,7 +488,7 @@ function AgendaRow({
       onTouchStart={readOnly ? undefined : onTouchStart}
       onTouchEnd={readOnly ? undefined : onTouchEnd}
       onClick={
-        readOnly || confirming
+        readOnly
           ? undefined
           : (ev) => {
               if ((ev.target as HTMLElement).closest("button, a, input")) return;
@@ -503,54 +506,33 @@ function AgendaRow({
         <>
           {label}
           {whenEl}
-          {confirming ? (
-            <span className="flex shrink-0 items-center gap-1">
-              <button
-                type="button"
-                onClick={onConfirmDelete}
-                className="min-h-9 rounded-md px-3 text-sm font-semibold"
-                style={{ color: "var(--status-critical)" }}
-              >
-                Delete
+          {/* On desktop the hover actions float over the row's right edge
+              instead of keeping an empty gap beside the date. */}
+          <div
+            className={clsx(
+              "flex shrink-0 items-center gap-3 transition-opacity lg:absolute lg:inset-y-0 lg:right-0 lg:min-w-24 lg:justify-end lg:pl-3",
+              revealed ? SWIPE_REVEAL_CLASS.shown : SWIPE_REVEAL_CLASS.hidden,
+            )}
+            style={{ background: "var(--surface-1)" }}
+          >
+            {done && (
+              <button type="button" onClick={onUncomplete} aria-label="Undo last done" className="p-1" style={{ color: "var(--text-muted)" }}>
+                <UndoIcon size={15} />
               </button>
-              <button
-                type="button"
-                onClick={onCancelDelete}
-                className="min-h-9 rounded-md px-3 text-sm font-medium"
-                style={{ color: "var(--text-muted)" }}
-              >
-                Keep
-              </button>
-            </span>
-          ) : (
-            // On desktop the hover actions float over the row's right edge
-            // instead of keeping an empty gap beside the date.
-            <div
-              className={clsx(
-                "flex shrink-0 items-center gap-3 transition-opacity lg:absolute lg:inset-y-0 lg:right-0 lg:min-w-24 lg:justify-end lg:pl-3",
-                revealed ? SWIPE_REVEAL_CLASS.shown : SWIPE_REVEAL_CLASS.hidden,
-              )}
-              style={{ background: "var(--surface-1)" }}
+            )}
+            <button type="button" onClick={onEdit} aria-label="Edit" className="p-1" style={{ color: "var(--text-muted)" }}>
+              <PencilIcon size={15} />
+            </button>
+            <button
+              type="button"
+              onClick={onAskDelete}
+              aria-label="Delete"
+              className="p-1"
+              style={{ color: "var(--text-muted)" }}
             >
-              {done && (
-                <button type="button" onClick={onUncomplete} aria-label="Undo last done" className="p-1" style={{ color: "var(--text-muted)" }}>
-                  <UndoIcon size={15} />
-                </button>
-              )}
-              <button type="button" onClick={onEdit} aria-label="Edit" className="p-1" style={{ color: "var(--text-muted)" }}>
-                <PencilIcon size={15} />
-              </button>
-              <button
-                type="button"
-                onClick={onAskDelete}
-                aria-label="Delete"
-                className="p-1"
-                style={{ color: "var(--text-muted)" }}
-              >
-                <TrashIcon size={15} />
-              </button>
-            </div>
-          )}
+              <TrashIcon size={15} />
+            </button>
+          </div>
         </>
       )}
     </div>
