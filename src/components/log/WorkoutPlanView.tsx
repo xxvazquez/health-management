@@ -44,29 +44,35 @@ export function useLoggedValues(logs: RawWorkoutLog[], itemsById: Map<string, Ra
   }, [logs, itemsById]);
 }
 
+/** "+5", "−2.5", "80%" — the day's adjustment, short enough to sit beside the target. */
+function sessionShort(set: PlannedSet): string | null {
+  if (set.session.mode === "percent") return `${set.session.amount}%`;
+  if (set.session.amount === 0) return null;
+  return `${set.session.amount > 0 ? "+" : "−"}${Math.abs(set.session.amount)}`;
+}
+
+/** The target with the day's adjustment, then a short or missed set on a
+ * line of its own. A done set needs no word: the logged line under it
+ * already carries the tick. */
 function StatusLine({ set }: { set: PlannedSet }) {
+  const adjustment = sessionShort(set);
   const status =
-    set.status === "done"
-      ? { text: "✓ Done", color: "var(--status-good)" }
-      : set.status === "short"
-        ? { text: `Short: ${set.loggedKg} kg`, color: "var(--status-warning)" }
-        : set.status === "missed"
-          ? { text: "Missed", color: "var(--status-warning)" }
-          : null;
+    set.status === "short"
+      ? `Short: ${set.loggedKg} kg`
+      : set.status === "missed"
+        ? "Missed"
+        : null;
   return (
-    <p className="text-xs tabular-nums" style={{ color: "var(--text-secondary)" }}>
-      <span className="whitespace-nowrap">Target {set.targetKg} kg</span>
-      {" · "}
-      <span className="whitespace-nowrap">{describeSession(set.session)}</span>
+    <>
+      <p className="text-xs tabular-nums" style={{ color: "var(--text-secondary)" }} title={`This day: ${describeSession(set.session)}`}>
+        Target {set.targetKg} kg{adjustment && ` · ${adjustment}`}
+      </p>
       {status && (
-        <>
-          {" · "}
-          <span className="font-medium whitespace-nowrap" style={{ color: status.color }}>
-            {status.text}
-          </span>
-        </>
+        <p className="text-xs font-medium tabular-nums" style={{ color: "var(--status-warning)" }}>
+          {status}
+        </p>
       )}
-    </p>
+    </>
   );
 }
 
