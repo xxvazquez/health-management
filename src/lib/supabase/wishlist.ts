@@ -1,4 +1,5 @@
-import { supabase, supabaseAnonKey, supabaseUrl } from "./client";
+import { supabase } from "./client";
+import { deletePhoneToken, fetchPhoneToken, functionAuthHeader, functionEndpoint, regeneratePhoneToken, type PhoneToken } from "./phoneTokens";
 import { createTimeOrderedId } from "@/lib/sortableId";
 import { deleteDirect, updateDirect, upsertDirect } from "./directWrite";
 
@@ -81,10 +82,6 @@ async function currentUserId(): Promise<string | null> {
     data: { session },
   } = await supabase.auth.getSession();
   return session?.user.id ?? null;
-}
-
-function notConfigured(): Error {
-  return new Error("Cloud sync isn't set up for this deployment.");
 }
 
 /** Categories oldest first (stable order — the per-category accent colour
@@ -238,69 +235,11 @@ export async function fetchLinkMetadata(url: string): Promise<{ title: string | 
 }
 
 /** A phone Share Sheet shortcut (iOS) posts links to the wishlist-share
- * Edge Function with one of these tokens standing in for a session. One
- * per account; regenerating replaces the old one. */
-export interface WishlistShareToken {
-  token: string;
-  createdAt: string;
-  lastUsedAt: string | null;
-}
+ * Edge Function with one of these tokens standing in for a session. */
+export type WishlistShareToken = PhoneToken;
 
-const SHARE_TOKEN_COLUMNS = "token, created_at, last_used_at";
-
-function toShareToken(row: { token: string; created_at: string; last_used_at: string | null }): WishlistShareToken {
-  return { token: row.token, createdAt: row.created_at, lastUsedAt: row.last_used_at };
-}
-
-function randomShareToken(): string {
-  const bytes = crypto.getRandomValues(new Uint8Array(24));
-  let binary = "";
-  for (const b of bytes) binary += String.fromCharCode(b);
-  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-}
-
-export async function fetchMyShareToken(): Promise<WishlistShareToken | null> {
-  if (!supabase) return null;
-  const myUserId = await currentUserId();
-  if (!myUserId) return null;
-  const { data, error } = await supabase
-    .from("wishlist_share_tokens")
-    .select(SHARE_TOKEN_COLUMNS)
-    .eq("owner_id", myUserId)
-    .maybeSingle();
-  if (error) throw error;
-  return data ? toShareToken(data) : null;
-}
-
-/** Creates a token, replacing any existing one for this account. */
-export async function regenerateMyShareToken(): Promise<WishlistShareToken> {
-  if (!supabase) throw notConfigured();
-  const myUserId = await currentUserId();
-  if (!myUserId) throw new Error("Sign in first.");
-  await supabase.from("wishlist_share_tokens").delete().eq("owner_id", myUserId);
-  const { data, error } = await supabase
-    .from("wishlist_share_tokens")
-    .insert({ owner_id: myUserId, token: randomShareToken() })
-    .select(SHARE_TOKEN_COLUMNS)
-    .single();
-  if (error) throw error;
-  return toShareToken(data);
-}
-
-export async function deleteMyShareToken(): Promise<void> {
-  if (!supabase) return;
-  const myUserId = await currentUserId();
-  if (!myUserId) return;
-  const { error } = await supabase.from("wishlist_share_tokens").delete().eq("owner_id", myUserId);
-  if (error) throw error;
-}
-
-/** The endpoint a Share Sheet shortcut POSTs to, or null when cloud sync
- * isn't configured for this deployment. */
-export function wishlistShareEndpoint(): string | null {
-  return supabaseUrl ? `${supabaseUrl}/functions/v1/wishlist-share` : null;
-}
-
-export function wishlistShareAuthHeader(): string | null {
-  return supabaseAnonKey ? `Bearer ${supabaseAnonKey}` : null;
-}
+export const fetchMyShareToken = () => fetchPhoneToken("wishlist_share_tokens");
+export const regenerateMyShareToken = () => regeneratePhoneToken("wishlist_share_tokens");
+export const deleteMyShareToken = () => deletePhoneToken("wishlist_share_tokens");
+export const wishlistShareEndpoint = () => functionEndpoint("wishlist-share");
+export const wishlistShareAuthHeader = functionAuthHeader;

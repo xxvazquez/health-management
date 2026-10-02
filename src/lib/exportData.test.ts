@@ -37,6 +37,7 @@ describe("export table list", () => {
       "partner_links",
       "push_subscriptions",
       "wishlist_share_tokens",
+      "health_import_tokens",
       "household_task_subitems",
     ];
     const all = [...schema.matchAll(/^create table public\.([a-z_]+) \(/gm)].map((m) => m[1]);

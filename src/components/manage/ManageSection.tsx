@@ -21,6 +21,7 @@ type SectionMode = "row" | "detail" | "inline" | "hidden";
 export const SECTION_PARENT: Record<string, string> = {
   "Food products": "Food",
   "Workout plans": "Workout",
+  "Apple Health": "Workout",
 };
 
 /** `searching` (a live query on the Settings search box) shows every
@@ -43,6 +44,7 @@ const SECTION_ICON: Record<string, { icon: string; color: string }> = {
   Habits: { icon: "sparkle", color: TYPE_ACCENT.habit },
   Workout: { icon: "dumbbell", color: "var(--series-6)" },
   "Workout plans": { icon: "calendar", color: "var(--series-6)" },
+  "Apple Health": { icon: "lucide:heart-pulse", color: "var(--series-4)" },
   Coffee: { icon: "mug", color: "var(--series-slate)" },
   "Stool options": { icon: "drop", color: "var(--series-indigo)" },
   "Hidden links": { icon: "eye", color: TYPE_ACCENT.outcome },

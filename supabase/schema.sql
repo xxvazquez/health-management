@@ -1314,6 +1314,19 @@ create table public.wishlist_share_tokens (
   unique (owner_id)
 );
 
+-- Log -> Workout: a personal token so an iOS Shortcut reading Apple Health
+-- can POST a day's walking minutes to the health-import Edge Function
+-- without a Supabase session. Separate from the wishlist token so each
+-- shortcut can only do its one job. Same shape: one per person, rotated by
+-- delete + insert, read by the function with the service-role key.
+create table public.health_import_tokens (
+  token text primary key,
+  owner_id uuid not null default auth.uid() references auth.users(id),
+  created_at timestamptz not null default now(),
+  last_used_at timestamptz,
+  unique (owner_id)
+);
+
 create index wishlist_categories_owner_created_idx on public.wishlist_categories (owner_id, created_at);
 create index wishlist_items_category_created_idx on public.wishlist_items (category_id, created_at desc);
 
@@ -1402,6 +1415,7 @@ alter table public.household_codes enable row level security;
 alter table public.wishlist_categories enable row level security;
 alter table public.wishlist_items enable row level security;
 alter table public.wishlist_share_tokens enable row level security;
+alter table public.health_import_tokens enable row level security;
 alter table public.food_nutrition_groups enable row level security;
 
 create policy "categories_all_own" on public.categories for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
@@ -1584,6 +1598,10 @@ create policy "wishlist_items_delete_pair" on public.wishlist_items for delete u
 create policy "wishlist_share_tokens_select_own" on public.wishlist_share_tokens for select using (auth.uid() = owner_id);
 create policy "wishlist_share_tokens_insert_own" on public.wishlist_share_tokens for insert with check (auth.uid() = owner_id);
 create policy "wishlist_share_tokens_delete_own" on public.wishlist_share_tokens for delete using (auth.uid() = owner_id);
+-- health_import_tokens: the same rules as wishlist_share_tokens.
+create policy "health_import_tokens_select_own" on public.health_import_tokens for select using (auth.uid() = owner_id);
+create policy "health_import_tokens_insert_own" on public.health_import_tokens for insert with check (auth.uid() = owner_id);
+create policy "health_import_tokens_delete_own" on public.health_import_tokens for delete using (auth.uid() = owner_id);
 create policy "food_nutrition_groups_all_own" on public.food_nutrition_groups for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 -- household_task_completions has no owner_id of its own (it's a log of

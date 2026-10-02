@@ -696,6 +696,12 @@ set; an unset category keeps its built-in look (`colorForCategorySlot`'s
 per-slot rainbow for Food, the domain accent elsewhere). The Trends
 dashboards are untouched.
 
+`health_import_tokens` has the same shape and rules: one per account, for
+the iOS Shortcut that POSTs a day's walking minutes from Apple Health to
+the `health-import` Edge Function. The function writes a `workout_logs` row
+whose id is derived from (user, exercise, date), so each day has one
+imported entry that a re-run overwrites and a 0 deletes.
+
 `wishlist_share_tokens` (one row per account, `unique (owner_id)`) is a
 capture token for a phone Share Sheet shortcut: iOS has no PWA share
 target, so the shortcut POSTs a link to the `wishlist-share` Edge
@@ -725,6 +731,7 @@ phone"). Regenerating is a delete + insert, so there's no UPDATE policy.
 | `notes` | SELECT/UPDATE: `auth.uid() in (sender_id, recipient_id)`. INSERT: must be yourself, to your actual linked partner, into a thread you're part of. No DELETE. |
 | `household_notes` / `household_tasks` / `household_items` / `household_codes` / `household_task_completions` / `wishlist_categories` / `wishlist_items` | `auth.uid() = owner_id or is_household_member(owner_id)` — visible and editable by the creator and their one linked partner. INSERT must be as `owner_id = auth.uid()`; `wishlist_items` also checks the target category is one you can see. |
 | `wishlist_share_tokens` | SELECT/INSERT/DELETE only, `auth.uid() = owner_id` — personal, never pair-visible. |
+| `health_import_tokens` | Same as `wishlist_share_tokens`. |
 
 ## Functions & triggers
 

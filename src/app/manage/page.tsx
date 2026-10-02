@@ -18,6 +18,7 @@ import { DemoNotice } from "@/components/ui/DemoNotice";
 import { PushNotificationsToggle } from "@/components/PushNotificationsToggle";
 import { DataExportCard } from "@/components/manage/DataExportCard";
 import { WorkoutPlansCard } from "@/components/manage/WorkoutPlansCard";
+import { HealthImportCard } from "@/components/manage/HealthImportCard";
 import { FoodTargetsCard } from "@/components/manage/FoodTargetsCard";
 import { HiddenLinksCard } from "@/components/manage/HiddenLinksCard";
 import { UsualTimesCard } from "@/components/manage/UsualTimesCard";
@@ -3658,6 +3659,7 @@ export default function ManagePage() {
         />
       ),
     },
+    { label: "Apple Health", el: <HealthImportCard key="apple-health" isDemoData={isDemoData} searchQuery={searchQuery} /> },
     { label: "Weight goal", el: <WeightGoalCard key="weight-goal" isDemoData={isDemoData} searchQuery={searchQuery} /> },
     { label: "Wishlist lists", el: <WishlistListsCard key="wishlist-lists" isDemoData={isDemoData} searchQuery={searchQuery} /> },
     ...TYPE_SECTIONS.map((section) => ({
@@ -3725,6 +3727,7 @@ export default function ManagePage() {
     Habits: "habit",
     Workout: "workout",
     "Workout plans": "workout",
+    "Apple Health": "workout",
     Coffee: "coffee",
     "Stool options": "stool",
   };
