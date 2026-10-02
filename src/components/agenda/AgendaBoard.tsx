@@ -1,12 +1,11 @@
 "use client";
 
 import { DatePicker } from "@/components/ui/DatePicker";
-import { CONTROL_CLS, CONTROL_STYLE } from "@/components/ui/Chip";
 import { useMemo, useState, type FormEvent, type ReactNode } from "react";
 import Link from "next/link";
 import clsx from "clsx";
 import { AGENDA_BUCKET_LABEL, AGENDA_BUCKET_ORDER, EXPIRY_GROUP_LABEL, EXPIRY_GROUP_ORDER, expiryGroup, type AgendaBucket, type AgendaEntry, type ExpiryGroup, recurrenceLabel } from "@/lib/aggregations/agenda";
-import { isRecurringTask, type TaskSubitem } from "@/lib/reminders";
+import { isRecurringTask } from "@/lib/reminders";
 import { todayLocalISODate } from "@/lib/aggregations/common";
 import type { ReminderList } from "@/lib/supabase/personalReminders";
 import { TaskForm, type TaskFormValues } from "@/components/reminders/TaskForm";
@@ -74,70 +73,11 @@ function inView(e: AgendaEntry, view: AgendaView): boolean {
   return e.kind === "expiry";
 }
 
-function FunnelIcon({ size = 13 }: { size?: number }) {
+function HourglassIcon({ size = 14 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M3.5 4.5h13l-5 6.2V16l-3 1.4v-6.7Z" />
+      <path d="M5.5 3h9M5.5 17h9M6.5 3v2.5c0 1.6 1.4 3 3.5 4.5 2.1-1.5 3.5-2.9 3.5-4.5V3M6.5 17v-2.5c0-1.6 1.4-3 3.5-4.5 2.1 1.5 3.5 2.9 3.5 4.5V17" />
     </svg>
-  );
-}
-
-interface FilterState {
-  listFilter: string | "all";
-  setListFilter: (v: string | "all") => void;
-}
-
-/** The Filter toggle that sits in the page heading — a count badge shows
- * how many filters are on while the panel is closed. */
-function FilterButton({ open, count, onToggle }: { open: boolean; count: number; onToggle: () => void }) {
-  const lit = open || count > 0;
-  return (
-    <button
-      type="button"
-      onClick={onToggle}
-      aria-expanded={open}
-      className={CONTROL_CLS}
-      style={lit ? { background: `color-mix(in oklab, ${ACCENT} 16%, var(--surface-1))`, color: ACCENT } : CONTROL_STYLE}
-    >
-      <FunnelIcon />
-      Filter
-      {count > 0 && (
-        <span
-          className="flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-xs font-semibold tabular-nums"
-          style={{ background: ACCENT, color: "var(--surface-1)" }}
-        >
-          {count}
-        </span>
-      )}
-    </button>
-  );
-}
-
-/** The expandable filter panel — which reminder list to show, plus Clear
- * once one is picked. Rendered full-width under the view switcher. */
-function FilterPanel({ lists, filters }: { lists: ReminderList[]; filters: FilterState }) {
-  const { listFilter, setListFilter } = filters;
-  return (
-    <div className="flex flex-col gap-2">
-      <FormGroup>
-        <Field label="List" inline>
-          <select value={listFilter} onChange={(e) => setListFilter(e.target.value)} className={ROW_INLINE_CLS} style={ROW_STYLE}>
-            <option value="all">All lists</option>
-            <option value="__default__">Reminders</option>
-            {lists.map((l) => (
-              <option key={l.id} value={l.id}>
-                {l.name}
-              </option>
-            ))}
-          </select>
-        </Field>
-      </FormGroup>
-      {listFilter !== "all" && (
-        <button type="button" onClick={() => setListFilter("all")} className="self-start px-3.5 text-sm font-medium" style={{ color: "var(--ui-accent)" }}>
-          Clear
-        </button>
-      )}
-    </div>
   );
 }
 
@@ -145,10 +85,13 @@ function FilterPanel({ lists, filters }: { lists: ReminderList[]; filters: Filte
 function ExpiryForm({
   initial,
   onSave,
+  onRemove,
   onCancel,
 }: {
   initial?: { name: string; expiresOn: string; remindDaysBefore: number };
   onSave: (name: string, expiresOn: string, remindDaysBefore: number) => Promise<void>;
+  /** Clears an existing product off the list — used up or thrown away. */
+  onRemove?: () => Promise<void>;
   onCancel: () => void;
 }) {
   const [name, setName] = useState(initial?.name ?? "");
@@ -167,6 +110,19 @@ function ExpiryForm({
     } catch (err) {
       console.error("agenda expiry save failed", err);
       setError("Couldn't save that — try again in a moment.");
+      setSaving(false);
+    }
+  }
+
+  async function remove() {
+    if (!onRemove) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await onRemove();
+    } catch (err) {
+      console.error("agenda expiry remove failed", err);
+      setError("Couldn't remove that — try again in a moment.");
       setSaving(false);
     }
   }
@@ -192,6 +148,22 @@ function ExpiryForm({
           <input inputMode="numeric" value={remind} onChange={(e) => setRemind(e.target.value)} className={`${ROW_INLINE_CLS} w-16`} style={ROW_STYLE} />
         </Field>
       </FormGroup>
+      {onRemove && (
+        <FormGroup>
+          {(["Used up", "Thrown away"] as const).map((label) => (
+            <button
+              key={label}
+              type="button"
+              disabled={saving}
+              onClick={() => void remove()}
+              className="flex min-h-11 w-full items-center px-3.5 text-left text-sm font-medium disabled:opacity-40"
+              style={{ color: label === "Used up" ? "var(--series-2)" : "var(--status-critical)" }}
+            >
+              {label}
+            </button>
+          ))}
+        </FormGroup>
+      )}
       {error && <span className="text-xs" style={{ color: "var(--status-critical)" }}>{error}</span>}
     </FormShell>
   );
@@ -211,7 +183,6 @@ export interface AgendaBoardProps {
   onEditReminder: (e: AgendaEntry, v: TaskFormValues) => Promise<void>;
   onDeleteReminder: (e: AgendaEntry) => Promise<void>;
   onCreateReminder: (scope: "mine" | "shared", v: TaskFormValues) => Promise<void>;
-  onToggleSubitem: (e: AgendaEntry, subitem: TaskSubitem) => void;
   onEditExpiry: (e: AgendaEntry, name: string, expiresOn: string, remindDaysBefore: number) => Promise<void>;
   onDeleteExpiry: (e: AgendaEntry) => Promise<void>;
   onCreateExpiry: (scope: "mine" | "shared", name: string, expiresOn: string, remindDaysBefore: number) => Promise<void>;
@@ -225,26 +196,13 @@ type AddState =
 export function AgendaBoard(props: AgendaBoardProps) {
   const { entries, subtitle, lists, partnerLinked, loading, error, assignable } = props;
   const [view, setView] = useState<AgendaView>("all");
-  const [listFilter, setListFilter] = useState<string | "all">("all");
-  const [filterOpen, setFilterOpen] = useState(false);
   const [add, setAdd] = useState<AddState>(null);
   const [editing, setEditing] = useState<AgendaEntry | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState<string | null>(null);
 
-  const filters: FilterState = { listFilter, setListFilter };
-  const activeCount = listFilter !== "all" ? 1 : 0;
   const views: AgendaView[] = partnerLinked ? ["all", "mine", "shared", "expiry", "medical"] : ["all", "reminders", "expiry", "medical"];
 
-  const filtered = useMemo(() => {
-    return entries.filter((e) => {
-      if (!inView(e, view)) return false;
-      if (listFilter !== "all") {
-        if (e.kind !== "reminder") return false;
-        if ((e.reminder?.listId ?? null) !== (listFilter === "__default__" ? null : listFilter)) return false;
-      }
-      return true;
-    });
-  }, [entries, view, listFilter]);
+  const filtered = useMemo(() => entries.filter((e) => inView(e, view)), [entries, view]);
 
   const grouped = useMemo(() => {
     const map = new Map<AgendaBucket, AgendaEntry[]>();
@@ -312,6 +270,14 @@ export function AgendaBoard(props: AgendaBoardProps) {
           setAdd(null);
           setEditing(null);
         }}
+        onRemove={
+          editing
+            ? async () => {
+                await props.onDeleteExpiry(editing);
+                setEditing(null);
+              }
+            : undefined
+        }
         onCancel={() => {
           setAdd(null);
           setEditing(null);
@@ -320,7 +286,6 @@ export function AgendaBoard(props: AgendaBoardProps) {
     );
   }
 
-  const showList = lists.length > 0;
   const ready = !loading && !error;
 
   return (
@@ -330,9 +295,7 @@ export function AgendaBoard(props: AgendaBoardProps) {
         subtitle={subtitle}
         actions={
           ready ? (
-            <div className="flex items-center gap-2">
-              {showList && <FilterButton open={filterOpen} count={activeCount} onToggle={() => setFilterOpen((o) => !o)} />}
-              <AddMenu
+            <AddMenu
                 accent={ACCENT}
                 options={[
                   { label: partnerLinked ? "My reminder" : "Reminder", onClick: () => setAdd({ mode: "reminder", scope: "mine" }) },
@@ -341,7 +304,6 @@ export function AgendaBoard(props: AgendaBoardProps) {
                   ...(partnerLinked ? [{ label: "Shared expiry product", onClick: () => setAdd({ mode: "expiry" as const, scope: "shared" as const }) }] : []),
                 ]}
               />
-            </div>
           ) : undefined
         }
       >
@@ -356,8 +318,6 @@ export function AgendaBoard(props: AgendaBoardProps) {
           ariaLabel="Agenda view"
         />
       )}
-
-      {ready && showList && filterOpen && <FilterPanel lists={lists} filters={filters} />}
 
       {loading ? (
         <ListSkeleton />
@@ -393,7 +353,6 @@ export function AgendaBoard(props: AgendaBoardProps) {
                       onComplete={() => void props.onCompleteReminder(e)}
                       onUncomplete={() => void props.onUncompleteReminder(e)}
                       onEdit={() => setEditing(e)}
-                      onToggleSubitem={(s) => props.onToggleSubitem(e, s)}
                       onAskDelete={() => setConfirmingDelete(e.key)}
                       onCancelDelete={() => setConfirmingDelete(null)}
                       onConfirmDelete={() => {
@@ -423,7 +382,6 @@ function AgendaRow({
   onAskDelete,
   onCancelDelete,
   onConfirmDelete,
-  onToggleSubitem,
 }: {
   entry: AgendaEntry;
   /** The row's time-section colour. */
@@ -435,7 +393,6 @@ function AgendaRow({
   onAskDelete: () => void;
   onCancelDelete: () => void;
   onConfirmDelete: () => void;
-  onToggleSubitem: (subitem: TaskSubitem) => void;
 }) {
   const e = entry;
   const done = e.bucket === "done";
@@ -445,13 +402,15 @@ function AgendaRow({
   const recurring = e.reminder ? isRecurringTask(e.reminder) : false;
   const subitems = e.reminder?.subitems ?? [];
   const { revealed, onTouchStart, onTouchEnd } = useSwipeReveal();
-  // Reminders toggle done. An expiring product has no "done" state, so its
-  // circle means "used up": it asks first, then clears it from the list.
-  const checkable = isReminder || e.kind === "expiry";
-  const [usedUp, setUsedUp] = useState(false);
+  const subitemsDone = subitems.filter((s) => s.done).length;
 
-  // The note preview gets its own line; repeat and "Shared" share one.
-  const details = [recurring && e.reminder?.recurrenceDays != null ? recurrenceLabel(e.reminder.recurrenceDays) : null, e.scope === "shared" ? "Shared" : null]
+  // The note preview gets its own line; checklist progress, repeat and
+  // "Shared" share one.
+  const details = [
+    subitems.length > 0 ? `${subitemsDone} of ${subitems.length}` : null,
+    recurring && e.reminder?.recurrenceDays != null ? recurrenceLabel(e.reminder.recurrenceDays) : null,
+    e.scope === "shared" ? "Shared" : null,
+  ]
     .filter(Boolean)
     .join(" · ");
   const meta =
@@ -477,20 +436,11 @@ function AgendaRow({
 
   const label = (
     <>
-      {checkable ? (
+      {isReminder ? (
         <button
           type="button"
-          onClick={
-            isReminder
-              ? done
-                ? onUncomplete
-                : onComplete
-              : () => {
-                  setUsedUp(true);
-                  onAskDelete();
-                }
-          }
-          aria-label={isReminder ? (done ? "Mark not done" : recurring ? "Mark done for this cycle" : "Mark done") : `Mark ${e.title} as used up`}
+          onClick={done ? onUncomplete : onComplete}
+          aria-label={done ? "Mark not done" : recurring ? "Mark done for this cycle" : "Mark done"}
           className="mt-0.5 flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full border transition-colors hover:border-[var(--status-good)] hover:bg-[var(--page-plane)]"
           style={{
             borderColor: done ? "var(--status-good)" : (tone ?? "var(--text-secondary)"),
@@ -503,6 +453,11 @@ function AgendaRow({
             </svg>
           )}
         </button>
+      ) : e.kind === "expiry" ? (
+        // Nothing to tick off: a product is cleared from its sheet.
+        <span className="mt-0.5 flex h-[18px] w-[18px] shrink-0 items-center justify-center" style={{ color: tone ?? "var(--text-muted)" }} aria-hidden="true">
+          <HourglassIcon />
+        </span>
       ) : (
         // Same footprint as the checkbox above, so a read-only row's title
         // lands in the same column as a checkable one instead of drifting
@@ -517,35 +472,6 @@ function AgendaRow({
           {e.title}
         </span>
         {meta}
-        {subitems.length > 0 && (
-          <div className="mt-1.5 flex flex-col gap-1.5">
-            {subitems.map((s) => (
-              <button
-                key={s.id}
-                type="button"
-                onClick={(ev) => {
-                  ev.stopPropagation();
-                  onToggleSubitem(s);
-                }}
-                className="flex min-h-[18px] items-center gap-2 text-left"
-              >
-                <span
-                  className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full border"
-                  style={{ borderColor: s.done ? "var(--status-good)" : "var(--text-secondary)", background: s.done ? "var(--status-good)" : "transparent" }}
-                >
-                  {s.done && (
-                    <svg width="9" height="9" viewBox="0 0 12 12" fill="none" stroke="var(--surface-1)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                      <path d="M2.5 6.5 5 9l4.5-5" />
-                    </svg>
-                  )}
-                </span>
-                <span className={clsx("text-xs", s.done && "line-through")} style={{ color: s.done ? "var(--text-muted)" : "var(--text-secondary)" }}>
-                  {s.title}
-                </span>
-              </button>
-            ))}
-          </div>
-        )}
       </div>
     </>
   );
@@ -583,16 +509,13 @@ function AgendaRow({
                 type="button"
                 onClick={onConfirmDelete}
                 className="min-h-9 rounded-md px-3 text-sm font-semibold"
-                style={{ color: usedUp ? "var(--status-good)" : "var(--status-critical)" }}
+                style={{ color: "var(--status-critical)" }}
               >
-                {usedUp ? "Used up" : "Delete"}
+                Delete
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  setUsedUp(false);
-                  onCancelDelete();
-                }}
+                onClick={onCancelDelete}
                 className="min-h-9 rounded-md px-3 text-sm font-medium"
                 style={{ color: "var(--text-muted)" }}
               >
@@ -619,10 +542,7 @@ function AgendaRow({
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  setUsedUp(false);
-                  onAskDelete();
-                }}
+                onClick={onAskDelete}
                 aria-label="Delete"
                 className="p-1"
                 style={{ color: "var(--text-muted)" }}
