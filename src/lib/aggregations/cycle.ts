@@ -269,32 +269,48 @@ export function periodDelayDays(predictions: PredictedPeriod[], today: string, o
   return daysBetween(next.expectedStart, today);
 }
 
-export interface DatedValue {
-  date: string;
-  value: number;
+export interface CycleHistoryEntry {
+  start: string;
+  /** Last day before the next period, or today for the cycle in progress. */
+  end: string;
+  periodDays: number;
+  /** Days so far for the current cycle. */
+  length: number;
+  current: boolean;
+  /** Looks like a missed period log rather than a real cycle (`isGapCycle`). */
+  gap: boolean;
 }
 
-/** Older logging (pre-2022) was sparse/inconsistent enough that its cycle
- * and period lengths aren't reliable — excluded from these two trend charts
- * specifically, not from `cycleAnalysis`/`currentCycleStatus`/predictions,
- * which intentionally keep reading full history. */
-const CYCLE_METRICS_MIN_DATE = "2022-01-01";
-
-/** One point per completed cycle, dated at the LATER period's start (the
- * only point in time the cycle's length is actually known) — for the
- * Cycle analytics page's "cycle length over time" chart. Logging gaps
- * (see `isGapCycle`) are left out. */
-export function cycleLengthTrend(runs: PeriodRun[]): DatedValue[] {
+/** Every cycle, newest first: each period start up to the day before the
+ * next, and the one in progress up to today. */
+export function cycleHistory(runs: PeriodRun[], today: string): CycleHistoryEntry[] {
   const lengths = cycleLengthsFromRuns(runs);
-  const points: DatedValue[] = [];
-  for (let i = 0; i < runs.length - 1; i++) {
-    if (!isGapCycle(lengths[i], lengths)) points.push({ date: runs[i + 1].startDate, value: lengths[i] });
-  }
-  return points.filter((p) => p.date >= CYCLE_METRICS_MIN_DATE);
+  return runs
+    .map((run, i) => {
+      const next = runs[i + 1];
+      const current = !next;
+      const end = next ? addDaysToDate(next.startDate, -1) : today;
+      return {
+        start: run.startDate,
+        end,
+        periodDays: daysBetween(run.startDate, run.endDate) + 1,
+        length: next ? lengths[i] : daysBetween(run.startDate, today) + 1,
+        current,
+        gap: !current && isGapCycle(lengths[i], lengths),
+      };
+    })
+    .reverse();
 }
 
-/** One point per recorded period, dated at its own start — for the Cycle
- * analytics page's "period length over time" chart. */
-export function periodLengthTrend(runs: PeriodRun[]): DatedValue[] {
-  return runs.map((r) => ({ date: r.startDate, value: daysBetween(r.startDate, r.endDate) + 1 })).filter((p) => p.date >= CYCLE_METRICS_MIN_DATE);
+/** Older logging (pre-2022) was too sparse to trust its lengths. */
+const CYCLE_CHART_MIN_DATE = "2022-01-01";
+const CYCLE_CHART_MAX = 12;
+
+/** The completed cycles the length chart draws, oldest first: logging gaps
+ * and anything before 2022 left out, the latest twelve at most. */
+export function cycleChartEntries(history: CycleHistoryEntry[]): CycleHistoryEntry[] {
+  return history
+    .filter((c) => !c.current && !c.gap && c.start >= CYCLE_CHART_MIN_DATE)
+    .slice(0, CYCLE_CHART_MAX)
+    .reverse();
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { checkInsByPhase, isGapCycle, groupIntoPeriodRuns, cycleLengthsFromRuns, cyclePhaseByDate, currentCycleStatus, predictUpcomingPeriods, cycleAnalysis, cycleLengthTrend, periodLengthTrend } from "./cycle";
+import { checkInsByPhase, isGapCycle, groupIntoPeriodRuns, cycleLengthsFromRuns, cyclePhaseByDate, currentCycleStatus, predictUpcomingPeriods, cycleAnalysis, cycleHistory, cycleChartEntries } from "./cycle";
 import type { RawPeriodLog } from "@/lib/types";
 
 function makeLog(date: string, overrides: Partial<RawPeriodLog> = {}): RawPeriodLog {
@@ -56,25 +56,22 @@ describe("cycleLengthsFromRuns", () => {
   });
 });
 
-// Regression: the Cycle analytics page's "Cycle length"/"Period duration"
-// charts must never show data from before 2022 — old, sparse logging isn't
-// reliable enough to trust. cycleAnalysis/currentCycleStatus/
-// predictUpcomingPeriods deliberately still read full history (see their
-// own doc comments) — only these two trend-chart functions get the floor.
-describe("cycleLengthTrend / periodLengthTrend — 2022 floor", () => {
-  it("excludes a cycle-length point dated before 2022, keeping later points", () => {
-    const logs = [makeLog("2021-12-01"), makeLog("2021-12-29"), makeLog("2026-01-26")];
-    const runs = groupIntoPeriodRuns(logs);
-    const points = cycleLengthTrend(runs);
-    expect(points.map((p) => p.date)).not.toContain("2021-12-29");
-    expect(points.some((p) => p.date === "2026-01-26")).toBe(true);
+describe("cycleHistory / cycleChartEntries", () => {
+  it("lists cycles newest first, the current one running to today", () => {
+    const logs = [makeLog("2026-01-01"), makeLog("2026-01-02"), makeLog("2026-01-29"), makeLog("2026-02-26")];
+    const history = cycleHistory(groupIntoPeriodRuns(logs), "2026-03-05");
+    expect(history.map((c) => [c.start, c.end, c.length, c.periodDays, c.current])).toEqual([
+      ["2026-02-26", "2026-03-05", 8, 1, true],
+      ["2026-01-29", "2026-02-25", 28, 1, false],
+      ["2026-01-01", "2026-01-28", 28, 2, false],
+    ]);
   });
 
-  it("excludes a period-duration point dated before 2022, keeping later points", () => {
-    const logs = [makeLog("2021-06-01"), makeLog("2021-06-02"), makeLog("2026-02-01")];
-    const runs = groupIntoPeriodRuns(logs);
-    const points = periodLengthTrend(runs);
-    expect(points.map((p) => p.date)).toEqual(["2026-02-01"]);
+  it("keeps the chart to completed, non-gap cycles from 2022 on, oldest first", () => {
+    const logs = [makeLog("2021-12-01"), makeLog("2021-12-29"), makeLog("2026-01-01"), makeLog("2026-01-29"), makeLog("2026-02-26")];
+    const history = cycleHistory(groupIntoPeriodRuns(logs), "2026-03-05");
+    expect(history.find((c) => c.start === "2021-12-29")?.gap).toBe(true);
+    expect(cycleChartEntries(history).map((c) => c.start)).toEqual(["2026-01-01", "2026-01-29"]);
   });
 });
 
@@ -195,7 +192,7 @@ describe("cycleAnalysis", () => {
     expect(analysis.averageCycleLength).toBe(28.3);
     expect(analysis.cyclesAnalyzed).toBe(3);
     expect(predictUpcomingPeriods(groupIntoPeriodRuns(logs), 1, "2026-06-01")[0].latestStart).toBe("2026-06-20");
-    expect(cycleLengthTrend(groupIntoPeriodRuns(logs)).map((p) => p.value)).toEqual([28, 29, 28]);
+    expect(cycleChartEntries(cycleHistory(groupIntoPeriodRuns(logs), "2026-06-01")).map((c) => c.length)).toEqual([28, 29, 28]);
   });
 
   it("computes average period length from run lengths, once they're all complete", () => {

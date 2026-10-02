@@ -87,7 +87,7 @@ Sections: **Food · Symptoms · Supplements · Habits · Stool · Workout · Cyc
 
 ### Trends
 
-One dashboard per Log section, plus Patterns. The time range sits in the title row and opens on the last 30 days.
+One dashboard per Log section, plus Patterns. The time range sits in the title row and opens on the last 30 days; Patterns and Cycle read the whole history and have none.
 
 | Dashboard | Shows |
 |---|---|
@@ -96,7 +96,7 @@ One dashboard per Log section, plus Patterns. The time range sits in the title r
 | Supplements, Habits | A card per item with the days you logged it and consistency against its schedule; archived ones list their course dates and consistency |
 | Digestion | Every Bristol reading on a dot chart (hard / normal / loose counts under it), movements a day, symptom days against the previous period, each digestive symptom with its own day-by-day screen, what came with bowel movements, usual colour, hygiene and time |
 | Workout | Days trained per week, recent sessions, and each exercise in the range; an exercise opens its per-session chart with best, average and last |
-| Cycle | Current cycle day, the next period, average cycle and period length, average mood and energy per phase |
+| Cycle | Current cycle day and the next period (or how late it is), average cycle, period and variation, every cycle as a history row, a length chart from three cycles, mood and energy per phase |
 
 ### Health
 
