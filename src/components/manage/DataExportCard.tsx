@@ -161,6 +161,10 @@ function RestoreSheet({ plan, onClose, onDone }: { plan: RestorePlan; onClose: (
     try {
       const result = await restoreBackup(plan, setProgress);
       await syncNow();
+      if (result.added === 0 && result.failed === 0) {
+        onDone("Everything in this backup is already here.");
+        return;
+      }
       const parts = [`Restored ${result.added.toLocaleString()} rows`];
       if (result.existing) parts.push(`${result.existing.toLocaleString()} were already here`);
       if (result.failed) parts.push(`${result.failed.toLocaleString()} clashed with current data and were skipped`);
