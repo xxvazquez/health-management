@@ -207,4 +207,26 @@ A static site can't run anything in the background, so Supabase's `pg_cron` / `p
 - **App:** `deploy.yml` builds with full git history (for the version number) and publishes to GitHub Pages
 - **Edge Functions:** `deploy-functions.yml` deploys on changes to `supabase/functions/` and pushes only secrets that have a value, so an empty GitHub secret can't wipe one set by hand. Changing a secret's value alone doesn't trigger it; run it manually
 - **API keys:** functions read the project's new keys from the injected `SUPABASE_SECRET_KEYS` / `SUPABASE_PUBLISHABLE_KEYS` (`_shared/keys.ts`), falling back to the legacy `SUPABASE_SERVICE_ROLE_KEY` / `SUPABASE_ANON_KEY` only if those are missing. Shared code lives in `supabase/functions/_shared/`, which the deploy loop skips
+- **Database backups:** see below
 - **RLS tests:** CI applies `schema.sql` to a throwaway Postgres and runs `supabase/tests/rls.test.sql`; `sync.test.ts` covers the client's own `user_id` scoping, including an account switch
+
+### Database backups
+
+The Supabase project is on the Free plan, which has no downloadable backups, so `backup.yml` makes one every night at 02:30 UTC (or on demand from the Actions tab):
+
+- `supabase db dump` writes `roles.sql`, `schema.sql` and `data.sql` (auth users included)
+- The three are tarred and encrypted with `gpg` (AES-256, `BACKUP_PASSPHRASE`), then kept as an artifact named `lauva-db-<date>` for 90 days
+- Needs two secrets: `SUPABASE_DB_URL` (the Session pooler string — the direct host is IPv6-only) and `BACKUP_PASSPHRASE`
+- The repo is public, so the artifact is downloadable by anyone signed in to GitHub; only the passphrase protects it
+
+To restore, download the artifact, then:
+
+```bash
+gpg -d lauva-db-<date>.tar.gz.gpg | tar -xz
+psql --single-transaction --variable ON_ERROR_STOP=1 \
+  --file roles.sql --file schema.sql \
+  --command 'SET session_replication_role = replica' \
+  --file data.sql --dbname "<new project's connection string>"
+```
+
+Restore into a fresh project; for one account's rows, Settings → "Restore from a backup" with a JSON export is the gentler route.

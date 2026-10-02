@@ -1,0 +1,59 @@
+name: Back up database
+
+on:
+  schedule:
+    - cron: "30 2 * * *"
+  workflow_dispatch: {}
+
+# Nightly off-site copy of the whole Supabase database (the free plan has
+# no downloadable backups). Uses Supabase's documented CLI dump: roles,
+# schema and data (auth users included), encrypted with a passphrase and
+# kept as a workflow artifact for 90 days.
+#
+# Secrets:
+#   SUPABASE_DB_URL     the Session pooler connection string (Supabase →
+#                       Connect → Session pooler); the direct host is
+#                       IPv6-only and unreachable from GitHub's runners
+#   BACKUP_PASSPHRASE   a long random passphrase, kept somewhere safe —
+#                       a backup can't be opened without it
+#
+# The repo is public, so the artifact must never be uploaded unencrypted.
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Dump roles, schema and data
+        env:
+          DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          test -n "$DB_URL" || { echo "SUPABASE_DB_URL is not set"; exit 1; }
+          mkdir dump
+          supabase db dump --db-url "$DB_URL" -f dump/roles.sql --role-only
+          supabase db dump --db-url "$DB_URL" -f dump/schema.sql
+          supabase db dump --db-url "$DB_URL" -f dump/data.sql --use-copy --data-only
+
+      - name: Encrypt
+        env:
+          PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          test -n "$PASSPHRASE" || { echo "BACKUP_PASSPHRASE is not set"; exit 1; }
+          name="lauva-db-$(date -u +%Y-%m-%d)"
+          tar -czf - -C dump . \
+            | gpg --batch --yes --pinentry-mode loopback --symmetric --cipher-algo AES256 --passphrase-fd 3 -o "$name.tar.gz.gpg" 3<<<"$PASSPHRASE"
+          rm -rf dump
+          echo "BACKUP_NAME=$name" >> "$GITHUB_ENV"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.BACKUP_NAME }}
+          path: ${{ env.BACKUP_NAME }}.tar.gz.gpg
+          retention-days: 90
+          if-no-files-found: error
