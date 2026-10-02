@@ -18,11 +18,11 @@ const TABLES: { table: string; owner: string }[] = [
   { table: "symptom_items", owner: "user_id" },
   { table: "habit_items", owner: "user_id" },
   { table: "workout_items", owner: "user_id" },
+  { table: "food_products", owner: "user_id" },
+  { table: "food_product_ingredients", owner: "user_id" },
   { table: "food_logs", owner: "user_id" },
   { table: "meals", owner: "user_id" },
   { table: "checkins", owner: "user_id" },
-  { table: "food_products", owner: "user_id" },
-  { table: "food_product_ingredients", owner: "user_id" },
   { table: "recipes", owner: "user_id" },
   { table: "recipe_ingredients", owner: "user_id" },
   { table: "food_nutrition_groups", owner: "user_id" },
@@ -78,6 +78,14 @@ const TABLES: { table: string; owner: string }[] = [
 /** Tables scoped some other way: messages you sent or received, and the
  * checklist lines of your own household reminders. */
 const RELATED_TABLES = ["notes", "household_task_subitems"] as const;
+
+/** Every exported table in an order where a row's foreign keys point only
+ * at tables earlier in the list, so a restore can insert front to back. */
+export const RESTORE_ORDER: string[] = [...TABLES.map((t) => t.table), ...RELATED_TABLES];
+
+/** The column that marks a row as the signed-in user's, for tables that
+ * have one. */
+export const OWNER_COLUMN: Record<string, string> = Object.fromEntries(TABLES.map((t) => [t.table, t.owner]));
 
 /** The same tables grouped into the sections the app presents, for the
  * per-section CSV picker. Every table in `TABLES` appears exactly once

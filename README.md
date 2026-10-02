@@ -117,7 +117,7 @@ A grouped list where each row opens its own screen. Everything editable in the a
 | Tracking | Add, rename, archive or delete items and categories. Edit products, coffees and the Stool and Coffee option chips. Set food targets. Build workout plans |
 | Health | Doctors, doctor types, lab markers and panels, the weight goal |
 | Lists | Reminder lists and wishlist lists |
-| App | Appearance, visible sections, usual meal times, data export |
+| App | Appearance, visible sections, usual meal times, data export and restore |
 
 - **Order:** drag ≡ to reorder categories, sections, lists, doctor types, lab panels and option chips. Orders sync to every device.
 - **Icons and colours:** ~1,900 searchable icons (Lauva's own plus [Lucide](https://lucide.dev)) and any colour via +. A picked colour is saved to **Your colours** and offered in every picker. Built-in categories start with their own icon; a new one gets its section's icon.
@@ -127,6 +127,7 @@ A grouped list where each row opens its own screen. Everything editable in the a
 - **Workout plans:** lifts with a starting weight and weekly gain, and which days get +kg or a % of that week's base.
 - **Visible sections:** show or hide each Log section (also hides it on Trends and its rows in Settings), each with an optional daily "remind me to log" time.
 - **Your data:** export the whole account (messages included) as JSON, or one section or everything as CSV.
+- **Restore:** load a JSON export back in; it only adds rows that are missing and never changes or deletes anything.
 
 ---
 

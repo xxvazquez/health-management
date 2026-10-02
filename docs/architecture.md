@@ -55,6 +55,17 @@ Settings → "Your data" exports straight from Supabase (`src/lib/exportData.ts`
 - Signed-in only; includes messages you sent or received and household reminder checklists; sharing/push/import tokens are left out
 - `exportData.test.ts` fails if a table in `schema.sql` is neither exported nor on its short skip list, so a new table can't be forgotten
 
+### Restore
+
+"Restore from a backup" loads a JSON export back in (`src/lib/restoreData.ts`):
+
+- Refuses a file that isn't an export or belongs to another account
+- Keeps only rows this account owns (messages: only ones it sent) and drops generated columns (`name_key`)
+- Shows a per-section row count in a sheet before anything is written
+- Inserts in `RESTORE_ORDER` (foreign-key safe, guarded by `restoreData.test.ts`) with `ON CONFLICT DO NOTHING`: rows already there stay as they are, nothing is deleted
+- A batch the database refuses is retried row by row, so one clash (e.g. a name reused by a newer item) is skipped and counted instead of blocking the rest; a connection failure stops it
+- Finishes with a full sync so the local cache picks up the restored rows
+
 ---
 
 ## Data shapes
