@@ -125,7 +125,14 @@ export function Sheet({
       <div className="sheet-backdrop absolute inset-0 bg-black/40" data-closing={closing ? "" : undefined} onClick={requestClose} />
       <Panel
         ref={panelRef}
-        onSubmit={form?.onSubmit}
+        onSubmit={
+          form &&
+          ((e: FormEvent) => {
+            // A second tap (or Enter) while saving would save twice.
+            if (form.busy) e.preventDefault();
+            else form.onSubmit(e);
+          })
+        }
         data-closing={closing ? "" : undefined}
         className="sheet-panel relative flex max-h-[92dvh] w-full max-w-md flex-col gap-4 overflow-y-auto overscroll-contain rounded-[20px] p-4 pb-6 shadow-xl"
         style={{ background: "var(--page-plane)" }}
@@ -157,7 +164,7 @@ export function Sheet({
                 {form.headerActions}
                 <button
                   type="submit"
-                  disabled={form.submitDisabled}
+                  disabled={form.submitDisabled || form.busy}
                   className="hit-slop text-sm font-semibold whitespace-nowrap disabled:opacity-40"
                   style={{ color: form.accent ?? "var(--ui-accent)" }}
                 >

@@ -58,6 +58,7 @@ export function CoffeeTab({
   const [activeBrand, setActiveBrand] = useState("");
   const [newBrand, setNewBrand] = useState("");
   const [newNotes, setNewNotes] = useState("");
+  const [adding, setAdding] = useState(false);
   const [dialogItem, setDialogItem] = useState<CoffeeItem | null>(null);
   const [editingLog, setEditingLog] = useState<CoffeeLog | null>(null);
   const [pending, setPending] = useState<string | null>(null);
@@ -150,9 +151,14 @@ export function CoffeeTab({
 
   async function handleAddNew() {
     const name = trimmedSearch;
-    if (!name) return;
+    if (!name || adding) return;
     if (!active.some((it) => normalizeName(it.name) === normalizeName(name))) {
-      await onAddItem({ name, brand: newBrand, notes: newNotes });
+      setAdding(true);
+      try {
+        await onAddItem({ name, brand: newBrand, notes: newNotes });
+      } finally {
+        setAdding(false);
+      }
     }
     setNewBrand("");
     setNewNotes("");
@@ -226,7 +232,7 @@ export function CoffeeTab({
               <button type="button" onClick={() => setSearch("")} className="min-h-11 text-sm" style={{ color: "var(--text-secondary)" }}>
                 Cancel
               </button>
-              <button type="button" onClick={() => void handleAddNew()} className="min-h-11 text-sm font-semibold" style={{ color: "var(--ui-accent)" }}>
+              <button type="button" onClick={() => void handleAddNew()} disabled={adding} className="min-h-11 text-sm font-semibold disabled:opacity-40" style={{ color: "var(--ui-accent)" }}>
                 Add coffee
               </button>
             </div>

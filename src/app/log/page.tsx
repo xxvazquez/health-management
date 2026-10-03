@@ -1043,16 +1043,20 @@ export default function LogPage() {
   const mealSheetEntries = mealSheetTag ? (timelineRows.find((r) => r.kind === "meal" && r.mealTag === mealSheetTag) as { entries: TimelineEntry[] } | undefined)?.entries ?? null : null;
   // Logged all at once, a meal's foods share one time — shown once then.
   async function saveMealAsRecipe(mealTag: string, entries: TimelineEntry[]) {
+    if (pending === "__save-recipe__") return;
+    setPending("__save-recipe__");
     const note = meals.noteFor(date, mealTag).trim();
     const itemIds = Array.from(new Set(entries.filter((e) => e.itemType === "food").map((e) => e.itemIdentity)));
-    const created = await recipes.create({
-      name: (note.split("\n")[0] || `${mealTag}, ${formatDateLabel(date, today)}`).slice(0, 80),
-      mealTag,
-      rating: meals.ratingFor(date, mealTag),
-      steps: [],
-      note: null,
-      ingredients: itemIds.map((itemId) => ({ itemId, amount: null, unit: null })),
-    });
+    const created = await recipes
+      .create({
+        name: (note.split("\n")[0] || `${mealTag}, ${formatDateLabel(date, today)}`).slice(0, 80),
+        mealTag,
+        rating: meals.ratingFor(date, mealTag),
+        steps: [],
+        note: null,
+        ingredients: itemIds.map((itemId) => ({ itemId, amount: null, unit: null })),
+      })
+      .finally(() => setPending(null));
     setSavedRecipe({ key: `${date}|${mealTag}`, id: created.id });
   }
 
@@ -2938,7 +2942,7 @@ export default function LogPage() {
                   </span>
                 </button>
               ) : (
-                <button type="button" onClick={() => void saveMealAsRecipe(mealSheetTag, mealSheetEntries)} className="flex min-h-11 w-full items-center px-3.5 text-left text-sm font-medium" style={{ color: TYPE_ACCENT.food }}>
+                <button type="button" onClick={() => void saveMealAsRecipe(mealSheetTag, mealSheetEntries)} disabled={pending === "__save-recipe__"} className="flex min-h-11 w-full items-center px-3.5 text-left text-sm font-medium disabled:opacity-50" style={{ color: TYPE_ACCENT.food }}>
                   Save as recipe
                 </button>
               )}
