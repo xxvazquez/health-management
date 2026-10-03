@@ -5,6 +5,11 @@ import { usePathname } from "next/navigation";
 import { ICONS, isActiveHref } from "@/components/Nav";
 import { NAV_LABEL } from "@/components/navLabels";
 
+/** Fired on `window` when the tab you're already on is tapped again. A page
+ * with its own drill-down cancels it (`preventDefault`) and returns to its
+ * top screen itself, like re-tapping an iOS tab bar item. */
+export const NAV_RESELECT_EVENT = "lauva:nav-reselect";
+
 /** The five primary areas, one tap away on mobile — the same set and order
  * as the desktop sidebar, identical for everyone. Messages is a top-bar
  * icon (paired only), never here, so the bar never shifts. Settings, Help,
@@ -47,6 +52,11 @@ export function BottomNav() {
             key={item.href}
             href={item.href}
             aria-current={active ? "page" : undefined}
+            onClick={(e) => {
+              if (!active) return;
+              const reselect = new CustomEvent(NAV_RESELECT_EVENT, { detail: item.href, cancelable: true });
+              if (!window.dispatchEvent(reselect)) e.preventDefault();
+            }}
             className="relative flex min-w-0 flex-1 flex-col items-center gap-0.5 px-0.5 pt-2 pb-1 font-medium transition-colors"
             style={{ color: tint }}
           >

@@ -51,11 +51,12 @@ Sections: **Food · Symptoms · Supplements · Habits · Stool · Workout · Cyc
 
 #### Getting around
 
-- **Phone:** Log opens on a list of your sections, each with the day's count (or the period day for Cycle), with Summary below it. "‹ Log", Back or an edge swipe returns to the list.
+- **Phone:** Log opens on a list of your sections, each with the day's count (or the period day for Cycle), with Summary below it. "‹ Log", Back, an edge swipe or tapping Log in the tab bar returns to the list.
 - **Desktop:** the sections are a tab row, with Summary as the last tab.
 - Log reopens on whichever section you used last.
 - **Deep links:** `/log/?tab=<section>` opens a section, e.g. `?tab=workout` or `?tab=summary`. Settings → Workout links back this way.
 - **Toolbar:** search (or add), meal / time of day, time. On desktop it sits beside the page title.
+- **Search:** tapping a result logs it and keeps the search field (and phone keyboard) up.
 - **Categories:** a scrolling rail on a phone, a sidebar with logged counts on desktop. They follow your order from Settings (A–Z until you set one); items inside are A–Z.
 
 #### Food

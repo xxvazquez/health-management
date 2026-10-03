@@ -2,8 +2,9 @@
 
 import { CheckInCard } from "@/components/log/CheckInCard";
 import { CHIP_CLS, CHIP_SM_CLS, CONTROL_CLS, CONTROL_STYLE, chipStyle } from "@/components/ui/Chip";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent, type ReactNode } from "react";
 import Link from "next/link";
+import { NAV_RESELECT_EVENT } from "@/components/BottomNav";
 import clsx from "clsx";
 import { useData } from "@/lib/DataContext";
 import { useCareLog } from "@/lib/useCareLog";
@@ -276,6 +277,7 @@ function TapRow({
   return (
     <button
       type="button"
+      onMouseDown={keepSearchFocus}
       onClick={onTap}
       disabled={busy}
       aria-pressed={on}
@@ -294,6 +296,12 @@ function TapRow({
       <span className="min-w-0">{name}</span>
     </button>
   );
+}
+
+/** Keeps the search field focused when a result is tapped, so the keyboard
+ * stays up for the next search instead of closing on every log. */
+function keepSearchFocus(e: MouseEvent) {
+  if (document.activeElement instanceof HTMLInputElement) e.preventDefault();
 }
 
 /** Workout entries only — what was logged (value + unit), read-only by
@@ -412,6 +420,8 @@ export default function LogPage() {
   const today = useMemo(() => todayLocalISODate(), []);
   const [date, setDate] = useState(today);
   const [tab, setTab] = useState<LogTab>("food");
+  const tabRef = useRef(tab);
+  tabRef.current = tab;
   const [addingNew, setAddingNew] = useState(false);
   const [addingProduct, setAddingProduct] = useState(false);
   const [newItemCategory, setNewItemCategory] = useState("");
@@ -509,6 +519,18 @@ export default function LogPage() {
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- selectTab only sets state
+  }, []);
+  // Tapping Log in the tab bar while inside a section returns to the list.
+  useEffect(() => {
+    const onReselect = (e: Event) => {
+      if ((e as CustomEvent<string>).detail !== "/log" || isDesktop()) return;
+      e.preventDefault();
+      if (tabRef.current !== "summary") backToList();
+      else window.scrollTo({ top: 0, behavior: "smooth" });
+    };
+    window.addEventListener(NAV_RESELECT_EVENT, onReselect);
+    return () => window.removeEventListener(NAV_RESELECT_EVENT, onReselect);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- backToList only reads history and sets state
   }, []);
   // If the tab you're sitting on gets hidden from under you (toggled off
   // in Manage, in another tab, or restored from a stale saved choice),
@@ -2627,6 +2649,7 @@ export default function LogPage() {
                           <button
                             key={p.id}
                             type="button"
+                            onMouseDown={keepSearchFocus}
                             onClick={() => void handleLogProduct(p)}
                             disabled={busy}
                             className={`${CHIP_SM_CLS} shrink-0 whitespace-nowrap`}
