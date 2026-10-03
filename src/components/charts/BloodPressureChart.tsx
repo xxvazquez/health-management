@@ -17,7 +17,7 @@ import { BP_LOW_DIASTOLIC, BP_LOW_SYSTOLIC } from "@/lib/aggregations/vitals";
 
 const LOW = "var(--series-2)";
 const HIGH = "var(--status-critical)";
-const SYSTOLIC = "var(--text-secondary)";
+const SYSTOLIC = "var(--text-primary)";
 const DIASTOLIC = "var(--series-other)";
 
 export interface BloodPressurePoint {

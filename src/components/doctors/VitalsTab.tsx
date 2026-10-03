@@ -29,7 +29,7 @@ type Kind = "bp" | "weight";
 /** Legend for the blood-pressure chart: its two lines, then what the
  * shaded zones and dots mean — green normal, blue low, red high. */
 const BP_LEGEND_LINES = [
-  { label: "Systolic", color: "var(--text-secondary)" },
+  { label: "Systolic", color: "var(--text-primary)" },
   { label: "Diastolic", color: "var(--series-other)" },
 ];
 const BP_LEGEND_ZONES = [
