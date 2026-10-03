@@ -19,6 +19,7 @@ import { ErrorState, InlineEmpty } from "@/components/ui/EmptyState";
 import { PrimaryAction } from "@/components/ui/PrimaryAction";
 import { DemoNotice } from "@/components/ui/DemoNotice";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { MoreMenu } from "@/components/ui/MoreMenu";
 
 function journalMonthLabel(date: string): string {
   return new Date(`${date}T00:00:00`).toLocaleDateString(undefined, { month: "long", year: "numeric" });
@@ -143,7 +144,7 @@ function JournalEntryForm({
 }
 
 /** Reading view for one entry — the rendered markdown in a white card, with
- * a back link and Edit / Delete in the header. Tapping a row opens this; Edit
+ * a back link, Edit and a ⋯ menu (Delete) in the header. Tapping a row opens this; Edit
  * swaps in the form. */
 function JournalEntryView({
   entry,
@@ -165,12 +166,10 @@ function JournalEntryView({
           ‹ All entries
         </button>
         <div className="flex items-center gap-4 text-sm">
-          <button type="button" onClick={() => setConfirmingDelete(true)} className="min-h-9 font-medium" style={{ color: "var(--status-critical)" }}>
-            Delete
-          </button>
           <button type="button" onClick={onEdit} className="min-h-9 font-medium" style={{ color: "var(--ui-accent)" }}>
             Edit
           </button>
+          <MoreMenu items={[{ label: "Delete", destructive: true, onClick: () => setConfirmingDelete(true) }]} />
           {confirmingDelete && (
             <ConfirmDialog
               title="Delete this entry?"
