@@ -2,7 +2,7 @@
 
 import { CheckInCard } from "@/components/log/CheckInCard";
 import { CHIP_CLS, CHIP_SM_CLS, CONTROL_CLS, CONTROL_STYLE, chipStyle } from "@/components/ui/Chip";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import Link from "next/link";
 import { NAV_RESELECT_EVENT } from "@/lib/useDrillDown";
 import clsx from "clsx";
@@ -69,7 +69,7 @@ import { CoffeeTab, type CoffeeLogSubmission } from "@/components/log/CoffeeTab"
 import { useCoffee } from "@/lib/useCoffee";
 import { useCoffeeOptions } from "@/lib/useCoffeeOptions";
 import { DuplicateItemDialog } from "@/components/ui/DuplicateItemDialog";
-import { SearchField } from "@/components/ui/SearchField";
+import { SearchField, keepSearchFocus } from "@/components/ui/SearchField";
 import { Button } from "@/components/ui/Button";
 import { FormShell } from "@/components/ui/FormShell";
 import { DatePicker, TimePicker } from "@/components/ui/DatePicker";
@@ -296,12 +296,6 @@ function TapRow({
       <span className="min-w-0">{name}</span>
     </button>
   );
-}
-
-/** Keeps the search field focused when a result is tapped, so the keyboard
- * stays up for the next search instead of closing on every log. */
-function keepSearchFocus(e: MouseEvent) {
-  if (document.activeElement instanceof HTMLInputElement) e.preventDefault();
 }
 
 /** Workout entries only — what was logged (value + unit), read-only by

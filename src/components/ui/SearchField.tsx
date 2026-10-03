@@ -1,6 +1,13 @@
 "use client";
 
+import type { MouseEvent } from "react";
 import { CloseIcon } from "@/components/ui/icons";
+
+/** `onMouseDown` for a result row under a search field: tapping it leaves
+ * the field focused, so the phone keyboard stays up for the next search. */
+export function keepSearchFocus(e: MouseEvent) {
+  if (document.activeElement instanceof HTMLInputElement) e.preventDefault();
+}
 
 /** The one search box used across every filterable list — Journal, Notes,
  * Expiration, Codes, Manage, and the Log page's per-tab item search. A
