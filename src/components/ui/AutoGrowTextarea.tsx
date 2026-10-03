@@ -26,11 +26,19 @@ export function AutoGrowTextarea({
       parseFloat(cs.borderBottomWidth);
     const minHeight = lineHeight * rows + frame;
     const maxHeight = lineHeight * maxRows + frame;
+    // Collapsing to "auto" to measure briefly shortens the page, which
+    // clamps any scroll position near the bottom — put it back afterwards
+    // so the page doesn't jump while typing.
+    const scrolled: [Element, number][] = [];
+    for (let p = el.parentElement; p; p = p.parentElement) if (p.scrollTop > 0) scrolled.push([p, p.scrollTop]);
+    const pageY = window.scrollY;
     el.style.height = "auto";
     // scrollHeight includes padding but not border
     const contentHeight = el.scrollHeight + parseFloat(cs.borderTopWidth) + parseFloat(cs.borderBottomWidth);
     el.style.height = `${Math.max(minHeight, Math.min(contentHeight, maxHeight))}px`;
     el.style.overflowY = contentHeight > maxHeight ? "auto" : "hidden";
+    for (const [p, top] of scrolled) if (p.scrollTop !== top) p.scrollTop = top;
+    if (window.scrollY !== pageY) window.scrollTo(window.scrollX, pageY);
   }, [value, rows, maxRows]);
 
   return (
