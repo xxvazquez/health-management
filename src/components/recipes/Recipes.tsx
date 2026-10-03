@@ -17,6 +17,7 @@ import { PickerList } from "@/components/ui/PickerList";
 import { InfoIcon, MinusIcon, UpDownChevronIcon } from "@/components/ui/icons";
 import { TrendGroup, ShowAllRow } from "@/components/analytics/TrendList";
 import { ROW_INLINE_CLS, ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
+import { parseNum } from "@/lib/aggregations/labs";
 
 const MEALS = ["Breakfast", "Lunch", "Dinner", "Snack"];
 const SHORT_LIST = 5;
@@ -260,6 +261,8 @@ function RecipeSheet({
   const foodOptions = useMemo(() => [...foods].map(([id, name]) => ({ value: id, label: name })), [foods]);
 
   const set = (patch: Partial<Draft>) => setDraft((d) => ({ ...d, ...patch }));
+  // Amounts as typed, so "0.5" or "1,5" can be finished before it's a number.
+  const [amountText, setAmountText] = useState<Record<string, string>>({});
   const setIngredient = (index: number, patch: Partial<RecipeIngredient>) =>
     set({ ingredients: draft.ingredients.map((ing, i) => (i === index ? { ...ing, ...patch } : ing)) });
 
@@ -356,10 +359,12 @@ function RecipeSheet({
                 {foods.get(ing.itemId) ?? "Food"}
               </span>
               <input
-                value={ing.amount ?? ""}
+                value={amountText[ing.itemId] ?? (ing.amount != null ? String(ing.amount) : "")}
                 onChange={(e) => {
-                  const n = Number(e.target.value.replace(",", "."));
-                  setIngredient(i, { amount: e.target.value.trim() === "" || !(n > 0) ? null : n, unit: ing.unit ?? "g" });
+                  const text = e.target.value;
+                  setAmountText((prev) => ({ ...prev, [ing.itemId]: text }));
+                  const n = parseNum(text);
+                  setIngredient(i, { amount: n != null && n > 0 ? n : null, unit: ing.unit ?? "g" });
                 }}
                 inputMode="decimal"
                 placeholder="—"
