@@ -9,6 +9,7 @@ import { AppointmentForm } from "./AppointmentForm";
 import { Sheet } from "@/components/ui/Sheet";
 import { todayLocalISODate } from "@/lib/aggregations/common";
 import { DoctorName, formatShortDate } from "./shared";
+import { useUndoableTick } from "@/lib/useUndoableTick";
 
 type DoctorsApi = ReturnType<typeof useDoctors>;
 
@@ -133,13 +134,7 @@ export function AppointmentList({
               </button>
               {openTasks.map((task) => (
                 <div key={task.id} className="flex min-h-9 items-center gap-2.5">
-                  <button
-                    type="button"
-                    onClick={() => void api.tasks.setComplete(task.id, true)}
-                    aria-label={`Mark "${task.description}" done`}
-                    className="tap-target flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full border transition-colors hover:border-[var(--status-good)]"
-                    style={{ borderColor: "var(--text-secondary)" }}
-                  />
+                  <FollowUpTick label={task.description} onComplete={() => void api.tasks.setComplete(task.id, true)} />
                   <button type="button" onClick={() => setOpenId(appt.id)} className="flex min-w-0 flex-1 items-baseline justify-between gap-3 text-left">
                     <span className="min-w-0 text-sm" style={{ color: "var(--text-primary)" }}>
                       {task.description}
@@ -157,5 +152,27 @@ export function AppointmentList({
         })}
       </ul>
     </>
+  );
+}
+
+/** A follow-up's done circle: fills in and waits a moment (tap again to
+ * undo) before the task leaves the list. */
+function FollowUpTick({ label, onComplete }: { label: string; onComplete: () => void }) {
+  const { ticked, toggle } = useUndoableTick(onComplete);
+  return (
+    <button
+      type="button"
+      onClick={toggle}
+      aria-label={ticked ? `Mark "${label}" not done` : `Mark "${label}" done`}
+      aria-pressed={ticked}
+      className="tap-target flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full border transition-colors hover:border-[var(--status-good)]"
+      style={{ borderColor: ticked ? "var(--status-good)" : "var(--text-secondary)", background: ticked ? "var(--status-good)" : "transparent" }}
+    >
+      {ticked && (
+        <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="var(--surface-1)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M2.5 6.5 5 9l4.5-5" />
+        </svg>
+      )}
+    </button>
   );
 }

@@ -1,7 +1,8 @@
 "use client";
 
 import { DatePicker } from "@/components/ui/DatePicker";
-import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { useUndoableTick } from "@/lib/useUndoableTick";
 import Link from "next/link";
 import clsx from "clsx";
 import { AGENDA_BUCKET_LABEL, AGENDA_BUCKET_ORDER, EXPIRY_GROUP_LABEL, EXPIRY_GROUP_ORDER, expiryGroup, type AgendaBucket, type AgendaEntry, type ExpiryGroup, recurrenceLabel } from "@/lib/aggregations/agenda";
@@ -398,36 +399,7 @@ function AgendaRow({
   onAskDelete: () => void;
 }) {
   const e = entry;
-  // Like Reminders: a ticked row stays, filled in, for a moment before it
-  // leaves the list, and a second tap in that time takes the tick back.
-  const [ticked, setTicked] = useState(false);
-  const tickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const completeRef = useRef(onComplete);
-  useEffect(() => {
-    completeRef.current = onComplete;
-  });
-  useEffect(
-    () => () => {
-      if (tickTimer.current) {
-        clearTimeout(tickTimer.current);
-        completeRef.current();
-      }
-    },
-    [],
-  );
-  function toggleTick() {
-    if (tickTimer.current) {
-      clearTimeout(tickTimer.current);
-      tickTimer.current = null;
-      setTicked(false);
-      return;
-    }
-    setTicked(true);
-    tickTimer.current = setTimeout(() => {
-      tickTimer.current = null;
-      completeRef.current();
-    }, 1500);
-  }
+  const { ticked, toggle: toggleTick } = useUndoableTick(onComplete);
   const done = e.bucket === "done" || ticked;
   const overdue = e.bucket === "overdue";
   const isReminder = e.kind === "reminder";
