@@ -4,11 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ICONS, isActiveHref } from "@/components/Nav";
 import { NAV_LABEL } from "@/components/navLabels";
-
-/** Fired on `window` when the tab you're already on is tapped again. A page
- * with its own drill-down cancels it (`preventDefault`) and returns to its
- * top screen itself, like re-tapping an iOS tab bar item. */
-export const NAV_RESELECT_EVENT = "lauva:nav-reselect";
+import { NAV_RESELECT_EVENT } from "@/lib/useDrillDown";
 
 /** The five primary areas, one tap away on mobile — the same set and order
  * as the desktop sidebar, identical for everyone. Messages is a top-bar

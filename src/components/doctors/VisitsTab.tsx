@@ -2,6 +2,7 @@
 
 import { TabRail } from "@/components/ui/TabRail";
 import { useMemo, useState } from "react";
+import { useDrillDown } from "@/lib/useDrillDown";
 import type { useDoctors } from "@/lib/useDoctors";
 import type { CareEntry, CareEntryKind } from "@/lib/supabase/careLog";
 import { resolveSpecialtyNames } from "@/lib/doctors";
@@ -84,6 +85,7 @@ export function VisitsTab({
   );
   const shownEntries = filterSpecialty ? entries.filter((e) => e.specialtyIds.includes(filterSpecialty)) : entries;
   const viewing = viewingId ? (entries.find((e) => e.id === viewingId) ?? null) : null;
+  useDrillDown(viewing !== null, () => setViewingId(null), "/medical");
   const specialtiesWithEntries = useMemo(() => {
     const ids = new Set(entries.flatMap((e) => e.specialtyIds));
     return api.specialties.data.filter((s) => ids.has(s.id)).sort((a, b) => a.name.localeCompare(b.name));

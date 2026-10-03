@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useDrillDown } from "@/lib/useDrillDown";
 import clsx from "clsx";
 import Link from "next/link";
 import { useSwipeReveal, SWIPE_REVEAL_CLASS } from "@/lib/useSwipeReveal";
@@ -660,6 +661,7 @@ export function WishlistBoard({
   // The item form opens as a sheet over the view it was started from.
   const base: View =
     view.mode !== "item" ? view : view.returnTo === "detail" && view.categoryId ? { mode: "detail", categoryId: view.categoryId } : { mode: "list" };
+  useDrillDown(base.mode !== "list", () => setView({ mode: "list" }), "/personal");
   const itemSheet =
     view.mode === "item" ? (
         <ItemForm

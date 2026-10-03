@@ -2,6 +2,7 @@
 
 import { TabRail } from "@/components/ui/TabRail";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useDrillDown } from "@/lib/useDrillDown";
 import { useAuth } from "@/lib/supabase/AuthContext";
 import { getPartnerLink, type PartnerLink } from "@/lib/supabase/partner";
 import {
@@ -310,6 +311,13 @@ export default function NotesPage() {
     ]);
   }, []);
 
+  const closeThread = () => {
+    setSelectedThreadId(null);
+    setDirectThread(null);
+    if (window.location.search) window.history.replaceState(window.history.state, "", window.location.pathname);
+  };
+  useDrillDown(selectedThreadId !== null, closeThread);
+
   if (authLoading) return <PageSkeleton cards={3} />;
 
   if (isDemo) {
@@ -393,11 +401,7 @@ export default function NotesPage() {
         <NoteThreadView
           thread={selectedThread}
           partnerLabel={partnerLabel}
-          onBack={() => {
-            setSelectedThreadId(null);
-            setDirectThread(null);
-            if (window.location.search) window.history.replaceState(null, "", window.location.pathname);
-          }}
+          onBack={closeThread}
           onChanged={() => void loadThreads()}
           fetchMessages={fetchThreadMessages}
           onMarkRead={markRead}

@@ -26,6 +26,8 @@ A personal health tracker: food, symptoms, supplements, habits, stool, workouts,
 
 Five main areas, in the phone tab bar and the desktop sidebar. Messages appears only once a partner is linked.
 
+- A detail screen (a journal entry, a conversation, a visit, a marker, a wishlist) closes with Back, the edge swipe, or by tapping its tab again.
+
 | Area | Route | What it's for |
 |---|---|---|
 | **Log** | `/log` | Tap-to-log for every tracking domain, plus a Summary of the day |

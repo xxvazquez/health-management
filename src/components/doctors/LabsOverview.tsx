@@ -3,6 +3,7 @@
 import { CHIP_CLS, CONTROL_CLS, CONTROL_STYLE, chipStyle } from "@/components/ui/Chip";
 import { ChevronIcon, UpDownChevronIcon } from "@/components/ui/icons";
 import { useState, type ReactNode } from "react";
+import { useDrillDown } from "@/lib/useDrillDown";
 import type { useLabs } from "@/lib/useLabs";
 import type { LabNameLanguage } from "@/lib/labNames";
 import { todayLocalISODate, type DateRange } from "@/lib/aggregations/common";
@@ -101,6 +102,11 @@ export function LabsOverview({
   const [openId, setOpenId] = useState<string | null>(null);
   const [listScroll, setListScroll] = useState(0);
   const desktop = useIsDesktop();
+  const backToList = () => {
+    setOpenId(null);
+    requestAnimationFrame(() => window.scrollTo(0, listScroll));
+  };
+  useDrillDown(openId !== null && !desktop, backToList, "/medical");
 
   const today = todayLocalISODate();
   const allMarkers = labs.markers.data;
@@ -176,10 +182,6 @@ export function LabsOverview({
       window.scrollTo(0, 0);
     }
     setOpenId(id);
-  };
-  const backToList = () => {
-    setOpenId(null);
-    requestAnimationFrame(() => window.scrollTo(0, listScroll));
   };
 
   if (openMarker && !desktop) {

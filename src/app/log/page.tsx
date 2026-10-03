@@ -4,7 +4,7 @@ import { CheckInCard } from "@/components/log/CheckInCard";
 import { CHIP_CLS, CHIP_SM_CLS, CONTROL_CLS, CONTROL_STYLE, chipStyle } from "@/components/ui/Chip";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent, type ReactNode } from "react";
 import Link from "next/link";
-import { NAV_RESELECT_EVENT } from "@/components/BottomNav";
+import { NAV_RESELECT_EVENT } from "@/lib/useDrillDown";
 import clsx from "clsx";
 import { useData } from "@/lib/DataContext";
 import { useCareLog } from "@/lib/useCareLog";

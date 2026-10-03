@@ -2,6 +2,7 @@
 
 import { DatePicker } from "@/components/ui/DatePicker";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useDrillDown } from "@/lib/useDrillDown";
 import { todayLocalISODate } from "@/lib/aggregations/common";
 import { createJournalEntry, deleteJournalEntry, fetchJournalEntries, updateJournalEntry, type JournalEntry } from "@/lib/supabase/journal";
 import { buildDemoJournalEntries } from "@/lib/demoJournal";
@@ -298,6 +299,7 @@ export function JournalTab({ isDemoData, accent }: { isDemoData: boolean; accent
 
   const editingEntry = editingId ? (entries.find((e) => e.id === editingId) ?? null) : null;
   const viewingEntry = viewingId ? (entries.find((e) => e.id === viewingId) ?? null) : null;
+  useDrillDown(viewingEntry !== null, () => setViewingId(null), "/personal");
 
   function handleSaved(entry: JournalEntry) {
     setEntries((prev) => {
