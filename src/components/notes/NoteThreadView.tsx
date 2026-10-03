@@ -52,7 +52,9 @@ export function NoteThreadView({
 }) {
   const [messages, setMessages] = useState<NoteMessage[] | null>(null);
   const [loadError, setLoadError] = useState(false);
-  const [replyBody, setReplyBody] = useState("");
+  // An unsent reply is kept on this device per conversation, like iMessage.
+  const draftKey = `lauva:reply-draft:${thread.id}`;
+  const [replyBody, setReplyBody] = useState(() => readDraft(draftKey));
   const [replying, setReplying] = useState(false);
   const [replyError, setReplyError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -78,6 +80,7 @@ export function NoteThreadView({
     setLoadError(false);
     setRemindState("idle");
     setReplyTo(null);
+    setReplyBody(readDraft(draftKey));
     fetchMessages(thread.id)
       .then((m) => {
         if (!cancelled) setMessages(m);
@@ -95,6 +98,15 @@ export function NoteThreadView({
     // `thread.isUnreadForMe` is only meaningful for the initial mark-read.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [thread.id]);
+
+  useEffect(() => {
+    try {
+      if (replyBody.trim()) localStorage.setItem(draftKey, replyBody);
+      else localStorage.removeItem(draftKey);
+    } catch {
+      // Storage unavailable: the draft just isn't kept.
+    }
+  }, [draftKey, replyBody]);
 
   // Like Messages: a conversation opens on its newest bubble, and sending
   // keeps the new one in view (a reply arriving only scrolls if you're at the end).
@@ -517,4 +529,12 @@ function MessageBubble({
       )}
     </div>
   );
+}
+
+function readDraft(key: string): string {
+  try {
+    return localStorage.getItem(key) ?? "";
+  } catch {
+    return "";
+  }
 }
