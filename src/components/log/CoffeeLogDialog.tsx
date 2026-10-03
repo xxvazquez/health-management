@@ -10,6 +10,7 @@ import { AutoGrowTextarea } from "@/components/ui/AutoGrowTextarea";
 import { NumberStepper } from "@/components/ui/NumberStepper";
 import { TimeField } from "@/components/ui/TimeField";
 import { defaultLogTimeValue } from "@/lib/logCandidates";
+import { parseNum } from "@/lib/aggregations/labs";
 import type { ResolvedCoffeeOptions } from "@/lib/useCoffeeOptions";
 import type { CoffeeItem, CoffeeLog } from "@/lib/supabase/coffee";
 
@@ -76,12 +77,18 @@ export function CoffeeLogDialog({
   onSave: (draft: CoffeeLogDraft) => Promise<void>;
 }) {
   const [draft, setDraft] = useState<CoffeeLogDraft>(blankDraft);
+  // The typed text, so "4." or "4,5" can be finished before it's a number.
+  const [priceText, setPriceText] = useState("");
   const [saving, setSaving] = useState(false);
 
   const [wasOpen, setWasOpen] = useState(open);
   if (open !== wasOpen) {
     setWasOpen(open);
-    if (open) setDraft(editingLog ? draftFromLog(editingLog) : blankDraft());
+    if (open) {
+      const next = editingLog ? draftFromLog(editingLog) : blankDraft();
+      setDraft(next);
+      setPriceText(next.price == null ? "" : String(next.price));
+    }
   }
 
   if (!open || !item) return null;
@@ -189,8 +196,11 @@ export function CoffeeLogDialog({
         <Field label="Price · optional" inline>
           <input
             inputMode="decimal"
-            value={draft.price ?? ""}
-            onChange={(e) => setDraft((d) => ({ ...d, price: e.target.value === "" ? null : Number(e.target.value) }))}
+            value={priceText}
+            onChange={(e) => {
+              setPriceText(e.target.value);
+              setDraft((d) => ({ ...d, price: parseNum(e.target.value) }));
+            }}
             placeholder="0"
             className={`${ROW_INLINE_CLS} w-20 tabular-nums`}
             style={ROW_STYLE}
