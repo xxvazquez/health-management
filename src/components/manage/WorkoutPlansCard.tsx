@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useMemo, useState, type ReactNode } from "react";
+import { useToday } from "@/lib/useToday";
 import { ChevronIcon } from "@/components/ui/icons";
 import { FormGroup } from "@/components/ui/FormGroup";
 import { Field } from "@/components/ui/Field";
@@ -15,7 +16,6 @@ import { useLoggedValues } from "@/components/log/WorkoutPlanView";
 import { CollapsibleManageCard, GROUP_CLS, GROUP_STYLE, GroupNote, OpenInLogRow } from "@/components/manage/ManageSection";
 import { getAllWorkoutLogs } from "@/lib/db/indexedDb";
 import { buildDemoDataset } from "@/lib/demoData";
-import { todayLocalISODate } from "@/lib/aggregations/common";
 import { useWorkoutPlans } from "@/lib/useWorkoutPlans";
 import type { RawItem, RawWorkoutLog } from "@/lib/types";
 import {
@@ -559,7 +559,7 @@ export function WorkoutPlansCard({ isDemoData, searchQuery, workoutItems }: { is
   const [realLogs, setRealLogs] = useState<RawWorkoutLog[]>([]);
   const demoLogs = useMemo(() => (isDemoData ? buildDemoDataset().workoutLogs : []), [isDemoData]);
   const logs = isDemoData ? demoLogs : realLogs;
-  const today = useMemo(() => todayLocalISODate(), []);
+  const today = useToday();
 
   useEffect(() => {
     if (isDemoData) return;

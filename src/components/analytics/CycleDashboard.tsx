@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, type ReactNode } from "react";
+import { useToday } from "@/lib/useToday";
 import { useData } from "@/lib/DataContext";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageSkeleton } from "@/components/ui/Skeleton";
@@ -17,7 +18,7 @@ import {
   predictUpcomingPeriods,
   type CycleHistoryEntry,
 } from "@/lib/aggregations/cycle";
-import { daysBetween, todayLocalISODate } from "@/lib/aggregations/common";
+import { daysBetween } from "@/lib/aggregations/common";
 
 // Same rose accent as the Log page's Cycle tab.
 const ACCENT = "var(--series-4)";
@@ -101,7 +102,7 @@ function LengthChart({ cycles, average, today }: { cycles: CycleHistoryEntry[]; 
 
 export function CycleDashboard() {
   const { status, periodLogs } = useData();
-  const today = useMemo(() => todayLocalISODate(), []);
+  const today = useToday();
   const [showAllHistory, setShowAllHistory] = useState(false);
 
   // Cycles need the whole history — a month holds less than one — so this

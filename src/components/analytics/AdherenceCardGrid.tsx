@@ -4,6 +4,7 @@ import { MonthPicker } from "@/components/ui/DatePicker";
 import { Segmented } from "@/components/ui/Segmented";
 import { TabRail } from "@/components/ui/TabRail";
 import { useMemo, useState, type ReactNode } from "react";
+import { useToday } from "@/lib/useToday";
 import { Card } from "@/components/ui/Card";
 import { Disclosure } from "@/components/ui/Disclosure";
 import { ChevronIcon } from "@/components/ui/icons";
@@ -288,7 +289,7 @@ export function AdherenceCardGrid({
   /** "habit" / "supplement" — used in the empty-category line. */
   noun: string;
 }) {
-  const today = useMemo(() => todayLocalISODate(), []);
+  const today = useToday();
   const [view, setView] = useState<View>("month");
   const [anchor, setAnchor] = useState(() => monthStart(todayLocalISODate()));
   const [categoryFilter, setCategoryFilter] = useState<string>("all");

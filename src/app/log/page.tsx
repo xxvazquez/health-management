@@ -5,6 +5,7 @@ import { CHIP_CLS, CHIP_SM_CLS, CONTROL_CLS, CONTROL_STYLE, chipStyle } from "@/
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import Link from "next/link";
 import { NAV_RESELECT_EVENT } from "@/lib/useDrillDown";
+import { useToday } from "@/lib/useToday";
 import clsx from "clsx";
 import { useData } from "@/lib/DataContext";
 import { useCareLog } from "@/lib/useCareLog";
@@ -49,7 +50,7 @@ import { ensureCategoryId, ensureDefaultWorkoutItems } from "@/lib/categoryResol
 import { categoryComparator } from "@/lib/categoryOrder";
 import { hiddenPicksForMonth, seasonalPicksForMonth, weeklyCategoryPriority } from "@/lib/aggregations/seasonal";
 import { useHiddenSeasonalPicks } from "@/lib/useHiddenSeasonalPicks";
-import { addDaysToDate, formatMinutes, todayLocalISODate } from "@/lib/aggregations/common";
+import { addDaysToDate, formatMinutes } from "@/lib/aggregations/common";
 import { buildDemoDataset } from "@/lib/demoData";
 import { normalizeName, titleCaseFallback } from "@/taxonomy/normalizeName";
 import { TYPE_ACCENT, colorForCategorySlot, effectiveCategoryList, type ItemType } from "@/taxonomy/categories";
@@ -411,7 +412,7 @@ export default function LogPage() {
   const coffeeOptions = useCoffeeOptions();
   const meals = useMeals();
   const foodProducts = useFoodProducts();
-  const today = useMemo(() => todayLocalISODate(), []);
+  const today = useToday();
   const [date, setDate] = useState(today);
   const [tab, setTab] = useState<LogTab>("food");
   const tabRef = useRef(tab);
@@ -443,6 +444,35 @@ export default function LogPage() {
   // Workout's Log / Plan switch — null until the user picks one, which
   // opens on Plan whenever an active plan covers the day being viewed.
   const [workoutModeChoice, setWorkoutModeChoice] = useState<"log" | "plan" | null>(null);
+  // An installed app can stay open overnight: a new day moves the page on
+  // to it (unless another day was picked), and after a long break the meal
+  // and workout time are re-picked for the time of day.
+  const shownToday = useRef(today);
+  useEffect(() => {
+    if (shownToday.current === today) return;
+    if (date === shownToday.current) setDate(today);
+    shownToday.current = today;
+  }, [today, date]);
+  const [, setResumedAt] = useState(0);
+  useEffect(() => {
+    let hiddenAt: number | null = null;
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") {
+        hiddenAt = Date.now();
+        return;
+      }
+      if (hiddenAt !== null && Date.now() - hiddenAt >= 30 * 60_000) {
+        if (tabRef.current === "food") setMeal(defaultMealForTime());
+        else if (tabRef.current === "supplement") setMeal(defaultSupplementTimeForTime());
+        setWorkoutTime(defaultLogTimeValue());
+      }
+      hiddenAt = null;
+      // Re-render so a tap's "now" is the current time, not when the app was left.
+      setResumedAt(Date.now());
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, []);
   const workoutPlans = useWorkoutPlans();
   const [newItemText, setNewItemText] = useState("");
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);

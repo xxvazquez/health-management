@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useToday } from "@/lib/useToday";
 import { useData } from "@/lib/DataContext";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageSkeleton } from "@/components/ui/Skeleton";
@@ -11,7 +12,7 @@ import { DEFAULT_PRESETS, DateRangeFilter, describeDateRange } from "@/component
 import { LabMarkerChart, LabSparkline, type LabMarkerChartPoint } from "@/components/charts/LabMarkerChart";
 import { TrendHeadline } from "@/components/charts/TrendCard";
 import { DEFAULT_RANGE_DAYS, useDateRangeFilter } from "@/lib/useDateRangeFilter";
-import { addDaysToDate, daysBetween, formatMinutes, round1, todayLocalISODate, type DateRange } from "@/lib/aggregations/common";
+import { addDaysToDate, daysBetween, formatMinutes, round1, type DateRange } from "@/lib/aggregations/common";
 import {
   workoutExerciseSummaries,
   workoutTrainedDates,
@@ -219,7 +220,7 @@ function ExerciseDetail({ summary, when, range, today }: { summary: WorkoutExerc
 
 export function WorkoutDashboard() {
   const { status, events, workoutLogs } = useData();
-  const today = useMemo(() => todayLocalISODate(), []);
+  const today = useToday();
   const [openExercise, setOpenExercise] = useState<string | null>(null);
 
   // A workout log has no unit of its own; its exercise's unit lives on the

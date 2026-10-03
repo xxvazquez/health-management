@@ -1,11 +1,11 @@
 "use client";
 
 import { useMemo } from "react";
+import { useToday } from "@/lib/useToday";
 import { usePersonalReminderBoards } from "@/lib/usePersonalReminderBoards";
 import { useHouseholdReminderBoards } from "@/lib/useHouseholdReminderBoards";
 import { useDoctors } from "@/lib/useDoctors";
 import { usePartnerLinked } from "@/lib/usePartnerLinked";
-import { todayLocalISODate } from "@/lib/aggregations/common";
 import { useIsClient } from "@/lib/useIsClient";
 import { buildAgenda, type AgendaEntry } from "@/lib/aggregations/agenda";
 import { PageShell } from "@/components/ui/PageShell";
@@ -26,7 +26,7 @@ export default function AgendaPage() {
   const household = useHouseholdReminderBoards();
   const doctors = useDoctors();
   const isClient = useIsClient();
-  const today = useMemo(() => todayLocalISODate(), []);
+  const today = useToday();
 
   const upcomingAppointments = useMemo(
     () =>
