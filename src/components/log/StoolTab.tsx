@@ -1,7 +1,7 @@
 "use client";
 
 import { Chip as BaseChip } from "@/components/ui/Chip";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { BristolIcon } from "@/components/icons/BristolIcons";
 import { CloseIcon } from "@/components/ui/icons";
 import { Field } from "@/components/ui/Field";
@@ -230,6 +230,17 @@ export function StoolTab({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  // A new entry's time follows the clock until it's picked by hand, so a
+  // tab left open (or an app resumed hours later) doesn't log a stale time.
+  const [timePicked, setTimePicked] = useState(false);
+  useEffect(() => {
+    if (editingId || timePicked) return;
+    const onVisible = () => {
+      if (document.visibilityState === "visible") setDraft((d) => ({ ...d, loggedAtTime: defaultLogTimeValue() }));
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [editingId, timePicked]);
 
   const canSave = draft.bristolScores.length > 0;
 
@@ -239,10 +250,11 @@ export function StoolTab({
     if (editingId) {
       await onUpdate(editingId, draft);
     } else {
-      await onSave(draft);
+      await onSave(timePicked ? draft : { ...draft, loggedAtTime: defaultLogTimeValue() });
     }
     setDraft(blankEntry());
     setEditingId(null);
+    setTimePicked(false);
     setSaving(false);
   }
 
@@ -253,6 +265,7 @@ export function StoolTab({
 
   function cancelEdit() {
     setEditingId(null);
+    setTimePicked(false);
     setDraft(blankEntry());
   }
 
@@ -319,7 +332,10 @@ export function StoolTab({
           </span>
           <TimeField
             value={draft.loggedAtTime}
-            onChange={(t) => setDraft((d) => ({ ...d, loggedAtTime: t }))}
+            onChange={(t) => {
+              setTimePicked(true);
+              setDraft((d) => ({ ...d, loggedAtTime: t }));
+            }}
           />
         </div>
         <div className="grid grid-cols-4 gap-1.5 px-3.5 py-3">
