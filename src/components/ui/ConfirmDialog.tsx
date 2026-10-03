@@ -13,6 +13,7 @@ export function ConfirmDialog({
   title,
   message,
   confirmLabel,
+  cancelLabel = "Cancel",
   destructive = false,
   busy = false,
   onConfirm,
@@ -21,6 +22,7 @@ export function ConfirmDialog({
   title: string;
   message?: string;
   confirmLabel: string;
+  cancelLabel?: string;
   destructive?: boolean;
   busy?: boolean;
   onConfirm: () => void;
@@ -55,7 +57,7 @@ export function ConfirmDialog({
             className="control-surface min-h-11 flex-1 rounded-[10px] text-base font-medium active:opacity-70"
             style={{ color: "var(--text-primary)" }}
           >
-            Cancel
+            {cancelLabel}
           </button>
           <button
             type="button"

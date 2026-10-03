@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type FormEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { ChevronIcon, CloseIcon } from "@/components/ui/icons";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { useDialogA11y } from "@/components/ui/useDialogA11y";
 
 // Open sheets, so page scrolling is locked until the last one closes.
@@ -62,7 +63,22 @@ export function Sheet({
   const [closing, setClosing] = useState(false);
   // Every way out (backdrop, Close, Escape, swipe) plays the exit first.
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // A form that's been typed in asks before its changes are thrown away.
+  const edited = useRef(false);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
   function requestClose() {
+    if (form && edited.current) {
+      setConfirmDiscard(true);
+      const panel = panelRef.current;
+      if (panel) {
+        panel.style.transition = "transform 200ms ease-out";
+        panel.style.transform = "";
+      }
+      return;
+    }
+    dismiss();
+  }
+  function dismiss() {
     if (closeTimer.current) return;
     setClosing(true);
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -125,6 +141,12 @@ export function Sheet({
       <div className="sheet-backdrop absolute inset-0 bg-black/40" data-closing={closing ? "" : undefined} onClick={requestClose} />
       <Panel
         ref={panelRef}
+        onInput={
+          form &&
+          ((e) => {
+            if (!(e.target as HTMLElement).closest("[data-search-field]")) edited.current = true;
+          })
+        }
         onSubmit={
           form &&
           ((e: FormEvent) => {
@@ -216,6 +238,19 @@ export function Sheet({
         </div>
         {children}
       </Panel>
+      {confirmDiscard && (
+        <ConfirmDialog
+          title="Discard changes?"
+          confirmLabel="Discard"
+          cancelLabel="Keep Editing"
+          destructive
+          onConfirm={() => {
+            setConfirmDiscard(false);
+            dismiss();
+          }}
+          onClose={() => setConfirmDiscard(false)}
+        />
+      )}
     </div>,
     document.body,
   );

@@ -67,6 +67,8 @@ function JournalEntryForm({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [confirmingDiscard, setConfirmingDiscard] = useState(false);
+  const changed = date !== (editing?.date ?? defaultDate) || title !== (editing?.title ?? "") || body !== (editing?.body ?? "");
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -89,12 +91,25 @@ function JournalEntryForm({
           {editing ? "Edit entry" : "New entry"}
         </h3>
         <div className="flex shrink-0 items-center gap-3">
-          <button type="button" onClick={onCancel} className="min-h-9 text-sm font-medium" style={{ color: "var(--ui-accent)" }}>
+          <button type="button" onClick={() => (changed ? setConfirmingDiscard(true) : onCancel())} className="min-h-9 text-sm font-medium" style={{ color: "var(--ui-accent)" }}>
             Cancel
           </button>
           <Button type="submit" size="sm" accent={accent} disabled={saving || !body.trim()}>
             {saving ? "Saving…" : "Save"}
           </Button>
+          {confirmingDiscard && (
+            <ConfirmDialog
+              title="Discard changes?"
+              confirmLabel="Discard"
+              cancelLabel="Keep Editing"
+              destructive
+              onConfirm={() => {
+                setConfirmingDiscard(false);
+                onCancel();
+              }}
+              onClose={() => setConfirmingDiscard(false)}
+            />
+          )}
         </div>
       </div>
       {error && (

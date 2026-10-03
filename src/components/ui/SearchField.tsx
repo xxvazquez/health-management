@@ -45,6 +45,7 @@ export function SearchField({
       </svg>
       <input
         type="text"
+        data-search-field
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
