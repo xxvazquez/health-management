@@ -1,7 +1,7 @@
 "use client";
 
 import { DatePicker } from "@/components/ui/DatePicker";
-import { useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import Link from "next/link";
 import clsx from "clsx";
 import { AGENDA_BUCKET_LABEL, AGENDA_BUCKET_ORDER, EXPIRY_GROUP_LABEL, EXPIRY_GROUP_ORDER, expiryGroup, type AgendaBucket, type AgendaEntry, type ExpiryGroup, recurrenceLabel } from "@/lib/aggregations/agenda";
@@ -398,7 +398,37 @@ function AgendaRow({
   onAskDelete: () => void;
 }) {
   const e = entry;
-  const done = e.bucket === "done";
+  // Like Reminders: a ticked row stays, filled in, for a moment before it
+  // leaves the list, and a second tap in that time takes the tick back.
+  const [ticked, setTicked] = useState(false);
+  const tickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const completeRef = useRef(onComplete);
+  useEffect(() => {
+    completeRef.current = onComplete;
+  });
+  useEffect(
+    () => () => {
+      if (tickTimer.current) {
+        clearTimeout(tickTimer.current);
+        completeRef.current();
+      }
+    },
+    [],
+  );
+  function toggleTick() {
+    if (tickTimer.current) {
+      clearTimeout(tickTimer.current);
+      tickTimer.current = null;
+      setTicked(false);
+      return;
+    }
+    setTicked(true);
+    tickTimer.current = setTimeout(() => {
+      tickTimer.current = null;
+      completeRef.current();
+    }, 1500);
+  }
+  const done = e.bucket === "done" || ticked;
   const overdue = e.bucket === "overdue";
   const isReminder = e.kind === "reminder";
   const readOnly = e.kind === "followup" || e.kind === "appointment";
@@ -442,9 +472,9 @@ function AgendaRow({
       {isReminder ? (
         <button
           type="button"
-          onClick={done ? onUncomplete : onComplete}
+          onClick={e.bucket === "done" ? onUncomplete : toggleTick}
           aria-label={done ? "Mark not done" : recurring ? "Mark done for this cycle" : "Mark done"}
-          className="mt-0.5 flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full border transition-colors hover:border-[var(--status-good)] hover:bg-[var(--page-plane)]"
+          className="tap-target mt-0.5 flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full border transition-colors hover:border-[var(--status-good)] hover:bg-[var(--page-plane)]"
           style={{
             borderColor: done ? "var(--status-good)" : (tone ?? "var(--text-secondary)"),
             background: done ? "var(--status-good)" : "transparent",
