@@ -70,7 +70,7 @@ import { CoffeeTab, type CoffeeLogSubmission } from "@/components/log/CoffeeTab"
 import { useCoffee } from "@/lib/useCoffee";
 import { useCoffeeOptions } from "@/lib/useCoffeeOptions";
 import { DuplicateItemDialog } from "@/components/ui/DuplicateItemDialog";
-import { SearchField, keepSearchFocus } from "@/components/ui/SearchField";
+import { SearchField, keepFieldFocus } from "@/components/ui/SearchField";
 import { Button } from "@/components/ui/Button";
 import { FormShell } from "@/components/ui/FormShell";
 import { DatePicker, TimePicker } from "@/components/ui/DatePicker";
@@ -278,7 +278,7 @@ function TapRow({
   return (
     <button
       type="button"
-      onMouseDown={keepSearchFocus}
+      onMouseDown={keepFieldFocus}
       onClick={onTap}
       disabled={busy}
       aria-pressed={on}
@@ -2681,7 +2681,7 @@ export default function LogPage() {
                           <button
                             key={p.id}
                             type="button"
-                            onMouseDown={keepSearchFocus}
+                            onMouseDown={keepFieldFocus}
                             onClick={() => void handleLogProduct(p)}
                             disabled={busy}
                             className={`${CHIP_SM_CLS} shrink-0 whitespace-nowrap`}

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { FormGroup } from "@/components/ui/FormGroup";
-import { SearchField, keepSearchFocus } from "@/components/ui/SearchField";
+import { SearchField, keepFieldFocus } from "@/components/ui/SearchField";
 import { CheckIcon } from "@/components/ui/icons";
 
 export interface PickerOption {
@@ -53,7 +53,7 @@ export function PickerList({
                 <button
                   key={o.value}
                   type="button"
-                  onMouseDown={keepSearchFocus}
+                  onMouseDown={keepFieldFocus}
                   onClick={() => onPick(o.value)}
                   aria-pressed={selected}
                   className="flex min-h-11 w-full items-center gap-3 px-3.5 text-left text-sm"

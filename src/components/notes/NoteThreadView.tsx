@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import { NOTE_CATEGORY_LABEL, type NoteMessage, type NoteThread } from "@/lib/supabase/notes";
 import { CategoryIcon, EyeOffIcon, StarIcon } from "./icons";
 import { formatNoteTimestamp, formatNoteTimestampShort } from "./NoteThreadList";
 import { AutoGrowTextarea } from "@/components/ui/AutoGrowTextarea";
+import { keepFieldFocus } from "@/components/ui/SearchField";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { TrashIcon } from "@/components/ui/Notebook";
 import { MoreMenu, type MoreMenuItem } from "@/components/ui/MoreMenu";
@@ -89,6 +90,21 @@ export function NoteThreadView({
     // `thread.isUnreadForMe` is only meaningful for the initial mark-read.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [thread.id]);
+
+  // Like Messages: a conversation opens on its newest bubble, and sending
+  // keeps the new one in view (a reply arriving only scrolls if you're at the end).
+  const shownCount = useRef<number | null>(null);
+  useLayoutEffect(() => {
+    if (!messages) {
+      shownCount.current = null;
+      return;
+    }
+    const first = shownCount.current === null;
+    const nearBottom = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 240;
+    const grew = !first && messages.length > (shownCount.current ?? 0) && (messages[messages.length - 1].isMine || nearBottom);
+    shownCount.current = messages.length;
+    if (first || grew) window.scrollTo({ top: document.documentElement.scrollHeight, behavior: first ? "auto" : "smooth" });
+  }, [messages]);
 
   async function handleReply(e: FormEvent) {
     e.preventDefault();
@@ -335,6 +351,7 @@ export function NoteThreadView({
           />
           <button
             type="submit"
+            onMouseDown={keepFieldFocus}
             disabled={replying || !replyBody.trim()}
             aria-label={replying ? "Sending reply" : "Send reply"}
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[color:var(--on-accent)] transition-opacity disabled:opacity-40"

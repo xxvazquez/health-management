@@ -3,10 +3,12 @@
 import type { MouseEvent } from "react";
 import { CloseIcon } from "@/components/ui/icons";
 
-/** `onMouseDown` for a result row under a search field: tapping it leaves
- * the field focused, so the phone keyboard stays up for the next search. */
-export function keepSearchFocus(e: MouseEvent) {
-  if (document.activeElement instanceof HTMLInputElement) e.preventDefault();
+/** `onMouseDown` for a button used while typing (a search result, a send
+ * button): tapping it leaves the field focused, so the phone keyboard stays
+ * up for the next search or message. */
+export function keepFieldFocus(e: MouseEvent) {
+  const el = document.activeElement;
+  if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) e.preventDefault();
 }
 
 /** The one search box used across every filterable list — Journal, Notes,
