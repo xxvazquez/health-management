@@ -34,7 +34,7 @@ Five main areas, in the phone tab bar and the desktop sidebar. Messages appears 
 | **Agenda** | `/agenda` | One urgency-sorted list: reminders, expiring products, doctor follow-ups, appointments; a switcher narrows it to Mine, Shared, Expiry (grouped Today → This week → … → Next year) or Medical; a ticked reminder stays for a moment so a second tap can undo it; a product is cleared as used up or thrown away from its sheet |
 | **Trends** | `/analytics` | A dashboard per Log domain, plus Patterns |
 | **Health** | `/medical` | Visits, lab Results, Vitals, Doctors |
-| **Notes** | `/personal` | Journal, Wishlist, shared discount Codes |
+| **Notes** | `/personal` | Journal (an unsaved entry is kept on the device until saved or discarded), Wishlist, shared discount Codes |
 | **Messages** | `/notes` | Private messages with a linked partner: Inbox, Sent, Favourites; reply to a specific message (long-press, or ↩ on hover) and it's quoted in your bubble; a conversation's ⋯ menu reminds your partner about a message they haven't read, or deletes it for both after a confirmation |
 
 Secondary pages:

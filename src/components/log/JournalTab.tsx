@@ -44,6 +44,17 @@ function matchesSearch(entry: JournalEntry, query: string): boolean {
  * a markdown body with a formatting toolbar. Shared between "new entry"
  * (`editing` null) and "edit an existing one".
  */
+function readDraft(key: string): { date: string; title: string; body: string } | null {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    const d = JSON.parse(raw) as Record<string, unknown>;
+    return typeof d.date === "string" && typeof d.title === "string" && typeof d.body === "string" ? { date: d.date, title: d.title, body: d.body } : null;
+  } catch {
+    return null;
+  }
+}
+
 function JournalEntryForm({
   editing,
   defaultDate,
@@ -61,14 +72,33 @@ function JournalEntryForm({
   onDelete?: () => void;
   onCancel: () => void;
 }) {
-  const [date, setDate] = useState(editing?.date ?? defaultDate);
-  const [title, setTitle] = useState(editing?.title ?? "");
-  const [body, setBody] = useState(editing?.body ?? "");
+  // Kept on this device while writing, so an entry survives the phone
+  // closing the app in the background; cleared on save or discard.
+  const draftKey = `lauva:journal-draft:${editing?.id ?? "new"}`;
+  const [restored] = useState(() => readDraft(draftKey));
+  const [date, setDate] = useState(restored?.date ?? editing?.date ?? defaultDate);
+  const [title, setTitle] = useState(restored?.title ?? editing?.title ?? "");
+  const [body, setBody] = useState(restored?.body ?? editing?.body ?? "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [confirmingDiscard, setConfirmingDiscard] = useState(false);
   const changed = date !== (editing?.date ?? defaultDate) || title !== (editing?.title ?? "") || body !== (editing?.body ?? "");
+  useEffect(() => {
+    try {
+      if (changed) localStorage.setItem(draftKey, JSON.stringify({ date, title, body }));
+      else localStorage.removeItem(draftKey);
+    } catch {
+      // Storage unavailable: the draft just isn't kept.
+    }
+  }, [draftKey, changed, date, title, body]);
+  const clearDraft = () => {
+    try {
+      localStorage.removeItem(draftKey);
+    } catch {
+      // Nothing to clear.
+    }
+  };
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -76,7 +106,9 @@ function JournalEntryForm({
     setSaving(true);
     setError(null);
     try {
-      onSaved(await onSave({ editing, date, title, body }));
+      const saved = await onSave({ editing, date, title, body });
+      clearDraft();
+      onSaved(saved);
     } catch (err) {
       console.error("journal save failed", err);
       setError("Couldn't save that — try again in a moment.");
@@ -105,6 +137,7 @@ function JournalEntryForm({
               destructive
               onConfirm={() => {
                 setConfirmingDiscard(false);
+                clearDraft();
                 onCancel();
               }}
               onClose={() => setConfirmingDiscard(false)}
