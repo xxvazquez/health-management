@@ -6,6 +6,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import Link from "next/link";
 import { NAV_RESELECT_EVENT } from "@/lib/useDrillDown";
 import { useToday } from "@/lib/useToday";
+import { useAutosaveText } from "@/lib/useAutosaveText";
 import clsx from "clsx";
 import { useData } from "@/lib/DataContext";
 import { useCareLog } from "@/lib/useCareLog";
@@ -198,7 +199,7 @@ function formatDateLabel(date: string, today: string): string {
 }
 
 /** The note row in a timeline entry's sheet — a borderless text field,
- * saved when it loses focus or the sheet closes. Read-only for demo data. */
+ * saved when it loses focus, the sheet closes or the app is backgrounded. Read-only for demo data. */
 function TimelineNote({
   note,
   busy,
@@ -210,23 +211,7 @@ function TimelineNote({
   hidden: boolean;
   onSave: (content: string) => void;
 }) {
-  const [text, setText] = useState(note ?? "");
-  // What was last saved, and the latest text — the unmount save below reads
-  // both after the component's own state is gone.
-  const saved = useRef((note ?? "").trim());
-  const latest = useRef(text);
-  const onSaveRef = useRef(onSave);
-  useEffect(() => {
-    onSaveRef.current = onSave;
-  }, [onSave]);
-
-  const commit = useCallback(() => {
-    const next = latest.current.trim();
-    if (next === saved.current) return;
-    saved.current = next;
-    onSaveRef.current(next);
-  }, []);
-  useEffect(() => commit, [commit]);
+  const { text, setText, commit } = useAutosaveText(note ?? "", onSave);
 
   if (hidden) {
     return note ? (
@@ -239,10 +224,7 @@ function TimelineNote({
   return (
     <AutoGrowTextarea
       value={text}
-      onChange={(e) => {
-        setText(e.target.value);
-        latest.current = e.target.value;
-      }}
+      onChange={(e) => setText(e.target.value)}
       onBlur={commit}
       rows={1}
       maxRows={8}

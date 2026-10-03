@@ -5,6 +5,7 @@ import { FormGroup } from "@/components/ui/FormGroup";
 import { AutoGrowTextarea } from "@/components/ui/AutoGrowTextarea";
 import { ROW_TEXT_CLS } from "@/components/ui/formField";
 import { useCheckIns } from "@/lib/useCheckIns";
+import { useAutosaveText } from "@/lib/useAutosaveText";
 
 const STEPS = 5;
 const MOOD_WORDS = ["Very unpleasant", "Unpleasant", "Neutral", "Pleasant", "Very pleasant"];
@@ -120,16 +121,16 @@ function ScaleRow({
   );
 }
 
-/** Free-text note that wraps and grows, saved when it loses focus.
- * Remounted per date by its parent. */
+/** Free-text note that wraps and grows, saved when it loses focus or the
+ * app is backgrounded. Remounted per date by its parent. */
 function NoteRow({ initial, onSave }: { initial: string; onSave: (note: string) => void }) {
-  const [text, setText] = useState(initial);
+  const { text, setText, commit } = useAutosaveText(initial, onSave);
   return (
     <div className="flex min-h-11 items-center px-3.5 py-2">
       <AutoGrowTextarea
         value={text}
         onChange={(e) => setText(e.target.value)}
-        onBlur={() => text.trim() !== initial.trim() && onSave(text)}
+        onBlur={commit}
         rows={1}
         maxRows={8}
         placeholder="Note"
