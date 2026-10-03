@@ -110,6 +110,7 @@ export function RecipesSheet({
   meal,
   onLog,
   pendingId,
+  initialRecipeId,
   onClose,
 }: {
   /** The page's own `useRecipes()`, so a recipe saved elsewhere on it shows here at once. */
@@ -118,10 +119,15 @@ export function RecipesSheet({
   meal: string;
   onLog?: (recipe: Recipe) => void;
   pendingId?: string | null;
+  /** Opens straight onto this recipe instead of the list. */
+  initialRecipeId?: string;
   onClose: () => void;
 }) {
   const foods = useFoodNames();
-  const [editing, setEditing] = useState<Recipe | "new" | null>(null);
+  const [editing, setEditing] = useState<Recipe | "new" | null>(() => recipes.data.find((r) => r.id === initialRecipeId) ?? null);
+
+  // Opened onto one recipe, its editor closes the whole sheet.
+  const closeEditor = () => (initialRecipeId ? onClose() : setEditing(null));
 
   if (editing) {
     return (
@@ -133,17 +139,17 @@ export function RecipesSheet({
         onSave={async (draft) => {
           if (editing === "new") await recipes.create(draft);
           else await recipes.save({ ...editing, ...draft });
-          setEditing(null);
+          closeEditor();
         }}
         onDelete={
           editing === "new"
             ? undefined
             : async () => {
                 await recipes.remove(editing.id);
-                setEditing(null);
+                closeEditor();
               }
         }
-        onClose={() => setEditing(null)}
+        onClose={closeEditor}
       />
     );
   }

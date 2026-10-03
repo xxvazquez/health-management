@@ -561,8 +561,9 @@ export default function LogPage() {
   const [mealSheetTag, setMealSheetTag] = useState<string | null>(null);
   const recipes = useRecipes();
   // The meal (date|tag) just saved as a recipe, so its sheet links there.
-  const [savedRecipeFor, setSavedRecipeFor] = useState<string | null>(null);
-  const [recipesOpen, setRecipesOpen] = useState(false);
+  const [savedRecipe, setSavedRecipe] = useState<{ key: string; id: string } | null>(null);
+  // Open Recipes sheet; `recipeId` opens straight onto that recipe.
+  const [recipesOpen, setRecipesOpen] = useState<{ recipeId?: string } | null>(null);
   const foodProductsRef = useOverflowFade<HTMLDivElement>();
   const loggedMealRef = useOverflowFade<HTMLDivElement>();
 
@@ -1044,7 +1045,7 @@ export default function LogPage() {
   async function saveMealAsRecipe(mealTag: string, entries: TimelineEntry[]) {
     const note = meals.noteFor(date, mealTag).trim();
     const itemIds = Array.from(new Set(entries.filter((e) => e.itemType === "food").map((e) => e.itemIdentity)));
-    await recipes.create({
+    const created = await recipes.create({
       name: (note.split("\n")[0] || `${mealTag}, ${formatDateLabel(date, today)}`).slice(0, 80),
       mealTag,
       rating: meals.ratingFor(date, mealTag),
@@ -1052,7 +1053,7 @@ export default function LogPage() {
       note: null,
       ingredients: itemIds.map((itemId) => ({ itemId, amount: null, unit: null })),
     });
-    setSavedRecipeFor(`${date}|${mealTag}`);
+    setSavedRecipe({ key: `${date}|${mealTag}`, id: created.id });
   }
 
   const mealSheetSharedTime = mealSheetEntries?.every((e) => e.time === mealSheetEntries[0].time) ? mealSheetEntries[0].time : null;
@@ -1158,11 +1159,14 @@ export default function LogPage() {
     setPending(null);
   }
 
-  /** Logs every food in a recipe for the current meal, like a product. */
+  /** Logs a recipe's foods for the current meal, skipping any already
+   * logged there so logging it twice never doubles the meal. */
   async function handleLogRecipe(recipe: Recipe) {
     if (isDemoData || recipe.ingredients.length === 0) return;
     setPending(`recipe:${recipe.id}`);
+    const existing = loggedCountsForDate(effective.logs, date, meal);
     for (const ing of recipe.ingredients) {
+      if (existing.has(ing.itemId)) continue;
       const log = await incrementDailyLogAndSync(ing.itemId, "food", date, meal, null);
       await applyLogTime(log);
     }
@@ -2029,7 +2033,7 @@ export default function LogPage() {
                 {usual.items.length > 0 && renderItemList(usual.items, renderChip, true)}
                 <button
                   type="button"
-                  onClick={() => setRecipesOpen(true)}
+                  onClick={() => setRecipesOpen({})}
                   aria-haspopup="dialog"
                   className="flex min-h-11 w-full items-center gap-3 rounded-xl border px-3.5 text-left text-sm"
                   style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-primary)" }}
@@ -2835,6 +2839,7 @@ export default function LogPage() {
       {recipesOpen && (
         <RecipesSheet
           recipes={recipes}
+          initialRecipeId={recipesOpen.recipeId}
           accent={TYPE_ACCENT.food}
           meal={meal}
           onLog={
@@ -2842,12 +2847,12 @@ export default function LogPage() {
               ? undefined
               : (r) =>
                   void handleLogRecipe(r).then(() => {
-                    setRecipesOpen(false);
+                    setRecipesOpen(null);
                     selectTab("food");
                   })
           }
           pendingId={pending?.startsWith("recipe:") ? pending.slice(7) : null}
-          onClose={() => setRecipesOpen(false)}
+          onClose={() => setRecipesOpen(null)}
         />
       )}
       {workoutMerge &&
@@ -2917,12 +2922,12 @@ export default function LogPage() {
             ))}
           </div>
             <FormGroup>
-              {savedRecipeFor === `${date}|${mealSheetTag}` ? (
+              {savedRecipe?.key === `${date}|${mealSheetTag}` && recipes.data.some((r) => r.id === savedRecipe.id) ? (
                 <button
                   type="button"
                   onClick={() => {
                     setMealSheetTag(null);
-                    setRecipesOpen(true);
+                    setRecipesOpen({ recipeId: savedRecipe.id });
                   }}
                   className="flex min-h-11 w-full items-center gap-2 px-3.5 text-left text-sm"
                   style={{ color: TYPE_ACCENT.food }}
