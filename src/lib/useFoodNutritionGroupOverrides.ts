@@ -51,17 +51,17 @@ export function useFoodNutritionGroupOverrides() {
   }, [authLoading, isDemo, userId, load]);
 
   const setOverride = useCallback(async (item: string, groupId: NutritionGroupOverride) => {
-    await setFoodNutritionGroupOverride(item, groupId);
     setOverrides((prev) => ({ ...prev, [normalizeName(item)]: groupId }));
+    await setFoodNutritionGroupOverride(item, groupId).catch((err) => console.error("setFoodNutritionGroupOverride failed", err));
   }, []);
 
   const clearOverride = useCallback(async (item: string) => {
-    await clearFoodNutritionGroupOverride(item);
     setOverrides((prev) => {
       const next = { ...prev };
       delete next[normalizeName(item)];
       return next;
     });
+    await clearFoodNutritionGroupOverride(item).catch((err) => console.error("clearFoodNutritionGroupOverride failed", err));
   }, []);
 
   return { overrides, loading, setOverride, clearOverride };

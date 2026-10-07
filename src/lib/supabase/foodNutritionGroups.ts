@@ -1,4 +1,5 @@
 import { supabase } from "./client";
+import { deleteWhereDirect, upsertDirect } from "./directWrite";
 import { normalizeName } from "@/taxonomy/normalizeName";
 import type { NutritionGroupOverride } from "@/taxonomy/nutritionGroups";
 
@@ -30,23 +31,22 @@ export async function fetchFoodNutritionGroupOverrides(): Promise<Record<string,
 
 /** Sets (or replaces) the override for one food, by its exact display
  * name — an override always replaces every keyword-derived group for that
- * item, it never merges with them. */
+ * item, it never merges with them. Offline it queues; see directWrite.ts. */
 export async function setFoodNutritionGroupOverride(item: string, groupId: NutritionGroupOverride): Promise<void> {
-  if (!supabase) throw new Error("Cloud sync isn't set up for this deployment.");
   const myUserId = await currentUserId();
   if (!myUserId) throw new Error("Sign in first.");
-  const { error } = await supabase
-    .from("food_nutrition_groups")
-    .upsert({ user_id: myUserId, item, group_id: groupId, updated_at: new Date().toISOString() });
-  if (error) throw error;
+  await upsertDirect(myUserId, "food_nutrition_groups", `${myUserId}:${item}`, {
+    user_id: myUserId,
+    item,
+    group_id: groupId,
+    updated_at: new Date().toISOString(),
+  });
 }
 
 /** Removes the override, reverting the item to automatic keyword
  * classification. */
 export async function clearFoodNutritionGroupOverride(item: string): Promise<void> {
-  if (!supabase) return;
   const myUserId = await currentUserId();
   if (!myUserId) throw new Error("Sign in first.");
-  const { error } = await supabase.from("food_nutrition_groups").delete().eq("user_id", myUserId).eq("item", item);
-  if (error) throw error;
+  await deleteWhereDirect(myUserId, "food_nutrition_groups", { user_id: myUserId, item });
 }
