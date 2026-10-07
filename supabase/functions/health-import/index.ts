@@ -310,17 +310,26 @@ async function saveDay(ownerId: string, day: Day, timeZone: string, walkingId: s
 
 async function importDay(req: Request): Promise<Response> {
   const query = new URL(req.url).searchParams;
-  let body: Record<string, unknown> = {};
+  // Shortcuts capitalises the first letter of a JSON field name. A backfill
+  // may also send its days bare: a JSON array, or the day objects joined by
+  // commas or new lines (Combine Text's output).
+  const raw = (await req.text()).trim();
+  let parsed: unknown = null;
   try {
-    // Shortcuts capitalises the first letter of a JSON field name.
-    body = lowerKeys(JSON.parse(await req.text())) ?? {};
+    parsed = JSON.parse(raw);
   } catch {
-    body = {};
+    try {
+      parsed = JSON.parse(`[${raw.replace(/,\s*$/, "").replace(/}\s*\n\s*{/g, "},{")}]`);
+    } catch {
+      parsed = null;
+    }
   }
+  const body: Record<string, unknown> = Array.isArray(parsed) ? { days: parsed } : (lowerKeys(parsed) ?? {});
   const field = (name: string) => query.get(name) ?? body[name];
 
   const token = String(field("token") ?? "").trim();
   if (!token) return json({ error: "token is required" }, 400);
+  if (raw && parsed === null && !query.has("steps")) return json({ error: "The request body isn't JSON or a list of days" }, 400);
   const timeZone = String(field("timezone") ?? DEFAULT_TIMEZONE);
 
   const bulk = Array.isArray(body.days);

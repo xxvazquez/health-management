@@ -704,7 +704,7 @@ function writes `workout_logs` rows (Walking, and a Steps exercise with
 unit `steps` it creates on first use) and `weight_logs` / `blood_pressure`
 readings at midday, each with an id derived from (user, kind, date), so
 each day has one imported entry per kind that a re-run overwrites and a 0
-deletes. A backfill sends the same fields per day as a `days` list, each date at most once.
+deletes. A backfill sends the same fields per day as a `days` list (or the day objects alone, joined by commas or new lines), each date at most once.
 
 `expense_import_tokens` has the same shape and rules too: one per account,
 for the iOS Shortcut (a Wallet "Transaction" automation on the card) that

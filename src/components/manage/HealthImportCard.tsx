@@ -124,11 +124,10 @@ export function HealthImportCard({ isDemoData, searchQuery }: { isDemoData: bool
               then <strong>Add to Variable</strong> Days.
             </Step>
             <Step n={5}>
-              After End Repeat: <strong>Combine Text</strong> Days with Custom <code>,</code>, then <strong>Text</strong>{" "}
-              <code>{'{"days":[Combined Text]}'}</code>.
+              After End Repeat: <strong>Combine Text</strong> Days with Custom <code>,</code>.
             </Step>
             <Step n={6}>
-              <strong>Get Contents of URL</strong> with the Link, Method POST, header Authorization, Request Body <strong>File</strong> = that Text.
+              <strong>Get Contents of URL</strong> with the Link, Method POST, header Authorization, Request Body <strong>File</strong> = Combined Text.
             </Step>
           </FormGroup>
 
