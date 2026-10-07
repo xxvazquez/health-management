@@ -1,5 +1,6 @@
 import type { CanonicalEvent } from "@/lib/types";
-import type { DayState } from "@/components/charts/AdherenceStrip";
+
+export type DayState = "done" | "missed";
 
 /**
  * Per-day state for one item, for the adherence strip. Binary: a day is

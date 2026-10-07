@@ -1,7 +1,7 @@
 import { supabase } from "./client";
 import { fetchPaged } from "./paged";
 import { createTimeOrderedId } from "@/lib/sortableId";
-import { deleteDirect, deleteWhereDirect, upsertDirect } from "./directWrite";
+import { deleteDirect, upsertDirect } from "./directWrite";
 
 // --- Items (catalog) -------------------------------------------------
 
@@ -273,10 +273,4 @@ export async function setCoffeeCurrency(currency: string): Promise<void> {
     currency: currency.trim() || DEFAULT_CURRENCY,
     updated_at: new Date().toISOString(),
   });
-}
-
-export async function clearCoffeeCurrency(): Promise<void> {
-  const myUserId = await currentUserId();
-  if (!myUserId) throw new Error("Sign in first.");
-  await deleteWhereDirect(myUserId, SETTINGS_TABLE, { user_id: myUserId });
 }
