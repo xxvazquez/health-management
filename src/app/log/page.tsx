@@ -231,7 +231,7 @@ function TapRow({
   label,
   busy = false,
 }: {
-  name: string;
+  name: ReactNode;
   accent: string;
   mark: ReactNode;
   onTap: () => void;
@@ -1349,8 +1349,7 @@ export default function LogPage() {
     const key = normalizeName(name);
 
     // Reuse an existing candidate under the same canonical name instead of
-    // creating a duplicate item — matches how the seasonal quick-log
-    // suggestions already behave.
+    // creating a duplicate item.
     const existingCandidate = candidates.find((c) => c.itemType === tabConfig.type && normalizeName(c.item) === key);
     if (existingCandidate) {
       setNewItemText("");
@@ -1472,7 +1471,7 @@ export default function LogPage() {
     const norm = normalizeName(itemName);
     const existing = candidates.find((c) => c.itemType === "food" && normalizeName(c.item) === norm);
     if (existing) {
-      await handleIncrement(existing);
+      handleChipTap(existing);
       return;
     }
 
@@ -2276,27 +2275,35 @@ export default function LogPage() {
   // The seasonal nudge — its own tab on Food's category rail. Tapping a pick
   // logs it for the chosen meal; the × hides it for the rest of the month.
   const hasSeasonalPicks = tab === "food" && dataReady && (seasonalPicks.length > 0 || hiddenThisMonth.length > 0);
+  const seasonalLoggedForMeal = new Set(
+    candidates.filter((c) => c.itemType === "food" && (mealCounts.get(c.key) ?? 0) > 0).map((c) => normalizeName(c.item)),
+  );
   const seasonalPicksPanel = (
     <div className="flex flex-col gap-2">
       {seasonalPicksSorted.length > 0 && (
         <div
-          className="inset-rows rounded-xl border text-sm [--row-inset:0.875rem] lg:grid lg:grid-cols-[repeat(auto-fill,minmax(min(var(--col-w),100%),1fr))] lg:gap-x-3 lg:p-1.5 lg:[&>*::before]:hidden"
+          className="inset-rows rounded-xl border text-sm [--row-inset:3.375rem] lg:grid lg:grid-cols-[repeat(auto-fill,minmax(min(var(--col-w),100%),1fr))] lg:gap-x-3 lg:p-1.5 lg:[&>*::before]:hidden"
           style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", "--col-w": fitColumnWidth(seasonalPicksSorted.map((p) => p.item), "7rem", 12) } as CSSProperties}
         >
           {seasonalPicksSorted.map((pick) => (
             <div key={pick.item} className="flex items-center lg:rounded-lg">
-              <button
-                type="button"
-                onClick={() => void handleQuickLogSeasonal(pick.item)}
-                disabled={pending === `seasonal:${normalizeName(pick.item)}`}
-                className="flex min-h-11 min-w-0 flex-1 items-center gap-1.5 rounded-lg py-2 pl-3.5 text-left text-sm transition-colors hover:bg-black/[0.04] active:bg-black/5 disabled:opacity-50 lg:pl-2.5 lg:pointer-fine:min-h-9"
-                style={{ color: "var(--text-primary)" }}
-              >
-                <span className="min-w-0">{pick.item}</span>
-                <span className="shrink-0 text-xs" style={{ color: "var(--text-muted)" }}>
-                  {pick.weeksSinceLastEaten === null ? "never" : pick.weeksSinceLastEaten === 0 ? "this week" : `${pick.weeksSinceLastEaten}w ago`}
-                </span>
-              </button>
+              <div className="min-w-0 flex-1">
+                <TapRow
+                  name={
+                    <>
+                      {pick.item}{" "}
+                      <span className="text-xs whitespace-nowrap" style={{ color: "var(--text-muted)" }}>
+                        {pick.weeksSinceLastEaten === null ? "never" : pick.weeksSinceLastEaten === 0 ? "this week" : `${pick.weeksSinceLastEaten}w ago`}
+                      </span>
+                    </>
+                  }
+                  label={pick.item}
+                  accent={TYPE_ACCENT.food}
+                  mark={seasonalLoggedForMeal.has(normalizeName(pick.item)) && "✓"}
+                  onTap={() => void handleQuickLogSeasonal(pick.item)}
+                  busy={pending === `seasonal:${normalizeName(pick.item)}`}
+                />
+              </div>
               <button
                 type="button"
                 onClick={() => hideSeasonalPick(pick.item)}
