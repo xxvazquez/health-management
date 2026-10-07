@@ -10,6 +10,7 @@ import { TrendsActions } from "@/components/analytics/TrendsActions";
 import { SplitStatCard, TrendCaption } from "@/components/analytics/TrendList";
 import { DEFAULT_PRESETS, DateRangeFilter, describeDateRange } from "@/components/ui/DateRangeFilter";
 import { LabMarkerChart, LabSparkline, type LabMarkerChartPoint } from "@/components/charts/LabMarkerChart";
+import { DailyBarChart, dailyBuckets, type DailyBucket } from "@/components/charts/DailyBarChart";
 import { TrendHeadline } from "@/components/charts/TrendCard";
 import { DEFAULT_RANGE_DAYS, useDateRangeFilter } from "@/lib/useDateRangeFilter";
 import { addDaysToDate, daysBetween, formatMinutes, round1, type DateRange } from "@/lib/aggregations/common";
@@ -64,6 +65,16 @@ function progress(s: WorkoutExerciseSummary, today: string): ReactNode {
   );
 }
 
+/** A count Apple Health would total per day (steps), read as a daily
+ * average with bars rather than per-session progress. */
+function isDailyCount(unit: WorkoutUnit): boolean {
+  return unit === "steps";
+}
+
+function count(n: number): string {
+  return Math.round(n).toLocaleString();
+}
+
 function sessionsText(n: number): string {
   return `${n} ${n === 1 ? "session" : "sessions"}`;
 }
@@ -72,9 +83,12 @@ function sessionsText(n: number): string {
  * done, the latest value with a sparkline, and how it moved. */
 function ExerciseCard({ summary, today, onOpen }: { summary: WorkoutExerciseSummary; today: string; onOpen: () => void }) {
   const { exercise, unit, timed, sessions, last, total } = summary;
-  const detail = timed
-    ? `${["minutes", "min"].includes(unit) && total >= 60 ? formatMinutes(total) : amount(total, unit)} in ${sessionsText(sessions.length)}`
-    : (progress(summary, today) ?? sessionsText(sessions.length));
+  const daily = isDailyCount(unit);
+  const detail = daily
+    ? `${count(summary.average)} a day on average`
+    : timed
+      ? `${["minutes", "min"].includes(unit) && total >= 60 ? formatMinutes(total) : amount(total, unit)} in ${sessionsText(sessions.length)}`
+      : (progress(summary, today) ?? sessionsText(sessions.length));
   return (
     <button
       type="button"
@@ -97,7 +111,7 @@ function ExerciseCard({ summary, today, onOpen }: { summary: WorkoutExerciseSumm
         <span className="min-w-0 flex-1">
           <span className="flex items-baseline gap-1.5">
             <span className="text-2xl leading-tight font-semibold tabular-nums" style={{ color: "var(--text-primary)" }}>
-              {last.value}
+              {daily ? count(last.value) : last.value}
             </span>
             <span className="text-sm" style={{ color: "var(--text-muted)" }}>
               {workoutUnitLabel(unit)}
@@ -154,6 +168,77 @@ function WeeklyBars({ weeks, today }: { weeks: { weekStart: string; sessions: nu
   );
 }
 
+/** A day in the window, with its year whenever the window crosses one. */
+function dayIn(date: string, range: DateRange, today: string): string {
+  if (range.start.slice(0, 4) === range.end.slice(0, 4)) return shortDate(date, today);
+  if (date === today) return "Today";
+  return new Date(`${date}T00:00:00`).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+}
+
+function bucketLabel(b: DailyBucket, range: DateRange, today: string): string {
+  if (b.kind === "day") return dayIn(b.start, range, today);
+  if (b.kind === "week") return `Week of ${dayIn(b.start, range, today)}`;
+  return new Date(`${b.start}T00:00:00`).toLocaleDateString(undefined, { month: "long", year: "numeric" });
+}
+
+function spanText(range: DateRange): string {
+  const fmt = (d: string, year: boolean) =>
+    new Date(`${d}T00:00:00`).toLocaleDateString(undefined, { day: "numeric", month: "short", year: year ? "numeric" : undefined });
+  return `${fmt(range.start, range.start.slice(0, 4) !== range.end.slice(0, 4))} – ${fmt(range.end, true)}`;
+}
+
+function DetailHeader({ name }: { name: string }) {
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => window.history.back()}
+        className="-ml-1 flex min-h-11 items-center gap-0.5 text-sm font-medium"
+        style={{ color: "var(--ui-accent)" }}
+      >
+        <ChevronIcon dir="left" size={16} />
+        Workout
+      </button>
+      <h2 className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>
+        {name}
+      </h2>
+    </div>
+  );
+}
+
+/** Steps the way Apple Health shows them: the daily average over the
+ * window, bars by day / week / month, the picked bar's value while dragging. */
+function DailyCountDetail({ summary, when, range, today }: { summary: WorkoutExerciseSummary; when: string; range: DateRange; today: string }) {
+  const [scrub, setScrub] = useState<DailyBucket | null>(null);
+  const { sessions, unit, best, last, total } = summary;
+  const buckets = useMemo(() => dailyBuckets(sessions, range.start, range.end), [sessions, range.start, range.end]);
+  const label = workoutUnitLabel(unit);
+
+  return (
+    <div className="flex max-w-2xl flex-col gap-4">
+      <DetailHeader name={summary.exercise} />
+      <HealthCard caption={when}>
+        <TrendHeadline
+          caption={scrub ? (scrub.kind === "day" ? "Total" : "Daily average") : "Daily average"}
+          value={count(scrub ? scrub.value : summary.average)}
+          unit={label}
+          detail={scrub ? bucketLabel(scrub, range, today) : spanText(range)}
+        />
+        <div className="mt-3">
+          <DailyBarChart buckets={buckets} start={range.start} end={range.end} color={ACCENT} onScrub={setScrub} />
+        </div>
+      </HealthCard>
+      <SplitStatCard
+        items={[
+          { caption: "Best day", value: count(best.value), unit: label, detail: dayIn(best.date, range, today) },
+          { caption: "Latest", value: count(last.value), unit: label, detail: dayIn(last.date, range, today) },
+          { caption: "Total", value: count(total), unit: label },
+        ]}
+      />
+    </div>
+  );
+}
+
 function ExerciseDetail({ summary, when, range, today }: { summary: WorkoutExerciseSummary; when: string; range: DateRange; today: string }) {
   const [scrub, setScrub] = useState<LabMarkerChartPoint | null>(null);
   const { sessions, unit, timed, best, last } = summary;
@@ -164,20 +249,7 @@ function ExerciseDetail({ summary, when, range, today }: { summary: WorkoutExerc
 
   return (
     <div className="flex max-w-2xl flex-col gap-4">
-      <div>
-        <button
-          type="button"
-          onClick={() => window.history.back()}
-          className="-ml-1 flex min-h-11 items-center gap-0.5 text-sm font-medium"
-          style={{ color: "var(--ui-accent)" }}
-        >
-          <ChevronIcon dir="left" size={16} />
-          Workout
-        </button>
-        <h2 className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>
-          {summary.exercise}
-        </h2>
-      </div>
+      <DetailHeader name={summary.exercise} />
       <HealthCard caption={`${perSessionCaption(summary)} · ${when}`}>
         <TrendHeadline caption={scrub ? shortDate(scrub.date, today) : "Latest"} value={String(shown.value)} unit={workoutUnitLabel(unit)} detail={detail} />
         <div className="mt-3">
@@ -273,7 +345,11 @@ export function WorkoutDashboard() {
     return (
       <>
         {filter}
-        <ExerciseDetail key={opened.exercise} summary={opened} when={when} range={range} today={today} />
+        {isDailyCount(opened.unit) ? (
+          <DailyCountDetail key={opened.exercise} summary={opened} when={when} range={range} today={today} />
+        ) : (
+          <ExerciseDetail key={opened.exercise} summary={opened} when={when} range={range} today={today} />
+        )}
       </>
     );
   }
