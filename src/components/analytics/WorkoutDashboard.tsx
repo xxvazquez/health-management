@@ -208,9 +208,29 @@ function DetailHeader({ name }: { name: string }) {
 
 /** Steps the way Apple Health shows them: the daily average over the
  * window, bars by day / week / month, the picked bar's value while dragging. */
-function DailyCountDetail({ summary, when, range, today }: { summary: WorkoutExerciseSummary; when: string; range: DateRange; today: string }) {
+function DailyCountDetail({
+  summary,
+  history,
+  when,
+  range,
+  span,
+  today,
+}: {
+  summary: WorkoutExerciseSummary;
+  history: { date: string; value: number }[];
+  when: string;
+  range: DateRange;
+  span: DateRange;
+  today: string;
+}) {
   const [scrub, setScrub] = useState<DailyBucket | null>(null);
-  const { sessions, unit, best, last, total } = summary;
+  const { sessions, unit, best, last } = summary;
+  // The same stretch just before this one, averaged over its days with a
+  // value, shown only when the history reaches back across all of it.
+  const days = daysBetween(range.start, range.end) + 1;
+  const prevStart = addDaysToDate(range.start, -days);
+  const prev = history.filter((h) => h.date >= prevStart && h.date < range.start);
+  const prevAverage = span.start <= prevStart && prev.length > 0 ? prev.reduce((n, h) => n + h.value, 0) / prev.length : null;
   const buckets = useMemo(() => dailyBuckets(sessions, range.start, range.end), [sessions, range.start, range.end]);
   const label = workoutUnitLabel(unit);
 
@@ -232,7 +252,9 @@ function DailyCountDetail({ summary, when, range, today }: { summary: WorkoutExe
         items={[
           { caption: "Best day", value: count(best.value), unit: label, detail: dayIn(best.date, range, today) },
           { caption: "Latest", value: count(last.value), unit: label, detail: dayIn(last.date, range, today) },
-          { caption: "Total", value: count(total), unit: label },
+          ...(prevAverage !== null
+            ? [{ caption: "Before", value: count(prevAverage), unit: "a day", detail: `${spanText({ start: prevStart, end: addDaysToDate(range.start, -1) })}` }]
+            : []),
         ]}
       />
     </div>
@@ -346,7 +368,15 @@ export function WorkoutDashboard() {
       <>
         {filter}
         {isDailyCount(opened.unit) ? (
-          <DailyCountDetail key={opened.exercise} summary={opened} when={when} range={range} today={today} />
+          <DailyCountDetail
+            key={opened.exercise}
+            summary={opened}
+            history={workoutLogs.filter((l) => l.exercise === opened.exercise).map((l) => ({ date: l.date, value: l.weightKg }))}
+            when={when}
+            range={range}
+            span={span}
+            today={today}
+          />
         ) : (
           <ExerciseDetail key={opened.exercise} summary={opened} when={when} range={range} today={today} />
         )}
