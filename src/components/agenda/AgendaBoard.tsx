@@ -512,24 +512,24 @@ function AgendaRow({
               instead of keeping an empty gap beside the date. */}
           <div
             className={clsx(
-              "flex shrink-0 items-center gap-3 transition-opacity lg:absolute lg:inset-y-0 lg:right-0 lg:min-w-24 lg:justify-end lg:pl-3",
+              "flex shrink-0 items-center gap-1 transition-opacity lg:absolute lg:inset-y-0 lg:right-0 lg:min-w-24 lg:justify-end lg:pl-3",
               revealed ? SWIPE_REVEAL_CLASS.shown : SWIPE_REVEAL_CLASS.hidden,
             )}
             style={{ background: "var(--surface-1)" }}
           >
             {done && (
-              <button type="button" onClick={onUncomplete} aria-label="Undo last done" className="p-1" style={{ color: "var(--text-muted)" }}>
+              <button type="button" onClick={onUncomplete} aria-label="Undo last done" className="flex h-9 w-9 items-center justify-center" style={{ color: "var(--text-muted)" }}>
                 <UndoIcon size={15} />
               </button>
             )}
-            <button type="button" onClick={onEdit} aria-label="Edit" className="p-1" style={{ color: "var(--text-muted)" }}>
+            <button type="button" onClick={onEdit} aria-label="Edit" className="flex h-9 w-9 items-center justify-center" style={{ color: "var(--text-muted)" }}>
               <PencilIcon size={15} />
             </button>
             <button
               type="button"
               onClick={onAskDelete}
               aria-label="Delete"
-              className="p-1"
+              className="flex h-9 w-9 items-center justify-center"
               style={{ color: "var(--text-muted)" }}
             >
               <TrashIcon size={15} />

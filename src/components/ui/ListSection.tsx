@@ -59,7 +59,7 @@ export function ListSection({
   return (
     <section className="flex flex-col gap-1.5">
       {collapsible ? (
-        <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} className="flex min-h-8 items-center gap-1.5 px-3.5 text-left">
+        <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} className="hit-slop flex min-h-8 items-center gap-1.5 px-3.5 text-left">
           {head}
         </button>
       ) : (
