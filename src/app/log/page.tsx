@@ -2377,7 +2377,7 @@ export default function LogPage() {
           <button
             type="button"
             onClick={() => setDate((d) => addDaysLocal(d, -1))}
-            className="flex h-9 w-8 items-center justify-center rounded-[10px]"
+            className="hit-slop flex h-9 w-10 items-center justify-center rounded-[10px]"
             style={{ color: "var(--ui-accent)" }}
             aria-label="Previous day"
           >
@@ -2400,7 +2400,7 @@ export default function LogPage() {
             type="button"
             onClick={() => setDate((d) => (d < today ? addDaysLocal(d, 1) : d))}
             disabled={date >= today}
-            className="flex h-9 w-8 items-center justify-center rounded-[10px] disabled:opacity-30"
+            className="hit-slop flex h-9 w-10 items-center justify-center rounded-[10px] disabled:opacity-30"
             style={{ color: "var(--ui-accent)" }}
             aria-label="Next day"
           >

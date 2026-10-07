@@ -79,7 +79,7 @@ function PeriodNav({
         onClick={() => onShift(-step)}
         disabled={!canPrev}
         aria-label="Previous"
-        className="flex h-9 w-8 items-center justify-center rounded-[10px] disabled:opacity-30"
+        className="hit-slop flex h-9 w-10 items-center justify-center rounded-[10px] disabled:opacity-30"
         style={{ color: "var(--ui-accent)" }}
       >
         <ChevronIcon dir="left" size={15} />
@@ -108,7 +108,7 @@ function PeriodNav({
         onClick={() => onShift(step)}
         disabled={!canNext}
         aria-label="Next"
-        className="flex h-9 w-8 items-center justify-center rounded-[10px] disabled:opacity-30"
+        className="hit-slop flex h-9 w-10 items-center justify-center rounded-[10px] disabled:opacity-30"
         style={{ color: "var(--ui-accent)" }}
       >
         <ChevronIcon dir="right" size={15} />
