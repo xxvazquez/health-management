@@ -19,7 +19,7 @@ import {
   renameDoctorSpecialty,
   setDoctorFollowUpTaskComplete,
   setDoctorSpecialtyArchived,
-  setSpecialtyNextAppointment,
+  setDoctorSpecialtyNextAppointment,
   updateDoctor,
   updateDoctorAppointment,
   updateDoctorFollowUpTask,
@@ -186,9 +186,13 @@ export function useDoctors() {
         });
         return;
       }
-      setSpecialties(await setSpecialtyNextAppointment(specialtyName, date));
+      const key = specialtyName.trim().toLowerCase();
+      const current = specialties.find((s) => s.name.toLowerCase() === key) ?? null;
+      if (current) setSpecialties((prev) => prev.map((s) => (s.id === current.id ? { ...s, nextAppointmentDate: date } : s)));
+      const saved = await setDoctorSpecialtyNextAppointment(current, specialtyName, date);
+      if (!current) setSpecialties((prev) => [...prev, saved].sort((a, b) => a.name.localeCompare(b.name)));
     },
-    [isDemo],
+    [isDemo, specialties],
   );
 
   // --- Doctors ---

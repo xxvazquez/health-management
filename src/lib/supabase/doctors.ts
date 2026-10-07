@@ -118,10 +118,6 @@ async function currentUserId(): Promise<string | null> {
   return session?.user.id ?? null;
 }
 
-function notConfigured(): Error {
-  return new Error("Cloud sync isn't set up for this deployment.");
-}
-
 // --- Specialties -------------------------------------------------------
 
 export async function fetchDoctorSpecialties(): Promise<DoctorSpecialty[]> {
@@ -186,6 +182,18 @@ export async function setDoctorSpecialtyArchived(specialty: DoctorSpecialty, arc
   return next;
 }
 
+/** Sets (or clears) a specialty's one next-appointment date. A name with
+ * no row yet (a still-default specialty) gets one created with the date. */
+export async function setDoctorSpecialtyNextAppointment(specialty: DoctorSpecialty | null, name: string, date: string | null): Promise<DoctorSpecialty> {
+  const myUserId = await currentUserId();
+  if (!myUserId) throw new Error("Sign in first.");
+  const next: DoctorSpecialty = specialty
+    ? { ...specialty, nextAppointmentDate: date }
+    : { id: createTimeOrderedId(), name: name.trim(), nextAppointmentDate: date, isArchived: false, icon: null, color: null };
+  await upsertDirect(myUserId, "doctor_specialties", next.id, specialtyPayload(next, myUserId));
+  return next;
+}
+
 export async function deleteDoctorSpecialty(id: string): Promise<void> {
   const myUserId = await currentUserId();
   if (!myUserId) return;
@@ -212,21 +220,6 @@ export async function ensureDoctorSpecialties(names: string[] = []): Promise<Doc
   }
   if (missing.length === 0) return existing;
   const { error } = await supabase.from("doctor_specialties").insert(missing.map((name) => ({ user_id: myUserId, name })));
-  if (error) throw error;
-  return fetchDoctorSpecialties();
-}
-
-/** Sets (or clears) the one next-appointment date for a specialty,
- * materializing its row first so a still-default specialty can hold a date. */
-export async function setSpecialtyNextAppointment(name: string, date: string | null): Promise<DoctorSpecialty[]> {
-  if (!supabase) throw notConfigured();
-  const list = await ensureDoctorSpecialties([name]);
-  const target = list.find((s) => s.name.toLowerCase() === name.trim().toLowerCase());
-  if (!target) throw new Error("Couldn't find that specialty.");
-  const { error } = await supabase
-    .from("doctor_specialties")
-    .update({ next_appointment_date: date, updated_at: new Date().toISOString() })
-    .eq("id", target.id);
   if (error) throw error;
   return fetchDoctorSpecialties();
 }
