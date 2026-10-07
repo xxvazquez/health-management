@@ -113,11 +113,11 @@ export function HealthImportCard({ isDemoData, searchQuery }: { isDemoData: bool
               <strong>Find Health Samples</strong> (Steps, Start Date is in the last 1 year, Group By Day).
             </Step>
             <Step n={2}>
-              <strong>Repeat with Each</strong> sample, and inside it: <strong>Get Details of Health Sample</strong> → Start Date, then{" "}
+              <strong>Repeat with Each</strong> sample, and inside it: <strong>Get Start Date from Repeat Item</strong>, then{" "}
               <strong>Format Date</strong> (Custom, <code>yyyy-MM-dd</code>).
             </Step>
             <Step n={3}>
-              Still inside: <strong>Get Details of Health Sample</strong> → Value (of Repeat Item).
+              Still inside: <strong>Get Value from Repeat Item</strong>.
             </Step>
             <Step n={4}>
               Still inside: <strong>Text</strong> <code>{'{"date":"Formatted Date","steps":"Value"}'}</code> with the two variables in place of the words,
