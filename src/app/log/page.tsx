@@ -2572,6 +2572,7 @@ export default function LogPage() {
       ) : tab === "summary" ? (
         <>
         <CheckInCard date={date} />
+        {status !== "loading" && (
         <div className="inset-rows rounded-xl border [--row-inset:3.375rem] lg:hidden" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
           {logTabs
             .filter((t) => t.id !== "summary")
@@ -2601,6 +2602,7 @@ export default function LogPage() {
               );
             })}
         </div>
+        )}
         </>
       ) : (
         <>
@@ -2773,7 +2775,7 @@ export default function LogPage() {
           )}
         </>
       )}
-      {tab === "summary" && timelineRows.length > 0 && (
+      {tab === "summary" && status !== "loading" && timelineRows.length > 0 && (
         <div className="flex flex-col gap-2">
           <h2 className="px-0.5 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
             Timeline — {formatDateLabel(date, today).toLowerCase()}

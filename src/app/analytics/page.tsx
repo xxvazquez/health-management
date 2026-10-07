@@ -77,8 +77,8 @@ export default function AnalyticsPage() {
   const active = visibleTabs.find((t) => t.id === tabId) ?? visibleTabs[0];
 
   // Which sections show depends on the data, so wait for it rather than
-  // flashing "every section is hidden".
-  if (!active && status === "loading") return <PageSkeleton />;
+  // flashing a partial tab list or "every section is hidden".
+  if (status === "loading") return <PageSkeleton />;
   if (!active) {
     return (
       <div className="flex flex-col gap-6">
