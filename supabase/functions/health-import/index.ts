@@ -8,7 +8,8 @@
 // platform's JWT gate.
 //
 // A backfill sends `days`, a list of objects with the same fields (each with
-// its own `date`), and every day is saved the same way in one request.
+// its own `date`, no date twice), and every day is saved the same way in one
+// request.
 //
 // One entry per day and kind: the row id is derived from (user, kind, date),
 // so running the shortcut again the same day replaces the value instead of
@@ -334,6 +335,7 @@ async function importDay(req: Request): Promise<Response> {
       if (!entry) throw new HttpError(400, `days[${i}] must be an object`);
       try {
         const day = parseDay((name) => entry[name], timeZone, true);
+        if (byDate.has(day.date)) throw new HttpError(400, `${day.date} appears more than once; check each day has its own date`);
         byDate.set(day.date, day);
       } catch (err) {
         if (err instanceof HttpError) throw new HttpError(400, `days[${i}]: ${err.message}`);
