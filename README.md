@@ -99,7 +99,7 @@ Sections: **Food · Symptoms · Supplements · Habits · Stool · Workout · Cyc
 
 ### Trends
 
-One dashboard per Log section, plus Patterns. The time range sits in the title row and opens on the last 30 days; Patterns and Cycle read the whole history and have none.
+One dashboard per Log section, plus Patterns. The time range sits in the title row and opens on the last 30 days; a picked window (say 7 days) keeps rolling forward and carries to the other dashboards. Patterns and Cycle read the whole history and have none.
 
 | Dashboard | Shows |
 |---|---|
