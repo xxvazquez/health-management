@@ -125,7 +125,8 @@ grant select, insert, update, delete on
   public.food_diary, public.supplement_diary, public.habit_diary, public.symptom_diary, public.workout_diary,
   public.stool_logs, public.stool_options, public.workout_logs, public.workout_plans, public.period_logs, public.push_subscriptions,
   public.partner_invites, public.partner_links, public.notes,
-  public.doctor_specialties, public.doctors, public.doctor_appointments, public.doctor_appointment_tasks
+  public.doctor_specialties, public.doctors, public.doctor_appointments, public.doctor_appointment_tasks,
+  public.expense_categories, public.expenses
   to authenticated;
 
 set local role authenticated;
@@ -725,6 +726,40 @@ select public.test_assert_raises(
   $sql$insert into public.doctor_appointment_tasks (id, user_id, appointment_id, description)
        values ('e7000000-0000-0000-0000-0000000000e7', '22222222-2222-2222-2222-222222222222', 'e3000000-0000-0000-0000-0000000000e3', 'Cross-user task')$sql$,
   'doctor_appointment_tasks: an appointment_id belonging to another user is rejected by the composite FK'
+);
+
+-- ============================================================================
+-- expense_categories / expenses
+-- ============================================================================
+
+select public.test_switch_user('11111111-1111-1111-1111-111111111111');
+insert into public.expense_categories (id, user_id, name)
+values ('f1000000-0000-0000-0000-0000000000f1', '11111111-1111-1111-1111-111111111111', 'Groceries');
+insert into public.expenses (id, user_id, spent_at, merchant, amount, currency, category_id)
+values ('f2000000-0000-0000-0000-0000000000f2', '11111111-1111-1111-1111-111111111111', now(), 'Shop', 45.5, 'PLN', 'f1000000-0000-0000-0000-0000000000f1');
+
+select public.test_switch_user('22222222-2222-2222-2222-222222222222');
+select public.test_assert(
+  (select count(*) from public.expenses where id = 'f2000000-0000-0000-0000-0000000000f2') = 0,
+  'expenses: user B cannot SELECT user A''s expense'
+);
+update public.expenses set amount = 1 where id = 'f2000000-0000-0000-0000-0000000000f2';
+delete from public.expenses where id = 'f2000000-0000-0000-0000-0000000000f2';
+select public.test_assert_raises(
+  $sql$insert into public.expenses (id, user_id, spent_at, merchant, amount, currency, category_id)
+       values ('f3000000-0000-0000-0000-0000000000f3', '22222222-2222-2222-2222-222222222222', now(), 'Shop', 1, 'PLN', 'f1000000-0000-0000-0000-0000000000f1')$sql$,
+  'expenses: a category_id belonging to another user is rejected by the composite FK'
+);
+
+select public.test_switch_user('11111111-1111-1111-1111-111111111111');
+select public.test_assert(
+  (select amount from public.expenses where id = 'f2000000-0000-0000-0000-0000000000f2') = 45.5,
+  'expenses: user A''s expense survives user B''s UPDATE and DELETE attempts'
+);
+delete from public.expense_categories where id = 'f1000000-0000-0000-0000-0000000000f1';
+select public.test_assert(
+  (select category_id is null and user_id is not null from public.expenses where id = 'f2000000-0000-0000-0000-0000000000f2'),
+  'expenses: deleting a category leaves its expenses uncategorised'
 );
 
 do $$ begin raise notice '=== all RLS tests passed ==='; end $$;

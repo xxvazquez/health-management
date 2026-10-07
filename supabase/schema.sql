@@ -1327,6 +1327,54 @@ create table public.health_import_tokens (
   unique (owner_id)
 );
 
+-- Notes -> Expenses: card payments and anything typed in by hand. Private to
+-- each person. `amount` is what was charged; `share` is the part that was
+-- really yours when a payment was split (null = all of it), and every total
+-- counts the share. A negative amount is a refund. Categories are the
+-- person's own (`expense_categories`, ordered by prefs.orders); a payment
+-- with no category waits under "To categorise". `source` = 'card' for
+-- payments posted by the expense-import Edge Function, 'manual' otherwise.
+create table public.expense_categories (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id),
+  name text not null check (char_length(trim(name)) > 0),
+  icon text,
+  color text,
+  created_at timestamptz not null default now(),
+  unique (user_id, id)
+);
+
+create table public.expenses (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id),
+  spent_at timestamptz not null,
+  merchant text not null check (char_length(trim(merchant)) > 0),
+  amount numeric(12, 2) not null,
+  share numeric(12, 2),
+  currency text not null check (currency ~ '^[A-Z]{3}$'),
+  category_id uuid,
+  note text,
+  source text not null default 'manual' check (source in ('manual', 'card')),
+  card text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  foreign key (user_id, category_id) references public.expense_categories (user_id, id) on delete set null (category_id)
+);
+
+create index expenses_user_spent_idx on public.expenses (user_id, spent_at desc);
+
+-- Notes -> Expenses: a personal token so an iOS Shortcut (a Wallet
+-- "Transaction" automation on the card) can POST each payment to the
+-- expense-import Edge Function without a Supabase session. Same shape and
+-- rules as health_import_tokens.
+create table public.expense_import_tokens (
+  token text primary key,
+  owner_id uuid not null default auth.uid() references auth.users(id),
+  created_at timestamptz not null default now(),
+  last_used_at timestamptz,
+  unique (owner_id)
+);
+
 create index wishlist_categories_owner_created_idx on public.wishlist_categories (owner_id, created_at);
 create index wishlist_items_category_created_idx on public.wishlist_items (category_id, created_at desc);
 
@@ -1416,6 +1464,9 @@ alter table public.wishlist_categories enable row level security;
 alter table public.wishlist_items enable row level security;
 alter table public.wishlist_share_tokens enable row level security;
 alter table public.health_import_tokens enable row level security;
+alter table public.expense_categories enable row level security;
+alter table public.expenses enable row level security;
+alter table public.expense_import_tokens enable row level security;
 alter table public.food_nutrition_groups enable row level security;
 
 create policy "categories_all_own" on public.categories for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
@@ -1602,6 +1653,12 @@ create policy "wishlist_share_tokens_delete_own" on public.wishlist_share_tokens
 create policy "health_import_tokens_select_own" on public.health_import_tokens for select using (auth.uid() = owner_id);
 create policy "health_import_tokens_insert_own" on public.health_import_tokens for insert with check (auth.uid() = owner_id);
 create policy "health_import_tokens_delete_own" on public.health_import_tokens for delete using (auth.uid() = owner_id);
+-- expense_import_tokens: the same rules as wishlist_share_tokens.
+create policy "expense_import_tokens_select_own" on public.expense_import_tokens for select using (auth.uid() = owner_id);
+create policy "expense_import_tokens_insert_own" on public.expense_import_tokens for insert with check (auth.uid() = owner_id);
+create policy "expense_import_tokens_delete_own" on public.expense_import_tokens for delete using (auth.uid() = owner_id);
+create policy "expense_categories_all_own" on public.expense_categories for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "expenses_all_own" on public.expenses for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "food_nutrition_groups_all_own" on public.food_nutrition_groups for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 -- household_task_completions has no owner_id of its own (it's a log of

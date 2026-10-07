@@ -146,6 +146,10 @@ Parent-and-child writes (an appointment with tasks, a whole blood draw) queue pa
   - Minutes and steps become one Walking / Steps `workout_logs` row per day (Steps is created on first import); weight and BP one `weight_logs` / `blood_pressure` reading per day, timed at midday
   - Each row has a stable id from (user, kind, date), so a re-run overwrites it and a 0 deletes it; typed entries of the same kind that day are deleted so nothing double-counts
   - `src/lib/appleHealth.ts` recomputes those ids so Log and Vitals can label imported entries; workout rows arrive on the next sync pull, Vitals reads Supabase directly
+- **Expenses** (`expenses`, `expense_categories`)
+  - A Wallet "Transaction" Shortcut posts each Apple Pay payment (merchant, amount as Wallet formats it, card name) to `expense-import` with its own token (`expense_import_tokens`)
+  - The amount's text is parsed by `supabase/functions/_shared/money.ts` (shared with the app through `src/lib/money.ts`): symbol or ISO code → currency, last `.`/`,` with 1–2 digits after it → decimal point
+  - A new payment takes the category its merchant last had; a repeat of the same merchant + amount within two minutes is ignored
 - **Health** (`doctor_*`, `care_entries`, `lab_*`)
   - The route is `/medical`, but the code and tables keep the `doctor_` name
   - An appointment freezes a copy of the doctor's specialty, so later edits never rewrite history

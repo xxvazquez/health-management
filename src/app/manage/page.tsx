@@ -19,6 +19,7 @@ import { PushNotificationsToggle } from "@/components/PushNotificationsToggle";
 import { DataExportCard } from "@/components/manage/DataExportCard";
 import { WorkoutPlansCard } from "@/components/manage/WorkoutPlansCard";
 import { HealthImportCard } from "@/components/manage/HealthImportCard";
+import { CardPaymentsCard, ExpensesCard } from "@/components/manage/ExpensesCards";
 import { FoodTargetsCard } from "@/components/manage/FoodTargetsCard";
 import { HiddenLinksCard } from "@/components/manage/HiddenLinksCard";
 import { UsualTimesCard } from "@/components/manage/UsualTimesCard";
@@ -3674,6 +3675,8 @@ export default function ManagePage() {
     { label: "Apple Health", el: <HealthImportCard key="apple-health" isDemoData={isDemoData} searchQuery={searchQuery} /> },
     { label: "Weight goal", el: <WeightGoalCard key="weight-goal" isDemoData={isDemoData} searchQuery={searchQuery} /> },
     { label: "Wishlist lists", el: <WishlistListsCard key="wishlist-lists" isDemoData={isDemoData} searchQuery={searchQuery} /> },
+    { label: "Expenses", el: <ExpensesCard key="expenses" isDemoData={isDemoData} searchQuery={searchQuery} /> },
+    { label: "Card payments", el: <CardPaymentsCard key="card-payments" isDemoData={isDemoData} searchQuery={searchQuery} /> },
     ...TYPE_SECTIONS.map((section) => ({
       label: section.label,
       el: (
@@ -3748,7 +3751,7 @@ export default function ManagePage() {
   const groups: { title: string; labels: string[] }[] = [
     { title: "Tracking", labels: ["Food", "Food targets", "Symptoms", "Supplements", "Habits", "Workout", "Coffee", "Stool options", "Hidden links"] },
     { title: "Health", labels: ["Doctors", "Doctor types", "Lab results", "Weight goal"] },
-    { title: "Lists", labels: ["Reminder lists", "Wishlist lists"] },
+    { title: "Lists", labels: ["Reminder lists", "Wishlist lists", "Expenses"] },
     { title: "App", labels: ["Appearance", "Visible sections", "Usual times", "Your data"] },
   ];
   const isSearching = searchQuery.trim().length > 0;

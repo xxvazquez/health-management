@@ -8,7 +8,7 @@ export interface PhoneToken {
   lastUsedAt: string | null;
 }
 
-type TokenTable = "wishlist_share_tokens" | "health_import_tokens";
+type TokenTable = "wishlist_share_tokens" | "health_import_tokens" | "expense_import_tokens";
 
 const COLUMNS = "token, created_at, last_used_at";
 

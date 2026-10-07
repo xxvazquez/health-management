@@ -596,7 +596,7 @@ the FK holds. Wired: `journal_entries`, `personal_items` / `personal_tasks` /
 `blood_pressure` / `weight_logs` / `weight_target`, `color_palette`, `doctors` / `doctor_specialties` /
 `doctor_appointments` / `doctor_appointment_tasks`, `care_entries` /
 `care_entry_specialties` / `care_entry_files`, `lab_panels` / `lab_markers` / `lab_results`,
-`wishlist_*`, `household_*`, `notes`. Messages toggles send only my own
+`wishlist_*`, `household_*`, `notes`, `expenses` / `expense_categories`. Messages toggles send only my own
 read/archive state columns (never an identity column, so the
 `notes_lock_identity_columns` trigger stays happy); `fetchThreadMessages` caches
 per thread so a thread opened before still reads offline. Every direct feature
@@ -706,6 +706,13 @@ readings at midday, each with an id derived from (user, kind, date), so
 each day has one imported entry per kind that a re-run overwrites and a 0
 deletes. A backfill sends the same fields per day as a `days` list.
 
+`expense_import_tokens` has the same shape and rules too: one per account,
+for the iOS Shortcut (a Wallet "Transaction" automation on the card) that
+POSTs each Apple Pay payment to the `expense-import` Edge Function. It
+writes one `expenses` row with `source = 'card'`, taking the category the
+same merchant (case-insensitive) last had, else none. The same merchant,
+amount and currency again within two minutes is skipped as a double fire.
+
 `wishlist_share_tokens` (one row per account, `unique (owner_id)`) is a
 capture token for a phone Share Sheet shortcut: iOS has no PWA share
 target, so the shortcut POSTs a link to the `wishlist-share` Edge
@@ -715,6 +722,22 @@ that owner. Optional `for` / `title` / `list` query params from the
 shortcut set the recipient, title (else fetched) and target list
 (matched case-insensitively, created if new; defaults to "Saved from
 phone"). Regenerating is a delete + insert, so there's no UPDATE policy.
+
+## Notes → Expenses (private)
+
+```mermaid
+erDiagram
+    expense_categories ||--o{ expenses : "category_id (set null on delete)"
+```
+
+| Table | Purpose |
+|---|---|
+| `expense_categories` | Your own categories (`name`, optional `icon` / `color` like every other grouping). Order lives in `prefs.orders.expenseCategories`, not a column. |
+| `expenses` | One payment: `spent_at`, `merchant`, `amount` (what was charged; negative = refund), `share` (your part of a split payment, null = all of it), `currency` (ISO code, per row), optional `category_id`, `note`, `source` (`card` from `expense-import`, else `manual`) and `card` (the card's name from the Shortcut). Totals count `share ?? amount`, summed per currency. |
+
+- `(user_id, category_id)` is a composite FK with `on delete set null (category_id)`, so deleting a category leaves its expenses uncategorised without touching `user_id`.
+- Putting an uncategorised payment in a category also files the merchant's other uncategorised payments (client-side), and the import function copies the merchant's latest category onto new payments.
+- Written directly to Supabase through `directWrite.ts` (offline-queued); read with an offline snapshot.
 
 ## Infrastructure tables
 
@@ -735,7 +758,7 @@ phone"). Regenerating is a delete + insert, so there's no UPDATE policy.
 | `notes` | SELECT/UPDATE: `auth.uid() in (sender_id, recipient_id)`. INSERT: must be yourself, to your actual linked partner, into a thread you're part of. No DELETE. |
 | `household_notes` / `household_tasks` / `household_items` / `household_codes` / `household_task_completions` / `wishlist_categories` / `wishlist_items` | `auth.uid() = owner_id or is_household_member(owner_id)` — visible and editable by the creator and their one linked partner. INSERT must be as `owner_id = auth.uid()`; `wishlist_items` also checks the target category is one you can see. |
 | `wishlist_share_tokens` | SELECT/INSERT/DELETE only, `auth.uid() = owner_id` — personal, never pair-visible. |
-| `health_import_tokens` | Same as `wishlist_share_tokens`. |
+| `health_import_tokens`, `expense_import_tokens` | Same as `wishlist_share_tokens`. |
 
 ## Functions & triggers
 

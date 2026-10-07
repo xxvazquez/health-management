@@ -33,7 +33,7 @@ const GROUPS: { title: string; items: Entry[] }[] = [
       },
       {
         title: "Notes",
-        body: "The things you keep with no deadline: Journal, Quick notes, Wishlist, and a shared Codes list. Journal and quick notes are private writing; a quick note can be shared with a linked partner one at a time.",
+        body: "The things you keep with no deadline: Journal, Quick notes, Wishlist, a shared Codes list, and your Expenses. Journal and quick notes are private writing; a quick note can be shared with a linked partner one at a time.",
       },
       {
         title: "Messages",
@@ -121,6 +121,10 @@ const GROUPS: { title: string; items: Entry[] }[] = [
       {
         title: "Wishlist",
         body: "Saved links grouped into your own lists, each with an optional \"who it's for\". The title is fetched from the page automatically. Lists are created, renamed, recoloured and deleted from Settings (deleting a list also deletes its links). On Android you can share a link straight into Lauva; on iOS the Wishlist tab has an \"Add from your phone\" panel that sets up a Shortcut.",
+      },
+      {
+        title: "Expenses",
+        body: "Your spending by category for a month, with the payments still waiting for a category on top. Tap one of those to pick its category; other waiting payments from the same shop get it too, and so will that shop's next payments. Open any payment to change it, or to set your share when you split it (half, or a custom amount): totals count only your share. Categories are set up in Settings → Expenses, where Card payments sets up a Shortcut that sends every Apple Pay payment with your Revolut card here as it happens. Online payments and transfers are added with New expense.",
       },
       {
         title: "Codes",

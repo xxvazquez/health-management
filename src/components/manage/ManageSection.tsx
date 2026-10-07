@@ -32,6 +32,7 @@ export const SECTION_PARENT: Record<string, string> = {
   "Food products": "Food",
   "Workout plans": "Workout",
   "Apple Health": "Workout",
+  "Card payments": "Expenses",
 };
 
 /** `searching` (a live query on the Settings search box) shows every
@@ -64,6 +65,8 @@ const SECTION_ICON: Record<string, { icon: string; color: string }> = {
   "Weight goal": { icon: "activity", color: "var(--series-4)" },
   "Reminder lists": { icon: "bell", color: "var(--series-berry)" },
   "Wishlist lists": { icon: "gift", color: "var(--series-magenta)" },
+  Expenses: { icon: "lucide:receipt", color: "var(--series-indigo)" },
+  "Card payments": { icon: "lucide:credit-card", color: "var(--series-indigo)" },
   Appearance: { icon: "sun", color: "var(--ui-accent)" },
   "Visible sections": { icon: "eye", color: "var(--ui-accent)" },
   "Your data": { icon: "folder", color: "var(--ui-accent)" },
