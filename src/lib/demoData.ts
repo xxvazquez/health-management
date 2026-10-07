@@ -276,6 +276,22 @@ export function buildDemoDataset(): DemoDataset {
     }
   }
 
+  // Steps arrive daily from Apple Health for a real account.
+  const stepsIdentity = ensureItem("workout", "Steps", "Cardio");
+  itemsByName.set("Steps", { ...itemsByName.get("Steps")!, unit: "steps" });
+  for (let dayOffset = DEMO_WINDOW_DAYS; dayOffset >= 0; dayOffset--) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - dayOffset);
+    const date = isoDate(d);
+    workoutLogs.push({
+      id: `${DEMO_ID_PREFIX}workout:${stepsIdentity}:${date}`,
+      date,
+      exercise: "Steps",
+      weightKg: 4000 + Math.floor(rand() * 8000),
+      updatedAt: new Date(`${date}T23:00:00`).getTime(),
+    });
+  }
+
   // Anchored further back than DEMO_WINDOW_DAYS (unlike food/stool/workout
   // above) so the Analysis section has more than one completed cycle to
   // compute a real average/variation from, not just the single most recent

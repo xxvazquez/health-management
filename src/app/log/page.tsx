@@ -101,6 +101,7 @@ import { usePreferences } from "@/lib/usePreferences";
 import { currentCycleStatus, groupIntoPeriodRuns } from "@/lib/aggregations/cycle";
 import { useOverflowFade } from "@/lib/useOverflowFade";
 import { settingsHref } from "@/components/manage/ManageSection";
+import { useAppleHealthLogId } from "@/lib/appleHealth";
 import {
   workoutUnitLabel,
   workoutValueLabel,
@@ -987,6 +988,7 @@ export default function LogPage() {
   // The Summary tab's timeline opens an entry's editable detail in a sheet
   // rather than expanding its row — see `detailKey`'s own comment.
   const detailEntry = combinedTimeline.find((e) => e.key === detailKey) ?? null;
+  const detailHealthId = useAppleHealthLogId(detailEntry?.itemIdentity ?? "", detailEntry?.itemType === "workout" ? date : undefined);
 
   // The timeline with each meal's foods folded into one row at the time of
   // that meal's latest entry; the row opens a sheet listing the foods.
@@ -3081,7 +3083,7 @@ export default function LogPage() {
                         unit={entry.unit ?? "kg"}
                         name={entry.item}
                         accent={accent}
-                        hidden={isDemoData}
+                        hidden={isDemoData || entry.key === detailHealthId}
                         onChange={(v) => void handleChangeEntryValue(entry, v)}
                       />
                     </div>

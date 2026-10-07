@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/Button";
-import { CheckIcon, MinusIcon, PlusIcon } from "@/components/ui/icons";
+import { CheckIcon, ChevronIcon, MinusIcon, PlusIcon } from "@/components/ui/icons";
 import { workoutUnitLabel, type RawWorkoutLog, type RawItem, type WorkoutUnit } from "@/lib/types";
 import { UNIT_STEP_PRESETS } from "@/components/ui/NumberStepper";
 import { CustomIcon } from "@/components/ui/customIcons";
@@ -271,6 +271,41 @@ export function ExerciseRow({
 
   const unitLabel = workoutUnitLabel(unit);
   const healthId = useAppleHealthLogId(item.identity, todaysSets[0]?.date);
+  const imported = todaysSets.find((set) => set.id === healthId) ?? (unit === "steps" ? todaysSets.at(-1) : undefined);
+
+  // Apple Health owns this value (Steps always, Walking once imported), so
+  // the row just reads it — no stepper or Log.
+  if (imported || unit === "steps") {
+    const content = (
+      <>
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm break-words" style={{ color: "var(--text-primary)" }}>
+            {item.rawName}
+          </span>
+          {detail}
+          <span className="block text-xs" style={{ color: "var(--text-muted)" }}>
+            Apple Health
+          </span>
+        </span>
+        <span className="flex shrink-0 items-center gap-1.5 text-sm tabular-nums" style={{ color: "var(--text-muted)" }}>
+          <span style={{ color: "var(--text-secondary)" }}>{imported ? `${imported.weightKg.toLocaleString()} ${unitLabel}` : "—"}</span>
+          {imported && <ChevronIcon dir="right" size={14} />}
+        </span>
+      </>
+    );
+    return imported ? (
+      <button
+        type="button"
+        onClick={() => onOpenEntry(imported.id)}
+        aria-label={`${item.rawName}, ${imported.weightKg} ${unitLabel} from Apple Health`}
+        className="flex min-h-11 w-full items-center gap-3 px-3.5 py-2 text-left transition-colors hover:bg-black/[0.04] active:bg-black/5"
+      >
+        {content}
+      </button>
+    ) : (
+      <div className="flex min-h-11 items-center gap-3 px-3.5 py-2">{content}</div>
+    );
+  }
 
   return (
     <div className="flex min-h-11 items-center gap-3 px-3.5 py-2">
@@ -291,7 +326,6 @@ export function ExerciseRow({
                   className="hit-slop font-medium"
                 >
                   {set.weightKg} {unitLabel}
-                  {set.id === healthId && <span style={{ color: "var(--text-muted)" }}> · Apple Health</span>}
                 </button>
                 {i < todaysSets.length - 1 && ","}
               </span>
