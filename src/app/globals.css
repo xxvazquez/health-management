@@ -96,6 +96,8 @@
    * 4-5 distinguishable identities without reaching outside the palette. */
   --series-indigo: #4554a1; /* between wave and lavender */
   --series-magenta: #9d43a3; /* between lavender and dot */
+  /* The one warm domain hue: Workout, coloured like Apple Health's Activity. */
+  --series-activity: #b85410;
 
   /* Food-category slot colors (see CATEGORY_SLOT in categories.ts) — one
    * fixed hue family per real-world food group, distinct enough at a
@@ -184,6 +186,7 @@
   --series-other: #8b9799;
   --series-indigo: #7a83bd; /* muted indigo */
   --series-magenta: #b07cb4; /* greyed orchid */
+  --series-activity: #d98d55; /* muted activity orange */
   --series-slate: #8ba0b0;
 
   --seq-100: #21313c;

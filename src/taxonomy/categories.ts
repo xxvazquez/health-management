@@ -113,9 +113,8 @@ export const TYPE_ACCENT: Record<ItemType, string> = {
   supplement: "var(--series-2)", // sky blue
   outcome: "var(--series-8)", // plum
   habit: "var(--series-3)", // lavender
-  // Deep teal-green rather than magenta: Notes (Connect) uses the magenta
-  // series for its own accent, and the two read distinctly at a glance.
-  workout: "var(--series-6)", // deep teal-green
+  // Activity orange, as Apple Health colours activity; the greens belong to Food.
+  workout: "var(--series-activity)",
 };
 
 /**

@@ -135,7 +135,7 @@ const STOOL_ACCENT = "var(--series-indigo)";
 // TYPE_ACCENT.workout in taxonomy/categories.ts — kept as its own constant
 // here (rather than imported) since this file also needs accents for
 // stool/cycle, which aren't real ItemTypes and have no TYPE_ACCENT entry.
-const WORKOUT_ACCENT = "var(--series-6)";
+const WORKOUT_ACCENT = "var(--series-activity)";
 const CYCLE_ACCENT = "var(--series-4)";
 const COFFEE_ACCENT = "var(--series-slate)";
 // Neutral rather than one more domain color — Summary doesn't own a food
