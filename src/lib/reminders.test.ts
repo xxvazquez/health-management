@@ -41,9 +41,24 @@ describe("isRecurringTask / isTaskDone", () => {
 });
 
 describe("nextRecurringDueAt", () => {
-  it("advances from the completion moment, not the previous due date — a late completion doesn't immediately re-show as due", () => {
-    const completedAt = new Date("2026-06-20T09:00:00.000Z"); // completed 5 days late
-    const next = nextRecurringDueAt(7, completedAt);
-    expect(next).toBe("2026-06-27T09:00:00.000Z");
+  it("advances from the completion day, not the previous due date — a late completion doesn't immediately re-show as due", () => {
+    const completedAt = new Date(2026, 5, 20, 9, 0); // completed 5 days late
+    expect(nextRecurringDueAt(7, completedAt)).toBe(new Date(2026, 5, 27, 9, 0).toISOString());
+  });
+
+  it("keeps the reminder's own time of day, not the moment it was ticked", () => {
+    const due = new Date(2026, 5, 13, 8, 0).toISOString();
+    expect(nextRecurringDueAt(7, new Date(2026, 5, 13, 22, 15), due)).toBe(new Date(2026, 5, 20, 8, 0).toISOString());
+  });
+
+  it("holds the local time across a clock change", () => {
+    const due = new Date(2026, 9, 21, 8, 0).toISOString();
+    const next = new Date(nextRecurringDueAt(7, new Date(2026, 9, 21, 9, 0), due));
+    expect([next.getDate(), next.getHours(), next.getMinutes()]).toEqual([28, 8, 0]);
+  });
+
+  it("counts a completion after midnight toward the previous day", () => {
+    const due = new Date(2026, 5, 13, 22, 0).toISOString();
+    expect(nextRecurringDueAt(1, new Date(2026, 5, 14, 0, 30), due)).toBe(new Date(2026, 5, 14, 22, 0).toISOString());
   });
 });

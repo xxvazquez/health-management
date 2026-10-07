@@ -213,7 +213,7 @@ export function usePersonalReminderBoards() {
         setTasks((prev) =>
           prev.map((t) =>
             t.id === task.id
-              ? { ...t, lastCompletedAt: now.toISOString(), dueAt: isRecurringTask(t) ? nextRecurringDueAt(t.recurrenceDays as number, now) : t.dueAt }
+              ? { ...t, lastCompletedAt: now.toISOString(), dueAt: isRecurringTask(t) ? nextRecurringDueAt(t.recurrenceDays as number, now, t.dueAt) : t.dueAt }
               : t,
           ),
         );

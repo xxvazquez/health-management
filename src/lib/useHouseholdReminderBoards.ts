@@ -175,7 +175,7 @@ export function useHouseholdReminderBoards() {
                   ...t,
                   lastCompletedAt: now.toISOString(),
                   lastCompletedBy: myUserId,
-                  dueAt: isRecurringTask(t) ? nextRecurringDueAt(t.recurrenceDays as number, now) : t.dueAt,
+                  dueAt: isRecurringTask(t) ? nextRecurringDueAt(t.recurrenceDays as number, now, t.dueAt) : t.dueAt,
                 }
               : t,
           ),

@@ -242,7 +242,7 @@ export async function completeHouseholdTask(task: TaskItem): Promise<TaskItem> {
     ...task,
     lastCompletedAt: nowIso,
     lastCompletedBy: myUserId,
-    dueAt: recurring ? nextRecurringDueAt(task.recurrenceDays as number, new Date(nowIso)) : task.dueAt,
+    dueAt: recurring ? nextRecurringDueAt(task.recurrenceDays as number, new Date(nowIso), task.dueAt) : task.dueAt,
   };
   await updateDirect(myUserId, "household_tasks", next.id, taskPayload(next, myUserId, recurring ? { reminder_sent_at: null } : undefined));
   await insertDirect(myUserId, "household_task_completions", { task_id: task.id, completed_at: nowIso }, { id: createTimeOrderedId(), task_id: task.id, completed_by: myUserId, completed_at: nowIso });

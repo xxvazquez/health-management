@@ -343,8 +343,8 @@ export async function deletePersonalItem(id: string): Promise<void> {
 }
 
 /** Marks a task done "for this cycle": a one-off task is simply done; a
- * recurring one advances due_at from right now (see `nextRecurringDueAt`'s
- * own comment on why from-now, not from the previous due_at), clears the
+ * recurring one advances due_at from today (see `nextRecurringDueAt`'s
+ * own comment on why from today, not from the previous due_at), clears the
  * cron's reminder_sent_at so the next occurrence can remind again, and gets
  * a row in personal_task_completions recording it — kept alongside the
  * denormalized last_completed_at on the task itself for fast list display. */
@@ -356,7 +356,7 @@ export async function completePersonalTask(task: TaskItem): Promise<TaskItem> {
   const next: TaskItem = {
     ...task,
     lastCompletedAt: nowIso,
-    dueAt: recurring ? nextRecurringDueAt(task.recurrenceDays as number, new Date(nowIso)) : task.dueAt,
+    dueAt: recurring ? nextRecurringDueAt(task.recurrenceDays as number, new Date(nowIso), task.dueAt) : task.dueAt,
   };
   await upsertDirect(myUserId, TASKS_TABLE, next.id, taskPayload(next, myUserId, recurring ? { reminder_sent_at: null } : undefined));
   await insertDirect(myUserId, COMPLETIONS_TABLE, { task_id: task.id, completed_at: nowIso }, { id: createTimeOrderedId(), task_id: task.id, user_id: myUserId, completed_at: nowIso });

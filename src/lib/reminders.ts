@@ -44,11 +44,16 @@ export function isTaskDone(task: Pick<TaskItem, "recurrenceDays" | "lastComplete
   return !isRecurringTask(task) && task.lastCompletedAt != null;
 }
 
-/** Advances a recurring task's due date from the moment it's completed —
- * not from the previous due_at — so a task completed late doesn't
- * immediately re-show as due again. */
-export function nextRecurringDueAt(recurrenceDays: number, completedAt: Date = new Date()): string {
-  return new Date(completedAt.getTime() + recurrenceDays * 86_400_000).toISOString();
+/** Advances a recurring task's due date from the day it's completed — not
+ * from the previous due_at — so a task completed late doesn't immediately
+ * re-show as due again. It keeps the previous due time of day (local, so a
+ * clock change doesn't shift it), and like the rest of the app a
+ * completion before 03:00 counts toward the previous day. */
+export function nextRecurringDueAt(recurrenceDays: number, completedAt: Date = new Date(), previousDueAt: string | null = null): string {
+  const day = new Date(completedAt);
+  if (day.getHours() < 3) day.setDate(day.getDate() - 1);
+  const time = previousDueAt ? new Date(previousDueAt) : completedAt;
+  return new Date(day.getFullYear(), day.getMonth(), day.getDate() + recurrenceDays, time.getHours(), time.getMinutes()).toISOString();
 }
 
 export interface ExpirationItem {

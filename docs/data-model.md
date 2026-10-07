@@ -407,8 +407,9 @@ upserts/deletes individual rows instead of replacing the whole set; checking
 one off from Agenda's row list writes just that row.
 
 `recurrence_days` null → one-off task (`last_completed_at` set = done, shown
-in a "Done" section). Set → recurring: `due_at` advances by
-`recurrence_days` on every completion, `reminder_sent_at` clears so the next
+in a "Done" section). Set → recurring: on every completion `due_at` moves to
+`recurrence_days` after the completion day, at its previous time of day
+(`nextRecurringDueAt`), `reminder_sent_at` clears so the next
 occurrence reminds again, and the task never becomes permanently done.
 `is_archived` moves a task into an "Archived" section without deleting its
 history; "Undo" drops the newest completion row (and rewinds `due_at` for a
