@@ -1,5 +1,5 @@
 import { supabase } from "./client";
-import { isRecurringTask, nextRecurringDueAt, rewoundRecurringDueAt, type TaskItem, type TaskSubitem } from "@/lib/reminders";
+import { isRecurringTask, nextRecurringDueAt, rememberDueBeforeCompletion, rewoundRecurringDueAt, type TaskItem, type TaskSubitem } from "@/lib/reminders";
 import { createTimeOrderedId } from "@/lib/sortableId";
 import { deleteDirect, deleteWhereDirect, insertDirect, upsertDirect } from "./directWrite";
 import { saveTaskSubitems, toggleTaskSubitem } from "./taskSubitems";
@@ -263,9 +263,10 @@ export async function setPersonalTaskArchived(task: TaskItem, archived: boolean)
 }
 
 /** Undoes the most recent completion: clears `last_completed_at`, drops
- * the newest personal_task_completions row, and for a recurring task steps
- * `due_at` back by the interval (`rewoundRecurringDueAt`, so it reads as due
- * again at its own time) and re-arms the cron via `reminder_sent_at = null`. */
+ * the newest personal_task_completions row, and for a recurring task puts
+ * `due_at` back (`rewoundRecurringDueAt`: the exact date when it was ticked
+ * in this session, else due again at its own time) and re-arms the cron via
+ * `reminder_sent_at = null`. */
 export async function uncompletePersonalTask(task: TaskItem): Promise<TaskItem> {
   const myUserId = await currentUserId();
   if (!myUserId) throw new Error("Sign in first.");
@@ -356,6 +357,7 @@ export async function completePersonalTask(task: TaskItem): Promise<TaskItem> {
     lastCompletedAt: nowIso,
     dueAt: recurring ? nextRecurringDueAt(task.recurrenceDays as number, new Date(nowIso), task.dueAt) : task.dueAt,
   };
+  if (recurring) rememberDueBeforeCompletion(task.id, nowIso, task.dueAt);
   await upsertDirect(myUserId, TASKS_TABLE, next.id, taskPayload(next, myUserId, recurring ? { reminder_sent_at: null } : undefined));
   await insertDirect(myUserId, COMPLETIONS_TABLE, { task_id: task.id, completed_at: nowIso }, { id: createTimeOrderedId(), task_id: task.id, user_id: myUserId, completed_at: nowIso });
   return next;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isRecurringTask, isTaskDone, nextRecurringDueAt, rewoundRecurringDueAt, type TaskItem } from "./reminders";
+import { isRecurringTask, isTaskDone, nextRecurringDueAt, rememberDueBeforeCompletion, rewoundRecurringDueAt, type TaskItem } from "./reminders";
 
 function makeTask(overrides: Partial<TaskItem> = {}): TaskItem {
   return {
@@ -68,6 +68,22 @@ describe("rewoundRecurringDueAt", () => {
     const due = new Date(2026, 5, 13, 8, 0).toISOString();
     const completedAt = new Date(2026, 5, 13, 22, 15);
     const next = nextRecurringDueAt(7, completedAt, due);
-    expect(rewoundRecurringDueAt({ dueAt: next, recurrenceDays: 7, lastCompletedAt: completedAt.toISOString() })).toBe(due);
+    expect(rewoundRecurringDueAt({ id: "t", dueAt: next, recurrenceDays: 7, lastCompletedAt: completedAt.toISOString() })).toBe(due);
+  });
+
+  it("restores the exact due date of a task ticked early in this session", () => {
+    const due = new Date(2026, 5, 20, 8, 0).toISOString();
+    const completedAt = new Date(2026, 5, 17, 9, 0).toISOString();
+    rememberDueBeforeCompletion("early", completedAt, due);
+    const next = nextRecurringDueAt(7, new Date(completedAt), due);
+    expect(rewoundRecurringDueAt({ id: "early", dueAt: next, recurrenceDays: 7, lastCompletedAt: completedAt })).toBe(due);
+  });
+
+  it("ignores a remembered date from a different completion", () => {
+    const due = new Date(2026, 5, 20, 8, 0).toISOString();
+    rememberDueBeforeCompletion("other", new Date(2026, 5, 1, 9, 0).toISOString(), due);
+    const completedAt = new Date(2026, 5, 17, 9, 0);
+    const next = nextRecurringDueAt(7, completedAt, due);
+    expect(rewoundRecurringDueAt({ id: "other", dueAt: next, recurrenceDays: 7, lastCompletedAt: completedAt.toISOString() })).toBe(new Date(2026, 5, 17, 8, 0).toISOString());
   });
 });

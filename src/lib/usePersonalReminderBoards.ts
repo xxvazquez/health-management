@@ -23,7 +23,7 @@ import {
   type ReminderList,
 } from "@/lib/supabase/personalReminders";
 import { buildDemoPersonalItems, buildDemoPersonalTasks, buildDemoReminderLists } from "@/lib/demoPersonalReminders";
-import { isRecurringTask, nextRecurringDueAt, rewoundRecurringDueAt, type TaskItem, type TaskSubitem } from "@/lib/reminders";
+import { isRecurringTask, nextRecurringDueAt, rememberDueBeforeCompletion, rewoundRecurringDueAt, type TaskItem, type TaskSubitem } from "@/lib/reminders";
 import type { TaskFormValues } from "@/components/reminders/TaskForm";
 import { useSnapshotCache } from "@/lib/useSnapshotCache";
 import { applyOrder, usePreferences } from "@/lib/usePreferences";
@@ -210,6 +210,7 @@ export function usePersonalReminderBoards() {
     async (task: TaskItem) => {
       if (isDemo) {
         const now = new Date();
+        if (isRecurringTask(task)) rememberDueBeforeCompletion(task.id, now.toISOString(), task.dueAt);
         setTasks((prev) =>
           prev.map((t) =>
             t.id === task.id

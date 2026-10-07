@@ -56,9 +56,20 @@ export function nextRecurringDueAt(recurrenceDays: number, completedAt: Date = n
   return new Date(day.getFullYear(), day.getMonth(), day.getDate() + recurrenceDays, time.getHours(), time.getMinutes()).toISOString();
 }
 
-/** Undoing a recurring task's last completion: due_at steps back by the
+/** The due date each recurring task had before it was ticked in this
+ * session, keyed by task id and tied to that completion's timestamp. */
+const dueBeforeCompletion = new Map<string, { completedAt: string; dueAt: string | null }>();
+
+export function rememberDueBeforeCompletion(taskId: string, completedAt: string | null, dueAt: string | null): void {
+  if (completedAt) dueBeforeCompletion.set(taskId, { completedAt, dueAt });
+}
+
+/** Undoing a recurring task's last completion: the exact due date it had
+ * when ticked in this session, otherwise due_at stepped back by the
  * interval, landing on the completion day at the task's own time. */
-export function rewoundRecurringDueAt(task: Pick<TaskItem, "dueAt" | "recurrenceDays" | "lastCompletedAt">): string | null {
+export function rewoundRecurringDueAt(task: Pick<TaskItem, "id" | "dueAt" | "recurrenceDays" | "lastCompletedAt">): string | null {
+  const remembered = dueBeforeCompletion.get(task.id);
+  if (remembered && remembered.completedAt === task.lastCompletedAt) return remembered.dueAt;
   if (!task.dueAt || task.recurrenceDays == null) return task.lastCompletedAt ?? task.dueAt;
   const due = new Date(task.dueAt);
   due.setDate(due.getDate() - task.recurrenceDays);
