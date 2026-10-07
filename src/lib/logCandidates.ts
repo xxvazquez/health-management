@@ -85,16 +85,13 @@ export function defaultLogTimeValue(now: Date = new Date()): string {
   return toTimeInputValue(now.toISOString());
 }
 
-/** The usual time of each meal and supplement time of day, used when an
- * entry is logged after the fact. Settings → Usual times overrides them. */
+/** The usual time of each meal, used when an entry is logged after the
+ * fact. Settings → Usual times overrides them. */
 export const DEFAULT_SLOT_TIMES: Record<string, string> = {
   Breakfast: "08:00",
   Lunch: "13:00",
   Snack: "16:00",
   Dinner: "19:00",
-  Morning: "08:00",
-  Afternoon: "14:00",
-  Night: "21:00",
 };
 
 /**

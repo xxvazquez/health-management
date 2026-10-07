@@ -6,13 +6,9 @@ import { TimePicker } from "@/components/ui/DatePicker";
 import { DEFAULT_SLOT_TIMES } from "@/lib/logCandidates";
 import { usePreferences } from "@/lib/usePreferences";
 
-const GROUPS = [
-  { title: "Meals", slots: ["Breakfast", "Lunch", "Snack", "Dinner"] },
-  { title: "Supplements", slots: ["Morning", "Afternoon", "Night"] },
-];
+const GROUPS = [{ title: "Meals", slots: ["Breakfast", "Lunch", "Snack", "Dinner"] }];
 
-/** Settings → Usual times: when each meal and supplement time of day
- * usually happens, so an entry logged later lands at that time. */
+/** Settings → Usual times: when each meal usually happens, so an entry logged later lands at that time. */
 export function UsualTimesCard({ searchQuery }: { searchQuery: string }) {
   const { prefs, update } = usePreferences();
   const query = searchQuery.trim().toLowerCase();

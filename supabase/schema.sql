@@ -248,8 +248,8 @@ create table public.supplement_logs (
   item_id uuid not null,
   date date not null,
   value numeric,
-  -- Morning/Afternoon/Night — same idea and column as food_logs.meal_tag,
-  -- for a supplement taken more than once a day.
+  -- One row per dose; a day's dose count is its row count. Some rows carry
+  -- a Morning/Afternoon/Night tag; Log's taps leave it null.
   meal_tag text,
   updated_at timestamptz not null default now(),
   foreign key (user_id, item_id) references public.supplement_items (user_id, id) on delete restrict

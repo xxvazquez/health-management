@@ -58,7 +58,7 @@ Sections: **Food · Symptoms · Supplements · Habits · Stool · Workout · Cyc
 - Log reopens on whichever section you used last.
 - Left open overnight, Log moves on to the new day; after 30+ minutes away the meal is re-picked for the time of day.
 - **Deep links:** `/log/?tab=<section>` opens a section, e.g. `?tab=workout` or `?tab=summary`. Settings → Workout links back this way.
-- **Toolbar:** search (or add), meal / time of day, time. On desktop it sits beside the page title.
+- **Toolbar:** search (or add), meal (Food), time. On desktop it sits beside the page title.
 - **Search:** tapping a result logs it and keeps the search field (and phone keyboard) up.
 - **Categories:** a scrolling rail on a phone, a sidebar with logged counts on desktop. They follow your order from Settings (A–Z until you set one); items inside are A–Z.
 
@@ -70,12 +70,16 @@ Sections: **Food · Symptoms · Supplements · Habits · Stool · Workout · Cyc
 - **Recipes** (a row under Usual, opens a sheet): tap one to log its foods (any already in that meal are skipped, so it never doubles up); ⓘ edits its foods, amounts (g, ml…), steps and rating.
 - **Products:** log a whole product's ingredients in one tap.
 
+#### Supplements
+
+- Tap a supplement once per dose: ✓, then 2, 3; a fourth tap clears the day.
+
 #### Summary
 
 - **Check-in** at the top: mood and energy, 1 (low) to 5 (high), each one row: name, stepped slider, and the chosen level named ("Unpleasant", "High"…), plus a wrapping note. Tap the current step again to clear it. On a phone it sits above the section list.
 - A timeline of everything logged that day, coffee included (a cup opens the Coffee section).
 - A meal is one row ("Dinner · 9 foods", its stars if rated). It opens a sheet to see its foods, rate it (1–5 stars), add a note or "Save as recipe" — then "Saved to Recipes" opens that recipe to edit or delete.
-- Other rows show the useful detail on the right: a symptom's intensity, the sleep band, a supplement's time of day. Tap any row to edit or delete it.
+- Other rows show the useful detail on the right: a symptom's intensity, the sleep band. Tap any row to edit or delete it.
 
 #### Workout
 

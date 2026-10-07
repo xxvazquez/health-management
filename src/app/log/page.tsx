@@ -121,10 +121,9 @@ import {
 const TABS: { type: ItemType; label: string; singular: string; placeholder: string; defaultCategory: string; countable: boolean }[] = [
   { type: "food", label: "Food", singular: "food", placeholder: "Add a food or ingredient…", defaultCategory: "Misc", countable: true },
   { type: "outcome", label: "Symptoms", singular: "symptom", placeholder: "Add a symptom…", defaultCategory: "Other Symptom", countable: false },
-  // Countable (not a plain toggle) since a supplement is often taken more
-  // than once a day — morning/afternoon/night, same idea as Food's meal
-  // tags, so a second dose doesn't just remove the first one's log.
-  { type: "supplement", label: "Supplements", singular: "supplement", placeholder: "Add a supplement…", defaultCategory: "Other", countable: true },
+  // A supplement row counts doses instead (1 → 2 → 3 → clear, see
+  // `cycleDose`), one untagged log per dose.
+  { type: "supplement", label: "Supplements", singular: "supplement", placeholder: "Add a supplement…", defaultCategory: "Other", countable: false },
   { type: "habit", label: "Habits", singular: "habit", placeholder: "Add a habit…", defaultCategory: "Daily", countable: false },
 ];
 
@@ -153,7 +152,6 @@ function categoryStorageKey(itemType: ItemType, category: string): string {
 }
 
 const MEAL_OPTIONS = ["Breakfast", "Lunch", "Dinner", "Snack"] as const;
-const SUPPLEMENT_TIME_OPTIONS = ["Morning", "Afternoon", "Night"] as const;
 
 /** Guesses which meal is being logged from the current time of day, so the
  * selector starts on something plausible instead of always "Breakfast" —
@@ -166,22 +164,6 @@ function defaultMealForTime(now: Date = new Date()): (typeof MEAL_OPTIONS)[numbe
   return "Dinner";
 }
 
-/** Same idea as `defaultMealForTime`, for Supplements' own tag set. */
-function defaultSupplementTimeForTime(now: Date = new Date()): (typeof SUPPLEMENT_TIME_OPTIONS)[number] {
-  const minutes = now.getHours() * 60 + now.getMinutes();
-  if (minutes < 12 * 60) return "Morning";
-  if (minutes < 18 * 60) return "Afternoon";
-  return "Night";
-}
-
-/** Which tag chips a given item type's entries get — Food's meals,
- * Supplements' morning/afternoon/night, or none for anything else (that's
- * what gates the whole tag row/column off for those types). */
-function tagOptionsForType(type: string): readonly string[] {
-  if (type === "food") return MEAL_OPTIONS;
-  if (type === "supplement") return SUPPLEMENT_TIME_OPTIONS;
-  return [];
-}
 
 function addDaysLocal(date: string, days: number): string {
   const [y, m, d] = date.split("-").map(Number);
@@ -445,7 +427,6 @@ export default function LogPage() {
       }
       if (hiddenAt !== null && Date.now() - hiddenAt >= 30 * 60_000) {
         if (tabRef.current === "food") setMeal(defaultMealForTime());
-        else if (tabRef.current === "supplement") setMeal(defaultSupplementTimeForTime());
         setWorkoutTime(defaultLogTimeValue());
       }
       hiddenAt = null;
@@ -459,15 +440,15 @@ export default function LogPage() {
   const [newItemText, setNewItemText] = useState("");
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [pending, setPending] = useState<string | null>(null);
-  // Symptom tap-cycle: taps are optimistic and coalesced. Each tap bumps
-  // the shown intensity immediately (absent → 1 → 2 → 3 → absent) via
-  // `symptomTargets`; a single debounced write persists the settled value.
-  // Without this, four quick taps all read the same pre-write snapshot and
-  // the symptom never advances past 1 or clears. `symptomTargetsRef` mirrors
+  // Symptom intensity and supplement dose taps: optimistic and coalesced.
+  // Each tap bumps the shown value immediately (absent → 1 → 2 → 3 →
+  // absent) via `tapTargets`; a single debounced write persists the settled
+  // value. Without this, four quick taps all read the same pre-write
+  // snapshot and never advance past 1 or clear. `tapTargetsRef` mirrors
   // the state so the debounced commit reads the value the user landed on.
-  const [symptomTargets, setSymptomTargets] = useState<Map<string, number | null>>(() => new Map());
-  const symptomTargetsRef = useRef(symptomTargets);
-  const symptomTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+  const [tapTargets, setTapTargets] = useState<Map<string, number | null>>(() => new Map());
+  const tapTargetsRef = useRef(tapTargets);
+  const tapTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
   // Persisted across navigation/reloads (localStorage, keyed per item type so
   // same-named categories in different tabs don't collide) — defaults to
   // empty (everything collapsed) until the mount effect below hydrates it
@@ -585,7 +566,7 @@ export default function LogPage() {
   }, []);
 
   useEffect(() => {
-    const timers = symptomTimers.current;
+    const timers = tapTimers.current;
     return () => {
       for (const t of timers.values()) clearTimeout(t);
     };
@@ -636,7 +617,6 @@ export default function LogPage() {
     setTab(t);
     setSearch("");
     if (t === "food") setMeal(defaultMealForTime());
-    else if (t === "supplement") setMeal(defaultSupplementTimeForTime());
     if (history !== "none") {
       const url = t === "summary" && !isDesktop() ? window.location.pathname : `${window.location.pathname}?tab=${t}`;
       if (history === "push") window.history.pushState({ logSection: true }, "", url);
@@ -666,7 +646,7 @@ export default function LogPage() {
           date,
           today,
           slot: tabConfig?.countable ? meal : null,
-          currentSlot: tab === "food" ? defaultMealForTime() : tab === "supplement" ? defaultSupplementTimeForTime() : null,
+          currentSlot: tab === "food" ? defaultMealForTime() : null,
           slotTimes: prefs.slotTimes,
         });
   function setLogTime(time: string) {
@@ -1705,51 +1685,84 @@ export default function LogPage() {
   /** The intensity to show for a symptom right now — the optimistic target
    * while taps are still settling, otherwise whatever's actually logged. */
   function symptomDisplayValue(identity: string): number | null {
-    return symptomTargets.has(identity)
-      ? (symptomTargets.get(identity) ?? null)
+    return tapTargets.has(identity)
+      ? (tapTargets.get(identity) ?? null)
       : (durationValueForDate.get(identity) ?? null);
   }
 
-  function setSymptomTarget(id: string, value: number | null) {
-    const next = new Map(symptomTargetsRef.current).set(id, value);
-    symptomTargetsRef.current = next;
-    setSymptomTargets(next);
+  function setTapTarget(id: string, value: number | null) {
+    const next = new Map(tapTargetsRef.current).set(id, value);
+    tapTargetsRef.current = next;
+    setTapTargets(next);
   }
 
-  function clearSymptomTarget(id: string) {
-    const next = new Map(symptomTargetsRef.current);
+  function clearTapTarget(id: string) {
+    const next = new Map(tapTargetsRef.current);
     next.delete(id);
-    symptomTargetsRef.current = next;
-    setSymptomTargets(next);
+    tapTargetsRef.current = next;
+    setTapTargets(next);
   }
 
   /** Symptom tap cycles absent → 1 → 2 → 3 → absent. The display updates on
    * every tap; the actual write is debounced so a burst of taps commits
    * once, as the value the user landed on. */
-  function cycleSymptom(c: LogCandidate) {
+  /** One tap of the 1 → 2 → 3 → clear cycle; `commit` writes the value
+   * the taps settle on. */
+  function cycleTap(c: LogCandidate, persisted: number | null, commit: (c: LogCandidate) => Promise<void>) {
     if (isDemoData) return;
     logHaptic();
     const id = c.itemIdentity;
-    const cur = symptomTargetsRef.current.has(id)
-      ? (symptomTargetsRef.current.get(id) ?? null)
-      : (durationValueForDate.get(id) ?? null);
+    const cur = tapTargetsRef.current.has(id) ? (tapTargetsRef.current.get(id) ?? null) : persisted;
     const next = cur == null ? 1 : cur >= 3 ? null : cur + 1;
-    setSymptomTarget(id, next);
+    setTapTarget(id, next);
 
-    const running = symptomTimers.current.get(id);
+    const running = tapTimers.current.get(id);
     if (running) clearTimeout(running);
-    symptomTimers.current.set(
+    tapTimers.current.set(
       id,
       setTimeout(() => {
-        symptomTimers.current.delete(id);
-        void commitSymptom(c);
+        tapTimers.current.delete(id);
+        void commit(c);
       }, 500),
     );
   }
 
+  function cycleSymptom(c: LogCandidate) {
+    cycleTap(c, durationValueForDate.get(c.itemIdentity) ?? null, commitSymptom);
+  }
+
+  /** How many doses of a supplement show as taken right now. */
+  function doseDisplayValue(identity: string): number | null {
+    return tapTargets.has(identity) ? (tapTargets.get(identity) ?? null) : (counts.get(identity) ?? null);
+  }
+
+  function cycleDose(c: LogCandidate) {
+    cycleTap(c, counts.get(c.itemIdentity) ?? null, commitDose);
+  }
+
+  /** Adds or removes one log per dose until the day holds the settled count. */
+  async function commitDose(c: LogCandidate) {
+    const id = c.itemIdentity;
+    const target = tapTargetsRef.current.get(id) ?? 0;
+    const current = counts.get(id) ?? 0;
+    setPending(c.key);
+    try {
+      for (let n = current; n < target; n++) {
+        await applyLogTime(await incrementDailyLogAndSync(id, c.itemType, date));
+      }
+      for (let n = current; n > target; n--) {
+        await decrementDailyLogAndSync(id, date);
+      }
+      await refreshAfterWrite();
+    } finally {
+      clearTapTarget(id);
+      setPending(null);
+    }
+  }
+
   async function commitSymptom(c: LogCandidate) {
     const id = c.itemIdentity;
-    const target = symptomTargetsRef.current.get(id) ?? null;
+    const target = tapTargetsRef.current.get(id) ?? null;
     // No write has happened yet during this tap burst, so `durationValueForDate`
     // still reflects the true persisted state before the taps.
     const wasLogged = durationValueForDate.get(id) != null;
@@ -1765,7 +1778,7 @@ export default function LogPage() {
       }
       await refreshAfterWrite();
     } finally {
-      clearSymptomTarget(id);
+      clearTapTarget(id);
       setPending(null);
     }
   }
@@ -1823,14 +1836,27 @@ export default function LogPage() {
     );
   }
 
-  /** A plain tracked item — Habits, and Supplements (a supplement tap logs
-   * it for the time of day selected above; the M/A/N split is the "which
-   * dose", so the row itself is just a toggle, no per-row counter). */
+  /** A plain tracked item — Habits are a toggle; a supplement counts doses
+   * (1 → 2 → 3 → clear), the count showing in the circle from 2. */
   function renderHabitRow(c: LogCandidate, accent: string) {
     // Measures (Sleep's bands, a duration stepper) normally render in their
     // own section — this fallthrough only matters if one is ever shown
     // inside a category card directly.
     if (INPUT_KIND[c.item]) return renderMeasureRow(c, accent);
+    if (c.itemType === "supplement" && c.itemIdentity !== "") {
+      const doses = doseDisplayValue(c.itemIdentity);
+      return (
+        <TapRow
+          key={c.key}
+          name={c.item}
+          accent={accent}
+          mark={doses != null && (doses > 1 ? doses : "✓")}
+          onTap={() => cycleDose(c)}
+          label={doses != null ? `${c.item}, taken ${doses === 1 ? "once" : `${doses} times`} — tap to change` : `Log ${c.item}`}
+          busy={pending === c.key}
+        />
+      );
+    }
     const logged = (mealCounts.get(c.key) ?? 0) > 0;
     return <TapRow key={c.key} name={c.item} accent={accent} mark={logged && "✓"} onTap={() => handleChipTap(c)} busy={pending === c.key} />;
   }
@@ -1985,7 +2011,7 @@ export default function LogPage() {
           {!isDemoData && (
             <button
               type="button"
-              onClick={() => setCopyTarget({ meal: tagOptionsForType("food").find((m) => m !== meal) ?? meal, date })}
+              onClick={() => setCopyTarget({ meal: MEAL_OPTIONS.find((m) => m !== meal) ?? meal, date })}
               className="hit-slop text-sm font-medium whitespace-nowrap"
               style={{ color: accent }}
             >
@@ -2419,10 +2445,10 @@ export default function LogPage() {
                 <select
                   value={meal}
                   onChange={(e) => setMeal(e.target.value)}
-                  aria-label={tab === "food" ? "Meal" : "Time of day"}
+                  aria-label="Meal"
                   className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0"
                 >
-                  {tagOptionsForType(tab).map((m) => (
+                  {MEAL_OPTIONS.map((m) => (
                     <option key={m} value={m}>
                       {m}
                     </option>
@@ -2960,7 +2986,7 @@ export default function LogPage() {
         (() => {
           const entry = detailEntry;
           const busy = pending === entry.key;
-          const hasMealTag = (entry.itemType === "food" || entry.itemType === "supplement") && (entry.mealTag || !isDemoData);
+          const hasMealTag = entry.itemType === "food" && (entry.mealTag || !isDemoData);
           const hasNote = !isDemoData || entry.note;
           const accent = entry.itemType === "stool" ? STOOL_ACCENT : TYPE_ACCENT[entry.itemType];
           return (
@@ -3024,9 +3050,9 @@ export default function LogPage() {
                           style={{ background: "transparent", color: accent, border: "none" }}
                         >
                           <option value="" disabled>
-                            {entry.itemType === "supplement" ? "set time" : "set meal"}
+                            set meal
                           </option>
-                          {tagOptionsForType(entry.itemType).map((m) => (
+                          {MEAL_OPTIONS.map((m) => (
                             <option key={m} value={m}>
                               {m}
                             </option>
@@ -3134,7 +3160,7 @@ export default function LogPage() {
                   className="text-sm font-medium outline-none"
                   style={{ background: "transparent", color: TYPE_ACCENT.food, border: "none" }}
                 >
-                  {tagOptionsForType("food").map((m) => (
+                  {MEAL_OPTIONS.map((m) => (
                     <option key={m} value={m}>
                       {m}
                     </option>
