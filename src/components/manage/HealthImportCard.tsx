@@ -88,13 +88,14 @@ export function HealthImportCard({ isDemoData, searchQuery }: { isDemoData: bool
             <CopyRow label="Authorization" value={auth} />
           </FormGroup>
 
-          <FormGroup title="On your iPhone" footer="Leave out anything you don't track. It runs every evening; a re-run the same day replaces that day's values.">
+          <FormGroup title="On your iPhone" footer="Leave out anything you don't track. iPhone and Watch steps are read apart so a walk isn't counted twice; the day keeps the higher.">
             <Step n={1}>Shortcuts → Automation → + → Time of Day → 23:00, Daily, Run Immediately.</Step>
             <Step n={2}>
               Walking: <strong>Find Health Samples</strong> (Workouts, Walking, today) → Duration → <strong>Calculate Statistics</strong> → Sum.
             </Step>
             <Step n={3}>
-              Steps: <strong>Find Health Samples</strong> (Steps, today) → <strong>Calculate Statistics</strong> → Sum.
+              Steps: <strong>Find Health Samples</strong> (Steps, today, Source is your iPhone) → <strong>Calculate Statistics</strong> → Sum. With a
+              Watch, the same again with Source is the Watch.
             </Step>
             <Step n={4}>
               Weight, Systolic, Diastolic: <strong>Find Health Samples</strong> (today, latest first, Limit 1) for each.
@@ -103,14 +104,14 @@ export function HealthImportCard({ isDemoData, searchQuery }: { isDemoData: bool
               Add <strong>Get Contents of URL</strong> with the Link above, Method POST, header Authorization.
             </Step>
             <Step n={6}>
-              Request Body JSON, Number fields: <code>minutes</code>, <code>steps</code>, <code>weight</code> (kg), <code>systolic</code>,{" "}
+              Request Body JSON, Number fields: <code>minutes</code>, <code>steps</code>, <code>watchsteps</code>, <code>weight</code> (kg), <code>systolic</code>,{" "}
               <code>diastolic</code>; Text <code>date</code> = Current Date as <code>yyyy-MM-dd</code>.
             </Step>
           </FormGroup>
 
           <FormGroup title="Past steps" footer="A separate shortcut, run once. Up to 400 days per run; re-running replaces those days.">
             <Step n={1}>
-              <strong>Find Health Samples</strong> (Steps, Start Date is in the last 1 year, Group By Day).
+              <strong>Find Health Samples</strong> (Steps, Start Date is in the last 1 year, Source is your iPhone, Group By Day).
             </Step>
             <Step n={2}>
               <strong>Repeat with Each</strong> sample, and inside it: <strong>Get Start Date from Repeat Item</strong>, then{" "}
@@ -124,9 +125,13 @@ export function HealthImportCard({ isDemoData, searchQuery }: { isDemoData: bool
               then <strong>Add to Variable</strong> Days.
             </Step>
             <Step n={5}>
-              After End Repeat: <strong>Combine Text</strong> Days with Custom <code>,</code>.
+              With a Watch: duplicate steps 1–4 below End Repeat, set Source to the Watch and write <code>watchsteps</code> instead of{" "}
+              <code>steps</code>.
             </Step>
             <Step n={6}>
+              After the last End Repeat: <strong>Combine Text</strong> Days with Custom <code>,</code>.
+            </Step>
+            <Step n={7}>
               <strong>Get Contents of URL</strong> with the Link, Method POST, header Authorization, Request Body <strong>File</strong> = Combined Text.
             </Step>
           </FormGroup>

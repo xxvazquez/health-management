@@ -90,6 +90,7 @@ Sections: **Food · Symptoms · Supplements · Habits · Stool · Workout · Cyc
 - Tap a value in a row's "today" line to edit or delete it.
 - **Apple Health:** an iOS Shortcut can send each day's walking minutes and steps every evening (Settings → Workout → Apple Health). They land on Walking and Steps (created on first import); weight and blood pressure go to Health → Vitals.
 - A one-off backfill shortcut sends past days as a `days` list or just the day objects joined by commas (up to 400 per run), e.g. a year of daily step totals.
+- Steps come from the iPhone and, separately, the Watch; the day keeps the higher count, so a walk both recorded isn't doubled.
 - One imported entry per kind per day: a re-run overwrites it with the latest value, and it replaces one typed in by hand that day.
 - Imported values are read-only: on Log the row shows just the value and "Apple Health" (Steps always, Walking once imported); Vitals marks them "Apple Health".
 

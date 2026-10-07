@@ -8,8 +8,9 @@
 // platform's JWT gate.
 //
 // A backfill sends `days`, a list of objects with the same fields (each with
-// its own `date`, no date twice), and every day is saved the same way in one
-// request.
+// its own `date`), and every day is saved the same way in one request.
+// Steps can come from the iPhone (`steps`) and the Watch (`watchsteps`); the
+// day keeps the higher, since both count the same walking.
 //
 // One entry per day and kind: the row id is derived from (user, kind, date),
 // so running the shortcut again the same day replaces the value instead of
@@ -268,7 +269,11 @@ function lowerKeys(raw: unknown): Record<string, unknown> | null {
 
 function parseDay(field: (name: string) => unknown, timeZone: string, needDate: boolean): Day {
   const minutes = parseNumber(field("minutes"), "minutes");
-  const steps = parseCount(field("steps"), "steps");
+  // The iPhone and the Watch each count the same walk, and adding them (as
+  // Shortcuts' Group By does) doubles it; the higher of the two is the day.
+  const phoneSteps = parseCount(field("steps"), "steps");
+  const watchSteps = parseCount(field("watchsteps"), "watchsteps");
+  const steps = phoneSteps === null ? watchSteps : watchSteps === null ? phoneSteps : Math.max(phoneSteps, watchSteps);
   const weight = parseNumber(field("weight"), "weight");
   const systolic = parseNumber(field("systolic"), "systolic");
   const diastolic = parseNumber(field("diastolic"), "diastolic");
@@ -338,20 +343,31 @@ async function importDay(req: Request): Promise<Response> {
     const list = body.days as unknown[];
     if (list.length === 0) return json({ error: "days is empty" }, 400);
     if (list.length > MAX_DAYS) return json({ error: `Send up to ${MAX_DAYS} days per request` }, 400);
-    const byDate = new Map<string, Day>();
+    // A date may come more than once (an iPhone list, then a Watch list), as
+    // long as no field repeats for it.
+    const byDate = new Map<string, Record<string, unknown>>();
     list.forEach((raw, i) => {
       const entry = lowerKeys(raw);
       if (!entry) throw new HttpError(400, `days[${i}] must be an object`);
+      const date = typeof entry.date === "string" ? parseDate(entry.date, timeZone) : null;
+      if (!date) throw new HttpError(400, `days[${i}]: ${entry.date === undefined ? "every day in days needs a date" : "date must look like 2026-10-02"}`);
+      const merged = byDate.get(date) ?? {};
+      for (const [k, v] of Object.entries(entry)) {
+        if (k === "date") continue;
+        if (k in merged) throw new HttpError(400, `days[${i}]: ${date} has ${k} more than once; check each day has its own date`);
+        merged[k] = v;
+      }
+      byDate.set(date, { ...merged, date });
+    });
+    days = [...byDate.entries()].map(([date, entry]) => {
       try {
-        const day = parseDay((name) => entry[name], timeZone, true);
-        if (byDate.has(day.date)) throw new HttpError(400, `${day.date} appears more than once; check each day has its own date`);
-        byDate.set(day.date, day);
+        return parseDay((name) => entry[name], timeZone, true);
       } catch (err) {
-        if (err instanceof HttpError) throw new HttpError(400, `days[${i}]: ${err.message}`);
+        if (err instanceof HttpError) throw new HttpError(400, `${date}: ${err.message}`);
         throw err;
       }
     });
-    days = [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
+    days.sort((a, b) => a.date.localeCompare(b.date));
   } else {
     days = [parseDay(field, timeZone, false)];
   }
