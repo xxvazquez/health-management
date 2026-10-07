@@ -72,7 +72,7 @@ One sans-serif family: SF Pro on Apple devices, Inter elsewhere (`--font-app`).
 | Page-level view switch | `SegmentedTabs`: equal segments when they fit, overflow goes into "More" |
 | Section or category switch | `TabRail` (underlined text tabs) |
 | Two-way mode / chart window | `Segmented` |
-| Rolling date window | `DateRangeFilter` (one popover, never a row of range pills) |
+| Rolling date window | `DateRangeFilter` (one popover, never a row of range pills; a preset longer than the data is hidden, since it would repeat "All time") |
 | Measurement chart period | `TrendCard`: 6M / 1Y / 2Y / 5Y / All, paged with ‹ › or a swipe |
 
 ### Controls

@@ -50,11 +50,17 @@ function fmtShort(d: string): string {
   return new Date(`${d}T00:00:00`).toLocaleDateString(undefined, { day: "numeric", month: "short" });
 }
 
+/** The presets that cover a different stretch than "All time": a window
+ * reaching back past the first entry would only repeat it. */
+function fittingPresets(presets: DateRangePreset[], span: DateRange): DateRangePreset[] {
+  return presets.filter((p) => p.days === "all" || addDaysToDate(span.end, -(p.days - 1)) > span.start);
+}
+
 /** The label shown on the trigger button — a matching preset's name, or a
  * plain formatted span. Exported so a page can echo the active range in
  * prose ("Showing …") using the exact same wording as the control. */
 export function describeDateRange(presets: DateRangePreset[], span: DateRange, value: DateRange): string {
-  const active = presets.find((p) => {
+  const active = fittingPresets(presets, span).find((p) => {
     const r = presetRange(p, span);
     return r.start === value.start && r.end === value.end;
   });
@@ -109,9 +115,10 @@ export function DateRangeFilter({ span, value, onChange, presets = DEFAULT_PRESE
     };
   }, [open]);
 
+  const shown = fittingPresets(presets, span);
   const activePreset = lead?.active
     ? undefined
-    : presets.find((p) => {
+    : shown.find((p) => {
         const r = presetRange(p, span);
         return r.start === value.start && r.end === value.end;
       });
@@ -157,7 +164,7 @@ export function DateRangeFilter({ span, value, onChange, presets = DEFAULT_PRESE
           className={`menu-surface absolute z-30 mt-1.5 w-60 p-1.5 ${alignLeft ? "left-0" : "right-0"}`}
         >
           <div className="flex flex-col">
-            {[...(lead ? [{ label: lead.label, days: "all" as const }] : []), ...presets].map((preset, i) => {
+            {[...(lead ? [{ label: lead.label, days: "all" as const }] : []), ...shown].map((preset, i) => {
               const isLead = !!lead && i === 0;
               const isActive = isLead ? lead.active : preset.label === activePreset?.label;
               return (
