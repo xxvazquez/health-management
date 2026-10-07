@@ -191,6 +191,9 @@ describe("cycleAnalysis", () => {
     expect(analysis.lastCycleLength).toBe(28);
     expect(analysis.averageCycleLength).toBe(28.3);
     expect(analysis.cyclesAnalyzed).toBe(3);
+    // The typical length is the one the prediction is built on.
+    expect(analysis.typicalCycleLength).toBe(28);
+    expect(predictUpcomingPeriods(groupIntoPeriodRuns(logs), 1, "2026-06-01")[0].expectedStart).toBe("2026-06-19");
     expect(predictUpcomingPeriods(groupIntoPeriodRuns(logs), 1, "2026-06-01")[0].latestStart).toBe("2026-06-20");
     expect(cycleChartEntries(cycleHistory(groupIntoPeriodRuns(logs), "2026-06-01")).map((c) => c.length)).toEqual([28, 29, 28]);
   });

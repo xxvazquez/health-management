@@ -231,6 +231,9 @@ export interface CycleAnalysis {
    * recorded periods. */
   lastCycleLength: number | null;
   averageCycleLength: number | null;
+  /** The median over the same window, rounded — the length predictions
+   * use, so it's the one figure shown beside them. */
+  typicalCycleLength: number | null;
   /** Standard deviation over the same recent window as the average —
    * "how much your cycle actually varies", not a claim about any single
    * future cycle. */
@@ -248,6 +251,7 @@ export function cycleAnalysis(runs: PeriodRun[], today: string): CycleAnalysis {
   return {
     lastCycleLength: allCycleLengths.at(-1) ?? null,
     averageCycleLength: recentCycleLengths.length > 0 ? Math.round(mean(recentCycleLengths) * 10) / 10 : null,
+    typicalCycleLength: recentCycleLengths.length > 0 ? Math.round(median(recentCycleLengths)) : null,
     cycleLengthVariation: recentCycleLengths.length > 1 ? Math.round(stddev(recentCycleLengths) * 10) / 10 : null,
     averagePeriodLength: recentLengths.length > 0 ? Math.round(mean(recentLengths) * 10) / 10 : null,
     cyclesAnalyzed: recentCycleLengths.length,

@@ -60,17 +60,17 @@ function CycleBar({ cycle, longest }: { cycle: CycleHistoryEntry; longest: numbe
   );
 }
 
-/** One bar per completed cycle (period part full, the rest pale), the average as a dashed line, scale on the right. */
-function LengthChart({ cycles, average, today }: { cycles: CycleHistoryEntry[]; average: number | null; today: string }) {
-  const max = Math.ceil(Math.max(...cycles.map((c) => c.length), average ?? 0) / 5) * 5;
+/** One bar per completed cycle (period part full, the rest pale), the typical length as a dashed line, scale on the right. */
+function LengthChart({ cycles, typical, today }: { cycles: CycleHistoryEntry[]; typical: number | null; today: string }) {
+  const max = Math.ceil(Math.max(...cycles.map((c) => c.length), typical ?? 0) / 5) * 5;
   return (
     <div>
       <div className="flex gap-2">
         <div className="relative flex h-32 min-w-0 flex-1 items-end gap-1.5 border-b" style={{ borderColor: "var(--gridline)" }}>
-          {average !== null && (
+          {typical !== null && (
             <span
               className="absolute inset-x-0 border-t border-dashed"
-              style={{ bottom: `${(average / max) * 100}%`, borderColor: "var(--text-muted)" }}
+              style={{ bottom: `${(typical / max) * 100}%`, borderColor: "var(--text-muted)" }}
               aria-hidden="true"
             />
           )}
@@ -91,13 +91,19 @@ function LengthChart({ cycles, average, today }: { cycles: CycleHistoryEntry[]; 
         <span>{shortDate(cycles[0].start, today)}</span>
         {cycles.length > 1 && <span>{shortDate(cycles[cycles.length - 1].start, today)}</span>}
       </div>
-      {average !== null && (
+      {typical !== null && (
         <p className="mt-2 text-xs" style={{ color: "var(--text-muted)" }}>
-          Dashed line: average {days(Math.round(average))}
+          Dashed line: typical {days(typical)}
         </p>
       )}
     </div>
   );
+}
+
+function nextPeriodLine(daysAway: number): string {
+  if (daysAway <= 0) return "Next period expected today";
+  if (daysAway === 1) return "Next period expected tomorrow";
+  return `Next period in about ${days(daysAway)}`;
 }
 
 export function CycleDashboard() {
@@ -155,7 +161,7 @@ export function CycleDashboard() {
             next &&
             !current.onPeriod && (
               <p className="mt-2 text-sm" style={{ color: "var(--text-secondary)" }}>
-                Next period in about {days(daysBetween(today, next.expectedStart))} · {shortDate(next.expectedStart, today)}
+                {nextPeriodLine(daysBetween(today, next.expectedStart))} · {shortDate(next.expectedStart, today)}
               </p>
             )
           )}
@@ -165,7 +171,7 @@ export function CycleDashboard() {
       {analysis.cyclesAnalyzed > 0 && (
         <SplitStatCard
           items={[
-            { caption: "Cycle", value: String(Math.round(analysis.averageCycleLength!)), unit: "days", detail: "average" },
+            { caption: "Cycle", value: String(analysis.typicalCycleLength), unit: "days", detail: "typical" },
             analysis.averagePeriodLength !== null
               ? { caption: "Period", value: String(Math.round(analysis.averagePeriodLength)), unit: "days", detail: "average" }
               : { caption: "Period", value: "—" },
@@ -209,7 +215,7 @@ export function CycleDashboard() {
         <div className="flex flex-col gap-4">
           {chart.length >= MIN_CYCLES_FOR_VARIATION && (
             <Panel caption="Cycle and period length">
-              <LengthChart cycles={chart} average={analysis.averageCycleLength} today={today} />
+              <LengthChart cycles={chart} typical={analysis.typicalCycleLength} today={today} />
             </Panel>
           )}
 
