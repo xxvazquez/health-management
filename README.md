@@ -99,7 +99,7 @@ Sections: **Food · Symptoms · Supplements · Habits · Stool · Workout · Cyc
 
 ### Trends
 
-One dashboard per Log section, plus Patterns. The time range sits in the title row and opens on the last 30 days; a picked window (say 7 days) keeps rolling forward and carries to the other dashboards. Patterns and Cycle read the whole history and have none.
+One dashboard per Log section, plus Patterns. The time range sits in the title row and opens on the last 30 days; a picked window (say 7 days) keeps rolling forward and carries to the other dashboards. Patterns and Cycle read the whole history and have none. Trends starts on 1 Jan 2026, except Workout and Cycle, which keep everything (Apple Health back-fills steps further).
 
 | Dashboard | Shows |
 |---|---|

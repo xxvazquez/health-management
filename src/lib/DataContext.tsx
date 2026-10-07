@@ -167,7 +167,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         const [items, logs, diary, stoolLogsAll] = await Promise.all([getAllItems(), getAllLogs(), getAllDiary(), getAllStoolLogs()]);
         return { hasData, workoutLogsAll, periodLogsAll, items, logs, diary, stoolLogsAll };
       });
-      const workoutLogsNow = snapshot.workoutLogsAll.filter((g) => g.date >= ANALYTICS_START_DATE);
+      // Workout history is kept whole: Apple Health back-fills steps from
+      // before ANALYTICS_START_DATE, and none of it is the old 2019 burst.
+      const workoutLogsNow = snapshot.workoutLogsAll;
       const periodLogsNow = snapshot.periodLogsAll;
       if (!snapshot.hasData) {
         if (!session) {

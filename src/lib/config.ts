@@ -4,6 +4,7 @@
  * period) before tracking resumed in 2026 — excluded here so it doesn't
  * distort coverage/streak/variety metrics for the current tracking period.
  * Raw imported data is untouched in IndexedDB; this only filters what the
- * canonical dataset (and therefore every dashboard) shows.
+ * canonical dataset (and therefore every dashboard) shows. Workout and
+ * period logs aren't cut (see DataContext).
  */
 export const ANALYTICS_START_DATE = "2026-01-01";
