@@ -73,6 +73,8 @@ export function LabMarkerChart({
     ...(optimalHigh != null ? [optimalHigh] : []),
   ];
   const { floor: yFloor, ceil: yCeil, ticks: yTicks } = niceScale(Math.min(...bounds), Math.max(...bounds));
+  // Wide enough for the longest scale label (step counts run to five digits).
+  const yWidth = Math.max(36, 14 + 7 * Math.max(...yTicks.map((t) => String(t).length)));
 
   const dataMin = rows.length ? rows[0].t : 0;
   const dataMax = rows.length ? rows[rows.length - 1].t : 0;
@@ -152,7 +154,7 @@ export function LabMarkerChart({
           tickLine={false}
           axisLine={false}
           tick={{ fill: "var(--text-muted)", fontSize: 12 }}
-          width={36}
+          width={yWidth}
         />
         {onScrub ? (
           <Tooltip active={touched ? false : undefined} content={() => null} cursor={{ stroke: "var(--text-secondary)", strokeWidth: 1 }} />
