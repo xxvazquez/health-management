@@ -7,6 +7,9 @@
 // string or body; the Authorization header carries the anon key to pass the
 // platform's JWT gate.
 //
+// A backfill sends `days`, a list of objects with the same fields (each with
+// its own `date`), and every day is saved the same way in one request.
+//
 // One entry per day and kind: the row id is derived from (user, kind, date),
 // so running the shortcut again the same day replaces the value instead of
 // adding a second entry. Apple Health is that day's record: an entry typed
@@ -44,21 +47,29 @@ class HttpError extends Error {
   }
 }
 
-/** First number in whatever Shortcuts sends ("34", "72,5 kg", 34), or null
- * when the field is missing or empty (no Apple Health sample that day). */
-function parseNumber(raw: unknown): number | null {
+const SEVERAL_VALUES = "got several values: send one day per request, or a days list with a date on each";
+
+/** The number in whatever Shortcuts sends ("34", "72,5 kg", 34), or null
+ * when the field is missing or empty (no Apple Health sample that day). A
+ * list of samples is refused rather than read as its first value. */
+function parseNumber(raw: unknown, name: string): number | null {
+  if (Array.isArray(raw)) {
+    if (raw.length > 1) throw new HttpError(400, `${name} ${SEVERAL_VALUES}`);
+    return parseNumber(raw[0], name);
+  }
   if (typeof raw === "number") return Number.isFinite(raw) ? raw : null;
   if (typeof raw !== "string" || !raw.trim()) return null;
-  const m = raw.replace(",", ".").match(/-?\d+(\.\d+)?/);
+  const m = raw.replace(",", ".").match(/-?\d+(\.\d+)?/g);
+  if (m && m.length > 1) throw new HttpError(400, `${name} ${SEVERAL_VALUES}`);
   return m ? Number(m[0]) : null;
 }
 
 /** A step count, allowing thousands separators ("8,432", "8 432"). */
-function parseCount(raw: unknown): number | null {
-  if (typeof raw !== "string") return parseNumber(raw);
-  const compact = raw.replace(/[\s\u00a0\u202f]/g, "");
+function parseCount(raw: unknown, name: string): number | null {
+  if (typeof raw !== "string") return parseNumber(raw, name);
+  const compact = raw.trim().replace(/[ \u00a0\u202f]/g, "");
   if (/^\d{1,3}([,.]\d{3})+$/.test(compact)) return Number(compact.replace(/[,.]/g, ""));
-  return parseNumber(compact);
+  return parseNumber(compact, name);
 }
 
 /** "2026-10-02", or today in `timeZone` when the shortcut sends none. */
@@ -238,15 +249,70 @@ async function handle(req: Request): Promise<Response> {
   }
 }
 
+interface Day {
+  date: string;
+  minutes: number | null;
+  steps: number | null;
+  weight: number | null;
+  systolic: number | null;
+  diastolic: number | null;
+}
+
+const MAX_DAYS = 400;
+
+function lowerKeys(raw: unknown): Record<string, unknown> | null {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  return Object.fromEntries(Object.entries(raw).map(([k, v]) => [k.toLowerCase(), v]));
+}
+
+function parseDay(field: (name: string) => unknown, timeZone: string, needDate: boolean): Day {
+  const minutes = parseNumber(field("minutes"), "minutes");
+  const steps = parseCount(field("steps"), "steps");
+  const weight = parseNumber(field("weight"), "weight");
+  const systolic = parseNumber(field("systolic"), "systolic");
+  const diastolic = parseNumber(field("diastolic"), "diastolic");
+  if ([minutes, steps, weight, systolic, diastolic].every((v) => v === null)) {
+    throw new HttpError(400, "Send at least one of minutes, steps, weight, systolic + diastolic");
+  }
+  inRange(minutes, 0, 24 * 60, "minutes must be a number from 0 to 1440");
+  inRange(steps, 0, 200_000, "steps must be a number from 0 to 200000");
+  inRange(weight, 10, 500, "weight must be in kg, from 10 to 500");
+  inRange(systolic, 40, 300, "systolic must be from 40 to 300");
+  inRange(diastolic, 20, 200, "diastolic must be from 20 to 200");
+  if ((systolic === null) !== (diastolic === null)) throw new HttpError(400, "Send systolic and diastolic together");
+  const bpZero = systolic === 0 && diastolic === 0;
+  if (systolic !== null && diastolic !== null && !bpZero && systolic <= diastolic) {
+    throw new HttpError(400, "systolic must be higher than diastolic");
+  }
+
+  const rawDate = field("date");
+  if (needDate && (typeof rawDate !== "string" || !rawDate.trim())) throw new HttpError(400, "every day in days needs a date");
+  const date = parseDate(rawDate, timeZone);
+  if (!date) throw new HttpError(400, "date must look like 2026-10-02");
+  return { date, minutes, steps, weight, systolic, diastolic };
+}
+
+async function saveDay(ownerId: string, day: Day, timeZone: string, walkingId: string | null, stepsId: string | null) {
+  const { date, minutes, steps, weight, systolic, diastolic } = day;
+  if (minutes !== null && walkingId) await saveWorkoutDay(ownerId, walkingId, date, Math.round(minutes));
+  if (steps !== null && stepsId) await saveWorkoutDay(ownerId, stepsId, date, Math.round(steps));
+  if (weight !== null) {
+    const kg = Math.round(weight * 10) / 10;
+    await saveVitalDay(ownerId, "weight_logs", "weight", date, timeZone, kg === 0 ? null : { kg });
+  }
+  if (systolic !== null && diastolic !== null) {
+    const bpZero = systolic === 0 && diastolic === 0;
+    const bp = { systolic: Math.round(systolic), diastolic: Math.round(diastolic) };
+    await saveVitalDay(ownerId, "blood_pressure", "bp", date, timeZone, bpZero ? null : bp);
+  }
+}
+
 async function importDay(req: Request): Promise<Response> {
   const query = new URL(req.url).searchParams;
   let body: Record<string, unknown> = {};
   try {
-    const parsed = JSON.parse(await req.text());
     // Shortcuts capitalises the first letter of a JSON field name.
-    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-      for (const [k, v] of Object.entries(parsed)) body[k.toLowerCase()] = v;
-    }
+    body = lowerKeys(JSON.parse(await req.text())) ?? {};
   } catch {
     body = {};
   }
@@ -254,59 +320,58 @@ async function importDay(req: Request): Promise<Response> {
 
   const token = String(field("token") ?? "").trim();
   if (!token) return json({ error: "token is required" }, 400);
-
-  const minutes = parseNumber(field("minutes"));
-  const steps = parseCount(field("steps"));
-  const weight = parseNumber(field("weight"));
-  const systolic = parseNumber(field("systolic"));
-  const diastolic = parseNumber(field("diastolic"));
-  if ([minutes, steps, weight, systolic, diastolic].every((v) => v === null)) {
-    return json({ error: "Send at least one of minutes, steps, weight, systolic + diastolic" }, 400);
-  }
-  inRange(minutes, 0, 24 * 60, "minutes must be a number from 0 to 1440");
-  inRange(steps, 0, 200_000, "steps must be a number from 0 to 200000");
-  inRange(weight, 10, 500, "weight must be in kg, from 10 to 500");
-  inRange(systolic, 40, 300, "systolic must be from 40 to 300");
-  inRange(diastolic, 20, 200, "diastolic must be from 20 to 200");
-  const bpZero = systolic === 0 && diastolic === 0;
-  if ((systolic === null) !== (diastolic === null)) return json({ error: "Send systolic and diastolic together" }, 400);
-  if (systolic !== null && diastolic !== null && !bpZero && systolic <= diastolic) {
-    return json({ error: "systolic must be higher than diastolic" }, 400);
-  }
-
   const timeZone = String(field("timezone") ?? DEFAULT_TIMEZONE);
-  const date = parseDate(field("date"), timeZone);
-  if (!date) return json({ error: "date must look like 2026-10-02" }, 400);
+
+  const bulk = Array.isArray(body.days);
+  let days: Day[];
+  if (bulk) {
+    const list = body.days as unknown[];
+    if (list.length === 0) return json({ error: "days is empty" }, 400);
+    if (list.length > MAX_DAYS) return json({ error: `Send up to ${MAX_DAYS} days per request` }, 400);
+    const byDate = new Map<string, Day>();
+    list.forEach((raw, i) => {
+      const entry = lowerKeys(raw);
+      if (!entry) throw new HttpError(400, `days[${i}] must be an object`);
+      try {
+        const day = parseDay((name) => entry[name], timeZone, true);
+        byDate.set(day.date, day);
+      } catch (err) {
+        if (err instanceof HttpError) throw new HttpError(400, `days[${i}]: ${err.message}`);
+        throw err;
+      }
+    });
+    days = [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
+  } else {
+    days = [parseDay(field, timeZone, false)];
+  }
 
   const { data: tok, error: tokErr } = await admin.from("health_import_tokens").select("owner_id").eq("token", token).maybeSingle();
   check(tokErr, "token lookup");
   if (!tok) return json({ error: "Unknown token" }, 401);
   const ownerId = tok.owner_id as string;
 
-  const saved: Record<string, number> = {};
-
-  if (minutes !== null) {
+  let walkingId: string | null = null;
+  if (days.some((d) => d.minutes !== null)) {
     const exercise = String(field("exercise") ?? DEFAULT_EXERCISE).trim() || DEFAULT_EXERCISE;
     const item = await findExercise(ownerId, exercise);
     if (!item || item.is_archived) throw new HttpError(404, `No active exercise called "${exercise}" in Settings → Workout`);
-    await saveWorkoutDay(ownerId, item.id, date, Math.round(minutes));
-    saved.minutes = Math.round(minutes);
+    walkingId = item.id;
   }
-  if (steps !== null) {
-    await saveWorkoutDay(ownerId, await stepsExercise(ownerId, date), date, Math.round(steps));
-    saved.steps = Math.round(steps);
-  }
-  if (weight !== null) {
-    const kg = Math.round(weight * 10) / 10;
-    await saveVitalDay(ownerId, "weight_logs", "weight", date, timeZone, kg === 0 ? null : { kg });
-    saved.weight = kg;
-  }
-  if (systolic !== null && diastolic !== null) {
-    const bp = { systolic: Math.round(systolic), diastolic: Math.round(diastolic) };
-    await saveVitalDay(ownerId, "blood_pressure", "bp", date, timeZone, bpZero ? null : bp);
-    Object.assign(saved, bp);
+  const stepsId = days.some((d) => d.steps !== null) ? await stepsExercise(ownerId, days[0].date) : null;
+
+  // A few days at a time keeps a year's backfill well inside the function's time limit.
+  for (let i = 0; i < days.length; i += 10) {
+    await Promise.all(days.slice(i, i + 10).map((d) => saveDay(ownerId, d, timeZone, walkingId, stepsId)));
   }
 
   await admin.from("health_import_tokens").update({ last_used_at: new Date().toISOString() }).eq("token", token);
+  if (bulk) return json({ ok: true, days: days.length, from: days[0].date, to: days[days.length - 1].date });
+
+  const [{ date, minutes, steps, weight, systolic, diastolic }] = days;
+  const saved: Record<string, number> = {};
+  if (minutes !== null) saved.minutes = Math.round(minutes);
+  if (steps !== null) saved.steps = Math.round(steps);
+  if (weight !== null) saved.weight = Math.round(weight * 10) / 10;
+  if (systolic !== null && diastolic !== null) Object.assign(saved, { systolic: Math.round(systolic), diastolic: Math.round(diastolic) });
   return json({ ok: true, date, ...saved });
 }

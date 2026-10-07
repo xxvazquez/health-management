@@ -108,6 +108,19 @@ export function HealthImportCard({ isDemoData, searchQuery }: { isDemoData: bool
             </Step>
           </FormGroup>
 
+          <FormGroup title="Past steps" footer="A separate shortcut, run once. Up to 400 days per run; re-running replaces those days.">
+            <Step n={1}>
+              <strong>Find Health Samples</strong> (Steps, Start Date is in the last 1 year, Group By Day).
+            </Step>
+            <Step n={2}>
+              <strong>Repeat with Each</strong>: a <strong>Dictionary</strong> with Text <code>date</code> = Start Date as <code>yyyy-MM-dd</code> and
+              Number <code>steps</code> = Value → <strong>Add to Variable</strong> Days.
+            </Step>
+            <Step n={3}>
+              After the repeat, <strong>Get Contents of URL</strong> as above with one Array field <code>days</code> = Days.
+            </Step>
+          </FormGroup>
+
           {state === "error" && (
             <p className="px-3.5 text-xs" style={{ color: "var(--status-critical)" }}>
               That didn&apos;t work — try again.

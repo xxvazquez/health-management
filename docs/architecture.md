@@ -142,7 +142,7 @@ Parent-and-child writes (an appointment with tasks, a whole blood draw) queue pa
   - Link titles come from the `fetch-link-metadata` Edge Function (the browser can't, because of CORS)
   - Android shares straight in via the PWA `share_target` (`/personal/?url=…`)
   - iOS uses a Shortcut that posts to the `wishlist-share` function with a per-account token
-- **Apple Health import:** a nightly iOS Shortcut posts the day's walking minutes, steps, latest weight and blood pressure (each optional) to `health-import` with its own token (`health_import_tokens`, shared helpers in `phoneTokens.ts`)
+- **Apple Health import:** a nightly iOS Shortcut posts the day's walking minutes, steps, latest weight and blood pressure (each optional) to `health-import` with its own token; a backfill posts a `days` list (each with its own `date`, up to 400) in one request (`health_import_tokens`, shared helpers in `phoneTokens.ts`)
   - Minutes and steps become one Walking / Steps `workout_logs` row per day (Steps is created on first import); weight and BP one `weight_logs` / `blood_pressure` reading per day, timed at midday
   - Each row has a stable id from (user, kind, date), so a re-run overwrites it and a 0 deletes it; typed entries of the same kind that day are deleted so nothing double-counts
   - `src/lib/appleHealth.ts` recomputes those ids so Log and Vitals can label imported entries; workout rows arrive on the next sync pull, Vitals reads Supabase directly

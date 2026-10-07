@@ -703,7 +703,7 @@ function writes `workout_logs` rows (Walking, and a Steps exercise with
 unit `steps` it creates on first use) and `weight_logs` / `blood_pressure`
 readings at midday, each with an id derived from (user, kind, date), so
 each day has one imported entry per kind that a re-run overwrites and a 0
-deletes.
+deletes. A backfill sends the same fields per day as a `days` list.
 
 `wishlist_share_tokens` (one row per account, `unique (owner_id)`) is a
 capture token for a phone Share Sheet shortcut: iOS has no PWA share
