@@ -18,7 +18,7 @@ import {
 } from "@/lib/supabase/household";
 import { getPartnerLink } from "@/lib/supabase/partner";
 import { buildDemoHouseholdItems, buildDemoHouseholdTasks, DEMO_HOME_ME_ID, DEMO_HOME_PARTNER_ID } from "@/lib/demoHousehold";
-import { isRecurringTask, nextRecurringDueAt, type ExpirationItem, type TaskItem, type TaskSubitem } from "@/lib/reminders";
+import { isRecurringTask, nextRecurringDueAt, rewoundRecurringDueAt, type ExpirationItem, type TaskItem, type TaskSubitem } from "@/lib/reminders";
 import type { TaskFormValues } from "@/components/reminders/TaskForm";
 import { useSnapshotCache } from "@/lib/useSnapshotCache";
 
@@ -193,7 +193,7 @@ export function useHouseholdReminderBoards() {
       if (isDemo) {
         setTasks((prev) =>
           prev.map((t) =>
-            t.id === task.id ? { ...t, lastCompletedAt: null, lastCompletedBy: null, dueAt: isRecurringTask(t) ? (t.lastCompletedAt ?? t.dueAt) : t.dueAt } : t,
+            t.id === task.id ? { ...t, lastCompletedAt: null, lastCompletedBy: null, dueAt: isRecurringTask(t) ? rewoundRecurringDueAt(t) : t.dueAt } : t,
           ),
         );
         return;

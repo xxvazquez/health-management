@@ -1,6 +1,6 @@
 import { supabase } from "./client";
 import { todayLocalISODate } from "@/lib/aggregations/common";
-import { isRecurringTask, nextRecurringDueAt, type ExpirationItem, type TaskItem, type TaskSubitem } from "@/lib/reminders";
+import { isRecurringTask, nextRecurringDueAt, rewoundRecurringDueAt, type ExpirationItem, type TaskItem, type TaskSubitem } from "@/lib/reminders";
 import { createTimeOrderedId } from "@/lib/sortableId";
 import { deleteDirect, deleteWhereDirect, insertDirect, updateDirect, upsertDirect } from "./directWrite";
 import { saveTaskSubitems, toggleTaskSubitem } from "./taskSubitems";
@@ -214,7 +214,7 @@ export async function uncompleteHouseholdTask(task: TaskItem): Promise<TaskItem>
     ...task,
     lastCompletedAt: null,
     lastCompletedBy: null,
-    dueAt: recurring ? task.lastCompletedAt ?? task.dueAt : task.dueAt,
+    dueAt: recurring ? rewoundRecurringDueAt(task) : task.dueAt,
   };
   await updateDirect(myUserId, "household_tasks", next.id, taskPayload(next, myUserId, recurring ? { reminder_sent_at: null } : undefined));
   if (task.lastCompletedAt) {

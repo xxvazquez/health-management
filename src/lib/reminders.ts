@@ -56,6 +56,15 @@ export function nextRecurringDueAt(recurrenceDays: number, completedAt: Date = n
   return new Date(day.getFullYear(), day.getMonth(), day.getDate() + recurrenceDays, time.getHours(), time.getMinutes()).toISOString();
 }
 
+/** Undoing a recurring task's last completion: due_at steps back by the
+ * interval, landing on the completion day at the task's own time. */
+export function rewoundRecurringDueAt(task: Pick<TaskItem, "dueAt" | "recurrenceDays" | "lastCompletedAt">): string | null {
+  if (!task.dueAt || task.recurrenceDays == null) return task.lastCompletedAt ?? task.dueAt;
+  const due = new Date(task.dueAt);
+  due.setDate(due.getDate() - task.recurrenceDays);
+  return due.toISOString();
+}
+
 export interface ExpirationItem {
   id: string;
   name: string;

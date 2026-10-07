@@ -1,5 +1,5 @@
 import { supabase } from "./client";
-import { isRecurringTask, nextRecurringDueAt, type TaskItem, type TaskSubitem } from "@/lib/reminders";
+import { isRecurringTask, nextRecurringDueAt, rewoundRecurringDueAt, type TaskItem, type TaskSubitem } from "@/lib/reminders";
 import { createTimeOrderedId } from "@/lib/sortableId";
 import { deleteDirect, deleteWhereDirect, insertDirect, upsertDirect } from "./directWrite";
 import { saveTaskSubitems, toggleTaskSubitem } from "./taskSubitems";
@@ -263,11 +263,9 @@ export async function setPersonalTaskArchived(task: TaskItem, archived: boolean)
 }
 
 /** Undoes the most recent completion: clears `last_completed_at`, drops
- * the newest personal_task_completions row, and for a recurring task moves
- * `due_at` back to the moment it was completed (so it reads as due again)
- * and re-arms the cron via `reminder_sent_at = null`. Restoring the exact
- * prior `due_at` for a task completed early isn't tracked — edit the date
- * if that matters. */
+ * the newest personal_task_completions row, and for a recurring task steps
+ * `due_at` back by the interval (`rewoundRecurringDueAt`, so it reads as due
+ * again at its own time) and re-arms the cron via `reminder_sent_at = null`. */
 export async function uncompletePersonalTask(task: TaskItem): Promise<TaskItem> {
   const myUserId = await currentUserId();
   if (!myUserId) throw new Error("Sign in first.");
@@ -275,7 +273,7 @@ export async function uncompletePersonalTask(task: TaskItem): Promise<TaskItem> 
   const next: TaskItem = {
     ...task,
     lastCompletedAt: null,
-    dueAt: recurring ? task.lastCompletedAt ?? task.dueAt : task.dueAt,
+    dueAt: recurring ? rewoundRecurringDueAt(task) : task.dueAt,
   };
   await upsertDirect(myUserId, TASKS_TABLE, next.id, taskPayload(next, myUserId, recurring ? { reminder_sent_at: null } : undefined));
   // The completion row shares the task's old last_completed_at timestamp

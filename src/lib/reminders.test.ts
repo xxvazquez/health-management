@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isRecurringTask, isTaskDone, nextRecurringDueAt, type TaskItem } from "./reminders";
+import { isRecurringTask, isTaskDone, nextRecurringDueAt, rewoundRecurringDueAt, type TaskItem } from "./reminders";
 
 function makeTask(overrides: Partial<TaskItem> = {}): TaskItem {
   return {
@@ -60,5 +60,14 @@ describe("nextRecurringDueAt", () => {
   it("counts a completion after midnight toward the previous day", () => {
     const due = new Date(2026, 5, 13, 22, 0).toISOString();
     expect(nextRecurringDueAt(1, new Date(2026, 5, 14, 0, 30), due)).toBe(new Date(2026, 5, 14, 22, 0).toISOString());
+  });
+});
+
+describe("rewoundRecurringDueAt", () => {
+  it("undoes a completion back to the completion day at the task's own time", () => {
+    const due = new Date(2026, 5, 13, 8, 0).toISOString();
+    const completedAt = new Date(2026, 5, 13, 22, 15);
+    const next = nextRecurringDueAt(7, completedAt, due);
+    expect(rewoundRecurringDueAt({ dueAt: next, recurrenceDays: 7, lastCompletedAt: completedAt.toISOString() })).toBe(due);
   });
 });
