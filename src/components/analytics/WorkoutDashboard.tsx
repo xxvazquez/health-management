@@ -252,7 +252,9 @@ export function WorkoutDashboard() {
   }
 
   const { span, range, setRange } = useDateRangeFilter(workoutLogs, DEFAULT_RANGE_DAYS);
-  const weeks = useMemo(() => (range ? workoutWeeklySessions(workoutLogs, range) : []), [workoutLogs, range]);
+  // A daily step count isn't a training session.
+  const trainingLogs = useMemo(() => workoutLogs.filter((l) => unitByExercise.get(l.exercise) !== "steps"), [workoutLogs, unitByExercise]);
+  const weeks = useMemo(() => (range ? workoutWeeklySessions(trainingLogs, range) : []), [trainingLogs, range]);
   const exercises = useMemo(() => (range ? workoutExerciseSummaries(workoutLogs, range, unitByExercise) : []), [workoutLogs, range, unitByExercise]);
 
   if (status === "loading") return <PageSkeleton />;
@@ -276,7 +278,7 @@ export function WorkoutDashboard() {
     );
   }
 
-  const trainedDays = [...workoutTrainedDates(workoutLogs)].filter((d) => d >= range.start && d <= range.end).length;
+  const trainedDays = [...workoutTrainedDates(trainingLogs)].filter((d) => d >= range.start && d <= range.end).length;
   const perWeek = round1((trainedDays * 7) / (daysBetween(range.start, range.end) + 1));
 
   return (
@@ -294,15 +296,17 @@ export function WorkoutDashboard() {
         </section>
       )}
 
-      <HealthCard caption={`Training days · ${when}`}>
-        <TrendHeadline
-          caption="Average"
-          value={String(perWeek)}
-          unit={perWeek === 1 ? "day a week" : "days a week"}
-          detail={`${trainedDays} ${trainedDays === 1 ? "day" : "days"} in total`}
-        />
-        {weeks.length > 0 && <WeeklyBars weeks={weeks} today={today} />}
-      </HealthCard>
+      {trainingLogs.length > 0 && (
+        <HealthCard caption={`Training days · ${when}`}>
+          <TrendHeadline
+            caption="Average"
+            value={String(perWeek)}
+            unit={perWeek === 1 ? "day a week" : "days a week"}
+            detail={`${trainedDays} ${trainedDays === 1 ? "day" : "days"} in total`}
+          />
+          {weeks.length > 0 && <WeeklyBars weeks={weeks} today={today} />}
+        </HealthCard>
+      )}
     </div>
   );
 }
