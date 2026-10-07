@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { checkInOutcomes, stoolOutcomes, computeAssociationFromDateSets, fisherExactP, generateTopPatterns, linkIntensity, mantelHaenszelP, matchCategory, matchItem, patternLinkKey, plausibleLags } from "./patterns";
+import { allCauseOptions, checkInOutcomes, stoolOutcomes, computeAssociationFromDateSets, fisherExactP, generateTopPatterns, linkIntensity, mantelHaenszelP, matchCategory, matchItem, patternLinkKey, plausibleLags } from "./patterns";
 import { makeEvent, makePeriodLog, makeStoolLog } from "@/lib/testFixtures";
 import { addDaysToDate } from "./common";
 
@@ -278,5 +278,17 @@ describe("linkIntensity", () => {
     ]);
     const [link] = generateTopPatterns(events);
     expect(linkIntensity(events, link)).toBeNull();
+  });
+});
+
+describe("allCauseOptions", () => {
+  it("leaves days with no food logged out of a food's tracked days", () => {
+    const events = [
+      makeEvent({ date: "2026-01-01", item: "Oats", itemType: "food", completed: true }),
+      makeEvent({ date: "2026-01-02", item: "Iron", itemType: "supplement", completed: true }),
+      makeEvent({ date: "2026-01-03", item: "Rice", itemType: "food", completed: true }),
+    ];
+    const oats = allCauseOptions(events).find((c) => c.label === "Food: Oats");
+    expect(oats?.tracked).toEqual(new Set(["2026-01-01", "2026-01-03"]));
   });
 });

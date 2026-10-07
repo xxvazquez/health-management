@@ -83,6 +83,9 @@ export function similarCoverage(daysA: number, daysB: number): boolean {
 export const SECTION_GAP_DAYS = 14;
 /** Symptoms can rightly go unlogged for weeks, so they get a longer gap. */
 export const SYMPTOM_GAP_DAYS = 30;
+/** A day with no food logged was skipped on purpose, never "ate nothing",
+ * so food counts only the days it was logged. */
+export const FOOD_GAP_DAYS = 0;
 
 /**
  * Days a section (food, supplements, symptoms, …) was really being tracked:

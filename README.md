@@ -153,8 +153,8 @@ A grouped list where each row opens its own screen. Everything editable in the a
 - **Supplements and habits can have a schedule:** every day (default), N× a week, or specific weekdays. Consistency on Trends is measured against it; days off the schedule and today (until logged) never count as misses.
 - **A garnish isn't a serving.** Lemon, garlic, ginger, any juice or powder, breadcrumbs count toward variety but not toward food targets. In Settings, picking a group for one counts it, and "Garnish" marks any other food as one.
 - **Sweets:** syrups, honey and milk chocolate count toward the Sweets & sugar limit; dark chocolate doesn't.
-- **A day with no food logged never counts as zero.** Food targets and staples divide by the days with food logged in the range, not the calendar. A "vs previous period" figure only shows when both periods were logged on a similar number of days.
-- **Patterns only compare days both sides were tracked.** A section counts as tracked from its first entry, on days you used the app, until it goes quiet for two weeks (a month for symptoms).
+- **A day with no food logged is skipped, never counted as zero.** Food targets and staples divide by the days with food logged in the range, not the calendar, and Patterns test a food only on days some food was logged. A "vs previous period" figure only shows when both periods were logged on a similar number of days.
+- **Patterns only compare days both sides were tracked.** A section counts as tracked from its first entry, on days you used the app, until it goes quiet for two weeks (a month for symptoms; food counts only days it was logged).
 - **Patterns check foods and supplements within each cycle phase** once cycles are logged, so a food eaten mostly before a period doesn't take the blame for that phase's symptoms.
 - **Cycle** stores only period days. Cycle length and predictions are always derived, never stored.
 - **Cycle gaps:** one unlogged day inside a period is bridged. A cycle under 15 days or about twice the usual length looks like a missed log, so averages, variation, predictions and the length chart leave it out.

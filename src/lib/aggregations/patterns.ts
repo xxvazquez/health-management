@@ -5,6 +5,7 @@ import {
   addDaysToDate,
   pct,
   round1,
+  FOOD_GAP_DAYS,
   SECTION_GAP_DAYS,
   sectionTrackedDates,
   symptomTrackedDates,
@@ -393,7 +394,7 @@ export interface CauseOption {
 /** Builds cause options for one item type: each is tracked on its
  * section's tracked days within its own first-to-last-entry window. */
 function causesForType(events: CanonicalEvent[], itemType: ItemType) {
-  const sectionTracked = trackedDatesForType(events, itemType);
+  const sectionTracked = trackedDatesForType(events, itemType, itemType === "food" ? FOOD_GAP_DAYS : SECTION_GAP_DAYS);
   return (label: string, matcher: ItemMatcher): CauseOption => {
     const dates = dateSetForMatcher(events, matcher);
     return { label, dates, tracked: withinItemWindow(sectionTracked, dates, SECTION_GAP_DAYS), times: firstTimeByDate(events, matcher) };
