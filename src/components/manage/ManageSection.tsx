@@ -117,6 +117,15 @@ export function OpenInLogRow({ tab, label }: { tab: string; label: string }) {
   );
 }
 
+/** Shown when a Settings change couldn't reach the server. */
+export function SaveFailedNote() {
+  return (
+    <p role="alert" className="px-4 text-xs" style={{ color: "var(--status-critical)" }}>
+      Couldn&apos;t save — check your connection and try again.
+    </p>
+  );
+}
+
 export function GroupNote({ children }: { children: ReactNode }) {
   return (
     <p className="px-4 text-xs" style={{ color: "var(--text-muted)" }}>

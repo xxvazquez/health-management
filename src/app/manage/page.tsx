@@ -22,7 +22,7 @@ import { HealthImportCard } from "@/components/manage/HealthImportCard";
 import { FoodTargetsCard } from "@/components/manage/FoodTargetsCard";
 import { HiddenLinksCard } from "@/components/manage/HiddenLinksCard";
 import { UsualTimesCard } from "@/components/manage/UsualTimesCard";
-import { AddRow, CollapsibleManageCard, GROUP_CLS, GROUP_STYLE, GroupNote, ManageNavContext, OpenInLogRow, RowMenu, SECTION_PARENT, SectionRow, useSectionMode } from "@/components/manage/ManageSection";
+import { AddRow, CollapsibleManageCard, GROUP_CLS, GROUP_STYLE, GroupNote, ManageNavContext, SaveFailedNote, OpenInLogRow, RowMenu, SECTION_PARENT, SectionRow, useSectionMode } from "@/components/manage/ManageSection";
 import { SwitchKnob } from "@/components/ui/Switch";
 import { TimePicker } from "@/components/ui/DatePicker";
 import { useItemActions, type ManageableItem } from "@/lib/useItemActions";
@@ -873,6 +873,7 @@ function DoctorSpecialtiesCard({ isDemoData, searchQuery }: { isDemoData: boolea
   const [rows, setRows] = useState<DoctorSpecialty[]>(() => (isDemoData ? buildDemoDoctorSpecialties() : []));
   const [loading, setLoading] = useState(!isDemoData);
   const [busy, setBusy] = useState(false);
+  const [saveFailed, setSaveFailed] = useState(false);
   const [newName, setNewName] = useState("");
   const [hiddenOpen, setHiddenOpen] = useState(false);
 
@@ -918,12 +919,16 @@ function DoctorSpecialtiesCard({ isDemoData, searchQuery }: { isDemoData: boolea
 
   const findRow = (list: DoctorSpecialty[], name: string) => list.find((r) => r.name.toLowerCase() === name.toLowerCase());
 
-  async function run(action: (fresh: DoctorSpecialty[]) => Promise<void>) {
+  async function run(action: (fresh: DoctorSpecialty[]) => Promise<void>): Promise<boolean> {
     setBusy(true);
     try {
       await action(isDemoData ? rows : await realize());
+      setSaveFailed(false);
+      return true;
     } catch (err) {
       console.error("doctor type action failed", err);
+      setSaveFailed(true);
+      return false;
     } finally {
       setBusy(false);
     }
@@ -942,7 +947,7 @@ function DoctorSpecialtiesCard({ isDemoData, searchQuery }: { isDemoData: boolea
       });
       return;
     }
-    await run(async (fresh) => {
+    const saved = await run(async (fresh) => {
       const existing = findRow(fresh, name);
       if (existing) {
         if (existing.isArchived) {
@@ -954,6 +959,7 @@ function DoctorSpecialtiesCard({ isDemoData, searchQuery }: { isDemoData: boolea
       const created = await createDoctorSpecialty(name);
       setRows((prev) => [...prev, created]);
     });
+    if (!saved) setNewName((current) => current || name);
   }
 
   async function handleRename(name: string, nextName: string) {
@@ -1043,6 +1049,7 @@ function DoctorSpecialtiesCard({ isDemoData, searchQuery }: { isDemoData: boolea
       bare
     >
       <AddRow value={newName} onChange={setNewName} onSubmit={handleAdd} placeholder="New doctor type" maxLength={60} label="Add type" />
+      {saveFailed && <SaveFailedNote />}
 
       {loading ? (
         <p className="py-3 text-xs" style={{ color: "var(--text-muted)" }}>
@@ -1232,6 +1239,7 @@ function StoolOptionsCard({ isDemoData, searchQuery }: { isDemoData: boolean; se
   const [rows, setRows] = useState<StoolOption[]>(() => (isDemoData ? demoStoolOptionRows() : []));
   const [loading, setLoading] = useState(!isDemoData);
   const [busy, setBusy] = useState(false);
+  const [saveFailed, setSaveFailed] = useState(false);
   const [newLabels, setNewLabels] = useState<Record<string, string>>({});
   const [hiddenOpen, setHiddenOpen] = useState<Record<string, boolean>>({});
 
@@ -1259,12 +1267,16 @@ function StoolOptionsCard({ isDemoData, searchQuery }: { isDemoData: boolean; se
     return fresh;
   }
 
-  async function run(kind: StoolOptionKind, action: (fresh: StoolOption[]) => Promise<void>) {
+  async function run(kind: StoolOptionKind, action: (fresh: StoolOption[]) => Promise<void>): Promise<boolean> {
     setBusy(true);
     try {
       await action(isDemoData ? rows : await realize(kind));
+      setSaveFailed(false);
+      return true;
     } catch (err) {
       console.error("stool option action failed", err);
+      setSaveFailed(true);
+      return false;
     } finally {
       setBusy(false);
     }
@@ -1295,12 +1307,13 @@ function StoolOptionsCard({ isDemoData, searchQuery }: { isDemoData: boolean; se
       );
       return;
     }
-    await run(kind, async (fresh) => {
+    const saved = await run(kind, async (fresh) => {
       if (fresh.some((r) => r.kind === kind && r.label.toLowerCase() === label.toLowerCase())) return;
       const sortOrder = Math.max(-1, ...fresh.filter((r) => r.kind === kind).map((r) => r.sortOrder)) + 1;
       const created = await createStoolOption(kind, label, sortOrder);
       setRows((prev) => [...prev, created]);
     });
+    if (!saved) setNewLabels((p) => (p[kind] ? p : { ...p, [kind]: label }));
   }
 
   async function patch(option: StoolOption, p: StoolOptionPatch) {
@@ -1337,6 +1350,7 @@ function StoolOptionsCard({ isDemoData, searchQuery }: { isDemoData: boolean; se
       forceOpen={isSearching}
       bare
     >
+      {saveFailed && <SaveFailedNote />}
       {loading ? (
         <p className="py-3 text-xs" style={{ color: "var(--text-muted)" }}>
           Loading…
@@ -1433,6 +1447,7 @@ function CoffeeCard({ isDemoData, searchQuery }: { isDemoData: boolean; searchQu
   const [rows, setRows] = useState<CoffeeOption[]>(() => (isDemoData ? demoCoffeeOptionRows() : []));
   const [loading, setLoading] = useState(!isDemoData);
   const [busy, setBusy] = useState(false);
+  const [saveFailed, setSaveFailed] = useState(false);
   const [newLabels, setNewLabels] = useState<Record<string, string>>({});
   const [hiddenOpen, setHiddenOpen] = useState<Record<string, boolean>>({});
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
@@ -1462,12 +1477,16 @@ function CoffeeCard({ isDemoData, searchQuery }: { isDemoData: boolean; searchQu
     return fresh;
   }
 
-  async function run(kind: CoffeeOptionKind, action: (fresh: CoffeeOption[]) => Promise<void>) {
+  async function run(kind: CoffeeOptionKind, action: (fresh: CoffeeOption[]) => Promise<void>): Promise<boolean> {
     setBusy(true);
     try {
       await action(isDemoData ? rows : await realize(kind));
+      setSaveFailed(false);
+      return true;
     } catch (err) {
       console.error("coffee option action failed", err);
+      setSaveFailed(true);
+      return false;
     } finally {
       setBusy(false);
     }
@@ -1487,12 +1506,13 @@ function CoffeeCard({ isDemoData, searchQuery }: { isDemoData: boolean; searchQu
       setRows((prev) => (prev.some((r) => r.kind === kind && r.label.toLowerCase() === label.toLowerCase()) ? prev : [...prev, { id: `demo-coffee-opt-${Date.now()}`, kind, label, sortOrder: 99, isArchived: false }]));
       return;
     }
-    await run(kind, async (fresh) => {
+    const saved = await run(kind, async (fresh) => {
       if (fresh.some((r) => r.kind === kind && r.label.toLowerCase() === label.toLowerCase())) return;
       const sortOrder = Math.max(-1, ...fresh.filter((r) => r.kind === kind).map((r) => r.sortOrder)) + 1;
       const created = await createCoffeeOption(kind, label, sortOrder);
       setRows((prev) => [...prev, created]);
     });
+    if (!saved) setNewLabels((p) => (p[kind] ? p : { ...p, [kind]: label }));
   }
 
   async function patch(option: CoffeeOption, p: CoffeeOptionPatch) {
@@ -1559,6 +1579,7 @@ function CoffeeCard({ isDemoData, searchQuery }: { isDemoData: boolean; searchQu
       forceOpen={isSearching}
       bare
     >
+      {saveFailed && <SaveFailedNote />}
       <label className={`${GROUP_CLS} flex min-h-11 items-center gap-3 px-3.5`} style={GROUP_STYLE}>
         <span className="shrink-0 text-sm" style={{ color: "var(--text-primary)" }}>
           Currency
