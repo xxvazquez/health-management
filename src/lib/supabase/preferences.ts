@@ -31,6 +31,8 @@ export interface Preferences {
   itemSchedules?: Record<string, ItemSchedule>;
   /** Trends → Patterns links marked "Not related", never shown again. */
   hiddenPatternLinks?: HiddenPatternLink[];
+  /** Log → In season picks marked "don't show", as normalized names. */
+  hiddenSeasonalPicks?: string[];
 }
 
 export interface HiddenPatternLink {

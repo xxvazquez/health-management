@@ -795,6 +795,7 @@ account-wide settings every device shares
 | `itemSchedules` | Settings → a supplement's or habit's Schedule, keyed by item id: `{ kind: "weekly", times }` (1–6× a week) or `{ kind: "days", days }` (Monday-based weekday indexes 0–6). Absent = every day. Trends measures adherence against it (`src/lib/aggregations/schedule.ts`). |
 | `slotTimes` | Settings → Usual times: "HH:MM" per meal (`Breakfast`, `Lunch`, `Snack`, `Dinner`). An entry logged for another meal or a past day starts at that time. Only changed slots are stored; the rest use `DEFAULT_SLOT_TIMES` in `src/lib/logCandidates.ts`. |
 | `hiddenPatternLinks` | Trends → Patterns links marked "Not related", as `{ symptom, trigger }` pairs; never tested or shown again until unhidden in Settings → Hidden links. |
+| `hiddenSeasonalPicks` | Log → In season picks marked hidden, as normalized food names. |
 | `labNameLanguage` | Health → Results: `pl` or `en` — panel and marker names shown in Polish or English through the fixed dictionary in `src/lib/labNames.ts` (display only; stored names never change). Absent = `pl`. |
 
 Categories keep their order in `categories.sort_order` instead (above).
