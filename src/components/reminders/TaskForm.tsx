@@ -126,7 +126,7 @@ export function TaskForm({
         <Field label="What needs doing?">
           <input
             required
-            autoFocus
+            autoFocus={!initial}
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="e.g. Call the dentist"

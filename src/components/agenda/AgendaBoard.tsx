@@ -141,13 +141,16 @@ function ExpiryForm({
     >
       <FormGroup>
         <Field label="Product">
-          <input autoFocus required value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Sunscreen" maxLength={150} className={`${ROW_TEXT_CLS} font-medium`} style={ROW_STYLE} />
+          <input autoFocus={!initial} required value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Sunscreen" maxLength={150} className={`${ROW_TEXT_CLS} font-medium`} style={ROW_STYLE} />
         </Field>
         <Field label="Expires on" inline>
           <DatePicker value={expiresOn} onChange={setExpiresOn} title="Expires on" />
         </Field>
-        <Field label="Remind (days before)" inline>
-          <input inputMode="numeric" value={remind} onChange={(e) => setRemind(e.target.value)} className={`${ROW_INLINE_CLS} w-16`} style={ROW_STYLE} />
+        <Field label="Remind me" inline>
+          <span className="flex items-center gap-1.5 text-sm" style={{ color: "var(--text-secondary)" }}>
+            <input inputMode="numeric" value={remind} onChange={(e) => setRemind(e.target.value)} aria-label="Days before" className={`${ROW_INLINE_CLS} w-10`} style={ROW_STYLE} />
+            days before
+          </span>
         </Field>
       </FormGroup>
       {onRemove && (
@@ -409,9 +412,11 @@ function AgendaRow({
   const { revealed, onTouchStart, onTouchEnd } = useSwipeReveal();
   const subitemsDone = subitems.filter((s) => s.done).length;
 
-  // The note preview gets its own line; checklist progress, repeat and
-  // "Shared" share one.
+  // A reminder's note preview gets its own line; checklist progress, repeat,
+  // status ("Expired", "Follow-up") and "Shared" share one.
+  const note = isReminder ? e.subtitle : undefined;
   const details = [
+    isReminder ? null : e.subtitle,
     subitems.length > 0 ? `${subitemsDone} of ${subitems.length}` : null,
     recurring && e.reminder?.recurrenceDays != null ? recurrenceLabel(e.reminder.recurrenceDays) : null,
     e.scope === "shared" ? "Shared" : null,
@@ -419,9 +424,9 @@ function AgendaRow({
     .filter(Boolean)
     .join(" · ");
   const meta =
-    e.subtitle || details ? (
+    note || details ? (
       <span className="mt-0.5 flex flex-col gap-0.5 text-xs" style={{ color: "var(--text-muted)" }}>
-        {e.subtitle && <span className="truncate">{e.subtitle}</span>}
+        {note && <span className="truncate">{note}</span>}
         {details && <span>{details}</span>}
       </span>
     ) : null;
