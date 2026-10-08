@@ -59,6 +59,7 @@ Sections: **Food · Symptoms · Supplements · Habits · Stool · Workout · Cyc
 - Left open overnight, Log moves on to the new day; after 30+ minutes away the meal is re-picked for the time of day.
 - **Deep links:** `/log/?tab=<section>` opens a section, e.g. `?tab=workout` or `?tab=summary`. Settings → Workout links back this way.
 - **Toolbar:** search (or add), meal (Food), time. On desktop it sits beside the page title.
+- **⋯ menu:** each section's title row has Manage items (its Settings section) and Show trends (its Trends dashboard).
 - **Search:** tapping a result logs it and clears the search, keeping the field (and phone keyboard) up for the next one; × clears without closing the keyboard.
 - **Categories:** a scrolling rail on a phone, a sidebar with logged counts on desktop. They follow your order from Settings (A–Z until you set one); items inside are A–Z.
 
@@ -83,7 +84,7 @@ Sections: **Food · Symptoms · Supplements · Habits · Stool · Workout · Cyc
 
 #### Workout
 
-- A Log / Plan switch, with Charts (Trends → Workout) and Manage beside it.
+- A Log / Plan switch beside the time.
 - **Log:** every exercise by category, with a `− value +` stepper (drag or tap the number for fine steps).
 - **Plan:** the day's targets from your active plans, and a week row showing done, missed or short days. Logging a plan set writes a normal workout log.
 - Logging a timed or counted exercise that's already in today asks first, then adds onto that entry. kg sets stay separate.

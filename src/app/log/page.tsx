@@ -4,6 +4,8 @@ import { CheckInCard } from "@/components/log/CheckInCard";
 import { CHIP_CLS, CHIP_SM_CLS, CONTROL_CLS, CONTROL_STYLE, chipStyle } from "@/components/ui/Chip";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { MoreMenu, type MoreMenuItem } from "@/components/ui/MoreMenu";
 import { NAV_RESELECT_EVENT } from "@/lib/useDrillDown";
 import { useToday } from "@/lib/useToday";
 import { useAutosaveText } from "@/lib/useAutosaveText";
@@ -129,6 +131,18 @@ const TABS: { type: ItemType; label: string; singular: string; placeholder: stri
 ];
 
 type LogTab = ItemType | "stool" | "workout" | "cycle" | "coffee" | "summary";
+
+/** Where each section's ⋯ menu points: its Settings section and its Trends dashboard. */
+const SECTION_LINKS: Partial<Record<LogTab, { manage?: string; trends?: string }>> = {
+  food: { manage: "Food", trends: "food" },
+  outcome: { manage: "Symptoms", trends: "patterns" },
+  supplement: { manage: "Supplements", trends: "supplements" },
+  habit: { manage: "Habits", trends: "habits" },
+  stool: { manage: "Stool options", trends: "digestion" },
+  workout: { manage: "Workout", trends: "workout" },
+  cycle: { trends: "cycle" },
+  coffee: { manage: "Coffee" },
+};
 const STOOL_ACCENT = "var(--series-indigo)";
 // Distinct from every TYPE_ACCENT and from STOOL_ACCENT so all seven tabs
 // stay visually distinguishable at a glance in this one nav row. Matches
@@ -654,6 +668,12 @@ export default function LogPage() {
   const counts = useMemo(() => loggedCountsForDate(effective.logs, date), [effective, date]);
 
   const tabConfig = TABS.find((t) => t.type === tab);
+  const router = useRouter();
+  const sectionLinks = SECTION_LINKS[tab];
+  const sectionMenu: MoreMenuItem[] = [
+    ...(sectionLinks?.manage && !isDemoData ? [{ label: "Manage items", onClick: () => router.push(settingsHref(sectionLinks.manage!)) }] : []),
+    ...(sectionLinks?.trends ? [{ label: "Show trends", onClick: () => router.push(`/analytics/#${sectionLinks.trends}`) }] : []),
+  ];
 
   const logTimeKey = `${date}|${tab}|${meal}`;
   const logTime =
@@ -2426,6 +2446,11 @@ export default function LogPage() {
             <ChevronIcon dir="right" size={15} />
           </button>
         </div>
+        {sectionMenu.length > 0 && (
+          <div className="lg:order-4">
+            <MoreMenu label="Section actions" items={sectionMenu} />
+          </div>
+        )}
         <MobileMenuButton />
 
         {isDemoData && <DemoNotice className="order-4 -mt-2 w-full" />}
@@ -2480,11 +2505,6 @@ export default function LogPage() {
               onChange={setLogTime}
               explicit={timeIsExplicit}
             />
-            {!isDemoData && (
-              <Link href={settingsHref(tabConfig.label)} className="hidden shrink-0 px-1 text-sm font-medium whitespace-nowrap sm:inline" style={{ color: "var(--ui-accent)" }}>
-                Manage items
-              </Link>
-            )}
           </div>
         )}
       </div>
@@ -2535,19 +2555,7 @@ export default function LogPage() {
                   ["plan", "Plan"],
                 ]}
               />
-              <div className="flex items-center gap-3">
-                {(
-                  [
-                    ["/analytics/#workout", "Charts"],
-                    [settingsHref("Workout"), "Manage"],
-                  ] as const
-                ).map(([href, label]) => (
-                  <Link key={href} href={href} className="hit-slop text-sm font-medium whitespace-nowrap" style={{ color: WORKOUT_ACCENT }}>
-                    {label}
-                  </Link>
-                ))}
-                <TimeField value={workoutTime} onChange={setWorkoutTime} />
-              </div>
+              <TimeField value={workoutTime} onChange={setWorkoutTime} />
             </div>
             {workoutMode === "plan" ? (
               <WorkoutPlanView
