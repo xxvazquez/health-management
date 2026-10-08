@@ -159,7 +159,7 @@ export function SplitStatCard({ items }: { items: SplitStatItem[] }) {
           <p className="text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
             {it.caption}
           </p>
-          <p className="mt-0.5 flex items-baseline gap-1.5">
+          <p className="mt-0.5 flex flex-wrap items-baseline gap-x-1.5">
             <span className="text-2xl leading-tight font-semibold tabular-nums" style={{ color: "var(--text-primary)" }}>
               {it.value}
             </span>
