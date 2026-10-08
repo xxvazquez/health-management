@@ -59,7 +59,7 @@ Sections: **Food · Symptoms · Supplements · Habits · Stool · Workout · Cyc
 - Left open overnight, Log moves on to the new day; after 30+ minutes away the meal is re-picked for the time of day.
 - **Deep links:** `/log/?tab=<section>` opens a section, e.g. `?tab=workout` or `?tab=summary`. Settings → Workout links back this way.
 - **Toolbar:** search (or add), meal (Food), time. On desktop it sits beside the page title.
-- **Search:** tapping a result logs it and keeps the search field (and phone keyboard) up.
+- **Search:** tapping a result logs it and clears the search, keeping the field (and phone keyboard) up for the next one; × clears without closing the keyboard.
 - **Categories:** a scrolling rail on a phone, a sidebar with logged counts on desktop. They follow your order from Settings (A–Z until you set one); items inside are A–Z.
 
 #### Food

@@ -1530,6 +1530,7 @@ export default function LogPage() {
   }
 
   function handleQuickLogSeasonal(itemName: string) {
+    setSearch("");
     const category = lookupFoodCategory(itemName, foodCategoryNames) ?? foodCategoryNames[0];
     return createAndLogNewFood(itemName, `seasonal:${normalizeName(itemName)}`, category);
   }
@@ -1550,6 +1551,7 @@ export default function LogPage() {
    * increment/toggle yet, so its first tap creates the item instead. */
   function handleChipTap(c: LogCandidate) {
     logHaptic();
+    setSearch("");
     const action = decideChipTapAction(c, mealCounts.get(c.key) ?? 0, Boolean(tabConfig?.countable));
     switch (action) {
       case "create":
@@ -2703,13 +2705,16 @@ export default function LogPage() {
                   <div ref={foodProductsRef} className="no-scrollbar fade-x -mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
                     {matchingProducts
                       .map((p) => {
-                        const busy = pending === `product:${p.id}`;
+                        const busy = isPending(`product:${p.id}`);
                         return (
                           <button
                             key={p.id}
                             type="button"
                             onMouseDown={keepFieldFocus}
-                            onClick={() => void handleLogProduct(p)}
+                            onClick={() => {
+                              setSearch("");
+                              void handleLogProduct(p);
+                            }}
                             disabled={busy}
                             className={`${CHIP_SM_CLS} shrink-0 whitespace-nowrap`}
                             style={chipStyle(false)}

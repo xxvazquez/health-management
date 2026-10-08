@@ -1,6 +1,6 @@
 "use client";
 
-import type { MouseEvent } from "react";
+import { useRef, type MouseEvent } from "react";
 import { CloseIcon } from "@/components/ui/icons";
 
 /** `onMouseDown` for a button used while typing (a search result, a send
@@ -28,6 +28,7 @@ export function SearchField({
   placeholder: string;
   className?: string;
 }) {
+  const inputRef = useRef<HTMLInputElement>(null);
   return (
     <div className={`relative ${className}`}>
       <svg
@@ -46,6 +47,7 @@ export function SearchField({
         <path d="M16.5 16.5 13 13" />
       </svg>
       <input
+        ref={inputRef}
         type="text"
         data-search-field
         value={value}
@@ -57,7 +59,11 @@ export function SearchField({
       {value && (
         <button
           type="button"
-          onClick={() => onChange("")}
+          onMouseDown={keepFieldFocus}
+          onClick={() => {
+            onChange("");
+            inputRef.current?.focus();
+          }}
           aria-label="Clear search"
           className="absolute top-1/2 right-2.5 -translate-y-1/2"
           style={{ color: "var(--text-muted)" }}
