@@ -22,6 +22,7 @@ import {
 } from "@/lib/aggregations/workout";
 import { TYPE_ACCENT } from "@/taxonomy/categories";
 import { getAllItems, withDataLock } from "@/lib/db/indexedDb";
+import { buildDemoDataset } from "@/lib/demoData";
 import { workoutUnitLabel, workoutValueLabel, type WorkoutUnit } from "@/lib/types";
 
 const ACCENT = TYPE_ACCENT.workout;
@@ -313,24 +314,26 @@ function ExerciseDetail({ summary, when, range, today }: { summary: WorkoutExerc
 }
 
 export function WorkoutDashboard() {
-  const { status, events, workoutLogs } = useData();
+  const { status, events, workoutLogs, isDemoData } = useData();
   const today = useToday();
   const [openExercise, setOpenExercise] = useState<string | null>(null);
 
   // A workout log has no unit of its own; its exercise's unit lives on the
-  // matching workout_items row, re-read after every shared refresh.
+  // matching workout_items row, re-read after every shared refresh. Demo
+  // items never reach IndexedDB, so demo mode reads them from the dataset.
   const [unitByExercise, setUnitByExercise] = useState<Map<string, WorkoutUnit>>(new Map());
   useEffect(() => {
     if (status === "loading") return;
     let cancelled = false;
-    void withDataLock(() => getAllItems()).then((items) => {
+    void withDataLock(() => getAllItems()).then((stored) => {
       if (cancelled) return;
+      const items = isDemoData ? [...buildDemoDataset().items, ...stored] : stored;
       setUnitByExercise(new Map(items.filter((i) => i.itemType === "workout").map((i) => [i.rawName, i.unit ?? "kg"])));
     });
     return () => {
       cancelled = true;
     };
-  }, [status, events]);
+  }, [status, events, isDemoData]);
 
   // An exercise opens as its own screen with a history entry, so Back and
   // the edge swipe return to the overview.
