@@ -211,7 +211,7 @@ export function StoolTab({
   entries,
   options,
   isDemoData,
-  pending,
+  isPending,
   accent,
   onSave,
   onUpdate,
@@ -220,7 +220,7 @@ export function StoolTab({
   entries: RawStoolLog[];
   options: ResolvedStoolOptions;
   isDemoData: boolean;
-  pending: string | null;
+  isPending: (id: string) => boolean;
   accent: string;
   onSave: (entry: NewStoolEntry) => Promise<void>;
   onUpdate: (id: string, entry: NewStoolEntry) => Promise<void>;
@@ -425,7 +425,7 @@ export function StoolTab({
         </p>
         <div className="flex flex-col gap-2">
           {entries.map((entry) => {
-            const busy = pending === entry.id;
+            const busy = isPending(entry.id);
             return (
               <div
                 key={entry.id}

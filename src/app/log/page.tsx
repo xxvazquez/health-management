@@ -440,7 +440,23 @@ export default function LogPage() {
   const workoutPlans = useWorkoutPlans();
   const [newItemText, setNewItemText] = useState("");
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
-  const [pending, setPending] = useState<string | null>(null);
+  // Keys of the writes in flight. A key is held for the whole write, so a
+  // second tap on the same row is ignored until the first one lands, and it
+  // always clears, even when the write throws.
+  const pendingRef = useRef<Set<string>>(new Set());
+  const [pendingKeys, setPendingKeys] = useState<ReadonlySet<string>>(() => new Set());
+  const isPending = useCallback((key: string) => pendingKeys.has(key), [pendingKeys]);
+  async function runPending(key: string, work: () => Promise<void>) {
+    if (pendingRef.current.has(key)) return;
+    pendingRef.current.add(key);
+    setPendingKeys(new Set(pendingRef.current));
+    try {
+      await work();
+    } finally {
+      pendingRef.current.delete(key);
+      setPendingKeys(new Set(pendingRef.current));
+    }
+  }
   // Symptom intensity and supplement dose taps: optimistic and coalesced.
   // Each tap bumps the shown value immediately (absent → 1 → 2 → 3 →
   // absent) via `tapTargets`; a single debounced write persists the settled
@@ -1031,21 +1047,20 @@ export default function LogPage() {
   const mealSheetEntries = mealSheetTag ? (timelineRows.find((r) => r.kind === "meal" && r.mealTag === mealSheetTag) as { entries: TimelineEntry[] } | undefined)?.entries ?? null : null;
   // Logged all at once, a meal's foods share one time — shown once then.
   async function saveMealAsRecipe(mealTag: string, entries: TimelineEntry[]) {
-    if (pending === "__save-recipe__") return;
-    setPending("__save-recipe__");
-    const note = meals.noteFor(date, mealTag).trim();
-    const itemIds = Array.from(new Set(entries.filter((e) => e.itemType === "food").map((e) => e.itemIdentity)));
-    const created = await recipes
-      .create({
-        name: (note.split("\n")[0] || `${mealTag}, ${formatDateLabel(date, today)}`).slice(0, 80),
-        mealTag,
-        rating: meals.ratingFor(date, mealTag),
-        steps: [],
-        note: null,
-        ingredients: itemIds.map((itemId) => ({ itemId, amount: null, unit: null })),
-      })
-      .finally(() => setPending(null));
-    setSavedRecipe({ key: `${date}|${mealTag}`, id: created.id });
+    await runPending("__save-recipe__", async () => {
+      const note = meals.noteFor(date, mealTag).trim();
+      const itemIds = Array.from(new Set(entries.filter((e) => e.itemType === "food").map((e) => e.itemIdentity)));
+      const created = await recipes
+        .create({
+          name: (note.split("\n")[0] || `${mealTag}, ${formatDateLabel(date, today)}`).slice(0, 80),
+          mealTag,
+          rating: meals.ratingFor(date, mealTag),
+          steps: [],
+          note: null,
+          ingredients: itemIds.map((itemId) => ({ itemId, amount: null, unit: null })),
+        });
+      setSavedRecipe({ key: `${date}|${mealTag}`, id: created.id });
+    });
   }
 
   const mealSheetSharedTime = mealSheetEntries?.every((e) => e.time === mealSheetEntries[0].time) ? mealSheetEntries[0].time : null;
@@ -1127,11 +1142,11 @@ export default function LogPage() {
 
   async function handleIncrement(candidate: LogCandidate) {
     if (isDemoData) return;
-    setPending(candidate.key);
-    const log = await incrementDailyLogAndSync(candidate.itemIdentity, candidate.itemType, date, tabConfig?.countable ? meal : null);
-    await applyLogTime(log);
-    await refreshAfterWrite();
-    setPending(null);
+    await runPending(candidate.key, async () => {
+      const log = await incrementDailyLogAndSync(candidate.itemIdentity, candidate.itemType, date, tabConfig?.countable ? meal : null);
+      await applyLogTime(log);
+      await refreshAfterWrite();
+    });
   }
 
   /** Logs every ingredient of a product at once, for the current meal — one
@@ -1142,75 +1157,75 @@ export default function LogPage() {
   async function handleLogProduct(product: FoodProduct) {
     if (isDemoData || product.ingredientItemIds.length === 0) return;
     const pendingKey = `product:${product.id}`;
-    setPending(pendingKey);
-    for (const itemIdentity of product.ingredientItemIds) {
-      const log = await incrementDailyLogAndSync(itemIdentity, "food", date, meal, product.id);
-      await applyLogTime(log);
-    }
-    await refreshAfterWrite();
-    setPending(null);
+    await runPending(pendingKey, async () => {
+      for (const itemIdentity of product.ingredientItemIds) {
+        const log = await incrementDailyLogAndSync(itemIdentity, "food", date, meal, product.id);
+        await applyLogTime(log);
+      }
+      await refreshAfterWrite();
+    });
   }
 
   /** Logs a recipe's foods for the current meal, skipping any already
    * logged there so logging it twice never doubles the meal. */
   async function handleLogRecipe(recipe: Recipe) {
     if (isDemoData || recipe.ingredients.length === 0) return;
-    setPending(`recipe:${recipe.id}`);
-    const existing = loggedCountsForDate(effective.logs, date, meal);
-    for (const ing of recipe.ingredients) {
-      if (existing.has(ing.itemId)) continue;
-      const log = await incrementDailyLogAndSync(ing.itemId, "food", date, meal, null);
-      await applyLogTime(log);
-    }
-    await refreshAfterWrite();
-    setPending(null);
+    await runPending(`recipe:${recipe.id}`, async () => {
+      const existing = loggedCountsForDate(effective.logs, date, meal);
+      for (const ing of recipe.ingredients) {
+        if (existing.has(ing.itemId)) continue;
+        const log = await incrementDailyLogAndSync(ing.itemId, "food", date, meal, null);
+        await applyLogTime(log);
+      }
+      await refreshAfterWrite();
+    });
   }
 
   /** Logs everything in the selected meal again under another meal/day,
    * skipping items already logged there, then jumps to the copy. */
   async function handleCopyMeal(target: { meal: string; date: string }) {
     if (isDemoData) return;
-    setPending("__copy-meal__");
-    const existing = loggedCountsForDate(effective.logs, target.date, target.meal);
-    const seen = new Set<string>();
-    const iso = combineDateAndTime(
-      target.date,
-      autoLogTime({ date: target.date, today, slot: target.meal, currentSlot: defaultMealForTime(), slotTimes: prefs.slotTimes }),
-    );
-    for (const l of effective.logs) {
-      if (l.itemType !== "food" || l.date !== date || (l.value ?? 0) <= 0) continue;
-      if (l.mealTag !== meal && l.mealTag != null) continue;
-      if (seen.has(l.itemIdentity) || existing.has(l.itemIdentity)) continue;
-      seen.add(l.itemIdentity);
-      const log = await incrementDailyLogAndSync(l.itemIdentity, "food", target.date, target.meal, l.productId);
-      if (log.updatedAt !== iso) await updateLogTimeAndSync(log.identity, iso);
-    }
-    await refreshAfterWrite();
-    setPending(null);
-    setCopyTarget(null);
-    setDate(target.date);
-    setMeal(target.meal);
+    await runPending("__copy-meal__", async () => {
+      const existing = loggedCountsForDate(effective.logs, target.date, target.meal);
+      const seen = new Set<string>();
+      const iso = combineDateAndTime(
+        target.date,
+        autoLogTime({ date: target.date, today, slot: target.meal, currentSlot: defaultMealForTime(), slotTimes: prefs.slotTimes }),
+      );
+      for (const l of effective.logs) {
+        if (l.itemType !== "food" || l.date !== date || (l.value ?? 0) <= 0) continue;
+        if (l.mealTag !== meal && l.mealTag != null) continue;
+        if (seen.has(l.itemIdentity) || existing.has(l.itemIdentity)) continue;
+        seen.add(l.itemIdentity);
+        const log = await incrementDailyLogAndSync(l.itemIdentity, "food", target.date, target.meal, l.productId);
+        if (log.updatedAt !== iso) await updateLogTimeAndSync(log.identity, iso);
+      }
+      await refreshAfterWrite();
+      setCopyTarget(null);
+      setDate(target.date);
+      setMeal(target.meal);
+    });
   }
 
   async function handleDecrement(candidate: LogCandidate) {
     if (isDemoData) return;
-    setPending(candidate.key);
-    if (tabConfig?.countable) {
-      await decrementDailyLogForMealAndSync(candidate.itemIdentity, date, meal);
-    } else {
-      await decrementDailyLogAndSync(candidate.itemIdentity, date);
-    }
-    await refreshAfterWrite();
-    setPending(null);
+    await runPending(candidate.key, async () => {
+      if (tabConfig?.countable) {
+        await decrementDailyLogForMealAndSync(candidate.itemIdentity, date, meal);
+      } else {
+        await decrementDailyLogAndSync(candidate.itemIdentity, date);
+      }
+      await refreshAfterWrite();
+    });
   }
 
   async function handleToggle(candidate: LogCandidate) {
     if (isDemoData) return;
-    setPending(candidate.key);
-    const { added } = await toggleDailyLogAndSync(candidate.itemIdentity, candidate.itemType, date);
-    await applyLogTime(added);
-    await refreshAfterWrite();
-    setPending(null);
+    await runPending(candidate.key, async () => {
+      const { added } = await toggleDailyLogAndSync(candidate.itemIdentity, candidate.itemType, date);
+      await applyLogTime(added);
+      await refreshAfterWrite();
+    });
   }
 
   /** Sets (or overwrites) a duration-kind item's value for the day — one
@@ -1221,11 +1236,11 @@ export default function LogPage() {
    * analysis. */
   async function handleSetDuration(candidate: LogCandidate, totalMinutes: number) {
     if (isDemoData) return;
-    setPending(candidate.key);
-    const log = await setDailyDurationAndSync(candidate.itemIdentity, candidate.itemType, date, totalMinutes);
-    await applyLogTime(log);
-    await refreshAfterWrite();
-    setPending(null);
+    await runPending(candidate.key, async () => {
+      const log = await setDailyDurationAndSync(candidate.itemIdentity, candidate.itemType, date, totalMinutes);
+      await applyLogTime(log);
+      await refreshAfterWrite();
+    });
   }
 
   /** Tap a band to set the day's value (one log per item per day, upserted);
@@ -1234,15 +1249,15 @@ export default function LogPage() {
   async function handleSetBand(candidate: LogCandidate, value: number, isActive: boolean) {
     if (isDemoData) return;
     logHaptic();
-    setPending(candidate.key);
-    if (isActive) {
-      await toggleDailyLogAndSync(candidate.itemIdentity, candidate.itemType, date);
-    } else {
-      const log = await setDailyDurationAndSync(candidate.itemIdentity, candidate.itemType, date, value);
-      await applyLogTime(log);
-    }
-    await refreshAfterWrite();
-    setPending(null);
+    await runPending(candidate.key, async () => {
+      if (isActive) {
+        await toggleDailyLogAndSync(candidate.itemIdentity, candidate.itemType, date);
+      } else {
+        const log = await setDailyDurationAndSync(candidate.itemIdentity, candidate.itemType, date, value);
+        await applyLogTime(log);
+      }
+      await refreshAfterWrite();
+    });
   }
 
   /** Undoes a specific mistaken tap from the day's timeline — deletes that
@@ -1257,22 +1272,20 @@ export default function LogPage() {
       next.delete(entry.key);
       return next;
     });
-    setPending(entry.key);
-    if (entry.itemType === "stool") {
-      await deleteStoolLogByIdAndSync(entry.key);
+    await runPending(entry.key, async () => {
+      if (entry.itemType === "stool") {
+        await deleteStoolLogByIdAndSync(entry.key);
+        await refreshAfterWrite();
+        return;
+      }
+      if (entry.itemType === "workout") {
+        await deleteWorkoutLogAndSync(entry.key);
+        await refreshAfterWrite();
+        return;
+      }
+      await deleteLogByIdAndSync(entry.key, entry.itemType);
       await refreshAfterWrite();
-      setPending(null);
-      return;
-    }
-    if (entry.itemType === "workout") {
-      await deleteWorkoutLogAndSync(entry.key);
-      await refreshAfterWrite();
-      setPending(null);
-      return;
-    }
-    await deleteLogByIdAndSync(entry.key, entry.itemType);
-    await refreshAfterWrite();
-    setPending(null);
+    });
   }
 
   /** Corrects the meal/time-of-day tag on an already-logged entry, e.g.
@@ -1281,10 +1294,10 @@ export default function LogPage() {
    * those two entry types (see hasMealTag below). */
   async function handleChangeEntryMeal(entry: TimelineEntry, mealTag: string) {
     if (isDemoData || entry.itemType === "stool") return;
-    setPending(entry.key);
-    await updateLogMealTagAndSync(entry.key, mealTag);
-    await refreshAfterWrite();
-    setPending(null);
+    await runPending(entry.key, async () => {
+      await updateLogMealTagAndSync(entry.key, mealTag);
+      await refreshAfterWrite();
+    });
   }
 
   /** Corrects when an entry actually happened — available everywhere in the
@@ -1292,38 +1305,36 @@ export default function LogPage() {
   async function handleChangeEntryTime(entry: TimelineEntry, time: string) {
     if (isDemoData) return;
     const iso = combineDateAndTime(date, time);
-    setPending(entry.key);
-    if (entry.itemType === "stool") {
-      await updateStoolLogTimeAndSync(entry.key, iso);
+    await runPending(entry.key, async () => {
+      if (entry.itemType === "stool") {
+        await updateStoolLogTimeAndSync(entry.key, iso);
+        await refreshAfterWrite();
+        return;
+      }
+      if (entry.itemType === "workout") {
+        // No dedicated updateWorkoutLogTimeAndSync — workout_logs has no generic
+        // *_logs shape to reuse (see RawWorkoutLog's own comment), so this just
+        // re-puts the existing row with a new `updatedAt`, the same write
+        // handleUpdateWorkoutEntry already does for every other field.
+        const existing = effective.workoutLogs.find((g) => g.id === entry.key);
+        if (existing) await putWorkoutLogAndSync({ ...existing, updatedAt: new Date(iso).getTime() });
+        await refreshAfterWrite();
+        return;
+      }
+      await updateLogTimeAndSync(entry.key, iso);
       await refreshAfterWrite();
-      setPending(null);
-      return;
-    }
-    if (entry.itemType === "workout") {
-      // No dedicated updateWorkoutLogTimeAndSync — workout_logs has no generic
-      // *_logs shape to reuse (see RawWorkoutLog's own comment), so this just
-      // re-puts the existing row with a new `updatedAt`, the same write
-      // handleUpdateWorkoutEntry already does for every other field.
-      const existing = effective.workoutLogs.find((g) => g.id === entry.key);
-      if (existing) await putWorkoutLogAndSync({ ...existing, updatedAt: new Date(iso).getTime() });
-      await refreshAfterWrite();
-      setPending(null);
-      return;
-    }
-    await updateLogTimeAndSync(entry.key, iso);
-    await refreshAfterWrite();
-    setPending(null);
+    });
   }
 
   /** Corrects a logged set's value (weight/duration/reps, depending on the
    * exercise's unit) in place — Workout only, from the day timeline. */
   async function handleChangeEntryValue(entry: TimelineEntry, value: number) {
     if (isDemoData || entry.itemType !== "workout") return;
-    setPending(entry.key);
-    const existing = effective.workoutLogs.find((g) => g.id === entry.key);
-    if (existing) await putWorkoutLogAndSync({ ...existing, weightKg: value });
-    await refreshAfterWrite();
-    setPending(null);
+    await runPending(entry.key, async () => {
+      const existing = effective.workoutLogs.find((g) => g.id === entry.key);
+      if (existing) await putWorkoutLogAndSync({ ...existing, weightKg: value });
+      await refreshAfterWrite();
+    });
   }
 
   /** Optional context for one item on one day — structured data first, this
@@ -1333,15 +1344,15 @@ export default function LogPage() {
    * upsert of that row instead of the shared diary table. */
   async function handleSaveNote(entry: TimelineEntry, content: string) {
     if (isDemoData) return;
-    setPending(`note:${entry.itemIdentity}`);
-    if (entry.itemType === "stool") {
-      const existing = effective.stoolLogs.find((s) => s.id === entry.itemIdentity);
-      if (existing) await putStoolLogAndSync({ ...existing, note: content.trim() || null, updatedAt: new Date().toISOString() });
-    } else {
-      await setDiaryNoteAndSync(entry.itemIdentity, entry.itemType, date, content.trim() || null);
-    }
-    await refreshAfterWrite();
-    setPending(null);
+    await runPending(`note:${entry.itemIdentity}`, async () => {
+      if (entry.itemType === "stool") {
+        const existing = effective.stoolLogs.find((s) => s.id === entry.itemIdentity);
+        if (existing) await putStoolLogAndSync({ ...existing, note: content.trim() || null, updatedAt: new Date().toISOString() });
+      } else {
+        await setDiaryNoteAndSync(entry.itemIdentity, entry.itemType, date, content.trim() || null);
+      }
+      await refreshAfterWrite();
+    });
   }
 
   async function handleAddNew() {
@@ -1378,31 +1389,31 @@ export default function LogPage() {
     const guessed = tabConfig.type === "food" ? lookupFoodCategory(name, categoryNamesForTab) : null;
     const category = guessed ?? (newItemCategory || categoryNamesForTab[0]);
 
-    setPending("__new__");
-    const categoryId = await ensureCategoryId(tabConfig.type, category);
-    const item: RawItem = {
-      identity: crypto.randomUUID(),
-      itemType: tabConfig.type,
-      rawName: name,
-      category,
-      categoryId,
-      isArchived: false,
-      createdDate: date,
-      reminderTime: null,
-      unit: tabConfig.type === "workout" ? defaultWorkoutUnitForCategory(category) : null,
-    };
-    await putItemAndSync(item);
-    if (tabConfig.countable) {
-      await applyLogTime(await incrementDailyLogAndSync(item.identity, item.itemType, date, meal));
-    } else {
-      const { added } = await toggleDailyLogAndSync(item.identity, item.itemType, date);
-      await applyLogTime(added);
-    }
-    setNewItemText("");
-    setNewItemCategory("");
-    setAddingNew(false);
-    await refreshAfterWrite();
-    setPending(null);
+    await runPending("__new__", async () => {
+      const categoryId = await ensureCategoryId(tabConfig.type, category);
+      const item: RawItem = {
+        identity: crypto.randomUUID(),
+        itemType: tabConfig.type,
+        rawName: name,
+        category,
+        categoryId,
+        isArchived: false,
+        createdDate: date,
+        reminderTime: null,
+        unit: tabConfig.type === "workout" ? defaultWorkoutUnitForCategory(category) : null,
+      };
+      await putItemAndSync(item);
+      if (tabConfig.countable) {
+        await applyLogTime(await incrementDailyLogAndSync(item.identity, item.itemType, date, meal));
+      } else {
+        const { added } = await toggleDailyLogAndSync(item.identity, item.itemType, date);
+        await applyLogTime(added);
+      }
+      setNewItemText("");
+      setNewItemCategory("");
+      setAddingNew(false);
+      await refreshAfterWrite();
+    });
   }
 
   /** A typed ingredient name -> a food item id: reuses the item already
@@ -1436,8 +1447,7 @@ export default function LogPage() {
    * current meal like a tap on its chip would. */
   async function handleAddProduct(draft: NewProductDraft) {
     if (isDemoData) return;
-    setPending("__new-product__");
-    try {
+    await runPending("__new-product__", async () => {
       const ids: string[] = [];
       for (const ingredient of draft.ingredients) {
         const id = await resolveFoodIngredient(ingredient);
@@ -1448,19 +1458,17 @@ export default function LogPage() {
       setSearch("");
       await refreshAfterWrite();
       if (created) await handleLogProduct(created);
-    } finally {
-      setPending(null);
-    }
+    });
   }
 
   async function handleUnarchiveDuplicate() {
     if (!duplicateConflict) return;
-    setPending("__unarchive-duplicate__");
-    const item = { ...duplicateConflict, isArchived: false };
-    await putItemAndSync(item);
-    setDuplicateConflict(null);
-    await refreshAfterWrite();
-    setPending(null);
+    await runPending("__unarchive-duplicate__", async () => {
+      const item = { ...duplicateConflict, isArchived: false };
+      await putItemAndSync(item);
+      setDuplicateConflict(null);
+      await refreshAfterWrite();
+    });
   }
 
   /** Shared by the seasonal-picks and Poland-catalog quick-log flows:
@@ -1477,23 +1485,23 @@ export default function LogPage() {
       return;
     }
 
-    setPending(pendingKey);
-    const categoryId = await ensureCategoryId("food", category);
-    const item: RawItem = {
-      identity: crypto.randomUUID(),
-      itemType: "food",
-      rawName: itemName,
-      category,
-      categoryId,
-      isArchived: false,
-      createdDate: date,
-      reminderTime: null,
-      unit: null,
-    };
-    await putItemAndSync(item);
-    await applyLogTime(await incrementDailyLogAndSync(item.identity, "food", date, meal));
-    await refreshAfterWrite();
-    setPending(null);
+    await runPending(pendingKey, async () => {
+      const categoryId = await ensureCategoryId("food", category);
+      const item: RawItem = {
+        identity: crypto.randomUUID(),
+        itemType: "food",
+        rawName: itemName,
+        category,
+        categoryId,
+        isArchived: false,
+        createdDate: date,
+        reminderTime: null,
+        unit: null,
+      };
+      await putItemAndSync(item);
+      await applyLogTime(await incrementDailyLogAndSync(item.identity, "food", date, meal));
+      await refreshAfterWrite();
+    });
   }
 
   function toggleCategoryExpanded(category: string) {
@@ -1588,19 +1596,19 @@ export default function LogPage() {
    * update rather than a second entry alongside the mistaken one. */
   async function handleUpdateStoolEntry(id: string, entry: NewStoolEntry) {
     if (isDemoData) return;
-    setPending(id);
-    const log = stoolLogFromDraft(id, entry);
-    await putStoolLogAndSync(log);
-    await refreshAfterWrite();
-    setPending(null);
+    await runPending(id, async () => {
+      const log = stoolLogFromDraft(id, entry);
+      await putStoolLogAndSync(log);
+      await refreshAfterWrite();
+    });
   }
 
   async function handleDeleteStoolEntry(id: string) {
     if (isDemoData) return;
-    setPending(id);
-    await deleteStoolLogByIdAndSync(id);
-    await refreshAfterWrite();
-    setPending(null);
+    await runPending(id, async () => {
+      await deleteStoolLogByIdAndSync(id);
+      await refreshAfterWrite();
+    });
   }
 
   async function handleSaveCoffeeLog(itemId: string, submission: CoffeeLogSubmission) {
@@ -1640,11 +1648,11 @@ export default function LogPage() {
     if (!workoutMerge) return;
     const { existing, value } = workoutMerge;
     logHaptic();
-    setPending(existing.id);
-    await putWorkoutLogAndSync({ ...existing, weightKg: Math.round((existing.weightKg + value) * 100) / 100 });
-    await refreshAfterWrite();
-    setPending(null);
-    setWorkoutMerge(null);
+    await runPending(existing.id, async () => {
+      await putWorkoutLogAndSync({ ...existing, weightKg: Math.round((existing.weightKg + value) * 100) / 100 });
+      await refreshAfterWrite();
+      setWorkoutMerge(null);
+    });
   }
 
   /** Reuses the given date's existing period_logs id when one already
@@ -1675,7 +1683,7 @@ export default function LogPage() {
 
   function renderChip(c: LogCandidate) {
     const logged = (mealCounts.get(c.key) ?? 0) > 0;
-    return <TapRow key={c.key} name={c.item} accent={TYPE_ACCENT.food} mark={logged && "✓"} onTap={() => handleChipTap(c)} busy={pending === c.key} />;
+    return <TapRow key={c.key} name={c.item} accent={TYPE_ACCENT.food} mark={logged && "✓"} onTap={() => handleChipTap(c)} busy={isPending(c.key)} />;
   }
 
   // --- Habits / Supplements / Symptoms: full-width rows grouped into the
@@ -1746,19 +1754,19 @@ export default function LogPage() {
     const id = c.itemIdentity;
     const target = tapTargetsRef.current.get(id) ?? 0;
     const current = counts.get(id) ?? 0;
-    setPending(c.key);
-    try {
-      for (let n = current; n < target; n++) {
-        await applyLogTime(await incrementDailyLogAndSync(id, c.itemType, date));
+    await runPending(c.key, async () => {
+      try {
+        for (let n = current; n < target; n++) {
+          await applyLogTime(await incrementDailyLogAndSync(id, c.itemType, date));
+        }
+        for (let n = current; n > target; n--) {
+          await decrementDailyLogAndSync(id, date);
+        }
+        await refreshAfterWrite();
+      } finally {
+        clearTapTarget(id);
       }
-      for (let n = current; n > target; n--) {
-        await decrementDailyLogAndSync(id, date);
-      }
-      await refreshAfterWrite();
-    } finally {
-      clearTapTarget(id);
-      setPending(null);
-    }
+    });
   }
 
   async function commitSymptom(c: LogCandidate) {
@@ -1767,21 +1775,21 @@ export default function LogPage() {
     // No write has happened yet during this tap burst, so `durationValueForDate`
     // still reflects the true persisted state before the taps.
     const wasLogged = durationValueForDate.get(id) != null;
-    setPending(c.key);
-    try {
-      if (target == null) {
-        // Only clear an existing row — toggleDailyLogAndSync would otherwise
-        // create one when nothing is there.
-        if (wasLogged) await toggleDailyLogAndSync(c.itemIdentity, c.itemType, date);
-      } else {
-        const log = await setDailyDurationAndSync(c.itemIdentity, c.itemType, date, target);
-        await applyLogTime(log);
+    await runPending(c.key, async () => {
+      try {
+        if (target == null) {
+          // Only clear an existing row — toggleDailyLogAndSync would otherwise
+          // create one when nothing is there.
+          if (wasLogged) await toggleDailyLogAndSync(c.itemIdentity, c.itemType, date);
+        } else {
+          const log = await setDailyDurationAndSync(c.itemIdentity, c.itemType, date, target);
+          await applyLogTime(log);
+        }
+        await refreshAfterWrite();
+      } finally {
+        clearTapTarget(id);
       }
-      await refreshAfterWrite();
-    } finally {
-      clearTapTarget(id);
-      setPending(null);
-    }
+    });
   }
 
   /** A "roughly how much" measure (Sleep) — lives in its own Measures
@@ -1793,7 +1801,7 @@ export default function LogPage() {
     const current = durationValueForDate.get(c.itemIdentity);
     const bands = BAND_OPTIONS[c.item] ?? [];
     const active = activeBandValue(c.item, current);
-    const busy = pending === c.key;
+    const busy = isPending(c.key);
     return (
       <li key={c.key} className="flex flex-col gap-2 px-3.5 py-2.5" style={{ opacity: busy ? 0.6 : 1 }}>
         <span className="text-sm" style={{ color: "var(--text-primary)" }}>
@@ -1826,7 +1834,7 @@ export default function LogPage() {
    * genuinely-quantitative item; nothing uses "duration" right now. */
   function renderDurationRow(c: LogCandidate, accent: string) {
     const current = durationValueForDate.get(c.itemIdentity);
-    const busy = pending === c.key;
+    const busy = isPending(c.key);
     return (
       <li key={c.key} className="flex flex-wrap items-center gap-x-3 gap-y-2 px-3.5 py-2.5" style={{ opacity: busy ? 0.6 : 1 }}>
         <span className="flex-1 text-sm" style={{ color: "var(--text-primary)" }}>
@@ -1854,12 +1862,12 @@ export default function LogPage() {
           mark={doses != null && (doses > 1 ? doses : "✓")}
           onTap={() => cycleDose(c)}
           label={doses != null ? `${c.item}, taken ${doses === 1 ? "once" : `${doses} times`} — tap to change` : `Log ${c.item}`}
-          busy={pending === c.key}
+          busy={isPending(c.key)}
         />
       );
     }
     const logged = (mealCounts.get(c.key) ?? 0) > 0;
-    return <TapRow key={c.key} name={c.item} accent={accent} mark={logged && "✓"} onTap={() => handleChipTap(c)} busy={pending === c.key} />;
+    return <TapRow key={c.key} name={c.item} accent={accent} mark={logged && "✓"} onTap={() => handleChipTap(c)} busy={isPending(c.key)} />;
   }
 
   /** Symptoms: one tap marks it at intensity 1; each further tap raises it
@@ -1875,7 +1883,7 @@ export default function LogPage() {
         mark={current != null && current}
         onTap={() => cycleSymptom(c)}
         label={current != null ? `${c.item}, intensity ${current} of 3 — tap to change` : `Mark ${c.item}`}
-        busy={pending === c.key}
+        busy={isPending(c.key)}
       />
     );
   }
@@ -2026,7 +2034,7 @@ export default function LogPage() {
               key={c.key}
               type="button"
               onClick={() => handleChipTap(c)}
-              disabled={pending === c.key}
+              disabled={isPending(c.key)}
               aria-label={`Remove ${c.item} from ${meal}`}
               className={`${CHIP_SM_CLS} shrink-0 whitespace-nowrap`}
               style={chipStyle(true, accent)}
@@ -2303,7 +2311,7 @@ export default function LogPage() {
                   accent={TYPE_ACCENT.food}
                   mark={seasonalLoggedForMeal.has(normalizeName(pick.item)) && "✓"}
                   onTap={() => void handleQuickLogSeasonal(pick.item)}
-                  busy={pending === `seasonal:${normalizeName(pick.item)}`}
+                  busy={isPending(`seasonal:${normalizeName(pick.item)}`)}
                 />
               </div>
               <button
@@ -2507,7 +2515,7 @@ export default function LogPage() {
             entries={stoolEntriesForDate}
             options={stoolOptions}
             isDemoData={isDemoData}
-            pending={pending}
+            isPending={isPending}
             accent={STOOL_ACCENT}
             onSave={handleSaveStoolEntry}
             onUpdate={handleUpdateStoolEntry}
@@ -2626,7 +2634,7 @@ export default function LogPage() {
                   initialName={newItemText}
                   knownFoods={knownFoodNames}
                   accent={TYPE_ACCENT.food}
-                  busy={pending === "__new-product__"}
+                  busy={isPending("__new-product__")}
                   onSubmit={(draft) => void handleAddProduct(draft)}
                   onCancel={() => {
                     setAddingProduct(false);
@@ -2649,7 +2657,7 @@ export default function LogPage() {
                   }}
                   submitLabel="Add"
                   submitDisabled={!newItemText.trim()}
-                  busy={pending === "__new__"}
+                  busy={isPending("__new__")}
                   accent={TYPE_ACCENT[tabConfig.type]}
                 >
                   <FormGroup
@@ -2862,7 +2870,7 @@ export default function LogPage() {
                   type="button"
                   onClick={() => setDetailKey(entry.key)}
                   className="flex min-h-11 w-full items-center gap-2.5 px-3.5 py-2 text-left"
-                  style={{ opacity: pending === entry.key ? 0.5 : 1 }}
+                  style={{ opacity: isPending(entry.key) ? 0.5 : 1 }}
                 >
                   <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: accent }} aria-hidden="true" />
                   <span className="w-11 shrink-0 text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>
@@ -2898,7 +2906,7 @@ export default function LogPage() {
                     selectTab("food");
                   })
           }
-          pendingId={pending?.startsWith("recipe:") ? pending.slice(7) : null}
+          pendingId={[...pendingKeys].find((k) => k.startsWith("recipe:"))?.slice(7) ?? null}
           onClose={() => setRecipesOpen(null)}
         />
       )}
@@ -2912,7 +2920,7 @@ export default function LogPage() {
               title={`${existing.exercise} is already logged`}
               message={`${existing.weightKg} ${label} so far today. Add ${value} ${label} to make ${total} ${label}?`}
               confirmLabel="Add"
-              busy={pending === existing.id}
+              busy={isPending(existing.id)}
               onConfirm={() => void handleConfirmWorkoutMerge()}
               onClose={() => setWorkoutMerge(null)}
             />
@@ -2954,7 +2962,7 @@ export default function LogPage() {
                 type="button"
                 onClick={() => setDetailKey(entry.key)}
                 className="flex min-h-11 w-full items-center gap-2.5 px-3.5 py-2 text-left"
-                style={{ opacity: pending === entry.key ? 0.5 : 1 }}
+                style={{ opacity: isPending(entry.key) ? 0.5 : 1 }}
               >
                 {!mealSheetSharedTime && (
                   <span className="w-11 shrink-0 text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>
@@ -2985,7 +2993,7 @@ export default function LogPage() {
                   </span>
                 </button>
               ) : (
-                <button type="button" onClick={() => void saveMealAsRecipe(mealSheetTag, mealSheetEntries)} disabled={pending === "__save-recipe__"} className="flex min-h-11 w-full items-center px-3.5 text-left text-sm font-medium disabled:opacity-50" style={{ color: TYPE_ACCENT.food }}>
+                <button type="button" onClick={() => void saveMealAsRecipe(mealSheetTag, mealSheetEntries)} disabled={isPending("__save-recipe__")} className="flex min-h-11 w-full items-center px-3.5 text-left text-sm font-medium disabled:opacity-50" style={{ color: TYPE_ACCENT.food }}>
                   Save as recipe
                 </button>
               )}
@@ -2996,7 +3004,7 @@ export default function LogPage() {
       {detailEntry &&
         (() => {
           const entry = detailEntry;
-          const busy = pending === entry.key;
+          const busy = isPending(entry.key);
           const hasMealTag = entry.itemType === "food" && (entry.mealTag || !isDemoData);
           const hasNote = !isDemoData || entry.note;
           const accent = entry.itemType === "stool" ? STOOL_ACCENT : TYPE_ACCENT[entry.itemType];
@@ -3117,7 +3125,7 @@ export default function LogPage() {
                     <div className="px-3.5 py-3">
                       <TimelineNote
                         note={entry.note}
-                        busy={pending === `note:${entry.itemIdentity}`}
+                        busy={isPending(`note:${entry.itemIdentity}`)}
                         hidden={isDemoData}
                         onSave={(content) => void handleSaveNote(entry, content)}
                       />
@@ -3195,7 +3203,7 @@ export default function LogPage() {
               type="button"
               size="lg"
               accent={TYPE_ACCENT.food}
-              disabled={pending === "__copy-meal__" || (copyTarget.meal === meal && copyTarget.date === date)}
+              disabled={isPending("__copy-meal__") || (copyTarget.meal === meal && copyTarget.date === date)}
               onClick={() => void handleCopyMeal(copyTarget)}
             >
               Copy to {copyTarget.meal}
@@ -3208,7 +3216,7 @@ export default function LogPage() {
         <DuplicateItemDialog
           name={duplicateConflict.rawName}
           isArchived={duplicateConflict.isArchived}
-          busy={pending === "__unarchive-duplicate__"}
+          busy={isPending("__unarchive-duplicate__")}
           onClose={() => setDuplicateConflict(null)}
           onUnarchive={() => void handleUnarchiveDuplicate()}
         />
