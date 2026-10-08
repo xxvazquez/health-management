@@ -33,7 +33,7 @@ import { PageSkeleton } from "@/components/ui/Skeleton";
 import { PrimaryAction } from "@/components/ui/PrimaryAction";
 import { PageHeading } from "@/components/ui/PageHeading";
 import { DemoNotice } from "@/components/ui/DemoNotice";
-import { CheckIcon } from "@/components/ui/icons";
+import { MoreMenu } from "@/components/ui/MoreMenu";
 
 const ACCENT = "var(--series-magenta)";
 // Never the partner's email — that's private data the app shouldn't surface
@@ -459,20 +459,8 @@ function NotesHeader({
       actions={
         showActions && (
           <div className="flex shrink-0 items-center gap-2">
-            {hasUnread && (
-            <button
-              type="button"
-              onClick={onMarkAllRead}
-              aria-label="Mark all as read"
-              title="Mark all as read"
-              className="control-surface flex h-9 w-9 items-center justify-center gap-1.5 rounded-[10px] text-sm font-medium sm:w-auto sm:px-3"
-              style={{ color: "var(--text-primary)" }}
-            >
-              <CheckIcon size={16} />
-              <span className="hidden sm:inline">Mark all as read</span>
-            </button>
-            )}
             <PrimaryAction label="New message" compact accent={ACCENT} onClick={onCompose} />
+            {hasUnread && <MoreMenu label="Message actions" items={[{ label: "Mark all as read", onClick: onMarkAllRead }]} />}
           </div>
         )
       }
