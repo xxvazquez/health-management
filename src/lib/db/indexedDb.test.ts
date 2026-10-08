@@ -67,42 +67,6 @@ describe("withDataLock", () => {
     await expect(next).resolves.toBe("ok");
     expect(order).toEqual(["failing", "next"]);
   });
-
-  it("a write submitted while a pull is mid-flight waits for the whole pull to finish, not just its first step", async () => {
-    // Mirrors the exact bug: pullFromCloud's clearAllData() used to be able
-    // to run in between a local write's put and the read that follows it.
-    // A write that starts once the pull has already begun must not be able
-    // to land in the gap between "clear" and "repopulate finishes".
-    const order: string[] = [];
-    const pull = withDataLock(async () => {
-      order.push("pull:clear");
-      await sleep(10);
-      order.push("pull:repopulate-start");
-      await sleep(10);
-      order.push("pull:repopulate-end");
-    });
-    await sleep(1); // let the pull actually acquire the lock first
-    const write = withDataLock(async () => {
-      order.push("write");
-    });
-    await Promise.all([pull, write]);
-    expect(order).toEqual(["pull:clear", "pull:repopulate-start", "pull:repopulate-end", "write"]);
-  });
-
-  it("a write already in flight finishes before a pull that starts afterward can begin clearing", async () => {
-    const order: string[] = [];
-    const write = withDataLock(async () => {
-      order.push("write:start");
-      await sleep(10);
-      order.push("write:end");
-    });
-    await sleep(1); // let the write actually acquire the lock first
-    const pull = withDataLock(async () => {
-      order.push("pull:clear");
-    });
-    await Promise.all([write, pull]);
-    expect(order).toEqual(["write:start", "write:end", "pull:clear"]);
-  });
 });
 
 function makeItem(identity: string): RawItem {

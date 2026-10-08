@@ -5,7 +5,6 @@ import userEvent from "@testing-library/user-event";
 import { StorageErrorBanner } from "./StorageErrorBanner";
 import { putItem } from "@/lib/db/indexedDb";
 import type { RawItem } from "@/lib/types";
-import "fake-indexeddb/auto";
 
 afterEach(() => {
   cleanup();

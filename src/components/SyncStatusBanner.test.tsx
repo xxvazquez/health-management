@@ -64,16 +64,11 @@ describe("SyncStatusBanner", () => {
     expect(retryPending).toHaveBeenCalledTimes(1);
   });
 
-  it("hides Retry now while offline", () => {
-    mockData({ syncState: { pending: 2, deadLetter: 0 }, isOnline: false });
-    render(<SyncStatusBanner />);
-    expect(screen.queryByText("Retry now")).not.toBeInTheDocument();
-  });
-
-  it("reassures instead when offline with pending changes", () => {
+  it("reassures instead of offering Retry now while offline", () => {
     mockData({ syncState: { pending: 2, deadLetter: 0 }, isOnline: false });
     render(<SyncStatusBanner />);
     expect(screen.getByText(/Offline — 2 changes are saved on this device/)).toBeInTheDocument();
+    expect(screen.queryByText("Retry now")).not.toBeInTheDocument();
   });
 
   it("shows the pending count collapsed, then the entry list on Details", async () => {
