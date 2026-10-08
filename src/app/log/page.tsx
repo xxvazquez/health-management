@@ -1550,6 +1550,7 @@ export default function LogPage() {
   }
 
   function handleQuickLogSeasonal(itemName: string) {
+    if (isDemoData) return openPanel();
     setSearch("");
     const category = lookupFoodCategory(itemName, foodCategoryNames) ?? foodCategoryNames[0];
     return createAndLogNewFood(itemName, `seasonal:${normalizeName(itemName)}`, category);
@@ -1570,6 +1571,8 @@ export default function LogPage() {
    * chip (itemIdentity "" sentinel — see groupedByCategory) has nothing to
    * increment/toggle yet, so its first tap creates the item instead. */
   function handleChipTap(c: LogCandidate) {
+    // Example data can't be logged to; a tap offers sign-in instead of doing nothing.
+    if (isDemoData) return openPanel();
     logHaptic();
     setSearch("");
     const action = decideChipTapAction(c, mealCounts.get(c.key) ?? 0, Boolean(tabConfig?.countable));
@@ -1740,7 +1743,7 @@ export default function LogPage() {
   /** One tap of the 1 → 2 → 3 → clear cycle; `commit` writes the value
    * the taps settle on. */
   function cycleTap(c: LogCandidate, persisted: number | null, commit: (c: LogCandidate) => Promise<void>) {
-    if (isDemoData) return;
+    if (isDemoData) return openPanel();
     logHaptic();
     const id = c.itemIdentity;
     const cur = tapTargetsRef.current.has(id) ? (tapTargetsRef.current.get(id) ?? null) : persisted;

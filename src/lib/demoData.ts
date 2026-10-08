@@ -288,7 +288,8 @@ export function buildDemoDataset(): DemoDataset {
       date,
       exercise: "Steps",
       weightKg: 4000 + Math.floor(rand() * 8000),
-      updatedAt: new Date(`${date}T23:00:00`).getTime(),
+      // Imported late in the evening; today's is still coming in, so never later than now.
+      updatedAt: Math.min(Date.now(), new Date(`${date}T23:00:00`).getTime()),
     });
   }
 
