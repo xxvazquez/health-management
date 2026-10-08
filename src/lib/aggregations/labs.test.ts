@@ -10,10 +10,8 @@ import {
   BAND_LEFT_PCT,
   BAND_RIGHT_PCT,
   rangeBar,
-  rangeCutoff,
   rangeStatus,
   summariseWindow,
-  LAB_RANGES,
 } from "./labs";
 
 function marker(partial: Partial<LabMarker> & { id: string; name: string }): LabMarker {
@@ -131,13 +129,6 @@ describe("labsSpan", () => {
   });
   it("is null with no readings", () => {
     expect(labsSpan([marker({ id: "a", name: "A" })])).toBeNull();
-  });
-});
-
-describe("rangeCutoff", () => {
-  it("subtracts the option's years from today, null for all", () => {
-    expect(rangeCutoff(LAB_RANGES[0], "2026-09-04")).toBeNull();
-    expect(rangeCutoff({ id: "2y", label: "2 years", years: 2 }, "2026-09-04")).toBe("2024-09-04");
   });
 });
 

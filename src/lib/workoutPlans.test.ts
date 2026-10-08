@@ -7,7 +7,6 @@ import {
   mondayOf,
   nextPlannedDate,
   plannedSetsForWeek,
-  plannedSetsOn,
   sessionTargetKg,
   suggestBaseKg,
   type LoggedValues,
@@ -137,12 +136,7 @@ describe("liftBasesByWeek", () => {
   });
 });
 
-describe("plannedSetsOn / nextPlannedDate", () => {
-  it("returns only that day's sets", () => {
-    expect(plannedSetsOn(plan(), "2026-09-09", "2026-09-07", logsFrom({})).map((s) => s.targetKg)).toEqual([90]);
-    expect(plannedSetsOn(plan(), "2026-09-08", "2026-09-07", logsFrom({}))).toEqual([]);
-  });
-
+describe("nextPlannedDate", () => {
   it("finds the next training day", () => {
     expect(nextPlannedDate(plan(), "2026-09-11")).toBe("2026-09-14");
     expect(nextPlannedDate(plan({ weeks: 1 }), "2026-09-11")).toBeNull();

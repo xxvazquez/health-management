@@ -53,25 +53,6 @@ export function rankedFoods(events: CanonicalEvent[]): FoodRankEntry[] {
 }
 
 
-export interface NewFoodEntry {
-  item: string;
-  category: string;
-  firstSeenDate: string;
-}
-
-/** Foods in first-tracked order — a simple "new foods introduced over time" view. */
-export function newFoodsOverTime(events: CanonicalEvent[]): NewFoodEntry[] {
-  const foods = foodEvents(events);
-  const firstSeen = new Map<string, NewFoodEntry>();
-  for (const e of foods) {
-    const existing = firstSeen.get(e.item);
-    if (!existing || e.date < existing.firstSeenDate) {
-      firstSeen.set(e.item, { item: e.item, category: e.category, firstSeenDate: e.date });
-    }
-  }
-  return Array.from(firstSeen.values()).sort((a, b) => a.firstSeenDate.localeCompare(b.firstSeenDate));
-}
-
 export interface MealInstance {
   date: string;
   mealTag: string;

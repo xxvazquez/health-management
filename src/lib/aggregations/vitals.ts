@@ -35,22 +35,3 @@ export function bpCategory(systolic: number, diastolic: number): BpCategoryInfo 
   if (systolic >= 120) return CATEGORY_INFO.elevated;
   return CATEGORY_INFO.normal;
 }
-
-/** Is this reading Stage 1 or worse — the "worth a look" threshold used
- * for the dashboard flag. */
-export function bpElevated(systolic: number, diastolic: number): boolean {
-  const cat = bpCategory(systolic, diastolic).id;
-  return cat === "stage1" || cat === "stage2" || cat === "crisis";
-}
-
-export interface TrendPoint {
-  date: string;
-  value: number;
-}
-
-/** Change from the first to the last point in a series, or null if there
- * aren't two. */
-export function netChange(points: TrendPoint[]): number | null {
-  if (points.length < 2) return null;
-  return points[points.length - 1].value - points[0].value;
-}

@@ -90,19 +90,6 @@ export function parseNum(raw: string): number | null {
 
 // --- Results overview (lab analysis) ------------------------------------------------
 
-export interface LabRangeOption {
-  id: "all" | "5y" | "2y" | "1y";
-  label: string;
-  years: number | null;
-}
-
-export const LAB_RANGES: LabRangeOption[] = [
-  { id: "all", label: "All", years: null },
-  { id: "5y", label: "5y", years: 5 },
-  { id: "2y", label: "2y", years: 2 },
-  { id: "1y", label: "1y", years: 1 },
-];
-
 /** Oldest and newest measurement across every marker. */
 export function labsSpan(markers: LabMarker[]): { start: string; end: string } | null {
   let start: string | null = null;
@@ -114,15 +101,6 @@ export function labsSpan(markers: LabMarker[]): { start: string; end: string } |
     }
   }
   return start && end ? { start, end } : null;
-}
-
-/** The ISO cutoff date for a range option, `today` minus N years, or null
- * for "all". Plain string math — this is only ever a lower bound for a
- * lexicographic date comparison, so a notional 29 Feb is harmless. */
-export function rangeCutoff(option: LabRangeOption, today: string): string | null {
-  if (option.years == null) return null;
-  const [y, m, d] = today.split("-");
-  return `${Number(y) - option.years}-${m}-${d}`;
 }
 
 /** Markers with their results clipped to on/after `cutoff`. Markers left

@@ -7,7 +7,6 @@ import {
   daysBetween,
   filterByDateRange,
   formatMinutes,
-  formatAxisDate,
   getDatasetSpan,
   isoWeekStart,
   listDatesBetween,
@@ -211,15 +210,6 @@ describe("monthStart", () => {
   it("truncates any date in a month to that month's first day", () => {
     expect(monthStart("2026-07-19")).toBe("2026-07-01");
     expect(monthStart("2026-07-01")).toBe("2026-07-01");
-  });
-});
-
-describe("formatAxisDate", () => {
-  it("shows day and short month, no year, no leading-zero YY-MM-DD", () => {
-    const out = formatAxisDate("2026-08-31");
-    expect(out).toMatch(/\bAug\b/);
-    expect(out).toMatch(/\b31\b/);
-    expect(out).not.toMatch(/2026|26-08/);
   });
 });
 

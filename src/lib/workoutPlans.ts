@@ -187,10 +187,6 @@ export function plannedSetsForWeek(plan: WorkoutPlan, monday: string, today: str
   return sets;
 }
 
-export function plannedSetsOn(plan: WorkoutPlan, date: string, today: string, logged: LoggedValues): PlannedSet[] {
-  return plannedSetsForWeek(plan, mondayOf(date), today, logged).filter((s) => s.date === date);
-}
-
 /** The first date after `date` (within 8 weeks) the plan has any set on. */
 export function nextPlannedDate(plan: WorkoutPlan, date: string): string | null {
   const weekdays = new Set(plan.sessions.map((s) => s.weekday));

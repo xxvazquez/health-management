@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { favoriteCombosByMeal, foodCategoryDistribution, ingredientDiversity, ingredientMealMatrix, ingredientRotation, mealInstances, newFoodsOverTime, rankedFoods } from "./food";
+import { favoriteCombosByMeal, foodCategoryDistribution, ingredientDiversity, ingredientMealMatrix, ingredientRotation, mealInstances, rankedFoods } from "./food";
 import { makeEvent } from "@/lib/testFixtures";
 
 const inRangeDay = (n: number) => `2026-02-${String(n).padStart(2, "0")}`;
@@ -57,22 +57,6 @@ describe("rankedFoods", () => {
     ];
     expect(rankedFoods(events).map((f) => f.item)).toEqual(["Rice", "Beans"]);
     expect(rankedFoods(events)[0].count).toBe(2);
-  });
-});
-
-describe("newFoodsOverTime", () => {
-
-  it("keeps only the first-seen date per food, ordered by that date ascending", () => {
-    const events = [
-      makeEvent({ itemType: "food", item: "Apple", category: "Fruit", date: "2026-01-05" }),
-      makeEvent({ itemType: "food", item: "Apple", category: "Fruit", date: "2026-01-01" }), // earlier — should win
-      makeEvent({ itemType: "food", item: "Pear", category: "Fruit", date: "2026-01-03" }),
-    ];
-    const result = newFoodsOverTime(events);
-    expect(result).toEqual([
-      { item: "Apple", category: "Fruit", firstSeenDate: "2026-01-01" },
-      { item: "Pear", category: "Fruit", firstSeenDate: "2026-01-03" },
-    ]);
   });
 });
 

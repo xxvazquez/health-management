@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bpCategory, bpElevated, netChange } from "./vitals";
+import { bpCategory } from "./vitals";
 
 describe("bpCategory", () => {
   it("classifies by ACC/AHA thresholds", () => {
@@ -23,21 +23,5 @@ describe("bpCategory", () => {
     expect(bpCategory(124, 58).id).toBe("low"); // low wins over elevated
     expect(bpCategory(90, 60).id).toBe("normal");
     expect(bpCategory(145, 58).id).toBe("stage2"); // high still wins
-  });
-});
-
-describe("bpElevated", () => {
-  it("is true at stage 1 and above", () => {
-    expect(bpElevated(118, 76)).toBe(false);
-    expect(bpElevated(124, 78)).toBe(false);
-    expect(bpElevated(132, 78)).toBe(true);
-    expect(bpElevated(150, 95)).toBe(true);
-  });
-});
-
-describe("netChange", () => {
-  it("returns last minus first, or null under two points", () => {
-    expect(netChange([{ date: "a", value: 68 }, { date: "b", value: 67 }, { date: "c", value: 66.5 }])).toBeCloseTo(-1.5);
-    expect(netChange([{ date: "a", value: 68 }])).toBeNull();
   });
 });
