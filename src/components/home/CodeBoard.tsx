@@ -2,15 +2,11 @@
 
 import { DatePicker } from "@/components/ui/DatePicker";
 import { useMemo, useRef, useState, type FormEvent } from "react";
-import clsx from "clsx";
 import { todayLocalISODate } from "@/lib/aggregations/common";
 import { isSpeechToTextSupported, useSpeechToText } from "@/lib/useSpeechToText";
-import { useSwipeReveal, SWIPE_REVEAL_CLASS } from "@/lib/useSwipeReveal";
 import { TruncatedTooltip } from "@/components/ui/TruncatedTooltip";
-import { PencilIcon, TrashIcon } from "@/components/ui/Notebook";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { SearchField } from "@/components/ui/SearchField";
-import { ListSection, SectionIcon } from "@/components/ui/ListSection";
 import { ListSkeleton } from "@/components/ui/Skeleton";
 import { ErrorState, InlineEmpty } from "@/components/ui/EmptyState";
 import { PrimaryAction } from "@/components/ui/PrimaryAction";
@@ -19,7 +15,7 @@ import { Field } from "@/components/ui/Field";
 import { FormGroup } from "@/components/ui/FormGroup";
 import { ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
 import { AutoGrowTextarea } from "@/components/ui/AutoGrowTextarea";
-import { ClockIcon } from "@/components/ui/icons";
+import { ChevronIcon, ClockIcon } from "@/components/ui/icons";
 import type { HouseholdCode, NewHouseholdCodeInput } from "@/lib/supabase/household";
 
 type SortMode = "shop" | "expiry";
@@ -74,13 +70,16 @@ function CodeForm({
   accent,
   initial,
   onSave,
+  onDelete,
   onCancel,
 }: {
   accent: string;
   initial?: HouseholdCode;
   onSave: (input: NewHouseholdCodeInput) => Promise<void>;
+  onDelete?: () => void;
   onCancel: () => void;
 }) {
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [code, setCode] = useState(initial?.code ?? "");
   const [name, setName] = useState(initial?.name ?? "");
   const [comment, setComment] = useState(initial?.comment ?? "");
@@ -120,7 +119,7 @@ function CodeForm({
             <input
               ref={codeInputRef}
               required
-              autoFocus
+              autoFocus={!initial}
               value={code}
               onChange={(e) => setCode(e.target.value)}
               placeholder="e.g. SUMMER20"
@@ -159,52 +158,47 @@ function CodeForm({
         </Field>
       </FormGroup>
 
-      <div className="flex flex-wrap items-center gap-3">
-        {error && (
-          <span className="text-xs" style={{ color: "var(--status-critical)" }}>
-            {error}
-          </span>
-        )}
-      </div>
+      {onDelete && (
+        <FormGroup>
+          <button type="button" onClick={() => setConfirmingDelete(true)} className="flex min-h-11 w-full items-center justify-center text-sm font-medium" style={{ color: "var(--status-critical)" }}>
+            Delete code
+          </button>
+          {confirmingDelete && (
+            <ConfirmDialog
+              title={`Delete ${initial?.code ?? "this code"}?`}
+              message="This can't be undone."
+              confirmLabel="Delete"
+              destructive
+              onConfirm={() => {
+                setConfirmingDelete(false);
+                onDelete();
+              }}
+              onClose={() => setConfirmingDelete(false)}
+            />
+          )}
+        </FormGroup>
+      )}
+
+      {error && (
+        <span className="text-xs" style={{ color: "var(--status-critical)" }}>
+          {error}
+        </span>
+      )}
     </FormShell>
   );
 }
 
-interface ShopGroup {
-  key: string;
-  name: string;
-  codes: HouseholdCode[];
-  soonestExpiry: string;
+function sortCodes(codes: HouseholdCode[], sort: SortMode): HouseholdCode[] {
+  const byShop = (a: HouseholdCode, b: HouseholdCode) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
+  const byExpiry = (a: HouseholdCode, b: HouseholdCode) => (a.expiresOn ?? NO_EXPIRY).localeCompare(b.expiresOn ?? NO_EXPIRY);
+  return [...codes].sort((a, b) => (sort === "expiry" ? byExpiry(a, b) || byShop(a, b) : byShop(a, b) || byExpiry(a, b)) || b.createdAt.localeCompare(a.createdAt));
 }
 
-function groupByShop(codes: HouseholdCode[], sort: SortMode): ShopGroup[] {
-  const byShop = new Map<string, ShopGroup>();
-  for (const c of codes) {
-    const key = c.name.trim().toLowerCase() || "—";
-    const g = byShop.get(key) ?? { key, name: c.name.trim() || "Unnamed", codes: [], soonestExpiry: NO_EXPIRY };
-    g.codes.push(c);
-    byShop.set(key, g);
-  }
-  const groups = [...byShop.values()];
-  for (const g of groups) {
-    g.codes.sort((a, b) => (a.expiresOn ?? NO_EXPIRY).localeCompare(b.expiresOn ?? NO_EXPIRY) || b.createdAt.localeCompare(a.createdAt));
-    g.soonestExpiry = g.codes[0]?.expiresOn ?? NO_EXPIRY;
-  }
-  groups.sort((a, b) =>
-    sort === "expiry"
-      ? a.soonestExpiry.localeCompare(b.soonestExpiry) || a.name.localeCompare(b.name, undefined, { sensitivity: "base" })
-      : a.name.localeCompare(b.name, undefined, { sensitivity: "base" }),
-  );
-  return groups;
-}
-
-/** One code within a shop group — the code itself is an accent-tinted
- * tap-to-copy chip, with its comment and expiry beneath and the row
- * actions kept up at chip level. */
-function CodeItem({ code, accent, onEdit, onDelete }: { code: HouseholdCode; accent: string; onEdit: () => void; onDelete: () => void }) {
-  const [confirmingDelete, setConfirmingDelete] = useState(false);
+/** One code as a grouped-list row: the shop, then the code as a tinted
+ * tap-to-copy chip, its comment and expiry. Tapping the rest of the row
+ * opens it to edit or delete. */
+function CodeItem({ code, accent, onOpen }: { code: HouseholdCode; accent: string; onOpen: () => void }) {
   const [copied, setCopied] = useState(false);
-  const { revealed, onTouchStart, onTouchEnd } = useSwipeReveal();
 
   async function handleCopy() {
     try {
@@ -218,22 +212,28 @@ function CodeItem({ code, accent, onEdit, onDelete }: { code: HouseholdCode; acc
   }
 
   const days = code.expiresOn ? daysUntil(code.expiresOn) : null;
-  const expiryColor = days == null ? null : days < 0 ? "var(--status-critical)" : days <= 14 ? "var(--status-serious)" : "var(--text-muted)";
+  const expiryColor = days == null ? "var(--text-muted)" : days < 0 ? "var(--status-critical)" : days <= 14 ? "var(--status-serious)" : "var(--text-muted)";
 
   return (
-    <div
-      className="group flex items-start gap-3 border-t py-2.5 first:border-t-0"
-      style={{ borderColor: "var(--gridline)", touchAction: "pan-y" }}
-      onTouchStart={onTouchStart}
-      onTouchEnd={onTouchEnd}
-    >
-      <div className="flex min-w-0 flex-1 flex-col gap-1">
+    <li className="relative flex items-start gap-3 px-3.5 py-2.5">
+      <button type="button" onClick={onOpen} aria-label={`Edit ${code.name} code`} className="absolute inset-0" />
+      <div className="pointer-events-none relative flex min-w-0 flex-1 flex-col gap-1">
+        <span className="flex items-baseline justify-between gap-3">
+          <span className="min-w-0 text-sm font-medium" style={{ color: "var(--text-primary)" }}>
+            {code.name}
+          </span>
+          {code.expiresOn && (
+            <span className="shrink-0 text-xs tabular-nums" style={{ color: expiryColor }}>
+              {days != null && days < 0 ? "Expired" : "Expires"} {formatExpiresOn(code.expiresOn)}
+            </span>
+          )}
+        </span>
         <button
           type="button"
           onClick={handleCopy}
           aria-label={`Copy code ${code.code}`}
-          className="flex w-fit max-w-full items-center gap-2 rounded-md px-2.5 py-1.5 transition-opacity hover:opacity-80"
-          style={{ background: `color-mix(in oklab, ${accent} 12%, transparent)` }}
+          className="pointer-events-auto flex w-fit max-w-full items-center gap-2 rounded-md px-2.5 py-1.5 transition-opacity hover:opacity-80"
+          style={{ background: `color-mix(in oklab, ${accent} var(--tint-pct), transparent)` }}
         >
           <TruncatedTooltip text={code.code} className="font-mono text-sm tracking-wide" style={{ color: accent }} />
           <span className="shrink-0 text-xs font-medium" style={{ color: copied ? "var(--status-good)" : accent }}>
@@ -241,54 +241,15 @@ function CodeItem({ code, accent, onEdit, onDelete }: { code: HouseholdCode; acc
           </span>
         </button>
         {code.comment && (
-          <p className="text-sm whitespace-pre-line" style={{ color: "var(--text-secondary)" }}>
+          <p className="line-clamp-2 text-xs whitespace-pre-line" style={{ color: "var(--text-secondary)" }}>
             {code.comment}
           </p>
         )}
-        {code.expiresOn && (
-          <span className="text-xs tabular-nums" style={{ color: expiryColor ?? "var(--text-muted)" }}>
-            {days != null && days < 0 ? "Expired" : "Expires"} {formatExpiresOn(code.expiresOn)}
-          </span>
-        )}
       </div>
-      <div className="flex shrink-0 items-center gap-4">
-        <div className={clsx("flex items-center gap-4 transition-opacity", revealed ? SWIPE_REVEAL_CLASS.shown : SWIPE_REVEAL_CLASS.hidden)}>
-          <button
-            type="button"
-            onClick={onEdit}
-            aria-label="Edit code"
-            title="Edit code"
-            className="tap-target rounded-md p-1.5 transition-colors hover:bg-[var(--page-plane)]"
-            style={{ color: "var(--text-muted)" }}
-          >
-            <PencilIcon size={15} />
-          </button>
-          <button
-            type="button"
-            onClick={() => setConfirmingDelete(true)}
-            aria-label="Remove code"
-            title="Remove code"
-            className="tap-target notebook-danger rounded-md p-1.5 transition-colors hover:bg-[var(--page-plane)]"
-            style={{ color: "var(--text-muted)" }}
-          >
-            <TrashIcon size={15} />
-          </button>
-        </div>
-        {confirmingDelete && (
-          <ConfirmDialog
-            title={`Remove ${code.code}?`}
-            message="This can't be undone."
-            confirmLabel="Remove"
-            destructive
-            onConfirm={() => {
-              setConfirmingDelete(false);
-              onDelete();
-            }}
-            onClose={() => setConfirmingDelete(false)}
-          />
-        )}
-      </div>
-    </div>
+      <span className="pointer-events-none relative shrink-0 self-center" style={{ color: "var(--text-muted)" }}>
+        <ChevronIcon size={14} />
+      </span>
+    </li>
   );
 }
 
@@ -316,7 +277,7 @@ export function CodeBoard({
 
   const editingCode = editingId ? (codes.find((c) => c.id === editingId) ?? null) : null;
 
-  const groups = useMemo(() => groupByShop(codes.filter((c) => matchesSearch(c, search)), sort), [codes, search, sort]);
+  const shown = useMemo(() => sortCodes(codes.filter((c) => matchesSearch(c, search)), sort), [codes, search, sort]);
 
   return (
     <div className="flex flex-col gap-3">
@@ -331,6 +292,14 @@ export function CodeBoard({
             setComposing(false);
             setEditingId(null);
           }}
+          onDelete={
+            editingCode
+              ? () => {
+                  void onDelete(editingCode.id);
+                  setEditingId(null);
+                }
+              : undefined
+          }
           onCancel={() => {
             setComposing(false);
             setEditingId(null);
@@ -364,7 +333,7 @@ export function CodeBoard({
         <ListSkeleton />
       ) : error ? (
         <ErrorState what="codes" />
-      ) : groups.length === 0 ? (
+      ) : shown.length === 0 ? (
         <InlineEmpty
           title={codes.length === 0 ? "No codes yet" : "Nothing matches that search"}
           description={
@@ -374,27 +343,11 @@ export function CodeBoard({
           }
         />
       ) : (
-        <div className="flex flex-col gap-3 xl:grid xl:grid-cols-2 xl:items-start">
-          {groups.map((g) => (
-            <ListSection
-              key={g.key}
-              label={g.name}
-              count={g.codes.length > 1 ? g.codes.length : undefined}
-              icon={
-                <SectionIcon>
-                  <path d="M3.5 8 10 3l6.5 5v8.5a1 1 0 0 1-1 1H4.5a1 1 0 0 1-1-1V8Z" />
-                  <path d="M8 17.5v-4.5h4v4.5" />
-                </SectionIcon>
-              }
-            >
-              <div className="flex flex-col">
-                {g.codes.map((code) => (
-                  <CodeItem key={code.id} code={code} accent={accent} onEdit={() => setEditingId(code.id)} onDelete={() => void onDelete(code.id)} />
-                ))}
-              </div>
-            </ListSection>
+        <ul className="inset-rows flex flex-col rounded-xl border" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
+          {shown.map((code) => (
+            <CodeItem key={code.id} code={code} accent={accent} onOpen={() => setEditingId(code.id)} />
           ))}
-        </div>
+        </ul>
       )}
     </div>
   );
