@@ -89,6 +89,7 @@ One sans-serif family: SF Pro on Apple devices, Inter elsewhere (`--font-app`).
 - **Explanations hide behind an ⓘ** (`InfoButton`): `CardTitle`'s `subtitle` and `FormGroup`'s `info` show it beside the heading. Keep the text to what isn't obvious from the controls
 - **Numbers are picked, not typed.** In forms, a row shows the value on the right, and tapping it opens an iOS wheel under the row: `NumberWheel` (one column over a list of values), `KgWheels` (whole kg + quarter kg). `NumberStepper` (a raised −/+ capsule) is for quick inline adjustments
 - **Summary rows open sheets:** a list of things to configure shows one row each (title, muted detail, value, chevron), and the detail is edited in a `Sheet`, not inline
+- **Adding to a list** is its last row (`AddRow` in `components/manage/ManageSection.tsx`): a borderless field with the action on the right, hidden while searching. A Settings list's footer is one short line
 - **Reorderable lists:** any list the user arranges has a ≡ grip at the row's end (`ReorderGrip` + `useManageOrder` in `components/manage/Reorder.tsx`, on `useDragReorder`). Drag it, or focus it and use the arrow keys. The order is saved account-wide (`usePreferences`) and applied in the data hook, so every screen showing the list follows it. Grips hide while a search filters the list
 - **Formatted notes in a form** use `MarkdownField` with a `label`: a normal row in the card, with the formatting bar appearing under it only while you're writing
 - **No boxed inputs**, never grey-filled

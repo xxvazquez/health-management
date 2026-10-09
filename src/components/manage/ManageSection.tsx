@@ -137,8 +137,8 @@ export function GroupNote({ children }: { children: ReactNode }) {
   );
 }
 
-/** "Add a …" as a Settings row: a borderless text field with the action on
- * the right, in its own group. */
+/** "Add a …" as the last row of a Settings list: a borderless text field
+ * with the action on the right. */
 export function AddRow({
   value,
   onChange,
@@ -157,20 +157,22 @@ export function AddRow({
   disabled?: boolean;
 }) {
   return (
-    <form onSubmit={onSubmit} className="flex min-h-11 items-center gap-2 rounded-xl border px-3.5" style={GROUP_STYLE}>
-      <input
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        aria-label={placeholder}
-        maxLength={maxLength}
-        className="min-w-0 flex-1 bg-transparent py-2 text-sm outline-none"
-        style={{ color: "var(--text-primary)" }}
-      />
-      <button type="submit" disabled={!value.trim() || disabled} className="shrink-0 py-2 pl-2 text-sm font-semibold disabled:opacity-40" style={{ color: "var(--ui-accent)" }}>
-        {label}
-      </button>
-    </form>
+    <li className="list-none">
+      <form onSubmit={onSubmit} className="flex min-h-11 items-center gap-2 px-3.5">
+        <input
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          aria-label={placeholder}
+          maxLength={maxLength}
+          className="row-control min-w-0 flex-1 bg-transparent py-2 text-sm outline-none"
+          style={{ color: "var(--text-primary)" }}
+        />
+        <button type="submit" disabled={!value.trim() || disabled} className="shrink-0 py-2 pl-2 text-sm font-semibold disabled:opacity-40" style={{ color: "var(--ui-accent)" }}>
+          {label}
+        </button>
+      </form>
+    </li>
   );
 }
 

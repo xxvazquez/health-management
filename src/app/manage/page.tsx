@@ -294,12 +294,7 @@ function VisibleSectionsCard({ isDemoData }: { isDemoData: boolean }) {
           );
         })}
       </div>
-      <GroupNote>
-        A section shows on the Log tabs (and its Trends dashboard, if it has one) once you&apos;ve logged something in it. Turn
-        one on to start tracking it sooner, or off to hide it even with data. Drag ≡ to change the order of the tabs on Log and
-        Trends. Applies on every device; nothing is deleted or archived.
-        {!isDemoData && " A daily reminder is skipped automatically once you've already logged that day."}
-      </GroupNote>
+      <GroupNote>Off hides a section on Log and Trends without deleting anything.</GroupNote>
     </CollapsibleManageCard>
   );
 }
@@ -377,8 +372,6 @@ function WishlistListsCard({ isDemoData, searchQuery }: { isDemoData: boolean; s
       forceOpen={isSearching}
       bare
     >
-      <AddRow value={newName} onChange={setNewName} onSubmit={handleAdd} placeholder="New list name" maxLength={40} label="Add list" />
-
       {loading ? (
         <p className="py-3 text-xs" style={{ color: "var(--text-muted)" }}>
           Loading…
@@ -387,7 +380,7 @@ function WishlistListsCard({ isDemoData, searchQuery }: { isDemoData: boolean; s
         <ul className={GROUP_CLS} style={GROUP_STYLE}>
           {!isSearching && lists.length === 0 && (
             <li className="px-3.5 py-3 text-sm" style={{ color: "var(--text-muted)" }}>
-              No lists yet — add one above, or from the Wishlist tab while saving a link.
+              No lists yet.
             </li>
           )}
           {visibleLists.map((l) => (
@@ -410,12 +403,10 @@ function WishlistListsCard({ isDemoData, searchQuery }: { isDemoData: boolean; s
               onDelete={() => void handleDelete(l.id)}
             />
           ))}
+          {!isSearching && <AddRow value={newName} onChange={setNewName} onSubmit={handleAdd} placeholder="New list name" maxLength={40} label="Add list" />}
         </ul>
       )}
-      <GroupNote>
-        The lists your saved links are grouped into on Notes &rarr; Wishlist. Deleting a list also deletes the links
-        saved in it.
-      </GroupNote>
+      <GroupNote>Deleting a list also deletes its links.</GroupNote>
     </CollapsibleManageCard>
   );
 }
@@ -604,10 +595,7 @@ function LabResultsCard({ searchQuery }: { searchQuery: string }) {
             <h3 className="px-4 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
               Panels
             </h3>
-            <AddRow value={newPanel} onChange={setNewPanel} onSubmit={addPanel} placeholder="New panel name" maxLength={60} label="Add" />
-            {panels.length === 0 ? (
-              <GroupNote>No panels yet — markers can stay ungrouped.</GroupNote>
-            ) : (
+            {(shownPanels.length > 0 || !isSearching) && (
               <ul className={GROUP_CLS} style={GROUP_STYLE}>
                 {shownPanels.map((p) => (
                   <ManageRow
@@ -628,6 +616,7 @@ function LabResultsCard({ searchQuery }: { searchQuery: string }) {
                     onDelete={() => void labs.panels.remove(p.id)}
                   />
                 ))}
+                {!isSearching && <AddRow value={newPanel} onChange={setNewPanel} onSubmit={addPanel} placeholder="New panel name" maxLength={60} />}
               </ul>
             )}
           </div>
@@ -723,10 +712,7 @@ function LabResultsCard({ searchQuery }: { searchQuery: string }) {
           </div>
         </div>
       )}
-      <GroupNote>
-        The markers and panels behind Health &rarr; Results. Enter values &mdash; a single reading or a whole blood draw &mdash;
-        on the Results tab.
-      </GroupNote>
+      <GroupNote>Readings are entered on Health &rarr; Results.</GroupNote>
     </CollapsibleManageCard>
   );
 }
@@ -822,8 +808,6 @@ function ReminderListsCard({ isDemoData, searchQuery }: { isDemoData: boolean; s
         </EditorField>
       </FormGroup>
 
-      <AddRow value={newName} onChange={setNewName} onSubmit={handleAdd} placeholder="New list name" maxLength={40} label="Add list" />
-
       {loading ? (
         <p className="py-3 text-xs" style={{ color: "var(--text-muted)" }}>
           Loading…
@@ -854,12 +838,10 @@ function ReminderListsCard({ isDemoData, searchQuery }: { isDemoData: boolean; s
               onDelete={() => void handleDelete(l.id)}
             />
           ))}
+          {!isSearching && <AddRow value={newName} onChange={setNewName} onSubmit={handleAdd} placeholder="New list name" maxLength={40} label="Add list" />}
         </ul>
       )}
-      <GroupNote>
-        The buckets your reminders are organised into on the Log page. Deleting a list moves its reminders back to
-        the default &ldquo;Reminders&rdquo; list — it never deletes them.
-      </GroupNote>
+      <GroupNote>Deleting a list moves its reminders to &ldquo;Reminders&rdquo;.</GroupNote>
     </CollapsibleManageCard>
   );
 }
@@ -1049,7 +1031,6 @@ function DoctorSpecialtiesCard({ isDemoData, searchQuery }: { isDemoData: boolea
       forceOpen={isSearching}
       bare
     >
-      <AddRow value={newName} onChange={setNewName} onSubmit={handleAdd} placeholder="New doctor type" maxLength={60} label="Add type" />
       {saveFailed && <SaveFailedNote />}
 
       {loading ? (
@@ -1061,10 +1042,11 @@ function DoctorSpecialtiesCard({ isDemoData, searchQuery }: { isDemoData: boolea
           <ul className={GROUP_CLS} style={GROUP_STYLE}>
             {active.length === 0 && !isSearching && (
               <li className="px-3.5 py-3 text-sm" style={{ color: "var(--text-muted)" }}>
-                Every type is hidden — add one above or show one back.
+                Every type is hidden.
               </li>
             )}
             {active.map(rowEl)}
+            {!isSearching && <AddRow value={newName} onChange={setNewName} onSubmit={handleAdd} placeholder="New doctor type" maxLength={60} label="Add type" />}
           </ul>
 
           {hidden.length > 0 && (
@@ -1093,10 +1075,7 @@ function DoctorSpecialtiesCard({ isDemoData, searchQuery }: { isDemoData: boolea
           )}
         </>
       )}
-      <GroupNote>
-        The specialties offered when logging a doctor appointment. Hide the ones you don&apos;t need or add your own —
-        appointments you&apos;ve already logged keep their type either way.
-      </GroupNote>
+      <GroupNote>Logged appointments keep their type.</GroupNote>
     </CollapsibleManageCard>
   );
 }
@@ -1104,10 +1083,10 @@ function DoctorSpecialtiesCard({ isDemoData, searchQuery }: { isDemoData: boolea
 // --- Stool options ---------------------------------------------------
 
 const STOOL_OPTION_KINDS: { kind: StoolOptionKind; title: string; placeholder: string }[] = [
-  { kind: "color", title: "Colours", placeholder: "e.g. Grey" },
-  { kind: "characteristic", title: "Characteristics", placeholder: "e.g. Greasy" },
-  { kind: "floatation", title: "Floatation", placeholder: "e.g. Sinks fast" },
-  { kind: "symptom", title: "Symptoms", placeholder: "e.g. Rectal itching" },
+  { kind: "color", title: "Colours", placeholder: "New colour" },
+  { kind: "characteristic", title: "Characteristics", placeholder: "New characteristic" },
+  { kind: "floatation", title: "Floatation", placeholder: "New option" },
+  { kind: "symptom", title: "Symptoms", placeholder: "New symptom" },
 ];
 
 /** One kind of chip option (Stool colours, Coffee brewing types, …): a
@@ -1173,28 +1152,20 @@ function OptionKindGroup<T extends { id: string; label: string; isArchived: bool
       <h3 className="px-4 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
         {title}
       </h3>
-      <AddRow
-        value={newLabel}
-        onChange={onNewLabelChange}
-        onSubmit={(e) => {
-          e.preventDefault();
-          onAdd();
-        }}
-        placeholder={placeholder}
-        maxLength={60}
-        disabled={busy}
-      />
-      {(active.length > 0 || hidden.length === 0) && (
-        <ul className={GROUP_CLS} style={GROUP_STYLE}>
-          {active.length === 0 ? (
-            <li className="px-3.5 py-3 text-sm" style={{ color: "var(--text-muted)" }}>
-              Nothing here yet.
-            </li>
-          ) : (
-            orderedActive.map(row)
-          )}
-        </ul>
-      )}
+      <ul className={GROUP_CLS} style={GROUP_STYLE}>
+        {orderedActive.map(row)}
+        <AddRow
+          value={newLabel}
+          onChange={onNewLabelChange}
+          onSubmit={(e) => {
+            e.preventDefault();
+            onAdd();
+          }}
+          placeholder={placeholder}
+          maxLength={60}
+          disabled={busy}
+        />
+      </ul>
       {hidden.length > 0 && (
         <div className={GROUP_CLS} style={GROUP_STYLE}>
           <button
@@ -1387,18 +1358,15 @@ function StoolOptionsCard({ isDemoData, searchQuery }: { isDemoData: boolean; se
           })}
         </div>
       )}
-      <GroupNote>
-        The chips offered in the Log page&apos;s Stool tab. Hide the ones you don&apos;t use or add your own — entries you&apos;ve
-        already logged keep their value either way.
-      </GroupNote>
+      <GroupNote>Logged entries keep their value.</GroupNote>
     </CollapsibleManageCard>
   );
 }
 
 const COFFEE_OPTION_KINDS: { kind: CoffeeOptionKind; title: string; placeholder: string }[] = [
-  { kind: "brewing_type", title: "Brewing types", placeholder: "e.g. Pour over" },
-  { kind: "brewing_method", title: "Brewing methods", placeholder: "e.g. Chemex" },
-  { kind: "characteristic", title: "Characteristics", placeholder: "e.g. Winey" },
+  { kind: "brewing_type", title: "Brewing types", placeholder: "New brewing type" },
+  { kind: "brewing_method", title: "Brewing methods", placeholder: "New brewing method" },
+  { kind: "characteristic", title: "Characteristics", placeholder: "New characteristic" },
 ];
 
 /** Delete for a coffee — only when no cup has been logged with it (the
@@ -1632,9 +1600,8 @@ function CoffeeCard({ isDemoData, searchQuery }: { isDemoData: boolean; searchQu
             <h3 className="px-4 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
               Your coffees
             </h3>
-            <AddRow value={newCoffee} onChange={setNewCoffee} onSubmit={(e) => void handleAddCoffee(e)} placeholder="New coffee" maxLength={80} />
-            {items.length === 0 ? (
-              <GroupNote>{isSearching ? "No coffee matches that search." : "No coffees yet."}</GroupNote>
+            {isSearching && items.length === 0 ? (
+              <GroupNote>No coffee matches that search.</GroupNote>
             ) : (
               <ul className={GROUP_CLS} style={GROUP_STYLE}>
                 {items.map((it) => {
@@ -1661,6 +1628,7 @@ function CoffeeCard({ isDemoData, searchQuery }: { isDemoData: boolean; searchQu
                     </li>
                   );
                 })}
+                {!isSearching && <AddRow value={newCoffee} onChange={setNewCoffee} onSubmit={(e) => void handleAddCoffee(e)} placeholder="New coffee" maxLength={80} />}
               </ul>
             )}
             <GroupNote>Coffees are also added from Log → Coffee while you log a cup.</GroupNote>
@@ -1864,9 +1832,7 @@ function DoctorsCard({ searchQuery }: { searchQuery: string }) {
           })}
         </ul>
       )}
-      <GroupNote>
-        The doctors you can attach an appointment to. Their visit history lives on Health &rarr; Doctors.
-      </GroupNote>
+      <GroupNote>Visit history lives on Health &rarr; Doctors.</GroupNote>
     </CollapsibleManageCard>
   );
 }
@@ -2127,10 +2093,7 @@ function FoodProductsCard({
           })}
         </ul>
       )}
-      <GroupNote>
-        A product bundles several Food ingredients under one name — logging it on Log &rarr; Food logs every ingredient at once,
-        tagged with the product they came from.
-      </GroupNote>
+      <GroupNote>Logging a product logs all its ingredients at once.</GroupNote>
     </CollapsibleManageCard>
   );
 }
@@ -3088,7 +3051,7 @@ function ItemSection({
                   onChange={(e) => setNewCategory(e.target.value)}
                   placeholder="New category"
                   aria-label="New category name"
-                  className="min-w-0 flex-1 bg-transparent py-2 text-sm outline-none"
+                  className="row-control min-w-0 flex-1 bg-transparent py-2 text-sm outline-none"
                   style={{ color: "var(--text-primary)" }}
                 />
                 <button type="submit" disabled={!newCategory.trim() || addingCategory} className="shrink-0 py-2 pl-2 text-sm font-semibold disabled:opacity-40" style={{ color: "var(--ui-accent)" }}>

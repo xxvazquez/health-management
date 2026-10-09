@@ -102,7 +102,6 @@ export function ExpensesCard({ isDemoData, searchQuery }: { isDemoData: boolean;
       forceOpen={isSearching}
       bare
     >
-      <AddRow value={newName} onChange={setNewName} onSubmit={handleAdd} placeholder="New category" maxLength={40} label="Add category" />
       {saveFailed && <SaveFailedNote />}
       {loading ? (
         <p className="py-3 text-xs" style={{ color: "var(--text-muted)" }}>
@@ -138,6 +137,7 @@ export function ExpensesCard({ isDemoData, searchQuery }: { isDemoData: boolean;
               onDelete={() => void handleDelete(c.id)}
             />
           ))}
+          {!isSearching && <AddRow value={newName} onChange={setNewName} onSubmit={handleAdd} placeholder="New category" maxLength={40} label="Add category" />}
         </FormGroup>
       )}
     </CollapsibleManageCard>
