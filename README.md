@@ -116,7 +116,7 @@ One dashboard per Log section, plus Patterns. The time range sits in the title r
 
 | Tab | Contents |
 |---|---|
-| Visits | Grouped lists: upcoming dates, decisions/notes/observations (filter by specialty), past visits with open follow-ups; each visit opens in a sheet |
+| Visits | Grouped lists: upcoming dates, decisions/notes/observations (filter by specialty), past visits with open follow-ups; each visit opens in a sheet (Edit, follow-ups that open to edit, Delete visit) |
 | Results | Every lab marker on a range bar (same band position on every row), value and unit in aligned columns, H/L flags. The window menu opens on Latest (each marker's newest result, however old), then 6 months, 1/2/5 years and All time. Tap one for an Apple Health-style trend (6M–All, drag to read a point, swipe through time) and its readings. A PL/EN switch shows panel and marker names in Polish or English |
 | Vitals | Blood pressure (low readings marked, ACC/AHA categories) and weight, in the same trend card as Results; optional weight-goal band. Readings can come in from Apple Health |
 | Doctors | Read-only directory; editing is in Settings. Each doctor has a Visit summary (`/medical/summary/?doctor=<id>`): symptoms, blood results, vitals, supplements, that specialty's notes, open follow-ups and visits over 3, 6 or 12 months, ready to print or save as a PDF |

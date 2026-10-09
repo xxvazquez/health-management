@@ -46,6 +46,7 @@ export function Sheet({
   onClose,
   form,
   back,
+  actions,
   children,
 }: {
   title: string;
@@ -58,6 +59,8 @@ export function Sheet({
   form?: SheetForm;
   /** A pushed screen inside the sheet: "‹ label" on the left of a centred title. */
   back?: { label: string; onClick: () => void };
+  /** Text actions beside the close button on a read-only sheet, e.g. Edit. */
+  actions?: ReactNode;
   children: ReactNode;
 }) {
   const [closing, setClosing] = useState(false);
@@ -224,15 +227,18 @@ export function Sheet({
                 </span>
                 {subtitle}
               </div>
-              <button
-                type="button"
-                onClick={requestClose}
-                aria-label="Close"
-                className="control-surface hit-slop flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
-                style={{ color: "var(--text-secondary)" }}
-              >
-                <CloseIcon />
-              </button>
+              <div className="flex shrink-0 items-center gap-4">
+                {actions}
+                <button
+                  type="button"
+                  onClick={requestClose}
+                  aria-label="Close"
+                  className="control-surface hit-slop flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
+                  style={{ color: "var(--text-secondary)" }}
+                >
+                  <CloseIcon />
+                </button>
+              </div>
             </div>
           )}
         </div>

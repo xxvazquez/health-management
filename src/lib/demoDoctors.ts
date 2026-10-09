@@ -54,16 +54,6 @@ export function buildDemoDoctorAppointments(): DoctorAppointment[] {
       createdAt: iso(-14 * DAY),
     },
     {
-      id: DEMO_APPT_CHECKUP,
-      doctorId: DEMO_DOCTOR_NOWAK,
-      specialty: "Internist (GP)",
-      appointmentAt: iso(-45 * DAY),
-      reason: "Annual check-up, blood work",
-      followUpNotes: "Vitamin D low. Retest in 3 months.",
-      notes: null,
-      createdAt: iso(-45 * DAY),
-    },
-    {
       id: DEMO_APPT_USG,
       doctorId: DEMO_DOCTOR_GARCIA,
       specialty: "Gynecologist",
@@ -72,6 +62,16 @@ export function buildDemoDoctorAppointments(): DoctorAppointment[] {
       followUpNotes: "Everything normal. USG scan requested for next visit.",
       notes: null,
       createdAt: iso(-30 * DAY),
+    },
+    {
+      id: DEMO_APPT_CHECKUP,
+      doctorId: DEMO_DOCTOR_NOWAK,
+      specialty: "Internist (GP)",
+      appointmentAt: iso(-45 * DAY),
+      reason: "Annual check-up, blood work",
+      followUpNotes: "Vitamin D low. Retest in 3 months.",
+      notes: null,
+      createdAt: iso(-45 * DAY),
     },
   ];
 }

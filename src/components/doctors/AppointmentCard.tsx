@@ -1,23 +1,20 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
-import type { Doctor, DoctorAppointment, DoctorFollowUpTask, FollowUpTaskPatch, NewFollowUpTaskInput } from "@/lib/supabase/doctors";
-import { DoctorName, IconAction, PencilIcon, TrashIcon, formatDate } from "./shared";
-import { LABEL_STYLE, ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
+import { useState } from "react";
+import type { DoctorAppointment, DoctorFollowUpTask, FollowUpTaskPatch, NewFollowUpTaskInput } from "@/lib/supabase/doctors";
 import { MarkdownContent } from "@/components/ui/Markdown";
-import { FollowUpTaskRow } from "./FollowUpTaskRow";
+import { FormGroup } from "@/components/ui/FormGroup";
+import { FollowUpTaskRow, FollowUpTaskSheet } from "./FollowUpTaskRow";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
-/** One appointment in a history list: doctor (when shown) + its frozen
- * specialty + date/time, reason, follow-up notes, and the follow-up task
- * checklist with inline add. Edit/delete act on the appointment itself. */
+/** A visit's detail, shown inside its sheet: reason and follow-up notes,
+ * comments, then the follow-up checklist (tap one to edit it) and Delete
+ * visit at the bottom, as in Calendar. Editing the visit itself is the
+ * sheet's Edit action. */
 export function AppointmentCard({
   appointment,
-  doctor,
   tasks,
   accent,
-  showDoctor = true,
-  onEdit,
   onDelete,
   onAddTask,
   onEditTask,
@@ -25,11 +22,8 @@ export function AppointmentCard({
   onDeleteTask,
 }: {
   appointment: DoctorAppointment;
-  doctor: Doctor | undefined;
   tasks: DoctorFollowUpTask[];
   accent: string;
-  showDoctor?: boolean;
-  onEdit: () => void;
   onDelete: () => void;
   onAddTask: (input: NewFollowUpTaskInput) => void;
   onEditTask: (id: string, patch: FollowUpTaskPatch) => void;
@@ -37,49 +31,60 @@ export function AppointmentCard({
   onDeleteTask: (id: string) => void;
 }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [addingTask, setAddingTask] = useState(false);
-  const [newTask, setNewTask] = useState("");
+  const [taskSheet, setTaskSheet] = useState<DoctorFollowUpTask | "new" | null>(null);
 
-  const openTasks = tasks.filter((t) => !t.completedAt);
-  const doneTasks = tasks.filter((t) => t.completedAt);
-
-  function submitTask(e: FormEvent) {
-    e.preventDefault();
-    if (!newTask.trim()) return;
-    onAddTask({ description: newTask.trim(), dueDate: null, reminderAt: null });
-    setNewTask("");
-    setAddingTask(false);
-  }
+  const ordered = [...tasks.filter((t) => !t.completedAt), ...tasks.filter((t) => t.completedAt)];
 
   return (
-    <div className="rounded-xl border p-4" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", boxShadow: "var(--shadow-card)" }}>
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          {showDoctor && (
-            <div className="text-sm">
-              <DoctorName name={doctor?.name ?? "Unknown doctor"} rating={doctor?.rating ?? null} />
-              <span style={{ color: "var(--text-muted)" }}> · {appointment.specialty}</span>
-            </div>
-          )}
-          <div className="mt-0.5 text-xs" style={{ color: "var(--text-secondary)" }}>
-            {formatDate(appointment.appointmentAt)}
-            {!showDoctor && <span style={{ color: "var(--text-muted)" }}> · {appointment.specialty}</span>}
+    <div className="flex flex-col gap-5">
+      {(appointment.reason || appointment.followUpNotes) && (
+        <FormGroup>
+          <div className="flex flex-col gap-1.5 px-3.5 py-3">
+            {appointment.reason && (
+              <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
+                {appointment.reason}
+              </p>
+            )}
+            {appointment.followUpNotes && (
+              <div className="text-sm leading-relaxed" style={{ color: "var(--text-secondary)" }}>
+                <MarkdownContent>{appointment.followUpNotes}</MarkdownContent>
+              </div>
+            )}
           </div>
-        </div>
-        <div className="flex shrink-0 items-center gap-4">
-          <IconAction onClick={onEdit} label="Edit appointment">
-            <PencilIcon size={15} />
-          </IconAction>
-          <IconAction onClick={() => setConfirmDelete(true)} label="Delete appointment" tone="critical">
-            <TrashIcon size={15} />
-          </IconAction>
-        </div>
-      </div>
+        </FormGroup>
+      )}
+
+      {appointment.notes && (
+        <FormGroup title="Comments">
+          <div className="px-3.5 py-3 text-sm leading-relaxed" style={{ color: "var(--text-secondary)" }}>
+            <MarkdownContent>{appointment.notes}</MarkdownContent>
+          </div>
+        </FormGroup>
+      )}
+
+      <FormGroup title="Follow-ups">
+        <ul className="inset-rows [--row-inset:2.75rem]">
+          {ordered.map((task) => (
+            <FollowUpTaskRow key={task.id} task={task} onToggle={(done) => onToggleTask(task.id, done)} onOpen={() => setTaskSheet(task)} />
+          ))}
+          <li>
+            <button type="button" onClick={() => setTaskSheet("new")} className="flex min-h-11 w-full items-center px-3.5 text-left text-sm font-medium" style={{ color: accent }}>
+              Add follow-up
+            </button>
+          </li>
+        </ul>
+      </FormGroup>
+
+      <FormGroup>
+        <button type="button" onClick={() => setConfirmDelete(true)} className="flex min-h-11 w-full items-center justify-center text-sm font-medium" style={{ color: "var(--status-critical)" }}>
+          Delete visit
+        </button>
+      </FormGroup>
 
       {confirmDelete && (
         <ConfirmDialog
-          title="Delete this appointment?"
-          message="Its follow-up tasks are deleted too. The doctor and other visits stay."
+          title="Delete this visit?"
+          message="Its follow-ups are deleted too. The doctor and other visits stay."
           confirmLabel="Delete"
           destructive
           onConfirm={() => {
@@ -90,65 +95,15 @@ export function AppointmentCard({
         />
       )}
 
-      {appointment.reason && (
-        <p className="mt-3 text-sm" style={{ color: "var(--text-primary)" }}>
-          {appointment.reason}
-        </p>
+      {taskSheet && (
+        <FollowUpTaskSheet
+          task={taskSheet === "new" ? null : taskSheet}
+          accent={accent}
+          onSave={(input) => (taskSheet === "new" ? onAddTask(input) : onEditTask(taskSheet.id, input))}
+          onDelete={taskSheet === "new" ? undefined : () => onDeleteTask(taskSheet.id)}
+          onClose={() => setTaskSheet(null)}
+        />
       )}
-      {appointment.followUpNotes && (
-        <div className="mt-2 text-sm leading-relaxed" style={{ color: "var(--text-secondary)" }}>
-          <MarkdownContent>{appointment.followUpNotes}</MarkdownContent>
-        </div>
-      )}
-      {appointment.notes && (
-        <div className="mt-2 flex flex-col gap-0.5">
-          <span className="text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
-            Comments
-          </span>
-          <div className="text-sm leading-relaxed" style={{ color: "var(--text-secondary)" }}>
-            <MarkdownContent>{appointment.notes}</MarkdownContent>
-          </div>
-        </div>
-      )}
-
-      <div className="mt-3 border-t pt-1" style={{ borderColor: "var(--gridline)" }}>
-        {openTasks.map((task) => (
-          <FollowUpTaskRow
-            key={task.id}
-            task={task}
-            accent={accent}
-            onToggle={(done) => onToggleTask(task.id, done)}
-            onEdit={(patch) => onEditTask(task.id, patch)}
-            onDelete={() => onDeleteTask(task.id)}
-          />
-        ))}
-        {doneTasks.map((task) => (
-          <FollowUpTaskRow
-            key={task.id}
-            task={task}
-            accent={accent}
-            onToggle={(done) => onToggleTask(task.id, done)}
-            onEdit={(patch) => onEditTask(task.id, patch)}
-            onDelete={() => onDeleteTask(task.id)}
-          />
-        ))}
-
-        {addingTask ? (
-          <form onSubmit={submitTask} className="flex items-center gap-2 py-2">
-            <input autoFocus value={newTask} onChange={(e) => setNewTask(e.target.value)} placeholder="e.g. Do the USG" className={`${ROW_TEXT_CLS} min-h-11 flex-1`} style={ROW_STYLE} />
-            <button type="submit" disabled={!newTask.trim()} className="shrink-0 min-h-9 rounded-[10px] px-3 text-sm font-semibold text-[color:var(--on-accent)] disabled:opacity-40" style={{ background: accent }}>
-              Add
-            </button>
-            <button type="button" onClick={() => setAddingTask(false)} className="text-xs" style={LABEL_STYLE}>
-              Cancel
-            </button>
-          </form>
-        ) : (
-          <button type="button" onClick={() => setAddingTask(true)} className="py-2 text-xs font-medium" style={{ color: accent }}>
-            + Add follow-up task
-          </button>
-        )}
-      </div>
     </div>
   );
 }

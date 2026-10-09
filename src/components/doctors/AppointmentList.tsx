@@ -8,7 +8,7 @@ import { AppointmentCard } from "./AppointmentCard";
 import { AppointmentForm } from "./AppointmentForm";
 import { Sheet } from "@/components/ui/Sheet";
 import { todayLocalISODate } from "@/lib/aggregations/common";
-import { DoctorName, formatShortDate } from "./shared";
+import { DoctorName, formatDate, formatShortDate } from "./shared";
 import { useUndoableTick } from "@/lib/useUndoableTick";
 
 type DoctorsApi = ReturnType<typeof useDoctors>;
@@ -71,17 +71,24 @@ export function AppointmentList({
     <>
       {open && (
         <Sheet
-          title={showDoctor ? (openDoctor?.name ?? "Unknown doctor") : open.specialty}
+          title={openDoctor?.name ?? "Unknown doctor"}
+          subtitle={
+            <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+              {formatDate(open.appointmentAt)} · {open.specialty}
+            </span>
+          }
           titleId={sheetTitleId}
           onClose={() => setOpenId(null)}
+          actions={
+            <button type="button" onClick={() => setEditing(open)} className="hit-slop text-sm font-medium" style={{ color: accent }}>
+              Edit
+            </button>
+          }
         >
           <AppointmentCard
             appointment={open}
-            doctor={openDoctor}
             tasks={api.tasks.data.filter((t) => t.appointmentId === open.id)}
             accent={accent}
-            showDoctor={false}
-            onEdit={() => setEditing(open)}
             onDelete={() => {
               setOpenId(null);
               void api.appointments.remove(open.id);
@@ -112,7 +119,7 @@ export function AppointmentList({
                       </>
                     ) : (
                       <span className="font-medium" style={{ color: "var(--text-primary)" }}>
-                        {appt.specialty}
+                        {appt.reason || appt.specialty}
                       </span>
                     )}
                   </span>
@@ -120,12 +127,12 @@ export function AppointmentList({
                     {formatShortDate(appt.appointmentAt)}
                   </span>
                 </span>
-                {(appt.reason || (openTasks.length === 0 && doneCount > 0)) && (
+                {((showDoctor && appt.reason) || (openTasks.length === 0 && doneCount > 0)) && (
                   <span className="line-clamp-1 text-xs" style={{ color: "var(--text-secondary)" }}>
-                    {appt.reason}
+                    {showDoctor && appt.reason}
                     {openTasks.length === 0 && doneCount > 0 && (
                       <span style={{ color: "var(--text-muted)" }}>
-                        {appt.reason ? " · " : ""}
+                        {showDoctor && appt.reason ? " · " : ""}
                         {doneCount} follow-up{doneCount === 1 ? "" : "s"} done
                       </span>
                     )}

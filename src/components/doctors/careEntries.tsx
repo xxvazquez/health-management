@@ -19,6 +19,8 @@ import { IconAction, PencilIcon, TrashIcon, formatDate, formatShortDate } from "
 import { FormGroup } from "@/components/ui/FormGroup";
 import { ROW_INLINE_CLS, ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { MoreMenu } from "@/components/ui/MoreMenu";
+import { ChevronIcon } from "@/components/ui/icons";
 
 type DoctorsApi = ReturnType<typeof useDoctors>;
 
@@ -307,7 +309,7 @@ function AttachmentChips({ attachments }: { attachments: CareEntry["attachments"
 
 /** The read view for one care-log entry — opened by tapping a row. Shows
  * the whole body with its line breaks kept, the tags and any Drive files,
- * with Edit / Delete in the header. */
+ * with Edit and a ⋯ menu (Delete) in the header. */
 export function CareEntryDetail({
   entry,
   specialtyNames,
@@ -328,17 +330,16 @@ export function CareEntryDetail({
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between gap-3">
-        <button type="button" onClick={onBack} className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
-          ← Back
+      <div className="flex min-h-11 items-center justify-between gap-3">
+        <button type="button" onClick={onBack} className="-ml-1 flex min-h-11 items-center gap-0.5 text-sm font-medium" style={{ color: accent }}>
+          <ChevronIcon dir="left" size={16} />
+          Visits
         </button>
-        <div className="flex items-center gap-3">
-          <IconAction onClick={onEdit} label="Edit entry">
-            <PencilIcon size={15} />
-          </IconAction>
-          <IconAction onClick={() => setConfirmingDelete(true)} label="Delete entry" tone="critical">
-            <TrashIcon size={15} />
-          </IconAction>
+        <div className="flex items-center gap-4 text-sm">
+          <button type="button" onClick={onEdit} className="min-h-9 font-medium" style={{ color: accent }}>
+            Edit
+          </button>
+          <MoreMenu items={[{ label: "Delete", destructive: true, onClick: () => setConfirmingDelete(true) }]} />
           {confirmingDelete && (
             <ConfirmDialog
               title={`Delete ${entry.title}?`}
@@ -355,21 +356,23 @@ export function CareEntryDetail({
         </div>
       </div>
 
-      <div className="flex flex-col gap-2">
-        <CareEntryMeta entry={entry} accent={accent} />
-        <h2 className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>
-          {entry.title}
-        </h2>
+      <div className="flex flex-col gap-3 rounded-xl border p-4" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
+        <div className="flex flex-col gap-1">
+          <CareEntryMeta entry={entry} accent={accent} />
+          <h2 className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>
+            {entry.title}
+          </h2>
+        </div>
+
+        {entry.body && (
+          <p className="text-sm leading-relaxed whitespace-pre-wrap [overflow-wrap:anywhere]" style={{ color: "var(--text-secondary)" }}>
+            {entry.body}
+          </p>
+        )}
+
+        <CareEntryTags specialtyNames={specialtyNames} supplementName={supplementName} accent={accent} />
+        <AttachmentChips attachments={entry.attachments} />
       </div>
-
-      {entry.body && (
-        <p className="text-sm leading-relaxed whitespace-pre-wrap [overflow-wrap:anywhere]" style={{ color: "var(--text-secondary)" }}>
-          {entry.body}
-        </p>
-      )}
-
-      <CareEntryTags specialtyNames={specialtyNames} supplementName={supplementName} accent={accent} />
-      <AttachmentChips attachments={entry.attachments} />
     </div>
   );
 }
