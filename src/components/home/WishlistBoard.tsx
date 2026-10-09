@@ -85,6 +85,7 @@ function ItemForm({
   people,
   onFetchTitle,
   onSave,
+  onDelete,
   onCancel,
 }: {
   categories: WishlistCategory[];
@@ -95,8 +96,10 @@ function ItemForm({
   people?: WishlistPeople;
   onFetchTitle?: (url: string) => Promise<string | null>;
   onSave: (input: NewWishlistItemInput, newCategoryName: string | null) => Promise<void>;
+  onDelete?: () => void;
   onCancel: () => void;
 }) {
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [url, setUrl] = useState(initial?.url ?? presetUrl ?? "");
   const [title, setTitle] = useState(initial?.title ?? "");
   const [note, setNote] = useState(initial?.note ?? "");
@@ -163,7 +166,7 @@ function ItemForm({
       <FormGroup>
         <Field label="Link">
           <input
-            autoFocus
+            autoFocus={!initial}
             required
             value={url}
             onChange={(e) => setUrl(e.target.value)}
@@ -219,13 +222,32 @@ function ItemForm({
         )}
       </FormGroup>
 
-      <div className="flex flex-wrap items-center gap-3">
-        {error && (
-          <span className="text-xs" style={{ color: "var(--status-critical)" }}>
-            {error}
-          </span>
-        )}
-      </div>
+      {onDelete && (
+        <FormGroup>
+          <button type="button" onClick={() => setConfirmingDelete(true)} className="flex min-h-11 w-full items-center justify-center text-sm font-medium" style={{ color: "var(--status-critical)" }}>
+            Delete item
+          </button>
+          {confirmingDelete && (
+            <ConfirmDialog
+              title={`Delete ${initial?.title ?? "this item"}?`}
+              message="This can't be undone."
+              confirmLabel="Delete"
+              destructive
+              onConfirm={() => {
+                setConfirmingDelete(false);
+                onDelete();
+              }}
+              onClose={() => setConfirmingDelete(false)}
+            />
+          )}
+        </FormGroup>
+      )}
+
+      {error && (
+        <span className="text-xs" style={{ color: "var(--status-critical)" }}>
+          {error}
+        </span>
+      )}
     </FormShell>
   );
 }
@@ -251,8 +273,8 @@ function ItemRow({
 
   return (
     <div
-      className="group flex items-start gap-3 border-t py-3 first:border-t-0"
-      style={{ borderColor: "var(--gridline)", touchAction: "pan-y" }}
+      className="group flex items-start gap-3 px-3.5 py-3"
+      style={{ touchAction: "pan-y" }}
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
     >
@@ -349,7 +371,7 @@ function CategoryRow({
       <CategoryGlyph accent={accent} icon={category.icon} />
       <div className="flex min-w-0 flex-1 flex-col">
         <TruncatedTooltip text={category.name} className="text-sm font-medium" style={{ color: "var(--text-primary)" }} />
-        <TruncatedTooltip text={category.items.length === 0 ? "Empty" : preview} className="text-xs" style={{ color: "var(--text-muted)" }} />
+        {preview && <TruncatedTooltip text={preview} className="text-xs" style={{ color: "var(--text-muted)" }} />}
       </div>
       <span className="shrink-0 text-xs font-medium tabular-nums" style={{ color: "var(--text-muted)" }}>
         {category.items.length}
@@ -401,9 +423,9 @@ function CategoryDetail({
         <PrimaryAction label="Add link" accent={accent} onClick={onAddItem} />
       </div>
 
-      <div className="flex flex-col rounded-xl border px-3" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
+      <div className="inset-rows flex flex-col rounded-xl border" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
         {category.items.length === 0 ? (
-          <p className="py-4 text-sm" style={{ color: "var(--text-muted)" }}>
+          <p className="px-3.5 py-4 text-sm" style={{ color: "var(--text-muted)" }}>
             Nothing here yet — add the first link.
           </p>
         ) : (
@@ -646,17 +668,18 @@ export function WishlistBoard({
 
   const openCategory = (id: string): WishlistCategory | null => categories.find((c) => c.id === id) ?? null;
 
-  const shownCategories = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return categories;
-    return categories.filter(
-      (c) =>
-        c.name.toLowerCase().includes(q) ||
-        c.items.some(
-          (i) => i.title.toLowerCase().includes(q) || i.url.toLowerCase().includes(q) || (i.note ?? "").toLowerCase().includes(q),
+  const query = search.trim().toLowerCase();
+  const searchResults = useMemo(() => {
+    if (!query) return [];
+    return categories
+      .map((c) => ({
+        category: c,
+        items: c.items.filter(
+          (i) => i.title.toLowerCase().includes(query) || i.url.toLowerCase().includes(query) || (i.note ?? "").toLowerCase().includes(query),
         ),
-    );
-  }, [categories, search]);
+      }))
+      .filter((g) => g.items.length > 0);
+  }, [categories, query]);
 
   // The item form opens as a sheet over the view it was started from.
   const base: View =
@@ -680,6 +703,14 @@ export function WishlistBoard({
             else await onCreateItem(finalInput);
             setView(view.returnTo === "detail" ? { mode: "detail", categoryId } : { mode: "list" });
           }}
+          onDelete={
+            view.editing
+              ? () => {
+                  void onDeleteItem(view.editing!.id);
+                  setView(base);
+                }
+              : undefined
+          }
           onCancel={() => setView(base)}
         />
     ) : null;
@@ -759,11 +790,38 @@ export function WishlistBoard({
         <ErrorState what="your wishlist" />
       ) : categories.length === 0 ? (
         <InlineEmpty title="Nothing saved yet" description="Tap New item to save a link you both might want — group it under a list as you go." />
-      ) : shownCategories.length === 0 ? (
-        <InlineEmpty title="Nothing matches that search" description="Try a different term." />
+      ) : query ? (
+        searchResults.length === 0 ? (
+          <InlineEmpty title="Nothing matches that search" description="Try a different term." />
+        ) : (
+          <div className="flex flex-col gap-4">
+            {searchResults.map(({ category, items }) => {
+              const catAccent = accentByCategoryId.get(category.id) ?? accent;
+              return (
+                <section key={category.id} className="flex flex-col gap-1.5">
+                  <h3 className="px-3.5 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
+                    {category.name}
+                  </h3>
+                  <div className="inset-rows flex flex-col rounded-xl border" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
+                    {items.map((item) => (
+                      <ItemRow
+                        key={item.id}
+                        item={item}
+                        accent={catAccent}
+                        forLabel={forLabel}
+                        onEdit={() => setView({ mode: "item", categoryId: category.id, editing: item, returnTo: "list" })}
+                        onDelete={() => void onDeleteItem(item.id)}
+                      />
+                    ))}
+                  </div>
+                </section>
+              );
+            })}
+          </div>
+        )
       ) : (
-        <div className="inset-rows overflow-hidden rounded-xl border" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
-          {shownCategories.map((category) => (
+        <div className="inset-rows overflow-hidden rounded-xl border [--row-inset:3.75rem]" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
+          {categories.map((category) => (
             <CategoryRow
               key={category.id}
               category={category}
