@@ -237,7 +237,8 @@ function TimelineNote({
 /** The one tappable list row, Reminders-style: a leading circle that fills
  * in the accent with a tick once logged (or shows a symptom's 1–3 level),
  * then the name. The circle sits in a 28px slot so names line up with the
- * category name in a grouped list. */
+ * category name in a grouped list. A busy row ignores taps without dimming,
+ * so a tick lands without the row flashing. */
 function TapRow({
   name,
   accent,
@@ -262,7 +263,7 @@ function TapRow({
       disabled={busy}
       aria-pressed={on}
       aria-label={label}
-      className="flex min-h-11 w-full items-center gap-3 px-3.5 py-2.5 text-left text-sm leading-snug transition-colors hover:bg-black/[0.04] active:bg-black/5 disabled:opacity-50 lg:gap-2.5 lg:px-2.5 lg:pointer-fine:min-h-8 lg:pointer-fine:py-1.5"
+      className="flex min-h-11 w-full items-center gap-3 px-3.5 py-2.5 text-left text-sm leading-snug transition-colors hover:bg-black/[0.04] active:bg-black/5 lg:gap-2.5 lg:px-2.5 lg:pointer-fine:min-h-8 lg:pointer-fine:py-1.5"
       style={{ color: "var(--text-primary)" }}
     >
       <span className="flex w-7 shrink-0 justify-center lg:w-auto" aria-hidden="true">
@@ -585,6 +586,10 @@ export default function LogPage() {
   const foodProductsRef = useOverflowFade<HTMLDivElement>();
   const loggedMealRef = useOverflowFade<HTMLDivElement>();
 
+  // Events from a refresh that ran right after this page reloaded its own
+  // snapshot, so the reload effect doesn't read the cache again.
+  const ownRefreshEvents = useRef(new WeakSet<object>());
+
   const loadSnapshot = useCallback(async () => {
     // One atomic read against withDataLock — pullFromCloud's destructive
     // clear-and-repopulate is also one withDataLock call (see sync.ts), so
@@ -608,7 +613,7 @@ export default function LogPage() {
     // `events` array each time), not just status changes — a background
     // pull that refills the cache leaves status at "ready", and this page
     // would otherwise keep showing what it read before the pull landed.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (ownRefreshEvents.current.has(events)) return;
     void loadSnapshot();
   }, [status, events, loadSnapshot]);
 
@@ -1134,9 +1139,13 @@ export default function LogPage() {
     });
   }
 
+  /** Shows the write as soon as this page has re-read the cache; the app-wide
+   * refresh follows in the background so the row isn't held waiting on it. */
   async function refreshAfterWrite() {
     await loadSnapshot();
-    await refresh();
+    void refresh().then((produced) => {
+      if (produced) ownRefreshEvents.current.add(produced);
+    });
   }
 
   /** A barely-there tick when a tap registers a log — logging is a

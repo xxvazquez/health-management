@@ -66,7 +66,9 @@ interface DataContextValue {
    * own doc comment), most commonly a duplicate-name conflict. The local
    * record itself is never touched by this. */
   discardSync: (id: string) => Promise<void>;
-  refresh: () => Promise<void>;
+  /** Re-reads the local cache; resolves with the events it set, or null
+   * when nothing was loaded. */
+  refresh: () => Promise<CanonicalEvent[] | null>;
   clearData: () => Promise<void>;
 }
 
@@ -129,11 +131,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   // moment its snapshot is ready; it just no longer blanks the screen first.
   const hasLoadedOnceRef = useRef(false);
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (): Promise<CanonicalEvent[] | null> => {
     // Wait for the session check to resolve before deciding what to show —
     // otherwise a signed-in visitor would flash the demo dataset for a
     // moment before their real data replaces it.
-    if (authLoading) return;
+    if (authLoading) return null;
     if (!hasLoadedOnceRef.current) setStatus("loading");
     hasLoadedOnceRef.current = true;
     try {
@@ -189,9 +191,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           setPeriodLogs(periodLogsNow.length > 0 ? periodLogsNow : demo.periodLogs);
           setIsDemoData(true);
           setStatus("ready");
-          return;
+          return scoped;
         }
-        setEvents([]);
+        const none: CanonicalEvent[] = [];
+        setEvents(none);
         setWorkoutLogs(workoutLogsNow);
         setStoolLogs([]);
         setPeriodLogs(periodLogsNow);
@@ -202,7 +205,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         // logs behind the shared EmptyState on the Workout page; same idea
         // extended to period-only accounts.
         setStatus(workoutLogsNow.length > 0 || periodLogsNow.length > 0 ? "ready" : "empty");
-        return;
+        return none;
       }
       const { items, logs, diary, stoolLogsAll } = snapshot;
       const scoped = buildCanonicalEvents(items, logs, diary).filter((e) => e.date >= ANALYTICS_START_DATE);
@@ -212,9 +215,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       setPeriodLogs(periodLogsNow);
       setIsDemoData(false);
       setStatus("ready");
+      return scoped;
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
       setStatus("error");
+      return null;
     }
   }, [session, authLoading]);
 
