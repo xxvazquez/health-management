@@ -638,7 +638,9 @@ export default function LogPage() {
   // Every write handler below no-ops while this is true; the only way to
   // actually log something is to sign in or log something for real first.
   const demo = useMemo(() => (isDemoData ? buildDemoDataset() : null), [isDemoData]);
-  const dataReady = demo !== null || snapshot !== null;
+  // A cache with nothing logged waits for DataContext to decide on demo data, so a
+  // signed-out first paint doesn't flash a blank day.
+  const dataReady = demo !== null || (snapshot !== null && (snapshot.logs.length > 0 || status !== "loading"));
   const effective = useMemo<Snapshot>(
     () =>
       demo
