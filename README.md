@@ -99,6 +99,7 @@ Sections: **Food · Symptoms · Supplements · Habits · Stool · Workout · Cyc
 #### Coffee
 
 - Grouped by brand. Tapping a coffee opens a per-cup form: café, price, brewing, water temperature, tasting notes.
+- The day's cups list below the coffees; tap one to edit or delete it.
 
 ### Trends
 

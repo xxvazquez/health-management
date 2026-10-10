@@ -8,7 +8,9 @@ import { CoffeeLogDialog, type CoffeeLogDraft } from "@/components/log/CoffeeLog
 import type { ResolvedCoffeeOptions } from "@/lib/useCoffeeOptions";
 import type { CoffeeItem, CoffeeLog, NewCoffeeItemInput, NewCoffeeLogInput } from "@/lib/supabase/coffee";
 import { combineDateAndTime } from "@/lib/logCandidates";
-import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { FormGroup } from "@/components/ui/FormGroup";
+import { ChevronIcon } from "@/components/ui/icons";
+import { useToday } from "@/lib/useToday";
 
 /** What the dialog's draft plus the page's own date/time resolve to — the
  * caller (log/page.tsx) fills in `itemId`/`date` since only it knows which
@@ -62,7 +64,6 @@ export function CoffeeTab({
   const [dialogItem, setDialogItem] = useState<CoffeeItem | null>(null);
   const [editingLog, setEditingLog] = useState<CoffeeLog | null>(null);
   const [pending, setPending] = useState<string | null>(null);
-  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const active = useMemo(() => items.filter((it) => !it.isArchived), [items]);
 
@@ -101,7 +102,9 @@ export function CoffeeTab({
       .filter((it): it is CoffeeItem => !!it);
   }, [logs, active]);
 
-  const itemById = useMemo(() => new Map(active.map((it) => [it.id, it])), [active]);
+  // Every coffee, archived included, so an older cup still shows its name and opens.
+  const itemById = useMemo(() => new Map(items.map((it) => [it.id, it])), [items]);
+  const today = useToday();
   const todaysLogs = useMemo(() => logs.filter((l) => l.date === date).sort((a, b) => b.loggedAt.localeCompare(a.loggedAt)), [logs, date]);
 
   function openForNewLog(item: CoffeeItem) {
@@ -301,75 +304,39 @@ export function CoffeeTab({
       )}
 
       {todaysLogs.length > 0 && (
-        <div className="flex flex-col gap-2">
-          <p className="px-0.5 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
-            Logged today
-          </p>
-          <div className="flex flex-col gap-2">
-            {todaysLogs.map((log) => {
-              const it = itemById.get(log.itemId);
-              const busy = pending === log.id;
-              return (
-                <div
-                  key={log.id}
-                  className="flex flex-wrap items-center gap-3 rounded-xl border p-2.5"
-                  style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", opacity: busy ? 0.5 : 1 }}
-                >
-                  <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                    <span className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
-                      {it?.name ?? "Coffee"}
-                      {log.brewingMethod && (
-                        <span className="ml-1.5 font-normal" style={{ color: "var(--text-secondary)" }}>
-                          · {log.brewingMethod}
-                        </span>
-                      )}
-                    </span>
-                    <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-                      {new Date(log.loggedAt).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}
-                      {log.cafe && ` · ${log.cafe}`}
-                      {log.price != null && ` · ${log.price} ${currency}`}
-                    </span>
-                    {log.characteristics.length > 0 && (
-                      <span className="text-xs" style={{ color: "var(--text-secondary)" }}>
-                        {log.characteristics.join(", ")}
-                      </span>
-                    )}
-                  </div>
-                  {!isDemoData && (
-                    <div className="flex shrink-0 items-center gap-2.5">
-                      <button type="button" onClick={() => openForEdit(log)} disabled={busy} className="text-xs font-medium disabled:opacity-40" style={{ color: "var(--ui-accent)" }}>
-                        Edit
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setConfirmDeleteId(log.id)}
-                        disabled={busy}
-                        aria-label="Delete entry"
-                        className="text-xs font-medium disabled:opacity-40"
-                        style={{ color: "var(--text-secondary)" }}
-                      >
-                        Delete
-                      </button>
-                      {confirmDeleteId === log.id && (
-                        <ConfirmDialog
-                          title="Delete this cup?"
-                          message="This can't be undone."
-                          confirmLabel="Delete"
-                          destructive
-                          onConfirm={() => {
-                            setConfirmDeleteId(null);
-                            void onDeleteLog(log.id);
-                          }}
-                          onClose={() => setConfirmDeleteId(null)}
-                        />
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
+        <FormGroup title={date === today ? "Logged today" : "Logged"}>
+          {todaysLogs.map((log) => {
+            const it = itemById.get(log.itemId);
+            const detail = [
+              new Date(log.loggedAt).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }),
+              log.cafe,
+              log.price != null ? `${log.price} ${currency}` : null,
+              log.characteristics.join(", ") || null,
+            ].filter(Boolean);
+            return (
+              <button
+                key={log.id}
+                type="button"
+                onClick={() => openForEdit(log)}
+                disabled={pending === log.id}
+                className="flex min-h-11 w-full items-center gap-3 px-3.5 py-2 text-left disabled:opacity-50"
+              >
+                <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                  <span className="text-sm" style={{ color: "var(--text-primary)" }}>
+                    {it?.name ?? "Coffee"}
+                    {log.brewingMethod && <span style={{ color: "var(--text-secondary)" }}> · {log.brewingMethod}</span>}
+                  </span>
+                  <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+                    {detail.join(" · ")}
+                  </span>
+                </span>
+                <span className="shrink-0" style={{ color: "var(--text-muted)" }}>
+                  <ChevronIcon size={14} />
+                </span>
+              </button>
+            );
+          })}
+        </FormGroup>
       )}
 
       <CoffeeLogDialog
@@ -385,6 +352,9 @@ export function CoffeeTab({
         accent={accent}
         isDemoData={isDemoData}
         onSave={handleDialogSave}
+        onDelete={async () => {
+          if (editingLog) await onDeleteLog(editingLog.id);
+        }}
       />
     </div>
   );

@@ -3,6 +3,7 @@
 import { Chip as BaseChip } from "@/components/ui/Chip";
 import { useState } from "react";
 import { Sheet } from "@/components/ui/Sheet";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Field } from "@/components/ui/Field";
 import { FormGroup } from "@/components/ui/FormGroup";
 import { ROW_INLINE_CLS, ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
@@ -64,6 +65,7 @@ export function CoffeeLogDialog({
   accent,
   isDemoData,
   onSave,
+  onDelete,
 }: {
   open: boolean;
   onClose: () => void;
@@ -75,11 +77,14 @@ export function CoffeeLogDialog({
   accent: string;
   isDemoData: boolean;
   onSave: (draft: CoffeeLogDraft) => Promise<void>;
+  /** Removes the cup being edited. */
+  onDelete: () => Promise<void>;
 }) {
   const [draft, setDraft] = useState<CoffeeLogDraft>(blankDraft);
   // The typed text, so "4." or "4,5" can be finished before it's a number.
   const [priceText, setPriceText] = useState("");
   const [saving, setSaving] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   const [wasOpen, setWasOpen] = useState(open);
   if (open !== wasOpen) {
@@ -221,6 +226,34 @@ export function CoffeeLogDialog({
           />
         </Field>
       </FormGroup>
+
+      {editingLog && !isDemoData && (
+        <FormGroup>
+          <button
+            type="button"
+            onClick={() => setConfirmingDelete(true)}
+            disabled={saving}
+            className="flex min-h-11 w-full items-center justify-center px-3.5 text-sm disabled:opacity-40"
+            style={{ color: "var(--status-critical)" }}
+          >
+            Delete
+          </button>
+        </FormGroup>
+      )}
+      {confirmingDelete && (
+        <ConfirmDialog
+          title="Delete this cup?"
+          message="This can't be undone."
+          confirmLabel="Delete"
+          destructive
+          onConfirm={() => {
+            setConfirmingDelete(false);
+            onClose();
+            void onDelete();
+          }}
+          onClose={() => setConfirmingDelete(false)}
+        />
+      )}
 
       {isDemoData && (
         <p className="px-3.5 text-xs" style={{ color: "var(--text-muted)" }}>
