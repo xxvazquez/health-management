@@ -9,6 +9,7 @@ import { FormGroup } from "@/components/ui/FormGroup";
 import { ROW_INLINE_CLS, ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
 import { AutoGrowTextarea } from "@/components/ui/AutoGrowTextarea";
 import { NumberStepper } from "@/components/ui/NumberStepper";
+import { CloseIcon } from "@/components/ui/icons";
 import { TimeField } from "@/components/ui/TimeField";
 import { defaultLogTimeValue } from "@/lib/logCandidates";
 import { parseNum } from "@/lib/aggregations/labs";
@@ -186,17 +187,39 @@ export function CoffeeLogDialog({
           <span className="text-sm" style={{ color: "var(--text-primary)" }}>
             Water temp · optional
           </span>
-          <NumberStepper
-            value={draft.waterTempC ?? 94}
-            onChange={(v) => setDraft((d) => ({ ...d, waterTempC: v }))}
-            unit="°C"
-            accent={accent}
-            step={1}
-            bigStep={10}
-            min={60}
-            max={100}
-            compact
-          />
+          {draft.waterTempC == null ? (
+            <button
+              type="button"
+              onClick={() => setDraft((d) => ({ ...d, waterTempC: 94 }))}
+              className="hit-slop text-sm font-medium"
+              style={{ color: accent }}
+            >
+              Add
+            </button>
+          ) : (
+            <span className="flex items-center gap-1">
+              <NumberStepper
+                value={draft.waterTempC}
+                onChange={(v) => setDraft((d) => ({ ...d, waterTempC: v }))}
+                unit="°C"
+                accent={accent}
+                step={1}
+                bigStep={10}
+                min={60}
+                max={100}
+                compact
+              />
+              <button
+                type="button"
+                onClick={() => setDraft((d) => ({ ...d, waterTempC: null }))}
+                aria-label="Clear water temperature"
+                className="tap-target flex h-8 w-8 items-center justify-center"
+                style={{ color: "var(--text-muted)" }}
+              >
+                <CloseIcon size={12} />
+              </button>
+            </span>
+          )}
         </div>
         <Field label="Price · optional" inline>
           <input
