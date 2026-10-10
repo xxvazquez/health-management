@@ -117,8 +117,9 @@ export function demoItemIdentity(rawName: string): string {
   return `${DEMO_ID_PREFIX}${rawName.toLowerCase().replace(/\s+/g, "-")}`;
 }
 
-/** Demo mode's sample plan, starting this week: Monday is a light 80% day
- * for both lifts, Wednesday heavy squat, Friday medium for both. */
+/** Demo mode's sample plan, starting this week at the demo history's
+ * level: Monday at base for both lifts, Wednesday heavy squat, Friday a
+ * little over base for both. */
 export function buildDemoWorkoutPlans(): WorkoutPlan[] {
   const start = mondayOf(isoDate(new Date()));
   const squat = demoItemIdentity("Squat");
@@ -132,15 +133,15 @@ export function buildDemoWorkoutPlans(): WorkoutPlan[] {
       holdOnMiss: true,
       isActive: true,
       lifts: [
-        { itemId: squat, baseKg: 90, weeklyGainKg: 2.5 },
-        { itemId: bench, baseKg: 55, weeklyGainKg: 1.25 },
+        { itemId: squat, baseKg: 92.5, weeklyGainKg: 2.5 },
+        { itemId: bench, baseKg: 57.5, weeklyGainKg: 1.25 },
       ],
       sessions: [
-        { weekday: 1, itemId: squat, mode: "percent", amount: 80 },
-        { weekday: 1, itemId: bench, mode: "percent", amount: 80 },
-        { weekday: 3, itemId: squat, mode: "kg", amount: 10 },
-        { weekday: 5, itemId: squat, mode: "kg", amount: 5 },
-        { weekday: 5, itemId: bench, mode: "kg", amount: 5 },
+        { weekday: 1, itemId: squat, mode: "kg", amount: 0 },
+        { weekday: 1, itemId: bench, mode: "kg", amount: 0 },
+        { weekday: 3, itemId: squat, mode: "kg", amount: 5 },
+        { weekday: 5, itemId: squat, mode: "kg", amount: 2.5 },
+        { weekday: 5, itemId: bench, mode: "kg", amount: 2.5 },
       ],
       createdDate: start,
     },
