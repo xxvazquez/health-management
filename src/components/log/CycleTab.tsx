@@ -80,8 +80,14 @@ function Chip({ label, active, onClick, accent, icon }: { label: string; active:
   );
 }
 
-function formatFullDate(date: string): string {
-  return new Date(`${date}T00:00:00`).toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" });
+function formatShortDate(date: string): string {
+  return new Date(`${date}T00:00:00`).toLocaleDateString(undefined, { day: "numeric", month: "short" });
+}
+
+/** "13–16 Oct", or "30 Oct – 2 Nov" across a month boundary. */
+function formatDateSpan(from: string, to: string): string {
+  if (from.slice(0, 7) === to.slice(0, 7)) return `${Number(from.slice(8))}–${formatShortDate(to)}`;
+  return `${formatShortDate(from)} – ${formatShortDate(to)}`;
 }
 
 function formatMonthLabel(monthDate: string): string {
@@ -300,32 +306,22 @@ export function CycleTab({
     <div className="flex flex-col gap-3">
       {/* ---- 1. Current cycle ---- */}
       <FormGroup>
-        <div className="flex flex-wrap items-baseline justify-between gap-2 px-3.5 py-3">
-          <div className="flex flex-col gap-1">
-            {status.onPeriod || status.cycleDay != null ? (
-              <span
-                className="inline-flex w-fit items-center text-sm font-semibold"
-                style={{ color: accent }}
-              >
-                {status.onPeriod ? `Day ${status.periodDay} of your period` : `Day ${status.cycleDay} of your cycle`}
-              </span>
-            ) : (
-              <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
-                No period recorded yet
-              </p>
-            )}
-            <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
-              {formatFullDate(date)}
-              {date === today && " · Today"}
-            </p>
-          </div>
+        <div className="flex min-h-11 flex-col justify-center gap-0.5 px-3.5 py-2.5">
+          {status.onPeriod || status.cycleDay != null ? (
+            <span className="text-sm font-semibold" style={{ color: accent }}>
+              {status.onPeriod ? `Day ${status.periodDay} of your period` : `Day ${status.cycleDay} of your cycle`}
+            </span>
+          ) : (
+            <span className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
+              No period recorded yet
+            </span>
+          )}
           {!status.onPeriod && predictions[0] && (
-            <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
-              Next period expected {formatFullDate(predictions[0].expectedStart)}
-              {predictions[0].earliestStart !== predictions[0].latestStart && (
-                <> (between {formatFullDate(predictions[0].earliestStart)} and {formatFullDate(predictions[0].latestStart)})</>
-              )}
-            </p>
+            <span className="text-xs" style={{ color: "var(--text-secondary)" }}>
+              Next period around {formatShortDate(predictions[0].expectedStart)}
+              {predictions[0].earliestStart !== predictions[0].latestStart &&
+                ` · ${formatDateSpan(predictions[0].earliestStart, predictions[0].latestStart)}`}
+            </span>
           )}
         </div>
       </FormGroup>
