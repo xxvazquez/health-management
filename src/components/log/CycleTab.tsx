@@ -233,6 +233,12 @@ export function CycleTab({
   onNavigateToDate: (date: string) => void;
 }) {
   const [calendarMonth, setCalendarMonth] = useState(() => monthStart(date));
+  // Stepping the day into another month brings the calendar along.
+  const [shownDateMonth, setShownDateMonth] = useState(() => monthStart(date));
+  if (monthStart(date) !== shownDateMonth) {
+    setShownDateMonth(monthStart(date));
+    setCalendarMonth(monthStart(date));
+  }
   const [pending, setPending] = useState(false);
 
   const runs = useMemo(() => groupIntoPeriodRuns(periodLogs), [periodLogs]);
