@@ -2400,22 +2400,27 @@ export default function LogPage() {
 
   return (
     <div className="flex flex-col gap-3">
-      {/* Phones: title + date, then the tabs, then the tab's controls.
+      {/* Phones: title + date, then the tab's controls; a section's actions
+       * sit beside "‹ Log" so a long title keeps its row.
        * Desktop: the controls move up into the title row so the tabs get a
        * full row of their own. */}
       <div className="flex flex-wrap items-center gap-x-2 gap-y-3">
         {/* Phones drill down: a section opens from the list with "‹ Log"
          * above its own title, like an iOS navigation stack. */}
         {tab !== "summary" && (
-          <button
-            type="button"
-            onClick={backToList}
-            className="-mb-2 -ml-1 flex min-h-9 w-full items-center gap-0.5 text-sm font-medium lg:hidden"
-            style={{ color: "var(--ui-accent)" }}
-          >
-            <ChevronIcon dir="left" size={16} />
-            Log
-          </button>
+          <div className="-mb-1 flex w-full items-center gap-2 lg:hidden">
+            <button
+              type="button"
+              onClick={backToList}
+              className="-ml-1 mr-auto flex min-h-9 items-center gap-0.5 text-sm font-medium"
+              style={{ color: "var(--ui-accent)" }}
+            >
+              <ChevronIcon dir="left" size={16} />
+              Log
+            </button>
+            {sectionMenu.length > 0 && <MoreMenu label="Section actions" items={sectionMenu} />}
+            <MobileMenuButton />
+          </div>
         )}
         <h1
           className="min-w-0 flex-1 text-2xl leading-tight font-semibold tracking-tight lg:mr-2 lg:flex-none"
@@ -2459,11 +2464,11 @@ export default function LogPage() {
           </button>
         </div>
         {sectionMenu.length > 0 && (
-          <div className="lg:order-4">
+          <div className={`lg:order-4 ${tab !== "summary" ? "max-lg:hidden" : ""}`}>
             <MoreMenu label="Section actions" items={sectionMenu} />
           </div>
         )}
-        <MobileMenuButton />
+        {tab === "summary" && <MobileMenuButton />}
 
         {isDemoData && <DemoNotice className="order-4 -mt-2 w-full" />}
 

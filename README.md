@@ -54,6 +54,7 @@ Sections: **Food · Symptoms · Supplements · Habits · Stool · Workout · Cyc
 #### Getting around
 
 - **Phone:** Log opens on a list of your sections, each with the day's count (or the period day for Cycle), with Summary below it. "‹ Log", Back, an edge swipe or tapping Log in the tab bar returns to the list.
+- A section's ⋯ menu and the app menu sit on the "‹ Log" row, so its title and date share the next one.
 - **Desktop:** the sections are a tab row, with Summary as the last tab.
 - Log reopens on whichever section you used last.
 - Left open overnight, Log moves on to the new day; after 30+ minutes away the meal is re-picked for the time of day.
