@@ -23,7 +23,7 @@ import { CardPaymentsCard, ExpensesCard } from "@/components/manage/ExpensesCard
 import { FoodTargetsCard } from "@/components/manage/FoodTargetsCard";
 import { HiddenLinksCard } from "@/components/manage/HiddenLinksCard";
 import { UsualTimesCard } from "@/components/manage/UsualTimesCard";
-import { AddRow, CollapsibleManageCard, GROUP_CLS, GROUP_STYLE, GroupNote, ManageNavContext, SaveFailedNote, OpenInLogRow, RowMenu, SECTION_PARENT, SectionRow, useSectionMode } from "@/components/manage/ManageSection";
+import { AddRow, CollapsibleManageCard, SheetAddRow, GROUP_CLS, GROUP_STYLE, GroupNote, ManageNavContext, SaveFailedNote, OpenInLogRow, RowMenu, SECTION_PARENT, SectionRow, useSectionMode } from "@/components/manage/ManageSection";
 import { SwitchKnob } from "@/components/ui/Switch";
 import { TimePicker } from "@/components/ui/DatePicker";
 import { useItemActions, type ManageableItem } from "@/lib/useItemActions";
@@ -55,6 +55,10 @@ import { MarkerForm } from "@/components/doctors/labForms";
 import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
 import { Sheet } from "@/components/ui/Sheet";
 import { FormGroup } from "@/components/ui/FormGroup";
+import { FormShell } from "@/components/ui/FormShell";
+import { Field } from "@/components/ui/Field";
+import { AutoGrowTextarea } from "@/components/ui/AutoGrowTextarea";
+import { ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
 import { useSetAppearance } from "@/components/ThemeManager";
 import {
   useThemePref,
@@ -625,21 +629,17 @@ function LabResultsCard({ searchQuery }: { searchQuery: string }) {
             <h3 className="px-4 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
               Markers
             </h3>
-            {!isSearching && !addingMarker && (
-              <div className={GROUP_CLS} style={GROUP_STYLE}>
-                <button type="button" onClick={() => setAddingMarker(true)} className="flex min-h-11 w-full items-center px-3.5 text-left text-sm" style={{ color: "var(--ui-accent)" }}>
-                  New marker
-                </button>
-              </div>
-            )}
-
             {addingMarker && <MarkerForm labs={labs} accent={accent} fields="all" onSaved={() => setAddingMarker(false)} onCancel={() => setAddingMarker(false)} />}
 
-            {markers.length === 0 && !addingMarker ? (
-              <GroupNote>No markers yet.</GroupNote>
+            {groups.length === 0 ? (
+              !isSearching && (
+                <ul className={GROUP_CLS} style={GROUP_STYLE}>
+                  <SheetAddRow label="New marker" onClick={() => setAddingMarker(true)} />
+                </ul>
+              )
             ) : (
               <div className="flex flex-col gap-4">
-                {groups.map((g) => (
+                {groups.map((g, gi) => (
                   <div key={g.id || "__none__"} className="flex flex-col gap-1.5">
                     <p className="px-4 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
                       {g.name}
@@ -704,6 +704,7 @@ function LabResultsCard({ searchQuery }: { searchQuery: string }) {
                           </li>
                         );
                       })}
+                      {!isSearching && gi === groups.length - 1 && <SheetAddRow label="New marker" onClick={() => setAddingMarker(true)} />}
                     </ul>
                   </div>
                 ))}
@@ -1698,13 +1699,9 @@ function DoctorsCard({ searchQuery }: { searchQuery: string }) {
   const { linkedItem } = useContext(ManageNavContext);
   const [editingId, setEditingId] = useState<string | null>(linkedItem);
   const [adding, setAdding] = useState(false);
-  const [newName, setNewName] = useState("");
-  const [newSpecialty, setNewSpecialty] = useState("");
-  const [busy, setBusy] = useState(false);
 
   const query = searchQuery.trim().toLowerCase();
   const isSearching = query.length > 0;
-  const accent = "var(--ui-accent)";
 
   const specialtyOptions = resolveSpecialtyNames(
     api.specialties.data,
@@ -1715,29 +1712,22 @@ function DoctorsCard({ searchQuery }: { searchQuery: string }) {
   const shown = api.doctors.data.filter((d) => !isSearching || d.name.toLowerCase().includes(query) || d.specialty.toLowerCase().includes(query));
   if (isSearching && shown.length === 0) return null;
 
-  async function withBusy(fn: () => Promise<void>) {
-    setBusy(true);
-    try {
-      await fn();
-    } catch (err) {
-      console.error("doctor action failed", err);
-    } finally {
-      setBusy(false);
-    }
-  }
+  const editing = api.doctors.data.find((d) => d.id === editingId) ?? null;
+  const editingVisits = editing ? api.appointments.data.filter((a) => a.doctorId === editing.id).length : 0;
 
-  async function handleAdd(e: FormEvent) {
-    e.preventDefault();
-    const name = newName.trim();
-    if (!name) return;
-    const specialty = newSpecialty.trim();
-    await withBusy(async () => {
-      await api.doctors.create({ name, specialty, rating: null, language: null, notes: null });
-      if (specialty) await api.specialties.ensure([specialty]);
-    });
-    setNewName("");
-    setNewSpecialty("");
-    setAdding(false);
+  async function save(doctor: Doctor | null, input: DoctorDraft) {
+    if (doctor) {
+      const patch: DoctorPatch = {};
+      if (input.name !== doctor.name) patch.name = input.name;
+      if (input.specialty !== doctor.specialty) patch.specialty = input.specialty;
+      if (input.rating !== doctor.rating) patch.rating = input.rating;
+      if (input.language !== doctor.language) patch.language = input.language;
+      if (input.notes !== doctor.notes) patch.notes = input.notes;
+      if (Object.keys(patch).length > 0) await api.doctors.edit(doctor.id, patch);
+    } else {
+      await api.doctors.create(input);
+    }
+    if (input.specialty) await api.specialties.ensure([input.specialty]);
   }
 
   return (
@@ -1747,230 +1737,157 @@ function DoctorsCard({ searchQuery }: { searchQuery: string }) {
       forceOpen={isSearching}
       bare
     >
-      {!isSearching &&
-        (adding ? (
-          <form onSubmit={handleAdd} className={GROUP_CLS} style={GROUP_STYLE}>
-            <input
-              autoFocus
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              placeholder="Doctor name"
-              aria-label="Doctor name"
-              maxLength={120}
-              className="min-h-11 w-full bg-transparent px-3.5 text-sm outline-none"
-              style={{ color: "var(--text-primary)" }}
-            />
-            <div className="flex min-h-11 items-center gap-3 px-3.5 py-1.5">
-              <span className="w-20 shrink-0 text-sm" style={{ color: "var(--text-primary)" }}>
-                Specialty
-              </span>
-              <div className="min-w-0 flex-1">
-                <ComboBox value={newSpecialty} onChange={setNewSpecialty} options={specialtyOptions} placeholder="Specialty" accent={accent} />
-              </div>
-            </div>
-            <div className="flex min-h-11 items-center justify-between px-3.5">
-              <button type="button" onClick={() => setAdding(false)} className="min-h-11 text-sm" style={{ color: "var(--text-secondary)" }}>
-                Cancel
-              </button>
-              <button type="submit" disabled={!newName.trim() || busy} className="min-h-11 text-sm font-semibold disabled:opacity-40" style={{ color: "var(--ui-accent)" }}>
-                Add doctor
-              </button>
-            </div>
-          </form>
-        ) : (
-          <div className={GROUP_CLS} style={GROUP_STYLE}>
-            <button type="button" onClick={() => setAdding(true)} className="flex min-h-11 w-full items-center px-3.5 text-left text-sm" style={{ color: "var(--ui-accent)" }}>
-              Add doctor
-            </button>
-          </div>
-        ))}
-
-      {api.doctors.data.length === 0 ? (
-        <GroupNote>No doctors yet — add one above, or while logging an appointment.</GroupNote>
-      ) : (
-        <ul className={GROUP_CLS} style={GROUP_STYLE}>
-          {shown.map((doctor) => {
-            const visits = api.appointments.data.filter((a) => a.doctorId === doctor.id).length;
-            const editing = editingId === doctor.id;
-            return (
-              <li key={doctor.id}>
-                <button
-                  type="button"
-                  onClick={() => setEditingId(editing ? null : doctor.id)}
-                  className="flex min-h-11 w-full items-center gap-3 px-3.5 py-1 text-left"
-                >
-                  <span className="min-w-0 flex-1">
-                    <DoctorName name={doctor.name} rating={doctor.rating} className="text-sm" />
-                    <span className="ml-2 text-xs" style={{ color: "var(--text-muted)" }}>
-                      {doctor.specialty || "No specialty"}
-                    </span>
+      <ul className={GROUP_CLS} style={GROUP_STYLE}>
+        {shown.map((doctor) => {
+          const visits = api.appointments.data.filter((a) => a.doctorId === doctor.id).length;
+          return (
+            <li key={doctor.id}>
+              <button type="button" onClick={() => setEditingId(doctor.id)} className="flex min-h-11 w-full items-center gap-3 px-3.5 py-1 text-left">
+                <span className="min-w-0 flex-1">
+                  <DoctorName name={doctor.name} rating={doctor.rating} className="text-sm" />
+                  <span className="ml-2 text-xs" style={{ color: "var(--text-muted)" }}>
+                    {doctor.specialty || "No specialty"}
                   </span>
-                  <span className="shrink-0 text-sm tabular-nums" style={{ color: "var(--text-muted)" }}>
-                    {visits} visit{visits === 1 ? "" : "s"}
-                  </span>
-                  <span className="shrink-0" style={{ color: "var(--text-muted)" }}><ChevronIcon dir={editing ? "down" : "right"} size={14} /></span>
-                </button>
-
-                {editing && (
-                  <DoctorEditRow
-                    doctor={doctor}
-                    specialtyOptions={specialtyOptions}
-                    accent={accent}
-                    canDelete={visits === 0}
-                    onEdit={(patch) => void api.doctors.edit(doctor.id, patch)}
-                    onEnsureSpecialty={(name) => void api.specialties.ensure([name])}
-                    onDelete={() =>
-                      void withBusy(async () => {
-                        await api.doctors.remove(doctor.id);
-                        setEditingId(null);
-                      })
-                    }
-                  />
-                )}
-              </li>
-            );
-          })}
-        </ul>
-      )}
+                </span>
+                <span className="shrink-0 text-sm tabular-nums" style={{ color: "var(--text-muted)" }}>
+                  {visits} visit{visits === 1 ? "" : "s"}
+                </span>
+                <span className="shrink-0" style={{ color: "var(--text-muted)" }}>
+                  <ChevronIcon dir="right" size={14} />
+                </span>
+              </button>
+            </li>
+          );
+        })}
+        {!isSearching && <SheetAddRow label="Add doctor" onClick={() => setAdding(true)} />}
+      </ul>
       <GroupNote>Visit history lives on Health &rarr; Doctors.</GroupNote>
+
+      {(adding || editing) && (
+        <DoctorSheet
+          key={editing?.id ?? "new"}
+          doctor={adding ? null : editing}
+          specialtyOptions={specialtyOptions}
+          canDelete={editingVisits === 0}
+          onSave={(input) => save(adding ? null : editing, input)}
+          onDelete={async () => {
+            if (editing) await api.doctors.remove(editing.id);
+          }}
+          onClose={() => {
+            setAdding(false);
+            setEditingId(null);
+          }}
+        />
+      )}
     </CollapsibleManageCard>
   );
 }
 
-function DoctorEditRow({
+type DoctorDraft = { name: string; specialty: string; rating: number | null; language: Doctor["language"]; notes: string | null };
+
+function DoctorSheet({
   doctor,
   specialtyOptions,
-  accent,
   canDelete,
-  onEdit,
-  onEnsureSpecialty,
+  onSave,
   onDelete,
+  onClose,
 }: {
-  doctor: Doctor;
+  doctor: Doctor | null;
   specialtyOptions: string[];
-  accent: string;
   canDelete: boolean;
-  onEdit: (patch: DoctorPatch) => void;
-  onEnsureSpecialty: (name: string) => void;
-  onDelete: () => void;
+  onSave: (input: DoctorDraft) => Promise<void>;
+  onDelete: () => Promise<void>;
+  onClose: () => void;
 }) {
-  const [nameDraft, setNameDraft] = useState(doctor.name);
-  const [notesDraft, setNotesDraft] = useState(doctor.notes ?? "");
-
-  function commitName() {
-    const next = nameDraft.trim();
-    if (next && next !== doctor.name) onEdit({ name: next });
-    else setNameDraft(doctor.name);
-  }
-
-  function commitNotes() {
-    const next = notesDraft.trim();
-    if (next !== (doctor.notes ?? "")) onEdit({ notes: next || null });
-  }
-
-  const labelCls = "w-20 shrink-0 text-sm";
-  return (
-    <div className="inset-rows border-t" style={{ borderColor: "var(--gridline)" }}>
-      <label className="flex min-h-11 items-center gap-3 px-3.5">
-        <span className={labelCls} style={{ color: "var(--text-primary)" }}>
-          Name
-        </span>
-        <input
-          value={nameDraft}
-          onChange={(e) => setNameDraft(e.target.value)}
-          onBlur={commitName}
-          maxLength={120}
-          className={FIELD_VALUE}
-          style={FIELD_VALUE_STYLE}
-        />
-      </label>
-      <div className="flex min-h-11 items-center gap-3 px-3.5 py-1.5">
-        <span className={labelCls} style={{ color: "var(--text-primary)" }}>
-          Specialty
-        </span>
-        <div className="min-w-0 flex-1">
-          <ComboBox
-            value={doctor.specialty}
-            onChange={(specialty) => {
-              onEdit({ specialty });
-              if (specialty.trim()) onEnsureSpecialty(specialty.trim());
-            }}
-            options={specialtyOptions}
-            placeholder="Specialty"
-            accent={accent}
-          />
-        </div>
-      </div>
-      <div className="flex min-h-11 items-center gap-3 px-3.5 py-1.5">
-        <span className={labelCls} style={{ color: "var(--text-primary)" }}>
-          Rating
-        </span>
-        <div className="flex min-w-0 flex-1 justify-end">
-          <RatingChips value={doctor.rating} onChange={(rating) => onEdit({ rating })} accent={accent} />
-        </div>
-      </div>
-      <div className="flex min-h-11 items-center gap-3 px-3.5 py-1.5">
-        <span className={labelCls} style={{ color: "var(--text-primary)" }}>
-          Language
-        </span>
-        <div className="flex min-w-0 flex-1 justify-end">
-          <LanguageChips value={doctor.language} onChange={(language) => onEdit({ language })} accent={accent} />
-        </div>
-      </div>
-      <label className="flex flex-col gap-1 px-3.5 py-2.5">
-        <span className="text-sm" style={{ color: "var(--text-primary)" }}>
-          Notes
-        </span>
-        <textarea
-          value={notesDraft}
-          onChange={(e) => setNotesDraft(e.target.value)}
-          onBlur={commitNotes}
-          rows={2}
-          placeholder="Anything worth remembering about them"
-          className="resize-y bg-transparent text-sm outline-none"
-          style={{ color: "var(--text-secondary)" }}
-        />
-      </label>
-      <div className="flex min-h-11 items-center px-3.5">
-        <DoctorDeleteButton
-          name={doctor.name}
-          disabled={!canDelete}
-          hint={!canDelete ? "Delete their appointments first" : undefined}
-          onDelete={onDelete}
-        />
-      </div>
-    </div>
-  );
-}
-
-function DoctorDeleteButton({ name, disabled, hint, onDelete }: { name: string; disabled: boolean; hint?: string; onDelete: () => void }) {
+  const accent = "var(--ui-accent)";
+  const [name, setName] = useState(doctor?.name ?? "");
+  const [specialty, setSpecialty] = useState(doctor?.specialty ?? "");
+  const [rating, setRating] = useState(doctor?.rating ?? null);
+  const [language, setLanguage] = useState(doctor?.language ?? null);
+  const [notes, setNotes] = useState(doctor?.notes ?? "");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
-  if (disabled) {
-    return (
-      <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-        {hint}
-      </p>
-    );
+
+  async function run(action: () => Promise<void>) {
+    setBusy(true);
+    setError(null);
+    try {
+      await action();
+      onClose();
+    } catch (err) {
+      console.error("doctor save failed", err);
+      setError("Couldn't save that — try again in a moment.");
+      setBusy(false);
+    }
   }
+
+  function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    if (!name.trim() || busy) return;
+    void run(() => onSave({ name: name.trim(), specialty: specialty.trim(), rating, language, notes: notes.trim() || null }));
+  }
+
   return (
-    <>
-      <button type="button" onClick={() => setConfirming(true)} className="min-h-11 text-sm" style={{ color: "var(--status-critical)" }}>
-        Delete doctor
-      </button>
-      {confirming && (
+    <FormShell title={doctor ? "Edit doctor" : "New doctor"} onSubmit={handleSubmit} onCancel={onClose} submitLabel={doctor ? "Done" : "Add"} submitDisabled={!name.trim() || busy} busy={busy}>
+      <div className="flex flex-col gap-4">
+        <FormGroup>
+          <Field label="Name">
+            <input autoFocus={!doctor} value={name} onChange={(e) => setName(e.target.value)} placeholder="Doctor name" maxLength={120} className={ROW_TEXT_CLS} style={ROW_STYLE} />
+          </Field>
+          <Field label="Specialty" plain>
+            <ComboBox value={specialty} onChange={setSpecialty} options={specialtyOptions} placeholder="Specialty" accent={accent} />
+          </Field>
+          <div className="flex min-h-11 items-center justify-between gap-3 px-3.5 py-1.5">
+            <span className="text-sm" style={{ color: "var(--text-primary)" }}>
+              Rating
+            </span>
+            <RatingChips value={rating} onChange={setRating} accent={accent} />
+          </div>
+          <div className="flex min-h-11 items-center justify-between gap-3 px-3.5 py-1.5">
+            <span className="text-sm" style={{ color: "var(--text-primary)" }}>
+              Language
+            </span>
+            <LanguageChips value={language} onChange={setLanguage} accent={accent} />
+          </div>
+          <Field label="Notes">
+            <AutoGrowTextarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} maxRows={8} placeholder="Anything worth remembering about them" className={`${ROW_TEXT_CLS} resize-none`} style={ROW_STYLE} />
+          </Field>
+        </FormGroup>
+        {error && (
+          <p className="px-3.5 text-sm" style={{ color: "var(--status-critical)" }}>
+            {error}
+          </p>
+        )}
+        {doctor && (
+          <FormGroup footer={canDelete ? undefined : "Delete their appointments first."}>
+            <button
+              type="button"
+              onClick={() => setConfirming(true)}
+              disabled={!canDelete || busy}
+              className="flex min-h-11 w-full items-center justify-center text-sm disabled:opacity-40"
+              style={{ color: "var(--status-critical)" }}
+            >
+              Delete doctor
+            </button>
+          </FormGroup>
+        )}
+      </div>
+      {confirming && doctor && (
         <ConfirmDialog
-          title={`Delete ${name}?`}
+          title={`Delete ${doctor.name}?`}
           message="This can't be undone."
           confirmLabel="Delete"
           destructive
           onConfirm={() => {
             setConfirming(false);
-            onDelete();
+            void run(onDelete);
           }}
           onClose={() => setConfirming(false)}
         />
       )}
-    </>
+    </FormShell>
   );
 }
 
@@ -1988,23 +1905,25 @@ function FoodProductsCard({
   const products = useFoodProducts();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
-  const [newName, setNewName] = useState("");
 
   const query = searchQuery.trim().toLowerCase();
   const isSearching = query.length > 0;
-  const accent = "var(--ui-accent)";
 
   const shown = products.data.filter((p) => !isSearching || p.name.toLowerCase().includes(query) || (p.brand ?? "").toLowerCase().includes(query));
   if (isSearching && shown.length === 0) return null;
 
-  async function handleAdd(e: FormEvent) {
-    e.preventDefault();
-    const name = newName.trim();
-    if (!name) return;
-    const created = await products.create({ name, brand: null, ingredientItemIds: [] });
-    setNewName("");
-    setAdding(false);
-    if (created) setEditingId(created.id);
+  const editing = products.data.find((p) => p.id === editingId) ?? null;
+
+  async function save(product: FoodProduct | null, input: { name: string; brand: string | null; ingredientItemIds: string[] }) {
+    if (!product) {
+      await products.create(input);
+      return;
+    }
+    const patch: FoodProductPatch = {};
+    if (input.name !== product.name) patch.name = input.name;
+    if (input.brand !== product.brand) patch.brand = input.brand;
+    if (input.ingredientItemIds.join() !== product.ingredientItemIds.join()) patch.ingredientItemIds = input.ingredientItemIds;
+    if (Object.keys(patch).length > 0) await products.edit(product.id, patch);
   }
 
   return (
@@ -2014,215 +1933,178 @@ function FoodProductsCard({
       forceOpen={isSearching}
       bare
     >
-      {!isSearching &&
-        (adding ? (
-          <form onSubmit={handleAdd} className={GROUP_CLS} style={GROUP_STYLE}>
-            <input
-              autoFocus
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              placeholder="Product name, e.g. Green smoothie"
-              aria-label="Product name"
-              maxLength={120}
-              className="min-h-11 w-full bg-transparent px-3.5 text-sm outline-none"
-              style={{ color: "var(--text-primary)" }}
-            />
-            <div className="flex min-h-11 items-center justify-between px-3.5">
-              <button type="button" onClick={() => setAdding(false)} className="min-h-11 text-sm" style={{ color: "var(--text-secondary)" }}>
-                Cancel
-              </button>
-              <button type="submit" disabled={!newName.trim()} className="min-h-11 text-sm font-semibold disabled:opacity-40" style={{ color: "var(--ui-accent)" }}>
-                Add product
-              </button>
-            </div>
-          </form>
-        ) : (
-          <div className={GROUP_CLS} style={GROUP_STYLE}>
-            <button type="button" onClick={() => setAdding(true)} className="flex min-h-11 w-full items-center px-3.5 text-left text-sm" style={{ color: "var(--ui-accent)" }}>
-              Add product
-            </button>
-          </div>
-        ))}
-
-      {products.data.length === 0 ? (
-        <GroupNote>No products yet — add one above, e.g. a bought smoothie or meal with a fixed set of ingredients.</GroupNote>
-      ) : (
-        <ul className={GROUP_CLS} style={GROUP_STYLE}>
-          {shown.map((product) => {
-            const editing = editingId === product.id;
-            return (
-              <li key={product.id}>
-                <button
-                  type="button"
-                  onClick={() => setEditingId(editing ? null : product.id)}
-                  className="flex min-h-11 w-full items-center gap-3 px-3.5 py-1 text-left"
-                >
-                  <span className="min-w-0 flex-1">
-                    <span className="text-sm" style={{ color: "var(--text-primary)" }}>
-                      {product.name}
-                    </span>
-                    {product.brand && (
-                      <span className="ml-2 text-xs" style={{ color: "var(--text-muted)" }}>
-                        {product.brand}
-                      </span>
-                    )}
+      <ul className={GROUP_CLS} style={GROUP_STYLE}>
+        {shown.map((product) => (
+          <li key={product.id}>
+            <button type="button" onClick={() => setEditingId(product.id)} className="flex min-h-11 w-full items-center gap-3 px-3.5 py-1 text-left">
+              <span className="min-w-0 flex-1">
+                <span className="text-sm" style={{ color: "var(--text-primary)" }}>
+                  {product.name}
+                </span>
+                {product.brand && (
+                  <span className="ml-2 text-xs" style={{ color: "var(--text-muted)" }}>
+                    {product.brand}
                   </span>
-                  <span className="shrink-0 text-sm tabular-nums" style={{ color: "var(--text-muted)" }}>
-                    {product.ingredientItemIds.length} ingredient{product.ingredientItemIds.length === 1 ? "" : "s"}
-                  </span>
-                  <span className="shrink-0" style={{ color: "var(--text-muted)" }}><ChevronIcon dir={editing ? "down" : "right"} size={14} /></span>
-                </button>
-
-                {editing && (
-                  <ProductEditRow
-                    product={product}
-                    foodItems={foodItems}
-                    accent={accent}
-                    onEdit={(patch) => void products.edit(product.id, patch)}
-                    onResolveIngredient={onResolveIngredient}
-                    onDelete={() =>
-                      void (async () => {
-                        await products.remove(product.id);
-                        setEditingId(null);
-                      })()
-                    }
-                  />
                 )}
-              </li>
-            );
-          })}
-        </ul>
-      )}
+              </span>
+              <span className="shrink-0 text-sm tabular-nums" style={{ color: "var(--text-muted)" }}>
+                {product.ingredientItemIds.length} ingredient{product.ingredientItemIds.length === 1 ? "" : "s"}
+              </span>
+              <span className="shrink-0" style={{ color: "var(--text-muted)" }}>
+                <ChevronIcon dir="right" size={14} />
+              </span>
+            </button>
+          </li>
+        ))}
+        {!isSearching && <SheetAddRow label="Add product" onClick={() => setAdding(true)} />}
+      </ul>
       <GroupNote>Logging a product logs all its ingredients at once.</GroupNote>
+
+      {(adding || editing) && (
+        <ProductSheet
+          key={editing?.id ?? "new"}
+          product={adding ? null : editing}
+          foodItems={foodItems}
+          onResolveIngredient={onResolveIngredient}
+          onSave={(input) => save(adding ? null : editing, input)}
+          onDelete={async () => {
+            if (editing) await products.remove(editing.id);
+          }}
+          onClose={() => {
+            setAdding(false);
+            setEditingId(null);
+          }}
+        />
+      )}
     </CollapsibleManageCard>
   );
 }
 
-function ProductEditRow({
+function ProductSheet({
   product,
   foodItems,
-  accent,
-  onEdit,
   onResolveIngredient,
+  onSave,
   onDelete,
+  onClose,
 }: {
-  product: FoodProduct;
+  product: FoodProduct | null;
   foodItems: ManageableItem[];
-  accent: string;
-  onEdit: (patch: FoodProductPatch) => void;
   onResolveIngredient: (name: string) => Promise<string>;
-  onDelete: () => void;
+  onSave: (input: { name: string; brand: string | null; ingredientItemIds: string[] }) => Promise<void>;
+  onDelete: () => Promise<void>;
+  onClose: () => void;
 }) {
-  const [nameDraft, setNameDraft] = useState(product.name);
-  const [brandDraft, setBrandDraft] = useState(product.brand ?? "");
-  const [ingredientDraft, setIngredientDraft] = useState("");
-  const [confirming, setConfirming] = useState(false);
-  // Newly-created ingredients by this row, keyed by id — a fallback for the
-  // chip label ahead of `foodItems` catching up with the item this row just
-  // created (that list is owned by the Manage page and only refreshes after
-  // its own async reload settles).
-  const [justAddedNames, setJustAddedNames] = useState<Map<string, string>>(new Map());
+  const accent = "var(--ui-accent)";
   const nameById = useMemo(() => new Map(foodItems.map((i) => [i.itemIdentity, i.item])), [foodItems]);
+  const [name, setName] = useState(product?.name ?? "");
+  const [brand, setBrand] = useState(product?.brand ?? "");
+  // A typed ingredient that isn't a food yet has no id; it's created on save.
+  const [ingredients, setIngredients] = useState<{ id: string | null; name: string }[]>(
+    () => product?.ingredientItemIds.map((id) => ({ id, name: nameById.get(id) ?? "Unknown item" })) ?? [],
+  );
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState(false);
 
-  function commitName() {
-    const next = nameDraft.trim();
-    if (next && next !== product.name) onEdit({ name: next });
-    else setNameDraft(product.name);
+  function addIngredient(raw: string) {
+    const trimmed = raw.trim();
+    if (!trimmed || ingredients.some((i) => i.name.toLowerCase() === trimmed.toLowerCase())) return;
+    const known = foodItems.find((i) => i.item.toLowerCase() === trimmed.toLowerCase());
+    setIngredients((prev) => [...prev, { id: known?.itemIdentity ?? null, name: known?.item ?? trimmed }]);
   }
 
-  function commitBrand() {
-    const next = brandDraft.trim();
-    if (next !== (product.brand ?? "")) onEdit({ brand: next || null });
+  async function run(action: () => Promise<void>) {
+    setBusy(true);
+    setError(null);
+    try {
+      await action();
+      onClose();
+    } catch (err) {
+      console.error("food product save failed", err);
+      setError("Couldn't save that — try again in a moment.");
+      setBusy(false);
+    }
   }
 
-  async function addIngredient(name: string) {
-    setIngredientDraft("");
-    const trimmed = name.trim();
-    if (!trimmed) return;
-    const itemId = await onResolveIngredient(trimmed);
-    setJustAddedNames((prev) => new Map(prev).set(itemId, trimmed));
-    if (!product.ingredientItemIds.includes(itemId)) onEdit({ ingredientItemIds: [...product.ingredientItemIds, itemId] });
-  }
-
-  function removeIngredient(itemId: string) {
-    onEdit({ ingredientItemIds: product.ingredientItemIds.filter((id) => id !== itemId) });
+  function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    if (!name.trim() || busy) return;
+    void run(async () => {
+      const ids: string[] = [];
+      for (const i of ingredients) {
+        const id = i.id ?? (await onResolveIngredient(i.name));
+        if (!ids.includes(id)) ids.push(id);
+      }
+      await onSave({ name: name.trim(), brand: brand.trim() || null, ingredientItemIds: ids });
+    });
   }
 
   return (
-    <div className="inset-rows border-t" style={{ borderColor: "var(--gridline)" }}>
-      <label className="flex min-h-11 items-center gap-3 px-3.5">
-        <span className="w-16 shrink-0 text-sm" style={{ color: "var(--text-primary)" }}>
-          Name
-        </span>
-        <input
-          value={nameDraft}
-          onChange={(e) => setNameDraft(e.target.value)}
-          onBlur={commitName}
-          maxLength={120}
-          className={FIELD_VALUE}
-          style={FIELD_VALUE_STYLE}
-        />
-      </label>
-      <label className="flex min-h-11 items-center gap-3 px-3.5">
-        <span className="w-16 shrink-0 text-sm" style={{ color: "var(--text-primary)" }}>
-          Brand
-        </span>
-        <input
-          value={brandDraft}
-          onChange={(e) => setBrandDraft(e.target.value)}
-          onBlur={commitBrand}
-          maxLength={120}
-          placeholder="Optional"
-          className={FIELD_VALUE}
-          style={FIELD_VALUE_STYLE}
-        />
-      </label>
-
-      {product.ingredientItemIds.map((itemId) => (
-        <div key={itemId} className="flex min-h-11 py-2 items-center gap-3 px-3.5">
-          <span className="min-w-0 flex-1 text-sm" style={{ color: "var(--text-primary)" }}>
-            {nameById.get(itemId) ?? justAddedNames.get(itemId) ?? "Unknown item"}
-          </span>
-          <button
-            type="button"
-            onClick={() => removeIngredient(itemId)}
-            aria-label="Remove ingredient"
-            className="tap-target flex h-7 w-7 shrink-0 items-center justify-center"
-            style={{ color: "var(--text-muted)" }}
-          >
-            <CloseIcon size={13} />
-          </button>
-        </div>
-      ))}
-      <div className="px-3.5 py-2">
-        <ComboBox
-          value={ingredientDraft}
-          onChange={(name) => void addIngredient(name)}
-          options={foodItems.map((i) => i.item)}
-          placeholder="Add an ingredient…"
-          accent={accent}
-        />
-      </div>
-
-      <div className="flex min-h-11 items-center px-3.5">
-        <button type="button" onClick={() => setConfirming(true)} className="min-h-11 text-sm" style={{ color: "var(--status-critical)" }}>
-          Delete product
-        </button>
-        {confirming && (
-          <ConfirmDialog
-            title={`Delete ${product.name}?`}
-            message="This can't be undone."
-            confirmLabel="Delete"
-            destructive
-            onConfirm={() => {
-              setConfirming(false);
-              onDelete();
-            }}
-            onClose={() => setConfirming(false)}
-          />
+    <FormShell title={product ? "Edit product" : "New product"} onSubmit={handleSubmit} onCancel={onClose} submitLabel={product ? "Done" : "Add"} submitDisabled={!name.trim() || busy} busy={busy}>
+      <div className="flex flex-col gap-4">
+        <FormGroup>
+          <Field label="Name">
+            <input autoFocus={!product} value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Green smoothie" maxLength={120} className={ROW_TEXT_CLS} style={ROW_STYLE} />
+          </Field>
+          <Field label="Brand">
+            <input value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="Optional" maxLength={120} className={ROW_TEXT_CLS} style={ROW_STYLE} />
+          </Field>
+        </FormGroup>
+        <FormGroup title="Ingredients">
+          {ingredients.map((i) => (
+            <div key={i.id ?? i.name} className="flex min-h-11 items-center gap-3 px-3.5 py-2">
+              <span className="min-w-0 flex-1 text-sm" style={{ color: "var(--text-primary)" }}>
+                {i.name}
+              </span>
+              <button
+                type="button"
+                onClick={() => setIngredients((prev) => prev.filter((x) => x !== i))}
+                aria-label={`Remove ${i.name}`}
+                className="tap-target flex h-7 w-7 shrink-0 items-center justify-center"
+                style={{ color: "var(--text-muted)" }}
+              >
+                <CloseIcon size={13} />
+              </button>
+            </div>
+          ))}
+          <div className="px-3.5 py-2">
+            <ComboBox value="" onChange={addIngredient} options={foodItems.map((i) => i.item)} placeholder="Add an ingredient…" accent={accent} />
+          </div>
+        </FormGroup>
+        {error && (
+          <p className="px-3.5 text-sm" style={{ color: "var(--status-critical)" }}>
+            {error}
+          </p>
+        )}
+        {product && (
+          <FormGroup>
+            <button
+              type="button"
+              onClick={() => setConfirming(true)}
+              disabled={busy}
+              className="flex min-h-11 w-full items-center justify-center text-sm disabled:opacity-40"
+              style={{ color: "var(--status-critical)" }}
+            >
+              Delete product
+            </button>
+          </FormGroup>
         )}
       </div>
-    </div>
+      {confirming && product && (
+        <ConfirmDialog
+          title={`Delete ${product.name}?`}
+          message="This can't be undone."
+          confirmLabel="Delete"
+          destructive
+          onConfirm={() => {
+            setConfirming(false);
+            void run(onDelete);
+          }}
+          onClose={() => setConfirming(false)}
+        />
+      )}
+    </FormShell>
   );
 }
 
@@ -3358,7 +3240,7 @@ export default function ManagePage() {
     if (existing) return existing.itemIdentity;
     const guessed = lookupFoodCategory(trimmed, categoryNamesByType.food);
     const category = guessed ?? categoryNamesByType.food[0];
-    const categoryId = await ensureCategoryId("food", category);
+    const categoryId = isDemoData ? demoEnsureCategoryId("food", category) : await ensureCategoryId("food", category);
     const item: RawItem = {
       identity: crypto.randomUUID(),
       itemType: "food",
@@ -3370,6 +3252,10 @@ export default function ManagePage() {
       reminderTime: null,
       unit: null,
     };
+    if (isDemoData) {
+      setDemoItems((prev) => [...prev, item]);
+      return item.identity;
+    }
     await putItemAndSync(item);
     await refresh();
     return item.identity;

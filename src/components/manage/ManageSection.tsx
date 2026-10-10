@@ -176,6 +176,18 @@ export function AddRow({
   );
 }
 
+/** The last row of a Settings list that opens a sheet to add one — for
+ * records that need more than a name. */
+export function SheetAddRow({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <li className="list-none">
+      <button type="button" onClick={onClick} className="flex min-h-11 w-full items-center px-3.5 text-left text-sm" style={{ color: "var(--ui-accent)" }}>
+        {label}
+      </button>
+    </li>
+  );
+}
+
 /** A Settings section. In the list it is a single row; opened, its
  * children fill the screen under the page's back button and title; while
  * searching it expands in place under its own heading. */
