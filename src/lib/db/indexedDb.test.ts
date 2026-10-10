@@ -17,6 +17,7 @@ import {
   readSnapshot,
   writeSnapshot,
   clearSnapshots,
+  replaceAllDataInternal,
 } from "./indexedDb";
 import type { RawItem, RawLog, RawWorkoutLog } from "@/lib/types";
 
@@ -343,5 +344,35 @@ describe("hasOutboxEntriesForTables", () => {
     expect(await hasOutboxEntriesForTables("user-obt-1", ["care_entries", "care_entry_specialties"])).toBe(true);
     expect(await hasOutboxEntriesForTables("user-obt-1", ["lab_results"])).toBe(false);
     expect(await hasOutboxEntriesForTables("user-obt-other", ["care_entries"])).toBe(false);
+  });
+});
+
+describe("replaceAllDataInternal", () => {
+  it("swaps the cached rows for the new set and leaves the outbox alone", async () => {
+    const item = makeItem;
+    const log = (identity: string, itemIdentity: string) => makeLog(identity, { itemIdentity });
+    await withDataLock(async () => {
+      await putItemInternal(item("replace-old"));
+      await putLogInternal(log("replace-old-log", "replace-old"));
+      await enqueueOutboxInternal({ userId: "replace-user", table: "food_logs", op: "upsert", payload: { id: "q" }, dedupeKey: "food_logs:q" });
+    });
+
+    await withDataLock(() =>
+      replaceAllDataInternal({
+        categories: [],
+        items: [item("replace-new")],
+        logs: [log("replace-new-log", "replace-new")],
+        diary: [],
+        stoolLogs: [],
+        workoutLogs: [makeWorkoutLog("replace-w", "Squat")],
+        periodLogs: [],
+      }),
+    );
+
+    expect(await getItem("replace-old")).toBeUndefined();
+    expect(await getItem("replace-new")).toBeDefined();
+    expect([...(await getItemIdentitiesWithHistory())]).toEqual(["replace-new"]);
+    expect((await getAllWorkoutLogs()).map((w) => w.id)).toEqual(["replace-w"]);
+    expect(await hasOutboxEntriesForTables("replace-user", ["food_logs"])).toBe(true);
   });
 });

@@ -646,6 +646,35 @@ export async function clearAllDataInternal(): Promise<void> {
   await Promise.all([...stores.map((s) => tx.objectStore(s).clear()), tx.done]);
 }
 
+export type CacheContents = {
+  categories: RawCategory[];
+  items: RawItem[];
+  logs: RawLog[];
+  diary: RawDiaryEntry[];
+  stoolLogs: RawStoolLog[];
+  workoutLogs: RawWorkoutLog[];
+  periodLogs: RawPeriodLog[];
+};
+
+/** Replaces the whole cache (never the outbox) in one transaction: a
+ * per-row transaction for every record takes seconds on a phone, which
+ * kept the data lock — and every tap behind it — waiting on each pull.
+ * Raw, unlocked write — for pullFromCloud's own use only. */
+export async function replaceAllDataInternal(data: CacheContents): Promise<void> {
+  const db = await getDb();
+  const stores = ["items", "logs", "diary", "categories", "stoolLogs", "workoutLogs", "periodLogs"] as const;
+  const tx = db.transaction(stores, "readwrite");
+  const writes: Promise<unknown>[] = stores.map((s) => tx.objectStore(s).clear());
+  for (const row of data.categories) writes.push(tx.objectStore("categories").put(row));
+  for (const row of data.items) writes.push(tx.objectStore("items").put(row));
+  for (const row of data.logs) writes.push(tx.objectStore("logs").put(row));
+  for (const row of data.diary) writes.push(tx.objectStore("diary").put(row));
+  for (const row of data.stoolLogs) writes.push(tx.objectStore("stoolLogs").put(row));
+  for (const row of data.workoutLogs) writes.push(tx.objectStore("workoutLogs").put(row));
+  for (const row of data.periodLogs) writes.push(tx.objectStore("periodLogs").put(row));
+  await Promise.all([...writes, tx.done]);
+}
+
 export function clearAllData(): Promise<void> {
   return withDataLock(clearAllDataInternal);
 }

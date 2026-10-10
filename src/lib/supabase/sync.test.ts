@@ -17,22 +17,12 @@ vi.mock("./outbox", () => ({
 // the same instances. Each mocked *Internal writer:
 //  - records into `calls` synchronously, so ordering is exact and doesn't
 //    depend on timing;
-//  - tracks how many calls of its own kind are simultaneously in flight
-//    (`concurrency[label].max`) — this is the real regression guard. A
-//    `for`-loop with a proper `await` can never have more than one call of
-//    the same kind in flight at once; the original bug (`ITEM_TYPES.forEach`
-//    + `void putItemInternal(...)`) fires every call in the same synchronous
-//    tick without waiting, so several of them are simultaneously "in
-//    flight" — max concurrency > 1 is a direct, timing-independent signal
-//    of a missing await, immune to being masked by unrelated slower work
-//    elsewhere in the same function;
 //  - only pushes into `committed` after an artificial delay, so a whole-
 //    function completeness check (see below) still has something to assert
 //    on too.
 const {
   calls,
   committed,
-  concurrency,
   mockClearAllDataInternal,
   mockPutItemInternal,
   mockPutLogInternal,
@@ -43,23 +33,16 @@ const {
 } = vi.hoisted(() => {
   const calls: string[] = [];
   const committed: string[] = [];
-  const concurrency: Record<string, { current: number; max: number }> = {};
   function delayedRecorder(label: string, idOf: (arg: never) => string) {
-    concurrency[label] = { current: 0, max: 0 };
     return vi.fn(async (arg: never) => {
       calls.push(label);
-      const c = concurrency[label];
-      c.current++;
-      c.max = Math.max(c.max, c.current);
       await new Promise((r) => setTimeout(r, 5));
-      c.current--;
       committed.push(`${label}:${idOf(arg)}`);
     });
   }
   return {
     calls,
     committed,
-    concurrency,
     mockClearAllDataInternal: vi.fn(async () => {
       calls.push("clear");
     }),
@@ -72,6 +55,20 @@ const {
   };
 });
 
+// The pull installs its snapshot through one replaceAllDataInternal call;
+// this replays it through the recorders above so the tests can see each row.
+const mockReplaceAllDataInternal = vi.hoisted(() =>
+  vi.fn(async (data: import("@/lib/db/indexedDb").CacheContents) => {
+    await mockClearAllDataInternal();
+    for (const row of data.categories) await mockPutCategoryInternal(row as never);
+    for (const row of data.items) await mockPutItemInternal(row as never);
+    for (const row of data.logs) await mockPutLogInternal(row as never);
+    for (const row of data.diary) await mockPutDiaryEntryInternal(row as never);
+    for (const row of data.stoolLogs) await mockPutStoolLogInternal(row as never);
+    for (const row of data.workoutLogs) await mockPutWorkoutLogInternal(row as never);
+  }),
+);
+
 vi.mock("@/lib/db/indexedDb", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/db/indexedDb")>();
   return {
@@ -79,6 +76,7 @@ vi.mock("@/lib/db/indexedDb", async (importOriginal) => {
     // withDataLock is left as the real implementation — these tests rely
     // on its genuine mutual-exclusion behavior, not a fake.
     clearAllDataInternal: mockClearAllDataInternal,
+    replaceAllDataInternal: mockReplaceAllDataInternal,
     putItemInternal: mockPutItemInternal,
     putLogInternal: mockPutLogInternal,
     putDiaryEntryInternal: mockPutDiaryEntryInternal,
@@ -206,10 +204,6 @@ beforeEach(async () => {
   for (const entry of await getAllOutboxEntries()) await deleteOutboxEntryById(entry.id);
   calls.length = 0;
   committed.length = 0;
-  for (const key of Object.keys(concurrency)) {
-    concurrency[key].current = 0;
-    concurrency[key].max = 0;
-  }
   mockClearAllDataInternal.mockClear();
   mockPutItemInternal.mockClear();
   mockPutLogInternal.mockClear();
@@ -249,26 +243,6 @@ describe("pullFromCloud", () => {
       ]),
     );
     expect(committed.length).toBe(11);
-  });
-
-  it("never has more than one write of the same kind in flight at once — each row is awaited before the next one starts", async () => {
-    // This is the direct regression guard for the original bug: a
-    // `ITEM_TYPES.forEach(...)` loop calling `void putItemInternal(item)`
-    // fires every call in the same synchronous tick, so several would be
-    // "in flight" (past the mock's synchronous prelude, not yet past its
-    // artificial delay) at once. A proper `for` loop with `await` can only
-    // ever have one in flight per kind, regardless of how long anything
-    // else in the function takes — unlike a wall-clock check, this can't
-    // be masked by slower, correctly-awaited work elsewhere in the pull.
-    const { pullFromCloud } = await import("./sync");
-    await pullFromCloud();
-
-    expect(concurrency.item.max).toBe(1);
-    expect(concurrency.log.max).toBe(1);
-    expect(concurrency.diary.max).toBe(1);
-    expect(concurrency.category.max).toBe(1);
-    expect(concurrency.stool.max).toBe(1);
-    expect(concurrency.workout.max).toBe(1);
   });
 
   it("clears before writing anything, and every write happens after the clear", async () => {

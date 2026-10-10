@@ -25,7 +25,7 @@ import {
   deleteWorkoutLogByIdInternal,
   putPeriodLogInternal,
   deletePeriodLogByIdInternal,
-  clearAllDataInternal,
+  replaceAllDataInternal,
   enqueueOutboxInternal,
   withDataLock,
   getAllItems,
@@ -958,7 +958,7 @@ export async function pullFromCloud(): Promise<void> {
   // land after the snapshot below is fetched but before the lock is
   // acquired to install it, and the destructive clear+repopulate would then
   // wipe that write from IndexedDB without it being in the snapshot (its
-  // outbox entry survives — clearAllDataInternal never touches that store —
+  // outbox entry survives — replaceAllDataInternal never touches that store —
   // so nothing is permanently lost, but the record would be invisible in
   // the local cache until a later pull happens to land cleanly).
   //
@@ -1004,11 +1004,11 @@ export async function pullFromCloud(): Promise<void> {
     // refresh()) can never observe a half-repopulated cache. Every write
     // below uses the *Internal (unlocked) variant, since this callback
     // already holds the lock — calling the locked public versions here
-    // would deadlock. Note clearAllDataInternal does NOT touch the outbox
+    // would deadlock. Note replaceAllDataInternal does NOT touch the outbox
     // store — a pending sync operation is never erased by a pull.
     //
     // buildRepairPlan reads dead-lettered entries and, for a 23503 item
-    // upsert, the item itself — which MUST happen before clearAllDataInternal
+    // upsert, the item itself — which MUST happen before replaceAllDataInternal
     // below, since a dead-lettered item's own upsert never reached Supabase
     // and would otherwise be silently wiped by the clear before there was
     // any chance to read (and repair) it. See applyRepairPlan's own doc
@@ -1017,33 +1017,26 @@ export async function pullFromCloud(): Promise<void> {
     const installed = await withDataLock(async () => {
       if (await hasOutboxEntriesSinceInternal(userId, pullStartedAt)) return false;
 
-      await clearAllDataInternal();
-
-      for (const row of categoryRows) await putCategoryInternal(categoryFromRow(row));
-
-      for (let i = 0; i < ITEM_TYPES.length; i++) {
-        for (const row of itemsByType[i]) await putItemInternal(itemFromRow(row, ITEM_TYPES[i], categoryNameById));
-      }
-      for (const row of workoutItemRows) await putItemInternal(itemFromRow(row, "workout", categoryNameById));
-
-      for (let i = 0; i < ITEM_TYPES.length; i++) {
-        for (const row of logsByType[i]) await putLogInternal(logFromRow(row, ITEM_TYPES[i]));
-      }
-
-      for (let i = 0; i < ITEM_TYPES.length; i++) {
-        for (const row of diaryByType[i]) await putDiaryEntryInternal(diaryFromRow(row, ITEM_TYPES[i]));
-      }
-      for (const row of workoutDiaryRows) await putDiaryEntryInternal(diaryFromRow(row, "workout"));
-
-      for (const row of stoolLogRows) await putStoolLogInternal(stoolLogFromRow(row));
-
-      for (const row of workoutLogRows) {
-        const exercise = workoutItemNameById.get(row.item_id);
-        if (!exercise) continue; // orphaned row (workout item deleted) — shouldn't happen, FK is on delete restrict
-        await putWorkoutLogInternal(workoutLogFromRow(row, exercise));
-      }
-
-      for (const row of periodLogRows) await putPeriodLogInternal(periodLogFromRow(row));
+      await replaceAllDataInternal({
+        categories: categoryRows.map(categoryFromRow),
+        items: [
+          ...ITEM_TYPES.flatMap((t, i) => itemsByType[i].map((row) => itemFromRow(row, t, categoryNameById))),
+          ...workoutItemRows.map((row) => itemFromRow(row, "workout", categoryNameById)),
+        ],
+        logs: ITEM_TYPES.flatMap((t, i) => logsByType[i].map((row) => logFromRow(row, t))),
+        diary: [
+          ...ITEM_TYPES.flatMap((t, i) => diaryByType[i].map((row) => diaryFromRow(row, t))),
+          ...workoutDiaryRows.map((row) => diaryFromRow(row, "workout")),
+        ],
+        stoolLogs: stoolLogRows.map(stoolLogFromRow),
+        // An orphaned row (its workout item deleted) is skipped — the FK is
+        // on delete restrict, so it shouldn't happen.
+        workoutLogs: workoutLogRows.flatMap((row) => {
+          const exercise = workoutItemNameById.get(row.item_id);
+          return exercise ? [workoutLogFromRow(row, exercise)] : [];
+        }),
+        periodLogs: periodLogRows.map(periodLogFromRow),
+      });
 
       await replayUnsyncedWrites(userId, categoryNameById, new Set(repairPlan.toDiscard));
       return true;

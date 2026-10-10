@@ -30,6 +30,7 @@ How Lauva stores, syncs and sends data. For the schema itself see [data-model.md
 - It's then queued in the **outbox**, which drains to Supabase oldest-first with retry and backoff. A drain starts about a second after anything is queued (`setOutboxEnqueueListener`, wired in `DataContext`), as well as on every full sync.
 - Sends time out after 30 s (`withSendTimeout` in `outbox.ts`) and are retried rather than left hanging.
 - One write lock (`withDataLock` in `indexedDb.ts`) stops a pull from landing in the middle of a local write.
+- A pull installs its snapshot in one IndexedDB transaction (`replaceAllDataInternal`), so it holds that lock — and any tap waiting on it — only briefly.
 
 ### When things go wrong
 
