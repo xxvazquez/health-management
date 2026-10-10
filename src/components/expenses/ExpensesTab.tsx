@@ -587,7 +587,7 @@ export function ExpensesTab({ isDemoData, accent }: { isDemoData: boolean; accen
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-2">
-        <div className="flex items-center gap-1.5">
+        <div className="control-surface flex h-9 shrink-0 items-center rounded-[10px]">
           <button
             type="button"
             onClick={() => {
@@ -595,10 +595,10 @@ export function ExpensesTab({ isDemoData, accent }: { isDemoData: boolean; accen
               setFilter(undefined);
             }}
             aria-label="Previous month"
-            className="control-surface hit-slop flex h-9 w-9 items-center justify-center rounded-[10px]"
+            className="hit-slop flex h-9 w-10 items-center justify-center rounded-[10px]"
             style={{ color: accent }}
           >
-            <ChevronIcon dir="left" size={14} />
+            <ChevronIcon dir="left" size={15} />
           </button>
           <MonthPicker
             value={month}
@@ -608,7 +608,13 @@ export function ExpensesTab({ isDemoData, accent }: { isDemoData: boolean; accen
             }}
             max={today.slice(0, 7)}
             title="Month"
-            ariaLabel="Month"
+            renderTrigger={(open, display) => (
+              <button type="button" onClick={open} aria-label="Pick a month" className="flex h-9 min-w-20 shrink-0 items-center justify-center rounded-lg px-1.5">
+                <span className="text-sm font-medium whitespace-nowrap" style={{ color: "var(--text-primary)" }}>
+                  {display}
+                </span>
+              </button>
+            )}
           />
           <button
             type="button"
@@ -618,10 +624,10 @@ export function ExpensesTab({ isDemoData, accent }: { isDemoData: boolean; accen
             }}
             disabled={month >= today.slice(0, 7)}
             aria-label="Next month"
-            className="control-surface hit-slop flex h-9 w-9 items-center justify-center rounded-[10px] disabled:opacity-40"
+            className="hit-slop flex h-9 w-10 items-center justify-center rounded-[10px] disabled:opacity-30"
             style={{ color: accent }}
           >
-            <ChevronIcon dir="right" size={14} />
+            <ChevronIcon dir="right" size={15} />
           </button>
         </div>
         <SearchField value={search} onChange={setSearch} placeholder="Search expenses…" className="order-last w-full sm:order-none sm:w-56" />
