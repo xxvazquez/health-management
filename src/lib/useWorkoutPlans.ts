@@ -4,9 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/lib/supabase/AuthContext";
 import { deleteWorkoutPlan, fetchWorkoutPlans, saveWorkoutPlan, WORKOUT_PLANS_TABLE } from "@/lib/supabase/workoutPlans";
 import { useSnapshotCache } from "@/lib/useSnapshotCache";
-import { demoItemIdentity } from "@/lib/demoData";
-import { todayISO } from "@/components/ui/pickers/dateUtils";
-import { mondayOf, type WorkoutPlan } from "@/lib/workoutPlans";
+import { buildDemoWorkoutPlans } from "@/lib/demoData";
+import type { WorkoutPlan } from "@/lib/workoutPlans";
 
 /** Module-level cache so the Log page and Settings share one plans state
  * across client-side navigation — same pattern as useMeals / useVitals. */
@@ -14,36 +13,6 @@ let cache: { userId: string; plans: WorkoutPlan[] } | null = null;
 
 const PLAN_TABLES = [WORKOUT_PLANS_TABLE] as const;
 const NO_PLANS: WorkoutPlan[] = [];
-
-/** Demo mode's sample plan: Monday is a light 80% day for both lifts,
- * Wednesday heavy squat, Friday medium for both. */
-function buildDemoPlans(): WorkoutPlan[] {
-  const start = mondayOf(todayISO());
-  const squat = demoItemIdentity("Squat");
-  const bench = demoItemIdentity("Bench Press");
-  return [
-    {
-      id: "demo-plan-1",
-      name: "Squat & bench",
-      startDate: start,
-      weeks: 8,
-      holdOnMiss: true,
-      isActive: true,
-      lifts: [
-        { itemId: squat, baseKg: 90, weeklyGainKg: 2.5 },
-        { itemId: bench, baseKg: 55, weeklyGainKg: 1.25 },
-      ],
-      sessions: [
-        { weekday: 1, itemId: squat, mode: "percent", amount: 80 },
-        { weekday: 1, itemId: bench, mode: "percent", amount: 80 },
-        { weekday: 3, itemId: squat, mode: "kg", amount: 10 },
-        { weekday: 5, itemId: squat, mode: "kg", amount: 5 },
-        { weekday: 5, itemId: bench, mode: "kg", amount: 5 },
-      ],
-      createdDate: start,
-    },
-  ];
-}
 
 export function useWorkoutPlans() {
   const { session, loading: authLoading } = useAuth();
@@ -54,7 +23,7 @@ export function useWorkoutPlans() {
   // Starts on the demo plan like useMeals does; a signed-in user's own
   // plans replace it on the first snapshot/fetch, and `loading` hides it
   // until then.
-  const [plans, setPlans] = useState<WorkoutPlan[]>(() => seed?.plans ?? buildDemoPlans());
+  const [plans, setPlans] = useState<WorkoutPlan[]>(() => seed?.plans ?? buildDemoWorkoutPlans());
   const [loading, setLoading] = useState(seed === null);
   const [error, setError] = useState(false);
 

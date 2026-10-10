@@ -1648,7 +1648,7 @@ export default function LogPage() {
   const workoutMode = workoutModeChoice ?? (workoutPlans.plans.some((p) => p.isActive && planCoversDate(p, date)) ? "plan" : "log");
 
   async function handleSaveWorkoutEntry(entry: NewWorkoutEntry) {
-    if (isDemoData) return;
+    if (isDemoData) return openPanel();
     // Strength sets stay separate; minutes, hours and reps add up into the
     // day's one entry for that exercise.
     const unit: WorkoutUnit = workoutItemById.get(workoutItemIdByName.get(normalizeName(entry.exercise)) ?? "")?.unit ?? "kg";
@@ -2568,7 +2568,6 @@ export default function LogPage() {
                 entries={workoutEntriesForDate}
                 date={date}
                 today={today}
-                isDemoData={isDemoData}
                 accent={WORKOUT_ACCENT}
                 onLog={(exercise, value) => handleSaveWorkoutEntry({ exercise, weightKg: String(value), time: workoutTime })}
                 onOpenEntry={setDetailKey}
@@ -2579,7 +2578,6 @@ export default function LogPage() {
                 groups={workoutGroupedByCategory}
                 entries={workoutEntriesForDate}
                 lastValues={workoutLastWeights}
-                isDemoData={isDemoData}
                 accent={WORKOUT_ACCENT}
                 time={workoutTime}
                 onSave={handleSaveWorkoutEntry}

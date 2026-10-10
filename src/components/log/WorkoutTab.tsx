@@ -234,12 +234,11 @@ const DEFAULT_FOR_UNKNOWN_UNIT = 10;
  * stepper (± for the coarse step, drag or tap the number for fine), tap
  * Log. Every exercise is already on screen and ready to log, so logging a
  * second lift right after doesn't mean re-picking it from a list. Tapping a
- * value already logged today opens that entry's sheet (edit, note, delete). */
+ * value already logged that day opens that entry's sheet (edit, note, delete). */
 export function ExerciseRow({
   item,
   lastValue,
-  todaysSets,
-  isDemoData,
+  loggedSets,
   accent,
   onLog,
   onOpenEntry,
@@ -247,9 +246,8 @@ export function ExerciseRow({
 }: {
   item: RawItem;
   lastValue: number | undefined;
-  /** This exercise's own entries logged today, oldest first. */
-  todaysSets: RawWorkoutLog[];
-  isDemoData: boolean;
+  /** This exercise's entries on the selected day, oldest first. */
+  loggedSets: RawWorkoutLog[];
   accent: string;
   onLog: (value: number) => Promise<void>;
   /** Opens a logged entry's detail sheet. */
@@ -263,15 +261,15 @@ export function ExerciseRow({
   const [saving, setSaving] = useState(false);
 
   async function handleLog() {
-    if (isDemoData || saving) return;
+    if (saving) return;
     setSaving(true);
     await onLog(value);
     setSaving(false);
   }
 
   const unitLabel = workoutUnitLabel(unit);
-  const healthId = useAppleHealthLogId(item.identity, todaysSets[0]?.date);
-  const imported = todaysSets.find((set) => set.id === healthId) ?? (unit === "steps" ? todaysSets.at(-1) : undefined);
+  const healthId = useAppleHealthLogId(item.identity, loggedSets[0]?.date);
+  const imported = loggedSets.find((set) => set.id === healthId) ?? (unit === "steps" ? loggedSets.at(-1) : undefined);
 
   // Apple Health owns this value (Steps always, Walking once imported), so
   // the row just reads it — no stepper or Log.
@@ -314,10 +312,10 @@ export function ExerciseRow({
           {item.rawName}
         </p>
         {detail}
-        {todaysSets.length > 0 && (
+        {loggedSets.length > 0 && (
           <p className="flex flex-wrap items-center gap-x-1 text-xs tabular-nums" style={{ color: accent }}>
             <CheckIcon size={11} />
-            {todaysSets.map((set, i) => (
+            {loggedSets.map((set, i) => (
               <span key={set.id}>
                 <button
                   type="button"
@@ -327,10 +325,9 @@ export function ExerciseRow({
                 >
                   {set.weightKg} {unitLabel}
                 </button>
-                {i < todaysSets.length - 1 && ","}
+                {i < loggedSets.length - 1 && ","}
               </span>
             ))}
-            <span>today</span>
           </p>
         )}
       </div>
@@ -340,8 +337,7 @@ export function ExerciseRow({
         size="xs"
         accent={accent}
         onClick={() => void handleLog()}
-        disabled={saving || isDemoData}
-        title={isDemoData ? "Sign in to log" : undefined}
+        disabled={saving}
         aria-label={`Log ${item.rawName}`}
         className="shrink-0 text-sm!"
       >
@@ -355,7 +351,6 @@ export function WorkoutTab({
   groups,
   entries,
   lastValues,
-  isDemoData,
   accent,
   time,
   onSave,
@@ -365,14 +360,13 @@ export function WorkoutTab({
    * log/page.tsx's `workoutGroupedByCategory`. `chrome` carries the
    * category's custom header colour / icon key, null where unset. */
   groups: { category: string; items: RawItem[]; chrome: { color: string | null; iconKey: string | null } }[];
-  /** Today's already-logged sets, shown under each row. */
+  /** The selected day's logged sets, shown under each row. */
   entries: RawWorkoutLog[];
   /** Most recently logged value per exercise, across all history (not
    * just today), in whatever unit that exercise is configured for —
    * prefill convenience so repeat entries don't need re-adjusting the
    * stepper from scratch every time. */
   lastValues: Partial<Record<string, number>>;
-  isDemoData: boolean;
   accent: string;
   time: string;
   onSave: (entry: NewWorkoutEntry) => Promise<void>;
@@ -403,8 +397,7 @@ export function WorkoutTab({
                 key={item.identity}
                 item={item}
                 lastValue={lastValues[item.rawName]}
-                todaysSets={entries.filter((e) => e.exercise === item.rawName).sort((a, b) => a.updatedAt - b.updatedAt)}
-                isDemoData={isDemoData}
+                loggedSets={entries.filter((e) => e.exercise === item.rawName).sort((a, b) => a.updatedAt - b.updatedAt)}
                 accent={accent}
                 onLog={(value) => onSave({ exercise: item.rawName, weightKg: String(value), time })}
                 onOpenEntry={onOpenEntry}

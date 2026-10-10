@@ -1,6 +1,7 @@
 import type { RawItem, RawLog, RawWorkoutLog, RawStoolLog, RawPeriodLog, PeriodIntensity, WorkoutExercise } from "@/lib/types";
 import { COLLECTION_METHODS } from "@/lib/types";
 import type { ItemType } from "@/taxonomy/categories";
+import { mondayOf, plannedSetsForWeek, type WorkoutPlan } from "@/lib/workoutPlans";
 
 /** Every demo item/log identity starts with this — purely in-memory,
  * never written to IndexedDB or Supabase, so it can never mix with real
@@ -114,6 +115,36 @@ function isoDate(d: Date): string {
 
 export function demoItemIdentity(rawName: string): string {
   return `${DEMO_ID_PREFIX}${rawName.toLowerCase().replace(/\s+/g, "-")}`;
+}
+
+/** Demo mode's sample plan, starting this week: Monday is a light 80% day
+ * for both lifts, Wednesday heavy squat, Friday medium for both. */
+export function buildDemoWorkoutPlans(): WorkoutPlan[] {
+  const start = mondayOf(isoDate(new Date()));
+  const squat = demoItemIdentity("Squat");
+  const bench = demoItemIdentity("Bench Press");
+  return [
+    {
+      id: "demo-plan-1",
+      name: "Squat & bench",
+      startDate: start,
+      weeks: 8,
+      holdOnMiss: true,
+      isActive: true,
+      lifts: [
+        { itemId: squat, baseKg: 90, weeklyGainKg: 2.5 },
+        { itemId: bench, baseKg: 55, weeklyGainKg: 1.25 },
+      ],
+      sessions: [
+        { weekday: 1, itemId: squat, mode: "percent", amount: 80 },
+        { weekday: 1, itemId: bench, mode: "percent", amount: 80 },
+        { weekday: 3, itemId: squat, mode: "kg", amount: 10 },
+        { weekday: 5, itemId: squat, mode: "kg", amount: 5 },
+        { weekday: 5, itemId: bench, mode: "kg", amount: 5 },
+      ],
+      createdDate: start,
+    },
+  ];
 }
 
 export interface DemoDataset {
@@ -272,6 +303,24 @@ export function buildDemoDataset(): DemoDataset {
         exercise: prog.exercise,
         weightKg,
         updatedAt: new Date(`${date}T18:00:00`).getTime(),
+      });
+    }
+  }
+
+  // The sample plan's sessions so far this week, logged at their targets,
+  // so the Plan view reads as a plan in progress.
+  const todayIso = isoDate(today);
+  const exerciseByIdentity = new Map(WORKOUT_PROGRESSIONS.map((p) => [demoItemIdentity(p.exercise), p.exercise]));
+  for (const plan of buildDemoWorkoutPlans()) {
+    for (const set of plannedSetsForWeek(plan, mondayOf(todayIso), todayIso, () => [])) {
+      const exercise = exerciseByIdentity.get(set.itemId);
+      if (!exercise || set.date >= todayIso) continue;
+      workoutLogs.push({
+        id: `${DEMO_ID_PREFIX}workout:plan:${exercise}:${set.date}`,
+        date: set.date,
+        exercise,
+        weightKg: set.targetKg,
+        updatedAt: new Date(`${set.date}T18:30:00`).getTime(),
       });
     }
   }
