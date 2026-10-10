@@ -8,7 +8,7 @@ import { PageSkeleton } from "@/components/ui/Skeleton";
 import { ComparisonKey, ComparisonRow, ShowAllRow, SplitStatCard, TrendGroup, TrendRow } from "@/components/analytics/TrendList";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { TrendsActions } from "@/components/analytics/TrendsActions";
-import { DateRangeFilter, type DateRangePreset } from "@/components/ui/DateRangeFilter";
+import { DateRangeFilter } from "@/components/ui/DateRangeFilter";
 import { Methodology } from "@/components/ui/Methodology";
 import { SectionNav, type SectionNavItem } from "@/components/ui/SectionNav";
 import { ShowMore } from "@/components/ui/ShowMore";
@@ -117,21 +117,6 @@ function PageSection({ id, activeId, headingLabel, subtitle, children }: {
   );
 }
 
-/** 7 days / 2 weeks / 1 month / 6 months / 1 year / All time — Food's
- * own preset wording, distinct from the "Last N days" phrasing every other
- * analytics page still uses (DateRangeFilter's `presets` prop is opt-in
- * precisely so this doesn't change those other pages). Arbitrary custom
- * ranges (3 weeks, 3 months, ...) are already covered by the component's
- * existing manual date inputs — no separate mechanism needed. */
-const FOOD_DATE_PRESETS: DateRangePreset[] = [
-  { label: "7 days", days: 7 },
-  { label: "2 weeks", days: 14 },
-  { label: "1 month", days: 30 },
-  { label: "6 months", days: 182 },
-  { label: "1 year", days: 365 },
-  { label: "All time", days: "all" },
-];
-
 const INGREDIENTS_DEFAULT_COUNT = 10;
 
 const SECTION_NAV_ITEMS: SectionNavItem[] = [
@@ -234,7 +219,7 @@ export function FoodDashboard() {
     <div className="flex flex-col gap-4">
       {span && range && (
         <TrendsActions>
-          <DateRangeFilter span={span} value={range} onChange={setRange} presets={FOOD_DATE_PRESETS} accent={TYPE_ACCENT.food} />
+          <DateRangeFilter span={span} value={range} onChange={setRange} accent={TYPE_ACCENT.food} />
         </TrendsActions>
       )}
 
