@@ -2,6 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import Link from "next/link";
+import { NAV_RESELECT_EVENT } from "@/lib/useDrillDown";
 import { usePathname } from "next/navigation";
 import clsx from "clsx";
 import { useData } from "@/lib/DataContext";
@@ -216,7 +217,12 @@ function NavLinkList({
           <Link
             key={item.href}
             href={item.href}
-            onClick={onNavigate}
+            onClick={(e) => {
+              onNavigate?.();
+              if (!active) return;
+              const reselect = new CustomEvent(NAV_RESELECT_EVENT, { detail: item.href, cancelable: true });
+              if (!window.dispatchEvent(reselect)) e.preventDefault();
+            }}
             aria-current={active ? "page" : undefined}
             title={collapsed ? item.label : undefined}
             className={clsx(

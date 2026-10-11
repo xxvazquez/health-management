@@ -17,8 +17,6 @@ export interface Preferences {
   defaultTime?: string | null;
   /** Settings → Appearance: light/dark/system and each mode's palette. */
   appearance?: { theme?: string; light?: string; dark?: string };
-  /** The Log section last open, so Log reopens there. */
-  lastLogTab?: string;
   /** Settings → Food targets: diet plus per-group weekly targets. */
   foodTargets?: FoodTargetsPref;
   /** Health → Results: show panel and marker names in Polish or English. */

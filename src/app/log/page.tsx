@@ -374,15 +374,10 @@ function tabFromUrl(): LogTab | null {
   return parseLogTab(new URLSearchParams(window.location.search).get("tab"));
 }
 
-/** Desktop keeps the tab row; phones drill down from the section list. */
-function isDesktop(): boolean {
-  return window.matchMedia("(min-width: 1024px)").matches;
-}
-
 export default function LogPage() {
   const { refresh, isDemoData, status, events } = useData();
   const { isVisible, domainOrder } = useVisibleDomains();
-  const { prefs, loaded: prefsLoaded, update: updatePrefs } = usePreferences();
+  const { prefs } = usePreferences();
   const { openPanel } = useAuth();
   // Observation-type care-log entries (Health → Visits) — surfaced on
   // the Symptoms tab as one-offs that aren't tracked day to day.
@@ -394,7 +389,7 @@ export default function LogPage() {
   const foodProducts = useFoodProducts();
   const today = useToday();
   const [date, setDate] = useState(today);
-  const [tab, setTab] = useState<LogTab>("food");
+  const [tab, setTab] = useState<LogTab>("summary");
   const tabRef = useRef(tab);
   tabRef.current = tab;
   const [addingNew, setAddingNew] = useState(false);
@@ -505,44 +500,23 @@ export default function LogPage() {
     }
   }, []);
   // `/log/?tab=workout` (the links back from Settings) opens on that tab;
-  // the hidden-tab fallback below still applies.
-  // With no `?tab=`, a phone opens on the section list (Summary) and a
-  // desktop on Food — then either reopens the section last used, the list
-  // kept underneath in history so Back returns to it.
-  // Before paint, so the first frame is already the right screen.
-  const restoredTab = useRef(false);
+  // the hidden-tab fallback below still applies. With no `?tab=`, Log opens
+  // on Summary. Before paint, so the first frame is already the right screen.
   useLayoutEffect(() => {
     const requested = tabFromUrl();
-    if (requested) {
-      restoredTab.current = true;
-      selectTab(requested, "none");
-      return;
-    }
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- the start screen depends on the viewport
-    if (!isDesktop()) setTab("summary");
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, on arrival
+    if (requested) selectTab(requested, "none");
   }, []);
-  useEffect(() => {
-    if (!prefsLoaded || restoredTab.current) return;
-    restoredTab.current = true;
-    const last = parseLogTab(prefs.lastLogTab ?? null);
-    if (!last) return;
-    if (isDesktop()) selectTab(last, "replace");
-    else if (last !== "summary") selectTab(last, "push");
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, when preferences arrive
-  }, [prefsLoaded]);
   // Back / forward (or the phone's edge swipe) moves between the list and a
   // section, or between sections.
   useEffect(() => {
-    const onPop = () => selectTab(tabFromUrl() ?? (isDesktop() ? "food" : "summary"), "none");
+    const onPop = () => selectTab(tabFromUrl() ?? "summary", "none");
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- selectTab only sets state
   }, []);
-  // Tapping Log in the tab bar while inside a section returns to the list.
+  // Tapping Log in the tab bar or sidebar while inside a section returns to Summary.
   useEffect(() => {
     const onReselect = (e: Event) => {
-      if ((e as CustomEvent<string>).detail !== "/log" || isDesktop()) return;
+      if ((e as CustomEvent<string>).detail !== "/log") return;
       e.preventDefault();
       if (tabRef.current !== "summary") backToList();
       else window.scrollTo({ top: 0, behavior: "smooth" });
@@ -656,11 +630,10 @@ export default function LogPage() {
     setSearch("");
     if (t === "food") setMeal(defaultMealForTime());
     if (history !== "none") {
-      const url = t === "summary" && !isDesktop() ? window.location.pathname : `${window.location.pathname}?tab=${t}`;
+      const url = t === "summary" ? window.location.pathname : `${window.location.pathname}?tab=${t}`;
       if (history === "push") window.history.pushState({ logSection: true }, "", url);
       else window.history.replaceState(null, "", url);
     }
-    if (prefs.lastLogTab !== t) updatePrefs({ lastLogTab: t });
   }
 
   /** "‹ Log" on a phone: back to the list, through history when the list is
