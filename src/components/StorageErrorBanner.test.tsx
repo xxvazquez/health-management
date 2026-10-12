@@ -1,10 +1,14 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { StorageErrorBanner } from "./StorageErrorBanner";
 import { putItem } from "@/lib/db/indexedDb";
 import type { RawItem } from "@/lib/types";
+
+vi.mock("@/lib/supabase/client", () => ({
+  supabase: { from: () => ({ upsert: async () => ({ error: { code: "23514", message: "check violation" } }) }) },
+}));
 
 afterEach(() => {
   cleanup();
@@ -54,5 +58,14 @@ describe("StorageErrorBanner", () => {
       await expect(withDataLock(async () => Promise.reject(new Error("No workout item found")))).rejects.toThrow();
     });
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("appears when the server refuses a change", async () => {
+    const { upsertDirect } = await import("@/lib/supabase/directWrite");
+    render(<StorageErrorBanner />);
+    await act(async () => {
+      await expect(upsertDirect("user-1", "journal_entries", "row-1", { id: "row-1" })).rejects.toThrow("check violation");
+    });
+    expect(screen.getByRole("alert")).toHaveTextContent(/couldn't be saved, so it was undone/);
   });
 });

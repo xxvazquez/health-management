@@ -2,21 +2,27 @@
 
 import { useEffect, useState } from "react";
 import { onStorageProblem, type StorageProblem } from "@/lib/db/indexedDb";
+import { onWriteRejected } from "@/lib/supabase/directWrite";
 import { Button } from "@/components/ui/Button";
 
-const MESSAGE: Record<StorageProblem, string> = {
+type Problem = StorageProblem | "rejected";
+
+const MESSAGE: Record<Problem, string> = {
+  rejected: "A change couldn't be saved, so it was undone. Try it again.",
   full: "This device is out of storage space, so your last change may not have been saved. Free up some space, then try again.",
   unavailable:
     "This browser isn't letting Lauva store data on this device (private browsing or blocked site data?), so your last change may not have been saved. Try again outside private browsing, or reload.",
 };
 
 /** Rendered once in the root layout. Appears when a local save fails because
- * the device is out of space or the browser refuses storage — a failure the
+ * the device is out of space or the browser refuses storage, or when the
+ * server refuses a change a screen already showed as made — failures the
  * calling screen usually can't show itself. */
 export function StorageErrorBanner() {
-  const [problem, setProblem] = useState<StorageProblem | null>(null);
+  const [problem, setProblem] = useState<Problem | null>(null);
 
   useEffect(() => onStorageProblem(setProblem), []);
+  useEffect(() => onWriteRejected(() => setProblem("rejected")), []);
 
   if (!problem) return null;
 

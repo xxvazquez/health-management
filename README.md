@@ -286,7 +286,7 @@ flowchart LR
 - **Writes are local-first.** Each write lands in IndexedDB, then an outbox pushes it with retry.
 - **Pulls happen** on sign-in, tab focus, reconnect and every 60 s. Unsynced writes are replayed on top, so they never vanish.
 - **Every query filters by `user_id`,** and every foreign key between user tables is a composite `(user_id, id)`.
-- **Sync problems are visible:** `SyncStatusBanner` for stuck writes, `StorageErrorBanner` for local storage failures.
+- **Sync problems are visible:** `SyncStatusBanner` for stuck writes, `StorageErrorBanner` for local storage failures and changes the server refused (those are undone on screen).
 
 Full detail: **[docs/architecture.md](docs/architecture.md)**.
 

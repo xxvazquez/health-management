@@ -1,6 +1,7 @@
 import { supabase } from "./client";
 import { classifySupabaseError, withSendTimeout } from "./outbox";
 import { enqueueOutbox, hasPendingOutboxEntry, type OutboxOperation } from "@/lib/db/indexedDb";
+import { emitCloudRefresh } from "@/lib/cloudRefresh";
 
 function notConfigured(): Error {
   return new Error("Cloud sync isn't set up for this deployment.");
@@ -27,6 +28,17 @@ function notConfigured(): Error {
  * already surfaces pending/failed entries for any table, so nothing else
  * needs to know this happened.
  */
+const rejectionListeners = new Set<() => void>();
+
+/** Called whenever the server refuses a direct write outright. Screens
+ * apply changes optimistically, so this is how a refused one gets seen. */
+export function onWriteRejected(listener: () => void): () => void {
+  rejectionListeners.add(listener);
+  return () => {
+    rejectionListeners.delete(listener);
+  };
+}
+
 async function attemptOrQueue(userId: string, table: string, id: string, op: OutboxOperation, payload: Record<string, unknown>): Promise<void> {
   if (!supabase) throw notConfigured();
   const dedupeKey = `${table}:${id}`;
@@ -61,7 +73,13 @@ async function attemptOrQueue(userId: string, table: string, id: string, op: Out
     unreachable = true;
   }
   if (serverError) {
-    if (classifySupabaseError(serverError).outcome === "permanent") throw new Error(serverError.message);
+    if (classifySupabaseError(serverError).outcome === "permanent") {
+      // Re-read every direct feature so the refused change disappears from
+      // screen instead of looking saved until the next refresh.
+      rejectionListeners.forEach((listener) => listener());
+      emitCloudRefresh();
+      throw new Error(serverError.message);
+    }
     // A retryable *server* error (a transient 5xx, a timeout Postgres itself
     // reported) — still queue it rather than surface a one-off failure.
   } else if (!unreachable) {

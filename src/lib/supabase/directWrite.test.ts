@@ -113,8 +113,12 @@ describe("upsertDirect", () => {
   it("throws (and queues nothing) for a permanent server-side error", async () => {
     upsertResult = { error: { code: "23514", message: "check violation" } };
     const id = uniqueId();
-    const { upsertDirect } = await import("./directWrite");
+    const { upsertDirect, onWriteRejected } = await import("./directWrite");
+    let rejected = 0;
+    const stop = onWriteRejected(() => rejected++);
     await expect(upsertDirect("user-4", "journal_entries", id, { id })).rejects.toThrow("check violation");
+    stop();
+    expect(rejected).toBe(1);
     expect(await entriesFor(`journal_entries:${id}`)).toHaveLength(0);
   });
 });
@@ -208,6 +212,6 @@ describe("a direct write behind a queued one", () => {
     sentCalls.length = 0;
     await deleteDirect("user-7", "journal_entries", id);
     expect(sentCalls).toHaveLength(0);
-    expect((await entriesFor(`journal_entries:${id}`)).map((e) => e.op)).toEqual(["upsert", "delete"]);
+    expect((await entriesFor(`journal_entries:${id}`)).sort((a, b) => a.createdAt - b.createdAt || (a.seq ?? 0) - (b.seq ?? 0)).map((e) => e.op)).toEqual(["upsert", "delete"]);
   });
 });
