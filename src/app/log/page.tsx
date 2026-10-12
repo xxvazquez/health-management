@@ -172,9 +172,11 @@ const MEAL_OPTIONS = ["Breakfast", "Lunch", "Dinner", "Snack"] as const;
 /** Guesses which meal is being logged from the current time of day, so the
  * selector starts on something plausible instead of always "Breakfast" —
  * still just a starting point, never locked in. Snack is never auto-picked;
- * it's always a deliberate choice. */
+ * it's always a deliberate choice. Before 03:00 it's still the previous
+ * day's evening (see `todayLocalISODate`), so Dinner. */
 function defaultMealForTime(now: Date = new Date()): (typeof MEAL_OPTIONS)[number] {
   const h = now.getHours();
+  if (h < 3) return "Dinner";
   if (h < 12) return "Breakfast";
   if (h < 18) return "Lunch";
   return "Dinner";
