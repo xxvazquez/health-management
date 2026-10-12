@@ -111,7 +111,7 @@ Messages, Agenda, Health, Journal, Wishlist, Codes, Vitals and Coffee talk to Su
 
 ### Offline writes: `directWrite.ts`
 
-Each write tries Supabase first, and falls back to the shared outbox if the network fails. Ids are generated client-side, so the optimistic row and the synced row are the same record.
+Each write tries Supabase first, and falls back to the shared outbox if the network fails. A record that still has a queued write goes straight to the outbox behind it, so the older write can't land last. Ids are generated client-side, so the optimistic row and the synced row are the same record.
 
 | Function | Use for |
 |---|---|

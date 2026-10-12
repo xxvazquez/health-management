@@ -854,6 +854,12 @@ export async function getAllOutboxEntries(): Promise<OutboxEntry[]> {
   return (await getDb()).getAll("outbox");
 }
 
+/** Whether a write for this record is still queued for this user. */
+export async function hasPendingOutboxEntry(userId: string, dedupeKey: string): Promise<boolean> {
+  const entries = await (await getDb()).getAllFromIndex("outbox", "dedupeKey", dedupeKey);
+  return entries.some((e) => e.userId === userId && e.status === "pending");
+}
+
 export async function getOutboxCounts(userId: string): Promise<{ pending: number; deadLetter: number }> {
   const all = (await getAllOutboxEntries()).filter((e) => e.userId === userId);
   return {

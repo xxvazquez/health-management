@@ -1,6 +1,6 @@
 import { supabase } from "./client";
 import { classifySupabaseError, withSendTimeout } from "./outbox";
-import { enqueueOutbox, type OutboxOperation } from "@/lib/db/indexedDb";
+import { enqueueOutbox, hasPendingOutboxEntry, type OutboxOperation } from "@/lib/db/indexedDb";
 
 function notConfigured(): Error {
   return new Error("Cloud sync isn't set up for this deployment.");
@@ -29,6 +29,13 @@ function notConfigured(): Error {
  */
 async function attemptOrQueue(userId: string, table: string, id: string, op: OutboxOperation, payload: Record<string, unknown>): Promise<void> {
   if (!supabase) throw notConfigured();
+  const dedupeKey = `${table}:${id}`;
+  // An earlier write to this record is still queued: going straight to the
+  // server would let that older write land afterwards and undo this one.
+  if (await hasPendingOutboxEntry(userId, dedupeKey)) {
+    await enqueueOutbox({ userId, dedupeKey, table, op, payload });
+    return;
+  }
   let serverError: { code?: string; message: string } | null = null;
   let unreachable = false;
   const client = supabase;
@@ -60,7 +67,7 @@ async function attemptOrQueue(userId: string, table: string, id: string, op: Out
   } else if (!unreachable) {
     return;
   }
-  await enqueueOutbox({ userId, dedupeKey: `${table}:${id}`, table, op, payload });
+  await enqueueOutbox({ userId, dedupeKey, table, op, payload });
 }
 
 export function upsertDirect(userId: string, table: string, id: string, payload: Record<string, unknown>): Promise<void> {

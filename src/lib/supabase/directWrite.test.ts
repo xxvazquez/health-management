@@ -75,6 +75,7 @@ describe("upsertDirect", () => {
       const id = uniqueId();
       const { upsertDirect } = await import("./directWrite");
       const done = upsertDirect("user-1", "journal_entries", id, { id, body: "hi" });
+      while (sentCalls.length === 0) await new Promise((r) => setImmediate(r));
       await vi.advanceTimersByTimeAsync(31_000);
       await expect(done).resolves.toBeUndefined();
       expect(await entriesFor(`journal_entries:${id}`)).toHaveLength(1);
@@ -190,5 +191,23 @@ describe("insertDirect", () => {
     const entries = await entriesFor("care_entry_specialties:entry_id=e3&specialty_id=s3");
     expect(entries).toHaveLength(1);
     expect(entries[0]).toMatchObject({ op: "insert", payload: { entry_id: "e3", specialty_id: "s3" } });
+  });
+});
+
+describe("a direct write behind a queued one", () => {
+  it("queues behind the earlier write instead of overtaking it", async () => {
+    const id = uniqueId();
+    const { upsertDirect, deleteDirect } = await import("./directWrite");
+    thrown = new TypeError("Failed to fetch");
+    await upsertDirect("user-7", "journal_entries", id, { id, body: "first" });
+    const [queued] = await entriesFor(`journal_entries:${id}`);
+    const { updateOutboxEntry } = await import("@/lib/db/indexedDb");
+    await updateOutboxEntry(queued.id, { attempts: 1 });
+
+    thrown = null;
+    sentCalls.length = 0;
+    await deleteDirect("user-7", "journal_entries", id);
+    expect(sentCalls).toHaveLength(0);
+    expect((await entriesFor(`journal_entries:${id}`)).map((e) => e.op)).toEqual(["upsert", "delete"]);
   });
 });
