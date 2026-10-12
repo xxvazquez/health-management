@@ -5,6 +5,7 @@ import { DatePicker } from "@/components/ui/DatePicker";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useDrillDown } from "@/lib/useDrillDown";
 import { todayLocalISODate } from "@/lib/aggregations/common";
+import { todayISO } from "@/components/ui/pickers/dateUtils";
 import { createJournalEntry, deleteJournalEntry, fetchJournalEntries, updateJournalEntry, type JournalEntry } from "@/lib/supabase/journal";
 import { buildDemoJournalEntries } from "@/lib/demoJournal";
 import { useAuth } from "@/lib/supabase/AuthContext";
@@ -159,7 +160,7 @@ function JournalEntryForm({
 
       <FormGroup>
         <Field label="Date" inline>
-          <DatePicker value={date} onChange={setDate} max={todayLocalISODate()} title="Entry date" ariaLabel="Entry date" />
+          <DatePicker value={date} onChange={setDate} max={todayISO()} title="Entry date" ariaLabel="Entry date" />
         </Field>
         <input
           value={title}

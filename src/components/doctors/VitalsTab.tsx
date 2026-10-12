@@ -7,6 +7,7 @@ import clsx from "clsx";
 import { useSwipeReveal, SWIPE_REVEAL_CLASS } from "@/lib/useSwipeReveal";
 import { useVitals } from "@/lib/useVitals";
 import { todayLocalISODate } from "@/lib/aggregations/common";
+import { todayISO } from "@/components/ui/pickers/dateUtils";
 import { Segmented } from "@/components/ui/Segmented";
 import type { BloodPressureReading, WeightReading, WeightTarget } from "@/lib/supabase/vitals";
 import { bpCategory } from "@/lib/aggregations/vitals";
@@ -127,7 +128,7 @@ function BpForm({
           <input value={pulse} onChange={(e) => setPulse(e.target.value)} inputMode="numeric" placeholder="70" className={`${ROW_INLINE_CLS} w-24 tabular-nums`} style={ROW_STYLE} />
         </Field>
         <Field label="When" inline>
-          <DateTimePicker value={measuredAt} onChange={setMeasuredAt} max={todayLocalISODate()} title="When" />
+          <DateTimePicker value={measuredAt} onChange={setMeasuredAt} max={todayISO()} title="When" />
         </Field>
       </FormGroup>
 
@@ -187,7 +188,7 @@ function WeightForm({
           <input autoFocus value={kg} onChange={(e) => setKg(e.target.value)} inputMode="decimal" placeholder="67.5" className={`${ROW_INLINE_CLS} w-24 font-medium tabular-nums`} style={ROW_STYLE} />
         </Field>
         <Field label="When" inline>
-          <DateTimePicker value={measuredAt} onChange={setMeasuredAt} max={todayLocalISODate()} title="When" />
+          <DateTimePicker value={measuredAt} onChange={setMeasuredAt} max={todayISO()} title="When" />
         </Field>
       </FormGroup>
 

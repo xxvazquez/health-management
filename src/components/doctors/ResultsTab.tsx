@@ -6,6 +6,7 @@ import { usePreferences } from "@/lib/usePreferences";
 import { localizeLabs } from "@/lib/labNames";
 import { useLabs } from "@/lib/useLabs";
 import { todayLocalISODate } from "@/lib/aggregations/common";
+import { todayISO } from "@/components/ui/pickers/dateUtils";
 import type { LabMarker, LabResult } from "@/lib/supabase/labs";
 import { ErrorState } from "@/components/ui/EmptyState";
 import { AddMenu } from "@/components/ui/AddMenu";
@@ -80,7 +81,7 @@ function ResultForm({
           <input autoFocus value={value} onChange={(e) => setValue(e.target.value)} inputMode="decimal" placeholder="e.g. 2.1" className={`${ROW_INLINE_CLS} w-28 font-medium`} style={ROW_STYLE} />
         </Field>
         <Field label="Date" inline>
-          <DatePicker value={measuredOn} onChange={setMeasuredOn} max={todayLocalISODate()} />
+          <DatePicker value={measuredOn} onChange={setMeasuredOn} max={todayISO()} />
         </Field>
         <Field label="Lab · optional" inline>
           <input value={lab} onChange={(e) => setLab(e.target.value)} placeholder="Where it was done" maxLength={80} className={`${ROW_INLINE_CLS} w-40`} style={ROW_STYLE} />

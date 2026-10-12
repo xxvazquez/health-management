@@ -13,6 +13,7 @@ import { FormShell } from "@/components/ui/FormShell";
 import { MarkdownField } from "@/components/ui/Markdown";
 import { AutoGrowTextarea } from "@/components/ui/AutoGrowTextarea";
 import { todayLocalISODate } from "@/lib/aggregations/common";
+import { todayISO } from "@/components/ui/pickers/dateUtils";
 
 interface TaskDraft {
   description: string;
@@ -141,7 +142,7 @@ export function AppointmentForm({
           )}
         </Field>
         <Field label="Date" inline>
-          <DatePicker value={appointmentDate} onChange={setAppointmentDate} max={todayLocalISODate()} />
+          <DatePicker value={appointmentDate} onChange={setAppointmentDate} max={todayISO()} />
         </Field>
       </FormGroup>
 

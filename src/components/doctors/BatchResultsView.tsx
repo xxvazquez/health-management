@@ -5,6 +5,7 @@ import { TabRail } from "@/components/ui/TabRail";
 import { useMemo, useState } from "react";
 import { useLabs } from "@/lib/useLabs";
 import { todayLocalISODate } from "@/lib/aggregations/common";
+import { todayISO } from "@/components/ui/pickers/dateUtils";
 import type { LabMarker, NewLabResultInput } from "@/lib/supabase/labs";
 import { Field } from "@/components/ui/Field";
 import { FormGroup } from "@/components/ui/FormGroup";
@@ -132,7 +133,7 @@ export function BatchResultsView({
 
       <FormGroup>
         <Field label="Date" inline>
-          <DatePicker value={date} onChange={setDate} max={todayLocalISODate()} />
+          <DatePicker value={date} onChange={setDate} max={todayISO()} />
         </Field>
         <Field label="Lab · optional" inline>
           <input value={lab} onChange={(e) => setLab(e.target.value)} placeholder="Where it was done" maxLength={80} className={`${ROW_INLINE_CLS} w-40`} style={ROW_STYLE} />

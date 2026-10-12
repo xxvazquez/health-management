@@ -8,6 +8,7 @@ import { useMemo, useState, type FormEvent } from "react";
 import clsx from "clsx";
 import type { useDoctors } from "@/lib/useDoctors";
 import { todayLocalISODate } from "@/lib/aggregations/common";
+import { todayISO } from "@/components/ui/pickers/dateUtils";
 import type { CareEntry, CareEntryKind, NewCareEntryInput } from "@/lib/supabase/careLog";
 import type { SupplementOption } from "@/lib/useCareLog";
 import type { DriveAttachment } from "@/lib/googleDrive/api";
@@ -170,7 +171,7 @@ export function CareEntryForm({
           </Field>
         )}
         <Field label="Date" inline>
-          <DatePicker value={happenedOn} onChange={setHappenedOn} max={todayLocalISODate()} />
+          <DatePicker value={happenedOn} onChange={setHappenedOn} max={todayISO()} />
         </Field>
         <Field label="Revisit on" inline>
           <DatePicker value={remindOn} onChange={setRemindOn} min={todayLocalISODate()} optional title="Revisit on" />
