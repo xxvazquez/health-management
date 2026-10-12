@@ -69,25 +69,33 @@ const SECTION_ICON: Record<string, { icon: string; color: string }> = {
   "Card payments": { icon: "lucide:credit-card", color: "var(--series-indigo)" },
   Appearance: { icon: "sun", color: "var(--ui-accent)" },
   "Visible sections": { icon: "eye", color: "var(--ui-accent)" },
+  "Usual times": { icon: "lucide:clock", color: "var(--ui-accent)" },
+  "Nutrition evidence": { icon: "lucide:book-open", color: "var(--ui-accent)" },
   "Your data": { icon: "folder", color: "var(--ui-accent)" },
 };
+
+/** A Settings row's icon tile, or nothing for a title without one. */
+export function SectionTile({ title }: { title: string }) {
+  const tile = SECTION_ICON[title];
+  if (!tile) return null;
+  return (
+    <span
+      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md"
+      style={{ color: tile.color, background: `color-mix(in oklab, ${tile.color} var(--tint-pct), transparent)` }}
+      aria-hidden="true"
+    >
+      <CustomIcon icon={tile.icon} size={15} />
+    </span>
+  );
+}
 
 /** One tappable row in the Settings list: icon tile and name on the left, a
  * short summary and a chevron on the right. */
 export function SectionRow({ title, subtitle }: { title: string; subtitle?: string }) {
   const { open } = useContext(ManageNavContext);
-  const tile = SECTION_ICON[title];
   return (
     <button type="button" onClick={() => open(title)} className="flex min-h-11 w-full items-center gap-3 px-3.5 text-left">
-      {tile && (
-        <span
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md"
-          style={{ color: tile.color, background: `color-mix(in oklab, ${tile.color} var(--tint-pct), transparent)` }}
-          aria-hidden="true"
-        >
-          <CustomIcon icon={tile.icon} size={15} />
-        </span>
-      )}
+      <SectionTile title={title} />
       <span className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
         {title}
       </span>

@@ -23,7 +23,7 @@ import { CardPaymentsCard, ExpensesCard } from "@/components/manage/ExpensesCard
 import { FoodTargetsCard } from "@/components/manage/FoodTargetsCard";
 import { HiddenLinksCard } from "@/components/manage/HiddenLinksCard";
 import { UsualTimesCard } from "@/components/manage/UsualTimesCard";
-import { AddRow, CollapsibleManageCard, SheetAddRow, GROUP_CLS, GROUP_STYLE, GroupNote, ManageNavContext, SaveFailedNote, OpenInLogRow, RowMenu, SECTION_PARENT, SectionRow, useSectionMode } from "@/components/manage/ManageSection";
+import { AddRow, CollapsibleManageCard, SheetAddRow, GROUP_CLS, GROUP_STYLE, GroupNote, ManageNavContext, SaveFailedNote, OpenInLogRow, RowMenu, SECTION_PARENT, SectionRow, SectionTile, useSectionMode } from "@/components/manage/ManageSection";
 import { SwitchKnob } from "@/components/ui/Switch";
 import { TimePicker } from "@/components/ui/DatePicker";
 import { useItemActions, type ManageableItem } from "@/lib/useItemActions";
@@ -3657,7 +3657,8 @@ export default function ManagePage() {
               <div className={groupBox} style={groupBoxStyle}>
                 {group.labels.filter(isShown).map((label) => sectionByLabel.get(label))}
                 {group.title === "App" && (
-                  <Link href="/manage/nutrition-evidence" className="flex min-h-11 items-center gap-2 px-4">
+                  <Link href="/manage/nutrition-evidence" className="flex min-h-11 items-center gap-3 px-3.5">
+                    <SectionTile title="Nutrition evidence" />
                     <span className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
                       Nutrition evidence
                     </span>
