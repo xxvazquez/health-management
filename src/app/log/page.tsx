@@ -1,5 +1,6 @@
 "use client";
 
+import { RowMenu } from "@/components/ui/RowMenu";
 import { CheckInCard } from "@/components/log/CheckInCard";
 import { CHIP_CLS, CHIP_SM_CLS, CONTROL_CLS, CONTROL_STYLE, chipStyle } from "@/components/ui/Chip";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
@@ -81,7 +82,7 @@ import { Field } from "@/components/ui/Field";
 import { FormGroup } from "@/components/ui/FormGroup";
 import { Sheet } from "@/components/ui/Sheet";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
-import { ROW_INLINE_CLS, ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
+import { ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
 import { AutoGrowTextarea } from "@/components/ui/AutoGrowTextarea";
 import { StarRating } from "@/components/ui/StarRating";
 import { useRecipes } from "@/lib/useRecipes";
@@ -2682,13 +2683,13 @@ export default function LogPage() {
                     </Field>
                     {newItemNeedsCategory && (
                       <Field label="Category" inline>
-                        <select value={newItemCategory || categoryNamesForTab[0]} onChange={(e) => setNewItemCategory(e.target.value)} className={ROW_INLINE_CLS} style={ROW_STYLE}>
-                          {categoryNamesForTab.map((c) => (
-                            <option key={c} value={c}>
-                              {c}
-                            </option>
-                          ))}
-                        </select>
+                        <RowMenu
+                          value={newItemCategory || categoryNamesForTab[0]}
+                          onChange={setNewItemCategory}
+                          ariaLabel="Category"
+                          accent={TYPE_ACCENT[tabConfig.type]}
+                          options={categoryNamesForTab.map((c) => ({ value: c, label: c }))}
+                        />
                       </Field>
                     )}
                   </FormGroup>
@@ -3064,22 +3065,14 @@ export default function LogPage() {
                           {entry.mealTag ?? "—"}
                         </span>
                       ) : (
-                        <select
+                        <RowMenu
                           value={entry.mealTag ?? ""}
                           disabled={busy}
-                          onChange={(e) => void handleChangeEntryMeal(entry, e.target.value)}
-                          className="text-sm font-medium outline-none disabled:opacity-40"
-                          style={{ background: "transparent", color: accent, border: "none" }}
-                        >
-                          <option value="" disabled>
-                            set meal
-                          </option>
-                          {MEAL_OPTIONS.map((m) => (
-                            <option key={m} value={m}>
-                              {m}
-                            </option>
-                          ))}
-                        </select>
+                          onChange={(v) => void handleChangeEntryMeal(entry, v)}
+                          ariaLabel={entry.itemType === "supplement" ? "Time of day" : "Meal"}
+                          accent={accent}
+                          options={[{ value: "", label: "Set meal", disabled: true }, ...MEAL_OPTIONS.map((m) => ({ value: m, label: m }))]}
+                        />
                       )}
                     </div>
                   )}
@@ -3175,19 +3168,13 @@ export default function LogPage() {
                 <span className="text-sm" style={{ color: "var(--text-primary)" }}>
                   Meal
                 </span>
-                <select
+                <RowMenu
                   value={copyTarget.meal}
-                  onChange={(e) => setCopyTarget({ ...copyTarget, meal: e.target.value })}
-                  aria-label="Copy to meal"
-                  className="text-sm font-medium outline-none"
-                  style={{ background: "transparent", color: TYPE_ACCENT.food, border: "none" }}
-                >
-                  {MEAL_OPTIONS.map((m) => (
-                    <option key={m} value={m}>
-                      {m}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(v) => setCopyTarget({ ...copyTarget, meal: v })}
+                  ariaLabel="Copy to meal"
+                  accent={TYPE_ACCENT.food}
+                  options={MEAL_OPTIONS.map((m) => ({ value: m, label: m }))}
+                />
               </div>
               <div className="flex min-h-11 items-center justify-between gap-3 px-3.5">
                 <span className="text-sm" style={{ color: "var(--text-primary)" }}>

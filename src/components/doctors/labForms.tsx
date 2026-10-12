@@ -1,5 +1,6 @@
 "use client";
 
+import { RowMenu } from "@/components/ui/RowMenu";
 import { useMemo, useState, type FormEvent, type ReactNode } from "react";
 import type { useLabs } from "@/lib/useLabs";
 import type { LabMarker } from "@/lib/supabase/labs";
@@ -117,13 +118,13 @@ export function MarkerForm({
           />
         </Field>
         <Field label="Panel" inline>
-          <select value={panelId} onChange={(e) => setPanelId(e.target.value)} className={ROW_INLINE_CLS} style={ROW_STYLE}>
-            <option value={NO_PANEL}>No panel</option>
-            {labs.panels.data.map((p) => (
-              <option key={p.id} value={p.id}>{p.name}</option>
-            ))}
-            <option value={NEW_PANEL}>＋ New panel…</option>
-          </select>
+          <RowMenu
+            value={panelId}
+            onChange={setPanelId}
+            ariaLabel="Panel"
+            accent={accent}
+            options={[{ value: NO_PANEL, label: "No panel" }, ...labs.panels.data.map((p) => ({ value: p.id, label: p.name })), { value: NEW_PANEL, label: "New panel…" }]}
+          />
         </Field>
         {needsNewPanel && (
           <Field label="New panel name" inline>

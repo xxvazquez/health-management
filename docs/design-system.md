@@ -86,6 +86,7 @@ One sans-serif family: SF Pro on Apple devices, Inter elsewhere (`--font-app`).
 
 - **`FormShell`** opens every add/edit form as a `Sheet` over the page it came from (Cancel left, title centred, Add/Done right; bottom sheet on phones, centred 448px panel on desktop) and holds **`FormGroup`** cards of **`Field`** rows. Delete on an edit sits in a red row at the end of the sheet
 - **`SwitchRow`** for toggles
+- **`RowMenu`** (`ui/RowMenu.tsx`) for a pick-one row: the value in the accent with an up/down chevron, the native picker laid invisibly over a 44px tap area. Never a bare `<select>` in a form row
 - **Explanations hide behind an ⓘ** (`InfoButton`): `CardTitle`'s `subtitle` and `FormGroup`'s `info` show it beside the heading. Keep the text to what isn't obvious from the controls
 - **Numbers are picked, not typed.** In forms, a row shows the value on the right, and tapping it opens an iOS wheel under the row: `NumberWheel` (one column over a list of values), `KgWheels` (whole kg + quarter kg). `NumberStepper` (a raised −/+ capsule) is for quick inline adjustments
 - **Summary rows open sheets:** a list of things to configure shows one row each (title, muted detail, value, chevron), and the detail is edited in a `Sheet`, not inline

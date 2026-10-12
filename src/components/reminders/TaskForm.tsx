@@ -1,5 +1,6 @@
 "use client";
 
+import { RowMenu } from "@/components/ui/RowMenu";
 import { DateTimePicker } from "@/components/ui/DatePicker";
 import { SwitchRow } from "@/components/ui/Switch";
 import { useRef, useState, type FormEvent, type KeyboardEvent } from "react";
@@ -213,23 +214,28 @@ export function TaskForm({
         {recurrenceMode === "optional" && <SwitchRow label="Repeats on a schedule" on={recurring} onChange={setRecurring} />}
         {lists && (
           <Field label="List" inline>
-            <select value={listId} onChange={(e) => setListId(e.target.value)} className={ROW_INLINE_CLS} style={ROW_STYLE}>
-              <option value="">{DEFAULT_LIST_NAME}</option>
-              {lists.map((l) => (
-                <option key={l.id} value={l.id}>
-                  {l.name}
-                </option>
-              ))}
-            </select>
+            <RowMenu
+              value={listId}
+              onChange={setListId}
+              ariaLabel="List"
+              accent={accent}
+              options={[{ value: "", label: DEFAULT_LIST_NAME }, ...lists.map((l) => ({ value: l.id, label: l.name }))]}
+            />
           </Field>
         )}
         {assignable && (
           <Field label="Assigned to" inline>
-            <select value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)} className={ROW_INLINE_CLS} style={ROW_STYLE}>
-              <option value="">Anyone</option>
-              <option value={assignable.myUserId}>Me</option>
-              {assignable.partnerId && <option value={assignable.partnerId}>Partner</option>}
-            </select>
+            <RowMenu
+              value={assignedTo}
+              onChange={setAssignedTo}
+              ariaLabel="Assigned to"
+              accent={accent}
+              options={[
+                { value: "", label: "Anyone" },
+                { value: assignable.myUserId, label: "Me" },
+                ...(assignable.partnerId ? [{ value: assignable.partnerId, label: "Partner" }] : []),
+              ]}
+            />
           </Field>
         )}
         {usesRecurrence ? (

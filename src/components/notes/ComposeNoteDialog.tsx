@@ -1,10 +1,11 @@
 "use client";
 
+import { RowMenu } from "@/components/ui/RowMenu";
 import { useState, type FormEvent } from "react";
 import { Sheet } from "@/components/ui/Sheet";
 import { Field } from "@/components/ui/Field";
 import { FormGroup } from "@/components/ui/FormGroup";
-import { ROW_INLINE_CLS, ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
+import { ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
 import { AutoGrowTextarea } from "@/components/ui/AutoGrowTextarea";
 import { NOTE_CATEGORIES, NOTE_CATEGORY_LABEL, type NewNoteInput, type NoteCategory } from "@/lib/supabase/notes";
 
@@ -83,13 +84,13 @@ export function ComposeNoteDialog({
     >
       <FormGroup>
         <Field label="Kind" inline>
-          <select value={category} onChange={(e) => setCategory(e.target.value as NoteCategory)} className={ROW_INLINE_CLS} style={{ color: ACCENT }}>
-            {NOTE_CATEGORIES.map((c) => (
-              <option key={c} value={c}>
-                {NOTE_CATEGORY_LABEL[c]}
-              </option>
-            ))}
-          </select>
+          <RowMenu
+            value={category}
+            onChange={(v) => setCategory(v as NoteCategory)}
+            ariaLabel="Kind"
+            accent={ACCENT}
+            options={NOTE_CATEGORIES.map((c) => ({ value: c, label: NOTE_CATEGORY_LABEL[c] }))}
+          />
         </Field>
         <Field label="Subject · optional">
           <input value={subject} onChange={(e) => setSubject(e.target.value)} maxLength={120} className={ROW_TEXT_CLS} style={ROW_STYLE} />

@@ -1,5 +1,6 @@
 "use client";
 
+import { RowMenu } from "@/components/ui/RowMenu";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useDrillDown } from "@/lib/useDrillDown";
 import clsx from "clsx";
@@ -196,14 +197,13 @@ function ItemForm({
       <FormGroup>
         {categories.length > 0 && (
           <Field label="Category" inline>
-            <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className={ROW_INLINE_CLS} style={ROW_STYLE}>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-              <option value={NEW_CATEGORY}>＋ New category…</option>
-            </select>
+            <RowMenu
+              value={categoryId}
+              onChange={setCategoryId}
+              ariaLabel="Category"
+              accent={accent}
+              options={[...categories.map((c) => ({ value: c.id, label: c.name })), { value: NEW_CATEGORY, label: "New category…" }]}
+            />
           </Field>
         )}
         {needsNewCategory && (
@@ -213,11 +213,17 @@ function ItemForm({
         )}
         {people && (
           <Field label="For" inline>
-            <select value={forUserId} onChange={(e) => setForUserId(e.target.value)} className={ROW_INLINE_CLS} style={ROW_STYLE}>
-              <option value={FOR_ANYONE}>Either of you</option>
-              <option value={people.myUserId}>Me</option>
-              {people.partnerId && <option value={people.partnerId}>Partner</option>}
-            </select>
+            <RowMenu
+              value={forUserId}
+              onChange={setForUserId}
+              ariaLabel="For"
+              accent={accent}
+              options={[
+                { value: FOR_ANYONE, label: "Either of you" },
+                { value: people.myUserId, label: "Me" },
+                ...(people.partnerId ? [{ value: people.partnerId, label: "Partner" }] : []),
+              ]}
+            />
           </Field>
         )}
       </FormGroup>

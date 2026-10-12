@@ -23,7 +23,7 @@ import { CardPaymentsCard, ExpensesCard } from "@/components/manage/ExpensesCard
 import { FoodTargetsCard } from "@/components/manage/FoodTargetsCard";
 import { HiddenLinksCard } from "@/components/manage/HiddenLinksCard";
 import { UsualTimesCard } from "@/components/manage/UsualTimesCard";
-import { AddRow, CollapsibleManageCard, SheetAddRow, GROUP_CLS, GROUP_STYLE, GroupNote, ManageNavContext, SaveFailedNote, OpenInLogRow, RowMenu, SECTION_PARENT, SectionRow, SectionTile, useSectionMode } from "@/components/manage/ManageSection";
+import { AddRow, CollapsibleManageCard, SheetAddRow, GROUP_CLS, GROUP_STYLE, GroupNote, ManageNavContext, SaveFailedNote, OpenInLogRow, SECTION_PARENT, SectionRow, SectionTile, useSectionMode } from "@/components/manage/ManageSection";
 import { SwitchKnob } from "@/components/ui/Switch";
 import { TimePicker } from "@/components/ui/DatePicker";
 import { useItemActions, type ManageableItem } from "@/lib/useItemActions";
@@ -60,6 +60,7 @@ import { Field } from "@/components/ui/Field";
 import { AutoGrowTextarea } from "@/components/ui/AutoGrowTextarea";
 import { ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
 import { useSetAppearance } from "@/components/ThemeManager";
+import { RowMenu } from "@/components/ui/RowMenu";
 import {
   useThemePref,
   useLightPalette,

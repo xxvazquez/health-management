@@ -1,12 +1,13 @@
 "use client";
 
+import { RowMenu } from "@/components/ui/RowMenu";
 import { useEffect, useState, type FormEvent } from "react";
 import { usePathname } from "next/navigation";
 import { BUG_TYPES, bugReportingConfigured, submitBugReport, type BugType } from "@/lib/supabase/reportBug";
 import { Sheet } from "@/components/ui/Sheet";
 import { Field } from "@/components/ui/Field";
 import { FormGroup } from "@/components/ui/FormGroup";
-import { ROW_INLINE_CLS, ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
+import { ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
 import { AutoGrowTextarea } from "@/components/ui/AutoGrowTextarea";
 import { NAV_LABEL } from "@/components/navLabels";
 
@@ -100,13 +101,7 @@ export function BugReportDialog({ open, onClose }: { open: boolean; onClose: () 
         <>
           <FormGroup>
             <Field label="Type" inline>
-              <select value={bugType} onChange={(e) => setBugType(e.target.value as BugType)} className={ROW_INLINE_CLS} style={ROW_STYLE}>
-                {BUG_TYPES.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
-                ))}
-              </select>
+              <RowMenu value={bugType} onChange={(v) => setBugType(v as BugType)} ariaLabel="Type" options={BUG_TYPES.map((t) => ({ value: t, label: t }))} />
             </Field>
             <Field label="Location">
               <input required value={location} onChange={(e) => setLocation(e.target.value)} placeholder="e.g. Log page, Digestion chart" className={ROW_TEXT_CLS} style={ROW_STYLE} />

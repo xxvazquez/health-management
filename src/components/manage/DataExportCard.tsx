@@ -3,7 +3,8 @@
 import { useId, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { useAuth } from "@/lib/supabase/AuthContext";
 import { useData } from "@/lib/DataContext";
-import { CollapsibleManageCard, GROUP_CLS, GROUP_STYLE, GroupNote, RowMenu } from "@/components/manage/ManageSection";
+import { CollapsibleManageCard, GROUP_CLS, GROUP_STYLE, GroupNote } from "@/components/manage/ManageSection";
+import { RowMenu } from "@/components/ui/RowMenu";
 import { FormGroup } from "@/components/ui/FormGroup";
 import { Sheet } from "@/components/ui/Sheet";
 import { buildExport, downloadExport, downloadSectionCsv, EXPORT_SECTIONS, type ExportBundle } from "@/lib/exportData";

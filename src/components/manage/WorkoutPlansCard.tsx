@@ -1,8 +1,9 @@
 "use client";
 
+import { RowMenu } from "@/components/ui/RowMenu";
 import { useEffect, useId, useMemo, useState, type ReactNode } from "react";
 import { useToday } from "@/lib/useToday";
-import { ChevronIcon } from "@/components/ui/icons";
+import { ChevronIcon, UpDownChevronIcon } from "@/components/ui/icons";
 import { FormGroup } from "@/components/ui/FormGroup";
 import { Field } from "@/components/ui/Field";
 import { Segmented } from "@/components/ui/Segmented";
@@ -241,13 +242,13 @@ function DaySheet({
           return (
             <FormGroup key={s.key} footer={`Week 1 target: ${sessionTargetKg(base, s)} kg (base ${base} kg).`}>
               <Field label="Exercise" inline>
-                <select value={s.itemId} onChange={(e) => onPatch(s.key, { itemId: e.target.value })} className={ROW_INLINE_CLS} style={ROW_STYLE}>
-                  {lifts.map((l) => (
-                    <option key={l.itemId} value={l.itemId}>
-                      {nameOf(l.itemId)}
-                    </option>
-                  ))}
-                </select>
+                <RowMenu
+                  value={s.itemId}
+                  onChange={(itemId) => onPatch(s.key, { itemId })}
+                  ariaLabel="Exercise"
+                  accent={ACCENT}
+                  options={lifts.map((l) => ({ value: l.itemId, label: nameOf(l.itemId) }))}
+                />
               </Field>
               <div className="flex min-h-11 items-center justify-between gap-3 px-3.5">
                 <span className="text-sm" style={{ color: "var(--text-primary)" }}>
@@ -434,11 +435,10 @@ function PlanEditor({
           <NavRow key={lift.itemId} title={nameOf(lift.itemId)} detail={`+${lift.gain} kg each week`} value={`${lift.base} kg`} onClick={() => setLiftSheet(lift.itemId)} />
         ))}
         {liftable.length > 0 ? (
-          <label className="flex min-h-11 items-center gap-3 px-3.5">
-            <span className="text-sm" style={{ color: ACCENT }}>
-              Add exercise
-            </span>
-            <select value="" onChange={(e) => e.target.value && addLift(e.target.value)} className={`${ROW_INLINE_CLS} flex-1`} style={ROW_STYLE}>
+          <label className="relative flex min-h-11 items-center gap-1 px-3.5 text-sm" style={{ color: ACCENT }}>
+            Add exercise
+            <UpDownChevronIcon size={11} />
+            <select value="" onChange={(e) => e.target.value && addLift(e.target.value)} aria-label="Add exercise" className="absolute inset-0 w-full cursor-pointer opacity-0">
               <option value="">Choose…</option>
               {liftable.map((i) => (
                 <option key={i.identity} value={i.identity}>

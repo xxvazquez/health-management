@@ -1,5 +1,6 @@
 "use client";
 
+import { RowMenu } from "@/components/ui/RowMenu";
 import { DatePicker } from "@/components/ui/DatePicker";
 import { Chip } from "@/components/ui/Chip";
 import { Segmented } from "@/components/ui/Segmented";
@@ -17,7 +18,7 @@ import { DriveFilePicker } from "@/components/googleDrive/DriveFilePicker";
 import { driveFileIcon } from "@/components/icons/DriveFileIcons";
 import { IconAction, PencilIcon, TrashIcon, formatDate, formatShortDate } from "./shared";
 import { FormGroup } from "@/components/ui/FormGroup";
-import { ROW_INLINE_CLS, ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
+import { ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { MoreMenu } from "@/components/ui/MoreMenu";
 import { ChevronIcon } from "@/components/ui/icons";
@@ -159,14 +160,13 @@ export function CareEntryForm({
       <FormGroup footer="A push on the revisit date — e.g. to recheck a result or how a change is going.">
         {kind === "decision" && supplements.length > 0 && (
           <Field label="Supplement" inline>
-            <select value={supplementItemId} onChange={(e) => setSupplementItemId(e.target.value)} className={ROW_INLINE_CLS} style={ROW_STYLE}>
-              <option value="">None</option>
-              {supplements.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
+            <RowMenu
+              value={supplementItemId}
+              onChange={setSupplementItemId}
+              ariaLabel="Supplement"
+              accent={accent}
+              options={[{ value: "", label: "None" }, ...supplements.map((s) => ({ value: s.id, label: s.name }))]}
+            />
           </Field>
         )}
         <Field label="Date" inline>
