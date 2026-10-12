@@ -4,9 +4,14 @@
 
 export const DAY = 86_400_000;
 
-/** ISO date (or timestamp) → epoch ms at UTC midnight of that day. */
+/** ISO date (or timestamp) → epoch ms at UTC midnight of that day. A
+ * timestamp counts on its local calendar day, as its time is shown. */
 export function toMs(date: string): number {
-  return Date.parse(`${date.slice(0, 10)}T00:00:00Z`);
+  if (date.length > 10) {
+    const d = new Date(date);
+    return Date.UTC(d.getFullYear(), d.getMonth(), d.getDate());
+  }
+  return Date.parse(`${date}T00:00:00Z`);
 }
 
 export function tooltipDate(ms: number): string {
