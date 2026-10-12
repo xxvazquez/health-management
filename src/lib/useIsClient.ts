@@ -8,7 +8,7 @@ const subscribe = () => () => {};
  * static-export snapshot is `false`, the client's is `true`, so gating
  * wall-clock-dependent content (which differs between build time and load
  * time) on this avoids a hydration mismatch without an effect-driven
- * setState. Same trick `PrimaryAction` uses inline. */
+ * setState. */
 export function useIsClient(): boolean {
   return useSyncExternalStore(
     subscribe,

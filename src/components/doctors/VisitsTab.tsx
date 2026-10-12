@@ -31,11 +31,12 @@ function Caption({ children }: { children: React.ReactNode }) {
   );
 }
 
-/** The "+ Add" menu for Visits — rendered in the Health page's title row. */
+/** The "+" menu for Visits — rendered in the Health page's title row. */
 export function VisitsAddMenu({ accent, onAdd }: { accent: string; onAdd: (mode: VisitsAddMode) => void }) {
   return (
     <AddMenu
       accent={accent}
+      round
       options={[
         { label: "Something to raise", onClick: () => onAdd("note") },
         { label: "Log a past appointment", onClick: () => onAdd("appointment") },

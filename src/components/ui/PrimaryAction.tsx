@@ -1,50 +1,40 @@
-import { Button } from "./Button";
 import { PlusIcon } from "./icons";
 
-/** The one "create something" control — same accent fill and label
- * grammar everywhere it appears. Pass the label as "New <noun>" when it
- * opens a form directly, or "Log <noun>" for a past event; the "+" is added
- * here. A section with several kinds of thing to add uses `AddMenu`, which
- * wraps this in a pull-down menu.
- *
- * Renders inline wherever it's called — every call site already places it
- * at the top of its section (a `PageHeading` actions slot, or beside that
- * section's search/sort row). `compact` turns it into a round "+" button,
- * sized like the menu button beside it, on the narrowest phones where the
- * label would push the page title's row onto two lines. */
+/** The one "create something" control: a raised "+" in the section's
+ * accent, named by `label` ("New entry", "Add link") for screen readers and
+ * the hover tooltip. `round` matches the round menu button in a page title
+ * row; without it the button takes the 10px toolbar shape of the search and
+ * sort controls beside it. A section with several kinds of thing to add uses
+ * `AddMenu`, which opens a pull-down menu from this button. */
 export function PrimaryAction({
   label,
-  compact = false,
+  round = false,
   onClick,
   accent,
   disabled = false,
+  menuOpen,
 }: {
   label: string;
-  compact?: boolean;
+  round?: boolean;
   onClick: () => void;
   accent: string;
   disabled?: boolean;
+  /** Set by `AddMenu` so the button announces the menu it opens. */
+  menuOpen?: boolean;
 }) {
   return (
-    <Button
+    <button
       type="button"
-      size="sm"
-      accent={accent}
       onClick={onClick}
       disabled={disabled}
-      aria-label={compact ? label : undefined}
-      className={`shrink-0 transition-opacity hover:opacity-90 ${compact ? "max-[359px]:w-9 max-[359px]:rounded-full max-[359px]:px-0" : ""}`}
+      aria-label={label}
+      title={label}
+      aria-haspopup={menuOpen === undefined ? undefined : "menu"}
+      aria-expanded={menuOpen}
+      className={`control-surface hit-slop flex h-9 w-9 shrink-0 items-center justify-center transition-opacity active:opacity-60 disabled:opacity-40 ${round ? "rounded-full" : "rounded-[10px]"}`}
+      style={{ color: accent }}
     >
-      {compact ? (
-        <>
-          <span className="min-[360px]:hidden">
-            <PlusIcon size={18} />
-          </span>
-          <span className="hidden min-[360px]:inline">+ {label}</span>
-        </>
-      ) : (
-        `+ ${label}`
-      )}
-    </Button>
+      <PlusIcon size={18} />
+    </button>
   );
 }

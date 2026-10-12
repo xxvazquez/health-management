@@ -546,7 +546,7 @@ sits in the same place on every row, with its value, unit and an H/L flag in
 aligned columns, grouped by panel or A–Z, with a time-window control and an
 Average/Last choice; a marker's detail
 adds its trend, window stats and history. Values are entered from that detail
-(**+ Add value**) one at a time, or a whole blood draw at once from the **Add
+(**Add**) one at a time, or a whole blood draw at once from the **Add
 results** batch view (one date and lab, a value per marker — one `lab_results`
 row each, written through the offline outbox like the rest of the direct
 features). A new marker gets a slim quick-add on the Results tab (`MarkerForm`

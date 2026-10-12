@@ -100,7 +100,7 @@ export default function MedicalPage() {
           ) : tab === "results" ? (
             <ResultsAddMenu accent={HEALTH_ACCENT} onAdd={setResultsView} />
           ) : tab === "vitals" ? (
-            <PrimaryAction label="Add" accent={HEALTH_ACCENT} onClick={() => setVitalsComposing(true)} />
+            <PrimaryAction label="Add vitals" round accent={HEALTH_ACCENT} onClick={() => setVitalsComposing(true)} />
           ) : undefined
         }
       >

@@ -127,7 +127,7 @@ One dashboard per Log section, plus Patterns. The time range sits in the title r
 
 Notes → Expenses is a monthly spending report by category.
 
-- **Card payments:** an iOS Shortcut sends every Apple Pay payment with the Revolut card as it happens (Settings → Expenses → Card payments). Online payments and transfers are added with New expense.
+- **Card payments:** an iOS Shortcut sends every Apple Pay payment with the Revolut card as it happens (Settings → Expenses → Card payments). Online payments and transfers are added with the + button.
 - **Categories:** a payment takes the category its shop had last time; anything new waits under **To categorise**. Filing one also files that shop's other waiting payments.
 - **Splits:** each payment keeps what was charged plus your share (All mine / Half / Custom). Totals count your share only.
 - **Report:** month stepper, total spent, a bar per category (tap one to list just those payments), payments by day. Currencies are totalled separately.

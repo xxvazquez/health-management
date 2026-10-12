@@ -3,16 +3,18 @@
 import { useEffect, useRef, useState } from "react";
 import { PrimaryAction } from "./PrimaryAction";
 
-/** "+ Add" that opens an iOS pull-down menu of what to add — for a section
+/** A "+" that opens an iOS pull-down menu of what to add — for a section
  * with more than one kind of thing to create (Agenda, Health → Visits,
  * Results). Picking a row runs its action and closes the menu. */
 export function AddMenu({
   accent,
   label = "Add",
+  round = false,
   options,
 }: {
   accent: string;
   label?: string;
+  round?: boolean;
   options: { label: string; onClick: () => void }[];
 }) {
   const [open, setOpen] = useState(false);
@@ -37,6 +39,8 @@ export function AddMenu({
       <PrimaryAction
         label={label}
         accent={accent}
+        round={round}
+        menuOpen={open}
         onClick={() => {
           const rect = rootRef.current?.getBoundingClientRect();
           setAlignLeft(rect ? rect.left + rect.width / 2 < window.innerWidth / 2 : false);

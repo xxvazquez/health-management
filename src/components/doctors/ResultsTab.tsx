@@ -108,11 +108,12 @@ export type ResultsView =
   | { mode: "marker-form" }
   | { mode: "result-form"; markerId: string; resultId?: string };
 
-/** The "+ Add" menu for Results — rendered in the Health page's title row. */
+/** The "+" menu for Results — rendered in the Health page's title row. */
 export function ResultsAddMenu({ accent, onAdd }: { accent: string; onAdd: (view: ResultsView) => void }) {
   return (
     <AddMenu
       accent={accent}
+      round
       options={[
         { label: "Add results", onClick: () => onAdd({ mode: "batch" }) },
         { label: "New marker", onClick: () => onAdd({ mode: "marker-form" }) },

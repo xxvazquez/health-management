@@ -317,6 +317,7 @@ export function AgendaBoard(props: AgendaBoardProps) {
           ready ? (
             <AddMenu
                 accent={ACCENT}
+                round
                 options={[
                   { label: partnerLinked ? "My reminder" : "Reminder", onClick: () => setAdd({ mode: "reminder", scope: "mine" }) },
                   ...(partnerLinked ? [{ label: "Shared reminder", onClick: () => setAdd({ mode: "reminder" as const, scope: "shared" as const }) }] : []),

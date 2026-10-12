@@ -459,7 +459,7 @@ function NotesHeader({
       actions={
         showActions && (
           <div className="flex shrink-0 items-center gap-2">
-            <PrimaryAction label="New message" compact accent={ACCENT} onClick={onCompose} />
+            <PrimaryAction label="New message" round accent={ACCENT} onClick={onCompose} />
             {hasUnread && <MoreMenu label="Message actions" items={[{ label: "Mark all as read", onClick: onMarkAllRead }]} />}
           </div>
         )
