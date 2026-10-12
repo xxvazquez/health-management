@@ -38,15 +38,15 @@ function displayNameFromEmail(email: string): string {
   return local.charAt(0).toUpperCase() + local.slice(1);
 }
 
-/** The one global auth surface: a sign-in/up form when signed out, or
+/** The one global auth surface: a sign-in form when signed out, or
  * account info + sign out when signed in. Opened from the main menu's
  * account button and from the logged-out banner — never duplicated
  * per-page. */
 export function AccountPanel() {
-  const { configured, session, panelOpen, closePanel, error, signIn, signUp, signOut, sendPasswordReset } = useAuth();
+  const { configured, session, panelOpen, closePanel, error, signIn, signOut, sendPasswordReset } = useAuth();
   const { syncing, lastSyncedAt, isOnline, syncNow, syncState } = useData();
   const partnerLinked = usePartnerLinked();
-  const [mode, setMode] = useState<"signIn" | "signUp" | "reset">("signIn");
+  const [mode, setMode] = useState<"signIn" | "reset">("signIn");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -55,7 +55,7 @@ export function AccountPanel() {
 
   if (!panelOpen) return null;
 
-  function goToMode(next: "signIn" | "signUp" | "reset") {
+  function goToMode(next: "signIn" | "reset") {
     setMode(next);
     setResetSent(false);
     setResetError(null);
@@ -64,11 +64,7 @@ export function AccountPanel() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSubmitting(true);
-    if (mode === "signIn") {
-      await signIn(email, password);
-    } else {
-      await signUp(email, password);
-    }
+    await signIn(email, password);
     setSubmitting(false);
   }
 
@@ -225,7 +221,7 @@ export function AccountPanel() {
         </form>
       )}
 
-      {configured && !session && mode !== "reset" && (
+      {configured && !session && mode === "signIn" && (
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
           <FormGroup>
             <Field label="Email">
@@ -250,11 +246,9 @@ export function AccountPanel() {
               label={
                 <span className="flex items-center justify-between gap-2">
                   Password
-                  {mode === "signIn" && (
-                    <button type="button" onClick={() => goToMode("reset")} className="font-medium" style={{ color: "var(--ui-accent)" }}>
-                      Forgot?
-                    </button>
-                  )}
+                  <button type="button" onClick={() => goToMode("reset")} className="font-medium" style={{ color: "var(--ui-accent)" }}>
+                    Forgot?
+                  </button>
                 </span>
               }
             >
@@ -262,7 +256,7 @@ export function AccountPanel() {
                 type="password"
                 aria-label="Password"
                 required
-                autoComplete={mode === "signIn" ? "current-password" : "new-password"}
+                autoComplete="current-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className={ROW_TEXT_CLS}
@@ -276,14 +270,8 @@ export function AccountPanel() {
             </span>
           )}
           <Button type="submit" disabled={submitting} className="w-full">
-            {mode === "signIn" ? "Sign in" : "Create account"}
+            Sign in
           </Button>
-          <p className="text-center text-sm" style={{ color: "var(--text-secondary)" }}>
-            {mode === "signIn" ? "New here? " : "Have an account? "}
-            <button type="button" onClick={() => goToMode(mode === "signIn" ? "signUp" : "signIn")} className="font-medium" style={{ color: "var(--ui-accent)" }}>
-              {mode === "signIn" ? "Create an account" : "Sign in"}
-            </button>
-          </p>
         </form>
       )}
 

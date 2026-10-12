@@ -10,7 +10,6 @@ interface AuthContextValue {
   loading: boolean;
   error: string | null;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   /** Emails a password-reset link that lands on `/reset`. Resolves with a
    * message only on a real failure (rate limit, network) — an unknown
@@ -20,7 +19,7 @@ interface AuthContextValue {
   /** Sets a new password for the currently-authenticated user — used by
    * the `/reset` page once the recovery link has established a session. */
   updatePassword: (password: string) => Promise<{ error: string | null }>;
-  /** Whether the single global account panel (sign in/up form, or account
+  /** Whether the single global account panel (sign-in form, or account
    * info + sign out once signed in) is open. Shared state so both the main
    * menu's account button and the logged-out banner open the same panel
    * instead of each page growing its own login UI. */
@@ -90,17 +89,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const signUp = useCallback(async (email: string, password: string) => {
-    if (!supabase) return;
-    setError(null);
-    const { error: err } = await supabase.auth.signUp({ email, password });
-    if (err) {
-      setError(err.message);
-    } else {
-      setPanelOpen(false);
-    }
-  }, []);
-
   const signOut = useCallback(async () => {
     if (!supabase) return;
     await supabase.auth.signOut();
@@ -130,7 +118,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       loading,
       error,
       signIn,
-      signUp,
       signOut,
       sendPasswordReset,
       updatePassword,
@@ -138,7 +125,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       openPanel,
       closePanel,
     }),
-    [session, loading, error, signIn, signUp, signOut, sendPasswordReset, updatePassword, panelOpen, openPanel, closePanel],
+    [session, loading, error, signIn, signOut, sendPasswordReset, updatePassword, panelOpen, openPanel, closePanel],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
