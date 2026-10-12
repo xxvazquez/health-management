@@ -4,7 +4,6 @@ import {
   deleteOutboxEntryById,
   enqueueOutbox,
   getAllOutboxEntries,
-  getEligibleOutboxEntries,
   getItem,
   getOutboxCounts,
   putItem,
@@ -173,59 +172,6 @@ describe("enqueueOutbox — dedup rules", () => {
     await enqueueOutbox({ userId: b.userId, dedupeKey: b.dedupeKey, table: "care_entry_specialties", op: "delete", payload: { match: { entry_id: "e2", specialty_id: "s2" } } });
     matching = (await getAllOutboxEntries()).filter((e) => e.dedupeKey === b.dedupeKey);
     expect(matching).toHaveLength(0);
-  });
-});
-
-describe("getEligibleOutboxEntries", () => {
-  it("returns only pending entries whose backoff has elapsed", async () => {
-    const now = Date.now();
-    const { userId, dedupeKey } = unique("eligible");
-    await enqueueOutbox({ userId, dedupeKey, table: "food_items", op: "upsert", payload: { id: "ready" } });
-    const [readyEntry] = (await getAllOutboxEntries()).filter((e) => e.dedupeKey === dedupeKey);
-    // enqueueOutbox stamps nextAttemptAt with its own Date.now() call, which
-    // runs strictly after `now` was captured above — on a slow tick this
-    // entry's nextAttemptAt could land after `now`, making it look not-yet-
-    // eligible and flaking the assertion below. Pin it explicitly instead
-    // of relying on two separate Date.now() calls landing in the same
-    // millisecond.
-    await updateOutboxEntry(readyEntry.id, { nextAttemptAt: now - 1 });
-
-    const notYet = unique("eligible-future");
-    await enqueueOutbox({ userId: notYet.userId, dedupeKey: notYet.dedupeKey, table: "food_items", op: "upsert", payload: { id: "later" } });
-    const [futureEntry] = (await getAllOutboxEntries()).filter((e) => e.dedupeKey === notYet.dedupeKey);
-    await updateOutboxEntry(futureEntry.id, { nextAttemptAt: now + 60_000 });
-
-    const eligible = await getEligibleOutboxEntries(now);
-    const eligibleIds = eligible.map((e) => e.id);
-    expect(eligibleIds).toContain(readyEntry.id);
-    expect(eligibleIds).not.toContain(futureEntry.id);
-  });
-
-  it("excludes dead-letter entries even if their backoff has elapsed", async () => {
-    const { userId, dedupeKey } = unique("dead");
-    await enqueueOutbox({ userId, dedupeKey, table: "food_items", op: "upsert", payload: { id: "a" } });
-    const [entry] = (await getAllOutboxEntries()).filter((e) => e.dedupeKey === dedupeKey);
-    await updateOutboxEntry(entry.id, { status: "dead-letter" });
-
-    const eligible = await getEligibleOutboxEntries();
-    expect(eligible.map((e) => e.id)).not.toContain(entry.id);
-  });
-
-  it("orders eligible entries oldest-first", async () => {
-    const older = unique("order-a");
-    const newer = unique("order-b");
-    await enqueueOutbox({ userId: older.userId, dedupeKey: older.dedupeKey, table: "food_items", op: "upsert", payload: {} });
-    const [olderEntry] = (await getAllOutboxEntries()).filter((e) => e.dedupeKey === older.dedupeKey);
-    await updateOutboxEntry(olderEntry.id, { createdAt: 1000 });
-
-    await enqueueOutbox({ userId: newer.userId, dedupeKey: newer.dedupeKey, table: "food_items", op: "upsert", payload: {} });
-    const [newerEntry] = (await getAllOutboxEntries()).filter((e) => e.dedupeKey === newer.dedupeKey);
-    await updateOutboxEntry(newerEntry.id, { createdAt: 2000 });
-
-    const eligible = await getEligibleOutboxEntries();
-    const olderIndex = eligible.findIndex((e) => e.id === olderEntry.id);
-    const newerIndex = eligible.findIndex((e) => e.id === newerEntry.id);
-    expect(olderIndex).toBeLessThan(newerIndex);
   });
 });
 

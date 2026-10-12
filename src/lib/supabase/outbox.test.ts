@@ -332,6 +332,43 @@ describe("drainOutbox", () => {
     expect(remaining).toHaveLength(0);
   });
 
+  it("holds a later write to a row until an earlier backed-off one has gone", async () => {
+    const { userId, dedupeKey } = unique("order");
+    currentSessionUserId = userId;
+    thrown = new Error("network down");
+    await enqueueOutbox({ userId, dedupeKey, table: "food_items", op: "upsert", payload: { id: "a" } });
+    const { drainOutbox } = await import("./outbox");
+    await drainOutbox();
+
+    thrown = null;
+    sentCalls.length = 0;
+    await enqueueOutbox({ userId, dedupeKey, table: "food_items", op: "delete", payload: { id: "a" } });
+    await drainOutbox();
+    expect(sentCalls).toHaveLength(0);
+
+    const [create] = (await getAllOutboxEntries()).filter((e) => e.dedupeKey === dedupeKey && e.op === "upsert");
+    await updateOutboxEntry(create.id, { nextAttemptAt: Date.now() - 1 });
+    await drainOutbox();
+    expect(sentCalls.map((c) => c.op)).toEqual(["upsert", "delete"]);
+  });
+
+  it("keeps a missing-parent failure pending while an earlier write is still queued", async () => {
+    const parent = unique("parent");
+    currentSessionUserId = parent.userId;
+    await enqueueOutbox({ userId: parent.userId, dedupeKey: parent.dedupeKey, table: "food_items", op: "upsert", payload: { id: "p" } });
+    const [parentEntry] = (await getAllOutboxEntries()).filter((e) => e.dedupeKey === parent.dedupeKey);
+    await updateOutboxEntry(parentEntry.id, { attempts: 1, nextAttemptAt: Date.now() + 60_000 });
+    await enqueueOutbox({ userId: parent.userId, dedupeKey: "events:child", table: "events", op: "upsert", payload: { id: "c" } });
+    upsertResult = { error: { code: "23503", message: "violates foreign key constraint" } };
+
+    const { drainOutbox } = await import("./outbox");
+    await drainOutbox();
+
+    const [child] = (await getAllOutboxEntries()).filter((e) => e.dedupeKey === "events:child" && e.userId === parent.userId);
+    expect(child.status).toBe("pending");
+    expect(child.attempts).toBe(1);
+  });
+
   it("never sends an entry belonging to a different user, and never touches it", async () => {
     const owner = unique("owner");
     await enqueueOutbox({ userId: owner.userId, dedupeKey: owner.dedupeKey, table: "food_items", op: "upsert", payload: { id: "a" } });

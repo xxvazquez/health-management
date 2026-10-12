@@ -38,7 +38,11 @@ export interface OutboxEntry {
   op: OutboxOperation;
   payload: unknown;
   attempts: number;
+  /** Queue position — kept when a later write merges into this entry. */
   createdAt: number;
+  /** When a write last changed this entry, if it was merged into after
+   * being queued. */
+  touchedAt?: number;
   nextAttemptAt: number;
   status: OutboxStatus;
   lastError?: string;
@@ -735,7 +739,7 @@ async function writeOutboxEntry(entry: NewOutboxEntry): Promise<void> {
   const pendingUnattempted = existing.find((e) => e.status === "pending" && e.attempts === 0);
 
   if (entry.op === "upsert" && pendingUnattempted?.op === "upsert") {
-    const updated: OutboxEntry = { ...pendingUnattempted, payload: entry.payload, createdAt: Date.now(), nextAttemptAt: Date.now() };
+    const updated: OutboxEntry = { ...pendingUnattempted, payload: entry.payload, touchedAt: Date.now(), nextAttemptAt: Date.now() };
     await db.put("outbox", updated);
     return;
   }
@@ -746,13 +750,13 @@ async function writeOutboxEntry(entry: NewOutboxEntry): Promise<void> {
   // fine; merging into an "update" stays an "update".
   if (entry.op === "update" && (pendingUnattempted?.op === "upsert" || pendingUnattempted?.op === "update")) {
     const merged = { ...(pendingUnattempted.payload as Record<string, unknown>), ...(entry.payload as Record<string, unknown>) };
-    await db.put("outbox", { ...pendingUnattempted, payload: merged, createdAt: Date.now(), nextAttemptAt: Date.now() });
+    await db.put("outbox", { ...pendingUnattempted, payload: merged, touchedAt: Date.now(), nextAttemptAt: Date.now() });
     return;
   }
   // "insert" is write-once: a second one for the same key just replaces the
   // still-unsent payload, same as "upsert".
   if (entry.op === "insert" && pendingUnattempted?.op === "insert") {
-    await db.put("outbox", { ...pendingUnattempted, payload: entry.payload, createdAt: Date.now(), nextAttemptAt: Date.now() });
+    await db.put("outbox", { ...pendingUnattempted, payload: entry.payload, touchedAt: Date.now(), nextAttemptAt: Date.now() });
     return;
   }
   if (entry.op === "delete" && (pendingUnattempted?.op === "upsert" || pendingUnattempted?.op === "insert")) {
@@ -850,15 +854,6 @@ export async function getAllOutboxEntries(): Promise<OutboxEntry[]> {
   return (await getDb()).getAll("outbox");
 }
 
-/** Every entry currently eligible to send: status "pending" and its retry
- * backoff has elapsed. Ordered oldest-first so operations on the same
- * record drain in the order they were made. */
-export async function getEligibleOutboxEntries(now: number = Date.now()): Promise<OutboxEntry[]> {
-  const db = await getDb();
-  const pending = await db.getAllFromIndex("outbox", "status", "pending");
-  return pending.filter((e) => e.nextAttemptAt <= now).sort((a, b) => a.createdAt - b.createdAt);
-}
-
 export async function getOutboxCounts(userId: string): Promise<{ pending: number; deadLetter: number }> {
   const all = (await getAllOutboxEntries()).filter((e) => e.userId === userId);
   return {
@@ -870,7 +865,7 @@ export async function getOutboxCounts(userId: string): Promise<{ pending: number
 /** Raw, unlocked read — for pullFromCloud's own use only, from inside its
  * withDataLock callback (see sync.ts). Whether this user has any outbox
  * entry (any status — even one already dead-lettered still means a local
- * write happened) created at or after `sinceMs`: a local `*AndSync` write
+ * write happened) created or merged into at or after `sinceMs`: a local `*AndSync` write
  * and its outbox entry are created atomically (same withDataLock call), so
  * this is how pullFromCloud detects a write that raced in after it already
  * fetched its cloud snapshot but before it acquired the lock to install
@@ -878,7 +873,7 @@ export async function getOutboxCounts(userId: string): Promise<{ pending: number
  * destructive clear without being reflected in the (now-stale) snapshot. */
 export async function hasOutboxEntriesSinceInternal(userId: string, sinceMs: number): Promise<boolean> {
   const all = await getAllOutboxEntries();
-  return all.some((e) => e.userId === userId && e.createdAt >= sinceMs);
+  return all.some((e) => e.userId === userId && Math.max(e.createdAt, e.touchedAt ?? 0) >= sinceMs);
 }
 
 /** The actual dead-letter rows for the current user — enough detail

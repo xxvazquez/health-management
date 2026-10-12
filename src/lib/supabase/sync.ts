@@ -268,10 +268,8 @@ export function deleteItemAndSync(identity: string, itemType: ItemType): Promise
  * own `${table}:${id}` — sharing the item's key would let a later unrelated
  * edit (rename, etc.) coalesce into and silently drop this reset before it
  * ever reached the server; see the doc comment on buildItemRow and the
- * plan this shipped with for the full reasoning. Ordering across the two
- * keys is still guaranteed by the outbox's global createdAt sort
- * (indexedDb.ts's getEligibleOutboxEntries), so nothing here can be
- * reverted out of order by that split. */
+ * plan this shipped with for the full reasoning. The drain still sends
+ * both in order, since it orders writes per row, not per key (outbox.ts). */
 export function setItemReminderTimeAndSync(item: RawItem, time: string | null): Promise<void> {
   return withDataLock(async () => {
     const updated = { ...item, reminderTime: time };

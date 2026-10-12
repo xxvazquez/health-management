@@ -2,7 +2,6 @@ import { supabase } from "./client";
 import {
   deleteOutboxEntryById,
   getDeadLetterOutboxEntries,
-  getEligibleOutboxEntries,
   getOutboxCounts,
   getPendingOutboxEntries,
   updateOutboxEntry,
@@ -136,6 +135,13 @@ export function isSendableOutboxEntry(entry: OutboxEntry): boolean {
  * because its own saved copy is damaged. */
 export const DAMAGED_ENTRY_CODE = "LOCAL_DAMAGED";
 
+/** The row an entry writes: its table and id, or its dedupe key for a
+ * match-delete. Two keys can share a row (an item and its reminder reset). */
+function rowKey(entry: OutboxEntry): string {
+  const id = (entry.payload as { id?: unknown } | null)?.id;
+  return typeof id === "string" ? `${entry.table}:${id}` : entry.dedupeKey;
+}
+
 let draining: Promise<void> | null = null;
 
 /**
@@ -154,10 +160,23 @@ export function drainOutbox(): Promise<void> {
     try {
       const userId = await currentUserId();
       if (!userId) return;
-      const entries = await getEligibleOutboxEntries();
+      const entries = await getPendingOutboxEntries(userId);
+      const now = Date.now();
+      // Writes to one row go out strictly in order: while an earlier one is
+      // still waiting out its backoff or just failed, every later one for
+      // that row waits too — otherwise a delete could land before the create
+      // it cancels (and the create would bring the row back), or an older
+      // edit could overwrite a newer one.
+      const blockedRows = new Set<string>();
+      let earlierUnsent = false;
       let refreshedSession = false;
       for (const entry of entries) {
-        if (entry.userId !== userId) continue;
+        const row = rowKey(entry);
+        if (blockedRows.has(row) || entry.nextAttemptAt > now) {
+          blockedRows.add(row);
+          earlierUnsent = true;
+          continue;
+        }
         if (!isSendableOutboxEntry(entry)) {
           // Kept (not deleted) and surfaced as a failed change, so nothing is
           // discarded without the user seeing it.
@@ -176,6 +195,15 @@ export function drainOutbox(): Promise<void> {
           refreshedSession = true;
           await supabase.auth.refreshSession().catch(() => undefined);
           result = await sendOutboxEntry(entry);
+        }
+        if (result.outcome === "permanent" && result.code === "23503" && earlierUnsent) {
+          // The row it points at may be an earlier write still queued here
+          // (a new item, then a log of it) — retry after that one lands.
+          result = { outcome: "retryable", message: result.message, code: result.code };
+        }
+        if (result.outcome !== "success") {
+          blockedRows.add(row);
+          earlierUnsent = true;
         }
         if (result.outcome === "success") {
           // The record may have already been deleted server-side by a
