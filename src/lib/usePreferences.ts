@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/lib/supabase/AuthContext";
 import { fetchPreferences, savePreferences, type Preferences } from "@/lib/supabase/preferences";
+import { withSendTimeout } from "@/lib/supabase/outbox";
+import { hasPendingOutboxEntry } from "@/lib/db/indexedDb";
 import { useSnapshotCache } from "@/lib/useSnapshotCache";
 
 const PREFERENCES_TABLES = ["user_preferences"] as const;
@@ -20,6 +22,23 @@ function fetchOnce(): Promise<Preferences> {
     inflight = null;
   });
   return inflight;
+}
+
+/** Saves go out one at a time, each applying only its changed keys onto
+ * the latest copy on the server — so quick changes can't land out of order,
+ * and a change made on another device isn't overwritten by this one's older
+ * copy. Offline, or while an earlier save is still queued, the local copy
+ * is the base. */
+let saveChain: Promise<void> = Promise.resolve();
+function queueSave(userId: string, patch: Partial<Preferences>, local: Preferences): Promise<void> {
+  const run = async () => {
+    const queued = await hasPendingOutboxEntry(userId, `user_preferences:${userId}`);
+    const base = queued ? local : await withSendTimeout(fetchPreferences()).catch(() => local);
+    await savePreferences({ ...base, ...patch });
+  };
+  const saved = saveChain.then(run, run);
+  saveChain = saved.catch(() => undefined);
+  return saved;
 }
 
 function publish(next: typeof shared) {
@@ -68,9 +87,10 @@ export function usePreferences() {
       publish({ ...shared, prefs: next });
       if (isDemo || !userId) return;
       persist({ prefs: next });
-      savePreferences(next).catch((err) => {
+      queueSave(userId, patch, next).catch((err) => {
         console.error("preferences save failed", err);
-        publish({ ...shared, prefs: previous });
+        const reverted = Object.fromEntries(Object.keys(patch).map((k) => [k, previous[k as keyof Preferences]]));
+        publish({ ...shared, prefs: { ...shared.prefs, ...reverted } });
       });
     },
     [userId, isDemo, persist],
