@@ -17,7 +17,7 @@ import { TrendCard, TrendHeadline, periodLabel, periodWindow, type ChartPeriod }
 import { ListSkeleton } from "@/components/ui/Skeleton";
 import { ErrorState, InlineEmpty } from "@/components/ui/EmptyState";
 import { FormShell } from "@/components/ui/FormShell";
-import { IconAction, TrashIcon, formatDate, formatDateTime, toLocalInput } from "./shared";
+import { IconAction, TrashIcon, formatDate, formatDateTime, toLocalDateInput, toLocalInput } from "./shared";
 import { Field } from "@/components/ui/Field";
 import { FormGroup } from "@/components/ui/FormGroup";
 import { ROW_INLINE_CLS, ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
@@ -377,11 +377,11 @@ export function VitalsTab({ accent, composing, setComposing }: { accent: string;
   const weightAsc = [...vitals.weight.data].slice().reverse();
 
   const today = todayLocalISODate();
-  const allDates = (kind === "bp" ? vitals.bp.data : vitals.weight.data).map((r) => r.measuredAt.slice(0, 10));
+  const allDates = (kind === "bp" ? vitals.bp.data : vitals.weight.data).map((r) => toLocalDateInput(r.measuredAt));
   const earliest = allDates.length > 0 ? allDates.reduce((a, b) => (a < b ? a : b)) : today;
   const span = periodWindow(period, offset, earliest, today);
   const inWindow = (measuredAt: string) => {
-    const d = measuredAt.slice(0, 10);
+    const d = toLocalDateInput(measuredAt);
     return d >= span.start && d <= span.end;
   };
   const bpWindowed = bpAsc.filter((r) => inWindow(r.measuredAt));
@@ -391,7 +391,7 @@ export function VitalsTab({ accent, composing, setComposing }: { accent: string;
   const shownBp = bpScrub ?? (latestBp ? { at: latestBp.measuredAt, systolic: latestBp.systolic, diastolic: latestBp.diastolic } : null);
   const shownBpCategory = shownBp ? bpCategory(shownBp.systolic, shownBp.diastolic) : null;
   const latestWeight = vitals.weight.data[0] ?? null;
-  const shownWeight = weightScrub ?? (latestWeight ? { date: latestWeight.measuredAt.slice(0, 10), value: latestWeight.kg } : null);
+  const shownWeight = weightScrub ?? (latestWeight ? { date: toLocalDateInput(latestWeight.measuredAt), value: latestWeight.kg } : null);
 
   const trendCard = (headline: ReactNode, chart: ReactNode) => (
     <TrendCard
@@ -540,7 +540,7 @@ export function VitalsTab({ accent, composing, setComposing }: { accent: string;
             ),
             weightWindowed.length >= 1 ? (
               <LabMarkerChart
-                data={weightWindowed.map((r) => ({ date: r.measuredAt.slice(0, 10), value: r.kg }))}
+                data={weightWindowed.map((r) => ({ date: toLocalDateInput(r.measuredAt), value: r.kg }))}
                 unit="kg"
                 refLow={vitals.weight.target?.lowKg ?? null}
                 refHigh={vitals.weight.target?.highKg ?? null}

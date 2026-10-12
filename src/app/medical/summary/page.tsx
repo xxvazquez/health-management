@@ -19,7 +19,7 @@ import { ListSkeleton } from "@/components/ui/Skeleton";
 import { TrendGroup, TrendRow } from "@/components/analytics/TrendList";
 import { fmtNum, lastTestNote } from "@/components/doctors/LabsOverview";
 import { optimalStatusColor } from "@/components/doctors/labStatus";
-import { formatDate } from "@/components/doctors/shared";
+import { formatDate, toLocalDateInput } from "@/components/doctors/shared";
 
 type Period = "3M" | "6M" | "1Y";
 const PERIOD_DAYS: Record<Period, number> = { "3M": 91, "6M": 182, "1Y": 365 };
@@ -109,14 +109,14 @@ export default function VisitSummaryPage() {
   const visits = api.appointments.data.filter((a) => a.doctorId === doctor.id);
   const visitIds = new Set(visits.map((a) => a.id));
   const openTasks = api.tasks.data.filter((t) => visitIds.has(t.appointmentId) && !t.completedAt);
-  const visitsInRange = visits.filter((a) => inRange(a.appointmentAt.slice(0, 10))).sort((a, b) => b.appointmentAt.localeCompare(a.appointmentAt));
+  const visitsInRange = visits.filter((a) => inRange(toLocalDateInput(a.appointmentAt))).sort((a, b) => b.appointmentAt.localeCompare(a.appointmentAt));
   const careNotes = specialty
     ? api.careLog.data.filter((c) => c.specialtyIds.includes(specialty.id) && inRange(c.happenedOn)).sort((a, b) => b.happenedOn.localeCompare(a.happenedOn))
     : [];
   const decisionsBySupplement = new Map(api.careLog.data.filter((c) => c.kind === "decision" && c.supplementItemId).map((c) => [c.supplementItemId!, c.title]));
 
-  const bp = vitals.bp.data.filter((r) => inRange(r.measuredAt.slice(0, 10)));
-  const weight = vitals.weight.data.filter((r) => inRange(r.measuredAt.slice(0, 10)));
+  const bp = vitals.bp.data.filter((r) => inRange(toLocalDateInput(r.measuredAt)));
+  const weight = vitals.weight.data.filter((r) => inRange(toLocalDateInput(r.measuredAt)));
   const avg = (values: number[]) => Math.round(values.reduce((a, b) => a + b, 0) / values.length);
   const weightChange = weight.length >= 2 ? Math.round((weight[0].kg - weight[weight.length - 1].kg) * 10) / 10 : null;
 
