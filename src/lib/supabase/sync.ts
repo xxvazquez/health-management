@@ -1155,7 +1155,7 @@ const TRACKING_TYPE_BY_TABLE = new Map<string, ItemType>([
 async function replayUnsyncedWrites(userId: string, categoryNameById: Map<string, string>, skipIds: Set<string>): Promise<void> {
   const entries = (await getAllOutboxEntries())
     .filter((e) => e.userId === userId && !skipIds.has(e.id))
-    .sort((a, b) => a.createdAt - b.createdAt);
+    .sort((a, b) => a.createdAt - b.createdAt || (a.seq ?? 0) - (b.seq ?? 0));
   const names = new Map(categoryNameById);
   const idOf = (payload: unknown): string | null => {
     const id = (payload as { id?: unknown } | null)?.id;

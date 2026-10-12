@@ -367,7 +367,8 @@ describe("pullFromCloud", () => {
       }),
     );
     const [seeded] = (await getAllOutboxEntries()).filter((e) => e.dedupeKey === "symptom_items:item-tiredness");
-    await updateOutboxEntry(seeded.id, { status: "dead-letter", attempts: 1, lastErrorCode: "23503", lastError: "FK violation" });
+    // Written well before the pull, so it can't read as a write racing it.
+    await updateOutboxEntry(seeded.id, { status: "dead-letter", attempts: 1, lastErrorCode: "23503", lastError: "FK violation", createdAt: Date.now() - 1000 });
     // Nothing in this pull's categories is named "symptom" anything — the
     // deleted-category case, not the recoverable seeding-race one — so
     // there's no name to re-match this item's category against.

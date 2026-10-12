@@ -43,6 +43,8 @@ export interface OutboxEntry {
   /** When a write last changed this entry, if it was merged into after
    * being queued. */
   touchedAt?: number;
+  /** Order among entries with the same `createdAt`. */
+  seq?: number;
   nextAttemptAt: number;
   status: OutboxStatus;
   lastError?: string;
@@ -733,6 +735,14 @@ export function setOutboxEnqueueListener(listener: (() => void) | null): void {
   enqueueListener = listener;
 }
 
+/** Breaks ties between entries made in the same millisecond, so they still
+ * drain in the order they were made. */
+let lastSeq = 0;
+function nextSeq(): number {
+  lastSeq += 1;
+  return lastSeq;
+}
+
 async function writeOutboxEntry(entry: NewOutboxEntry): Promise<void> {
   const db = await getDb();
   const existing = await db.getAllFromIndex("outbox", "dedupeKey", entry.dedupeKey);
@@ -789,6 +799,7 @@ async function writeOutboxEntry(entry: NewOutboxEntry): Promise<void> {
       status: "pending",
       attempts: 0,
       createdAt: Date.now(),
+      seq: nextSeq(),
       nextAttemptAt: Date.now(),
       lastError: undefined,
       lastErrorCode: undefined,
@@ -804,6 +815,7 @@ async function writeOutboxEntry(entry: NewOutboxEntry): Promise<void> {
       status: "pending",
       attempts: 0,
       createdAt: Date.now(),
+      seq: nextSeq(),
       nextAttemptAt: Date.now(),
       lastError: undefined,
       lastErrorCode: undefined,
@@ -817,6 +829,7 @@ async function writeOutboxEntry(entry: NewOutboxEntry): Promise<void> {
       status: "pending",
       attempts: 0,
       createdAt: Date.now(),
+      seq: nextSeq(),
       nextAttemptAt: Date.now(),
       lastError: undefined,
       lastErrorCode: undefined,
@@ -840,6 +853,7 @@ async function writeOutboxEntry(entry: NewOutboxEntry): Promise<void> {
     payload: entry.payload,
     attempts: 0,
     createdAt: Date.now(),
+    seq: nextSeq(),
     nextAttemptAt: Date.now(),
     status: "pending",
   };
@@ -898,7 +912,7 @@ export async function getPendingOutboxEntries(userId: string): Promise<OutboxEnt
   const all = await getAllOutboxEntries();
   return all
     .filter((e) => e.userId === userId && e.status === "pending")
-    .sort((a, b) => a.createdAt - b.createdAt);
+    .sort((a, b) => a.createdAt - b.createdAt || (a.seq ?? 0) - (b.seq ?? 0));
 }
 
 export function updateOutboxEntry(id: string, patch: Partial<OutboxEntry>): Promise<void> {
