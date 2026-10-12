@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/lib/supabase/AuthContext";
 import { fetchPalette, savePalette } from "@/lib/supabase/palette";
 import { useSnapshotCache } from "@/lib/useSnapshotCache";
+import { queueRowSave } from "@/lib/queueRowSave";
 
 /** Room for plenty of colours without the swatch row turning into a wall. */
 export const PALETTE_LIMIT = 24;
@@ -53,13 +54,16 @@ export function usePalette() {
     onError: () => {},
   });
 
+  /** Applies `change` here at once, then to the latest saved palette. */
   const write = useCallback(
-    (next: string[]) => {
+    (change: (colors: string[]) => string[]) => {
       const previous = shared.colors;
+      const next = change(previous);
+      if (next === previous) return;
       publish(userId, next);
       if (isDemo || !userId) return;
       persist({ colors: next });
-      savePalette(next).catch((err) => {
+      queueRowSave({ table: "color_palette", userId, local: next, fetchLatest: fetchPalette, change, save: savePalette }).catch((err) => {
         console.error("palette save failed", err);
         publish(userId, previous);
       });
@@ -70,13 +74,18 @@ export function usePalette() {
   const add = useCallback(
     (hex: string) => {
       const color = hex.toLowerCase();
-      if (shared.colors.includes(color)) return;
-      write([...shared.colors, color].slice(-PALETTE_LIMIT));
+      write((colors) => (colors.includes(color) ? colors : [...colors, color].slice(-PALETTE_LIMIT)));
     },
     [write],
   );
 
-  const remove = useCallback((hex: string) => write(shared.colors.filter((c) => c !== hex.toLowerCase())), [write]);
+  const remove = useCallback(
+    (hex: string) => {
+      const color = hex.toLowerCase();
+      write((colors) => (colors.includes(color) ? colors.filter((c) => c !== color) : colors));
+    },
+    [write],
+  );
 
   return { colors, add, remove };
 }

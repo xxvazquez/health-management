@@ -3,8 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/lib/supabase/AuthContext";
 import { fetchPreferences, savePreferences, type Preferences } from "@/lib/supabase/preferences";
-import { withSendTimeout } from "@/lib/supabase/outbox";
-import { hasPendingOutboxEntry } from "@/lib/db/indexedDb";
+import { queueRowSave } from "@/lib/queueRowSave";
 import { useSnapshotCache } from "@/lib/useSnapshotCache";
 
 const PREFERENCES_TABLES = ["user_preferences"] as const;
@@ -24,21 +23,36 @@ function fetchOnce(): Promise<Preferences> {
   return inflight;
 }
 
-/** Saves go out one at a time, each applying only its changed keys onto
- * the latest copy on the server — so quick changes can't land out of order,
- * and a change made on another device isn't overwritten by this one's older
- * copy. Offline, or while an earlier save is still queued, the local copy
- * is the base. */
-let saveChain: Promise<void> = Promise.resolve();
-function queueSave(userId: string, patch: Partial<Preferences>, local: Preferences): Promise<void> {
-  const run = async () => {
-    const queued = await hasPendingOutboxEntry(userId, `user_preferences:${userId}`);
-    const base = queued ? local : await withSendTimeout(fetchPreferences()).catch(() => local);
-    await savePreferences({ ...base, ...patch });
-  };
-  const saved = saveChain.then(run, run);
-  saveChain = saved.catch(() => undefined);
-  return saved;
+function isPlainObject(v: unknown): v is Record<string, unknown> {
+  return typeof v === "object" && v !== null && !Array.isArray(v);
+}
+
+/** Applies what changed from `before` to `after` onto `base`. A key holding
+ * an object (orders, schedules, usual times…) only takes its changed
+ * entries, so another device's edits to the other entries survive. */
+export function applyPrefsChange(base: Preferences, before: Preferences, after: Preferences): Preferences {
+  const out: Record<string, unknown> = { ...base };
+  const b = before as Record<string, unknown>;
+  const a = after as Record<string, unknown>;
+  for (const key of new Set([...Object.keys(b), ...Object.keys(a)])) {
+    if (a[key] === b[key]) continue;
+    const was = b[key];
+    const now = a[key];
+    if (isPlainObject(was) && isPlainObject(now)) {
+      const merged: Record<string, unknown> = isPlainObject(out[key]) ? { ...out[key] } : {};
+      for (const sub of new Set([...Object.keys(was), ...Object.keys(now)])) {
+        if (JSON.stringify(was[sub]) === JSON.stringify(now[sub])) continue;
+        if (sub in now) merged[sub] = now[sub];
+        else delete merged[sub];
+      }
+      out[key] = merged;
+    } else if (key in a) {
+      out[key] = now;
+    } else {
+      delete out[key];
+    }
+  }
+  return out as Preferences;
 }
 
 function publish(next: typeof shared) {
@@ -87,7 +101,14 @@ export function usePreferences() {
       publish({ ...shared, prefs: next });
       if (isDemo || !userId) return;
       persist({ prefs: next });
-      queueSave(userId, patch, next).catch((err) => {
+      queueRowSave({
+        table: "user_preferences",
+        userId,
+        local: next,
+        fetchLatest: fetchPreferences,
+        change: (base) => applyPrefsChange(base, previous, next),
+        save: savePreferences,
+      }).catch((err) => {
         console.error("preferences save failed", err);
         const reverted = Object.fromEntries(Object.keys(patch).map((k) => [k, previous[k as keyof Preferences]]));
         publish({ ...shared, prefs: { ...shared.prefs, ...reverted } });

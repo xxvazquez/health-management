@@ -114,6 +114,8 @@ Messages, Agenda, Health, Journal, Wishlist, Codes, Vitals and Coffee talk to Su
 
 Each write tries Supabase first, and falls back to the shared outbox if the network fails. A record that still has a queued write goes straight to the outbox behind it, so the older write can't land last. Ids are generated client-side, so the optimistic row and the synced row are the same record.
 
+One-row-per-user settings (`user_preferences`, `color_palette`) save through `queueRowSave`: one change at a time, each applied onto the latest saved copy — only the preference entries it changed, or the colour it added/removed — so two devices don't overwrite each other.
+
 | Function | Use for |
 |---|---|
 | `upsertDirect` | A create, or an edit of an owner-only row |
