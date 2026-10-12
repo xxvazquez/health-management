@@ -101,7 +101,6 @@ export function ComposeNoteDialog({
             value={body}
             onChange={(e) => setBody(e.target.value)}
             rows={5}
-            maxRows={10}
             className={`${ROW_TEXT_CLS} resize-none leading-relaxed`}
             style={ROW_STYLE}
           />

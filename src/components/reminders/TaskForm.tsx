@@ -141,7 +141,6 @@ export function TaskForm({
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             rows={3}
-            maxRows={12}
             placeholder="Anything useful to remember"
             className={`${ROW_TEXT_CLS} resize-none leading-relaxed`}
             style={ROW_STYLE}

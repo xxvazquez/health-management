@@ -1,5 +1,6 @@
 "use client";
 
+import { useVisualViewportInsets } from "@/lib/useVisualViewport";
 import { DatePicker } from "@/components/ui/DatePicker";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useDrillDown } from "@/lib/useDrillDown";
@@ -83,6 +84,7 @@ function JournalEntryForm({
   const [error, setError] = useState<string | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [confirmingDiscard, setConfirmingDiscard] = useState(false);
+  const viewport = useVisualViewportInsets();
   const changed = date !== (editing?.date ?? defaultDate) || title !== (editing?.title ?? "") || body !== (editing?.body ?? "");
   useEffect(() => {
     try {
@@ -118,7 +120,11 @@ function JournalEntryForm({
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-      <div className="flex items-center justify-between gap-3 px-0.5">
+      {/* Pinned while writing, so Save stays in reach in a long entry. */}
+      <div
+        className="sticky z-10 -mx-4 -my-2 flex items-center justify-between gap-3 px-4.5 py-2 sm:-mx-6 sm:px-6.5 lg:mx-0 lg:px-0.5"
+        style={{ background: "var(--page-backdrop)", top: `calc(env(safe-area-inset-top) + ${viewport.top}px)` }}
+      >
         <h3 className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>
           {editing ? "Edit entry" : "New entry"}
         </h3>

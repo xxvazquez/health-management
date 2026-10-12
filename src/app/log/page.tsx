@@ -225,7 +225,6 @@ function TimelineNote({
       onChange={(e) => setText(e.target.value)}
       onBlur={commit}
       rows={1}
-      maxRows={8}
       disabled={busy}
       placeholder="Add a note"
       aria-label="Note"

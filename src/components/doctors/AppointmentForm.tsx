@@ -161,7 +161,7 @@ export function AppointmentForm({
 
       <FormGroup>
         <Field label={<>Reason for appointment <span style={{ color: "var(--text-muted)" }}>· optional</span></>}>
-          <AutoGrowTextarea value={reason} onChange={(e) => setReason(e.target.value)} rows={2} maxRows={8} placeholder="Why you went" className={`${ROW_TEXT_CLS} resize-none leading-relaxed`} style={ROW_STYLE} />
+          <AutoGrowTextarea value={reason} onChange={(e) => setReason(e.target.value)} rows={2} placeholder="Why you went" className={`${ROW_TEXT_CLS} resize-none leading-relaxed`} style={ROW_STYLE} />
         </Field>
         <MarkdownField
           label={<>Follow-up notes <span style={{ color: "var(--text-muted)" }}>· optional</span></>}

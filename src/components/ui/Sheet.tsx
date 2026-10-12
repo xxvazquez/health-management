@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { ChevronIcon, CloseIcon } from "@/components/ui/icons";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { useDialogA11y } from "@/components/ui/useDialogA11y";
+import { useVisualViewportInsets } from "@/lib/useVisualViewport";
 
 // Open sheets, so page scrolling is locked until the last one closes.
 let scrollLocks = 0;
@@ -96,6 +97,9 @@ export function Sheet({
   const containerRef = useDialogA11y(true, requestClose);
   const panelRef = useRef<HTMLDivElement & HTMLFormElement>(null);
   const drag = useRef<{ startY: number; startT: number; dy: number } | null>(null);
+  // Sized to the area the on-screen keyboard leaves visible, so the header
+  // and the field being typed in stay on screen above it.
+  const viewport = useVisualViewportInsets();
 
   useEffect(() => {
     if (scrollLocks++ === 0) document.body.style.overflow = "hidden";
@@ -140,7 +144,14 @@ export function Sheet({
   // drawer or a popover isn't clicked through or clipped by its ancestors.
   if (typeof document === "undefined") return null;
   return createPortal(
-    <div ref={containerRef} className="fixed inset-0 z-50 flex items-end justify-center px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby={titleId}>
+    <div
+      ref={containerRef}
+      style={{ top: viewport.top, bottom: viewport.bottom }}
+      className="fixed inset-0 z-50 flex items-end justify-center px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:items-center sm:p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={titleId}
+    >
       <div className="sheet-backdrop absolute inset-0 bg-black/40" data-closing={closing ? "" : undefined} onClick={requestClose} />
       <Panel
         ref={panelRef}
@@ -159,12 +170,12 @@ export function Sheet({
           })
         }
         data-closing={closing ? "" : undefined}
-        className="sheet-panel relative flex max-h-[92dvh] w-full max-w-md flex-col gap-4 overflow-y-auto overscroll-contain rounded-[20px] p-4 pb-6 shadow-xl"
+        className="sheet-panel relative flex max-h-[min(92dvh,100%)] w-full max-w-md flex-col gap-4 overflow-y-auto overscroll-contain rounded-[20px] p-4 pb-6 shadow-xl"
         style={{ background: "var(--page-plane)" }}
       >
         <div
-          className="-mx-4 -mt-4 flex flex-col gap-4 px-4 pt-4 sm:m-0 sm:p-0"
-          style={{ touchAction: "none" }}
+          className="sticky -top-4 z-10 -mx-4 -mt-4 flex flex-col gap-4 px-4 pt-4"
+          style={{ touchAction: "none", background: "var(--page-plane)" }}
           onPointerDown={onDragStart}
           onPointerMove={onDragMove}
           onPointerUp={onDragEnd}

@@ -111,7 +111,6 @@ export function BugReportDialog({ open, onClose }: { open: boolean; onClose: () 
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
                 rows={3}
-                maxRows={8}
                 placeholder="Anything else that would help"
                 className={`${ROW_TEXT_CLS} resize-none leading-relaxed`}
                 style={ROW_STYLE}

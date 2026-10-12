@@ -242,7 +242,6 @@ export function CoffeeLogDialog({
             value={draft.note}
             onChange={(e) => setDraft((d) => ({ ...d, note: e.target.value }))}
             rows={2}
-            maxRows={6}
             placeholder="Bloomed 30s, a little under-extracted…"
             className={`${ROW_TEXT_CLS} resize-none leading-relaxed`}
             style={ROW_STYLE}

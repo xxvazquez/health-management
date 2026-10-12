@@ -405,7 +405,6 @@ function RecipeSheet({
                 value={step}
                 onChange={(e) => set({ steps: draft.steps.map((s, j) => (j === i ? e.target.value : s)) })}
                 rows={1}
-                maxRows={6}
                 placeholder={i === 0 ? "First step" : "Next step"}
                 aria-label={`Step ${i + 1}`}
                 className={`${ROW_TEXT_CLS} resize-none`}
@@ -424,7 +423,6 @@ function RecipeSheet({
               value={draft.note ?? ""}
               onChange={(e) => set({ note: e.target.value })}
               rows={1}
-              maxRows={8}
               placeholder="What makes it good"
               className={`${ROW_TEXT_CLS} resize-none`}
               style={ROW_STYLE}

@@ -23,6 +23,7 @@ export function BottomNav() {
 
   return (
     <nav
+      data-bottom-bar
       aria-label="Primary"
       className="fixed inset-x-0 bottom-0 z-30 flex border-t lg:hidden print:hidden"
       style={{

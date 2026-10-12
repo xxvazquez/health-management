@@ -146,7 +146,6 @@ function CodeForm({
             value={comment}
             onChange={(e) => setComment(e.target.value)}
             rows={2}
-            maxRows={12}
             placeholder="What it's for, any conditions"
             maxLength={2000}
             className={`${ROW_TEXT_CLS} resize-none leading-relaxed`}

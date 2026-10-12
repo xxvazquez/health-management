@@ -132,7 +132,6 @@ function NoteRow({ initial, onSave }: { initial: string; onSave: (note: string) 
         onChange={(e) => setText(e.target.value)}
         onBlur={commit}
         rows={1}
-        maxRows={8}
         placeholder="Note"
         aria-label="Check-in note"
         className={`${ROW_TEXT_CLS} resize-none`}

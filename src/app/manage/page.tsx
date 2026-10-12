@@ -1853,7 +1853,7 @@ function DoctorSheet({
             <LanguageChips value={language} onChange={setLanguage} accent={accent} />
           </div>
           <Field label="Notes">
-            <AutoGrowTextarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} maxRows={8} placeholder="Anything worth remembering about them" className={`${ROW_TEXT_CLS} resize-none`} style={ROW_STYLE} />
+            <AutoGrowTextarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} placeholder="Anything worth remembering about them" className={`${ROW_TEXT_CLS} resize-none`} style={ROW_STYLE} />
           </Field>
         </FormGroup>
         {error && (

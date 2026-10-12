@@ -375,7 +375,6 @@ function ExpenseSheet({
               value={note}
               onChange={(e) => setNote(e.target.value)}
               rows={1}
-              maxRows={6}
               placeholder="Optional"
               maxLength={1000}
               className={`${ROW_TEXT_CLS} resize-none`}

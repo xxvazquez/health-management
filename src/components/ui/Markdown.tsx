@@ -212,7 +212,6 @@ export function MarkdownField({
                 selRef.current = [e.currentTarget.selectionStart, e.currentTarget.selectionEnd];
               }}
               rows={rows}
-              maxRows={16}
               placeholder={placeholder}
               className={`${ROW_TEXT_CLS} resize-none leading-relaxed`}
               style={ROW_STYLE}
@@ -243,7 +242,7 @@ export function MarkdownField({
           {value.trim() ? <MarkdownContent>{value}</MarkdownContent> : nothingYet}
         </div>
       ) : (
-        <textarea
+        <AutoGrowTextarea
           ref={ref}
           required={required}
           autoFocus={autoFocus}
@@ -254,7 +253,7 @@ export function MarkdownField({
           }}
           rows={rows}
           placeholder={placeholder}
-          className="w-full resize-y border-0 bg-transparent px-4 py-3.5 text-sm leading-relaxed outline-none"
+          className="row-control w-full resize-none border-0 bg-transparent px-4 py-3.5 text-sm leading-relaxed outline-none"
           style={{ color: "var(--text-primary)" }}
         />
       )}
