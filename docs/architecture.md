@@ -183,8 +183,8 @@ A static site can't run anything in the background, so Supabase's `pg_cron` / `p
 
 | Phase | Sends |
 |---|---|
-| 1. Habit and supplement reminders | A push when an item's `reminder_time` has passed and it isn't logged today. Also `habit_reminders` per tracked section |
-| 2. Due things | Push + email for due tasks, expiring items, follow-up tasks past `reminder_at`, and care entries on their `remind_on` date |
+| 1. Habit and supplement reminders | A push when an item's `reminder_time` has passed, it isn't logged today and its schedule (`prefs.itemSchedules`) still expects it — not on a day off, not once an N×-a-week item has its N days. Also `habit_reminders` per tracked section |
+| 2. Due things | Push + email for due tasks (not a one-off already ticked), follow-up tasks past `reminder_at`, and — from 09:00 in the user's timezone — expiring items and care entries on their `remind_on` date |
 | 3. Message digest | After 09:00 Warsaw time, one "N unread messages" email + push per user, at most once a day |
 
 - **Instant message push:** sending a message calls `notify-note`, which pushes the sender's name with "Sent you a message", with no content in the payload

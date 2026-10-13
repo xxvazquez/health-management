@@ -8,7 +8,9 @@
 //    a reminder_time set, sends a push once local time reaches that item's
 //    reminder_time (no upper bound — a late or skipped cron tick still
 //    sends, just later, rather than silently never sending that day) unless
-//    it's already logged today or already resolved today. Right after it,
+//    it's already logged today, already resolved today, or off its
+//    schedule (prefs.itemSchedules: not one of its days, or an "N× a week"
+//    item already logged N days this week). Right after it,
 //    the same per-user loop covers Manage's domain-level "remind me to log
 //    this" (habit_reminders): same reminder_time/reminder_last_sent_date
 //    shape and isReminderDue check, but scoped to a whole tracked domain
@@ -18,7 +20,9 @@
 // 2. Personal Reminders / Home: scans personal_tasks/household_tasks (by
 //    due_at), personal_items/household_items (by expires_on -
 //    remind_days_before), and doctor_appointment_tasks (by reminder_at) for
-//    due, not-yet-sent rows, and sends both an email (Resend) and a push. A
+//    due, not-yet-sent rows, and sends both an email (Resend) and a push
+//    (date-only ones — expiries, care-log revisit dates — from 09:00 in the
+//    user's own timezone; a one-off task already ticked off is skipped). A
 //    Home task assigned to one partner (assigned_to set) notifies only that
 //    person; an unassigned task, and every Home item, notifies both linked
 //    partners. See isTaskRowDue/isItemRowDue below.
@@ -60,7 +64,7 @@ export function localNow(timezone: string, now: Date = new Date()): { date: stri
     day: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
-    hour12: false,
+    hourCycle: "h23",
   }).formatToParts(now);
   const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "00";
   return {
@@ -92,6 +96,23 @@ export function isTaskRowDue(dueAt: string | null, reminderSentAt: string | null
   return new Date(dueAt).getTime() <= now.getTime();
 }
 
+interface TaskRow {
+  id: string;
+  user_id: string;
+  title: string;
+  due_at: string | null;
+  reminder_sent_at: string | null;
+  recurrence_days: number | null;
+  last_completed_at: string | null;
+}
+
+/** A one-off task already ticked off — mirrors `isTaskDone` in
+ * src/lib/reminders.ts. Its due date stays set, so without this it would
+ * still be reminded on once that date passes. */
+export function isOneOffDone(task: Pick<TaskRow, "recurrence_days" | "last_completed_at">): boolean {
+  return task.recurrence_days == null && task.last_completed_at != null;
+}
+
 function addDaysToDateString(dateStr: string, days: number): string {
   const d = new Date(`${dateStr}T00:00:00Z`);
   d.setUTCDate(d.getUTCDate() + days);
@@ -106,6 +127,33 @@ export function isItemRowDue(expiresOn: string, remindDaysBefore: number, remind
   if (reminderSentAt) return false;
   return expiresOn <= addDaysToDateString(today, remindDaysBefore);
 }
+
+/** Mirrors ItemSchedule in src/lib/aggregations/schedule.ts (same
+ * duplication reasoning as above): no schedule means every day; `days` are
+ * Monday-based weekday indexes. */
+type ItemSchedule = { kind: "weekly"; times: number } | { kind: "days"; days: number[] };
+
+function weekdayIndex(date: string): number {
+  return (new Date(`${date}T00:00:00Z`).getUTCDay() + 6) % 7;
+}
+
+/** Monday of the week holding `date`. */
+export function weekStart(date: string): string {
+  return addDaysToDateString(date, -weekdayIndex(date));
+}
+
+/** Whether a scheduled item still wants a reminder today: never on a day
+ * off a "specific days" schedule, and not once an "N× a week" item has
+ * been logged N days this week. */
+export function wantsReminderToday(schedule: ItemSchedule | undefined, today: string, daysLoggedThisWeek: number): boolean {
+  if (!schedule) return true;
+  if (schedule.kind === "days") return schedule.days.includes(weekdayIndex(today));
+  return daysLoggedThisWeek < schedule.times;
+}
+
+/** Hour of the user's local day when date-only reminders (an expiry, a
+ * care-log revisit date) go out, so they never arrive in the night. */
+const DATE_REMINDER_HOUR = 9;
 
 async function sendReminderEmail(toEmail: string, subject: string, bodyText: string): Promise<void> {
   if (!resendApiKey) return;
@@ -321,6 +369,9 @@ Deno.serve(async (req) => {
       continue; // unrecognized timezone string — skip rather than fail the whole run
     }
 
+    const { data: prefsRow } = await supabase.from("user_preferences").select("prefs").eq("user_id", userId).maybeSingle();
+    const schedules = ((prefsRow?.prefs as { itemSchedules?: Record<string, ItemSchedule> } | undefined)?.itemSchedules ?? {});
+
     for (const { itemTable, logTable, label } of REMINDER_SOURCES) {
       const { data: items } = await supabase
         .from(itemTable)
@@ -334,8 +385,15 @@ Deno.serve(async (req) => {
         const reminderTime = item.reminder_time.slice(0, 5);
         if (!isReminderDue(local.minutesSinceMidnight, reminderTime, item.reminder_last_sent_date, local.date)) continue;
 
-        const { data: logs } = await supabase.from(logTable).select("id").eq("user_id", userId).eq("item_id", item.id).eq("date", local.date).limit(1);
-        if (logs && logs.length > 0) {
+        const { data: logs } = await supabase
+          .from(logTable)
+          .select("date")
+          .eq("user_id", userId)
+          .eq("item_id", item.id)
+          .gte("date", weekStart(local.date))
+          .lte("date", local.date);
+        const loggedDays = new Set(((logs ?? []) as { date: string }[]).map((l) => l.date));
+        if (loggedDays.has(local.date) || !wantsReminderToday(schedules[item.id], local.date, loggedDays.size)) {
           await markResolved(itemTable, item.id, local.date);
           continue;
         }
@@ -379,20 +437,31 @@ Deno.serve(async (req) => {
   // see isTaskRowDue/isItemRowDue's own comments. Reuses the same
   // subsByUser grouped above phase 1.
   const nowDate = new Date();
-  const today = localNow("UTC", nowDate).date;
+  const defaultTimezone = Deno.env.get("DIGEST_TIMEZONE") ?? "Europe/Warsaw";
+  /** The user's local date once their day has reached DATE_REMINDER_HOUR,
+   * else null (too early for a date-only reminder). */
+  const reminderDay = (userId: string): string | null => {
+    let local: { date: string; minutesSinceMidnight: number };
+    try {
+      local = localNow(subsByUser.get(userId)?.[0]?.timezone ?? defaultTimezone, nowDate);
+    } catch {
+      local = localNow(defaultTimezone, nowDate);
+    }
+    return local.minutesSinceMidnight >= DATE_REMINDER_HOUR * 60 ? local.date : null;
+  };
   let dueChecked = 0;
   let dueSent = 0;
 
   // Archived tasks (is_archived) are retired — never remind on them.
   const { data: personalTasks } = await supabase
     .from("personal_tasks")
-    .select("id, user_id, title, due_at, reminder_sent_at")
+    .select("id, user_id, title, due_at, reminder_sent_at, recurrence_days, last_completed_at")
     .eq("is_archived", false)
     .not("due_at", "is", null)
     .is("reminder_sent_at", null);
-  for (const task of (personalTasks ?? []) as { id: string; user_id: string; title: string; due_at: string | null; reminder_sent_at: string | null }[]) {
+  for (const task of (personalTasks ?? []) as TaskRow[]) {
     dueChecked++;
-    if (!isTaskRowDue(task.due_at, task.reminder_sent_at, nowDate)) continue;
+    if (isOneOffDone(task) || !isTaskRowDue(task.due_at, task.reminder_sent_at, nowDate)) continue;
     const email = await getUserEmail(task.user_id);
     if (email) await sendReminderEmail(email, `Reminder: ${task.title}`, `"${task.title}" is due on Lauva.`);
     await sendPushToUser(subsByUser, task.user_id, "Due", task.title, `personal-task:${task.id}`);
@@ -402,13 +471,13 @@ Deno.serve(async (req) => {
 
   const { data: householdTasks } = await supabase
     .from("household_tasks")
-    .select("id, owner_id, title, due_at, reminder_sent_at, assigned_to")
+    .select("id, owner_id, title, due_at, reminder_sent_at, assigned_to, recurrence_days, last_completed_at")
     .eq("is_archived", false)
     .not("due_at", "is", null)
     .is("reminder_sent_at", null);
-  for (const task of (householdTasks ?? []) as { id: string; owner_id: string; title: string; due_at: string | null; reminder_sent_at: string | null; assigned_to: string | null }[]) {
+  for (const task of (householdTasks ?? []) as (Omit<TaskRow, "user_id"> & { owner_id: string; assigned_to: string | null })[]) {
     dueChecked++;
-    if (!isTaskRowDue(task.due_at, task.reminder_sent_at, nowDate)) continue;
+    if (isOneOffDone(task) || !isTaskRowDue(task.due_at, task.reminder_sent_at, nowDate)) continue;
     // Assigned to one partner -> only they hear about it; unassigned ->
     // both members, since either can complete it.
     const recipientIds = task.assigned_to
@@ -426,7 +495,8 @@ Deno.serve(async (req) => {
   const { data: householdItems } = await supabase.from("household_items").select("id, owner_id, name, expires_on, remind_days_before, reminder_sent_at").is("reminder_sent_at", null);
   for (const item of (householdItems ?? []) as { id: string; owner_id: string; name: string; expires_on: string; remind_days_before: number; reminder_sent_at: string | null }[]) {
     dueChecked++;
-    if (!isItemRowDue(item.expires_on, item.remind_days_before, item.reminder_sent_at, today)) continue;
+    const today = reminderDay(item.owner_id);
+    if (!today || !isItemRowDue(item.expires_on, item.remind_days_before, item.reminder_sent_at, today)) continue;
     const partnerId = await getPartnerId(item.owner_id);
     const expired = item.expires_on < today;
     const label = expired ? "expired" : "expiring soon";
@@ -447,7 +517,8 @@ Deno.serve(async (req) => {
     .is("reminder_sent_at", null);
   for (const item of (personalItems ?? []) as { id: string; user_id: string; name: string; expires_on: string; remind_days_before: number; reminder_sent_at: string | null }[]) {
     dueChecked++;
-    if (!isItemRowDue(item.expires_on, item.remind_days_before, item.reminder_sent_at, today)) continue;
+    const today = reminderDay(item.user_id);
+    if (!today || !isItemRowDue(item.expires_on, item.remind_days_before, item.reminder_sent_at, today)) continue;
     const label = item.expires_on < today ? "expired" : "expiring soon";
     const email = await getUserEmail(item.user_id);
     if (email) await sendReminderEmail(email, `${item.name} is ${label}`, `"${item.name}" (expires ${item.expires_on}) is ${label} — check Lauva.`);
@@ -481,7 +552,7 @@ Deno.serve(async (req) => {
   }
 
   // Care-log entries with a `remind_on` date — a one-off "come back to this"
-  // push/email when the date arrives (date-only, so compare against `today`
+  // push/email when the date arrives (date-only, so compare against the user's local date
   // like the expiration items above). reminder_sent_at is the once-only guard;
   // editing the date in the app clears it to re-arm.
   const { data: careEntries } = await supabase
@@ -491,7 +562,8 @@ Deno.serve(async (req) => {
     .is("reminder_sent_at", null);
   for (const entry of (careEntries ?? []) as { id: string; user_id: string; title: string; remind_on: string; reminder_sent_at: string | null }[]) {
     dueChecked++;
-    if (entry.remind_on > today) continue;
+    const today = reminderDay(entry.user_id);
+    if (!today || entry.remind_on > today) continue;
     const email = await getUserEmail(entry.user_id);
     if (email) await sendReminderEmail(email, `Revisit: ${entry.title}`, `"${entry.title}" — a care-log entry you wanted to come back to.`);
     await sendPushToUser(subsByUser, entry.user_id, "Revisit", entry.title, `care-entry:${entry.id}`);
@@ -505,7 +577,7 @@ Deno.serve(async (req) => {
   // zone); set the secret to override. notes_digest_state is stamped every
   // day it's evaluated, sent or not, so a user is checked at most once/day.
   let digestSent = 0;
-  const digestLocal = localNow(Deno.env.get("DIGEST_TIMEZONE") ?? "Europe/Warsaw", nowDate);
+  const digestLocal = localNow(defaultTimezone, nowDate);
   if (digestLocal.minutesSinceMidnight >= 9 * 60) {
     const { data: links } = await supabase.from("partner_links").select("user_a_id, user_b_id");
     const linkedUserIds = new Set<string>();
