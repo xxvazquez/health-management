@@ -185,7 +185,9 @@ function ExpenseSheet({
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   const amount = parseAmountNumber(amountText);
-  const customShare = parseAmountNumber(shareText);
+  const typedShare = parseAmountNumber(shareText);
+  // A share follows the payment's sign, so a refund's share is refunded too.
+  const customShare = typedShare === null ? null : amount !== null && amount < 0 ? -Math.abs(typedShare) : Math.abs(typedShare);
   const share = split === "all" || amount === null ? null : split === "half" ? round2(amount / 2) : customShare;
   const shareValid = split !== "custom" || (customShare !== null && amount !== null && Math.abs(customShare) <= Math.abs(amount));
   const canSave = merchant.trim().length > 0 && amount !== null && amount !== 0 && shareValid && !!when && !saving;
@@ -470,6 +472,9 @@ export function ExpensesTab({ isDemoData, accent }: { isDemoData: boolean; accen
   const categoryOf = (e: Expense) => (e.categoryId ? (categoryById.get(e.categoryId) ?? null) : null);
 
   const latestCurrency = data.expenses[0]?.currency ?? FALLBACK_CURRENCY;
+  // A payment made after midnight but before the day rolls over at 3 AM can
+  // sit in the next calendar month; it stays reachable.
+  const latestMonth = [today.slice(0, 7), ...data.expenses.map((e) => localMonth(e.spentAt))].reduce((a, b) => (b > a ? b : a));
   const monthExpenses = useMemo(() => data.expenses.filter((e) => localMonth(e.spentAt) === month), [data.expenses, month]);
   const currency = mainCurrency(monthExpenses, latestCurrency);
   const breakdown = useMemo(() => categoryBreakdown(monthExpenses, categories, currency), [monthExpenses, categories, currency]);
@@ -605,7 +610,7 @@ export function ExpensesTab({ isDemoData, accent }: { isDemoData: boolean; accen
               setMonth(m);
               setFilter(undefined);
             }}
-            max={today.slice(0, 7)}
+            max={latestMonth}
             title="Month"
             renderTrigger={(open, display) => (
               <button type="button" onClick={open} aria-label="Pick a month" className="flex h-9 min-w-20 shrink-0 items-center justify-center rounded-lg px-1.5">
@@ -621,7 +626,7 @@ export function ExpensesTab({ isDemoData, accent }: { isDemoData: boolean; accen
               setMonth((m) => shiftMonth(m, 1));
               setFilter(undefined);
             }}
-            disabled={month >= today.slice(0, 7)}
+            disabled={month >= latestMonth}
             aria-label="Next month"
             className="hit-slop flex h-9 w-10 items-center justify-center rounded-[10px] disabled:opacity-30"
             style={{ color: accent }}
