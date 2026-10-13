@@ -143,7 +143,7 @@ Parent-and-child writes (an appointment with tasks, a whole blood draw) queue pa
 - **Reminder lists** (`reminder_lists`): deleting a list moves its tasks to the default bucket (`on delete set null`)
 - **Codes** (`household_codes`): a code past its `expires_on` is deleted client-side the next time the list opens
 - **Wishlist** (`wishlist_categories`, `wishlist_items`)
-  - Link titles come from the `fetch-link-metadata` Edge Function (the browser can't, because of CORS)
+  - Link titles come from the `fetch-link-metadata` Edge Function (the browser can't, because of CORS); it only answers a signed-in user
   - Android shares straight in via the PWA `share_target` (`/personal/?url=…`)
   - iOS uses a Shortcut that posts to the `wishlist-share` function with a per-account token
 - **Apple Health import:** a nightly iOS Shortcut posts the day's walking minutes, steps, latest weight and blood pressure (each optional; iPhone `steps` and Watch `watchsteps` are read apart and the higher kept) to `health-import` with its own token; a backfill posts a `days` list (each with its own `date`, up to 400) in one request (`health_import_tokens`, shared helpers in `phoneTokens.ts`)
