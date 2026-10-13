@@ -4,12 +4,14 @@
 
 /** Block obviously-internal targets so this can't be turned into a request
  * proxy into the project's own network. Hostname-only — a domain that
- * resolves to a private address slips through, which is an acceptable risk
+ * resolves to a private address slips through (redirects are checked hop by hop), which is an acceptable risk
  * for a two-person app; the platform also restricts egress. */
 function isDisallowedHost(hostname: string): boolean {
   const h = hostname.toLowerCase();
   if (h === "localhost" || h.endsWith(".localhost") || h.endsWith(".local") || h.endsWith(".internal")) return true;
   if (h === "0.0.0.0" || h === "::1" || h === "[::1]") return true;
+  // IPv6 literals other than public ones, and bare-number hosts (2130706433 = 127.0.0.1).
+  if (/^\[(::|f[cd]|fe[89ab])/.test(h) || /^\[::ffff:/.test(h) || /^(0x[0-9a-f]+|\d+)$/.test(h)) return true;
   if (/^127\./.test(h) || /^10\./.test(h) || /^192\.168\./.test(h) || /^169\.254\./.test(h)) return true;
   if (/^172\.(1[6-9]|2\d|3[01])\./.test(h)) return true;
   return false;
@@ -50,6 +52,8 @@ function extractTitle(html: string): string | null {
   return title ? title.slice(0, 300) : null;
 }
 
+const MAX_REDIRECTS = 5;
+
 export async function fetchPageTitle(rawUrl: string): Promise<string | null> {
   let target: URL;
   try {
@@ -62,15 +66,29 @@ export async function fetchPageTitle(rawUrl: string): Promise<string | null> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 7000);
   try {
-    const res = await fetch(target.toString(), {
-      redirect: "follow",
-      signal: controller.signal,
-      headers: {
-        "User-Agent": "Mozilla/5.0 (compatible; LauvaBot/1.0; +https://lauva.pl)",
-        Accept: "text/html,application/xhtml+xml",
-      },
-    });
-    if (!res.ok || !res.body) return null;
+    // Redirects are followed by hand so every hop gets the same host check.
+    let res: Response | null = null;
+    for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
+      res = await fetch(target.toString(), {
+        redirect: "manual",
+        signal: controller.signal,
+        headers: {
+          "User-Agent": "Mozilla/5.0 (compatible; LauvaBot/1.0; +https://lauva.pl)",
+          Accept: "text/html,application/xhtml+xml",
+        },
+      });
+      const location = res.status >= 300 && res.status < 400 ? res.headers.get("location") : null;
+      if (!location) break;
+      res.body?.cancel().catch(() => {});
+      res = null;
+      try {
+        target = new URL(location, target);
+      } catch {
+        return null;
+      }
+      if ((target.protocol !== "http:" && target.protocol !== "https:") || isDisallowedHost(target.hostname)) return null;
+    }
+    if (!res || !res.ok || !res.body) return null;
 
     const contentType = res.headers.get("content-type") ?? "";
     if (contentType && !/html|xml/i.test(contentType)) return null;
