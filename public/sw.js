@@ -70,15 +70,21 @@ self.addEventListener("fetch", (event) => {
     return response;
   });
   event.waitUntil(network.then(() => cacheUpdate, () => {}));
+  // A page is the same HTML whatever its query (?tab=, ?thread=), so offline
+  // it falls back to any cached copy of that page before the home page.
+  const matchCached = () =>
+    caches
+      .match(request)
+      .then((cached) => cached || (request.mode === "navigate" ? caches.match(request, { ignoreSearch: true }) : undefined));
   event.respondWith(
     new Promise((resolve) => {
       network.then(resolve, () =>
-        resolve(caches.match(request).then((cached) => cached || caches.match("/")))
+        resolve(matchCached().then((cached) => cached || caches.match("/")))
       );
       // With nothing cached (a first visit) this resolves nothing, so the
       // page keeps waiting on the network as before.
       setTimeout(() => {
-        caches.match(request).then((cached) => {
+        matchCached().then((cached) => {
           if (cached) resolve(cached);
         });
       }, NETWORK_TIMEOUT_MS);
