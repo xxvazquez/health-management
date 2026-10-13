@@ -170,6 +170,7 @@ Parent-and-child writes (an appointment with tasks, a whole blood draw) queue pa
 
 - `public/manifest.webmanifest` + `public/sw.js` cache the app shell separately from the data cache
 - The service worker cache name includes the deploy's git SHA, so each deploy gets a fresh cache
+- An open tab picks up a new deploy by reloading the next time it goes to the background, never while it's on screen
 - Pages are network-first, but a slow network gets 3s before the cached page is served; the request carries on and refreshes the cache
 - Offline, a page with a query (`/log/?tab=food`, `/notes?thread=…`) falls back to any cached copy of that page, then to the home page
 - The loading splash clears as soon as a saved session is found on the device (`readStoredSession` in `AuthContext.tsx`) instead of waiting for `getSession()` to refresh an expired token over the network

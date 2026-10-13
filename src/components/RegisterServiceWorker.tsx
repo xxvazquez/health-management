@@ -23,12 +23,19 @@ export function RegisterServiceWorker() {
       // same clients.claim() also fires `controllerchange`, and reloading
       // then is a pointless full-page flash on the very first visit (and
       // every private-window / post-cache-clear visit).
+      //
+      // The reload waits until the app is in the background, so a form or
+      // note being typed when the update lands isn't thrown away.
       if (navigator.serviceWorker.controller) {
         let refreshing = false;
-        navigator.serviceWorker.addEventListener("controllerchange", () => {
-          if (refreshing) return;
+        const reloadWhenHidden = () => {
+          if (refreshing || document.visibilityState !== "hidden") return;
           refreshing = true;
           window.location.reload();
+        };
+        navigator.serviceWorker.addEventListener("controllerchange", () => {
+          reloadWhenHidden();
+          document.addEventListener("visibilitychange", reloadWhenHidden);
         });
       }
     }
