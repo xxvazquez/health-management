@@ -79,6 +79,7 @@ Sections: **Food · Symptoms · Supplements · Habits · Stool · Workout · Cyc
 #### Summary
 
 - **Check-in** at the top: mood and energy, 1 (low) to 5 (high), each one row: name, stepped slider, and the chosen level named ("Unpleasant", "High"…), plus a wrapping note. Tap the current step again to clear it. On a phone it sits above the section list.
+- **Last bowel movement** under the check-in: when it was (up to the day shown), its Bristol type and band (hard / normal / loose), colour, floating and anything noted with it. Tap it to open Stool.
 - A timeline of everything logged that day, coffee included (a cup opens the Coffee section).
 - A meal is one row ("Dinner · 9 foods", its stars if rated). It opens a sheet to see its foods, rate it (1–5 stars), add a note or "Save as recipe" — then "Saved to Recipes" opens that recipe to edit or delete.
 - Other rows show the useful detail on the right: a symptom's intensity, the sleep band. Tap any row to edit or delete it.

@@ -63,6 +63,7 @@ import { POLAND_FOOD_CATALOG } from "@/taxonomy/polandFoodCatalog";
 import { BAND_OPTIONS, DURATION_DEFAULT_MINUTES, INPUT_KIND, activeBandValue, bandLabelForValue } from "@/taxonomy/inputKinds";
 import { DurationStepper } from "@/components/ui/DurationStepper";
 import { StoolTab, type NewStoolEntry, characteristicLabels } from "@/components/log/StoolTab";
+import { LastStoolCard, lastStoolOnOrBefore } from "@/components/log/LastStoolCard";
 import { useStoolOptions } from "@/lib/useStoolOptions";
 import { WorkoutTab, WorkoutValueStepper, type NewWorkoutEntry } from "@/components/log/WorkoutTab";
 import { WorkoutPlanView } from "@/components/log/WorkoutPlanView";
@@ -761,6 +762,8 @@ export default function LogPage() {
         .sort((a, b) => b.loggedAt.localeCompare(a.loggedAt)),
     [effective, date],
   );
+
+  const lastStool = useMemo(() => lastStoolOnOrBefore(effective.stoolLogs, date), [effective, date]);
 
   const workoutEntriesForDate = useMemo(
     () => effective.workoutLogs.filter((g) => g.date === date).sort((a, b) => b.updatedAt - a.updatedAt),
@@ -2591,6 +2594,9 @@ export default function LogPage() {
       ) : tab === "summary" ? (
         <>
         <CheckInCard date={date} />
+        {status !== "loading" && lastStool && isVisible("stool") && (
+          <LastStoolCard entry={lastStool} dateLabel={formatDateLabel(lastStool.date, today)} accent={STOOL_ACCENT} onOpen={() => selectTab("stool")} />
+        )}
         {status !== "loading" && (
         <div className="inset-rows rounded-xl border [--row-inset:3.375rem] lg:hidden" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
           {logTabs
