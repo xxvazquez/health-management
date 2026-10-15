@@ -1,7 +1,7 @@
 {
   "name": "Lauva",
   "short_name": "Lauva",
-  "description": "A personal food, symptom, supplement, habit, and workout tracker.",
+  "description": "A personal health tracker: food, symptoms, supplements, habits, stool, workouts, cycle and coffee.",
   "start_url": "/log/",
   "scope": "/",
   "display": "standalone",
@@ -14,8 +14,8 @@
       "url": "url"
     }
   },
-  "background_color": "#f7faf9",
-  "theme_color": "#e6f1f2",
+  "background_color": "#f4f6f8",
+  "theme_color": "#f4f6f8",
   "icons": [
     {
       "src": "/icons/icon-192.png",
