@@ -63,6 +63,12 @@ function friendlyReason(code: string | undefined, op: OutboxOperation, table: st
  * A dead-letter entry only means the CLOUD copy of one change is stuck —
  * the record itself is safely in this device's local storage regardless,
  * and stays there whether or not the retry below ever succeeds. */
+/** How long a change can be in flight before it's worth mentioning. Every
+ * tap queues one and it normally syncs within a second, so showing the
+ * banner right away would push the page down mid-tap and the next tap
+ * would land on the wrong row. */
+const PENDING_GRACE_MS = 10_000;
+
 export function SyncStatusBanner() {
   const { syncState, deadLetterEntries, pendingEntries, retrySync, retryPending, discardSync, isOnline } = useData();
   const offline = isOnline === false;
@@ -76,6 +82,14 @@ export function SyncStatusBanner() {
   const lastAttempt = pendingEntries.filter((e) => e.lastError).sort((a, b) => b.nextAttemptAt - a.nextAttemptAt)[0];
   const lastProblem = lastAttempt ? `${lastAttempt.lastErrorCode ? `${lastAttempt.lastErrorCode}: ` : ""}${lastAttempt.lastError}` : null;
   const [itemNames, setItemNames] = useState<Map<string, string>>(new Map());
+  const oldestPendingAt = pendingEntries.reduce((oldest, e) => Math.min(oldest, e.createdAt), Infinity);
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!Number.isFinite(oldestPendingAt)) return;
+    const timer = setTimeout(() => setNow(Date.now()), Math.max(0, oldestPendingAt + PENDING_GRACE_MS - Date.now()));
+    return () => clearTimeout(timer);
+  }, [oldestPendingAt]);
+  const pendingSettled = Number.isFinite(oldestPendingAt) && now - oldestPendingAt >= PENDING_GRACE_MS;
   const listOpen = expanded || pendingExpanded;
   useEffect(() => {
     if (!listOpen) return;
@@ -83,7 +97,7 @@ export function SyncStatusBanner() {
     void getAllItems().then((items) => setItemNames(new Map(items.map((i) => [i.identity, i.rawName]))));
   }, [listOpen]);
 
-  if (syncState.deadLetter === 0 && syncState.pending === 0) return null;
+  if (syncState.deadLetter === 0 && (syncState.pending === 0 || !pendingSettled)) return null;
 
   async function handleRetry(id: string) {
     setRetryingId(id);

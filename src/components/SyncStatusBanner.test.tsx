@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { act, cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { SyncStatusBanner } from "./SyncStatusBanner";
 import type { OutboxEntry } from "@/lib/db/indexedDb";
@@ -22,7 +22,7 @@ function baseEntry(overrides: Partial<OutboxEntry> = {}): OutboxEntry {
     op: "upsert",
     payload: { id: "item-1", name: "Tiredness" },
     attempts: 1,
-    createdAt: Date.now(),
+    createdAt: Date.now() - 60_000,
     nextAttemptAt: Date.now(),
     status: "dead-letter",
     lastError: "boom",
@@ -32,10 +32,11 @@ function baseEntry(overrides: Partial<OutboxEntry> = {}): OutboxEntry {
 }
 
 function mockData(overrides: Partial<ReturnType<typeof mockUseData>> = {}) {
+  const pending = overrides.syncState?.pending ?? 0;
   mockUseData.mockReturnValue({
     syncState: { pending: 0, deadLetter: 0 },
     deadLetterEntries: [],
-    pendingEntries: [],
+    pendingEntries: Array.from({ length: pending }, (_, i) => baseEntry({ id: `pending-${i}`, status: "pending" })),
     retrySync: vi.fn(),
     discardSync: vi.fn(),
     ...overrides,
@@ -53,6 +54,21 @@ describe("SyncStatusBanner", () => {
     mockData({ syncState: { pending: 3, deadLetter: 0 } });
     render(<SyncStatusBanner />);
     expect(screen.getByText("3 changes pending sync")).toBeInTheDocument();
+  });
+
+  it("waits before showing a change that's still syncing, so the page doesn't shift under a tap", () => {
+    vi.useFakeTimers();
+    try {
+      const entry = baseEntry({ status: "pending", attempts: 0, createdAt: Date.now() });
+      mockData({ syncState: { pending: 1, deadLetter: 0 }, pendingEntries: [entry] });
+      const { container } = render(<SyncStatusBanner />);
+      expect(container).toBeEmptyDOMElement();
+
+      act(() => vi.advanceTimersByTime(10_000));
+      expect(screen.getByText("1 change pending sync")).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("offers Retry now on pending changes and runs it", async () => {
