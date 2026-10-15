@@ -12,6 +12,7 @@ import { AuthBanner } from "@/components/auth/AuthBanner";
 import { SyncStatusBanner } from "@/components/SyncStatusBanner";
 import { StorageErrorBanner } from "@/components/StorageErrorBanner";
 import { RegisterServiceWorker } from "@/components/RegisterServiceWorker";
+import { PushNotificationsAutoEnable } from "@/components/PushNotificationsAutoEnable";
 import { AppLoadingSplash } from "@/components/AppLoadingSplash";
 import { MedicalDisclaimer } from "@/components/MedicalDisclaimer";
 import { AppFooter } from "@/components/AppFooter";
@@ -89,6 +90,7 @@ export default function RootLayout({
         <RegisterServiceWorker />
         <AuthProvider>
           <ThemeManager />
+          <PushNotificationsAutoEnable />
           <AppLoadingSplash />
           <DataProvider>
             <VisibleDomainsProvider>

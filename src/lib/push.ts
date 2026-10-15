@@ -72,10 +72,56 @@ export async function isPushNotificationsEnabled(): Promise<boolean> {
   return true;
 }
 
-/** Requests notification permission (only ever called from an explicit
- * user action — the toggle's "on" click), subscribes to push, and saves
- * the subscription server-side so the reminder-cron Edge
- * Function can reach this device. */
+/** Set only by switching notifications off in Settings, per account on this
+ * device — everything else keeps them on. */
+function optOutKey(userId: string): string {
+  return `lauva.pushOff.${userId}`;
+}
+
+function hasOptedOut(userId: string): boolean {
+  try {
+    return localStorage.getItem(optOutKey(userId)) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function setOptedOut(userId: string, off: boolean): void {
+  try {
+    if (off) localStorage.setItem(optOutKey(userId), "1");
+    else localStorage.removeItem(optOutKey(userId));
+  } catch {
+    // Storage blocked — the next launch just keeps notifications on.
+  }
+}
+
+/** Subscribes this device (reusing a live subscription) and saves it so the
+ * reminder-cron Edge Function can reach it. Needs permission already granted. */
+async function subscribeAndSave(userId: string): Promise<void> {
+  const registration = await navigator.serviceWorker.ready;
+  const subscription =
+    (await registration.pushManager.getSubscription()) ??
+    (await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY as string),
+    }));
+
+  const json = subscription.toJSON();
+  const { error } = await supabase!.from("push_subscriptions").upsert(
+    {
+      user_id: userId,
+      endpoint: json.endpoint,
+      p256dh: json.keys?.p256dh,
+      auth_key: json.keys?.auth,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    },
+    { onConflict: "user_id,endpoint" },
+  );
+  if (error) throw error;
+}
+
+/** Requests notification permission (from an explicit user action — the
+ * Settings toggle, or the first tap after sign-in), then subscribes. */
 export async function enablePushNotifications(): Promise<void> {
   if (!pushNotificationsSupported || !supabase) throw new Error("Not supported in this browser or deployment.");
 
@@ -87,31 +133,27 @@ export async function enablePushNotifications(): Promise<void> {
   } = await supabase.auth.getSession();
   if (!session) throw new Error("Sign in first to enable notifications.");
 
-  const registration = await navigator.serviceWorker.ready;
-  const subscription =
-    (await registration.pushManager.getSubscription()) ??
-    (await registration.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY as string),
-    }));
+  setOptedOut(session.user.id, false);
+  await subscribeAndSave(session.user.id);
+}
 
-  const json = subscription.toJSON();
-  const { error } = await supabase.from("push_subscriptions").upsert(
-    {
-      user_id: session.user.id,
-      endpoint: json.endpoint,
-      p256dh: json.keys?.p256dh,
-      auth_key: json.keys?.auth,
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-    },
-    { onConflict: "user_id,endpoint" },
-  );
-  if (error) throw error;
+/** Notifications are on by default: unless this account switched them off
+ * on this device, re-subscribes silently when permission is already granted
+ * (the subscription can die quietly — an iOS update, a Home Screen icon
+ * re-added, an endpoint rotated by the push service). Returns whether
+ * permission still has to be asked for, which browsers only allow from a
+ * tap; a "denied" answer is the person's own choice and is left alone. */
+export async function ensurePushNotifications(userId: string): Promise<"done" | "needs-permission"> {
+  if (!pushNotificationsSupported || !supabase || hasOptedOut(userId)) return "done";
+  if (Notification.permission === "default") return "needs-permission";
+  if (Notification.permission === "granted") await subscribeAndSave(userId);
+  return "done";
 }
 
 /** Only removes *this device's* row (matched by its live subscription's
  * endpoint) — a user can have push enabled on several devices, and turning
- * it off on one must not silently disable the others. */
+ * it off on one must not silently disable the others. Remembered, so it
+ * stays off until switched back on. */
 export async function disablePushNotifications(): Promise<void> {
   if (!supabase) return;
   const {
@@ -119,6 +161,7 @@ export async function disablePushNotifications(): Promise<void> {
   } = await supabase.auth.getSession();
   const registration = "serviceWorker" in navigator ? await navigator.serviceWorker.ready : null;
   const subscription = registration ? await registration.pushManager.getSubscription() : null;
+  if (session) setOptedOut(session.user.id, true);
   if (session && subscription) {
     await supabase.from("push_subscriptions").delete().eq("user_id", session.user.id).eq("endpoint", subscription.endpoint);
   }
