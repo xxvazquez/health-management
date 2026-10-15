@@ -124,11 +124,18 @@ self.addEventListener("notificationclick", (event) => {
         if ("focus" in client) {
           // Only steer an open tab when the notification named a destination —
           // reminder pushes carry none and should just bring the app forward.
-          if (targetUrl && "navigate" in client) return client.navigate(targetUrl).then((c) => (c || client).focus());
+          // navigate() rejects for a window this worker doesn't control yet,
+          // so fall back to bringing it forward as it is.
+          if (targetUrl && "navigate" in client) {
+            return client.navigate(targetUrl).then(
+              (c) => (c || client).focus(),
+              () => client.focus()
+            );
+          }
           return client.focus();
         }
       }
-      if (self.clients.openWindow) return self.clients.openWindow(targetUrl || "/log");
+      if (self.clients.openWindow) return self.clients.openWindow(targetUrl || "/log/");
     })
   );
 });

@@ -118,7 +118,7 @@ Deno.serve(async (req) => {
     title: senderName,
     body: remind ? "Reminded you about an unread message" : isReply ? "Replied to your message" : "Sent you a message",
     tag: `note:${threadRootId}`,
-    url: `/notes?thread=${threadRootId}`,
+    url: `/notes/?thread=${threadRootId}`,
   });
 
   // The recipient may have push enabled on more than one device — send to
