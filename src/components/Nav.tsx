@@ -17,6 +17,7 @@ import { BugReportDialog } from "@/components/BugReportDialog";
 import { NAV_LABEL } from "@/components/navLabels";
 import { useMobileMenu } from "@/components/MobileMenuProvider";
 import { ThemeToggleRow } from "@/components/ThemeToggleRow";
+import { SyncDetailsSheet, syncStatusColor, useSyncStatus } from "@/components/SyncStatus";
 
 function IconWrap({ children }: { children: ReactNode }) {
   return (
@@ -292,30 +293,56 @@ function SecondaryNav({ pathname, collapsed, onNavigate }: { pathname: string; c
   );
 }
 
-/** Pure status indicator — data syncs automatically (on sign-in, on every
- * page load, on tab focus), so there's nothing left here to trigger
- * manually. Just says what's currently on screen. */
+/** What's on screen, or — when changes are stuck or failed — the sync
+ * status, which opens its details. Fixed in the footer, so it never moves
+ * the page (on a phone the floating pill shows it instead). Data otherwise
+ * syncs automatically (on sign-in, page load, tab focus). */
 function SyncFooter({ collapsed }: { collapsed?: boolean }) {
   const { status, isDemoData } = useData();
+  const sync = useSyncStatus();
+  const [open, setOpen] = useState(false);
   if (status !== "ready") return null;
 
-  const label = isDemoData ? "Viewing demo data" : "Data loaded locally";
-  const color = isDemoData ? "var(--status-warning)" : "var(--status-good)";
+  const label = sync?.label ?? (isDemoData ? "Viewing demo data" : "Data loaded locally");
+  const color = sync ? syncStatusColor(sync) : isDemoData ? "var(--status-warning)" : "var(--status-good)";
+  const dot = <span className={clsx("shrink-0 rounded-full", collapsed ? "h-2 w-2" : "h-1.5 w-1.5")} style={{ background: color }} />;
+  const sheet = open && <SyncDetailsSheet onClose={() => setOpen(false)} />;
 
   if (collapsed) {
     return (
       <div className="flex flex-col items-center border-t pt-4" style={{ borderColor: "var(--gridline)" }}>
-        <span title={label} className="h-2 w-2 shrink-0 rounded-full" style={{ background: color }} />
+        {sync ? (
+          <button type="button" title={label} aria-label={label} aria-haspopup="dialog" onClick={() => setOpen(true)} className="flex h-6 w-6 items-center justify-center">
+            {dot}
+          </button>
+        ) : (
+          <span title={label}>{dot}</span>
+        )}
+        {sheet}
       </div>
     );
   }
 
   return (
     <div className="border-t px-1 pt-4" style={{ borderColor: "var(--gridline)" }}>
-      <span className="inline-flex items-center gap-1.5 px-2 text-xs font-medium whitespace-nowrap" style={{ color }}>
-        <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: color }} />
-        {label}
-      </span>
+      {sync ? (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          aria-haspopup="dialog"
+          className="inline-flex max-w-full items-center gap-1.5 px-2 text-left text-xs font-medium"
+          style={{ color: sync.tone === "warning" ? color : "var(--text-secondary)" }}
+        >
+          {dot}
+          <span className="truncate">{label}</span>
+        </button>
+      ) : (
+        <span className="inline-flex items-center gap-1.5 px-2 text-xs font-medium whitespace-nowrap" style={{ color }}>
+          {dot}
+          {label}
+        </span>
+      )}
+      {sheet}
     </div>
   );
 }

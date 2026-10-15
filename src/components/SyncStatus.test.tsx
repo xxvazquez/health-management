@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { SyncStatusBanner } from "./SyncStatusBanner";
+import { SyncStatusPill } from "./SyncStatus";
 import type { OutboxEntry } from "@/lib/db/indexedDb";
 
 const { mockUseData } = vi.hoisted(() => ({ mockUseData: vi.fn() }));
@@ -43,17 +43,17 @@ function mockData(overrides: Partial<ReturnType<typeof mockUseData>> = {}) {
   });
 }
 
-describe("SyncStatusBanner", () => {
+describe("SyncStatusPill", () => {
   it("renders nothing when there's nothing pending or dead-lettered", () => {
     mockData();
-    const { container } = render(<SyncStatusBanner />);
+    const { container } = render(<SyncStatusPill />);
     expect(container).toBeEmptyDOMElement();
   });
 
   it("shows a plain pending count when nothing has permanently failed", () => {
     mockData({ syncState: { pending: 3, deadLetter: 0 } });
-    render(<SyncStatusBanner />);
-    expect(screen.getByText("3 changes pending sync")).toBeInTheDocument();
+    render(<SyncStatusPill />);
+    expect(screen.getByText("3 changes waiting to sync")).toBeInTheDocument();
   });
 
   it("waits before showing a change that's still syncing, so the page doesn't shift under a tap", () => {
@@ -61,11 +61,11 @@ describe("SyncStatusBanner", () => {
     try {
       const entry = baseEntry({ status: "pending", attempts: 0, createdAt: Date.now() });
       mockData({ syncState: { pending: 1, deadLetter: 0 }, pendingEntries: [entry] });
-      const { container } = render(<SyncStatusBanner />);
+      const { container } = render(<SyncStatusPill />);
       expect(container).toBeEmptyDOMElement();
 
       act(() => vi.advanceTimersByTime(10_000));
-      expect(screen.getByText("1 change pending sync")).toBeInTheDocument();
+      expect(screen.getByText("1 change waiting to sync")).toBeInTheDocument();
     } finally {
       vi.useRealTimers();
     }
@@ -74,28 +74,32 @@ describe("SyncStatusBanner", () => {
   it("offers Retry now on pending changes and runs it", async () => {
     const retryPending = vi.fn().mockResolvedValue(undefined);
     mockData({ syncState: { pending: 2, deadLetter: 0 }, isOnline: true, retryPending });
-    render(<SyncStatusBanner />);
+    render(<SyncStatusPill />);
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: /waiting/ }));
 
-    await userEvent.setup().click(screen.getByText("Retry now"));
+    await user.click(screen.getByText("Retry now"));
     expect(retryPending).toHaveBeenCalledTimes(1);
   });
 
-  it("reassures instead of offering Retry now while offline", () => {
+  it("reassures instead of offering Retry now while offline", async () => {
     mockData({ syncState: { pending: 2, deadLetter: 0 }, isOnline: false });
-    render(<SyncStatusBanner />);
-    expect(screen.getByText(/Offline — 2 changes are saved on this device/)).toBeInTheDocument();
+    render(<SyncStatusPill />);
+    expect(screen.getByText("Offline · 2 changes waiting")).toBeInTheDocument();
+    await userEvent.setup().click(screen.getByRole("button", { name: /waiting/ }));
+    expect(screen.getByText("Offline — waiting to sync")).toBeInTheDocument();
     expect(screen.queryByText("Retry now")).not.toBeInTheDocument();
   });
 
-  it("shows the pending count collapsed, then the entry list on Details", async () => {
+  it("shows the pending count, then the entry list in a sheet", async () => {
     const entry = baseEntry({ status: "pending", table: "food_items", payload: { id: "item-1", name: "Kale" } });
     mockData({ syncState: { pending: 1, deadLetter: 0 }, pendingEntries: [entry] });
-    render(<SyncStatusBanner />);
+    render(<SyncStatusPill />);
 
-    expect(screen.getByText("1 change pending sync")).toBeInTheDocument();
+    expect(screen.getByText("1 change waiting to sync")).toBeInTheDocument();
     expect(screen.queryByText("Kale", { exact: false })).not.toBeInTheDocument();
 
-    await userEvent.setup().click(screen.getByText("Details"));
+    await userEvent.setup().click(screen.getByRole("button", { name: /didn.t back up|waiting/ }));
     expect(screen.getByText("Kale")).toBeInTheDocument();
     expect(screen.getByText(/Everything below is saved on this device — nothing is lost/)).toBeInTheDocument();
     expect(screen.getByText(/Saved on this device/)).toBeInTheDocument();
@@ -105,9 +109,9 @@ describe("SyncStatusBanner", () => {
     const make = (id: string, nextAttemptAt: number, lastError: string) =>
       baseEntry({ id, status: "pending", table: "food_logs", nextAttemptAt, lastError, lastErrorCode: "PGRST303", payload: { id, date: "2026-09-19" } });
     mockData({ syncState: { pending: 2, deadLetter: 0 }, pendingEntries: [make("a", 1, "old"), make("b", 2, "JWT issued at future")] });
-    render(<SyncStatusBanner />);
+    render(<SyncStatusPill />);
 
-    await userEvent.setup().click(screen.getByText("Details"));
+    await userEvent.setup().click(screen.getByRole("button", { name: /didn.t back up|waiting/ }));
     expect(screen.getAllByText(/Latest problem/)).toHaveLength(1);
     expect(screen.getByText(/Latest problem: PGRST303: JWT issued at future/)).toBeInTheDocument();
   });
@@ -117,31 +121,31 @@ describe("SyncStatusBanner", () => {
     const make = (id: string, date: string) =>
       baseEntry({ id, status: "pending", attempts: 0, createdAt: saved, table: "food_logs", payload: { id, item_id: "item-1", date, meal_tag: "Lunch" } });
     mockData({ syncState: { pending: 2, deadLetter: 0 }, pendingEntries: [make("a", "2026-09-19"), make("b", "2026-09-18")] });
-    render(<SyncStatusBanner />);
+    render(<SyncStatusPill />);
 
-    await userEvent.setup().click(screen.getByText("Details"));
+    await userEvent.setup().click(screen.getByRole("button", { name: /didn.t back up|waiting/ }));
     expect(screen.getAllByText(/Food log/)).toHaveLength(2);
     expect(screen.getByText(/2026-09-18/)).toBeInTheDocument();
     expect(screen.getAllByText(/Saved on this device 19 Sept?, 14:32 · not sent yet/)).toHaveLength(2);
   });
 
-  it("shows the dead-letter count collapsed, then the entry list on Details", async () => {
+  it("shows failed changes straight away, then the entry list in a sheet", async () => {
     const entry = baseEntry();
     mockData({ syncState: { pending: 0, deadLetter: 1 }, deadLetterEntries: [entry] });
-    render(<SyncStatusBanner />);
+    render(<SyncStatusPill />);
 
-    expect(screen.getByText(/1 change failed to back up to the cloud/)).toBeInTheDocument();
+    expect(screen.getByText("1 change didn't back up")).toBeInTheDocument();
     expect(screen.queryByText("Tiredness", { exact: false })).not.toBeInTheDocument();
 
-    await userEvent.setup().click(screen.getByText("Details"));
+    await userEvent.setup().click(screen.getByRole("button", { name: /didn.t back up|waiting/ }));
     expect(screen.getByText(/Tiredness/)).toBeInTheDocument();
   });
 
   it("explains a damaged saved copy in plain language", async () => {
     const entry = baseEntry({ table: "food_logs", lastErrorCode: "LOCAL_DAMAGED", payload: { id: "log-1", date: "2026-09-19" } });
     mockData({ syncState: { pending: 0, deadLetter: 1 }, deadLetterEntries: [entry] });
-    render(<SyncStatusBanner />);
-    await userEvent.setup().click(screen.getByText("Details"));
+    render(<SyncStatusPill />);
+    await userEvent.setup().click(screen.getByRole("button", { name: /didn.t back up|waiting/ }));
 
     expect(screen.getByText(/its saved copy on this device is damaged/)).toBeInTheDocument();
   });
@@ -149,8 +153,8 @@ describe("SyncStatusBanner", () => {
   it("blames the category for an item's own 23503, not the log/diary phrasing", async () => {
     const entry = baseEntry({ table: "symptom_items", op: "upsert", lastErrorCode: "23503" });
     mockData({ syncState: { pending: 0, deadLetter: 1 }, deadLetterEntries: [entry] });
-    render(<SyncStatusBanner />);
-    await userEvent.setup().click(screen.getByText("Details"));
+    render(<SyncStatusPill />);
+    await userEvent.setup().click(screen.getByRole("button", { name: /didn.t back up|waiting/ }));
 
     expect(screen.getByText(/it points to something \(like a category\) that's since been removed/)).toBeInTheDocument();
   });
@@ -163,8 +167,8 @@ describe("SyncStatusBanner", () => {
       payload: { id: "log-1", item_id: "item-1", date: "2026-08-21" },
     });
     mockData({ syncState: { pending: 0, deadLetter: 1 }, deadLetterEntries: [entry] });
-    render(<SyncStatusBanner />);
-    await userEvent.setup().click(screen.getByText("Details"));
+    render(<SyncStatusPill />);
+    await userEvent.setup().click(screen.getByRole("button", { name: /didn.t back up|waiting/ }));
 
     expect(screen.getByText(/the item it belongs to hasn't synced yet/)).toBeInTheDocument();
     expect(screen.getByText(/2026-08-21/)).toBeInTheDocument();
@@ -175,9 +179,9 @@ describe("SyncStatusBanner", () => {
     let resolveRetry!: () => void;
     const retrySync = vi.fn(() => new Promise<void>((resolve) => (resolveRetry = resolve)));
     mockData({ syncState: { pending: 0, deadLetter: 1 }, deadLetterEntries: [entry], retrySync });
-    render(<SyncStatusBanner />);
+    render(<SyncStatusPill />);
     const user = userEvent.setup();
-    await user.click(screen.getByText("Details"));
+    await user.click(screen.getByRole("button", { name: /didn.t back up|waiting/ }));
 
     await user.click(screen.getByRole("button", { name: "Retry" }));
     expect(retrySync).toHaveBeenCalledWith("entry-1");
@@ -192,9 +196,9 @@ describe("SyncStatusBanner", () => {
     const entry = baseEntry();
     const discardSync = vi.fn();
     mockData({ syncState: { pending: 0, deadLetter: 1 }, deadLetterEntries: [entry], discardSync });
-    render(<SyncStatusBanner />);
+    render(<SyncStatusPill />);
     const user = userEvent.setup();
-    await user.click(screen.getByText("Details"));
+    await user.click(screen.getByRole("button", { name: /didn.t back up|waiting/ }));
 
     await user.click(screen.getByRole("button", { name: "Discard" }));
     expect(discardSync).not.toHaveBeenCalled();

@@ -242,7 +242,7 @@ export async function getOutboxSyncState(): Promise<{ pending: number; deadLette
 }
 
 /** The dead-letter entries for the signed-in user — the detail behind the
- * plain count in `getOutboxSyncState`, for SyncStatusBanner to explain what
+ * plain count in `getOutboxSyncState`, for SyncStatus to explain what
  * actually failed. */
 export async function getDeadLetterEntries(): Promise<OutboxEntry[]> {
   const userId = await currentUserId();
@@ -251,7 +251,7 @@ export async function getDeadLetterEntries(): Promise<OutboxEntry[]> {
 }
 
 /** The pending entries for the signed-in user — the detail behind the
- * plain count in `getOutboxSyncState`, for SyncStatusBanner to list what's
+ * plain count in `getOutboxSyncState`, for SyncStatus to list what's
  * still queued rather than just how many. */
 export async function getPendingEntries(): Promise<OutboxEntry[]> {
   const userId = await currentUserId();

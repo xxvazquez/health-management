@@ -9,7 +9,7 @@ import { Nav } from "@/components/Nav";
 import { BottomNav } from "@/components/BottomNav";
 import { ContentContainer } from "@/components/ContentContainer";
 import { AuthBanner } from "@/components/auth/AuthBanner";
-import { SyncStatusBanner } from "@/components/SyncStatusBanner";
+import { SyncStatusPill } from "@/components/SyncStatus";
 import { StorageErrorBanner } from "@/components/StorageErrorBanner";
 import { RegisterServiceWorker } from "@/components/RegisterServiceWorker";
 import { PushNotificationsAutoEnable } from "@/components/PushNotificationsAutoEnable";
@@ -102,7 +102,6 @@ export default function RootLayout({
                   <PullToRefresh>
                     <AuthBanner />
                     <StorageErrorBanner />
-                    <SyncStatusBanner />
                     {/* pb-24 on mobile clears the fixed BottomNav so the
                         last list row is never tucked under it; desktop has
                         no fixed nav and drops back to pb-10. */}
@@ -114,6 +113,7 @@ export default function RootLayout({
                       </ContentContainer>
                     </div>
                   </PullToRefresh>
+                  <SyncStatusPill />
                   <BottomNav />
                 </main>
               </MobileMenuProvider>

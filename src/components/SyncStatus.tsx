@@ -4,7 +4,7 @@ import { Chip } from "@/components/ui/Chip";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { useEffect, useState } from "react";
 import { useData } from "@/lib/DataContext";
-import { ChevronIcon } from "@/components/ui/icons";
+import { Sheet } from "@/components/ui/Sheet";
 import { getAllItems, type OutboxEntry, type OutboxOperation } from "@/lib/db/indexedDb";
 import { describeOutboxEntry, formatSavedAt } from "@/lib/supabase/describeOutboxEntry";
 
@@ -52,36 +52,20 @@ function friendlyReason(code: string | undefined, op: OutboxOperation, table: st
   }
 }
 
-/** Rendered once in the root layout, alongside AuthBanner — the only
- * surface for "some of your data hasn't reached Supabase yet". Not a toast
- * system: just enough to make outbox failures visible instead of silent.
- * Dead-letter entries take priority over a plain pending count, since
- * those need attention (they won't resolve on their own); a purely
- * pending queue is normal/expected while offline or mid-retry, so it's
- * shown quietly rather than as a warning.
- *
- * A dead-letter entry only means the CLOUD copy of one change is stuck —
- * the record itself is safely in this device's local storage regardless,
- * and stays there whether or not the retry below ever succeeds. */
 /** How long a change can be in flight before it's worth mentioning. Every
- * tap queues one and it normally syncs within a second, so showing the
- * banner right away would push the page down mid-tap and the next tap
- * would land on the wrong row. */
+ * tap queues one and it normally syncs within a second. */
 const PENDING_GRACE_MS = 10_000;
 
-export function SyncStatusBanner() {
-  const { syncState, deadLetterEntries, pendingEntries, retrySync, retryPending, discardSync, isOnline } = useData();
-  const offline = isOnline === false;
-  const [expanded, setExpanded] = useState(false);
-  const [pendingExpanded, setPendingExpanded] = useState(false);
-  const [retryingPending, setRetryingPending] = useState(false);
-  const [retryingId, setRetryingId] = useState<string | null>(null);
-  const [discardingId, setDiscardingId] = useState<string | null>(null);
-  const [confirmingDiscardId, setConfirmingDiscardId] = useState<string | null>(null);
+export interface SyncStatus {
+  tone: "warning" | "muted";
+  label: string;
+}
 
-  const lastAttempt = pendingEntries.filter((e) => e.lastError).sort((a, b) => b.nextAttemptAt - a.nextAttemptAt)[0];
-  const lastProblem = lastAttempt ? `${lastAttempt.lastErrorCode ? `${lastAttempt.lastErrorCode}: ` : ""}${lastAttempt.lastError}` : null;
-  const [itemNames, setItemNames] = useState<Map<string, string>>(new Map());
+/** What, if anything, is worth saying about sync right now: failed changes
+ * at once (they won't resolve on their own), pending ones only once they've
+ * waited past the grace period. Null when there's nothing to show. */
+export function useSyncStatus(): SyncStatus | null {
+  const { syncState, pendingEntries, isOnline } = useData();
   const oldestPendingAt = pendingEntries.reduce((oldest, e) => Math.min(oldest, e.createdAt), Infinity);
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
@@ -89,15 +73,37 @@ export function SyncStatusBanner() {
     const timer = setTimeout(() => setNow(Date.now()), Math.max(0, oldestPendingAt + PENDING_GRACE_MS - Date.now()));
     return () => clearTimeout(timer);
   }, [oldestPendingAt]);
+
+  const { deadLetter, pending } = syncState;
+  if (deadLetter > 0) return { tone: "warning", label: `${deadLetter} ${deadLetter === 1 ? "change" : "changes"} didn't back up` };
   const pendingSettled = Number.isFinite(oldestPendingAt) && now - oldestPendingAt >= PENDING_GRACE_MS;
-  const listOpen = expanded || pendingExpanded;
+  if (pending === 0 || !pendingSettled) return null;
+  const waiting = `${pending} ${pending === 1 ? "change" : "changes"} waiting`;
+  return { tone: "muted", label: isOnline === false ? `Offline · ${waiting}` : `${waiting} to sync` };
+}
+
+export function syncStatusColor(status: SyncStatus): string {
+  return status.tone === "warning" ? "var(--status-warning)" : "var(--text-muted)";
+}
+
+/** Everything behind the status: failed changes with Retry / Discard, then
+ * what's still waiting. A failed change only means the CLOUD copy is stuck —
+ * the record itself is safely in this device's storage either way. */
+export function SyncDetailsSheet({ onClose }: { onClose: () => void }) {
+  const { deadLetterEntries, pendingEntries, retrySync, retryPending, discardSync, isOnline } = useData();
+  const offline = isOnline === false;
+  const [retryingPending, setRetryingPending] = useState(false);
+  const [retryingId, setRetryingId] = useState<string | null>(null);
+  const [discardingId, setDiscardingId] = useState<string | null>(null);
+  const [confirmingDiscardId, setConfirmingDiscardId] = useState<string | null>(null);
+  const [itemNames, setItemNames] = useState<Map<string, string>>(new Map());
   useEffect(() => {
-    if (!listOpen) return;
     // Reads the local cache so a log can be shown under its item's name.
     void getAllItems().then((items) => setItemNames(new Map(items.map((i) => [i.identity, i.rawName]))));
-  }, [listOpen]);
+  }, []);
 
-  if (syncState.deadLetter === 0 && (syncState.pending === 0 || !pendingSettled)) return null;
+  const lastAttempt = pendingEntries.filter((e) => e.lastError).sort((a, b) => b.nextAttemptAt - a.nextAttemptAt)[0];
+  const lastProblem = lastAttempt ? `${lastAttempt.lastErrorCode ? `${lastAttempt.lastErrorCode}: ` : ""}${lastAttempt.lastError}` : null;
 
   async function handleRetry(id: string) {
     setRetryingId(id);
@@ -144,31 +150,19 @@ export function SyncStatusBanner() {
     }
   }
 
-  if (syncState.deadLetter > 0) {
-    return (
-      <div className="border-b" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
-        <button
-          type="button"
-          onClick={() => setExpanded((v) => !v)}
-          className="flex w-full items-center gap-2 px-4 py-2 text-left text-xs font-medium sm:px-6 lg:px-8"
-        >
-          <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: "var(--status-warning)" }} />
-          <span style={{ color: "var(--text-secondary)" }}>
-            {syncState.deadLetter} {syncState.deadLetter === 1 ? "change" : "changes"} failed to back up to the cloud — still saved
-            on this device
-          </span>
-          <span className="ml-auto flex shrink-0 items-center gap-1 text-xs" style={{ color: "var(--text-muted)" }}>
-            {expanded ? "Hide" : "Details"}
-            <ChevronIcon dir={expanded ? "up" : "down"} size={12} />
-          </span>
-        </button>
-        {expanded && (
-          <ul className="flex flex-col inset-rows px-4 pb-2 sm:px-6 lg:px-8">
+  return (
+    <Sheet title="Cloud backup" titleId="sync-details-title" onClose={onClose}>
+      {deadLetterEntries.length > 0 && (
+        <section className="flex flex-col gap-1">
+          <h3 className="px-1 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
+            Didn&apos;t back up — still saved on this device
+          </h3>
+          <ul className="inset-rows flex flex-col rounded-xl px-3.5" style={{ background: "var(--surface-1)" }}>
             {deadLetterEntries.map((entry) => {
               const { reason, action } = friendlyReason(entry.lastErrorCode, entry.op, entry.table);
               const { title, kind, details } = describeOutboxEntry(entry, itemNames);
               return (
-                <li key={entry.id} className="flex items-center justify-between gap-3 py-2 text-xs">
+                <li key={entry.id} className="flex flex-col gap-2 py-3 text-xs">
                   <span style={{ color: "var(--text-secondary)" }}>
                     <span className="font-semibold" style={{ color: "var(--text-primary)" }}>
                       &ldquo;{title}&rdquo;
@@ -176,18 +170,18 @@ export function SyncStatusBanner() {
                     ({kind.toLowerCase()}
                     {details.length > 0 ? `, ${details.join(", ")}` : ""}, saved {formatSavedAt(entry.createdAt)}) didn&apos;t sync because {reason}. {action}
                   </span>
-                  <span className="flex shrink-0 gap-1.5">
-                      <Chip onClick={() => void handleRetry(entry.id)} disabled={retryingId === entry.id || discardingId === entry.id}>
-                        {retryingId === entry.id ? "Retrying…" : "Retry"}
-                      </Chip>
-                      <Chip
-                        onClick={() => setConfirmingDiscardId(entry.id)}
-                        disabled={retryingId === entry.id || discardingId === entry.id}
-                        title="Give up on syncing this one — the local copy on this device is untouched"
-                      >
-                        {discardingId === entry.id ? "Discarding…" : "Discard"}
-                      </Chip>
-                    </span>
+                  <span className="flex gap-1.5">
+                    <Chip onClick={() => void handleRetry(entry.id)} disabled={retryingId === entry.id || discardingId === entry.id}>
+                      {retryingId === entry.id ? "Retrying…" : "Retry"}
+                    </Chip>
+                    <Chip
+                      onClick={() => setConfirmingDiscardId(entry.id)}
+                      disabled={retryingId === entry.id || discardingId === entry.id}
+                      title="Give up on syncing this one — the local copy on this device is untouched"
+                    >
+                      {discardingId === entry.id ? "Discarding…" : "Discard"}
+                    </Chip>
+                  </span>
                   {confirmingDiscardId === entry.id && (
                     <ConfirmDialog
                       title="Discard this change?"
@@ -202,62 +196,45 @@ export function SyncStatusBanner() {
               );
             })}
           </ul>
-        )}
-      </div>
-    );
-  }
+        </section>
+      )}
 
-  return (
-    <div className="border-b" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
-      <div className="flex items-center gap-2 px-4 sm:px-6 lg:px-8">
-        <button
-          type="button"
-          onClick={() => setPendingExpanded((v) => !v)}
-          className="flex min-w-0 flex-1 items-center gap-2 py-2 text-left text-xs font-medium"
-        >
-          <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: "var(--text-muted)" }} />
-          <span style={{ color: "var(--text-secondary)" }}>
-            {offline
-              ? `Offline — ${syncState.pending} ${syncState.pending === 1 ? "change is" : "changes are"} saved on this device and will sync when you reconnect`
-              : `${syncState.pending} ${syncState.pending === 1 ? "change" : "changes"} pending sync`}
-          </span>
-          <span className="ml-auto flex shrink-0 items-center gap-1 text-xs" style={{ color: "var(--text-muted)" }}>
-            {pendingExpanded ? "Hide" : "Details"}
-            <ChevronIcon dir={pendingExpanded ? "up" : "down"} size={12} />
-          </span>
-        </button>
-        {!offline && (
-          <button
-            type="button"
-            onClick={() => void handleRetryPending()}
-            disabled={retryingPending}
-            className="shrink-0 py-2 text-xs font-medium disabled:opacity-50"
-            style={{ color: "var(--series-1)" }}
-          >
-            {retryingPending ? "Retrying…" : "Retry now"}
-          </button>
-        )}
-      </div>
-      {pendingExpanded && (
-        <div className="px-4 pb-2 sm:px-6 lg:px-8">
-          <p className="pb-1 text-xs" style={{ color: "var(--text-secondary)" }}>
+      {pendingEntries.length > 0 && (
+        <section className="flex flex-col gap-1">
+          <div className="flex items-baseline justify-between gap-3 px-1">
+            <h3 className="text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
+              {offline ? "Offline — waiting to sync" : "Waiting to sync"}
+            </h3>
+            {!offline && (
+              <button
+                type="button"
+                onClick={() => void handleRetryPending()}
+                disabled={retryingPending}
+                className="shrink-0 text-xs font-medium disabled:opacity-50"
+                style={{ color: "var(--ui-accent)" }}
+              >
+                {retryingPending ? "Retrying…" : "Retry now"}
+              </button>
+            )}
+          </div>
+          <p className="px-1 pb-1 text-xs" style={{ color: "var(--text-secondary)" }}>
             Everything below is saved on this device — nothing is lost. It will be sent to the cloud automatically.{" "}
-            <button type="button" onClick={() => saveCopy(pendingEntries)} className="font-medium" style={{ color: "var(--series-1)" }}>
+            <button type="button" onClick={() => saveCopy(pendingEntries)} className="font-medium" style={{ color: "var(--ui-accent)" }}>
               Save a copy as a file
             </button>
           </p>
           {lastProblem && (
-            <p className="pb-1 text-xs" style={{ color: "var(--text-muted)" }}>
+            <p className="px-1 pb-1 text-xs" style={{ color: "var(--text-muted)" }}>
               Latest problem: {lastProblem}
             </p>
           )}
-          <ul className="flex flex-col inset-rows">
+          <ul className="inset-rows flex flex-col rounded-xl px-3.5" style={{ background: "var(--surface-1)" }}>
             {[...pendingEntries]
               .sort((a, b) => b.createdAt - a.createdAt)
               .map((entry) => {
                 const { title, kind, details } = describeOutboxEntry(entry, itemNames);
                 return (
-                  <li key={entry.id} className="py-2 text-xs" style={{ color: "var(--text-secondary)" }}>
+                  <li key={entry.id} className="py-2.5 text-xs" style={{ color: "var(--text-secondary)" }}>
                     <div>
                       <span className="font-semibold" style={{ color: "var(--text-primary)" }}>
                         {title}
@@ -273,8 +250,44 @@ export function SyncStatusBanner() {
                 );
               })}
           </ul>
-        </div>
+        </section>
       )}
-    </div>
+
+      {deadLetterEntries.length === 0 && pendingEntries.length === 0 && (
+        <p className="px-1 text-sm" style={{ color: "var(--text-secondary)" }}>
+          Everything is backed up.
+        </p>
+      )}
+    </Sheet>
+  );
+}
+
+/** Phone only: a small pill floating just above the tab bar, so sync status
+ * never pushes the page around (a banner in the flow moved rows mid-tap).
+ * Tap for the details sheet. On desktop the sidebar footer shows it. */
+export function SyncStatusPill() {
+  const status = useSyncStatus();
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      {status && (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          aria-haspopup="dialog"
+          className="fixed left-1/2 z-20 flex min-h-8 max-w-[calc(100vw-2rem)] -translate-x-1/2 items-center gap-1.5 rounded-full border px-3 text-xs font-medium shadow-md lg:hidden print:hidden"
+          style={{
+            bottom: "calc(58px + env(safe-area-inset-bottom) + 0.5rem)",
+            borderColor: "var(--border-hairline)",
+            background: "var(--surface-1)",
+            color: "var(--text-secondary)",
+          }}
+        >
+          <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: syncStatusColor(status) }} aria-hidden="true" />
+          <span className="truncate">{status.label}</span>
+        </button>
+      )}
+      {open && <SyncDetailsSheet onClose={() => setOpen(false)} />}
+    </>
   );
 }

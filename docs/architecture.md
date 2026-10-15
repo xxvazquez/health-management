@@ -36,7 +36,7 @@ How Lauva stores, syncs and sends data. For the schema itself see [data-model.md
 
 | Problem | What the user sees |
 |---|---|
-| Writes waiting to sync | `SyncStatusBanner`: pending count, Retry now, a per-item list, and "Save a copy as a file" |
+| Writes waiting to sync | `SyncStatus`: a floating pill (phone) or the sidebar footer (desktop) opens a sheet with Retry now, a per-item list, and "Save a copy as a file" |
 | A queued write the server rejects | The record, the reason, and Retry / Discard |
 | A direct write the server rejects (`directWrite.ts`) | The change is undone (every direct feature re-reads via `emitCloudRefresh`) and `StorageErrorBanner` says it couldn't be saved |
 | Refused login token (`PGRST301`–`303`) | Nothing. The drain refreshes the session once and resends |

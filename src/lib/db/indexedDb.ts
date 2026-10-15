@@ -789,7 +789,7 @@ async function writeOutboxEntry(entry: NewOutboxEntry): Promise<void> {
   // behind one that will never clear itself. Without this, fixing a record
   // through the UI (e.g. recategorizing an item whose category was
   // deleted) leaves its original failure permanently stuck in
-  // SyncStatusBanner even after the fix already reached Supabase under a
+  // SyncStatus even after the fix already reached Supabase under a
   // brand-new entry.
   const deadLetter = !pendingUnattempted && existing.find((e) => e.status === "dead-letter");
   if (deadLetter && entry.op === "upsert" && deadLetter.op === "upsert") {

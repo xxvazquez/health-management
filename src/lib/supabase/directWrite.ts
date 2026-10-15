@@ -24,7 +24,7 @@ function notConfigured(): Error {
  * entry, so an edit made offline right after an offline create just
  * replaces that create's payload rather than queuing twice. The next
  * outbox drain (tab focus, reconnect, the periodic pull timer — see
- * sync.ts's pullFromCloud) sends it, and the existing SyncStatusBanner
+ * sync.ts's pullFromCloud) sends it, and the existing SyncStatus
  * already surfaces pending/failed entries for any table, so nothing else
  * needs to know this happened.
  */

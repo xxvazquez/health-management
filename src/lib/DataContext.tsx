@@ -52,10 +52,10 @@ interface DataContextValue {
    * button behind the account panel. */
   syncNow: () => Promise<void>;
   /** The dead-letter entries behind `syncState.deadLetter` — enough detail
-   * (table, error code) for SyncStatusBanner to explain what failed. */
+   * (table, error code) for SyncStatus to explain what failed. */
   deadLetterEntries: OutboxEntry[];
   /** The pending entries behind `syncState.pending` — what's still queued
-   * to reach the cloud, for SyncStatusBanner to list rather than just count. */
+   * to reach the cloud, for SyncStatus to list rather than just count. */
   pendingEntries: OutboxEntry[];
   /** Re-queues one dead-letter entry and attempts to send it again. */
   retrySync: (id: string) => Promise<void>;

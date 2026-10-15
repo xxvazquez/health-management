@@ -827,7 +827,7 @@ async function buildRepairPlan(userId: string): Promise<RepairPlan> {
  *    freshly-cleared local cache as-is, so it doesn't silently vanish from
  *    Manage. Without that, a genuinely deleted category leaves the item
  *    dead-lettered AND invisible, with no way for the user to act on the
- *    "check it still has a valid category" guidance SyncStatusBanner gives
+ *    "check it still has a valid category" guidance SyncStatus gives
  *    them, since there'd be nothing left locally to re-point at a new one.
  *
  * Scoped to `userId` throughout (every dead-letter entry `buildRepairPlan`
@@ -892,7 +892,7 @@ async function refreshedOutboxPayload(entry: OutboxEntry): Promise<Record<string
 }
 
 /**
- * The actual "Retry" action behind SyncStatusBanner's button — re-derives
+ * The actual "Retry" action behind SyncStatus's button — re-derives
  * the entry's payload first (see `refreshedOutboxPayload`), so a record
  * that's since been fixed locally gets a real chance to sync instead of
  * repeating the exact same failure, then hands off to
