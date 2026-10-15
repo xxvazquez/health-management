@@ -547,7 +547,7 @@ Deno.serve(async (req) => {
     const doctorName = (doctor as { name: string } | null)?.name ?? "your doctor";
     const email = await getUserEmail(task.user_id);
     if (email) await sendReminderEmail(email, `Follow-up: ${task.description}`, `"${task.description}" — a follow-up from your visit with ${doctorName}.`);
-    await sendPushToUser(subsByUser, task.user_id, "Follow-up", task.description, `doctor-task:${task.id}`, "/medical/#visits");
+    await sendPushToUser(subsByUser, task.user_id, "Follow-up", task.description, `doctor-task:${task.id}`, `/medical/?visit=${task.appointment_id}#visits`);
     await supabase.from("doctor_appointment_tasks").update({ reminder_sent_at: nowDate.toISOString() }).eq("id", task.id);
     dueSent++;
   }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import type { useDoctors } from "@/lib/useDoctors";
 import type { DoctorAppointment } from "@/lib/supabase/doctors";
 import { resolveSpecialtyNames } from "@/lib/doctors";
@@ -16,24 +16,47 @@ type DoctorsApi = ReturnType<typeof useDoctors>;
 /** A history list of appointments as grouped rows — doctor, date, reason
  * and any open follow-ups (tickable in place). Tapping a row opens the
  * visit's full card in a sheet, where it's edited or deleted. Used by
- * Visits and by the doctor history view. */
+ * Visits and by the doctor history view. With `openFromUrl`, a
+ * `?visit=<id>` link (an Agenda follow-up) opens that visit's sheet. */
 export function AppointmentList({
   api,
   appointments,
   accent,
   showDoctor = true,
   emptyMessage,
+  openFromUrl = false,
 }: {
   api: DoctorsApi;
   appointments: DoctorAppointment[];
   accent: string;
   showDoctor?: boolean;
   emptyMessage: string;
+  openFromUrl?: boolean;
 }) {
   const [editing, setEditing] = useState<DoctorAppointment | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
   const sheetTitleId = useId();
   const open = openId ? (appointments.find((a) => a.id === openId) ?? null) : null;
+
+  // Waits for the visit to load, opens it once, then drops the parameter so
+  // a reload doesn't reopen it.
+  const linkHandled = useRef(false);
+  useEffect(() => {
+    if (!openFromUrl || linkHandled.current) return;
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get("visit");
+    if (!id) {
+      linkHandled.current = true;
+      return;
+    }
+    if (!appointments.some((a) => a.id === id)) return;
+    linkHandled.current = true;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setOpenId(id);
+    params.delete("visit");
+    const query = params.toString();
+    window.history.replaceState(null, "", `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`);
+  }, [openFromUrl, appointments]);
 
   const specialtyOptions = resolveSpecialtyNames(
     api.specialties.data,

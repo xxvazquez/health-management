@@ -237,6 +237,7 @@ export function VisitsTab({
           api={api}
           appointments={api.appointments.data}
           accent={accent}
+          openFromUrl
           emptyMessage="No appointments logged yet — use Add to record a visit you've already had."
         />
       </section>

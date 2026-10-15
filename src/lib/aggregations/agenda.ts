@@ -208,7 +208,7 @@ function followUpEntries(tasks: DoctorFollowUpTask[], today: string, nowMs: numb
       subtitle: "Follow-up",
       dueMs,
       when: timing(bucket, dueMs, Boolean(t.reminderAt && !t.dueDate), today, nowMs),
-      href: "/medical#followups",
+      href: `/medical/?visit=${t.appointmentId}#visits`,
     });
   }
   return out;

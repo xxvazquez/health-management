@@ -191,7 +191,7 @@ A static site can't run anything in the background, so Supabase's `pg_cron` / `p
 - **Instant message push:** sending a message calls `notify-note`, which pushes the sender's name with "Sent you a message", with no content in the payload
 - **Unread reminder:** "Remind <partner>" in a conversation's ⋯ menu (offered while your last message is unread) calls `notify-note` with `remind: true`, which re-pushes them (refused once they've read it). The daily digest keeps going until they do
 - **Push layout:** iOS-style — a short one-line title (sender, "Supplements", "Due", "Expiring soon"…) and the item's own text in the body, since Android truncates the title to one line but expands the body. The status-bar badge is `public/icons/badge-96.png`, a white-on-transparent silhouette of the logo mark
-- **Push taps:** every push carries a `url` — a supplement/habit or section reminder opens its Log section, tasks and expiries open Agenda, follow-ups and revisits open Health → Visits, the digest opens Messages
+- **Push taps:** every push carries a `url` — a supplement/habit or section reminder opens its Log section, tasks and expiries open Agenda, a follow-up opens its visit on Health → Visits, revisits open Visits, the digest opens Messages
 - **Push to every device:** `push_subscriptions` is keyed on `(user_id, endpoint)`, so each of a user's devices gets the push. Never a partner's devices
 - **Cleanup:** a second cron job trims `cron.job_run_details` to 7 days
 - **Digest sender name:** the partner's `display_name` from Supabase auth metadata, else a name made from their email
