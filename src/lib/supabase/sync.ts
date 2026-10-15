@@ -1145,7 +1145,7 @@ const TRACKING_TYPE_BY_TABLE = new Map<string, ItemType>([
  * dead-lettered) on top of the freshly installed server snapshot. The pull
  * wipes the local cache, and a change that hasn't reached Supabase yet isn't
  * in that snapshot — without this it would disappear from the screen while
- * the sync banner still says it's saved on this device. Runs inside the
+ * the sync status still says it's saved on this device. Runs inside the
  * pull's data lock, oldest entry first, so the final state matches what the
  * outbox will eventually send. Entries the repair pass is about to discard
  * (`skipIds`, unrecoverable duplicates) are left out. Only the tracking-domain tables are cached

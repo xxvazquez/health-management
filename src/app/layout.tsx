@@ -37,7 +37,7 @@ const bodyFont = Inter({
 export const metadata: Metadata = {
   title: "Lauva",
   description:
-    "A personal food, supplement, and habit analytics dashboard — entirely client-side.",
+    "A personal health tracker: food, symptoms, supplements, habits, stool, workouts, cycle and coffee.",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
