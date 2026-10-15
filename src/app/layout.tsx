@@ -9,7 +9,7 @@ import { Nav } from "@/components/Nav";
 import { BottomNav } from "@/components/BottomNav";
 import { ContentContainer } from "@/components/ContentContainer";
 import { AuthBanner } from "@/components/auth/AuthBanner";
-import { SyncStatusPill } from "@/components/SyncStatus";
+import { FloatingSyncStatus } from "@/components/SyncStatus";
 import { StorageErrorBanner } from "@/components/StorageErrorBanner";
 import { RegisterServiceWorker } from "@/components/RegisterServiceWorker";
 import { PushNotificationsAutoEnable } from "@/components/PushNotificationsAutoEnable";
@@ -113,7 +113,7 @@ export default function RootLayout({
                       </ContentContainer>
                     </div>
                   </PullToRefresh>
-                  <SyncStatusPill />
+                  <FloatingSyncStatus />
                   <BottomNav />
                 </main>
               </MobileMenuProvider>

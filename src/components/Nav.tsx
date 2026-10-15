@@ -295,7 +295,7 @@ function SecondaryNav({ pathname, collapsed, onNavigate }: { pathname: string; c
 
 /** What's on screen, or — when changes are stuck or failed — the sync
  * status, which opens its details. Fixed in the footer, so it never moves
- * the page (on a phone the floating pill shows it instead). Data otherwise
+ * the page (on a phone `FloatingSyncStatus` shows it instead). Data otherwise
  * syncs automatically (on sign-in, page load, tab focus). */
 function SyncFooter({ collapsed }: { collapsed?: boolean }) {
   const { status, isDemoData } = useData();
@@ -312,7 +312,7 @@ function SyncFooter({ collapsed }: { collapsed?: boolean }) {
     return (
       <div className="flex flex-col items-center border-t pt-4" style={{ borderColor: "var(--gridline)" }}>
         {sync ? (
-          <button type="button" title={label} aria-label={label} aria-haspopup="dialog" onClick={() => setOpen(true)} className="flex h-6 w-6 items-center justify-center">
+          <button type="button" title={label} aria-label={label} aria-haspopup="dialog" onClick={() => setOpen(true)} className="tap-target flex h-6 w-6 items-center justify-center">
             {dot}
           </button>
         ) : (
@@ -330,7 +330,7 @@ function SyncFooter({ collapsed }: { collapsed?: boolean }) {
           type="button"
           onClick={() => setOpen(true)}
           aria-haspopup="dialog"
-          className="inline-flex max-w-full items-center gap-1.5 px-2 text-left text-xs font-medium"
+          className="hit-slop inline-flex max-w-full items-center gap-1.5 px-2 text-left text-xs font-medium"
           style={{ color: sync.tone === "warning" ? color : "var(--text-secondary)" }}
         >
           {dot}

@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { SyncStatusPill } from "./SyncStatus";
+import { FloatingSyncStatus } from "./SyncStatus";
 import type { OutboxEntry } from "@/lib/db/indexedDb";
 
 const { mockUseData } = vi.hoisted(() => ({ mockUseData: vi.fn() }));
@@ -43,16 +43,16 @@ function mockData(overrides: Partial<ReturnType<typeof mockUseData>> = {}) {
   });
 }
 
-describe("SyncStatusPill", () => {
+describe("FloatingSyncStatus", () => {
   it("renders nothing when there's nothing pending or dead-lettered", () => {
     mockData();
-    const { container } = render(<SyncStatusPill />);
+    const { container } = render(<FloatingSyncStatus />);
     expect(container).toBeEmptyDOMElement();
   });
 
   it("shows a plain pending count when nothing has permanently failed", () => {
     mockData({ syncState: { pending: 3, deadLetter: 0 } });
-    render(<SyncStatusPill />);
+    render(<FloatingSyncStatus />);
     expect(screen.getByText("3 changes waiting to sync")).toBeInTheDocument();
   });
 
@@ -61,7 +61,7 @@ describe("SyncStatusPill", () => {
     try {
       const entry = baseEntry({ status: "pending", attempts: 0, createdAt: Date.now() });
       mockData({ syncState: { pending: 1, deadLetter: 0 }, pendingEntries: [entry] });
-      const { container } = render(<SyncStatusPill />);
+      const { container } = render(<FloatingSyncStatus />);
       expect(container).toBeEmptyDOMElement();
 
       act(() => vi.advanceTimersByTime(10_000));
@@ -74,7 +74,7 @@ describe("SyncStatusPill", () => {
   it("offers Retry now on pending changes and runs it", async () => {
     const retryPending = vi.fn().mockResolvedValue(undefined);
     mockData({ syncState: { pending: 2, deadLetter: 0 }, isOnline: true, retryPending });
-    render(<SyncStatusPill />);
+    render(<FloatingSyncStatus />);
     const user = userEvent.setup();
     await user.click(screen.getByRole("button", { name: /waiting/ }));
 
@@ -84,7 +84,7 @@ describe("SyncStatusPill", () => {
 
   it("reassures instead of offering Retry now while offline", async () => {
     mockData({ syncState: { pending: 2, deadLetter: 0 }, isOnline: false });
-    render(<SyncStatusPill />);
+    render(<FloatingSyncStatus />);
     expect(screen.getByText("Offline · 2 changes waiting")).toBeInTheDocument();
     await userEvent.setup().click(screen.getByRole("button", { name: /waiting/ }));
     expect(screen.getByText("Offline — waiting to sync")).toBeInTheDocument();
@@ -94,7 +94,7 @@ describe("SyncStatusPill", () => {
   it("shows the pending count, then the entry list in a sheet", async () => {
     const entry = baseEntry({ status: "pending", table: "food_items", payload: { id: "item-1", name: "Kale" } });
     mockData({ syncState: { pending: 1, deadLetter: 0 }, pendingEntries: [entry] });
-    render(<SyncStatusPill />);
+    render(<FloatingSyncStatus />);
 
     expect(screen.getByText("1 change waiting to sync")).toBeInTheDocument();
     expect(screen.queryByText("Kale", { exact: false })).not.toBeInTheDocument();
@@ -109,7 +109,7 @@ describe("SyncStatusPill", () => {
     const make = (id: string, nextAttemptAt: number, lastError: string) =>
       baseEntry({ id, status: "pending", table: "food_logs", nextAttemptAt, lastError, lastErrorCode: "PGRST303", payload: { id, date: "2026-09-19" } });
     mockData({ syncState: { pending: 2, deadLetter: 0 }, pendingEntries: [make("a", 1, "old"), make("b", 2, "JWT issued at future")] });
-    render(<SyncStatusPill />);
+    render(<FloatingSyncStatus />);
 
     await userEvent.setup().click(screen.getByRole("button", { name: /didn.t back up|waiting/ }));
     expect(screen.getAllByText(/Latest problem/)).toHaveLength(1);
@@ -121,7 +121,7 @@ describe("SyncStatusPill", () => {
     const make = (id: string, date: string) =>
       baseEntry({ id, status: "pending", attempts: 0, createdAt: saved, table: "food_logs", payload: { id, item_id: "item-1", date, meal_tag: "Lunch" } });
     mockData({ syncState: { pending: 2, deadLetter: 0 }, pendingEntries: [make("a", "2026-09-19"), make("b", "2026-09-18")] });
-    render(<SyncStatusPill />);
+    render(<FloatingSyncStatus />);
 
     await userEvent.setup().click(screen.getByRole("button", { name: /didn.t back up|waiting/ }));
     expect(screen.getAllByText(/Food log/)).toHaveLength(2);
@@ -132,7 +132,7 @@ describe("SyncStatusPill", () => {
   it("shows failed changes straight away, then the entry list in a sheet", async () => {
     const entry = baseEntry();
     mockData({ syncState: { pending: 0, deadLetter: 1 }, deadLetterEntries: [entry] });
-    render(<SyncStatusPill />);
+    render(<FloatingSyncStatus />);
 
     expect(screen.getByText("1 change didn't back up")).toBeInTheDocument();
     expect(screen.queryByText("Tiredness", { exact: false })).not.toBeInTheDocument();
@@ -144,7 +144,7 @@ describe("SyncStatusPill", () => {
   it("explains a damaged saved copy in plain language", async () => {
     const entry = baseEntry({ table: "food_logs", lastErrorCode: "LOCAL_DAMAGED", payload: { id: "log-1", date: "2026-09-19" } });
     mockData({ syncState: { pending: 0, deadLetter: 1 }, deadLetterEntries: [entry] });
-    render(<SyncStatusPill />);
+    render(<FloatingSyncStatus />);
     await userEvent.setup().click(screen.getByRole("button", { name: /didn.t back up|waiting/ }));
 
     expect(screen.getByText(/its saved copy on this device is damaged/)).toBeInTheDocument();
@@ -153,7 +153,7 @@ describe("SyncStatusPill", () => {
   it("blames the category for an item's own 23503, not the log/diary phrasing", async () => {
     const entry = baseEntry({ table: "symptom_items", op: "upsert", lastErrorCode: "23503" });
     mockData({ syncState: { pending: 0, deadLetter: 1 }, deadLetterEntries: [entry] });
-    render(<SyncStatusPill />);
+    render(<FloatingSyncStatus />);
     await userEvent.setup().click(screen.getByRole("button", { name: /didn.t back up|waiting/ }));
 
     expect(screen.getByText(/it points to something \(like a category\) that's since been removed/)).toBeInTheDocument();
@@ -167,7 +167,7 @@ describe("SyncStatusPill", () => {
       payload: { id: "log-1", item_id: "item-1", date: "2026-08-21" },
     });
     mockData({ syncState: { pending: 0, deadLetter: 1 }, deadLetterEntries: [entry] });
-    render(<SyncStatusPill />);
+    render(<FloatingSyncStatus />);
     await userEvent.setup().click(screen.getByRole("button", { name: /didn.t back up|waiting/ }));
 
     expect(screen.getByText(/the item it belongs to hasn't synced yet/)).toBeInTheDocument();
@@ -179,7 +179,7 @@ describe("SyncStatusPill", () => {
     let resolveRetry!: () => void;
     const retrySync = vi.fn(() => new Promise<void>((resolve) => (resolveRetry = resolve)));
     mockData({ syncState: { pending: 0, deadLetter: 1 }, deadLetterEntries: [entry], retrySync });
-    render(<SyncStatusPill />);
+    render(<FloatingSyncStatus />);
     const user = userEvent.setup();
     await user.click(screen.getByRole("button", { name: /didn.t back up|waiting/ }));
 
@@ -196,7 +196,7 @@ describe("SyncStatusPill", () => {
     const entry = baseEntry();
     const discardSync = vi.fn();
     mockData({ syncState: { pending: 0, deadLetter: 1 }, deadLetterEntries: [entry], discardSync });
-    render(<SyncStatusPill />);
+    render(<FloatingSyncStatus />);
     const user = userEvent.setup();
     await user.click(screen.getByRole("button", { name: /didn.t back up|waiting/ }));
 

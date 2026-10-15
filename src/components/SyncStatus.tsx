@@ -262,30 +262,30 @@ export function SyncDetailsSheet({ onClose }: { onClose: () => void }) {
   );
 }
 
-/** Phone only: a small pill floating just above the tab bar, so sync status
- * never pushes the page around (a banner in the flow moved rows mid-tap).
- * Tap for the details sheet. On desktop the sidebar footer shows it. */
-export function SyncStatusPill() {
+/** Phone only: a small control floating just above the tab bar, out of the
+ * page flow so it never moves content. Tap for the details sheet. On
+ * desktop the sidebar footer shows the same status. */
+export function FloatingSyncStatus() {
   const status = useSyncStatus();
   const [open, setOpen] = useState(false);
   return (
     <>
       {status && (
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          aria-haspopup="dialog"
-          className="fixed left-1/2 z-20 flex min-h-8 max-w-[calc(100vw-2rem)] -translate-x-1/2 items-center gap-1.5 rounded-full border px-3 text-xs font-medium shadow-md lg:hidden print:hidden"
-          style={{
-            bottom: "calc(58px + env(safe-area-inset-bottom) + 0.5rem)",
-            borderColor: "var(--border-hairline)",
-            background: "var(--surface-1)",
-            color: "var(--text-secondary)",
-          }}
+        <div
+          className="fixed left-1/2 z-20 max-w-[calc(100vw-2rem)] -translate-x-1/2 lg:hidden print:hidden"
+          style={{ bottom: "calc(58px + env(safe-area-inset-bottom) + 0.5rem)" }}
         >
-          <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: syncStatusColor(status) }} aria-hidden="true" />
-          <span className="truncate">{status.label}</span>
-        </button>
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            aria-haspopup="dialog"
+            className="hit-slop flex min-h-8 max-w-full items-center gap-1.5 rounded-[10px] border px-3 text-xs font-medium shadow-md"
+            style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-secondary)" }}
+          >
+            <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: syncStatusColor(status) }} aria-hidden="true" />
+            <span className="truncate">{status.label}</span>
+          </button>
+        </div>
       )}
       {open && <SyncDetailsSheet onClose={() => setOpen(false)} />}
     </>
