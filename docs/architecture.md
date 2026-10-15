@@ -175,7 +175,7 @@ Parent-and-child writes (an appointment with tasks, a whole blood draw) queue pa
 - Offline, a page with a query (`/log/?tab=food`, `/notes?thread=…`) falls back to any cached copy of that page, then to the home page
 - The loading splash clears as soon as a saved session is found on the device (`readStoredSession` in `AuthContext.tsx`) instead of waiting for `getSession()` to refresh an expired token over the network
 - Pinch-zoom and rubber-band scrolling are off, so the installed app holds still
-- `PullToRefresh.tsx` syncs with Supabase when you pull down from the top
+- `PullToRefresh.tsx` syncs with Supabase when you pull down from the top; sideways swipes and the iOS edge-swipe back never move the page
 
 ---
 

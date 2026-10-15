@@ -9,6 +9,10 @@ const THRESHOLD = 64;
 /** Damping so the indicator/content can't be dragged further than this,
  * however far the finger actually travels. */
 const MAX_PULL = 88;
+/** Movement before the gesture is read as a pull or ignored as sideways. */
+const DIRECTION_SLOP = 8;
+/** Touches starting this close to the left edge are the iOS back swipe. */
+const EDGE_ZONE = 24;
 
 /**
  * A native-style pull-to-refresh: dragging down from the very top of the
@@ -23,23 +27,36 @@ export function PullToRefresh({ children }: { children: ReactNode }) {
   const [pull, setPull] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const [dragging, setDragging] = useState(false);
-  const startY = useRef<number | null>(null);
+  const start = useRef<{ x: number; y: number; locked: boolean } | null>(null);
 
   const handleTouchStart = useCallback(
     (e: TouchEvent) => {
-      if (refreshing || window.scrollY > 0) {
-        startY.current = null;
+      const touch = e.touches[0];
+      if (refreshing || window.scrollY > 0 || touch.clientX < EDGE_ZONE) {
+        start.current = null;
         return;
       }
-      startY.current = e.touches[0].clientY;
+      start.current = { x: touch.clientX, y: touch.clientY, locked: false };
       setDragging(true);
     },
     [refreshing],
   );
 
   const handleTouchMove = useCallback((e: TouchEvent) => {
-    if (startY.current === null) return;
-    const delta = e.touches[0].clientY - startY.current;
+    const s = start.current;
+    if (!s) return;
+    const dx = e.touches[0].clientX - s.x;
+    const delta = e.touches[0].clientY - s.y;
+    if (!s.locked) {
+      if (Math.abs(dx) < DIRECTION_SLOP && Math.abs(delta) < DIRECTION_SLOP) return;
+      // Sideways or upward: a swipe, not a pull — leave the page still.
+      if (Math.abs(dx) >= Math.abs(delta) || delta <= 0) {
+        start.current = null;
+        setDragging(false);
+        return;
+      }
+      s.locked = true;
+    }
     if (delta <= 0) {
       setPull(0);
       return;
@@ -50,8 +67,8 @@ export function PullToRefresh({ children }: { children: ReactNode }) {
   }, []);
 
   const handleTouchEnd = useCallback(() => {
-    if (startY.current === null) return;
-    startY.current = null;
+    if (!start.current) return;
+    start.current = null;
     setDragging(false);
     if (pull < THRESHOLD) {
       setPull(0);
