@@ -187,7 +187,7 @@ A grouped list where each row opens its own screen. Everything editable in the a
 | Styling | Tailwind CSS 4, design tokens in `src/app/globals.css` |
 | Backend | Supabase: Postgres, Auth, Row-Level Security, Edge Functions |
 | Local store | IndexedDB (`idb`), a cache plus an offline write queue |
-| Libraries | Recharts, react-markdown + remark-gfm, jszip |
+| Libraries | Recharts, lucide-react, react-markdown + remark-gfm, jszip |
 | Tests | Vitest (+ `fake-indexeddb`, jsdom for components) |
 
 ---

@@ -1,13 +1,5 @@
-import type { ReactNode } from "react";
-
-/** A set of headline figures laid out as an aligned grid — two columns on
- * a phone, more on wider screens — each a small label above its number.
- * Use it for any row of several stats; `StatChip` is only for a single
- * figure sitting inline in a sentence or card. */
-export function StatGrid({ children }: { children: ReactNode }) {
-  return <dl className="grid grid-cols-2 gap-x-4 gap-y-3.5 sm:grid-cols-3 lg:grid-cols-4">{children}</dl>;
-}
-
+/** One headline figure — a small label above its number. Goes inside a
+ * `<dl>` grid, two columns on a phone. */
 export function Stat({ label, value, detail, accent }: { label: string; value: string; detail?: string; accent?: string }) {
   return (
     <div className="min-w-0">

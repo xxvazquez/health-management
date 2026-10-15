@@ -73,11 +73,3 @@ export function ListSection({
     </section>
   );
 }
-
-export function SectionIcon({ children }: { children: ReactNode }) {
-  return (
-    <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      {children}
-    </svg>
-  );
-}

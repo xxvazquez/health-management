@@ -22,7 +22,7 @@ import {
 } from "@/lib/supabase/expenses";
 import { settingsHref } from "@/components/manage/ManageSection";
 import { Card } from "@/components/ui/Card";
-import { Stat } from "@/components/ui/StatGrid";
+import { Stat } from "@/components/ui/Stat";
 import { Sheet } from "@/components/ui/Sheet";
 import { FormGroup } from "@/components/ui/FormGroup";
 import { Field } from "@/components/ui/Field";
