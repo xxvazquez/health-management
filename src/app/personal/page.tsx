@@ -122,7 +122,6 @@ export default function NotesPage() {
             forLabel={completedByLabel}
             sharedUrl={sharedUrl}
             onSharedUrlConsumed={() => setSharedUrl(null)}
-            onRefresh={keep.isDemo ? undefined : keep.wishlist.refresh}
             shareToPhone={
               !keep.isDemo && wishlistShareEndpoint() && wishlistShareAuthHeader()
                 ? {

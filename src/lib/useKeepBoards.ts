@@ -66,18 +66,6 @@ export function useKeepBoards() {
   const [resolvedPartnerId, setResolvedPartnerId] = useState<string | null>(null);
   const partnerId = isDemo ? DEMO_HOME_PARTNER_ID : resolvedPartnerId;
 
-  const loadWishlist = useCallback(async () => {
-    setWishlistError(false);
-    try {
-      setWishlist(await fetchWishlist());
-    } catch (err) {
-      console.error("fetchWishlist failed", err);
-      setWishlistError(true);
-    } finally {
-      setWishlistLoading(false);
-    }
-  }, []);
-
   const { persist } = useSnapshotCache<KeepBoardsBundle>({
     feature: "keepBoards",
     tables: KEEP_BOARDS_TABLES,
@@ -290,7 +278,6 @@ export function useKeepBoards() {
       data: orderedWishlist,
       loading: wishlistLoading,
       error: wishlistError,
-      refresh: loadWishlist,
       createCategory,
       createItem,
       updateItem,

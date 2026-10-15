@@ -615,7 +615,6 @@ export function WishlistBoard({
   sharedUrl,
   onSharedUrlConsumed,
   shareToPhone,
-  onRefresh,
   onFetchTitle,
   onCreateCategory,
   onCreateItem,
@@ -633,8 +632,6 @@ export function WishlistBoard({
   onSharedUrlConsumed?: () => void;
   /** Present only for a signed-in user on a cloud deployment. */
   shareToPhone?: WishlistShareToPhone;
-  /** Re-pulls the wishlist — for links added from a phone shortcut while the app was open. */
-  onRefresh?: () => Promise<void> | void;
   onFetchTitle?: (url: string) => Promise<string | null>;
   onCreateCategory: (name: string, appearance?: WishlistCategoryAppearance) => Promise<WishlistCategory>;
   onCreateItem: (input: NewWishlistItemInput) => Promise<void>;
@@ -643,18 +640,6 @@ export function WishlistBoard({
 }) {
   const [search, setSearch] = useState("");
   const [view, setView] = useState<View>({ mode: "list" });
-  const [refreshing, setRefreshing] = useState(false);
-
-  const refresh = async () => {
-    if (!onRefresh || refreshing) return;
-    setRefreshing(true);
-    try {
-      await onRefresh();
-    } finally {
-      setRefreshing(false);
-    }
-  };
-
   // A URL shared into the app — jump straight to the new-item form with it
   // pre-filled, then tell the parent it's been handled so a re-render or
   // the form's Cancel doesn't reopen it.
@@ -750,33 +735,6 @@ export function WishlistBoard({
       {itemSheet}
       <div className="flex items-center gap-2">
           <SearchField value={search} onChange={setSearch} placeholder="Search wishlist…" className="min-w-0 flex-1" />
-          {onRefresh && (
-            <button
-              type="button"
-              onClick={() => void refresh()}
-              disabled={refreshing}
-              aria-label="Refresh wishlist"
-              title="Refresh — picks up links added from your phone"
-              className="control-surface tap-target flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] transition-colors disabled:opacity-60"
-              style={{ color: "var(--text-secondary)" }}
-            >
-              <svg
-                width="15"
-                height="15"
-                viewBox="0 0 20 20"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
-                className={refreshing ? "animate-spin" : undefined}
-              >
-                <path d="M16.5 5.5a7 7 0 1 0 1.2 5" />
-                <path d="M17 3v4h-4" />
-              </svg>
-            </button>
-          )}
         {shareToPhone ? (
           <AddMenu
             accent={accent}
