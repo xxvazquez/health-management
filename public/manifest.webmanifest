@@ -14,6 +14,56 @@
       "url": "url"
     }
   },
+  "shortcuts": [
+    {
+      "name": "Log food",
+      "short_name": "Food",
+      "url": "/log/?tab=food",
+      "icons": [
+        {
+          "src": "/icons/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Check in",
+      "short_name": "Check-in",
+      "url": "/log/?tab=summary",
+      "icons": [
+        {
+          "src": "/icons/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Agenda",
+      "short_name": "Agenda",
+      "url": "/agenda/",
+      "icons": [
+        {
+          "src": "/icons/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Journal",
+      "short_name": "Journal",
+      "url": "/personal/#journal",
+      "icons": [
+        {
+          "src": "/icons/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    }
+  ],
   "background_color": "#f4f6f8",
   "theme_color": "#f4f6f8",
   "icons": [

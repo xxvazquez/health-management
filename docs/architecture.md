@@ -169,6 +169,7 @@ Parent-and-child writes (an appointment with tasks, a whole blood draw) queue pa
 ## PWA shell
 
 - `public/manifest.webmanifest` + `public/sw.js` cache the app shell separately from the data cache
+- Long-pressing the app icon offers shortcuts (manifest `shortcuts`): Log food, Check in, Agenda, Journal. Android and desktop Chrome show them; iOS ignores them
 - The service worker cache name includes the deploy's git SHA, so each deploy gets a fresh cache
 - An open tab picks up a new deploy by reloading the next time it goes to the background, never while it's on screen
 - Pages are network-first, but a slow network gets 3s before the cached page is served; the request carries on and refreshes the cache
