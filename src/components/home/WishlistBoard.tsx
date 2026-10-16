@@ -519,9 +519,9 @@ function PhoneSetup({ share, onBack }: { share: WishlistShareToPhone; onBack: ()
       </h2>
 
       <FormGroup title="Android" footer="Nothing to set up.">
-        <Step n={1}>
-          Open a link → <strong>Share</strong> → <strong>Lauva</strong>.
-        </Step>
+        <p className="flex min-h-11 items-center px-3.5 text-sm" style={{ color: "var(--text-primary)" }}>
+          Share any link and choose Lauva.
+        </p>
       </FormGroup>
 
       {!token ? (
@@ -532,36 +532,38 @@ function PhoneSetup({ share, onBack }: { share: WishlistShareToPhone; onBack: ()
         </FormGroup>
       ) : (
         <>
-          <FormGroup title="For the shortcut" footer="The link carries your private key. Don't share it.">
+          <FormGroup title="Copy" footer="Your link includes your private key. Don't share it.">
             <CopyRow label="Link" value={link} />
             <CopyRow label="Authorization" value={share.authHeader} />
           </FormGroup>
 
           <FormGroup
-            title="On your iPhone"
-            footer="Then: any app → Share → Save to Lauva. Links land in “Saved from phone”."
+            title="In Shortcuts"
+            footer="Then share any link with Save to Lauva. It lands in “Saved from phone”."
             info={
               <>
-                For wishes meant for your partner, change <code>for=either</code> to <code>for=partner</code> in the link. To pick
-                a list and title each time, add <strong>Ask for Input</strong> and <strong>Choose from Menu</strong> first, then
-                put <code>&amp;title=</code> and <code>&amp;list=</code> with their results before <code>&amp;url=</code>.
+                For your partner&apos;s wishes, change for=either to for=partner in the link. To choose a list and title each time, add
+                &amp;list= and &amp;title= before &amp;url=, filled from Choose from Menu and Ask for Input.
               </>
             }
           >
             <Step n={1}>
-              Shortcuts → <strong>+</strong> → name it <strong>Save to Lauva</strong>.
+              Open <strong>Shortcuts</strong>, tap <strong>+</strong>, and name the shortcut Save to Lauva.
             </Step>
             <Step n={2}>
-              <strong>ⓘ</strong> → turn on <strong>Show in Share Sheet</strong>, receiving only <strong>URLs</strong>.
+              Tap <strong>ⓘ</strong>, turn on <strong>Show in Share Sheet</strong>, and set it to receive only <strong>URLs</strong>.
             </Step>
             <Step n={3}>
               Add <strong>Get Contents of URL</strong>.
             </Step>
             <Step n={4}>
-              URL: paste the Link, type <code>&amp;url=</code>, then insert <strong>Shortcut Input</strong>.
+              Tap <strong>URL</strong>, paste your link, type &amp;url= at the end, then insert <strong>Shortcut Input</strong>.
             </Step>
             <Step n={5}>
-              Method <strong>POST</strong>, header <strong>Authorization</strong> = the value above.
+              Tap <strong>›</strong> and set <strong>Method</strong> to <strong>POST</strong>.
+            </Step>
+            <Step n={6}>
+              Under <strong>Headers</strong>, add <strong>Authorization</strong> and paste the Authorization value, then tap <strong>Done</strong>.
             </Step>
           </FormGroup>
 

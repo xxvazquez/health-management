@@ -6,7 +6,8 @@ import { ReorderGrip, useManageOrder } from "@/components/manage/Reorder";
 import { ManageRow } from "@/components/ui/ManageRow";
 import { FormGroup } from "@/components/ui/FormGroup";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
-import { CopyRow, Step } from "@/components/ui/ShortcutSetup";
+import { CopyRow, FieldRow, GuideRow, Step } from "@/components/ui/ShortcutSetup";
+import { Sheet } from "@/components/ui/Sheet";
 import { customColorValue } from "@/components/ui/customIcons";
 import { buildDemoExpenseData } from "@/lib/demoExpenses";
 import {
@@ -151,6 +152,49 @@ function lastPayment(token: PhoneToken | null): string {
   return new Date(token.lastUsedAt).toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 }
 
+/** How to build the Wallet automation that posts each Apple Pay payment. */
+function CardPaymentsGuide({ link, auth, onClose }: { link: string; auth: string; onClose: () => void }) {
+  return (
+    <Sheet title="Set Up Shortcut" titleId="card-payments-guide-title" onClose={onClose}>
+      <FormGroup title="Copy" footer="Your link includes your private key. Don't share it.">
+        <CopyRow label="Link" value={link} />
+        <CopyRow label="Authorization" value={auth} />
+      </FormGroup>
+      <FormGroup title="In Shortcuts">
+        <Step n={1}>
+          Open <strong>Shortcuts</strong>, tap <strong>Automation</strong>, then tap <strong>+</strong>.
+        </Step>
+        <Step n={2}>
+          Choose <strong>Transaction</strong>, select your Revolut card and <strong>Run Immediately</strong>, then tap <strong>Next</strong>.
+        </Step>
+        <Step n={3}>
+          Tap <strong>New Blank Automation</strong> and add <strong>Get Contents of URL</strong>.
+        </Step>
+        <Step n={4}>
+          Tap <strong>URL</strong> and paste your link.
+        </Step>
+        <Step n={5}>
+          Tap <strong>›</strong> and set <strong>Method</strong> to <strong>POST</strong>.
+        </Step>
+        <Step n={6}>
+          Under <strong>Headers</strong>, add <strong>Authorization</strong> and paste the Authorization value.
+        </Step>
+        <Step n={7}>
+          Set <strong>Request Body</strong> to <strong>JSON</strong> and add the three Text fields below.
+        </Step>
+        <Step n={8}>
+          Tap <strong>Done</strong>.
+        </Step>
+      </FormGroup>
+      <FormGroup title="JSON Fields" footer="Tap Shortcut Input, then choose the detail.">
+        <FieldRow name="merchant" value="Shortcut Input › Merchant" />
+        <FieldRow name="amount" value="Shortcut Input › Amount" />
+        <FieldRow name="card" value="Shortcut Input › Card or Pass" />
+      </FormGroup>
+    </Sheet>
+  );
+}
+
 /** Settings → Expenses → Card payments: an iOS Shortcut that runs on every
  * Apple Pay payment with the card and posts it to the expense-import Edge
  * Function. */
@@ -158,6 +202,7 @@ export function CardPaymentsCard({ isDemoData, searchQuery }: { isDemoData: bool
   const [token, setToken] = useState<PhoneToken | null>(null);
   const [state, setState] = useState<"loading" | "ready" | "busy" | "error">("loading");
   const [confirmOff, setConfirmOff] = useState(false);
+  const [guideOpen, setGuideOpen] = useState(false);
   const endpoint = functionEndpoint("expense-import");
   const auth = functionAuthHeader();
 
@@ -219,23 +264,10 @@ export function CardPaymentsCard({ isDemoData, searchQuery }: { isDemoData: bool
             </div>
           </FormGroup>
 
-          <FormGroup title="For the shortcut" footer="The link carries your private key. Don't share it.">
-            <CopyRow label="Link" value={link} />
-            <CopyRow label="Authorization" value={auth} />
+          <FormGroup footer="Only Apple Pay payments are sent. Add other spending with New expense.">
+            <GuideRow label="Set Up Shortcut" onOpen={() => setGuideOpen(true)} />
           </FormGroup>
-
-          <FormGroup title="On your iPhone" footer="Only Apple Pay payments trigger it. Add online payments and transfers with New expense.">
-            <Step n={1}>
-              Shortcuts → Automation → + → <strong>Transaction</strong> → pick your Revolut card → Run Immediately.
-            </Step>
-            <Step n={2}>
-              Add <strong>Get Contents of URL</strong> with the Link above, Method POST, header Authorization.
-            </Step>
-            <Step n={3}>
-              Request Body JSON, Text fields: <code>merchant</code> = Shortcut Input › Merchant, <code>amount</code> = Shortcut Input › Amount,{" "}
-              <code>card</code> = Shortcut Input › Card or Pass.
-            </Step>
-          </FormGroup>
+          {guideOpen && <CardPaymentsGuide link={link} auth={auth} onClose={() => setGuideOpen(false)} />}
 
           {state === "error" && (
             <p className="px-3.5 text-xs" style={{ color: "var(--status-critical)" }}>
