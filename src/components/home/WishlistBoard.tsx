@@ -471,6 +471,7 @@ function PhoneSetup({ share, onBack }: { share: WishlistShareToPhone; onBack: ()
   const [token, setToken] = useState<WishlistShareToken | null>(null);
   const [state, setState] = useState<"loading" | "ready" | "working" | "error">("loading");
   const [confirmOff, setConfirmOff] = useState(false);
+  const [confirmNewKey, setConfirmNewKey] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -568,7 +569,7 @@ function PhoneSetup({ share, onBack }: { share: WishlistShareToPhone; onBack: ()
           </FormGroup>
 
           <FormGroup footer="A new key stops the old shortcut until you paste the new link.">
-            <button type="button" onClick={() => void act(share.regenerate)} disabled={busy} className={rowCls} style={{ color: "var(--ui-accent)" }}>
+            <button type="button" onClick={() => setConfirmNewKey(true)} disabled={busy} className={rowCls} style={{ color: "var(--ui-accent)" }}>
               New key
             </button>
             <button type="button" onClick={() => setConfirmOff(true)} disabled={busy} className={rowCls} style={{ color: "var(--status-critical)" }}>
@@ -582,6 +583,19 @@ function PhoneSetup({ share, onBack }: { share: WishlistShareToPhone; onBack: ()
         <p className="px-3.5 text-xs" style={{ color: "var(--status-critical)" }}>
           That didn&apos;t work — try again.
         </p>
+      )}
+
+      {confirmNewKey && (
+        <ConfirmDialog
+          title="Create a new key?"
+          message="Save to Lauva stops working until you paste the new link into it."
+          confirmLabel="New key"
+          onConfirm={() => {
+            setConfirmNewKey(false);
+            void act(share.regenerate);
+          }}
+          onClose={() => setConfirmNewKey(false)}
+        />
       )}
 
       {confirmOff && (

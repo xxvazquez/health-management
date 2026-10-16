@@ -203,6 +203,7 @@ export function CardPaymentsCard({ isDemoData, searchQuery }: { isDemoData: bool
   const [state, setState] = useState<"loading" | "ready" | "busy" | "error">("loading");
   const [confirmOff, setConfirmOff] = useState(false);
   const [guideOpen, setGuideOpen] = useState(false);
+  const [confirmNewKey, setConfirmNewKey] = useState(false);
   const endpoint = functionEndpoint("expense-import");
   const auth = functionAuthHeader();
 
@@ -221,14 +222,16 @@ export function CardPaymentsCard({ isDemoData, searchQuery }: { isDemoData: bool
     };
   }, [isDemoData]);
 
-  const act = async (fn: () => Promise<PhoneToken | null>) => {
+  const act = async (fn: () => Promise<PhoneToken | null>): Promise<boolean> => {
     setState("busy");
     try {
       setToken(await fn());
       setState("ready");
+      return true;
     } catch (err) {
       console.error("card payments token action failed", err);
       setState("error");
+      return false;
     }
   };
 
@@ -247,7 +250,7 @@ export function CardPaymentsCard({ isDemoData, searchQuery }: { isDemoData: bool
         <FormGroup footer="Each Apple Pay payment with your Revolut card lands in Notes → Expenses.">
           <button
             type="button"
-            onClick={() => void act(() => regeneratePhoneToken(TOKEN_TABLE))}
+            onClick={() => void act(() => regeneratePhoneToken(TOKEN_TABLE)).then((ok) => ok && setGuideOpen(true))}
             disabled={state === "busy" || state === "loading"}
             className="flex min-h-11 w-full items-center px-3.5 text-left text-sm font-medium disabled:opacity-50"
             style={{ color: "var(--ui-accent)" }}
@@ -278,7 +281,7 @@ export function CardPaymentsCard({ isDemoData, searchQuery }: { isDemoData: bool
           <div className={GROUP_CLS} style={GROUP_STYLE}>
             <button
               type="button"
-              onClick={() => void act(() => regeneratePhoneToken(TOKEN_TABLE))}
+              onClick={() => setConfirmNewKey(true)}
               disabled={state === "busy"}
               className="flex min-h-11 w-full items-center px-3.5 text-left text-sm disabled:opacity-50"
               style={{ color: "var(--ui-accent)" }}
@@ -296,6 +299,18 @@ export function CardPaymentsCard({ isDemoData, searchQuery }: { isDemoData: bool
             </button>
           </div>
 
+          {confirmNewKey && (
+            <ConfirmDialog
+              title="Create a new key?"
+              message="Your shortcut stops working until you paste the new link into it."
+              confirmLabel="New key"
+              onConfirm={() => {
+                setConfirmNewKey(false);
+                void act(() => regeneratePhoneToken(TOKEN_TABLE)).then((ok) => ok && setGuideOpen(true));
+              }}
+              onClose={() => setConfirmNewKey(false)}
+            />
+          )}
           {confirmOff && (
             <ConfirmDialog
               title="Turn off card payments?"

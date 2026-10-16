@@ -134,6 +134,7 @@ export function HealthImportCard({ isDemoData, searchQuery }: { isDemoData: bool
   const [state, setState] = useState<"loading" | "ready" | "busy" | "error">("loading");
   const [confirmOff, setConfirmOff] = useState(false);
   const [guide, setGuide] = useState<"daily" | "past" | null>(null);
+  const [confirmNewKey, setConfirmNewKey] = useState(false);
   const endpoint = functionEndpoint("health-import");
   const auth = functionAuthHeader();
 
@@ -152,14 +153,16 @@ export function HealthImportCard({ isDemoData, searchQuery }: { isDemoData: bool
     };
   }, [isDemoData]);
 
-  const act = async (fn: () => Promise<PhoneToken | null>) => {
+  const act = async (fn: () => Promise<PhoneToken | null>): Promise<boolean> => {
     setState("busy");
     try {
       setToken(await fn());
       setState("ready");
+      return true;
     } catch (err) {
       console.error("health import token action failed", err);
       setState("error");
+      return false;
     }
   };
 
@@ -178,7 +181,7 @@ export function HealthImportCard({ isDemoData, searchQuery }: { isDemoData: bool
         <FormGroup footer="Walking and steps go to Workout; weight and blood pressure to Vitals.">
           <button
             type="button"
-            onClick={() => void act(() => regeneratePhoneToken(TABLE))}
+            onClick={() => void act(() => regeneratePhoneToken(TABLE)).then((ok) => ok && setGuide("daily"))}
             disabled={state === "busy" || state === "loading"}
             className="flex min-h-11 w-full items-center px-3.5 text-left text-sm font-medium disabled:opacity-50"
             style={{ color: "var(--ui-accent)" }}
@@ -211,7 +214,7 @@ export function HealthImportCard({ isDemoData, searchQuery }: { isDemoData: bool
           <FormGroup footer="A new key stops the old shortcut until you paste the new link.">
             <button
               type="button"
-              onClick={() => void act(() => regeneratePhoneToken(TABLE))}
+              onClick={() => setConfirmNewKey(true)}
               disabled={state === "busy"}
               className="flex min-h-11 w-full items-center px-3.5 text-left text-sm disabled:opacity-50"
               style={{ color: "var(--ui-accent)" }}
@@ -229,6 +232,18 @@ export function HealthImportCard({ isDemoData, searchQuery }: { isDemoData: bool
             </button>
           </FormGroup>
 
+          {confirmNewKey && (
+            <ConfirmDialog
+              title="Create a new key?"
+              message="Your shortcut stops working until you paste the new link into it."
+              confirmLabel="New key"
+              onConfirm={() => {
+                setConfirmNewKey(false);
+                void act(() => regeneratePhoneToken(TABLE)).then((ok) => ok && setGuide("daily"));
+              }}
+              onClose={() => setConfirmNewKey(false)}
+            />
+          )}
           {confirmOff && (
             <ConfirmDialog
               title="Turn off Apple Health import?"
