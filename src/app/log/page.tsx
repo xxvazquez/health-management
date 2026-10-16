@@ -84,6 +84,7 @@ import { Field } from "@/components/ui/Field";
 import { FormGroup } from "@/components/ui/FormGroup";
 import { Sheet } from "@/components/ui/Sheet";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { ContextMenu, CONTEXT_OPEN_STYLE } from "@/components/ui/ContextMenu";
 import { ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
 import { AutoGrowTextarea } from "@/components/ui/AutoGrowTextarea";
 import { StarRating } from "@/components/ui/StarRating";
@@ -546,6 +547,8 @@ export default function LogPage() {
     if (fallback) setTab(fallback);
   }, [tab, isVisible, status, domainOrder]);
   const [confirmingDeleteKeys, setConfirmingDeleteKeys] = useState<Set<string>>(new Set());
+  // A timeline entry deleted from its long-press / right-click menu.
+  const [menuDeleteEntry, setMenuDeleteEntry] = useState<TimelineEntry | null>(null);
   // Which Summary-tab timeline entry has its editable detail sheet open —
   // the row itself is a compact, fixed-height tap target (Apple's own
   // Calendar/Reminders keep list rows uniform height and push editing into
@@ -2882,16 +2885,24 @@ export default function LogPage() {
                         : null;
               // A value or time of day says more than a symptom's or habit's category.
               const meta = valueSuffix || entry.mealTag || (entry.itemType === "workout" ? entry.category : null) || null;
+              const trends = SECTION_LINKS[entry.itemType as LogTab]?.trends;
+              const menuItems: MoreMenuItem[] = [
+                { label: "Edit", onClick: () => setDetailKey(entry.key) },
+                ...(trends ? [{ label: "Show trends", onClick: () => router.push(`/analytics/#${trends}`) }] : []),
+                ...(!isDemoData ? [{ label: "Delete", destructive: true, separated: true, onClick: () => setMenuDeleteEntry(entry) }] : []),
+              ];
               return (
                 // A fixed-height row, tap-through to a detail sheet for
                 // anything editable — same idea as Reminders and Calendar,
                 // which never expand a row in place.
+                <ContextMenu key={entry.key} items={menuItems}>
+                  {(bind, menuOpen) => (
                 <button
-                  key={entry.key}
+                  {...bind}
                   type="button"
                   onClick={() => setDetailKey(entry.key)}
                   className="flex min-h-11 w-full items-center gap-2.5 px-3.5 py-2 text-left"
-                  style={{ opacity: isPending(entry.key) ? 0.5 : 1 }}
+                  style={{ opacity: isPending(entry.key) ? 0.5 : 1, ...(menuOpen ? CONTEXT_OPEN_STYLE : {}) }}
                 >
                   <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: accent }} aria-hidden="true" />
                   <span className="w-11 shrink-0 text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>
@@ -2907,10 +2918,25 @@ export default function LogPage() {
                   )}
                   <ChevronIcon dir="right" size={13} />
                 </button>
+                  )}
+                </ContextMenu>
               );
             })}
           </div>
         </div>
+      )}
+      {menuDeleteEntry && (
+        <ConfirmDialog
+          title={`Delete ${menuDeleteEntry.item}?`}
+          message={`The ${menuDeleteEntry.time} entry will be removed.`}
+          confirmLabel="Delete"
+          destructive
+          onConfirm={() => {
+            void handleDeleteEntry(menuDeleteEntry);
+            setMenuDeleteEntry(null);
+          }}
+          onClose={() => setMenuDeleteEntry(null)}
+        />
       )}
       {recipesOpen && (
         <RecipesSheet

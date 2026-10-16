@@ -27,6 +27,7 @@ A personal health tracker: food, symptoms, supplements, habits, stool, workouts,
 Five main areas, in the phone tab bar and the desktop sidebar. Messages appears only once a partner is linked.
 
 - A detail screen (a journal entry, a conversation, a visit, a marker, a wishlist, a Log section, a workout exercise) slides in from the right on a phone and closes with Back, the edge swipe, or by tapping its tab again.
+- Long-press a row on a phone (right-click on desktop) for its actions: Log timeline entries (Edit · Show trends · Delete), journal entries (Open · Edit · Delete), codes (Copy · Share · Edit · Delete), wishlist items (Open · Share · Edit · Delete).
 
 | Area | Route | What it's for |
 |---|---|---|

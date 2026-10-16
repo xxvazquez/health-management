@@ -452,6 +452,7 @@ export function JournalTab({ isDemoData, accent }: { isDemoData: boolean; accent
                     meta={journalRowDate(entry.date)}
                     body={stripMarkdown(entry.body)}
                     onOpen={() => navTransition("forward", () => setViewingId(entry.id))}
+                    onEdit={() => setEditingId(entry.id)}
                     onDelete={() => void handleDelete(entry.id)}
                   />
                 ))}

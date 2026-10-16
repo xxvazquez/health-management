@@ -7,6 +7,8 @@ import { isSpeechToTextSupported, useSpeechToText } from "@/lib/useSpeechToText"
 import { TruncatedTooltip } from "@/components/ui/TruncatedTooltip";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { ShareRow } from "@/components/ui/ShareRow";
+import { ContextMenu, CONTEXT_OPEN_STYLE } from "@/components/ui/ContextMenu";
+import { shareOrCopy } from "@/lib/share";
 import { SearchField } from "@/components/ui/SearchField";
 import { ListSkeleton } from "@/components/ui/Skeleton";
 import { ErrorState, InlineEmpty } from "@/components/ui/EmptyState";
@@ -164,16 +166,7 @@ function CodeForm({
             label="Share code"
             accent={accent}
             align="center"
-            content={() => ({
-              title: name.trim(),
-              text: [
-                `${name.trim()}: ${code.trim()}`,
-                expiresOn &&
-                  `Valid until ${new Date(`${expiresOn}T00:00:00`).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}`,
-              ]
-                .filter(Boolean)
-                .join("\n"),
-            })}
+            content={() => codeShareContent(name, code, expiresOn)}
           />
         </FormGroup>
       )}
@@ -208,6 +201,14 @@ function CodeForm({
   );
 }
 
+/** A code as text for the share sheet: shop, code and expiry. */
+function codeShareContent(name: string, code: string, expiresOn: string | null) {
+  const until = expiresOn
+    ? `Valid until ${new Date(`${expiresOn}T00:00:00`).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}`
+    : null;
+  return { title: name.trim(), text: [`${name.trim()}: ${code.trim()}`, until].filter(Boolean).join("\n") };
+}
+
 function sortCodes(codes: HouseholdCode[], sort: SortMode): HouseholdCode[] {
   const byShop = (a: HouseholdCode, b: HouseholdCode) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
   const byExpiry = (a: HouseholdCode, b: HouseholdCode) => (a.expiresOn ?? NO_EXPIRY).localeCompare(b.expiresOn ?? NO_EXPIRY);
@@ -217,8 +218,9 @@ function sortCodes(codes: HouseholdCode[], sort: SortMode): HouseholdCode[] {
 /** One code as a grouped-list row: the shop, then the code as a tinted
  * tap-to-copy chip, its comment and expiry. Tapping the rest of the row
  * opens it to edit or delete. */
-function CodeItem({ code, accent, onOpen }: { code: HouseholdCode; accent: string; onOpen: () => void }) {
+function CodeItem({ code, accent, onOpen, onDelete }: { code: HouseholdCode; accent: string; onOpen: () => void; onDelete: () => void }) {
   const [copied, setCopied] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   async function handleCopy() {
     try {
@@ -234,8 +236,17 @@ function CodeItem({ code, accent, onOpen }: { code: HouseholdCode; accent: strin
   const days = code.expiresOn ? daysUntil(code.expiresOn) : null;
   const expiryColor = days == null ? "var(--text-muted)" : days < 0 ? "var(--status-critical)" : days <= 14 ? "var(--status-serious)" : "var(--text-muted)";
 
+  const menuItems = [
+    { label: "Copy code", onClick: () => void handleCopy() },
+    { label: "Share", onClick: () => void shareOrCopy(codeShareContent(code.name, code.code, code.expiresOn)) },
+    { label: "Edit", onClick: onOpen },
+    { label: "Delete", destructive: true, separated: true, onClick: () => setConfirmingDelete(true) },
+  ];
+
   return (
-    <li className="relative flex items-start gap-3 px-3.5 py-2.5">
+    <ContextMenu items={menuItems}>
+      {(bind, menuOpen) => (
+    <li {...bind} className="relative flex items-start gap-3 px-3.5 py-2.5" style={menuOpen ? CONTEXT_OPEN_STYLE : undefined}>
       <button type="button" onClick={onOpen} aria-label={`Edit ${code.name} code`} className="absolute inset-0" />
       <div className="pointer-events-none relative flex min-w-0 flex-1 flex-col gap-1">
         <span className="flex items-baseline justify-between gap-3">
@@ -269,7 +280,22 @@ function CodeItem({ code, accent, onOpen }: { code: HouseholdCode; accent: strin
       <span className="pointer-events-none relative shrink-0 self-center" style={{ color: "var(--text-muted)" }}>
         <ChevronIcon size={14} />
       </span>
+      {confirmingDelete && (
+        <ConfirmDialog
+          title={`Delete ${code.code}?`}
+          message="This can't be undone."
+          confirmLabel="Delete"
+          destructive
+          onConfirm={() => {
+            setConfirmingDelete(false);
+            onDelete();
+          }}
+          onClose={() => setConfirmingDelete(false)}
+        />
+      )}
     </li>
+      )}
+    </ContextMenu>
   );
 }
 
@@ -365,7 +391,7 @@ export function CodeBoard({
       ) : (
         <ul className="inset-rows flex flex-col rounded-xl border" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
           {shown.map((code) => (
-            <CodeItem key={code.id} code={code} accent={accent} onOpen={() => setEditingId(code.id)} />
+            <CodeItem key={code.id} code={code} accent={accent} onOpen={() => setEditingId(code.id)} onDelete={() => void onDelete(code.id)} />
           ))}
         </ul>
       )}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 
 export interface MoreMenuItem {
   label: string;
@@ -50,32 +50,50 @@ export function MoreMenu({ items, label = "More actions", disabled = false }: { 
         <>
           <div className="fixed inset-0 z-20 bg-black/20" aria-hidden="true" onClick={() => setOpen(false)} />
           <div role="menu" className="menu-surface absolute right-0 z-30 mt-1.5 min-w-56 p-1.5">
-            {items.map((item, i) => (
-              <div key={item.label}>
-                {item.separated && i > 0 && <div className="mx-2.5 my-1 border-t" style={{ borderColor: "var(--border-hairline)" }} />}
-                <button
-                  ref={i === 0 ? firstItemRef : undefined}
-                  type="button"
-                  role="menuitem"
-                  onClick={() => {
-                    setOpen(false);
-                    item.onClick();
-                  }}
-                  className="flex min-h-10 w-full items-center gap-3 rounded-lg px-2.5 text-left text-sm whitespace-nowrap transition-colors hover:bg-black/[0.04]"
-                  style={{ color: item.destructive ? "var(--status-critical)" : "var(--text-primary)" }}
-                >
-                  <span className="flex-1">{item.label}</span>
-                  {item.icon && (
-                    <span className="flex w-4 justify-center" aria-hidden="true">
-                      {item.icon}
-                    </span>
-                  )}
-                </button>
-              </div>
-            ))}
+            <MenuItemList items={items} firstItemRef={firstItemRef} onPick={() => setOpen(false)} />
           </div>
         </>
       )}
     </div>
+  );
+}
+
+/** The rows of an iOS pull-down menu — shared by the ⋯ `MoreMenu` and the
+ * long-press / right-click `ContextMenu`. */
+export function MenuItemList({
+  items,
+  firstItemRef,
+  onPick,
+}: {
+  items: MoreMenuItem[];
+  firstItemRef?: RefObject<HTMLButtonElement | null>;
+  onPick: () => void;
+}) {
+  return (
+    <>
+      {items.map((item, i) => (
+        <div key={item.label}>
+          {item.separated && i > 0 && <div className="mx-2.5 my-1 border-t" style={{ borderColor: "var(--border-hairline)" }} />}
+          <button
+            ref={i === 0 ? firstItemRef : undefined}
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              onPick();
+              item.onClick();
+            }}
+            className="flex min-h-10 w-full items-center gap-3 rounded-lg px-2.5 text-left text-sm whitespace-nowrap transition-colors hover:bg-black/[0.04]"
+            style={{ color: item.destructive ? "var(--status-critical)" : "var(--text-primary)" }}
+          >
+            <span className="flex-1">{item.label}</span>
+            {item.icon && (
+              <span className="flex w-4 justify-center" aria-hidden="true">
+                {item.icon}
+              </span>
+            )}
+          </button>
+        </div>
+      ))}
+    </>
   );
 }

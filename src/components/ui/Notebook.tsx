@@ -2,6 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import clsx from "clsx";
+import { useContextMenu, CONTEXT_OPEN_STYLE } from "@/components/ui/ContextMenu";
 import { useSwipeReveal, SWIPE_REVEAL_CLASS } from "@/lib/useSwipeReveal";
 import { TruncatedTooltip } from "./TruncatedTooltip";
 import { ConfirmDialog } from "./ConfirmDialog";
@@ -67,6 +68,7 @@ export function NoteRow({
   body,
   badge,
   onOpen,
+  onEdit,
   onDelete,
 }: {
   title: string | null;
@@ -75,14 +77,32 @@ export function NoteRow({
   /** A small trailing glyph on the heading line — e.g. a "shared" marker. */
   badge?: ReactNode;
   onOpen: () => void;
+  onEdit?: () => void;
   onDelete?: () => void;
 }) {
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const { heading, preview } = headingAndPreview(title, body);
   const { revealed, onTouchStart, onTouchEnd } = useSwipeReveal();
+  const { bind, menu, open: menuOpen } = useContextMenu([
+    { label: "Open", onClick: onOpen },
+    ...(onEdit ? [{ label: "Edit", onClick: onEdit }] : []),
+    ...(onDelete ? [{ label: "Delete", destructive: true, separated: true, onClick: () => setConfirmingDelete(true) }] : []),
+  ]);
 
   return (
-    <li className="group px-3.5 py-2.5" style={{ touchAction: "pan-y" }} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+    <li
+      {...bind}
+      className="group px-3.5 py-2.5"
+      style={{ touchAction: "pan-y", ...(menuOpen ? CONTEXT_OPEN_STYLE : {}) }}
+      onTouchStart={(e) => {
+        onTouchStart(e);
+        bind.onTouchStart(e);
+      }}
+      onTouchEnd={(e) => {
+        onTouchEnd(e);
+        bind.onTouchEnd();
+      }}
+    >
       <div className="flex items-center justify-between gap-3">
         <button type="button" onClick={onOpen} className="flex min-w-0 flex-1 flex-col gap-0.5 text-left">
           <span className="flex items-center gap-1.5 text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
@@ -127,6 +147,7 @@ export function NoteRow({
           onClose={() => setConfirmingDelete(false)}
         />
       )}
+      {menu}
     </li>
   );
 }

@@ -29,6 +29,8 @@ import type {
 import { CustomIcon, CUSTOM_COLOR_CHOICES, customColorValue } from "@/components/ui/customIcons";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { ShareRow } from "@/components/ui/ShareRow";
+import { useContextMenu, CONTEXT_OPEN_STYLE } from "@/components/ui/ContextMenu";
+import { shareOrCopy } from "@/lib/share";
 import { settingsHref } from "@/components/manage/ManageSection";
 
 /** Fallback per-category accent, keyed off the category's position in the
@@ -284,13 +286,27 @@ function ItemRow({
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const host = hostFromUrl(item.url);
   const { revealed, onTouchStart, onTouchEnd } = useSwipeReveal();
+  const { bind, menu, open: menuOpen } = useContextMenu([
+    { label: "Open link", onClick: () => window.open(normalizeUrl(item.url), "_blank", "noopener,noreferrer") },
+    { label: "Share link", onClick: () => void shareOrCopy({ title: item.title, url: normalizeUrl(item.url) }) },
+    { label: "Edit", onClick: onEdit },
+    { label: "Delete", destructive: true, separated: true, onClick: () => setConfirmingDelete(true) },
+  ]);
 
   return (
+    <>
     <div
+      {...bind}
       className="group flex items-start gap-3 px-3.5 py-3"
-      style={{ touchAction: "pan-y" }}
-      onTouchStart={onTouchStart}
-      onTouchEnd={onTouchEnd}
+      style={{ touchAction: "pan-y", ...(menuOpen ? CONTEXT_OPEN_STYLE : {}) }}
+      onTouchStart={(e) => {
+        onTouchStart(e);
+        bind.onTouchStart(e);
+      }}
+      onTouchEnd={(e) => {
+        onTouchEnd(e);
+        bind.onTouchEnd();
+      }}
     >
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
         <a
@@ -361,6 +377,8 @@ function ItemRow({
         )}
       </div>
     </div>
+    {menu}
+    </>
   );
 }
 
