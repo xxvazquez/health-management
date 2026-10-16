@@ -34,7 +34,7 @@ Five main areas, in the phone tab bar and the desktop sidebar. Messages appears 
 | **Agenda** | `/agenda` | One urgency-sorted list: reminders, expiring products, doctor follow-ups (tap one to open its visit), appointments; a switcher narrows it to Mine, Shared, Expiry (grouped Today → This week → … → Next year) or Medical; a ticked reminder stays for a moment so a second tap can undo it; a product is cleared as used up or thrown away from its sheet |
 | **Trends** | `/analytics` | A dashboard per Log domain, plus Patterns |
 | **Health** | `/medical` | Visits, lab Results, Vitals, Doctors |
-| **Notes** | `/personal` | Journal (an unsaved entry is kept on the device until saved or discarded), Wishlist (search finds items across lists), shared discount Codes (one list; tap Copy, or the row to edit), Expenses |
+| **Notes** | `/personal` | Journal (an unsaved entry is kept on the device until saved or discarded), Wishlist (search finds items across lists), shared discount Codes (one list; tap Copy, or the row to edit). A recipe, wishlist item or code can be shared from its sheet, Expenses |
 | **Messages** | `/notes` | Private messages with a linked partner: Inbox, Sent, Favourites; reply to a specific message (long-press, or ↩ on hover) and it's quoted in your bubble; a conversation's ⋯ menu reminds your partner about a message they haven't read, or deletes it for both after a confirmation |
 
 Secondary pages:
@@ -69,7 +69,7 @@ Sections: **Food · Symptoms · Supplements · Habits · Stool · Workout · Cyc
 - The current meal's foods sit above the list as removable chips ("Dinner · 3"). "Copy to…" logs them under another meal or day.
 - **Usual:** what you log most at the chosen meal, most-logged first (the last 60 days count first).
 - **In season** (under Usual): this month's in-season foods you haven't eaten lately; tap to log, × to hide.
-- **Recipes** (a row under Usual, opens a sheet): tap one to log its foods (any already in that meal are skipped, so it never doubles up); ⓘ edits its foods, amounts (g, ml…), steps and rating.
+- **Recipes** (a row under Usual, opens a sheet): tap one to log its foods (any already in that meal are skipped, so it never doubles up); ⓘ edits its foods, amounts (g, ml…), steps and rating, or shares it as text.
 - **Products:** log a whole product's ingredients in one tap.
 
 #### Supplements

@@ -6,6 +6,7 @@ import { todayLocalISODate } from "@/lib/aggregations/common";
 import { isSpeechToTextSupported, useSpeechToText } from "@/lib/useSpeechToText";
 import { TruncatedTooltip } from "@/components/ui/TruncatedTooltip";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { ShareRow } from "@/components/ui/ShareRow";
 import { SearchField } from "@/components/ui/SearchField";
 import { ListSkeleton } from "@/components/ui/Skeleton";
 import { ErrorState, InlineEmpty } from "@/components/ui/EmptyState";
@@ -156,6 +157,26 @@ function CodeForm({
           <DatePicker value={expiresOn} onChange={setExpiresOn} min={todayLocalISODate()} optional title="Expires on" />
         </Field>
       </FormGroup>
+
+      {initial && (
+        <FormGroup>
+          <ShareRow
+            label="Share code"
+            accent={accent}
+            align="center"
+            content={() => ({
+              title: name.trim(),
+              text: [
+                `${name.trim()}: ${code.trim()}`,
+                expiresOn &&
+                  `Valid until ${new Date(`${expiresOn}T00:00:00`).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}`,
+              ]
+                .filter(Boolean)
+                .join("\n"),
+            })}
+          />
+        </FormGroup>
+      )}
 
       {onDelete && (
         <FormGroup>

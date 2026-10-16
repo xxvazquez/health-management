@@ -27,6 +27,7 @@ import type {
 } from "@/lib/supabase/wishlist";
 import { CustomIcon, CUSTOM_COLOR_CHOICES, customColorValue } from "@/components/ui/customIcons";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { ShareRow } from "@/components/ui/ShareRow";
 import { settingsHref } from "@/components/manage/ManageSection";
 
 /** Fallback per-category accent, keyed off the category's position in the
@@ -227,6 +228,12 @@ function ItemForm({
           </Field>
         )}
       </FormGroup>
+
+      {initial && (
+        <FormGroup>
+          <ShareRow label="Share link" accent={accent} align="center" content={() => ({ title: title.trim(), url: url.trim() })} />
+        </FormGroup>
+      )}
 
       {onDelete && (
         <FormGroup>

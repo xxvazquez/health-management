@@ -12,6 +12,7 @@ import { FormGroup } from "@/components/ui/FormGroup";
 import { Field } from "@/components/ui/Field";
 import { StarRating } from "@/components/ui/StarRating";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { ShareRow } from "@/components/ui/ShareRow";
 import { AutoGrowTextarea } from "@/components/ui/AutoGrowTextarea";
 import { PickerList } from "@/components/ui/PickerList";
 import { InfoIcon, MinusIcon, UpDownChevronIcon } from "@/components/ui/icons";
@@ -228,6 +229,17 @@ function ComboRow({ combo, accent }: { combo: RatedCombo; accent: string }) {
 
 type Draft = Omit<Recipe, "id" | "createdAt">;
 
+/** A recipe as plain text for the share sheet: foods with amounts, numbered
+ * steps, then the note. */
+function recipeShareText(draft: Draft, foods: Map<string, string>): string {
+  const ingredients = draft.ingredients.map((ing) => {
+    const name = foods.get(ing.itemId) ?? "Food";
+    return `• ${name}${ing.amount != null ? ` ${ing.amount} ${ing.unit ?? "g"}` : ""}`;
+  });
+  const steps = draft.steps.map((s) => s.trim()).filter(Boolean).map((s, i) => `${i + 1}. ${s}`);
+  return [draft.name.trim(), ingredients.join("\n"), steps.join("\n"), draft.note?.trim()].filter(Boolean).join("\n\n");
+}
+
 /** Create or edit a recipe: name, meal, rating, foods with optional
  * amounts, steps and a note. */
 function RecipeSheet({
@@ -429,6 +441,12 @@ function RecipeSheet({
             />
           </Field>
         </FormGroup>
+
+        {recipe && (
+          <FormGroup>
+            <ShareRow label="Share recipe" accent={accent} content={() => ({ title: draft.name.trim(), text: recipeShareText(draft, foods) })} />
+          </FormGroup>
+        )}
 
         {onDelete && (
           <FormGroup>
