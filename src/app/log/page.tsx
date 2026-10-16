@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import { MoreMenu, type MoreMenuItem } from "@/components/ui/MoreMenu";
 import { NAV_RESELECT_EVENT } from "@/lib/useDrillDown";
 import { navTransition } from "@/lib/navTransition";
+import { haptic } from "@/lib/haptic";
 import { useToday } from "@/lib/useToday";
 import { useAutosaveText } from "@/lib/useAutosaveText";
 import clsx from "clsx";
@@ -1141,14 +1142,6 @@ export default function LogPage() {
     });
   }
 
-  /** A barely-there tick when a tap registers a log — logging is a
-   * dozens-a-day action and the visual state change alone doesn't read as
-   * confirmation. No-ops on iOS (Apple doesn't expose the Vibration API)
-   * and anywhere else it's unsupported. */
-  function logHaptic() {
-    if (typeof navigator !== "undefined" && typeof navigator.vibrate === "function") navigator.vibrate(8);
-  }
-
   /** Applies the currently-selected Time (see `logTime` state) to a
    * just-created/updated log, so a tap actually gets timestamped as
    * whatever time was picked rather than always "right now" — same idea
@@ -1270,7 +1263,7 @@ export default function LogPage() {
    * a plain chip. `value` is the band midpoint in minutes. */
   async function handleSetBand(candidate: LogCandidate, value: number, isActive: boolean) {
     if (isDemoData) return;
-    logHaptic();
+    haptic();
     await runPending(candidate.key, async () => {
       if (isActive) {
         await toggleDailyLogAndSync(candidate.itemIdentity, candidate.itemType, date);
@@ -1575,7 +1568,7 @@ export default function LogPage() {
   function handleChipTap(c: LogCandidate) {
     // Example data can't be logged to; a tap offers sign-in instead of doing nothing.
     if (isDemoData) return openPanel();
-    logHaptic();
+    haptic();
     setSearch("");
     const action = decideChipTapAction(c, mealCounts.get(c.key) ?? 0, Boolean(tabConfig?.countable));
     switch (action) {
@@ -1613,7 +1606,7 @@ export default function LogPage() {
 
   async function handleSaveStoolEntry(entry: NewStoolEntry) {
     if (isDemoData) return;
-    logHaptic();
+    haptic();
     const log = stoolLogFromDraft(createTimeOrderedId(), entry);
     await putStoolLogAndSync(log);
     await refreshAfterWrite();
@@ -1639,7 +1632,7 @@ export default function LogPage() {
   }
 
   async function handleSaveCoffeeLog(itemId: string, submission: CoffeeLogSubmission) {
-    logHaptic();
+    haptic();
     await coffee.logs.add({ ...submission, itemId, date });
   }
 
@@ -1659,7 +1652,7 @@ export default function LogPage() {
       setWorkoutMerge({ existing, value: Number(entry.weightKg), unit });
       return;
     }
-    logHaptic();
+    haptic();
     const log: RawWorkoutLog = {
       id: createTimeOrderedId(),
       date,
@@ -1674,7 +1667,7 @@ export default function LogPage() {
   async function handleConfirmWorkoutMerge() {
     if (!workoutMerge) return;
     const { existing, value } = workoutMerge;
-    logHaptic();
+    haptic();
     await runPending(existing.id, async () => {
       await putWorkoutLogAndSync({ ...existing, weightKg: Math.round((existing.weightKg + value) * 100) / 100 });
       await refreshAfterWrite();
@@ -1687,7 +1680,7 @@ export default function LogPage() {
    * division of labor putPeriodLogAndSync's own doc comment describes. */
   async function handleSetPeriodDay(forDate: string, intensity: PeriodIntensity, collectionMethods: CollectionMethod[]) {
     if (isDemoData) return;
-    logHaptic();
+    haptic();
     const existing = effective.periodLogs.find((p) => p.date === forDate);
     const log: RawPeriodLog = {
       id: existing?.id ?? crypto.randomUUID(),
@@ -1746,7 +1739,7 @@ export default function LogPage() {
    * the taps settle on. */
   function cycleTap(c: LogCandidate, persisted: number | null, commit: (c: LogCandidate) => Promise<void>) {
     if (isDemoData) return openPanel();
-    logHaptic();
+    haptic();
     const id = c.itemIdentity;
     const cur = tapTargetsRef.current.has(id) ? (tapTargetsRef.current.get(id) ?? null) : persisted;
     const next = cur == null ? 1 : cur >= 3 ? null : cur + 1;
