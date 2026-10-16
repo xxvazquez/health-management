@@ -218,9 +218,9 @@ export function SyncDetailsSheet({ onClose }: { onClose: () => void }) {
             )}
           </div>
           <p className="px-1 pb-1 text-xs" style={{ color: "var(--text-secondary)" }}>
-            Everything below is saved on this device — nothing is lost. It will be sent to the cloud automatically.{" "}
+            Kept on this device and sent automatically.{" "}
             <button type="button" onClick={() => saveCopy(pendingEntries)} className="font-medium" style={{ color: "var(--ui-accent)" }}>
-              Save a copy as a file
+              Save a Copy
             </button>
           </p>
           {lastProblem && (

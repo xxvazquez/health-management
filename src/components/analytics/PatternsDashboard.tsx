@@ -152,8 +152,7 @@ export function PatternsDashboard() {
               No clear links yet
             </p>
             <p className="mt-0.5 text-xs" style={{ color: "var(--text-secondary)" }}>
-              A link shows once a food or supplement has two weeks of days with it and without it, and the difference holds up after every
-              combination is checked together.
+              Links appear once a food or supplement has two weeks with and without it, and the difference holds up.
             </p>
           </div>
         </TrendGroup>

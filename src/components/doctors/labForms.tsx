@@ -145,7 +145,7 @@ export function MarkerForm({
           </FormGroup>
           <FormGroup
             title="Optimal range · optional"
-            footer="The band you want to sit in — the Results overview reads values against this, not just the lab range."
+            footer="The band you aim for. Results reads values against it."
           >
             <Field label="Low" inline>
               <input value={optLow} onChange={(e) => setOptLow(e.target.value)} inputMode="decimal" placeholder="1.0" className={`${ROW_INLINE_CLS} w-24`} style={ROW_STYLE} />

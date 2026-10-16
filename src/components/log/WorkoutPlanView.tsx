@@ -205,7 +205,7 @@ export function WorkoutPlanView({
             </div>
             {infoOpen && (
               <p className="px-3.5 text-xs" style={{ color: "var(--text-secondary)" }}>
-                A set counts as done once you log that exercise on its day at or above the target, from here or from the normal Log tab. Logging less marks it short. Dots: filled means done, amber means missed or short, an outline means still to do.
+                A set is done when you log it at or above its target on its day; less is short. Dots: filled is done, amber is missed or short, outline is still to do.
               </p>
             )}
             <WeekStrip sets={weekSets} monday={monday} date={date} today={today} accent={accent} onNavigateToDate={onNavigateToDate} />

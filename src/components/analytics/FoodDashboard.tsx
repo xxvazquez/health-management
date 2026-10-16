@@ -475,8 +475,7 @@ function FavoriteCombosByMeal({ combos, mealInstanceCount }: { combos: MealCombo
       </CardTitle>
       {mealInstanceCount < MIN_MEAL_INSTANCES_FOR_COMBINATIONS ? (
         <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-          Not enough meals tagged yet ({mealInstanceCount} logged with a meal tag) — this fills in as you log food
-          from the Log page, which always tags a meal.
+          Not enough meals logged yet ({mealInstanceCount} so far). This fills in as you log food.
         </p>
       ) : orderedTags.length === 0 ? (
         <p className="text-sm" style={{ color: "var(--text-muted)" }}>

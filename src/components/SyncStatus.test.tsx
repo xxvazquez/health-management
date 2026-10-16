@@ -101,7 +101,7 @@ describe("FloatingSyncStatus", () => {
 
     await userEvent.setup().click(screen.getByRole("button", { name: /didn.t back up|waiting/ }));
     expect(screen.getByText("Kale")).toBeInTheDocument();
-    expect(screen.getByText(/Everything below is saved on this device — nothing is lost/)).toBeInTheDocument();
+    expect(screen.getByText(/Kept on this device and sent automatically/)).toBeInTheDocument();
     expect(screen.getByText(/Saved on this device/)).toBeInTheDocument();
   });
 
