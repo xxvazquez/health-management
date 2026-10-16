@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useContext, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import Link from "next/link";
+import { flushSync } from "react-dom";
 import { useData } from "@/lib/DataContext";
 import { useVisibleDomains, DOMAIN_LABELS, type TrackedDomain } from "@/lib/visibleDomains";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -3048,6 +3049,9 @@ export default function ManagePage() {
   const [linkedItem, setLinkedItem] = useState<string | null>(null);
   const openSection = useCallback((title: string) => {
     const from = window.history.state?.manageSection ?? null;
+    // Remember where this screen was scrolled, so Back lands there at once
+    // rather than waiting for the browser's own (late) scroll restore.
+    window.history.replaceState({ ...window.history.state, manageScroll: window.scrollY }, "");
     window.history.pushState({ ...window.history.state, manageSection: title, manageFrom: from }, "");
     setActiveSection(title);
     setBackLabel(from ?? "Settings");
@@ -3059,8 +3063,9 @@ export default function ManagePage() {
     else setActiveSection(null);
   }, []);
   // `/manage/?section=<title>&item=<id>` (links from other pages, built by
-  // `settingsHref`) opens that section, and that item in it.
-  useEffect(() => {
+  // `settingsHref`) opens that section, and that item in it — before the
+  // first paint, so the list never flashes up first.
+  useLayoutEffect(() => {
     const url = new URL(window.location.href);
     const linked = url.searchParams.get("section");
     if (!linked) return;
@@ -3074,9 +3079,12 @@ export default function ManagePage() {
   }, [openSection]);
   useEffect(() => {
     const onPop = (e: PopStateEvent) => {
-      setLinkedItem(null);
-      setActiveSection(e.state?.manageSection ?? null);
-      setBackLabel(e.state?.manageFrom ?? "Settings");
+      flushSync(() => {
+        setLinkedItem(null);
+        setActiveSection(e.state?.manageSection ?? null);
+        setBackLabel(e.state?.manageFrom ?? "Settings");
+      });
+      window.scrollTo(0, e.state?.manageScroll ?? 0);
     };
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
