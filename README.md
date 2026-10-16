@@ -104,10 +104,11 @@ Sections: **Food · Symptoms · Supplements · Habits · Stool · Workout · Cyc
 
 ### Trends
 
-One dashboard per Log section, plus Patterns. The time range sits in the title row and opens on the last 30 days; a picked window (say 7 days) keeps rolling forward and carries to the other dashboards. Patterns and Cycle read the whole history and have none. Trends starts on 1 Jan 2026, except Workout and Cycle, which keep everything (Apple Health back-fills steps further).
+Highlights first, then one dashboard per Log section, plus Patterns. The time range sits in the title row and opens on the last 30 days; a picked window (say 7 days) keeps rolling forward and carries to the other dashboards. Highlights, Patterns and Cycle have no range picker; Patterns and Cycle read the whole history. Trends starts on 1 Jan 2026, except Workout and Cycle, which keep everything (Apple Health back-fills steps further).
 
 | Dashboard | Shows |
 |---|---|
+| Highlights | What changed most: the last 30 days (to yesterday) against the 30 before, as paired bars. Steps, training days, sleep, mood, energy, symptom days, supplement and habit consistency, food variety, hard or loose stools. Only days a section was logged count; small changes are left out; a card opens its dashboard |
 | Food | Overview (meals a week against your food targets), Variety, Meal patterns, Combinations (including the combos you rate highest), Ingredients |
 | Patterns | Symptoms, hard or loose stools (Bristol 1–2 / 5–7), low mood and low energy (a check-in of 1–2) that show up more or less often after a food or supplement, or in a cycle phase, tested for chance; a link's sheet compares how strong the symptom was (1–3) with and without the trigger; Compare picks any symptom and trigger from searchable lists |
 | Supplements, Habits | A card per item with the days you logged it and consistency against its schedule; Sleep shades each day by hours slept and shows the typical band instead; archived ones list their course dates and consistency |

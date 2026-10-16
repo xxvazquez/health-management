@@ -11,6 +11,7 @@ import { DigestionDashboard } from "@/components/analytics/DigestionDashboard";
 import { WorkoutDashboard } from "@/components/analytics/WorkoutDashboard";
 import { CycleDashboard } from "@/components/analytics/CycleDashboard";
 import { PatternsDashboard } from "@/components/analytics/PatternsDashboard";
+import { HighlightsDashboard } from "@/components/analytics/HighlightsDashboard";
 import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
 import { PageHeading } from "@/components/ui/PageHeading";
 import { TrendsActionsSlot } from "@/components/analytics/TrendsActions";
@@ -18,7 +19,8 @@ import { PageSkeleton } from "@/components/ui/Skeleton";
 import { useData } from "@/lib/DataContext";
 
 /** One page for every analytics dashboard, switched by a Log-style tab bar
- * (`/analytics#food`) instead of one sidebar entry each. Each tab is gated
+ * (`/analytics#food`) instead of one sidebar entry each. Highlights comes
+ * first, an overview of what changed across the sections. Each tab is gated
  * by the same Manage visibility rule its Log tab uses (`isVisible`);
  * Patterns follows Symptoms since it's built on symptom associations. The
  * dashboards render their own empty states; a date-range filter goes into
@@ -26,6 +28,7 @@ import { useData } from "@/lib/DataContext";
  * Each tab mirrors a Log tracking domain. Blood/lab analysis lives on
  * Health → Results, not here. */
 const TABS: { id: string; label: string; domain?: TrackedDomain; accent: string; Component: ComponentType; hasSections?: boolean }[] = [
+  { id: "highlights", label: "Highlights", accent: "var(--ui-accent)", Component: HighlightsDashboard },
   { id: "food", label: "Food", domain: "food", accent: TYPE_ACCENT.food, Component: FoodDashboard, hasSections: true },
   { id: "supplements", label: "Supplements", domain: "supplement", accent: TYPE_ACCENT.supplement, Component: SupplementsDashboard },
   { id: "habits", label: "Habits", domain: "habit", accent: TYPE_ACCENT.habit, Component: HabitsDashboard },
@@ -39,15 +42,15 @@ export default function AnalyticsPage() {
   const { isVisible, domainOrder } = useVisibleDomains();
   const { status } = useData();
   // Same order as Log's tabs (Settings → Visible sections).
-  const visibleTabs = useMemo(
-    () =>
-      TABS.filter((t) => !t.domain || isVisible(t.domain)).sort(
-        (a, b) => (a.domain ? domainOrder.indexOf(a.domain) : 99) - (b.domain ? domainOrder.indexOf(b.domain) : 99),
-      ),
-    [isVisible, domainOrder],
-  );
+  // Highlights leads while any section is visible.
+  const visibleTabs = useMemo(() => {
+    const sections = TABS.filter((t) => t.domain && isVisible(t.domain)).sort(
+      (a, b) => domainOrder.indexOf(a.domain!) - domainOrder.indexOf(b.domain!),
+    );
+    return sections.length > 0 ? [TABS[0], ...sections] : [];
+  }, [isVisible, domainOrder]);
 
-  // Starts at the first tab ("food") for a match with the statically-
+  // Starts at the first tab ("highlights") for a match with the statically-
   // rendered HTML, then syncs to the URL hash on mount (and on every
   // back/forward) — reading `location` in the initializer would be a
   // hydration mismatch.
@@ -63,6 +66,8 @@ export default function AnalyticsPage() {
         return;
       }
       if (TABS.some((t) => t.id === id)) setTabId(id);
+      // Back from a highlight to the bare page returns to the first tab.
+      else if (!id) setTabId(TABS[0].id);
     };
     fromHash();
     window.addEventListener("hashchange", fromHash);
