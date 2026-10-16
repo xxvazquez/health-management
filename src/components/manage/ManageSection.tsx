@@ -70,6 +70,7 @@ const SECTION_ICON: Record<string, { icon: string; color: string }> = {
   Appearance: { icon: "sun", color: "var(--ui-accent)" },
   "Visible sections": { icon: "eye", color: "var(--ui-accent)" },
   "Usual times": { icon: "lucide:clock", color: "var(--ui-accent)" },
+  "Journal lock": { icon: "lucide:lock", color: "var(--ui-accent)" },
   "Nutrition evidence": { icon: "lucide:book-open", color: "var(--ui-accent)" },
   "Your data": { icon: "folder", color: "var(--ui-accent)" },
 };

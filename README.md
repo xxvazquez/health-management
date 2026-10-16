@@ -35,7 +35,7 @@ Five main areas, in the phone tab bar and the desktop sidebar. Messages appears 
 | **Agenda** | `/agenda` | One urgency-sorted list: reminders, expiring products, doctor follow-ups (tap one to open its visit), appointments; a switcher narrows it to Mine, Shared, Expiry (grouped Today → This week → … → Next year) or Medical; a ticked reminder stays for a moment so a second tap can undo it; a product is cleared as used up or thrown away from its sheet |
 | **Trends** | `/analytics` | A dashboard per Log domain, plus Patterns |
 | **Health** | `/medical` | Visits, lab Results, Vitals, Doctors |
-| **Notes** | `/personal` | Journal (an unsaved entry is kept on the device until saved or discarded), Wishlist (search finds items across lists), shared discount Codes (one list; tap Copy, or the row to edit). A recipe, wishlist item or code can be shared from its sheet, Expenses |
+| **Notes** | `/personal` | Journal (an unsaved entry is kept on the device until saved or discarded; can be locked behind Face ID), Wishlist (search finds items across lists), shared discount Codes (one list; tap Copy, or the row to edit). A recipe, wishlist item or code can be shared from its sheet, Expenses |
 | **Messages** | `/notes` | Private messages with a linked partner: Inbox, Sent, Favourites; reply to a specific message (long-press, or ↩ on hover) and it's quoted in your bubble; a conversation's ⋯ menu reminds your partner about a message they haven't read, or deletes it for both after a confirmation |
 
 Secondary pages:
@@ -144,7 +144,7 @@ A grouped list where each row opens its own screen. Everything editable in the a
 | Tracking | Add, rename, archive or delete items and categories. Edit products, coffees and the Stool and Coffee option chips (Stool options also turns on the Summary's last bowel movement). Set food targets. Build workout plans |
 | Health | Doctors, doctor types, lab markers and panels, the weight goal |
 | Lists | Reminder lists, wishlist lists, expense categories and the card-payments Shortcut |
-| App | Appearance, visible sections, usual meal times, data export and restore |
+| App | Appearance, visible sections, usual meal times, Journal lock, data export and restore |
 
 - **Order:** drag ≡ to reorder categories, sections, lists, doctor types, lab panels and option chips. Orders sync to every device.
 - **Icons and colours:** ~1,900 searchable icons (Lauva's own plus [Lucide](https://lucide.dev)) and any colour via +. A picked colour is saved to **Your colours** and offered in every picker. Built-in categories start with their own icon; a new one gets its section's icon.
@@ -156,6 +156,7 @@ A grouped list where each row opens its own screen. Everything editable in the a
 - **Notifications** are on by default once you sign in: the app asks for permission on your first tap and quietly re-subscribes the device if the subscription lapses. Only the bell at the top of Settings turns them off, per device, and they stay off until switched back on.
 - **Your data:** export the whole account (messages included) as JSON, or one section or everything as CSV.
 - **Restore:** load a JSON export back in; it only adds rows that are missing and never changes or deletes anything.
+- **Journal lock:** Journal asks for Face ID, Touch ID or the device passcode (WebAuthn), and locks again after a minute away. Turning it on or off asks too. The setting syncs; each device makes its own key on first unlock. It's a privacy screen, not encryption, and a device without biometrics just shows Journal.
 
 ---
 

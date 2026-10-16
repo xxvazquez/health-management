@@ -23,6 +23,7 @@ import { CardPaymentsCard, ExpensesCard } from "@/components/manage/ExpensesCard
 import { FoodTargetsCard } from "@/components/manage/FoodTargetsCard";
 import { HiddenLinksCard } from "@/components/manage/HiddenLinksCard";
 import { UsualTimesCard } from "@/components/manage/UsualTimesCard";
+import { JournalLockCard } from "@/components/manage/JournalLockCard";
 import { AddRow, CollapsibleManageCard, SheetAddRow, GROUP_CLS, GROUP_STYLE, GroupNote, ManageNavContext, SaveFailedNote, OpenInLogRow, SECTION_PARENT, SectionRow, SectionTile, useSectionMode } from "@/components/manage/ManageSection";
 import { SwitchKnob, SwitchRow } from "@/components/ui/Switch";
 import { TimePicker } from "@/components/ui/DatePicker";
@@ -3589,6 +3590,7 @@ export default function ManagePage() {
     { label: "Appearance", el: <AppearanceCard key="appearance" /> },
     { label: "Visible sections", el: <VisibleSectionsCard key="visible-sections" isDemoData={isDemoData} /> },
     { label: "Usual times", el: <UsualTimesCard key="usual-times" searchQuery={searchQuery} /> },
+    { label: "Journal lock", el: <JournalLockCard key="journal-lock" searchQuery={searchQuery} /> },
     { label: "Your data", el: <DataExportCard key="your-data" isDemoData={isDemoData} /> },
   ];
   for (const sec of appSections) sectionByLabel.set(sec.label, sec.el);
@@ -3613,7 +3615,7 @@ export default function ManagePage() {
     { title: "Tracking", labels: ["Food", "Food targets", "Symptoms", "Supplements", "Habits", "Workout", "Coffee", "Stool options", "Hidden links"] },
     { title: "Health", labels: ["Doctors", "Doctor types", "Lab results", "Weight goal"] },
     { title: "Lists", labels: ["Reminder lists", "Wishlist lists", "Expenses"] },
-    { title: "App", labels: ["Appearance", "Visible sections", "Usual times", "Your data"] },
+    { title: "App", labels: ["Appearance", "Visible sections", "Usual times", "Journal lock", "Your data"] },
   ];
   const isSearching = searchQuery.trim().length > 0;
   const groupBox = "inset-rows rounded-xl border";

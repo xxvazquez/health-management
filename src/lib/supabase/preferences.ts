@@ -33,6 +33,8 @@ export interface Preferences {
   hiddenSeasonalPicks?: string[];
   /** Settings → Stool options: show the last bowel movement on Log → Summary. */
   showLastStool?: boolean;
+  /** Settings → Journal lock: Face ID / Touch ID / passcode before Journal shows. */
+  journalLock?: boolean;
 }
 
 export interface HiddenPatternLink {

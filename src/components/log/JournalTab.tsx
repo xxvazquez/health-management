@@ -23,6 +23,7 @@ import { PrimaryAction } from "@/components/ui/PrimaryAction";
 import { DemoNotice } from "@/components/ui/DemoNotice";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { MoreMenu } from "@/components/ui/MoreMenu";
+import { useJournalLock } from "@/lib/journalLock";
 
 function journalMonthLabel(date: string): string {
   return new Date(`${date}T00:00:00`).toLocaleDateString(undefined, { month: "long", year: "numeric" });
@@ -261,7 +262,47 @@ function JournalEntryView({
 
 const JOURNAL_TABLES = ["journal_entries"] as const;
 
+/** What a locked Journal shows instead of the entries, like a locked note. */
+function JournalLocked({ accent, onUnlock }: { accent: string; onUnlock: (fresh: boolean) => Promise<boolean> }) {
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  async function unlock(fresh: boolean) {
+    if (busy) return;
+    setBusy(true);
+    const ok = await onUnlock(fresh);
+    setBusy(false);
+    setFailed(!ok);
+  }
+
+  return (
+    <div className="flex flex-col items-center gap-3 py-16 text-center">
+      <span className="flex h-12 w-12 items-center justify-center rounded-full" style={{ color: accent, background: `color-mix(in oklab, ${accent} var(--tint-pct), transparent)` }} aria-hidden="true">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="5" y="11" width="14" height="10" rx="2" />
+          <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+        </svg>
+      </span>
+      <p className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>
+        Journal is locked
+      </p>
+      <Button variant="tinted" accent={accent} onClick={() => void unlock(false)} disabled={busy}>
+        Unlock
+      </Button>
+      {failed && (
+        <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
+          Couldn&apos;t confirm it&apos;s you.{" "}
+          <button type="button" onClick={() => void unlock(true)} disabled={busy} className="font-medium" style={{ color: accent }}>
+            Set up again
+          </button>
+        </p>
+      )}
+    </div>
+  );
+}
+
 export function JournalTab({ isDemoData, accent }: { isDemoData: boolean; accent: string }) {
+  const lock = useJournalLock();
   const { session } = useAuth();
   const userId = session?.user?.id ?? null;
   const [entries, setEntries] = useState<JournalEntry[]>(() => (isDemoData ? buildDemoJournalEntries() : []));
@@ -365,6 +406,9 @@ export function JournalTab({ isDemoData, accent }: { isDemoData: boolean; accent
     setEditingId(null);
     setViewingId(entry.id);
   }
+
+  if (lock.checking) return null;
+  if (lock.locked) return <JournalLocked accent={accent} onUnlock={lock.unlock} />;
 
   if (composing || editingEntry) {
     return (
