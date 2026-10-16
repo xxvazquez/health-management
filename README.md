@@ -79,7 +79,7 @@ Sections: **Food · Symptoms · Supplements · Habits · Stool · Workout · Cyc
 #### Summary
 
 - **Check-in** at the top: mood and energy, 1 (low) to 5 (high), each one row: name, stepped slider, and the chosen level named ("Unpleasant", "High"…), plus a wrapping note. Tap the current step again to clear it. On a phone it sits above the section list.
-- **Last bowel movement** under the check-in: when it was (up to the day shown), its Bristol type and band (hard / normal / loose), colour, floating and anything noted with it. Tap it to open Stool.
+- **Last bowel movement** under the check-in, off until switched on in Settings → Stool options: when it was (up to the day shown), its Bristol type and band (hard / normal / loose), colour, floating and anything noted with it. Tap it to open Stool.
 - A timeline of everything logged that day, coffee included (a cup opens the Coffee section).
 - A meal is one row ("Dinner · 9 foods", its stars if rated). It opens a sheet to see its foods, rate it (1–5 stars), add a note or "Save as recipe" — then "Saved to Recipes" opens that recipe to edit or delete.
 - Other rows show the useful detail on the right: a symptom's intensity, the sleep band. Tap any row to edit or delete it.
@@ -139,7 +139,7 @@ A grouped list where each row opens its own screen. Everything editable in the a
 
 | Group | What you can do |
 |---|---|
-| Tracking | Add, rename, archive or delete items and categories. Edit products, coffees and the Stool and Coffee option chips. Set food targets. Build workout plans |
+| Tracking | Add, rename, archive or delete items and categories. Edit products, coffees and the Stool and Coffee option chips (Stool options also turns on the Summary's last bowel movement). Set food targets. Build workout plans |
 | Health | Doctors, doctor types, lab markers and panels, the weight goal |
 | Lists | Reminder lists, wishlist lists, expense categories and the card-payments Shortcut |
 | App | Appearance, visible sections, usual meal times, data export and restore |

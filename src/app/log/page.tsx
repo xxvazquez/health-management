@@ -2594,7 +2594,7 @@ export default function LogPage() {
       ) : tab === "summary" ? (
         <>
         <CheckInCard date={date} />
-        {status !== "loading" && lastStool && isVisible("stool") && (
+        {status !== "loading" && lastStool && prefs.showLastStool && isVisible("stool") && (
           <LastStoolCard entry={lastStool} dateLabel={formatDateLabel(lastStool.date, today)} accent={STOOL_ACCENT} onOpen={() => selectTab("stool")} />
         )}
         {status !== "loading" && (

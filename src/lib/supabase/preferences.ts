@@ -31,6 +31,8 @@ export interface Preferences {
   hiddenPatternLinks?: HiddenPatternLink[];
   /** Log → In season picks marked "don't show", as normalized names. */
   hiddenSeasonalPicks?: string[];
+  /** Settings → Stool options: show the last bowel movement on Log → Summary. */
+  showLastStool?: boolean;
 }
 
 export interface HiddenPatternLink {

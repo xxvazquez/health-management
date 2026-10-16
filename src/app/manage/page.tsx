@@ -24,7 +24,7 @@ import { FoodTargetsCard } from "@/components/manage/FoodTargetsCard";
 import { HiddenLinksCard } from "@/components/manage/HiddenLinksCard";
 import { UsualTimesCard } from "@/components/manage/UsualTimesCard";
 import { AddRow, CollapsibleManageCard, SheetAddRow, GROUP_CLS, GROUP_STYLE, GroupNote, ManageNavContext, SaveFailedNote, OpenInLogRow, SECTION_PARENT, SectionRow, SectionTile, useSectionMode } from "@/components/manage/ManageSection";
-import { SwitchKnob } from "@/components/ui/Switch";
+import { SwitchKnob, SwitchRow } from "@/components/ui/Switch";
 import { TimePicker } from "@/components/ui/DatePicker";
 import { useItemActions, type ManageableItem } from "@/lib/useItemActions";
 import { getAllItems, getAllCategories, getItemIdentitiesWithHistory, withDataLock } from "@/lib/db/indexedDb";
@@ -1315,6 +1315,8 @@ function StoolOptionsCard({ isDemoData, searchQuery }: { isDemoData: boolean; se
     });
   }
 
+  const { prefs, update: updatePrefs } = usePreferences();
+
   const totalActive = STOOL_OPTION_KINDS.reduce((n, k) => n + entriesFor(k.kind).filter((e) => !e.isArchived).length, 0);
 
   return (
@@ -1325,6 +1327,15 @@ function StoolOptionsCard({ isDemoData, searchQuery }: { isDemoData: boolean; se
       bare
     >
       {saveFailed && <SaveFailedNote />}
+      {!isSearching && (
+        <div className={`${GROUP_CLS} mb-5`} style={GROUP_STYLE}>
+          <SwitchRow
+            label="Show last movement on Summary"
+            on={prefs.showLastStool === true}
+            onChange={(on) => updatePrefs({ showLastStool: on })}
+          />
+        </div>
+      )}
       {loading ? (
         <p className="py-3 text-xs" style={{ color: "var(--text-muted)" }}>
           Loading…

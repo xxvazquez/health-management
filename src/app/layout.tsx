@@ -14,7 +14,6 @@ import { StorageErrorBanner } from "@/components/StorageErrorBanner";
 import { RegisterServiceWorker } from "@/components/RegisterServiceWorker";
 import { PushNotificationsAutoEnable } from "@/components/PushNotificationsAutoEnable";
 import { AppLoadingSplash } from "@/components/AppLoadingSplash";
-import { MedicalDisclaimer } from "@/components/MedicalDisclaimer";
 import { AppFooter } from "@/components/AppFooter";
 import { ThemeManager } from "@/components/ThemeManager";
 import { MobileMenuProvider } from "@/components/MobileMenuProvider";
@@ -106,7 +105,6 @@ export default function RootLayout({
                   <div className="px-4 pt-5 pb-24 sm:px-6 sm:pt-6 lg:px-8 lg:pt-8 lg:pb-10">
                     <ContentContainer>
                       {children}
-                      <MedicalDisclaimer />
                       <AppFooter />
                     </ContentContainer>
                   </div>
