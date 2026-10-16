@@ -19,7 +19,7 @@ export interface Highlight {
   id: string;
   /** Short caption above the title: the section it comes from. */
   section: string;
-  /** What changed, in a few words ("More steps", "Fewer days with Bloating"). */
+  /** What changed, in a few words ("More steps", "Vitamin D · less often"). */
   title: string;
   now: number;
   before: number;
@@ -208,7 +208,7 @@ export function computeHighlights(input: HighlightInput): Highlight[] {
       const before = scheduledAdherence(beforeDates, done, schedule, today).pct;
       if (now == null || before == null) continue;
       add(
-        { id: `${type}:${s.item}`, section, title: `${s.item} ${now > before ? "more" : "less"} often`, now: Math.round(now), before: Math.round(before), format: "percent", unit: "of planned days", scaleMax: 100, domain, tab },
+        { id: `${type}:${s.item}`, section, title: `${s.item} · ${now > before ? "more" : "less"} often`, now: Math.round(now), before: Math.round(before), format: "percent", unit: "of planned days", scaleMax: 100, domain, tab },
         15,
         0,
       );

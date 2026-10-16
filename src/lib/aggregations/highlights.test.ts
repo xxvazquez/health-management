@@ -70,7 +70,7 @@ describe("computeHighlights", () => {
       ...nowDays.filter((_, i) => i % 2 === 0).map((date) => makeEvent({ date, item: "Vitamin D", itemType: "supplement", itemIdentity: "vd" })),
     ];
     const daily = computeHighlights(input({ events: [...dailyUse, ...vitD] })).find((h) => h.id === "supplement:Vitamin D");
-    expect(daily).toMatchObject({ title: "Vitamin D less often", now: 50, before: 100, format: "percent" });
+    expect(daily).toMatchObject({ title: "Vitamin D · less often", now: 50, before: 100, format: "percent" });
     // Every other day is exactly the plan for 3× a week, so nothing changed.
     const weekly = computeHighlights(input({ events: [...dailyUse, ...vitD], schedules: { vd: { kind: "weekly", times: 3 } } }));
     expect(weekly.some((h) => h.id === "supplement:Vitamin D")).toBe(false);
