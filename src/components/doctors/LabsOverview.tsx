@@ -4,6 +4,7 @@ import { CHIP_CLS, CONTROL_CLS, CONTROL_STYLE, chipStyle } from "@/components/ui
 import { ChevronIcon, UpDownChevronIcon } from "@/components/ui/icons";
 import { useState, type ReactNode } from "react";
 import { useDrillDown } from "@/lib/useDrillDown";
+import { navTransition } from "@/lib/navTransition";
 import type { useLabs } from "@/lib/useLabs";
 import type { LabNameLanguage } from "@/lib/labNames";
 import { todayLocalISODate, type DateRange } from "@/lib/aggregations/common";
@@ -177,11 +178,15 @@ export function LabsOverview({
   // On a phone the marker detail replaces the list: open it at the top, and
   // come back to the same place in the list.
   const openRow = (id: string) => {
-    if (!desktop) {
+    if (desktop) {
+      setOpenId(id);
+      return;
+    }
+    navTransition("forward", () => {
       setListScroll(window.scrollY);
       window.scrollTo(0, 0);
-    }
-    setOpenId(id);
+      setOpenId(id);
+    });
   };
 
   if (openMarker && !desktop) {
@@ -190,7 +195,7 @@ export function LabsOverview({
         key={openMarker.id}
         marker={openMarkerFull ?? openMarker}
         today={today}
-        onBack={backToList}
+        onBack={() => navTransition("back", backToList)}
         onAddValue={onAddValue ? () => onAddValue(openMarker.id) : undefined}
         onEditValue={onEditValue ? (r) => onEditValue(openMarker.id, r) : undefined}
       />

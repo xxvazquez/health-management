@@ -3,6 +3,7 @@
 import { RowMenu } from "@/components/ui/RowMenu";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useDrillDown } from "@/lib/useDrillDown";
+import { navTransition } from "@/lib/navTransition";
 import clsx from "clsx";
 import Link from "next/link";
 import { useSwipeReveal, SWIPE_REVEAL_CLASS } from "@/lib/useSwipeReveal";
@@ -743,7 +744,7 @@ export function WishlistBoard({
           category={detailCategory}
           accent={catAccent}
           forLabel={forLabel}
-          onBack={() => setView({ mode: "list" })}
+          onBack={() => navTransition("back", () => setView({ mode: "list" }))}
           onAddItem={() => setView({ mode: "item", categoryId: detailCategory.id, returnTo: "detail" })}
           onEditItem={(item) => setView({ mode: "item", categoryId: detailCategory.id, editing: item, returnTo: "detail" })}
           onDeleteItem={(id) => void onDeleteItem(id)}
@@ -813,7 +814,7 @@ export function WishlistBoard({
               key={category.id}
               category={category}
               accent={accentByCategoryId.get(category.id) ?? accent}
-              onOpen={() => setView({ mode: "detail", categoryId: category.id })}
+              onOpen={() => navTransition("forward", () => setView({ mode: "detail", categoryId: category.id }))}
             />
           ))}
         </div>

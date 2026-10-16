@@ -4,6 +4,7 @@ import { useVisualViewportInsets } from "@/lib/useVisualViewport";
 import { DatePicker } from "@/components/ui/DatePicker";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useDrillDown } from "@/lib/useDrillDown";
+import { navTransition } from "@/lib/navTransition";
 import { todayLocalISODate } from "@/lib/aggregations/common";
 import { todayISO } from "@/components/ui/pickers/dateUtils";
 import { createJournalEntry, deleteJournalEntry, fetchJournalEntries, updateJournalEntry, type JournalEntry } from "@/lib/supabase/journal";
@@ -389,7 +390,7 @@ export function JournalTab({ isDemoData, accent }: { isDemoData: boolean; accent
         entry={viewingEntry}
         onEdit={() => setEditingId(viewingEntry.id)}
         onDelete={() => void handleDelete(viewingEntry.id)}
-        onBack={() => setViewingId(null)}
+        onBack={() => navTransition("back", () => setViewingId(null))}
       />
     );
   }
@@ -450,7 +451,7 @@ export function JournalTab({ isDemoData, accent }: { isDemoData: boolean; accent
                     title={entry.title}
                     meta={journalRowDate(entry.date)}
                     body={stripMarkdown(entry.body)}
-                    onOpen={() => setViewingId(entry.id)}
+                    onOpen={() => navTransition("forward", () => setViewingId(entry.id))}
                     onDelete={() => void handleDelete(entry.id)}
                   />
                 ))}

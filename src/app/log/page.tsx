@@ -8,6 +8,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { MoreMenu, type MoreMenuItem } from "@/components/ui/MoreMenu";
 import { NAV_RESELECT_EVENT } from "@/lib/useDrillDown";
+import { navTransition } from "@/lib/navTransition";
 import { useToday } from "@/lib/useToday";
 import { useAutosaveText } from "@/lib/useAutosaveText";
 import clsx from "clsx";
@@ -512,7 +513,11 @@ export default function LogPage() {
   // Back / forward (or the phone's edge swipe) moves between the list and a
   // section, or between sections.
   useEffect(() => {
-    const onPop = () => selectTab(tabFromUrl() ?? "summary", "none");
+    const onPop = (e: PopStateEvent) => {
+      const next = tabFromUrl() ?? "summary";
+      if (next === tabRef.current) selectTab(next, "none");
+      else navTransition(next === "summary" ? "back" : "forward", () => selectTab(next, "none"), e);
+    };
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, []);
@@ -643,7 +648,12 @@ export default function LogPage() {
    * the page underneath. */
   function backToList() {
     if (window.history.state?.logSection) window.history.back();
-    else selectTab("summary", "replace");
+    else navTransition("back", () => selectTab("summary", "replace"));
+  }
+
+  /** Opens a section from Summary with the iOS push slide on a phone. */
+  function openSection(t: LogTab) {
+    navTransition("forward", () => selectTab(t));
   }
 
   const candidates = useMemo(() => buildLogCandidates(effective.items, effective.logs), [effective]);
@@ -2595,7 +2605,7 @@ export default function LogPage() {
         <>
         <CheckInCard date={date} />
         {status !== "loading" && lastStool && prefs.showLastStool && isVisible("stool") && (
-          <LastStoolCard entry={lastStool} dateLabel={formatDateLabel(lastStool.date, today)} accent={STOOL_ACCENT} onOpen={() => selectTab("stool")} />
+          <LastStoolCard entry={lastStool} dateLabel={formatDateLabel(lastStool.date, today)} accent={STOOL_ACCENT} onOpen={() => openSection("stool")} />
         )}
         {status !== "loading" && (
         <div className="inset-rows rounded-xl border [--row-inset:3.375rem] lg:hidden" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
@@ -2604,7 +2614,7 @@ export default function LogPage() {
             .map((t) => {
               const figure = sectionFigure.get(t.id);
               return (
-                <button key={t.id} type="button" onClick={() => selectTab(t.id)} className="flex min-h-11 w-full items-center gap-3 px-3.5 py-2 text-left">
+                <button key={t.id} type="button" onClick={() => openSection(t.id)} className="flex min-h-11 w-full items-center gap-3 px-3.5 py-2 text-left">
                   <span
                     className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md"
                     style={{ color: t.accent, background: `color-mix(in oklab, ${t.accent} var(--tint-pct), transparent)` }}
@@ -2841,7 +2851,7 @@ export default function LogPage() {
                   <button
                     key={`coffee:${row.key}`}
                     type="button"
-                    onClick={() => selectTab("coffee")}
+                    onClick={() => openSection("coffee")}
                     className="flex min-h-11 w-full items-center gap-2.5 px-3.5 py-2 text-left"
                   >
                     <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: COFFEE_ACCENT }} aria-hidden="true" />

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { navTransition } from "@/lib/navTransition";
 
 /** Fired on `window` when the tab-bar item you're already on is tapped
  * again. A page showing a drill-down screen cancels it (`preventDefault`)
@@ -11,7 +12,9 @@ export const NAV_RESELECT_EVENT = "lauva:nav-reselect";
  * entry, so Back and the phone's edge swipe return to the list instead of
  * leaving the page, and re-tapping `tabHref` in the tab bar closes it too.
  * `close` is the screen's own back action; when the screen closes some
- * other way, the entry it pushed is popped. */
+ * other way, the entry it pushed is popped. Closing through history or the
+ * tab bar slides back like iOS; the screen's own open and ‹ Back wrap their
+ * state change in `navTransition` for the same slide. */
 export function useDrillDown(open: boolean, close: () => void, tabHref: string | null = null) {
   const closeRef = useRef(close);
   const pushed = useRef(false);
@@ -32,15 +35,15 @@ export function useDrillDown(open: boolean, close: () => void, tabHref: string |
 
   useEffect(() => {
     if (!open) return;
-    const onPop = () => {
+    const onPop = (e: PopStateEvent) => {
       if (!pushed.current) return;
       pushed.current = false;
-      closeRef.current();
+      navTransition("back", () => closeRef.current(), e);
     };
     const onReselect = (e: Event) => {
       if (tabHref === null || (e as CustomEvent<string>).detail !== tabHref) return;
       e.preventDefault();
-      closeRef.current();
+      navTransition("back", () => closeRef.current());
     };
     window.addEventListener("popstate", onPop);
     window.addEventListener(NAV_RESELECT_EVENT, onReselect);

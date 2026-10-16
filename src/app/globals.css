@@ -588,6 +588,69 @@ select:focus-visible {
   }
 }
 
+/* iOS push/pop between a list and its detail screen (`navTransition`):
+   only the page content slides; the tab bar and sidebar stay put. */
+.nav-content {
+  view-transition-name: nav-content;
+}
+[data-bottom-bar] {
+  view-transition-name: tab-bar;
+}
+::view-transition-old(root),
+::view-transition-new(root),
+::view-transition-group(nav-content),
+::view-transition-group(tab-bar),
+::view-transition-old(tab-bar),
+::view-transition-new(tab-bar) {
+  animation: none;
+}
+::view-transition-old(nav-content),
+::view-transition-new(nav-content) {
+  /* Opaque, and reaching past a short screen's end, so the screen
+     underneath never shows through. */
+  padding-bottom: 100vh;
+  background: var(--page-backdrop);
+  mix-blend-mode: normal;
+  animation-duration: 320ms;
+  animation-timing-function: cubic-bezier(0.25, 0.8, 0.3, 1);
+  animation-fill-mode: both;
+}
+:root[data-nav="forward"]::view-transition-old(nav-content) {
+  animation-name: nav-push-under;
+}
+:root[data-nav="forward"]::view-transition-new(nav-content) {
+  animation-name: nav-push-in;
+  box-shadow: -6px 0 20px rgb(0 0 0 / 0.08);
+}
+:root[data-nav="back"]::view-transition-old(nav-content) {
+  z-index: 1;
+  animation-name: nav-pop-out;
+  box-shadow: -6px 0 20px rgb(0 0 0 / 0.08);
+}
+:root[data-nav="back"]::view-transition-new(nav-content) {
+  animation-name: nav-pop-under;
+}
+@keyframes nav-push-in {
+  from {
+    transform: translateX(100%);
+  }
+}
+@keyframes nav-push-under {
+  to {
+    transform: translateX(-30%);
+  }
+}
+@keyframes nav-pop-out {
+  to {
+    transform: translateX(100%);
+  }
+}
+@keyframes nav-pop-under {
+  from {
+    transform: translateX(-30%);
+  }
+}
+
 /* Quiet trash button that only warms to the critical tone on hover. */
 .notebook-danger:hover {
   color: var(--status-critical) !important;

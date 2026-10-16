@@ -22,6 +22,7 @@ import {
 } from "@/lib/aggregations/workout";
 import { TYPE_ACCENT } from "@/taxonomy/categories";
 import { useWorkoutUnits } from "@/lib/useWorkoutUnits";
+import { navTransition } from "@/lib/navTransition";
 import { workoutUnitLabel, workoutValueLabel, type WorkoutUnit } from "@/lib/types";
 
 const ACCENT = TYPE_ACCENT.workout;
@@ -322,14 +323,19 @@ export function WorkoutDashboard() {
   // An exercise opens as its own screen with a history entry, so Back and
   // the edge swipe return to the overview.
   useEffect(() => {
-    const onPop = (e: PopStateEvent) => setOpenExercise(e.state?.workoutExercise ?? null);
+    const onPop = (e: PopStateEvent) => {
+      const next: string | null = e.state?.workoutExercise ?? null;
+      navTransition(next ? "forward" : "back", () => setOpenExercise(next), e);
+    };
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, []);
   function openDetail(exercise: string) {
     window.history.pushState({ ...window.history.state, workoutExercise: exercise }, "");
-    setOpenExercise(exercise);
-    window.scrollTo(0, 0);
+    navTransition("forward", () => {
+      setOpenExercise(exercise);
+      window.scrollTo(0, 0);
+    });
   }
 
   const { span, range, setRange } = useDateRangeFilter(workoutLogs, DEFAULT_RANGE_DAYS);

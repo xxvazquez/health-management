@@ -3,6 +3,7 @@
 import { TabRail } from "@/components/ui/TabRail";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useDrillDown } from "@/lib/useDrillDown";
+import { navTransition } from "@/lib/navTransition";
 import { useAuth } from "@/lib/supabase/AuthContext";
 import { getPartnerLink, type PartnerLink } from "@/lib/supabase/partner";
 import {
@@ -317,6 +318,7 @@ export default function NotesPage() {
     if (window.location.search) window.history.replaceState(window.history.state, "", window.location.pathname);
   };
   useDrillDown(selectedThreadId !== null, closeThread);
+  const openThread = (id: string) => navTransition("forward", () => setSelectedThreadId(id));
 
   if (authLoading) return <PageSkeleton cards={3} />;
 
@@ -338,7 +340,7 @@ export default function NotesPage() {
           <NoteThreadView
             thread={selectedDemoThread}
             partnerLabel={DEMO_PARTNER_LABEL}
-            onBack={() => setSelectedThreadId(null)}
+            onBack={() => navTransition("back", () => setSelectedThreadId(null))}
             onChanged={() => {}}
             fetchMessages={demoFetchMessages}
             onMarkRead={demoMarkRead}
@@ -357,7 +359,7 @@ export default function NotesPage() {
               error={false}
               view={view}
               partnerLabel={DEMO_PARTNER_LABEL}
-              onOpen={setSelectedThreadId}
+              onOpen={openThread}
               onToggleFavourite={demoToggleFavourite}
               onMarkRead={demoMarkRead}
               onMarkUnread={demoMarkUnread}
@@ -401,7 +403,7 @@ export default function NotesPage() {
         <NoteThreadView
           thread={selectedThread}
           partnerLabel={partnerLabel}
-          onBack={closeThread}
+          onBack={() => navTransition("back", closeThread)}
           onChanged={() => void loadThreads()}
           fetchMessages={fetchThreadMessages}
           onMarkRead={markRead}
@@ -420,7 +422,7 @@ export default function NotesPage() {
             error={threadsError}
             view={view}
             partnerLabel={partnerLabel}
-            onOpen={setSelectedThreadId}
+            onOpen={openThread}
             onToggleFavourite={toggleFavourite}
             onMarkRead={markRead}
             onMarkUnread={markUnread}

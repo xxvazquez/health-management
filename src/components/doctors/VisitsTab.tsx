@@ -3,6 +3,7 @@
 import { TabRail } from "@/components/ui/TabRail";
 import { useMemo, useState } from "react";
 import { useDrillDown } from "@/lib/useDrillDown";
+import { navTransition } from "@/lib/navTransition";
 import type { useDoctors } from "@/lib/useDoctors";
 import type { CareEntry, CareEntryKind } from "@/lib/supabase/careLog";
 import { resolveSpecialtyNames } from "@/lib/doctors";
@@ -134,7 +135,7 @@ export function VisitsTab({
           specialtyNames={namesFor(viewing.specialtyIds)}
           supplementName={viewing.supplementItemId ? supplementNameById.get(viewing.supplementItemId) : null}
           accent={accent}
-          onBack={() => setViewingId(null)}
+          onBack={() => navTransition("back", () => setViewingId(null))}
           onEdit={() => setEditingEntry(viewing)}
           onDelete={() => {
             void api.careLog.remove(viewing.id);
@@ -218,7 +219,7 @@ export function VisitsTab({
                         specialtyNames={namesFor(entry.specialtyIds)}
                         supplementName={entry.supplementItemId ? supplementNameById.get(entry.supplementItemId) : null}
                         accent={accent}
-                        onOpen={() => setViewingId(entry.id)}
+                        onOpen={() => navTransition("forward", () => setViewingId(entry.id))}
                         onEdit={() => setEditingEntry(entry)}
                         onDelete={() => void api.careLog.remove(entry.id)}
                       />

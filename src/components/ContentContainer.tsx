@@ -27,5 +27,5 @@ const WIDTH_BY_PREFIX: { prefix: string; cls: string }[] = [
 export function ContentContainer({ children }: { children: ReactNode }) {
   const pathname = (usePathname() ?? "").replace(/\/+$/, "");
   const match = WIDTH_BY_PREFIX.find((w) => pathname === w.prefix || pathname.startsWith(`${w.prefix}/`));
-  return <div className={clsx("w-full", match?.cls ?? "max-w-4xl")}>{children}</div>;
+  return <div className={clsx("nav-content w-full", match?.cls ?? "max-w-4xl")}>{children}</div>;
 }
