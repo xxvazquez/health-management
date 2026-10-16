@@ -102,8 +102,18 @@ self.addEventListener("push", (event) => {
   } catch {
     // Malformed/empty payload — fall back to the defaults above.
   }
+  // A message push carries the recipient's unread count for the app icon.
+  // Never let it get in the way of showing the notification itself.
+  let badge = Promise.resolve();
+  if (typeof data.badge === "number" && self.navigator.setAppBadge) {
+    try {
+      badge = self.navigator.setAppBadge(data.badge).catch(() => {});
+    } catch {
+      // Badging unavailable here — the notification still shows.
+    }
+  }
   event.waitUntil(
-    self.registration.showNotification(data.title, {
+    Promise.all([badge, self.registration.showNotification(data.title, {
       body: data.body,
       icon: "/icons/icon-192.png",
       // Android masks the status-bar badge to its alpha, so it must be a
@@ -111,7 +121,7 @@ self.addEventListener("push", (event) => {
       badge: "/icons/badge-96.png",
       tag: data.tag,
       data: { url: data.url || null },
-    })
+    })])
   );
 });
 

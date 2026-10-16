@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/supabase/AuthContext";
 import { notesConfigured, onNotesChanged, unreadNoteCount } from "@/lib/supabase/notes";
 import { readSnapshot, writeSnapshot } from "@/lib/db/indexedDb";
+import { setAppBadgeCount } from "@/lib/appBadge";
 
 /** Polls rather than subscribing to realtime — Notes has no live-updating
  * requirement (see notes.ts's own comment on this), so a periodic refetch
@@ -55,6 +56,9 @@ export function useUnreadNoteCount(pathname: string): number {
     // `pathname` retriggers this on navigation (e.g. leaving /notes after
     // reading something), not otherwise used.
   }, [session, userId, pathname]);
+
+  // The app icon carries the same count, so it clears once threads are read.
+  useEffect(() => setAppBadgeCount(count), [count]);
 
   return count;
 }

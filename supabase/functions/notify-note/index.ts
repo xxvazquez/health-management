@@ -114,11 +114,25 @@ Deno.serve(async (req) => {
   const senderName = displayName(sender?.user);
   const isReply = Boolean(note.thread_root_id);
   const threadRootId = (note.thread_root_id as string | null) ?? note.id;
+  // Unread threads for the app icon badge — same rule as the app's own count.
+  const { data: threads } = await admin
+    .from("notes")
+    .select("sender_id, last_message_at, sender_read_at, recipient_read_at")
+    .is("thread_root_id", null)
+    .or(`sender_id.eq.${targetId},recipient_id.eq.${targetId}`);
+  const badge = threads
+    ? threads.filter((t) => {
+        const readAt = t.sender_id === targetId ? t.sender_read_at : t.recipient_read_at;
+        return !readAt || readAt < t.last_message_at;
+      }).length
+    : undefined;
+
   const payload = JSON.stringify({
     title: senderName,
     body: remind ? "Reminded you about an unread message" : isReply ? "Replied to your message" : "Sent you a message",
     tag: `note:${threadRootId}`,
     url: `/notes/?thread=${threadRootId}`,
+    badge,
   });
 
   // The recipient may have push enabled on more than one device — send to

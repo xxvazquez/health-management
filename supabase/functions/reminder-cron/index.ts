@@ -184,12 +184,12 @@ async function sendReminderEmail(toEmail: string, subject: string, bodyText: str
  * `title` is a short one-line heading (Android never wraps it); the
  * user-written text goes in `body`, which expands to several lines. `url`
  * is the page a tap on the notification opens. */
-async function sendPushToUser(subsByUser: Map<string, Subscription[]>, userId: string, title: string, body: string, tag: string, url: string): Promise<void> {
+async function sendPushToUser(subsByUser: Map<string, Subscription[]>, userId: string, title: string, body: string, tag: string, url: string, badge?: number): Promise<void> {
   const subs = subsByUser.get(userId);
   if (!subs || subs.length === 0) return;
   for (const sub of subs) {
     try {
-      await webpush.sendNotification({ endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth_key } }, JSON.stringify({ title, body, tag, url }));
+      await webpush.sendNotification({ endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth_key } }, JSON.stringify({ title, body, tag, url, badge }));
     } catch (err) {
       const statusCode = (err as { statusCode?: number }).statusCode;
       if (statusCode === 404 || statusCode === 410) {
@@ -619,7 +619,7 @@ Deno.serve(async (req) => {
             `You have ${unread} unread ${noun} from ${partnerName}. Open Lauva to read ${unread === 1 ? "it" : "them"}.`,
           );
         }
-        await sendPushToUser(subsByUser, userId, partnerName, `${unread} unread ${noun}`, "notes-digest", "/notes/");
+        await sendPushToUser(subsByUser, userId, partnerName, `${unread} unread ${noun}`, "notes-digest", "/notes/", unread);
         digestSent++;
       }
       await supabase.from("notes_digest_state").upsert({ user_id: userId, last_sent_date: digestLocal.date, updated_at: nowDate.toISOString() });
