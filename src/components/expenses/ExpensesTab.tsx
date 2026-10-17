@@ -659,9 +659,9 @@ export function ExpensesTab({ isDemoData, accent }: { isDemoData: boolean; accen
             </section>
           )}
 
-          {!q && <aside className="lg:sticky lg:top-4 lg:col-start-1 lg:row-span-2 lg:row-start-1">{summary}</aside>}
+          {!q && data.expenses.length > 0 && <aside className="lg:sticky lg:top-4 lg:col-start-1 lg:row-span-2 lg:row-start-1">{summary}</aside>}
 
-          <div className="flex flex-col gap-4 lg:col-start-2">
+          <div className={`flex flex-col gap-4 ${data.expenses.length > 0 ? "lg:col-start-2" : "lg:col-span-2"}`}>
             {filterLabel && !q && (
               <div className="flex items-center justify-between px-3.5">
                 <span className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
@@ -679,7 +679,7 @@ export function ExpensesTab({ isDemoData, accent }: { isDemoData: boolean; accen
                   q
                     ? "Try a different search term."
                     : data.expenses.length === 0
-                      ? "Card payments arrive here once the Revolut shortcut is set up in Settings, or tap New expense."
+                      ? "Card payments arrive here once the Revolut shortcut is set up in Settings, or tap + to add one."
                       : undefined
                 }
               />
