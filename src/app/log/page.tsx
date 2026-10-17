@@ -2066,43 +2066,69 @@ export default function LogPage() {
       .flatMap((g) => g.items)
       .filter((c) => (mealCounts.get(c.key) ?? 0) > 0 && !seen.has(c.key) && seen.add(c.key))
       .sort((x, y) => x.item.localeCompare(y.item));
-    if (logged.length === 0) return null;
     const accent = TYPE_ACCENT.food;
-    // A caption line with Copy to…, then one sideways-scrolling chip row
-    // (wrapping on desktop), so a long meal never pushes the list down.
+    // Always rendered, so the first food logged fills the row in place
+    // instead of pushing the list down. The chips scroll sideways on a phone
+    // (wrapping on desktop), so a long meal never pushes it down either.
     return (
       <div className="flex flex-col gap-1">
         <div className="flex min-h-8 items-center justify-between gap-3 px-0.5">
           <span className="text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
-            {meal} · {logged.length}
+            {logged.length > 0 ? `${meal} · ${logged.length}` : meal}
           </span>
           {!isDemoData && (
-            <button
-              type="button"
-              onClick={() => setCopyTarget({ meal: MEAL_OPTIONS.find((m) => m !== meal) ?? meal, date })}
-              className="hit-slop text-sm font-medium whitespace-nowrap"
-              style={{ color: accent }}
-            >
-              Copy to…
-            </button>
+            <span className="flex items-center gap-4">
+              {logged.length > 0 ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => saveMealAsRecipe(meal, logged.map((c) => c.itemIdentity))}
+                    aria-haspopup="dialog"
+                    className="hit-slop text-sm font-medium whitespace-nowrap"
+                    style={{ color: accent }}
+                  >
+                    Save as recipe
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCopyTarget({ meal: MEAL_OPTIONS.find((m) => m !== meal) ?? meal, date })}
+                    aria-haspopup="dialog"
+                    className="hit-slop text-sm font-medium whitespace-nowrap"
+                    style={{ color: accent }}
+                  >
+                    Copy to…
+                  </button>
+                </>
+              ) : (
+                <button type="button" onClick={() => setRecipesOpen({})} aria-haspopup="dialog" className="hit-slop text-sm font-medium whitespace-nowrap" style={{ color: accent }}>
+                  Recipes
+                </button>
+              )}
+            </span>
           )}
         </div>
-        <div ref={loggedMealRef} className="no-scrollbar fade-x -mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 lg:flex-wrap lg:overflow-visible">
-          {logged.map((c) => (
-            <button
-              key={c.key}
-              type="button"
-              onClick={() => handleChipTap(c)}
-              disabled={isPending(c.key)}
-              aria-label={`Remove ${c.item} from ${meal}`}
-              className={`${CHIP_SM_CLS} shrink-0 whitespace-nowrap`}
-              style={chipStyle(true, accent)}
-            >
-              {c.item}
-              <CloseIcon size={10} />
-            </button>
-          ))}
-        </div>
+        {logged.length > 0 ? (
+          <div ref={loggedMealRef} className="no-scrollbar fade-x -mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 lg:flex-wrap lg:overflow-visible">
+            {logged.map((c) => (
+              <button
+                key={c.key}
+                type="button"
+                onClick={() => handleChipTap(c)}
+                disabled={isPending(c.key)}
+                aria-label={`Remove ${c.item} from ${meal}`}
+                className={`${CHIP_SM_CLS} shrink-0 whitespace-nowrap`}
+                style={chipStyle(true, accent)}
+              >
+                {c.item}
+                <CloseIcon size={10} />
+              </button>
+            ))}
+          </div>
+        ) : (
+          <p className="flex min-h-9 items-center px-0.5 pb-1 text-sm" style={{ color: "var(--text-muted)" }}>
+            Nothing logged yet
+          </p>
+        )}
       </div>
     );
   }
@@ -2974,6 +3000,7 @@ export default function LogPage() {
         <RecipesSheet
           recipes={recipes}
           initialRecipeId={recipesOpen.recipeId}
+          seed={recipesOpen.seed}
           accent={TYPE_ACCENT.food}
           meal={meal}
           onLog={
@@ -3056,26 +3083,17 @@ export default function LogPage() {
             ))}
           </div>
             <FormGroup>
-              {savedRecipe?.key === `${date}|${mealSheetTag}` && recipes.data.some((r) => r.id === savedRecipe.id) ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMealSheetTag(null);
-                    setRecipesOpen({ recipeId: savedRecipe.id });
-                  }}
-                  className="flex min-h-11 w-full items-center gap-2 px-3.5 text-left text-sm"
-                  style={{ color: TYPE_ACCENT.food }}
-                >
-                  Saved to Recipes
-                  <span className="ml-auto" style={{ color: "var(--text-muted)" }}>
-                    <ChevronIcon dir="right" size={13} />
-                  </span>
-                </button>
-              ) : (
-                <button type="button" onClick={() => void saveMealAsRecipe(mealSheetTag, mealSheetEntries)} disabled={isPending("__save-recipe__")} className="flex min-h-11 w-full items-center px-3.5 text-left text-sm font-medium disabled:opacity-50" style={{ color: TYPE_ACCENT.food }}>
-                  Save as recipe
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={() => {
+                  saveMealAsRecipe(mealSheetTag, mealSheetEntries.filter((e) => e.itemType === "food").map((e) => e.itemIdentity));
+                  setMealSheetTag(null);
+                }}
+                className="flex min-h-11 w-full items-center px-3.5 text-left text-sm font-medium"
+                style={{ color: TYPE_ACCENT.food }}
+              >
+                Save as recipe
+              </button>
             </FormGroup>
           </div>
         </Sheet>

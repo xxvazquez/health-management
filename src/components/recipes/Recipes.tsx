@@ -113,6 +113,7 @@ export function RecipesSheet({
   onLog,
   pendingId,
   initialRecipeId,
+  seed,
   onClose,
 }: {
   /** The page's own `useRecipes()`, so a recipe saved elsewhere on it shows here at once. */
@@ -123,19 +124,22 @@ export function RecipesSheet({
   pendingId?: string | null;
   /** Opens straight onto this recipe instead of the list. */
   initialRecipeId?: string;
+  /** Opens straight onto a new recipe filled in from this, e.g. a logged meal. */
+  seed?: Partial<Draft>;
   onClose: () => void;
 }) {
   const foods = useFoodNames();
-  const [editing, setEditing] = useState<Recipe | "new" | null>(() => recipes.data.find((r) => r.id === initialRecipeId) ?? null);
+  const [editing, setEditing] = useState<Recipe | "new" | null>(() => (seed ? "new" : (recipes.data.find((r) => r.id === initialRecipeId) ?? null)));
 
   // Opened onto one recipe, its editor closes the whole sheet.
-  const closeEditor = () => (initialRecipeId ? onClose() : setEditing(null));
+  const closeEditor = () => (initialRecipeId || seed ? onClose() : setEditing(null));
 
   if (editing) {
     return (
       <RecipeSheet
         key={editing === "new" ? "new" : editing.id}
         recipe={editing === "new" ? null : editing}
+        seed={editing === "new" ? seed : undefined}
         foods={foods}
         accent={accent}
         onSave={async (draft) => {
@@ -227,7 +231,8 @@ function ComboRow({ combo, accent }: { combo: RatedCombo; accent: string }) {
   );
 }
 
-type Draft = Omit<Recipe, "id" | "createdAt">;
+export type RecipeDraft = Omit<Recipe, "id" | "createdAt">;
+type Draft = RecipeDraft;
 
 /** A recipe as plain text for the share sheet: foods with amounts, numbered
  * steps, then the note. */
@@ -244,6 +249,7 @@ function recipeShareText(draft: Draft, foods: Map<string, string>): string {
  * amounts, steps and a note. */
 function RecipeSheet({
   recipe,
+  seed,
   foods,
   accent,
   onSave,
@@ -251,6 +257,7 @@ function RecipeSheet({
   onClose,
 }: {
   recipe: Recipe | null;
+  seed?: Partial<Draft>;
   foods: Map<string, string>;
   accent: string;
   onSave: (draft: Draft) => Promise<void>;
@@ -259,12 +266,12 @@ function RecipeSheet({
 }) {
   const titleId = useId();
   const [draft, setDraft] = useState<Draft>(() => ({
-    name: recipe?.name ?? "",
-    mealTag: recipe?.mealTag ?? null,
-    rating: recipe?.rating ?? null,
+    name: recipe?.name ?? seed?.name ?? "",
+    mealTag: recipe?.mealTag ?? seed?.mealTag ?? null,
+    rating: recipe?.rating ?? seed?.rating ?? null,
     steps: recipe?.steps.length ? recipe.steps : [""],
     note: recipe?.note ?? "",
-    ingredients: recipe?.ingredients ?? [],
+    ingredients: recipe?.ingredients ?? seed?.ingredients ?? [],
   }));
   const [pickingFoods, setPickingFoods] = useState(false);
   const [saving, setSaving] = useState(false);
