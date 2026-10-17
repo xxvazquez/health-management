@@ -185,7 +185,7 @@ export function computeHighlights(input: HighlightInput): Highlight[] {
       const now = d.now.size;
       const before = d.before.size;
       add(
-        { id: `symptom:${item}`, section: "Symptoms", title: `${now > before ? "More" : "Fewer"} days with ${item}`, now, before, format: "count", unit: "days", scaleMax: Math.max(now, before), domain: "outcome", tab: null },
+        { id: `symptom:${item}`, section: "Symptoms", title: `${now > before ? "More" : "Fewer"} days with ${item}`, now, before, format: "count", unit: "days", scaleMax: Math.max(now, before), domain: "outcome", tab: "patterns" },
         3,
         0.3,
       );
