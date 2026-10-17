@@ -88,10 +88,16 @@ export function VisitsTab({
   const shownEntries = filterSpecialty ? entries.filter((e) => e.specialtyIds.includes(filterSpecialty)) : entries;
   const viewing = viewingId ? (entries.find((e) => e.id === viewingId) ?? null) : null;
   useDrillDown(viewing !== null, () => setViewingId(null), "/medical");
+  // The filter covers notes (tagged by id) and past visits (by the specialty name frozen on each).
   const specialtiesWithEntries = useMemo(() => {
     const ids = new Set(entries.flatMap((e) => e.specialtyIds));
-    return api.specialties.data.filter((s) => ids.has(s.id)).sort((a, b) => a.name.localeCompare(b.name));
-  }, [entries, api.specialties.data]);
+    const visited = new Set(api.appointments.data.map((a) => a.specialty.trim().toLowerCase()));
+    return api.specialties.data
+      .filter((s) => ids.has(s.id) || visited.has(s.name.trim().toLowerCase()))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [entries, api.appointments.data, api.specialties.data]);
+  const filterName = api.specialties.data.find((s) => s.id === filterSpecialty)?.name.trim().toLowerCase() ?? null;
+  const shownAppointments = filterName ? api.appointments.data.filter((a) => a.specialty.trim().toLowerCase() === filterName) : api.appointments.data;
 
   const appointmentSheet = add === "appointment" ? (
     <AppointmentForm
@@ -184,7 +190,7 @@ export function VisitsTab({
       <section className="flex flex-col gap-3">
         {specialtiesWithEntries.length > 0 && (
           <TabRail
-            ariaLabel="Filter notes by specialty"
+            ariaLabel="Filter by specialty"
             wrap={false}
             tall
             style={{ borderColor: "var(--border-hairline)" }}
@@ -194,14 +200,10 @@ export function VisitsTab({
           />
         )}
 
-        {shownEntries.length === 0 ? (
+        {entries.length === 0 ? (
           <InlineEmpty
-            title={entries.length === 0 ? "Nothing to raise yet" : "No notes tagged there"}
-            description={
-              entries.length === 0
-                ? "Jot down a symptom you've noticed, a decision you've made, or a question to raise — tag it to the specialties it concerns, and it'll be waiting at your next visit."
-                : "Try a different specialty, or clear the filter."
-            }
+            title="Nothing to raise yet"
+            description="Jot down a symptom you've noticed, a decision you've made, or a question to raise — tag it to the specialties it concerns, and it'll be waiting at your next visit."
           />
         ) : (
           <div className="flex flex-col gap-4">
@@ -236,10 +238,10 @@ export function VisitsTab({
         <Caption>Past visits</Caption>
         <AppointmentList
           api={api}
-          appointments={api.appointments.data}
+          appointments={shownAppointments}
           accent={accent}
           openFromUrl
-          emptyMessage="No appointments logged yet — use Add to record a visit you've already had."
+          emptyMessage={filterName ? "No visits for this specialty." : "No appointments logged yet — use Add to record a visit you've already had."}
         />
       </section>
     </div>
