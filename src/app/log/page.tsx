@@ -90,7 +90,7 @@ import { ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
 import { AutoGrowTextarea } from "@/components/ui/AutoGrowTextarea";
 import { StarRating } from "@/components/ui/StarRating";
 import { useRecipes } from "@/lib/useRecipes";
-import { RecipesSheet } from "@/components/recipes/Recipes";
+import { RecipesSheet, type RecipeDraft } from "@/components/recipes/Recipes";
 import type { Recipe } from "@/lib/supabase/recipes";
 import { CheckIcon, ChevronIcon, CloseIcon, PlusIcon, UpDownChevronIcon } from "@/components/ui/icons";
 import { CustomIcon, customColorValue, defaultCategoryIcon } from "@/components/ui/customIcons";
@@ -488,6 +488,30 @@ export default function LogPage() {
   useEffect(() => {
     latestCommit.current = { dose: commitDose, symptom: commitSymptom };
   });
+  // Taps still inside their debounce, so leaving the app can save them now.
+  const queuedTaps = useRef(new Map<string, { c: LogCandidate; kind: "dose" | "symptom" }>());
+  useEffect(() => {
+    // Closing or backgrounding the app right after a tap would otherwise lose
+    // it with the timer; start those writes straight away instead.
+    function flush() {
+      for (const [id, { c, kind }] of queuedTaps.current) {
+        if (pendingRef.current.has(c.key)) continue;
+        clearTimeout(tapTimers.current.get(id));
+        tapTimers.current.delete(id);
+        queuedTaps.current.delete(id);
+        void latestCommit.current?.[kind](c);
+      }
+    }
+    function onVisibility() {
+      if (document.visibilityState === "hidden") flush();
+    }
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("pagehide", flush);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("pagehide", flush);
+    };
+  }, []);
   // Persisted across navigation/reloads (localStorage, keyed per item type so
   // same-named categories in different tabs don't collide) — defaults to
   // empty (everything collapsed) until the mount effect below hydrates it
@@ -572,9 +596,8 @@ export default function LogPage() {
   const [mealSheetTag, setMealSheetTag] = useState<string | null>(null);
   const recipes = useRecipes();
   // The meal (date|tag) just saved as a recipe, so its sheet links there.
-  const [savedRecipe, setSavedRecipe] = useState<{ key: string; id: string } | null>(null);
-  // Open Recipes sheet; `recipeId` opens straight onto that recipe.
-  const [recipesOpen, setRecipesOpen] = useState<{ recipeId?: string } | null>(null);
+  // Open Recipes sheet; `recipeId` opens straight onto that recipe, `seed` onto a new one.
+  const [recipesOpen, setRecipesOpen] = useState<{ recipeId?: string; seed?: Partial<RecipeDraft> } | null>(null);
   const foodProductsRef = useOverflowFade<HTMLDivElement>();
   const loggedMealRef = useOverflowFade<HTMLDivElement>();
 
@@ -1071,20 +1094,16 @@ export default function LogPage() {
   }, [combinedTimeline, coffeeShown, coffee.items.data, coffee.logs.data, date]);
   const mealSheetEntries = mealSheetTag ? (timelineRows.find((r) => r.kind === "meal" && r.mealTag === mealSheetTag) as { entries: TimelineEntry[] } | undefined)?.entries ?? null : null;
   // Logged all at once, a meal's foods share one time — shown once then.
-  async function saveMealAsRecipe(mealTag: string, entries: TimelineEntry[]) {
-    await runPending("__save-recipe__", async () => {
-      const note = meals.noteFor(date, mealTag).trim();
-      const itemIds = Array.from(new Set(entries.filter((e) => e.itemType === "food").map((e) => e.itemIdentity)));
-      const created = await recipes
-        .create({
-          name: (note.split("\n")[0] || `${mealTag}, ${formatDateLabel(date, today)}`).slice(0, 80),
-          mealTag,
-          rating: meals.ratingFor(date, mealTag),
-          steps: [],
-          note: null,
-          ingredients: itemIds.map((itemId) => ({ itemId, amount: null, unit: null })),
-        });
-      setSavedRecipe({ key: `${date}|${mealTag}`, id: created.id });
+  /** Opens a new recipe filled in from a logged meal's foods, rating and note. */
+  function saveMealAsRecipe(mealTag: string, itemIds: string[]) {
+    const note = meals.noteFor(date, mealTag).trim();
+    setRecipesOpen({
+      seed: {
+        name: note.split("\n")[0].slice(0, 80),
+        mealTag,
+        rating: meals.ratingFor(date, mealTag),
+        ingredients: Array.from(new Set(itemIds)).map((itemId) => ({ itemId, amount: null, unit: null })),
+      },
     });
   }
 
@@ -1757,10 +1776,12 @@ export default function LogPage() {
     const id = c.itemIdentity;
     const running = tapTimers.current.get(id);
     if (running) clearTimeout(running);
+    queuedTaps.current.set(id, { c, kind });
     tapTimers.current.set(
       id,
       setTimeout(() => {
         tapTimers.current.delete(id);
+        queuedTaps.current.delete(id);
         // Still saving the previous tap: wait for it, so this one isn't lost.
         if (pendingRef.current.has(c.key)) scheduleCommit(c, kind);
         else void latestCommit.current?.[kind](c);
