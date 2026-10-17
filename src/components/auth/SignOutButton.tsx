@@ -1,6 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import { useAuth } from "@/lib/supabase/AuthContext";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
 function ExitIcon() {
   return (
@@ -12,23 +14,39 @@ function ExitIcon() {
   );
 }
 
-/** One-click sign out, always visible next to the account entry when signed
- * in — no need to open the account panel just to find the way out. */
+/** Sign out, always visible next to the account entry when signed in — no
+ * need to open the account panel just to find the way out. Asks first, so a
+ * stray tap beside the account name doesn't sign anyone out. */
 export function SignOutButton({ collapsed }: { collapsed?: boolean }) {
   const { configured, session, signOut } = useAuth();
+  const [confirming, setConfirming] = useState(false);
 
   if (!configured || !session) return null;
 
   return (
-    <button
-      type="button"
-      onClick={() => void signOut()}
-      title="Sign out"
-      aria-label="Sign out"
-      className={`flex shrink-0 items-center justify-center border transition-colors hover:opacity-80 ${collapsed ? "h-9 w-9 rounded-full" : "h-11 w-11 rounded-lg"}`}
-      style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-secondary)" }}
-    >
-      <ExitIcon />
-    </button>
+    <>
+      <button
+        type="button"
+        onClick={() => setConfirming(true)}
+        title="Sign out"
+        aria-label="Sign out"
+        className={`flex shrink-0 items-center justify-center border transition-colors hover:opacity-80 ${collapsed ? "h-9 w-9 rounded-full" : "h-11 w-11 rounded-lg"}`}
+        style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)", color: "var(--text-secondary)" }}
+      >
+        <ExitIcon />
+      </button>
+      {confirming && (
+        <ConfirmDialog
+          title="Sign out?"
+          confirmLabel="Sign Out"
+          destructive
+          onConfirm={() => {
+            setConfirming(false);
+            void signOut();
+          }}
+          onClose={() => setConfirming(false)}
+        />
+      )}
+    </>
   );
 }
