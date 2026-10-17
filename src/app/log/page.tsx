@@ -482,6 +482,12 @@ export default function LogPage() {
   const [tapTargets, setTapTargets] = useState<Map<string, number | null>>(() => new Map());
   const tapTargetsRef = useRef(tapTargets);
   const tapTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+  // The debounced write runs this render's commit, which reads the counts a
+  // finished save just refreshed rather than the ones from the tap's render.
+  const latestCommit = useRef<Record<"dose" | "symptom", (c: LogCandidate) => Promise<void>> | null>(null);
+  useEffect(() => {
+    latestCommit.current = { dose: commitDose, symptom: commitSymptom };
+  });
   // Persisted across navigation/reloads (localStorage, keyed per item type so
   // same-named categories in different tabs don't collide) — defaults to
   // empty (everything collapsed) until the mount effect below hydrates it
@@ -1737,27 +1743,39 @@ export default function LogPage() {
    * once, as the value the user landed on. */
   /** One tap of the 1 → 2 → 3 → clear cycle; `commit` writes the value
    * the taps settle on. */
-  function cycleTap(c: LogCandidate, persisted: number | null, commit: (c: LogCandidate) => Promise<void>) {
+  function cycleTap(c: LogCandidate, persisted: number | null, kind: "dose" | "symptom") {
     if (isDemoData) return openPanel();
     haptic();
     const id = c.itemIdentity;
     const cur = tapTargetsRef.current.has(id) ? (tapTargetsRef.current.get(id) ?? null) : persisted;
     const next = cur == null ? 1 : cur >= 3 ? null : cur + 1;
     setTapTarget(id, next);
+    scheduleCommit(c, kind);
+  }
 
+  function scheduleCommit(c: LogCandidate, kind: "dose" | "symptom") {
+    const id = c.itemIdentity;
     const running = tapTimers.current.get(id);
     if (running) clearTimeout(running);
     tapTimers.current.set(
       id,
       setTimeout(() => {
         tapTimers.current.delete(id);
-        void commit(c);
+        // Still saving the previous tap: wait for it, so this one isn't lost.
+        if (pendingRef.current.has(c.key)) scheduleCommit(c, kind);
+        else void latestCommit.current?.[kind](c);
       }, 500),
     );
   }
 
+  /** Drops the shown value once it's saved, unless another tap changed it
+   * while the save ran — that one has its own write queued. */
+  function settleTapTarget(id: string, saved: number | null | undefined) {
+    if (!tapTimers.current.has(id) && tapTargetsRef.current.get(id) === saved) clearTapTarget(id);
+  }
+
   function cycleSymptom(c: LogCandidate) {
-    cycleTap(c, durationValueForDate.get(c.itemIdentity) ?? null, commitSymptom);
+    cycleTap(c, durationValueForDate.get(c.itemIdentity) ?? null, "symptom");
   }
 
   /** How many doses of a supplement show as taken right now. */
@@ -1766,13 +1784,14 @@ export default function LogPage() {
   }
 
   function cycleDose(c: LogCandidate) {
-    cycleTap(c, counts.get(c.itemIdentity) ?? null, commitDose);
+    cycleTap(c, counts.get(c.itemIdentity) ?? null, "dose");
   }
 
   /** Adds or removes one log per dose until the day holds the settled count. */
   async function commitDose(c: LogCandidate) {
     const id = c.itemIdentity;
-    const target = tapTargetsRef.current.get(id) ?? 0;
+    const settled = tapTargetsRef.current.get(id);
+    const target = settled ?? 0;
     const current = counts.get(id) ?? 0;
     await runPending(c.key, async () => {
       try {
@@ -1784,14 +1803,15 @@ export default function LogPage() {
         }
         await refreshAfterWrite();
       } finally {
-        clearTapTarget(id);
+        settleTapTarget(id, settled);
       }
     });
   }
 
   async function commitSymptom(c: LogCandidate) {
     const id = c.itemIdentity;
-    const target = tapTargetsRef.current.get(id) ?? null;
+    const settled = tapTargetsRef.current.get(id);
+    const target = settled ?? null;
     // No write has happened yet during this tap burst, so `durationValueForDate`
     // still reflects the true persisted state before the taps.
     const wasLogged = durationValueForDate.get(id) != null;
@@ -1807,7 +1827,7 @@ export default function LogPage() {
         }
         await refreshAfterWrite();
       } finally {
-        clearTapTarget(id);
+        settleTapTarget(id, settled);
       }
     });
   }
@@ -1882,7 +1902,6 @@ export default function LogPage() {
           mark={doses != null && (doses > 1 ? doses : "✓")}
           onTap={() => cycleDose(c)}
           label={doses != null ? `${c.item}, taken ${doses === 1 ? "once" : `${doses} times`} — tap to change` : `Log ${c.item}`}
-          busy={isPending(c.key)}
         />
       );
     }
@@ -1903,7 +1922,6 @@ export default function LogPage() {
         mark={current != null && current}
         onTap={() => cycleSymptom(c)}
         label={current != null ? `${c.item}, intensity ${current} of 3 — tap to change` : `Mark ${c.item}`}
-        busy={isPending(c.key)}
       />
     );
   }
