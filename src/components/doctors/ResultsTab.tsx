@@ -128,7 +128,17 @@ export function ResultsAddMenu({ accent, onAdd }: { accent: string; onAdd: (view
  * quick-add here (name, unit, panel); their reference and optimal ranges,
  * renames and panels are managed from Settings. `view` lives in the page so
  * `ResultsAddMenu` in the title row can open a form. */
-export function ResultsTab({ accent, view: requested, setView }: { accent: string; view: ResultsView; setView: (view: ResultsView) => void }) {
+export function ResultsTab({
+  accent,
+  view: requested,
+  setView,
+  onDrillDown,
+}: {
+  accent: string;
+  view: ResultsView;
+  setView: (view: ResultsView) => void;
+  onDrillDown?: (open: boolean) => void;
+}) {
   const rawLabs = useLabs();
   const { prefs, update } = usePreferences();
   const nameLanguage = prefs.labNameLanguage === "en" ? "en" : "pl";
@@ -205,6 +215,7 @@ export function ResultsTab({ accent, view: requested, setView }: { accent: strin
         onNewMarker={() => setView({ mode: "marker-form" })}
         onAddValue={(markerId) => setView({ mode: "result-form", markerId })}
         onEditValue={(markerId, result) => setView({ mode: "result-form", markerId, resultId: result.id })}
+        onDrillDown={onDrillDown}
       />
     </div>
   );

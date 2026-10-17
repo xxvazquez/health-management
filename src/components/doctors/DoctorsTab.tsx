@@ -1,6 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { useDrillDown } from "@/lib/useDrillDown";
+import { navTransition } from "@/lib/navTransition";
+import { DrillDownHeader, useReportDrillDown } from "@/components/ui/DrillDownHeader";
 import type { useDoctors } from "@/lib/useDoctors";
 import type { Doctor } from "@/lib/supabase/doctors";
 import { DoctorName, formatDate } from "./shared";
@@ -29,21 +32,15 @@ function DoctorHistory({ api, doctor, accent, onBack }: { api: DoctorsApi; docto
 
   return (
     <div className="flex flex-col gap-4">
-      {onBack && (
-        <div className="flex min-h-11 items-center justify-between gap-3">
-          <button type="button" onClick={onBack} className="-ml-1 flex min-h-11 items-center gap-0.5 text-sm font-medium" style={{ color: accent }}>
-            <ChevronIcon dir="left" size={16} />
-            Doctors
-          </button>
-          {editLink}
-        </div>
-      )}
-
       <div className="flex flex-col gap-0.5">
-        <h2 className="flex items-baseline justify-between gap-3 text-base font-semibold">
-          <DoctorName name={doctor.name} rating={doctor.rating} weight="font-semibold" />
-          {!onBack && editLink}
-        </h2>
+        {onBack ? (
+          <DrillDownHeader back="Doctors" onBack={onBack} title={<DoctorName name={doctor.name} rating={doctor.rating} weight="font-semibold" />} actions={editLink} accent={accent} />
+        ) : (
+          <h2 className="flex items-baseline justify-between gap-3 text-base font-semibold">
+            <DoctorName name={doctor.name} rating={doctor.rating} weight="font-semibold" />
+            {editLink}
+          </h2>
+        )}
         <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
           {[doctor.specialty || "No specialty", doctor.rating != null ? `rated ${doctor.rating}/3` : null, doctor.language]
             .filter(Boolean)
@@ -94,10 +91,13 @@ function DoctorHistory({ api, doctor, accent, onBack }: { api: DoctorsApi; docto
   );
 }
 
-export function DoctorsTab({ api, accent }: { api: DoctorsApi; accent: string }) {
+export function DoctorsTab({ api, accent, onDrillDown }: { api: DoctorsApi; accent: string; onDrillDown?: (open: boolean) => void }) {
   const { doctors, appointments } = api;
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const desktop = useIsDesktop();
+  const phoneDetail = !desktop && selectedId !== null && doctors.data.some((d) => d.id === selectedId);
+  useDrillDown(phoneDetail, () => setSelectedId(null), "/medical");
+  useReportDrillDown(phoneDetail, onDrillDown);
 
   if (doctors.data.length === 0) {
     return <InlineEmpty title="No doctors yet" description="Add one while logging an appointment — they're saved here for reuse." />;
@@ -117,7 +117,7 @@ export function DoctorsTab({ api, accent }: { api: DoctorsApi; accent: string })
           <li key={doctor.id}>
             <button
               type="button"
-              onClick={() => setSelectedId(active ? null : doctor.id)}
+              onClick={() => (desktop ? setSelectedId(active ? null : doctor.id) : navTransition("forward", () => setSelectedId(doctor.id)))}
               aria-current={active ? "true" : undefined}
               className="flex min-h-11 w-full items-center gap-3 border-l-2 px-4 py-3 text-left transition-colors hover:bg-[var(--page-plane)]"
               style={{ borderLeftColor: active ? accent : "transparent", background: active ? "var(--page-plane)" : undefined }}
@@ -145,7 +145,7 @@ export function DoctorsTab({ api, accent }: { api: DoctorsApi; accent: string })
     <MedicalSplit
       selected={!!selected}
       list={list}
-      detail={selected && <DoctorHistory api={api} doctor={selected} accent={accent} onBack={desktop ? undefined : () => setSelectedId(null)} />}
+      detail={selected && <DoctorHistory api={api} doctor={selected} accent={accent} onBack={desktop ? undefined : () => navTransition("back", () => setSelectedId(null))} />}
       placeholder={<DetailPlaceholder text="Pick a doctor to see their details and visit history." />}
     />
   );

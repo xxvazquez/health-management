@@ -22,7 +22,7 @@ import { FormGroup } from "@/components/ui/FormGroup";
 import { ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { MoreMenu } from "@/components/ui/MoreMenu";
-import { ChevronIcon } from "@/components/ui/icons";
+import { DrillDownHeader } from "@/components/ui/DrillDownHeader";
 
 type DoctorsApi = ReturnType<typeof useDoctors>;
 
@@ -331,39 +331,36 @@ export function CareEntryDetail({
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex min-h-11 items-center justify-between gap-3">
-        <button type="button" onClick={onBack} className="-ml-1 flex min-h-11 items-center gap-0.5 text-sm font-medium" style={{ color: accent }}>
-          <ChevronIcon dir="left" size={16} />
-          Visits
-        </button>
-        <div className="flex items-center gap-4 text-sm">
-          <button type="button" onClick={onEdit} className="min-h-9 font-medium" style={{ color: accent }}>
-            Edit
-          </button>
-          <MoreMenu items={[{ label: "Delete", destructive: true, onClick: () => setConfirmingDelete(true) }]} />
-          {confirmingDelete && (
-            <ConfirmDialog
-              title={`Delete ${entry.title}?`}
-              message="This can't be undone."
-              confirmLabel="Delete"
-              destructive
-              onConfirm={() => {
-                setConfirmingDelete(false);
-                onDelete();
-              }}
-              onClose={() => setConfirmingDelete(false)}
-            />
-          )}
-        </div>
-      </div>
+      <DrillDownHeader
+        back="Visits"
+        onBack={onBack}
+        title={entry.title}
+        accent={accent}
+        actions={
+          <div className="flex items-center gap-4 text-sm">
+            <button type="button" onClick={onEdit} className="min-h-9 font-medium" style={{ color: accent }}>
+              Edit
+            </button>
+            <MoreMenu items={[{ label: "Delete", destructive: true, onClick: () => setConfirmingDelete(true) }]} />
+            {confirmingDelete && (
+              <ConfirmDialog
+                title={`Delete ${entry.title}?`}
+                message="This can't be undone."
+                confirmLabel="Delete"
+                destructive
+                onConfirm={() => {
+                  setConfirmingDelete(false);
+                  onDelete();
+                }}
+                onClose={() => setConfirmingDelete(false)}
+              />
+            )}
+          </div>
+        }
+      />
 
       <div className="flex flex-col gap-3 rounded-xl border p-4" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
-        <div className="flex flex-col gap-1">
-          <CareEntryMeta entry={entry} accent={accent} />
-          <h2 className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>
-            {entry.title}
-          </h2>
-        </div>
+        <CareEntryMeta entry={entry} accent={accent} />
 
         {entry.body && (
           <p className="text-sm leading-relaxed whitespace-pre-wrap [overflow-wrap:anywhere]" style={{ color: "var(--text-secondary)" }}>

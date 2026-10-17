@@ -54,6 +54,8 @@ export default function MedicalPage() {
   const [visitsAdd, setVisitsAdd] = useState<VisitsAddMode>(null);
   const [vitalsComposing, setVitalsComposing] = useState(false);
   const [resultsView, setResultsView] = useState<ResultsView>({ mode: "list" });
+  // A phone detail screen (a marker, doctor or note) brings its own header.
+  const [drilled, setDrilled] = useState(false);
 
   useEffect(() => {
     /* eslint-disable react-hooks/set-state-in-effect */
@@ -93,26 +95,30 @@ export default function MedicalPage() {
 
   return (
     <div className="flex flex-col gap-5">
-      <PageHeading
-        actions={
-          tab === "visits" && !api.loading && !api.error ? (
-            <VisitsAddMenu accent={HEALTH_ACCENT} onAdd={setVisitsAdd} />
-          ) : tab === "results" ? (
-            <ResultsAddMenu accent={HEALTH_ACCENT} onAdd={setResultsView} />
-          ) : tab === "vitals" ? (
-            <PrimaryAction label="Add vitals" round accent={HEALTH_ACCENT} onClick={() => setVitalsComposing(true)} />
-          ) : undefined
-        }
-      >
-        Health
-      </PageHeading>
+      {!drilled && (
+        <>
+          <PageHeading
+            actions={
+              tab === "visits" && !api.loading && !api.error ? (
+                <VisitsAddMenu accent={HEALTH_ACCENT} onAdd={setVisitsAdd} />
+              ) : tab === "results" ? (
+                <ResultsAddMenu accent={HEALTH_ACCENT} onAdd={setResultsView} />
+              ) : tab === "vitals" ? (
+                <PrimaryAction label="Add vitals" round accent={HEALTH_ACCENT} onClick={() => setVitalsComposing(true)} />
+              ) : undefined
+            }
+          >
+            Health
+          </PageHeading>
 
-      <SegmentedTabs
-        ariaLabel="Health sections"
-        items={TABS.map((t) => ({ id: t.id, label: t.label, accent: HEALTH_ACCENT }))}
-        activeId={tab}
-        onSelect={selectTab}
-      />
+          <SegmentedTabs
+            ariaLabel="Health sections"
+            items={TABS.map((t) => ({ id: t.id, label: t.label, accent: HEALTH_ACCENT }))}
+            activeId={tab}
+            onSelect={selectTab}
+          />
+        </>
+      )}
 
       {api.isDemo && <DemoNotice />}
 
@@ -122,10 +128,10 @@ export default function MedicalPage() {
         <ListSkeleton />
       ) : (
         <>
-          {tab === "visits" && <VisitsTab api={api} accent={HEALTH_ACCENT} add={visitsAdd} setAdd={setVisitsAdd} />}
-          {tab === "results" && <ResultsTab accent={HEALTH_ACCENT} view={resultsView} setView={setResultsView} />}
+          {tab === "visits" && <VisitsTab api={api} accent={HEALTH_ACCENT} add={visitsAdd} setAdd={setVisitsAdd} onDrillDown={setDrilled} />}
+          {tab === "results" && <ResultsTab accent={HEALTH_ACCENT} view={resultsView} setView={setResultsView} onDrillDown={setDrilled} />}
           {tab === "vitals" && <VitalsTab accent={HEALTH_ACCENT} composing={vitalsComposing} setComposing={setVitalsComposing} />}
-          {tab === "doctors" && <DoctorsTab api={api} accent={HEALTH_ACCENT} />}
+          {tab === "doctors" && <DoctorsTab api={api} accent={HEALTH_ACCENT} onDrillDown={setDrilled} />}
         </>
       )}
     </div>

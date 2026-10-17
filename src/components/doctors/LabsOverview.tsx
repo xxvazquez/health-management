@@ -1,7 +1,7 @@
 "use client";
 
 import { CHIP_CLS, CONTROL_CLS, CONTROL_STYLE, chipStyle } from "@/components/ui/Chip";
-import { ChevronIcon, UpDownChevronIcon } from "@/components/ui/icons";
+import { UpDownChevronIcon } from "@/components/ui/icons";
 import { useState, type ReactNode } from "react";
 import { useDrillDown } from "@/lib/useDrillDown";
 import { navTransition } from "@/lib/navTransition";
@@ -31,6 +31,7 @@ import { CustomIcon, customColorValue } from "@/components/ui/customIcons";
 import { DateRangeFilter, type DateRangePreset } from "@/components/ui/DateRangeFilter";
 import { TabRail } from "@/components/ui/TabRail";
 import { DetailPlaceholder, MedicalSplit, useIsDesktop } from "./MedicalSplit";
+import { DrillDownHeader, useReportDrillDown } from "@/components/ui/DrillDownHeader";
 
 const ACCENT = "var(--ui-accent)";
 
@@ -85,6 +86,7 @@ export function LabsOverview({
   onEditValue,
   nameLanguage = "pl",
   onNameLanguageChange,
+  onDrillDown,
 }: {
   labs: ReturnType<typeof useLabs>;
   /** Which language the panel and marker names are shown in (see labNames.ts). */
@@ -93,6 +95,8 @@ export function LabsOverview({
   onNewMarker?: () => void;
   onAddValue?: (markerId: string) => void;
   onEditValue?: (markerId: string, result: LabResult) => void;
+  /** Called with true while a marker fills the phone screen. */
+  onDrillDown?: (open: boolean) => void;
 }) {
   const [range, setRange] = useState<DateRange | null>(null);
   // "Latest": every marker's newest result, however old — the default view.
@@ -108,6 +112,7 @@ export function LabsOverview({
     requestAnimationFrame(() => window.scrollTo(0, listScroll));
   };
   useDrillDown(openId !== null && !desktop, backToList, "/medical");
+  useReportDrillDown(openId !== null && !desktop, onDrillDown);
 
   const today = todayLocalISODate();
   const allMarkers = labs.markers.data;
@@ -578,16 +583,13 @@ function MarkerDetailView({
 
   return (
     <div className="flex flex-col gap-4">
-      {onBack && (
-        <button type="button" onClick={onBack} className="-ml-1 flex min-h-11 items-center gap-0.5 self-start text-sm font-medium" style={{ color: ACCENT }}>
-          <ChevronIcon dir="left" size={16} />
-          Results
-        </button>
+      {onBack ? (
+        <DrillDownHeader back="Results" onBack={onBack} title={marker.name} accent={ACCENT} />
+      ) : (
+        <h2 className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>
+          {marker.name}
+        </h2>
       )}
-
-      <h2 className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>
-        {marker.name}
-      </h2>
 
       {ascending.length > 0 && (
         <TrendCard

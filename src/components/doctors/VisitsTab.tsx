@@ -4,6 +4,7 @@ import { TabRail } from "@/components/ui/TabRail";
 import { useMemo, useState } from "react";
 import { useDrillDown } from "@/lib/useDrillDown";
 import { navTransition } from "@/lib/navTransition";
+import { useReportDrillDown } from "@/components/ui/DrillDownHeader";
 import type { useDoctors } from "@/lib/useDoctors";
 import type { CareEntry, CareEntryKind } from "@/lib/supabase/careLog";
 import { resolveSpecialtyNames } from "@/lib/doctors";
@@ -55,11 +56,14 @@ export function VisitsTab({
   accent,
   add,
   setAdd,
+  onDrillDown,
 }: {
   api: DoctorsApi;
   accent: string;
   add: VisitsAddMode;
   setAdd: (mode: VisitsAddMode) => void;
+  /** Called with true while a note fills the screen. */
+  onDrillDown?: (open: boolean) => void;
 }) {
   const [editingEntry, setEditingEntry] = useState<CareEntry | null>(null);
   const [viewingId, setViewingId] = useState<string | null>(null);
@@ -88,6 +92,7 @@ export function VisitsTab({
   const shownEntries = filterSpecialty ? entries.filter((e) => e.specialtyIds.includes(filterSpecialty)) : entries;
   const viewing = viewingId ? (entries.find((e) => e.id === viewingId) ?? null) : null;
   useDrillDown(viewing !== null, () => setViewingId(null), "/medical");
+  useReportDrillDown(viewing !== null, onDrillDown);
   // The filter covers notes (tagged by id) and past visits (by the specialty name frozen on each).
   const specialtiesWithEntries = useMemo(() => {
     const ids = new Set(entries.flatMap((e) => e.specialtyIds));
