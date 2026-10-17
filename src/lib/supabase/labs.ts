@@ -85,12 +85,19 @@ function toResult(row: ResultRow): LabResult {
   return { id: row.id, markerId: row.marker_id, measuredOn: row.measured_on, value: num(row.value) ?? 0, lab: row.lab, note: row.note };
 }
 
+const SUPERSCRIPT: Record<string, string> = { "-": "⁻", "0": "⁰", "1": "¹", "2": "²", "3": "³", "4": "⁴", "5": "⁵", "6": "⁶", "7": "⁷", "8": "⁸", "9": "⁹" };
+
+/** A unit as printed on a lab report: "10^3/µL" reads "10³/µL". */
+export function displayUnit(unit: string | null): string | null {
+  return unit?.replace(/\^(-?\d+)/g, (_, exp: string) => [...exp].map((c) => SUPERSCRIPT[c]).join("")) ?? null;
+}
+
 function toMarker(row: MarkerRow): LabMarker {
   return {
     id: row.id,
     panelId: row.panel_id,
     name: row.name,
-    unit: row.unit,
+    unit: displayUnit(row.unit),
     refLow: num(row.ref_low),
     refHigh: num(row.ref_high),
     optimalLow: num(row.optimal_low),
