@@ -51,6 +51,9 @@ const MIN_VALUE_DAYS = 10;
 const MIN_CHECKIN_DAYS = 7;
 /** Fewest days symptom logging was active in each window. */
 const MIN_SYMPTOM_TRACKED_DAYS = 20;
+/** An item with no schedule counts as daily only once it was taken on at
+ * least this share of days in one window; below that it's taken as needed. */
+const AS_NEEDED_MAX_PCT = 50;
 
 export function highlightWindows(today: string): { now: DateRange; before: DateRange } {
   const end = addDaysToDate(today, -1);
@@ -207,6 +210,7 @@ export function computeHighlights(input: HighlightInput): Highlight[] {
       const now = scheduledAdherence(nowDates, done, schedule, today).pct;
       const before = scheduledAdherence(beforeDates, done, schedule, today).pct;
       if (now == null || before == null) continue;
+      if (!schedule && Math.max(now, before) < AS_NEEDED_MAX_PCT) continue;
       add(
         { id: `${type}:${s.item}`, section, title: `${s.item} · ${now > before ? "more" : "less"} often`, now: Math.round(now), before: Math.round(before), format: "percent", unit: "of planned days", scaleMax: 100, domain, tab },
         15,

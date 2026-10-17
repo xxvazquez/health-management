@@ -109,7 +109,7 @@ Highlights first, then one dashboard per Log section, plus Patterns. The time ra
 
 | Dashboard | Shows |
 |---|---|
-| Highlights | What changed most: the last 30 days (to yesterday) against the 30 before, as paired bars. Steps, training days, sleep, mood, energy, symptom days, supplement and habit consistency, food variety, hard or loose stools. Only days a section was logged count; small changes are left out; a card opens its dashboard |
+| Highlights | What changed most: the last 30 days (to yesterday) against the 30 before, as paired bars. Steps, training days, sleep, mood, energy, symptom days, supplement and habit consistency, food variety, hard or loose stools. Only days a section was logged count; small changes are left out, as are unscheduled items taken only now and then; a card opens its dashboard |
 | Food | Overview (meals a week against your food targets), Variety, Meal patterns, Combinations (including the combos you rate highest), Ingredients |
 | Patterns | Symptoms, hard or loose stools (Bristol 1–2 / 5–7), low mood and low energy (a check-in of 1–2) that show up more or less often after a food or supplement, or in a cycle phase, tested for chance; a link's sheet compares how strong the symptom was (1–3) with and without the trigger; Compare picks any symptom and trigger from searchable lists |
 | Supplements, Habits | A card per item with the days you logged it and consistency against its schedule; Sleep shades each day by hours slept and shows the typical band instead; archived ones list their course dates and consistency |

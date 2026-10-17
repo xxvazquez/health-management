@@ -76,6 +76,15 @@ describe("computeHighlights", () => {
     expect(weekly.some((h) => h.id === "supplement:Vitamin D")).toBe(false);
   });
 
+  it("leaves out an unscheduled item taken only now and then", () => {
+    const asNeeded = [
+      makeEvent({ date: beforeDays[0], item: "Antacid", itemType: "supplement", itemIdentity: "ac" }),
+      ...nowDays.filter((_, i) => i % 5 === 0).map((date) => makeEvent({ date, item: "Antacid", itemType: "supplement", itemIdentity: "ac" })),
+    ];
+    const result = computeHighlights(input({ events: [...dailyUse, ...asNeeded] }));
+    expect(result.some((h) => h.id === "supplement:Antacid")).toBe(false);
+  });
+
   it("averages mood over rated days", () => {
     const checkIns = [
       ...beforeDays.slice(0, 10).map((date) => ({ date, mood: 2, energy: null, note: "" })),
