@@ -9,6 +9,7 @@ import { useVisualViewportInsets } from "@/lib/useVisualViewport";
 
 // Open sheets, so page scrolling is locked until the last one closes.
 let scrollLocks = 0;
+let lockedAt: { y: number; href: string } | null = null;
 
 const DISMISS_DISTANCE = 110;
 const DISMISS_VELOCITY = 0.6;
@@ -102,9 +103,17 @@ export function Sheet({
   const viewport = useVisualViewportInsets();
 
   useEffect(() => {
-    if (scrollLocks++ === 0) document.body.style.overflow = "hidden";
+    if (scrollLocks++ === 0) {
+      document.body.style.overflow = "hidden";
+      lockedAt = { y: window.scrollY, href: location.href };
+    }
     return () => {
-      if (--scrollLocks === 0) document.body.style.overflow = "";
+      if (--scrollLocks > 0) return;
+      document.body.style.overflow = "";
+      // iOS still scrolls the page to bring a focused field above the
+      // keyboard; put it back unless the sheet navigated somewhere else.
+      if (lockedAt && lockedAt.href === location.href && window.scrollY !== lockedAt.y) window.scrollTo(0, lockedAt.y);
+      lockedAt = null;
     };
   }, []);
 
