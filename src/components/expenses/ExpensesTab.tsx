@@ -634,7 +634,9 @@ export function ExpensesTab({ isDemoData, accent }: { isDemoData: boolean; accen
             <ChevronIcon dir="right" size={15} />
           </button>
         </div>
-        <SearchField value={search} onChange={setSearch} placeholder="Search expenses…" className="order-last w-full sm:order-none sm:w-56" />
+        {data.expenses.length > 0 && (
+          <SearchField value={search} onChange={setSearch} placeholder="Search expenses…" className="order-last w-full sm:order-none sm:w-56" />
+        )}
         <div className="ml-auto">
           <PrimaryAction label="New expense" accent={accent} onClick={() => setEditing({ expense: null, quick: false })} />
         </div>
