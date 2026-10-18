@@ -522,8 +522,8 @@ export default function LogPage() {
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   // Food categories the user has opened past their most-used items.
   const [foodCategory, setFoodCategory] = useState("");
-  // Same idea as `foodCategory`, shared by every other tab's own category strip.
-  const [trackerCategory, setTrackerCategory] = useState("");
+  // Same idea as `foodCategory`, kept per tab so each opens on its own first category.
+  const [trackerCategory, setTrackerCategory] = useState<Partial<Record<ItemType, string>>>({});
   useEffect(() => {
     try {
       const raw = window.localStorage.getItem(EXPANDED_CATEGORIES_STORAGE_KEY);
@@ -2200,13 +2200,13 @@ export default function LogPage() {
   function renderTrackerByCategory(groups: { category: string; items: LogCandidate[] }[], renderItem: (c: LogCandidate) => ReactNode) {
     if (!tabConfig || groups.length === 0) return null;
     const type = tabConfig.type;
-    const active = groups.find((g) => g.category === trackerCategory) ?? groups[0];
+    const active = groups.find((g) => g.category === trackerCategory[type]) ?? groups[0];
     return renderCategoryBrowser({
       ariaLabel: `${tabConfig.label} category`,
       accent: TYPE_ACCENT[type],
       tabs: groups.map((g) => ({ id: g.category, label: g.category, icon: railIcon(type, g.category), logged: loggedIn(g.items) })),
       activeId: active.category,
-      onSelect: setTrackerCategory,
+      onSelect: (id) => setTrackerCategory((prev) => ({ ...prev, [type]: id })),
       body: renderItemList(active.items, renderItem),
     });
   }
