@@ -116,14 +116,30 @@ function reportStorageFailure(err: unknown): void {
   if (typeof DOMException === "undefined" || !(err instanceof DOMException)) return;
   const problem: StorageProblem | null =
     err.name === "QuotaExceededError" ? "full" : UNAVAILABLE_ERROR_NAMES.has(err.name) ? "unavailable" : null;
+  if (problem === "unavailable") dropConnection();
   if (problem) storageListeners.forEach((listener) => listener(problem));
 }
 
 let dbPromise: Promise<IDBPDatabase<HealthDbSchema>> | null = null;
 
+/** Forgets the open connection so the next call reopens it. WebKit (Safari,
+ * and every browser on iOS/iPadOS) can drop the connection while the app is
+ * in the background; without this every later read and write would keep
+ * failing on the dead one until a reload. */
+function dropConnection(): void {
+  const stale = dbPromise;
+  dbPromise = null;
+  stale?.then((db) => db.close()).catch(() => {});
+}
+
 function getDb(): Promise<IDBPDatabase<HealthDbSchema>> {
   if (!dbPromise) {
     dbPromise = openDB<HealthDbSchema>(DB_NAME, DB_VERSION, {
+      // The browser closed the connection itself (storage reset, WebKit
+      // dropping it in the background), or a newer version in another tab
+      // needs it closed.
+      terminated: dropConnection,
+      blocking: dropConnection,
       upgrade(db) {
         const rawDb = db as unknown as IDBDatabase;
         if (!db.objectStoreNames.contains("items")) {

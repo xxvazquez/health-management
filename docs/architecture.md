@@ -41,6 +41,7 @@ How Lauva stores, syncs and sends data. For the schema itself see [data-model.md
 | A direct write the server rejects (`directWrite.ts`) | The change is undone (every direct feature re-reads via `emitCloudRefresh`) and `StorageErrorBanner` says it couldn't be saved |
 | Refused login token (`PGRST301`–`303`) | Nothing. The drain refreshes the session once and resends |
 | IndexedDB rejects a save (out of space, blocked) | `StorageErrorBanner` warns that the last change may not be kept |
+| The browser drops the IndexedDB connection (WebKit in the background, storage reset) | The cached connection is discarded and the next read/write reopens it, instead of failing until a reload |
 
 ### Checks on read
 
