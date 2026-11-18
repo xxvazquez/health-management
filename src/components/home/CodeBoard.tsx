@@ -19,6 +19,9 @@ import { FormGroup } from "@/components/ui/FormGroup";
 import { ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
 import { AutoGrowTextarea } from "@/components/ui/AutoGrowTextarea";
 import { ChevronIcon, ClockIcon } from "@/components/ui/icons";
+import { TrashIcon } from "@/components/ui/Notebook";
+import { SWIPE_REVEAL_CLASS, useSwipeReveal } from "@/lib/useSwipeReveal";
+import clsx from "clsx";
 import type { HouseholdCode, NewHouseholdCodeInput } from "@/lib/supabase/household";
 
 type SortMode = "shop" | "expiry";
@@ -221,6 +224,7 @@ function sortCodes(codes: HouseholdCode[], sort: SortMode): HouseholdCode[] {
 function CodeItem({ code, accent, onOpen, onDelete }: { code: HouseholdCode; accent: string; onOpen: () => void; onDelete: () => void }) {
   const [copied, setCopied] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const { revealed, onTouchStart, onTouchEnd } = useSwipeReveal();
 
   async function handleCopy() {
     try {
@@ -246,7 +250,19 @@ function CodeItem({ code, accent, onOpen, onDelete }: { code: HouseholdCode; acc
   return (
     <ContextMenu items={menuItems}>
       {(bind, menuOpen) => (
-    <li {...bind} className="relative flex items-start gap-3 px-3.5 py-2.5" style={menuOpen ? CONTEXT_OPEN_STYLE : undefined}>
+    <li
+      {...bind}
+      className="group relative flex items-start gap-3 px-3.5 py-2.5"
+      style={{ touchAction: "pan-y", ...(menuOpen ? CONTEXT_OPEN_STYLE : {}) }}
+      onTouchStart={(e) => {
+        onTouchStart(e);
+        bind.onTouchStart(e);
+      }}
+      onTouchEnd={(e) => {
+        onTouchEnd(e);
+        bind.onTouchEnd();
+      }}
+    >
       <button type="button" onClick={onOpen} aria-label={`Edit ${code.name} code`} className="absolute inset-0" />
       <div className="pointer-events-none relative flex min-w-0 flex-1 flex-col gap-1">
         <span className="flex items-baseline justify-between gap-3">
@@ -277,8 +293,24 @@ function CodeItem({ code, accent, onOpen, onDelete }: { code: HouseholdCode; acc
           </p>
         )}
       </div>
-      <span className="pointer-events-none relative shrink-0 self-center" style={{ color: "var(--text-muted)" }}>
-        <ChevronIcon size={14} />
+      {/* Positioned so Delete sits above the row's full-size Edit button. */}
+      <span className="relative flex shrink-0 items-center gap-3 self-center">
+        <button
+          type="button"
+          onClick={() => setConfirmingDelete(true)}
+          aria-label={`Delete ${code.name} code`}
+          title="Delete"
+          className={clsx(
+            "tap-target notebook-danger -m-1 shrink-0 rounded-lg p-1.5 transition-colors hover:bg-[var(--page-plane)]",
+            revealed ? SWIPE_REVEAL_CLASS.shown : SWIPE_REVEAL_CLASS.hidden,
+          )}
+          style={{ color: "var(--text-muted)" }}
+        >
+          <TrashIcon size={15} />
+        </button>
+        <span className="pointer-events-none" style={{ color: "var(--text-muted)" }}>
+          <ChevronIcon size={14} />
+        </span>
       </span>
       {confirmingDelete && (
         <ConfirmDialog
