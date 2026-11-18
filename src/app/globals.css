@@ -606,6 +606,11 @@ html[data-keyboard] [data-app-footer] {
 html[data-keyboard] [data-tab-bar-clearance] {
   padding-bottom: 0;
 }
+/* A pinned bar's scroll edge (`useScrollEdge`): a hairline only while
+   content is scrolled underneath it, as in iOS 27. */
+[data-scroll-edge][data-stuck] {
+  box-shadow: 0 1px 0 var(--border-hairline);
+}
 /* An open Messages conversation fills the screen like iMessage — no footer. */
 html[data-conversation] [data-app-footer] {
   display: none;

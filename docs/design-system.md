@@ -50,12 +50,13 @@ One sans-serif family: SF Pro on Apple devices, Inter elsewhere (`--font-app`).
 |---|---|---|
 | Toolbar controls, buttons, chips | 10px | `.control-surface`: white, defined edge (`--control-edge`, 16% of the text colour), faint shadow |
 | Cards, grouped lists | 16px (`rounded-xl`) | White with a hairline border |
-| Popover menus | 12px | `.menu-surface`: white, hairline edge, deeper shadow |
+| Popover menus | 12px | `.menu-surface`: white, the same defined edge, deeper shadow |
 | Sheets | 20px | Grey plane; floats 8px in from the edges on phones |
 | Alerts | 20px | `.menu-surface` |
 
 - No full "pill" buttons. Controls and buttons stay at 10px
 - No grey filled boxes for search or controls
+- Pinned bars (sheet headers, the Trends switcher, the Journal editor's Save bar) are solid and show a hairline only while content scrolls under them (`useScrollEdge`, `lib/useScrollEdge.ts`)
 
 ---
 

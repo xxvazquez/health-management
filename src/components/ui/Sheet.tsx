@@ -6,6 +6,7 @@ import { ChevronIcon, CloseIcon } from "@/components/ui/icons";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { useDialogA11y } from "@/components/ui/useDialogA11y";
 import { useVisualViewportInsets } from "@/lib/useVisualViewport";
+import { useScrollEdge } from "@/lib/useScrollEdge";
 
 // Open sheets, so page scrolling is locked until the last one closes.
 let scrollLocks = 0;
@@ -101,6 +102,7 @@ export function Sheet({
   // Sized to the area the on-screen keyboard leaves visible, so the header
   // and the field being typed in stay on screen above it.
   const viewport = useVisualViewportInsets();
+  const headerEdge = useScrollEdge<HTMLDivElement>();
 
   useEffect(() => {
     if (scrollLocks++ === 0) {
@@ -183,6 +185,7 @@ export function Sheet({
         style={{ background: "var(--page-plane)" }}
       >
         <div
+          ref={headerEdge}
           className="sticky -top-4 z-10 -mx-4 -mt-4 flex flex-col gap-4 px-4 pt-4"
           style={{ touchAction: "none", background: "var(--page-plane)" }}
           onPointerDown={onDragStart}

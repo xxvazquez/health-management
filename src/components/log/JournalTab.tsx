@@ -24,6 +24,7 @@ import { DemoNotice } from "@/components/ui/DemoNotice";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { MoreMenu } from "@/components/ui/MoreMenu";
 import { useJournalLock } from "@/lib/journalLock";
+import { useScrollEdge } from "@/lib/useScrollEdge";
 
 function journalMonthLabel(date: string): string {
   return new Date(`${date}T00:00:00`).toLocaleDateString(undefined, { month: "long", year: "numeric" });
@@ -88,6 +89,7 @@ function JournalEntryForm({
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [confirmingDiscard, setConfirmingDiscard] = useState(false);
   const viewport = useVisualViewportInsets();
+  const headerEdge = useScrollEdge<HTMLDivElement>();
   const changed = date !== (editing?.date ?? defaultDate) || title !== (editing?.title ?? "") || body !== (editing?.body ?? "");
   useEffect(() => {
     try {
@@ -125,6 +127,7 @@ function JournalEntryForm({
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       {/* Pinned while writing, so Save stays in reach in a long entry. */}
       <div
+        ref={headerEdge}
         className="sticky z-10 -mx-4 -my-2 flex items-center justify-between gap-3 px-4.5 py-2 sm:-mx-6 sm:px-6.5 lg:mx-0 lg:px-0.5"
         style={{ background: "var(--page-backdrop)", top: `calc(env(safe-area-inset-top) + ${viewport.top}px)` }}
       >

@@ -17,6 +17,7 @@ import { PageHeading } from "@/components/ui/PageHeading";
 import { TrendsActionsSlot } from "@/components/analytics/TrendsActions";
 import { PageSkeleton } from "@/components/ui/Skeleton";
 import { useData } from "@/lib/DataContext";
+import { useScrollEdge } from "@/lib/useScrollEdge";
 
 /** One page for every analytics dashboard, switched by a Log-style tab bar
  * (`/analytics#food`) instead of one sidebar entry each. Highlights comes
@@ -56,6 +57,7 @@ export default function AnalyticsPage() {
   // hydration mismatch.
   const [tabId, setTabId] = useState<string>(TABS[0].id);
   const [actionsSlot, setActionsSlot] = useState<HTMLElement | null>(null);
+  const tabsEdge = useScrollEdge<HTMLDivElement>();
 
   useEffect(() => {
     const fromHash = () => {
@@ -109,16 +111,20 @@ export default function AnalyticsPage() {
           domain switcher stays reachable. On Food it isn't — Food's own
           section tabs take the sticky slot there instead (two stacked
           sticky bars would eat half a phone screen). Always sticky on `lg`. */}
-      <SegmentedTabs
-        ariaLabel="Trends dashboard"
-        items={visibleTabs.map((t) => ({ id: t.id, label: t.label, accent: t.accent }))}
-        activeId={active.id}
-        onSelect={selectTab}
+      <div
+        ref={tabsEdge}
         className={clsx(
           "-mx-4 bg-[var(--page-backdrop)] px-4 py-1.5 sm:-mx-6 sm:px-6 lg:sticky lg:top-0 lg:z-20 lg:-mx-8 lg:px-8",
           !active.hasSections && "sticky top-0 z-20",
         )}
-      />
+      >
+        <SegmentedTabs
+          ariaLabel="Trends dashboard"
+          items={visibleTabs.map((t) => ({ id: t.id, label: t.label, accent: t.accent }))}
+          activeId={active.id}
+          onSelect={selectTab}
+        />
+      </div>
 
       <TrendsActionsSlot.Provider value={actionsSlot}>
         <ActiveDashboard />
