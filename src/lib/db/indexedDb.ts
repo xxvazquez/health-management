@@ -132,6 +132,47 @@ function dropConnection(): void {
   stale?.then((db) => db.close()).catch(() => {});
 }
 
+/** WebKit reports a connection it has already lost this way on the next
+ * read or write ("…without an in-progress transaction"). */
+const DEAD_CONNECTION_ERROR_NAMES = new Set(["UnknownError", "InvalidStateError"]);
+
+function dropIfDead(err: unknown): void {
+  if (typeof DOMException !== "undefined" && err instanceof DOMException && DEAD_CONNECTION_ERROR_NAMES.has(err.name)) dropConnection();
+}
+
+/** Every request on the connection, reads included, drops it once it turns
+ * out to be dead, so the next call reopens instead of failing until a
+ * reload. Each transaction's `done` is observed too: idb's read shortcuts
+ * never await it, and an aborted one would otherwise surface as an
+ * unhandled rejection. Callers still see every error unchanged. */
+const SHORTCUT_METHOD = /^(get|getKey|getAll|getAllKeys|count|put|add|delete|clear)(FromIndex)?$/;
+
+function watchConnection(db: IDBPDatabase<HealthDbSchema>): IDBPDatabase<HealthDbSchema> {
+  return new Proxy(db, {
+    get(target, prop, receiver) {
+      const value = Reflect.get(target, prop, target);
+      if (typeof value !== "function") return value;
+      return (...args: unknown[]) => {
+        // idb's store shortcuts open their transaction through `this`, so
+        // they run against this proxy; everything else (native methods idb
+        // unwraps) runs against the real connection.
+        const result = value.apply(typeof prop === "string" && SHORTCUT_METHOD.test(prop) ? receiver : target, args);
+        if (prop === "transaction") {
+          (result as { done: Promise<void> }).done.catch(dropIfDead);
+          return result;
+        }
+        if (result instanceof Promise) {
+          return result.catch((err: unknown) => {
+            dropIfDead(err);
+            throw err;
+          });
+        }
+        return result;
+      };
+    },
+  });
+}
+
 function getDb(): Promise<IDBPDatabase<HealthDbSchema>> {
   if (!dbPromise) {
     dbPromise = openDB<HealthDbSchema>(DB_NAME, DB_VERSION, {
@@ -191,7 +232,7 @@ function getDb(): Promise<IDBPDatabase<HealthDbSchema>> {
           }
         }
       },
-    }).catch((err) => {
+    }).then(watchConnection, (err) => {
       // Don't cache a failed open — the next call gets a fresh attempt.
       dbPromise = null;
       reportStorageFailure(err);
@@ -976,6 +1017,15 @@ function snapshotKey(userId: string, feature: string): string {
  * instead of rendering from garbage. Safe: a snapshot is only a cache of what
  * Supabase already holds. */
 export async function readSnapshot(userId: string, feature: string): Promise<SnapshotRow | undefined> {
+  try {
+    return await readSnapshotRow(userId, feature);
+  } catch {
+    // Storage unavailable: no offline copy this time, the fetch still runs.
+    return undefined;
+  }
+}
+
+async function readSnapshotRow(userId: string, feature: string): Promise<SnapshotRow | undefined> {
   const db = await getDb();
   const key = snapshotKey(userId, feature);
   const row = await db.get("snapshots", key);
@@ -1004,16 +1054,21 @@ export async function discardSnapshot(userId: string, feature: string): Promise<
  * call happens to resolve — otherwise a slow fetch from one tab can land
  * after, and clobber, a newer write from another tab or from this same
  * hook's own later call. A write older than what's already stored is
- * dropped instead of overwriting it. */
+ * dropped instead of overwriting it. Best-effort: it's only the offline
+ * copy, so a write the browser refuses is skipped rather than thrown. */
 export async function writeSnapshot(userId: string, feature: string, payload: unknown, capturedAt: number = Date.now()): Promise<void> {
-  const db = await getDb();
-  const key = snapshotKey(userId, feature);
-  const tx = db.transaction("snapshots", "readwrite");
-  const existing = await tx.store.get(key);
-  if (!existing || existing.cachedAt <= capturedAt) {
-    await tx.store.put({ key, userId, payload, cachedAt: capturedAt });
+  try {
+    const db = await getDb();
+    const key = snapshotKey(userId, feature);
+    const tx = db.transaction("snapshots", "readwrite");
+    const existing = await tx.store.get(key);
+    if (!existing || existing.cachedAt <= capturedAt) {
+      await tx.store.put({ key, userId, payload, cachedAt: capturedAt });
+    }
+    await tx.done;
+  } catch {
+    // Storage unavailable; the next write tries again on a fresh connection.
   }
-  await tx.done;
 }
 
 /** Drops every snapshot for one user, or (no argument) all of them —

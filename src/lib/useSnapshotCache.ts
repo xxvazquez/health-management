@@ -55,7 +55,13 @@ export function useSnapshotCache<B>({ feature, tables, userId, isDemo, seeded, f
     const startedAt = Date.now();
     try {
       const fresh = await refs.current.fetcher();
-      if (await hasOutboxEntriesForTables(userId, tables)) return;
+      // A dropped local connection fails this check once and is reopened.
+      // If local storage can't be read at all, nothing can be queued in it
+      // either, so the fresh data is safe to show.
+      const pending = await hasOutboxEntriesForTables(userId, tables)
+        .catch(() => hasOutboxEntriesForTables(userId, tables))
+        .catch(() => false);
+      if (pending) return;
       refs.current.apply(fresh);
       await writeSnapshot(userId, feature, fresh, startedAt);
     } catch (err) {
