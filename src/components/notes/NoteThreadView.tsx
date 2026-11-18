@@ -7,6 +7,7 @@ import { formatNoteTimestamp, formatNoteTimestampShort } from "./NoteThreadList"
 import { AutoGrowTextarea } from "@/components/ui/AutoGrowTextarea";
 import { keepFieldFocus } from "@/components/ui/SearchField";
 import { useVisualViewportInsets } from "@/lib/useVisualViewport";
+import { useSoftKeyboardOpen } from "@/lib/useSoftKeyboard";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { TrashIcon } from "@/components/ui/Notebook";
 import { MoreMenu, type MoreMenuItem } from "@/components/ui/MoreMenu";
@@ -68,7 +69,14 @@ export function NoteThreadView({
   // With the iOS keyboard up the visible area scrolls inside the page, so
   // the header and reply bar pin to what's on screen, not the page edges.
   const viewport = useVisualViewportInsets();
-  const keyboardUp = viewport.bottom > 80;
+  const keyboardUp = useSoftKeyboardOpen();
+  // Like Messages: with the keyboard up the thread fills the screen, newest
+  // bubbles right above the reply bar, and opening it scrolls to them.
+  useEffect(() => {
+    if (!keyboardUp) return;
+    const frame = requestAnimationFrame(() => window.scrollTo({ top: document.documentElement.scrollHeight }));
+    return () => cancelAnimationFrame(frame);
+  }, [keyboardUp]);
   const [remindState, setRemindState] = useState<"idle" | "sending" | "sent" | "no-push" | "error">("idle");
 
   useEffect(() => {
@@ -220,12 +228,12 @@ export function NoteThreadView({
   ];
 
   return (
-    <div className="flex min-h-[calc(100dvh-13rem)] flex-col gap-4 lg:min-h-[calc(100dvh-10rem)]">
+    <div className="flex min-h-[calc(100dvh-13rem)] flex-col gap-4 lg:min-h-[calc(100dvh-10rem)]" style={keyboardUp ? { minHeight: "100dvh" } : undefined}>
       {/* Pinned like Messages' navigation bar, so Back and the title stay
           in reach in a long conversation; it clears the notch on a phone. */}
       <div
         className="sticky top-0 z-10 -mx-4 -mt-[env(safe-area-inset-top)] grid grid-cols-[1fr_minmax(0,auto)_1fr] items-center gap-2 px-4 pt-[calc(env(safe-area-inset-top)+0.5rem)] pb-2 sm:-mx-6 sm:px-6 lg:mx-0 lg:px-0"
-        style={{ background: "var(--page-backdrop)", borderBottom: "1px solid var(--border-hairline)", top: viewport.top || undefined }}
+        style={{ background: "var(--page-backdrop)", borderBottom: "1px solid var(--border-hairline)", top: viewport.top || undefined, marginBottom: keyboardUp ? "auto" : undefined }}
       >
         <button type="button" onClick={onBack} className="hit-slop justify-self-start text-sm font-medium" style={{ color: ACCENT }}>
           ‹ Back
@@ -323,7 +331,7 @@ export function NoteThreadView({
 
       <div
         className="sticky bottom-[calc(58px+env(safe-area-inset-bottom))] z-10 -mx-4 mt-auto flex flex-col gap-1 px-4 py-2 sm:-mx-6 sm:px-6 lg:bottom-0 lg:mx-0 lg:px-0 lg:pb-4"
-        style={{ background: "var(--page-backdrop)", bottom: keyboardUp ? viewport.bottom : undefined }}
+        style={{ background: "var(--page-backdrop)", bottom: keyboardUp ? viewport.bottom : undefined, marginTop: keyboardUp ? 0 : undefined }}
       >
         <form
           onSubmit={handleReply}

@@ -15,6 +15,7 @@ import { RegisterServiceWorker } from "@/components/RegisterServiceWorker";
 import { PushNotificationsAutoEnable } from "@/components/PushNotificationsAutoEnable";
 import { AppLoadingSplash } from "@/components/AppLoadingSplash";
 import { AppFooter } from "@/components/AppFooter";
+import { SoftKeyboardFlag } from "@/lib/useSoftKeyboard";
 import { ThemeManager } from "@/components/ThemeManager";
 import { MobileMenuProvider } from "@/components/MobileMenuProvider";
 
@@ -102,7 +103,7 @@ export default function RootLayout({
                   {/* pb-24 on mobile clears the fixed BottomNav so the
                       last list row is never tucked under it; desktop has
                       no fixed nav and drops back to pb-10. */}
-                  <div className="px-4 pt-5 pb-24 sm:px-6 sm:pt-6 lg:px-8 lg:pt-8 lg:pb-10">
+                  <div data-tab-bar-clearance className="px-4 pt-5 pb-24 sm:px-6 sm:pt-6 lg:px-8 lg:pt-8 lg:pb-10">
                     <ContentContainer>
                       {children}
                       <AppFooter />
@@ -110,6 +111,7 @@ export default function RootLayout({
                   </div>
                   <FloatingSyncStatus />
                   <BottomNav />
+                  <SoftKeyboardFlag />
                 </main>
               </MobileMenuProvider>
             </VisibleDomainsProvider>

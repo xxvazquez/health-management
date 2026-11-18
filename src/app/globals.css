@@ -596,6 +596,16 @@ select:focus-visible {
 [data-bottom-bar] {
   view-transition-name: tab-bar;
 }
+
+/* While the on-screen keyboard is up (`SoftKeyboardFlag`) the tab bar and
+   footer step aside, so what you are typing in sits right on the keyboard. */
+html[data-keyboard] [data-bottom-bar],
+html[data-keyboard] [data-app-footer] {
+  display: none;
+}
+html[data-keyboard] [data-tab-bar-clearance] {
+  padding-bottom: 0;
+}
 ::view-transition-old(root),
 ::view-transition-new(root),
 ::view-transition-group(nav-content),
