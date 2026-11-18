@@ -8,7 +8,9 @@ on:
 # Nightly off-site copy of the whole Supabase database (the free plan has
 # no downloadable backups). Uses Supabase's documented CLI dump: roles,
 # schema and data (auth users included), encrypted with a passphrase and
-# kept as a workflow artifact for 90 days.
+# uploaded to a "Lauva backups" folder in Google Drive (the newest 90 are
+# kept there). Only when the Drive upload fails is the file kept as a
+# workflow artifact instead, and the run is marked failed so it gets noticed.
 #
 # Secrets:
 #   SUPABASE_DB_URL     the Session pooler connection string (Supabase →
@@ -16,6 +18,10 @@ on:
 #                       IPv6-only and unreachable from GitHub's runners
 #   BACKUP_PASSPHRASE   a long random passphrase, kept somewhere safe —
 #                       a backup can't be opened without it
+#   GOOGLE_DRIVE_CLIENT_ID, GOOGLE_DRIVE_CLIENT_SECRET, GOOGLE_DRIVE_REFRESH_TOKEN
+#                       a Desktop-app OAuth client and its refresh token
+#                       (.github/scripts/drive-token.mjs makes one); left
+#                       unset, the backup falls back to the artifact
 #
 # The repo is public, so the artifact must never be uploaded unencrypted.
 
@@ -26,6 +32,10 @@ jobs:
   backup:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/scripts
+
       - uses: supabase/setup-cli@v1
         with:
           version: latest
@@ -51,9 +61,26 @@ jobs:
           rm -rf dump
           echo "BACKUP_NAME=$name" >> "$GITHUB_ENV"
 
-      - uses: actions/upload-artifact@v4
+      - name: Upload to Google Drive
+        id: drive
+        continue-on-error: true
+        env:
+          GOOGLE_DRIVE_CLIENT_ID: ${{ secrets.GOOGLE_DRIVE_CLIENT_ID }}
+          GOOGLE_DRIVE_CLIENT_SECRET: ${{ secrets.GOOGLE_DRIVE_CLIENT_SECRET }}
+          GOOGLE_DRIVE_REFRESH_TOKEN: ${{ secrets.GOOGLE_DRIVE_REFRESH_TOKEN }}
+        run: node .github/scripts/drive-upload.mjs "${{ env.BACKUP_NAME }}.tar.gz.gpg"
+
+      - name: Keep as an artifact instead
+        if: steps.drive.outputs.uploaded != 'true'
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ env.BACKUP_NAME }}
           path: ${{ env.BACKUP_NAME }}.tar.gz.gpg
           retention-days: 90
           if-no-files-found: error
+
+      - name: Fail if Drive didn't get it
+        if: steps.drive.outputs.uploaded != 'true'
+        run: |
+          echo "::error::The backup wasn't uploaded to Google Drive; it's kept as a workflow artifact for 90 days instead."
+          exit 1

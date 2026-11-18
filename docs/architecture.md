@@ -228,11 +228,14 @@ A static site can't run anything in the background, so Supabase's `pg_cron` / `p
 The Supabase project is on the Free plan, which has no downloadable backups, so `backup.yml` makes one every night at 02:30 UTC (or on demand from the Actions tab):
 
 - `supabase db dump` writes `roles.sql`, `schema.sql` and `data.sql` (auth users included)
-- The three are tarred and encrypted with `gpg` (AES-256, `BACKUP_PASSPHRASE`), then kept as an artifact named `lauva-db-<date>` for 90 days
+- The three are tarred and encrypted with `gpg` (AES-256, `BACKUP_PASSPHRASE`) into `lauva-db-<date>.tar.gz.gpg`
+- It's uploaded to a "Lauva backups" folder in Google Drive (`.github/scripts/drive-upload.mjs`), which keeps the newest 90
+- If that upload fails, the file is kept as a workflow artifact for 90 days instead and the run fails, so GitHub emails about it
 - Needs two secrets: `SUPABASE_DB_URL` (the Session pooler string — the direct host is IPv6-only) and `BACKUP_PASSPHRASE`
-- The repo is public, so the artifact is downloadable by anyone signed in to GitHub; only the passphrase protects it
+- The repo is public, so a fallback artifact is downloadable by anyone signed in to GitHub; only the passphrase protects it, which is why Drive is the normal home
+- The Drive copy needs `GOOGLE_DRIVE_CLIENT_ID`, `GOOGLE_DRIVE_CLIENT_SECRET` and `GOOGLE_DRIVE_REFRESH_TOKEN`: a Desktop-app OAuth client whose consent screen is "In production" (a "Testing" app's tokens expire in 7 days), with the token made once by `node .github/scripts/drive-token.mjs`. The `drive.file` scope only reaches files the script made
 
-To restore, download the artifact, then:
+To restore, download the file from Drive (or the fallback artifact), then:
 
 ```bash
 gpg -d lauva-db-<date>.tar.gz.gpg | tar -xz

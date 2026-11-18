@@ -295,7 +295,7 @@ Full detail: **[docs/architecture.md](docs/architecture.md)**.
 | Checks | `check.yml`: lint, typecheck, test and build on every push, plus an RLS test job against a throwaway Postgres |
 | App deploy | Push to `main` → `deploy.yml` → GitHub Pages at `lauva.pl`. **A push to `main` is a deploy.** |
 | Edge Functions | `deploy-functions.yml` runs when `supabase/functions/` changes, and syncs their secrets |
-| Database backup | `backup.yml` nightly: encrypted dump of the whole database, kept 90 days as a workflow artifact ([restoring](docs/architecture.md#database-backups)) |
+| Database backup | `backup.yml` nightly: encrypted dump of the whole database, uploaded to Google Drive (newest 90 kept), a workflow artifact only if that fails ([setup and restoring](docs/architecture.md#database-backups)) |
 | Version | Footer shows `v<major.minor>.<commit count>`, the commit hash and its date (hidden in an open Messages conversation) |
 
 ---
