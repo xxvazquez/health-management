@@ -124,7 +124,7 @@ export function AppointmentList({
         </Sheet>
       )}
       {editSheet}
-      <ul className="inset-rows flex flex-col rounded-xl border" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
+      <ul className="inset-rows flex flex-col rounded-xl border [--row-inset:0.875rem]" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
         {appointments.map((appt) => {
           const doctor = api.doctors.data.find((d) => d.id === appt.doctorId);
           const tasks = api.tasks.data.filter((t) => t.appointmentId === appt.id);

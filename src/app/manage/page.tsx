@@ -3673,7 +3673,7 @@ export default function ManagePage() {
               <h2 className="px-4 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
                 {group.title}
               </h2>
-              <div className={groupBox} style={groupBoxStyle}>
+              <div className={`${groupBox} [--row-inset:3.375rem]`} style={groupBoxStyle}>
                 {group.labels.filter(isShown).map((label) => sectionByLabel.get(label))}
                 {group.title === "App" && (
                   <Link href="/manage/nutrition-evidence" className="flex min-h-11 items-center gap-3 px-3.5">

@@ -194,7 +194,7 @@ function Chevron() {
 
 function GroupCard({ children }: { children: React.ReactNode }) {
   return (
-    <div className="overflow-hidden rounded-xl border" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
+    <div className="inset-rows overflow-hidden rounded-xl border [--row-inset:1rem]" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
       {children}
     </div>
   );
@@ -202,7 +202,7 @@ function GroupCard({ children }: { children: React.ReactNode }) {
 
 function GroupHeading({ children }: { children: React.ReactNode }) {
   return (
-    <h2 className="px-1 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
+    <h2 className="px-4 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
       {children}
     </h2>
   );
@@ -235,7 +235,7 @@ export default function HelpPage() {
               <GroupHeading>{group.title}</GroupHeading>
               <GroupCard>
                 {group.items.map((item) => (
-                  <div key={item.title} className="border-t px-4 py-3 first:border-t-0" style={{ borderColor: "var(--gridline)" }}>
+                  <div key={item.title} className="px-4 py-3">
                     <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
                       {item.title}
                     </p>
@@ -254,7 +254,7 @@ export default function HelpPage() {
             <GroupHeading>{group.title}</GroupHeading>
             <GroupCard>
               {group.items.map((item) => (
-                <details key={item.title} className="group border-t first:border-t-0" style={{ borderColor: "var(--gridline)" }}>
+                <details key={item.title} className="group">
                   <summary
                     className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-medium [&::-webkit-details-marker]:hidden"
                     style={{ color: "var(--text-primary)" }}
