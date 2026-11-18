@@ -48,7 +48,7 @@ One sans-serif family: SF Pro on Apple devices, Inter elsewhere (`--font-app`).
 
 | Element | Radius | Surface |
 |---|---|---|
-| Toolbar controls, buttons, chips | 10px | `.control-surface`: white, hairline edge, soft shadow |
+| Toolbar controls, buttons, chips | 10px | `.control-surface`: white, defined edge (`--control-edge`, 16% of the text colour), faint shadow |
 | Cards, grouped lists | 16px (`rounded-xl`) | White with a hairline border |
 | Popover menus | 12px | `.menu-surface`: white, hairline edge, deeper shadow |
 | Sheets | 20px | Grey plane; floats 8px in from the edges on phones |

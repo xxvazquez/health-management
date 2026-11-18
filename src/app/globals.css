@@ -46,10 +46,10 @@
      off the page plane so it reads on the page and on white cards. */
   --field-fill: color-mix(in oklab, var(--text-muted) 10%, var(--page-plane));
   /* Toolbar controls and segmented thumbs (`.control-surface`): a raised
-     white surface with a hairline edge and a soft drop. */
+     white surface defined by its edge, with only a faint drop. */
   --control-bg: var(--surface-1);
-  --control-edge: var(--border-hairline);
-  --control-shadow: 0 1px 3px rgba(31, 41, 51, 0.08);
+  --control-edge: color-mix(in oklab, var(--text-primary) 16%, transparent);
+  --control-shadow: 0 1px 2px rgba(31, 41, 51, 0.05);
   --control-highlight: rgba(255, 255, 255, 0.9);
   /* Popover menus and alerts float higher than a control. */
   --menu-shadow: 0 12px 32px -8px rgba(31, 41, 51, 0.22), 0 2px 6px rgba(31, 41, 51, 0.06);
@@ -173,7 +173,7 @@
   --baseline: color-mix(in oklab, var(--text-muted) 45%, var(--surface-1));
   --segment-track: color-mix(in oklab, black 22%, transparent);
   --control-bg: color-mix(in oklab, white 5%, var(--surface-1));
-  --control-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+  --control-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
   --control-highlight: rgba(255, 255, 255, 0.06);
   --menu-shadow: 0 12px 32px -8px rgba(0, 0, 0, 0.7), 0 2px 6px rgba(0, 0, 0, 0.35);
 
