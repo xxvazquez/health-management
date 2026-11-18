@@ -19,7 +19,6 @@ import { FormShell } from "@/components/ui/FormShell";
 import { AddMenu } from "@/components/ui/AddMenu";
 import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
 import { PencilIcon, TrashIcon } from "@/components/ui/Notebook";
-import { ChevronIcon } from "@/components/ui/icons";
 import { ROW_INLINE_CLS, ROW_STYLE, ROW_TEXT_CLS } from "@/components/ui/formField";
 import { FormGroup } from "@/components/ui/FormGroup";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -508,7 +507,6 @@ function AgendaRow({
         <Link href={e.href ?? "/medical"} className="flex min-w-0 flex-1 items-start gap-3 hover:opacity-80">
           {label}
           {whenEl}
-          <ChevronIcon dir="right" size={14} />
         </Link>
       ) : (
         <>
