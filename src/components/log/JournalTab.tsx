@@ -443,7 +443,7 @@ export function JournalTab({ isDemoData, accent }: { isDemoData: boolean; accent
     <div className="flex flex-col gap-3">
       {isDemoData && <DemoNotice />}
       <div className="flex items-center gap-2">
-        <SearchField value={search} onChange={setSearch} placeholder="Search entries…" className="min-w-0 flex-1 sm:w-64 sm:flex-none" />
+        <SearchField value={search} onChange={setSearch} placeholder="Search entries…" className="min-w-0 flex-1" />
         <button
           type="button"
           onClick={() => setOldestFirst((v) => !v)}
