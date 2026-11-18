@@ -59,6 +59,14 @@ Settings → "Your data" exports straight from Supabase (`src/lib/exportData.ts`
 - Signed-in only; includes messages you sent or received and household reminder checklists; sharing/push/import tokens are left out
 - `exportData.test.ts` fails if a table in `schema.sql` is neither exported nor on its short skip list, so a new table can't be forgotten
 
+### Weekly email export
+
+`weekly-export.yml` emails the same JSON every Sunday at 06:00 UTC (or on demand from the Actions tab):
+
+- `.github/scripts/weekly-export.mjs` reads the table list from `exportData.ts`, pulls your rows in one query over `SUPABASE_DB_URL`, zips the JSON and sends it through Resend
+- Nothing lands on GitHub: no artifact, and the log shows only row counts
+- Secrets: `SUPABASE_DB_URL` and `RESEND_API_KEY` (already set), plus `EXPORT_EMAIL` (your account's address, where it's sent) and optionally `EXPORT_FROM`. Without `EXPORT_FROM`, Resend's test sender only delivers to the Resend account's own address
+
 ### Restore
 
 "Restore from a backup" loads a JSON export back in (`src/lib/restoreData.ts`):

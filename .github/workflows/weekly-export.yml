@@ -1,0 +1,41 @@
+name: Weekly data export
+
+on:
+  schedule:
+    - cron: "0 6 * * 0"
+  workflow_dispatch: {}
+
+# Every Sunday morning, emails the account owner a zipped JSON export of
+# their data (the same bundle as Settings → Your data). Nothing is kept on
+# GitHub: the repo is public, so the export never becomes an artifact.
+#
+# Secrets:
+#   SUPABASE_DB_URL  the Session pooler connection string, shared with backup.yml
+#   RESEND_API_KEY   shared with deploy-functions.yml
+#   EXPORT_EMAIL     your account's email address; the export goes there
+#   EXPORT_FROM      optional sender; without it Resend's test sender is used,
+#                    which only delivers to the Resend account's own address
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            .github/scripts
+            src/lib/exportData.ts
+          sparse-checkout-cone-mode: false
+
+      - name: Email the export
+        env:
+          DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          EXPORT_EMAIL: ${{ secrets.EXPORT_EMAIL }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          EXPORT_FROM: ${{ secrets.EXPORT_FROM }}
+        run: |
+          command -v psql >/dev/null || sudo apt-get install -y -q postgresql-client
+          node .github/scripts/weekly-export.mjs
