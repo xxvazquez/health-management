@@ -65,7 +65,7 @@ import { POLAND_FOOD_CATALOG } from "@/taxonomy/polandFoodCatalog";
 import { BAND_OPTIONS, DURATION_DEFAULT_MINUTES, INPUT_KIND, activeBandValue, bandLabelForValue } from "@/taxonomy/inputKinds";
 import { DurationStepper } from "@/components/ui/DurationStepper";
 import { StoolTab, type NewStoolEntry, characteristicLabels } from "@/components/log/StoolTab";
-import { LastStoolCard, lastStoolOnOrBefore } from "@/components/log/LastStoolCard";
+import { LastStoolCard, bristolHeadline, lastStoolOnOrBefore } from "@/components/log/LastStoolCard";
 import { useStoolOptions } from "@/lib/useStoolOptions";
 import { WorkoutTab, WorkoutValueStepper, type NewWorkoutEntry } from "@/components/log/WorkoutTab";
 import { WorkoutPlanView } from "@/components/log/WorkoutPlanView";
@@ -1010,7 +1010,7 @@ export default function LogPage() {
   const combinedTimeline = useMemo(() => {
     const stoolAsTimeline: TimelineEntry[] = stoolEntriesForDate.map((s) => ({
       key: s.id,
-      item: `Bristol ${s.bristolScores.join(", ")}`,
+      item: bristolHeadline(s.bristolScores),
       itemType: "stool",
       itemIdentity: s.id,
       time: new Date(s.loggedAt).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }),

@@ -13,6 +13,7 @@ import { defaultLogTimeValue, toTimeInputValue } from "@/lib/logCandidates";
 import type { ResolvedStoolOptions } from "@/lib/useStoolOptions";
 import { HYGIENE_OPTIONS, type RawStoolLog, type HygieneOption } from "@/lib/types";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { bristolHeadline } from "@/components/log/LastStoolCard";
 
 const BRISTOL_SCORES = [1, 2, 3, 4, 5, 6, 7];
 
@@ -441,7 +442,7 @@ export function StoolTab({
                 </span>
                 <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                   <span className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
-                    {`Bristol ${entry.bristolScores.join(", ")}`}
+                    {bristolHeadline(entry.bristolScores)}
                     {entry.color && <span className="ml-1.5 font-normal" style={{ color: "var(--text-secondary)" }}>· {entry.color}</span>}
                     {entry.floatation && <span className="ml-1.5 font-normal" style={{ color: "var(--text-secondary)" }}>· {entry.floatation}</span>}
                   </span>
