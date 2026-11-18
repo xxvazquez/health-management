@@ -44,7 +44,7 @@ const GROUPS: { title: string; items: Entry[] }[] = [
         body: "In the sidebar (and the account menu). Choose the appearance — Light, Dark, or match your device (per device); add, rename, archive or hide the foods, exercises and products offered when logging; edit reminder lists, wishlist lists, the Vitals weight goal, lab markers and panels, doctor types, doctors and stool chips; set exercise units; choose which Log tabs and Trends dashboards appear; export your data. One search box filters every section at once.",
       },
       {
-        title: "My Drive",
+        title: "Google Drive",
         body: "A read-only browser for your own Google Drive, if you connect it. In the account menu.",
       },
     ],
