@@ -5,6 +5,7 @@ import clsx from "clsx";
 import { SWIPE_REVEAL_CLASS, useSwipeReveal } from "@/lib/useSwipeReveal";
 import { EyeIcon, EyeOffIcon, StarIcon } from "./icons";
 import { ErrorState, InlineEmpty } from "@/components/ui/EmptyState";
+import { ListSkeleton } from "@/components/ui/Skeleton";
 import { NOTE_CATEGORY_LABEL, type NoteThread, type NoteView } from "@/lib/supabase/notes";
 
 const ACCENT = "var(--series-magenta)";
@@ -208,13 +209,7 @@ export function NoteThreadList({
     }
   }
 
-  if (loading) {
-    return (
-      <p className="py-10 text-center text-sm" style={{ color: "var(--text-muted)" }}>
-        Loading…
-      </p>
-    );
-  }
+  if (loading) return <ListSkeleton />;
 
   if (error) {
     return <ErrorState what="your notes" />;
