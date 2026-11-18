@@ -2076,34 +2076,26 @@ export default function LogPage() {
           <span className="text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
             {logged.length > 0 ? `${meal} · ${logged.length}` : meal}
           </span>
-          {!isDemoData && (
+          {!isDemoData && logged.length > 0 && (
             <span className="flex items-center gap-4">
-              {logged.length > 0 ? (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => saveMealAsRecipe(meal, logged.map((c) => c.itemIdentity))}
-                    aria-haspopup="dialog"
-                    className="hit-slop text-sm font-medium whitespace-nowrap"
-                    style={{ color: accent }}
-                  >
-                    Save as recipe
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setCopyTarget({ meal: MEAL_OPTIONS.find((m) => m !== meal) ?? meal, date })}
-                    aria-haspopup="dialog"
-                    className="hit-slop text-sm font-medium whitespace-nowrap"
-                    style={{ color: accent }}
-                  >
-                    Copy to…
-                  </button>
-                </>
-              ) : (
-                <button type="button" onClick={() => setRecipesOpen({})} aria-haspopup="dialog" className="hit-slop text-sm font-medium whitespace-nowrap" style={{ color: accent }}>
-                  Recipes
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={() => saveMealAsRecipe(meal, logged.map((c) => c.itemIdentity))}
+                aria-haspopup="dialog"
+                className="hit-slop text-sm font-medium whitespace-nowrap"
+                style={{ color: accent }}
+              >
+                Save as recipe
+              </button>
+              <button
+                type="button"
+                onClick={() => setCopyTarget({ meal: MEAL_OPTIONS.find((m) => m !== meal) ?? meal, date })}
+                aria-haspopup="dialog"
+                className="hit-slop text-sm font-medium whitespace-nowrap"
+                style={{ color: accent }}
+              >
+                Copy to…
+              </button>
             </span>
           )}
         </div>

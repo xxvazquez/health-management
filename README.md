@@ -67,7 +67,7 @@ Sections: **Food · Symptoms · Supplements · Habits · Stool · Workout · Cyc
 
 #### Food
 
-- The current meal's foods sit above the list as removable chips ("Dinner · 3"); the row is always there, so the first food fills it in place. "Save as recipe" opens a new recipe with those foods filled in; "Copy to…" logs them under another meal or day. An empty meal shows "Recipes" there instead.
+- The current meal's foods sit above the list as removable chips ("Dinner · 3"); the row is always there, so the first food fills it in place. "Save as recipe" opens a new recipe with those foods filled in; "Copy to…" logs them under another meal or day.
 - **Usual:** what you log most at the chosen meal, most-logged first (the last 60 days count first).
 - **In season** (under Usual): this month's in-season foods you haven't eaten lately; tap to log, × to hide.
 - **Recipes** (a row under Usual, opens a sheet): tap one to log its foods (any already in that meal are skipped, so it never doubles up); ⓘ edits its foods, amounts (g, ml…), steps and rating, or shares it as text.
