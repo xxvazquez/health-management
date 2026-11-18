@@ -38,7 +38,6 @@ describe("export table list", () => {
       "push_subscriptions",
       "wishlist_share_tokens",
       "health_import_tokens",
-      "expense_import_tokens",
     ];
     const all = [...schema.matchAll(/^create table public\.([a-z_]+) \(/gm)].map((m) => m[1]);
     const exported = new Set([...entries.map((e) => e.table), ...RELATED]);

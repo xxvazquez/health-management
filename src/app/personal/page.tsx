@@ -11,7 +11,6 @@ import {
   wishlistShareEndpoint,
 } from "@/lib/supabase/wishlist";
 import { JournalTab } from "@/components/log/JournalTab";
-import { ExpensesTab } from "@/components/expenses/ExpensesTab";
 import { CodeBoard } from "@/components/home/CodeBoard";
 import { WishlistBoard } from "@/components/home/WishlistBoard";
 import { BoardPage, type BoardPageTab } from "@/components/ui/BoardPage";
@@ -22,12 +21,11 @@ import { DemoNotice } from "@/components/ui/DemoNotice";
 // just made moving between them feel like four apps.
 const NOTES_ACCENT = "var(--series-indigo)";
 
-type NotesTab = "journal" | "wishlist" | "codes" | "expenses";
+type NotesTab = "journal" | "wishlist" | "codes";
 const TABS: BoardPageTab[] = [
   { id: "journal", label: "Journal", accent: NOTES_ACCENT },
   { id: "wishlist", label: "Wishlist", accent: NOTES_ACCENT },
   { id: "codes", label: "Codes", accent: NOTES_ACCENT },
-  { id: "expenses", label: "Expenses", accent: NOTES_ACCENT },
 ];
 
 const TAB_STORAGE_KEY = "lauva-notes-tab";
@@ -47,7 +45,7 @@ function extractSharedUrl(url: string | null, text: string | null): string | nul
 
 /** The Notes area — the things you keep with no deadline. Journal is
  * private dated writing; Wishlist and Codes are shared lists that also
- * work solo; Expenses is your own spending by category. Reminders and product-expiry live on Agenda, organised by
+ * work solo. Reminders and product-expiry live on Agenda, organised by
  * *when*. Absorbs the old Household page (`/home` redirects here). */
 export default function NotesPage() {
   const keep = useKeepBoards();
@@ -141,8 +139,6 @@ export default function NotesPage() {
           />
         </div>
       )}
-
-      {tab === "expenses" && <ExpensesTab isDemoData={keep.isDemo} accent={NOTES_ACCENT} />}
 
       {tab === "codes" && (
         <CodeBoard

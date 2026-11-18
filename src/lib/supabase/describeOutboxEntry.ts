@@ -21,8 +21,6 @@ const TABLE_LABEL: Record<string, string> = {
   workout_plans: "Workout plan",
   period_logs: "Period entry",
   journal_entries: "Journal entry",
-  expenses: "Expense",
-  expense_categories: "Expense category",
   personal_items: "Expiring item",
   blood_pressure: "Blood pressure reading",
   weight_logs: "Weight reading",
@@ -74,8 +72,6 @@ export function describeOutboxEntry(entry: OutboxEntry, itemNames: Map<string, s
     const at = text(p.logged_at, 40);
     if (at) details.push(new Date(at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }));
   }
-
-  if (entry.table === "expenses" && typeof p.amount === "number") details.push(`${p.amount} ${text(p.currency, 3) ?? ""}`.trim());
 
   const title =
     text(p.name) ??

@@ -35,7 +35,7 @@ Five main areas, in the phone tab bar and the desktop sidebar. Messages appears 
 | **Agenda** | `/agenda` | One urgency-sorted list: reminders, expiring products, doctor follow-ups (tap one to open its visit), appointments; a switcher narrows it to Mine, Shared, Expiry (grouped Today → This week → … → Next year) or Medical; a ticked reminder stays for a moment so a second tap can undo it; a product is cleared as used up or thrown away from its sheet |
 | **Trends** | `/analytics` | A dashboard per Log domain, plus Patterns |
 | **Health** | `/medical` | Visits, lab Results, Vitals, Doctors |
-| **Notes** | `/personal` | Journal (an unsaved entry is kept on the device until saved or discarded; can be locked behind Face ID), Wishlist (search finds items across lists), shared discount Codes (one list; tap Copy, or the row to edit). A recipe, wishlist item or code can be shared from its sheet, Expenses |
+| **Notes** | `/personal` | Journal (an unsaved entry is kept on the device until saved or discarded; can be locked behind Face ID), Wishlist (search finds items across lists), shared discount Codes (one list; tap Copy, or the row to edit). A recipe, wishlist item or code can be shared from its sheet |
 | **Messages** | `/notes` | Private messages with a linked partner: Inbox, Sent, Favourites; reply to a specific message (long-press, or ↩ on hover) and it's quoted in your bubble; a conversation's ⋯ menu reminds your partner about a message they haven't read, or deletes it for both after a confirmation |
 
 Secondary pages:
@@ -126,15 +126,6 @@ Highlights first, then one dashboard per Log section, plus Patterns. The time ra
 | Vitals | Blood pressure (low readings marked, ACC/AHA categories) and weight, in the same trend card as Results; optional weight-goal band. Readings can come in from Apple Health |
 | Doctors | Read-only directory; editing is in Settings. Each doctor has a Visit summary (`/medical/summary/?doctor=<id>`): symptoms, blood results, vitals, supplements, that specialty's notes, open follow-ups and visits over 3, 6 or 12 months, ready to print or save as a PDF |
 
-### Expenses
-
-Notes → Expenses is a monthly spending report by category.
-
-- **Card payments:** an iOS Shortcut sends every Apple Pay payment with the Revolut card as it happens (Settings → Expenses → Card payments). Online payments and transfers are added with the + button.
-- **Categories:** a payment takes the category its shop had last time; anything new waits under **To categorise**. Filing one also files that shop's other waiting payments.
-- **Splits:** each payment keeps what was charged plus your share (All mine / Half / Custom). Totals count your share only.
-- **Report:** month stepper, total spent, a bar per category (tap one to list just those payments), payments by day. Currencies are totalled separately.
-
 ### Settings
 
 A grouped list where each row opens its own screen. Everything editable in the app lives here.
@@ -143,7 +134,7 @@ A grouped list where each row opens its own screen. Everything editable in the a
 |---|---|
 | Tracking | Add, rename, archive or delete items and categories. Edit products, coffees and the Stool and Coffee option chips (Stool options also turns on the Summary's last bowel movement). Set food targets. Build workout plans |
 | Health | Doctors, doctor types, lab markers and panels, the weight goal |
-| Lists | Reminder lists, wishlist lists, expense categories and the card-payments Shortcut |
+| Lists | Reminder lists and wishlist lists |
 | App | Appearance, visible sections, usual meal times, Journal lock, data export and restore |
 
 - **Order:** drag ≡ to reorder categories, sections, lists, doctor types, lab panels and option chips. Orders sync to every device.
