@@ -410,7 +410,7 @@ export function FoodDashboard() {
       </PageSection>
       </div>
 
-      <div className="mt-8 border-t pt-6" style={{ borderColor: "var(--gridline)" }}>
+      <div className="mt-6">
         <Methodology>
           Suggestions combine your logged intake with research-informed evidence, weighted by how well-established
           that evidence is and how well-covered the food group already is in what you&apos;ve logged. Eating an
