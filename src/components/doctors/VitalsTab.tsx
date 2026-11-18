@@ -440,7 +440,7 @@ export function VitalsTab({ accent, composing, setComposing }: { accent: string;
         vitals.bp.data.length === 0 ? (
           <InlineEmpty
             title="No blood-pressure readings yet"
-            description="Add a reading — systolic, diastolic, optionally pulse — and the trend and category build up over time."
+            description="Tap + to add one. Your trend builds up from there."
           />
         ) : (
           <>
@@ -513,7 +513,7 @@ export function VitalsTab({ accent, composing, setComposing }: { accent: string;
           </>
         )
       ) : vitals.weight.data.length === 0 ? (
-        <InlineEmpty title="No weigh-ins yet" description="Add a weight and the trend line builds up over time." />
+        <InlineEmpty title="No weigh-ins yet" description="Tap + to add one. Your trend builds up from there." />
       ) : (
         <>
           {trendCard(
