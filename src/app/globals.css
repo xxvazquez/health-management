@@ -606,6 +606,10 @@ html[data-keyboard] [data-app-footer] {
 html[data-keyboard] [data-tab-bar-clearance] {
   padding-bottom: 0;
 }
+/* An open Messages conversation fills the screen like iMessage — no footer. */
+html[data-conversation] [data-app-footer] {
+  display: none;
+}
 ::view-transition-old(root),
 ::view-transition-new(root),
 ::view-transition-group(nav-content),

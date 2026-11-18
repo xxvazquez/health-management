@@ -328,13 +328,16 @@ export default function NotesPage() {
 
     return (
       <div className="flex flex-col gap-4">
-        <NotesHeader
-          onCompose={() => setComposeOpen(true)}
-          onMarkAllRead={() => void demoMarkAllRead()}
-          hasUnread={demoThreads.some((t) => t.isUnreadForMe)}
-          showActions={!selectedDemoThread}
-        />
-        <DemoNotice />
+        {!selectedDemoThread && (
+          <>
+            <NotesHeader
+              onCompose={() => setComposeOpen(true)}
+              onMarkAllRead={() => void demoMarkAllRead()}
+              hasUnread={demoThreads.some((t) => t.isUnreadForMe)}
+            />
+            <DemoNotice />
+          </>
+        )}
 
         {selectedDemoThread ? (
           <NoteThreadView
@@ -392,12 +395,13 @@ export default function NotesPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <NotesHeader
-        onCompose={() => setComposeOpen(true)}
-        onMarkAllRead={() => void handleMarkAllRead()}
-        hasUnread={threads.some((t) => t.isUnreadForMe)}
-        showActions={!selectedThread}
-      />
+      {!selectedThread && (
+        <NotesHeader
+          onCompose={() => setComposeOpen(true)}
+          onMarkAllRead={() => void handleMarkAllRead()}
+          hasUnread={threads.some((t) => t.isUnreadForMe)}
+        />
+      )}
 
       {selectedThread ? (
         <NoteThreadView
@@ -447,24 +451,19 @@ function NotesHeader({
   onCompose,
   onMarkAllRead,
   hasUnread,
-  showActions = true,
 }: {
   onCompose: () => void;
   onMarkAllRead: () => void;
   /** "Mark all as read" only shows when something is unread, as in Mail. */
   hasUnread: boolean;
-  /** Off while a message is open — its own actions live in the message. */
-  showActions?: boolean;
 }) {
   return (
     <PageHeading
       actions={
-        showActions && (
-          <div className="flex shrink-0 items-center gap-2">
-            <PrimaryAction label="New message" round accent={ACCENT} onClick={onCompose} />
-            {hasUnread && <MoreMenu label="Message actions" items={[{ label: "Mark all as read", onClick: onMarkAllRead }]} />}
-          </div>
-        )
+        <div className="flex shrink-0 items-center gap-2">
+          <PrimaryAction label="New message" round accent={ACCENT} onClick={onCompose} />
+          {hasUnread && <MoreMenu label="Message actions" items={[{ label: "Mark all as read", onClick: onMarkAllRead }]} />}
+        </div>
       }
     >
       Messages

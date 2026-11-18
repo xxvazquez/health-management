@@ -123,7 +123,7 @@ One sans-serif family: SF Pro on Apple devices, Inter elsewhere (`--font-app`).
 - **Trends pages** are built from `analytics/TrendList.tsx`: `TrendGroup` (captioned inset card of rows), `TrendRow` (name left, one value right, optional thin bar under, chevron when it opens something), `SplitStatCard` (one card split into equal stat halves), `ComparisonRow` + `ComparisonKey` (previous period grey, now coloured, each with its count) and `ShowAllRow` (lists trim to 3 with "Show all N"). No prose summaries, no pills, no status words; bar colours come from the numbers shown (`--status-good` on target, `--status-warning` close, `--status-serious` well short)
 - **Metadata** (kind, specialty, "shared") is plain text, not a badge
 - **Row actions** (favourite, read/unread, edit, delete) sit behind a left swipe on a phone and appear on hover from `lg` (`useSwipeReveal`), not as icons on every row
-- **Conversations** (Messages) follow iMessage: received bubbles left, yours right, a centred time over each burst, and the reply bar pinned to the bottom above the tab bar
+- **Conversations** (Messages) follow iMessage: received bubbles left, yours right, a centred time over each burst, and the reply bar pinned to the bottom above the tab bar. An open conversation fills the screen: the page title and footer step aside (`html[data-conversation]`) and it opens on the newest bubble
 
 ---
 

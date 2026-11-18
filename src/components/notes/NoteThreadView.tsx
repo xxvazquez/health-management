@@ -66,6 +66,8 @@ export function NoteThreadView({
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const [highlighted, setHighlighted] = useState<string | null>(null);
   const replyFieldRef = useRef<HTMLTextAreaElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const replyBarRef = useRef<HTMLDivElement>(null);
   // With the iOS keyboard up the visible area scrolls inside the page, so
   // the header and reply bar pin to what's on screen, not the page edges.
   const viewport = useVisualViewportInsets();
@@ -77,6 +79,10 @@ export function NoteThreadView({
     const frame = requestAnimationFrame(() => window.scrollTo({ top: document.documentElement.scrollHeight }));
     return () => cancelAnimationFrame(frame);
   }, [keyboardUp]);
+  useEffect(() => {
+    document.documentElement.setAttribute("data-conversation", "");
+    return () => document.documentElement.removeAttribute("data-conversation");
+  }, []);
   const [remindState, setRemindState] = useState<"idle" | "sending" | "sent" | "no-push" | "error">("idle");
 
   useEffect(() => {
@@ -124,11 +130,18 @@ export function NoteThreadView({
       shownCount.current = null;
       return;
     }
+    // The newest bubble sits right above the pinned reply bar — the end of
+    // the conversation, not the end of the page (the footer stays below).
+    const root = rootRef.current;
+    const bar = replyBarRef.current;
+    const end = root && bar
+      ? root.getBoundingClientRect().bottom + window.scrollY - window.innerHeight + (parseFloat(getComputedStyle(bar).bottom) || 0)
+      : document.documentElement.scrollHeight;
     const first = shownCount.current === null;
-    const nearBottom = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 240;
+    const nearBottom = window.scrollY >= end - 240;
     const grew = !first && messages.length > (shownCount.current ?? 0) && (messages[messages.length - 1].isMine || nearBottom);
     shownCount.current = messages.length;
-    if (first || grew) window.scrollTo({ top: document.documentElement.scrollHeight, behavior: first ? "auto" : "smooth" });
+    if (first || grew) window.scrollTo({ top: end, behavior: first ? "auto" : "smooth" });
   }, [messages]);
 
   async function handleReply(e: FormEvent) {
@@ -228,7 +241,7 @@ export function NoteThreadView({
   ];
 
   return (
-    <div className="flex min-h-[calc(100dvh-13rem)] flex-col gap-4 lg:min-h-[calc(100dvh-10rem)]" style={keyboardUp ? { minHeight: "100dvh" } : undefined}>
+    <div ref={rootRef} className="flex min-h-[calc(100dvh-58px-env(safe-area-inset-bottom))] flex-col gap-4 lg:min-h-[calc(100dvh-4rem)]" style={keyboardUp ? { minHeight: "100dvh" } : undefined}>
       {/* Pinned like Messages' navigation bar, so Back and the title stay
           in reach in a long conversation; it clears the notch on a phone. */}
       <div
@@ -330,6 +343,7 @@ export function NoteThreadView({
       )}
 
       <div
+        ref={replyBarRef}
         className="sticky bottom-[calc(58px+env(safe-area-inset-bottom))] z-10 -mx-4 mt-auto flex flex-col gap-1 px-4 py-2 sm:-mx-6 sm:px-6 lg:bottom-0 lg:mx-0 lg:px-0 lg:pb-4"
         style={{ background: "var(--page-backdrop)", bottom: keyboardUp ? viewport.bottom : undefined, marginTop: keyboardUp ? 0 : undefined }}
       >

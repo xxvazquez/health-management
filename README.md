@@ -296,7 +296,7 @@ Full detail: **[docs/architecture.md](docs/architecture.md)**.
 | App deploy | Push to `main` → `deploy.yml` → GitHub Pages at `lauva.pl`. **A push to `main` is a deploy.** |
 | Edge Functions | `deploy-functions.yml` runs when `supabase/functions/` changes, and syncs their secrets |
 | Database backup | `backup.yml` nightly: encrypted dump of the whole database, kept 90 days as a workflow artifact ([restoring](docs/architecture.md#database-backups)) |
-| Version | Footer shows `v<major.minor>.<commit count>`, the commit hash and its date |
+| Version | Footer shows `v<major.minor>.<commit count>`, the commit hash and its date (hidden in an open Messages conversation) |
 
 ---
 
