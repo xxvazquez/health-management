@@ -5,6 +5,58 @@ import { useEffect, useLayoutEffect, useRef, type Ref, type TextareaHTMLAttribut
 /** Gap kept between the caret line and the bottom of whatever is scrolling. */
 const CARET_MARGIN = 24;
 
+/** Styles that decide how text wraps and how tall it ends up. */
+const MEASURED_STYLES = [
+  "box-sizing",
+  "width",
+  "padding-top",
+  "padding-right",
+  "padding-bottom",
+  "padding-left",
+  "border-top-width",
+  "border-right-width",
+  "border-bottom-width",
+  "border-left-width",
+  "border-style",
+  "font-family",
+  "font-size",
+  "font-weight",
+  "font-style",
+  "font-variant",
+  "font-stretch",
+  "letter-spacing",
+  "word-spacing",
+  "line-height",
+  "text-indent",
+  "text-transform",
+  "text-wrap",
+  "white-space",
+  "word-break",
+  "overflow-wrap",
+  "tab-size",
+];
+
+let measurer: HTMLTextAreaElement | null = null;
+
+/** Height of `el`'s text at its current width, measured on an off-screen
+ * copy so the field itself never collapses while typing — collapsing it
+ * shortens the page for a moment, and iOS answers that by scrolling. */
+function contentHeight(el: HTMLTextAreaElement, cs: CSSStyleDeclaration): number {
+  if (!measurer) {
+    measurer = document.createElement("textarea");
+    measurer.setAttribute("aria-hidden", "true");
+    measurer.tabIndex = -1;
+    measurer.readOnly = true;
+    document.body.appendChild(measurer);
+  }
+  let css = "position:absolute;top:0;left:-9999px;visibility:hidden;pointer-events:none;overflow:hidden;height:0;min-height:0;max-height:none;";
+  for (const prop of MEASURED_STYLES) css += `${prop}:${cs.getPropertyValue(prop)};`;
+  measurer.style.cssText = css;
+  measurer.value = el.value;
+  // scrollHeight includes padding but not border
+  return measurer.scrollHeight + parseFloat(cs.borderTopWidth) + parseFloat(cs.borderBottomWidth);
+}
+
 function scrollParent(el: HTMLElement): HTMLElement | null {
   for (let p = el.parentElement; p; p = p.parentElement) {
     const { overflowY } = getComputedStyle(p);
@@ -39,22 +91,14 @@ export function AutoGrowTextarea({
       parseFloat(cs.borderBottomWidth);
     const minHeight = lineHeight * rows + frame;
     const maxHeight = lineHeight * maxRows + frame;
-    // Collapsing to "auto" to measure briefly shortens the page, which
-    // clamps any scroll position near the bottom — put it back afterwards
-    // so the page doesn't jump while typing.
-    const scrolled: [Element, number][] = [];
-    for (let p = el.parentElement; p; p = p.parentElement) if (p.scrollTop > 0) scrolled.push([p, p.scrollTop]);
-    const pageY = window.scrollY;
-    el.style.height = "auto";
-    // scrollHeight includes padding but not border
-    const contentHeight = el.scrollHeight + parseFloat(cs.borderTopWidth) + parseFloat(cs.borderBottomWidth);
-    el.style.height = `${Math.max(minHeight, Math.min(contentHeight, maxHeight))}px`;
-    el.style.overflowY = contentHeight > maxHeight ? "auto" : "hidden";
+    const needed = Math.ceil(contentHeight(el, cs));
+    const height = `${Math.max(minHeight, Math.min(needed, maxHeight))}px`;
+    const overflowY = needed > maxHeight ? "auto" : "hidden";
+    if (el.style.height !== height) el.style.height = height;
+    if (el.style.overflowY !== overflowY) el.style.overflowY = overflowY;
     // A sub-pixel line height can leave the text nudged up inside a field
     // that shows everything; keep its first line where it belongs.
-    if (contentHeight <= maxHeight) el.scrollTop = 0;
-    for (const [p, top] of scrolled) if (p.scrollTop !== top) p.scrollTop = top;
-    if (window.scrollY !== pageY) window.scrollTo(window.scrollX, pageY);
+    if (overflowY === "hidden" && el.scrollTop !== 0) el.scrollTop = 0;
   }
 
   useLayoutEffect(() => {
