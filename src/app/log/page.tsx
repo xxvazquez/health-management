@@ -2290,17 +2290,14 @@ export default function LogPage() {
           ? renderTrackerByCategory(plainGroups, (c) => (tab === "outcome" ? renderSymptomRow(c, accent) : renderHabitRow(c, accent)))
           : renderCategoryCards(plainGroups, (c) => (tab === "outcome" ? renderSymptomRow(c, accent) : renderHabitRow(c, accent)))}
         {measureItems.length > 0 && (
-          <div className={box} style={boxStyle}>
-            <div className="flex min-h-11 items-center gap-3 px-3.5 text-sm" style={{ color: "var(--text-primary)" }}>
+          <section className="flex flex-col gap-1.5">
+            <h3 className="px-3.5 text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--text-muted)" }}>
               Measures
-              <span className="ml-auto" style={{ color: "var(--text-muted)" }}>
-                {measureItems.length}
-              </span>
-            </div>
-            <ul className="inset-rows border-t" style={{ borderColor: "var(--gridline)" }}>
+            </h3>
+            <ul className={box} style={boxStyle}>
               {measureItems.map((c) => renderMeasureRow(c, accent))}
             </ul>
-          </div>
+          </section>
         )}
       </div>
     );
