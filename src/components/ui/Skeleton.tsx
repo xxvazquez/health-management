@@ -35,9 +35,9 @@ export function PageSkeleton({ cards = 3 }: { cards?: number }) {
  * cards would double up. */
 export function ListSkeleton({ rows = 4 }: { rows?: number }) {
   return (
-    <div className="flex flex-col gap-3.5 py-3" aria-hidden="true">
+    <div className="flex flex-col gap-3.5 py-3" role="status" aria-label="Loading">
       {Array.from({ length: rows }).map((_, i) => (
-        <div key={i} className="flex items-start gap-3">
+        <div key={i} className="flex items-start gap-3" aria-hidden="true">
           <Skeleton className="mt-0.5 h-4 w-4 shrink-0 rounded-full" />
           <div className="flex flex-1 flex-col gap-1.5">
             <Skeleton className="h-3.5 w-2/5" />

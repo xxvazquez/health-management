@@ -1,5 +1,6 @@
 "use client";
 
+import { ListSkeleton } from "@/components/ui/Skeleton";
 import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import { NOTE_CATEGORY_LABEL, type NoteMessage, type NoteThread } from "@/lib/supabase/notes";
 import { CategoryIcon, EyeOffIcon, StarIcon } from "./icons";
@@ -285,9 +286,7 @@ export function NoteThreadView({
       )}
 
       {messages === null && !loadError && (
-        <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-          Loading…
-        </p>
+        <ListSkeleton rows={3} />
       )}
       {loadError && (
         <p className="text-sm" style={{ color: "var(--status-critical)" }}>

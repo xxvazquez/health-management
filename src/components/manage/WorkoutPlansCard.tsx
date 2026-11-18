@@ -1,5 +1,6 @@
 "use client";
 
+import { ListSkeleton } from "@/components/ui/Skeleton";
 import { RowMenu } from "@/components/ui/RowMenu";
 import { useEffect, useId, useMemo, useState, type ReactNode } from "react";
 import { useToday } from "@/lib/useToday";
@@ -604,9 +605,9 @@ export function WorkoutPlansCard({ isDemoData, searchQuery, workoutItems }: { is
           onDelete={editing.isNew ? undefined : () => void handleDelete(editing.id)}
         />
       ) : loading ? (
-        <p className="px-4 py-2 text-sm" style={{ color: "var(--text-muted)" }}>
-          Loading…
-        </p>
+        <div className="px-4">
+          <ListSkeleton rows={3} />
+        </div>
       ) : (
         <>
           <div className={GROUP_CLS} style={GROUP_STYLE}>

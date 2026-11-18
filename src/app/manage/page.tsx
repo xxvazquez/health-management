@@ -6,7 +6,7 @@ import { flushSync } from "react-dom";
 import { useData } from "@/lib/DataContext";
 import { useVisibleDomains, DOMAIN_LABELS, type TrackedDomain } from "@/lib/visibleDomains";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { PageSkeleton } from "@/components/ui/Skeleton";
+import { ListSkeleton, PageSkeleton } from "@/components/ui/Skeleton";
 import { SearchField } from "@/components/ui/SearchField";
 import { ChevronIcon, CloseIcon, GripIcon, PlusIcon } from "@/components/ui/icons";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -379,9 +379,7 @@ function WishlistListsCard({ isDemoData, searchQuery }: { isDemoData: boolean; s
       bare
     >
       {loading ? (
-        <p className="py-3 text-xs" style={{ color: "var(--text-muted)" }}>
-          Loading…
-        </p>
+        <ListSkeleton rows={3} />
       ) : (
         <ul className={GROUP_CLS} style={GROUP_STYLE}>
           {!isSearching && lists.length === 0 && (
@@ -474,9 +472,9 @@ function WeightGoalCard({ isDemoData, searchQuery }: { isDemoData: boolean; sear
       bare
     >
       {loading ? (
-        <p className="px-4 py-2 text-sm" style={{ color: "var(--text-muted)" }}>
-          Loading…
-        </p>
+        <div className="px-4">
+          <ListSkeleton rows={3} />
+        </div>
       ) : editing ? (
         <div className={GROUP_CLS} style={GROUP_STYLE}>
           <label className="flex min-h-11 items-center gap-3 px-3.5">
@@ -588,9 +586,7 @@ function LabResultsCard({ searchQuery }: { searchQuery: string }) {
       bare
     >
       {labs.loading ? (
-        <p className="py-3 text-xs" style={{ color: "var(--text-muted)" }}>
-          Loading…
-        </p>
+        <ListSkeleton rows={3} />
       ) : labs.error ? (
         <p className="py-3 text-xs" style={{ color: "var(--status-critical)" }}>
           Couldn&apos;t load your results.
@@ -812,9 +808,7 @@ function ReminderListsCard({ isDemoData, searchQuery }: { isDemoData: boolean; s
       </FormGroup>
 
       {loading ? (
-        <p className="py-3 text-xs" style={{ color: "var(--text-muted)" }}>
-          Loading…
-        </p>
+        <ListSkeleton rows={3} />
       ) : (
         <ul className={GROUP_CLS} style={GROUP_STYLE}>
           {!isSearching && lists.length === 0 && (
@@ -1037,9 +1031,7 @@ function DoctorSpecialtiesCard({ isDemoData, searchQuery }: { isDemoData: boolea
       {saveFailed && <SaveFailedNote />}
 
       {loading ? (
-        <p className="py-3 text-xs" style={{ color: "var(--text-muted)" }}>
-          Loading…
-        </p>
+        <ListSkeleton rows={3} />
       ) : (
         <>
           <ul className={GROUP_CLS} style={GROUP_STYLE}>
@@ -1338,9 +1330,7 @@ function StoolOptionsCard({ isDemoData, searchQuery }: { isDemoData: boolean; se
         </div>
       )}
       {loading ? (
-        <p className="py-3 text-xs" style={{ color: "var(--text-muted)" }}>
-          Loading…
-        </p>
+        <ListSkeleton rows={3} />
       ) : (
         <div className="flex flex-col gap-5">
           {STOOL_OPTION_KINDS.map(({ kind, title, placeholder }) => {
@@ -1578,9 +1568,7 @@ function CoffeeCard({ isDemoData, searchQuery }: { isDemoData: boolean; searchQu
       </label>
 
       {loading ? (
-        <p className="py-3 text-xs" style={{ color: "var(--text-muted)" }}>
-          Loading…
-        </p>
+        <ListSkeleton rows={3} />
       ) : (
         <div className="flex flex-col gap-5">
           {COFFEE_OPTION_KINDS.map(({ kind, title, placeholder }) => {

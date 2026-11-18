@@ -1,5 +1,6 @@
 "use client";
 
+import { ListSkeleton } from "@/components/ui/Skeleton";
 import { RowMenu } from "@/components/ui/RowMenu";
 import { CheckInCard } from "@/components/log/CheckInCard";
 import { CHIP_CLS, CHIP_SM_CLS, CONTROL_CLS, CONTROL_STYLE, chipStyle } from "@/components/ui/Chip";
@@ -2586,9 +2587,7 @@ export default function LogPage() {
         )
       ) : tab === "stool" || tab === "workout" || tab === "cycle" ? (
         !dataReady ? (
-          <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-            Loading…
-          </p>
+          <ListSkeleton rows={3} />
         ) : tab === "stool" ? (
           <StoolTab
             entries={stoolEntriesForDate}
@@ -2692,9 +2691,7 @@ export default function LogPage() {
       ) : (
         <>
           {!dataReady || !tabConfig ? (
-            <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-              Loading…
-            </p>
+            <ListSkeleton rows={3} />
           ) : (
             <div className="flex flex-col gap-3">
               {addingProduct && (

@@ -1,5 +1,6 @@
 "use client";
 
+import { ListSkeleton } from "@/components/ui/Skeleton";
 import { CONTROL_CLS, CONTROL_STYLE } from "@/components/ui/Chip";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/Button";
@@ -185,9 +186,9 @@ export function DriveFilePicker({ onPick, onClose }: { onPick: (file: DriveAttac
 
           <FormGroup footer="Uploads go to a “Lauva attachments” folder in your Drive.">
             {loading ? (
-              <p className="px-3.5 py-3 text-sm" style={{ color: "var(--text-muted)" }}>
-                Loading…
-              </p>
+              <div className="px-3.5">
+          <ListSkeleton rows={3} />
+        </div>
             ) : listError ? (
               <p className="px-3.5 py-3 text-sm" style={{ color: "var(--status-critical)" }}>
                 {listError}
