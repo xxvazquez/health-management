@@ -2,7 +2,7 @@
 
 import { ListSkeleton } from "@/components/ui/Skeleton";
 import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
-import { type NoteMessage, type NoteThread } from "@/lib/supabase/notes";
+import { TAPBACKS, type NoteMessage, type NoteThread, type Tapback } from "@/lib/supabase/notes";
 import { EyeOffIcon, PinIcon } from "./icons";
 import { formatNoteTimestamp, formatNoteTimestampShort } from "./NoteThreadList";
 import { AutoGrowTextarea } from "@/components/ui/AutoGrowTextarea";
@@ -35,6 +35,7 @@ export function NoteThreadView({
   onDelete,
   onReply,
   onRemind,
+  onTapback,
 }: {
   thread: NoteThread;
   partnerLabel: string;
@@ -51,6 +52,8 @@ export function NoteThreadView({
   /** Re-notifies the partner about a thread they haven't read; resolves
    * false when they have no device with push on. */
   onRemind: (threadId: string) => Promise<boolean>;
+  /** Sets or (null) clears my tapback on a message. */
+  onTapback: (messageId: string, messageIsMine: boolean, tapback: Tapback | null) => Promise<void>;
 }) {
   const [messages, setMessages] = useState<NoteMessage[] | null>(null);
   const [loadError, setLoadError] = useState(false);
@@ -244,6 +247,21 @@ export function NoteThreadView({
     replyFieldRef.current?.focus();
   }
 
+  async function react(m: NoteMessage, tapback: Tapback) {
+    setMenuFor(null);
+    // Tapping the one you already left takes it off, as in Messages.
+    const next = m.myTapback === tapback ? null : tapback;
+    const patch = (value: Tapback | null) =>
+      setMessages((prev) => prev?.map((x) => (x.id === m.id ? { ...x, myTapback: value } : x)) ?? prev);
+    patch(next);
+    try {
+      await onTapback(m.id, m.isMine, next);
+    } catch (err) {
+      console.error("onTapback failed", err);
+      patch(m.myTapback ?? null);
+    }
+  }
+
   function jumpTo(id: string) {
     document.getElementById(`note-msg-${id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
     setHighlighted(id);
@@ -346,6 +364,7 @@ export function NoteThreadView({
                   onOpenMenu={() => setMenuFor(m.id)}
                   onCloseMenu={() => setMenuFor(null)}
                   onReply={() => startReply(m)}
+                  onTapback={(t) => void react(m, t)}
                   onJumpToQuote={jumpTo}
                 />
               </div>
@@ -457,9 +476,27 @@ function BellIcon() {
 
 const LONG_PRESS_MS = 450;
 
-/** One message. A long-press (phone) or the ↩ that appears on hover
- * (desktop) offers Reply; a reply shows the message it quotes on top,
- * tappable to jump back to it — Messages' and Messenger's pattern. */
+const TAPBACK_GLYPH: Record<Tapback, string> = {
+  heart: "❤️",
+  like: "👍",
+  dislike: "👎",
+  laugh: "😂",
+  emphasize: "‼️",
+  question: "❓",
+};
+const TAPBACK_LABEL: Record<Tapback, string> = {
+  heart: "Heart",
+  like: "Like",
+  dislike: "Dislike",
+  laugh: "Laugh",
+  emphasize: "Emphasize",
+  question: "Question",
+};
+
+/** One message. A long-press (phone) or right-click opens Messages' tapback
+ * row above it and Reply / Copy below; the ↩ that appears on hover
+ * (desktop) replies directly. A reply shows the message it quotes on top,
+ * tappable to jump back to it. Tapbacks sit on the bubble's top corner. */
 function MessageBubble({
   message: m,
   quoted,
@@ -470,6 +507,7 @@ function MessageBubble({
   onOpenMenu,
   onCloseMenu,
   onReply,
+  onTapback,
   onJumpToQuote,
 }: {
   message: NoteMessage;
@@ -481,21 +519,36 @@ function MessageBubble({
   onOpenMenu: () => void;
   onCloseMenu: () => void;
   onReply: () => void;
+  onTapback: (tapback: Tapback) => void;
   onJumpToQuote: (id: string) => void;
 }) {
   const press = useRef<number | null>(null);
+  const rowRef = useRef<HTMLDivElement>(null);
+  // Too close to the bottom of the screen (or the keyboard) for Reply / Copy
+  // to fit below: they open above the tapback row instead.
+  const [menuAbove, setMenuAbove] = useState(false);
+  const openMenu = () => {
+    const rect = rowRef.current?.getBoundingClientRect();
+    const vv = window.visualViewport;
+    const visibleBottom = vv ? vv.offsetTop + vv.height : window.innerHeight;
+    setMenuAbove(!!rect && visibleBottom - rect.bottom < 120);
+    onOpenMenu();
+  };
   const cancelPress = () => {
     if (press.current !== null) window.clearTimeout(press.current);
     press.current = null;
   };
 
+  const reactions = [m.theirTapback, m.myTapback].filter((t): t is Tapback => !!t);
+
   return (
     <div
+      ref={rowRef}
       id={`note-msg-${m.id}`}
-      className={`group relative flex max-w-[80%] items-center gap-1.5 ${m.isMine ? "flex-row-reverse self-end" : "self-start"} ${menuOpen ? "z-30" : ""}`}
+      className={`group relative flex max-w-[80%] items-center gap-1.5 ${m.isMine ? "flex-row-reverse self-end" : "self-start"} ${menuOpen ? "z-30" : ""} ${reactions.length ? "mt-3" : ""}`}
     >
       <div
-        className={`min-w-0 rounded-2xl px-3.5 py-2 transition-shadow select-none [-webkit-touch-callout:none] sm:select-text ${menuOpen ? "relative z-30" : ""}`}
+        className={`relative min-w-0 rounded-2xl px-3.5 py-2 transition-shadow select-none [-webkit-touch-callout:none] sm:select-text ${menuOpen ? "z-30" : ""}`}
         style={{
           background: m.isMine ? ACCENT : "var(--surface-1)",
           color: m.isMine ? "var(--on-accent)" : "var(--text-primary)",
@@ -510,14 +563,14 @@ function MessageBubble({
           press.current = window.setTimeout(() => {
             press.current = null;
             navigator.vibrate?.(10);
-            onOpenMenu();
+            openMenu();
           }, LONG_PRESS_MS);
         }}
         onTouchMove={cancelPress}
         onTouchEnd={cancelPress}
         onContextMenu={(e) => {
           e.preventDefault();
-          onOpenMenu();
+          openMenu();
         }}
       >
         <span className="sr-only">{m.isMine ? "You" : partnerLabel}: </span>
@@ -540,6 +593,23 @@ function MessageBubble({
           </button>
         )}
         <p className="text-sm whitespace-pre-wrap">{m.body}</p>
+        {reactions.length > 0 && (
+          <span
+            className={`absolute -top-3.5 flex ${m.isMine ? "-left-2.5" : "-right-2.5"}`}
+            role="img"
+            aria-label={`Reactions: ${reactions.map((t) => TAPBACK_LABEL[t]).join(", ")}`}
+          >
+            {reactions.map((t, i) => (
+              <span
+                key={i}
+                className={`control-surface flex h-6 w-6 items-center justify-center rounded-full text-xs leading-none ${i > 0 ? "-ml-1.5" : ""}`}
+                aria-hidden="true"
+              >
+                {TAPBACK_GLYPH[t]}
+              </span>
+            ))}
+          </span>
+        )}
       </div>
       <button
         type="button"
@@ -556,7 +626,22 @@ function MessageBubble({
       {menuOpen && (
         <>
           <div className="fixed inset-0 z-20 bg-black/20" aria-hidden="true" onClick={onCloseMenu} />
-          <div role="menu" className={`menu-surface absolute top-full z-30 mt-1.5 min-w-44 p-1.5 ${m.isMine ? "right-0" : "left-0"}`}>
+          <div role="group" aria-label="Tapback" className={`menu-surface absolute bottom-full z-30 mb-1.5 flex gap-0.5 p-1 ${m.isMine ? "right-0" : "left-0"}`}>
+            {TAPBACKS.map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => onTapback(t)}
+                aria-label={TAPBACK_LABEL[t]}
+                aria-pressed={m.myTapback === t}
+                className="flex h-9 w-9 items-center justify-center rounded-lg text-lg leading-none"
+                style={m.myTapback === t ? { background: `color-mix(in oklab, ${ACCENT} var(--tint-pct), transparent)` } : undefined}
+              >
+                {TAPBACK_GLYPH[t]}
+              </button>
+            ))}
+          </div>
+          <div role="menu" className={`menu-surface absolute z-30 min-w-44 p-1.5 ${menuAbove ? "bottom-full mb-14" : "top-full mt-1.5"} ${m.isMine ? "right-0" : "left-0"}`}>
             <button type="button" role="menuitem" onClick={onReply} className="flex min-h-10 w-full items-center gap-3 rounded-lg px-2.5 text-left text-sm" style={{ color: "var(--text-primary)" }}>
               <span className="flex-1">Reply</span>
               <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

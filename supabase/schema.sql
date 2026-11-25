@@ -653,15 +653,19 @@ create table public.notes (
   -- its own boolean, so a new reply makes a thread unread again for free.
   sender_read_at timestamptz,
   recipient_read_at timestamptz,
-  -- Root-only. Favourite is a *shared* thread flag: the app writes both
-  -- columns together (see setThreadFavourited in lib/supabase/notes.ts), so
-  -- starring a thread favourites it for both partners and either can clear
-  -- it. Writable by either participant under the notes_update_participant
+  -- Root-only. Pinned is a *shared* thread flag: the app writes both
+  -- columns together (see setThreadPinned in lib/supabase/notes.ts), so
+  -- pinning a thread pins it for both partners and either can clear it.
+  -- Writable by either participant under the notes_update_participant
   -- policy below.
   sender_favourited boolean not null default false,
   recipient_favourited boolean not null default false,
   -- Replies only: the earlier message in the same thread this one quotes.
-  reply_to_id uuid references public.notes(id) on delete set null
+  reply_to_id uuid references public.notes(id) on delete set null,
+  -- Any message: a tapback reaction from this row's own sender / recipient.
+  -- Each side only ever writes its own column.
+  sender_tapback text check (sender_tapback in ('heart', 'like', 'dislike', 'laugh', 'emphasize', 'question')),
+  recipient_tapback text check (recipient_tapback in ('heart', 'like', 'dislike', 'laugh', 'emphasize', 'question'))
 );
 
 create index notes_recipient_idx on public.notes (recipient_id, last_message_at desc) where thread_root_id is null;

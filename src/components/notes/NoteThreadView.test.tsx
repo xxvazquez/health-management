@@ -31,7 +31,10 @@ const messages: NoteMessage[] = [
   { id: "r1", senderId: "me", isMine: true, body: "Yes please", createdAt: "2026-09-20T18:05:00.000Z", replyToId: "root" },
 ];
 
-function renderThread(onReply = vi.fn(async (_root: string, _to: string, body: string, replyToId?: string | null) => ({ ...messages[1], id: "r2", body, replyToId: replyToId ?? null }))) {
+function renderThread(
+  onReply = vi.fn(async (_root: string, _to: string, body: string, replyToId?: string | null) => ({ ...messages[1], id: "r2", body, replyToId: replyToId ?? null })),
+  onTapback = vi.fn(async () => {}),
+) {
   render(
     <NoteThreadView
       thread={thread}
@@ -45,6 +48,7 @@ function renderThread(onReply = vi.fn(async (_root: string, _to: string, body: s
       onDelete={noop}
       onReply={onReply}
       onRemind={async () => true}
+      onTapback={onTapback}
     />,
   );
   return onReply;
@@ -68,5 +72,19 @@ describe("NoteThreadView replies", () => {
     fireEvent.submit(screen.getByLabelText("Reply to Sam").closest("form")!);
     await waitFor(() => expect(onReply).toHaveBeenCalledWith("root", "partner", "See you at 7", "root"));
     await waitFor(() => expect(screen.queryByText("Replying to Sam")).toBeNull());
+  });
+
+  it("leaves a tapback, and a second tap takes it off", async () => {
+    const onTapback = vi.fn(async () => {});
+    renderThread(undefined, onTapback);
+    await waitFor(() => expect(screen.getByText("Yes please")).toBeTruthy());
+    fireEvent.contextMenu(screen.getAllByText("Pasta tonight?")[0]);
+    fireEvent.click(screen.getByRole("button", { name: "Heart" }));
+    expect(onTapback).toHaveBeenLastCalledWith("root", false, "heart");
+    expect(screen.getByRole("img", { name: "Reactions: Heart" })).toBeTruthy();
+    fireEvent.contextMenu(screen.getAllByText("Pasta tonight?")[0]);
+    fireEvent.click(screen.getByRole("button", { name: "Heart" }));
+    expect(onTapback).toHaveBeenLastCalledWith("root", false, null);
+    await waitFor(() => expect(screen.queryByRole("img", { name: /Reactions/ })).toBeNull());
   });
 });

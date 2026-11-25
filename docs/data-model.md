@@ -327,6 +327,7 @@ erDiagram
         timestamptz recipient_read_at "root row only"
         boolean     favourited "sender_ + recipient_, shared, root only: Pinned in the app"
         uuid        reply_to_id FK "replies only: the message it quotes"
+        text        tapback "sender_ + recipient_: each side's reaction to this message"
     }
 ```
 
@@ -338,6 +339,9 @@ erDiagram
   read-receipt table.
 - A reply can quote an earlier message in the thread (`reply_to_id`,
   `on delete set null`, so the quote just disappears if that message goes).
+- Any message can carry a tapback from each partner (`sender_tapback` /
+  `recipient_tapback`, one of heart, like, dislike, laugh, emphasize,
+  question); each side only writes its own column.
 - `notes_lock_identity_columns` (BEFORE UPDATE trigger) rejects any change
   to `sender_id` / `recipient_id` / `thread_root_id` / `reply_to_id` after insert.
 - Either participant can delete a conversation (`notes_delete_participant`);

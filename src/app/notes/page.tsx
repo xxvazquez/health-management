@@ -18,6 +18,7 @@ import {
   deleteThread,
   sendNote,
   setThreadPinned,
+  setTapback,
   type NewNoteInput,
   type NoteMessage,
   type NoteThread,
@@ -339,6 +340,7 @@ export default function NotesPage() {
             onDelete={demoDelete}
             onReply={demoReply}
             onRemind={async () => true}
+            onTapback={async () => {}}
           />
         ) : (
             <NoteThreadList
@@ -402,6 +404,7 @@ export default function NotesPage() {
           onDelete={removeThread}
           onReply={reply}
           onRemind={remindPartner}
+          onTapback={setTapback}
         />
       ) : (
           <NoteThreadList

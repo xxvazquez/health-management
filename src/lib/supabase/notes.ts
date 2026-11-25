@@ -56,6 +56,10 @@ export interface NoteThread {
   isMine: boolean;
 }
 
+/** iMessage's six tapbacks, as stored in `notes.*_tapback`. */
+export const TAPBACKS = ["heart", "like", "dislike", "laugh", "emphasize", "question"] as const;
+export type Tapback = (typeof TAPBACKS)[number];
+
 export interface NoteMessage {
   id: string;
   senderId: string;
@@ -64,6 +68,9 @@ export interface NoteMessage {
   createdAt: string;
   /** The earlier message in the thread this one quotes, if any. */
   replyToId: string | null;
+  /** Each partner's tapback on this message. */
+  myTapback?: Tapback | null;
+  theirTapback?: Tapback | null;
 }
 
 interface NoteRow {
@@ -215,18 +222,24 @@ export async function fetchThreadMessages(rootId: string): Promise<NoteMessage[]
   try {
     const { data, error } = await supabase
       .from("notes")
-      .select("id, sender_id, body, created_at, reply_to_id")
+      .select("id, sender_id, body, created_at, reply_to_id, sender_tapback, recipient_tapback")
       .or(`id.eq.${rootId},thread_root_id.eq.${rootId}`)
       .order("created_at", { ascending: true });
     if (error) throw error;
-    const messages = (data as { id: string; sender_id: string; body: string; created_at: string; reply_to_id: string | null }[]).map((row) => ({
-      id: row.id,
-      senderId: row.sender_id,
-      isMine: row.sender_id === myUserId,
-      body: row.body,
-      createdAt: row.created_at,
-      replyToId: row.reply_to_id,
-    }));
+    type Row = { id: string; sender_id: string; body: string; created_at: string; reply_to_id: string | null; sender_tapback: Tapback | null; recipient_tapback: Tapback | null };
+    const messages = (data as Row[]).map((row) => {
+      const isMine = row.sender_id === myUserId;
+      return {
+        id: row.id,
+        senderId: row.sender_id,
+        isMine,
+        body: row.body,
+        createdAt: row.created_at,
+        replyToId: row.reply_to_id,
+        myTapback: isMine ? row.sender_tapback : row.recipient_tapback,
+        theirTapback: isMine ? row.recipient_tapback : row.sender_tapback,
+      };
+    });
     void writeSnapshot(myUserId, feature, messages, startedAt);
     return messages;
   } catch (err) {
@@ -333,6 +346,14 @@ async function updateMyThreadState(
   // enough to fire for pin too rather than threading a "does this
   // actually affect the badge" flag through every call site.
   notifyNotesChanged();
+}
+
+/** Sets (or with null, clears) my tapback on one message. Only my own
+ * column is written, so the partner's reaction is never touched. */
+export async function setTapback(messageId: string, messageIsMine: boolean, tapback: Tapback | null): Promise<void> {
+  const myUserId = await currentUserId();
+  if (!myUserId) throw new Error("Sign in first.");
+  await updateDirect(myUserId, "notes", messageId, { id: messageId, [messageIsMine ? "sender_tapback" : "recipient_tapback"]: tapback });
 }
 
 export function markThreadRead(threadId: string, isMine: boolean): Promise<void> {
