@@ -13,8 +13,12 @@ import { NOTE_CATEGORY_LABEL, type NoteThread, type NoteView } from "@/lib/supab
 
 const ACCENT = "var(--series-magenta)";
 
+/** The centred stamp over a burst of messages: "Wed, 29 Sep at 23:50", with
+ * the year added once it isn't this year. */
 export function formatNoteTimestamp(iso: string): string {
-  return new Date(iso).toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+  const d = new Date(iso);
+  const otherYear = d.getFullYear() !== new Date().getFullYear();
+  return d.toLocaleString(undefined, { weekday: "short", day: "numeric", month: "short", ...(otherYear ? { year: "numeric" } : {}), hour: "2-digit", minute: "2-digit" });
 }
 
 /** Compact, context-relative stamp for the inbox rows, where width is
