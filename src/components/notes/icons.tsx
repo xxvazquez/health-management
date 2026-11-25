@@ -22,12 +22,10 @@ function IconWrap({ size = 15, children }: { size?: number; children: ReactNode 
   );
 }
 
-/** Messages' pin: a pushpin, filled when the conversation is pinned. */
-export function PinIcon({ filled = false, size = 15 }: { filled?: boolean; size?: number }) {
+export function StarIcon({ filled, size = 15 }: { filled: boolean; size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 20 20" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M7.5 2.5h5l-.8 5.2 2.8 2.8v1.2h-9v-1.2l2.8-2.8Z" />
-      <path d="M10 11.7v5.8" fill="none" />
+    <svg width={size} height={size} viewBox="0 0 20 20" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" aria-hidden="true">
+      <path d="M10 2.6l2.4 4.9 5.4.7-3.9 3.8 1 5.4L10 14.8l-4.9 2.6 1-5.4-3.9-3.8 5.4-.7Z" />
     </svg>
   );
 }

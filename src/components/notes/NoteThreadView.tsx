@@ -3,7 +3,7 @@
 import { ListSkeleton } from "@/components/ui/Skeleton";
 import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import { TAPBACKS, type NoteMessage, type NoteThread, type Tapback } from "@/lib/supabase/notes";
-import { EyeOffIcon, PinIcon } from "./icons";
+import { EyeOffIcon, StarIcon } from "./icons";
 import { formatNoteTimestamp, formatNoteTimestampShort } from "./NoteThreadList";
 import { AutoGrowTextarea } from "@/components/ui/AutoGrowTextarea";
 import { keepFieldFocus } from "@/components/ui/SearchField";
@@ -16,7 +16,7 @@ import { MoreMenu, type MoreMenuItem } from "@/components/ui/MoreMenu";
 const ACCENT = "var(--series-magenta)";
 
 /** One open thread — every message (root + replies) plus a reply box and
- * the per-thread actions behind the ⋯ menu (remind, pin, mark unread,
+ * the per-thread actions behind the ⋯ menu (remind, favourite, mark unread,
  * delete; "mark read" itself isn't a button, it just happens on open). Opening a thread
  * you're the recipient of marks it read immediately, same as any inbox.
  * Every action is injected rather than calling supabase/notes.ts directly,
@@ -31,7 +31,7 @@ export function NoteThreadView({
   fetchMessages,
   onMarkRead,
   onMarkUnread,
-  onTogglePin,
+  onToggleFavourite,
   onDelete,
   onReply,
   onRemind,
@@ -44,7 +44,7 @@ export function NoteThreadView({
   fetchMessages: (rootId: string) => Promise<NoteMessage[]>;
   onMarkRead: (threadId: string, isMine: boolean) => Promise<void>;
   onMarkUnread: (threadId: string, isMine: boolean) => Promise<void>;
-  onTogglePin: (threadId: string, isMine: boolean, next: boolean) => Promise<void>;
+  onToggleFavourite: (threadId: string, isMine: boolean, next: boolean) => Promise<void>;
   /** Deletes the whole conversation, every reply included, for both partners. */
   onDelete: (threadId: string) => Promise<void>;
   /** `replyToId` quotes an earlier message in the thread. */
@@ -193,10 +193,10 @@ export function NoteThreadView({
     }
   }
 
-  async function togglePin() {
+  async function toggleFavourite() {
     setBusy(true);
     try {
-      await onTogglePin(thread.id, thread.isMine, !thread.isPinned);
+      await onToggleFavourite(thread.id, thread.isMine, !thread.isFavourite);
       onChanged();
     } finally {
       setBusy(false);
@@ -276,9 +276,9 @@ export function NoteThreadView({
   const menuItems: MoreMenuItem[] = [
     ...(canRemind ? [{ label: `Remind ${partnerLabel}`, icon: <BellIcon />, onClick: () => void remind() }] : []),
     {
-      label: thread.isPinned ? "Unpin" : "Pin",
-      icon: <PinIcon filled={thread.isPinned} size={14} />,
-      onClick: () => void togglePin(),
+      label: thread.isFavourite ? "Remove from Favourites" : "Add to Favourites",
+      icon: <StarIcon filled={thread.isFavourite} size={14} />,
+      onClick: () => void toggleFavourite(),
     },
     { label: "Mark as Unread", icon: <EyeOffIcon size={14} />, onClick: () => void markUnread() },
     { label: "Delete Conversation", icon: <TrashIcon size={14} />, destructive: true, separated: true, onClick: () => setConfirmingDelete(true) },

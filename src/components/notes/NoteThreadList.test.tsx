@@ -23,7 +23,7 @@ function thread(overrides: Partial<NoteThread>): NoteThread {
     isUnreadForMe: false,
     isSeenByPartner: false,
     partnerReadAt: null,
-    isPinned: false,
+    isFavourite: false,
     isMine: true,
     ...overrides,
   };
@@ -37,11 +37,11 @@ function renderAll(threads: NoteThread[]) {
       error={false}
       partnerLabel="your partner"
       onOpen={() => {}}
-      onTogglePin={noop}
+      onToggleFavourite={noop}
       onMarkRead={noop}
       onMarkUnread={noop}
       onDelete={noop}
-      onPinnedCollapsedChange={() => {}}
+      view="all"
       onChanged={() => {}}
     />,
   );
@@ -56,21 +56,31 @@ describe("NoteThreadList", () => {
 
   it("shows a read conversation with its preview and no unread weight", () => {
     renderAll([thread({ isSeenByPartner: true, partnerReadAt: "2026-09-20T19:30:00.000Z" })]);
-    expect(screen.getByText("Pasta tonight?")).toBeTruthy();
-    expect(screen.getByText("Dinner plans").style.fontWeight).toBe("500");
+    expect(screen.getByText(/Pasta tonight\?/)).toBeTruthy();
+    expect(screen.getByText("Dinner plans").style.fontWeight).toBe("400");
     expect(screen.getByLabelText("Mark as unread")).toBeTruthy();
   });
 
-  it("groups pinned conversations on top", () => {
-    renderAll([thread({}), thread({ id: "t2", subject: "Weekend", isPinned: true })]);
-    const pinnedHeading = screen.getByText("Pinned");
-    expect(pinnedHeading.compareDocumentPosition(screen.getByText("Weekend")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(screen.getByText("Weekend").compareDocumentPosition(screen.getByText("Dinner plans")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  it("says whether the partner has read my latest message", () => {
+    renderAll([thread({}), thread({ id: "t2", subject: "Weekend", isSeenByPartner: true })]);
+    expect(screen.getByText("Not read yet")).toBeTruthy();
+    expect(screen.getByText("Read")).toBeTruthy();
+  });
+
+  it("shows no read receipt when the partner wrote last", () => {
+    renderAll([thread({ lastMessage: "Sounds good", lastMessageIsMine: false })]);
+    expect(screen.queryByText("Not read yet")).toBeNull();
+    expect(screen.queryByText("Read")).toBeNull();
+  });
+
+  it("stars a favourite", () => {
+    renderAll([thread({ isFavourite: true })]);
+    expect(screen.getByRole("img", { name: "Favourite" })).toBeTruthy();
   });
 
   it("previews the latest message", () => {
     renderAll([thread({ lastMessage: "See you at 7" })]);
-    expect(screen.getByText("See you at 7")).toBeTruthy();
+    expect(screen.getByText(/See you at 7/)).toBeTruthy();
   });
 
   it("marks a conversation with a message you haven't read", () => {

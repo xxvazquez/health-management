@@ -29,7 +29,7 @@ export function buildDemoThreads(): NoteThread[] {
       isUnreadForMe: true,
       isSeenByPartner: true,
       partnerReadAt: iso(2 * 60 * 60 * 1000),
-      isPinned: false,
+      isFavourite: false,
       isMine: false,
     },
     {
@@ -42,10 +42,11 @@ export function buildDemoThreads(): NoteThread[] {
       createdAt: iso(1 * DAY),
       lastMessageAt: iso(20 * 60 * 60 * 1000),
       lastMessage: "Got it, thanks for the heads up!",
+      lastMessageIsMine: false,
       isUnreadForMe: false,
       isSeenByPartner: true,
       partnerReadAt: iso(20 * 60 * 60 * 1000),
-      isPinned: false,
+      isFavourite: false,
       isMine: true,
     },
     {
@@ -60,7 +61,7 @@ export function buildDemoThreads(): NoteThread[] {
       isUnreadForMe: false,
       isSeenByPartner: true,
       partnerReadAt: iso(3 * DAY),
-      isPinned: true,
+      isFavourite: true,
       isMine: false,
     },
     {
@@ -75,7 +76,7 @@ export function buildDemoThreads(): NoteThread[] {
       isUnreadForMe: false,
       isSeenByPartner: true,
       partnerReadAt: iso(20 * DAY),
-      isPinned: false,
+      isFavourite: false,
       isMine: true,
     },
     {
@@ -90,7 +91,7 @@ export function buildDemoThreads(): NoteThread[] {
       isUnreadForMe: false,
       isSeenByPartner: false,
       partnerReadAt: null,
-      isPinned: false,
+      isFavourite: false,
       isMine: true,
     },
   ];

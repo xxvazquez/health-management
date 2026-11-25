@@ -325,7 +325,7 @@ erDiagram
         timestamptz last_message_at "root row only"
         timestamptz sender_read_at "root row only"
         timestamptz recipient_read_at "root row only"
-        boolean     favourited "sender_ + recipient_, shared, root only: Pinned in the app"
+        boolean     favourited "sender_ + recipient_, shared, root only"
         uuid        reply_to_id FK "replies only: the message it quotes"
         text        tapback "sender_ + recipient_: each side's reaction to this message"
     }

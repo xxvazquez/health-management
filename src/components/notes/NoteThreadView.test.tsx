@@ -22,7 +22,7 @@ const thread: NoteThread = {
   isUnreadForMe: false,
   isSeenByPartner: true,
   partnerReadAt: null,
-  isPinned: false,
+  isFavourite: false,
   isMine: false,
 };
 
@@ -44,7 +44,7 @@ function renderThread(
       fetchMessages={async () => messages}
       onMarkRead={noop}
       onMarkUnread={noop}
-      onTogglePin={noop}
+      onToggleFavourite={noop}
       onDelete={noop}
       onReply={onReply}
       onRemind={async () => true}

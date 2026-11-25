@@ -3,14 +3,13 @@
 import { useState, type ReactNode } from "react";
 import clsx from "clsx";
 import { SWIPE_REVEAL_CLASS, useSwipeReveal } from "@/lib/useSwipeReveal";
-import { EyeIcon, EyeOffIcon, PinIcon } from "./icons";
+import { EyeIcon, EyeOffIcon, StarIcon } from "./icons";
 import { TrashIcon } from "@/components/ui/Notebook";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { CONTEXT_OPEN_STYLE, ContextMenu } from "@/components/ui/ContextMenu";
 import { ErrorState, InlineEmpty } from "@/components/ui/EmptyState";
 import { ListSkeleton } from "@/components/ui/Skeleton";
-import { NOTE_CATEGORY_LABEL, type NoteThread } from "@/lib/supabase/notes";
-import { ChevronIcon } from "@/components/ui/icons";
+import { NOTE_CATEGORY_LABEL, type NoteThread, type NoteView } from "@/lib/supabase/notes";
 
 const ACCENT = "var(--series-magenta)";
 
@@ -64,14 +63,14 @@ function RowAction({
   );
 }
 
-/** One conversation. Pin, read/unread and delete sit behind a left swipe on
- * a phone and appear on hover from `lg`, and open on long-press or
+/** One conversation. Favourite, read/unread and delete sit behind a left
+ * swipe on a phone and appear on hover from `lg`, and open on long-press or
  * right-click, like Messages' row actions. */
 function ThreadRow({
   thread: t,
   busy,
   onOpen,
-  onTogglePin,
+  onToggleFavourite,
   onMarkRead,
   onMarkUnread,
   onDelete,
@@ -79,25 +78,28 @@ function ThreadRow({
   thread: NoteThread;
   busy: boolean;
   onOpen: (id: string) => void;
-  onTogglePin: () => void;
+  onToggleFavourite: () => void;
   onMarkRead: () => void;
   onMarkUnread: () => void;
   onDelete: () => void;
 }) {
   const { revealed, onTouchStart, onTouchEnd } = useSwipeReveal();
-  // A dot and a bolder title mark what you haven't read, then the category
-  // when it isn't the everyday one, then the latest message.
+  // Unread for me: a dot, a bold title and a darker preview, like Mail.
+  // When I sent the newest message, the line says whether my partner has
+  // read it yet.
   const flagged = t.isUnreadForMe;
+  const lastIsMine = t.lastMessageIsMine ?? t.isMine;
+  const status = flagged ? null : lastIsMine ? (t.isSeenByPartner ? "Read" : "Not read yet") : null;
   const meta = t.category !== "note" ? NOTE_CATEGORY_LABEL[t.category] : null;
   const [firstLine, ...rest] = t.body.trim().split("\n");
   const title = t.subject || firstLine;
   const preview = (t.lastMessage ?? (t.subject ? t.body : rest.join(" "))).replace(/\s+/g, " ").trim();
-  const pinned = t.isPinned;
+  const favourite = t.isFavourite;
 
   return (
     <ContextMenu
       items={[
-        { label: pinned ? "Unpin" : "Pin", icon: <PinIcon filled={pinned} size={14} />, onClick: onTogglePin },
+        { label: favourite ? "Remove from Favourites" : "Add to Favourites", icon: <StarIcon filled={favourite} size={14} />, onClick: onToggleFavourite },
         t.isUnreadForMe
           ? { label: "Mark as Read", icon: <EyeIcon size={14} />, onClick: onMarkRead }
           : { label: "Mark as Unread", icon: <EyeOffIcon size={14} />, onClick: onMarkUnread },
@@ -127,15 +129,28 @@ function ThreadRow({
             </span>
             <span className="min-w-0 flex-1">
               <span className="flex items-center gap-1.5">
-                <span className="min-w-0 flex-1 truncate text-sm" style={{ fontWeight: flagged ? 600 : 500, color: "var(--text-primary)" }}>
+                <span className="min-w-0 flex-1 truncate text-sm" style={{ fontWeight: flagged ? 600 : 400, color: "var(--text-primary)" }}>
                   {title}
                 </span>
+                {favourite && (
+                  <span className="shrink-0" style={{ color: ACCENT }} role="img" aria-label="Favourite">
+                    <StarIcon filled size={11} />
+                  </span>
+                )}
                 <span className="shrink-0 text-xs whitespace-nowrap tabular-nums" style={{ color: "var(--text-muted)" }}>
                   {formatNoteTimestampShort(t.lastMessageAt)}
                 </span>
               </span>
-              {(meta || preview) && (
-                <span className="mt-0.5 line-clamp-2 text-xs" style={{ color: "var(--text-secondary)" }}>
+              {(status || meta || preview) && (
+                <span className="mt-0.5 line-clamp-2 text-xs" style={{ color: flagged ? "var(--text-primary)" : "var(--text-secondary)" }}>
+                  {status && (
+                    <>
+                      <span className="font-medium" style={{ color: t.isSeenByPartner ? "var(--text-muted)" : ACCENT }}>
+                        {status}
+                      </span>
+                      {(meta || preview) && " · "}
+                    </>
+                  )}
                   {meta && (
                     <>
                       {meta}
@@ -149,8 +164,8 @@ function ThreadRow({
           </button>
 
           <div className={clsx("flex shrink-0 items-center gap-0.5 self-center transition-opacity", revealed ? SWIPE_REVEAL_CLASS.shown : SWIPE_REVEAL_CLASS.hidden)}>
-            <RowAction onClick={onTogglePin} active={pinned} label={pinned ? "Unpin" : "Pin"} disabled={busy}>
-              <PinIcon filled={pinned} size={15} />
+            <RowAction onClick={onToggleFavourite} active={favourite} label={favourite ? "Remove from Favourites" : "Add to Favourites"} disabled={busy}>
+              <StarIcon filled={favourite} size={15} />
             </RowAction>
             {t.isUnreadForMe ? (
               <RowAction onClick={onMarkRead} label="Mark as read" disabled={busy}>
@@ -179,21 +194,19 @@ function ThreadGroup({ children }: { children: ReactNode }) {
   );
 }
 
-/** Every conversation in one list, pinned ones in their own group on top —
- * the way Notes and Messages keep pinned items. */
+/** The conversations in a folder (All or Favourites), newest activity first. */
 export function NoteThreadList({
   threads,
   loading,
   error,
   partnerLabel,
   onOpen,
-  onTogglePin,
+  onToggleFavourite,
   onMarkRead,
   onMarkUnread,
   onDelete,
   onChanged,
-  pinnedCollapsed = false,
-  onPinnedCollapsedChange,
+  view,
 }: {
   threads: NoteThread[];
   loading: boolean;
@@ -201,15 +214,13 @@ export function NoteThreadList({
   partnerLabel: string;
   onOpen: (id: string) => void;
   /** Injected (not called directly) for the same demo/real split as NoteThreadView. */
-  onTogglePin: (threadId: string, isMine: boolean, next: boolean) => Promise<void>;
+  onToggleFavourite: (threadId: string, isMine: boolean, next: boolean) => Promise<void>;
   onMarkRead: (threadId: string, isMine: boolean) => Promise<void>;
   onMarkUnread: (threadId: string, isMine: boolean) => Promise<void>;
   /** Deletes the whole conversation for both partners. */
   onDelete: (threadId: string) => Promise<void>;
   onChanged: () => void;
-  /** The Pinned group folded away (a synced preference, owned by the page). */
-  pinnedCollapsed?: boolean;
-  onPinnedCollapsedChange: (collapsed: boolean) => void;
+  view: NoteView;
 }) {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<NoteThread | null>(null);
@@ -233,7 +244,11 @@ export function NoteThreadList({
   }
 
   if (threads.length === 0) {
-    return <InlineEmpty title="No messages yet" description="Tap + to send your partner something." />;
+    return view === "favourites" ? (
+      <InlineEmpty title="No favourites yet" description="Swipe a conversation, or long-press it, to add it to Favourites." />
+    ) : (
+      <InlineEmpty title="No messages yet" description="Tap + to send your partner something." />
+    );
   }
 
   const row = (t: NoteThread) => (
@@ -242,38 +257,15 @@ export function NoteThreadList({
       thread={t}
       busy={busyId === t.id}
       onOpen={onOpen}
-      onTogglePin={() => void run(t.id, () => onTogglePin(t.id, t.isMine, !t.isPinned))}
+      onToggleFavourite={() => void run(t.id, () => onToggleFavourite(t.id, t.isMine, !t.isFavourite))}
       onMarkRead={() => void run(t.id, () => onMarkRead(t.id, t.isMine))}
       onMarkUnread={() => void run(t.id, () => onMarkUnread(t.id, t.isMine))}
       onDelete={() => setConfirmDelete(t)}
     />
   );
-  const pinned = threads.filter((t) => t.isPinned);
-  const others = threads.filter((t) => !t.isPinned);
-
   return (
     <div className="flex flex-col gap-4">
-      {pinned.length > 0 && (
-        <section className="flex flex-col gap-1.5">
-          <h2>
-            <button
-              type="button"
-              onClick={() => onPinnedCollapsedChange(!pinnedCollapsed)}
-              aria-expanded={!pinnedCollapsed}
-              className="hit-slop flex items-center gap-1 px-3.5 text-xs font-semibold tracking-wide uppercase"
-              style={{ color: "var(--text-muted)" }}
-            >
-              Pinned
-              {pinnedCollapsed && <span className="font-normal tabular-nums normal-case">· {pinned.length}</span>}
-              <span style={{ color: ACCENT }}>
-                <ChevronIcon dir={pinnedCollapsed ? "right" : "down"} size={12} />
-              </span>
-            </button>
-          </h2>
-          {!pinnedCollapsed && <ThreadGroup>{pinned.map(row)}</ThreadGroup>}
-        </section>
-      )}
-      {others.length > 0 && <ThreadGroup>{others.map(row)}</ThreadGroup>}
+      <ThreadGroup>{threads.map(row)}</ThreadGroup>
 
       {confirmDelete && (
         <ConfirmDialog

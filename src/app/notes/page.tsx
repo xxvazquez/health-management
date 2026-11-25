@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useDrillDown } from "@/lib/useDrillDown";
-import { usePreferences } from "@/lib/usePreferences";
+import { TabRail } from "@/components/ui/TabRail";
 import { navTransition } from "@/lib/navTransition";
 import { useAuth } from "@/lib/supabase/AuthContext";
 import { getPartnerLink, type PartnerLink } from "@/lib/supabase/partner";
@@ -17,11 +17,12 @@ import {
   replyToNote,
   deleteThread,
   sendNote,
-  setThreadPinned,
+  setThreadFavourite,
   setTapback,
   type NewNoteInput,
   type NoteMessage,
   type NoteThread,
+  type NoteView,
 } from "@/lib/supabase/notes";
 import { buildDemoMessages, buildDemoThreads, DEMO_ME_ID, DEMO_PARTNER_ID, DEMO_PARTNER_LABEL } from "@/lib/demoNotes";
 import { hasOutboxEntriesForTables, readSnapshot, writeSnapshot } from "@/lib/db/indexedDb";
@@ -42,6 +43,15 @@ const ACCENT = "var(--series-magenta)";
 const PARTNER_LABEL = "your partner";
 
 const NOTES_TABLES = ["notes"] as const;
+
+const VIEWS: { id: NoteView; label: string }[] = [
+  { id: "all", label: "All" },
+  { id: "favourites", label: "Favourites" },
+];
+
+function matchesView(t: NoteThread, view: NoteView): boolean {
+  return view === "all" || t.isFavourite;
+}
 
 /** Per-session cache of the resolved partner link, keyed by user id — so
  * navigating back to Notes skips the full-page loading wall. Cleared on
@@ -93,9 +103,7 @@ export default function NotesPage() {
   }, [session, loadPartner]);
 
   const [threads, setThreads] = useState<NoteThread[]>([]);
-  const { prefs, update: updatePrefs } = usePreferences();
-  const pinnedCollapsed = !!prefs.messagesPinnedCollapsed;
-  const setPinnedCollapsed = (collapsed: boolean) => updatePrefs({ messagesPinnedCollapsed: collapsed });
+  const [view, setView] = useState<NoteView>("all");
   const [threadsLoading, setThreadsLoading] = useState(true);
   const [threadsError, setThreadsError] = useState(false);
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
@@ -154,9 +162,9 @@ export default function NotesPage() {
     await markThreadUnread(threadId, isMine);
   }, [patchThread]);
 
-  const togglePin = useCallback(async (threadId: string, isMine: boolean, next: boolean) => {
-    patchThread(threadId, { isPinned: next });
-    await setThreadPinned(threadId, isMine, next);
+  const toggleFavourite = useCallback(async (threadId: string, isMine: boolean, next: boolean) => {
+    patchThread(threadId, { isFavourite: next });
+    await setThreadFavourite(threadId, isMine, next);
   }, [patchThread]);
 
   const removeThread = useCallback(async (threadId: string) => {
@@ -181,7 +189,7 @@ export default function NotesPage() {
           isUnreadForMe: false,
           isSeenByPartner: false,
           partnerReadAt: null,
-          isPinned: false,
+          isFavourite: false,
           isMine: true,
         },
         ...prev,
@@ -192,7 +200,7 @@ export default function NotesPage() {
 
   const reply = useCallback(async (rootId: string, recipientId: string, body: string, replyToId: string | null = null): Promise<NoteMessage> => {
     const msg = await replyToNote(rootId, recipientId, body, replyToId);
-    patchThread(rootId, { lastMessageAt: msg.createdAt, lastMessage: msg.body, isUnreadForMe: false });
+    patchThread(rootId, { lastMessageAt: msg.createdAt, lastMessage: msg.body, lastMessageIsMine: true, isSeenByPartner: false, isUnreadForMe: false });
     return msg;
   }, [patchThread]);
 
@@ -265,8 +273,8 @@ export default function NotesPage() {
   const demoMarkAllRead = useCallback(async () => {
     setDemoThreads((prev) => prev.map((t) => ({ ...t, isUnreadForMe: false })));
   }, []);
-  const demoTogglePin = useCallback(
-    async (threadId: string, _isMine: boolean, next: boolean) => demoSetField(threadId, { isPinned: next }),
+  const demoToggleFavourite = useCallback(
+    async (threadId: string, _isMine: boolean, next: boolean) => demoSetField(threadId, { isFavourite: next }),
     [demoSetField],
   );
   const demoDelete = useCallback(async (threadId: string) => {
@@ -275,7 +283,7 @@ export default function NotesPage() {
   const demoReply = useCallback(async (rootId: string, _recipientId: string, body: string, replyToId: string | null = null): Promise<NoteMessage> => {
     const message: NoteMessage = { id: `demo-reply-${Date.now()}`, senderId: DEMO_ME_ID, isMine: true, body, createdAt: new Date().toISOString(), replyToId };
     demoRepliesRef.current = { ...demoRepliesRef.current, [rootId]: [...(demoRepliesRef.current[rootId] ?? []), message] };
-    demoSetField(rootId, { lastMessageAt: message.createdAt, lastMessage: message.body });
+    demoSetField(rootId, { lastMessageAt: message.createdAt, lastMessage: message.body, lastMessageIsMine: true, isSeenByPartner: false });
     return message;
   }, [demoSetField]);
   const demoSend = useCallback(async (input: NewNoteInput) => {
@@ -293,7 +301,7 @@ export default function NotesPage() {
         isUnreadForMe: false,
         isSeenByPartner: false,
         partnerReadAt: null,
-        isPinned: false,
+        isFavourite: false,
         isMine: true,
       },
       ...prev,
@@ -336,27 +344,29 @@ export default function NotesPage() {
             fetchMessages={demoFetchMessages}
             onMarkRead={demoMarkRead}
             onMarkUnread={demoMarkUnread}
-            onTogglePin={demoTogglePin}
+            onToggleFavourite={demoToggleFavourite}
             onDelete={demoDelete}
             onReply={demoReply}
             onRemind={async () => true}
             onTapback={async () => {}}
           />
         ) : (
-            <NoteThreadList
-              threads={visibleDemoThreads}
-              loading={false}
-              error={false}
-              partnerLabel={DEMO_PARTNER_LABEL}
-              onOpen={openThread}
-              onTogglePin={demoTogglePin}
-              onMarkRead={demoMarkRead}
-              onMarkUnread={demoMarkUnread}
-              onDelete={demoDelete}
-              pinnedCollapsed={pinnedCollapsed}
-              onPinnedCollapsedChange={setPinnedCollapsed}
-              onChanged={() => {}}
-            />
+            <>
+              <ViewTabs view={view} onChange={setView} />
+              <NoteThreadList
+                threads={visibleDemoThreads.filter((t) => matchesView(t, view))}
+                loading={false}
+                error={false}
+                partnerLabel={DEMO_PARTNER_LABEL}
+                onOpen={openThread}
+                onToggleFavourite={demoToggleFavourite}
+                onMarkRead={demoMarkRead}
+                onMarkUnread={demoMarkUnread}
+                onDelete={demoDelete}
+                view={view}
+                onChanged={() => {}}
+              />
+            </>
         )}
 
         <ComposeNoteDialog
@@ -400,27 +410,29 @@ export default function NotesPage() {
           fetchMessages={fetchThreadMessages}
           onMarkRead={markRead}
           onMarkUnread={markUnread}
-          onTogglePin={togglePin}
+          onToggleFavourite={toggleFavourite}
           onDelete={removeThread}
           onReply={reply}
           onRemind={remindPartner}
           onTapback={setTapback}
         />
       ) : (
-          <NoteThreadList
-            threads={threads}
-            loading={threadsLoading}
-            error={threadsError}
-            partnerLabel={partnerLabel}
-            onOpen={openThread}
-            onTogglePin={togglePin}
-            onMarkRead={markRead}
-            onMarkUnread={markUnread}
-            onDelete={removeThread}
-            pinnedCollapsed={pinnedCollapsed}
-            onPinnedCollapsedChange={setPinnedCollapsed}
-            onChanged={() => void loadThreads()}
-          />
+          <>
+            <ViewTabs view={view} onChange={setView} />
+            <NoteThreadList
+              threads={threads.filter((t) => matchesView(t, view))}
+              loading={threadsLoading}
+              error={threadsError}
+              partnerLabel={partnerLabel}
+              onOpen={openThread}
+              onToggleFavourite={toggleFavourite}
+              onMarkRead={markRead}
+              onMarkUnread={markUnread}
+              onDelete={removeThread}
+              view={view}
+              onChanged={() => void loadThreads()}
+            />
+          </>
       )}
 
       <ComposeNoteDialog
@@ -456,5 +468,19 @@ function NotesHeader({
     >
       Messages
     </PageHeading>
+  );
+}
+
+function ViewTabs({ view, onChange }: { view: NoteView; onChange: (v: NoteView) => void }) {
+  return (
+    <TabRail
+      ariaLabel="Message folders"
+      wrap={false}
+      tall
+      style={{ borderColor: "var(--border-hairline)" }}
+      items={VIEWS.map((v) => ({ id: v.id, label: v.label, accent: ACCENT }))}
+      activeId={view}
+      onSelect={onChange}
+    />
   );
 }

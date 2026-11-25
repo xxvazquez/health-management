@@ -35,8 +35,6 @@ export interface Preferences {
   showLastStool?: boolean;
   /** Settings → Journal lock: Face ID / Touch ID / passcode before Journal shows. */
   journalLock?: boolean;
-  /** Messages: the Pinned group folded away, like a collapsed section in Notes. */
-  messagesPinnedCollapsed?: boolean;
 }
 
 export interface HiddenPatternLink {
