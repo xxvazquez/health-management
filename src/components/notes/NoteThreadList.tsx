@@ -89,7 +89,8 @@ function ThreadRow({
   const meta = t.category !== "note" ? NOTE_CATEGORY_LABEL[t.category] : null;
   const [firstLine, ...rest] = t.body.trim().split("\n");
   const title = t.subject || firstLine;
-  const preview = (t.subject ? t.body : rest.join(" ")).replace(/\s+/g, " ").trim();
+  // Like Messages, the preview is what was said last.
+  const preview = (t.lastMessage ?? (t.subject ? t.body : rest.join(" "))).replace(/\s+/g, " ").trim();
 
   return (
     <div

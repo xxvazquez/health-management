@@ -36,14 +36,15 @@ export interface NoteThread {
   recipientId: string;
   category: NoteCategory;
   subject: string | null;
-  /** The root note's own body — the thread's opening message, not
-   * whatever was said most recently (see this file's own note on why a
-   * "latest reply preview" was deliberately left out). */
+  /** The root note's own body — the thread's opening message. */
   body: string;
   createdAt: string;
-  /** Root or reply, whichever happened most recently — what the three
-   * lists sort by. */
+  /** Root or reply, whichever happened most recently — what the lists
+   * sort by. */
   lastMessageAt: string;
+  /** The newest reply's text, the list row's preview like Messages; absent
+   * while the thread is just its opening message. */
+  lastMessage?: string | null;
   isUnreadForMe: boolean;
   /** Has the other side read up to the thread's latest message yet — the
    * conversation's "Delivered" / "Read" receipt. */
@@ -153,7 +154,22 @@ export async function fetchNoteThreads(view: NoteView): Promise<NoteThread[]> {
 
   const { data, error } = await query.order("last_message_at", { ascending: false });
   if (error) throw error;
-  return (data as NoteRow[]).map((row) => toThread(row, myUserId));
+  const threads = (data as NoteRow[]).map((row) => toThread(row, myUserId));
+  if (threads.length === 0) return threads;
+
+  // Newest reply per thread, for the row preview.
+  const { data: replies, error: repliesError } = await supabase
+    .from("notes")
+    .select("thread_root_id, body")
+    .in("thread_root_id", threads.map((t) => t.id))
+    .or(`sender_id.eq.${myUserId},recipient_id.eq.${myUserId}`)
+    .order("created_at", { ascending: false });
+  if (repliesError) throw repliesError;
+  const latest = new Map<string, string>();
+  for (const r of replies as { thread_root_id: string; body: string }[]) {
+    if (!latest.has(r.thread_root_id)) latest.set(r.thread_root_id, r.body);
+  }
+  return threads.map((t) => ({ ...t, lastMessage: latest.get(t.id) ?? null }));
 }
 
 /** One specific thread by its root id, regardless of which list is loaded —

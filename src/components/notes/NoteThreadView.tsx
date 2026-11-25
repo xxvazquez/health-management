@@ -172,7 +172,7 @@ export function NoteThreadView({
 
   async function handleReply(e: FormEvent) {
     e.preventDefault();
-    if (!replyBody.trim()) return;
+    if (replying || !replyBody.trim()) return;
     setReplying(true);
     setReplyError(null);
     try {
@@ -328,7 +328,7 @@ export function NoteThreadView({
       )}
 
       {messages && (
-        <div ref={listRef} className={keyboardUp ? "-mx-4 flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto overscroll-contain px-4 sm:-mx-6 sm:px-6" : "flex flex-col gap-1.5"}>
+        <div ref={listRef} className={keyboardUp ? "-mx-4 flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto overscroll-contain px-4 sm:-mx-6 sm:px-6" : "mt-auto flex flex-col gap-1.5"}>
           {/* Few bubbles sit at the bottom, right above the reply bar. */}
           {keyboardUp && <div className="mt-auto" aria-hidden="true" />}
           {messages.map((m, i) => {
@@ -378,7 +378,7 @@ export function NoteThreadView({
 
       <div
         ref={replyBarRef}
-        className="sticky bottom-[calc(58px+env(safe-area-inset-bottom))] z-10 -mx-4 mt-auto flex flex-col gap-1 px-4 py-2 sm:-mx-6 sm:px-6 lg:bottom-0 lg:mx-0 lg:px-0 lg:pb-4"
+        className={`sticky bottom-[calc(58px+env(safe-area-inset-bottom))] z-10 -mx-4 ${messages ? "" : "mt-auto"} flex flex-col gap-1 px-4 py-2 sm:-mx-6 sm:px-6 lg:bottom-0 lg:mx-0 lg:px-0 lg:pb-4`}
         style={{ background: "var(--page-backdrop)", ...(keyboardUp ? { position: "relative", bottom: 0 } : null) }}
       >
         <form
@@ -415,6 +415,13 @@ export function NoteThreadView({
             ref={replyFieldRef}
             value={replyBody}
             onChange={(e) => setReplyBody(e.target.value)}
+            onKeyDown={(e) => {
+              // With a keyboard and mouse, Return sends and Shift-Return adds
+              // a line, as in Messages on the Mac; on a phone Return is a line break.
+              if (e.key !== "Enter" || e.shiftKey || e.nativeEvent.isComposing || !window.matchMedia("(pointer: fine)").matches) return;
+              e.preventDefault();
+              e.currentTarget.form?.requestSubmit();
+            }}
             rows={1}
             maxRows={6}
             aria-label={`Reply to ${partnerLabel}`}

@@ -199,7 +199,7 @@ export default function NotesPage() {
 
   const reply = useCallback(async (rootId: string, recipientId: string, body: string, replyToId: string | null = null): Promise<NoteMessage> => {
     const msg = await replyToNote(rootId, recipientId, body, replyToId);
-    patchThread(rootId, { lastMessageAt: msg.createdAt, isUnreadForMe: false });
+    patchThread(rootId, { lastMessageAt: msg.createdAt, lastMessage: msg.body, isUnreadForMe: false });
     return msg;
   }, [patchThread]);
 
@@ -282,7 +282,7 @@ export default function NotesPage() {
   const demoReply = useCallback(async (rootId: string, _recipientId: string, body: string, replyToId: string | null = null): Promise<NoteMessage> => {
     const message: NoteMessage = { id: `demo-reply-${Date.now()}`, senderId: DEMO_ME_ID, isMine: true, body, createdAt: new Date().toISOString(), replyToId };
     demoRepliesRef.current = { ...demoRepliesRef.current, [rootId]: [...(demoRepliesRef.current[rootId] ?? []), message] };
-    demoSetField(rootId, { lastMessageAt: message.createdAt });
+    demoSetField(rootId, { lastMessageAt: message.createdAt, lastMessage: message.body });
     return message;
   }, [demoSetField]);
   const demoSend = useCallback(async (input: NewNoteInput) => {

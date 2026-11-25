@@ -41,6 +41,7 @@ export function buildDemoThreads(): NoteThread[] {
       body: "Bins go out tonight, not tomorrow — collection day changed this week.",
       createdAt: iso(1 * DAY),
       lastMessageAt: iso(20 * 60 * 60 * 1000),
+      lastMessage: "Got it, thanks for the heads up!",
       isUnreadForMe: false,
       isSeenByPartner: true,
       partnerReadAt: iso(20 * 60 * 60 * 1000),
