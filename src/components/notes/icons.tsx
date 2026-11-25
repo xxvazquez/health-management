@@ -5,7 +5,7 @@ import type { NoteCategory } from "@/lib/supabase/notes";
  * stroke currentColor, round caps/joins — kept local rather than shared
  * since Nav's version isn't exported and these are sized differently
  * (used inline at 14-16px, not the nav rail's fixed 18px). */
-function IconWrap({ size = 15, children }: { size?: number; children: ReactNode }) {
+function IconWrap({ size = 15, bold = false, children }: { size?: number; bold?: boolean; children: ReactNode }) {
   return (
     <svg
       width={size}
@@ -13,7 +13,7 @@ function IconWrap({ size = 15, children }: { size?: number; children: ReactNode 
       viewBox="0 0 20 20"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.7"
+      strokeWidth={bold ? 2.4 : 1.7}
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"
@@ -23,16 +23,15 @@ function IconWrap({ size = 15, children }: { size?: number; children: ReactNode 
   );
 }
 
-function NoteIcon(props: { size?: number }) {
+function NoteIcon(props: { size?: number; bold?: boolean }) {
   return (
     <IconWrap {...props}>
-      <path d="M5.5 3.5h9v13l-2.5-1.8-2 1.8-2-1.8-2.5 1.8Z" />
-      <path d="M7.5 7h5M7.5 9.5h5" />
+      <path d="M4 5.5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H9l-3.5 3v-3H6a2 2 0 0 1-2-2Z" />
     </IconWrap>
   );
 }
 
-function ReminderIcon(props: { size?: number }) {
+function ReminderIcon(props: { size?: number; bold?: boolean }) {
   return (
     <IconWrap {...props}>
       <path d="M5 14.5c0-3.5.5-6.5 5-6.5s5 3 5 6.5" />
@@ -43,7 +42,7 @@ function ReminderIcon(props: { size?: number }) {
   );
 }
 
-function AppreciationIcon(props: { size?: number }) {
+function AppreciationIcon(props: { size?: number; bold?: boolean }) {
   return (
     <IconWrap {...props}>
       <path d="M10 16.2c-4.6-2.8-6.4-5.3-6.4-7.8a3.4 3.4 0 0 1 6.4-1.6 3.4 3.4 0 0 1 6.4 1.6c0 2.5-1.8 5-6.4 7.8Z" />
@@ -51,25 +50,27 @@ function AppreciationIcon(props: { size?: number }) {
   );
 }
 
-function QuestionIcon(props: { size?: number }) {
+function QuestionIcon(props: { size?: number; bold?: boolean }) {
   return (
     <IconWrap {...props}>
-      <path d="M7.3 7.6a2.7 2.7 0 1 1 4.1 2.3c-.9.6-1.4 1-1.4 2.1" />
-      <path d="M10 14.9v.1" />
+      <circle cx="10" cy="10" r="7" />
+      <path d="M8 8.2a2.1 2.1 0 1 1 3 1.9c-.6.3-1 .7-1 1.5" />
+      <path d="M10 14v.1" />
     </IconWrap>
   );
 }
 
-const CATEGORY_ICON: Record<NoteCategory, (props: { size?: number }) => ReactNode> = {
+const CATEGORY_ICON: Record<NoteCategory, (props: { size?: number; bold?: boolean }) => ReactNode> = {
   note: NoteIcon,
   reminder: ReminderIcon,
   appreciation: AppreciationIcon,
   question: QuestionIcon,
 };
 
-export function CategoryIcon({ category, size }: { category: NoteCategory; size?: number }) {
+/** A message type's symbol; `bold` draws it heavier, for an unread row. */
+export function CategoryIcon({ category, size, bold }: { category: NoteCategory; size?: number; bold?: boolean }) {
   const Icon = CATEGORY_ICON[category];
-  return <Icon size={size} />;
+  return <Icon size={size} bold={bold} />;
 }
 
 export function StarIcon({ filled, size = 15 }: { filled: boolean; size?: number }) {

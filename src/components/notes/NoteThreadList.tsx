@@ -84,11 +84,11 @@ function ThreadRow({
   onDelete: () => void;
 }) {
   const { revealed, onTouchStart, onTouchEnd } = useSwipeReveal();
-  // The latest message is the row; its type is a small symbol under the time,
-  // left off for the everyday "General". A dot and bold text mark what you
-  // haven't read; whether the partner has read yours shows in the conversation.
+  // The type's symbol, then the latest message, then the time with the
+  // favourite star under it. Unread: a bold, tinted symbol and bold text;
+  // whether the partner has read yours shows in the conversation.
   const flagged = t.isUnreadForMe;
-  const type = t.category !== "note" ? NOTE_CATEGORY_LABEL[t.category] : null;
+  const typeLabel = NOTE_CATEGORY_LABEL[t.category];
   const preview = (t.lastMessage ?? t.body).replace(/\s+/g, " ").trim();
   const favourite = t.isFavourite;
 
@@ -119,33 +119,29 @@ function ThreadRow({
           onContextMenu={bind.onContextMenu}
           onClickCapture={bind.onClickCapture}
         >
-          <button type="button" onClick={() => onOpen(t.id)} className="flex min-w-0 flex-1 items-start gap-1.5 py-2.5 text-left">
-            <span className="mt-1.5 flex h-2 w-2 shrink-0 items-center justify-center">
-              {flagged && <span className="h-2 w-2 rounded-full" style={{ background: ACCENT }} aria-hidden="true" />}
+          <button type="button" onClick={() => onOpen(t.id)} className="flex min-w-0 flex-1 items-start gap-2.5 py-2.5 text-left">
+            {/* The type's symbol leads the row, heavier and in the accent while unread. */}
+            <span
+              className="mt-0.5 flex shrink-0 items-center justify-center"
+              style={{ color: flagged ? ACCENT : "var(--text-muted)" }}
+              role="img"
+              aria-label={flagged ? `${typeLabel}, unread` : typeLabel}
+            >
+              <CategoryIcon category={t.category} size={16} bold={flagged} />
             </span>
             <span className="min-w-0 flex-1">
               <span className="flex items-start gap-1.5">
                 <span className="line-clamp-2 min-w-0 flex-1 text-sm" style={{ fontWeight: flagged ? 600 : 400, color: "var(--text-primary)" }}>
                   {preview}
                 </span>
-                {/* Time on top, the type and favourite marks under it, so
-                    every time lines up whatever marks a row has. */}
+                {/* Time on top, the favourite star under it, so every time lines up. */}
                 <span className="flex shrink-0 flex-col items-end gap-1 pt-0.5">
                   <span className="text-xs whitespace-nowrap tabular-nums" style={{ color: "var(--text-muted)" }}>
                     {formatNoteTimestampShort(t.lastMessageAt)}
                   </span>
-                  {(type || favourite) && (
-                    <span className="flex items-center gap-1.5">
-                      {type && (
-                        <span style={{ color: "var(--text-muted)" }} role="img" aria-label={type}>
-                          <CategoryIcon category={t.category} size={13} />
-                        </span>
-                      )}
-                      {favourite && (
-                        <span style={{ color: ACCENT }} role="img" aria-label="Favourite">
-                          <StarIcon filled size={12} />
-                        </span>
-                      )}
+                  {favourite && (
+                    <span style={{ color: ACCENT }} role="img" aria-label="Favourite">
+                      <StarIcon filled size={12} />
                     </span>
                   )}
                 </span>
@@ -178,7 +174,7 @@ function ThreadRow({
 
 function ThreadGroup({ children }: { children: ReactNode }) {
   return (
-    <div className="inset-rows rounded-xl border [--row-inset:1.5rem]" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
+    <div className="inset-rows rounded-xl border [--row-inset:2.25rem]" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
       {children}
     </div>
   );

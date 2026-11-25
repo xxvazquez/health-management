@@ -48,12 +48,12 @@ function renderAll(threads: NoteThread[]) {
 }
 
 describe("NoteThreadList", () => {
-  it("shows the latest message with its type, leaving General unlabelled", () => {
+  it("leads each row with its type's symbol and shows the latest message", () => {
     renderAll([thread({ category: "appreciation", lastMessage: "See you at 7" }), thread({ id: "t2", senderId: "partner", recipientId: "me", isMine: false })]);
     expect(screen.getByText("See you at 7")).toBeTruthy();
     expect(screen.getByRole("img", { name: "Appreciation" })).toBeTruthy();
     expect(screen.getByText("Pasta tonight?")).toBeTruthy();
-    expect(screen.queryByRole("img", { name: "General" })).toBeNull();
+    expect(screen.getByRole("img", { name: "General" })).toBeTruthy();
     expect(screen.queryByText("Dinner plans")).toBeNull();
   });
 
@@ -72,6 +72,7 @@ describe("NoteThreadList", () => {
   it("marks a conversation with a message you haven't read", () => {
     renderAll([thread({ isUnreadForMe: true })]);
     expect(screen.getByText("Pasta tonight?").style.fontWeight).toBe("600");
+    expect(screen.getByRole("img", { name: "General, unread" })).toBeTruthy();
     expect(screen.getByLabelText("Mark as read")).toBeTruthy();
   });
 
