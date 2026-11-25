@@ -73,12 +73,28 @@ export function NoteThreadView({
   // the header and reply bar pin to what's on screen, not the page edges.
   const viewport = useVisualViewportInsets();
   const keyboardUp = useSoftKeyboardOpen();
-  // Like Messages: with the keyboard up the thread fills the screen, newest
-  // bubbles right above the reply bar, and opening it scrolls to them.
-  useEffect(() => {
-    if (!keyboardUp) return;
-    const frame = requestAnimationFrame(() => window.scrollTo({ top: document.documentElement.scrollHeight }));
-    return () => cancelAnimationFrame(frame);
+  // Like Messages: with the keyboard up the conversation becomes a fixed
+  // layer over exactly the visible area — header on top, reply bar on the
+  // keyboard, bubbles scrolling between — so typing never moves the page.
+  const listRef = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const list = listRef.current;
+    if (!keyboardUp || !list) return;
+    list.scrollTop = list.scrollHeight;
+    // A growing reply field shrinks the list; keep the newest bubble in view.
+    let atEnd = true;
+    const onScroll = () => {
+      atEnd = list.scrollTop + list.clientHeight >= list.scrollHeight - 8;
+    };
+    const observer = new ResizeObserver(() => {
+      if (atEnd) list.scrollTop = list.scrollHeight;
+    });
+    list.addEventListener("scroll", onScroll, { passive: true });
+    observer.observe(list);
+    return () => {
+      list.removeEventListener("scroll", onScroll);
+      observer.disconnect();
+    };
   }, [keyboardUp]);
   useEffect(() => {
     document.documentElement.setAttribute("data-conversation", "");
@@ -131,6 +147,13 @@ export function NoteThreadView({
       shownCount.current = null;
       return;
     }
+    const list = listRef.current;
+    if (keyboardUp && list) {
+      const grewWhilePinned = shownCount.current !== null && messages.length > shownCount.current;
+      shownCount.current = messages.length;
+      if (grewWhilePinned) list.scrollTo({ top: list.scrollHeight, behavior: "smooth" });
+      return;
+    }
     // The newest bubble sits right above the pinned reply bar — the end of
     // the conversation, not the end of the page (the footer stays below).
     const root = rootRef.current;
@@ -143,6 +166,8 @@ export function NoteThreadView({
     const grew = !first && messages.length > (shownCount.current ?? 0) && (messages[messages.length - 1].isMine || nearBottom);
     shownCount.current = messages.length;
     if (first || grew) window.scrollTo({ top: end, behavior: first ? "auto" : "smooth" });
+    // Only a change in messages scrolls; the keyboard has its own effect above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages]);
 
   async function handleReply(e: FormEvent) {
@@ -242,12 +267,20 @@ export function NoteThreadView({
   ];
 
   return (
-    <div ref={rootRef} className="flex min-h-[calc(100dvh-58px-env(safe-area-inset-bottom))] flex-col gap-4 lg:min-h-[calc(100dvh-4rem)]" style={keyboardUp ? { minHeight: "100dvh" } : undefined}>
+    <div
+      ref={rootRef}
+      className={
+        keyboardUp
+          ? "fixed inset-x-0 z-40 flex flex-col gap-4 px-4 sm:px-6"
+          : "flex min-h-[calc(100dvh-58px-env(safe-area-inset-bottom))] flex-col gap-4 lg:min-h-[calc(100dvh-4rem)]"
+      }
+      style={keyboardUp ? { top: viewport.top, bottom: viewport.bottom, background: "var(--page-backdrop)" } : undefined}
+    >
       {/* Pinned like Messages' navigation bar, so Back and the title stay
           in reach in a long conversation; it clears the notch on a phone. */}
       <div
         className="sticky top-0 z-10 -mx-4 -mt-[env(safe-area-inset-top)] grid grid-cols-[1fr_minmax(0,auto)_1fr] items-center gap-2 px-4 pt-[calc(env(safe-area-inset-top)+0.5rem)] pb-2 sm:-mx-6 sm:px-6 lg:mx-0 lg:px-0"
-        style={{ background: "var(--page-backdrop)", borderBottom: "1px solid var(--border-hairline)", top: viewport.top || undefined, marginBottom: keyboardUp ? "auto" : undefined }}
+        style={{ background: "var(--page-backdrop)", borderBottom: "1px solid var(--border-hairline)", ...(keyboardUp ? { position: "relative", top: 0, marginTop: 0 } : { top: viewport.top || undefined }) }}
       >
         <button type="button" onClick={onBack} className="hit-slop justify-self-start text-sm font-medium" style={{ color: ACCENT }}>
           ‹ Back
@@ -295,7 +328,9 @@ export function NoteThreadView({
       )}
 
       {messages && (
-        <div className="flex flex-col gap-1.5">
+        <div ref={listRef} className={keyboardUp ? "-mx-4 flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto overscroll-contain px-4 sm:-mx-6 sm:px-6" : "flex flex-col gap-1.5"}>
+          {/* Few bubbles sit at the bottom, right above the reply bar. */}
+          {keyboardUp && <div className="mt-auto" aria-hidden="true" />}
           {messages.map((m, i) => {
             const prev = messages[i - 1];
             // A centred time heads each burst of messages, like Messages does,
@@ -344,7 +379,7 @@ export function NoteThreadView({
       <div
         ref={replyBarRef}
         className="sticky bottom-[calc(58px+env(safe-area-inset-bottom))] z-10 -mx-4 mt-auto flex flex-col gap-1 px-4 py-2 sm:-mx-6 sm:px-6 lg:bottom-0 lg:mx-0 lg:px-0 lg:pb-4"
-        style={{ background: "var(--page-backdrop)", bottom: keyboardUp ? viewport.bottom : undefined, marginTop: keyboardUp ? 0 : undefined }}
+        style={{ background: "var(--page-backdrop)", ...(keyboardUp ? { position: "relative", bottom: 0 } : null) }}
       >
         <form
           onSubmit={handleReply}

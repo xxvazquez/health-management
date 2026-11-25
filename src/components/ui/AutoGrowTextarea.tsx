@@ -65,6 +65,15 @@ function scrollParent(el: HTMLElement): HTMLElement | null {
   return null;
 }
 
+/** True when `el` rides in a pinned bar, which keeps itself in view. */
+function isPinned(el: HTMLElement): boolean {
+  for (let p = el.parentElement; p; p = p.parentElement) {
+    const { position } = getComputedStyle(p);
+    if (position === "sticky" || position === "fixed") return true;
+  }
+  return false;
+}
+
 /** A <textarea> that grows with its content instead of scrolling, so a long
  * note scrolls with the sheet or page around it rather than inside itself.
  * `rows` is the starting/minimum height; pass `maxRows` only where the field
@@ -111,6 +120,7 @@ export function AutoGrowTextarea({
     if (!edited || !el || document.activeElement !== el || el.selectionEnd !== el.value.length || el.style.overflowY === "auto") return;
     const vv = window.visualViewport;
     const parent = scrollParent(el);
+    if (!parent && isPinned(el)) return;
     // A scrolling sheet is already sized to the space above the keyboard; on
     // the page itself the keyboard and the phone tab bar cover the bottom.
     let viewBottom = parent ? parent.getBoundingClientRect().bottom : Math.min(window.innerHeight, vv ? vv.offsetTop + vv.height : window.innerHeight);

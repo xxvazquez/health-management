@@ -29,14 +29,13 @@ function thread(overrides: Partial<NoteThread>): NoteThread {
   };
 }
 
-function renderSent(t: NoteThread) {
+function renderAll(threads: NoteThread[]) {
   render(
     <NoteThreadList
-      threads={[t]}
+      threads={threads}
       loading={false}
       error={false}
-      view="sent"
-      partnerLabel="your partner"
+      view="all"
       onOpen={() => {}}
       onToggleFavourite={noop}
       onMarkRead={noop}
@@ -46,23 +45,23 @@ function renderSent(t: NoteThread) {
   );
 }
 
-describe("NoteThreadList on Sent", () => {
-  it("flags a message the partner hasn't opened", () => {
-    renderSent(thread({}));
-    expect(screen.getByText("Not read yet")).toBeTruthy();
-    expect(screen.getByText("Dinner plans").style.fontWeight).toBe("600");
-    expect(screen.queryByLabelText("Mark as unread")).toBeNull();
+describe("NoteThreadList", () => {
+  it("lists conversations either partner started in one list", () => {
+    renderAll([thread({}), thread({ id: "t2", subject: "Weekend", senderId: "partner", recipientId: "me", isMine: false })]);
+    expect(screen.getByText("Dinner plans")).toBeTruthy();
+    expect(screen.getByText("Weekend")).toBeTruthy();
   });
 
-  it("shows a preview, not a read stamp, once the partner has read it", () => {
-    renderSent(thread({ isSeenByPartner: true, partnerReadAt: "2026-09-20T19:30:00.000Z" }));
-    expect(screen.queryByText(/Read /)).toBeNull();
+  it("shows a read conversation with its preview and no unread weight", () => {
+    renderAll([thread({ isSeenByPartner: true, partnerReadAt: "2026-09-20T19:30:00.000Z" })]);
     expect(screen.getByText("Pasta tonight?")).toBeTruthy();
     expect(screen.getByText("Dinner plans").style.fontWeight).toBe("500");
+    expect(screen.getByLabelText("Mark as unread")).toBeTruthy();
   });
 
-  it("calls out a reply you haven't opened", () => {
-    renderSent(thread({ isUnreadForMe: true, isSeenByPartner: true, partnerReadAt: "2026-09-21T08:00:00.000Z" }));
-    expect(screen.getByText("New reply")).toBeTruthy();
+  it("marks a conversation with a message you haven't read", () => {
+    renderAll([thread({ isUnreadForMe: true })]);
+    expect(screen.getByText("Dinner plans").style.fontWeight).toBe("600");
+    expect(screen.getByLabelText("Mark as read")).toBeTruthy();
   });
 });

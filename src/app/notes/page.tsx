@@ -42,8 +42,7 @@ const ACCENT = "var(--series-magenta)";
 const PARTNER_LABEL = "your partner";
 
 const VIEWS: { id: NoteView; label: string }[] = [
-  { id: "inbox", label: "Inbox" },
-  { id: "sent", label: "Sent" },
+  { id: "all", label: "All" },
   { id: "favourites", label: "Favourites" },
 ];
 
@@ -55,9 +54,7 @@ const NOTES_TABLES = ["notes"] as const;
 let partnerLinkCache: { userId: string; link: PartnerLink | null } | null = null;
 
 function matchesView(t: NoteThread, view: NoteView): boolean {
-  if (view === "inbox") return !t.isMine;
-  if (view === "sent") return t.isMine;
-  return t.isFavouritedByMe;
+  return view === "all" || t.isFavouritedByMe;
 }
 
 /** Connect -> Notes: private partner-to-partner messages, deliberately
@@ -104,16 +101,14 @@ export default function NotesPage() {
     void loadPartner();
   }, [session, loadPartner]);
 
-  const [view, setView] = useState<NoteView>("inbox");
+  const [view, setView] = useState<NoteView>("all");
   const [threads, setThreads] = useState<NoteThread[]>([]);
   const [threadsLoading, setThreadsLoading] = useState(true);
   const [threadsError, setThreadsError] = useState(false);
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
   // Set only via the `?thread=` deep link (see the effect below) — a
-  // thread linked from outside (Overview's Partner Notes preview) might not
-  // be in whichever tab's `threads` list is currently loaded (it could be
-  // Sent while Inbox is open, say), so it's fetched and held separately
-  // rather than requiring it to already be in `threads`.
+  // thread linked from outside might not be in the loaded list yet (Favourites
+  // open, say), so it's fetched and held separately.
   const [directThread, setDirectThread] = useState<NoteThread | null>(null);
   const [composeOpen, setComposeOpen] = useState(false);
 
@@ -178,7 +173,7 @@ export default function NotesPage() {
 
   const send = useCallback(async (input: NewNoteInput) => {
     const id = await sendNote(input);
-    if (accountId && view === "sent") {
+    if (accountId && view === "all") {
       const nowIso = new Date().toISOString();
       setThreads((prev) => [
         {
@@ -218,7 +213,7 @@ export default function NotesPage() {
   }, [threads]);
 
   // One-time deep-link resolution: `/notes?thread=<id>` opens that thread
-  // directly regardless of which tab it belongs to. Only meaningful once a
+  // directly regardless of which list is loaded. Only meaningful once a
   // partner is actually linked — demo mode's own thread ids are already in
   // `demoThreads` regardless of tab, so it never needs this fetch at all.
   useEffect(() => {
@@ -361,7 +356,6 @@ export default function NotesPage() {
               loading={false}
               error={false}
               view={view}
-              partnerLabel={DEMO_PARTNER_LABEL}
               onOpen={openThread}
               onToggleFavourite={demoToggleFavourite}
               onMarkRead={demoMarkRead}
@@ -425,7 +419,6 @@ export default function NotesPage() {
             loading={threadsLoading}
             error={threadsError}
             view={view}
-            partnerLabel={partnerLabel}
             onOpen={openThread}
             onToggleFavourite={toggleFavourite}
             onMarkRead={markRead}

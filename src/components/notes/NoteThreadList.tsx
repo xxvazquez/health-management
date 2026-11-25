@@ -30,8 +30,7 @@ export function formatNoteTimestampShort(iso: string): string {
 }
 
 const VIEW_EMPTY_COPY: Record<NoteView, { title: string; description: string }> = {
-  inbox: { title: "Nothing in your inbox", description: "Messages your partner sends you will show up here." },
-  sent: { title: "Nothing sent yet", description: "Tap New message to send your partner something." },
+  all: { title: "No messages yet", description: "Tap + to send your partner something." },
   favourites: { title: "No favourites yet", description: "Star a message to keep it easy to find here." },
 };
 
@@ -70,8 +69,6 @@ function RowAction({
  * a small star by the time marks a favourite without opening them. */
 function ThreadRow({
   thread: t,
-  view,
-  partnerLabel,
   busy,
   onOpen,
   onToggleFavourite,
@@ -79,8 +76,6 @@ function ThreadRow({
   onMarkUnread,
 }: {
   thread: NoteThread;
-  view: NoteView;
-  partnerLabel: string;
   busy: boolean;
   onOpen: (id: string) => void;
   onToggleFavourite: () => void;
@@ -88,18 +83,10 @@ function ThreadRow({
   onMarkUnread: () => void;
 }) {
   const { revealed, onTouchStart, onTouchEnd } = useSwipeReveal();
-  // On Sent the dot also means "your partner hasn't opened it yet" —
-  // separate from `isUnreadForMe` (a reply you haven't opened), so a
-  // still-unseen note stays flagged even once you've reread it.
-  const sent = view === "sent";
-  const flagged = t.isUnreadForMe || (sent && !t.isSeenByPartner);
-  // Like Mail: a status only when it asks for something, then the
-  // category when it isn't the everyday one, then a preview of the message.
-  const status = t.isUnreadForMe ? "New reply" : sent && !t.isSeenByPartner ? "Not read yet" : null;
-  const meta = [
-    view === "favourites" ? (t.isMine ? `To ${partnerLabel}` : `From ${partnerLabel}`) : null,
-    t.category !== "note" ? NOTE_CATEGORY_LABEL[t.category] : null,
-  ].filter(Boolean);
+  // Like Messages: a dot and a bolder title mark what you haven't read, then
+  // the category when it isn't the everyday one, then a preview.
+  const flagged = t.isUnreadForMe;
+  const meta = t.category !== "note" ? NOTE_CATEGORY_LABEL[t.category] : null;
   const [firstLine, ...rest] = t.body.trim().split("\n");
   const title = t.subject || firstLine;
   const preview = (t.subject ? t.body : rest.join(" ")).replace(/\s+/g, " ").trim();
@@ -129,19 +116,11 @@ function ThreadRow({
               {formatNoteTimestampShort(t.lastMessageAt)}
             </span>
           </span>
-          {(status || meta.length > 0 || preview) && (
+          {(meta || preview) && (
             <span className="mt-0.5 line-clamp-2 text-xs" style={{ color: "var(--text-secondary)" }}>
-              {status && (
+              {meta && (
                 <>
-                  <span className="font-medium" style={{ color: ACCENT }}>
-                    {status}
-                  </span>
-                  {(meta.length > 0 || preview) && " · "}
-                </>
-              )}
-              {meta.length > 0 && (
-                <>
-                  {meta.join(" · ")}
+                  {meta}
                   {preview && " · "}
                 </>
               )}
@@ -155,7 +134,7 @@ function ThreadRow({
         <RowAction onClick={onToggleFavourite} active={t.isFavouritedByMe} label={t.isFavouritedByMe ? "Remove favourite" : "Favourite"} disabled={busy}>
           <StarIcon filled={t.isFavouritedByMe} size={14} />
         </RowAction>
-        {sent ? null : t.isUnreadForMe ? (
+        {t.isUnreadForMe ? (
           <RowAction onClick={onMarkRead} label="Mark as read" disabled={busy}>
             <EyeIcon size={15} />
           </RowAction>
@@ -174,7 +153,6 @@ export function NoteThreadList({
   loading,
   error,
   view,
-  partnerLabel,
   onOpen,
   onToggleFavourite,
   onMarkRead,
@@ -185,7 +163,6 @@ export function NoteThreadList({
   loading: boolean;
   error: boolean;
   view: NoteView;
-  partnerLabel: string;
   onOpen: (id: string) => void;
   /** Favourite and read/unread work without opening a note first (delete
    * lives inside the open thread). Injected
@@ -226,8 +203,6 @@ export function NoteThreadList({
         <ThreadRow
           key={t.id}
           thread={t}
-          view={view}
-          partnerLabel={partnerLabel}
           busy={busyId === t.id}
           onOpen={onOpen}
           onToggleFavourite={() => void run(t.id, () => onToggleFavourite(t.id, t.isMine, !t.isFavouritedByMe))}

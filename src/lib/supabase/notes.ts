@@ -22,7 +22,7 @@ export const NOTE_CATEGORY_LABEL: Record<NoteCategory, string> = {
   question: "Question",
 };
 
-export type NoteView = "inbox" | "sent" | "favourites";
+export type NoteView = "all" | "favourites";
 
 /** One row per top-level note (`thread_root_id is null`) — the unit the
  * Notes page's three lists are built from. Replies live under it (see
@@ -45,16 +45,15 @@ export interface NoteThread {
    * lists sort by. */
   lastMessageAt: string;
   isUnreadForMe: boolean;
-  /** Has the other side read up to the thread's latest message yet — what
-   * Sent uses to flag a message your partner hasn't opened. */
+  /** Has the other side read up to the thread's latest message yet — the
+   * conversation's "Delivered" / "Read" receipt. */
   isSeenByPartner: boolean;
-  /** When the other side last opened the thread — Sent's "Read …" stamp. */
+  /** When the other side last opened the thread — the "Read …" stamp. */
   partnerReadAt: string | null;
   /** Shared between both partners — either can star or unstar a thread and
    * it shows under Favourites for both. */
   isFavouritedByMe: boolean;
-  /** Did *I* send the root note — i.e. is this "my" note from Sent, or one
-   * I received into Inbox. Favourites cuts across both. */
+  /** Did *I* send the root note — decides which side's read column is mine. */
   isMine: boolean;
 }
 
@@ -137,30 +136,28 @@ function toThread(row: NoteRow, myUserId: string): NoteThread {
 const THREAD_COLUMNS =
   "id, sender_id, recipient_id, thread_root_id, category, subject, body, created_at, last_message_at, sender_read_at, recipient_read_at, sender_favourited, recipient_favourited";
 
-/** The three Notes page lists. Inbox/Sent split by who sent the root note
- * (classic email semantics — a partner's reply doesn't move a thread out
- * of Sent, it just makes it unread there again); Favourites is a shared
- * thread flag (either side toggles it for both). */
+/** The Messages lists. All is every conversation either partner started,
+ * newest activity first, like Messages; Favourites is a shared thread flag
+ * (either side toggles it for both). */
 export async function fetchNoteThreads(view: NoteView): Promise<NoteThread[]> {
   if (!supabase) return [];
   const myUserId = await currentUserId();
   if (!myUserId) return [];
 
   let query = supabase.from("notes").select(THREAD_COLUMNS).is("thread_root_id", null);
-  if (view === "inbox") query = query.eq("recipient_id", myUserId);
-  else if (view === "sent") query = query.eq("sender_id", myUserId);
-  // Shared flag — RLS already scopes this to threads I'm part of.
-  else query = query.or("sender_favourited.eq.true,recipient_favourited.eq.true");
+  const fav = "or(sender_favourited.eq.true,recipient_favourited.eq.true)";
+  query =
+    view === "favourites"
+      ? query.or(`and(sender_id.eq.${myUserId},${fav}),and(recipient_id.eq.${myUserId},${fav})`)
+      : query.or(`sender_id.eq.${myUserId},recipient_id.eq.${myUserId}`);
 
   const { data, error } = await query.order("last_message_at", { ascending: false });
   if (error) throw error;
   return (data as NoteRow[]).map((row) => toThread(row, myUserId));
 }
 
-/** One specific thread by its root id, regardless of which of the four
- * tabs it'd normally show up under — for a deep link (`/notes?thread=<id>`)
- * that has to resolve a thread without knowing or caring whether it's
- * currently in Inbox, Sent or Favourites. RLS still applies as normal (only
+/** One specific thread by its root id, regardless of which list is loaded —
+ * for a deep link (`/notes?thread=<id>`). RLS still applies as normal (only
  * a participant's own query returns anything), so this can't leak a
  * thread that `fetchNoteThreads` wouldn't eventually surface anyway. */
 export async function fetchNoteThread(id: string): Promise<NoteThread | null> {
@@ -347,11 +344,9 @@ export async function deleteThread(threadId: string): Promise<void> {
   notifyNotesChanged();
 }
 
-/** Clears unread across every thread at once — both the ones sent to the
- * caller (recipient_read_at) and any of their own that got a reply since
- * they last opened it (sender_read_at). Two bulk updates instead of one
- * because a single row can't be both "my sent thread" and "my inbox
- * thread" at once, so each column only ever needs the caller's own side. */
+/** Clears unread across every thread at once — both the ones the partner
+ * started (recipient_read_at) and the caller's own (sender_read_at). Two
+ * bulk updates because each row only ever needs the caller's own side. */
 export async function markAllThreadsRead(loadedThreads: NoteThread[] = []): Promise<void> {
   const myUserId = await currentUserId();
   if (!myUserId || !supabase) return;
