@@ -22,7 +22,7 @@ const thread: NoteThread = {
   isUnreadForMe: false,
   isSeenByPartner: true,
   partnerReadAt: null,
-  isFavouritedByMe: false,
+  isPinned: false,
   isMine: false,
 };
 
@@ -41,7 +41,7 @@ function renderThread(onReply = vi.fn(async (_root: string, _to: string, body: s
       fetchMessages={async () => messages}
       onMarkRead={noop}
       onMarkUnread={noop}
-      onToggleFavourite={noop}
+      onTogglePin={noop}
       onDelete={noop}
       onReply={onReply}
       onRemind={async () => true}

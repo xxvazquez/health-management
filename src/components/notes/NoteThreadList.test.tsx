@@ -23,7 +23,7 @@ function thread(overrides: Partial<NoteThread>): NoteThread {
     isUnreadForMe: false,
     isSeenByPartner: false,
     partnerReadAt: null,
-    isFavouritedByMe: false,
+    isPinned: false,
     isMine: true,
     ...overrides,
   };
@@ -35,11 +35,13 @@ function renderAll(threads: NoteThread[]) {
       threads={threads}
       loading={false}
       error={false}
-      view="all"
+      partnerLabel="your partner"
       onOpen={() => {}}
-      onToggleFavourite={noop}
+      onTogglePin={noop}
       onMarkRead={noop}
       onMarkUnread={noop}
+      onDelete={noop}
+      onPinnedCollapsedChange={() => {}}
       onChanged={() => {}}
     />,
   );
@@ -57,6 +59,18 @@ describe("NoteThreadList", () => {
     expect(screen.getByText("Pasta tonight?")).toBeTruthy();
     expect(screen.getByText("Dinner plans").style.fontWeight).toBe("500");
     expect(screen.getByLabelText("Mark as unread")).toBeTruthy();
+  });
+
+  it("groups pinned conversations on top", () => {
+    renderAll([thread({}), thread({ id: "t2", subject: "Weekend", isPinned: true })]);
+    const pinnedHeading = screen.getByText("Pinned");
+    expect(pinnedHeading.compareDocumentPosition(screen.getByText("Weekend")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getByText("Weekend").compareDocumentPosition(screen.getByText("Dinner plans")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("previews the latest message", () => {
+    renderAll([thread({ lastMessage: "See you at 7" })]);
+    expect(screen.getByText("See you at 7")).toBeTruthy();
   });
 
   it("marks a conversation with a message you haven't read", () => {

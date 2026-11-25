@@ -36,7 +36,7 @@ Five main areas, in the phone tab bar and the desktop sidebar. Messages appears 
 | **Trends** | `/analytics` | A dashboard per Log domain, plus Patterns |
 | **Health** | `/medical` | Visits, lab Results, Vitals, Doctors |
 | **Notes** | `/personal` | Journal (an unsaved entry is kept on the device until saved or discarded; can be locked behind Face ID), Wishlist (search finds items across lists), shared discount Codes (one list; tap Copy, the row to edit, or swipe left for Delete). A recipe, wishlist item or code can be shared from its sheet |
-| **Messages** | `/notes` | Private messages with a linked partner: one All list of conversations (newest activity first, whoever started them, previewing the latest message) plus Favourites; Return sends on desktop (Shift-Return for a new line); reply to a specific message (long-press, or ↩ on hover) and it's quoted in your bubble; a conversation's ⋯ menu reminds your partner about a message they haven't read, or deletes it for both after a confirmation |
+| **Messages** | `/notes` | Private messages with a linked partner, one topic per conversation: a single list (newest activity first, previewing the latest message) with a foldable Pinned group on top; swipe, hover or long-press a row to pin, mark read/unread or delete; a new message is a subject and the text (kind optional); Return sends on desktop (Shift-Return for a new line); reply to a specific message (long-press, or ↩ on hover) and it's quoted in your bubble; a conversation's ⋯ menu reminds your partner about a message they haven't read, or deletes it for both after a confirmation |
 
 Secondary pages:
 

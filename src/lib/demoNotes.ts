@@ -29,7 +29,7 @@ export function buildDemoThreads(): NoteThread[] {
       isUnreadForMe: true,
       isSeenByPartner: true,
       partnerReadAt: iso(2 * 60 * 60 * 1000),
-      isFavouritedByMe: false,
+      isPinned: false,
       isMine: false,
     },
     {
@@ -45,7 +45,7 @@ export function buildDemoThreads(): NoteThread[] {
       isUnreadForMe: false,
       isSeenByPartner: true,
       partnerReadAt: iso(20 * 60 * 60 * 1000),
-      isFavouritedByMe: false,
+      isPinned: false,
       isMine: true,
     },
     {
@@ -60,7 +60,7 @@ export function buildDemoThreads(): NoteThread[] {
       isUnreadForMe: false,
       isSeenByPartner: true,
       partnerReadAt: iso(3 * DAY),
-      isFavouritedByMe: true,
+      isPinned: true,
       isMine: false,
     },
     {
@@ -75,7 +75,7 @@ export function buildDemoThreads(): NoteThread[] {
       isUnreadForMe: false,
       isSeenByPartner: true,
       partnerReadAt: iso(20 * DAY),
-      isFavouritedByMe: false,
+      isPinned: false,
       isMine: true,
     },
     {
@@ -90,7 +90,7 @@ export function buildDemoThreads(): NoteThread[] {
       isUnreadForMe: false,
       isSeenByPartner: false,
       partnerReadAt: null,
-      isFavouritedByMe: false,
+      isPinned: false,
       isMine: true,
     },
   ];

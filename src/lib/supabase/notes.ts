@@ -22,12 +22,10 @@ export const NOTE_CATEGORY_LABEL: Record<NoteCategory, string> = {
   question: "Question",
 };
 
-export type NoteView = "all" | "favourites";
-
 /** One row per top-level note (`thread_root_id is null`) — the unit the
  * Notes page's three lists are built from. Replies live under it (see
  * `fetchThreadMessages`) but never appear as their own list entry; a
- * thread's read/favourite state always reflects the *root's* own
+ * thread's read/pinned state always reflects the *root's* own
  * columns, resolved to "mine" vs "theirs" via `isMine` here so nothing
  * downstream has to know which of sender/recipient the viewer is. */
 export interface NoteThread {
@@ -51,9 +49,9 @@ export interface NoteThread {
   isSeenByPartner: boolean;
   /** When the other side last opened the thread — the "Read …" stamp. */
   partnerReadAt: string | null;
-  /** Shared between both partners — either can star or unstar a thread and
-   * it shows under Favourites for both. */
-  isFavouritedByMe: boolean;
+  /** Pinned — shared between both partners, either can pin or unpin it.
+   * Stored in the `*_favourited` columns. */
+  isPinned: boolean;
   /** Did *I* send the root note — decides which side's read column is mine. */
   isMine: boolean;
 }
@@ -129,7 +127,7 @@ function toThread(row: NoteRow, myUserId: string): NoteThread {
     isUnreadForMe: !myReadAt || myReadAt < row.last_message_at,
     isSeenByPartner: !!partnerReadAt && partnerReadAt >= row.last_message_at,
     partnerReadAt,
-    isFavouritedByMe: row.sender_favourited || row.recipient_favourited,
+    isPinned: row.sender_favourited || row.recipient_favourited,
     isMine,
   };
 }
@@ -137,20 +135,15 @@ function toThread(row: NoteRow, myUserId: string): NoteThread {
 const THREAD_COLUMNS =
   "id, sender_id, recipient_id, thread_root_id, category, subject, body, created_at, last_message_at, sender_read_at, recipient_read_at, sender_favourited, recipient_favourited";
 
-/** The Messages lists. All is every conversation either partner started,
- * newest activity first, like Messages; Favourites is a shared thread flag
- * (either side toggles it for both). */
-export async function fetchNoteThreads(view: NoteView): Promise<NoteThread[]> {
+/** Every conversation either partner started, newest activity first, like
+ * Messages. Pinned ones (the shared `*_favourited` flag) are grouped by the list. */
+export async function fetchNoteThreads(): Promise<NoteThread[]> {
   if (!supabase) return [];
   const myUserId = await currentUserId();
   if (!myUserId) return [];
 
   let query = supabase.from("notes").select(THREAD_COLUMNS).is("thread_root_id", null);
-  const fav = "or(sender_favourited.eq.true,recipient_favourited.eq.true)";
-  query =
-    view === "favourites"
-      ? query.or(`and(sender_id.eq.${myUserId},${fav}),and(recipient_id.eq.${myUserId},${fav})`)
-      : query.or(`sender_id.eq.${myUserId},recipient_id.eq.${myUserId}`);
+  query = query.or(`sender_id.eq.${myUserId},recipient_id.eq.${myUserId}`);
 
   const { data, error } = await query.order("last_message_at", { ascending: false });
   if (error) throw error;
@@ -320,24 +313,24 @@ export async function replyToNote(rootId: string, recipientId: string, body: str
 async function updateMyThreadState(
   threadId: string,
   isMine: boolean,
-  patch: { readAt?: string | null; favourited?: boolean },
+  patch: { readAt?: string | null; pinned?: boolean },
 ): Promise<void> {
   const myUserId = await currentUserId();
   if (!myUserId) return;
-  // Only my own read column, or both favourite columns — never an
+  // Only my own read column, or both pin columns — never an
   // identity column, so the notes_lock_identity_columns trigger is happy.
   const update: Record<string, unknown> = { id: threadId };
   if (patch.readAt !== undefined) update[isMine ? "sender_read_at" : "recipient_read_at"] = patch.readAt;
-  // Favourite is a shared thread flag — write both sides so it shows under
-  // Favourites for both partners and either can clear it (the RLS update
+  // Pinned is a shared thread flag — write both sides so it's pinned for
+  // both partners and either can clear it (the RLS update
   // policy already allows either participant to write the root row).
-  if (patch.favourited !== undefined) {
-    update.sender_favourited = patch.favourited;
-    update.recipient_favourited = patch.favourited;
+  if (patch.pinned !== undefined) {
+    update.sender_favourited = patch.pinned;
+    update.recipient_favourited = patch.pinned;
   }
   await updateDirect(myUserId, "notes", threadId, update);
   // read/unread changes what counts as unread — cheap
-  // enough to fire for favourite too rather than threading a "does this
+  // enough to fire for pin too rather than threading a "does this
   // actually affect the badge" flag through every call site.
   notifyNotesChanged();
 }
@@ -348,8 +341,8 @@ export function markThreadRead(threadId: string, isMine: boolean): Promise<void>
 export function markThreadUnread(threadId: string, isMine: boolean): Promise<void> {
   return updateMyThreadState(threadId, isMine, { readAt: null });
 }
-export function setThreadFavourited(threadId: string, isMine: boolean, favourited: boolean): Promise<void> {
-  return updateMyThreadState(threadId, isMine, { favourited });
+export function setThreadPinned(threadId: string, isMine: boolean, pinned: boolean): Promise<void> {
+  return updateMyThreadState(threadId, isMine, { pinned });
 }
 /** Deletes a whole conversation for both partners — the root row, with
  * every reply removed by the database's cascade. */

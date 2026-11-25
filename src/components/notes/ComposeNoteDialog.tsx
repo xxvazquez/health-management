@@ -82,6 +82,34 @@ export function ComposeNoteDialog({
         </p>
       }
     >
+      {/* Like a Mail compose: the subject on its own line, then the message,
+          and the kind tucked below, already set to General. */}
+      <FormGroup>
+        <div className="px-3.5 py-2.5">
+          <input
+            value={subject}
+            onChange={(e) => setSubject(e.target.value)}
+            maxLength={120}
+            placeholder="Subject"
+            aria-label="Subject"
+            className={ROW_TEXT_CLS}
+            style={ROW_STYLE}
+          />
+        </div>
+        <div className="px-3.5 py-2.5">
+          <AutoGrowTextarea
+            required
+            autoFocus
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            rows={5}
+            placeholder="Message"
+            aria-label="Message"
+            className={`${ROW_TEXT_CLS} resize-none leading-relaxed`}
+            style={ROW_STYLE}
+          />
+        </div>
+      </FormGroup>
       <FormGroup>
         <Field label="Kind" inline>
           <RowMenu
@@ -90,19 +118,6 @@ export function ComposeNoteDialog({
             ariaLabel="Kind"
             accent={ACCENT}
             options={NOTE_CATEGORIES.map((c) => ({ value: c, label: NOTE_CATEGORY_LABEL[c] }))}
-          />
-        </Field>
-        <Field label="Subject · optional">
-          <input value={subject} onChange={(e) => setSubject(e.target.value)} maxLength={120} className={ROW_TEXT_CLS} style={ROW_STYLE} />
-        </Field>
-        <Field label="Message">
-          <AutoGrowTextarea
-            required
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-            rows={5}
-            className={`${ROW_TEXT_CLS} resize-none leading-relaxed`}
-            style={ROW_STYLE}
           />
         </Field>
       </FormGroup>
