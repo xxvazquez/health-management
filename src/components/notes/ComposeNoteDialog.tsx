@@ -12,7 +12,7 @@ import { NOTE_CATEGORIES, NOTE_CATEGORY_LABEL, type NewNoteInput, type NoteCateg
 const ACCENT = "var(--series-magenta)";
 
 /** New top-level note only — replying happens inline in the thread view
- * (see NoteThreadView), which needs no category/subject picker since a
+ * (see NoteThreadView), which needs no type picker since a
  * reply just continues the existing conversation. */
 export function ComposeNoteDialog({
   open,
@@ -35,7 +35,6 @@ export function ComposeNoteDialog({
   onSent: () => void;
 }) {
   const [category, setCategory] = useState<NoteCategory>("note");
-  const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -45,7 +44,6 @@ export function ComposeNoteDialog({
     setWasOpen(open);
     if (open) {
       setCategory("note");
-      setSubject("");
       setBody("");
       setError(null);
     }
@@ -59,7 +57,7 @@ export function ComposeNoteDialog({
     setSending(true);
     setError(null);
     try {
-      await onSend({ recipientId: partnerId, category, subject, body });
+      await onSend({ recipientId: partnerId, category, subject: "", body });
       onSent();
       onClose();
     } catch (err) {
@@ -82,20 +80,17 @@ export function ComposeNoteDialog({
         </p>
       }
     >
-      {/* Like a Mail compose: the subject on its own line, then the message,
-          and the kind tucked below, already set to General. */}
+      {/* Just the type and the message, like starting a text. */}
       <FormGroup>
-        <div className="px-3.5 py-2.5">
-          <input
-            value={subject}
-            onChange={(e) => setSubject(e.target.value)}
-            maxLength={120}
-            placeholder="Subject"
-            aria-label="Subject"
-            className={ROW_TEXT_CLS}
-            style={ROW_STYLE}
+        <Field label="Type" inline>
+          <RowMenu
+            value={category}
+            onChange={(v) => setCategory(v as NoteCategory)}
+            ariaLabel="Type"
+            accent={ACCENT}
+            options={NOTE_CATEGORIES.map((c) => ({ value: c, label: NOTE_CATEGORY_LABEL[c] }))}
           />
-        </div>
+        </Field>
         <div className="px-3.5 py-2.5">
           <AutoGrowTextarea
             required
@@ -109,17 +104,6 @@ export function ComposeNoteDialog({
             style={ROW_STYLE}
           />
         </div>
-      </FormGroup>
-      <FormGroup>
-        <Field label="Kind" inline>
-          <RowMenu
-            value={category}
-            onChange={(v) => setCategory(v as NoteCategory)}
-            ariaLabel="Kind"
-            accent={ACCENT}
-            options={NOTE_CATEGORIES.map((c) => ({ value: c, label: NOTE_CATEGORY_LABEL[c] }))}
-          />
-        </Field>
       </FormGroup>
 
       {error && (

@@ -2,7 +2,7 @@
 
 import { ListSkeleton } from "@/components/ui/Skeleton";
 import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
-import { TAPBACKS, type NoteMessage, type NoteThread, type Tapback } from "@/lib/supabase/notes";
+import { NOTE_CATEGORY_LABEL, TAPBACKS, type NoteMessage, type NoteThread, type Tapback } from "@/lib/supabase/notes";
 import { EyeOffIcon, StarIcon } from "./icons";
 import { formatNoteTimestamp, formatNoteTimestampShort } from "./NoteThreadList";
 import { AutoGrowTextarea } from "@/components/ui/AutoGrowTextarea";
@@ -303,9 +303,9 @@ export function NoteThreadView({
         <button type="button" onClick={onBack} className="hit-slop justify-self-start text-sm font-medium" style={{ color: ACCENT }}>
           ‹ Back
         </button>
-        {/* Like Messages, the bar is titled by the conversation itself. */}
+        {/* Like Messages, the bar names the conversation: its subject, or its type. */}
         <h2 className="min-w-0 truncate text-center text-base font-semibold" style={{ color: "var(--text-primary)" }}>
-          {thread.subject || thread.body.trim().split("\n")[0]}
+          {thread.subject || NOTE_CATEGORY_LABEL[thread.category]}
         </h2>
         <div className="justify-self-end">
           <MoreMenu disabled={busy} items={menuItems} />

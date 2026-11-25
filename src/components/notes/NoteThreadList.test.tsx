@@ -48,44 +48,35 @@ function renderAll(threads: NoteThread[]) {
 }
 
 describe("NoteThreadList", () => {
-  it("lists conversations either partner started in one list", () => {
-    renderAll([thread({}), thread({ id: "t2", subject: "Weekend", senderId: "partner", recipientId: "me", isMine: false })]);
-    expect(screen.getByText("Dinner plans")).toBeTruthy();
-    expect(screen.getByText("Weekend")).toBeTruthy();
+  it("shows the latest message with its type, leaving General unlabelled", () => {
+    renderAll([thread({ category: "appreciation", lastMessage: "See you at 7" }), thread({ id: "t2", senderId: "partner", recipientId: "me", isMine: false })]);
+    expect(screen.getByText("See you at 7")).toBeTruthy();
+    expect(screen.getByRole("img", { name: "Appreciation" })).toBeTruthy();
+    expect(screen.getByText("Pasta tonight?")).toBeTruthy();
+    expect(screen.queryByRole("img", { name: "General" })).toBeNull();
+    expect(screen.queryByText("Dinner plans")).toBeNull();
   });
 
-  it("shows a read conversation with its preview and no unread weight", () => {
-    renderAll([thread({ isSeenByPartner: true, partnerReadAt: "2026-09-20T19:30:00.000Z" })]);
-    expect(screen.getByText(/Pasta tonight\?/)).toBeTruthy();
-    expect(screen.getByText("Dinner plans").style.fontWeight).toBe("400");
+  it("keeps read status out of the row", () => {
+    renderAll([thread({}), thread({ id: "t2", isSeenByPartner: true })]);
+    expect(screen.queryByText("Not read yet")).toBeNull();
+    expect(screen.queryByText("Read")).toBeNull();
+  });
+
+  it("shows a read conversation in plain weight", () => {
+    renderAll([thread({})]);
+    expect(screen.getByText("Pasta tonight?").style.fontWeight).toBe("400");
     expect(screen.getByLabelText("Mark as unread")).toBeTruthy();
   });
 
-  it("says whether the partner has read my latest message", () => {
-    renderAll([thread({}), thread({ id: "t2", subject: "Weekend", isSeenByPartner: true })]);
-    expect(screen.getByText("Not read yet")).toBeTruthy();
-    expect(screen.getByText("Read")).toBeTruthy();
-  });
-
-  it("shows no read receipt when the partner wrote last", () => {
-    renderAll([thread({ lastMessage: "Sounds good", lastMessageIsMine: false })]);
-    expect(screen.queryByText("Not read yet")).toBeNull();
-    expect(screen.queryByText("Read")).toBeNull();
+  it("marks a conversation with a message you haven't read", () => {
+    renderAll([thread({ isUnreadForMe: true })]);
+    expect(screen.getByText("Pasta tonight?").style.fontWeight).toBe("600");
+    expect(screen.getByLabelText("Mark as read")).toBeTruthy();
   });
 
   it("stars a favourite", () => {
     renderAll([thread({ isFavourite: true })]);
     expect(screen.getByRole("img", { name: "Favourite" })).toBeTruthy();
-  });
-
-  it("previews the latest message", () => {
-    renderAll([thread({ lastMessage: "See you at 7" })]);
-    expect(screen.getByText(/See you at 7/)).toBeTruthy();
-  });
-
-  it("marks a conversation with a message you haven't read", () => {
-    renderAll([thread({ isUnreadForMe: true })]);
-    expect(screen.getByText("Dinner plans").style.fontWeight).toBe("600");
-    expect(screen.getByLabelText("Mark as read")).toBeTruthy();
   });
 });

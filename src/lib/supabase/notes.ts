@@ -43,9 +43,6 @@ export interface NoteThread {
   /** The newest reply's text, the list row's preview like Messages; absent
    * while the thread is just its opening message. */
   lastMessage?: string | null;
-  /** Did I send the newest message — the list then shows whether the
-   * partner has read it; absent means the opening message is the newest. */
-  lastMessageIsMine?: boolean;
   isUnreadForMe: boolean;
   /** Has the other side read up to the thread's latest message yet — the
    * conversation's "Delivered" / "Read" receipt. */
@@ -166,19 +163,16 @@ export async function fetchNoteThreads(): Promise<NoteThread[]> {
   // Newest reply per thread, for the row preview.
   const { data: replies, error: repliesError } = await supabase
     .from("notes")
-    .select("thread_root_id, body, sender_id")
+    .select("thread_root_id, body")
     .in("thread_root_id", threads.map((t) => t.id))
     .or(`sender_id.eq.${myUserId},recipient_id.eq.${myUserId}`)
     .order("created_at", { ascending: false });
   if (repliesError) throw repliesError;
-  const latest = new Map<string, { body: string; sender_id: string }>();
-  for (const r of replies as { thread_root_id: string; body: string; sender_id: string }[]) {
-    if (!latest.has(r.thread_root_id)) latest.set(r.thread_root_id, r);
+  const latest = new Map<string, string>();
+  for (const r of replies as { thread_root_id: string; body: string }[]) {
+    if (!latest.has(r.thread_root_id)) latest.set(r.thread_root_id, r.body);
   }
-  return threads.map((t) => {
-    const last = latest.get(t.id);
-    return { ...t, lastMessage: last?.body ?? null, lastMessageIsMine: last ? last.sender_id === myUserId : t.isMine };
-  });
+  return threads.map((t) => ({ ...t, lastMessage: latest.get(t.id) ?? null }));
 }
 
 /** One specific thread by its root id, regardless of which list is loaded —

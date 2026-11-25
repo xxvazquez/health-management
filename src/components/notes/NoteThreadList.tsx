@@ -3,7 +3,7 @@
 import { useState, type ReactNode } from "react";
 import clsx from "clsx";
 import { SWIPE_REVEAL_CLASS, useSwipeReveal } from "@/lib/useSwipeReveal";
-import { EyeIcon, EyeOffIcon, StarIcon } from "./icons";
+import { CategoryIcon, EyeIcon, EyeOffIcon, StarIcon } from "./icons";
 import { TrashIcon } from "@/components/ui/Notebook";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { CONTEXT_OPEN_STYLE, ContextMenu } from "@/components/ui/ContextMenu";
@@ -84,16 +84,12 @@ function ThreadRow({
   onDelete: () => void;
 }) {
   const { revealed, onTouchStart, onTouchEnd } = useSwipeReveal();
-  // Unread for me: a dot, a bold title and a darker preview, like Mail.
-  // When I sent the newest message, the line says whether my partner has
-  // read it yet.
+  // The latest message is the row; its type is a small symbol under the time,
+  // left off for the everyday "General". A dot and bold text mark what you
+  // haven't read; whether the partner has read yours shows in the conversation.
   const flagged = t.isUnreadForMe;
-  const lastIsMine = t.lastMessageIsMine ?? t.isMine;
-  const status = flagged ? null : lastIsMine ? (t.isSeenByPartner ? "Read" : "Not read yet") : null;
-  const meta = t.category !== "note" ? NOTE_CATEGORY_LABEL[t.category] : null;
-  const [firstLine, ...rest] = t.body.trim().split("\n");
-  const title = t.subject || firstLine;
-  const preview = (t.lastMessage ?? (t.subject ? t.body : rest.join(" "))).replace(/\s+/g, " ").trim();
+  const type = t.category !== "note" ? NOTE_CATEGORY_LABEL[t.category] : null;
+  const preview = (t.lastMessage ?? t.body).replace(/\s+/g, " ").trim();
   const favourite = t.isFavourite;
 
   return (
@@ -128,38 +124,32 @@ function ThreadRow({
               {flagged && <span className="h-2 w-2 rounded-full" style={{ background: ACCENT }} aria-hidden="true" />}
             </span>
             <span className="min-w-0 flex-1">
-              <span className="flex items-center gap-1.5">
-                <span className="min-w-0 flex-1 truncate text-sm" style={{ fontWeight: flagged ? 600 : 400, color: "var(--text-primary)" }}>
-                  {title}
-                </span>
-                {favourite && (
-                  <span className="shrink-0" style={{ color: ACCENT }} role="img" aria-label="Favourite">
-                    <StarIcon filled size={11} />
-                  </span>
-                )}
-                <span className="shrink-0 text-xs whitespace-nowrap tabular-nums" style={{ color: "var(--text-muted)" }}>
-                  {formatNoteTimestampShort(t.lastMessageAt)}
-                </span>
-              </span>
-              {(status || meta || preview) && (
-                <span className="mt-0.5 line-clamp-2 text-xs" style={{ color: flagged ? "var(--text-primary)" : "var(--text-secondary)" }}>
-                  {status && (
-                    <>
-                      <span className="font-medium" style={{ color: t.isSeenByPartner ? "var(--text-muted)" : ACCENT }}>
-                        {status}
-                      </span>
-                      {(meta || preview) && " · "}
-                    </>
-                  )}
-                  {meta && (
-                    <>
-                      {meta}
-                      {preview && " · "}
-                    </>
-                  )}
+              <span className="flex items-start gap-1.5">
+                <span className="line-clamp-2 min-w-0 flex-1 text-sm" style={{ fontWeight: flagged ? 600 : 400, color: "var(--text-primary)" }}>
                   {preview}
                 </span>
-              )}
+                {/* Time on top, the type and favourite marks under it, so
+                    every time lines up whatever marks a row has. */}
+                <span className="flex shrink-0 flex-col items-end gap-1 pt-0.5">
+                  <span className="text-xs whitespace-nowrap tabular-nums" style={{ color: "var(--text-muted)" }}>
+                    {formatNoteTimestampShort(t.lastMessageAt)}
+                  </span>
+                  {(type || favourite) && (
+                    <span className="flex items-center gap-1.5">
+                      {type && (
+                        <span style={{ color: "var(--text-muted)" }} role="img" aria-label={type}>
+                          <CategoryIcon category={t.category} size={13} />
+                        </span>
+                      )}
+                      {favourite && (
+                        <span style={{ color: ACCENT }} role="img" aria-label="Favourite">
+                          <StarIcon filled size={12} />
+                        </span>
+                      )}
+                    </span>
+                  )}
+                </span>
+              </span>
             </span>
           </button>
 

@@ -42,7 +42,6 @@ export function buildDemoThreads(): NoteThread[] {
       createdAt: iso(1 * DAY),
       lastMessageAt: iso(20 * 60 * 60 * 1000),
       lastMessage: "Got it, thanks for the heads up!",
-      lastMessageIsMine: false,
       isUnreadForMe: false,
       isSeenByPartner: true,
       partnerReadAt: iso(20 * 60 * 60 * 1000),
