@@ -9,9 +9,17 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { CONTEXT_OPEN_STYLE, ContextMenu } from "@/components/ui/ContextMenu";
 import { ErrorState, InlineEmpty } from "@/components/ui/EmptyState";
 import { ListSkeleton } from "@/components/ui/Skeleton";
-import { NOTE_CATEGORY_LABEL, type NoteThread, type NoteView } from "@/lib/supabase/notes";
+import { NOTE_CATEGORY_LABEL, type NoteCategory, type NoteThread, type NoteView } from "@/lib/supabase/notes";
 
 const ACCENT = "var(--series-magenta)";
+
+/** Each message type's colour for its icon circle in the list. */
+const TYPE_COLOR: Record<NoteCategory, string> = {
+  question: "var(--series-2)",
+  appreciation: "var(--series-4)",
+  reminder: "var(--series-activity)",
+  note: "var(--series-other)",
+};
 
 /** The centred stamp over a burst of messages: "Wed, 29 Sep at 23:50", with
  * the year added once it isn't this year. */
@@ -88,9 +96,9 @@ function ThreadRow({
   onDelete: () => void;
 }) {
   const { revealed, onTouchStart, onTouchEnd } = useSwipeReveal();
-  // The type's symbol, then the latest message, then the time with the
-  // favourite star under it. Unread: a bold, tinted symbol and bold text;
-  // whether the partner has read yours shows in the conversation.
+  // The type's icon circle, then the latest message, then the time with the
+  // favourite star under it. Unread: a solid circle, primary semibold text and
+  // an accent time; read rows drop to secondary text.
   const flagged = t.isUnreadForMe;
   const typeLabel = NOTE_CATEGORY_LABEL[t.category];
   const preview = (t.lastMessage ?? t.body).replace(/\s+/g, " ").trim();
@@ -123,24 +131,27 @@ function ThreadRow({
           onContextMenu={bind.onContextMenu}
           onClickCapture={bind.onClickCapture}
         >
-          <button type="button" onClick={() => onOpen(t.id)} className="flex min-w-0 flex-1 items-start gap-2.5 py-2.5 text-left">
-            {/* The type's symbol leads the row, heavier and in the accent while unread. */}
+          <button type="button" onClick={() => onOpen(t.id)} className="flex min-w-0 flex-1 items-center gap-2.5 py-2.5 text-left">
             <span
-              className="mt-0.5 flex shrink-0 items-center justify-center"
-              style={{ color: flagged ? ACCENT : "var(--text-muted)" }}
+              className="flex size-8 shrink-0 items-center justify-center rounded-full"
+              style={
+                flagged
+                  ? { background: TYPE_COLOR[t.category], color: "var(--on-accent)" }
+                  : { background: `color-mix(in oklab, ${TYPE_COLOR[t.category]} var(--tint-pct), transparent)`, color: TYPE_COLOR[t.category] }
+              }
               role="img"
               aria-label={flagged ? `${typeLabel}, unread` : typeLabel}
             >
-              <CategoryIcon category={t.category} size={16} bold={flagged} />
+              <CategoryIcon category={t.category} size={17} bold={flagged} />
             </span>
             <span className="min-w-0 flex-1">
               <span className="flex items-start gap-1.5">
-                <span className="line-clamp-2 min-w-0 flex-1 text-sm" style={{ fontWeight: flagged ? 600 : 400, color: "var(--text-primary)" }}>
+                <span className="line-clamp-2 min-w-0 flex-1 text-sm" style={{ fontWeight: flagged ? 600 : 400, color: flagged ? "var(--text-primary)" : "var(--text-secondary)" }}>
                   {preview}
                 </span>
                 {/* Time on top, the favourite star under it, so every time lines up. */}
                 <span className="flex shrink-0 flex-col items-end gap-1 pt-0.5">
-                  <span className="text-xs whitespace-nowrap tabular-nums" style={{ color: "var(--text-muted)" }}>
+                  <span className="text-xs whitespace-nowrap tabular-nums" style={flagged ? { color: ACCENT, fontWeight: 600 } : { color: "var(--text-muted)" }}>
                     {formatNoteTimestampShort(t.lastMessageAt)}
                   </span>
                   {favourite && (
@@ -178,7 +189,7 @@ function ThreadRow({
 
 function ThreadGroup({ children }: { children: ReactNode }) {
   return (
-    <div className="inset-rows rounded-xl border [--row-inset:2.25rem]" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
+    <div className="inset-rows rounded-xl border [--row-inset:3.25rem]" style={{ borderColor: "var(--border-hairline)", background: "var(--surface-1)" }}>
       {children}
     </div>
   );
