@@ -3,7 +3,7 @@
 import { ListSkeleton } from "@/components/ui/Skeleton";
 import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import { NOTE_CATEGORY_LABEL, TAPBACKS, type NoteMessage, type NoteThread, type Tapback } from "@/lib/supabase/notes";
-import { CategoryIcon, EyeOffIcon, StarIcon } from "./icons";
+import { CategoryIcon, EyeOffIcon, NOTE_TYPE_COLOR, StarIcon } from "./icons";
 import { formatNoteTimestamp, formatNoteTimestampShort } from "./NoteThreadList";
 import { AutoGrowTextarea } from "@/components/ui/AutoGrowTextarea";
 import { keepFieldFocus } from "@/components/ui/SearchField";
@@ -306,7 +306,7 @@ export function NoteThreadView({
         {/* Like Messages, the bar names the conversation — its type's icon as in
             the list, then an older subject or the type. */}
         <h2 className="flex min-w-0 items-center justify-center gap-1.5 text-base font-semibold" style={{ color: "var(--text-primary)" }}>
-          <span className="shrink-0" style={{ color: ACCENT }} aria-hidden="true">
+          <span className="shrink-0" style={{ color: NOTE_TYPE_COLOR[thread.category] }} aria-hidden="true">
             <CategoryIcon category={thread.category} size={16} />
           </span>
           <span className="truncate">{thread.subject || NOTE_CATEGORY_LABEL[thread.category]}</span>

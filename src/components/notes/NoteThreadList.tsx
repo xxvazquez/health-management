@@ -3,23 +3,16 @@
 import { useState, type ReactNode } from "react";
 import clsx from "clsx";
 import { SWIPE_REVEAL_CLASS, useSwipeReveal } from "@/lib/useSwipeReveal";
-import { CategoryIcon, EyeIcon, EyeOffIcon, StarIcon } from "./icons";
+import { CategoryIcon, EyeIcon, EyeOffIcon, NOTE_TYPE_COLOR, StarIcon } from "./icons";
 import { TrashIcon } from "@/components/ui/Notebook";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { CONTEXT_OPEN_STYLE, ContextMenu } from "@/components/ui/ContextMenu";
 import { ErrorState, InlineEmpty } from "@/components/ui/EmptyState";
 import { ListSkeleton } from "@/components/ui/Skeleton";
-import { NOTE_CATEGORY_LABEL, type NoteCategory, type NoteThread, type NoteView } from "@/lib/supabase/notes";
+import { NOTE_CATEGORY_LABEL, type NoteThread, type NoteView } from "@/lib/supabase/notes";
 
 const ACCENT = "var(--series-magenta)";
 
-/** Each message type's colour for its icon circle in the list. */
-const TYPE_COLOR: Record<NoteCategory, string> = {
-  question: "var(--series-2)",
-  appreciation: "var(--series-4)",
-  reminder: "var(--series-activity)",
-  note: "var(--series-other)",
-};
 
 /** The centred stamp over a burst of messages: "Wed, 29 Sep at 23:50", with
  * the year added once it isn't this year. */
@@ -136,8 +129,8 @@ function ThreadRow({
               className="flex size-8 shrink-0 items-center justify-center rounded-full"
               style={
                 flagged
-                  ? { background: TYPE_COLOR[t.category], color: "var(--on-accent)" }
-                  : { background: `color-mix(in oklab, ${TYPE_COLOR[t.category]} var(--tint-pct), transparent)`, color: TYPE_COLOR[t.category] }
+                  ? { background: NOTE_TYPE_COLOR[t.category], color: "var(--on-accent)" }
+                  : { background: `color-mix(in oklab, ${NOTE_TYPE_COLOR[t.category]} var(--tint-pct), transparent)`, color: NOTE_TYPE_COLOR[t.category] }
               }
               role="img"
               aria-label={flagged ? `${typeLabel}, unread` : typeLabel}

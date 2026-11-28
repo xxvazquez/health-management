@@ -67,6 +67,14 @@ const CATEGORY_ICON: Record<NoteCategory, (props: { size?: number; bold?: boolea
   question: QuestionIcon,
 };
 
+/** Each message type's colour, for its icon in the list and conversation header. */
+export const NOTE_TYPE_COLOR: Record<NoteCategory, string> = {
+  question: "var(--series-2)",
+  appreciation: "var(--series-4)",
+  reminder: "var(--series-activity)",
+  note: "var(--series-other)",
+};
+
 /** A message type's symbol; `bold` draws it heavier, for an unread row. */
 export function CategoryIcon({ category, size, bold }: { category: NoteCategory; size?: number; bold?: boolean }) {
   const Icon = CATEGORY_ICON[category];
