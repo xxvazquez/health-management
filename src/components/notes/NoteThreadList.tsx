@@ -96,8 +96,8 @@ function ThreadRow({
   onDelete: () => void;
 }) {
   const { revealed, onTouchStart, onTouchEnd } = useSwipeReveal();
-  // The type's icon circle, then the latest message, then the time with the
-  // favourite star under it. Unread: a solid circle, primary semibold text and
+  // The type's icon circle, then the latest message, then the favourite star
+  // and the time. Unread: a solid circle, primary semibold text and
   // an accent time; read rows drop to secondary text.
   const flagged = t.isUnreadForMe;
   const typeLabel = NOTE_CATEGORY_LABEL[t.category];
@@ -149,16 +149,16 @@ function ThreadRow({
                 <span className="line-clamp-2 min-w-0 flex-1 text-sm" style={{ fontWeight: flagged ? 600 : 400, color: flagged ? "var(--text-primary)" : "var(--text-secondary)" }}>
                   {preview}
                 </span>
-                {/* Time on top, the favourite star under it, so every time lines up. */}
-                <span className="flex shrink-0 flex-col items-end gap-1 pt-0.5">
-                  <span className="text-xs whitespace-nowrap tabular-nums" style={flagged ? { color: ACCENT, fontWeight: 600 } : { color: "var(--text-muted)" }}>
-                    {formatNoteTimestampShort(t.lastMessageAt)}
-                  </span>
+                {/* The favourite star sits just left of the time, on one line. */}
+                <span className="flex shrink-0 items-center gap-1 pt-0.5">
                   {favourite && (
                     <span style={{ color: ACCENT }} role="img" aria-label="Favourite">
                       <StarIcon filled size={12} />
                     </span>
                   )}
+                  <span className="text-xs whitespace-nowrap tabular-nums" style={flagged ? { color: ACCENT, fontWeight: 600 } : { color: "var(--text-muted)" }}>
+                    {formatNoteTimestampShort(t.lastMessageAt)}
+                  </span>
                 </span>
               </span>
             </span>
