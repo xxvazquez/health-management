@@ -490,16 +490,18 @@ const TAPBACK_GLYPH: Record<Tapback, string> = {
   like: "👍",
   dislike: "👎",
   laugh: "😂",
-  emphasize: "‼️",
-  question: "❓",
+  sad: "😢",
+  kiss: "😘",
+  cute: "🥰",
 };
 const TAPBACK_LABEL: Record<Tapback, string> = {
   heart: "Heart",
   like: "Like",
   dislike: "Dislike",
   laugh: "Laugh",
-  emphasize: "Emphasize",
-  question: "Question",
+  sad: "Sad",
+  kiss: "Kiss",
+  cute: "Cute",
 };
 
 /** One message. A long-press (phone) or right-click opens Messages' tapback

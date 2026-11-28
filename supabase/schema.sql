@@ -664,8 +664,8 @@ create table public.notes (
   reply_to_id uuid references public.notes(id) on delete set null,
   -- Any message: a tapback reaction from this row's own sender / recipient.
   -- Each side only ever writes its own column.
-  sender_tapback text check (sender_tapback in ('heart', 'like', 'dislike', 'laugh', 'emphasize', 'question')),
-  recipient_tapback text check (recipient_tapback in ('heart', 'like', 'dislike', 'laugh', 'emphasize', 'question'))
+  sender_tapback text check (sender_tapback in ('heart', 'like', 'dislike', 'laugh', 'sad', 'kiss', 'cute')),
+  recipient_tapback text check (recipient_tapback in ('heart', 'like', 'dislike', 'laugh', 'sad', 'kiss', 'cute'))
 );
 
 create index notes_recipient_idx on public.notes (recipient_id, last_message_at desc) where thread_root_id is null;

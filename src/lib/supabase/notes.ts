@@ -60,7 +60,7 @@ export interface NoteThread {
 export type NoteView = "all" | "favourites";
 
 /** iMessage's six tapbacks, as stored in `notes.*_tapback`. */
-export const TAPBACKS = ["heart", "like", "dislike", "laugh", "emphasize", "question"] as const;
+export const TAPBACKS = ["heart", "like", "dislike", "laugh", "sad", "kiss", "cute"] as const;
 export type Tapback = (typeof TAPBACKS)[number];
 
 export interface NoteMessage {
